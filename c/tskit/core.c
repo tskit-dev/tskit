@@ -570,7 +570,7 @@ tsk_blkalloc_init(tsk_blkalloc_t *self, size_t chunk_size)
 {
     int ret = 0;
 
-    memset(self, 0, sizeof(tsk_blkalloc_t));
+    tsk_memset(self, 0, sizeof(tsk_blkalloc_t));
     if (chunk_size < 1) {
         ret = TSK_ERR_BAD_PARAM_VALUE;
         goto out;
@@ -581,12 +581,12 @@ tsk_blkalloc_init(tsk_blkalloc_t *self, size_t chunk_size)
     self->total_allocated = 0;
     self->total_size = 0;
     self->num_chunks = 0;
-    self->mem_chunks = malloc(sizeof(char *));
+    self->mem_chunks = tsk_malloc(sizeof(char *));
     if (self->mem_chunks == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    self->mem_chunks[0] = malloc(chunk_size);
+    self->mem_chunks[0] = tsk_malloc(chunk_size);
     if (self->mem_chunks[0] == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -708,4 +708,46 @@ tsk_is_unknown_time(double val)
     } nan_union;
     nan_union.f = val;
     return nan_union.i == TSK_UNKNOWN_TIME_HEX;
+}
+
+void *
+tsk_malloc(size_t size)
+{
+    return malloc((size_t) size);
+}
+
+void *
+tsk_realloc(void *ptr, size_t size)
+{
+    return realloc(ptr, (size_t) size);
+}
+
+void *
+tsk_calloc(size_t n, size_t size)
+{
+    return calloc((size_t) n, size);
+}
+
+void *
+tsk_memset(void *ptr, int fill, size_t size)
+{
+    return memset(ptr, fill, (size_t) size);
+}
+
+void *
+tsk_memcpy(void *dest, const void *src, size_t size)
+{
+    return memcpy(dest, src, (size_t) size);
+}
+
+void *
+tsk_memmove(void *dest, const void *src, size_t size)
+{
+    return memmove(dest, src, (size_t) size);
+}
+
+int
+tsk_memcmp(const void *s1, const void *s2, size_t size)
+{
+    return memcmp(s1, s2, (size_t) size);
 }

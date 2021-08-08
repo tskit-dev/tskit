@@ -480,7 +480,7 @@ expand_column(void **column, tsk_size_t new_max_rows, size_t element_size)
     int ret = 0;
     void *tmp;
 
-    tmp = realloc((void **) *column, new_max_rows * element_size);
+    tmp = tsk_realloc((void **) *column, new_max_rows * element_size);
     if (tmp == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -531,12 +531,12 @@ replace_string(
     *str = NULL;
     *len = new_len;
     if (new_len > 0) {
-        *str = malloc(new_len * sizeof(char));
+        *str = tsk_malloc(new_len * sizeof(char));
         if (*str == NULL) {
             ret = TSK_ERR_NO_MEMORY;
             goto out;
         }
-        memcpy(*str, new_str, new_len * sizeof(char));
+        tsk_memcpy(*str, new_str, new_len * sizeof(char));
     }
 out:
     return ret;
@@ -670,7 +670,7 @@ tsk_individual_table_init(tsk_individual_table_t *self, tsk_flags_t TSK_UNUSED(o
 {
     int ret = 0;
 
-    memset(self, 0, sizeof(tsk_individual_table_t));
+    tsk_memset(self, 0, sizeof(tsk_individual_table_t));
     /* Allocate space for one row initially, ensuring we always have valid pointers
      * even if the table is empty */
     self->max_rows_increment = 1;
@@ -776,7 +776,7 @@ tsk_individual_table_append_columns(tsk_individual_table_t *self, tsk_size_t num
     if (ret != 0) {
         goto out;
     }
-    memcpy(self->flags + self->num_rows, flags, num_rows * sizeof(tsk_flags_t));
+    tsk_memcpy(self->flags + self->num_rows, flags, num_rows * sizeof(tsk_flags_t));
     if (location == NULL) {
         for (j = 0; j < num_rows; j++) {
             self->location_offset[self->num_rows + j + 1]
@@ -796,7 +796,7 @@ tsk_individual_table_append_columns(tsk_individual_table_t *self, tsk_size_t num
         if (ret != 0) {
             goto out;
         }
-        memcpy(self->location + self->location_length, location,
+        tsk_memcpy(self->location + self->location_length, location,
             location_length * sizeof(double));
         self->location_length += location_length;
     }
@@ -819,7 +819,7 @@ tsk_individual_table_append_columns(tsk_individual_table_t *self, tsk_size_t num
         if (ret != 0) {
             goto out;
         }
-        memcpy(self->parents + self->parents_length, parents,
+        tsk_memcpy(self->parents + self->parents_length, parents,
             parents_length * sizeof(tsk_id_t));
         self->parents_length += parents_length;
     }
@@ -842,7 +842,7 @@ tsk_individual_table_append_columns(tsk_individual_table_t *self, tsk_size_t num
         if (ret != 0) {
             goto out;
         }
-        memcpy(self->metadata + self->metadata_length, metadata,
+        tsk_memcpy(self->metadata + self->metadata_length, metadata,
             metadata_length * sizeof(char));
         self->metadata_length += metadata_length;
     }
@@ -864,15 +864,15 @@ tsk_individual_table_add_row_internal(tsk_individual_table_t *self, tsk_flags_t 
     tsk_bug_assert(self->metadata_length + metadata_length <= self->max_metadata_length);
     tsk_bug_assert(self->location_length + location_length <= self->max_location_length);
     self->flags[self->num_rows] = flags;
-    memmove(self->location + self->location_length, location,
+    tsk_memmove(self->location + self->location_length, location,
         location_length * sizeof(*self->location));
     self->location_offset[self->num_rows + 1] = self->location_length + location_length;
     self->location_length += location_length;
-    memmove(self->parents + self->parents_length, parents,
+    tsk_memmove(self->parents + self->parents_length, parents,
         parents_length * sizeof(*self->parents));
     self->parents_offset[self->num_rows + 1] = self->parents_length + parents_length;
     self->parents_length += parents_length;
-    memmove(self->metadata + self->metadata_length, metadata,
+    tsk_memmove(self->metadata + self->metadata_length, metadata,
         metadata_length * sizeof(*self->metadata));
     self->metadata_offset[self->num_rows + 1] = self->metadata_length + metadata_length;
     self->metadata_length += metadata_length;
@@ -925,7 +925,7 @@ tsk_individual_table_update_row_rewrite(tsk_individual_table_t *self, tsk_id_t i
     if (ret != 0) {
         goto out;
     }
-    rows = malloc(self->num_rows * sizeof(*rows));
+    rows = tsk_malloc(self->num_rows * sizeof(*rows));
     if (rows == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -971,13 +971,13 @@ tsk_individual_table_update_row(tsk_individual_table_t *self, tsk_id_t index,
         && current_row.parents_length == parents_length
         && current_row.metadata_length == metadata_length) {
         self->flags[index] = flags;
-        /* Note: important to use memmove here as we may be provided pointers
+        /* Note: important to use tsk_memmove here as we may be provided pointers
          * to the column memory as input via get_row */
-        memmove(&self->location[self->location_offset[index]], location,
+        tsk_memmove(&self->location[self->location_offset[index]], location,
             location_length * sizeof(*location));
-        memmove(&self->parents[self->parents_offset[index]], parents,
+        tsk_memmove(&self->parents[self->parents_offset[index]], parents,
             parents_length * sizeof(*parents));
-        memmove(&self->metadata[self->metadata_offset[index]], metadata,
+        tsk_memmove(&self->metadata[self->metadata_offset[index]], metadata,
             metadata_length * sizeof(*metadata));
     } else {
         ret = tsk_individual_table_update_row_rewrite(self, index, flags, location,
@@ -1220,30 +1220,30 @@ tsk_individual_table_equals(const tsk_individual_table_t *self,
 {
     bool ret
         = self->num_rows == other->num_rows
-          && memcmp(self->flags, other->flags, self->num_rows * sizeof(tsk_flags_t)) == 0
-          && memcmp(self->location_offset, other->location_offset,
+          && tsk_memcmp(self->flags, other->flags, self->num_rows * sizeof(tsk_flags_t)) == 0
+          && tsk_memcmp(self->location_offset, other->location_offset,
                  (self->num_rows + 1) * sizeof(tsk_size_t))
                  == 0
-          && memcmp(
+          && tsk_memcmp(
                  self->location, other->location, self->location_length * sizeof(double))
                  == 0
-          && memcmp(self->parents_offset, other->parents_offset,
+          && tsk_memcmp(self->parents_offset, other->parents_offset,
                  (self->num_rows + 1) * sizeof(tsk_size_t))
                  == 0
-          && memcmp(
+          && tsk_memcmp(
                  self->parents, other->parents, self->parents_length * sizeof(tsk_id_t))
                  == 0;
 
     if (!(options & TSK_CMP_IGNORE_METADATA)) {
         ret = ret && self->metadata_length == other->metadata_length
               && self->metadata_schema_length == other->metadata_schema_length
-              && memcmp(self->metadata_offset, other->metadata_offset,
+              && tsk_memcmp(self->metadata_offset, other->metadata_offset,
                      (self->num_rows + 1) * sizeof(tsk_size_t))
                      == 0
-              && memcmp(self->metadata, other->metadata,
+              && tsk_memcmp(self->metadata, other->metadata,
                      self->metadata_length * sizeof(char))
                      == 0
-              && memcmp(self->metadata_schema, other->metadata_schema,
+              && tsk_memcmp(self->metadata_schema, other->metadata_schema,
                      self->metadata_schema_length * sizeof(char))
                      == 0;
     }
@@ -1407,7 +1407,7 @@ tsk_node_table_init(tsk_node_table_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
 
-    memset(self, 0, sizeof(tsk_node_table_t));
+    tsk_memset(self, 0, sizeof(tsk_node_table_t));
     /* Allocate space for one row initially, ensuring we always have valid pointers
      * even if the table is empty */
     self->max_rows_increment = 1;
@@ -1488,8 +1488,8 @@ tsk_node_table_append_columns(tsk_node_table_t *self, tsk_size_t num_rows,
     if (ret != 0) {
         goto out;
     }
-    memcpy(self->time + self->num_rows, time, num_rows * sizeof(double));
-    memcpy(self->flags + self->num_rows, flags, num_rows * sizeof(tsk_flags_t));
+    tsk_memcpy(self->time + self->num_rows, time, num_rows * sizeof(double));
+    tsk_memcpy(self->flags + self->num_rows, flags, num_rows * sizeof(tsk_flags_t));
     if (metadata == NULL) {
         for (j = 0; j < num_rows; j++) {
             self->metadata_offset[self->num_rows + j + 1] = self->metadata_length;
@@ -1508,22 +1508,22 @@ tsk_node_table_append_columns(tsk_node_table_t *self, tsk_size_t num_rows,
         if (ret != 0) {
             goto out;
         }
-        memcpy(self->metadata + self->metadata_length, metadata,
+        tsk_memcpy(self->metadata + self->metadata_length, metadata,
             metadata_length * sizeof(char));
         self->metadata_length += metadata_length;
     }
     if (population == NULL) {
         /* Set population to NULL_POPULATION (-1) if not specified */
-        memset(self->population + self->num_rows, 0xff, num_rows * sizeof(tsk_id_t));
+        tsk_memset(self->population + self->num_rows, 0xff, num_rows * sizeof(tsk_id_t));
     } else {
-        memcpy(
+        tsk_memcpy(
             self->population + self->num_rows, population, num_rows * sizeof(tsk_id_t));
     }
     if (individual == NULL) {
         /* Set individual to NULL_INDIVIDUAL (-1) if not specified */
-        memset(self->individual + self->num_rows, 0xff, num_rows * sizeof(tsk_id_t));
+        tsk_memset(self->individual + self->num_rows, 0xff, num_rows * sizeof(tsk_id_t));
     } else {
-        memcpy(
+        tsk_memcpy(
             self->individual + self->num_rows, individual, num_rows * sizeof(tsk_id_t));
     }
     self->num_rows += (tsk_size_t) num_rows;
@@ -1539,7 +1539,7 @@ tsk_node_table_add_row_internal(tsk_node_table_t *self, tsk_flags_t flags, doubl
 {
     tsk_bug_assert(self->num_rows < self->max_rows);
     tsk_bug_assert(self->metadata_length + metadata_length <= self->max_metadata_length);
-    memmove(self->metadata + self->metadata_length, metadata, metadata_length);
+    tsk_memmove(self->metadata + self->metadata_length, metadata, metadata_length);
     self->flags[self->num_rows] = flags;
     self->time[self->num_rows] = time;
     self->population[self->num_rows] = population;
@@ -1586,7 +1586,7 @@ tsk_node_table_update_row_rewrite(tsk_node_table_t *self, tsk_id_t index,
     if (ret != 0) {
         goto out;
     }
-    rows = malloc(self->num_rows * sizeof(*rows));
+    rows = tsk_malloc(self->num_rows * sizeof(*rows));
     if (rows == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -1632,9 +1632,9 @@ tsk_node_table_update_row(tsk_node_table_t *self, tsk_id_t index, tsk_flags_t fl
         self->time[index] = time;
         self->population[index] = population;
         self->individual[index] = individual;
-        /* Note: important to use memmove here as we may be provided pointers
+        /* Note: important to use tsk_memmove here as we may be provided pointers
          * to the column memory as input via get_row */
-        memmove(&self->metadata[self->metadata_offset[index]], metadata,
+        tsk_memmove(&self->metadata[self->metadata_offset[index]], metadata,
             metadata_length * sizeof(*metadata));
     } else {
         ret = tsk_node_table_update_row_rewrite(
@@ -1796,24 +1796,24 @@ tsk_node_table_equals(
 {
     bool ret
         = self->num_rows == other->num_rows
-          && memcmp(self->time, other->time, self->num_rows * sizeof(double)) == 0
-          && memcmp(self->flags, other->flags, self->num_rows * sizeof(tsk_flags_t)) == 0
-          && memcmp(
+          && tsk_memcmp(self->time, other->time, self->num_rows * sizeof(double)) == 0
+          && tsk_memcmp(self->flags, other->flags, self->num_rows * sizeof(tsk_flags_t)) == 0
+          && tsk_memcmp(
                  self->population, other->population, self->num_rows * sizeof(tsk_id_t))
                  == 0
-          && memcmp(
+          && tsk_memcmp(
                  self->individual, other->individual, self->num_rows * sizeof(tsk_id_t))
                  == 0;
     if (!(options & TSK_CMP_IGNORE_METADATA)) {
         ret = ret && self->metadata_length == other->metadata_length
               && self->metadata_schema_length == other->metadata_schema_length
-              && memcmp(self->metadata_offset, other->metadata_offset,
+              && tsk_memcmp(self->metadata_offset, other->metadata_offset,
                      (self->num_rows + 1) * sizeof(tsk_size_t))
                      == 0
-              && memcmp(self->metadata, other->metadata,
+              && tsk_memcmp(self->metadata, other->metadata,
                      self->metadata_length * sizeof(char))
                      == 0
-              && memcmp(self->metadata_schema, other->metadata_schema,
+              && tsk_memcmp(self->metadata_schema, other->metadata_schema,
                      self->metadata_schema_length * sizeof(char))
                      == 0;
     }
@@ -2009,7 +2009,7 @@ tsk_edge_table_init(tsk_edge_table_t *self, tsk_flags_t options)
 {
     int ret = 0;
 
-    memset(self, 0, sizeof(*self));
+    tsk_memset(self, 0, sizeof(*self));
     self->options = options;
 
     /* Allocate space for one row initially, ensuring we always have valid
@@ -2063,7 +2063,7 @@ tsk_edge_table_add_row(tsk_edge_table_t *self, double left, double right,
         }
         tsk_bug_assert(
             self->metadata_length + metadata_length <= self->max_metadata_length);
-        memmove(self->metadata + self->metadata_length, metadata, metadata_length);
+        tsk_memmove(self->metadata + self->metadata_length, metadata, metadata_length);
         self->metadata_offset[self->num_rows + 1]
             = self->metadata_length + metadata_length;
         self->metadata_length += metadata_length;
@@ -2089,7 +2089,7 @@ tsk_edge_table_update_row_rewrite(tsk_edge_table_t *self, tsk_id_t index, double
     if (ret != 0) {
         goto out;
     }
-    rows = malloc(self->num_rows * sizeof(*rows));
+    rows = tsk_malloc(self->num_rows * sizeof(*rows));
     if (rows == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -2136,9 +2136,9 @@ tsk_edge_table_update_row(tsk_edge_table_t *self, tsk_id_t index, double left,
         self->parent[index] = parent;
         self->child[index] = child;
         if (tsk_edge_table_has_metadata(self)) {
-            /* Note: important to use memmove here as we may be provided pointers
+            /* Note: important to use tsk_memmove here as we may be provided pointers
              * to the column memory as input via get_row */
-            memmove(&self->metadata[self->metadata_offset[index]], metadata,
+            tsk_memmove(&self->metadata[self->metadata_offset[index]], metadata,
                 metadata_length * sizeof(*metadata));
         }
     } else {
@@ -2231,10 +2231,10 @@ tsk_edge_table_append_columns(tsk_edge_table_t *self, tsk_size_t num_rows,
     if (ret != 0) {
         goto out;
     }
-    memcpy(self->left + self->num_rows, left, num_rows * sizeof(double));
-    memcpy(self->right + self->num_rows, right, num_rows * sizeof(double));
-    memcpy(self->parent + self->num_rows, parent, num_rows * sizeof(tsk_id_t));
-    memcpy(self->child + self->num_rows, child, num_rows * sizeof(tsk_id_t));
+    tsk_memcpy(self->left + self->num_rows, left, num_rows * sizeof(double));
+    tsk_memcpy(self->right + self->num_rows, right, num_rows * sizeof(double));
+    tsk_memcpy(self->parent + self->num_rows, parent, num_rows * sizeof(tsk_id_t));
+    tsk_memcpy(self->child + self->num_rows, child, num_rows * sizeof(tsk_id_t));
     if (tsk_edge_table_has_metadata(self)) {
         if (metadata == NULL) {
             for (j = 0; j < num_rows; j++) {
@@ -2254,7 +2254,7 @@ tsk_edge_table_append_columns(tsk_edge_table_t *self, tsk_size_t num_rows,
             if (ret != 0) {
                 goto out;
             }
-            memcpy(self->metadata + self->metadata_length, metadata,
+            tsk_memcpy(self->metadata + self->metadata_length, metadata,
                 metadata_length * sizeof(char));
             self->metadata_length += metadata_length;
         }
@@ -2438,24 +2438,24 @@ tsk_edge_table_equals(
     bool metadata_equal;
     bool ret
         = self->num_rows == other->num_rows
-          && memcmp(self->left, other->left, self->num_rows * sizeof(double)) == 0
-          && memcmp(self->right, other->right, self->num_rows * sizeof(double)) == 0
-          && memcmp(self->parent, other->parent, self->num_rows * sizeof(tsk_id_t)) == 0
-          && memcmp(self->child, other->child, self->num_rows * sizeof(tsk_id_t)) == 0;
+          && tsk_memcmp(self->left, other->left, self->num_rows * sizeof(double)) == 0
+          && tsk_memcmp(self->right, other->right, self->num_rows * sizeof(double)) == 0
+          && tsk_memcmp(self->parent, other->parent, self->num_rows * sizeof(tsk_id_t)) == 0
+          && tsk_memcmp(self->child, other->child, self->num_rows * sizeof(tsk_id_t)) == 0;
 
     if (!(options & TSK_CMP_IGNORE_METADATA)) {
         ret = ret && self->metadata_schema_length == other->metadata_schema_length
-              && memcmp(self->metadata_schema, other->metadata_schema,
+              && tsk_memcmp(self->metadata_schema, other->metadata_schema,
                      self->metadata_schema_length * sizeof(char))
                      == 0;
         metadata_equal = false;
         if (self->metadata_length == other->metadata_length) {
             if (tsk_edge_table_has_metadata(self)
                 && tsk_edge_table_has_metadata(other)) {
-                metadata_equal = memcmp(self->metadata_offset, other->metadata_offset,
+                metadata_equal = tsk_memcmp(self->metadata_offset, other->metadata_offset,
                                      (self->num_rows + 1) * sizeof(tsk_size_t))
                                      == 0
-                                 && memcmp(self->metadata, other->metadata,
+                                 && tsk_memcmp(self->metadata, other->metadata,
                                         self->metadata_length * sizeof(char))
                                         == 0;
             } else {
@@ -2572,7 +2572,7 @@ tsk_edge_table_squash(tsk_edge_table_t *self)
         goto out;
     }
 
-    edges = malloc(self->num_rows * sizeof(tsk_edge_t));
+    edges = tsk_malloc(self->num_rows * sizeof(tsk_edge_t));
     if (edges == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -2695,7 +2695,7 @@ tsk_site_table_init(tsk_site_table_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
 
-    memset(self, 0, sizeof(tsk_site_table_t));
+    tsk_memset(self, 0, sizeof(tsk_site_table_t));
 
     /* Allocate space for one row initially, ensuring we always have valid pointers
      * even if the table is empty */
@@ -2746,7 +2746,7 @@ tsk_site_table_add_row(tsk_site_table_t *self, double position,
         goto out;
     }
     self->ancestral_state_length += ancestral_state_length;
-    memmove(self->ancestral_state + ancestral_state_offset, ancestral_state,
+    tsk_memmove(self->ancestral_state + ancestral_state_offset, ancestral_state,
         ancestral_state_length);
     self->ancestral_state_offset[self->num_rows + 1] = self->ancestral_state_length;
 
@@ -2757,7 +2757,7 @@ tsk_site_table_add_row(tsk_site_table_t *self, double position,
         goto out;
     }
     self->metadata_length += metadata_length;
-    memmove(self->metadata + metadata_offset, metadata, metadata_length);
+    tsk_memmove(self->metadata + metadata_offset, metadata, metadata_length);
     self->metadata_offset[self->num_rows + 1] = self->metadata_length;
 
     ret = (tsk_id_t) self->num_rows;
@@ -2781,7 +2781,7 @@ tsk_site_table_update_row_rewrite(tsk_site_table_t *self, tsk_id_t index,
     if (ret != 0) {
         goto out;
     }
-    rows = malloc(self->num_rows * sizeof(*rows));
+    rows = tsk_malloc(self->num_rows * sizeof(*rows));
     if (rows == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -2825,11 +2825,11 @@ tsk_site_table_update_row(tsk_site_table_t *self, tsk_id_t index, double positio
     if (current_row.metadata_length == metadata_length
         && current_row.ancestral_state_length == ancestral_state_length) {
         self->position[index] = position;
-        /* Note: important to use memmove here as we may be provided pointers
+        /* Note: important to use tsk_memmove here as we may be provided pointers
          * to the column memory as input via get_row */
-        memmove(&self->ancestral_state[self->ancestral_state_offset[index]],
+        tsk_memmove(&self->ancestral_state[self->ancestral_state_offset[index]],
             ancestral_state, ancestral_state_length * sizeof(*ancestral_state));
-        memmove(&self->metadata[self->metadata_offset[index]], metadata,
+        tsk_memmove(&self->metadata[self->metadata_offset[index]], metadata,
             metadata_length * sizeof(*metadata));
     } else {
         ret = tsk_site_table_update_row_rewrite(self, index, position, ancestral_state,
@@ -2864,7 +2864,7 @@ tsk_site_table_append_columns(tsk_site_table_t *self, tsk_size_t num_rows,
     if (ret != 0) {
         goto out;
     }
-    memcpy(self->position + self->num_rows, position, num_rows * sizeof(double));
+    tsk_memcpy(self->position + self->num_rows, position, num_rows * sizeof(double));
 
     /* Metadata column */
     if (metadata == NULL) {
@@ -2881,7 +2881,7 @@ tsk_site_table_append_columns(tsk_site_table_t *self, tsk_size_t num_rows,
         if (ret != 0) {
             goto out;
         }
-        memcpy(self->metadata + self->metadata_length, metadata,
+        tsk_memcpy(self->metadata + self->metadata_length, metadata,
             metadata_length * sizeof(char));
         for (j = 0; j < num_rows; j++) {
             self->metadata_offset[self->num_rows + j]
@@ -2901,7 +2901,7 @@ tsk_site_table_append_columns(tsk_site_table_t *self, tsk_size_t num_rows,
     if (ret != 0) {
         goto out;
     }
-    memcpy(self->ancestral_state + self->ancestral_state_length, ancestral_state,
+    tsk_memcpy(self->ancestral_state + self->ancestral_state_length, ancestral_state,
         ancestral_state_length * sizeof(char));
     for (j = 0; j < num_rows; j++) {
         self->ancestral_state_offset[self->num_rows + j]
@@ -2965,24 +2965,24 @@ tsk_site_table_equals(
     bool ret
         = self->num_rows == other->num_rows
           && self->ancestral_state_length == other->ancestral_state_length
-          && memcmp(self->position, other->position, self->num_rows * sizeof(double))
+          && tsk_memcmp(self->position, other->position, self->num_rows * sizeof(double))
                  == 0
-          && memcmp(self->ancestral_state_offset, other->ancestral_state_offset,
+          && tsk_memcmp(self->ancestral_state_offset, other->ancestral_state_offset,
                  (self->num_rows + 1) * sizeof(tsk_size_t))
                  == 0
-          && memcmp(self->ancestral_state, other->ancestral_state,
+          && tsk_memcmp(self->ancestral_state, other->ancestral_state,
                  self->ancestral_state_length * sizeof(char))
                  == 0;
     if (!(options & TSK_CMP_IGNORE_METADATA)) {
         ret = ret && self->metadata_length == other->metadata_length
               && self->metadata_schema_length == other->metadata_schema_length
-              && memcmp(self->metadata_offset, other->metadata_offset,
+              && tsk_memcmp(self->metadata_offset, other->metadata_offset,
                      (self->num_rows + 1) * sizeof(tsk_size_t))
                      == 0
-              && memcmp(self->metadata, other->metadata,
+              && tsk_memcmp(self->metadata, other->metadata,
                      self->metadata_length * sizeof(char))
                      == 0
-              && memcmp(self->metadata_schema, other->metadata_schema,
+              && tsk_memcmp(self->metadata_schema, other->metadata_schema,
                      self->metadata_schema_length * sizeof(char))
                      == 0;
     }
@@ -3339,7 +3339,7 @@ tsk_mutation_table_init(tsk_mutation_table_t *self, tsk_flags_t TSK_UNUSED(optio
 {
     int ret = 0;
 
-    memset(self, 0, sizeof(tsk_mutation_table_t));
+    tsk_memset(self, 0, sizeof(tsk_mutation_table_t));
 
     /* Allocate space for one row initially, ensuring we always have valid pointers
      * even if the table is empty */
@@ -3392,7 +3392,7 @@ tsk_mutation_table_add_row(tsk_mutation_table_t *self, tsk_id_t site, tsk_id_t n
         goto out;
     }
     self->derived_state_length += derived_state_length;
-    memmove(
+    tsk_memmove(
         self->derived_state + derived_state_offset, derived_state, derived_state_length);
     self->derived_state_offset[self->num_rows + 1] = self->derived_state_length;
 
@@ -3403,7 +3403,7 @@ tsk_mutation_table_add_row(tsk_mutation_table_t *self, tsk_id_t site, tsk_id_t n
         goto out;
     }
     self->metadata_length += metadata_length;
-    memmove(self->metadata + metadata_offset, metadata, metadata_length);
+    tsk_memmove(self->metadata + metadata_offset, metadata, metadata_length);
     self->metadata_offset[self->num_rows + 1] = self->metadata_length;
 
     ret = (tsk_id_t) self->num_rows;
@@ -3428,7 +3428,7 @@ tsk_mutation_table_update_row_rewrite(tsk_mutation_table_t *self, tsk_id_t index
     if (ret != 0) {
         goto out;
     }
-    rows = malloc(self->num_rows * sizeof(*rows));
+    rows = tsk_malloc(self->num_rows * sizeof(*rows));
     if (rows == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -3475,11 +3475,11 @@ tsk_mutation_table_update_row(tsk_mutation_table_t *self, tsk_id_t index, tsk_id
         self->node[index] = node;
         self->parent[index] = parent;
         self->time[index] = time;
-        /* Note: important to use memmove here as we may be provided pointers
+        /* Note: important to use tsk_memmove here as we may be provided pointers
          * to the column memory as input via get_row */
-        memmove(&self->derived_state[self->derived_state_offset[index]], derived_state,
+        tsk_memmove(&self->derived_state[self->derived_state_offset[index]], derived_state,
             derived_state_length * sizeof(*derived_state));
-        memmove(&self->metadata[self->metadata_offset[index]], metadata,
+        tsk_memmove(&self->metadata[self->metadata_offset[index]], metadata,
             metadata_length * sizeof(*metadata));
     } else {
         ret = tsk_mutation_table_update_row_rewrite(self, index, site, node, parent,
@@ -3516,13 +3516,13 @@ tsk_mutation_table_append_columns(tsk_mutation_table_t *self, tsk_size_t num_row
     if (ret != 0) {
         goto out;
     }
-    memcpy(self->site + self->num_rows, site, num_rows * sizeof(tsk_id_t));
-    memcpy(self->node + self->num_rows, node, num_rows * sizeof(tsk_id_t));
+    tsk_memcpy(self->site + self->num_rows, site, num_rows * sizeof(tsk_id_t));
+    tsk_memcpy(self->node + self->num_rows, node, num_rows * sizeof(tsk_id_t));
     if (parent == NULL) {
         /* If parent is NULL, set all parents to the null mutation */
-        memset(self->parent + self->num_rows, 0xff, num_rows * sizeof(tsk_id_t));
+        tsk_memset(self->parent + self->num_rows, 0xff, num_rows * sizeof(tsk_id_t));
     } else {
-        memcpy(self->parent + self->num_rows, parent, num_rows * sizeof(tsk_id_t));
+        tsk_memcpy(self->parent + self->num_rows, parent, num_rows * sizeof(tsk_id_t));
     }
     if (time == NULL) {
         /* If time is NULL, set all times to TSK_UNKNOWN_TIME which is the
@@ -3531,7 +3531,7 @@ tsk_mutation_table_append_columns(tsk_mutation_table_t *self, tsk_size_t num_row
             self->time[self->num_rows + j] = TSK_UNKNOWN_TIME;
         }
     } else {
-        memcpy(self->time + self->num_rows, time, num_rows * sizeof(double));
+        tsk_memcpy(self->time + self->num_rows, time, num_rows * sizeof(double));
     }
 
     /* Metadata column */
@@ -3549,7 +3549,7 @@ tsk_mutation_table_append_columns(tsk_mutation_table_t *self, tsk_size_t num_row
         if (ret != 0) {
             goto out;
         }
-        memcpy(self->metadata + self->metadata_length, metadata,
+        tsk_memcpy(self->metadata + self->metadata_length, metadata,
             metadata_length * sizeof(char));
         for (j = 0; j < num_rows; j++) {
             self->metadata_offset[self->num_rows + j]
@@ -3569,7 +3569,7 @@ tsk_mutation_table_append_columns(tsk_mutation_table_t *self, tsk_size_t num_row
     if (ret != 0) {
         goto out;
     }
-    memcpy(self->derived_state + self->derived_state_length, derived_state,
+    tsk_memcpy(self->derived_state + self->derived_state_length, derived_state,
         derived_state_length * sizeof(char));
     for (j = 0; j < num_rows; j++) {
         self->derived_state_offset[self->num_rows + j]
@@ -3633,29 +3633,29 @@ tsk_mutation_table_equals(const tsk_mutation_table_t *self,
     bool ret
         = self->num_rows == other->num_rows
           && self->derived_state_length == other->derived_state_length
-          && memcmp(self->site, other->site, self->num_rows * sizeof(tsk_id_t)) == 0
-          && memcmp(self->node, other->node, self->num_rows * sizeof(tsk_id_t)) == 0
-          && memcmp(self->parent, other->parent, self->num_rows * sizeof(tsk_id_t)) == 0
-          && memcmp(self->time, other->time, self->num_rows * sizeof(double)) == 0
-          && memcmp(self->derived_state_offset, other->derived_state_offset,
+          && tsk_memcmp(self->site, other->site, self->num_rows * sizeof(tsk_id_t)) == 0
+          && tsk_memcmp(self->node, other->node, self->num_rows * sizeof(tsk_id_t)) == 0
+          && tsk_memcmp(self->parent, other->parent, self->num_rows * sizeof(tsk_id_t)) == 0
+          && tsk_memcmp(self->time, other->time, self->num_rows * sizeof(double)) == 0
+          && tsk_memcmp(self->derived_state_offset, other->derived_state_offset,
                  (self->num_rows + 1) * sizeof(tsk_size_t))
                  == 0
-          && memcmp(self->derived_state, other->derived_state,
+          && tsk_memcmp(self->derived_state, other->derived_state,
                  self->derived_state_length * sizeof(char))
                  == 0;
     if (!(options & TSK_CMP_IGNORE_METADATA)) {
         ret = ret && self->metadata_length == other->metadata_length
               && self->metadata_schema_length == other->metadata_schema_length
-              && memcmp(self->metadata_offset, other->metadata_offset,
+              && tsk_memcmp(self->metadata_offset, other->metadata_offset,
                      (self->num_rows + 1) * sizeof(tsk_size_t))
                      == 0
-              && memcmp(self->metadata, other->metadata,
+              && tsk_memcmp(self->metadata, other->metadata,
                      self->metadata_length * sizeof(char))
                      == 0
-              && memcmp(self->metadata_schema, other->metadata_schema,
+              && tsk_memcmp(self->metadata_schema, other->metadata_schema,
                      self->metadata_schema_length * sizeof(char))
                      == 0
-              && memcmp(self->metadata_schema, other->metadata_schema,
+              && tsk_memcmp(self->metadata_schema, other->metadata_schema,
                      self->metadata_schema_length * sizeof(char))
                      == 0;
     }
@@ -4010,7 +4010,7 @@ tsk_migration_table_init(tsk_migration_table_t *self, tsk_flags_t TSK_UNUSED(opt
 {
     int ret = 0;
 
-    memset(self, 0, sizeof(tsk_migration_table_t));
+    tsk_memset(self, 0, sizeof(tsk_migration_table_t));
 
     /* Allocate space for one row initially, ensuring we always have valid pointers
      * even if the table is empty */
@@ -4055,12 +4055,12 @@ tsk_migration_table_append_columns(tsk_migration_table_t *self, tsk_size_t num_r
     if (ret != 0) {
         goto out;
     }
-    memcpy(self->left + self->num_rows, left, num_rows * sizeof(double));
-    memcpy(self->right + self->num_rows, right, num_rows * sizeof(double));
-    memcpy(self->node + self->num_rows, node, num_rows * sizeof(tsk_id_t));
-    memcpy(self->source + self->num_rows, source, num_rows * sizeof(tsk_id_t));
-    memcpy(self->dest + self->num_rows, dest, num_rows * sizeof(tsk_id_t));
-    memcpy(self->time + self->num_rows, time, num_rows * sizeof(double));
+    tsk_memcpy(self->left + self->num_rows, left, num_rows * sizeof(double));
+    tsk_memcpy(self->right + self->num_rows, right, num_rows * sizeof(double));
+    tsk_memcpy(self->node + self->num_rows, node, num_rows * sizeof(tsk_id_t));
+    tsk_memcpy(self->source + self->num_rows, source, num_rows * sizeof(tsk_id_t));
+    tsk_memcpy(self->dest + self->num_rows, dest, num_rows * sizeof(tsk_id_t));
+    tsk_memcpy(self->time + self->num_rows, time, num_rows * sizeof(double));
     if (metadata == NULL) {
         for (j = 0; j < num_rows; j++) {
             self->metadata_offset[self->num_rows + j + 1] = self->metadata_length;
@@ -4079,7 +4079,7 @@ tsk_migration_table_append_columns(tsk_migration_table_t *self, tsk_size_t num_r
         if (ret != 0) {
             goto out;
         }
-        memcpy(self->metadata + self->metadata_length, metadata,
+        tsk_memcpy(self->metadata + self->metadata_length, metadata,
             metadata_length * sizeof(char));
         self->metadata_length += metadata_length;
     }
@@ -4150,7 +4150,7 @@ tsk_migration_table_add_row(tsk_migration_table_t *self, double left, double rig
 
     tsk_bug_assert(self->num_rows < self->max_rows);
     tsk_bug_assert(self->metadata_length + metadata_length <= self->max_metadata_length);
-    memmove(self->metadata + self->metadata_length, metadata, metadata_length);
+    tsk_memmove(self->metadata + self->metadata_length, metadata, metadata_length);
     self->left[self->num_rows] = left;
     self->right[self->num_rows] = right;
     self->node[self->num_rows] = node;
@@ -4181,7 +4181,7 @@ tsk_migration_table_update_row_rewrite(tsk_migration_table_t *self, tsk_id_t ind
     if (ret != 0) {
         goto out;
     }
-    rows = malloc(self->num_rows * sizeof(*rows));
+    rows = tsk_malloc(self->num_rows * sizeof(*rows));
     if (rows == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -4229,9 +4229,9 @@ tsk_migration_table_update_row(tsk_migration_table_t *self, tsk_id_t index, doub
         self->source[index] = source;
         self->dest[index] = dest;
         self->time[index] = time;
-        /* Note: important to use memmove here as we may be provided pointers
+        /* Note: important to use tsk_memmove here as we may be provided pointers
          * to the column memory as input via get_row */
-        memmove(&self->metadata[self->metadata_offset[index]], metadata,
+        tsk_memmove(&self->metadata[self->metadata_offset[index]], metadata,
             metadata_length * sizeof(*metadata));
     } else {
         ret = tsk_migration_table_update_row_rewrite(self, index, left, right, node,
@@ -4414,22 +4414,22 @@ tsk_migration_table_equals(const tsk_migration_table_t *self,
 {
     bool ret
         = self->num_rows == other->num_rows
-          && memcmp(self->left, other->left, self->num_rows * sizeof(double)) == 0
-          && memcmp(self->right, other->right, self->num_rows * sizeof(double)) == 0
-          && memcmp(self->node, other->node, self->num_rows * sizeof(tsk_id_t)) == 0
-          && memcmp(self->source, other->source, self->num_rows * sizeof(tsk_id_t)) == 0
-          && memcmp(self->dest, other->dest, self->num_rows * sizeof(tsk_id_t)) == 0
-          && memcmp(self->time, other->time, self->num_rows * sizeof(double)) == 0;
+          && tsk_memcmp(self->left, other->left, self->num_rows * sizeof(double)) == 0
+          && tsk_memcmp(self->right, other->right, self->num_rows * sizeof(double)) == 0
+          && tsk_memcmp(self->node, other->node, self->num_rows * sizeof(tsk_id_t)) == 0
+          && tsk_memcmp(self->source, other->source, self->num_rows * sizeof(tsk_id_t)) == 0
+          && tsk_memcmp(self->dest, other->dest, self->num_rows * sizeof(tsk_id_t)) == 0
+          && tsk_memcmp(self->time, other->time, self->num_rows * sizeof(double)) == 0;
     if (!(options & TSK_CMP_IGNORE_METADATA)) {
         ret = ret && self->metadata_length == other->metadata_length
               && self->metadata_schema_length == other->metadata_schema_length
-              && memcmp(self->metadata_offset, other->metadata_offset,
+              && tsk_memcmp(self->metadata_offset, other->metadata_offset,
                      (self->num_rows + 1) * sizeof(tsk_size_t))
                      == 0
-              && memcmp(self->metadata, other->metadata,
+              && tsk_memcmp(self->metadata, other->metadata,
                      self->metadata_length * sizeof(char))
                      == 0
-              && memcmp(self->metadata_schema, other->metadata_schema,
+              && tsk_memcmp(self->metadata_schema, other->metadata_schema,
                      self->metadata_schema_length * sizeof(char))
                      == 0;
     }
@@ -4581,7 +4581,7 @@ tsk_population_table_init(tsk_population_table_t *self, tsk_flags_t TSK_UNUSED(o
 {
     int ret = 0;
 
-    memset(self, 0, sizeof(tsk_population_table_t));
+    tsk_memset(self, 0, sizeof(tsk_population_table_t));
     /* Allocate space for one row initially, ensuring we always have valid pointers
      * even if the table is empty */
     self->max_rows_increment = 1;
@@ -4669,7 +4669,7 @@ tsk_population_table_append_columns(tsk_population_table_t *self, tsk_size_t num
     if (ret != 0) {
         goto out;
     }
-    memcpy(self->metadata + self->metadata_length, metadata,
+    tsk_memcpy(self->metadata + self->metadata_length, metadata,
         metadata_length * sizeof(char));
     self->metadata_length += metadata_length;
 
@@ -4687,7 +4687,7 @@ tsk_population_table_add_row_internal(
 
     tsk_bug_assert(self->num_rows < self->max_rows);
     tsk_bug_assert(self->metadata_length + metadata_length <= self->max_metadata_length);
-    memmove(self->metadata + self->metadata_length, metadata, metadata_length);
+    tsk_memmove(self->metadata + self->metadata_length, metadata, metadata_length);
     self->metadata_offset[self->num_rows + 1] = self->metadata_length + metadata_length;
     self->metadata_length += metadata_length;
     ret = (tsk_id_t) self->num_rows;
@@ -4728,7 +4728,7 @@ tsk_population_table_update_row_rewrite(tsk_population_table_t *self, tsk_id_t i
     if (ret != 0) {
         goto out;
     }
-    rows = malloc(self->num_rows * sizeof(*rows));
+    rows = tsk_malloc(self->num_rows * sizeof(*rows));
     if (rows == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -4768,9 +4768,9 @@ tsk_population_table_update_row(tsk_population_table_t *self, tsk_id_t index,
         goto out;
     }
     if (current_row.metadata_length == metadata_length) {
-        /* Note: important to use memmove here as we may be provided pointers
+        /* Note: important to use tsk_memmove here as we may be provided pointers
          * to the column memory as input via get_row */
-        memmove(&self->metadata[self->metadata_offset[index]], metadata,
+        tsk_memmove(&self->metadata[self->metadata_offset[index]], metadata,
             metadata_length * sizeof(*metadata));
     } else {
         ret = tsk_population_table_update_row_rewrite(
@@ -4954,13 +4954,13 @@ tsk_population_table_equals(const tsk_population_table_t *self,
     if (!(options & TSK_CMP_IGNORE_METADATA)) {
         ret = ret && self->metadata_length == other->metadata_length
               && self->metadata_schema_length == other->metadata_schema_length
-              && memcmp(self->metadata_offset, other->metadata_offset,
+              && tsk_memcmp(self->metadata_offset, other->metadata_offset,
                      (self->num_rows + 1) * sizeof(tsk_size_t))
                      == 0
-              && memcmp(self->metadata, other->metadata,
+              && tsk_memcmp(self->metadata, other->metadata,
                      self->metadata_length * sizeof(char))
                      == 0
-              && memcmp(self->metadata_schema, other->metadata_schema,
+              && tsk_memcmp(self->metadata_schema, other->metadata_schema,
                      self->metadata_schema_length * sizeof(char))
                      == 0;
     }
@@ -5114,7 +5114,7 @@ tsk_provenance_table_init(tsk_provenance_table_t *self, tsk_flags_t TSK_UNUSED(o
 {
     int ret = 0;
 
-    memset(self, 0, sizeof(tsk_provenance_table_t));
+    tsk_memset(self, 0, sizeof(tsk_provenance_table_t));
     /* Allocate space for one row initially, ensuring we always have valid pointers
      * even if the table is empty */
     self->max_rows_increment = 1;
@@ -5207,7 +5207,7 @@ tsk_provenance_table_append_columns(tsk_provenance_table_t *self, tsk_size_t num
     if (ret != 0) {
         goto out;
     }
-    memcpy(self->timestamp + self->timestamp_length, timestamp,
+    tsk_memcpy(self->timestamp + self->timestamp_length, timestamp,
         timestamp_length * sizeof(char));
     self->timestamp_length += timestamp_length;
 
@@ -5223,7 +5223,7 @@ tsk_provenance_table_append_columns(tsk_provenance_table_t *self, tsk_size_t num
     if (ret != 0) {
         goto out;
     }
-    memcpy(self->record + self->record_length, record, record_length * sizeof(char));
+    tsk_memcpy(self->record + self->record_length, record, record_length * sizeof(char));
     self->record_length += record_length;
 
     self->num_rows += num_rows;
@@ -5243,12 +5243,12 @@ tsk_provenance_table_add_row_internal(tsk_provenance_table_t *self,
     tsk_bug_assert(self->num_rows < self->max_rows);
     tsk_bug_assert(
         self->timestamp_length + timestamp_length <= self->max_timestamp_length);
-    memmove(self->timestamp + self->timestamp_length, timestamp, timestamp_length);
+    tsk_memmove(self->timestamp + self->timestamp_length, timestamp, timestamp_length);
     self->timestamp_offset[self->num_rows + 1]
         = self->timestamp_length + timestamp_length;
     self->timestamp_length += timestamp_length;
     tsk_bug_assert(self->record_length + record_length <= self->max_record_length);
-    memmove(self->record + self->record_length, record, record_length);
+    tsk_memmove(self->record + self->record_length, record, record_length);
     self->record_offset[self->num_rows + 1] = self->record_length + record_length;
     self->record_length += record_length;
     ret = (tsk_id_t) self->num_rows;
@@ -5295,7 +5295,7 @@ tsk_provenance_table_update_row_rewrite(tsk_provenance_table_t *self, tsk_id_t i
     if (ret != 0) {
         goto out;
     }
-    rows = malloc(self->num_rows * sizeof(*rows));
+    rows = tsk_malloc(self->num_rows * sizeof(*rows));
     if (rows == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -5338,11 +5338,11 @@ tsk_provenance_table_update_row(tsk_provenance_table_t *self, tsk_id_t index,
     }
     if (current_row.timestamp_length == timestamp_length
         && current_row.record_length == record_length) {
-        /* Note: important to use memmove here as we may be provided pointers
+        /* Note: important to use tsk_memmove here as we may be provided pointers
          * to the column memory as input via get_row */
-        memmove(&self->timestamp[self->timestamp_offset[index]], timestamp,
+        tsk_memmove(&self->timestamp[self->timestamp_offset[index]], timestamp,
             timestamp_length * sizeof(*timestamp));
-        memmove(&self->record[self->record_offset[index]], record,
+        tsk_memmove(&self->record[self->record_offset[index]], record,
             record_length * sizeof(*record));
     } else {
         ret = tsk_provenance_table_update_row_rewrite(
@@ -5520,17 +5520,17 @@ tsk_provenance_table_equals(const tsk_provenance_table_t *self,
 {
     bool ret = self->num_rows == other->num_rows
                && self->record_length == other->record_length
-               && memcmp(self->record_offset, other->record_offset,
+               && tsk_memcmp(self->record_offset, other->record_offset,
                       (self->num_rows + 1) * sizeof(tsk_size_t))
                       == 0
-               && memcmp(self->record, other->record, self->record_length * sizeof(char))
+               && tsk_memcmp(self->record, other->record, self->record_length * sizeof(char))
                       == 0;
     if (!(options & TSK_CMP_IGNORE_TIMESTAMPS)) {
         ret = ret && self->timestamp_length == other->timestamp_length
-              && memcmp(self->timestamp_offset, other->timestamp_offset,
+              && tsk_memcmp(self->timestamp_offset, other->timestamp_offset,
                      (self->num_rows + 1) * sizeof(tsk_size_t))
                      == 0
-              && memcmp(self->timestamp, other->timestamp,
+              && tsk_memcmp(self->timestamp, other->timestamp,
                      self->timestamp_length * sizeof(char))
                      == 0;
     }
@@ -5759,15 +5759,15 @@ tsk_table_sorter_sort_edges(tsk_table_sorter_t *self, tsk_size_t start)
     edge_sort_t *e;
     tsk_size_t j, k, metadata_offset;
     tsk_size_t n = edges->num_rows - start;
-    edge_sort_t *sorted_edges = malloc(n * sizeof(*sorted_edges));
-    char *old_metadata = malloc(edges->metadata_length);
+    edge_sort_t *sorted_edges = tsk_malloc(n * sizeof(*sorted_edges));
+    char *old_metadata = tsk_malloc(edges->metadata_length);
     bool has_metadata = tsk_edge_table_has_metadata(edges);
 
     if (sorted_edges == NULL || old_metadata == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memcpy(old_metadata, edges->metadata, edges->metadata_length);
+    tsk_memcpy(old_metadata, edges->metadata, edges->metadata_length);
     for (j = 0; j < n; j++) {
         e = sorted_edges + j;
         k = start + j;
@@ -5793,7 +5793,7 @@ tsk_table_sorter_sort_edges(tsk_table_sorter_t *self, tsk_size_t start)
         edges->parent[k] = e->parent;
         edges->child[k] = e->child;
         if (has_metadata) {
-            memcpy(edges->metadata + metadata_offset, old_metadata + e->metadata_offset,
+            tsk_memcpy(edges->metadata + metadata_offset, old_metadata + e->metadata_offset,
                 e->metadata_length);
             edges->metadata_offset[k] = metadata_offset;
             metadata_offset += e->metadata_length;
@@ -5813,14 +5813,14 @@ tsk_table_sorter_sort_migrations(tsk_table_sorter_t *self, tsk_size_t start)
     migration_sort_t *m;
     tsk_size_t j, k, metadata_offset;
     tsk_size_t n = migrations->num_rows - start;
-    migration_sort_t *sorted_migrations = malloc(n * sizeof(*sorted_migrations));
-    char *old_metadata = malloc(migrations->metadata_length);
+    migration_sort_t *sorted_migrations = tsk_malloc(n * sizeof(*sorted_migrations));
+    char *old_metadata = tsk_malloc(migrations->metadata_length);
 
     if (sorted_migrations == NULL || old_metadata == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memcpy(old_metadata, migrations->metadata, migrations->metadata_length);
+    tsk_memcpy(old_metadata, migrations->metadata, migrations->metadata_length);
     for (j = 0; j < n; j++) {
         m = sorted_migrations + j;
         k = start + j;
@@ -5846,7 +5846,7 @@ tsk_table_sorter_sort_migrations(tsk_table_sorter_t *self, tsk_size_t start)
         migrations->source[k] = m->source;
         migrations->dest[k] = m->dest;
         migrations->time[k] = m->time;
-        memcpy(migrations->metadata + metadata_offset, old_metadata + m->metadata_offset,
+        tsk_memcpy(migrations->metadata + metadata_offset, old_metadata + m->metadata_offset,
             m->metadata_length);
         migrations->metadata_offset[k] = metadata_offset;
         metadata_offset += m->metadata_length;
@@ -5866,7 +5866,7 @@ tsk_table_sorter_sort_sites(tsk_table_sorter_t *self)
     tsk_site_table_t copy;
     tsk_size_t j;
     tsk_size_t num_sites = sites->num_rows;
-    tsk_site_t *sorted_sites = malloc(num_sites * sizeof(*sorted_sites));
+    tsk_site_t *sorted_sites = tsk_malloc(num_sites * sizeof(*sorted_sites));
 
     ret = tsk_site_table_copy(sites, &copy, 0);
     if (ret != 0) {
@@ -5913,8 +5913,8 @@ tsk_table_sorter_sort_mutations(tsk_table_sorter_t *self)
     tsk_mutation_table_t *mutations = &self->tables->mutations;
     tsk_size_t num_mutations = mutations->num_rows;
     tsk_mutation_table_t copy;
-    tsk_mutation_t *sorted_mutations = malloc(num_mutations * sizeof(*sorted_mutations));
-    tsk_id_t *mutation_id_map = malloc(num_mutations * sizeof(*mutation_id_map));
+    tsk_mutation_t *sorted_mutations = tsk_malloc(num_mutations * sizeof(*sorted_mutations));
+    tsk_id_t *mutation_id_map = tsk_malloc(num_mutations * sizeof(*mutation_id_map));
 
     ret = tsk_mutation_table_copy(mutations, &copy, 0);
     if (ret != 0) {
@@ -5975,8 +5975,8 @@ tsk_table_sorter_sort_mutations_canonical(tsk_table_sorter_t *self)
     tsk_size_t num_mutations = mutations->num_rows;
     tsk_mutation_table_t copy;
     mutation_canonical_sort_t *sorted_mutations
-        = malloc(num_mutations * sizeof(*sorted_mutations));
-    tsk_id_t *mutation_id_map = malloc(num_mutations * sizeof(*mutation_id_map));
+        = tsk_malloc(num_mutations * sizeof(*sorted_mutations));
+    tsk_id_t *mutation_id_map = tsk_malloc(num_mutations * sizeof(*mutation_id_map));
 
     ret = tsk_mutation_table_copy(mutations, &copy, 0);
     if (ret != 0) {
@@ -6056,7 +6056,7 @@ tsk_individual_table_topological_sort(
     tsk_size_t current_todo = 0;
     tsk_size_t todo_insertion_point = 0;
     tsk_size_t *incoming_edge_count
-        = malloc(num_individuals * sizeof(*incoming_edge_count));
+        = tsk_malloc(num_individuals * sizeof(*incoming_edge_count));
     bool count_descendants = (num_descendants != NULL);
 
     if (incoming_edge_count == NULL) {
@@ -6133,14 +6133,14 @@ tsk_table_sorter_sort_individuals(tsk_table_sorter_t *self)
     tsk_individual_table_t *individuals = &self->tables->individuals;
     tsk_node_table_t *nodes = &self->tables->nodes;
     tsk_size_t num_individuals = individuals->num_rows;
-    tsk_id_t *traversal_order = malloc(num_individuals * sizeof(*traversal_order));
-    tsk_id_t *new_id_map = malloc(num_individuals * sizeof(*new_id_map));
+    tsk_id_t *traversal_order = tsk_malloc(num_individuals * sizeof(*traversal_order));
+    tsk_id_t *new_id_map = tsk_malloc(num_individuals * sizeof(*new_id_map));
 
     if (new_id_map == NULL || traversal_order == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memset(new_id_map, 0xff, num_individuals * sizeof(*new_id_map));
+    tsk_memset(new_id_map, 0xff, num_individuals * sizeof(*new_id_map));
 
     ret = tsk_individual_table_copy(individuals, &copy, 0);
     if (ret != 0) {
@@ -6201,10 +6201,10 @@ tsk_table_sorter_sort_individuals_canonical(tsk_table_sorter_t *self)
     tsk_individual_table_t copy;
     tsk_size_t num_individuals = individuals->num_rows;
     individual_canonical_sort_t *sorted_individuals
-        = malloc(num_individuals * sizeof(*sorted_individuals));
-    tsk_id_t *individual_id_map = malloc(num_individuals * sizeof(*individual_id_map));
-    tsk_size_t *num_descendants = malloc(num_individuals * sizeof(*num_descendants));
-    tsk_id_t *traversal_order = malloc(num_individuals * sizeof(*traversal_order));
+        = tsk_malloc(num_individuals * sizeof(*sorted_individuals));
+    tsk_id_t *individual_id_map = tsk_malloc(num_individuals * sizeof(*individual_id_map));
+    tsk_size_t *num_descendants = tsk_malloc(num_individuals * sizeof(*num_descendants));
+    tsk_id_t *traversal_order = tsk_malloc(num_individuals * sizeof(*traversal_order));
 
     if (individual_id_map == NULL || sorted_individuals == NULL
         || traversal_order == NULL || num_descendants == NULL) {
@@ -6375,7 +6375,7 @@ tsk_table_sorter_init(
     int ret = 0;
     tsk_id_t ret_id;
 
-    memset(self, 0, sizeof(tsk_table_sorter_t));
+    tsk_memset(self, 0, sizeof(tsk_table_sorter_t));
     if (!(options & TSK_NO_CHECK_INTEGRITY)) {
         ret_id = tsk_table_collection_check_integrity(tables, 0);
         if (ret_id != 0) {
@@ -6385,7 +6385,7 @@ tsk_table_sorter_init(
     }
     self->tables = tables;
 
-    self->site_id_map = malloc(self->tables->sites.num_rows * sizeof(tsk_id_t));
+    self->site_id_map = tsk_malloc(self->tables->sites.num_rows * sizeof(tsk_id_t));
     if (self->site_id_map == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -6493,9 +6493,9 @@ segment_overlapper_alloc(segment_overlapper_t *self)
 {
     int ret = 0;
 
-    memset(self, 0, sizeof(*self));
-    self->max_overlapping = 8; /* Making sure we call realloc in tests */
-    self->overlapping = malloc(self->max_overlapping * sizeof(*self->overlapping));
+    tsk_memset(self, 0, sizeof(*self));
+    self->max_overlapping = 8; /* Making sure we call tsk_realloc in tests */
+    self->overlapping = tsk_malloc(self->max_overlapping * sizeof(*self->overlapping));
     if (self->overlapping == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -6524,7 +6524,7 @@ segment_overlapper_start(
 
     if (self->max_overlapping < num_segments) {
         self->max_overlapping = num_segments;
-        p = realloc(
+        p = tsk_realloc(
             self->overlapping, self->max_overlapping * sizeof(*self->overlapping));
         if (p == NULL) {
             ret = TSK_ERR_NO_MEMORY;
@@ -6846,7 +6846,7 @@ ancestor_mapper_init(ancestor_mapper_t *self, tsk_id_t *samples, tsk_size_t num_
     int ret = 0;
     size_t num_nodes_alloc;
 
-    memset(self, 0, sizeof(ancestor_mapper_t));
+    tsk_memset(self, 0, sizeof(ancestor_mapper_t));
     self->num_samples = num_samples;
     self->num_ancestors = num_ancestors;
     self->samples = samples;
@@ -6875,18 +6875,18 @@ ancestor_mapper_init(ancestor_mapper_t *self, tsk_id_t *samples, tsk_size_t num_
         goto out;
     }
 
-    /* Need to avoid malloc(0) so make sure we have at least 1. */
+    /* Need to avoid tsk_malloc(0) so make sure we have at least 1. */
     num_nodes_alloc = 1 + tables->nodes.num_rows;
     /* Make the maps and set the intial state */
-    self->ancestor_map_head = calloc(num_nodes_alloc, sizeof(tsk_segment_t *));
-    self->ancestor_map_tail = calloc(num_nodes_alloc, sizeof(tsk_segment_t *));
-    self->child_edge_map_head = calloc(num_nodes_alloc, sizeof(interval_list_t *));
-    self->child_edge_map_tail = calloc(num_nodes_alloc, sizeof(interval_list_t *));
-    self->buffered_children = malloc(num_nodes_alloc * sizeof(tsk_id_t));
-    self->is_sample = calloc(num_nodes_alloc, sizeof(bool));
-    self->is_ancestor = calloc(num_nodes_alloc, sizeof(bool));
+    self->ancestor_map_head = tsk_calloc(num_nodes_alloc, sizeof(tsk_segment_t *));
+    self->ancestor_map_tail = tsk_calloc(num_nodes_alloc, sizeof(tsk_segment_t *));
+    self->child_edge_map_head = tsk_calloc(num_nodes_alloc, sizeof(interval_list_t *));
+    self->child_edge_map_tail = tsk_calloc(num_nodes_alloc, sizeof(interval_list_t *));
+    self->buffered_children = tsk_malloc(num_nodes_alloc * sizeof(tsk_id_t));
+    self->is_sample = tsk_calloc(num_nodes_alloc, sizeof(bool));
+    self->is_ancestor = tsk_calloc(num_nodes_alloc, sizeof(bool));
     self->max_segment_queue_size = 64;
-    self->segment_queue = malloc(self->max_segment_queue_size * sizeof(tsk_segment_t));
+    self->segment_queue = tsk_malloc(self->max_segment_queue_size * sizeof(tsk_segment_t));
     if (self->ancestor_map_head == NULL || self->ancestor_map_tail == NULL
         || self->child_edge_map_head == NULL || self->child_edge_map_tail == NULL
         || self->is_sample == NULL || self->is_ancestor == NULL
@@ -6941,7 +6941,7 @@ ancestor_mapper_enqueue_segment(
      * can put a tail sentinel on it */
     if (self->segment_queue_size == self->max_segment_queue_size - 1) {
         self->max_segment_queue_size *= 2;
-        p = realloc(self->segment_queue,
+        p = tsk_realloc(self->segment_queue,
             self->max_segment_queue_size * sizeof(*self->segment_queue));
         if (p == NULL) {
             ret = TSK_ERR_NO_MEMORY;
@@ -7229,7 +7229,7 @@ tsk_ibd_finder_index_samples(tsk_ibd_finder_t *self)
     tsk_id_t idx;
 
     self->paired_nodes_index
-        = calloc(self->num_nodes, sizeof(*self->paired_nodes_index));
+        = tsk_calloc(self->num_nodes, sizeof(*self->paired_nodes_index));
 
     if (self->paired_nodes_index == NULL) {
         ret = TSK_ERR_NO_MEMORY;
@@ -7272,7 +7272,7 @@ tsk_ibd_finder_build_pair_map(tsk_ibd_finder_t *self)
     tsk_id_t row, col;
     size_t matrix_size = self->num_unique_nodes_in_pair * self->num_unique_nodes_in_pair;
 
-    self->pair_map = calloc(matrix_size, sizeof(*self->pair_map));
+    self->pair_map = tsk_calloc(matrix_size, sizeof(*self->pair_map));
     if (self->pair_map == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -7313,7 +7313,7 @@ tsk_ibd_finder_init(tsk_ibd_finder_t *self, tsk_table_collection_t *tables,
     int ret = 0;
     size_t num_nodes_alloc;
 
-    memset(self, 0, sizeof(tsk_ibd_finder_t));
+    tsk_memset(self, 0, sizeof(tsk_ibd_finder_t));
     self->pairs = pairs;
     self->num_pairs = num_pairs;
     self->sequence_length = tables->sequence_length;
@@ -7335,15 +7335,15 @@ tsk_ibd_finder_init(tsk_ibd_finder_t *self, tsk_table_collection_t *tables,
 
     // Mallocing and callocing.
     num_nodes_alloc = 1 + tables->nodes.num_rows;
-    self->ancestor_map_head = calloc(num_nodes_alloc, sizeof(*self->ancestor_map_head));
-    self->ancestor_map_tail = calloc(num_nodes_alloc, sizeof(*self->ancestor_map_tail));
-    self->ibd_segments_head = calloc(self->num_pairs, sizeof(*self->ibd_segments_head));
-    self->ibd_segments_tail = calloc(self->num_pairs, sizeof(*self->ibd_segments_tail));
-    self->is_sample = calloc(num_nodes_alloc, sizeof(*self->is_sample));
+    self->ancestor_map_head = tsk_calloc(num_nodes_alloc, sizeof(*self->ancestor_map_head));
+    self->ancestor_map_tail = tsk_calloc(num_nodes_alloc, sizeof(*self->ancestor_map_tail));
+    self->ibd_segments_head = tsk_calloc(self->num_pairs, sizeof(*self->ibd_segments_head));
+    self->ibd_segments_tail = tsk_calloc(self->num_pairs, sizeof(*self->ibd_segments_tail));
+    self->is_sample = tsk_calloc(num_nodes_alloc, sizeof(*self->is_sample));
     self->segment_queue_size = 0;
     self->max_segment_queue_size = 64;
     self->segment_queue
-        = malloc(self->max_segment_queue_size * sizeof(*self->segment_queue));
+        = tsk_malloc(self->max_segment_queue_size * sizeof(*self->segment_queue));
     if (self->ancestor_map_head == NULL || self->ancestor_map_tail == NULL
         || self->ibd_segments_head == NULL || self->ibd_segments_tail == NULL
         || self->is_sample == NULL || self->segment_queue == NULL) {
@@ -7407,7 +7407,7 @@ tsk_ibd_finder_enqueue_segment(
      * can put a tail sentinel on it */
     if (self->segment_queue_size == self->max_segment_queue_size - 1) {
         self->max_segment_queue_size *= 2;
-        p = realloc(self->segment_queue,
+        p = tsk_realloc(self->segment_queue,
             self->max_segment_queue_size * sizeof(*self->segment_queue));
         if (p == NULL) {
             ret = TSK_ERR_NO_MEMORY;
@@ -7952,13 +7952,13 @@ simplifier_init_position_lookup(simplifier_t *self)
     int ret = 0;
     size_t num_sites = self->input_tables.sites.num_rows;
 
-    self->position_lookup = malloc((num_sites + 2) * sizeof(*self->position_lookup));
+    self->position_lookup = tsk_malloc((num_sites + 2) * sizeof(*self->position_lookup));
     if (self->position_lookup == NULL) {
         goto out;
     }
     self->position_lookup[0] = 0;
     self->position_lookup[num_sites + 1] = self->tables->sequence_length;
-    memcpy(self->position_lookup + 1, self->input_tables.sites.position,
+    tsk_memcpy(self->position_lookup + 1, self->input_tables.sites.position,
         num_sites * sizeof(double));
 out:
     return ret;
@@ -8048,15 +8048,15 @@ simplifier_init_sites(simplifier_t *self)
     tsk_size_t j;
 
     self->mutation_id_map
-        = calloc(self->input_tables.mutations.num_rows, sizeof(tsk_id_t));
+        = tsk_calloc(self->input_tables.mutations.num_rows, sizeof(tsk_id_t));
     self->mutation_node_map
-        = calloc(self->input_tables.mutations.num_rows, sizeof(tsk_id_t));
+        = tsk_calloc(self->input_tables.mutations.num_rows, sizeof(tsk_id_t));
     self->node_mutation_list_mem
-        = malloc(self->input_tables.mutations.num_rows * sizeof(mutation_id_list_t));
+        = tsk_malloc(self->input_tables.mutations.num_rows * sizeof(mutation_id_list_t));
     self->node_mutation_list_map_head
-        = calloc(self->input_tables.nodes.num_rows, sizeof(mutation_id_list_t *));
+        = tsk_calloc(self->input_tables.nodes.num_rows, sizeof(mutation_id_list_t *));
     self->node_mutation_list_map_tail
-        = calloc(self->input_tables.nodes.num_rows, sizeof(mutation_id_list_t *));
+        = tsk_calloc(self->input_tables.nodes.num_rows, sizeof(mutation_id_list_t *));
     if (self->mutation_id_map == NULL || self->mutation_node_map == NULL
         || self->node_mutation_list_mem == NULL
         || self->node_mutation_list_map_head == NULL
@@ -8064,9 +8064,9 @@ simplifier_init_sites(simplifier_t *self)
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memset(self->mutation_id_map, 0xff,
+    tsk_memset(self->mutation_id_map, 0xff,
         self->input_tables.mutations.num_rows * sizeof(tsk_id_t));
-    memset(self->mutation_node_map, 0xff,
+    tsk_memset(self->mutation_node_map, 0xff,
         self->input_tables.mutations.num_rows * sizeof(tsk_id_t));
 
     for (j = 0; j < self->input_tables.mutations.num_rows; j++) {
@@ -8181,7 +8181,7 @@ simplifier_init(simplifier_t *self, const tsk_id_t *samples, tsk_size_t num_samp
     tsk_id_t ret_id;
     size_t num_nodes_alloc;
 
-    memset(self, 0, sizeof(simplifier_t));
+    tsk_memset(self, 0, sizeof(simplifier_t));
     self->num_samples = num_samples;
     self->options = options;
     self->tables = tables;
@@ -8205,12 +8205,12 @@ simplifier_init(simplifier_t *self, const tsk_id_t *samples, tsk_size_t num_samp
     }
 
     /* Take a copy of the input samples */
-    self->samples = malloc(num_samples * sizeof(tsk_id_t));
+    self->samples = tsk_malloc(num_samples * sizeof(tsk_id_t));
     if (self->samples == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memcpy(self->samples, samples, num_samples * sizeof(tsk_id_t));
+    tsk_memcpy(self->samples, samples, num_samples * sizeof(tsk_id_t));
 
     /* Allocate the heaps used for small objects-> Assuming 8K is a good chunk size
      */
@@ -8226,18 +8226,18 @@ simplifier_init(simplifier_t *self, const tsk_id_t *samples, tsk_size_t num_samp
     if (ret != 0) {
         goto out;
     }
-    /* Need to avoid malloc(0) so make sure we have at least 1. */
+    /* Need to avoid tsk_malloc(0) so make sure we have at least 1. */
     num_nodes_alloc = 1 + tables->nodes.num_rows;
     /* Make the maps and set the intial state */
-    self->ancestor_map_head = calloc(num_nodes_alloc, sizeof(tsk_segment_t *));
-    self->ancestor_map_tail = calloc(num_nodes_alloc, sizeof(tsk_segment_t *));
-    self->child_edge_map_head = calloc(num_nodes_alloc, sizeof(interval_list_t *));
-    self->child_edge_map_tail = calloc(num_nodes_alloc, sizeof(interval_list_t *));
-    self->node_id_map = malloc(num_nodes_alloc * sizeof(tsk_id_t));
-    self->buffered_children = malloc(num_nodes_alloc * sizeof(tsk_id_t));
-    self->is_sample = calloc(num_nodes_alloc, sizeof(bool));
+    self->ancestor_map_head = tsk_calloc(num_nodes_alloc, sizeof(tsk_segment_t *));
+    self->ancestor_map_tail = tsk_calloc(num_nodes_alloc, sizeof(tsk_segment_t *));
+    self->child_edge_map_head = tsk_calloc(num_nodes_alloc, sizeof(interval_list_t *));
+    self->child_edge_map_tail = tsk_calloc(num_nodes_alloc, sizeof(interval_list_t *));
+    self->node_id_map = tsk_malloc(num_nodes_alloc * sizeof(tsk_id_t));
+    self->buffered_children = tsk_malloc(num_nodes_alloc * sizeof(tsk_id_t));
+    self->is_sample = tsk_calloc(num_nodes_alloc, sizeof(bool));
     self->max_segment_queue_size = 64;
-    self->segment_queue = malloc(self->max_segment_queue_size * sizeof(tsk_segment_t));
+    self->segment_queue = tsk_malloc(self->max_segment_queue_size * sizeof(tsk_segment_t));
     if (self->ancestor_map_head == NULL || self->ancestor_map_tail == NULL
         || self->child_edge_map_head == NULL || self->child_edge_map_tail == NULL
         || self->node_id_map == NULL || self->is_sample == NULL
@@ -8249,7 +8249,7 @@ simplifier_init(simplifier_t *self, const tsk_id_t *samples, tsk_size_t num_samp
     if (ret != 0) {
         goto out;
     }
-    memset(
+    tsk_memset(
         self->node_id_map, 0xff, self->input_tables.nodes.num_rows * sizeof(tsk_id_t));
     ret = simplifier_init_sites(self);
     if (ret != 0) {
@@ -8307,7 +8307,7 @@ simplifier_enqueue_segment(simplifier_t *self, double left, double right, tsk_id
      * can put a tail sentinel on it */
     if (self->segment_queue_size == self->max_segment_queue_size - 1) {
         self->max_segment_queue_size *= 2;
-        p = realloc(self->segment_queue,
+        p = tsk_realloc(self->segment_queue,
             self->max_segment_queue_size * sizeof(*self->segment_queue));
         if (p == NULL) {
             ret = TSK_ERR_NO_MEMORY;
@@ -8636,8 +8636,8 @@ simplifier_finalise_references(simplifier_t *self)
     tsk_size_t num_populations = self->input_tables.populations.num_rows;
     tsk_id_t *node_population = self->tables->nodes.population;
     bool *population_referenced
-        = calloc(num_populations, sizeof(*population_referenced));
-    tsk_id_t *population_id_map = malloc(num_populations * sizeof(*population_id_map));
+        = tsk_calloc(num_populations, sizeof(*population_referenced));
+    tsk_id_t *population_id_map = tsk_malloc(num_populations * sizeof(*population_id_map));
     bool filter_populations = !!(self->options & TSK_FILTER_POPULATIONS);
 
     tsk_individual_t ind;
@@ -8645,8 +8645,8 @@ simplifier_finalise_references(simplifier_t *self)
     tsk_size_t num_individuals = self->input_tables.individuals.num_rows;
     tsk_id_t *node_individual = self->tables->nodes.individual;
     bool *individual_referenced
-        = calloc(num_individuals, sizeof(*individual_referenced));
-    tsk_id_t *individual_id_map = malloc(num_individuals * sizeof(*individual_id_map));
+        = tsk_calloc(num_individuals, sizeof(*individual_referenced));
+    tsk_id_t *individual_id_map = tsk_malloc(num_individuals * sizeof(*individual_id_map));
     bool filter_individuals = !!(self->options & TSK_FILTER_INDIVIDUALS);
 
     if (population_referenced == NULL || population_id_map == NULL
@@ -8866,7 +8866,7 @@ simplifier_run(simplifier_t *self, tsk_id_t *node_map)
     }
     if (node_map != NULL) {
         /* Finally, output the new IDs for the nodes, if required. */
-        memcpy(node_map, self->node_id_map,
+        tsk_memcpy(node_map, self->node_id_map,
             self->input_tables.nodes.num_rows * sizeof(tsk_id_t));
     }
     if (self->edge_sort_offset != TSK_NULL) {
@@ -9012,7 +9012,7 @@ tsk_table_collection_check_edge_integrity(
     bool *parent_seen = NULL;
 
     if (check_ordering) {
-        parent_seen = calloc((size_t) num_nodes, sizeof(*parent_seen));
+        parent_seen = tsk_calloc((size_t) num_nodes, sizeof(*parent_seen));
         if (parent_seen == NULL) {
             ret = TSK_ERR_NO_MEMORY;
             goto out;
@@ -9378,12 +9378,12 @@ tsk_table_collection_check_tree_integrity(const tsk_table_collection_t *self)
     tsk_id_t *restrict parent = NULL;
     tsk_id_t num_trees = 0;
 
-    parent = malloc(self->nodes.num_rows * sizeof(*parent));
+    parent = tsk_malloc(self->nodes.num_rows * sizeof(*parent));
     if (parent == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memset(parent, 0xff, self->nodes.num_rows * sizeof(*parent));
+    tsk_memset(parent, 0xff, self->nodes.num_rows * sizeof(*parent));
 
     tree_left = 0;
     tree_right = sequence_length;
@@ -9563,7 +9563,7 @@ tsk_table_collection_init(tsk_table_collection_t *self, tsk_flags_t options)
     int ret = 0;
     tsk_flags_t edge_options = 0;
 
-    memset(self, 0, sizeof(*self));
+    tsk_memset(self, 0, sizeof(*self));
     if (options & TSK_NO_EDGE_METADATA) {
         edge_options |= TSK_NO_METADATA;
     }
@@ -9646,10 +9646,10 @@ tsk_table_collection_equals(const tsk_table_collection_t *self,
         ret = ret
               && (self->metadata_length == other->metadata_length
                      && self->metadata_schema_length == other->metadata_schema_length
-                     && memcmp(self->metadata, other->metadata,
+                     && tsk_memcmp(self->metadata, other->metadata,
                             self->metadata_length * sizeof(char))
                             == 0
-                     && memcmp(self->metadata_schema, other->metadata_schema,
+                     && tsk_memcmp(self->metadata_schema, other->metadata_schema,
                             self->metadata_schema_length * sizeof(char))
                             == 0);
     }
@@ -9685,15 +9685,15 @@ tsk_table_collection_set_indexes(tsk_table_collection_t *self,
     size_t index_size = self->edges.num_rows * sizeof(tsk_id_t);
 
     tsk_table_collection_drop_index(self, 0);
-    self->indexes.edge_insertion_order = malloc(index_size);
-    self->indexes.edge_removal_order = malloc(index_size);
+    self->indexes.edge_insertion_order = tsk_malloc(index_size);
+    self->indexes.edge_removal_order = tsk_malloc(index_size);
     if (self->indexes.edge_insertion_order == NULL
         || self->indexes.edge_removal_order == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memcpy(self->indexes.edge_insertion_order, edge_insertion_order, index_size);
-    memcpy(self->indexes.edge_removal_order, edge_removal_order, index_size);
+    tsk_memcpy(self->indexes.edge_insertion_order, edge_insertion_order, index_size);
+    tsk_memcpy(self->indexes.edge_removal_order, edge_removal_order, index_size);
     self->indexes.num_edges = self->edges.num_rows;
 out:
     return ret;
@@ -9740,9 +9740,9 @@ tsk_table_collection_build_index(
     }
 
     tsk_table_collection_drop_index(self, 0);
-    self->indexes.edge_insertion_order = malloc(self->edges.num_rows * sizeof(tsk_id_t));
-    self->indexes.edge_removal_order = malloc(self->edges.num_rows * sizeof(tsk_id_t));
-    sort_buff = malloc(self->edges.num_rows * sizeof(index_sort_t));
+    self->indexes.edge_insertion_order = tsk_malloc(self->edges.num_rows * sizeof(tsk_id_t));
+    self->indexes.edge_removal_order = tsk_malloc(self->edges.num_rows * sizeof(tsk_id_t));
+    sort_buff = tsk_malloc(self->edges.num_rows * sizeof(index_sort_t));
     if (self->indexes.edge_insertion_order == NULL
         || self->indexes.edge_removal_order == NULL || sort_buff == NULL) {
         ret = TSK_ERR_NO_MEMORY;
@@ -9872,7 +9872,7 @@ tsk_table_collection_read_format_data(tsk_table_collection_t *self, kastore_t *s
         ret = TSK_ERR_FILE_FORMAT;
         goto out;
     }
-    if (memcmp(TSK_FILE_FORMAT_NAME, format_name, TSK_FILE_FORMAT_NAME_LENGTH) != 0) {
+    if (tsk_memcmp(TSK_FILE_FORMAT_NAME, format_name, TSK_FILE_FORMAT_NAME_LENGTH) != 0) {
         ret = TSK_ERR_FILE_FORMAT;
         goto out;
     }
@@ -9924,12 +9924,12 @@ tsk_table_collection_read_format_data(tsk_table_collection_t *self, kastore_t *s
      * all pointers have been set to zero */
     tsk_safe_free(self->file_uuid);
     /* Allow space for \0 so we can print it as a string */
-    self->file_uuid = malloc(TSK_UUID_SIZE + 1);
+    self->file_uuid = tsk_malloc(TSK_UUID_SIZE + 1);
     if (self->file_uuid == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memcpy(self->file_uuid, uuid, TSK_UUID_SIZE);
+    tsk_memcpy(self->file_uuid, uuid, TSK_UUID_SIZE);
     self->file_uuid[TSK_UUID_SIZE] = '\0';
 
     ret = kastore_containss(store, "metadata");
@@ -10191,7 +10191,7 @@ tsk_table_collection_write_format_data(const tsk_table_collection_t *self,
     }
     /* This stupid dance is to workaround the fact that compilers won't allow
      * casts to discard the 'const' qualifier. */
-    memcpy(format_name, TSK_FILE_FORMAT_NAME, sizeof(format_name));
+    tsk_memcpy(format_name, TSK_FILE_FORMAT_NAME, sizeof(format_name));
     ret = write_table_cols(store, write_cols, 0);
 out:
     return ret;
@@ -10235,7 +10235,7 @@ tsk_table_collection_dumpf(
     int ret = 0;
     kastore_t store;
 
-    memset(&store, 0, sizeof(store));
+    tsk_memset(&store, 0, sizeof(store));
 
     ret = kastore_openf(&store, file, "w", 0);
     if (ret != 0) {
@@ -10309,7 +10309,7 @@ tsk_table_collection_simplify(tsk_table_collection_t *self, const tsk_id_t *samp
     tsk_id_t u;
 
     /* Avoid calling to simplifier_free with uninit'd memory on error branches */
-    memset(&simplifier, 0, sizeof(simplifier_t));
+    tsk_memset(&simplifier, 0, sizeof(simplifier_t));
 
     if ((options & TSK_KEEP_UNARY) && (options & TSK_KEEP_UNARY_IN_INDIVIDUALS)) {
         ret = TSK_ERR_KEEP_UNARY_MUTUALLY_EXCLUSIVE;
@@ -10325,7 +10325,7 @@ tsk_table_collection_simplify(tsk_table_collection_t *self, const tsk_id_t *samp
 
     if (samples == NULL) {
         /* Avoid issue with mallocing zero bytes */
-        local_samples = malloc((1 + self->nodes.num_rows) * sizeof(*local_samples));
+        local_samples = tsk_malloc((1 + self->nodes.num_rows) * sizeof(*local_samples));
         if (local_samples == NULL) {
             ret = TSK_ERR_NO_MEMORY;
             goto out;
@@ -10367,7 +10367,7 @@ tsk_table_collection_link_ancestors(tsk_table_collection_t *self, tsk_id_t *samp
     int ret = 0;
     ancestor_mapper_t ancestor_mapper;
 
-    memset(&ancestor_mapper, 0, sizeof(ancestor_mapper_t));
+    tsk_memset(&ancestor_mapper, 0, sizeof(ancestor_mapper_t));
 
     if (self->edges.metadata_length > 0) {
         ret = TSK_ERR_CANT_PROCESS_EDGES_WITH_METADATA;
@@ -10424,7 +10424,7 @@ tsk_table_collection_canonicalise(tsk_table_collection_t *self, tsk_flags_t opti
     sorter.sort_mutations = tsk_table_sorter_sort_mutations_canonical;
     sorter.sort_individuals = tsk_table_sorter_sort_individuals_canonical;
 
-    nodes = malloc(self->nodes.num_rows * sizeof(*nodes));
+    nodes = tsk_malloc(self->nodes.num_rows * sizeof(*nodes));
     if (nodes == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -10479,7 +10479,7 @@ tsk_table_collection_deduplicate_sites(
         goto out;
     }
 
-    site_id_map = malloc(copy.num_rows * sizeof(*site_id_map));
+    site_id_map = tsk_malloc(copy.num_rows * sizeof(*site_id_map));
     if (site_id_map == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -10543,21 +10543,21 @@ tsk_table_collection_compute_mutation_parents(
 
     /* Set the mutation parent to TSK_NULL so that we don't check the
      * parent values we are about to write over. */
-    memset(mutations.parent, 0xff, mutations.num_rows * sizeof(*mutations.parent));
+    tsk_memset(mutations.parent, 0xff, mutations.num_rows * sizeof(*mutations.parent));
     num_trees = tsk_table_collection_check_integrity(self, TSK_CHECK_TREES);
     if (num_trees < 0) {
         ret = (int) num_trees;
         goto out;
     }
-    parent = malloc(nodes.num_rows * sizeof(*parent));
-    bottom_mutation = malloc(nodes.num_rows * sizeof(*bottom_mutation));
+    parent = tsk_malloc(nodes.num_rows * sizeof(*parent));
+    bottom_mutation = tsk_malloc(nodes.num_rows * sizeof(*bottom_mutation));
     if (parent == NULL || bottom_mutation == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memset(parent, 0xff, nodes.num_rows * sizeof(*parent));
-    memset(bottom_mutation, 0xff, nodes.num_rows * sizeof(*bottom_mutation));
-    memset(mutations.parent, 0xff, self->mutations.num_rows * sizeof(tsk_id_t));
+    tsk_memset(parent, 0xff, nodes.num_rows * sizeof(*parent));
+    tsk_memset(bottom_mutation, 0xff, nodes.num_rows * sizeof(*bottom_mutation));
+    tsk_memset(mutations.parent, 0xff, self->mutations.num_rows * sizeof(tsk_id_t));
 
     I = self->indexes.edge_insertion_order;
     O = self->indexes.edge_removal_order;
@@ -10675,16 +10675,16 @@ tsk_table_collection_compute_mutation_times(
         ret = (int) num_trees;
         goto out;
     }
-    parent = malloc(nodes.num_rows * sizeof(*parent));
-    numerator = malloc(nodes.num_rows * sizeof(*numerator));
-    denominator = malloc(nodes.num_rows * sizeof(*denominator));
+    parent = tsk_malloc(nodes.num_rows * sizeof(*parent));
+    numerator = tsk_malloc(nodes.num_rows * sizeof(*numerator));
+    denominator = tsk_malloc(nodes.num_rows * sizeof(*denominator));
     if (parent == NULL || numerator == NULL || denominator == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memset(parent, 0xff, nodes.num_rows * sizeof(*parent));
-    memset(numerator, 0, nodes.num_rows * sizeof(*numerator));
-    memset(denominator, 0, nodes.num_rows * sizeof(*denominator));
+    tsk_memset(parent, 0xff, nodes.num_rows * sizeof(*parent));
+    tsk_memset(numerator, 0, nodes.num_rows * sizeof(*numerator));
+    tsk_memset(denominator, 0, nodes.num_rows * sizeof(*denominator));
 
     tj = 0;
     tk = 0;
@@ -10988,21 +10988,21 @@ tsk_table_collection_subset(tsk_table_collection_t *self, const tsk_id_t *nodes,
         goto out;
     }
 
-    node_map = malloc(tables.nodes.num_rows * sizeof(*node_map));
-    individual_map = malloc(tables.individuals.num_rows * sizeof(*individual_map));
-    population_map = malloc(tables.populations.num_rows * sizeof(*population_map));
-    site_map = malloc(tables.sites.num_rows * sizeof(*site_map));
-    mutation_map = malloc(tables.mutations.num_rows * sizeof(*mutation_map));
+    node_map = tsk_malloc(tables.nodes.num_rows * sizeof(*node_map));
+    individual_map = tsk_malloc(tables.individuals.num_rows * sizeof(*individual_map));
+    population_map = tsk_malloc(tables.populations.num_rows * sizeof(*population_map));
+    site_map = tsk_malloc(tables.sites.num_rows * sizeof(*site_map));
+    mutation_map = tsk_malloc(tables.mutations.num_rows * sizeof(*mutation_map));
     if (node_map == NULL || individual_map == NULL || population_map == NULL
         || site_map == NULL || mutation_map == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memset(node_map, 0xff, tables.nodes.num_rows * sizeof(*node_map));
-    memset(individual_map, 0xff, tables.individuals.num_rows * sizeof(*individual_map));
-    memset(population_map, 0xff, tables.populations.num_rows * sizeof(*population_map));
-    memset(site_map, 0xff, tables.sites.num_rows * sizeof(*site_map));
-    memset(mutation_map, 0xff, tables.mutations.num_rows * sizeof(*mutation_map));
+    tsk_memset(node_map, 0xff, tables.nodes.num_rows * sizeof(*node_map));
+    tsk_memset(individual_map, 0xff, tables.individuals.num_rows * sizeof(*individual_map));
+    tsk_memset(population_map, 0xff, tables.populations.num_rows * sizeof(*population_map));
+    tsk_memset(site_map, 0xff, tables.sites.num_rows * sizeof(*site_map));
+    tsk_memset(mutation_map, 0xff, tables.mutations.num_rows * sizeof(*mutation_map));
 
     if (no_change_populations) {
         ret = tsk_population_table_copy(
@@ -11194,10 +11194,10 @@ tsk_check_subset_equality(tsk_table_collection_t *self,
     tsk_table_collection_t self_copy;
     tsk_table_collection_t other_copy;
 
-    memset(&self_copy, 0, sizeof(self_copy));
-    memset(&other_copy, 0, sizeof(other_copy));
-    self_nodes = malloc(num_shared_nodes * sizeof(*self_nodes));
-    other_nodes = malloc(num_shared_nodes * sizeof(*other_nodes));
+    tsk_memset(&self_copy, 0, sizeof(self_copy));
+    tsk_memset(&other_copy, 0, sizeof(other_copy));
+    self_nodes = tsk_malloc(num_shared_nodes * sizeof(*self_nodes));
+    other_nodes = tsk_malloc(num_shared_nodes * sizeof(*other_nodes));
     if (self_nodes == NULL || other_nodes == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -11298,19 +11298,19 @@ tsk_table_collection_union(tsk_table_collection_t *self,
     }
 
     // Maps relating the IDs in other to the new IDs in self.
-    node_map = malloc(other->nodes.num_rows * sizeof(*node_map));
-    individual_map = malloc(other->individuals.num_rows * sizeof(*individual_map));
-    population_map = malloc(other->populations.num_rows * sizeof(*population_map));
-    site_map = malloc(other->sites.num_rows * sizeof(*site_map));
+    node_map = tsk_malloc(other->nodes.num_rows * sizeof(*node_map));
+    individual_map = tsk_malloc(other->individuals.num_rows * sizeof(*individual_map));
+    population_map = tsk_malloc(other->populations.num_rows * sizeof(*population_map));
+    site_map = tsk_malloc(other->sites.num_rows * sizeof(*site_map));
     if (node_map == NULL || individual_map == NULL || population_map == NULL
         || site_map == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memset(node_map, 0xff, other->nodes.num_rows * sizeof(*node_map));
-    memset(individual_map, 0xff, other->individuals.num_rows * sizeof(*individual_map));
-    memset(population_map, 0xff, other->populations.num_rows * sizeof(*population_map));
-    memset(site_map, 0xff, other->sites.num_rows * sizeof(*site_map));
+    tsk_memset(node_map, 0xff, other->nodes.num_rows * sizeof(*node_map));
+    tsk_memset(individual_map, 0xff, other->individuals.num_rows * sizeof(*individual_map));
+    tsk_memset(population_map, 0xff, other->populations.num_rows * sizeof(*population_map));
+    tsk_memset(site_map, 0xff, other->sites.num_rows * sizeof(*site_map));
 
     /* We have to map the individuals who are linked to nodes in the intersection first
        as otherwise an individual linked to one node in the intersection and one in
