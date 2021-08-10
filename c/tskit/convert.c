@@ -153,8 +153,9 @@ tsk_newick_converter_init(tsk_newick_converter_t *self, const tsk_tree_t *tree,
     self->precision = precision;
     self->options = options;
     self->tree = tree;
-    self->traversal_stack = tsk_malloc(tsk_treeseq_get_num_nodes(self->tree->tree_sequence)
-                                   * sizeof(*self->traversal_stack));
+    self->traversal_stack
+        = tsk_malloc(tsk_treeseq_get_num_nodes(self->tree->tree_sequence)
+                     * sizeof(*self->traversal_stack));
     if (self->traversal_stack == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;

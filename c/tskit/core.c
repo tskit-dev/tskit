@@ -581,12 +581,12 @@ tsk_blkalloc_init(tsk_blkalloc_t *self, size_t chunk_size)
     self->total_allocated = 0;
     self->total_size = 0;
     self->num_chunks = 0;
-    self->mem_chunks = tsk_malloc(sizeof(char *));
+    self->mem_chunks = malloc(sizeof(char *));
     if (self->mem_chunks == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    self->mem_chunks[0] = tsk_malloc(chunk_size);
+    self->mem_chunks[0] = malloc(chunk_size);
     if (self->mem_chunks[0] == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -713,18 +713,28 @@ tsk_is_unknown_time(double val)
 void *
 tsk_malloc(size_t size)
 {
+    /* Avoid malloc(0) as it's not portable */
+    if (size == 0) {
+        size = 1;
+    }
     return malloc((size_t) size);
 }
 
 void *
 tsk_realloc(void *ptr, size_t size)
 {
+    /* We shouldn't ever realloc to a zero size in tskit */
+    tsk_bug_assert(size > 0);
     return realloc(ptr, (size_t) size);
 }
 
 void *
 tsk_calloc(size_t n, size_t size)
 {
+    /* Avoid calloc(0) as it's not portable */
+    if (n == 0) {
+        n = 1;
+    }
     return calloc((size_t) n, size);
 }
 

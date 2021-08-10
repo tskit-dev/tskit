@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2020 Tskit Developers
+ * Copyright (c) 2019-2021 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -128,7 +128,8 @@ tsk_treeseq_init_sites(tsk_treeseq_t *self)
     const tsk_size_t num_sites = self->tables->sites.num_rows;
     const tsk_id_t *restrict mutation_site = self->tables->mutations.site;
 
-    self->site_mutations_mem = tsk_malloc(num_mutations * sizeof(*self->site_mutations_mem));
+    self->site_mutations_mem
+        = tsk_malloc(num_mutations * sizeof(*self->site_mutations_mem));
     self->site_mutations_length
         = tsk_malloc(num_sites * sizeof(*self->site_mutations_length));
     self->site_mutations = tsk_malloc(num_sites * sizeof(*self->site_mutations));
@@ -241,10 +242,10 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
     const tsk_id_t *restrict O = self->tables->indexes.edge_removal_order;
     const double *restrict edge_right = self->tables->edges.right;
     const double *restrict edge_left = self->tables->edges.left;
-    /* Avoid tsk_malloc(0) */
     size_t num_trees_alloc = self->num_trees + 1;
 
-    self->tree_sites_length = tsk_malloc(num_trees_alloc * sizeof(*self->tree_sites_length));
+    self->tree_sites_length
+        = tsk_malloc(num_trees_alloc * sizeof(*self->tree_sites_length));
     self->tree_sites = tsk_malloc(num_trees_alloc * sizeof(*self->tree_sites));
     self->breakpoints = tsk_malloc(num_trees_alloc * sizeof(*self->breakpoints));
     if (self->tree_sites == NULL || self->tree_sites_length == NULL
@@ -670,8 +671,10 @@ tsk_treeseq_genealogical_nearest_neighbours(const tsk_treeseq_t *self,
     double left, right, *A_row, scale, tree_length;
     tsk_id_t *restrict parent = tsk_malloc(num_nodes * sizeof(*parent));
     double *restrict length = tsk_calloc(num_focal, sizeof(*length));
-    uint32_t *restrict ref_count = tsk_calloc(((size_t) K) * num_nodes, sizeof(*ref_count));
-    int16_t *restrict reference_set_map = tsk_malloc(num_nodes * sizeof(*reference_set_map));
+    uint32_t *restrict ref_count
+        = tsk_calloc(((size_t) K) * num_nodes, sizeof(*ref_count));
+    int16_t *restrict reference_set_map
+        = tsk_malloc(num_nodes * sizeof(*reference_set_map));
     uint32_t *restrict row = NULL;
     uint32_t *restrict child_row = NULL;
     uint32_t total, delta;
@@ -850,7 +853,8 @@ tsk_treeseq_mean_descendants(const tsk_treeseq_t *self,
     tsk_id_t tj, tk, h;
     double left, right, length, *restrict C_row;
     tsk_id_t *restrict parent = tsk_malloc(num_nodes * sizeof(*parent));
-    uint32_t *restrict ref_count = tsk_calloc(num_nodes * ((size_t) K), sizeof(*ref_count));
+    uint32_t *restrict ref_count
+        = tsk_calloc(num_nodes * ((size_t) K), sizeof(*ref_count));
     double *restrict last_update = tsk_calloc(num_nodes, sizeof(*last_update));
     double *restrict total_length = tsk_calloc(num_nodes, sizeof(*total_length));
     uint32_t *restrict row, *restrict child_row;
@@ -1280,7 +1284,8 @@ get_allele_weights(const tsk_site_t *site, const double *state, tsk_size_t state
         allele = 0;
         while (allele < num_alleles) {
             if (alt_allele_length == allele_lengths[allele]
-                && tsk_memcmp(alt_allele, alleles[allele], allele_lengths[allele]) == 0) {
+                && tsk_memcmp(alt_allele, alleles[allele], allele_lengths[allele])
+                       == 0) {
                 break;
             }
             allele++;
@@ -4296,7 +4301,8 @@ tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
     const tsk_flags_t *restrict node_flags = self->tree_sequence->tables->nodes.flags;
     uint64_t optimal_root_set;
     uint64_t *restrict optimal_set = tsk_calloc(num_nodes, sizeof(*optimal_set));
-    tsk_id_t *restrict postorder_stack = tsk_malloc(num_nodes * sizeof(*postorder_stack));
+    tsk_id_t *restrict postorder_stack
+        = tsk_malloc(num_nodes * sizeof(*postorder_stack));
     struct stack_elem *restrict preorder_stack
         = tsk_malloc(num_nodes * sizeof(*preorder_stack));
     tsk_id_t postorder_parent, root, u, v;
@@ -4365,7 +4371,8 @@ tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
                 postorder_parent = parent[u];
 
                 /* Visit u */
-                tsk_memset(allele_count, 0, ((size_t) num_alleles) * sizeof(*allele_count));
+                tsk_memset(
+                    allele_count, 0, ((size_t) num_alleles) * sizeof(*allele_count));
                 for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
                     for (allele = 0; allele < num_alleles; allele++) {
                         allele_count[allele] += bit_is_set(optimal_set[v], allele);

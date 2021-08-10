@@ -117,7 +117,8 @@ vargen_init_samples_and_index_map(tsk_vargen_t *self, const tsk_treeseq_t *tree_
 
     num_nodes = tsk_treeseq_get_num_nodes(tree_sequence);
     self->alt_samples = tsk_malloc(num_samples_alloc * sizeof(*samples));
-    self->alt_sample_index_map = tsk_malloc(num_nodes * sizeof(*self->alt_sample_index_map));
+    self->alt_sample_index_map
+        = tsk_malloc(num_nodes * sizeof(*self->alt_sample_index_map));
     if (self->alt_samples == NULL || self->alt_sample_index_map == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -167,8 +168,7 @@ tsk_vargen_init(tsk_vargen_t *self, const tsk_treeseq_t *tree_sequence,
         num_samples_alloc = self->num_samples;
     } else {
         /* Take a copy of the samples for simplicity */
-        /* We can have num_samples = 0 here, so guard against tsk_malloc(0) */
-        num_samples_alloc = num_samples + 1;
+        num_samples_alloc = num_samples;
         ret = vargen_init_samples_and_index_map(
             self, tree_sequence, samples, num_samples, num_samples_alloc, options);
         if (ret != 0) {
@@ -290,7 +290,8 @@ tsk_vargen_expand_alleles(tsk_vargen_t *self)
         goto out;
     }
     var->alleles = p;
-    p = tsk_realloc(var->allele_lengths, var->max_alleles * sizeof(*var->allele_lengths));
+    p = tsk_realloc(
+        var->allele_lengths, var->max_alleles * sizeof(*var->allele_lengths));
     if (p == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;

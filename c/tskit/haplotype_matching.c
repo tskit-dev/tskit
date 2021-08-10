@@ -132,8 +132,10 @@ tsk_ls_hmm_init(tsk_ls_hmm_t *self, tsk_treeseq_t *tree_sequence,
     self->num_nodes = tsk_treeseq_get_num_nodes(tree_sequence);
     self->parent = tsk_malloc(self->num_nodes * sizeof(*self->parent));
     self->allelic_state = tsk_malloc(self->num_nodes * sizeof(*self->allelic_state));
-    self->transition_index = tsk_malloc(self->num_nodes * sizeof(*self->transition_index));
-    self->transition_stack = tsk_malloc(self->num_nodes * sizeof(*self->transition_stack));
+    self->transition_index
+        = tsk_malloc(self->num_nodes * sizeof(*self->transition_index));
+    self->transition_stack
+        = tsk_malloc(self->num_nodes * sizeof(*self->transition_stack));
     /* We can't have more than 2 * num_samples transitions, so we use this as the
      * upper bound. Because of the implementation, we'll also have to worry about
      * the extra mutations at the first site, which in worst case involves all
@@ -143,7 +145,8 @@ tsk_ls_hmm_init(tsk_ls_hmm_t *self, tsk_treeseq_t *tree_sequence,
     /* FIXME Arbitrarily doubling this after hitting problems */
     self->max_transitions *= 2;
     self->transitions = tsk_malloc(self->max_transitions * sizeof(*self->transitions));
-    self->transitions_copy = tsk_malloc(self->max_transitions * sizeof(*self->transitions));
+    self->transitions_copy
+        = tsk_malloc(self->max_transitions * sizeof(*self->transitions));
     self->num_transition_samples
         = tsk_malloc(self->max_transitions * sizeof(*self->num_transition_samples));
     self->transition_parent
@@ -1167,19 +1170,17 @@ tsk_compressed_matrix_init(tsk_compressed_matrix_t *self, tsk_treeseq_t *tree_se
     tsk_size_t block_size, tsk_flags_t options)
 {
     int ret = 0;
-    tsk_size_t num_sites;
 
     tsk_memset(self, 0, sizeof(*self));
     self->tree_sequence = tree_sequence;
     self->options = options;
     self->num_sites = tsk_treeseq_get_num_sites(tree_sequence);
     self->num_samples = tsk_treeseq_get_num_samples(tree_sequence);
-    /* Avoid tsk_malloc(0) */
-    num_sites = TSK_MAX(self->num_sites, 1);
-    self->num_transitions = tsk_malloc(num_sites * sizeof(*self->num_transitions));
-    self->normalisation_factor = tsk_malloc(num_sites * sizeof(*self->normalisation_factor));
-    self->values = tsk_malloc(num_sites * sizeof(*self->values));
-    self->nodes = tsk_malloc(num_sites * sizeof(*self->nodes));
+    self->num_transitions = tsk_malloc(self->num_sites * sizeof(*self->num_transitions));
+    self->normalisation_factor
+        = tsk_malloc(self->num_sites * sizeof(*self->normalisation_factor));
+    self->values = tsk_malloc(self->num_sites * sizeof(*self->values));
+    self->nodes = tsk_malloc(self->num_sites * sizeof(*self->nodes));
     if (self->num_transitions == NULL || self->values == NULL || self->nodes == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -1211,7 +1212,8 @@ int
 tsk_compressed_matrix_clear(tsk_compressed_matrix_t *self)
 {
     tsk_blkalloc_reset(&self->memory);
-    tsk_memset(self->num_transitions, 0, self->num_sites * sizeof(*self->num_transitions));
+    tsk_memset(
+        self->num_transitions, 0, self->num_sites * sizeof(*self->num_transitions));
     tsk_memset(self->normalisation_factor, 0,
         self->num_sites * sizeof(*self->normalisation_factor));
     return 0;
@@ -1365,8 +1367,8 @@ static int
 tsk_viterbi_matrix_expand_recomb_records(tsk_viterbi_matrix_t *self)
 {
     int ret = 0;
-    tsk_recomb_required_record *tmp
-        = tsk_realloc(self->recombination_required, self->max_recomb_records * sizeof(*tmp));
+    tsk_recomb_required_record *tmp = tsk_realloc(
+        self->recombination_required, self->max_recomb_records * sizeof(*tmp));
 
     if (tmp == NULL) {
         ret = TSK_ERR_NO_MEMORY;
