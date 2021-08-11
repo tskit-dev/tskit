@@ -2893,6 +2893,23 @@ genetic_relatedness_summary_func(tsk_size_t state_dim, const double *state,
     return 0;
 }
 
+static int
+genetic_relatedness_noncentred_summary_func(tsk_size_t TSK_UNUSED(state_dim),
+    const double *state, tsk_size_t result_dim, double *result, void *params)
+{
+    sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
+    const double *x = state;
+    tsk_id_t i, j;
+    tsk_size_t k;
+
+    for (k = 0; k < result_dim; k++) {
+        i = args.set_indexes[2 * k];
+        j = args.set_indexes[2 * k + 1];
+        result[k] = x[i] * x[j] / 2;
+    }
+    return 0;
+}
+
 int
 tsk_treeseq_genetic_relatedness(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
     const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
@@ -2904,9 +2921,16 @@ tsk_treeseq_genetic_relatedness(const tsk_treeseq_t *self, tsk_size_t num_sample
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_treeseq_sample_count_stat(self, num_sample_sets, sample_set_sizes,
-        sample_sets, num_index_tuples, index_tuples, genetic_relatedness_summary_func,
-        num_windows, windows, result, options);
+    if (!(options & TSK_STAT_NONCENTRED)) {
+        ret = tsk_treeseq_sample_count_stat(self, num_sample_sets, sample_set_sizes,
+            sample_sets, num_index_tuples, index_tuples,
+            genetic_relatedness_summary_func, num_windows, windows, result, options);
+    } else {
+        ret = tsk_treeseq_sample_count_stat(self, num_sample_sets, sample_set_sizes,
+            sample_sets, num_index_tuples, index_tuples,
+            genetic_relatedness_noncentred_summary_func, num_windows, windows, result,
+            options);
+    }
 out:
     return ret;
 }
