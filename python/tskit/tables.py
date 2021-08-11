@@ -3452,43 +3452,17 @@ class TableCollection:
 
     def find_ibd(self, samples, max_time=None, min_length=None):
         """
-        Returns a dictionary containing all IBD (identical-by-descent) segments for the
-        supplied list of sample pairs.
+        Equivalent to the :meth:`TreeSequence.find_ibd` method; please see its
+        documentation for more details, and use this method only if you specifically need
+        to work with a :class:`TableCollection` object.
 
-        A pair of nodes ``(u, v)`` has an IBD segment with a left and right coordinate
-        ``[left, right)`` and ancestral node ``a`` iff the most recent common ancestor
-        of the segment ``[left, right)`` in nodes ``u`` and ``v`` is ``a``, and the
-        segment has been inherited along the same genealogical path (ie. it has not
-        been broken by recombination). The segments returned are the longest possible
-        ones.
-
-        Note that this definition is purely genealogical -- allelic states
-        *are not* considered here. If used without time or length thresholds, the
-        segments returned for a given pair will partition the span of the contig
-        represented by the tree sequence.
-
-        Each item in the outputted dictionary object contains the IBD segments for a
-        particular sample pair. Suppose the output is
-
-        .. code-block:: python
-
-            {
-                (0, 1): {
-                    "left": array([0.0]),
-                    "right": array([1.0]),
-                    "node": array([4]),
-                },
-                (0, 2): {
-                    "left": array([0.5, 0.0]),
-                    "right": array([1.0, 0.5]),
-                    "node": array([3, 5]),
-                },
-            }
-
-        This indicates that samples 0 and 1 share a single IBD segment on the interval
-        `[0.0, 1.0)` inherited from the ancestor with node ID 4. Samples 0 and 2 share
-        one IBD segment on the interval `[0.5, 1.0)` inherited from node 3, and another
-        segment on the interval `[0.0, 0.5)` inherited from node 5.
+        This method has the same input data requirements as
+        :meth:`TableCollection.simplify`. In particular, the table collection must be
+        sorted in the canonical order. To find out if this is needed, see
+        :meth:`TableCollection.sort`. If the edge table contains any edges with identical
+        parents and children over adjacent genomic intervals, any IBD intervals
+        underneath the edges will also be split across the breakpoint(s). To prevent this
+        behaviour in this situation, use :meth:`EdgeTable.squash` beforehand.
 
         :param list samples: A list of pairs of integers, with each pair specified as
             a tuple. In each pair, the integers correspond to the node IDs of a pair of
@@ -3505,6 +3479,7 @@ class TableCollection:
             numpy.ndarray objects, each of the same length, with datatypes np.float64,
             np.float64 and np.int32 respectively.
         :rtype: dict
+
         """
         max_time = sys.float_info.max if max_time is None else max_time
         min_length = 0 if min_length is None else min_length
