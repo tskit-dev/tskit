@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2020 Tskit Developers
+ * Copyright (c) 2019-2021 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -128,11 +128,12 @@ tsk_treeseq_init_sites(tsk_treeseq_t *self)
     const tsk_size_t num_sites = self->tables->sites.num_rows;
     const tsk_id_t *restrict mutation_site = self->tables->mutations.site;
 
-    self->site_mutations_mem = malloc(num_mutations * sizeof(*self->site_mutations_mem));
+    self->site_mutations_mem
+        = tsk_malloc(num_mutations * sizeof(*self->site_mutations_mem));
     self->site_mutations_length
-        = malloc(num_sites * sizeof(*self->site_mutations_length));
-    self->site_mutations = malloc(num_sites * sizeof(*self->site_mutations));
-    self->tree_sites_mem = malloc(num_sites * sizeof(*self->tree_sites_mem));
+        = tsk_malloc(num_sites * sizeof(*self->site_mutations_length));
+    self->site_mutations = tsk_malloc(num_sites * sizeof(*self->site_mutations));
+    self->tree_sites_mem = tsk_malloc(num_sites * sizeof(*self->tree_sites_mem));
     if (self->site_mutations_mem == NULL || self->site_mutations_length == NULL
         || self->site_mutations == NULL || self->tree_sites_mem == NULL) {
         ret = TSK_ERR_NO_MEMORY;
@@ -180,8 +181,8 @@ tsk_treeseq_init_individuals(tsk_treeseq_t *self)
 
     // First find number of nodes per individual
     self->individual_nodes_length
-        = calloc(TSK_MAX(1, num_inds), sizeof(*self->individual_nodes_length));
-    node_count = calloc(TSK_MAX(1, num_inds), sizeof(*node_count));
+        = tsk_calloc(TSK_MAX(1, num_inds), sizeof(*self->individual_nodes_length));
+    node_count = tsk_calloc(TSK_MAX(1, num_inds), sizeof(*node_count));
 
     if (self->individual_nodes_length == NULL || node_count == NULL) {
         ret = TSK_ERR_NO_MEMORY;
@@ -197,8 +198,8 @@ tsk_treeseq_init_individuals(tsk_treeseq_t *self)
     }
 
     self->individual_nodes_mem
-        = malloc(TSK_MAX(1, total_node_refs) * sizeof(tsk_node_t));
-    self->individual_nodes = malloc(TSK_MAX(1, num_inds) * sizeof(tsk_node_t *));
+        = tsk_malloc(TSK_MAX(1, total_node_refs) * sizeof(tsk_node_t));
+    self->individual_nodes = tsk_malloc(TSK_MAX(1, num_inds) * sizeof(tsk_node_t *));
     if (self->individual_nodes_mem == NULL || self->individual_nodes == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -241,20 +242,20 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
     const tsk_id_t *restrict O = self->tables->indexes.edge_removal_order;
     const double *restrict edge_right = self->tables->edges.right;
     const double *restrict edge_left = self->tables->edges.left;
-    /* Avoid malloc(0) */
     size_t num_trees_alloc = self->num_trees + 1;
 
-    self->tree_sites_length = malloc(num_trees_alloc * sizeof(*self->tree_sites_length));
-    self->tree_sites = malloc(num_trees_alloc * sizeof(*self->tree_sites));
-    self->breakpoints = malloc(num_trees_alloc * sizeof(*self->breakpoints));
+    self->tree_sites_length
+        = tsk_malloc(num_trees_alloc * sizeof(*self->tree_sites_length));
+    self->tree_sites = tsk_malloc(num_trees_alloc * sizeof(*self->tree_sites));
+    self->breakpoints = tsk_malloc(num_trees_alloc * sizeof(*self->breakpoints));
     if (self->tree_sites == NULL || self->tree_sites_length == NULL
         || self->breakpoints == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memset(
+    tsk_memset(
         self->tree_sites_length, 0, self->num_trees * sizeof(*self->tree_sites_length));
-    memset(self->tree_sites, 0, self->num_trees * sizeof(*self->tree_sites));
+    tsk_memset(self->tree_sites, 0, self->num_trees * sizeof(*self->tree_sites));
 
     tree_left = 0;
     tree_right = sequence_length;
@@ -309,8 +310,8 @@ tsk_treeseq_init_nodes(tsk_treeseq_t *self)
         }
     }
     /* TODO raise an error if < 2 samples?? */
-    self->samples = malloc(self->num_samples * sizeof(tsk_id_t));
-    self->sample_index_map = malloc(num_nodes * sizeof(tsk_id_t));
+    self->samples = tsk_malloc(self->num_samples * sizeof(tsk_id_t));
+    self->sample_index_map = tsk_malloc(num_nodes * sizeof(tsk_id_t));
     if (self->samples == NULL || self->sample_index_map == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -345,12 +346,12 @@ tsk_treeseq_init(
     int ret = 0;
     tsk_id_t num_trees;
 
-    memset(self, 0, sizeof(*self));
+    tsk_memset(self, 0, sizeof(*self));
     if (tables == NULL) {
         ret = TSK_ERR_BAD_PARAM_VALUE;
         goto out;
     }
-    self->tables = malloc(sizeof(*self->tables));
+    self->tables = tsk_malloc(sizeof(*self->tables));
     if (self->tables == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -387,12 +388,12 @@ tsk_treeseq_init(
      * access to the tables set up, where any attempts to modify the tables
      * will fail. */
     if (tables->file_uuid != NULL) {
-        self->tables->file_uuid = malloc(TSK_UUID_SIZE + 1);
+        self->tables->file_uuid = tsk_malloc(TSK_UUID_SIZE + 1);
         if (self->tables->file_uuid == NULL) {
             ret = TSK_ERR_NO_MEMORY;
             goto out;
         }
-        memcpy(self->tables->file_uuid, tables->file_uuid, TSK_UUID_SIZE + 1);
+        tsk_memcpy(self->tables->file_uuid, tables->file_uuid, TSK_UUID_SIZE + 1);
     }
 
     ret = tsk_treeseq_init_nodes(self);
@@ -430,7 +431,7 @@ tsk_treeseq_load(
     tsk_table_collection_t tables;
 
     /* Need to make sure that we're zero'd out in case of error */
-    memset(self, 0, sizeof(*self));
+    tsk_memset(self, 0, sizeof(*self));
     ret = tsk_table_collection_load(&tables, filename, 0);
     if (ret != 0) {
         goto out;
@@ -455,7 +456,7 @@ tsk_treeseq_loadf(tsk_treeseq_t *self, FILE *file, tsk_flags_t TSK_UNUSED(option
     tsk_table_collection_t tables;
 
     /* Need to make sure that we're zero'd out in case of error */
-    memset(self, 0, sizeof(*self));
+    tsk_memset(self, 0, sizeof(*self));
     ret = tsk_table_collection_loadf(&tables, file, 0);
     if (ret != 0) {
         goto out;
@@ -668,10 +669,12 @@ tsk_treeseq_genealogical_nearest_neighbours(const tsk_treeseq_t *self,
     const double sequence_length = self->tables->sequence_length;
     tsk_id_t tj, tk, h;
     double left, right, *A_row, scale, tree_length;
-    tsk_id_t *restrict parent = malloc(num_nodes * sizeof(*parent));
-    double *restrict length = calloc(num_focal, sizeof(*length));
-    uint32_t *restrict ref_count = calloc(((size_t) K) * num_nodes, sizeof(*ref_count));
-    int16_t *restrict reference_set_map = malloc(num_nodes * sizeof(*reference_set_map));
+    tsk_id_t *restrict parent = tsk_malloc(num_nodes * sizeof(*parent));
+    double *restrict length = tsk_calloc(num_focal, sizeof(*length));
+    uint32_t *restrict ref_count
+        = tsk_calloc(((size_t) K) * num_nodes, sizeof(*ref_count));
+    int16_t *restrict reference_set_map
+        = tsk_malloc(num_nodes * sizeof(*reference_set_map));
     uint32_t *restrict row = NULL;
     uint32_t *restrict child_row = NULL;
     uint32_t total, delta;
@@ -688,9 +691,9 @@ tsk_treeseq_genealogical_nearest_neighbours(const tsk_treeseq_t *self,
         goto out;
     }
 
-    memset(parent, 0xff, num_nodes * sizeof(*parent));
-    memset(reference_set_map, 0xff, num_nodes * sizeof(*reference_set_map));
-    memset(ret_array, 0, num_focal * num_reference_sets * sizeof(*ret_array));
+    tsk_memset(parent, 0xff, num_nodes * sizeof(*parent));
+    tsk_memset(reference_set_map, 0xff, num_nodes * sizeof(*reference_set_map));
+    tsk_memset(ret_array, 0, num_focal * num_reference_sets * sizeof(*ret_array));
 
     total = 0; /* keep the compiler happy */
 
@@ -849,10 +852,11 @@ tsk_treeseq_mean_descendants(const tsk_treeseq_t *self,
     const double sequence_length = self->tables->sequence_length;
     tsk_id_t tj, tk, h;
     double left, right, length, *restrict C_row;
-    tsk_id_t *restrict parent = malloc(num_nodes * sizeof(*parent));
-    uint32_t *restrict ref_count = calloc(num_nodes * ((size_t) K), sizeof(*ref_count));
-    double *restrict last_update = calloc(num_nodes, sizeof(*last_update));
-    double *restrict total_length = calloc(num_nodes, sizeof(*total_length));
+    tsk_id_t *restrict parent = tsk_malloc(num_nodes * sizeof(*parent));
+    uint32_t *restrict ref_count
+        = tsk_calloc(num_nodes * ((size_t) K), sizeof(*ref_count));
+    double *restrict last_update = tsk_calloc(num_nodes, sizeof(*last_update));
+    double *restrict total_length = tsk_calloc(num_nodes, sizeof(*total_length));
     uint32_t *restrict row, *restrict child_row;
 
     if (num_reference_sets == 0 || num_reference_sets > (INT32_MAX - 1)) {
@@ -867,8 +871,8 @@ tsk_treeseq_mean_descendants(const tsk_treeseq_t *self,
     }
     /* TODO add check for duplicate values in the reference sets */
 
-    memset(parent, 0xff, num_nodes * sizeof(*parent));
-    memset(ret_array, 0, num_nodes * num_reference_sets * sizeof(*ret_array));
+    tsk_memset(parent, 0xff, num_nodes * sizeof(*parent));
+    tsk_memset(ret_array, 0, num_nodes * num_reference_sets * sizeof(*ret_array));
 
     /* Set the initial conditions and check the input. */
     for (k = 0; k < (int32_t) num_reference_sets; k++) {
@@ -1077,36 +1081,36 @@ tsk_treeseq_branch_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
     const tsk_id_t *restrict edge_child = self->tables->edges.child;
     const double *restrict time = self->tables->nodes.time;
     const double sequence_length = self->tables->sequence_length;
-    tsk_id_t *restrict parent = malloc(num_nodes * sizeof(*parent));
-    double *restrict branch_length = calloc(num_nodes, sizeof(*branch_length));
+    tsk_id_t *restrict parent = tsk_malloc(num_nodes * sizeof(*parent));
+    double *restrict branch_length = tsk_calloc(num_nodes, sizeof(*branch_length));
     tsk_id_t tj, tk, h;
     double t_left, t_right, w_left, w_right, left, right, scale;
     const double *weight_u;
     double *state_u, *result_row, *summary_u;
-    double *state = calloc(num_nodes * state_dim, sizeof(*state));
-    double *summary = calloc(num_nodes * result_dim, sizeof(*summary));
-    double *running_sum = calloc(result_dim, sizeof(*running_sum));
+    double *state = tsk_calloc(num_nodes * state_dim, sizeof(*state));
+    double *summary = tsk_calloc(num_nodes * result_dim, sizeof(*summary));
+    double *running_sum = tsk_calloc(result_dim, sizeof(*running_sum));
 
     if (parent == NULL || branch_length == NULL || state == NULL || running_sum == NULL
         || summary == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memset(parent, 0xff, num_nodes * sizeof(*parent));
+    tsk_memset(parent, 0xff, num_nodes * sizeof(*parent));
 
     /* Set the initial conditions */
     for (j = 0; j < self->num_samples; j++) {
         u = self->samples[j];
         state_u = GET_2D_ROW(state, state_dim, u);
         weight_u = GET_2D_ROW(sample_weights, state_dim, j);
-        memcpy(state_u, weight_u, state_dim * sizeof(*state_u));
+        tsk_memcpy(state_u, weight_u, state_dim * sizeof(*state_u));
         summary_u = GET_2D_ROW(summary, result_dim, u);
         ret = f(state_dim, state_u, result_dim, summary_u, f_params);
         if (ret != 0) {
             goto out;
         }
     }
-    memset(result, 0, num_windows * result_dim * sizeof(*result));
+    tsk_memset(result, 0, num_windows * result_dim * sizeof(*result));
 
     /* Iterate over the trees */
     tj = 0;
@@ -1224,9 +1228,9 @@ get_allele_weights(const tsk_site_t *site, const double *state, tsk_size_t state
     tsk_size_t mutation_index, allele, num_alleles, alt_allele_length;
     /* The allele table */
     tsk_size_t max_alleles = site->mutations_length + 1;
-    const char **alleles = malloc(max_alleles * sizeof(*alleles));
-    tsk_size_t *allele_lengths = calloc(max_alleles, sizeof(*allele_lengths));
-    double *allele_states = calloc(max_alleles * state_dim, sizeof(*allele_states));
+    const char **alleles = tsk_malloc(max_alleles * sizeof(*alleles));
+    tsk_size_t *allele_lengths = tsk_calloc(max_alleles, sizeof(*allele_lengths));
+    double *allele_states = tsk_calloc(max_alleles * state_dim, sizeof(*allele_states));
     double *allele_row;
     const double *state_row;
     const char *alt_allele;
@@ -1239,7 +1243,7 @@ get_allele_weights(const tsk_site_t *site, const double *state, tsk_size_t state
     tsk_bug_assert(state != NULL);
     alleles[0] = site->ancestral_state;
     allele_lengths[0] = site->ancestral_state_length;
-    memcpy(allele_states, total_weight, state_dim * sizeof(*allele_states));
+    tsk_memcpy(allele_states, total_weight, state_dim * sizeof(*allele_states));
     num_alleles = 1;
 
     for (mutation_index = 0; mutation_index < site->mutations_length; mutation_index++) {
@@ -1248,7 +1252,7 @@ get_allele_weights(const tsk_site_t *site, const double *state, tsk_size_t state
         allele = 0;
         while (allele < num_alleles) {
             if (mutation.derived_state_length == allele_lengths[allele]
-                && memcmp(
+                && tsk_memcmp(
                        mutation.derived_state, alleles[allele], allele_lengths[allele])
                        == 0) {
                 break;
@@ -1280,7 +1284,8 @@ get_allele_weights(const tsk_site_t *site, const double *state, tsk_size_t state
         allele = 0;
         while (allele < num_alleles) {
             if (alt_allele_length == allele_lengths[allele]
-                && memcmp(alt_allele, alleles[allele], allele_lengths[allele]) == 0) {
+                && tsk_memcmp(alt_allele, alleles[allele], allele_lengths[allele])
+                       == 0) {
                 break;
             }
             allele++;
@@ -1311,13 +1316,13 @@ compute_general_stat_site_result(tsk_site_t *site, double *state, tsk_size_t sta
     tsk_size_t k;
     tsk_size_t allele, num_alleles;
     double *allele_states;
-    double *result_tmp = calloc(result_dim, sizeof(*result_tmp));
+    double *result_tmp = tsk_calloc(result_dim, sizeof(*result_tmp));
 
     if (result_tmp == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memset(result, 0, result_dim * sizeof(*result));
+    tsk_memset(result, 0, result_dim * sizeof(*result));
 
     ret = get_allele_weights(
         site, state, state_dim, total_weight, &num_alleles, &allele_states);
@@ -1360,22 +1365,22 @@ tsk_treeseq_site_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
     const tsk_id_t *restrict edge_parent = self->tables->edges.parent;
     const tsk_id_t *restrict edge_child = self->tables->edges.child;
     const double sequence_length = self->tables->sequence_length;
-    tsk_id_t *restrict parent = malloc(num_nodes * sizeof(*parent));
+    tsk_id_t *restrict parent = tsk_malloc(num_nodes * sizeof(*parent));
     tsk_site_t *site;
     tsk_id_t tj, tk, h;
     double t_left, t_right;
     const double *weight_u;
     double *state_u, *result_row;
-    double *state = calloc(num_nodes * state_dim, sizeof(*state));
-    double *total_weight = calloc(state_dim, sizeof(*total_weight));
-    double *site_result = calloc(result_dim, sizeof(*site_result));
+    double *state = tsk_calloc(num_nodes * state_dim, sizeof(*state));
+    double *total_weight = tsk_calloc(state_dim, sizeof(*total_weight));
+    double *site_result = tsk_calloc(result_dim, sizeof(*site_result));
     bool polarised = false;
 
     if (parent == NULL || state == NULL || total_weight == NULL || site_result == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memset(parent, 0xff, num_nodes * sizeof(*parent));
+    tsk_memset(parent, 0xff, num_nodes * sizeof(*parent));
 
     if (options & TSK_STAT_POLARISED) {
         polarised = true;
@@ -1386,12 +1391,12 @@ tsk_treeseq_site_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
         u = self->samples[j];
         state_u = GET_2D_ROW(state, state_dim, u);
         weight_u = GET_2D_ROW(sample_weights, state_dim, j);
-        memcpy(state_u, weight_u, state_dim * sizeof(*state_u));
+        tsk_memcpy(state_u, weight_u, state_dim * sizeof(*state_u));
         for (k = 0; k < state_dim; k++) {
             total_weight[k] += weight_u[k];
         }
     }
-    memset(result, 0, num_windows * result_dim * sizeof(*result));
+    tsk_memset(result, 0, num_windows * result_dim * sizeof(*result));
 
     /* Iterate over the trees */
     tj = 0;
@@ -1494,28 +1499,28 @@ tsk_treeseq_node_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
     const tsk_id_t *restrict edge_parent = self->tables->edges.parent;
     const tsk_id_t *restrict edge_child = self->tables->edges.child;
     const double sequence_length = self->tables->sequence_length;
-    tsk_id_t *restrict parent = malloc(num_nodes * sizeof(*parent));
+    tsk_id_t *restrict parent = tsk_malloc(num_nodes * sizeof(*parent));
     tsk_id_t tj, tk, h;
     const double *weight_u;
     double *state_u;
-    double *state = calloc(num_nodes * state_dim, sizeof(*state));
-    double *node_summary = calloc(num_nodes * result_dim, sizeof(*node_summary));
-    double *last_update = calloc(num_nodes, sizeof(*last_update));
+    double *state = tsk_calloc(num_nodes * state_dim, sizeof(*state));
+    double *node_summary = tsk_calloc(num_nodes * result_dim, sizeof(*node_summary));
+    double *last_update = tsk_calloc(num_nodes, sizeof(*last_update));
     double t_left, t_right, w_right;
 
     if (parent == NULL || state == NULL || node_summary == NULL || last_update == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memset(parent, 0xff, num_nodes * sizeof(*parent));
-    memset(result, 0, num_windows * num_nodes * result_dim * sizeof(*result));
+    tsk_memset(parent, 0xff, num_nodes * sizeof(*parent));
+    tsk_memset(result, 0, num_windows * num_nodes * result_dim * sizeof(*result));
 
     /* Set the initial conditions */
     for (j = 0; j < self->num_samples; j++) {
         u = self->samples[j];
         state_u = GET_2D_ROW(state, state_dim, u);
         weight_u = GET_2D_ROW(sample_weights, state_dim, j);
-        memcpy(state_u, weight_u, state_dim * sizeof(*state_u));
+        tsk_memcpy(state_u, weight_u, state_dim * sizeof(*state_u));
     }
     for (u = 0; u < (tsk_id_t) num_nodes; u++) {
         ret = update_node_summary(
@@ -1682,13 +1687,13 @@ tsk_polarisable_func_general_stat(const tsk_treeseq_t *self, tsk_size_t state_di
     unpolarised_summary_func_args upargs;
     tsk_size_t j, k;
 
-    memset(&upargs, 0, sizeof(upargs));
+    tsk_memset(&upargs, 0, sizeof(upargs));
     if (!polarised) {
         upargs.f = f;
         upargs.f_params = f_params;
-        upargs.total_weight = calloc(state_dim, sizeof(double));
-        upargs.total_minus_state = calloc(state_dim, sizeof(double));
-        upargs.result_tmp = calloc(result_dim, sizeof(double));
+        upargs.total_weight = tsk_calloc(state_dim, sizeof(double));
+        upargs.total_minus_state = tsk_calloc(state_dim, sizeof(double));
+        upargs.result_tmp = tsk_calloc(result_dim, sizeof(double));
 
         if (upargs.total_weight == NULL || upargs.total_minus_state == NULL
             || upargs.result_tmp == NULL) {
@@ -1877,7 +1882,7 @@ tsk_treeseq_sample_count_stat(const tsk_treeseq_t *self, tsk_size_t num_sample_s
     if (ret != 0) {
         goto out;
     }
-    weights = calloc(num_samples * num_sample_sets, sizeof(*weights));
+    weights = tsk_calloc(num_samples * num_sample_sets, sizeof(*weights));
     if (weights == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -1946,7 +1951,7 @@ tsk_treeseq_update_site_afs(const tsk_treeseq_t *self, const tsk_site_t *site,
     tsk_size_t afs_size;
     tsk_size_t k, allele, num_alleles, all_samples;
     double increment, *afs, *allele_counts, *allele_count;
-    tsk_size_t *coordinate = malloc(num_sample_sets * sizeof(*coordinate));
+    tsk_size_t *coordinate = tsk_malloc(num_sample_sets * sizeof(*coordinate));
     bool polarised = !!(options & TSK_STAT_POLARISED);
     const tsk_size_t K = num_sample_sets + 1;
 
@@ -2003,19 +2008,19 @@ tsk_treeseq_site_allele_frequency_spectrum(const tsk_treeseq_t *self,
     const tsk_id_t *restrict edge_parent = self->tables->edges.parent;
     const tsk_id_t *restrict edge_child = self->tables->edges.child;
     const double sequence_length = self->tables->sequence_length;
-    tsk_id_t *restrict parent = malloc(num_nodes * sizeof(*parent));
+    tsk_id_t *restrict parent = tsk_malloc(num_nodes * sizeof(*parent));
     tsk_site_t *site;
     tsk_id_t tj, tk, h;
     tsk_size_t j;
     const tsk_size_t K = num_sample_sets + 1;
     double t_left, t_right;
-    double *total_counts = malloc((1 + num_sample_sets) * sizeof(*total_counts));
+    double *total_counts = tsk_malloc((1 + num_sample_sets) * sizeof(*total_counts));
 
     if (parent == NULL || total_counts == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memset(parent, 0xff, num_nodes * sizeof(*parent));
+    tsk_memset(parent, 0xff, num_nodes * sizeof(*parent));
 
     for (j = 0; j < num_sample_sets; j++) {
         total_counts[j] = (double) sample_set_sizes[j];
@@ -2098,7 +2103,7 @@ tsk_treeseq_update_branch_afs(const tsk_treeseq_t *self, tsk_id_t u, double righ
     tsk_size_t afs_size;
     tsk_size_t k;
     double *afs;
-    tsk_size_t *coordinate = malloc(num_sample_sets * sizeof(*coordinate));
+    tsk_size_t *coordinate = tsk_malloc(num_sample_sets * sizeof(*coordinate));
     bool polarised = !!(options & TSK_STAT_POLARISED);
     const double *count_row = GET_2D_ROW(counts, num_sample_sets + 1, u);
     double x = (right - last_update[u]) * branch_length[u];
@@ -2148,9 +2153,9 @@ tsk_treeseq_branch_allele_frequency_spectrum(const tsk_treeseq_t *self,
     const tsk_id_t *restrict edge_child = self->tables->edges.child;
     const double *restrict node_time = self->tables->nodes.time;
     const double sequence_length = self->tables->sequence_length;
-    tsk_id_t *restrict parent = malloc(num_nodes * sizeof(*parent));
-    double *restrict last_update = calloc(num_nodes, sizeof(*last_update));
-    double *restrict branch_length = calloc(num_nodes, sizeof(*branch_length));
+    tsk_id_t *restrict parent = tsk_malloc(num_nodes * sizeof(*parent));
+    double *restrict last_update = tsk_calloc(num_nodes, sizeof(*last_update));
+    double *restrict branch_length = tsk_calloc(num_nodes, sizeof(*branch_length));
     tsk_id_t tj, tk, h;
     double t_left, t_right, w_right;
     const tsk_size_t K = num_sample_sets + 1;
@@ -2159,7 +2164,7 @@ tsk_treeseq_branch_allele_frequency_spectrum(const tsk_treeseq_t *self,
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memset(parent, 0xff, num_nodes * sizeof(*parent));
+    tsk_memset(parent, 0xff, num_nodes * sizeof(*parent));
 
     /* Iterate over the trees */
     tj = 0;
@@ -2301,8 +2306,8 @@ tsk_treeseq_allele_frequency_spectrum(const tsk_treeseq_t *self,
     }
 
     /* the last element of result_dims stores the total size of the dimenensions */
-    result_dims = malloc((num_sample_sets + 1) * sizeof(*result_dims));
-    counts = calloc(num_nodes * K, sizeof(*counts));
+    result_dims = tsk_malloc((num_sample_sets + 1) * sizeof(*result_dims));
+    counts = tsk_calloc(num_nodes * K, sizeof(*counts));
     if (counts == NULL || result_dims == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -2330,7 +2335,7 @@ tsk_treeseq_allele_frequency_spectrum(const tsk_treeseq_t *self,
     }
     result_dims[num_sample_sets] = (tsk_size_t) afs_size;
 
-    memset(result, 0, num_windows * afs_size * sizeof(*result));
+    tsk_memset(result, 0, num_windows * afs_size * sizeof(*result));
     if (stat_site) {
         ret = tsk_treeseq_site_allele_frequency_spectrum(self, num_sample_sets,
             sample_set_sizes, counts, num_windows, windows, result_dims, result,
@@ -2404,8 +2409,8 @@ tsk_treeseq_trait_covariance(const tsk_treeseq_t *self, tsk_size_t num_weights,
     int ret;
     const double *row;
     double *new_row;
-    double *means = calloc(num_weights, sizeof(double));
-    double *new_weights = malloc((num_weights + 1) * num_samples * sizeof(double));
+    double *means = tsk_calloc(num_weights, sizeof(double));
+    double *new_weights = tsk_malloc((num_weights + 1) * num_samples * sizeof(double));
     weight_stat_params_t args = { num_samples = self->num_samples };
 
     if (new_weights == NULL || means == NULL) {
@@ -2469,12 +2474,12 @@ tsk_treeseq_trait_correlation(const tsk_treeseq_t *self, tsk_size_t num_weights,
     tsk_size_t num_samples = self->num_samples;
     tsk_size_t j, k;
     int ret;
-    double *means = calloc(num_weights, sizeof(double));
-    double *meansqs = calloc(num_weights, sizeof(double));
-    double *sds = calloc(num_weights, sizeof(double));
+    double *means = tsk_calloc(num_weights, sizeof(double));
+    double *meansqs = tsk_calloc(num_weights, sizeof(double));
+    double *sds = tsk_calloc(num_weights, sizeof(double));
     const double *row;
     double *new_row;
-    double *new_weights = malloc((num_weights + 1) * num_samples * sizeof(double));
+    double *new_weights = tsk_malloc((num_weights + 1) * num_samples * sizeof(double));
     weight_stat_params_t args = { num_samples = self->num_samples };
 
     if (new_weights == NULL || means == NULL || meansqs == NULL || sds == NULL) {
@@ -2578,9 +2583,9 @@ tsk_treeseq_trait_linear_model(const tsk_treeseq_t *self, tsk_size_t num_weights
     int ret;
     const double *w, *z;
     double *v, *new_row;
-    double *V = calloc(num_covariates * num_weights, sizeof(double));
+    double *V = tsk_calloc(num_covariates * num_weights, sizeof(double));
     double *new_weights
-        = malloc((num_weights + num_covariates + 1) * num_samples * sizeof(double));
+        = tsk_malloc((num_weights + num_covariates + 1) * num_samples * sizeof(double));
 
     covariates_stat_params_t args
         = { .num_samples = self->num_samples, .num_covariates = num_covariates, .V = V };
@@ -3138,16 +3143,16 @@ tsk_tree_clear(tsk_tree_t *self)
     /* TODO we should profile this method to see if just doing a single loop over
      * the nodes would be more efficient than multiple memsets.
      */
-    memset(self->parent, 0xff, N * sizeof(tsk_id_t));
-    memset(self->left_child, 0xff, N * sizeof(tsk_id_t));
-    memset(self->right_child, 0xff, N * sizeof(tsk_id_t));
-    memset(self->left_sib, 0xff, N * sizeof(tsk_id_t));
-    memset(self->right_sib, 0xff, N * sizeof(tsk_id_t));
+    tsk_memset(self->parent, 0xff, N * sizeof(tsk_id_t));
+    tsk_memset(self->left_child, 0xff, N * sizeof(tsk_id_t));
+    tsk_memset(self->right_child, 0xff, N * sizeof(tsk_id_t));
+    tsk_memset(self->left_sib, 0xff, N * sizeof(tsk_id_t));
+    tsk_memset(self->right_sib, 0xff, N * sizeof(tsk_id_t));
 
     if (sample_counts) {
-        memset(self->num_samples, 0, N * sizeof(tsk_id_t));
-        memset(self->marked, 0, N * sizeof(uint8_t));
-        /* We can't reset the tracked samples via memset because we don't
+        tsk_memset(self->num_samples, 0, N * sizeof(tsk_id_t));
+        tsk_memset(self->marked, 0, N * sizeof(uint8_t));
+        /* We can't reset the tracked samples via tsk_memset because we don't
          * know where the tracked samples are.
          */
         for (j = 0; j < self->num_nodes; j++) {
@@ -3157,9 +3162,9 @@ tsk_tree_clear(tsk_tree_t *self)
         }
     }
     if (sample_lists) {
-        memset(self->left_sample, 0xff, N * sizeof(tsk_id_t));
-        memset(self->right_sample, 0xff, N * sizeof(tsk_id_t));
-        memset(self->next_sample, 0xff, num_samples * sizeof(tsk_id_t));
+        tsk_memset(self->left_sample, 0xff, N * sizeof(tsk_id_t));
+        tsk_memset(self->right_sample, 0xff, N * sizeof(tsk_id_t));
+        tsk_memset(self->next_sample, 0xff, num_samples * sizeof(tsk_id_t));
     }
     /* Set the sample attributes */
     for (j = 0; j < num_samples; j++) {
@@ -3197,7 +3202,7 @@ tsk_tree_init(tsk_tree_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t 
     tsk_size_t num_samples;
     tsk_size_t num_nodes;
 
-    memset(self, 0, sizeof(tsk_tree_t));
+    tsk_memset(self, 0, sizeof(tsk_tree_t));
     if (tree_sequence == NULL) {
         ret = TSK_ERR_BAD_PARAM_VALUE;
         goto out;
@@ -3214,28 +3219,28 @@ tsk_tree_init(tsk_tree_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t 
     self->samples = tree_sequence->samples;
     self->options = options;
     self->root_threshold = 1;
-    self->parent = malloc(num_nodes * sizeof(tsk_id_t));
-    self->left_child = malloc(num_nodes * sizeof(tsk_id_t));
-    self->right_child = malloc(num_nodes * sizeof(tsk_id_t));
-    self->left_sib = malloc(num_nodes * sizeof(tsk_id_t));
-    self->right_sib = malloc(num_nodes * sizeof(tsk_id_t));
+    self->parent = tsk_malloc(num_nodes * sizeof(tsk_id_t));
+    self->left_child = tsk_malloc(num_nodes * sizeof(tsk_id_t));
+    self->right_child = tsk_malloc(num_nodes * sizeof(tsk_id_t));
+    self->left_sib = tsk_malloc(num_nodes * sizeof(tsk_id_t));
+    self->right_sib = tsk_malloc(num_nodes * sizeof(tsk_id_t));
     if (self->parent == NULL || self->left_child == NULL || self->right_child == NULL
         || self->left_sib == NULL || self->right_sib == NULL) {
         goto out;
     }
     if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
-        self->num_samples = calloc(num_nodes, sizeof(tsk_id_t));
-        self->num_tracked_samples = calloc(num_nodes, sizeof(tsk_id_t));
-        self->marked = calloc(num_nodes, sizeof(uint8_t));
+        self->num_samples = tsk_calloc(num_nodes, sizeof(tsk_id_t));
+        self->num_tracked_samples = tsk_calloc(num_nodes, sizeof(tsk_id_t));
+        self->marked = tsk_calloc(num_nodes, sizeof(uint8_t));
         if (self->num_samples == NULL || self->num_tracked_samples == NULL
             || self->marked == NULL) {
             goto out;
         }
     }
     if (self->options & TSK_SAMPLE_LISTS) {
-        self->left_sample = malloc(num_nodes * sizeof(*self->left_sample));
-        self->right_sample = malloc(num_nodes * sizeof(*self->right_sample));
-        self->next_sample = malloc(num_samples * sizeof(*self->next_sample));
+        self->left_sample = tsk_malloc(num_nodes * sizeof(*self->left_sample));
+        self->right_sample = tsk_malloc(num_nodes * sizeof(*self->right_sample));
+        self->next_sample = tsk_malloc(num_samples * sizeof(*self->next_sample));
         if (self->left_sample == NULL || self->right_sample == NULL
             || self->next_sample == NULL) {
             goto out;
@@ -3310,7 +3315,7 @@ tsk_tree_reset_tracked_samples(tsk_tree_t *self)
         ret = TSK_ERR_UNSUPPORTED_OPERATION;
         goto out;
     }
-    memset(self->num_tracked_samples, 0, self->num_nodes * sizeof(tsk_id_t));
+    tsk_memset(self->num_tracked_samples, 0, self->num_nodes * sizeof(tsk_id_t));
 out:
     return ret;
 }
@@ -3423,29 +3428,29 @@ tsk_tree_copy(const tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options)
     dest->sites_length = self->sites_length;
     dest->root_threshold = self->root_threshold;
 
-    memcpy(dest->parent, self->parent, N * sizeof(tsk_id_t));
-    memcpy(dest->left_child, self->left_child, N * sizeof(tsk_id_t));
-    memcpy(dest->right_child, self->right_child, N * sizeof(tsk_id_t));
-    memcpy(dest->left_sib, self->left_sib, N * sizeof(tsk_id_t));
-    memcpy(dest->right_sib, self->right_sib, N * sizeof(tsk_id_t));
+    tsk_memcpy(dest->parent, self->parent, N * sizeof(tsk_id_t));
+    tsk_memcpy(dest->left_child, self->left_child, N * sizeof(tsk_id_t));
+    tsk_memcpy(dest->right_child, self->right_child, N * sizeof(tsk_id_t));
+    tsk_memcpy(dest->left_sib, self->left_sib, N * sizeof(tsk_id_t));
+    tsk_memcpy(dest->right_sib, self->right_sib, N * sizeof(tsk_id_t));
     if (!(dest->options & TSK_NO_SAMPLE_COUNTS)) {
         if (self->options & TSK_NO_SAMPLE_COUNTS) {
             ret = TSK_ERR_UNSUPPORTED_OPERATION;
             goto out;
         }
-        memcpy(dest->num_samples, self->num_samples, N * sizeof(*self->num_samples));
-        memcpy(dest->num_tracked_samples, self->num_tracked_samples,
+        tsk_memcpy(dest->num_samples, self->num_samples, N * sizeof(*self->num_samples));
+        tsk_memcpy(dest->num_tracked_samples, self->num_tracked_samples,
             N * sizeof(*self->num_tracked_samples));
-        memcpy(dest->marked, self->marked, N * sizeof(*self->marked));
+        tsk_memcpy(dest->marked, self->marked, N * sizeof(*self->marked));
     }
     if (dest->options & TSK_SAMPLE_LISTS) {
         if (!(self->options & TSK_SAMPLE_LISTS)) {
             ret = TSK_ERR_UNSUPPORTED_OPERATION;
             goto out;
         }
-        memcpy(dest->left_sample, self->left_sample, N * sizeof(tsk_id_t));
-        memcpy(dest->right_sample, self->right_sample, N * sizeof(tsk_id_t));
-        memcpy(dest->next_sample, self->next_sample,
+        tsk_memcpy(dest->left_sample, self->left_sample, N * sizeof(tsk_id_t));
+        tsk_memcpy(dest->right_sample, self->right_sample, N * sizeof(tsk_id_t));
+        tsk_memcpy(dest->next_sample, self->next_sample,
             self->tree_sequence->num_samples * sizeof(tsk_id_t));
     }
     ret = 0;
@@ -3539,7 +3544,7 @@ tsk_tree_get_num_samples_by_traversal(
     tsk_size_t count = 0;
     int stack_top = 0;
 
-    stack = malloc(self->num_nodes * sizeof(*stack));
+    stack = tsk_malloc(self->num_nodes * sizeof(*stack));
     if (stack == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -3725,8 +3730,8 @@ tsk_tree_check_state(const tsk_tree_t *self)
     tsk_size_t j, num_samples;
     int err, c;
     tsk_site_t site;
-    tsk_id_t *children = malloc(self->num_nodes * sizeof(tsk_id_t));
-    bool *is_root = calloc(self->num_nodes, sizeof(bool));
+    tsk_id_t *children = tsk_malloc(self->num_nodes * sizeof(tsk_id_t));
+    bool *is_root = tsk_calloc(self->num_nodes, sizeof(bool));
 
     tsk_bug_assert(children != NULL);
 
@@ -4295,13 +4300,14 @@ tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
     const tsk_id_t *restrict parent = self->parent;
     const tsk_flags_t *restrict node_flags = self->tree_sequence->tables->nodes.flags;
     uint64_t optimal_root_set;
-    uint64_t *restrict optimal_set = calloc(num_nodes, sizeof(*optimal_set));
-    tsk_id_t *restrict postorder_stack = malloc(num_nodes * sizeof(*postorder_stack));
+    uint64_t *restrict optimal_set = tsk_calloc(num_nodes, sizeof(*optimal_set));
+    tsk_id_t *restrict postorder_stack
+        = tsk_malloc(num_nodes * sizeof(*postorder_stack));
     struct stack_elem *restrict preorder_stack
-        = malloc(num_nodes * sizeof(*preorder_stack));
+        = tsk_malloc(num_nodes * sizeof(*preorder_stack));
     tsk_id_t postorder_parent, root, u, v;
     /* The largest possible number of transitions is one over every sample */
-    tsk_state_transition_t *transitions = malloc(num_samples * sizeof(*transitions));
+    tsk_state_transition_t *transitions = tsk_malloc(num_samples * sizeof(*transitions));
     int8_t allele, ancestral_state;
     int stack_top;
     struct stack_elem s;
@@ -4365,7 +4371,8 @@ tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
                 postorder_parent = parent[u];
 
                 /* Visit u */
-                memset(allele_count, 0, ((size_t) num_alleles) * sizeof(*allele_count));
+                tsk_memset(
+                    allele_count, 0, ((size_t) num_alleles) * sizeof(*allele_count));
                 for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
                     for (allele = 0; allele < num_alleles; allele++) {
                         allele_count[allele] += bit_is_set(optimal_set[v], allele);
@@ -4393,7 +4400,7 @@ tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
          * visit function above. It would be nice if we had an extra
          * node that was the parent of all roots, then the algorithm
          * would work as-is */
-        memset(allele_count, 0, ((size_t) num_alleles) * sizeof(*allele_count));
+        tsk_memset(allele_count, 0, ((size_t) num_alleles) * sizeof(*allele_count));
         for (root = self->left_root; root != TSK_NULL; root = right_sib[root]) {
             for (allele = 0; allele < num_alleles; allele++) {
                 allele_count[allele] += bit_is_set(optimal_set[root], allele);
@@ -4468,7 +4475,7 @@ tsk_diff_iter_init(
     int ret = 0;
 
     tsk_bug_assert(tree_sequence != NULL);
-    memset(self, 0, sizeof(tsk_diff_iter_t));
+    tsk_memset(self, 0, sizeof(tsk_diff_iter_t));
     self->num_nodes = tsk_treeseq_get_num_nodes(tree_sequence);
     self->num_edges = tsk_treeseq_get_num_edges(tree_sequence);
     self->tree_sequence = tree_sequence;
@@ -4480,7 +4487,7 @@ tsk_diff_iter_init(
     if (options & TSK_INCLUDE_TERMINAL) {
         self->last_index = self->last_index + 1;
     }
-    self->edge_list_nodes = malloc(self->num_edges * sizeof(*self->edge_list_nodes));
+    self->edge_list_nodes = tsk_malloc(self->num_edges * sizeof(*self->edge_list_nodes));
     if (self->edge_list_nodes == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -4529,8 +4536,8 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
     const tsk_id_t *insertion_order = s->tables->indexes.edge_insertion_order;
     const tsk_id_t *removal_order = s->tables->indexes.edge_removal_order;
 
-    memset(&edges_out, 0, sizeof(edges_out));
-    memset(&edges_in, 0, sizeof(edges_in));
+    tsk_memset(&edges_out, 0, sizeof(edges_out));
+    tsk_memset(&edges_in, 0, sizeof(edges_in));
 
     if (self->tree_index + 1 < self->last_index) {
         /* First we remove the stale records */
@@ -4630,8 +4637,8 @@ kc_vectors_alloc(kc_vectors *self, tsk_id_t n)
 
     self->n = n;
     self->N = (n * (n - 1)) / 2;
-    self->m = calloc((size_t)(self->N + self->n), sizeof(*self->m));
-    self->M = calloc((size_t)(self->N + self->n), sizeof(*self->M));
+    self->m = tsk_calloc((size_t)(self->N + self->n), sizeof(*self->m));
+    self->M = tsk_calloc((size_t)(self->N + self->n), sizeof(*self->M));
     if (self->m == NULL || self->M == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -4717,7 +4724,7 @@ fill_kc_vectors(const tsk_tree_t *t, kc_vectors *kc_vecs)
     int ret = 0;
     const tsk_treeseq_t *ts = t->tree_sequence;
 
-    stack = malloc(t->num_nodes * sizeof(*stack));
+    stack = tsk_malloc(t->num_nodes * sizeof(*stack));
     if (stack == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -4838,7 +4845,7 @@ tsk_tree_kc_distance(
     int ret = 0;
 
     for (i = 0; i < 2; i++) {
-        memset(&vecs[i], 0, sizeof(kc_vectors));
+        tsk_memset(&vecs[i], 0, sizeof(kc_vectors));
     }
 
     ret = check_kc_distance_samples_inputs(self->tree_sequence, other->tree_sequence);
@@ -4923,7 +4930,7 @@ update_kc_subtree_state(
     tsk_id_t *stack = NULL;
     int ret = 0;
 
-    stack = malloc(t->num_nodes * sizeof(*stack));
+    stack = tsk_malloc(t->num_nodes * sizeof(*stack));
     if (stack == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -5021,11 +5028,11 @@ tsk_treeseq_kc_distance(const tsk_treeseq_t *self, const tsk_treeseq_t *other,
     int ret = 0;
 
     for (i = 0; i < 2; i++) {
-        memset(&trees[i], 0, sizeof(trees[i]));
-        memset(&diff_iters[i], 0, sizeof(diff_iters[i]));
-        memset(&kcs[i], 0, sizeof(kcs[i]));
-        memset(&edges_out[i], 0, sizeof(edges_out[i]));
-        memset(&edges_in[i], 0, sizeof(edges_in[i]));
+        tsk_memset(&trees[i], 0, sizeof(trees[i]));
+        tsk_memset(&diff_iters[i], 0, sizeof(diff_iters[i]));
+        tsk_memset(&kcs[i], 0, sizeof(kcs[i]));
+        tsk_memset(&edges_out[i], 0, sizeof(edges_out[i]));
+        tsk_memset(&edges_in[i], 0, sizeof(edges_in[i]));
         depths[i] = NULL;
     }
 
@@ -5049,7 +5056,7 @@ tsk_treeseq_kc_distance(const tsk_treeseq_t *self, const tsk_treeseq_t *other,
             goto out;
         }
         num_nodes = tsk_treeseq_get_num_nodes(treeseqs[i]);
-        depths[i] = calloc(num_nodes, sizeof(*depths[i]));
+        depths[i] = tsk_calloc(num_nodes, sizeof(*depths[i]));
         if (depths[i] == NULL) {
             ret = TSK_ERR_NO_MEMORY;
             goto out;

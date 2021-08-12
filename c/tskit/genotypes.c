@@ -89,7 +89,7 @@ tsk_vargen_copy_alleles(tsk_vargen_t *self, const char **alleles)
         self->variant.allele_lengths[j] = (tsk_size_t) allele_len;
         total_len += allele_len;
     }
-    self->user_alleles_mem = malloc(total_len * sizeof(char *));
+    self->user_alleles_mem = tsk_malloc(total_len * sizeof(char *));
     if (self->user_alleles_mem == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -116,14 +116,15 @@ vargen_init_samples_and_index_map(tsk_vargen_t *self, const tsk_treeseq_t *tree_
     tsk_id_t u;
 
     num_nodes = tsk_treeseq_get_num_nodes(tree_sequence);
-    self->alt_samples = malloc(num_samples_alloc * sizeof(*samples));
-    self->alt_sample_index_map = malloc(num_nodes * sizeof(*self->alt_sample_index_map));
+    self->alt_samples = tsk_malloc(num_samples_alloc * sizeof(*samples));
+    self->alt_sample_index_map
+        = tsk_malloc(num_nodes * sizeof(*self->alt_sample_index_map));
     if (self->alt_samples == NULL || self->alt_sample_index_map == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    memcpy(self->alt_samples, samples, num_samples * sizeof(*samples));
-    memset(self->alt_sample_index_map, 0xff,
+    tsk_memcpy(self->alt_samples, samples, num_samples * sizeof(*samples));
+    tsk_memset(self->alt_sample_index_map, 0xff,
         num_nodes * sizeof(*self->alt_sample_index_map));
     /* Create the reverse mapping */
     for (j = 0; j < num_samples; j++) {
@@ -158,7 +159,7 @@ tsk_vargen_init(tsk_vargen_t *self, const tsk_treeseq_t *tree_sequence,
     tsk_size_t max_alleles;
 
     tsk_bug_assert(tree_sequence != NULL);
-    memset(self, 0, sizeof(tsk_vargen_t));
+    tsk_memset(self, 0, sizeof(tsk_vargen_t));
 
     if (samples == NULL) {
         self->samples = tsk_treeseq_get_samples(tree_sequence);
@@ -167,8 +168,7 @@ tsk_vargen_init(tsk_vargen_t *self, const tsk_treeseq_t *tree_sequence,
         num_samples_alloc = self->num_samples;
     } else {
         /* Take a copy of the samples for simplicity */
-        /* We can have num_samples = 0 here, so guard against malloc(0) */
-        num_samples_alloc = num_samples + 1;
+        num_samples_alloc = num_samples;
         ret = vargen_init_samples_and_index_map(
             self, tree_sequence, samples, num_samples, num_samples_alloc, options);
         if (ret != 0) {
@@ -183,11 +183,11 @@ tsk_vargen_init(tsk_vargen_t *self, const tsk_treeseq_t *tree_sequence,
     self->options = options;
     if (self->options & TSK_16_BIT_GENOTYPES) {
         self->variant.genotypes.i16
-            = malloc(num_samples_alloc * sizeof(*self->variant.genotypes.i16));
+            = tsk_malloc(num_samples_alloc * sizeof(*self->variant.genotypes.i16));
         max_alleles_limit = INT16_MAX;
     } else {
         self->variant.genotypes.i8
-            = malloc(num_samples_alloc * sizeof(*self->variant.genotypes.i8));
+            = tsk_malloc(num_samples_alloc * sizeof(*self->variant.genotypes.i8));
         max_alleles_limit = INT8_MAX;
     }
 
@@ -209,9 +209,9 @@ tsk_vargen_init(tsk_vargen_t *self, const tsk_treeseq_t *tree_sequence,
         }
     }
     self->variant.max_alleles = max_alleles;
-    self->variant.alleles = calloc(max_alleles, sizeof(*self->variant.alleles));
+    self->variant.alleles = tsk_calloc(max_alleles, sizeof(*self->variant.alleles));
     self->variant.allele_lengths
-        = malloc(max_alleles * sizeof(*self->variant.allele_lengths));
+        = tsk_malloc(max_alleles * sizeof(*self->variant.allele_lengths));
     /* Because genotypes is a union we can check the pointer */
     if (self->variant.genotypes.i8 == NULL || self->variant.alleles == NULL
         || self->variant.allele_lengths == NULL) {
@@ -231,7 +231,7 @@ tsk_vargen_init(tsk_vargen_t *self, const tsk_treeseq_t *tree_sequence,
     if (self->alt_samples == NULL) {
         tree_options = TSK_SAMPLE_LISTS;
     } else {
-        self->traversal_stack = malloc(
+        self->traversal_stack = tsk_malloc(
             tsk_treeseq_get_num_nodes(tree_sequence) * sizeof(*self->traversal_stack));
         if (self->traversal_stack == NULL) {
             ret = TSK_ERR_NO_MEMORY;
@@ -284,13 +284,14 @@ tsk_vargen_expand_alleles(tsk_vargen_t *self)
         goto out;
     }
     var->max_alleles = TSK_MIN(hard_limit, var->max_alleles * 2);
-    p = realloc(var->alleles, var->max_alleles * sizeof(*var->alleles));
+    p = tsk_realloc(var->alleles, var->max_alleles * sizeof(*var->alleles));
     if (p == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
     var->alleles = p;
-    p = realloc(var->allele_lengths, var->max_alleles * sizeof(*var->allele_lengths));
+    p = tsk_realloc(
+        var->allele_lengths, var->max_alleles * sizeof(*var->allele_lengths));
     if (p == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -507,7 +508,7 @@ tsk_vargen_get_allele_index(tsk_vargen_t *self, const char *allele, tsk_size_t l
 
     for (j = 0; j < var->num_alleles; j++) {
         if (length == var->allele_lengths[j]
-            && memcmp(allele, var->alleles[j], length) == 0) {
+            && tsk_memcmp(allele, var->alleles[j], length) == 0) {
             ret = (tsk_id_t) j;
             break;
         }

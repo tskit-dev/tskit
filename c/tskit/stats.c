@@ -65,11 +65,11 @@ tsk_ld_calc_init(tsk_ld_calc_t *self, const tsk_treeseq_t *tree_sequence)
 {
     int ret = TSK_ERR_GENERIC;
 
-    memset(self, 0, sizeof(tsk_ld_calc_t));
+    tsk_memset(self, 0, sizeof(tsk_ld_calc_t));
     self->tree_sequence = tree_sequence;
     self->num_sites = tsk_treeseq_get_num_sites(tree_sequence);
-    self->outer_tree = malloc(sizeof(tsk_tree_t));
-    self->inner_tree = malloc(sizeof(tsk_tree_t));
+    self->outer_tree = tsk_malloc(sizeof(tsk_tree_t));
+    self->inner_tree = tsk_malloc(sizeof(tsk_tree_t));
     if (self->outer_tree == NULL || self->inner_tree == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;

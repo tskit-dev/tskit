@@ -477,6 +477,17 @@ bool tsk_is_unknown_time(double val);
 #define TSK_UUID_SIZE 36
 int tsk_generate_uuid(char *dest, int flags);
 
+/* TODO most of these can probably be macros so they compile out as no-ops.
+ * Lets do the 64 bit tsk_size_t switch first though. */
+/* TODO most of these sizes get changed to tsk_size_t when we do the 64 bit switch */
+void *tsk_malloc(size_t size);
+void *tsk_realloc(void *ptr, size_t size);
+void *tsk_calloc(size_t n, size_t size);
+void *tsk_memset(void *ptr, int fill, size_t size);
+void *tsk_memcpy(void *dest, const void *src, size_t size);
+void *tsk_memmove(void *dest, const void *src, size_t size);
+int tsk_memcmp(const void *s1, const void *s2, size_t size);
+
 #ifdef __cplusplus
 }
 #endif

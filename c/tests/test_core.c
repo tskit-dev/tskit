@@ -345,6 +345,19 @@ test_unknown_time(void)
     CU_ASSERT_FALSE(tsk_is_unknown_time(1));
 }
 
+static void
+test_malloc_zero(void)
+{
+    void *p = tsk_malloc(0);
+
+    CU_ASSERT_FATAL(p != NULL);
+    free(p);
+
+    p = tsk_calloc(0, 1);
+    CU_ASSERT_FATAL(p != NULL);
+    free(p);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -355,6 +368,7 @@ main(int argc, char **argv)
         { "test_double_round", test_double_round },
         { "test_blkalloc", test_blkalloc },
         { "test_unknown_time", test_unknown_time },
+        { "test_malloc_zero", test_malloc_zero },
         { NULL, NULL },
     };
 
