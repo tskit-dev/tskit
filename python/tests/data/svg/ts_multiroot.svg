@@ -16,62 +16,62 @@
 		</g>
 		<g class="axes">
 			<g class="x-axis">
-				<g transform="translate(800,200)">
+				<g transform="translate(800 200)">
 					<text class="lab" text-anchor="middle" transform="translate(0 -11)">Genome position</text>
 				</g>
 				<line x1="20" x2="1580" y1="163.2" y2="163.2"/>
 				<g class="ticks">
 					<g class="tick" transform="translate(20 163.2)">
 						<line x1="0" x2="0" y1="0" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">0</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(215 163.2)">
 						<line x1="0" x2="0" y1="0" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">1</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(410 163.2)">
 						<line x1="0" x2="0" y1="0" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">2</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(605 163.2)">
 						<line x1="0" x2="0" y1="0" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">3</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(800 163.2)">
 						<line x1="0" x2="0" y1="0" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">4</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(995 163.2)">
 						<line x1="0" x2="0" y1="0" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">5</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(1190 163.2)">
 						<line x1="0" x2="0" y1="0" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">6</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(1385 163.2)">
 						<line x1="0" x2="0" y1="0" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">7</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(1580 163.2)">
 						<line x1="0" x2="0" y1="0" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">8</text>
 						</g>
 					</g>
@@ -114,7 +114,7 @@
 				</g>
 			</g>
 			<g class="y-axis">
-				<g transform="translate(0,74.1)">
+				<g transform="translate(0 74.1)">
 					<text class="lab" text-anchor="middle" transform="translate(11) rotate(-90)">Time (WF gens)</text>
 				</g>
 			</g>

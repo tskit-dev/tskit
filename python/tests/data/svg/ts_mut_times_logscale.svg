@@ -13,44 +13,44 @@
 		</g>
 		<g class="axes">
 			<g class="x-axis">
-				<g transform="translate(500,200)">
+				<g transform="translate(500 200)">
 					<text class="lab" text-anchor="middle" transform="translate(0 -11)">Genome position</text>
 				</g>
 				<line x1="20" x2="980" y1="163.2" y2="163.2"/>
 				<g class="ticks">
 					<g class="tick" transform="translate(20 163.2)">
 						<line x1="0" x2="0" y1="0" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">0.00</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(77.3623 163.2)">
 						<line x1="0" x2="0" y1="0" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">0.06</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(780.883 163.2)">
 						<line x1="0" x2="0" y1="0" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">0.79</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(890.091 163.2)">
 						<line x1="0" x2="0" y1="0" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">0.91</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(893.883 163.2)">
 						<line x1="0" x2="0" y1="0" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">0.91</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(980 163.2)">
 						<line x1="0" x2="0" y1="0" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">1.00</text>
 						</g>
 					</g>
