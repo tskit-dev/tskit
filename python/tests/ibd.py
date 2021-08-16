@@ -266,7 +266,7 @@ class IbdFinder:
                             max(seg.left, s.left),
                             min(seg.right, s.right),
                         )
-                        if intvl[1] - intvl[0] > 0:
+                        if intvl[1] - intvl[0] > self.min_length:
                             list_to_add.add(Segment(intvl[0], intvl[1], s.node))
                         s = s.next
 
