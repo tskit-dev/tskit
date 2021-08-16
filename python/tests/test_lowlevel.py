@@ -375,6 +375,20 @@ class TestTableCollection(LowLevelTestCase):
             assert list(value["right"]) == [1]
             assert len(value["node"]) == 1
 
+    def test_ibd_output_treeseq(self):
+        ts = msprime.simulate(10, random_seed=1)
+        segs = ts.find_ibd([(0, 1), (2, 3)])
+        assert isinstance(segs, dict)
+        assert len(segs) > 0
+        for key, value in segs.items():
+            assert isinstance(key, tuple)
+            assert len(key) == 2
+            assert isinstance(value, dict)
+            assert len(value) == 3
+            assert list(value["left"]) == [0]
+            assert list(value["right"]) == [1]
+            assert len(value["node"]) == 1
+
     def test_ibd_output_recomb(self):
         ts = msprime.simulate(10, recombination_rate=1, random_seed=1)
         assert ts.num_trees > 1

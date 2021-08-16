@@ -330,6 +330,14 @@ class TestIbdSingleBinaryTree:
         with pytest.raises(ValueError):
             ibd.IbdFinder(self.ts, sample_pairs=[(0, 1), (1, 0)])
 
+    # A simple test of the Python wrapper.
+    def test_ts(self):
+        pairs = [(0, 1), (0, 2), (1, 2)]
+        ibd_tab = self.ts.tables.find_ibd(samples=pairs)
+        ibd_ts = self.ts.find_ibd(samples=pairs)
+        for p in pairs:
+            assert ibd_tab[p] == ibd_ts[p]
+
 
 class TestIbdTwoSamplesTwoTrees:
 

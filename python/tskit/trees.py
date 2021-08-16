@@ -7160,6 +7160,66 @@ class TreeSequence:
 
         yield from combinatorics.treeseq_count_topologies(self, sample_sets)
 
+    def find_ibd(self, samples, max_time=None, min_length=None):
+        """
+        Returns a dictionary containing all IBD (identical-by-descent) segments for the
+        supplied list of sample pairs.
+
+        A pair of nodes ``(u, v)`` has an IBD segment with a left and right coordinate
+        ``[left, right)`` and ancestral node ``a`` iff the most recent common ancestor
+        of the segment ``[left, right)`` in nodes ``u`` and ``v`` is ``a``, and the
+        segment has been inherited along the same genealogical path (ie. it has not
+        been broken by recombination). The segments returned are the longest possible
+        ones.
+
+        Note that this definition is purely genealogical -- allelic states
+        *are not* considered here. If used without time or length thresholds, the
+        segments returned for a given pair will partition the span of the contig
+        represented by the tree sequence.
+
+        Each item in the outputted dictionary object contains the IBD segments for a
+        particular sample pair. Suppose the output is
+
+        .. code-block:: python
+
+            {
+                (0, 1): {
+                    "left": array([0.0]),
+                    "right": array([1.0]),
+                    "node": array([4]),
+                },
+                (0, 2): {
+                    "left": array([0.5, 0.0]),
+                    "right": array([1.0, 0.5]),
+                    "node": array([3, 5]),
+                },
+            }
+
+        This indicates that samples 0 and 1 share a single IBD segment on the interval
+        `[0.0, 1.0)` inherited from the ancestor with node ID 4. Samples 0 and 2 share
+        one IBD segment on the interval `[0.5, 1.0)` inherited from node 3, and another
+        segment on the interval `[0.0, 0.5)` inherited from node 5.
+
+        :param list samples: A list of pairs of integers, with each pair specified as
+            a tuple. In each pair, the integers correspond to the node IDs of a pair of
+            chromosomes whose IBD segments will be returned by this method.
+        :param float max_time: Only segments inherited from common
+            ancestors whose node times are more recent than the specified time
+            will be returned. Specifying a maximum time is strongly recommended when
+            working with large tree sequences.
+        :param float min_length: Only segments longer than the specified length
+            will be returned.
+        :return: A dictionary object indexed by the specified pairs in ``samples``.
+            The value of each item is itself a dictionary indexed by the following keys:
+            ``left``, ``right`` and ``node``. The values held by these three keys are
+            numpy.ndarray objects, each of the same length, with datatypes np.float64,
+            np.float64 and np.int32 respectively.
+        :rtype: dict
+        """
+        return tables.TableCollection.find_ibd(
+            self.tables, samples, max_time, min_length
+        )
+
     ############################################
     #
     # Deprecated APIs. These are either already unsupported, or will be unsupported in a
