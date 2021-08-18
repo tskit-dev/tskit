@@ -182,6 +182,11 @@ typedef struct {
     tsk_viterbi_matrix_t *viterbi_matrix;
 } ViterbiMatrix;
 
+typedef struct {
+    PyObject_HEAD
+    tsk_ibd_result_t *ibd_result;
+} IbdResult;
+
 /* A named tuple of metadata schemas for a tree sequence */
 static PyTypeObject MetadataSchemas;
 
@@ -4900,6 +4905,7 @@ ProvenanceTable_init(ProvenanceTable *self, PyObject *args, PyObject *kwds)
 out:
     return ret;
 }
+
 static PyObject *
 ProvenanceTable_add_row(ProvenanceTable *self, PyObject *args, PyObject *kwds)
 {
@@ -5294,6 +5300,181 @@ static PyTypeObject ProvenanceTableType = {
     .tp_methods = ProvenanceTable_methods,
     .tp_getset = ProvenanceTable_getsetters,
     .tp_init = (initproc) ProvenanceTable_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
+};
+
+/*===================================================================
+ * IbdResult
+ *===================================================================
+ */
+
+static int
+IbdResult_check_state(IbdResult *self)
+{
+    int ret = -1;
+    if (self->ibd_result == NULL) {
+        PyErr_SetString(PyExc_SystemError, "IbdResult not initialised");
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+static void
+IbdResult_dealloc(IbdResult *self)
+{
+    if (self->ibd_result != NULL) {
+        tsk_ibd_result_free(self->ibd_result);
+        PyMem_Free(self->ibd_result);
+        self->ibd_result = NULL;
+    }
+    Py_TYPE(self)->tp_free((PyObject *) self);
+}
+
+static int
+IbdResult_init(IbdResult *self, PyObject *args, PyObject *kwds)
+{
+    int ret = -1;
+
+    self->ibd_result = NULL;
+    self->ibd_result = PyMem_Calloc(1, sizeof(*self->ibd_result));
+    if (self->ibd_result == NULL) {
+        PyErr_NoMemory();
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+static PyObject *
+IbdResult_get(IbdResult *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *left_array = NULL;
+    PyArrayObject *right_array = NULL;
+    PyArrayObject *node_array = NULL;
+    int sample_a, sample_b;
+    double *left, *right;
+    int err;
+    tsk_id_t *node;
+    tsk_size_t seg_index;
+    tsk_segment_t *u, *head;
+    npy_intp num_segments;
+
+    if (IbdResult_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTuple(args, "ii", &sample_a, &sample_b)) {
+        goto out;
+    }
+
+    err = tsk_ibd_result_get(
+        self->ibd_result, (tsk_id_t) sample_a, (tsk_id_t) sample_b, &head);
+    if (err < 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    num_segments = 0;
+    for (u = head; u != NULL; u = u->next) {
+        num_segments++;
+    }
+    left_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_FLOAT64);
+    right_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_FLOAT64);
+    node_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_INT32);
+    if (left_array == NULL || right_array == NULL || node_array == NULL) {
+        goto out;
+    }
+    left = (double *) PyArray_DATA(left_array);
+    right = (double *) PyArray_DATA(right_array);
+    node = (tsk_id_t *) PyArray_DATA(node_array);
+    seg_index = 0;
+    for (u = head; u != NULL; u = u->next) {
+        left[seg_index] = u->left;
+        right[seg_index] = u->right;
+        node[seg_index] = u->node;
+        seg_index++;
+    }
+    ret = Py_BuildValue(
+        "{s:O,s:O,s:O}", "left", left_array, "right", right_array, "node", node_array);
+out:
+    Py_XDECREF(left_array);
+    Py_XDECREF(right_array);
+    Py_XDECREF(node_array);
+    return ret;
+}
+
+static PyObject *
+IbdResult_print_state(IbdResult *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    PyObject *fileobj;
+    FILE *file = NULL;
+
+    if (IbdResult_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTuple(args, "O", &fileobj)) {
+        goto out;
+    }
+    file = make_file(fileobj, "w");
+    if (file == NULL) {
+        goto out;
+    }
+    tsk_ibd_result_print_state(self->ibd_result, file);
+    ret = Py_BuildValue("");
+out:
+    if (file != NULL) {
+        (void) fclose(file);
+    }
+    return ret;
+}
+
+static PyObject *
+IbdResult_get_total_segments(IbdResult *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (IbdResult_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue("i", tsk_ibd_result_get_total_segments(self->ibd_result));
+out:
+    return ret;
+}
+
+static PyMethodDef IbdResult_methods[] = {
+    { .ml_name = "print_state",
+        .ml_meth = (PyCFunction) IbdResult_print_state,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Debug method to print out the low-level state" },
+    { .ml_name = "get",
+        .ml_meth = (PyCFunction) IbdResult_get,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Return a dictionary representing the IBD segments for a given pair" },
+    { NULL } /* Sentinel */
+};
+
+static PyGetSetDef IbdResult_getsetters[] = {
+    { .name = "total_segments",
+        .get = (getter) IbdResult_get_total_segments,
+        .doc = "The total number of segments in this IBD Result" },
+    { NULL } /* Sentinel */
+};
+
+static PyTypeObject IbdResultType = {
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.IbdResult",
+    .tp_basicsize = sizeof(IbdResult),
+    .tp_dealloc = (destructor) IbdResult_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = "IbdResult objects",
+    .tp_methods = IbdResult_methods,
+    .tp_getset = IbdResult_getsetters,
+    .tp_init = (initproc) IbdResult_init,
     .tp_new = PyType_GenericNew,
     // clang-format on
 };
@@ -5921,101 +6102,18 @@ out:
 }
 
 static PyObject *
-convert_ibd_segments(tsk_ibd_finder_t *ibd_finder, tsk_id_t *pairs, tsk_size_t num_pairs)
-{
-    PyObject *ret = NULL;
-    PyObject *key = NULL;
-    PyObject *value = NULL;
-    PyArrayObject *left_array = NULL;
-    PyArrayObject *right_array = NULL;
-    PyArrayObject *node_array = NULL;
-    double *left, *right;
-    int err;
-    tsk_id_t *node;
-    tsk_size_t j, seg_index;
-    tsk_segment_t *u, *head;
-    PyObject *pair_dict = PyDict_New();
-    npy_intp num_segments;
-
-    if (pair_dict == NULL) {
-        goto out;
-    }
-
-    for (j = 0; j < num_pairs; j++) {
-        err = tsk_ibd_finder_get_ibd_segments(ibd_finder, j, &head);
-        if (err == -1) {
-            head = NULL;
-        } else if (err != 0) {
-            handle_library_error(err);
-            goto out;
-        }
-        num_segments = 0;
-        for (u = head; u != NULL; u = u->next) {
-            num_segments++;
-        }
-        /* For each pair we return an array of left, right, node values */
-        left_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_FLOAT64);
-        right_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_FLOAT64);
-        node_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_INT32);
-        if (left_array == NULL || right_array == NULL || node_array == NULL) {
-            goto out;
-        }
-        left = (double *) PyArray_DATA(left_array);
-        right = (double *) PyArray_DATA(right_array);
-        node = (tsk_id_t *) PyArray_DATA(node_array);
-        seg_index = 0;
-        for (u = head; u != NULL; u = u->next) {
-            left[seg_index] = u->left;
-            right[seg_index] = u->right;
-            node[seg_index] = u->node;
-            seg_index++;
-        }
-        key = Py_BuildValue("(ii)", pairs[2 * j], pairs[2 * j + 1]);
-        value = Py_BuildValue("{s:O,s:O,s:O}", "left", left_array, "right", right_array,
-            "node", node_array);
-        if (key == NULL || value == NULL) {
-            goto out;
-        }
-        if (PyDict_SetItem(pair_dict, key, value) != 0) {
-            goto out;
-        }
-        Py_DECREF(key);
-        Py_DECREF(value);
-        Py_DECREF(left_array);
-        Py_DECREF(right_array);
-        Py_DECREF(node_array);
-        key = NULL;
-        value = NULL;
-        left_array = NULL;
-        right_array = NULL;
-        node_array = NULL;
-    }
-    ret = pair_dict;
-    pair_dict = NULL;
-out:
-    Py_XDECREF(key);
-    Py_XDECREF(value);
-    Py_XDECREF(left_array);
-    Py_XDECREF(right_array);
-    Py_XDECREF(node_array);
-    Py_XDECREF(pair_dict);
-    return ret;
-}
-
-static PyObject *
 TableCollection_find_ibd(TableCollection *self, PyObject *args, PyObject *kwds)
 {
     int err;
     PyObject *ret = NULL;
-    tsk_ibd_finder_t ibd_finder;
     PyObject *samples;
+    IbdResult *result = NULL;
     PyArrayObject *samples_array = NULL;
     double min_length = 0;
     double max_time = DBL_MAX;
     npy_intp *shape;
     static char *kwlist[] = { "samples", "min_length", "max_time", NULL };
 
-    memset(&ibd_finder, 0, sizeof(ibd_finder));
     if (TableCollection_check_state(self) != 0) {
         goto out;
     }
@@ -6033,32 +6131,21 @@ TableCollection_find_ibd(TableCollection *self, PyObject *args, PyObject *kwds)
         PyErr_SetString(PyExc_ValueError, "sample pairs must have shape (n, 2)");
         goto out;
     }
-    err = tsk_ibd_finder_init(
-        &ibd_finder, self->tables, PyArray_DATA(samples_array), (tsk_size_t) shape[0]);
+    result = (IbdResult *) PyObject_CallObject((PyObject *) &IbdResultType, NULL);
+    if (result == NULL) {
+        goto out;
+    }
+    err = tsk_table_collection_find_ibd(self->tables, result->ibd_result,
+        PyArray_DATA(samples_array), (tsk_size_t) shape[0], min_length, max_time, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
     }
-    err = tsk_ibd_finder_set_min_length(&ibd_finder, min_length);
-    if (err != 0) {
-        handle_library_error(err);
-        goto out;
-    }
-    err = tsk_ibd_finder_set_max_time(&ibd_finder, max_time);
-    if (err != 0) {
-        handle_library_error(err);
-        goto out;
-    }
-    err = tsk_ibd_finder_run(&ibd_finder);
-    if (err != 0) {
-        handle_library_error(err);
-        goto out;
-    }
-    ret = convert_ibd_segments(
-        &ibd_finder, PyArray_DATA(samples_array), (tsk_size_t) shape[0]);
+    ret = (PyObject *) result;
+    result = NULL;
 out:
     Py_XDECREF(samples_array);
-    tsk_ibd_finder_free(&ibd_finder);
+    Py_XDECREF(result);
     return ret;
 }
 
@@ -11174,6 +11261,13 @@ PyInit__tskit(void)
     }
     Py_INCREF(&LsHmmType);
     PyModule_AddObject(module, "LsHmm", (PyObject *) &LsHmmType);
+
+    /* IbdResult type */
+    if (PyType_Ready(&IbdResultType) < 0) {
+        return NULL;
+    }
+    Py_INCREF(&IbdResultType);
+    PyModule_AddObject(module, "IbdResult", (PyObject *) &IbdResultType);
 
     /* Metadata schemas namedtuple type*/
     if (PyStructSequence_InitType2(&MetadataSchemas, &metadata_schemas_desc) < 0) {

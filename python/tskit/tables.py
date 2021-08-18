@@ -1,3 +1,4 @@
+#
 # MIT License
 #
 # Copyright (c) 2018-2021 Tskit Developers
@@ -23,6 +24,7 @@
 """
 Tree sequence IO via the tables API.
 """
+import collections.abc
 import dataclasses
 import datetime
 import itertools
@@ -2334,6 +2336,36 @@ class ProvenanceTable(BaseTable):
         self.set_columns(**d)
 
 
+class IbdResult(collections.abc.Mapping):
+    """
+    TODO document
+
+    Not to be instantiated directly.
+
+    The implementation here is the minimum we need to get tests passing. There's a
+    bunch of other functionality we'll want to implement here as well, so we
+    can obtain statistics about the IBD segments without having to decode them
+    all.
+
+    The details of the mapping - whether we should explicitly specify the
+    pairs are not clear yet, so not fixing on the details for now.
+    """
+
+    def __init__(self, sample_pairs, ll_result):
+        self._ll_result = ll_result
+        self._sample_pairs = sample_pairs
+
+    def __getitem__(self, key):
+        sample_a, sample_b = key
+        return self._ll_result.get(sample_a, sample_b)
+
+    def __iter__(self):
+        return iter(self._sample_pairs)
+
+    def __len__(self):
+        return len(self._sample_pairs)
+
+
 class TableCollection:
     """
     A collection of mutable tables defining a tree sequence. See the
@@ -3481,8 +3513,10 @@ class TableCollection:
         :rtype: dict
 
         """
+        # TODO I think we should probably rename the first argument "sample_pairs"
         max_time = sys.float_info.max if max_time is None else max_time
         min_length = 0 if min_length is None else min_length
-        return self._ll_tables.find_ibd(
+        ll_result = self._ll_tables.find_ibd(
             samples, max_time=max_time, min_length=min_length
         )
+        return IbdResult(samples, ll_result)
