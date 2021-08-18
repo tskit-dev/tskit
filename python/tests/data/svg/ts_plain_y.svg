@@ -6,51 +6,51 @@
 	<g class="tree-sequence">
 		<g class="axes">
 			<g class="x-axis">
-				<g transform="translate(518.4,200)">
+				<g transform="translate(518.4 200)">
 					<text class="lab" text-anchor="middle" transform="translate(0 -11)">Genome position</text>
 				</g>
 				<line x1="56.8" x2="980" y1="163.2" y2="163.2"/>
 				<g class="ticks">
 					<g class="tick" transform="translate(56.8 163.2)">
 						<line x1="0" x2="0" y1="-5" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">0.00</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(241.44 163.2)">
 						<line x1="0" x2="0" y1="-5" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">0.06</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(426.08 163.2)">
 						<line x1="0" x2="0" y1="-5" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">0.79</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(610.72 163.2)">
 						<line x1="0" x2="0" y1="-5" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">0.91</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(795.36 163.2)">
 						<line x1="0" x2="0" y1="-5" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">0.91</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(980 163.2)">
 						<line x1="0" x2="0" y1="-5" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">1.00</text>
 						</g>
 					</g>
 				</g>
 			</g>
 			<g class="y-axis">
-				<g transform="translate(0,65.7)">
+				<g transform="translate(0 65.7)">
 					<text class="lab" text-anchor="middle" transform="translate(11) rotate(-90)">Time</text>
 				</g>
 				<line x1="56.8" x2="56.8" y1="121.4" y2="10"/>
@@ -58,21 +58,21 @@
 					<g class="tick" transform="translate(56.8 121.4)">
 						<line class="grid" x1="0" x2="923.2" y1="0" y2="0"/>
 						<line x1="0" x2="-5" y1="0" y2="0"/>
-						<g transform="translate(-6,0)">
+						<g transform="translate(-6 0)">
 							<text class="lab" text-anchor="end">0</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(56.8 66.8909)">
 						<line class="grid" x1="0" x2="923.2" y1="0" y2="0"/>
 						<line x1="0" x2="-5" y1="0" y2="0"/>
-						<g transform="translate(-6,0)">
+						<g transform="translate(-6 0)">
 							<text class="lab" text-anchor="end">5</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(56.8 12.3817)">
 						<line class="grid" x1="0" x2="923.2" y1="0" y2="0"/>
 						<line x1="0" x2="-5" y1="0" y2="0"/>
-						<g transform="translate(-6,0)">
+						<g transform="translate(-6 0)">
 							<text class="lab" text-anchor="end">10</text>
 						</g>
 					</g>

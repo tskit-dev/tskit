@@ -9,20 +9,20 @@
 		</g>
 		<g class="axes">
 			<g class="x-axis">
-				<g transform="translate(150,400)">
+				<g transform="translate(150 400)">
 					<text class="lab" text-anchor="middle" transform="translate(0 -11)">Genome position</text>
 				</g>
 				<line x1="20" x2="280" y1="363.2" y2="363.2"/>
 				<g class="ticks">
 					<g class="tick" transform="translate(20 363.2)">
 						<line x1="0" x2="0" y1="0" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">0.06</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(244.096 363.2)">
 						<line x1="0" x2="0" y1="0" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">0.79</text>
 						</g>
 					</g>

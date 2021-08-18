@@ -573,7 +573,7 @@ class SvgPlot:
         the text tag occur around the (0,0) point of the containing group
         """
         dwg = self.drawing
-        group_attributes = {"transform": f"translate({rnd(pos[0])},{rnd(pos[1])})"}
+        group_attributes = {"transform": f"translate({rnd(pos[0])} {rnd(pos[1])})"}
         if group_class is not None:
             group_attributes["class_"] = group_class
         grp = add_to.add(dwg.g(**group_attributes))

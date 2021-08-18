@@ -10,37 +10,37 @@
 				<g class="ticks">
 					<g class="tick" transform="translate(20 180)">
 						<line x1="0" x2="0" y1="-5" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">0.00</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(212 180)">
 						<line x1="0" x2="0" y1="-5" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">0.06</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(404 180)">
 						<line x1="0" x2="0" y1="-5" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">0.79</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(596 180)">
 						<line x1="0" x2="0" y1="-5" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">0.91</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(788 180)">
 						<line x1="0" x2="0" y1="-5" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">0.91</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(980 180)">
 						<line x1="0" x2="0" y1="-5" y2="5"/>
-						<g transform="translate(0,6)">
+						<g transform="translate(0 6)">
 							<text class="lab">1.00</text>
 						</g>
 					</g>
