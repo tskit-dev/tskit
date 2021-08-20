@@ -7415,17 +7415,19 @@ tsk_ibd_finder_enqueue_segment(
     void *p;
 
     tsk_bug_assert(left < right);
-    /* Make sure we always have room for one more segment in the queue so we
-     * can put a tail sentinel on it */
-    if (self->segment_queue_size == self->max_segment_queue_size - 1) {
-        self->max_segment_queue_size *= 2;
-        p = tsk_realloc(self->segment_queue,
-            self->max_segment_queue_size * sizeof(*self->segment_queue));
-        if (p == NULL) {
-            ret = TSK_ERR_NO_MEMORY;
-            goto out;
+    if (right - left > self->min_length) {
+        /* Make sure we always have room for one more segment in the queue so we
+         * can put a tail sentinel on it */
+        if (self->segment_queue_size == self->max_segment_queue_size - 1) {
+            self->max_segment_queue_size *= 2;
+            p = tsk_realloc(self->segment_queue,
+                self->max_segment_queue_size * sizeof(*self->segment_queue));
+            if (p == NULL) {
+                ret = TSK_ERR_NO_MEMORY;
+                goto out;
+            }
+            self->segment_queue = p;
         }
-        self->segment_queue = p;
     }
     seg = self->segment_queue + self->segment_queue_size;
     seg->left = left;

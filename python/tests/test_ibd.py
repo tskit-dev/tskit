@@ -778,6 +778,51 @@ class TestIbdInternalSamples:
         assert ibd_is_equal(ibd_segs, true_segs)
 
 
+class TestIbdLengthThreshold:
+    """
+    Tests the behaviour of the min_length argument in niche cases.
+    """
+
+    # 2
+    #             |     3
+    # 1      2    |    / \
+    #       / \   |   /   \
+    # 0    0   1  |  0     1
+    # |------------|----------|
+    # 0.0          0.4        1.0
+    nodes = io.StringIO(
+        """\
+    id      is_sample   time
+    0       1           0
+    1       1           0
+    2       0           1
+    3       0           1.5
+    """
+    )
+    edges = io.StringIO(
+        """\
+    left    right   parent  child
+    0       0.4     2       0,1
+    0.4     1.0     3       0,1
+    """
+    )
+    ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+
+    def test_length_exceeds_segment(self):
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1)], min_length=1.1)
+        true_segs = {(0, 1): []}
+        assert ibd_is_equal(ibd_segs, true_segs)
+
+    def test_length_is_negative(self):
+        with pytest.raises(tskit.LibraryError):
+            find_ibd(self.ts, sample_pairs=[(0, 1)], min_length=-0.1)
+
+    def test_equal_to_length(self):
+        ibd_segs = find_ibd(self.ts, sample_pairs=[(0, 1)], min_length=0.4)
+        true_segs = {(0, 1): [ibd.Segment(0.4, 1.0, 3)]}
+        assert ibd_is_equal(ibd_segs, true_segs)
+
+
 class TestIbdRandomExamples:
     """
     Randomly generated test cases.
