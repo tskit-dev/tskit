@@ -146,12 +146,12 @@ out:
 }
 
 static int
-cast_offset_array(read_table_ragged_col_t *col, uint64_t *source, tsk_size_t num_rows)
+cast_offset_array(read_table_ragged_col_t *col, uint32_t *source, tsk_size_t num_rows)
 {
     int ret = 0;
     tsk_size_t len = num_rows + 1;
     tsk_size_t j;
-    uint32_t *dest = tsk_malloc(len * sizeof(*dest));
+    uint64_t *dest = tsk_malloc(len * sizeof(*dest));
 
     if (dest == NULL) {
         ret = TSK_ERR_NO_MEMORY;
@@ -160,9 +160,7 @@ cast_offset_array(read_table_ragged_col_t *col, uint64_t *source, tsk_size_t num
     col->offset_array_mem = dest;
     *col->offset_array_dest = dest;
     for (j = 0; j < len; j++) {
-        /* We don't bother catching errors here because we'll be switching this
-         * to casting up to 64 bit soon; current version is temporary. */
-        dest[j] = (uint32_t) source[j];
+        dest[j] = source[j];
     }
 out:
     return ret;
@@ -243,10 +241,10 @@ read_table_ragged_cols(kastore_t *store, tsk_size_t *num_rows,
                     goto out;
                 }
             }
-            if (type == KAS_UINT32) {
-                *col->offset_array_dest = (uint32_t *) store_offset_array;
-            } else if (type == KAS_UINT64) {
-                ret = cast_offset_array(col, (uint64_t *) store_offset_array, *num_rows);
+            if (type == KAS_UINT64) {
+                *col->offset_array_dest = (uint64_t *) store_offset_array;
+            } else if (type == KAS_UINT32) {
+                ret = cast_offset_array(col, (uint32_t *) store_offset_array, *num_rows);
                 if (ret != 0) {
                     goto out;
                 }
@@ -351,44 +349,39 @@ write_offset_col(
 {
     int ret = 0;
     char offset_col_name[TSK_MAX_COL_NAME_LEN];
-    int64_t *offset64 = NULL;
+    uint32_t *offset32 = NULL;
     tsk_size_t len = col->num_rows + 1;
     tsk_size_t j;
     int type;
     const void *data;
+    bool needs_64 = col->offset_array[col->num_rows] > UINT32_MAX;
 
     assert(strlen(col->name) + strlen("_offset") + 2 < sizeof(offset_col_name));
     strcpy(offset_col_name, col->name);
     strcat(offset_col_name, "_offset");
 
-    /* Note: this is a temporary implementation while we're getting some infrastructure
-     * in place for the change to 64 bit offsets. Ultimately we'll be doing the cast
-     * in the other direction, if the size of small enough. The TSK_DUMP_FORCE_OFFSET_64
-     * option will still be useful for testing though, because that means we don't have
-     * to force huge arrays to test all the code paths.
-     */
-    if (options & TSK_DUMP_FORCE_OFFSET_64) {
-        offset64 = tsk_malloc(len * sizeof(*offset64));
-        if (offset64 == NULL) {
+    if (options & TSK_DUMP_FORCE_OFFSET_64 || needs_64) {
+        type = KAS_UINT64;
+        data = col->offset_array;
+    } else {
+        offset32 = tsk_malloc(len * sizeof(*offset32));
+        if (offset32 == NULL) {
             ret = TSK_ERR_NO_MEMORY;
             goto out;
         }
         for (j = 0; j < len; j++) {
-            offset64[j] = col->offset_array[j];
+            offset32[j] = (uint32_t) col->offset_array[j];
         }
-        type = KAS_UINT64;
-        data = offset64;
-    } else {
         type = KAS_UINT32;
-        data = col->offset_array;
+        data = offset32;
     }
-    ret = kastore_puts(store, offset_col_name, data, len, type, 0);
+    ret = kastore_puts(store, offset_col_name, data, (size_t) len, type, 0);
     if (ret != 0) {
         ret = tsk_set_kas_error(ret);
         goto out;
     }
 out:
-    tsk_safe_free(offset64);
+    tsk_safe_free(offset32);
     return ret;
 }
 
@@ -400,8 +393,8 @@ write_table_ragged_cols(
     const write_table_ragged_col_t *col;
 
     for (col = write_cols; col->name != NULL; col++) {
-        ret = kastore_puts(
-            store, col->name, col->data_array, col->data_len, col->data_type, 0);
+        ret = kastore_puts(store, col->name, col->data_array, (size_t) col->data_len,
+            col->data_type, 0);
         if (ret != 0) {
             ret = tsk_set_kas_error(ret);
             goto out;
@@ -423,7 +416,8 @@ write_table_cols(kastore_t *store, const write_table_col_t *write_cols,
     const write_table_col_t *col;
 
     for (col = write_cols; col->name != NULL; col++) {
-        ret = kastore_puts(store, col->name, col->array, col->len, col->type, 0);
+        ret = kastore_puts(
+            store, col->name, col->array, (size_t) col->len, col->type, 0);
         if (ret != 0) {
             ret = tsk_set_kas_error(ret);
             goto out;
@@ -5790,7 +5784,7 @@ tsk_table_sorter_sort_edges(tsk_table_sorter_t *self, tsk_size_t start)
                 = edges->metadata_offset[k + 1] - edges->metadata_offset[k];
         }
     }
-    qsort(sorted_edges, n, sizeof(edge_sort_t), cmp_edge);
+    qsort(sorted_edges, (size_t) n, sizeof(edge_sort_t), cmp_edge);
     /* Copy the edges back into the table. */
     metadata_offset = 0;
     for (j = 0; j < n; j++) {
@@ -5842,7 +5836,7 @@ tsk_table_sorter_sort_migrations(tsk_table_sorter_t *self, tsk_size_t start)
         m->metadata_length
             = migrations->metadata_offset[k + 1] - migrations->metadata_offset[k];
     }
-    qsort(sorted_migrations, n, sizeof(migration_sort_t), cmp_migration);
+    qsort(sorted_migrations, (size_t) n, sizeof(migration_sort_t), cmp_migration);
     /* Copy the migrations back into the table. */
     metadata_offset = 0;
     for (j = 0; j < n; j++) {
@@ -5889,7 +5883,7 @@ tsk_table_sorter_sort_sites(tsk_table_sorter_t *self)
     }
 
     /* Sort the sites by position */
-    qsort(sorted_sites, num_sites, sizeof(*sorted_sites), cmp_site);
+    qsort(sorted_sites, (size_t) num_sites, sizeof(*sorted_sites), cmp_site);
 
     /* Build the mapping from old site IDs to new site IDs and copy back into the
      * table
@@ -5943,7 +5937,8 @@ tsk_table_sorter_sort_mutations(tsk_table_sorter_t *self)
         goto out;
     }
 
-    qsort(sorted_mutations, num_mutations, sizeof(*sorted_mutations), cmp_mutation);
+    qsort(sorted_mutations, (size_t) num_mutations, sizeof(*sorted_mutations),
+        cmp_mutation);
 
     /* Make a first pass through the sorted mutations to build the ID map. */
     for (j = 0; j < num_mutations; j++) {
@@ -6021,7 +6016,7 @@ tsk_table_sorter_sort_mutations_canonical(tsk_table_sorter_t *self)
         goto out;
     }
 
-    qsort(sorted_mutations, num_mutations, sizeof(*sorted_mutations),
+    qsort(sorted_mutations, (size_t) num_mutations, sizeof(*sorted_mutations),
         cmp_mutation_canonical);
 
     /* Make a first pass through the sorted mutations to build the ID map. */
@@ -6254,7 +6249,7 @@ tsk_table_sorter_sort_individuals_canonical(tsk_table_sorter_t *self)
             &copy, (tsk_id_t) j, &sorted_individuals[j].ind);
     }
 
-    qsort(sorted_individuals, num_individuals, sizeof(*sorted_individuals),
+    qsort(sorted_individuals, (size_t) num_individuals, sizeof(*sorted_individuals),
         cmp_individual_canonical);
 
     /* Make a first pass through the sorted individuals to build the ID map. */
@@ -6550,7 +6545,8 @@ segment_overlapper_start(
     self->right = DBL_MAX;
 
     /* Sort the segments in the buffer by left coordinate */
-    qsort(self->segments, self->num_segments, sizeof(tsk_segment_t), cmp_segment);
+    qsort(
+        self->segments, (size_t) self->num_segments, sizeof(tsk_segment_t), cmp_segment);
     /* NOTE! We are assuming that there's space for another element on the end
      * here. This is to insert a sentinel which simplifies the logic. */
     sentinel = self->segments + self->num_segments;
@@ -6706,8 +6702,8 @@ ancestor_mapper_flush_edges(
     interval_list_t *x;
     tsk_size_t num_edges = 0;
 
-    qsort(self->buffered_children, self->num_buffered_children, sizeof(tsk_id_t),
-        cmp_node_id);
+    qsort(self->buffered_children, (size_t) self->num_buffered_children,
+        sizeof(tsk_id_t), cmp_node_id);
     for (j = 0; j < self->num_buffered_children; j++) {
         child = self->buffered_children[j];
         for (x = self->child_edge_map_head[child]; x != NULL; x = x->next) {
@@ -7280,7 +7276,8 @@ tsk_ibd_finder_build_pair_map(tsk_ibd_finder_t *self)
     tsk_size_t i, index;
     tsk_id_t sample0, sample1;
     tsk_id_t row, col;
-    size_t matrix_size = self->num_unique_nodes_in_pair * self->num_unique_nodes_in_pair;
+    tsk_size_t matrix_size
+        = self->num_unique_nodes_in_pair * self->num_unique_nodes_in_pair;
 
     self->pair_map = tsk_calloc(matrix_size, sizeof(*self->pair_map));
     if (self->pair_map == NULL) {
@@ -7934,8 +7931,8 @@ simplifier_flush_edges(simplifier_t *self, tsk_id_t parent, tsk_size_t *ret_num_
     interval_list_t *x;
     tsk_size_t num_edges = 0;
 
-    qsort(self->buffered_children, self->num_buffered_children, sizeof(tsk_id_t),
-        cmp_node_id);
+    qsort(self->buffered_children, (size_t) self->num_buffered_children,
+        sizeof(tsk_id_t), cmp_node_id);
     for (j = 0; j < self->num_buffered_children; j++) {
         child = self->buffered_children[j];
         for (x = self->child_edge_map_head[child]; x != NULL; x = x->next) {
@@ -7964,7 +7961,7 @@ static int
 simplifier_init_position_lookup(simplifier_t *self)
 {
     int ret = 0;
-    size_t num_sites = self->input_tables.sites.num_rows;
+    tsk_size_t num_sites = self->input_tables.sites.num_rows;
 
     self->position_lookup = tsk_malloc((num_sites + 2) * sizeof(*self->position_lookup));
     if (self->position_lookup == NULL) {
@@ -9698,7 +9695,7 @@ tsk_table_collection_set_indexes(tsk_table_collection_t *self,
     tsk_id_t *edge_insertion_order, tsk_id_t *edge_removal_order)
 {
     int ret = 0;
-    size_t index_size = self->edges.num_rows * sizeof(tsk_id_t);
+    tsk_size_t index_size = self->edges.num_rows * sizeof(tsk_id_t);
 
     tsk_table_collection_drop_index(self, 0);
     self->indexes.edge_insertion_order = tsk_malloc(index_size);
@@ -9777,7 +9774,8 @@ tsk_table_collection_build_index(
         sort_buff[j].third = parent;
         sort_buff[j].fourth = self->edges.child[j];
     }
-    qsort(sort_buff, self->edges.num_rows, sizeof(index_sort_t), cmp_index_sort);
+    qsort(
+        sort_buff, (size_t) self->edges.num_rows, sizeof(index_sort_t), cmp_index_sort);
     for (j = 0; j < self->edges.num_rows; j++) {
         self->indexes.edge_insertion_order[j] = sort_buff[j].index;
     }
@@ -9791,7 +9789,8 @@ tsk_table_collection_build_index(
         sort_buff[j].third = -parent;
         sort_buff[j].fourth = -self->edges.child[j];
     }
-    qsort(sort_buff, self->edges.num_rows, sizeof(index_sort_t), cmp_index_sort);
+    qsort(
+        sort_buff, (size_t) self->edges.num_rows, sizeof(index_sort_t), cmp_index_sort);
     for (j = 0; j < self->edges.num_rows; j++) {
         self->indexes.edge_removal_order[j] = sort_buff[j].index;
     }
@@ -11490,7 +11489,7 @@ tsk_squash_edges(tsk_edge_t *edges, tsk_size_t num_edges, tsk_size_t *num_output
         return ret;
     }
 
-    qsort(edges, num_edges, sizeof(tsk_edge_t), cmp_edge_cl);
+    qsort(edges, (size_t) num_edges, sizeof(tsk_edge_t), cmp_edge_cl);
     j = 0;
     l = 0;
     for (k = 1; k < num_edges; k++) {

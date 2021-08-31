@@ -98,7 +98,7 @@ tsk_vargen_copy_alleles(tsk_vargen_t *self, const char **alleles)
     for (j = 0; j < self->variant.num_alleles; j++) {
         strcpy(self->user_alleles_mem + offset, alleles[j]);
         self->variant.alleles[j] = self->user_alleles_mem + offset;
-        offset += self->variant.allele_lengths[j];
+        offset += (size_t) self->variant.allele_lengths[j];
     }
 out:
     return ret;
@@ -169,8 +169,8 @@ tsk_vargen_init(tsk_vargen_t *self, const tsk_treeseq_t *tree_sequence,
     } else {
         /* Take a copy of the samples for simplicity */
         num_samples_alloc = num_samples;
-        ret = vargen_init_samples_and_index_map(
-            self, tree_sequence, samples, num_samples, num_samples_alloc, options);
+        ret = vargen_init_samples_and_index_map(self, tree_sequence, samples,
+            num_samples, (size_t) num_samples_alloc, options);
         if (ret != 0) {
             goto out;
         }

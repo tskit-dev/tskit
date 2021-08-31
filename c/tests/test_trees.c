@@ -38,7 +38,7 @@
 static void
 check_trees_equal(tsk_tree_t *self, tsk_tree_t *other)
 {
-    size_t N = self->num_nodes;
+    tsk_size_t N = self->num_nodes;
 
     CU_ASSERT_FATAL(self->tree_sequence == other->tree_sequence);
     CU_ASSERT_FATAL(self->index == other->index);
@@ -47,14 +47,14 @@ check_trees_equal(tsk_tree_t *self, tsk_tree_t *other)
     CU_ASSERT_FATAL(self->sites_length == other->sites_length);
     CU_ASSERT_FATAL(self->sites == other->sites);
     CU_ASSERT_FATAL(self->samples == other->samples);
-    CU_ASSERT_FATAL(memcmp(self->parent, other->parent, N * sizeof(tsk_id_t)) == 0);
+    CU_ASSERT_FATAL(tsk_memcmp(self->parent, other->parent, N * sizeof(tsk_id_t)) == 0);
     CU_ASSERT_FATAL(tsk_tree_equals(self, other));
 }
 
 static void
 check_trees_identical(tsk_tree_t *self, tsk_tree_t *other)
 {
-    size_t N = self->num_nodes;
+    tsk_size_t N = self->num_nodes;
 
     check_trees_equal(self, other);
     CU_ASSERT_FATAL(self->left_root == other->left_root);
@@ -63,40 +63,41 @@ check_trees_identical(tsk_tree_t *self, tsk_tree_t *other)
     CU_ASSERT_FATAL(self->direction == other->direction);
 
     CU_ASSERT_FATAL(
-        memcmp(self->left_child, other->left_child, N * sizeof(tsk_id_t)) == 0);
+        tsk_memcmp(self->left_child, other->left_child, N * sizeof(tsk_id_t)) == 0);
     CU_ASSERT_FATAL(
-        memcmp(self->right_child, other->right_child, N * sizeof(tsk_id_t)) == 0);
-    CU_ASSERT_FATAL(memcmp(self->left_sib, other->left_sib, N * sizeof(tsk_id_t)) == 0);
+        tsk_memcmp(self->right_child, other->right_child, N * sizeof(tsk_id_t)) == 0);
     CU_ASSERT_FATAL(
-        memcmp(self->right_sib, other->right_sib, N * sizeof(tsk_id_t)) == 0);
+        tsk_memcmp(self->left_sib, other->left_sib, N * sizeof(tsk_id_t)) == 0);
+    CU_ASSERT_FATAL(
+        tsk_memcmp(self->right_sib, other->right_sib, N * sizeof(tsk_id_t)) == 0);
 
     CU_ASSERT_EQUAL_FATAL(self->num_samples == NULL, other->num_samples == NULL)
     CU_ASSERT_EQUAL_FATAL(
         self->num_tracked_samples == NULL, other->num_tracked_samples == NULL)
     CU_ASSERT_EQUAL_FATAL(self->marked == NULL, other->marked == NULL)
     if (self->num_samples != NULL) {
-        CU_ASSERT_FATAL(
-            memcmp(self->num_samples, other->num_samples, N * sizeof(*self->num_samples))
-            == 0);
-        CU_ASSERT_FATAL(memcmp(self->num_tracked_samples, other->num_tracked_samples,
+        CU_ASSERT_FATAL(tsk_memcmp(self->num_samples, other->num_samples,
+                            N * sizeof(*self->num_samples))
+                        == 0);
+        CU_ASSERT_FATAL(tsk_memcmp(self->num_tracked_samples, other->num_tracked_samples,
                             N * sizeof(*self->num_tracked_samples))
                         == 0);
         CU_ASSERT_FATAL(
-            memcmp(self->marked, other->marked, N * sizeof(*self->marked)) == 0);
+            tsk_memcmp(self->marked, other->marked, N * sizeof(*self->marked)) == 0);
     }
 
     CU_ASSERT_EQUAL_FATAL(self->left_sample == NULL, other->left_sample == NULL)
     CU_ASSERT_EQUAL_FATAL(self->right_sample == NULL, other->left_sample == NULL)
     CU_ASSERT_EQUAL_FATAL(self->next_sample == NULL, other->next_sample == NULL)
     if (self->left_sample != NULL) {
-        CU_ASSERT_FATAL(
-            memcmp(self->left_sample, other->left_sample, N * sizeof(*self->left_sample))
-            == 0);
-        CU_ASSERT_FATAL(memcmp(self->right_sample, other->right_sample,
+        CU_ASSERT_FATAL(tsk_memcmp(self->left_sample, other->left_sample,
+                            N * sizeof(*self->left_sample))
+                        == 0);
+        CU_ASSERT_FATAL(tsk_memcmp(self->right_sample, other->right_sample,
                             N * sizeof(*self->right_sample))
                         == 0);
         CU_ASSERT_FATAL(
-            memcmp(self->next_sample, other->next_sample,
+            tsk_memcmp(self->next_sample, other->next_sample,
                 self->tree_sequence->num_samples * sizeof(*self->next_sample))
             == 0);
     }
@@ -106,21 +107,21 @@ static void
 verify_compute_mutation_parents(tsk_treeseq_t *ts)
 {
     int ret;
-    size_t size = tsk_treeseq_get_num_mutations(ts) * sizeof(tsk_id_t);
-    tsk_id_t *parent = malloc(size);
+    tsk_size_t size = tsk_treeseq_get_num_mutations(ts) * sizeof(tsk_id_t);
+    tsk_id_t *parent = tsk_malloc(size);
     tsk_table_collection_t tables;
 
     CU_ASSERT_FATAL(parent != NULL);
     ret = tsk_treeseq_copy_tables(ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    memcpy(parent, tables.mutations.parent, size);
+    tsk_memcpy(parent, tables.mutations.parent, size);
     /* tsk_table_collection_print_state(&tables, stdout); */
     /* Make sure the tables are actually updated */
-    memset(tables.mutations.parent, 0xff, size);
+    tsk_memset(tables.mutations.parent, 0xff, size);
 
     ret = tsk_table_collection_compute_mutation_parents(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_EQUAL_FATAL(memcmp(parent, tables.mutations.parent, size), 0);
+    CU_ASSERT_EQUAL_FATAL(tsk_memcmp(parent, tables.mutations.parent, size), 0);
     /* printf("after\n"); */
     /* tsk_table_collection_print_state(&tables, stdout); */
 
@@ -132,15 +133,15 @@ static void
 verify_compute_mutation_times(tsk_treeseq_t *ts)
 {
     int ret;
-    size_t j;
-    size_t size = tsk_treeseq_get_num_mutations(ts) * sizeof(tsk_id_t);
-    tsk_id_t *time = malloc(size);
+    tsk_size_t j;
+    tsk_size_t size = tsk_treeseq_get_num_mutations(ts) * sizeof(tsk_id_t);
+    tsk_id_t *time = tsk_malloc(size);
     tsk_table_collection_t tables;
 
     CU_ASSERT_FATAL(time != NULL);
     ret = tsk_treeseq_copy_tables(ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    memcpy(time, tables.mutations.time, size);
+    tsk_memcpy(time, tables.mutations.time, size);
     /* Time should be set to TSK_UNKNOWN_TIME before computing */
     for (j = 0; j < size; j++) {
         tables.mutations.time[j] = TSK_UNKNOWN_TIME;
@@ -148,7 +149,7 @@ verify_compute_mutation_times(tsk_treeseq_t *ts)
 
     ret = tsk_table_collection_compute_mutation_times(&tables, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_EQUAL_FATAL(memcmp(time, tables.mutations.time, size), 0);
+    CU_ASSERT_EQUAL_FATAL(tsk_memcmp(time, tables.mutations.time, size), 0);
 
     free(time);
     tsk_table_collection_free(&tables);
@@ -160,9 +161,9 @@ verify_individual_nodes(tsk_treeseq_t *ts)
     int ret;
     tsk_individual_t individual;
     tsk_id_t k;
-    size_t num_nodes = tsk_treeseq_get_num_nodes(ts);
-    size_t num_individuals = tsk_treeseq_get_num_individuals(ts);
-    size_t j;
+    tsk_size_t num_nodes = tsk_treeseq_get_num_nodes(ts);
+    tsk_size_t num_individuals = tsk_treeseq_get_num_individuals(ts);
+    tsk_size_t j;
 
     for (k = 0; k < (tsk_id_t) num_individuals; k++) {
         ret = tsk_treeseq_get_individual(ts, k, &individual);
@@ -183,9 +184,9 @@ verify_trees(tsk_treeseq_t *ts, tsk_size_t num_trees, tsk_id_t *parents)
     tsk_size_t k, l, tree_sites_length;
     const tsk_site_t *sites = NULL;
     tsk_tree_t tree;
-    size_t num_nodes = tsk_treeseq_get_num_nodes(ts);
-    size_t num_sites = tsk_treeseq_get_num_sites(ts);
-    size_t num_mutations = tsk_treeseq_get_num_mutations(ts);
+    tsk_size_t num_nodes = tsk_treeseq_get_num_nodes(ts);
+    tsk_size_t num_sites = tsk_treeseq_get_num_sites(ts);
+    tsk_size_t num_mutations = tsk_treeseq_get_num_mutations(ts);
     const double *breakpoints = tsk_treeseq_get_breakpoints(ts);
 
     ret = tsk_tree_init(&tree, ts, 0);
@@ -233,12 +234,12 @@ get_tree_list(tsk_treeseq_t *ts)
 {
     int ret;
     tsk_tree_t t, *trees;
-    size_t num_trees;
+    tsk_size_t num_trees;
 
     num_trees = tsk_treeseq_get_num_trees(ts);
     ret = tsk_tree_init(&t, ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    trees = malloc(num_trees * sizeof(tsk_tree_t));
+    trees = tsk_malloc(num_trees * sizeof(tsk_tree_t));
     CU_ASSERT_FATAL(trees != NULL);
     for (ret = tsk_tree_first(&t); ret == 1; ret = tsk_tree_next(&t)) {
         CU_ASSERT_FATAL(t.index < (tsk_id_t) num_trees);
@@ -388,9 +389,9 @@ verify_tree_diffs(tsk_treeseq_t *ts, tsk_flags_t options)
     tsk_size_t num_nodes = tsk_treeseq_get_num_nodes(ts);
     tsk_size_t j, num_trees;
     double lft, rgt;
-    tsk_id_t *parent = malloc(num_nodes * sizeof(tsk_id_t));
-    tsk_id_t *child = malloc(num_nodes * sizeof(tsk_id_t));
-    tsk_id_t *sib = malloc(num_nodes * sizeof(tsk_id_t));
+    tsk_id_t *parent = tsk_malloc(num_nodes * sizeof(tsk_id_t));
+    tsk_id_t *child = tsk_malloc(num_nodes * sizeof(tsk_id_t));
+    tsk_id_t *sib = tsk_malloc(num_nodes * sizeof(tsk_id_t));
 
     CU_ASSERT_FATAL(parent != NULL);
     CU_ASSERT_FATAL(child != NULL);
@@ -475,13 +476,13 @@ verify_tree_diffs(tsk_treeseq_t *ts, tsk_flags_t options)
  * samples should be the same as the original */
 static void
 verify_simplify_genotypes(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
-    const tsk_id_t *samples, size_t num_samples)
+    const tsk_id_t *samples, tsk_size_t num_samples)
 {
     int ret;
-    size_t m = tsk_treeseq_get_num_sites(ts);
+    tsk_size_t m = tsk_treeseq_get_num_sites(ts);
     tsk_vargen_t vargen, subset_vargen;
     tsk_variant_t *variant, *subset_variant;
-    size_t j, k;
+    tsk_size_t j, k;
     int8_t a1, a2;
     const tsk_id_t *sample_index_map;
 
@@ -530,7 +531,7 @@ verify_simplify_genotypes(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
 
 static void
 verify_simplify_properties(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
-    const tsk_id_t *samples, size_t num_samples, tsk_id_t *node_map)
+    const tsk_id_t *samples, tsk_size_t num_samples, tsk_id_t *node_map)
 {
     int ret;
     tsk_node_t n1, n2;
@@ -539,7 +540,7 @@ verify_simplify_properties(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
     tsk_size_t tree_sites_length;
     uint32_t j, k;
     tsk_id_t u, mrca1, mrca2;
-    size_t total_sites;
+    tsk_size_t total_sites;
 
     CU_ASSERT_EQUAL(
         tsk_treeseq_get_sequence_length(ts), tsk_treeseq_get_sequence_length(subset));
@@ -648,7 +649,7 @@ verify_simplify(tsk_treeseq_t *ts)
     tsk_size_t num_samples[] = { 0, 1, 2, 3, n / 2, n - 1, n };
     tsk_size_t j;
     const tsk_id_t *sample;
-    tsk_id_t *node_map = malloc(tsk_treeseq_get_num_nodes(ts) * sizeof(tsk_id_t));
+    tsk_id_t *node_map = tsk_malloc(tsk_treeseq_get_num_nodes(ts) * sizeof(tsk_id_t));
     tsk_treeseq_t subset;
     tsk_flags_t options = TSK_FILTER_SITES;
 
@@ -689,7 +690,7 @@ typedef struct {
 } sample_count_test_t;
 
 static void
-verify_sample_counts(tsk_treeseq_t *ts, size_t num_tests, sample_count_test_t *tests)
+verify_sample_counts(tsk_treeseq_t *ts, tsk_size_t num_tests, sample_count_test_t *tests)
 {
     int ret;
     tsk_size_t j, num_samples, n, k;
@@ -831,8 +832,8 @@ verify_sample_sets_for_tree(tsk_tree_t *tree)
 
     n = tsk_treeseq_get_num_samples(ts);
     num_nodes = tsk_treeseq_get_num_nodes(ts);
-    stack = malloc(n * sizeof(tsk_id_t));
-    samples = malloc(n * sizeof(tsk_id_t));
+    stack = tsk_malloc(n * sizeof(tsk_id_t));
+    samples = tsk_malloc(n * sizeof(tsk_id_t));
     CU_ASSERT_FATAL(stack != NULL);
     CU_ASSERT_FATAL(samples != NULL);
     for (u = 0; u < (tsk_id_t) num_nodes; u++) {
@@ -2283,7 +2284,7 @@ test_simplest_bad_indexes(void)
                         "0  1   4   3\n";
     tsk_table_collection_t tables;
     tsk_id_t bad_indexes[] = { -1, 3, 4, 1000 };
-    size_t j;
+    tsk_size_t j;
     tsk_id_t ret_id;
     tsk_id_t ret_num_trees;
     int ret;
@@ -3350,9 +3351,9 @@ static void
 test_single_tree_good_mutations(void)
 {
     tsk_treeseq_t ts;
-    size_t j;
-    size_t num_sites = 3;
-    size_t num_mutations = 7;
+    tsk_size_t j;
+    tsk_size_t num_sites = 3;
+    tsk_size_t num_mutations = 7;
     tsk_site_t other_sites[num_sites];
     tsk_mutation_t other_mutations[num_mutations];
     int ret;
@@ -4017,7 +4018,7 @@ test_single_tree_simplify_no_sample_nodes(void)
     /* We zero out the sample column in t1, and run simplify. We should
      * get back the same table */
 
-    memset(t1.nodes.flags, 0, sizeof(*t1.nodes.flags) * t1.nodes.num_rows);
+    tsk_memset(t1.nodes.flags, 0, sizeof(*t1.nodes.flags) * t1.nodes.num_rows);
 
     ret = tsk_table_collection_simplify(&t1, samples, 4, 0, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -4139,7 +4140,8 @@ test_single_tree_compute_mutation_parents(void)
     tables.mutations.node[3] = 1;
 
     /* Need to reset the parent field here */
-    memset(tables.mutations.parent, 0xff, tables.mutations.num_rows * sizeof(tsk_id_t));
+    tsk_memset(
+        tables.mutations.parent, 0xff, tables.mutations.num_rows * sizeof(tsk_id_t));
     /* Mutations not ordered by site */
     tables.mutations.site[3] = 1;
     ret = tsk_table_collection_compute_mutation_parents(&tables, 0);
@@ -5577,7 +5579,7 @@ test_genealogical_nearest_neighbours_errors(void)
     tsk_id_t focal[] = { 0, 1, 2, 3 };
     tsk_size_t reference_set_size[2];
     tsk_size_t num_focal = 4;
-    double *A = malloc(2 * num_focal * sizeof(double));
+    double *A = tsk_malloc(2 * num_focal * sizeof(double));
     CU_ASSERT_FATAL(A != NULL);
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
@@ -5663,7 +5665,7 @@ static void
 test_tree_errors(void)
 {
     int ret;
-    size_t j;
+    tsk_size_t j;
     tsk_id_t num_nodes = 9;
     tsk_id_t u;
     tsk_node_t node;
@@ -5743,7 +5745,7 @@ static void
 test_tree_copy_flags(void)
 {
     int iret, ret;
-    size_t j;
+    tsk_size_t j;
     tsk_treeseq_t ts;
     tsk_tree_t t, other_t;
     tsk_flags_t options[] = { 0, TSK_NO_SAMPLE_COUNTS, TSK_SAMPLE_LISTS,
@@ -6191,11 +6193,11 @@ test_tree_sequence_metadata(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_metadata_length(&ts), example_metadata_length);
     CU_ASSERT_EQUAL(
         tsk_treeseq_get_metadata_schema_length(&ts), example_metadata_schema_length);
-    CU_ASSERT_EQUAL(
-        memcmp(tsk_treeseq_get_metadata(&ts), example_metadata, example_metadata_length),
+    CU_ASSERT_EQUAL(tsk_memcmp(tsk_treeseq_get_metadata(&ts), example_metadata,
+                        example_metadata_length),
         0);
-    CU_ASSERT_EQUAL(memcmp(tsk_treeseq_get_metadata_schema(&ts), example_metadata_schema,
-                        example_metadata_schema_length),
+    CU_ASSERT_EQUAL(tsk_memcmp(tsk_treeseq_get_metadata_schema(&ts),
+                        example_metadata_schema, example_metadata_schema_length),
         0);
 
     tsk_treeseq_free(&ts);

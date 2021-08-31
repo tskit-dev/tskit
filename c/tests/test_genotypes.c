@@ -821,7 +821,7 @@ test_single_tree_many_alleles(void)
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_FATAL(ret == 0);
     tsk_treeseq_free(&ts);
-    memset(alleles, 'X', (size_t) num_alleles);
+    tsk_memset(alleles, 'X', (size_t) num_alleles);
     ret_id = tsk_site_table_add_row(&tables.sites, 0, "Y", 1, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
 

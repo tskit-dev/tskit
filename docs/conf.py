@@ -287,9 +287,11 @@ nitpicky = True
 nitpick_ignore = [
     ("c:identifier", "int32_t"),
     ("c:identifier", "uint32_t"),
+    ("c:identifier", "uint64_t"),
     ("c:identifier", "FILE"),
     ("c:type", "int32_t"),
     ("c:type", "uint32_t"),
+    ("c:type", "uint64_t"),
     ("c:type", "bool"),
     ("py:class", "tskit.metadata.AbstractMetadataCodec"),
     ("py:class", "tskit.trees.Site"),

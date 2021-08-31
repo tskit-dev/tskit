@@ -379,7 +379,7 @@ tsk_ls_hmm_get_allele_index(tsk_ls_hmm_t *self, tsk_id_t site, const char *allel
         if (strlen(alleles[j]) != allele_length) {
             break;
         }
-        if (strncmp(alleles[j], allele_state, allele_length) == 0) {
+        if (strncmp(alleles[j], allele_state, (size_t) allele_length) == 0) {
             ret = (int) j;
             break;
         }
@@ -483,7 +483,7 @@ tsk_ls_hmm_discretise_values(tsk_ls_hmm_t *self)
     }
     tsk_bug_assert(num_values > 0);
 
-    qsort(values, num_values, sizeof(double), cmp_double);
+    qsort(values, (size_t) num_values, sizeof(double), cmp_double);
 
     k = 0;
     for (j = 1; j < num_values; j++) {
@@ -544,7 +544,7 @@ bit_is_set(uint64_t value, uint8_t bit)
 static inline tsk_id_t
 get_smallest_element(const uint64_t *restrict A, tsk_size_t u, tsk_size_t num_words)
 {
-    size_t base = (size_t) u * num_words;
+    tsk_size_t base = u * num_words;
     const uint64_t *restrict a = A + base;
     tsk_id_t j = 0;
 
@@ -560,28 +560,31 @@ get_smallest_element(const uint64_t *restrict A, tsk_size_t u, tsk_size_t num_wo
 static const uint64_t zero_block[MAX_PARSIMONY_WORDS];
 
 static inline bool
-all_zero(const uint64_t *restrict A, size_t u, size_t num_words)
+all_zero(const uint64_t *restrict A, tsk_id_t u, tsk_size_t num_words)
 {
     if (num_words == 1) {
         return A[u] == 0;
     } else {
-        return tsk_memcmp(zero_block, A + u * num_words, num_words * sizeof(*A)) == 0;
+        return tsk_memcmp(
+                   zero_block, A + (tsk_size_t) u * num_words, num_words * sizeof(*A))
+               == 0;
     }
 }
 
 static inline bool
-element_in(const uint64_t *restrict A, size_t u, const tsk_id_t state, size_t num_words)
+element_in(
+    const uint64_t *restrict A, tsk_id_t u, const tsk_id_t state, tsk_size_t num_words)
 {
-    size_t index = ((size_t) u) * num_words + (size_t)(state / 64);
+    tsk_size_t index = ((tsk_size_t) u) * num_words + (tsk_size_t)(state / 64);
     return (A[index] & (1ULL << (state % 64))) != 0;
 }
 
 static inline void
 set_optimal_value(
-    uint64_t *restrict A, const tsk_id_t u, const size_t num_words, tsk_id_t state)
+    uint64_t *restrict A, tsk_id_t u, const tsk_size_t num_words, tsk_id_t state)
 {
-    size_t index = ((size_t) u) * num_words + (size_t)(state / 64);
-    tsk_bug_assert(((size_t) state) / 64 < num_words);
+    tsk_size_t index = ((tsk_size_t) u) * num_words + (tsk_size_t)(state / 64);
+    tsk_bug_assert(((tsk_size_t) state) / 64 < num_words);
     A[index] |= 1ULL << (state % 64);
 }
 
@@ -595,7 +598,7 @@ set_optimal_value(
 static void
 compute_optimal_value_1(uint64_t *restrict A, const tsk_id_t *restrict left_child,
     const tsk_id_t *restrict right_sib, const tsk_id_t u, const tsk_id_t parent_state,
-    const size_t num_values)
+    const tsk_size_t num_values)
 {
     tsk_id_t v;
     uint64_t child;
@@ -631,17 +634,17 @@ compute_optimal_value_1(uint64_t *restrict A, const tsk_id_t *restrict left_chil
 static void
 compute_optimal_value_general(uint64_t *restrict A, const tsk_id_t *restrict left_child,
     const tsk_id_t *restrict right_sib, const tsk_id_t u, const tsk_id_t parent_state,
-    const size_t num_values, const size_t num_words)
+    const tsk_size_t num_values, const tsk_size_t num_words)
 {
     tsk_id_t v;
     uint64_t child[MAX_PARSIMONY_WORDS];
     uint64_t *Au;
-    size_t base, word, bit;
+    tsk_size_t base, word, bit;
     bool child_all_zero;
     const tsk_id_t state_index = parent_state / 64;
     const uint64_t state_word = 1ULL << (parent_state % 64);
     tsk_size_t value_count[64 * MAX_PARSIMONY_WORDS], max_value_count;
-    size_t j;
+    tsk_size_t j;
 
     tsk_bug_assert(num_values < 64 * MAX_PARSIMONY_WORDS);
     tsk_bug_assert(num_words <= MAX_PARSIMONY_WORDS);
@@ -651,7 +654,7 @@ compute_optimal_value_general(uint64_t *restrict A, const tsk_id_t *restrict lef
 
     for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
         child_all_zero = true;
-        base = ((size_t) v) * num_words;
+        base = ((tsk_size_t) v) * num_words;
         for (word = 0; word < num_words; word++) {
             child[word] = A[base + word];
             child_all_zero = child_all_zero && (child[word] == 0);
@@ -689,7 +692,7 @@ compute_optimal_value_general(uint64_t *restrict A, const tsk_id_t *restrict lef
 static void
 compute_optimal_value(uint64_t *restrict A, const tsk_id_t *restrict left_child,
     const tsk_id_t *restrict right_sib, const tsk_id_t u, const tsk_id_t parent_state,
-    const size_t num_values, const size_t num_words)
+    const tsk_size_t num_values, const tsk_size_t num_words)
 {
     if (num_words == 1) {
         compute_optimal_value_1(A, left_child, right_sib, u, parent_state, num_values);
@@ -755,7 +758,7 @@ tsk_ls_hmm_build_optimal_value_sets(tsk_ls_hmm_t *self)
             order[j].value = node_time[T[j].tree_node];
         }
     }
-    qsort(order, self->num_transitions, sizeof(*order), cmp_argsort);
+    qsort(order, (size_t) self->num_transitions, sizeof(*order), cmp_argsort);
 
     for (j = 0; j < self->num_transitions; j++) {
         u = T[order[j].index].tree_node;
@@ -834,9 +837,8 @@ tsk_ls_hmm_redistribute_transitions(tsk_ls_hmm_t *self)
                 if (T_index[v] != TSK_NULL) {
                     child_s.old_state = T_old[T_index[v]].value_index;
                 }
-                if (!all_zero(A, (tsk_size_t) v, num_optimal_value_set_words)) {
-                    if (!element_in(A, (tsk_size_t) v, s.new_state,
-                            num_optimal_value_set_words)) {
+                if (!all_zero(A, v, num_optimal_value_set_words)) {
+                    if (!element_in(A, v, s.new_state, num_optimal_value_set_words)) {
                         child_s.new_state = get_smallest_element(
                             A, (tsk_size_t) v, num_optimal_value_set_words);
                         child_s.transition_parent = (tsk_id_t) self->num_transitions;
@@ -868,8 +870,7 @@ tsk_ls_hmm_redistribute_transitions(tsk_ls_hmm_t *self)
         u = T_old[j].tree_node;
         if (u != TSK_NULL) {
             T_index[u] = TSK_NULL;
-            while (u != TSK_NULL
-                   && !all_zero(A, (tsk_size_t) u, num_optimal_value_set_words)) {
+            while (u != TSK_NULL && !all_zero(A, u, num_optimal_value_set_words)) {
                 tsk_memset(A + ((tsk_size_t) u) * num_optimal_value_set_words, 0,
                     num_optimal_value_set_words * sizeof(uint64_t));
                 u = parent[u];
@@ -1188,7 +1189,7 @@ tsk_compressed_matrix_init(tsk_compressed_matrix_t *self, tsk_treeseq_t *tree_se
     if (block_size == 0) {
         block_size = 1 << 20;
     }
-    ret = tsk_blkalloc_init(&self->memory, block_size);
+    ret = tsk_blkalloc_init(&self->memory, (size_t) block_size);
     if (ret != 0) {
         goto out;
     }
@@ -1260,9 +1261,9 @@ tsk_compressed_matrix_store_site(tsk_compressed_matrix_t *self, tsk_id_t site,
     self->num_transitions[site] = num_transitions;
     self->normalisation_factor[site] = normalisation_factor;
     self->nodes[site]
-        = tsk_blkalloc_get(&self->memory, num_transitions * sizeof(tsk_id_t));
+        = tsk_blkalloc_get(&self->memory, (size_t) num_transitions * sizeof(tsk_id_t));
     self->values[site]
-        = tsk_blkalloc_get(&self->memory, num_transitions * sizeof(double));
+        = tsk_blkalloc_get(&self->memory, (size_t) num_transitions * sizeof(double));
     if (self->nodes[site] == NULL || self->values[site] == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;

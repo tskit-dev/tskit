@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019 Tskit Developers
+ * Copyright (c) 2019-2021 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -711,17 +711,20 @@ tsk_is_unknown_time(double val)
 }
 
 void *
-tsk_malloc(size_t size)
+tsk_malloc(tsk_size_t size)
 {
     /* Avoid malloc(0) as it's not portable */
     if (size == 0) {
         size = 1;
     }
+    /* TODO
+     * 1. check if size > SIZE_MAX on 32 bit
+     */
     return malloc((size_t) size);
 }
 
 void *
-tsk_realloc(void *ptr, size_t size)
+tsk_realloc(void *ptr, tsk_size_t size)
 {
     /* We shouldn't ever realloc to a zero size in tskit */
     tsk_bug_assert(size > 0);
@@ -729,7 +732,7 @@ tsk_realloc(void *ptr, size_t size)
 }
 
 void *
-tsk_calloc(size_t n, size_t size)
+tsk_calloc(tsk_size_t n, size_t size)
 {
     /* Avoid calloc(0) as it's not portable */
     if (n == 0) {
@@ -739,25 +742,25 @@ tsk_calloc(size_t n, size_t size)
 }
 
 void *
-tsk_memset(void *ptr, int fill, size_t size)
+tsk_memset(void *ptr, int fill, tsk_size_t size)
 {
     return memset(ptr, fill, (size_t) size);
 }
 
 void *
-tsk_memcpy(void *dest, const void *src, size_t size)
+tsk_memcpy(void *dest, const void *src, tsk_size_t size)
 {
     return memcpy(dest, src, (size_t) size);
 }
 
 void *
-tsk_memmove(void *dest, const void *src, size_t size)
+tsk_memmove(void *dest, const void *src, tsk_size_t size)
 {
     return memmove(dest, src, (size_t) size);
 }
 
 int
-tsk_memcmp(const void *s1, const void *s2, size_t size)
+tsk_memcmp(const void *s1, const void *s2, tsk_size_t size)
 {
     return memcmp(s1, s2, (size_t) size);
 }

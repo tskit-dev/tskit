@@ -571,7 +571,7 @@ unsort_edges(tsk_edge_tbl_t *edges, size_t start)
 {
     size_t j, k;
     size_t n = edges->num_rows - start;
-    tsk_edge_t *buff = malloc(n * sizeof(tsk_edge_t));
+    tsk_edge_t *buff = tsk_malloc(n * sizeof(tsk_edge_t));
     gsl_rng *rng = gsl_rng_init(gsl_rng_default);
 
     CU_ASSERT_FATAL(edges != NULL);
@@ -611,9 +611,9 @@ unsort_sites(tsk_site_tbl_t *sites, tsk_mutation_tbl_t *mutations)
         position = sites->position[0];
         length = sites->ancestral_state_offset[1];
         /* Save a copy of the first ancestral state */
-        ancestral_state = malloc(length);
+        ancestral_state = tsk_malloc(length);
         CU_ASSERT_FATAL(ancestral_state != NULL);
-        memcpy(ancestral_state, sites->ancestral_state, length);
+        tsk_memcpy(ancestral_state, sites->ancestral_state, length);
         /* Now write the ancestral state for the site 1 here */
         k = 0;
         for (j = sites->ancestral_state_offset[1]; j < sites->ancestral_state_offset[2];
@@ -622,7 +622,7 @@ unsort_sites(tsk_site_tbl_t *sites, tsk_mutation_tbl_t *mutations)
             k++;
         }
         sites->ancestral_state_offset[1] = k;
-        memcpy(sites->ancestral_state + k, ancestral_state, length);
+        tsk_memcpy(sites->ancestral_state + k, ancestral_state, length);
         sites->position[0] = sites->position[1];
         sites->position[1] = position;
 
@@ -662,7 +662,8 @@ add_individuals(tsk_treeseq_t *ts)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tsk_individual_tbl_clear(tables.individuals);
-    memset(tables.nodes->individual, 0xff, tables.nodes->num_rows * sizeof(tsk_id_t));
+    tsk_memset(
+        tables.nodes->individual, 0xff, tables.nodes->num_rows * sizeof(tsk_id_t));
 
     k = 0;
     for (j = 0; j < num_samples; j++) {
@@ -762,7 +763,7 @@ get_tree_list(tsk_treeseq_t *ts)
     num_trees = tsk_treeseq_get_num_trees(ts);
     ret = tsk_tree_init(&t, ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    trees = malloc(num_trees * sizeof(tsk_tree_t));
+    trees = tsk_malloc(num_trees * sizeof(tsk_tree_t));
     CU_ASSERT_FATAL(trees != NULL);
     for (ret = tsk_tree_first(&t); ret == 1; ret = tsk_tree_next(&t)) {
         CU_ASSERT_FATAL(t.index < num_trees);
@@ -1007,7 +1008,7 @@ verify_genealogical_nearest_neighbours(tsk_treeseq_t *ts)
     tsk_id_t *sample_sets[2];
     size_t sample_set_size[2];
     size_t num_samples = tsk_treeseq_get_num_samples(ts);
-    double *A = malloc(2 * num_samples * sizeof(double));
+    double *A = tsk_malloc(2 * num_samples * sizeof(double));
     CU_ASSERT_FATAL(A != NULL);
 
     ret = tsk_treeseq_get_samples(ts, &samples);
@@ -1038,7 +1039,7 @@ verify_mean_descendants(tsk_treeseq_t *ts)
     tsk_id_t *sample_sets[2];
     size_t sample_set_size[2];
     size_t num_samples = tsk_treeseq_get_num_samples(ts);
-    double *C = malloc(2 * tsk_treeseq_get_num_nodes(ts) * sizeof(double));
+    double *C = tsk_malloc(2 * tsk_treeseq_get_num_nodes(ts) * sizeof(double));
     CU_ASSERT_FATAL(C != NULL);
 
     ret = tsk_treeseq_get_samples(ts, &samples);
@@ -1070,20 +1071,20 @@ verify_compute_mutation_parents(tsk_treeseq_t *ts)
 {
     int ret;
     size_t size = tsk_treeseq_get_num_mutations(ts) * sizeof(tsk_id_t);
-    tsk_id_t *parent = malloc(size);
+    tsk_id_t *parent = tsk_malloc(size);
     tsk_tbl_collection_t tables;
 
     CU_ASSERT_FATAL(parent != NULL);
     ret = tsk_treeseq_copy_tables(ts, &tables);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    memcpy(parent, tables.mutations->parent, size);
+    tsk_memcpy(parent, tables.mutations->parent, size);
     /* tsk_tbl_collection_print_state(&tables, stdout); */
     /* Make sure the tables are actually updated */
-    memset(tables.mutations->parent, 0xff, size);
+    tsk_memset(tables.mutations->parent, 0xff, size);
 
     ret = tsk_tbl_collection_compute_mutation_parents(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_EQUAL_FATAL(memcmp(parent, tables.mutations->parent, size), 0);
+    CU_ASSERT_EQUAL_FATAL(tsk_memcmp(parent, tables.mutations->parent, size), 0);
     /* printf("after\n"); */
     /* tsk_tbl_collection_print_state(&tables, stdout); */
 
@@ -1291,7 +1292,7 @@ verify_simplify(tsk_treeseq_t *ts)
     uint32_t num_samples[] = { 0, 1, 2, 3, n / 2, n - 1, n };
     size_t j;
     tsk_id_t *sample;
-    tsk_id_t *node_map = malloc(tsk_treeseq_get_num_nodes(ts) * sizeof(tsk_id_t));
+    tsk_id_t *node_map = tsk_malloc(tsk_treeseq_get_num_nodes(ts) * sizeof(tsk_id_t));
     tsk_treeseq_t subset;
     int flags = TSK_FILTER_SITES;
 
@@ -1426,7 +1427,7 @@ tsk_treeseq_t **
 get_example_tree_sequences(int include_nonbinary)
 {
     size_t max_examples = 1024;
-    tsk_treeseq_t **ret = malloc(max_examples * sizeof(tsk_treeseq_t *));
+    tsk_treeseq_t **ret = tsk_malloc(max_examples * sizeof(tsk_treeseq_t *));
     ret[0] = NULL;
     return ret;
 }
@@ -1522,15 +1523,15 @@ verify_ld(tsk_treeseq_t *ts)
 {
     int ret;
     size_t num_sites = tsk_treeseq_get_num_sites(ts);
-    tsk_site_t *sites = malloc(num_sites * sizeof(tsk_site_t));
-    int *num_site_mutations = malloc(num_sites * sizeof(int));
+    tsk_site_t *sites = tsk_malloc(num_sites * sizeof(tsk_site_t));
+    int *num_site_mutations = tsk_malloc(num_sites * sizeof(int));
     tsk_ld_calc_t ld_calc;
     double *r2, *r2_prime, x;
     size_t j, num_r2_values;
     double eps = 1e-6;
 
-    r2 = calloc(num_sites, sizeof(double));
-    r2_prime = calloc(num_sites, sizeof(double));
+    r2 = tsk_calloc(num_sites, sizeof(double));
+    r2_prime = tsk_calloc(num_sites, sizeof(double));
     CU_ASSERT_FATAL(r2 != NULL);
     CU_ASSERT_FATAL(r2_prime != NULL);
     CU_ASSERT_FATAL(sites != NULL);
@@ -1710,8 +1711,8 @@ verify_sample_sets_for_tree(tsk_tree_t *tree)
 
     n = tsk_treeseq_get_num_samples(ts);
     num_nodes = tsk_treeseq_get_num_nodes(ts);
-    stack = malloc(n * sizeof(tsk_id_t));
-    samples = malloc(n * sizeof(tsk_id_t));
+    stack = tsk_malloc(n * sizeof(tsk_id_t));
+    samples = tsk_malloc(n * sizeof(tsk_id_t));
     CU_ASSERT_FATAL(stack != NULL);
     CU_ASSERT_FATAL(samples != NULL);
     for (u = 0; u < num_nodes; u++) {
@@ -2029,7 +2030,7 @@ verify_simplify_errors(tsk_treeseq_t *ts)
 
     ret = tsk_treeseq_get_samples(ts, &s);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    memcpy(sample, s, 2 * sizeof(tsk_id_t));
+    tsk_memcpy(sample, s, 2 * sizeof(tsk_id_t));
 
     for (u = 0; u < (tsk_id_t) tsk_treeseq_get_num_nodes(ts); u++) {
         if (!tsk_treeseq_is_sample(ts, u)) {
@@ -2090,7 +2091,7 @@ verify_newick(tsk_treeseq_t *ts)
     /* tsk_id_t root; */
     /* size_t precision = 4; */
     /* size_t buffer_size = 1024 * 1024; */
-    /* char *newick = malloc(buffer_size); */
+    /* char *newick = tsk_malloc(buffer_size); */
     /* size_t j, size; */
 
     /* CU_ASSERT_FATAL(newick != NULL); */
@@ -2795,7 +2796,7 @@ msprime_suite_init(void)
     _tmp_file_name = NULL;
     _devnull = NULL;
 
-    _tmp_file_name = malloc(sizeof(template));
+    _tmp_file_name = tsk_malloc(sizeof(template));
     if (_tmp_file_name == NULL) {
         return CUE_NOMEMORY;
     }
