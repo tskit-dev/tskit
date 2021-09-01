@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019 Tskit Developers
+ * Copyright (c) 2019-2021 Tskit Developers
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -358,6 +358,19 @@ test_malloc_zero(void)
     free(p);
 }
 
+static void
+test_malloc_overflow(void)
+{
+#if TSK_MAX_SIZE > SIZE_MAX
+    tsk_size_t size_max = SIZE_MAX;
+    void *p = tsk_malloc(size_max + 1);
+    CU_ASSERT_FATAL(p == NULL);
+
+    p = tsk_calloc(size_max + 1, 1);
+    CU_ASSERT_FATAL(p == NULL);
+#endif
+}
+
 int
 main(int argc, char **argv)
 {
@@ -369,6 +382,7 @@ main(int argc, char **argv)
         { "test_blkalloc", test_blkalloc },
         { "test_unknown_time", test_unknown_time },
         { "test_malloc_zero", test_malloc_zero },
+        { "test_malloc_overflow", test_malloc_overflow },
         { NULL, NULL },
     };
 

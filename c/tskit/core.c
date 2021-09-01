@@ -717,9 +717,11 @@ tsk_malloc(tsk_size_t size)
     if (size == 0) {
         size = 1;
     }
-    /* TODO
-     * 1. check if size > SIZE_MAX on 32 bit
-     */
+#if TSK_MAX_SIZE > SIZE_MAX
+    if (size > SIZE_MAX) {
+        return NULL;
+    }
+#endif
     return malloc((size_t) size);
 }
 
@@ -731,6 +733,11 @@ tsk_realloc(void *ptr, tsk_size_t size)
     return realloc(ptr, (size_t) size);
 }
 
+/* We keep the size argument here as a size_t because we'd have to
+ * cast the outputs of sizeof() otherwise, which would lead to
+ * less readable code. We need to be careful to use calloc within
+ * the library accordingly, so that size can't overflow on 32 bit.
+ */
 void *
 tsk_calloc(tsk_size_t n, size_t size)
 {
@@ -738,6 +745,11 @@ tsk_calloc(tsk_size_t n, size_t size)
     if (n == 0) {
         n = 1;
     }
+#if TSK_MAX_SIZE > SIZE_MAX
+    if (n > SIZE_MAX) {
+        return NULL;
+    }
+#endif
     return calloc((size_t) n, size);
 }
 
