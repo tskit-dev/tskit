@@ -94,8 +94,8 @@ class CommonTestsMixin:
         for list_col, offset_col in self.ragged_list_columns:
             lengths = rng.randint(low=0, high=10, size=num_rows)
             input_data[list_col.name] = list_col.get_input(sum(lengths))
-            input_data[offset_col.name] = np.zeros(num_rows + 1, dtype=np.uint32)
-            input_data[offset_col.name][1:] = np.cumsum(lengths, dtype=np.uint32)
+            input_data[offset_col.name] = np.zeros(num_rows + 1, dtype=np.uint64)
+            input_data[offset_col.name][1:] = np.cumsum(lengths, dtype=np.uint64)
         return input_data
 
     def make_transposed_input_data(self, num_rows):
@@ -738,7 +738,6 @@ class CommonTestsMixin:
             assert t1 is not None
             assert t1 != []
 
-    @pytest.mark.skip("FIXME nbytes")
     def test_nbytes(self):
         for num_rows in [0, 10, 100]:
             input_data = self.make_input_data(num_rows)
@@ -3165,7 +3164,6 @@ class TestTableCollection:
         s = str(tables)
         assert len(s) > 0
 
-    @pytest.mark.skip("FIXME nbytes")
     def test_nbytes(self, tmp_path, ts_fixture):
         tables = ts_fixture.dump_tables()
         tables.dump(tmp_path / "tables")
@@ -3174,7 +3172,7 @@ class TestTableCollection:
             # Check we really have data in every field
             assert v.nbytes > 0
         nbytes = sum(
-            array.nbytes
+            array.nbytes * 2 if "_offset" in name else array.nbytes
             for name, array in store.items()
             # nbytes is the size of asdict, so exclude file format items
             if name not in ["format/version", "format/name", "uuid"]
