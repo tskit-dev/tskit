@@ -371,6 +371,134 @@ test_malloc_overflow(void)
 #endif
 }
 
+static int
+validate_avl_node(tsk_avl_node_int_t *node)
+{
+    int height, lheight, rheight;
+
+    if (node == NULL) {
+        return 0;
+    }
+    lheight = validate_avl_node(node->llink);
+    rheight = validate_avl_node(node->rlink);
+    height = 1 + TSK_MAX(lheight, rheight);
+
+    if (lheight != 0 && rheight != 0) {
+        CU_ASSERT_FATAL(node->balance == rheight - lheight);
+    } else if (lheight == 0 && rheight == 0) {
+        CU_ASSERT_FATAL(height == 1);
+        CU_ASSERT_FATAL(node->balance == 0);
+    } else {
+        CU_ASSERT_FATAL(height == 2);
+        if (lheight == 0) {
+            CU_ASSERT_FATAL(node->balance == 1);
+        } else {
+            CU_ASSERT_FATAL(node->balance == -1);
+        }
+    }
+    return height;
+}
+
+static void
+test_avl_empty(void)
+{
+    int height;
+    tsk_avl_tree_int_t tree;
+
+    tsk_avl_tree_int_init(&tree);
+
+    height = validate_avl_node(tree.head.rlink);
+    CU_ASSERT_EQUAL((tsk_size_t) height, tree.height);
+    CU_ASSERT_EQUAL(0, tree.size);
+    tsk_avl_tree_int_print_state(&tree, _devnull);
+
+    CU_ASSERT_EQUAL(tsk_avl_tree_int_search(&tree, -1), NULL);
+    CU_ASSERT_EQUAL(tsk_avl_tree_int_search(&tree, 0), NULL);
+    CU_ASSERT_EQUAL(tsk_avl_tree_int_search(&tree, 1), NULL);
+
+    tsk_avl_tree_int_free(&tree);
+}
+
+static void
+validate_avl(size_t num_keys, int64_t *keys)
+{
+    size_t j, k;
+    int ret, height;
+    tsk_avl_tree_int_t tree;
+    tsk_avl_node_int_t *nodes = malloc(num_keys * sizeof(*nodes));
+    tsk_avl_node_int_t *node;
+    tsk_avl_node_int_t tmp_node;
+
+    CU_ASSERT_FATAL(nodes != NULL);
+    tsk_avl_tree_int_init(&tree);
+
+    /* Assumes the keys are unique */
+    for (j = 0; j < num_keys; j++) {
+        node = nodes + j;
+        node->key = keys[j];
+        CU_ASSERT_EQUAL(tsk_avl_tree_int_search(&tree, keys[j]), NULL);
+        ret = tsk_avl_tree_int_insert(&tree, node);
+        CU_ASSERT_FATAL(ret == 0);
+        CU_ASSERT_EQUAL(tsk_avl_tree_int_search(&tree, keys[j]), node);
+        tmp_node.key = keys[j];
+        ret = tsk_avl_tree_int_insert(&tree, &tmp_node);
+        CU_ASSERT_FATAL(ret == 1);
+
+        height = validate_avl_node(tree.head.rlink);
+        CU_ASSERT_EQUAL((tsk_size_t) height, tree.height);
+        CU_ASSERT_EQUAL(j + 1, tree.size);
+        tsk_avl_tree_int_print_state(&tree, _devnull);
+        for (k = j + 1; k < num_keys; k++) {
+            CU_ASSERT_EQUAL(tsk_avl_tree_int_search(&tree, keys[k]), NULL);
+        }
+    }
+
+    tsk_avl_tree_int_free(&tree);
+    free(nodes);
+}
+
+static void
+test_avl_sequential(void)
+{
+    int64_t keys[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+    int64_t reversed_keys[] = { 7, 6, 5, 4, 3, 2, 1, 0 };
+
+    validate_avl(8, keys);
+    validate_avl(8, reversed_keys);
+}
+
+static void
+test_avl_interleaved(void)
+{
+    size_t num_keys = 100;
+    size_t j;
+    int64_t *keys = malloc(num_keys * sizeof(*keys));
+
+    CU_ASSERT_FATAL(keys != NULL);
+    for (j = 0; j < num_keys; j++) {
+        keys[j] = (int64_t) j;
+        if (j % 2 == 0) {
+            keys[j] *= -1;
+        }
+    }
+    validate_avl(num_keys, keys);
+    free(keys);
+}
+
+static void
+test_avl_random(void)
+{
+    /* This example goes through all the code paths in the AVL insert algorithm */
+    int64_t keys[] = { 2, 79, -8, -86, 6, -29, 88, -80, 21, -26, -13, 16, -1, 3, 51, 30,
+        49, -48, -99, 57, -63, 29, 91, 87, 60, -43, -79, -12, -52, -42, 69, 89, 74, -50,
+        7, -46, -37, 34, -28, 66, -83, 31, -41, -87, -92, -11, -17, -9, 10, 98, 71, -93,
+        -66, -20, 63, -51, 33, -47, 5, -97, 90, 45, -57, 61, -6, -53, 99, -61, -19, -77,
+        53, 23, -60, 56, -56, -36, -30, 28, 35, -38, 38, 62, -68, 22, -96, -73, -89,
+        50 };
+
+    validate_avl(sizeof(keys) / sizeof(*keys), keys);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -383,6 +511,10 @@ main(int argc, char **argv)
         { "test_unknown_time", test_unknown_time },
         { "test_malloc_zero", test_malloc_zero },
         { "test_malloc_overflow", test_malloc_overflow },
+        { "test_avl_empty", test_avl_empty },
+        { "test_avl_sequential", test_avl_sequential },
+        { "test_avl_interleaved", test_avl_interleaved },
+        { "test_avl_random", test_avl_random },
         { NULL, NULL },
     };
 

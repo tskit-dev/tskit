@@ -140,11 +140,6 @@ class AvlTree:
                     Q = Node()
                     P.llink = Q
                     break
-                else:
-                    if Q.balance != 0:
-                        T = P
-                        S = Q
-                    P = Q
             # A4. [Move right.] Set Q <- RLINK(P). If Q = ^, set Q <= AVAIL and
             # RLINK(P) <- Q and go to step A5. Otherwise if B(Q) != 0, set T <- P
             # and S <- Q. Finally set P <- Q and return to step A2.
@@ -154,11 +149,10 @@ class AvlTree:
                     Q = Node()
                     P.rlink = Q
                     break
-                else:
-                    if Q.balance != 0:
-                        T = P
-                        S = Q
-                    P = Q
+            if Q.balance != 0:
+                T = P
+                S = Q
+            P = Q
         # A5. [Insert.] Set KEY(Q) <- K, LLINK(Q) <- RLINK(Q) <- ^, and B(Q) <- 0.
         Q.key = K
         Q.llink = Q.rlink = None
@@ -189,16 +183,14 @@ class AvlTree:
         if S.balance == 0:
             S.balance = a
             self.height += 1
-            return Q
 
         # ii) If B(S) = -a, set B(S) <- 0 and terminate the algorithm.
 
         elif S.balance == -a:
             S.balance = 0
-            return Q
-        #
+
         # iii) If B(S) = a, go to step A8 if B(R) = a, to A9 if B(R) = -a.
-        elif S.balance == a:
+        else:
             if R.balance == a:
                 # A8. [Single rotation.] Set P <- R, LINK(a,S) <- LINK(-a,R),
                 # LINK(-a,R) <- S,B(S) <- B(R) <- 0. Go to A10.
@@ -227,17 +219,17 @@ class AvlTree:
                 elif P.balance == 0:
                     S.balance = 0
                     R.balance = 0
-                elif P.balance == -a:
+                else:
                     S.balance = 0
                     R.balance = a
                 P.balance = 0
 
-        # A10. [Finishing touch.] If S = RLINK(T) then set RLINK(T) <- P,
-        # otherwise set LLINK(T) <- P.
-        if S == T.rlink:
-            T.rlink = P
-        else:
-            T.llink = P
+            # A10. [Finishing touch.] If S = RLINK(T) then set RLINK(T) <- P,
+            # otherwise set LLINK(T) <- P.
+            if S == T.rlink:
+                T.rlink = P
+            else:
+                T.llink = P
 
         return Q
 
