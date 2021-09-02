@@ -43,7 +43,7 @@ import tskit.exceptions as exceptions
 
 
 CURRENT_FILE_MAJOR = 12
-CURRENT_FILE_MINOR = 4
+CURRENT_FILE_MINOR = 5
 
 test_data_dir = os.path.join(os.path.dirname(__file__), "data")
 
