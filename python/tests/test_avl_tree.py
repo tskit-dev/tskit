@@ -89,6 +89,10 @@ class AvlTree:
         self.size = 0
         self.height = 0
 
+    @property
+    def root(self):
+        return self.head.rlink
+
     def __str__(self):
         stack = [(self.head, 0)]
         s = f"size = {self.size} height = {self.height}\n"
@@ -100,8 +104,22 @@ class AvlTree:
                     stack.append((child, depth + 1))
         return s
 
+    def ordered_keys(self):
+        """
+        Return the keys in sorted order. This is done by an in-order
+        traversal of the nodes.
+        """
+
+        def inorder(node):
+            if node is not None:
+                yield from inorder(node.llink)
+                yield node.key
+                yield from inorder(node.rlink)
+
+        yield from inorder(self.root)
+
     def search(self, key):
-        P = self.head.rlink
+        P = self.root
         while P is not None:
             if key == P.key:
                 break
@@ -309,6 +327,21 @@ class TestAvlTree:
                 assert node.key == k
             else:
                 assert node is None
+        ordered_keys = list(tree.ordered_keys())
+        assert ordered_keys == list(sorted(set(keys)))
+
+        # Implement the inorder on an existing list to mimic C algorithm
+        l2 = [None for _ in ordered_keys]
+
+        def visit(node, index, out):
+            if node is None:
+                return index
+            index = visit(node.llink, index, out)
+            out[index] = node.key
+            return visit(node.rlink, index + 1, out)
+
+        visit(tree.root, 0, l2)
+        assert l2 == ordered_keys
 
     @pytest.mark.parametrize("n", [0, 1, 10, 33, 64, 127, 133])
     def test_sequential(self, n):

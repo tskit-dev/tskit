@@ -482,8 +482,10 @@ typedef struct {
 int tsk_avl_tree_int_init(tsk_avl_tree_int_t *self);
 int tsk_avl_tree_int_free(tsk_avl_tree_int_t *self);
 void tsk_avl_tree_int_print_state(tsk_avl_tree_int_t *self, FILE *out);
-tsk_avl_node_int_t *tsk_avl_tree_int_search(const tsk_avl_tree_int_t *self, int64_t key);
 int tsk_avl_tree_int_insert(tsk_avl_tree_int_t *self, tsk_avl_node_int_t *node);
+tsk_avl_node_int_t *tsk_avl_tree_int_search(const tsk_avl_tree_int_t *self, int64_t key);
+int tsk_avl_tree_int_ordered_nodes(
+    const tsk_avl_tree_int_t *self, tsk_avl_node_int_t **out);
 
 tsk_size_t tsk_search_sorted(const double *array, tsk_size_t size, double value);
 
