@@ -7,6 +7,16 @@
 - The CLI `info` command now gives more detailed information on the tree sequence
   (:user:`benjeffery`, :pr:`1611`)
 
+- 64 bits are now used to store the sizes of ragged table columns such as metadata,
+  allowing them to hold more data. This change is fully backwards and forwards compatible
+  for all tree-sequences whose ragged column sizes fit into 32 bits. New tree-sequences with
+  large offset arrays that require 64 bits will fail to load in previous versions with
+  error ``_tskit.FileFormatError: An incompatible type for a column was found in the
+  file``.
+  (:user:`jeromekelleher`, :issue:`343`, :issue:`1527`, :issue:`1528`, :issue:`1530`,
+  :issue:`1554`, :issue:`1573`, :issue:`1589`,:issue:`1598`,:issue:`1628`, :pr:`1571`,
+  :pr:`1579`, :pr:`1585`, :pr:`1590`, :pr:`1602`, :pr:`1618`, :pr:`1620`, :pr:`1652`).
+
 **Features**
 
 - Add `__setitem__` to all tables allowing single rows to be updated. For example

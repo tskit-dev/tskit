@@ -2,6 +2,18 @@
 [0.99.14] - 2021-0X-XX
 ----------------------
 
+**Breaking changes**
+
+- 64 bits are now used to store the sizes of ragged table columns such as metadata,
+  allowing them to hold more data. As such ``tsk_size_t`` is now 64 bits wide.
+  This change is fully backwards and forwards compatible for all tree-sequences whose
+  ragged column sizes fit into 32 bits. New tree-sequences with
+  large offset arrays that require 64 bits will fail to load in previous versions with
+  error ``TSK_ERR_BAD_COLUMN_TYPE``.
+  (:user:`jeromekelleher`, :issue:`343`, :issue:`1527`, :issue:`1528`, :issue:`1530`,
+  :issue:`1554`, :issue:`1573`, :issue:`1589`,:issue:`1598`,:issue:`1628`, :pr:`1571`,
+  :pr:`1579`, :pr:`1585`, :pr:`1590`, :pr:`1602`, :pr:`1618`, :pr:`1620`, :pr:`1652`).
+
 **Features**
 
 - Add `tsk_X_table_update_row` methods which allow modifying single rows of tables
