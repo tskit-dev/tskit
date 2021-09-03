@@ -818,7 +818,7 @@ tsk_avl_tree_int_free(tsk_avl_tree_int_t *TSK_UNUSED(self))
 }
 
 tsk_avl_node_int_t *
-tsk_avl_tree_int_search(tsk_avl_tree_int_t *self, int64_t key)
+tsk_avl_tree_int_search(const tsk_avl_tree_int_t *self, int64_t key)
 {
     tsk_avl_node_int_t *P = self->head.rlink;
 

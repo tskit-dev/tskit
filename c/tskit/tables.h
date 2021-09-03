@@ -626,16 +626,10 @@ typedef struct _tsk_segment_t {
 } tsk_segment_t;
 
 typedef struct {
-    const tsk_id_t *pairs;
-    tsk_size_t num_pairs;
     tsk_size_t num_nodes;
-    tsk_size_t num_unique_nodes_in_pair;
-    int64_t *pair_map;
-    tsk_id_t *paired_nodes_index;
-    tsk_segment_t **ibd_segments_head;
-    tsk_segment_t **ibd_segments_tail;
+    tsk_avl_tree_int_t pair_map;
     tsk_size_t total_segments;
-    tsk_blkalloc_t segment_heap;
+    tsk_blkalloc_t heap;
 } tsk_ibd_result_t;
 
 /****************************************************************************/

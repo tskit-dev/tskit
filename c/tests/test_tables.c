@@ -4763,7 +4763,7 @@ static void
 test_ibd_finder(void)
 {
     int ret;
-    int j, k;
+    int k;
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
     tsk_id_t samples[] = { 0, 1 };
@@ -4784,19 +4784,18 @@ test_ibd_finder(void)
     ret = tsk_table_collection_find_ibd(&tables, &result, samples, 1, 0.0, DBL_MAX, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     total_segments = 0;
-    for (j = 0; j < (int) result.num_pairs; j++) {
-        pair = samples + 2 * j;
-        tsk_ibd_result_get(&result, pair[0], pair[1], &seg);
-        CU_ASSERT_EQUAL_FATAL(ret, 0);
-        k = 0;
-        while (seg != NULL) {
-            CU_ASSERT_EQUAL_FATAL(seg->left, true_left[k]);
-            CU_ASSERT_EQUAL_FATAL(seg->right, true_right[k]);
-            CU_ASSERT_EQUAL_FATAL(seg->node, true_node[k]);
-            k++;
-            seg = seg->next;
-            total_segments++;
-        }
+
+    pair = samples;
+    tsk_ibd_result_get(&result, pair[0], pair[1], &seg);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    k = 0;
+    while (seg != NULL) {
+        CU_ASSERT_EQUAL_FATAL(seg->left, true_left[k]);
+        CU_ASSERT_EQUAL_FATAL(seg->right, true_right[k]);
+        CU_ASSERT_EQUAL_FATAL(seg->node, true_node[k]);
+        k++;
+        seg = seg->next;
+        total_segments++;
     }
     tsk_ibd_result_print_state(&result, _devnull);
     CU_ASSERT_EQUAL_FATAL(tsk_ibd_result_get_total_segments(&result), total_segments);
@@ -4810,11 +4809,12 @@ static void
 test_ibd_finder_multiple_trees(void)
 {
     int ret;
-    int j, k;
+    tsk_size_t j, k;
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
     tsk_id_t samples[] = { 0, 1, 0, 2 };
     tsk_id_t *pair;
+    tsk_size_t num_pairs = 2;
     tsk_ibd_result_t result;
     double true_left[2][2] = { { 0.0, 0.7 }, { 0.7, 0.0 } };
     double true_right[2][2] = { { 0.7, 1.0 }, { 1.0, 0.7 } };
@@ -4826,9 +4826,10 @@ test_ibd_finder_multiple_trees(void)
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_find_ibd(&tables, &result, samples, 2, 0.0, DBL_MAX, 0);
+    ret = tsk_table_collection_find_ibd(
+        &tables, &result, samples, num_pairs, 0.0, DBL_MAX, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    for (j = 0; j < (int) result.num_pairs; j++) {
+    for (j = 0; j < num_pairs; j++) {
         pair = samples + 2 * j;
         ret = tsk_ibd_result_get(&result, pair[0], pair[1], &seg);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -4879,10 +4880,11 @@ static void
 test_ibd_finder_min_length_max_time(void)
 {
     int ret;
-    int j, k;
+    tsk_size_t j, k;
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
     tsk_id_t samples[] = { 0, 1, 1, 2, 2, 0 };
+    tsk_size_t num_pairs = 3;
     tsk_id_t *pair;
     tsk_ibd_result_t result;
     double true_left[3][1] = { { 0.0 }, { -1 }, { -1 } };
@@ -4895,10 +4897,11 @@ test_ibd_finder_min_length_max_time(void)
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_find_ibd(&tables, &result, samples, 3, 0.5, 3.0, 0);
+    ret = tsk_table_collection_find_ibd(
+        &tables, &result, samples, num_pairs, 0.5, 3.0, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    for (j = 0; j < (int) result.num_pairs; j++) {
+    for (j = 0; j < num_pairs; j++) {
         pair = samples + 2 * j;
         ret = tsk_ibd_result_get(&result, pair[0], pair[1], &seg);
         CU_ASSERT_TRUE_FATAL((ret == 0) || (ret == -1));
@@ -4966,8 +4969,15 @@ test_ibd_finder_errors(void)
     ret = tsk_table_collection_find_ibd(&tables, &result, samples, 2, 0.0, DBL_MAX, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_ibd_result_get(&result, -1, -1, &seg);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NO_SAMPLE_PAIRS);
+    ret = tsk_ibd_result_get(&result, 0, -1, &seg);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    ret = tsk_ibd_result_get(&result, -1, 0, &seg);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    ret = tsk_ibd_result_get(&result, 0, 100, &seg);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    ret = tsk_ibd_result_get(&result, 100, 0, &seg);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
     ret = tsk_ibd_result_get(&result, 0, 5, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NO_SAMPLE_PAIRS);
     /* TODO add more checks here */
@@ -4982,10 +4992,11 @@ static void
 test_ibd_finder_samples_are_descendants(void)
 {
     int ret;
-    int j, k;
+    tsk_size_t j, k;
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
     tsk_id_t samples[] = { 0, 2, 0, 4, 2, 4, 1, 3, 1, 5, 3, 5 };
+    tsk_size_t num_pairs = 6;
     tsk_id_t *pair;
     tsk_ibd_result_t result;
     double true_left[6][1] = { { 0.0 }, { 0.0 }, { 0.0 }, { 0.0 }, { 0.0 }, { 0.0 } };
@@ -4999,10 +5010,11 @@ test_ibd_finder_samples_are_descendants(void)
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_find_ibd(&tables, &result, samples, 6, 0.0, DBL_MAX, 0);
+    ret = tsk_table_collection_find_ibd(
+        &tables, &result, samples, num_pairs, 0.0, DBL_MAX, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    for (j = 0; j < (int) result.num_pairs; j++) {
+    for (j = 0; j < num_pairs; j++) {
         pair = samples + 2 * j;
         tsk_ibd_result_get(&result, pair[0], pair[1], &seg);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -5025,10 +5037,11 @@ static void
 test_ibd_finder_multiple_ibd_paths(void)
 {
     int ret;
-    int j, k;
+    tsk_size_t j, k;
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
     tsk_id_t samples[] = { 0, 1, 0, 2, 1, 2 };
+    tsk_size_t num_pairs = 3;
     tsk_id_t *pair;
     tsk_ibd_result_t result;
     double true_left[3][2] = { { 0.2, 0.0 }, { 0.2, 0.0 }, { 0.0, 0.2 } };
@@ -5042,11 +5055,12 @@ test_ibd_finder_multiple_ibd_paths(void)
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_find_ibd(&tables, &result, samples, 3, 0.0, 0.0, 0);
+    ret = tsk_table_collection_find_ibd(
+        &tables, &result, samples, num_pairs, 0.0, 0.0, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    for (j = 0; j < (int) result.num_pairs; j++) {
+    for (j = 0; j < num_pairs; j++) {
         pair = samples + 2 * j;
         tsk_ibd_result_get(&result, pair[0], pair[1], &seg);
         CU_ASSERT_EQUAL_FATAL(ret, 0);

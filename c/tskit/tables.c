@@ -7118,105 +7118,105 @@ out:
  * IBD Result
  *************************/
 
+typedef struct {
+    tsk_segment_t *head;
+    tsk_segment_t *tail;
+} tsk_segment_list_t;
+
+/* This maps two positive integers 0 <= a < b < N into the set
+ * {0, ..., N^2}. For us to overflow an int64, N would need to
+ * be > sqrt(2^63), ~3 * 10^9. The maximum value for a 32bit int
+ * is ~2 * 10^9, so this can't happen here, however it is
+ * theoretically possible with 64 bit IDs. It would require
+ * a *very* large node table --- assuming 24 bytes per row
+ * it would be at least 67GiB. To make sure this eventuality
+ * doesn't happen, we have a tsk_bug_assert in the
+ * tsk_ibd_result_init.
+ */
+static int64_t
+pair_to_integer(tsk_id_t a, tsk_id_t b, tsk_size_t N)
+{
+    tsk_id_t tmp;
+    if (a > b) {
+        tmp = a;
+        a = b;
+        b = tmp;
+    }
+    return ((int64_t) a) * (int64_t) N + (int64_t) b;
+}
+
+static int64_t
+tsk_ibd_result_get_key(const tsk_ibd_result_t *self, tsk_id_t a, tsk_id_t b)
+{
+    int64_t ret;
+    tsk_id_t N = (tsk_id_t) self->num_nodes;
+
+    if (a < 0 || b < 0 || a >= N || b >= N) {
+        ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
+        goto out;
+    }
+    ret = pair_to_integer(a, b, self->num_nodes);
+out:
+    return ret;
+}
+
 static tsk_segment_t *TSK_WARN_UNUSED
 tsk_ibd_result_alloc_segment(
     tsk_ibd_result_t *self, double left, double right, tsk_id_t node)
 {
-    tsk_segment_t *seg = NULL;
-
-    seg = tsk_blkalloc_get(&self->segment_heap, sizeof(*seg));
+    tsk_segment_t *seg = tsk_blkalloc_get(&self->heap, sizeof(*seg));
     if (seg == NULL) {
         goto out;
     }
+    tsk_bug_assert(left < right);
+    tsk_bug_assert(node >= 0 && node < (tsk_id_t) self->num_nodes);
+
     seg->next = NULL;
     seg->left = left;
     seg->right = right;
     seg->node = node;
-
 out:
     return seg;
 }
 
 static int
-tsk_ibd_result_index_samples(tsk_ibd_result_t *self)
+tsk_ibd_result_insert_new_pair(tsk_ibd_result_t *self, tsk_id_t a, tsk_id_t b)
 {
     int ret = 0;
-    tsk_size_t j, i;
-    tsk_id_t u, idx;
+    tsk_avl_node_int_t *avl_node = tsk_blkalloc_get(&self->heap, sizeof(*avl_node));
+    tsk_segment_list_t *list = tsk_blkalloc_get(&self->heap, sizeof(*list));
 
-    for (j = 0; j < 2 * self->num_pairs; j++) {
-        u = self->pairs[j];
-
-        if (u < 0 || u > (tsk_id_t) self->num_nodes) {
-            ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
-            goto out;
-        }
+    if (avl_node == NULL || list == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
     }
-
-    for (i = 0; i < self->num_nodes; ++i) {
-        self->paired_nodes_index[i] = -1;
+    avl_node->key = pair_to_integer(a, b, self->num_nodes);
+    ret = tsk_avl_tree_int_insert(&self->pair_map, avl_node);
+    if (ret != 0) {
+        ret = TSK_ERR_DUPLICATE_SAMPLE_PAIRS;
+        goto out;
     }
-
-    for (i = 0; i < 2 * self->num_pairs; ++i) {
-        self->paired_nodes_index[self->pairs[i]] = 1;
-    }
-
-    self->num_unique_nodes_in_pair = 0;
-    idx = 0;
-    for (i = 0; i < self->num_nodes; ++i) {
-        if (self->paired_nodes_index[i] == 1) {
-            ++self->num_unique_nodes_in_pair;
-            self->paired_nodes_index[i] = idx;
-            ++idx;
-        }
-    }
+    list->head = NULL;
+    list->tail = NULL;
+    avl_node->value = list;
 out:
     return ret;
 }
 
-// NOTE: future travellers may want to refactor
-// this to only allocate the upper triangle of the matrix.
-// Doing so would save a good bit of memory, but would
-// imply trickier indexing here and in
-// tsk_ibd_finder_find_sample_pair_index2.
 static int
-tsk_ibd_result_build_pair_map(tsk_ibd_result_t *self)
+tsk_ibd_result_insert_pairs(
+    tsk_ibd_result_t *self, const tsk_id_t *pairs, tsk_size_t num_pairs)
 {
     int ret = 0;
-    tsk_size_t i, index;
-    tsk_id_t sample0, sample1;
-    tsk_id_t row, col;
-    tsk_size_t matrix_size
-        = self->num_unique_nodes_in_pair * self->num_unique_nodes_in_pair;
+    tsk_size_t j;
+    const tsk_id_t *pair;
 
-    self->pair_map = tsk_calloc(matrix_size, sizeof(*self->pair_map));
-    if (self->pair_map == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
-        goto out;
-    }
-
-    for (i = 0; i < matrix_size; ++i) {
-        self->pair_map[i] = -1;
-    }
-
-    for (i = 0; i < self->num_pairs; ++i) {
-        sample0 = self->pairs[2 * i];
-        sample1 = self->pairs[2 * i + 1];
-
-        row = TSK_MIN(
-            self->paired_nodes_index[sample0], self->paired_nodes_index[sample1]);
-        col = TSK_MAX(
-            self->paired_nodes_index[sample0], self->paired_nodes_index[sample1]);
-
-        tsk_bug_assert(row >= 0);
-        tsk_bug_assert(col >= 0);
-
-        index = ((tsk_size_t) row) * self->num_unique_nodes_in_pair + (tsk_size_t) col;
-        if (self->pair_map[index] != -1) {
-            ret = TSK_ERR_DUPLICATE_SAMPLE_PAIRS;
+    for (j = 0; j < num_pairs; j++) {
+        pair = pairs + 2 * j;
+        ret = tsk_ibd_result_insert_new_pair(self, pair[0], pair[1]);
+        if (ret != 0) {
             goto out;
         }
-        self->pair_map[index] = (int64_t) i;
     }
 out:
     return ret;
@@ -7229,33 +7229,23 @@ tsk_ibd_result_init(tsk_ibd_result_t *self, const tsk_id_t *pairs, tsk_size_t nu
     tsk_size_t num_nodes)
 {
     int ret = 0;
+    /* Make sure we don't overflow in the ID mapping. See the comments in pair_to_integer
+     * for details. */
+    double max_num_nodes = sqrt(1ULL << 63);
+    tsk_bug_assert(num_nodes < max_num_nodes);
 
     memset(self, 0, sizeof(*self));
-    self->pairs = pairs;
-    self->num_pairs = num_pairs;
-    /* TODO probably don't need to pass this as a parameter */
     self->num_nodes = num_nodes;
-    self->ibd_segments_head
-        = tsk_calloc(self->num_pairs, sizeof(*self->ibd_segments_head));
-    self->ibd_segments_tail
-        = tsk_calloc(self->num_pairs, sizeof(*self->ibd_segments_tail));
-    self->paired_nodes_index
-        = tsk_calloc(self->num_nodes, sizeof(*self->paired_nodes_index));
-
-    if (self->paired_nodes_index == NULL || self->ibd_segments_head == NULL
-        || self->ibd_segments_tail == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
-        goto out;
-    }
-    ret = tsk_blkalloc_init(&self->segment_heap, 8192);
+    ret = tsk_avl_tree_int_init(&self->pair_map);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_ibd_result_index_samples(self);
+    /* Allocate heap memory in 1MiB blocks */
+    ret = tsk_blkalloc_init(&self->heap, 1024 * 1024);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_ibd_result_build_pair_map(self);
+    ret = tsk_ibd_result_insert_pairs(self, pairs, num_pairs);
     if (ret != 0) {
         goto out;
     }
@@ -7263,45 +7253,13 @@ out:
     return ret;
 }
 
-static int64_t
-tsk_ibd_result_find_sample_pair_index2(
-    const tsk_ibd_result_t *self, tsk_id_t sample0, tsk_id_t sample1)
-{
-    tsk_id_t s0, s1;
-    tsk_size_t row, col;
-    tsk_id_t num_nodes = (tsk_id_t) self->num_nodes;
-
-    if (sample0 < 0 || sample1 < 0 || sample0 >= num_nodes || sample1 >= num_nodes) {
-        return -1;
-    }
-    s0 = self->paired_nodes_index[sample0];
-    s1 = self->paired_nodes_index[sample1];
-
-    if (s0 < 0 || s1 < 0) {
-        return -1;
-    }
-    row = TSK_MIN((tsk_size_t) s0, (tsk_size_t) s1);
-    col = TSK_MAX((tsk_size_t) s0, (tsk_size_t) s1);
-    return self->pair_map[row * self->num_unique_nodes_in_pair + col];
-}
-
 void
 tsk_ibd_result_print_state(tsk_ibd_result_t *self, FILE *out)
 {
-    tsk_size_t j;
-    tsk_segment_t *u;
-
     fprintf(out, "===\nIBD Result\n===\n");
-    for (j = 0; j < self->num_pairs; j++) {
-        fprintf(
-            out, "(%i, %i)\t", (int) self->pairs[2 * j], (int) self->pairs[2 * j + 1]);
-        for (u = self->ibd_segments_head[j]; u != NULL; u = u->next) {
-            fprintf(out, "(%f,%f->%lld)", u->left, u->right, (long long) u->node);
-        }
-        fprintf(out, "\n");
-    }
+    tsk_avl_tree_int_print_state(&self->pair_map, out);
     fprintf(out, "Segment memory\n");
-    tsk_blkalloc_print_state(&self->segment_heap, out);
+    tsk_blkalloc_print_state(&self->heap, out);
 }
 
 tsk_size_t
@@ -7313,46 +7271,37 @@ tsk_ibd_result_get_total_segments(const tsk_ibd_result_t *self)
 int
 tsk_ibd_result_free(tsk_ibd_result_t *self)
 {
-    tsk_safe_free(self->ibd_segments_head);
-    tsk_safe_free(self->ibd_segments_tail);
-    tsk_blkalloc_free(&self->segment_heap);
-    tsk_safe_free(self->pair_map);
-    tsk_safe_free(self->paired_nodes_index);
+    tsk_blkalloc_free(&self->heap);
+    tsk_avl_tree_int_free(&self->pair_map);
     return 0;
 }
 
 static int TSK_WARN_UNUSED
-tsk_ibd_result_add_segment(tsk_ibd_result_t *self, tsk_id_t sample_a, tsk_id_t sample_b,
-    double left, double right, tsk_id_t node)
+tsk_ibd_result_add_segment(tsk_ibd_result_t *self, tsk_id_t a, tsk_id_t b, double left,
+    double right, tsk_id_t node)
 {
     int ret = 0;
-    tsk_segment_t *tail, *x;
-    int64_t pair_num = tsk_ibd_result_find_sample_pair_index2(self, sample_a, sample_b);
+    tsk_segment_list_t *list;
+    /* skip the error checking here since this an internal API */
+    int64_t key = pair_to_integer(a, b, self->num_nodes);
+    tsk_segment_t *x = tsk_ibd_result_alloc_segment(self, left, right, node);
+    tsk_avl_node_int_t *avl_node = tsk_avl_tree_int_search(&self->pair_map, key);
 
-    if (pair_num < 0) {
-        /* Don't store anything for pairs we haven't indexed */
-        return 0;
+    if (x == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
     }
-    tail = self->ibd_segments_tail[pair_num];
-    tsk_bug_assert(left < right);
-    if (tail == NULL) {
-        x = tsk_ibd_result_alloc_segment(self, left, right, node);
-        if (x == NULL) {
-            ret = TSK_ERR_NO_MEMORY;
-            goto out;
+    if (avl_node != NULL) {
+        list = (tsk_segment_list_t *) avl_node->value;
+        if (list->tail == NULL) {
+            list->head = x;
+            list->tail = x;
+        } else {
+            list->tail->next = x;
+            list->tail = x;
         }
-        self->ibd_segments_head[pair_num] = x;
-        self->ibd_segments_tail[pair_num] = x;
-    } else {
-        x = tsk_ibd_result_alloc_segment(self, left, right, node);
-        if (x == NULL) {
-            ret = TSK_ERR_NO_MEMORY;
-            goto out;
-        }
-        tail->next = x;
-        self->ibd_segments_tail[pair_num] = x;
+        self->total_segments++;
     }
-    self->total_segments++;
 out:
     return ret;
 }
@@ -7362,15 +7311,20 @@ tsk_ibd_result_get(const tsk_ibd_result_t *self, tsk_id_t sample_a, tsk_id_t sam
     tsk_segment_t **ret_head)
 {
     int ret = 0;
-    int64_t pair_index
-        = tsk_ibd_result_find_sample_pair_index2(self, sample_a, sample_b);
+    int64_t key = tsk_ibd_result_get_key(self, sample_a, sample_b);
+    tsk_avl_node_int_t *avl_node;
 
-    if (pair_index < 0) {
-        return TSK_ERR_NO_SAMPLE_PAIRS;
+    if (key < 0) {
+        ret = (int) key;
+        goto out;
     }
-    /* NOTE this means that we can return NULL - this means there's no
-     * IBD segments between the specified pairs */
-    *ret_head = self->ibd_segments_head[pair_index];
+    avl_node = tsk_avl_tree_int_search(&self->pair_map, key);
+    if (avl_node == NULL) {
+        ret = TSK_ERR_NO_SAMPLE_PAIRS;
+        goto out;
+    }
+    *ret_head = ((tsk_segment_list_t *) avl_node->value)->head;
+out:
     return ret;
 }
 
