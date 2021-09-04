@@ -7160,7 +7160,7 @@ class TreeSequence:
 
         yield from combinatorics.treeseq_count_topologies(self, sample_sets)
 
-    def find_ibd(self, samples, max_time=None, min_length=None):
+    def find_ibd(self, samples=None, max_time=None, min_length=None):
         """
         Returns a dictionary containing all IBD (identical-by-descent) segments for the
         supplied list of sample pairs.

@@ -193,10 +193,10 @@ const char *multiple_tree_ex_nodes = /*                                    */
                                      /* |----------------|---------------| */
                                      /* 0                1               2 */
 
-const char *multiple_tree_ex_edges = "0.7  1.0   3   1,2\n"
-                                     "0.0  0.7   4   0,1\n"
-                                     "0.7  1.0   5   0,3\n"
-                                     "0.0  0.7   6   2,4\n";
+const char *multiple_tree_ex_edges = "0.75  1.0   3   1,2\n"
+                                     "0.0  0.75   4   0,1\n"
+                                     "0.75  1.0   5   0,3\n"
+                                     "0.0  0.75   6   2,4\n";
 
 /* Odd topology -- different roots. */
 

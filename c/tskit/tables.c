@@ -7118,11 +7118,6 @@ out:
  * IBD Result
  *************************/
 
-typedef struct {
-    tsk_segment_t *head;
-    tsk_segment_t *tail;
-} tsk_segment_list_t;
-
 /* This maps two positive integers 0 <= a < b < N into the set
  * {0, ..., N^2}. For us to overflow an int64, N would need to
  * be > sqrt(2^63), ~3 * 10^9. The maximum value for a 32bit int
@@ -7133,7 +7128,7 @@ typedef struct {
  * doesn't happen, we have a tsk_bug_assert in the
  * tsk_ibd_result_init.
  */
-static int64_t
+static inline int64_t
 pair_to_integer(tsk_id_t a, tsk_id_t b, tsk_size_t N)
 {
     tsk_id_t tmp;
@@ -7145,6 +7140,13 @@ pair_to_integer(tsk_id_t a, tsk_id_t b, tsk_size_t N)
     return ((int64_t) a) * (int64_t) N + (int64_t) b;
 }
 
+static inline void
+integer_to_pair(int64_t index, tsk_size_t N, tsk_id_t *a, tsk_id_t *b)
+{
+    *a = (tsk_id_t)(index / (int64_t) N);
+    *b = (tsk_id_t)(index % (int64_t) N);
+}
+
 static int64_t
 tsk_ibd_result_get_key(const tsk_ibd_result_t *self, tsk_id_t a, tsk_id_t b)
 {
@@ -7153,6 +7155,10 @@ tsk_ibd_result_get_key(const tsk_ibd_result_t *self, tsk_id_t a, tsk_id_t b)
 
     if (a < 0 || b < 0 || a >= N || b >= N) {
         ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
+        goto out;
+    }
+    if (a == b) {
+        ret = TSK_ERR_SAME_NODES_IN_PAIR;
         goto out;
     }
     ret = pair_to_integer(a, b, self->num_nodes);
@@ -7179,26 +7185,41 @@ out:
     return seg;
 }
 
-static int
-tsk_ibd_result_insert_new_pair(tsk_ibd_result_t *self, tsk_id_t a, tsk_id_t b)
+static tsk_avl_node_int_t *
+tsk_ibd_result_alloc_new_pair(tsk_ibd_result_t *self, int64_t key)
 {
-    int ret = 0;
     tsk_avl_node_int_t *avl_node = tsk_blkalloc_get(&self->heap, sizeof(*avl_node));
     tsk_segment_list_t *list = tsk_blkalloc_get(&self->heap, sizeof(*list));
 
     if (avl_node == NULL || list == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
+        return NULL;
+    }
+    avl_node->key = key;
+    avl_node->value = list;
+    memset(list, 0, sizeof(*list));
+    return avl_node;
+}
+
+static int
+tsk_ibd_result_insert_new_pair(tsk_ibd_result_t *self, tsk_id_t a, tsk_id_t b)
+{
+    int ret = 0;
+    tsk_avl_node_int_t *avl_node;
+    int64_t key = tsk_ibd_result_get_key(self, a, b);
+
+    if (key < 0) {
+        ret = (int) key;
         goto out;
     }
-    avl_node->key = pair_to_integer(a, b, self->num_nodes);
+    avl_node = tsk_ibd_result_alloc_new_pair(self, key);
+    if (avl_node == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+    }
     ret = tsk_avl_tree_int_insert(&self->pair_map, avl_node);
     if (ret != 0) {
         ret = TSK_ERR_DUPLICATE_SAMPLE_PAIRS;
         goto out;
     }
-    list->head = NULL;
-    list->tail = NULL;
-    avl_node->value = list;
 out:
     return ret;
 }
@@ -7245,9 +7266,14 @@ tsk_ibd_result_init(tsk_ibd_result_t *self, const tsk_id_t *pairs, tsk_size_t nu
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_ibd_result_insert_pairs(self, pairs, num_pairs);
-    if (ret != 0) {
-        goto out;
+    if (pairs == NULL) {
+        self->specified_pairs = false;
+    } else {
+        self->specified_pairs = true;
+        ret = tsk_ibd_result_insert_pairs(self, pairs, num_pairs);
+        if (ret != 0) {
+            goto out;
+        }
     }
 out:
     return ret;
@@ -7256,16 +7282,98 @@ out:
 void
 tsk_ibd_result_print_state(tsk_ibd_result_t *self, FILE *out)
 {
+    tsk_avl_node_int_t **nodes = tsk_malloc(self->pair_map.size * sizeof(*nodes));
+    int64_t key;
+    tsk_segment_list_t *value;
+    tsk_segment_t *seg;
+    tsk_size_t j;
+    tsk_id_t a, b;
+
+    tsk_bug_assert(nodes != NULL);
+
     fprintf(out, "===\nIBD Result\n===\n");
-    tsk_avl_tree_int_print_state(&self->pair_map, out);
+    fprintf(out, "specified_pairs = %d\n", self->specified_pairs);
+    tsk_avl_tree_int_ordered_nodes(&self->pair_map, nodes);
+    for (j = 0; j < self->pair_map.size; j++) {
+        key = nodes[j]->key;
+        value = (tsk_segment_list_t *) nodes[j]->value;
+        integer_to_pair(key, self->num_nodes, &a, &b);
+        fprintf(out, "%lld\t(%d,%d) n=%d total_span=%f\t", (long long) key, (int) a,
+            (int) b, (int) value->num_segments, value->total_span);
+        for (seg = value->head; seg != NULL; seg = seg->next) {
+            fprintf(out, "(%f, %f)->%d, ", seg->left, seg->right, (int) seg->node);
+        }
+        fprintf(out, "\n");
+    }
+
     fprintf(out, "Segment memory\n");
     tsk_blkalloc_print_state(&self->heap, out);
+    tsk_safe_free(nodes);
 }
 
 tsk_size_t
 tsk_ibd_result_get_total_segments(const tsk_ibd_result_t *self)
 {
     return self->total_segments;
+}
+
+tsk_size_t
+tsk_ibd_result_get_num_pairs(const tsk_ibd_result_t *self)
+{
+    return self->pair_map.size;
+}
+
+/* Use an inorder traveral on the AVL tree to get the pairs in order.
+ * Recursion is safe here because it's an AVL tree (see the AVL tree
+ * code for notes on this).
+ */
+static int
+get_keys_traverse(tsk_avl_node_int_t *node, int index, tsk_size_t N, tsk_id_t *pairs)
+{
+    tsk_id_t a, b;
+
+    if (node == NULL) {
+        return index;
+    }
+    index = get_keys_traverse(node->llink, index, N, pairs);
+    integer_to_pair(node->key, N, &a, &b);
+    pairs[2 * index] = a;
+    pairs[2 * index + 1] = b;
+    return get_keys_traverse(node->rlink, index + 1, N, pairs);
+}
+
+int
+tsk_ibd_result_get_keys(const tsk_ibd_result_t *self, tsk_id_t *pairs)
+{
+    get_keys_traverse(
+        tsk_avl_tree_int_get_root(&self->pair_map), 0, self->num_nodes, pairs);
+    return 0;
+}
+
+static int
+get_items_traverse(tsk_avl_node_int_t *node, int index, tsk_size_t N, tsk_id_t *pairs,
+    tsk_segment_list_t **lists)
+{
+    tsk_id_t a, b;
+
+    if (node == NULL) {
+        return index;
+    }
+    index = get_items_traverse(node->llink, index, N, pairs, lists);
+    integer_to_pair(node->key, N, &a, &b);
+    pairs[2 * index] = a;
+    pairs[2 * index + 1] = b;
+    lists[index] = node->value;
+    return get_items_traverse(node->rlink, index + 1, N, pairs, lists);
+}
+
+int
+tsk_ibd_result_get_items(
+    const tsk_ibd_result_t *self, tsk_id_t *pairs, tsk_segment_list_t **lists)
+{
+    get_items_traverse(
+        tsk_avl_tree_int_get_root(&self->pair_map), 0, self->num_nodes, pairs, lists);
+    return 0;
 }
 
 int
@@ -7291,6 +7399,16 @@ tsk_ibd_result_add_segment(tsk_ibd_result_t *self, tsk_id_t a, tsk_id_t b, doubl
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
+    if (avl_node == NULL && !self->specified_pairs) {
+        /* We are finding IBD among all pairs, and this is a pair we haven't
+         * seen before */
+        avl_node = tsk_ibd_result_alloc_new_pair(self, key);
+        if (avl_node == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+        }
+        ret = tsk_avl_tree_int_insert(&self->pair_map, avl_node);
+        tsk_bug_assert(ret == 0);
+    }
     if (avl_node != NULL) {
         list = (tsk_segment_list_t *) avl_node->value;
         if (list->tail == NULL) {
@@ -7300,6 +7418,8 @@ tsk_ibd_result_add_segment(tsk_ibd_result_t *self, tsk_id_t a, tsk_id_t b, doubl
             list->tail->next = x;
             list->tail = x;
         }
+        list->num_segments++;
+        list->total_span += right - left;
         self->total_segments++;
     }
 out:
@@ -7308,7 +7428,7 @@ out:
 
 int TSK_WARN_UNUSED
 tsk_ibd_result_get(const tsk_ibd_result_t *self, tsk_id_t sample_a, tsk_id_t sample_b,
-    tsk_segment_t **ret_head)
+    tsk_segment_list_t **ret_list)
 {
     int ret = 0;
     int64_t key = tsk_ibd_result_get_key(self, sample_a, sample_b);
@@ -7319,11 +7439,10 @@ tsk_ibd_result_get(const tsk_ibd_result_t *self, tsk_id_t sample_a, tsk_id_t sam
         goto out;
     }
     avl_node = tsk_avl_tree_int_search(&self->pair_map, key);
-    if (avl_node == NULL) {
-        ret = TSK_ERR_NO_SAMPLE_PAIRS;
-        goto out;
+    *ret_list = NULL;
+    if (avl_node != NULL) {
+        *ret_list = (tsk_segment_list_t *) avl_node->value;
     }
-    *ret_head = ((tsk_segment_list_t *) avl_node->value)->head;
 out:
     return ret;
 }
@@ -7333,21 +7452,17 @@ out:
  *************************/
 
 typedef struct {
-    const tsk_id_t *pairs;
-    tsk_size_t num_pairs;
-    tsk_size_t num_nodes;
     tsk_ibd_result_t *result;
-    double sequence_length;
-    const tsk_table_collection_t *tables;
-    tsk_blkalloc_t segment_heap;
-    bool *is_sample;
     double min_length;
     double max_time;
+    const tsk_table_collection_t *tables;
+    bool *is_sample;
     tsk_segment_t **ancestor_map_head;
     tsk_segment_t **ancestor_map_tail;
     tsk_segment_t *segment_queue;
     tsk_size_t segment_queue_size;
     tsk_size_t max_segment_queue_size;
+    tsk_blkalloc_t segment_heap;
 } tsk_ibd_finder_t;
 
 static tsk_segment_t *TSK_WARN_UNUSED
@@ -7399,21 +7514,22 @@ out:
 }
 
 static int
-tsk_ibd_finder_init_samples(tsk_ibd_finder_t *self)
+tsk_ibd_finder_init_samples_from_pairs(
+    tsk_ibd_finder_t *self, const tsk_id_t *pairs, tsk_size_t num_pairs)
 {
     int ret = 0;
     tsk_size_t j;
     tsk_id_t u;
 
     /* Go through the sample pairs to define samples. */
-    for (j = 0; j < 2 * self->num_pairs; j++) {
-        u = self->pairs[j];
+    for (j = 0; j < 2 * num_pairs; j++) {
+        u = pairs[j];
 
         if (u < 0 || u > (tsk_id_t) self->tables->nodes.num_rows) {
             ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
             goto out;
         }
-
+        self->is_sample[u] = true;
         if (!self->is_sample[u]) {
             self->is_sample[u] = true;
             ret = tsk_ibd_finder_add_ancestry(
@@ -7423,7 +7539,41 @@ tsk_ibd_finder_init_samples(tsk_ibd_finder_t *self)
             }
         }
     }
+out:
+    return ret;
+}
 
+static void
+tsk_ibd_finder_init_samples_from_nodes(tsk_ibd_finder_t *self)
+{
+    tsk_id_t u;
+    const tsk_id_t num_nodes = (tsk_id_t) self->tables->nodes.num_rows;
+    const tsk_flags_t *restrict flags = self->tables->nodes.flags;
+
+    for (u = 0; u < num_nodes; u++) {
+        if (flags[u] & TSK_NODE_IS_SAMPLE) {
+            self->is_sample[u] = true;
+        }
+    }
+}
+
+static int
+tsk_ibd_finder_add_sample_ancestry(tsk_ibd_finder_t *self)
+{
+
+    int ret = 0;
+    tsk_id_t u;
+    const tsk_id_t num_nodes = (tsk_id_t) self->tables->nodes.num_rows;
+    const double L = self->tables->sequence_length;
+
+    for (u = 0; u < num_nodes; u++) {
+        if (self->is_sample[u]) {
+            ret = tsk_ibd_finder_add_ancestry(self, u, 0, L, u);
+            if (ret != 0) {
+                goto out;
+            }
+        }
+    }
 out:
     return ret;
 }
@@ -7436,27 +7586,16 @@ tsk_ibd_finder_init(tsk_ibd_finder_t *self, const tsk_table_collection_t *tables
     tsk_size_t num_nodes;
 
     tsk_memset(self, 0, sizeof(tsk_ibd_finder_t));
-    self->pairs = pairs;
-    self->num_pairs = num_pairs;
-    self->sequence_length = tables->sequence_length;
-    self->num_nodes = tables->nodes.num_rows;
     self->tables = tables;
     self->result = result;
     self->max_time = DBL_MAX;
     self->min_length = 0;
 
-    if (pairs == NULL || num_pairs < 1) {
-        ret = TSK_ERR_NO_SAMPLE_PAIRS;
-        goto out;
-    }
-
-    // Allocate the heaps used for small objects.
     ret = tsk_blkalloc_init(&self->segment_heap, 8192);
     if (ret != 0) {
         goto out;
     }
 
-    // Mallocing and callocing.
     num_nodes = tables->nodes.num_rows;
     self->ancestor_map_head = tsk_calloc(num_nodes, sizeof(*self->ancestor_map_head));
     self->ancestor_map_tail = tsk_calloc(num_nodes, sizeof(*self->ancestor_map_tail));
@@ -7471,11 +7610,15 @@ tsk_ibd_finder_init(tsk_ibd_finder_t *self, const tsk_table_collection_t *tables
         goto out;
     }
 
-    ret = tsk_ibd_finder_init_samples(self);
-    if (ret != 0) {
-        goto out;
+    if (num_pairs > 0) {
+        ret = tsk_ibd_finder_init_samples_from_pairs(self, pairs, num_pairs);
+        if (ret != 0) {
+            goto out;
+        }
+    } else {
+        tsk_ibd_finder_init_samples_from_nodes(self);
     }
-
+    ret = tsk_ibd_finder_add_sample_ancestry(self);
 out:
     return ret;
 }
@@ -7599,15 +7742,8 @@ tsk_ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out)
     }
     fprintf(out, "===\nNode table\n==\n");
     for (j = 0; j < self->tables->nodes.num_rows; j++) {
-        fprintf(out, "ID:%f, Time:%f, Flag:%lld\n", (double) j,
-            self->tables->nodes.time[j], (long long) self->tables->nodes.flags[j]);
-    }
-    fprintf(out, "==\nSample pairs\n==\n");
-    for (j = 0; j < 2 * self->num_pairs; j++) {
-        fprintf(out, "%i ", (int) self->pairs[j]);
-        if (j % 2 != 0) {
-            fprintf(out, "\n");
-        }
+        fprintf(out, "ID:%d, Time:%f, Flag:%lld\n", (int) j, self->tables->nodes.time[j],
+            (long long) self->tables->nodes.flags[j]);
     }
     fprintf(out, "===\nAncestral map\n==\n");
     for (j = 0; j < self->tables->nodes.num_rows; j++) {
@@ -7617,7 +7753,6 @@ tsk_ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out)
         }
         fprintf(out, "\n");
     }
-    fprintf(out, "===\nIBD segments\n===\n");
     tsk_ibd_result_print_state(self->result, out);
 }
 

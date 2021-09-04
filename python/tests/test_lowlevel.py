@@ -394,13 +394,29 @@ class TestIbd:
             result.print_state()
         with pytest.raises(SystemError):
             result.total_segments
+        with pytest.raises(SystemError):
+            result.get_keys()
+
+    def test_get_keys(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.tables._ll_tables
+        pairs = [[0, 1], [0, 2], [0, 3]]
+        result = tc.find_ibd(pairs)
+        np.testing.assert_array_equal(result.get_keys(), pairs)
+
+    def test_find_all_pairs(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.tables._ll_tables
+        num_pairs = ts.num_samples * (ts.num_samples - 1) / 2
+        result = tc.find_ibd()
+        assert result.num_pairs == num_pairs
+        pairs = np.array(list(itertools.combinations(range(ts.num_samples), 2)))
+        np.testing.assert_array_equal(result.get_keys(), pairs)
 
     def test_find_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables._ll_tables
-        with pytest.raises(TypeError):
-            tc.find_ibd()
-        for bad_samples in ["sdf", None, {}]:
+        for bad_samples in ["sdf", {}]:
             with pytest.raises(ValueError):
                 tc.find_ibd(bad_samples)
         for not_enough_samples in [[], [0]]:
@@ -445,11 +461,13 @@ class TestIbd:
             result.get()
         with pytest.raises(TypeError):
             result.get("0", 1)
-        with pytest.raises(_tskit.LibraryError):
+        with pytest.raises(_tskit.LibraryError, match="Both nodes"):
             result.get(0, 0)
-        # TODO this should probably be a KeyError, but let's not
-        # worry about it for now.
-        with pytest.raises(_tskit.LibraryError):
+        with pytest.raises(_tskit.LibraryError, match="Node out of bounds"):
+            result.get(-1, 0)
+        with pytest.raises(_tskit.LibraryError, match="Node out of bounds"):
+            result.get(0, 100)
+        with pytest.raises(KeyError):
             result.get(0, 2)
 
     def test_print_state(self):

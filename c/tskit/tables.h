@@ -626,6 +626,14 @@ typedef struct _tsk_segment_t {
 } tsk_segment_t;
 
 typedef struct {
+    tsk_size_t num_segments;
+    double total_span;
+    tsk_segment_t *head;
+    tsk_segment_t *tail;
+} tsk_segment_list_t;
+
+typedef struct {
+    bool specified_pairs;
     tsk_size_t num_nodes;
     tsk_avl_tree_int_t pair_map;
     tsk_size_t total_segments;
@@ -3487,10 +3495,14 @@ int tsk_squash_edges(
 /* IBD finder API. This is experimental and the interface may change. */
 
 tsk_size_t tsk_ibd_result_get_total_segments(const tsk_ibd_result_t *self);
+tsk_size_t tsk_ibd_result_get_num_pairs(const tsk_ibd_result_t *self);
+int tsk_ibd_result_get_keys(const tsk_ibd_result_t *result, tsk_id_t *pairs);
+int tsk_ibd_result_get_items(
+    const tsk_ibd_result_t *self, tsk_id_t *pairs, tsk_segment_list_t **lists);
 void tsk_ibd_result_print_state(tsk_ibd_result_t *self, FILE *out);
 int tsk_ibd_result_free(tsk_ibd_result_t *self);
-int tsk_ibd_result_get(const tsk_ibd_result_t *self, tsk_id_t sample_a,
-    tsk_id_t sample_b, tsk_segment_t **ret_head);
+int tsk_ibd_result_get(
+    const tsk_ibd_result_t *self, tsk_id_t a, tsk_id_t b, tsk_segment_list_t **ret_list);
 
 #ifdef __cplusplus
 }

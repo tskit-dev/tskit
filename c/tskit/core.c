@@ -468,8 +468,8 @@ tsk_strerror_internal(int err)
             break;
 
         /* IBD errors */
-        case TSK_ERR_NO_SAMPLE_PAIRS:
-            ret = "There are no possible sample pairs.";
+        case TSK_ERR_SAME_NODES_IN_PAIR:
+            ret = "Both nodes in the sample pair are the same";
             break;
 
         case TSK_ERR_DUPLICATE_SAMPLE_PAIRS:
@@ -818,6 +818,12 @@ tsk_avl_tree_int_free(tsk_avl_tree_int_t *TSK_UNUSED(self))
 }
 
 tsk_avl_node_int_t *
+tsk_avl_tree_int_get_root(const tsk_avl_tree_int_t *self)
+{
+    return self->head.rlink;
+}
+
+tsk_avl_node_int_t *
 tsk_avl_tree_int_search(const tsk_avl_tree_int_t *self, int64_t key)
 {
     tsk_avl_node_int_t *P = self->head.rlink;
@@ -969,10 +975,10 @@ tsk_avl_tree_int_insert(tsk_avl_tree_int_t *self, tsk_avl_node_int_t *node)
 
 /* An inorder traversal of the nodes in an AVL tree (or any binary search tree)
  * yields the keys in sorted order. The recursive implementation is safe here
- * because this is an AVL tree and its is strictly balanced, the depth is very
- * limited. * GCC's __builtin_frame_address it looks like the size of a stack
+ * because this is an AVL tree and it is strictly balanced, the depth is very
+ * limited. Using GCC's __builtin_frame_address it looks like the size of a stack
  * frame for this function is 48 bytes. Assuming a stack size of 1MiB, this
- * would give us a maximum tree depth of 21845.
+ * would give us a maximum tree depth of 21845 - so, we're pretty safe.
  */
 static int
 ordered_nodes_traverse(tsk_avl_node_int_t *node, int index, tsk_avl_node_int_t **out)

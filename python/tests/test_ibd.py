@@ -6,6 +6,7 @@ import itertools
 import random
 
 import msprime
+import numpy as np
 import pytest
 
 import tests.ibd as ibd
@@ -827,10 +828,18 @@ class TestIbdRandomExamples:
     Randomly generated test cases.
     """
 
-    def test_random_examples(self):
-        for i in range(1, 50):
-            ts = msprime.simulate(sample_size=10, recombination_rate=0.3, random_seed=i)
-            verify_equal_ibd(ts)
+    def validate(self, ts):
+        # print(ts)
+        # result = ts.find_ibd()
+        # s = str(result)
+        # TODO - some validations!
+        pass
+
+    @pytest.mark.parametrize("seed", range(1, 5))
+    def test_random_examples(self, seed):
+        ts = msprime.simulate(sample_size=10, recombination_rate=0.3, random_seed=seed)
+        verify_equal_ibd(ts)
+        self.validate(ts)
 
     # Finite sites
     def sim_finite_sites(self, random_seed, dtwf=False):
@@ -878,6 +887,43 @@ class TestIbdResult:
     """
     Test the IbdResult class interface.
     """
+
+    def test_str(self):
+        ts = msprime.sim_ancestry(2, random_seed=2)
+        result = ts.find_ibd()
+        s = str(result)
+        assert s.startswith("IBD Result")
+
+    @pytest.mark.parametrize("n", [1, 2, 3])
+    def test_pairs_all_samples(self, n):
+        ts = msprime.sim_ancestry(n, random_seed=2)
+        result = ts.find_ibd()
+        pairs = np.array(list(itertools.combinations(ts.samples(), 2)))
+        np.testing.assert_array_equal(pairs, result.pairs)
+
+    @pytest.mark.parametrize("n", [1, 2, 3])
+    def test_pairs_subset(self, n):
+        ts = msprime.sim_ancestry(n, random_seed=2)
+        pairs = np.array([(0, 1), (0, 2)])
+        result = ts.find_ibd(pairs)
+        np.testing.assert_array_equal(pairs, result.pairs)
+
+    @pytest.mark.parametrize("max_time", [0, 1, 10])
+    def test_max_time(self, max_time):
+        ts = msprime.sim_ancestry(2, random_seed=2)
+        result = ts.find_ibd(max_time=max_time)
+        assert result.max_time == max_time
+
+    def test_max_time_default(self):
+        ts = msprime.sim_ancestry(2, random_seed=2)
+        result = ts.find_ibd()
+        assert np.isinf(result.max_time)
+
+    @pytest.mark.parametrize("min_length", [0, 1, 10])
+    def test_min_length(self, min_length):
+        ts = msprime.sim_ancestry(2, random_seed=2)
+        result = ts.find_ibd(min_length=min_length)
+        assert result.min_length == min_length
 
     def test_dict_interface(self):
         ts = msprime.sim_ancestry(5, random_seed=2)
