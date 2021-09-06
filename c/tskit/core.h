@@ -462,7 +462,31 @@ extern int tsk_blkalloc_init(tsk_blkalloc_t *self, size_t chunk_size);
 extern void *tsk_blkalloc_get(tsk_blkalloc_t *self, size_t size);
 extern void tsk_blkalloc_free(tsk_blkalloc_t *self);
 
+typedef struct _tsk_avl_node_int_t {
+    int64_t key;
+    void *value;
+    struct _tsk_avl_node_int_t *llink;
+    struct _tsk_avl_node_int_t *rlink;
+    /* This can only contain -1, 0, 1. We could set it to a smaller type,
+     * but there's no point because of struct padding and alignment so
+     * it's simplest to keep it as a plain int. */
+    int balance;
+} tsk_avl_node_int_t;
+
+typedef struct {
+    tsk_avl_node_int_t head;
+    tsk_size_t size;
+    tsk_size_t height;
+} tsk_avl_tree_int_t;
+
+int tsk_avl_tree_int_init(tsk_avl_tree_int_t *self);
+int tsk_avl_tree_int_free(tsk_avl_tree_int_t *self);
+void tsk_avl_tree_int_print_state(tsk_avl_tree_int_t *self, FILE *out);
+tsk_avl_node_int_t *tsk_avl_tree_int_search(tsk_avl_tree_int_t *self, int64_t key);
+int tsk_avl_tree_int_insert(tsk_avl_tree_int_t *self, tsk_avl_node_int_t *node);
+
 tsk_size_t tsk_search_sorted(const double *array, tsk_size_t size, double value);
+
 double tsk_round(double x, unsigned int ndigits);
 
 bool tsk_is_unknown_time(double val);
