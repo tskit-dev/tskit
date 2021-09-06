@@ -7115,8 +7115,286 @@ out:
 }
 
 /*************************
+ * IBD Result
+ *************************/
+
+static tsk_segment_t *TSK_WARN_UNUSED
+tsk_ibd_result_alloc_segment(
+    tsk_ibd_result_t *self, double left, double right, tsk_id_t node)
+{
+    tsk_segment_t *seg = NULL;
+
+    seg = tsk_blkalloc_get(&self->segment_heap, sizeof(*seg));
+    if (seg == NULL) {
+        goto out;
+    }
+    seg->next = NULL;
+    seg->left = left;
+    seg->right = right;
+    seg->node = node;
+
+out:
+    return seg;
+}
+
+static int
+tsk_ibd_result_index_samples(tsk_ibd_result_t *self)
+{
+    int ret = 0;
+    tsk_size_t j, i;
+    tsk_id_t u, idx;
+
+    for (j = 0; j < 2 * self->num_pairs; j++) {
+        u = self->pairs[j];
+
+        if (u < 0 || u > (tsk_id_t) self->num_nodes) {
+            ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
+            goto out;
+        }
+    }
+
+    for (i = 0; i < self->num_nodes; ++i) {
+        self->paired_nodes_index[i] = -1;
+    }
+
+    for (i = 0; i < 2 * self->num_pairs; ++i) {
+        self->paired_nodes_index[self->pairs[i]] = 1;
+    }
+
+    self->num_unique_nodes_in_pair = 0;
+    idx = 0;
+    for (i = 0; i < self->num_nodes; ++i) {
+        if (self->paired_nodes_index[i] == 1) {
+            ++self->num_unique_nodes_in_pair;
+            self->paired_nodes_index[i] = idx;
+            ++idx;
+        }
+    }
+out:
+    return ret;
+}
+
+// NOTE: future travellers may want to refactor
+// this to only allocate the upper triangle of the matrix.
+// Doing so would save a good bit of memory, but would
+// imply trickier indexing here and in
+// tsk_ibd_finder_find_sample_pair_index2.
+static int
+tsk_ibd_result_build_pair_map(tsk_ibd_result_t *self)
+{
+    int ret = 0;
+    tsk_size_t i, index;
+    tsk_id_t sample0, sample1;
+    tsk_id_t row, col;
+    tsk_size_t matrix_size
+        = self->num_unique_nodes_in_pair * self->num_unique_nodes_in_pair;
+
+    self->pair_map = tsk_calloc(matrix_size, sizeof(*self->pair_map));
+    if (self->pair_map == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    for (i = 0; i < matrix_size; ++i) {
+        self->pair_map[i] = -1;
+    }
+
+    for (i = 0; i < self->num_pairs; ++i) {
+        sample0 = self->pairs[2 * i];
+        sample1 = self->pairs[2 * i + 1];
+
+        row = TSK_MIN(
+            self->paired_nodes_index[sample0], self->paired_nodes_index[sample1]);
+        col = TSK_MAX(
+            self->paired_nodes_index[sample0], self->paired_nodes_index[sample1]);
+
+        tsk_bug_assert(row >= 0);
+        tsk_bug_assert(col >= 0);
+
+        index = ((tsk_size_t) row) * self->num_unique_nodes_in_pair + (tsk_size_t) col;
+        if (self->pair_map[index] != -1) {
+            ret = TSK_ERR_DUPLICATE_SAMPLE_PAIRS;
+            goto out;
+        }
+        self->pair_map[index] = (int64_t) i;
+    }
+out:
+    return ret;
+}
+
+/* Deliberately not making this a part of the public interface for now,
+ * so we don't have to worry about the signature */
+static int
+tsk_ibd_result_init(tsk_ibd_result_t *self, const tsk_id_t *pairs, tsk_size_t num_pairs,
+    tsk_size_t num_nodes)
+{
+    int ret = 0;
+
+    memset(self, 0, sizeof(*self));
+    self->pairs = pairs;
+    self->num_pairs = num_pairs;
+    /* TODO probably don't need to pass this as a parameter */
+    self->num_nodes = num_nodes;
+    self->ibd_segments_head
+        = tsk_calloc(self->num_pairs, sizeof(*self->ibd_segments_head));
+    self->ibd_segments_tail
+        = tsk_calloc(self->num_pairs, sizeof(*self->ibd_segments_tail));
+    self->paired_nodes_index
+        = tsk_calloc(self->num_nodes, sizeof(*self->paired_nodes_index));
+
+    if (self->paired_nodes_index == NULL || self->ibd_segments_head == NULL
+        || self->ibd_segments_tail == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    ret = tsk_blkalloc_init(&self->segment_heap, 8192);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_ibd_result_index_samples(self);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_ibd_result_build_pair_map(self);
+    if (ret != 0) {
+        goto out;
+    }
+out:
+    return ret;
+}
+
+static int64_t
+tsk_ibd_result_find_sample_pair_index2(
+    const tsk_ibd_result_t *self, tsk_id_t sample0, tsk_id_t sample1)
+{
+    tsk_id_t s0, s1;
+    tsk_size_t row, col;
+    tsk_id_t num_nodes = (tsk_id_t) self->num_nodes;
+
+    if (sample0 < 0 || sample1 < 0 || sample0 >= num_nodes || sample1 >= num_nodes) {
+        return -1;
+    }
+    s0 = self->paired_nodes_index[sample0];
+    s1 = self->paired_nodes_index[sample1];
+
+    if (s0 < 0 || s1 < 0) {
+        return -1;
+    }
+    row = TSK_MIN((tsk_size_t) s0, (tsk_size_t) s1);
+    col = TSK_MAX((tsk_size_t) s0, (tsk_size_t) s1);
+    return self->pair_map[row * self->num_unique_nodes_in_pair + col];
+}
+
+void
+tsk_ibd_result_print_state(tsk_ibd_result_t *self, FILE *out)
+{
+    tsk_size_t j;
+    tsk_segment_t *u;
+
+    fprintf(out, "===\nIBD Result\n===\n");
+    for (j = 0; j < self->num_pairs; j++) {
+        fprintf(
+            out, "(%i, %i)\t", (int) self->pairs[2 * j], (int) self->pairs[2 * j + 1]);
+        for (u = self->ibd_segments_head[j]; u != NULL; u = u->next) {
+            fprintf(out, "(%f,%f->%lld)", u->left, u->right, (long long) u->node);
+        }
+        fprintf(out, "\n");
+    }
+    fprintf(out, "Segment memory\n");
+    tsk_blkalloc_print_state(&self->segment_heap, out);
+}
+
+tsk_size_t
+tsk_ibd_result_get_total_segments(const tsk_ibd_result_t *self)
+{
+    return self->total_segments;
+}
+
+int
+tsk_ibd_result_free(tsk_ibd_result_t *self)
+{
+    tsk_safe_free(self->ibd_segments_head);
+    tsk_safe_free(self->ibd_segments_tail);
+    tsk_blkalloc_free(&self->segment_heap);
+    tsk_safe_free(self->pair_map);
+    tsk_safe_free(self->paired_nodes_index);
+    return 0;
+}
+
+static int TSK_WARN_UNUSED
+tsk_ibd_result_add_segment(tsk_ibd_result_t *self, tsk_id_t sample_a, tsk_id_t sample_b,
+    double left, double right, tsk_id_t node)
+{
+    int ret = 0;
+    tsk_segment_t *tail, *x;
+    int64_t pair_num = tsk_ibd_result_find_sample_pair_index2(self, sample_a, sample_b);
+
+    if (pair_num < 0) {
+        /* Don't store anything for pairs we haven't indexed */
+        return 0;
+    }
+    tail = self->ibd_segments_tail[pair_num];
+    tsk_bug_assert(left < right);
+    if (tail == NULL) {
+        x = tsk_ibd_result_alloc_segment(self, left, right, node);
+        if (x == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+        self->ibd_segments_head[pair_num] = x;
+        self->ibd_segments_tail[pair_num] = x;
+    } else {
+        x = tsk_ibd_result_alloc_segment(self, left, right, node);
+        if (x == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+        tail->next = x;
+        self->ibd_segments_tail[pair_num] = x;
+    }
+    self->total_segments++;
+out:
+    return ret;
+}
+
+int TSK_WARN_UNUSED
+tsk_ibd_result_get(const tsk_ibd_result_t *self, tsk_id_t sample_a, tsk_id_t sample_b,
+    tsk_segment_t **ret_head)
+{
+    int ret = 0;
+    int64_t pair_index
+        = tsk_ibd_result_find_sample_pair_index2(self, sample_a, sample_b);
+
+    if (pair_index < 0) {
+        return TSK_ERR_NO_SAMPLE_PAIRS;
+    }
+    /* NOTE this means that we can return NULL - this means there's no
+     * IBD segments between the specified pairs */
+    *ret_head = self->ibd_segments_head[pair_index];
+    return ret;
+}
+
+/*************************
  * IBD finder
  *************************/
+
+typedef struct {
+    const tsk_id_t *pairs;
+    tsk_size_t num_pairs;
+    tsk_size_t num_nodes;
+    tsk_ibd_result_t *result;
+    double sequence_length;
+    const tsk_table_collection_t *tables;
+    tsk_blkalloc_t segment_heap;
+    bool *is_sample;
+    double min_length;
+    double max_time;
+    tsk_segment_t **ancestor_map_head;
+    tsk_segment_t **ancestor_map_tail;
+    tsk_segment_t *segment_queue;
+    tsk_size_t segment_queue_size;
+    tsk_size_t max_segment_queue_size;
+} tsk_ibd_finder_t;
 
 static tsk_segment_t *TSK_WARN_UNUSED
 tsk_ibd_finder_alloc_segment(
@@ -7136,37 +7414,6 @@ tsk_ibd_finder_alloc_segment(
 out:
     return seg;
 }
-
-static int TSK_WARN_UNUSED
-tsk_ibd_finder_add_output(
-    tsk_ibd_finder_t *self, double left, double right, tsk_id_t node_id, int pair_num)
-{
-    int ret = 0;
-    tsk_segment_t *tail = self->ibd_segments_tail[pair_num];
-    tsk_segment_t *x;
-
-    tsk_bug_assert(left < right);
-    if (tail == NULL) {
-        x = tsk_ibd_finder_alloc_segment(self, left, right, node_id);
-        if (x == NULL) {
-            ret = TSK_ERR_NO_MEMORY;
-            goto out;
-        }
-        self->ibd_segments_head[pair_num] = x;
-        self->ibd_segments_tail[pair_num] = x;
-    } else {
-        x = tsk_ibd_finder_alloc_segment(self, left, right, node_id);
-        if (x == NULL) {
-            ret = TSK_ERR_NO_MEMORY;
-            goto out;
-        }
-        tail->next = x;
-        self->ibd_segments_tail[pair_num] = x;
-    }
-out:
-    return ret;
-}
-
 static int TSK_WARN_UNUSED
 tsk_ibd_finder_add_ancestry(tsk_ibd_finder_t *self, tsk_id_t input_id, double left,
     double right, tsk_id_t output_id)
@@ -7227,95 +7474,9 @@ out:
     return ret;
 }
 
-static int
-tsk_ibd_finder_index_samples(tsk_ibd_finder_t *self)
-{
-    int ret = 0;
-    tsk_size_t i;
-    tsk_id_t idx;
-
-    self->paired_nodes_index
-        = tsk_calloc(self->num_nodes, sizeof(*self->paired_nodes_index));
-
-    if (self->paired_nodes_index == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
-        goto out;
-    }
-
-    for (i = 0; i < self->num_nodes; ++i) {
-        self->paired_nodes_index[i] = -1;
-    }
-
-    for (i = 0; i < 2 * self->num_pairs; ++i) {
-        self->paired_nodes_index[self->pairs[i]] = 1;
-    }
-
-    self->num_unique_nodes_in_pair = 0;
-    idx = 0;
-    for (i = 0; i < self->num_nodes; ++i) {
-        if (self->paired_nodes_index[i] == 1) {
-            ++self->num_unique_nodes_in_pair;
-            self->paired_nodes_index[i] = idx;
-            ++idx;
-        }
-    }
-
-out:
-    return ret;
-}
-
-// NOTE: future travellers may want to refactor
-// this to only allocate the upper triangle of the matrix.
-// Doing so would save a good bit of memory, but would
-// imply trickier indexing here and in
-// tsk_ibd_finder_find_sample_pair_index2.
-static int
-tsk_ibd_finder_build_pair_map(tsk_ibd_finder_t *self)
-{
-    int ret = 0;
-    tsk_size_t i, index;
-    tsk_id_t sample0, sample1;
-    tsk_id_t row, col;
-    tsk_size_t matrix_size
-        = self->num_unique_nodes_in_pair * self->num_unique_nodes_in_pair;
-
-    self->pair_map = tsk_calloc(matrix_size, sizeof(*self->pair_map));
-    if (self->pair_map == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
-        goto out;
-    }
-
-    for (i = 0; i < matrix_size; ++i) {
-        self->pair_map[i] = -1;
-    }
-
-    for (i = 0; i < self->num_pairs; ++i) {
-        sample0 = self->pairs[2 * i];
-        sample1 = self->pairs[2 * i + 1];
-
-        row = TSK_MIN(
-            self->paired_nodes_index[sample0], self->paired_nodes_index[sample1]);
-        col = TSK_MAX(
-            self->paired_nodes_index[sample0], self->paired_nodes_index[sample1]);
-
-        tsk_bug_assert(row >= 0);
-        tsk_bug_assert(col >= 0);
-
-        index = ((tsk_size_t) row) * self->num_unique_nodes_in_pair + (tsk_size_t) col;
-        if (self->pair_map[index] != -1) {
-            ret = TSK_ERR_DUPLICATE_SAMPLE_PAIRS;
-            goto out;
-        }
-        self->pair_map[index] = (int64_t) i;
-    }
-
-out:
-    return ret;
-}
-
-int TSK_WARN_UNUSED
-tsk_ibd_finder_init(tsk_ibd_finder_t *self, tsk_table_collection_t *tables,
-    tsk_id_t *pairs, tsk_size_t num_pairs)
+static int TSK_WARN_UNUSED
+tsk_ibd_finder_init(tsk_ibd_finder_t *self, const tsk_table_collection_t *tables,
+    const tsk_id_t *pairs, tsk_size_t num_pairs, tsk_ibd_result_t *result)
 {
     int ret = 0;
     tsk_size_t num_nodes;
@@ -7326,6 +7487,7 @@ tsk_ibd_finder_init(tsk_ibd_finder_t *self, tsk_table_collection_t *tables,
     self->sequence_length = tables->sequence_length;
     self->num_nodes = tables->nodes.num_rows;
     self->tables = tables;
+    self->result = result;
     self->max_time = DBL_MAX;
     self->min_length = 0;
 
@@ -7344,17 +7506,12 @@ tsk_ibd_finder_init(tsk_ibd_finder_t *self, tsk_table_collection_t *tables,
     num_nodes = tables->nodes.num_rows;
     self->ancestor_map_head = tsk_calloc(num_nodes, sizeof(*self->ancestor_map_head));
     self->ancestor_map_tail = tsk_calloc(num_nodes, sizeof(*self->ancestor_map_tail));
-    self->ibd_segments_head
-        = tsk_calloc(self->num_pairs, sizeof(*self->ibd_segments_head));
-    self->ibd_segments_tail
-        = tsk_calloc(self->num_pairs, sizeof(*self->ibd_segments_tail));
     self->is_sample = tsk_calloc(num_nodes, sizeof(*self->is_sample));
     self->segment_queue_size = 0;
     self->max_segment_queue_size = 64;
     self->segment_queue
         = tsk_malloc(self->max_segment_queue_size * sizeof(*self->segment_queue));
     if (self->ancestor_map_head == NULL || self->ancestor_map_tail == NULL
-        || self->ibd_segments_head == NULL || self->ibd_segments_tail == NULL
         || self->is_sample == NULL || self->segment_queue == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -7365,21 +7522,11 @@ tsk_ibd_finder_init(tsk_ibd_finder_t *self, tsk_table_collection_t *tables,
         goto out;
     }
 
-    ret = tsk_ibd_finder_index_samples(self);
-    if (ret != 0) {
-        goto out;
-    }
-
-    ret = tsk_ibd_finder_build_pair_map(self);
-    if (ret != 0) {
-        goto out;
-    }
-
 out:
     return ret;
 }
 
-int TSK_WARN_UNUSED
+static int TSK_WARN_UNUSED
 tsk_ibd_finder_set_min_length(tsk_ibd_finder_t *self, double min_length)
 {
     int ret = 0;
@@ -7391,7 +7538,7 @@ tsk_ibd_finder_set_min_length(tsk_ibd_finder_t *self, double min_length)
     return ret;
 }
 
-int TSK_WARN_UNUSED
+static int TSK_WARN_UNUSED
 tsk_ibd_finder_set_max_time(tsk_ibd_finder_t *self, double max_time)
 {
     int ret = 0;
@@ -7435,34 +7582,11 @@ out:
     return ret;
 }
 
-static int
-tsk_ibd_finder_find_sample_pair_index2(
-    tsk_ibd_finder_t *self, tsk_id_t sample0, tsk_id_t sample1)
-{
-    int ret = -1;
-    tsk_id_t s0, s1;
-    tsk_size_t row, col;
-
-    s0 = self->paired_nodes_index[sample0];
-    s1 = self->paired_nodes_index[sample1];
-
-    if (s0 < 0 || s1 < 0) {
-        goto out;
-    }
-
-    row = TSK_MIN((tsk_size_t) s0, (tsk_size_t) s1);
-    col = TSK_MAX((tsk_size_t) s0, (tsk_size_t) s1);
-
-    ret = (int) self->pair_map[row * self->num_unique_nodes_in_pair + col];
-out:
-    return ret;
-}
-
 static int TSK_WARN_UNUSED
 tsk_ibd_finder_calculate_ibd(tsk_ibd_finder_t *self, tsk_id_t current_parent)
 {
     int ret = 0;
-    int j, pair_index;
+    int j;
     tsk_segment_t *seg, *seg0, *seg1;
     double left, right;
 
@@ -7480,34 +7604,13 @@ tsk_ibd_finder_calculate_ibd(tsk_ibd_finder_t *self, tsk_id_t current_parent)
              seg0 = seg0->next) {
             for (j = 0; j != (int) self->segment_queue_size; j++) {
                 seg1 = &self->segment_queue[j];
-                if (seg0->node == seg1->node) {
-                    continue;
-                }
-                ret = tsk_ibd_finder_find_sample_pair_index2(
-                    self, seg0->node, seg1->node);
-                if (ret < 0) {
-                    continue;
-                }
-                pair_index = ret;
-
-                if (seg0->left > seg1->left) {
-                    left = seg0->left;
-                } else {
-                    left = seg1->left;
-                }
-                if (seg0->right < seg1->right) {
-                    right = seg0->right;
-                } else {
-                    right = seg1->right;
-                }
-
-                if (left < right) {
-                    if (right - left > self->min_length) {
-                        ret = tsk_ibd_finder_add_output(
-                            self, left, right, current_parent, pair_index);
-                        if (ret != 0) {
-                            goto out;
-                        }
+                left = TSK_MAX(seg0->left, seg1->left);
+                right = TSK_MIN(seg0->right, seg1->right);
+                if (seg0->node != seg1->node && (right - left) > self->min_length) {
+                    ret = tsk_ibd_result_add_segment(self->result, seg0->node,
+                        seg1->node, left, right, current_parent);
+                    if (ret != 0) {
+                        goto out;
                     }
                 }
             }
@@ -7527,26 +7630,7 @@ out:
     return ret;
 }
 
-int TSK_WARN_UNUSED
-tsk_ibd_finder_get_ibd_segments(
-    tsk_ibd_finder_t *self, tsk_id_t pair_index, tsk_segment_t **ret_ibd_segments_head)
-{
-    int ret = 0;
-
-    if (((pair_index < 0) || (pair_index >= (tsk_id_t) self->num_pairs))) {
-        ret = TSK_ERR_NO_SAMPLE_PAIRS;
-        goto out;
-    }
-    if (self->ibd_segments_head[pair_index] != NULL) {
-        *ret_ibd_segments_head = self->ibd_segments_head[pair_index];
-    } else {
-        ret = -1;
-    }
-out:
-    return ret;
-}
-
-void
+static void
 tsk_ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out)
 {
     tsk_size_t j;
@@ -7580,17 +7664,10 @@ tsk_ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out)
         fprintf(out, "\n");
     }
     fprintf(out, "===\nIBD segments\n===\n");
-    for (j = 0; j < self->num_pairs; j++) {
-        fprintf(out, "Pair (%i, %i)\n", (int) self->pairs[2 * j],
-            (int) self->pairs[2 * j + 1]);
-        for (u = self->ibd_segments_head[j]; u != NULL; u = u->next) {
-            fprintf(out, "(%f,%f->%lld)", u->left, u->right, (long long) u->node);
-        }
-        fprintf(out, "\n");
-    }
+    tsk_ibd_result_print_state(self->result, out);
 }
 
-int TSK_WARN_UNUSED
+static int TSK_WARN_UNUSED
 tsk_ibd_finder_run(tsk_ibd_finder_t *self)
 {
     const tsk_edge_table_t *input_edges = &self->tables->edges;
@@ -7668,18 +7745,14 @@ out:
     return ret;
 }
 
-int TSK_WARN_UNUSED
+static int
 tsk_ibd_finder_free(tsk_ibd_finder_t *self)
 {
-    tsk_safe_free(self->ibd_segments_head);
-    tsk_safe_free(self->ibd_segments_tail);
     tsk_blkalloc_free(&self->segment_heap);
     tsk_safe_free(self->is_sample);
-    tsk_safe_free(self->paired_nodes_index);
     tsk_safe_free(self->ancestor_map_head);
     tsk_safe_free(self->ancestor_map_tail);
     tsk_safe_free(self->segment_queue);
-    tsk_safe_free(self->pair_map);
     return 0;
 }
 
@@ -10402,6 +10475,44 @@ tsk_table_collection_link_ancestors(tsk_table_collection_t *self, tsk_id_t *samp
     }
 out:
     ancestor_mapper_free(&ancestor_mapper);
+    return ret;
+}
+
+int TSK_WARN_UNUSED
+tsk_table_collection_find_ibd(const tsk_table_collection_t *self,
+    tsk_ibd_result_t *result, const tsk_id_t *samples, tsk_size_t num_samples,
+    double min_length, double max_time, tsk_flags_t options)
+{
+    int ret = 0;
+    tsk_ibd_finder_t ibd_finder;
+
+    memset(&ibd_finder, 0, sizeof(ibd_finder));
+
+    ret = tsk_ibd_result_init(result, samples, num_samples, self->nodes.num_rows);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_ibd_finder_init(&ibd_finder, self, samples, num_samples, result);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_ibd_finder_set_min_length(&ibd_finder, min_length);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_ibd_finder_set_max_time(&ibd_finder, max_time);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_ibd_finder_run(&ibd_finder);
+    if (ret != 0) {
+        goto out;
+    }
+    if (!!(options & TSK_DEBUG)) {
+        tsk_ibd_finder_print_state(&ibd_finder, stdout);
+    }
+out:
+    tsk_ibd_finder_free(&ibd_finder);
     return ret;
 }
 

@@ -333,75 +333,6 @@ class TestTableCollection(LowLevelTestCase):
         with pytest.raises(ValueError):
             tc.union(tc2, np.array([[1], [2]], dtype="int32"))
 
-    def test_ibd_bad_args(self):
-        ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables._ll_tables
-        with pytest.raises(TypeError):
-            tc.find_ibd()
-        for bad_samples in ["sdf", None, {}]:
-            with pytest.raises(ValueError):
-                tc.find_ibd(bad_samples)
-        for not_enough_samples in [[], [0]]:
-            with pytest.raises(ValueError):
-                tc.find_ibd(not_enough_samples)
-        # input array must be 2D
-        with pytest.raises(ValueError):
-            tc.find_ibd([[[1], [1]]])
-        # Input array must be (n, 2)
-        with pytest.raises(ValueError):
-            tc.find_ibd([[1, 1, 1]])
-        for bad_float in ["sdf", None, {}]:
-            with pytest.raises(TypeError):
-                tc.find_ibd([(0, 1)], min_length=bad_float)
-            with pytest.raises(TypeError):
-                tc.find_ibd([(0, 1)], max_time=bad_float)
-        with pytest.raises(_tskit.LibraryError):
-            tc.find_ibd([(0, 1)], max_time=-1)
-        with pytest.raises(_tskit.LibraryError):
-            tc.find_ibd([(0, 1)], min_length=-1)
-
-    def test_ibd_output_no_recomb(self):
-        ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables._ll_tables
-        segs = tc.find_ibd([(0, 1), (2, 3)])
-        assert isinstance(segs, dict)
-        assert len(segs) > 0
-        for key, value in segs.items():
-            assert isinstance(key, tuple)
-            assert len(key) == 2
-            assert isinstance(value, dict)
-            assert len(value) == 3
-            assert list(value["left"]) == [0]
-            assert list(value["right"]) == [1]
-            assert len(value["node"]) == 1
-
-    def test_ibd_output_treeseq(self):
-        ts = msprime.simulate(10, random_seed=1)
-        segs = ts.find_ibd([(0, 1), (2, 3)])
-        assert isinstance(segs, dict)
-        assert len(segs) > 0
-        for key, value in segs.items():
-            assert isinstance(key, tuple)
-            assert len(key) == 2
-            assert isinstance(value, dict)
-            assert len(value) == 3
-            assert list(value["left"]) == [0]
-            assert list(value["right"]) == [1]
-            assert len(value["node"]) == 1
-
-    def test_ibd_output_recomb(self):
-        ts = msprime.simulate(10, recombination_rate=1, random_seed=1)
-        assert ts.num_trees > 1
-        tc = ts.tables._ll_tables
-        segs = tc.find_ibd([(0, 1), (2, 3)])
-        assert isinstance(segs, dict)
-        assert len(segs) > 0
-        for key, value in segs.items():
-            assert isinstance(key, tuple)
-            assert len(key) == 2
-            assert isinstance(value, dict)
-            assert len(value) == 3
-
     def test_equals_bad_args(self):
         ts = msprime.simulate(10, random_seed=1242)
         tc = ts.tables._ll_tables
@@ -452,6 +383,100 @@ class TestTableCollection(LowLevelTestCase):
         for bad_type in [None, 0.1, "str"]:
             with pytest.raises(TypeError):
                 tc.fromdict(bad_type)
+
+
+class TestIbd:
+    def test_uninitialised(self):
+        result = _tskit.IbdResult.__new__(_tskit.IbdResult)
+        with pytest.raises(SystemError):
+            result.get(0, 1)
+        with pytest.raises(SystemError):
+            result.print_state()
+        with pytest.raises(SystemError):
+            result.total_segments
+
+    def test_find_bad_args(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.tables._ll_tables
+        with pytest.raises(TypeError):
+            tc.find_ibd()
+        for bad_samples in ["sdf", None, {}]:
+            with pytest.raises(ValueError):
+                tc.find_ibd(bad_samples)
+        for not_enough_samples in [[], [0]]:
+            with pytest.raises(ValueError):
+                tc.find_ibd(not_enough_samples)
+        # input array must be 2D
+        with pytest.raises(ValueError):
+            tc.find_ibd([[[1], [1]]])
+        # Input array must be (n, 2)
+        with pytest.raises(ValueError):
+            tc.find_ibd([[1, 1, 1]])
+        for bad_float in ["sdf", None, {}]:
+            with pytest.raises(TypeError):
+                tc.find_ibd([(0, 1)], min_length=bad_float)
+            with pytest.raises(TypeError):
+                tc.find_ibd([(0, 1)], max_time=bad_float)
+        with pytest.raises(_tskit.LibraryError):
+            tc.find_ibd([(0, 1)], max_time=-1)
+        with pytest.raises(_tskit.LibraryError):
+            tc.find_ibd([(0, 1)], min_length=-1)
+
+    def test_get_output(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.tables._ll_tables
+        pairs = [(0, 1), (2, 3)]
+        result = tc.find_ibd(pairs)
+        assert isinstance(result, _tskit.IbdResult)
+        for pair in pairs:
+            value = result.get(*pair)
+            assert isinstance(value, dict)
+            assert len(value) == 3
+            assert list(value["left"]) == [0]
+            assert list(value["right"]) == [1]
+            assert len(value["node"]) == 1
+
+    def test_get_bad_args(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.tables._ll_tables
+        pairs = [(0, 1), (2, 3)]
+        result = tc.find_ibd(pairs)
+        with pytest.raises(TypeError):
+            result.get()
+        with pytest.raises(TypeError):
+            result.get("0", 1)
+        with pytest.raises(_tskit.LibraryError):
+            result.get(0, 0)
+        # TODO this should probably be a KeyError, but let's not
+        # worry about it for now.
+        with pytest.raises(_tskit.LibraryError):
+            result.get(0, 2)
+
+    def test_print_state(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.tables._ll_tables
+        pairs = [(0, 1), (2, 3)]
+        result = tc.find_ibd(pairs)
+        with pytest.raises(TypeError):
+            result.print_state()
+
+        with tempfile.TemporaryFile("w+") as f:
+            result.print_state(f)
+            f.seek(0)
+            output = f.read()
+        assert len(output) > 0
+        assert "IBD" in output
+
+    def test_direct_instantiation(self):
+        # Nobody should do this, but just in case
+        result = _tskit.IbdResult()
+        assert result.total_segments == 0
+        with tempfile.TemporaryFile("w+") as f:
+            result.print_state(f)
+            f.seek(0)
+            output = f.read()
+        assert len(output) > 0
+        assert "IBD" in output
 
 
 class TestTableMethods:

@@ -204,7 +204,7 @@ def convert_ibd_output_to_seglists(ibd_out):
     Converts the Python mock-up output back into lists of segments.
     This is needed to use the ibd_is_equal function.
     """
-
+    out = {}
     for key in ibd_out.keys():
         seg_list = []
         num_segs = len(ibd_out[key]["left"])
@@ -216,9 +216,8 @@ def convert_ibd_output_to_seglists(ibd_out):
                     node=ibd_out[key]["node"][s],
                 )
             )
-        ibd_out[key] = seg_list
-
-    return ibd_out
+        out[key] = seg_list
+    return out
 
 
 def ibd_is_equal(dict1, dict2):
@@ -873,3 +872,21 @@ class TestIbdRandomExamples:
             tables.sort()
             ts = tables.tree_sequence()
             verify_equal_ibd(ts)
+
+
+class TestIbdResult:
+    """
+    Test the IbdResult class interface.
+    """
+
+    def test_dict_interface(self):
+        ts = msprime.sim_ancestry(5, random_seed=2)
+        pairs = list(itertools.combinations(ts.samples(), 2))
+        result = ts.find_ibd(pairs)
+        assert len(result) == len(pairs)
+        for pair in pairs:
+            assert pair in result
+            assert result[pair] is not None
+        for k, v in result.items():
+            assert k in pairs
+            assert isinstance(v, dict)

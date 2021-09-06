@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2020 Tskit Developers
+# Copyright (c) 2020-2021 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -123,6 +123,42 @@ class SegmentList:
                 self.tail = other
 
 
+class IbdResult:
+    """
+    Class representing the IBD segments in a tree sequence for a given
+    set of sample pairs.
+    """
+
+    def __init__(self, pairs):
+        # TODO not sure we should to this, but let's keep compatibility with
+        # the C output for now.
+        self.segments = {pair: [] for pair in pairs}
+
+    def add_segment(self, a, b, seg):
+        key = (a, b) if a < b else (b, a)
+        if key in self.segments:
+            self.segments[key].append(seg)
+
+    def convert_to_numpy(self):
+        """
+        Converts the output to the format required by the Python-C interface layer.
+        """
+        out = {}
+        for key, segs in self.segments.items():
+            left = []
+            right = []
+            node = []
+            for seg in segs:
+                left.append(seg.left)
+                right.append(seg.right)
+                node.append(seg.node)
+            left = np.asarray(left, dtype=np.float64)
+            right = np.asarray(right, dtype=np.float64)
+            node = np.asarray(node, dtype=np.int64)
+            out[key] = {"left": left, "right": right, "node": node}
+        return out
+
+
 class IbdFinder:
     """
     Finds all IBD relationships between specified sample pairs in a tree sequence.
@@ -133,6 +169,7 @@ class IbdFinder:
         self.ts = ts
         self.sample_pairs = sample_pairs
         self.check_sample_pairs()
+        self.result = IbdResult(sample_pairs)
         self.samples = list({i for pair in self.sample_pairs for i in pair})
 
         self.sample_id_map = np.zeros(ts.num_nodes, dtype=int) - 1
@@ -149,10 +186,6 @@ class IbdFinder:
 
         self.oldest_parent = self.get_oldest_parents()
 
-        self.ibd_segments = {}
-        for key in self.sample_pairs:
-            self.ibd_segments[key] = None
-
     def get_oldest_parents(self):
         oldest_parents = [-1 for _ in range(self.ts.num_nodes)]
         node_times = self.ts.tables.nodes.time
@@ -164,13 +197,6 @@ class IbdFinder:
             ):
                 oldest_parents[c] = e.parent
         return oldest_parents
-
-    def add_ibd_segments(self, index, seg):
-        assert index != -1
-        if self.ibd_segments[self.sample_pairs[index]] is None:
-            self.ibd_segments[self.sample_pairs[index]] = [seg]
-        else:
-            self.ibd_segments[self.sample_pairs[index]].append(seg)
 
     def check_sample_pairs(self):
         """
@@ -196,18 +222,6 @@ class IbdFinder:
                     continue
                 if p == p2 or (p[1], p[0]) == p2:
                     raise ValueError("The list of sample pairs contains duplicates.")
-
-    def get_sample_pairs(self):
-        """
-        Returns a list of all pairs of samples. Replaces itertools.combinations.
-        Note: they must be sorted
-        """
-        sample_pairs = []
-        for ind, i in enumerate(self.samples):
-            for j in self.samples[(ind + 1) :]:
-                sample_pairs.append((i, j))
-
-        return sample_pairs
 
     def find_sample_pair_index(self, sample0, sample1):
         """
@@ -293,41 +307,12 @@ class IbdFinder:
             if e is not None and e.parent != current_parent:
                 parent_should_be_added = True
 
-        self.convert_output_to_numpy()
-
-        return self.ibd_segments
-
-    def convert_output_to_numpy(self):
-        """
-        Converts the output to the format required by the Python-C interface layer.
-        """
-        for key in self.sample_pairs:
-            left = []
-            right = []
-            node = []
-            # Define numpy array values.
-            if self.ibd_segments[key] is None:
-                pass
-            else:
-                for seg in self.ibd_segments[key]:
-                    left.append(seg.left)
-                    right.append(seg.right)
-                    node.append(seg.node)
-            # Convert lists to numpy arrays.
-            left = np.asarray(left, dtype=np.float64)
-            right = np.asarray(right, dtype=np.float64)
-            node = np.asarray(node, dtype=np.int64)
-            # Overwrite existing entry.
-            self.ibd_segments[key] = {"left": left, "right": right, "node": node}
+        return self.result.convert_to_numpy()
 
     def calculate_ibd_segs(self, current_parent, list_to_add):
         """
-        Write later.
+        TODO describe what this does
         """
-
-        if list_to_add.head is None:
-            return []
-
         if self.A[current_parent] is None:
             self.A[current_parent] = list_to_add
         else:
@@ -335,28 +320,16 @@ class IbdFinder:
             while seg0 is not None:
                 seg1 = list_to_add.head
                 while seg1 is not None:
-                    if seg0.node == seg1.node:
-                        seg1 = seg1.next
-                        continue
-                    index = self.find_sample_pair_index(seg0.node, seg1.node)
-                    if index == -1:
-                        seg1 = seg1.next
-                        continue
                     left = max(seg0.left, seg1.left)
                     right = min(seg0.right, seg1.right)
-                    if left >= right:
-                        seg1 = seg1.next
-                        continue
-
                     # If there are any overlapping segments, record as a new
                     # IBD relationship.
-                    if right - left > self.min_length:
-                        self.add_ibd_segments(
-                            index, Segment(left, right, current_parent)
+                    if seg0.node != seg1.node and right - left > self.min_length:
+                        self.result.add_segment(
+                            seg0.node, seg1.node, Segment(left, right, current_parent)
                         )
                     seg1 = seg1.next
                 seg0 = seg0.next
-
             # Add list_to_add to A[u].
             self.A[current_parent].add(list_to_add)
 
