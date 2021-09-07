@@ -3441,6 +3441,7 @@ class TableCollection:
         check_shared_equality=True,
         add_populations=True,
         record_provenance=True,
+        shift_time=0.0,
     ):
         """
         Modifies the table collection in place by adding the non-shared
@@ -3462,8 +3463,15 @@ class TableCollection:
             assigned new population IDs.
         :param bool record_provenance: Whether to record a provenance entry
             in the provenance table for this operation.
+        :param float shift_time: Time to shift ``other`` by in generations.
+            Defaults to 0.0 and no time shifting will occur.
         """
         node_mapping = util.safe_np_int_cast(node_mapping, np.int32)
+
+        if shift_time > 0.0:
+            self.nodes.time += shift_time
+            self.mutation.time += shift_time
+
         self._ll_tables.union(
             other._ll_tables,
             node_mapping,
@@ -3481,6 +3489,65 @@ class TableCollection:
             self.provenances.add_row(
                 record=json.dumps(provenance.get_provenance_dict(parameters))
             )
+
+    def time_join(self, recent_ts, time=None, nodes=None, random_seed=None):
+        """
+        Explain here what goes on in this function!
+
+        :param TreeSequence recent_ts:
+        :param time float:
+        :param nodes list:
+        :param random_seed int:
+        """
+
+        if time is None:
+            time = recent_ts.max_root_time
+
+        if nodes is None:
+            nodes = [
+                i
+                for i, f in enumerate(self.nodes.flags)
+                if f == np.uint32(tskit.NODE_IS_SAMPLE)
+            ]
+
+        if random_seed is not None:
+            np.random.seed(random_seed)
+
+        new_nodes = []
+        for t in recent_ts.trees():
+            for root_id in t.roots:
+                root = recent_ts.node(root_id)
+                if root.time == time:
+                    new_nodes.append(root_id)
+                elif root.time < time:
+                    raise ValueError(
+                        f"Root found younger than join time (age = {root.time})"
+                    )
+                else:
+                    raise ValueError(
+                        f"Root found older than join time (age = {root.time})"
+                    )
+
+        if len(new_nodes) > len(nodes):
+            raise ValueError(
+                f"""More lineages present at the longest-ago end of `recent_ts` \
+                than there are nodes in `nodes`. \
+                Setting sample_size={len(nodes)} or leaving it to default \
+                will ensure compliance."""
+            )
+
+        node_map = np.repeat(tskit.NULL, recent_ts.num_nodes)
+        node_map[new_nodes] = np.random.choice(nodes, len(new_nodes), replace=False)
+
+        self.nodes.flags = self.nodes.flags & ~np.uint32(tskit.NODE_IS_SAMPLE)
+
+        self.union(
+            recent_ts.tables,
+            node_map,
+            add_populations=False,
+            check_shared_equality=False,
+            shift_time=time,
+        )
 
     def find_ibd(self, samples, max_time=None, min_length=None):
         """
