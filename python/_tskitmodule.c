@@ -6160,43 +6160,39 @@ TableCollection_find_ibd(TableCollection *self, PyObject *args, PyObject *kwds)
 {
     int err;
     PyObject *ret = NULL;
-    PyObject *py_samples = Py_None;
+    PyObject *py_within = Py_None;
     IbdResult *result = NULL;
-    PyArrayObject *samples_array = NULL;
-    int32_t *pairs = NULL;
-    tsk_size_t num_pairs = 0;
+    PyArrayObject *within_array = NULL;
+    int32_t *within = NULL;
+    tsk_size_t num_within = 0;
     double min_length = 0;
     double max_time = DBL_MAX;
     npy_intp *shape;
-    static char *kwlist[] = { "samples", "min_length", "max_time", NULL };
+    static char *kwlist[] = { "within", "min_length", "max_time", NULL };
 
     if (TableCollection_check_state(self) != 0) {
         goto out;
     }
     if (!PyArg_ParseTupleAndKeywords(
-            args, kwds, "|Odd", kwlist, &py_samples, &min_length, &max_time)) {
+            args, kwds, "|Odd", kwlist, &py_within, &min_length, &max_time)) {
         goto out;
     }
-    if (py_samples != Py_None) {
-        samples_array = (PyArrayObject *) PyArray_FROMANY(
-            py_samples, NPY_INT32, 2, 2, NPY_ARRAY_IN_ARRAY);
-        if (samples_array == NULL) {
+    if (py_within != Py_None) {
+        within_array = (PyArrayObject *) PyArray_FROMANY(
+            py_within, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
+        if (within_array == NULL) {
             goto out;
         }
-        shape = PyArray_DIMS(samples_array);
-        if (shape[1] != 2) {
-            PyErr_SetString(PyExc_ValueError, "sample pairs must have shape (n, 2)");
-            goto out;
-        }
-        pairs = PyArray_DATA(samples_array);
-        num_pairs = (tsk_size_t) shape[0];
+        shape = PyArray_DIMS(within_array);
+        within = PyArray_DATA(within_array);
+        num_within = (tsk_size_t) shape[0];
     }
     result = (IbdResult *) PyObject_CallObject((PyObject *) &IbdResultType, NULL);
     if (result == NULL) {
         goto out;
     }
     err = tsk_table_collection_find_ibd(
-        self->tables, result->ibd_result, pairs, num_pairs, min_length, max_time, 0);
+        self->tables, result->ibd_result, within, num_within, min_length, max_time, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -6204,7 +6200,7 @@ TableCollection_find_ibd(TableCollection *self, PyObject *args, PyObject *kwds)
     ret = (PyObject *) result;
     result = NULL;
 out:
-    Py_XDECREF(samples_array);
+    Py_XDECREF(within_array);
     Py_XDECREF(result);
     return ret;
 }

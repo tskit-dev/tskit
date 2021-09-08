@@ -23,6 +23,7 @@
 Python implementation of the IBD-finding algorithms.
 """
 import argparse
+import collections
 
 import numpy as np
 
@@ -129,16 +130,12 @@ class IbdResult:
     set of sample pairs.
     """
 
-    def __init__(self, pairs, num_nodes):
-        # TODO not sure we should to this, but let's keep compatibility with
-        # the C output for now.
-        self.segments = {pair: [] for pair in pairs}
-        self.num_nodes = num_nodes
+    def __init__(self):
+        self.segments = collections.defaultdict(list)
 
     def add_segment(self, a, b, seg):
         key = (a, b) if a < b else (b, a)
-        if key in self.segments:
-            self.segments[key].append(seg)
+        self.segments[key].append(seg)
 
     def convert_to_numpy(self):
         """
@@ -165,85 +162,26 @@ class IbdFinder:
     Finds all IBD relationships between specified sample pairs in a tree sequence.
     """
 
-    def __init__(self, ts, sample_pairs, min_length=0, max_time=None):
+    def __init__(self, ts, *, within=None, min_length=0, max_time=None):
 
         self.ts = ts
-        self.sample_pairs = sample_pairs
-        self.check_sample_pairs()
-        self.result = IbdResult(sample_pairs, ts.num_nodes)
-        self.samples = list({i for pair in self.sample_pairs for i in pair})
-
+        self.result = IbdResult()
+        if within is None:
+            within = ts.samples()
+        self.samples = within
         self.sample_id_map = np.zeros(ts.num_nodes, dtype=int) - 1
         for index, u in enumerate(self.samples):
             self.sample_id_map[u] = index
-
         self.min_length = min_length
-        if max_time is None:
-            self.max_time = 2 * ts.max_root_time
-        else:
-            self.max_time = max_time
+        self.max_time = np.inf if max_time is None else max_time
         self.A = [None for _ in range(ts.num_nodes)]  # Descendant segments
         self.tables = self.ts.tables
 
-        self.oldest_parent = self.get_oldest_parents()
-
-    def get_oldest_parents(self):
-        oldest_parents = [-1 for _ in range(self.ts.num_nodes)]
-        node_times = self.ts.tables.nodes.time
-        for e in self.ts.tables.edges:
-            c = e.child
-            if (
-                oldest_parents[c] == -1
-                or node_times[oldest_parents[c]] < node_times[e.parent]
-            ):
-                oldest_parents[c] = e.parent
-        return oldest_parents
-
-    def check_sample_pairs(self):
-        """
-        Checks that the user-inputted list of sample pairs is valid.
-        """
-        for ind, p in enumerate(self.sample_pairs):
-            if not isinstance(p, tuple):
-                raise ValueError("Sample pairs must be a list of tuples.")
-            assert len(p) == 2
-            # Assumes the node IDs are 0 ... ts.num_nodes - 1
-            if not (
-                p[0] in range(0, self.ts.num_nodes)
-                and p[1] in range(0, self.ts.num_nodes)
-            ):
-                raise ValueError("Each sample pair must contain valid node IDs.")
-            if p[0] == p[1]:
-                raise ValueError(
-                    "Each sample pair must contain two different node IDs."
-                )
-            # Ensure there are no duplicate pairs.
-            for ind2, p2 in enumerate(self.sample_pairs):
-                if ind == ind2:
-                    continue
-                if p == p2 or (p[1], p[0]) == p2:
-                    raise ValueError("The list of sample pairs contains duplicates.")
-
-    def find_sample_pair_index(self, sample0, sample1):
-        """
-        Note: this method isn't strictly necessary for the Python implementation
-        but is needed for the C implemention, where the output ibd_segments is a
-        struct array.
-        This calculates the position of the object corresponding to the inputted
-        sample pair in the struct array.
-        """
-        index = 0
-        while index < len(self.sample_pairs):
-            if self.sample_pairs[index] == (sample0, sample1) or self.sample_pairs[
-                index
-            ] == (sample1, sample0):
-                break
-            index += 1
-
-        if index < len(self.sample_pairs):
-            return int(index)
-        else:
-            return -1
+    def print_state(self):
+        print("IBD Finder")
+        print("A = ")
+        for u, a in enumerate(self.A):
+            print(u, "\t", a)
 
     def find_ibd_segments(self):
         """

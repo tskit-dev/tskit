@@ -400,8 +400,8 @@ class TestIbd:
     def test_get_keys(self):
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables._ll_tables
-        pairs = [[0, 1], [0, 2], [0, 3]]
-        result = tc.find_ibd(pairs)
+        pairs = [[0, 1], [0, 2], [1, 2]]
+        result = tc.find_ibd(within=[0, 1, 2])
         np.testing.assert_array_equal(result.get_keys(), pairs)
 
     def test_find_all_pairs(self):
@@ -419,30 +419,24 @@ class TestIbd:
         for bad_samples in ["sdf", {}]:
             with pytest.raises(ValueError):
                 tc.find_ibd(bad_samples)
-        for not_enough_samples in [[], [0]]:
-            with pytest.raises(ValueError):
-                tc.find_ibd(not_enough_samples)
-        # input array must be 2D
+        # input array must be 1D
         with pytest.raises(ValueError):
             tc.find_ibd([[[1], [1]]])
-        # Input array must be (n, 2)
-        with pytest.raises(ValueError):
-            tc.find_ibd([[1, 1, 1]])
         for bad_float in ["sdf", None, {}]:
             with pytest.raises(TypeError):
-                tc.find_ibd([(0, 1)], min_length=bad_float)
+                tc.find_ibd(min_length=bad_float)
             with pytest.raises(TypeError):
-                tc.find_ibd([(0, 1)], max_time=bad_float)
+                tc.find_ibd(max_time=bad_float)
         with pytest.raises(_tskit.LibraryError):
-            tc.find_ibd([(0, 1)], max_time=-1)
+            tc.find_ibd(max_time=-1)
         with pytest.raises(_tskit.LibraryError):
-            tc.find_ibd([(0, 1)], min_length=-1)
+            tc.find_ibd(min_length=-1)
 
     def test_get_output(self):
-        ts = msprime.simulate(10, random_seed=1)
+        ts = msprime.simulate(5, random_seed=1)
         tc = ts.tables._ll_tables
         pairs = [(0, 1), (2, 3)]
-        result = tc.find_ibd(pairs)
+        result = tc.find_ibd([0, 1, 2, 3])
         assert isinstance(result, _tskit.IbdResult)
         for pair in pairs:
             value = result.get(*pair)
@@ -455,8 +449,7 @@ class TestIbd:
     def test_get_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables._ll_tables
-        pairs = [(0, 1), (2, 3)]
-        result = tc.find_ibd(pairs)
+        result = tc.find_ibd(within=[0, 1, 2])
         with pytest.raises(TypeError):
             result.get()
         with pytest.raises(TypeError):
@@ -468,13 +461,12 @@ class TestIbd:
         with pytest.raises(_tskit.LibraryError, match="Node out of bounds"):
             result.get(0, 100)
         with pytest.raises(KeyError):
-            result.get(0, 2)
+            result.get(0, 3)
 
     def test_print_state(self):
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables._ll_tables
-        pairs = [(0, 1), (2, 3)]
-        result = tc.find_ibd(pairs)
+        result = tc.find_ibd()
         with pytest.raises(TypeError):
             result.print_state()
 

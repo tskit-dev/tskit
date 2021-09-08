@@ -7200,54 +7200,10 @@ tsk_ibd_result_alloc_new_pair(tsk_ibd_result_t *self, int64_t key)
     return avl_node;
 }
 
-static int
-tsk_ibd_result_insert_new_pair(tsk_ibd_result_t *self, tsk_id_t a, tsk_id_t b)
-{
-    int ret = 0;
-    tsk_avl_node_int_t *avl_node;
-    int64_t key = tsk_ibd_result_get_key(self, a, b);
-
-    if (key < 0) {
-        ret = (int) key;
-        goto out;
-    }
-    avl_node = tsk_ibd_result_alloc_new_pair(self, key);
-    if (avl_node == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
-    }
-    ret = tsk_avl_tree_int_insert(&self->pair_map, avl_node);
-    if (ret != 0) {
-        ret = TSK_ERR_DUPLICATE_SAMPLE_PAIRS;
-        goto out;
-    }
-out:
-    return ret;
-}
-
-static int
-tsk_ibd_result_insert_pairs(
-    tsk_ibd_result_t *self, const tsk_id_t *pairs, tsk_size_t num_pairs)
-{
-    int ret = 0;
-    tsk_size_t j;
-    const tsk_id_t *pair;
-
-    for (j = 0; j < num_pairs; j++) {
-        pair = pairs + 2 * j;
-        ret = tsk_ibd_result_insert_new_pair(self, pair[0], pair[1]);
-        if (ret != 0) {
-            goto out;
-        }
-    }
-out:
-    return ret;
-}
-
 /* Deliberately not making this a part of the public interface for now,
  * so we don't have to worry about the signature */
 static int
-tsk_ibd_result_init(tsk_ibd_result_t *self, const tsk_id_t *pairs, tsk_size_t num_pairs,
-    tsk_size_t num_nodes)
+tsk_ibd_result_init(tsk_ibd_result_t *self, tsk_size_t num_nodes)
 {
     int ret = 0;
     /* Make sure we don't overflow in the ID mapping. See the comments in pair_to_integer
@@ -7266,15 +7222,6 @@ tsk_ibd_result_init(tsk_ibd_result_t *self, const tsk_id_t *pairs, tsk_size_t nu
     if (ret != 0) {
         goto out;
     }
-    if (pairs == NULL) {
-        self->specified_pairs = false;
-    } else {
-        self->specified_pairs = true;
-        ret = tsk_ibd_result_insert_pairs(self, pairs, num_pairs);
-        if (ret != 0) {
-            goto out;
-        }
-    }
 out:
     return ret;
 }
@@ -7292,7 +7239,7 @@ tsk_ibd_result_print_state(tsk_ibd_result_t *self, FILE *out)
     tsk_bug_assert(nodes != NULL);
 
     fprintf(out, "===\nIBD Result\n===\n");
-    fprintf(out, "specified_pairs = %d\n", self->specified_pairs);
+    fprintf(out, "num_keys = %d\n", (int) self->pair_map.size);
     tsk_avl_tree_int_ordered_nodes(&self->pair_map, nodes);
     for (j = 0; j < self->pair_map.size; j++) {
         key = nodes[j]->key;
@@ -7323,8 +7270,8 @@ tsk_ibd_result_get_num_pairs(const tsk_ibd_result_t *self)
     return self->pair_map.size;
 }
 
-/* Use an inorder traveral on the AVL tree to get the pairs in order.
- * Recursion is safe here because it's an AVL tree (see the AVL tree
+/* Use an inorder traversal on the AVL tree to get the pairs in order.
+ * Recursion is safe here because it's a balanced tree (see the AVL tree
  * code for notes on this).
  */
 static int
@@ -7399,9 +7346,8 @@ tsk_ibd_result_add_segment(tsk_ibd_result_t *self, tsk_id_t a, tsk_id_t b, doubl
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    if (avl_node == NULL && !self->specified_pairs) {
-        /* We are finding IBD among all pairs, and this is a pair we haven't
-         * seen before */
+    if (avl_node == NULL) {
+        /* We haven't seen this pair before */
         avl_node = tsk_ibd_result_alloc_new_pair(self, key);
         if (avl_node == NULL) {
             ret = TSK_ERR_NO_MEMORY;
@@ -7409,19 +7355,17 @@ tsk_ibd_result_add_segment(tsk_ibd_result_t *self, tsk_id_t a, tsk_id_t b, doubl
         ret = tsk_avl_tree_int_insert(&self->pair_map, avl_node);
         tsk_bug_assert(ret == 0);
     }
-    if (avl_node != NULL) {
-        list = (tsk_segment_list_t *) avl_node->value;
-        if (list->tail == NULL) {
-            list->head = x;
-            list->tail = x;
-        } else {
-            list->tail->next = x;
-            list->tail = x;
-        }
-        list->num_segments++;
-        list->total_span += right - left;
-        self->total_segments++;
+    list = (tsk_segment_list_t *) avl_node->value;
+    if (list->tail == NULL) {
+        list->head = x;
+        list->tail = x;
+    } else {
+        list->tail->next = x;
+        list->tail = x;
     }
+    list->num_segments++;
+    list->total_span += right - left;
+    self->total_segments++;
 out:
     return ret;
 }
@@ -7514,30 +7458,25 @@ out:
 }
 
 static int
-tsk_ibd_finder_init_samples_from_pairs(
-    tsk_ibd_finder_t *self, const tsk_id_t *pairs, tsk_size_t num_pairs)
+tsk_ibd_finder_init_samples_from_set(
+    tsk_ibd_finder_t *self, const tsk_id_t *samples, tsk_size_t num_samples)
 {
     int ret = 0;
     tsk_size_t j;
     tsk_id_t u;
 
-    /* Go through the sample pairs to define samples. */
-    for (j = 0; j < 2 * num_pairs; j++) {
-        u = pairs[j];
+    for (j = 0; j < num_samples; j++) {
+        u = samples[j];
 
         if (u < 0 || u > (tsk_id_t) self->tables->nodes.num_rows) {
             ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
             goto out;
         }
-        self->is_sample[u] = true;
-        if (!self->is_sample[u]) {
-            self->is_sample[u] = true;
-            ret = tsk_ibd_finder_add_ancestry(
-                self, u, 0, self->tables->sequence_length, u);
-            if (ret != 0) {
-                goto out;
-            }
+        if (self->is_sample[u]) {
+            ret = TSK_ERR_DUPLICATE_SAMPLE;
+            goto out;
         }
+        self->is_sample[u] = true;
     }
 out:
     return ret;
@@ -7580,7 +7519,7 @@ out:
 
 static int TSK_WARN_UNUSED
 tsk_ibd_finder_init(tsk_ibd_finder_t *self, const tsk_table_collection_t *tables,
-    const tsk_id_t *pairs, tsk_size_t num_pairs, tsk_ibd_result_t *result)
+    tsk_ibd_result_t *result)
 {
     int ret = 0;
     tsk_size_t num_nodes;
@@ -7610,15 +7549,6 @@ tsk_ibd_finder_init(tsk_ibd_finder_t *self, const tsk_table_collection_t *tables
         goto out;
     }
 
-    if (num_pairs > 0) {
-        ret = tsk_ibd_finder_init_samples_from_pairs(self, pairs, num_pairs);
-        if (ret != 0) {
-            goto out;
-        }
-    } else {
-        tsk_ibd_finder_init_samples_from_nodes(self);
-    }
-    ret = tsk_ibd_finder_add_sample_ancestry(self);
 out:
     return ret;
 }
@@ -7734,18 +7664,19 @@ tsk_ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out)
     tsk_segment_t *u = NULL;
 
     fprintf(out, "--ibd-finder stats--\n");
-    fprintf(out, "===\nEdge table\n==\n");
+    fprintf(out, "===\nEdges\n===\n");
     for (j = 0; j < self->tables->edges.num_rows; j++) {
         fprintf(out, "L:%f, R:%f, P:%lld, C:%lld\n", self->tables->edges.left[j],
             self->tables->edges.right[j], (long long) self->tables->edges.parent[j],
             (long long) self->tables->edges.child[j]);
     }
-    fprintf(out, "===\nNode table\n==\n");
+    fprintf(out, "===\nNodes\n===\n");
     for (j = 0; j < self->tables->nodes.num_rows; j++) {
-        fprintf(out, "ID:%d, Time:%f, Flag:%lld\n", (int) j, self->tables->nodes.time[j],
-            (long long) self->tables->nodes.flags[j]);
+        fprintf(out, "ID:%d, Time:%f, Flag:%lld Sample:%d\n", (int) j,
+            self->tables->nodes.time[j], (long long) self->tables->nodes.flags[j],
+            self->is_sample[j]);
     }
-    fprintf(out, "===\nAncestral map\n==\n");
+    fprintf(out, "===\nAncestral map\n===\n");
     for (j = 0; j < self->tables->nodes.num_rows; j++) {
         fprintf(out, "Node %lld: ", (long long) j);
         for (u = self->ancestor_map_head[j]; u != NULL; u = u->next) {
@@ -7754,6 +7685,25 @@ tsk_ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out)
         fprintf(out, "\n");
     }
     tsk_ibd_result_print_state(self->result, out);
+}
+
+static int TSK_WARN_UNUSED
+tsk_ibd_finder_init_within(
+    tsk_ibd_finder_t *self, const tsk_id_t *samples, tsk_size_t num_samples)
+{
+    int ret;
+
+    if (samples == NULL) {
+        tsk_ibd_finder_init_samples_from_nodes(self);
+    } else {
+        ret = tsk_ibd_finder_init_samples_from_set(self, samples, num_samples);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    ret = tsk_ibd_finder_add_sample_ancestry(self);
+out:
+    return ret;
 }
 
 static int TSK_WARN_UNUSED
@@ -10577,11 +10527,15 @@ tsk_table_collection_find_ibd(const tsk_table_collection_t *self,
 
     memset(&ibd_finder, 0, sizeof(ibd_finder));
 
-    ret = tsk_ibd_result_init(result, samples, num_samples, self->nodes.num_rows);
+    ret = tsk_ibd_result_init(result, self->nodes.num_rows);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_ibd_finder_init(&ibd_finder, self, samples, num_samples, result);
+    ret = tsk_ibd_finder_init(&ibd_finder, self, result);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_ibd_finder_init_within(&ibd_finder, samples, num_samples);
     if (ret != 0) {
         goto out;
     }

@@ -633,7 +633,6 @@ typedef struct {
 } tsk_segment_list_t;
 
 typedef struct {
-    bool specified_pairs;
     tsk_size_t num_nodes;
     tsk_avl_tree_int_t pair_map;
     tsk_size_t total_segments;
