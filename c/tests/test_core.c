@@ -426,10 +426,12 @@ validate_avl(size_t num_keys, int64_t *keys)
     int ret, height;
     tsk_avl_tree_int_t tree;
     tsk_avl_node_int_t *nodes = malloc(num_keys * sizeof(*nodes));
+    tsk_avl_node_int_t **ordered_nodes = malloc(num_keys * sizeof(*ordered_nodes));
     tsk_avl_node_int_t *node;
     tsk_avl_node_int_t tmp_node;
 
     CU_ASSERT_FATAL(nodes != NULL);
+    CU_ASSERT_FATAL(ordered_nodes != NULL);
     tsk_avl_tree_int_init(&tree);
 
     /* Assumes the keys are unique */
@@ -453,8 +455,16 @@ validate_avl(size_t num_keys, int64_t *keys)
         }
     }
 
+    tsk_avl_tree_int_ordered_nodes(&tree, ordered_nodes);
+    for (j = 0; j < num_keys; j++) {
+        if (j > 0) {
+            CU_ASSERT_FATAL(ordered_nodes[j - 1]->key < ordered_nodes[j]->key);
+        }
+    }
+
     tsk_avl_tree_int_free(&tree);
     free(nodes);
+    free(ordered_nodes);
 }
 
 static void

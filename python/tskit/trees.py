@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2018-2020 Tskit Developers
+# Copyright (c) 2018-2021 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -7160,10 +7160,11 @@ class TreeSequence:
 
         yield from combinatorics.treeseq_count_topologies(self, sample_sets)
 
-    def find_ibd(self, samples, max_time=None, min_length=None):
+    def find_ibd(self, *, within=None, max_time=None, min_length=None):
         """
-        Returns a dictionary containing all IBD (identical-by-descent) segments for the
-        supplied list of sample pairs.
+        Finds pairs of samples that are identical by descent (IBD). If ``within``
+        is specified, only IBD segments for pairs of nodes within that set
+        will be reported.
 
         A pair of nodes ``(u, v)`` has an IBD segment with a left and right coordinate
         ``[left, right)`` and ancestral node ``a`` iff the most recent common ancestor
@@ -7200,9 +7201,9 @@ class TreeSequence:
         one IBD segment on the interval `[0.5, 1.0)` inherited from node 3, and another
         segment on the interval `[0.0, 0.5)` inherited from node 5.
 
-        :param list samples: A list of pairs of integers, with each pair specified as
-            a tuple. In each pair, the integers correspond to the node IDs of a pair of
-            chromosomes whose IBD segments will be returned by this method.
+        :param list within: A list of node IDs specifying the set of nodes that
+            we finding IBD segments for. If not specified, this defaults to
+            all samples in the tree sequence.
         :param float max_time: Only segments inherited from common
             ancestors whose node times are more recent than the specified time
             will be returned. Specifying a maximum time is strongly recommended when
@@ -7217,7 +7218,7 @@ class TreeSequence:
         :rtype: dict
         """
         return tables.TableCollection.find_ibd(
-            self.tables, samples, max_time, min_length
+            self.tables, within=within, max_time=max_time, min_length=min_length
         )
 
     ############################################

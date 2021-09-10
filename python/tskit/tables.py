@@ -30,7 +30,6 @@ import datetime
 import itertools
 import json
 import numbers
-import sys
 import warnings
 from dataclasses import dataclass
 from typing import Any
@@ -2351,19 +2350,46 @@ class IbdResult(collections.abc.Mapping):
     pairs are not clear yet, so not fixing on the details for now.
     """
 
-    def __init__(self, sample_pairs, ll_result):
+    def __init__(self, ll_result, *, max_time, min_length):
         self._ll_result = ll_result
-        self._sample_pairs = sample_pairs
+        self.max_time = max_time
+        self.min_length = min_length
+
+    @property
+    def total_segments(self):
+        return self._ll_result.total_segments
+
+    @property
+    def pairs(self):
+        return self._ll_result.get_keys()
+
+    def __str__(self):
+        s = "IBD Result:\n"
+        s += f"max_time       = {self.max_time}\n"
+        s += f"min_length     = {self.min_length}\n"
+        s += f"total segments = {self.total_segments}\n"
+        s += f"num node pairs = {len(self)}\n"
+        # TODO
+        # See #1680 for more info
+        # 1) Limit the number of IBD pairs here by getting the keys and only
+        #    printing (say) the first and last 10.
+        # 2) Show something more informative from the segment_list object,
+        #    rather than just the actual segments.
+        # commenting this out for now, so that we can get a useful summary
+        # of results
+        # for pair, value in self.items():
+        #     s += f"{pair}\t{value}\n"
+        return s
 
     def __getitem__(self, key):
         sample_a, sample_b = key
         return self._ll_result.get(sample_a, sample_b)
 
     def __iter__(self):
-        return iter(self._sample_pairs)
+        return map(tuple, self._ll_result.get_keys())
 
     def __len__(self):
-        return len(self._sample_pairs)
+        return self._ll_result.num_pairs
 
 
 class TableCollection:
@@ -3482,7 +3508,7 @@ class TableCollection:
                 record=json.dumps(provenance.get_provenance_dict(parameters))
             )
 
-    def find_ibd(self, samples, max_time=None, min_length=None):
+    def find_ibd(self, *, within=None, max_time=None, min_length=None):
         """
         Equivalent to the :meth:`TreeSequence.find_ibd` method; please see its
         documentation for more details, and use this method only if you specifically need
@@ -3496,9 +3522,8 @@ class TableCollection:
         underneath the edges will also be split across the breakpoint(s). To prevent this
         behaviour in this situation, use :meth:`EdgeTable.squash` beforehand.
 
-        :param list samples: A list of pairs of integers, with each pair specified as
-            a tuple. In each pair, the integers correspond to the node IDs of a pair of
-            chromosomes whose IBD segments will be returned by this method.
+        :param list within: A list of node IDs from *within* which we are to find
+            IBD relationships.
         :param float max_time: Only segments inherited from common
             ancestors whose node times are more recent than the specified time
             will be returned. Specifying a maximum time is strongly recommended when
@@ -3513,10 +3538,11 @@ class TableCollection:
         :rtype: dict
 
         """
-        # TODO I think we should probably rename the first argument "sample_pairs"
-        max_time = sys.float_info.max if max_time is None else max_time
+        max_time = np.inf if max_time is None else max_time
         min_length = 0 if min_length is None else min_length
+        if within is not None:
+            within = util.safe_np_int_cast(within, np.int32)
         ll_result = self._ll_tables.find_ibd(
-            samples, max_time=max_time, min_length=min_length
+            within=within, max_time=max_time, min_length=min_length
         )
-        return IbdResult(samples, ll_result)
+        return IbdResult(ll_result, max_time=max_time, min_length=min_length)
