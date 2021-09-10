@@ -31,7 +31,9 @@ import itertools
 import json
 import numbers
 import warnings
+from collections.abc import Mapping
 from dataclasses import dataclass
+from functools import reduce
 from typing import Any
 from typing import Optional
 from typing import Union
@@ -46,6 +48,17 @@ import tskit.util as util
 from tskit import UNKNOWN_TIME
 
 dataclass_options = {"frozen": True}
+
+
+# Needed for cases where `None` can be an appropriate kwarg value,
+# we override the meta so that it looks good in the docs.
+class NotSetMeta(type):
+    def __repr__(cls):
+        return "Not set"
+
+
+class NOTSET(metaclass=NotSetMeta):
+    pass
 
 
 @metadata.lazy_decode
@@ -584,6 +597,53 @@ class MetadataMixin:
         self._metadata_schema_cache = metadata.parse_metadata_schema(
             self.ll_table.metadata_schema
         )
+
+    def metadata_vector(self, key, *, dtype=None, default_value=NOTSET):
+        """
+        Returns a numpy array of metadata values obtained by extracting ``key``
+        from each metadata entry, and using ``default_value`` if the key is
+        not present. ``key`` may be a list, in which case nested values are returned.
+        For instance, ``key = ["a", "x"]`` will return an array of
+        ``row.metadata["a"]["x"]`` values, iterated over rows in this table.
+
+        :param str key: The name, or a list of names, of metadata entries.
+        :param str dtype: The dtype of the result (can usually be omitted).
+        :param object default_value: The value to be inserted if the metadata key
+            is not present. Note that for numeric columns, a default value of None
+            will result in a non-numeric array. The default behaviour is to raise
+            ``KeyError`` on missing entries.
+        """
+
+        if default_value == NOTSET:
+
+            def getter(d, k):
+                return d[k]
+
+        else:
+
+            def getter(d, k):
+                return (
+                    d.get(k, default_value) if isinstance(d, Mapping) else default_value
+                )
+
+        if isinstance(key, list):
+            out = np.array(
+                [
+                    reduce(
+                        getter,
+                        key,
+                        row.metadata,
+                    )
+                    for row in self
+                ],
+                dtype=dtype,
+            )
+        else:
+            out = np.array(
+                [getter(row.metadata, key) for row in self],
+                dtype=dtype,
+            )
+        return out
 
 
 class IndividualTable(BaseTable, MetadataMixin):

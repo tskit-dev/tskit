@@ -1112,6 +1112,150 @@ class MetadataTestsMixin:
         table.set_columns(**table2.asdict())
         assert table.metadata_schema == ms
 
+    def verify_metadata_vector(self, table, key, dtype, default_value=9999):
+        # this is just a hack for testing; the actual method
+        # does this more elegantly
+        has_default = default_value != 9999
+        if has_default:
+            md_vec = table.metadata_vector(
+                key, default_value=default_value, dtype=dtype
+            )
+        else:
+            md_vec = table.metadata_vector(key, dtype=dtype)
+        assert isinstance(md_vec, np.ndarray)
+        if dtype is not None:
+            assert md_vec.dtype == np.dtype(dtype)
+        assert len(md_vec) == table.num_rows
+        if not isinstance(key, list):
+            key = [key]
+        for x, row in zip(md_vec, table):
+            md = row.metadata
+            for k in key:
+                if k in md or not has_default:
+                    md = md[k]
+                else:
+                    md = default_value
+                    break
+            assert np.all(np.cast[dtype](md) == x)
+
+    def test_metadata_vector_errors(self):
+        table = self.table_class()
+        ms = tskit.MetadataSchema({"codec": "json"})
+        table.metadata_schema = ms
+        table.add_row(
+            **{
+                **self.input_data_for_add_row(),
+                "metadata": None,
+            }
+        )
+        with pytest.raises(KeyError):
+            _ = table.metadata_vector("x")
+        metadata_list = [
+            {"a": 4, "u": [1, 2]},
+            {},
+        ]
+        for md in metadata_list:
+            table.add_row(
+                **{
+                    **self.input_data_for_add_row(),
+                    "metadata": md,
+                }
+            )
+        with pytest.raises(KeyError):
+            _ = table.metadata_vector("x")
+
+        table.clear()
+        metadata_list = [
+            {"a": {"c": 5}, "u": [1, 2]},
+            {"a": {"b": 6}},
+        ]
+        for md in metadata_list:
+            table.add_row(
+                **{
+                    **self.input_data_for_add_row(),
+                    "metadata": md,
+                }
+            )
+        with pytest.raises(KeyError):
+            _ = table.metadata_vector(["a", "x"])
+
+    def test_metadata_vector_nodefault(self):
+        table = self.table_class()
+        ms = tskit.MetadataSchema({"codec": "json"})
+        table.metadata_schema = ms
+        metadata_list = [
+            {"abc": 4, "u": [1, 2]},
+            {"abc": 10, "u": [3, 4]},
+            {"abc": -3, "b": {"c": 1}, "u": [5, 6]},
+            {"abc": 1},
+        ]
+        for md in metadata_list:
+            table.add_row(
+                **{
+                    **self.input_data_for_add_row(),
+                    "metadata": md,
+                }
+            )
+        # first the totally obvious test
+        md_vec = table.metadata_vector("abc")
+        assert np.all(np.equal(md_vec, [d["abc"] for d in metadata_list]))
+        # now automated ones
+        for dtype in [None, "int", "float", "object"]:
+            self.verify_metadata_vector(
+                table, key="abc", dtype=dtype, default_value=9999
+            )
+            self.verify_metadata_vector(
+                table, key=["abc"], dtype=dtype, default_value=9999
+            )
+
+    def test_metadata_vector(self):
+        table = self.table_class()
+        ms = tskit.MetadataSchema({"codec": "json"})
+        table.metadata_schema = ms
+        metadata_list = [
+            {"abc": 4, "u": [1, 2]},
+            {"abc": 10, "u": [3, 4]},
+            {"abc": -3, "b": {"c": 1}, "u": [5, 6]},
+            {"b": {"c": 3.2}, "u": [7, 8]},
+            {"b": {"x": 8.2}},
+            {},
+            None,
+        ]
+        for md in metadata_list:
+            table.add_row(
+                **{
+                    **self.input_data_for_add_row(),
+                    "metadata": md,
+                }
+            )
+        # first the totally obvious test
+        md_vec = table.metadata_vector("abc", default_value=0)
+        assert np.all(
+            np.equal(
+                md_vec,
+                [
+                    d["abc"] if (d is not None and "abc" in d) else 0
+                    for d in metadata_list
+                ],
+            )
+        )
+
+        # now some automated ones
+        for dtype in [None, "int", "float", "object"]:
+            self.verify_metadata_vector(table, key="abc", dtype=dtype, default_value=-1)
+            self.verify_metadata_vector(
+                table, key=["abc"], dtype=dtype, default_value=-1
+            )
+            self.verify_metadata_vector(table, key=["x"], dtype=dtype, default_value=-1)
+            self.verify_metadata_vector(
+                table, key=["b", "c"], dtype=dtype, default_value=-1
+            )
+        self.verify_metadata_vector(table, key=["b"], dtype="object", default_value=-1)
+        self.verify_metadata_vector(table, key=["u"], dtype="int", default_value=[0, 0])
+        # and finally we should get rectangular arrays when it makes sense
+        md_vec = table.metadata_vector("u", default_value=[0, 0])
+        assert md_vec.shape == (table.num_rows, 2)
+
 
 class AssertEqualsMixin:
     def test_equal(self, table_5row, test_rows):

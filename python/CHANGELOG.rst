@@ -4,7 +4,7 @@
 
 **Breaking changes**
 
-- The CLI `info` command now gives more detailed information on the tree sequence
+- The CLI ``info`` command now gives more detailed information on the tree sequence
   (:user:`benjeffery`, :pr:`1611`)
 
 - 64 bits are now used to store the sizes of ragged table columns such as metadata,
@@ -19,9 +19,13 @@
 
 **Features**
 
-- Add `__setitem__` to all tables allowing single rows to be updated. For example
-  `tables.nodes[0] = tables.nodes[0].replace(flags=tskit.NODE_IS_SAMPLE)`
+- Add ``__setitem__`` to all tables allowing single rows to be updated. For example
+  ``tables.nodes[0] = tables.nodes[0].replace(flags=tskit.NODE_IS_SAMPLE)``
   (:user:`jeromekelleher`, :user:`benjeffery`, :issue:`1545`, :pr:`1600`).
+
+- Add ``table.metadata_vector`` to all table classes to allow easy extraction of a single
+  metadata key into an array
+  (:user:`petrelharp`, :issue:`1676`, :pr:`1690`).
 
 --------------------
 [0.3.7] - 2021-07-08
