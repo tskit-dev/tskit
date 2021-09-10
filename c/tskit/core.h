@@ -132,11 +132,11 @@ missing data.
  * on the thread above.
  */
 typedef int64_t tsk_id_t;
-#define TSK_MAX_ID INT64_MAX
+#define TSK_MAX_ID INT64_MAX - 1
 #define TSK_ID_STORAGE_TYPE KAS_INT64
 #else
 typedef int32_t tsk_id_t;
-#define TSK_MAX_ID INT32_MAX
+#define TSK_MAX_ID INT32_MAX - 1
 #define TSK_ID_STORAGE_TYPE KAS_INT32
 #endif
 

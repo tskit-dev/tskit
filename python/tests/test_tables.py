@@ -147,11 +147,13 @@ class CommonTestsMixin:
         for v in [1, 100, 256]:
             table = self.table_class(max_rows_increment=v)
             assert table.max_rows_increment == v
-        # Setting zero or not argument both denote the default.
+        # Setting zero implies doubling
         table = self.table_class()
+        assert table.max_rows_increment == 0
+        table = self.table_class(max_rows_increment=1024)
         assert table.max_rows_increment == 1024
         table = self.table_class(max_rows_increment=0)
-        assert table.max_rows_increment == 1024
+        assert table.max_rows_increment == 0
 
     def test_low_level_get_row(self):
         # Tests the low-level get_row interface to ensure we're getting coverage.
@@ -610,13 +612,18 @@ class CommonTestsMixin:
     def test_append_columns_max_rows(self):
         for num_rows in [0, 10, 100, 1000]:
             input_data = self.make_input_data(num_rows)
-            for max_rows in [0, 1, 8192]:
+            for max_rows in [1, 8192]:
                 table = self.table_class(max_rows_increment=max_rows)
                 for j in range(1, 10):
                     table.append_columns(**input_data)
                     assert table.num_rows == j * num_rows
                     assert len(table) == j * num_rows
-                    assert table.max_rows > table.num_rows
+                    if table.num_rows == 0:
+                        assert table.max_rows == 1
+                    elif table.num_rows > max_rows + 1:
+                        assert table.max_rows == max((max_rows * 2) + 1, table.num_rows)
+                    else:
+                        assert table.max_rows == max(max_rows + 1, table.num_rows)
 
     def test_str(self):
         for num_rows in [0, 10]:
@@ -1567,7 +1574,7 @@ class TestIndividualTable(*common_tests):
     ]
     string_colnames = []
     binary_colnames = ["metadata"]
-    input_parameters = [("max_rows_increment", 1024)]
+    input_parameters = [("max_rows_increment", 0)]
     equal_len_columns = [["flags"]]
     table_class = tskit.IndividualTable
 
@@ -1698,7 +1705,7 @@ class TestNodeTable(*common_tests):
     ragged_list_columns = [(CharColumn("metadata"), UInt32Column("metadata_offset"))]
     string_colnames = []
     binary_colnames = ["metadata"]
-    input_parameters = [("max_rows_increment", 1024)]
+    input_parameters = [("max_rows_increment", 0)]
     equal_len_columns = [["time", "flags", "population"]]
     table_class = tskit.NodeTable
 
@@ -1780,7 +1787,7 @@ class TestEdgeTable(*common_tests):
     string_colnames = []
     binary_colnames = ["metadata"]
     ragged_list_columns = [(CharColumn("metadata"), UInt32Column("metadata_offset"))]
-    input_parameters = [("max_rows_increment", 1024)]
+    input_parameters = [("max_rows_increment", 0)]
     table_class = tskit.EdgeTable
 
     def test_simple_example(self):
@@ -1825,7 +1832,7 @@ class TestSiteTable(*common_tests):
     equal_len_columns = [["position"]]
     string_colnames = ["ancestral_state"]
     binary_colnames = ["metadata"]
-    input_parameters = [("max_rows_increment", 1024)]
+    input_parameters = [("max_rows_increment", 0)]
     table_class = tskit.SiteTable
 
     def test_simple_example(self):
@@ -1885,7 +1892,7 @@ class TestMutationTable(*common_tests):
     equal_len_columns = [["site", "node", "time"]]
     string_colnames = ["derived_state"]
     binary_colnames = ["metadata"]
-    input_parameters = [("max_rows_increment", 1024)]
+    input_parameters = [("max_rows_increment", 0)]
     table_class = tskit.MutationTable
 
     def test_simple_example(self):
@@ -1962,7 +1969,7 @@ class TestMigrationTable(*common_tests):
     ragged_list_columns = [(CharColumn("metadata"), UInt32Column("metadata_offset"))]
     string_colnames = []
     binary_colnames = ["metadata"]
-    input_parameters = [("max_rows_increment", 1024)]
+    input_parameters = [("max_rows_increment", 0)]
     equal_len_columns = [["left", "right", "node", "source", "dest", "time"]]
     table_class = tskit.MigrationTable
 
@@ -2010,7 +2017,7 @@ class TestProvenanceTable(CommonTestsMixin, AssertEqualsMixin):
     equal_len_columns = [[]]
     string_colnames = ["record", "timestamp"]
     binary_colnames = []
-    input_parameters = [("max_rows_increment", 1024)]
+    input_parameters = [("max_rows_increment", 0)]
     table_class = tskit.ProvenanceTable
 
     def test_simple_example(self):
@@ -2059,7 +2066,7 @@ class TestPopulationTable(*common_tests):
     equal_len_columns = [[]]
     string_colnames = []
     binary_colnames = ["metadata"]
-    input_parameters = [("max_rows_increment", 1024)]
+    input_parameters = [("max_rows_increment", 0)]
     table_class = tskit.PopulationTable
 
     def test_simple_example(self):
