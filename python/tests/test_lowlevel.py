@@ -3052,7 +3052,7 @@ class TestModuleFunctions:
 
     def test_tskit_version(self):
         version = _tskit.get_tskit_version()
-        assert version == (0, 99, 14)
+        assert version == (0, 99, 15)
 
 
 def test_uninitialised():
