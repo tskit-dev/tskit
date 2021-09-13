@@ -5126,7 +5126,7 @@ class TreeSequence:
         """
         Returns a simplified tree sequence that retains only the history of
         the nodes given in the list ``samples``. If ``map_nodes`` is true,
-        also return a numpy array whose ``u``th element is the ID of the node
+        also return a numpy array whose ``u``-th element is the ID of the node
         in the simplified tree sequence that corresponds to node ``u`` in the
         original tree sequence, or :data:`tskit.NULL` (-1) if ``u`` is no longer
         present in the simplified tree sequence.
