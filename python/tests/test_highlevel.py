@@ -346,6 +346,23 @@ def get_mrca(pi, x, y):
     return mrca
 
 
+def get_samples(ts, time=None, population=None):
+    samples = []
+    for node in ts.nodes():
+        keep = bool(node.is_sample())
+        if time is not None:
+            if isinstance(time, (int, float)):
+                keep &= np.isclose(node.time, time)
+            if isinstance(time, (tuple, list, np.ndarray)):
+                keep &= node.time >= time[0]
+                keep &= node.time < time[1]
+        if population is not None:
+            keep &= node.population == population
+        if keep:
+            samples.append(node.id)
+    return np.array(samples)
+
+
 class TestMRCACalculator:
     """
     Class to test the Schieber-Vishkin algorithm.
@@ -509,11 +526,14 @@ class TestNumpySamples:
     various methods.
     """
 
-    def get_tree_sequence(self, num_demes=4):
-        n = 40
+    def get_tree_sequence(self, num_demes=4, times=None, n=40):
+        if times is None:
+            times = [0]
         return msprime.simulate(
             samples=[
-                msprime.Sample(time=0, population=j % num_demes) for j in range(n)
+                msprime.Sample(time=t, population=j % num_demes)
+                for j in range(n)
+                for t in times
             ],
             population_configurations=[
                 msprime.PopulationConfiguration() for _ in range(num_demes)
@@ -540,6 +560,150 @@ class TestNumpySamples:
                 if node.population == pop and node.is_sample()
             ]
         assert total == ts.num_samples
+
+    @pytest.mark.parametrize("time", [0, 0.1, 1 / 3, 1 / 4, 5 / 7])
+    def test_samples_time(self, time):
+        ts = self.get_tree_sequence(num_demes=2, n=20, times=[time, 0.2, 1, 15])
+        assert np.array_equal(get_samples(ts, time=time), ts.samples(time=time))
+        for population in (None, 0):
+            assert np.array_equal(
+                get_samples(ts, time=time, population=population),
+                ts.samples(time=time, population=population),
+            )
+
+    @pytest.mark.parametrize(
+        "time_interval",
+        [
+            [0, 0.1],
+            (0, 1 / 3),
+            np.array([1 / 4, 2 / 3]),
+            (0.345, 5 / 7),
+            (-1, 1),
+        ],
+    )
+    def test_samples_time_interval(self, time_interval):
+        rng = np.random.default_rng(seed=931)
+        times = rng.uniform(low=time_interval[0], high=2 * time_interval[1], size=20)
+        ts = self.get_tree_sequence(num_demes=2, n=1, times=times)
+        assert np.array_equal(
+            get_samples(ts, time=time_interval),
+            ts.samples(time=time_interval),
+        )
+        for population in (None, 0):
+            assert np.array_equal(
+                get_samples(ts, time=time_interval, population=population),
+                ts.samples(time=time_interval, population=population),
+            )
+
+    def test_samples_example(self):
+        tables = tskit.TableCollection(sequence_length=10)
+        time = [np.array(0), 0, np.array([1]), 1, 1, 3, 3.00001, 3.0 - 0.0001, 1 / 3]
+        pops = [1, 3, 1, 2, 1, 1, 1, 3, 1]
+        for _ in range(max(pops) + 1):
+            tables.populations.add_row()
+        for t, p in zip(time, pops):
+            tables.nodes.add_row(
+                flags=tskit.NODE_IS_SAMPLE,
+                time=t,
+                population=p,
+            )
+        # add not-samples also
+        for t, p in zip(time, pops):
+            tables.nodes.add_row(
+                flags=0,
+                time=t,
+                population=p,
+            )
+        ts = tables.tree_sequence()
+        assert np.array_equal(
+            ts.samples(),
+            np.arange(len(time)),
+        )
+        assert np.array_equal(
+            ts.samples(time=[0, np.inf]),
+            np.arange(len(time)),
+        )
+        assert np.array_equal(
+            ts.samples(time=0),
+            [0, 1],
+        )
+        # default tolerance is 1e-5
+        assert np.array_equal(
+            ts.samples(time=0.3333333),
+            [8],
+        )
+        assert np.array_equal(
+            ts.samples(time=3),
+            [5, 6],
+        )
+        assert np.array_equal(
+            ts.samples(time=1),
+            [2, 3, 4],
+        )
+        assert np.array_equal(
+            ts.samples(time=1, population=2),
+            [3],
+        )
+        assert np.array_equal(
+            ts.samples(population=0),
+            [],
+        )
+        assert np.array_equal(
+            ts.samples(population=1),
+            [0, 2, 4, 5, 6, 8],
+        )
+        assert np.array_equal(
+            ts.samples(population=2),
+            [3],
+        )
+        assert np.array_equal(
+            ts.samples(time=[0, 3]),
+            [0, 1, 2, 3, 4, 7, 8],
+        )
+        # note tuple instead of array
+        assert np.array_equal(
+            ts.samples(time=(1, 3)),
+            [2, 3, 4, 7],
+        )
+        assert np.array_equal(
+            ts.samples(time=[0, 3], population=1),
+            [0, 2, 4, 8],
+        )
+        assert np.array_equal(
+            ts.samples(time=[0.333333, 3]),
+            [2, 3, 4, 7, 8],
+        )
+        assert np.array_equal(
+            ts.samples(time=[100, np.inf]),
+            [],
+        )
+        assert np.array_equal(
+            ts.samples(time=-1),
+            [],
+        )
+        assert np.array_equal(
+            ts.samples(time=[-100, 100]),
+            np.arange(len(time)),
+        )
+        assert np.array_equal(
+            ts.samples(time=[-100, -1]),
+            [],
+        )
+
+    def test_samples_time_errors(self):
+        ts = self.get_tree_sequence(4)
+        # error incorrect types
+        with pytest.raises(ValueError):
+            ts.samples(time="s")
+        with pytest.raises(ValueError):
+            ts.samples(time=[])
+        with pytest.raises(ValueError):
+            ts.samples(time=np.array([1, 2, 3]))
+        with pytest.raises(ValueError):
+            ts.samples(time=(1, 2, 3))
+        # error using min and max switched
+        with pytest.raises(ValueError):
+            ts.samples(time=(2.4, 1))
 
     def test_genotype_matrix_indexing(self):
         num_demes = 4

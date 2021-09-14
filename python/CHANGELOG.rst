@@ -22,6 +22,9 @@
 - Add ``__setitem__`` to all tables allowing single rows to be updated. For example
   ``tables.nodes[0] = tables.nodes[0].replace(flags=tskit.NODE_IS_SAMPLE)``
   (:user:`jeromekelleher`, :user:`benjeffery`, :issue:`1545`, :pr:`1600`).
+- Added a new parameter ``time`` to ``TreeSequence.samples()`` allowing to select
+  samples at a specific time point or time interval.
+  (:user:`mufernando`, :user:`petrelharp`, :issue:`1692`, :pr:`1700`)
 
 - Add ``table.metadata_vector`` to all table classes to allow easy extraction of a single
   metadata key into an array
