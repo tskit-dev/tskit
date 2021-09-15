@@ -297,16 +297,15 @@ class PythonTreeSequence:
             left = right
 
     def trees(self):
-        rtt = tsutil.RootThresholdTree(self._tree_sequence)
         pt = PythonTree(self._tree_sequence.get_num_nodes())
         pt.index = 0
-        for left, right in rtt.iterate():
+        for (left, right), rtt in tsutil.algorithm_R(self._tree_sequence):
             pt.parent[:] = rtt.parent
             pt.left_child[:] = rtt.left_child
             pt.right_child[:] = rtt.right_child
             pt.left_sib[:] = rtt.left_sib
             pt.right_sib[:] = rtt.right_sib
-            pt.left_root = rtt.left_root
+            pt.left_root = rtt.left_child[-1]
             pt.left = left
             pt.right = right
             # Add in all the sites

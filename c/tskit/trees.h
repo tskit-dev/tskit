@@ -126,6 +126,11 @@ typedef struct {
      */
     tsk_id_t left_root;
     /**
+     @brief The ID of the "virtual root" whose children are the roots of the
+     tree.
+     */
+    tsk_id_t virtual_root;
+    /**
      @brief The parent of node u is parent[u]. Equal to TSK_NULL if node u is a
      root or is not a node in the current tree.
      */

@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2020 Tskit Developers
+# Copyright (c) 2018-2021 Tskit Developers
 # Copyright (c) 2016-2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -322,6 +322,12 @@ class ExampleTopologyMixin:
         ts = msprime.simulate(15, random_seed=10)
         ts = tsutil.decapitate(ts, ts.num_edges // 2)
         self.verify(ts)
+
+    def test_all_missing_data(self):
+        tables = tskit.TableCollection(1)
+        for _ in range(10):
+            tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        self.verify(tables.tree_sequence())
 
 
 class TestKCMetric(unittest.TestCase):
@@ -1775,12 +1781,15 @@ class TestEmptyTreeSequences(TopologyTestCase):
         assert t.roots == []
         assert t.root == tskit.NULL
         assert t.parent_dict == {}
+        assert t.virtual_root == 0
+        assert t.left_child(t.virtual_root) == -1
+        assert t.right_child(t.virtual_root) == -1
         assert list(t.nodes()) == []
         assert list(ts.haplotypes()) == []
         assert list(ts.variants()) == []
         methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib]
         for method in methods:
-            for u in [-1, 0, 1, 100]:
+            for u in [-1, 1, 100]:
                 with pytest.raises(ValueError):
                     method(u)
         tsp = ts.simplify()
@@ -1805,6 +1814,7 @@ class TestEmptyTreeSequences(TopologyTestCase):
         assert t.interval == (0, 1)
         assert t.roots == []
         assert t.root == tskit.NULL
+        assert t.virtual_root == 1
         assert t.parent_dict == {}
         assert list(t.nodes()) == []
         assert list(ts.haplotypes()) == []
@@ -1812,7 +1822,7 @@ class TestEmptyTreeSequences(TopologyTestCase):
         methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib]
         for method in methods:
             assert method(0) == tskit.NULL
-            for u in [-1, 1, 100]:
+            for u in [-1, 2, 100]:
                 with pytest.raises(ValueError):
                     method(u)
 
@@ -1859,6 +1869,7 @@ class TestEmptyTreeSequences(TopologyTestCase):
         assert t.interval == (0, 1)
         assert t.roots == [0]
         assert t.root == 0
+        assert t.virtual_root == 1
         assert t.parent_dict == {}
         assert list(t.nodes()) == [0]
         assert list(ts.haplotypes(isolated_as_missing=False)) == [""]
@@ -1866,7 +1877,7 @@ class TestEmptyTreeSequences(TopologyTestCase):
         methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib]
         for method in methods:
             assert method(0) == tskit.NULL
-            for u in [-1, 1, 100]:
+            for u in [-1, 2, 100]:
                 with pytest.raises(ValueError):
                     method(u)
         tsp = ts.simplify()
@@ -1892,6 +1903,7 @@ class TestEmptyTreeSequences(TopologyTestCase):
         assert t.interval == (0, 1)
         assert t.roots == [0]
         assert t.root == 0
+        assert t.virtual_root == 1
         assert t.parent_dict == {}
         assert list(t.nodes()) == [0]
         assert list(ts.haplotypes(isolated_as_missing=False)) == ["1"]
@@ -1899,7 +1911,7 @@ class TestEmptyTreeSequences(TopologyTestCase):
         methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib]
         for method in methods:
             assert method(0) == tskit.NULL
-            for u in [-1, 1, 100]:
+            for u in [-1, 2, 100]:
                 with pytest.raises(ValueError):
                     method(u)
         tsp = ts.simplify(filter_sites=False)
@@ -6565,6 +6577,81 @@ class TestSimpleTreeAlgorithm:
             next(new_trees)
 
 
+class TestVirtualRootAPIs(ExampleTopologyMixin):
+    """
+    Tests the APIs based on getting roots.
+    """
+
+    def verify(self, ts):
+        for tree in ts.trees():
+            left_child = tree.left_child_array
+            right_child = tree.right_child_array
+            assert tree.virtual_root == ts.num_nodes
+            assert tree.left_root == tree.left_child(tree.virtual_root)
+            assert tree.right_root == tree.right_child(tree.virtual_root)
+            assert tree.left_root == left_child[-1]
+            assert tree.right_root == right_child[-1]
+            assert tree.parent(tree.virtual_root) == tskit.NULL
+            assert tree.left_sib(tree.virtual_root) == tskit.NULL
+            assert tree.right_sib(tree.virtual_root) == tskit.NULL
+
+            u = tree.left_root
+            roots = []
+            while u != tskit.NULL:
+                roots.append(u)
+                u = tree.right_sib(u)
+            assert roots == list(tree.roots)
+
+            # The branch_length for roots is defined as 0, and it's consistent
+            # to have the same for the virtual root.
+            assert tree.branch_length(tree.virtual_root) == 0
+            assert tree.depth(tree.virtual_root) == 0
+            assert tree.num_children(tree.virtual_root) == tree.num_roots
+            assert tree.num_samples(tree.virtual_root) == tree.num_samples()
+            # We're not using tracked samples here.
+            assert tree.num_tracked_samples(tree.virtual_root) == 0
+            # The virtual_root is internal because it has children (the roots)
+            assert tree.is_internal(tree.virtual_root)
+            assert not tree.is_leaf(tree.virtual_root)
+            assert not tree.is_sample(tree.virtual_root)
+            # The mrca of the virtual_root and anything except itself is -1
+            assert tree.mrca(0, tree.virtual_root) == tskit.NULL
+            assert tree.mrca(tree.virtual_root, tree.virtual_root) == tree.virtual_root
+            # The virtual_root is a descendant of nothing other than itself
+            assert not tree.is_descendant(0, tree.virtual_root)
+            assert tree.is_descendant(tree.virtual_root, tree.virtual_root)
+
+            assert list(tree.leaves(tree.virtual_root)) == list(tree.leaves())
+            assert list(tree.samples(tree.virtual_root)) == list(tree.samples())
+
+            orders = [
+                "preorder",
+                "inorder",
+                "levelorder",
+                "breadthfirst",
+                # https://github.com/tskit-dev/tskit/issues/1725
+                # "postorder",
+                # "timeasc",
+                # "timedesc",
+                # "minlex_postorder",
+            ]
+            for order in orders:
+                l_vr = list(tree.nodes(tree.virtual_root, order=order))
+                l_standard = list(tree.nodes(order=order))
+                assert len(l_vr) == 1 + len(l_standard)
+                assert tree.virtual_root in l_vr
+
+            # For pre-order, virtual_root should be first node visited:
+            assert next(tree.nodes(tree.virtual_root)) == tree.virtual_root
+
+            # Methods that imply looking up tree sequence properties of the
+            # node raise an error
+            # Some methods don't apply
+            for method in [tree.time, tree.population]:
+                with pytest.raises(tskit.LibraryError, match="Node out of bounds"):
+                    method(tree.virtual_root)
+
+
 class TestSampleLists(ExampleTopologyMixin):
     """
     Tests for the sample lists algorithm.
@@ -6605,6 +6692,12 @@ class TestSampleLists(ExampleTopologyMixin):
                             break
                         index = tree1.next_sample[index]
                 assert samples1 == samples2
+            # The python implementation here doesn't maintain roots
+            np.testing.assert_array_equal(tree1.parent, tree2.parent_array[:-1])
+            np.testing.assert_array_equal(tree1.left_child, tree2.left_child_array[:-1])
+            np.testing.assert_array_equal(
+                tree1.right_child, tree2.right_child_array[:-1]
+            )
         assert right == ts.sequence_length
 
 
@@ -6615,10 +6708,9 @@ class TestOneSampleRoot(ExampleTopologyMixin):
     """
 
     def verify(self, ts):
-        tree1 = tsutil.RootThresholdTree(ts, root_threshold=1)
         tree2 = tskit.Tree(ts)
         tree2.first()
-        for interval in tree1.iterate():
+        for interval, tree1 in tsutil.algorithm_R(ts, root_threshold=1):
             assert interval == tree2.interval
             assert tree1.roots() == tree2.roots
             # Definition here is the set unique path ends from samples
@@ -6629,35 +6721,96 @@ class TestOneSampleRoot(ExampleTopologyMixin):
                     u = tree2.parent(u)
                 roots.add(path_end)
             assert set(tree1.roots()) == roots
+            np.testing.assert_array_equal(tree1.parent, tree2.parent_array)
+            np.testing.assert_array_equal(tree1.left_child, tree2.left_child_array)
+            np.testing.assert_array_equal(tree1.right_child, tree2.right_child_array)
+            np.testing.assert_array_equal(tree1.left_sib, tree2.left_sib_array)
+            np.testing.assert_array_equal(tree1.right_sib, tree2.right_sib_array)
             tree2.next()
         assert tree2.index == -1
 
 
-class TestKSamplesRoot(ExampleTopologyMixin):
+class RootThreshold(ExampleTopologyMixin):
     """
     Tests for the root criteria of subtending at least k samples.
     """
 
     def verify(self, ts):
-        for k in range(1, 5):
-            tree1 = tsutil.RootThresholdTree(ts, root_threshold=k)
-            tree2 = tskit.Tree(ts, root_threshold=k)
-            tree2.first()
-            for interval in tree1.iterate():
-                assert interval == tree2.interval
-                # Definition here is the set unique path ends from samples
-                # that subtend at least k samples
-                roots = set()
-                for u in ts.samples():
-                    while u != tskit.NULL:
-                        path_end = u
-                        u = tree2.parent(u)
-                    if tree2.num_samples(path_end) >= k:
-                        roots.add(path_end)
-                assert set(tree1.roots()) == roots
-                assert tree1.roots() == tree2.roots
-                tree2.next()
-            assert tree2.index == -1
+        k = self.root_threshold
+        trees_py = tsutil.algorithm_R(ts, root_threshold=k)
+        tree_lib = tskit.Tree(ts, root_threshold=k)
+        tree_lib.first()
+        tree_leg = tsutil.LegacyRootThresholdTree(ts, root_threshold=k)
+        for (interval_py, tree_py), interval_leg in itertools.zip_longest(
+            trees_py, tree_leg.iterate()
+        ):
+            assert interval_py == tree_lib.interval
+            assert interval_leg == tree_lib.interval
+
+            # Definition here is the set unique path ends from samples
+            # that subtend at least k samples
+            roots = set()
+            for u in ts.samples():
+                while u != tskit.NULL:
+                    path_end = u
+                    u = tree_lib.parent(u)
+                if tree_lib.num_samples(path_end) >= k:
+                    roots.add(path_end)
+            assert set(tree_py.roots()) == roots
+            assert set(tree_lib.roots) == roots
+            assert set(tree_leg.roots()) == roots
+            assert len(tree_leg.roots()) == tree_lib.num_roots
+            assert tree_py.roots() == tree_lib.roots
+
+            # # The python class has identical behaviour to the lib version
+            assert tree_py.left_child[-1] == tree_lib.left_root
+            np.testing.assert_array_equal(tree_py.parent, tree_lib.parent_array)
+            np.testing.assert_array_equal(tree_py.left_child, tree_lib.left_child_array)
+            np.testing.assert_array_equal(
+                tree_py.right_child, tree_lib.right_child_array
+            )
+            np.testing.assert_array_equal(tree_py.left_sib, tree_lib.left_sib_array)
+            np.testing.assert_array_equal(tree_py.right_sib, tree_lib.right_sib_array)
+
+            # NOTE: the legacy left_root value is *not* necessarily the same as the
+            # new left_root.
+            # assert tree_leg.left_root == tree_py.left_child[-1]
+
+            # The virtual root version is identical to the legacy tree
+            # except for the extra node and the details of the sib arrays.
+            np.testing.assert_array_equal(tree_py.parent[:-1], tree_leg.parent)
+            np.testing.assert_array_equal(tree_py.left_child[:-1], tree_leg.left_child)
+            np.testing.assert_array_equal(
+                tree_py.right_child[:-1], tree_leg.right_child
+            )
+            # The sib arrays are identical except for root nodes.
+            for u in range(ts.num_nodes):
+                if u not in roots:
+                    assert tree_py.left_sib[u] == tree_leg.left_sib[u]
+                    assert tree_py.right_sib[u] == tree_leg.right_sib[u]
+
+            tree_lib.next()
+        assert tree_lib.index == -1
+
+
+class TestRootThreshold1(RootThreshold):
+    root_threshold = 1
+
+
+class TestRootThreshold2(RootThreshold):
+    root_threshold = 2
+
+
+class TestRootThreshold3(RootThreshold):
+    root_threshold = 3
+
+
+class TestRootThreshold4(RootThreshold):
+    root_threshold = 4
+
+
+class TestRootThreshold10(RootThreshold):
+    root_threshold = 10
 
 
 class TestSquashEdges:
@@ -8074,7 +8227,7 @@ class TestMissingData:
             with pytest.raises(ValueError):
                 tree.is_isolated(tskit.NULL)
             with pytest.raises(ValueError):
-                tree.is_isolated(ts.num_nodes)
+                tree.is_isolated(ts.num_nodes + 1)
             with pytest.raises(ValueError):
                 tree.is_isolated(-2)
             with pytest.raises(TypeError):

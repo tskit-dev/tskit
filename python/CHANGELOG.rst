@@ -17,6 +17,13 @@
   :issue:`1554`, :issue:`1573`, :issue:`1589`,:issue:`1598`,:issue:`1628`, :pr:`1571`,
   :pr:`1579`, :pr:`1585`, :pr:`1590`, :pr:`1602`, :pr:`1618`, :pr:`1620`, :pr:`1652`).
 
+- The Tree class now conceptually has an extra node, the "virtual root" whose
+  children are the roots of the tree. The quintuply linked tree arrays
+  (parent_array, left_child_array, right_child_array, left_sib_array and right_sib_array)
+  all have one extra element.
+  (:user:`jeromekelleher`, :issue:`1691`, :pr:`1704`).
+
+
 **Features**
 
 - Add ``__setitem__`` to all tables allowing single rows to be updated. For example
@@ -68,7 +75,7 @@
 
 - SVG visualization of a tree sequence can be restricted to displaying between left
   and right genomic coordinates using the ``x_lim`` parameter. The default settings
-  now mean that if the left or right flanks of a tree sequence are entirely empty, 
+  now mean that if the left or right flanks of a tree sequence are entirely empty,
   these regions will not be plotted in the SVG (:user:`hyanwong`, :pr:`1288`).
 
 - SVG visualization of a single tree allows all mutations on an edge to be plotted

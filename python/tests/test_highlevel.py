@@ -2751,7 +2751,10 @@ class TestTree(HighLevelTestCase):
         tree = self.get_tree()
         for u, v in itertools.product(range(tree.num_nodes), repeat=2):
             assert is_descendant(tree, u, v) == tree.is_descendant(u, v)
-        for bad_node in [-1, -2, tree.num_nodes, tree.num_nodes + 1]:
+        # All nodes are descendents of themselves
+        for u in range(tree.num_nodes + 1):
+            assert tree.is_descendant(u, u)
+        for bad_node in [-1, -2, tree.num_nodes + 1]:
             with pytest.raises(ValueError):
                 tree.is_descendant(0, bad_node)
             with pytest.raises(ValueError):
@@ -2909,12 +2912,13 @@ class TestTree(HighLevelTestCase):
 
     def verify_tree_arrays(self, tree):
         ts = tree.tree_sequence
-        assert tree.parent_array.shape == (ts.num_nodes,)
-        assert tree.left_child_array.shape == (ts.num_nodes,)
-        assert tree.right_child_array.shape == (ts.num_nodes,)
-        assert tree.left_sib_array.shape == (ts.num_nodes,)
-        assert tree.right_sib_array.shape == (ts.num_nodes,)
-        for u in range(ts.num_nodes):
+        N = ts.num_nodes + 1
+        assert tree.parent_array.shape == (N,)
+        assert tree.left_child_array.shape == (N,)
+        assert tree.right_child_array.shape == (N,)
+        assert tree.left_sib_array.shape == (N,)
+        assert tree.right_sib_array.shape == (N,)
+        for u in range(N):
             assert tree.parent(u) == tree.parent_array[u]
             assert tree.left_child(u) == tree.left_child_array[u]
             assert tree.right_child(u) == tree.right_child_array[u]

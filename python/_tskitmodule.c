@@ -9103,7 +9103,7 @@ static int
 Tree_check_bounds(Tree *self, int node)
 {
     int ret = 0;
-    if (node < 0 || node >= (int) self->tree->num_nodes) {
+    if (node < 0 || node > (int) self->tree->num_nodes) {
         PyErr_SetString(PyExc_ValueError, "Node index out of bounds");
         ret = -1;
     }
@@ -9333,6 +9333,19 @@ out:
 }
 
 static PyObject *
+Tree_get_virtual_root(Tree *self)
+{
+    PyObject *ret = NULL;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue("n", (Py_ssize_t) self->tree->virtual_root);
+out:
+    return ret;
+}
+
+static PyObject *
 Tree_get_index(Tree *self)
 {
     PyObject *ret = NULL;
@@ -9341,19 +9354,6 @@ Tree_get_index(Tree *self)
         goto out;
     }
     ret = Py_BuildValue("n", (Py_ssize_t) self->tree->index);
-out:
-    return ret;
-}
-
-static PyObject *
-Tree_get_left_root(Tree *self)
-{
-    PyObject *ret = NULL;
-
-    if (Tree_check_state(self) != 0) {
-        goto out;
-    }
-    ret = Py_BuildValue("i", (int) self->tree->left_root);
 out:
     return ret;
 }
@@ -9493,18 +9493,18 @@ static PyObject *
 Tree_get_time(Tree *self, PyObject *args)
 {
     PyObject *ret = NULL;
-    double time;
-    int node, err;
+    tsk_node_t node;
+    int node_id, err;
 
-    if (Tree_get_node_argument(self, args, &node) != 0) {
+    if (Tree_get_node_argument(self, args, &node_id) != 0) {
         goto out;
     }
-    err = tsk_tree_get_time(self->tree, node, &time);
-    if (ret != 0) {
+    err = tsk_treeseq_get_node(self->tree->tree_sequence, node_id, &node);
+    if (err != 0) {
         handle_library_error(err);
         goto out;
     }
-    ret = Py_BuildValue("d", time);
+    ret = Py_BuildValue("d", node.time);
 out:
     return ret;
 }
@@ -10055,14 +10055,14 @@ out:
  * corresponding arrays in the tsk_tree object. We use properties and
  * return a new array each time rather than trying to create a single array
  * at Tree initialisation time to avoid a circular reference counting loop,
- * which (it seems) the even cyclic garbage collection support can't resolve.
+ * which (it seems) even cyclic garbage collection support can't resolve.
  */
 static PyObject *
 Tree_make_array(Tree *self, int dtype, void *data)
 {
     PyObject *ret = NULL;
     PyArrayObject *array = NULL;
-    npy_intp dims = self->tree->num_nodes;
+    npy_intp dims = self->tree->num_nodes + 1;
 
     array = (PyArrayObject *) PyArray_SimpleNewFromData(1, &dims, dtype, data);
     if (array == NULL) {
@@ -10203,10 +10203,10 @@ static PyMethodDef Tree_methods[] = {
         .ml_meth = (PyCFunction) Tree_get_index,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns the index this tree occupies within the tree sequence." },
-    { .ml_name = "get_left_root",
-        .ml_meth = (PyCFunction) Tree_get_left_root,
+    { .ml_name = "get_virtual_root",
+        .ml_meth = (PyCFunction) Tree_get_virtual_root,
         .ml_flags = METH_NOARGS,
-        .ml_doc = "Returns the root of the tree." },
+        .ml_doc = "Returns the virtual root of the tree." },
     { .ml_name = "get_left",
         .ml_meth = (PyCFunction) Tree_get_left,
         .ml_flags = METH_NOARGS,

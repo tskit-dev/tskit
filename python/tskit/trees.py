@@ -1196,7 +1196,13 @@ class Tree:
     def next_sample(self, u):
         return self._ll_tree.get_next_sample(u)
 
-    # TODO do we also have right_root?
+    @property
+    def virtual_root(self):
+        """
+        The ID of the virtual root in this tree.
+        """
+        return self._ll_tree.get_virtual_root()
+
     @property
     def left_root(self):
         """
@@ -1229,7 +1235,11 @@ class Tree:
 
         :rtype: int
         """
-        return self._ll_tree.get_left_root()
+        return self.left_child(self.virtual_root)
+
+    @property
+    def right_root(self):
+        return self.right_child(self.virtual_root)
 
     def get_children(self, u):
         # Deprecated alias for self.children
@@ -2040,10 +2050,8 @@ class Tree:
         :return: The number of samples in the subtree rooted at u.
         :rtype: int
         """
-        if u is None:
-            return sum(self._ll_tree.get_num_samples(u) for u in self.roots)
-        else:
-            return self._ll_tree.get_num_samples(u)
+        u = self.virtual_root if u is None else u
+        return self._ll_tree.get_num_samples(u)
 
     def get_num_tracked_leaves(self, u):
         # Deprecated alias for num_tracked_samples. The method name is inaccurate
@@ -2069,6 +2077,10 @@ class Tree:
             the subtree rooted at u.
         :rtype: int
         """
+        # This should work, there's a but somethings wrong somewhere
+        # https://github.com/tskit-dev/tskit/issues/1724
+        # u = self.virtual_root if u is None else u
+        # return self._ll_tree.get_num_tracked_samples(u)
         roots = [u]
         if u is None:
             roots = self.roots
