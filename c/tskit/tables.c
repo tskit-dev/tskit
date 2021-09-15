@@ -7209,7 +7209,7 @@ tsk_ibd_result_init(tsk_ibd_result_t *self, tsk_size_t num_nodes)
     /* Make sure we don't overflow in the ID mapping. See the comments in pair_to_integer
      * for details. */
     double max_num_nodes = sqrt(1ULL << 63);
-    tsk_bug_assert(num_nodes < max_num_nodes);
+    tsk_bug_assert((double) num_nodes < max_num_nodes);
 
     memset(self, 0, sizeof(*self));
     self->num_nodes = num_nodes;
