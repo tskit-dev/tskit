@@ -440,11 +440,16 @@ class TestIbd:
         assert isinstance(result, _tskit.IbdResult)
         for pair in pairs:
             value = result.get(*pair)
-            assert isinstance(value, dict)
-            assert len(value) == 3
-            assert list(value["left"]) == [0]
-            assert list(value["right"]) == [1]
-            assert len(value["node"]) == 1
+            assert isinstance(value, _tskit.IbdSegmentList)
+            assert value.num_segments == 1
+            assert isinstance(value.left, np.ndarray)
+            assert isinstance(value.right, np.ndarray)
+            assert isinstance(value.node, np.ndarray)
+            assert list(value.left) == [0]
+            assert list(value.right) == [1]
+            assert len(value.node) == 1
+            assert value.num_segments == 1
+            assert value.total_span == 1
 
     def test_get_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
@@ -487,6 +492,16 @@ class TestIbd:
             output = f.read()
         assert len(output) > 0
         assert "IBD" in output
+
+
+class TestIbdSegmentList:
+    def test_direct_instantiation(self):
+        # Nobody should do this, but just in case
+        seglist = _tskit.IbdSegmentList()
+        attrs = ["num_segments", "total_span", "left", "right", "node"]
+        for attr in attrs:
+            with pytest.raises(SystemError, match="not initialised"):
+                getattr(seglist, attr)
 
 
 class TestTableMethods:

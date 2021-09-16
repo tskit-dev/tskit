@@ -2395,6 +2395,59 @@ class ProvenanceTable(BaseTable):
         self.set_columns(**d)
 
 
+# We define segment ordering by (left, right, node) tuples
+@dataclasses.dataclass(eq=True, order=True)
+class IbdSegment:
+    left: float
+    right: float
+    node: int
+
+    @property
+    def span(self):
+        return self.right - self.left
+
+
+class IbdSegmentList(collections.abc.Iterable, collections.abc.Sized):
+    def __init__(self, ll_segment_list):
+        self._ll_segment_list = ll_segment_list
+
+    def __iter__(self):
+        left = self.left
+        right = self.right
+        node = self.node
+        for left, right, node in zip(self.left, self.right, self.node):
+            yield IbdSegment(float(left), float(right), int(node))
+
+    def __len__(self):
+        return self._ll_segment_list.num_segments
+
+    def __str__(self):
+        return f"IbdSegmentList(num_segments={len(self)}, total_span={self.total_span})"
+
+    def __repr__(self):
+        return f"IbdSegmentList({repr(list(self))})"
+
+    def __eq__(self, other):
+        # TODO what should be the semantics here if store_segments is False?
+        return list(self) == list(other)
+
+    @property
+    def total_span(self):
+        return np.sum(self.right - self.left)
+
+    @property
+    def left(self):
+        return self._ll_segment_list.left
+
+    @property
+    def right(self):
+        return self._ll_segment_list.right
+
+    @property
+    def node(self):
+        return self._ll_segment_list.node
+
+
 class IbdResult(collections.abc.Mapping):
     """
     TODO document
@@ -2443,7 +2496,7 @@ class IbdResult(collections.abc.Mapping):
 
     def __getitem__(self, key):
         sample_a, sample_b = key
-        return self._ll_result.get(sample_a, sample_b)
+        return IbdSegmentList(self._ll_result.get(sample_a, sample_b))
 
     def __iter__(self):
         return map(tuple, self._ll_result.get_keys())

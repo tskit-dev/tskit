@@ -135,26 +135,7 @@ class IbdResult:
 
     def add_segment(self, a, b, seg):
         key = (a, b) if a < b else (b, a)
-        self.segments[key].append(seg)
-
-    def convert_to_numpy(self):
-        """
-        Converts the output to the format required by the Python-C interface layer.
-        """
-        out = {}
-        for key, segs in self.segments.items():
-            left = []
-            right = []
-            node = []
-            for seg in segs:
-                left.append(seg.left)
-                right.append(seg.right)
-                node.append(seg.node)
-            left = np.asarray(left, dtype=np.float64)
-            right = np.asarray(right, dtype=np.float64)
-            node = np.asarray(node, dtype=np.int64)
-            out[key] = {"left": left, "right": right, "node": node}
-        return out
+        self.segments[key].append(tskit.IbdSegment(seg.left, seg.right, seg.node))
 
 
 class IbdFinder:
@@ -246,7 +227,7 @@ class IbdFinder:
             if e is not None and e.parent != current_parent:
                 parent_should_be_added = True
 
-        return self.result.convert_to_numpy()
+        return self.result.segments
 
     def calculate_ibd_segs(self, current_parent, list_to_add):
         """

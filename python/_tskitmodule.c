@@ -187,6 +187,14 @@ typedef struct {
     tsk_ibd_result_t *ibd_result;
 } IbdResult;
 
+typedef struct {
+    PyObject_HEAD
+    /* Keep a reference to the parent object to ensure that the memory
+     * behind the segment list is always valid */
+    IbdResult *ibd_result;
+    tsk_segment_list_t *segment_list;
+} IbdSegmentList;
+
 /* A named tuple of metadata schemas for a tree sequence */
 static PyTypeObject MetadataSchemas;
 
@@ -5305,6 +5313,200 @@ static PyTypeObject ProvenanceTableType = {
 };
 
 /*===================================================================
+ * IbdSegmentList
+ *===================================================================
+ */
+
+static int
+IbdSegmentList_check_state(IbdSegmentList *self)
+{
+    int ret = -1;
+    if (self->segment_list == NULL) {
+        PyErr_SetString(PyExc_SystemError, "IbdSegmentList not initialised");
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+static void
+IbdSegmentList_dealloc(IbdSegmentList *self)
+{
+    /* The segment list memory is handled by the parent IbdResult object */
+    Py_XDECREF(self->ibd_result);
+    self->segment_list = NULL;
+    Py_TYPE(self)->tp_free((PyObject *) self);
+}
+
+static int
+IbdSegmentList_init(IbdSegmentList *self, PyObject *args, PyObject *kwds)
+{
+    /* This object cannot be initialised from client code, and can only
+     * be created from the IbdResult_get method below, which sets up the
+     * correct pointers and handles the refcounting */
+    self->segment_list = NULL;
+    self->ibd_result = NULL;
+    return 0;
+}
+
+static PyObject *
+IbdSegmentList_get_num_segments(IbdSegmentList *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (IbdSegmentList_check_state(self) != 0) {
+        goto out;
+    }
+
+    ret = Py_BuildValue("K", (unsigned long long) self->segment_list->num_segments);
+out:
+    return ret;
+}
+
+static PyObject *
+IbdSegmentList_get_total_span(IbdSegmentList *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (IbdSegmentList_check_state(self) != 0) {
+        goto out;
+    }
+
+    ret = Py_BuildValue("d", self->segment_list->total_span);
+out:
+    return ret;
+}
+
+static PyObject *
+IbdSegmentList_get_left(IbdSegmentList *self, void *closure)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *left_array = NULL;
+    double *left;
+    tsk_size_t seg_index;
+    tsk_segment_t *u;
+    npy_intp num_segments;
+
+    if (IbdSegmentList_check_state(self) != 0) {
+        goto out;
+    }
+
+    num_segments = (npy_intp) self->segment_list->num_segments;
+    left_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_FLOAT64);
+    if (left_array == NULL) {
+        goto out;
+    }
+    left = (double *) PyArray_DATA(left_array);
+    seg_index = 0;
+    for (u = self->segment_list->head; u != NULL; u = u->next) {
+        left[seg_index] = u->left;
+        seg_index++;
+    }
+    ret = (PyObject *) left_array;
+out:
+    return ret;
+}
+
+static PyObject *
+IbdSegmentList_get_right(IbdSegmentList *self, void *closure)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *right_array = NULL;
+    double *right;
+    tsk_size_t seg_index;
+    tsk_segment_t *u;
+    npy_intp num_segments;
+
+    if (IbdSegmentList_check_state(self) != 0) {
+        goto out;
+    }
+
+    num_segments = (npy_intp) self->segment_list->num_segments;
+    right_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_FLOAT64);
+    if (right_array == NULL) {
+        goto out;
+    }
+    right = (double *) PyArray_DATA(right_array);
+    seg_index = 0;
+    for (u = self->segment_list->head; u != NULL; u = u->next) {
+        right[seg_index] = u->right;
+        seg_index++;
+    }
+    ret = (PyObject *) right_array;
+out:
+    return ret;
+}
+
+static PyObject *
+IbdSegmentList_get_node(IbdSegmentList *self, void *closure)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *node_array = NULL;
+    int32_t *node;
+    tsk_size_t seg_index;
+    tsk_segment_t *u;
+    npy_intp num_segments;
+
+    if (IbdSegmentList_check_state(self) != 0) {
+        goto out;
+    }
+
+    num_segments = (npy_intp) self->segment_list->num_segments;
+    node_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_INT32);
+    if (node_array == NULL) {
+        goto out;
+    }
+    node = (int32_t *) PyArray_DATA(node_array);
+    seg_index = 0;
+    for (u = self->segment_list->head; u != NULL; u = u->next) {
+        node[seg_index] = u->node;
+        seg_index++;
+    }
+    ret = (PyObject *) node_array;
+out:
+    return ret;
+}
+
+static PyMethodDef IbdSegmentList_methods[] = {
+    { NULL } /* Sentinel */
+};
+
+static PyGetSetDef IbdSegmentList_getsetters[] = {
+    { .name = "num_segments",
+        .get = (getter) IbdSegmentList_get_num_segments,
+        .doc = "The number of segments in this list" },
+    { .name = "total_span",
+        .get = (getter) IbdSegmentList_get_total_span,
+        .doc = "The sequence length spanned by all segments" },
+    { .name = "left",
+        .get = (getter) IbdSegmentList_get_left,
+        .doc = "A numpy array of the left coordinates of each segment." },
+    { .name = "right",
+        .get = (getter) IbdSegmentList_get_right,
+        .doc = "A numpy array of the right coordinates of each segment." },
+    { .name = "node",
+        .get = (getter) IbdSegmentList_get_node,
+        .doc = "A numpy array of the node of each segment." },
+    { NULL } /* Sentinel */
+};
+
+static PyTypeObject IbdSegmentListType = {
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.IbdSegmentList",
+    .tp_basicsize = sizeof(IbdSegmentList),
+    .tp_dealloc = (destructor) IbdSegmentList_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = "A thin Python translation layer over the C tsk_segment_list_t struct",
+    .tp_methods = IbdSegmentList_methods,
+    .tp_getset = IbdSegmentList_getsetters,
+    .tp_init = (initproc) IbdSegmentList_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
+};
+
+/*===================================================================
  * IbdResult
  *===================================================================
  */
@@ -5353,17 +5555,10 @@ static PyObject *
 IbdResult_get(IbdResult *self, PyObject *args)
 {
     PyObject *ret = NULL;
-    PyArrayObject *left_array = NULL;
-    PyArrayObject *right_array = NULL;
-    PyArrayObject *node_array = NULL;
+    IbdSegmentList *py_seglist = NULL;
     int sample_a, sample_b;
-    double *left, *right;
+    tsk_segment_list_t *seglist;
     int err;
-    tsk_id_t *node;
-    tsk_size_t seg_index;
-    tsk_segment_t *u;
-    tsk_segment_list_t *list;
-    npy_intp num_segments;
 
     if (IbdResult_check_state(self) != 0) {
         goto out;
@@ -5371,40 +5566,31 @@ IbdResult_get(IbdResult *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "ii", &sample_a, &sample_b)) {
         goto out;
     }
-
     err = tsk_ibd_result_get(
-        self->ibd_result, (tsk_id_t) sample_a, (tsk_id_t) sample_b, &list);
+        self->ibd_result, (tsk_id_t) sample_a, (tsk_id_t) sample_b, &seglist);
     if (err < 0) {
         handle_library_error(err);
         goto out;
     }
-    if (list == NULL) {
+    if (seglist == NULL) {
         PyErr_SetString(PyExc_KeyError, "Sample pair not found");
         goto out;
     }
-    num_segments = list->num_segments;
-    left_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_FLOAT64);
-    right_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_FLOAT64);
-    node_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_INT32);
-    if (left_array == NULL || right_array == NULL || node_array == NULL) {
+    py_seglist
+        = (IbdSegmentList *) PyObject_CallObject((PyObject *) &IbdSegmentListType, NULL);
+    if (py_seglist == NULL) {
         goto out;
     }
-    left = (double *) PyArray_DATA(left_array);
-    right = (double *) PyArray_DATA(right_array);
-    node = (tsk_id_t *) PyArray_DATA(node_array);
-    seg_index = 0;
-    for (u = list->head; u != NULL; u = u->next) {
-        left[seg_index] = u->left;
-        right[seg_index] = u->right;
-        node[seg_index] = u->node;
-        seg_index++;
-    }
-    ret = Py_BuildValue(
-        "{s:O,s:O,s:O}", "left", left_array, "right", right_array, "node", node_array);
+    py_seglist->segment_list = seglist;
+    py_seglist->ibd_result = self;
+    /* The segment list uses a reference to this IbdResult to ensure its
+     * memory is valid, so increment our refcount here */
+    Py_INCREF(self);
+
+    ret = (PyObject *) py_seglist;
+    py_seglist = NULL;
 out:
-    Py_XDECREF(left_array);
-    Py_XDECREF(right_array);
-    Py_XDECREF(node_array);
+    Py_XDECREF(py_seglist);
     return ret;
 }
 
@@ -11324,6 +11510,13 @@ PyInit__tskit(void)
     }
     Py_INCREF(&IbdResultType);
     PyModule_AddObject(module, "IbdResult", (PyObject *) &IbdResultType);
+
+    /* IbdSegmentList type */
+    if (PyType_Ready(&IbdSegmentListType) < 0) {
+        return NULL;
+    }
+    Py_INCREF(&IbdSegmentListType);
+    PyModule_AddObject(module, "IbdSegmentList", (PyObject *) &IbdSegmentListType);
 
     /* Metadata schemas namedtuple type*/
     if (PyStructSequence_InitType2(&MetadataSchemas, &metadata_schemas_desc) < 0) {
