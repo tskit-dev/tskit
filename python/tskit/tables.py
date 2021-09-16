@@ -2469,18 +2469,26 @@ class IbdResult(collections.abc.Mapping):
         self.min_length = min_length
 
     @property
-    def total_segments(self):
-        return self._ll_result.total_segments
+    def num_segments(self):
+        return self._ll_result.num_segments
+
+    @property
+    def total_span(self):
+        return self._ll_result.total_span
 
     @property
     def pairs(self):
         return self._ll_result.get_keys()
 
+    def __repr__(self):
+        return f"IbdResult({dict(self)})"
+
     def __str__(self):
         s = "IBD Result:\n"
         s += f"max_time       = {self.max_time}\n"
         s += f"min_length     = {self.min_length}\n"
-        s += f"total segments = {self.total_segments}\n"
+        s += f"num_segments   = {self.num_segments}\n"
+        s += f"total_span     = {self.total_span}\n"
         s += f"num node pairs = {len(self)}\n"
         # TODO
         # See #1680 for more info

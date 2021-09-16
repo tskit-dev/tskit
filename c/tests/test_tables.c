@@ -5291,6 +5291,7 @@ verify_ibd_result(tsk_ibd_result_t *result)
     tsk_id_t a, b;
     int64_t index;
     tsk_size_t total_segments = 0;
+    double total_span = 0;
     tsk_size_t num_pairs = tsk_ibd_result_get_num_pairs(result);
     tsk_id_t *pairs
         = tsk_malloc(2 * tsk_ibd_result_get_num_pairs(result) * sizeof(*pairs));
@@ -5330,8 +5331,10 @@ verify_ibd_result(tsk_ibd_result_t *result)
         CU_ASSERT_EQUAL_FATAL(pairs[2 * j + 1], pairs2[2 * j + 1]);
         verify_ibd_segment_list(lists[j], result->num_nodes);
         total_segments += lists[j]->num_segments;
+        total_span += lists[j]->total_span;
     }
-    CU_ASSERT_EQUAL_FATAL(result->total_segments, total_segments);
+    CU_ASSERT_EQUAL_FATAL(result->num_segments, total_segments);
+    CU_ASSERT_DOUBLE_EQUAL(result->total_span, total_span, 1e-6);
 
     free(pairs);
     free(pairs2);
@@ -5399,7 +5402,8 @@ test_ibd_finder_single_tree(void)
     CU_ASSERT_EQUAL_FATAL(list, NULL);
 
     tsk_ibd_result_print_state(&result, _devnull);
-    CU_ASSERT_EQUAL_FATAL(tsk_ibd_result_get_total_segments(&result), 1);
+    CU_ASSERT_EQUAL_FATAL(tsk_ibd_result_get_num_segments(&result), 1);
+    CU_ASSERT_EQUAL_FATAL(tsk_ibd_result_get_total_span(&result), 1);
     verify_ibd_result(&result);
     tsk_ibd_result_free(&result);
 
@@ -5408,7 +5412,8 @@ test_ibd_finder_single_tree(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* We have 4 samples, so 4 choose 2 sample pairs */
-    CU_ASSERT_EQUAL_FATAL(tsk_ibd_result_get_total_segments(&result), 6);
+    CU_ASSERT_EQUAL_FATAL(tsk_ibd_result_get_num_segments(&result), 6);
+    CU_ASSERT_EQUAL_FATAL(tsk_ibd_result_get_total_span(&result), 6);
 
     ret = tsk_ibd_result_get(&result, 0, 1, &list);
     CU_ASSERT_EQUAL_FATAL(ret, 0);

@@ -7276,9 +7276,15 @@ tsk_ibd_result_print_state(tsk_ibd_result_t *self, FILE *out)
 }
 
 tsk_size_t
-tsk_ibd_result_get_total_segments(const tsk_ibd_result_t *self)
+tsk_ibd_result_get_num_segments(const tsk_ibd_result_t *self)
 {
-    return self->total_segments;
+    return self->num_segments;
+}
+
+double
+tsk_ibd_result_get_total_span(const tsk_ibd_result_t *self)
+{
+    return self->total_span;
 }
 
 tsk_size_t
@@ -7354,6 +7360,7 @@ tsk_ibd_result_add_segment(tsk_ibd_result_t *self, tsk_id_t a, tsk_id_t b, doubl
 {
     int ret = 0;
     tsk_segment_list_t *list;
+    double span;
     /* skip the error checking here since this an internal API */
     int64_t key = pair_to_integer(a, b, self->num_nodes);
     tsk_segment_t *x = tsk_ibd_result_alloc_segment(self, left, right, node);
@@ -7381,8 +7388,10 @@ tsk_ibd_result_add_segment(tsk_ibd_result_t *self, tsk_id_t a, tsk_id_t b, doubl
         list->tail = x;
     }
     list->num_segments++;
-    list->total_span += right - left;
-    self->total_segments++;
+    span = right - left;
+    list->total_span += span;
+    self->total_span += span;
+    self->num_segments++;
 out:
     return ret;
 }

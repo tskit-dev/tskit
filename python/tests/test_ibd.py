@@ -794,11 +794,29 @@ class TestIbdResult:
             assert total_span == segment_list.total_span
             assert num_segments == len(segment_list)
 
+        total_span = sum(lst.total_span for lst in ibd_segments.values())
+        np.testing.assert_allclose(ibd_segments.total_span, total_span)
+        num_segments = sum(len(lst) for lst in ibd_segments.values())
+        assert num_segments == ibd_segments.num_segments
+
     def test_str(self):
         ts = msprime.sim_ancestry(2, random_seed=2)
         result = ts.find_ibd()
         s = str(result)
         assert s.startswith("IBD Result")
+
+        for lst in result.values():
+            s = str(lst)
+            assert s.startswith("IbdSegmentList(num_segments=")
+
+    def test_repr(self):
+        ts = msprime.sim_ancestry(2, random_seed=2)
+        result = ts.find_ibd()
+        s = repr(result)
+        assert s.startswith("IbdResult({")
+        for lst in result.values():
+            s = repr(lst)
+            assert s.startswith("IbdSegmentList([")
 
     @pytest.mark.parametrize("n", [1, 2, 3])
     def test_pairs_all_samples(self, n):

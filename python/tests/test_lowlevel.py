@@ -393,7 +393,9 @@ class TestIbd:
         with pytest.raises(SystemError):
             result.print_state()
         with pytest.raises(SystemError):
-            result.total_segments
+            result.num_segments
+        with pytest.raises(SystemError):
+            result.total_span
         with pytest.raises(SystemError):
             result.get_keys()
 
@@ -485,7 +487,8 @@ class TestIbd:
     def test_direct_instantiation(self):
         # Nobody should do this, but just in case
         result = _tskit.IbdResult()
-        assert result.total_segments == 0
+        assert result.num_segments == 0
+        assert result.total_span == 0
         with tempfile.TemporaryFile("w+") as f:
             result.print_state(f)
             f.seek(0)
@@ -502,6 +505,20 @@ class TestIbdSegmentList:
         for attr in attrs:
             with pytest.raises(SystemError, match="not initialised"):
                 getattr(seglist, attr)
+
+    def test_memory_management(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.tables._ll_tables
+        result = tc.find_ibd()
+        del ts, tc
+        lst = result.get(0, 1)
+        assert lst.num_segments == 1
+        del result
+        assert lst.num_segments == 1
+        # Do some allocs to see if we're still working properly
+        x = sum(list(range(1000)))
+        assert x > 0
+        assert lst.num_segments == 1
 
 
 class TestTableMethods:

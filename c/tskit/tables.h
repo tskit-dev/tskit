@@ -635,7 +635,8 @@ typedef struct {
 typedef struct {
     tsk_size_t num_nodes;
     tsk_avl_tree_int_t pair_map;
-    tsk_size_t total_segments;
+    tsk_size_t num_segments;
+    double total_span;
     tsk_blkalloc_t heap;
 } tsk_ibd_result_t;
 
@@ -3818,7 +3819,8 @@ int tsk_squash_edges(
 
 /* IBD finder API. This is experimental and the interface may change. */
 
-tsk_size_t tsk_ibd_result_get_total_segments(const tsk_ibd_result_t *self);
+tsk_size_t tsk_ibd_result_get_num_segments(const tsk_ibd_result_t *self);
+double tsk_ibd_result_get_total_span(const tsk_ibd_result_t *self);
 tsk_size_t tsk_ibd_result_get_num_pairs(const tsk_ibd_result_t *self);
 int tsk_ibd_result_get_keys(const tsk_ibd_result_t *result, tsk_id_t *pairs);
 int tsk_ibd_result_get_items(

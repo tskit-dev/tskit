@@ -5651,7 +5651,7 @@ out:
 }
 
 static PyObject *
-IbdResult_get_total_segments(IbdResult *self, void *closure)
+IbdResult_get_num_segments(IbdResult *self, void *closure)
 {
     PyObject *ret = NULL;
 
@@ -5659,7 +5659,20 @@ IbdResult_get_total_segments(IbdResult *self, void *closure)
         goto out;
     }
     ret = Py_BuildValue(
-        "K", (unsigned long long) tsk_ibd_result_get_total_segments(self->ibd_result));
+        "K", (unsigned long long) tsk_ibd_result_get_num_segments(self->ibd_result));
+out:
+    return ret;
+}
+
+static PyObject *
+IbdResult_get_total_span(IbdResult *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (IbdResult_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue("d", tsk_ibd_result_get_total_span(self->ibd_result));
 out:
     return ret;
 }
@@ -5695,9 +5708,12 @@ static PyMethodDef IbdResult_methods[] = {
 };
 
 static PyGetSetDef IbdResult_getsetters[] = {
-    { .name = "total_segments",
-        .get = (getter) IbdResult_get_total_segments,
+    { .name = "num_segments",
+        .get = (getter) IbdResult_get_num_segments,
         .doc = "The total number of segments in this IBD Result" },
+    { .name = "total_span",
+        .get = (getter) IbdResult_get_total_span,
+        .doc = "The sum of (right - left) across all segments" },
     { .name = "num_pairs",
         .get = (getter) IbdResult_get_num_pairs,
         .doc = "The number of node pairs stored in the result" },
