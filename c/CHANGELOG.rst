@@ -6,6 +6,12 @@
 
 **Features**
 
+- The default behaviour for table size growth is now to double the current size of the table.
+  To keep the current behaviour, use (e.g.)
+  ``tsk_edge_table_set_max_rows_increment(tables->edges, 1024)``, which results in adding
+  space for 1024 additional rows each time we run out of space in the edge table.
+  (:user:`benjeffery`, :issue:`5`, :pr:`1683`)
+
 **Fixes**
 
 ----------------------

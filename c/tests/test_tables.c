@@ -4304,38 +4304,35 @@ test_table_size_increments(void)
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    CU_ASSERT_EQUAL_FATAL(tables.individuals.max_rows_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.max_rows_increment, 0);
     CU_ASSERT_EQUAL_FATAL(
         tables.individuals.max_metadata_length_increment, default_size);
     CU_ASSERT_EQUAL_FATAL(
         tables.individuals.max_location_length_increment, default_size);
-    CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows_increment, 0);
     CU_ASSERT_EQUAL_FATAL(tables.nodes.max_metadata_length_increment, default_size);
-    CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows_increment, 0);
     CU_ASSERT_EQUAL_FATAL(tables.edges.max_metadata_length_increment, default_size);
-    CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows_increment, 0);
     CU_ASSERT_EQUAL_FATAL(tables.sites.max_metadata_length_increment, default_size);
     CU_ASSERT_EQUAL_FATAL(
         tables.sites.max_ancestral_state_length_increment, default_size);
-    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_rows_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_rows_increment, 0);
     CU_ASSERT_EQUAL_FATAL(tables.mutations.max_metadata_length_increment, default_size);
     CU_ASSERT_EQUAL_FATAL(
         tables.mutations.max_derived_state_length_increment, default_size);
-    CU_ASSERT_EQUAL_FATAL(tables.migrations.max_rows_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.migrations.max_rows_increment, 0);
     CU_ASSERT_EQUAL_FATAL(tables.migrations.max_metadata_length_increment, default_size);
-    CU_ASSERT_EQUAL_FATAL(tables.populations.max_rows_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.populations.max_rows_increment, 0);
     CU_ASSERT_EQUAL_FATAL(
         tables.populations.max_metadata_length_increment, default_size);
-    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_rows_increment, default_size);
+    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_rows_increment, 0);
     CU_ASSERT_EQUAL_FATAL(
         tables.provenances.max_timestamp_length_increment, default_size);
     CU_ASSERT_EQUAL_FATAL(tables.provenances.max_record_length_increment, default_size);
 
     /* Setting to zero sets to the default size */
     new_size = 0;
-    ret = tsk_individual_table_set_max_rows_increment(&tables.individuals, new_size);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_EQUAL_FATAL(tables.individuals.max_rows_increment, default_size);
     ret = tsk_individual_table_set_max_metadata_length_increment(
         &tables.individuals, new_size);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -4351,23 +4348,14 @@ test_table_size_increments(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(tables.individuals.max_parents_length_increment, default_size);
 
-    ret = tsk_node_table_set_max_rows_increment(&tables.nodes, new_size);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows_increment, default_size);
     ret = tsk_node_table_set_max_metadata_length_increment(&tables.nodes, new_size);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(tables.nodes.max_metadata_length_increment, default_size);
 
-    ret = tsk_edge_table_set_max_rows_increment(&tables.edges, new_size);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows_increment, default_size);
     ret = tsk_edge_table_set_max_metadata_length_increment(&tables.edges, new_size);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(tables.edges.max_metadata_length_increment, default_size);
 
-    ret = tsk_site_table_set_max_rows_increment(&tables.sites, new_size);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows_increment, default_size);
     ret = tsk_site_table_set_max_metadata_length_increment(&tables.sites, new_size);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(tables.sites.max_metadata_length_increment, default_size);
@@ -4377,9 +4365,6 @@ test_table_size_increments(void)
     CU_ASSERT_EQUAL_FATAL(
         tables.sites.max_ancestral_state_length_increment, default_size);
 
-    ret = tsk_mutation_table_set_max_rows_increment(&tables.mutations, new_size);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_rows_increment, default_size);
     ret = tsk_mutation_table_set_max_metadata_length_increment(
         &tables.mutations, new_size);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -4390,25 +4375,16 @@ test_table_size_increments(void)
     CU_ASSERT_EQUAL_FATAL(
         tables.mutations.max_derived_state_length_increment, default_size);
 
-    ret = tsk_migration_table_set_max_rows_increment(&tables.migrations, new_size);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_EQUAL_FATAL(tables.migrations.max_rows_increment, default_size);
     ret = tsk_migration_table_set_max_metadata_length_increment(
         &tables.migrations, new_size);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(tables.migrations.max_metadata_length_increment, default_size);
 
-    ret = tsk_population_table_set_max_rows_increment(&tables.populations, new_size);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_EQUAL_FATAL(tables.populations.max_rows_increment, default_size);
     ret = tsk_population_table_set_max_metadata_length_increment(
         &tables.populations, new_size);
     CU_ASSERT_EQUAL_FATAL(
         tables.populations.max_metadata_length_increment, default_size);
 
-    ret = tsk_provenance_table_set_max_rows_increment(&tables.provenances, new_size);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_rows_increment, default_size);
     ret = tsk_provenance_table_set_max_timestamp_length_increment(
         &tables.provenances, new_size);
     CU_ASSERT_EQUAL_FATAL(
@@ -4417,7 +4393,7 @@ test_table_size_increments(void)
         &tables.provenances, new_size);
     CU_ASSERT_EQUAL_FATAL(tables.provenances.max_record_length_increment, default_size);
 
-    /* Setting to non-zero sets to thatsize */
+    /* Setting to non-zero sets to that size */
     new_size = 1;
     ret = tsk_individual_table_set_max_rows_increment(&tables.individuals, new_size);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -4494,6 +4470,523 @@ test_table_size_increments(void)
     CU_ASSERT_EQUAL_FATAL(tables.provenances.max_record_length_increment, new_size);
 
     tsk_table_collection_free(&tables);
+}
+
+static void
+test_table_expansion(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_table_collection_t tables;
+    tsk_table_collection_t tables2;
+
+    ret = tsk_table_collection_init(&tables2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Individual table */
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.max_rows, 1);
+
+    ret_id = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    /*Extending by a small amount results in 1024 rows in the first case*/
+    ret = tsk_individual_table_extend(
+        &tables.individuals, &tables2.individuals, 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.max_rows, 1024);
+
+    /*Extending by an amount that fits doesn't grow the table*/
+    ret = tsk_individual_table_extend(
+        &tables.individuals, &tables2.individuals, 1023, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.max_rows, 1024);
+
+    /*Extending by an amount that doesn't fit doubles the table*/
+    ret = tsk_individual_table_extend(
+        &tables.individuals, &tables2.individuals, 1024, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.max_rows, 2048);
+
+    /*Extending by an amount greater than the next double extends to that amount*/
+    ret = tsk_individual_table_extend(
+        &tables.individuals, &tables2.individuals, 4096, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.max_rows, 4097);
+
+    /*After extending beyond 2^21 subsequent extension doesn't double but adds 2^21*/
+    ret = tsk_individual_table_extend(
+        &tables.individuals, &tables2.individuals, 2097152, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.max_rows, 2097153);
+    ret = tsk_individual_table_extend(
+        &tables.individuals, &tables2.individuals, 2097154, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.max_rows, 4194305);
+
+    /*Extending by more rows than possible results in overflow*/
+    ret = tsk_individual_table_extend(
+        &tables.individuals, &tables2.individuals, TSK_MAX_ID + 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.max_rows, 4194305);
+
+    /*Setting a custom extension uses that*/
+    ret = tsk_individual_table_set_max_rows_increment(&tables.individuals, 42);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_individual_table_extend(
+        &tables.individuals, &tables2.individuals, 4194305, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.max_rows, 4194305 + 42);
+
+    /*Setting a custom extension that overflows errors*/
+    ret = tsk_individual_table_set_max_rows_increment(&tables.individuals, TSK_MAX_ID);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_individual_table_extend(
+        &tables.individuals, &tables2.individuals, 4194305 + 42 + 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+    CU_ASSERT_EQUAL_FATAL(tables.individuals.max_rows, 4194305 + 42);
+
+    tsk_table_collection_free(&tables);
+
+    /* Node table */
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows, 1);
+
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 0, 0, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    /*Extending by a small amount results in 1024 rows in the first case*/
+    ret = tsk_node_table_extend(&tables.nodes, &tables2.nodes, 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows, 1024);
+
+    /*Extending by an amount that fits doesn't grow the table*/
+    ret = tsk_node_table_extend(&tables.nodes, &tables2.nodes, 1023, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows, 1024);
+
+    /*Extending by an amount that doesn't fit doubles the table*/
+    ret = tsk_node_table_extend(&tables.nodes, &tables2.nodes, 1024, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows, 2048);
+
+    /*Extending by an amount greater than the next double extends to that amount*/
+    ret = tsk_node_table_extend(&tables.nodes, &tables2.nodes, 4096, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows, 4097);
+
+    /*After extending beyond 2^21 subsequent extension doesn't double but adds 2^21*/
+    ret = tsk_node_table_extend(&tables.nodes, &tables2.nodes, 2097152, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows, 2097153);
+    ret = tsk_node_table_extend(&tables.nodes, &tables2.nodes, 2097154, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows, 4194305);
+
+    /*Extending by more rows than possible results in overflow*/
+    ret = tsk_node_table_extend(&tables.nodes, &tables2.nodes, TSK_MAX_ID + 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows, 4194305);
+
+    /*Setting a custom extension uses that*/
+    ret = tsk_node_table_set_max_rows_increment(&tables.nodes, 42);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_node_table_extend(&tables.nodes, &tables2.nodes, 4194305, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows, 4194305 + 42);
+
+    /*Setting a custom extension that overflows errors*/
+    ret = tsk_node_table_set_max_rows_increment(&tables.nodes, TSK_MAX_ID);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_node_table_extend(
+        &tables.nodes, &tables2.nodes, 4194305 + 42 + 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows, 4194305 + 42);
+
+    tsk_table_collection_free(&tables);
+
+    /* Edge table */
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows, 1);
+
+    ret_id = tsk_edge_table_add_row(&tables.edges, 0, 0, 0, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    /*Extending by a small amount results in 1024 rows in the first case*/
+    ret = tsk_edge_table_extend(&tables.edges, &tables2.edges, 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows, 1024);
+
+    /*Extending by an amount that fits doesn't grow the table*/
+    ret = tsk_edge_table_extend(&tables.edges, &tables2.edges, 1023, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows, 1024);
+
+    /*Extending by an amount that doesn't fit doubles the table*/
+    ret = tsk_edge_table_extend(&tables.edges, &tables2.edges, 1024, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows, 2048);
+
+    /*Extending by an amount greater than the next double extends to that amount*/
+    ret = tsk_edge_table_extend(&tables.edges, &tables2.edges, 4096, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows, 4097);
+
+    /*After extending beyond 2^21 subsequent extension doesn't double but adds 2^21*/
+    ret = tsk_edge_table_extend(&tables.edges, &tables2.edges, 2097152, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows, 2097153);
+    ret = tsk_edge_table_extend(&tables.edges, &tables2.edges, 2097154, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows, 4194305);
+
+    /*Extending by more rows than possible results in overflow*/
+    ret = tsk_edge_table_extend(&tables.edges, &tables2.edges, TSK_MAX_ID + 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows, 4194305);
+
+    /*Setting a custom extension uses that*/
+    ret = tsk_edge_table_set_max_rows_increment(&tables.edges, 42);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_edge_table_extend(&tables.edges, &tables2.edges, 4194305, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows, 4194305 + 42);
+
+    /*Setting a custom extension that overflows errors*/
+    ret = tsk_edge_table_set_max_rows_increment(&tables.edges, TSK_MAX_ID);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_extend(
+        &tables.edges, &tables2.edges, 4194305 + 42 + 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows, 4194305 + 42);
+
+    tsk_table_collection_free(&tables);
+
+    /* Migration table */
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL_FATAL(tables.migrations.max_rows, 1);
+
+    ret_id = tsk_migration_table_add_row(&tables.migrations, 0, 0, 0, 0, 0, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    /*Extending by a small amount results in 1024 rows in the first case*/
+    ret = tsk_migration_table_extend(
+        &tables.migrations, &tables2.migrations, 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATION_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.migrations.max_rows, 1024);
+
+    /*Extending by an amount that fits doesn't grow the table*/
+    ret = tsk_migration_table_extend(
+        &tables.migrations, &tables2.migrations, 1023, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATION_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.migrations.max_rows, 1024);
+
+    /*Extending by an amount that doesn't fit doubles the table*/
+    ret = tsk_migration_table_extend(
+        &tables.migrations, &tables2.migrations, 1024, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATION_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.migrations.max_rows, 2048);
+
+    /*Extending by an amount greater than the next double extends to that amount*/
+    ret = tsk_migration_table_extend(
+        &tables.migrations, &tables2.migrations, 4096, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATION_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.migrations.max_rows, 4097);
+
+    /*After extending beyond 2^21 subsequent extension doesn't double but adds 2^21*/
+    ret = tsk_migration_table_extend(
+        &tables.migrations, &tables2.migrations, 2097152, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.migrations.max_rows, 2097153);
+    ret = tsk_migration_table_extend(
+        &tables.migrations, &tables2.migrations, 2097154, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.migrations.max_rows, 4194305);
+
+    /*Extending by more rows than possible results in overflow*/
+    ret = tsk_migration_table_extend(
+        &tables.migrations, &tables2.migrations, TSK_MAX_ID + 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+    CU_ASSERT_EQUAL_FATAL(tables.migrations.max_rows, 4194305);
+
+    /*Setting a custom extension uses that*/
+    ret = tsk_migration_table_set_max_rows_increment(&tables.migrations, 42);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_migration_table_extend(
+        &tables.migrations, &tables2.migrations, 4194305, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATION_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.migrations.max_rows, 4194305 + 42);
+
+    /*Setting a custom extension that overflows errors*/
+    ret = tsk_migration_table_set_max_rows_increment(&tables.migrations, TSK_MAX_ID);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_migration_table_extend(
+        &tables.migrations, &tables2.migrations, 4194305 + 42 + 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+    CU_ASSERT_EQUAL_FATAL(tables.migrations.max_rows, 4194305 + 42);
+
+    tsk_table_collection_free(&tables);
+
+    /* Site table */
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows, 1);
+
+    ret_id = tsk_site_table_add_row(&tables.sites, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    /*Extending by a small amount results in 1024 rows in the first case*/
+    ret = tsk_site_table_extend(&tables.sites, &tables2.sites, 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows, 1024);
+
+    /*Extending by an amount that fits doesn't grow the table*/
+    ret = tsk_site_table_extend(&tables.sites, &tables2.sites, 1023, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows, 1024);
+
+    /*Extending by an amount that doesn't fit doubles the table*/
+    ret = tsk_site_table_extend(&tables.sites, &tables2.sites, 1024, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows, 2048);
+
+    /*Extending by an amount greater than the next double extends to that amount*/
+    ret = tsk_site_table_extend(&tables.sites, &tables2.sites, 4096, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows, 4097);
+
+    /*After extending beyond 2^21 subsequent extension doesn't double but adds 2^21*/
+    ret = tsk_site_table_extend(&tables.sites, &tables2.sites, 2097152, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows, 2097153);
+    ret = tsk_site_table_extend(&tables.sites, &tables2.sites, 2097154, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows, 4194305);
+
+    /*Extending by more rows than possible results in overflow*/
+    ret = tsk_site_table_extend(&tables.sites, &tables2.sites, TSK_MAX_ID + 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows, 4194305);
+
+    /*Setting a custom extension uses that*/
+    ret = tsk_site_table_set_max_rows_increment(&tables.sites, 42);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_site_table_extend(&tables.sites, &tables2.sites, 4194305, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows, 4194305 + 42);
+
+    /*Setting a custom extension that overflows errors*/
+    ret = tsk_site_table_set_max_rows_increment(&tables.sites, TSK_MAX_ID);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_site_table_extend(
+        &tables.sites, &tables2.sites, 4194305 + 42 + 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows, 4194305 + 42);
+
+    tsk_table_collection_free(&tables);
+
+    /* Mutation table */
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_rows, 1);
+
+    ret_id = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 0, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    /*Extending by a small amount results in 1024 rows in the first case*/
+    ret = tsk_mutation_table_extend(&tables.mutations, &tables2.mutations, 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_rows, 1024);
+
+    /*Extending by an amount that fits doesn't grow the table*/
+    ret = tsk_mutation_table_extend(
+        &tables.mutations, &tables2.mutations, 1023, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_rows, 1024);
+
+    /*Extending by an amount that doesn't fit doubles the table*/
+    ret = tsk_mutation_table_extend(
+        &tables.mutations, &tables2.mutations, 1024, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_rows, 2048);
+
+    /*Extending by an amount greater than the next double extends to that amount*/
+    ret = tsk_mutation_table_extend(
+        &tables.mutations, &tables2.mutations, 4096, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_rows, 4097);
+
+    /*After extending beyond 2^21 subsequent extension doesn't double but adds 2^21*/
+    ret = tsk_mutation_table_extend(
+        &tables.mutations, &tables2.mutations, 2097152, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_rows, 2097153);
+    ret = tsk_mutation_table_extend(
+        &tables.mutations, &tables2.mutations, 2097154, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_rows, 4194305);
+
+    /*Extending by more rows than possible results in overflow*/
+    ret = tsk_mutation_table_extend(
+        &tables.mutations, &tables2.mutations, TSK_MAX_ID + 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_rows, 4194305);
+
+    /*Setting a custom extension uses that*/
+    ret = tsk_mutation_table_set_max_rows_increment(&tables.mutations, 42);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_mutation_table_extend(
+        &tables.mutations, &tables2.mutations, 4194305, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_rows, 4194305 + 42);
+
+    /*Setting a custom extension that overflows errors*/
+    ret = tsk_mutation_table_set_max_rows_increment(&tables.mutations, TSK_MAX_ID);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_mutation_table_extend(
+        &tables.mutations, &tables2.mutations, 4194305 + 42 + 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.max_rows, 4194305 + 42);
+
+    tsk_table_collection_free(&tables);
+
+    /* Population table */
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL_FATAL(tables.populations.max_rows, 1);
+
+    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    /*Extending by a small amount results in 1024 rows in the first case*/
+    ret = tsk_population_table_extend(
+        &tables.populations, &tables2.populations, 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.populations.max_rows, 1024);
+
+    /*Extending by an amount that fits doesn't grow the table*/
+    ret = tsk_population_table_extend(
+        &tables.populations, &tables2.populations, 1023, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.populations.max_rows, 1024);
+
+    /*Extending by an amount that doesn't fit doubles the table*/
+    ret = tsk_population_table_extend(
+        &tables.populations, &tables2.populations, 1024, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.populations.max_rows, 2048);
+
+    /*Extending by an amount greater than the next double extends to that amount*/
+    ret = tsk_population_table_extend(
+        &tables.populations, &tables2.populations, 4096, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.populations.max_rows, 4097);
+
+    /*After extending beyond 2^21 subsequent extension doesn't double but adds 2^21*/
+    ret = tsk_population_table_extend(
+        &tables.populations, &tables2.populations, 2097152, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.populations.max_rows, 2097153);
+    ret = tsk_population_table_extend(
+        &tables.populations, &tables2.populations, 2097154, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.populations.max_rows, 4194305);
+
+    /*Extending by more rows than possible results in overflow*/
+    ret = tsk_population_table_extend(
+        &tables.populations, &tables2.populations, TSK_MAX_ID + 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+    CU_ASSERT_EQUAL_FATAL(tables.populations.max_rows, 4194305);
+
+    /*Setting a custom extension uses that*/
+    ret = tsk_population_table_set_max_rows_increment(&tables.populations, 42);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_population_table_extend(
+        &tables.populations, &tables2.populations, 4194305, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.populations.max_rows, 4194305 + 42);
+
+    /*Setting a custom extension that overflows errors*/
+    ret = tsk_population_table_set_max_rows_increment(&tables.populations, TSK_MAX_ID);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_population_table_extend(
+        &tables.populations, &tables2.populations, 4194305 + 42 + 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+    CU_ASSERT_EQUAL_FATAL(tables.populations.max_rows, 4194305 + 42);
+
+    tsk_table_collection_free(&tables);
+
+    /* Provenance table */
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_rows, 1);
+
+    ret_id = tsk_provenance_table_add_row(&tables.provenances, NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    /*Extending by a small amount results in 1024 rows in the first case*/
+    ret = tsk_provenance_table_extend(
+        &tables.provenances, &tables2.provenances, 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_PROVENANCE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_rows, 1024);
+
+    /*Extending by an amount that fits doesn't grow the table*/
+    ret = tsk_provenance_table_extend(
+        &tables.provenances, &tables2.provenances, 1023, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_PROVENANCE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_rows, 1024);
+
+    /*Extending by an amount that doesn't fit doubles the table*/
+    ret = tsk_provenance_table_extend(
+        &tables.provenances, &tables2.provenances, 1024, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_PROVENANCE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_rows, 2048);
+
+    /*Extending by an amount greater than the next double extends to that amount*/
+    ret = tsk_provenance_table_extend(
+        &tables.provenances, &tables2.provenances, 4096, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_PROVENANCE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_rows, 4097);
+
+    /*After extending beyond 2^21 subsequent extension doesn't double but adds 2^21*/
+    ret = tsk_provenance_table_extend(
+        &tables.provenances, &tables2.provenances, 2097152, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_rows, 2097153);
+    ret = tsk_provenance_table_extend(
+        &tables.provenances, &tables2.provenances, 2097154, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_rows, 4194305);
+
+    /*Extending by more rows than possible results in overflow*/
+    ret = tsk_provenance_table_extend(
+        &tables.provenances, &tables2.provenances, TSK_MAX_ID + 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_rows, 4194305);
+
+    /*Setting a custom extension uses that*/
+    ret = tsk_provenance_table_set_max_rows_increment(&tables.provenances, 42);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_provenance_table_extend(
+        &tables.provenances, &tables2.provenances, 4194305, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_PROVENANCE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_rows, 4194305 + 42);
+
+    /*Setting a custom extension that overflows errors*/
+    ret = tsk_provenance_table_set_max_rows_increment(&tables.provenances, TSK_MAX_ID);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_provenance_table_extend(
+        &tables.provenances, &tables2.provenances, 4194305 + 42 + 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
+    CU_ASSERT_EQUAL_FATAL(tables.provenances.max_rows, 4194305 + 42);
+
+    tsk_table_collection_free(&tables);
+    tsk_table_collection_free(&tables2);
 }
 
 static void
@@ -7909,6 +8402,7 @@ main(int argc, char **argv)
         { "test_provenance_table", test_provenance_table },
         { "test_provenance_table_update_row", test_provenance_table_update_row },
         { "test_table_size_increments", test_table_size_increments },
+        { "test_table_expansion", test_table_expansion },
         { "test_table_collection_equals_options", test_table_collection_equals_options },
         { "test_table_collection_simplify_errors",
             test_table_collection_simplify_errors },
