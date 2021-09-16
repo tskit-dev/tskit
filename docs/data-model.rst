@@ -692,12 +692,12 @@ The :meth:`TableCollection.sort` method ensures that mutations are sorted
 according site ID, but does not at present enforce that mutations occur
 after their parent mutations.
 
-Mutations also have the requirement that they must result in a
-change of state. For example, if we have a site with ancestral state
+Silent mutations (i.e., mutations for which the ancestral and derived
+states are the same) are allowed.
+For example, if we have a site with ancestral state
 of "A" and a single mutation with derived state "A", then this
-mutation does not result in any change of state. This error is
-raised at run-time when we reconstruct sample genotypes, for example
-in the :meth:`TreeSequence.variants` iterator.
+mutation does not result in any change of state.
+(This addition was made in release C_0.99.11.)
 
 .. note:: As ``tskit.UNKNOWN_TIME`` is implemented as a ``NaN`` value, tests for
     equality will always fail. Use ``tskit.is_unknown_time`` to detect unknown
