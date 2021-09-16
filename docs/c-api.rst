@@ -413,6 +413,9 @@ Miscellaneous functions
 
 .. doxygenfunction:: tsk_strerror
 
+.. doxygenfunction:: tsk_is_unknown_time
+
+
 *********
 Constants
 *********

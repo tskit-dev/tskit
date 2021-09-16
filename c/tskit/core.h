@@ -492,6 +492,20 @@ tsk_size_t tsk_search_sorted(const double *array, tsk_size_t size, double value)
 
 double tsk_round(double x, unsigned int ndigits);
 
+/**
+@brief Check if a number is TSK_UNKNOWN_TIME
+
+@rst
+Unknown time values in tskit are represented by a particular NaN value. Since NaN values
+are not equal to each other by definition, a simple comparison like
+``mutation.time == TSK_UNKNOWN_TIME`` will fail even if the mutation's time is
+TSK_UNKNOWN_TIME. This function compares the underlying bit representation of a double
+value and returns true iff it is equal to the specific NaN value TSK_UNKNOWN_TIME.
+@endrst
+
+@param val The number to check
+@return true if the number is TSK_UNKNOWN_TIME else false
+*/
 bool tsk_is_unknown_time(double val);
 
 #define TSK_UUID_SIZE 36
