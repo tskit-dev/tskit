@@ -638,7 +638,7 @@ typedef struct {
     tsk_size_t num_segments;
     double total_span;
     tsk_blkalloc_t heap;
-} tsk_ibd_result_t;
+} tsk_ibd_segments_t;
 
 /****************************************************************************/
 /* Common function options */
@@ -3724,8 +3724,8 @@ tsk_id_t tsk_table_collection_check_integrity(
 
 /* TODO be systematic about where "result" should be in the params
  * list, different here and in link_ancestors. */
-int tsk_table_collection_find_ibd(const tsk_table_collection_t *self,
-    tsk_ibd_result_t *result, const tsk_id_t *samples, tsk_size_t num_samples,
+int tsk_table_collection_ibd_segments(const tsk_table_collection_t *self,
+    tsk_ibd_segments_t *result, const tsk_id_t *samples, tsk_size_t num_samples,
     double min_length, double max_time, tsk_flags_t options);
 
 int tsk_table_collection_link_ancestors(tsk_table_collection_t *self, tsk_id_t *samples,
@@ -3817,18 +3817,18 @@ int tsk_table_sorter_free(struct _tsk_table_sorter_t *self);
 int tsk_squash_edges(
     tsk_edge_t *edges, tsk_size_t num_edges, tsk_size_t *num_output_edges);
 
-/* IBD finder API. This is experimental and the interface may change. */
+/* IBD segments API. This is experimental and the interface may change. */
 
-tsk_size_t tsk_ibd_result_get_num_segments(const tsk_ibd_result_t *self);
-double tsk_ibd_result_get_total_span(const tsk_ibd_result_t *self);
-tsk_size_t tsk_ibd_result_get_num_pairs(const tsk_ibd_result_t *self);
-int tsk_ibd_result_get_keys(const tsk_ibd_result_t *result, tsk_id_t *pairs);
-int tsk_ibd_result_get_items(
-    const tsk_ibd_result_t *self, tsk_id_t *pairs, tsk_segment_list_t **lists);
-void tsk_ibd_result_print_state(tsk_ibd_result_t *self, FILE *out);
-int tsk_ibd_result_free(tsk_ibd_result_t *self);
-int tsk_ibd_result_get(
-    const tsk_ibd_result_t *self, tsk_id_t a, tsk_id_t b, tsk_segment_list_t **ret_list);
+tsk_size_t tsk_ibd_segments_get_num_segments(const tsk_ibd_segments_t *self);
+double tsk_ibd_segments_get_total_span(const tsk_ibd_segments_t *self);
+tsk_size_t tsk_ibd_segments_get_num_pairs(const tsk_ibd_segments_t *self);
+int tsk_ibd_segments_get_keys(const tsk_ibd_segments_t *result, tsk_id_t *pairs);
+int tsk_ibd_segments_get_items(
+    const tsk_ibd_segments_t *self, tsk_id_t *pairs, tsk_segment_list_t **lists);
+void tsk_ibd_segments_print_state(tsk_ibd_segments_t *self, FILE *out);
+int tsk_ibd_segments_free(tsk_ibd_segments_t *self);
+int tsk_ibd_segments_get(const tsk_ibd_segments_t *self, tsk_id_t a, tsk_id_t b,
+    tsk_segment_list_t **ret_list);
 
 #ifdef __cplusplus
 }

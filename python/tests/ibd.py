@@ -164,7 +164,7 @@ class IbdFinder:
         for u, a in enumerate(self.A):
             print(u, "\t", a)
 
-    def find_ibd_segments(self):
+    def run(self):
         """
         The wrapper for the procedure that calculates IBD segments.
         """

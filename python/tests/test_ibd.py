@@ -16,7 +16,7 @@ import tskit
 # Functions for computing IBD 'naively'.
 
 
-def find_ibd(
+def ibd_segments(
     ts,
     *,
     within=None,
@@ -31,11 +31,10 @@ def find_ibd(
     Also compares result with C library.
     """
     ibd_f = ibd.IbdFinder(ts, within=within, max_time=max_time, min_length=min_length)
-    ibd_segs = ibd_f.find_ibd_segments()
+    ibd_segs = ibd_f.run()
     # ibd_f.print_state()
     if compare_lib:
-        c_out = ts.find_ibd(within=within, max_time=max_time, min_length=min_length)
-        # c_out = convert_ibd_output_to_seglists(c_out)
+        c_out = ts.ibd_segments(within=within, max_time=max_time, min_length=min_length)
         if print_c:
             print("C output:\n")
             print(c_out)
@@ -172,7 +171,7 @@ def verify_equal_ibd(ts, within=None, compare_lib=True, print_c=False, print_py=
     Calculates IBD segments using both the 'naive' and sophisticated algorithms,
     verifies that the same output is produced.
     """
-    ibd0 = find_ibd(
+    ibd0 = ibd_segments(
         ts,
         within=within,
         compare_lib=compare_lib,
@@ -240,12 +239,12 @@ class TestIbdSingleBinaryTree:
             (0, 2): [tskit.IbdSegment(0.0, 1.0, 4)],
             (1, 2): [tskit.IbdSegment(0.0, 1.0, 4)],
         }
-        ibd_segs = find_ibd(self.ts, within=[0, 1, 2])
+        ibd_segs = ibd_segments(self.ts, within=[0, 1, 2])
         assert_ibd_equal(ibd_segs, true_segs)
-        assert_ibd_equal(find_ibd(self.ts), true_segs)
+        assert_ibd_equal(ibd_segments(self.ts), true_segs)
 
     def test_time(self):
-        ibd_segs = find_ibd(
+        ibd_segs = ibd_segments(
             self.ts,
             max_time=1.5,
             compare_lib=True,
@@ -255,19 +254,19 @@ class TestIbdSingleBinaryTree:
 
     # Min length = 2
     def test_length(self):
-        ibd_segs = find_ibd(self.ts, min_length=2)
+        ibd_segs = ibd_segments(self.ts, min_length=2)
         assert_ibd_equal(ibd_segs, {})
 
     def test_input_errors(self):
         with pytest.raises(tskit.LibraryError, match="Node out of bounds"):
-            self.ts.find_ibd(within=[-1])
+            self.ts.ibd_segments(within=[-1])
         with pytest.raises(tskit.LibraryError, match="Duplicate sample value"):
-            self.ts.find_ibd(within=[0, 0])
+            self.ts.ibd_segments(within=[0, 0])
 
     # A simple test of the Python wrapper.
     def test_ts(self):
-        ibd_tab = self.ts.tables.find_ibd()
-        ibd_ts = self.ts.find_ibd()
+        ibd_tab = self.ts.tables.ibd_segments()
+        ibd_ts = self.ts.ibd_segments()
         assert len(ibd_tab) == len(ibd_ts)
         for k in ibd_tab.keys():
             assert ibd_tab[k] == ibd_ts[k]
@@ -302,7 +301,7 @@ class TestIbdTwoSamplesTwoTrees:
 
     # Basic test
     def test_basic(self):
-        ibd_segs = find_ibd(self.ts)
+        ibd_segs = ibd_segments(self.ts)
         true_segs = {
             (0, 1): [tskit.IbdSegment(0.0, 0.4, 2), tskit.IbdSegment(0.4, 1.0, 3)]
         }
@@ -310,13 +309,13 @@ class TestIbdTwoSamplesTwoTrees:
 
     # Max time = 1.2
     def test_time(self):
-        ibd_segs = find_ibd(self.ts, max_time=1.2, compare_lib=True)
+        ibd_segs = ibd_segments(self.ts, max_time=1.2, compare_lib=True)
         true_segs = {(0, 1): [tskit.IbdSegment(0.0, 0.4, 2)]}
         assert_ibd_equal(ibd_segs, true_segs)
 
     # Min length = 0.5
     def test_length(self):
-        ibd_segs = find_ibd(self.ts, min_length=0.5, compare_lib=True)
+        ibd_segs = ibd_segments(self.ts, min_length=0.5, compare_lib=True)
         true_segs = {(0, 1): [tskit.IbdSegment(0.4, 1.0, 3)]}
         assert_ibd_equal(ibd_segs, true_segs)
 
@@ -348,15 +347,15 @@ class TestIbdUnrelatedSamples:
     ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def test_basic(self):
-        ibd_segs = find_ibd(self.ts)
+        ibd_segs = ibd_segments(self.ts)
         assert len(ibd_segs) == 0
 
     def test_time(self):
-        ibd_segs = find_ibd(self.ts, max_time=1.2)
+        ibd_segs = ibd_segments(self.ts, max_time=1.2)
         assert len(ibd_segs) == 0
 
     def test_length(self):
-        ibd_segs = find_ibd(self.ts, min_length=0.2)
+        ibd_segs = ibd_segments(self.ts, min_length=0.2)
         assert len(ibd_segs) == 0
 
 
@@ -385,11 +384,11 @@ class TestIbdNoSamples:
     ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def test_defaults(self):
-        result = find_ibd(self.ts)
+        result = ibd_segments(self.ts)
         assert len(result) == 0
 
     def test_specified_samples(self):
-        ibd_segs = find_ibd(self.ts, within=[0, 1])
+        ibd_segs = ibd_segments(self.ts, within=[0, 1])
         true_segs = {
             (0, 1): [
                 tskit.IbdSegment(0.0, 1, 2),
@@ -429,7 +428,7 @@ class TestIbdSamplesAreDescendants:
     ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def test_basic(self):
-        ibd_segs = find_ibd(self.ts)
+        ibd_segs = ibd_segments(self.ts)
         true_segs = {
             (0, 2): [tskit.IbdSegment(0.0, 1.0, 2)],
             (1, 3): [tskit.IbdSegment(0.0, 1.0, 3)],
@@ -438,7 +437,7 @@ class TestIbdSamplesAreDescendants:
         assert_ibd_equal(ibd_segs, true_segs)
 
     def test_input_within(self):
-        ibd_segs = find_ibd(self.ts, within=[0, 2, 3, 5])
+        ibd_segs = ibd_segments(self.ts, within=[0, 2, 3, 5])
         true_segs = {
             (0, 2): [tskit.IbdSegment(0.0, 1.0, 2)],
             (3, 5): [tskit.IbdSegment(0.0, 1.0, 5)],
@@ -483,7 +482,7 @@ class TestIbdDifferentPaths:
     ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def test_defaults(self):
-        ibd_segs = find_ibd(self.ts)
+        ibd_segs = ibd_segments(self.ts)
         true_segs = {
             (0, 1): [
                 tskit.IbdSegment(0.0, 0.2, 4),
@@ -494,11 +493,11 @@ class TestIbdDifferentPaths:
         assert_ibd_equal(ibd_segs, true_segs)
 
     def test_time(self):
-        ibd_segs = find_ibd(self.ts, max_time=1.8)
+        ibd_segs = ibd_segments(self.ts, max_time=1.8)
         assert len(ibd_segs) == 0
 
     def test_length(self):
-        ibd_segs = find_ibd(self.ts, min_length=0.4)
+        ibd_segs = ibd_segments(self.ts, min_length=0.4)
         true_segs = {(0, 1): [tskit.IbdSegment(0.2, 0.7, 4)]}
         assert_ibd_equal(ibd_segs, true_segs)
 
@@ -542,7 +541,7 @@ class TestIbdDifferentPaths2:
     ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def test_defaults(self):
-        ibd_segs = find_ibd(self.ts, within=[1, 2])
+        ibd_segs = ibd_segments(self.ts, within=[1, 2])
         true_segs = {
             (1, 2): [tskit.IbdSegment(0.0, 0.2, 4), tskit.IbdSegment(0.2, 1.0, 4)],
         }
@@ -588,7 +587,7 @@ class TestIbdPolytomies:
     ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def test_defaults(self):
-        ibd_segs = find_ibd(self.ts)
+        ibd_segs = ibd_segments(self.ts)
         true_segs = {
             (0, 1): [tskit.IbdSegment(0, 1, 4)],
             (0, 2): [tskit.IbdSegment(0, 0.3, 4), tskit.IbdSegment(0.3, 1, 5)],
@@ -600,7 +599,7 @@ class TestIbdPolytomies:
         assert_ibd_equal(ibd_segs, true_segs)
 
     def test_time(self):
-        ibd_segs = find_ibd(self.ts, max_time=3)
+        ibd_segs = ibd_segments(self.ts, max_time=3)
         true_segs = {
             (0, 1): [tskit.IbdSegment(0, 1, 4)],
             (0, 2): [tskit.IbdSegment(0, 0.3, 4)],
@@ -611,7 +610,7 @@ class TestIbdPolytomies:
         assert_ibd_equal(ibd_segs, true_segs)
 
     def test_length(self):
-        ibd_segs = find_ibd(self.ts, min_length=0.5)
+        ibd_segs = ibd_segments(self.ts, min_length=0.5)
         true_segs = {
             (0, 1): [tskit.IbdSegment(0, 1, 4)],
             (0, 2): [tskit.IbdSegment(0.3, 1, 5)],
@@ -623,7 +622,7 @@ class TestIbdPolytomies:
         assert_ibd_equal(ibd_segs, true_segs)
 
     def test_input_within(self):
-        ibd_segs = find_ibd(self.ts, within=[0, 1, 2])
+        ibd_segs = ibd_segments(self.ts, within=[0, 1, 2])
         true_segs = {
             (0, 1): [tskit.IbdSegment(0, 1, 4)],
             (0, 2): [tskit.IbdSegment(0, 0.3, 4), tskit.IbdSegment(0.3, 1, 5)],
@@ -660,7 +659,7 @@ class TestIbdInternalSamples:
     ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def test_defaults(self):
-        ibd_segs = find_ibd(self.ts)
+        ibd_segs = ibd_segments(self.ts)
         true_segs = {
             (0, 2): [tskit.IbdSegment(0, 1, 3)],
         }
@@ -698,15 +697,15 @@ class TestIbdLengthThreshold:
     ts = tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def test_length_exceeds_segment(self):
-        ibd_segs = find_ibd(self.ts, min_length=1.1)
+        ibd_segs = ibd_segments(self.ts, min_length=1.1)
         assert_ibd_equal(ibd_segs, {})
 
     def test_length_is_negative(self):
         with pytest.raises(tskit.LibraryError):
-            find_ibd(self.ts, min_length=-0.1)
+            ibd_segments(self.ts, min_length=-0.1)
 
     def test_equal_to_length(self):
-        ibd_segs = find_ibd(self.ts, min_length=0.4)
+        ibd_segs = ibd_segments(self.ts, min_length=0.4)
         true_segs = {(0, 1): [tskit.IbdSegment(0.4, 1.0, 3)]}
         assert_ibd_equal(ibd_segs, true_segs)
 
@@ -801,7 +800,7 @@ class TestIbdResult:
 
     def test_str(self):
         ts = msprime.sim_ancestry(2, random_seed=2)
-        result = ts.find_ibd()
+        result = ts.ibd_segments()
         s = str(result)
         assert s.startswith("IBD Result")
 
@@ -811,7 +810,7 @@ class TestIbdResult:
 
     def test_repr(self):
         ts = msprime.sim_ancestry(2, random_seed=2)
-        result = ts.find_ibd()
+        result = ts.ibd_segments()
         s = repr(result)
         assert s.startswith("IbdResult({")
         for lst in result.values():
@@ -821,7 +820,7 @@ class TestIbdResult:
     @pytest.mark.parametrize("n", [1, 2, 3])
     def test_pairs_all_samples(self, n):
         ts = msprime.sim_ancestry(n, random_seed=2)
-        result = ts.find_ibd()
+        result = ts.ibd_segments()
         pairs = np.array(list(itertools.combinations(ts.samples(), 2)))
         np.testing.assert_array_equal(pairs, result.pairs)
         self.verify_segments(ts, result)
@@ -830,27 +829,27 @@ class TestIbdResult:
     def test_pairs_subset(self, n):
         ts = msprime.sim_ancestry(n, random_seed=2)
         pairs = np.array([(0, 1), (0, 2), (1, 2)])
-        result = ts.find_ibd(within=[0, 1, 2])
+        result = ts.ibd_segments(within=[0, 1, 2])
         np.testing.assert_array_equal(pairs, result.pairs)
         self.verify_segments(ts, result)
 
     @pytest.mark.parametrize("max_time", [0, 1, 10])
     def test_max_time(self, max_time):
         ts = msprime.sim_ancestry(2, random_seed=2)
-        result = ts.find_ibd(max_time=max_time)
+        result = ts.ibd_segments(max_time=max_time)
         assert result.max_time == max_time
         self.verify_segments(ts, result)
 
     def test_max_time_default(self):
         ts = msprime.sim_ancestry(2, random_seed=2)
-        result = ts.find_ibd()
+        result = ts.ibd_segments()
         assert np.isinf(result.max_time)
         self.verify_segments(ts, result)
 
     @pytest.mark.parametrize("min_length", [0, 1, 10])
     def test_min_length(self, min_length):
         ts = msprime.sim_ancestry(2, random_seed=2)
-        result = ts.find_ibd(min_length=min_length)
+        result = ts.ibd_segments(min_length=min_length)
         assert result.min_length == min_length
         self.verify_segments(ts, result)
 
@@ -859,7 +858,7 @@ class TestIbdResult:
             10, sequence_length=100, recombination_rate=0.1, random_seed=2
         )
         assert ts.num_trees > 2
-        result = ts.find_ibd()
+        result = ts.ibd_segments()
         self.verify_segments(ts, result)
 
     def test_recombination_continuous(self):
@@ -871,13 +870,13 @@ class TestIbdResult:
             sequence_length=1,
         )
         assert ts.num_trees > 2
-        result = ts.find_ibd()
+        result = ts.ibd_segments()
         self.verify_segments(ts, result)
 
     def test_dict_interface(self):
         ts = msprime.sim_ancestry(5, random_seed=2)
         pairs = list(itertools.combinations(ts.samples(), 2))
-        result = ts.find_ibd()
+        result = ts.ibd_segments()
         assert len(result) == len(pairs)
         for pair in pairs:
             assert pair in result

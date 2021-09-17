@@ -3629,9 +3629,9 @@ class TableCollection:
                 record=json.dumps(provenance.get_provenance_dict(parameters))
             )
 
-    def find_ibd(self, *, within=None, max_time=None, min_length=None):
+    def ibd_segments(self, *, within=None, max_time=None, min_length=None):
         """
-        Equivalent to the :meth:`TreeSequence.find_ibd` method; please see its
+        Equivalent to the :meth:`TreeSequence.ibd_segments` method; please see its
         documentation for more details, and use this method only if you specifically need
         to work with a :class:`TableCollection` object.
 
@@ -3663,7 +3663,7 @@ class TableCollection:
         min_length = 0 if min_length is None else min_length
         if within is not None:
             within = util.safe_np_int_cast(within, np.int32)
-        ll_result = self._ll_tables.find_ibd(
+        ll_result = self._ll_tables.ibd_segments(
             within=within, max_time=max_time, min_length=min_length
         )
         return IbdResult(ll_result, max_time=max_time, min_length=min_length)
