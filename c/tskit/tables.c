@@ -170,7 +170,8 @@ read_table_ragged_cols(kastore_t *store, tsk_size_t *num_rows,
     read_table_ragged_col_t *cols, tsk_flags_t TSK_UNUSED(flags))
 {
     int ret = 0;
-    size_t data_len, offset_len;
+    size_t data_len = 0; // initial value unused, just to keep the compiler happy.
+    size_t offset_len;
     int type;
     read_table_ragged_col_t *col;
     char offset_col_name[TSK_MAX_COL_NAME_LEN];
