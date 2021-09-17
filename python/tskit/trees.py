@@ -4800,15 +4800,21 @@ class TreeSequence:
         # Deprecated alias for samples()
         return self.samples(population_id)
 
-    def samples(self, population=None, population_id=None):
+    def samples(self, population=None, population_id=None, time=None):
         """
-        Returns an array of the sample node IDs in this tree sequence. If the
-        ``population`` parameter is specified, only return sample IDs from that
-        population.
+        Returns an array of the sample node IDs in this tree sequence. If
+        `population` is specified, only return sample IDs from that population.
+        It is also possible to restrict samples by time using the parameter
+        `time`. If `time` is a numeric value, only return sample IDs whose node
+        time is approximately equal to the specified time. If `time` is a pair
+        of values of the form `(min_time, max_time)`, only return sample IDs
+        whose node time `t` is in this interval such that `min_time <= t < max_time`.
 
-        :param int population: The population of interest. If None,
-            return all samples.
+        :param int population: The population of interest. If None, do not
+            filter samples by population.
         :param int population_id: Deprecated alias for ``population``.
+        :param float,tuple time: The time or time interval of interest. If
+            None, do not filter samples by time.
         :return: A numpy array of the node IDs for the samples of interest,
             listed in numerical order.
         :rtype: numpy.ndarray (dtype=np.int32)
@@ -4820,10 +4826,27 @@ class TreeSequence:
         if population_id is not None:
             population = population_id
         samples = self._ll_tree_sequence.get_samples()
+        keep = np.full(shape=samples.shape, fill_value=True)
         if population is not None:
             sample_population = self.tables.nodes.population[samples]
-            samples = samples[sample_population == population]
-        return samples
+            keep = np.logical_and(keep, sample_population == population)
+        if time is not None:
+            # ndmin is set so that scalars are converted into 1d arrays
+            time = np.array(time, ndmin=1, dtype=float)
+            sample_times = self.tables.nodes.time[samples]
+            if time.shape == (1,):
+                keep = np.logical_and(keep, np.isclose(sample_times, time))
+            elif time.shape == (2,):
+                if time[1] <= time[0]:
+                    raise ValueError("time_interval max is less than or equal to min.")
+                keep = np.logical_and(keep, sample_times >= time[0])
+                keep = np.logical_and(keep, sample_times < time[1])
+            else:
+                raise ValueError(
+                    "time must be either a single value or a pair of values "
+                    "(min_time, max_time)."
+                )
+        return samples[keep]
 
     def write_fasta(self, output, sequence_ids=None, wrap_width=60):
         ""
