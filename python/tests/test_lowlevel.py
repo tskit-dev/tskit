@@ -24,6 +24,7 @@
 Test cases for the low level C interface to tskit.
 """
 import collections
+import gc
 import inspect
 import itertools
 import os
@@ -514,6 +515,7 @@ class TestIbdSegmentList:
         lst = result.get(0, 1)
         assert lst.num_segments == 1
         del result
+        gc.collect()
         assert lst.num_segments == 1
         # Do some allocs to see if we're still working properly
         x = sum(list(range(1000)))

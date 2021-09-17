@@ -618,19 +618,25 @@ typedef struct _tsk_table_sorter_t {
  * TODO: document properly
  * */
 
-typedef struct _tsk_segment_t {
+/* Note for tskit developers: it's perhaps a bit confusing/pointless to
+ * have the tsk_ibd_segment_t struct as well as the internal tsk_segment_t
+ * struct (which is identical). However, we may want to implement either
+ * segment type differently in future, and since the tsk_ibd_segment_t
+ * is part of the public API we want to allow the freedom for the different
+ * structures to evolve over time */
+typedef struct _tsk_ibd_segment_t {
     double left;
     double right;
-    struct _tsk_segment_t *next;
+    struct _tsk_ibd_segment_t *next;
     tsk_id_t node;
-} tsk_segment_t;
+} tsk_ibd_segment_t;
 
 typedef struct {
     tsk_size_t num_segments;
     double total_span;
-    tsk_segment_t *head;
-    tsk_segment_t *tail;
-} tsk_segment_list_t;
+    tsk_ibd_segment_t *head;
+    tsk_ibd_segment_t *tail;
+} tsk_ibd_segment_list_t;
 
 typedef struct {
     tsk_size_t num_nodes;
@@ -3824,11 +3830,11 @@ double tsk_ibd_segments_get_total_span(const tsk_ibd_segments_t *self);
 tsk_size_t tsk_ibd_segments_get_num_pairs(const tsk_ibd_segments_t *self);
 int tsk_ibd_segments_get_keys(const tsk_ibd_segments_t *result, tsk_id_t *pairs);
 int tsk_ibd_segments_get_items(
-    const tsk_ibd_segments_t *self, tsk_id_t *pairs, tsk_segment_list_t **lists);
+    const tsk_ibd_segments_t *self, tsk_id_t *pairs, tsk_ibd_segment_list_t **lists);
 void tsk_ibd_segments_print_state(tsk_ibd_segments_t *self, FILE *out);
 int tsk_ibd_segments_free(tsk_ibd_segments_t *self);
 int tsk_ibd_segments_get(const tsk_ibd_segments_t *self, tsk_id_t a, tsk_id_t b,
-    tsk_segment_list_t **ret_list);
+    tsk_ibd_segment_list_t **ret_list);
 
 #ifdef __cplusplus
 }

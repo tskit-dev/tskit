@@ -5261,9 +5261,9 @@ test_link_ancestors_multiple_to_single_tree(void)
 }
 
 static void
-verify_ibd_segment_list(tsk_segment_list_t *list, tsk_size_t num_nodes)
+verify_ibd_segment_list(tsk_ibd_segment_list_t *list, tsk_size_t num_nodes)
 {
-    tsk_segment_t *seg;
+    tsk_ibd_segment_t *seg;
     double total_span = 0;
     tsk_size_t num_segments = 0;
     /* double last_right = 0; */
@@ -5297,7 +5297,7 @@ verify_ibd_result(tsk_ibd_segments_t *result)
         = tsk_malloc(2 * tsk_ibd_segments_get_num_pairs(result) * sizeof(*pairs));
     tsk_id_t *pairs2
         = tsk_malloc(2 * tsk_ibd_segments_get_num_pairs(result) * sizeof(*pairs));
-    tsk_segment_list_t **lists
+    tsk_ibd_segment_list_t **lists
         = tsk_malloc(tsk_ibd_segments_get_num_pairs(result) * sizeof(*lists));
     tsk_avl_node_int_t **avl_nodes
         = tsk_malloc(result->pair_map.size * sizeof(*avl_nodes));
@@ -5372,8 +5372,8 @@ test_ibd_segments_single_tree(void)
     tsk_table_collection_t tables;
     tsk_id_t samples[] = { 0, 1 };
     tsk_ibd_segments_t result;
-    tsk_segment_list_t *list = NULL;
-    tsk_segment_t *seg = NULL;
+    tsk_ibd_segment_list_t *list = NULL;
+    tsk_ibd_segment_t *seg = NULL;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
         NULL, NULL, NULL, 0);
@@ -5456,8 +5456,8 @@ test_ibd_segments_multiple_trees(void)
     double true_left[2][2] = { { 0.0, 0.75 }, { 0.75, 0.0 } };
     double true_right[2][2] = { { 0.75, 1.0 }, { 1.0, 0.75 } };
     double true_node[2][2] = { { 4, 5 }, { 5, 6 } };
-    tsk_segment_list_t *list;
-    tsk_segment_t *seg;
+    tsk_ibd_segment_list_t *list;
+    tsk_ibd_segment_t *seg;
 
     tsk_treeseq_from_text(&ts, 2, multiple_tree_ex_nodes, multiple_tree_ex_edges, NULL,
         NULL, NULL, NULL, NULL, 0);
@@ -5501,7 +5501,7 @@ test_ibd_segments_empty_result(void)
     tsk_table_collection_t tables;
     tsk_id_t samples[] = { 0, 1 };
     tsk_ibd_segments_t result;
-    tsk_segment_list_t *list;
+    tsk_ibd_segment_list_t *list;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
         NULL, NULL, NULL, 0);
@@ -5527,8 +5527,8 @@ test_ibd_segments_min_length_max_time(void)
     int ret;
     tsk_treeseq_t ts;
     tsk_ibd_segments_t result;
-    tsk_segment_list_t *list;
-    tsk_segment_t *seg;
+    tsk_ibd_segment_list_t *list;
+    tsk_ibd_segment_t *seg;
 
     tsk_treeseq_from_text(&ts, 2, multiple_tree_ex_nodes, multiple_tree_ex_edges, NULL,
         NULL, NULL, NULL, NULL, 0);
@@ -5568,7 +5568,7 @@ test_ibd_segments_errors(void)
     tsk_id_t duplicate_samples[] = { 0, 1, 0 };
     tsk_id_t samples2[] = { -1, 1 };
     tsk_ibd_segments_t result;
-    tsk_segment_list_t *list;
+    tsk_ibd_segment_list_t *list;
 
     tsk_treeseq_from_text(&ts, 2, multiple_tree_ex_nodes, multiple_tree_ex_edges, NULL,
         NULL, NULL, NULL, NULL, 0);
@@ -5635,8 +5635,8 @@ test_ibd_segments_samples_are_descendants(void)
     tsk_size_t num_pairs = 6;
     tsk_id_t true_node[] = { 2, 4, 4, 3, 5, 5 };
     tsk_size_t j;
-    tsk_segment_list_t *list;
-    tsk_segment_t *seg;
+    tsk_ibd_segment_list_t *list;
+    tsk_ibd_segment_t *seg;
 
     tsk_treeseq_from_text(&ts, 1, multi_root_tree_ex_nodes, multi_root_tree_ex_edges,
         NULL, NULL, NULL, NULL, NULL, 0);
@@ -5676,8 +5676,8 @@ test_ibd_segments_multiple_ibd_paths(void)
     double true_left[3][2] = { { 0.2, 0.0 }, { 0.2, 0.0 }, { 0.0, 0.2 } };
     double true_right[3][2] = { { 1.0, 0.2 }, { 1.0, 0.2 }, { 0.2, 1.0 } };
     double true_node[3][2] = { { 4, 5 }, { 3, 5 }, { 4, 4 } };
-    tsk_segment_list_t *list;
-    tsk_segment_t *seg;
+    tsk_ibd_segment_list_t *list;
+    tsk_ibd_segment_t *seg;
 
     tsk_treeseq_from_text(&ts, 2, multi_path_tree_ex_nodes, multi_path_tree_ex_edges,
         NULL, NULL, NULL, NULL, NULL, 0);

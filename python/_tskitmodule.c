@@ -192,7 +192,7 @@ typedef struct {
     /* Keep a reference to the parent object to ensure that the memory
      * behind the segment list is always valid */
     IbdSegments *ibd_segments;
-    tsk_segment_list_t *segment_list;
+    tsk_ibd_segment_list_t *segment_list;
 } IbdSegmentList;
 
 /* A named tuple of metadata schemas for a tree sequence */
@@ -5385,7 +5385,7 @@ IbdSegmentList_get_left(IbdSegmentList *self, void *closure)
     PyArrayObject *left_array = NULL;
     double *left;
     tsk_size_t seg_index;
-    tsk_segment_t *u;
+    tsk_ibd_segment_t *u;
     npy_intp num_segments;
 
     if (IbdSegmentList_check_state(self) != 0) {
@@ -5415,7 +5415,7 @@ IbdSegmentList_get_right(IbdSegmentList *self, void *closure)
     PyArrayObject *right_array = NULL;
     double *right;
     tsk_size_t seg_index;
-    tsk_segment_t *u;
+    tsk_ibd_segment_t *u;
     npy_intp num_segments;
 
     if (IbdSegmentList_check_state(self) != 0) {
@@ -5445,7 +5445,7 @@ IbdSegmentList_get_node(IbdSegmentList *self, void *closure)
     PyArrayObject *node_array = NULL;
     int32_t *node;
     tsk_size_t seg_index;
-    tsk_segment_t *u;
+    tsk_ibd_segment_t *u;
     npy_intp num_segments;
 
     if (IbdSegmentList_check_state(self) != 0) {
@@ -5557,7 +5557,7 @@ IbdSegments_get(IbdSegments *self, PyObject *args)
     PyObject *ret = NULL;
     IbdSegmentList *py_seglist = NULL;
     int sample_a, sample_b;
-    tsk_segment_list_t *seglist;
+    tsk_ibd_segment_list_t *seglist;
     int err;
 
     if (IbdSegments_check_state(self) != 0) {

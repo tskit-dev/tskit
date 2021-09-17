@@ -2412,9 +2412,6 @@ class IbdSegmentList(collections.abc.Iterable, collections.abc.Sized):
         self._ll_segment_list = ll_segment_list
 
     def __iter__(self):
-        left = self.left
-        right = self.right
-        node = self.node
         for left, right, node in zip(self.left, self.right, self.node):
             yield IbdSegment(float(left), float(right), int(node))
 
@@ -2433,7 +2430,7 @@ class IbdSegmentList(collections.abc.Iterable, collections.abc.Sized):
 
     @property
     def total_span(self):
-        return np.sum(self.right - self.left)
+        return self._ll_segment_list.total_span
 
     @property
     def left(self):

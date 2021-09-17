@@ -6443,6 +6443,13 @@ typedef struct _mutation_id_list_t {
     struct _mutation_id_list_t *next;
 } mutation_id_list_t;
 
+typedef struct _tsk_segment_t {
+    double left;
+    double right;
+    struct _tsk_segment_t *next;
+    tsk_id_t node;
+} tsk_segment_t;
+
 /* segment overlap finding algorithm */
 typedef struct {
     /* The input segments. This buffer is sorted by the algorithm and we also
@@ -7183,11 +7190,11 @@ out:
     return ret;
 }
 
-static tsk_segment_t *TSK_WARN_UNUSED
+static tsk_ibd_segment_t *TSK_WARN_UNUSED
 tsk_ibd_segments_alloc_segment(
     tsk_ibd_segments_t *self, double left, double right, tsk_id_t node)
 {
-    tsk_segment_t *seg = tsk_blkalloc_get(&self->heap, sizeof(*seg));
+    tsk_ibd_segment_t *seg = tsk_blkalloc_get(&self->heap, sizeof(*seg));
     if (seg == NULL) {
         goto out;
     }
@@ -7206,7 +7213,7 @@ static tsk_avl_node_int_t *
 tsk_ibd_segments_alloc_new_pair(tsk_ibd_segments_t *self, int64_t key)
 {
     tsk_avl_node_int_t *avl_node = tsk_blkalloc_get(&self->heap, sizeof(*avl_node));
-    tsk_segment_list_t *list = tsk_blkalloc_get(&self->heap, sizeof(*list));
+    tsk_ibd_segment_list_t *list = tsk_blkalloc_get(&self->heap, sizeof(*list));
 
     if (avl_node == NULL || list == NULL) {
         return NULL;
@@ -7248,8 +7255,8 @@ tsk_ibd_segments_print_state(tsk_ibd_segments_t *self, FILE *out)
 {
     tsk_avl_node_int_t **nodes = tsk_malloc(self->pair_map.size * sizeof(*nodes));
     int64_t key;
-    tsk_segment_list_t *value;
-    tsk_segment_t *seg;
+    tsk_ibd_segment_list_t *value;
+    tsk_ibd_segment_t *seg;
     tsk_size_t j;
     tsk_id_t a, b;
 
@@ -7260,7 +7267,7 @@ tsk_ibd_segments_print_state(tsk_ibd_segments_t *self, FILE *out)
     tsk_avl_tree_int_ordered_nodes(&self->pair_map, nodes);
     for (j = 0; j < self->pair_map.size; j++) {
         key = nodes[j]->key;
-        value = (tsk_segment_list_t *) nodes[j]->value;
+        value = (tsk_ibd_segment_list_t *) nodes[j]->value;
         integer_to_pair(key, self->num_nodes, &a, &b);
         fprintf(out, "%lld\t(%d,%d) n=%d total_span=%f\t", (long long) key, (int) a,
             (int) b, (int) value->num_segments, value->total_span);
@@ -7322,7 +7329,7 @@ tsk_ibd_segments_get_keys(const tsk_ibd_segments_t *self, tsk_id_t *pairs)
 
 static int
 get_items_traverse(tsk_avl_node_int_t *node, int index, tsk_size_t N, tsk_id_t *pairs,
-    tsk_segment_list_t **lists)
+    tsk_ibd_segment_list_t **lists)
 {
     tsk_id_t a, b;
 
@@ -7339,7 +7346,7 @@ get_items_traverse(tsk_avl_node_int_t *node, int index, tsk_size_t N, tsk_id_t *
 
 int
 tsk_ibd_segments_get_items(
-    const tsk_ibd_segments_t *self, tsk_id_t *pairs, tsk_segment_list_t **lists)
+    const tsk_ibd_segments_t *self, tsk_id_t *pairs, tsk_ibd_segment_list_t **lists)
 {
     get_items_traverse(
         tsk_avl_tree_int_get_root(&self->pair_map), 0, self->num_nodes, pairs, lists);
@@ -7359,11 +7366,11 @@ tsk_ibd_segments_add_segment(tsk_ibd_segments_t *self, tsk_id_t a, tsk_id_t b,
     double left, double right, tsk_id_t node)
 {
     int ret = 0;
-    tsk_segment_list_t *list;
+    tsk_ibd_segment_list_t *list;
     double span;
     /* skip the error checking here since this an internal API */
     int64_t key = pair_to_integer(a, b, self->num_nodes);
-    tsk_segment_t *x = tsk_ibd_segments_alloc_segment(self, left, right, node);
+    tsk_ibd_segment_t *x = tsk_ibd_segments_alloc_segment(self, left, right, node);
     tsk_avl_node_int_t *avl_node = tsk_avl_tree_int_search(&self->pair_map, key);
 
     if (x == NULL) {
@@ -7379,7 +7386,7 @@ tsk_ibd_segments_add_segment(tsk_ibd_segments_t *self, tsk_id_t a, tsk_id_t b,
         ret = tsk_avl_tree_int_insert(&self->pair_map, avl_node);
         tsk_bug_assert(ret == 0);
     }
-    list = (tsk_segment_list_t *) avl_node->value;
+    list = (tsk_ibd_segment_list_t *) avl_node->value;
     if (list->tail == NULL) {
         list->head = x;
         list->tail = x;
@@ -7398,7 +7405,7 @@ out:
 
 int TSK_WARN_UNUSED
 tsk_ibd_segments_get(const tsk_ibd_segments_t *self, tsk_id_t sample_a,
-    tsk_id_t sample_b, tsk_segment_list_t **ret_list)
+    tsk_id_t sample_b, tsk_ibd_segment_list_t **ret_list)
 {
     int ret = 0;
     int64_t key = tsk_ibd_segments_get_key(self, sample_a, sample_b);
@@ -7411,7 +7418,7 @@ tsk_ibd_segments_get(const tsk_ibd_segments_t *self, tsk_id_t sample_a,
     avl_node = tsk_avl_tree_int_search(&self->pair_map, key);
     *ret_list = NULL;
     if (avl_node != NULL) {
-        *ret_list = (tsk_segment_list_t *) avl_node->value;
+        *ret_list = (tsk_ibd_segment_list_t *) avl_node->value;
     }
 out:
     return ret;
