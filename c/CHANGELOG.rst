@@ -4,6 +4,9 @@
 
 **Breaking changes**
 
+- The ``tables`` argument to ``tsk_treeseq_init`` is no longer ``const``, to allow for future no-copy tree sequence creation.
+  (:user:`benjeffery`, :issue:`1718`, :pr:`1719`)
+
 **Features**
 
 - The default behaviour for table size growth is now to double the current size of the table.
