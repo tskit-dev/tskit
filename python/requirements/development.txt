@@ -8,10 +8,13 @@ flake8
 h5py>=2.6.0
 jsonschema>=3.0.0
 kastore
+# More recent meson is too strict. See #1515.
+meson<=0.56
 msgpack>=1.0.0
 msprime>=1.0.0
 networkx
 newick
+ninja
 numpy
 packaging
 portion
