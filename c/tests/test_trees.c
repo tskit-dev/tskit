@@ -3550,11 +3550,11 @@ test_single_tree_bad_mutations(void)
     tables.mutations.parent[0] = TSK_NULL;
 
     /* parent_id > mutation id */
-    tables.mutations.parent[2] = 3;
+    tables.mutations.parent[3] = 4;
     ret = tsk_treeseq_init(&ts, &tables, load_flags);
     CU_ASSERT_EQUAL(ret, TSK_ERR_MUTATION_PARENT_AFTER_CHILD);
     tsk_treeseq_free(&ts);
-    tables.mutations.parent[2] = TSK_NULL;
+    tables.mutations.parent[3] = TSK_NULL;
 
     /* time < node time */
     tables.mutations.time[2] = 0;

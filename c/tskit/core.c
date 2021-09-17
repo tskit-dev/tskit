@@ -308,6 +308,11 @@ tsk_strerror_internal(int err)
                   "values for any single site.";
             break;
 
+        /* Migration errors */
+        case TSK_ERR_UNSORTED_MIGRATIONS:
+            ret = "Migrations must be sorted by time.";
+            break;
+
         /* Sample errors */
         case TSK_ERR_DUPLICATE_SAMPLE:
             ret = "Duplicate sample value";

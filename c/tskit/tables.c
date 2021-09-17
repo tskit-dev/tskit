@@ -623,7 +623,7 @@ write_metadata_schema_header(
 {
     const char *fmt = "#metadata_schema#\n"
                       "%.*s\n"
-                      "#end#metadata_schema\n";
+                      "#end#metadata_schema\n" TABLE_SEP;
     return fprintf(out, fmt, (int) metadata_schema_length, metadata_schema);
 }
 
@@ -1134,7 +1134,7 @@ tsk_individual_table_print_state(const tsk_individual_table_t *self, FILE *out)
 {
     tsk_size_t j, k;
 
-    fprintf(out, TABLE_SEP);
+    fprintf(out, "\n" TABLE_SEP);
     fprintf(out, "tsk_individual_tbl: %p:\n", (const void *) self);
     fprintf(out, "num_rows          = %lld\tmax= %lld\tincrement = %lld)\n",
         (long long) self->num_rows, (long long) self->max_rows,
@@ -1782,7 +1782,7 @@ tsk_node_table_print_state(const tsk_node_table_t *self, FILE *out)
 {
     tsk_size_t j, k;
 
-    fprintf(out, TABLE_SEP);
+    fprintf(out, "\n" TABLE_SEP);
     fprintf(out, "tsk_node_tbl: %p:\n", (const void *) self);
     fprintf(out, "num_rows          = %lld\tmax= %lld\tincrement = %lld)\n",
         (long long) self->num_rows, (long long) self->max_rows,
@@ -2431,7 +2431,7 @@ tsk_edge_table_print_state(const tsk_edge_table_t *self, FILE *out)
 {
     int ret;
 
-    fprintf(out, TABLE_SEP);
+    fprintf(out, "\n" TABLE_SEP);
     fprintf(out, "edge_table: %p:\n", (const void *) self);
     fprintf(out, "options         = 0x%X\n", self->options);
     fprintf(out, "num_rows        = %lld\tmax= %lld\tincrement = %lld)\n",
@@ -3112,7 +3112,7 @@ tsk_site_table_print_state(const tsk_site_table_t *self, FILE *out)
 {
     int ret;
 
-    fprintf(out, TABLE_SEP);
+    fprintf(out, "\n" TABLE_SEP);
     fprintf(out, "site_table: %p:\n", (const void *) self);
     fprintf(out, "num_rows = %lld\t(max= %lld\tincrement = %lld)\n",
         (long long) self->num_rows, (long long) self->max_rows,
@@ -3780,7 +3780,7 @@ tsk_mutation_table_print_state(const tsk_mutation_table_t *self, FILE *out)
 {
     int ret;
 
-    fprintf(out, TABLE_SEP);
+    fprintf(out, "\n" TABLE_SEP);
     fprintf(out, "mutation_table: %p:\n", (const void *) self);
     fprintf(out, "num_rows = %lld\tmax= %lld\tincrement = %lld)\n",
         (long long) self->num_rows, (long long) self->max_rows,
@@ -4355,7 +4355,7 @@ tsk_migration_table_print_state(const tsk_migration_table_t *self, FILE *out)
 {
     int ret;
 
-    fprintf(out, TABLE_SEP);
+    fprintf(out, "\n" TABLE_SEP);
     fprintf(out, "migration_table: %p:\n", (const void *) self);
     fprintf(out, "num_rows = %lld\tmax= %lld\tincrement = %lld)\n",
         (long long) self->num_rows, (long long) self->max_rows,
@@ -4882,7 +4882,7 @@ tsk_population_table_print_state(const tsk_population_table_t *self, FILE *out)
 {
     tsk_size_t j, k;
 
-    fprintf(out, TABLE_SEP);
+    fprintf(out, "\n" TABLE_SEP);
     fprintf(out, "population_table: %p:\n", (const void *) self);
     fprintf(out, "num_rows          = %lld\tmax= %lld\tincrement = %lld)\n",
         (long long) self->num_rows, (long long) self->max_rows,
@@ -5447,7 +5447,7 @@ tsk_provenance_table_print_state(const tsk_provenance_table_t *self, FILE *out)
 {
     tsk_size_t j, k;
 
-    fprintf(out, TABLE_SEP);
+    fprintf(out, "\n" TABLE_SEP);
     fprintf(out, "provenance_table: %p:\n", (const void *) self);
     fprintf(out, "num_rows          = %lld\tmax= %lld\tincrement = %lld)\n",
         (long long) self->num_rows, (long long) self->max_rows,
@@ -9304,7 +9304,8 @@ tsk_table_collection_check_mutation_integrity(
     const double *node_time = self->nodes.time;
     const bool check_mutation_ordering = !!(options & TSK_CHECK_MUTATION_ORDERING);
     bool unknown_time;
-    bool unknown_times_seen = false;
+    int num_known_times = 0;
+    int num_unknown_times = 0;
 
     for (j = 0; j < mutations.num_rows; j++) {
         /* Basic reference integrity */
@@ -9326,7 +9327,7 @@ tsk_table_collection_check_mutation_integrity(
             ret = TSK_ERR_MUTATION_PARENT_EQUAL;
             goto out;
         }
-        /* Check if time is nonfinite */
+        /* Check that time is finite and not more recent than node time */
         mutation_time = mutations.time[j];
         unknown_time = tsk_is_unknown_time(mutation_time);
         if (!unknown_time) {
@@ -9334,60 +9335,62 @@ tsk_table_collection_check_mutation_integrity(
                 ret = TSK_ERR_TIME_NONFINITE;
                 goto out;
             }
+            if (mutation_time < node_time[mutations.node[j]]) {
+                ret = TSK_ERR_MUTATION_TIME_YOUNGER_THAN_NODE;
+                goto out;
+            }
+        }
+
+        /* reset checks when reaching a new site */
+        if (j > 0 && mutations.site[j - 1] != mutations.site[j]) {
+            last_known_time = INFINITY;
+            num_known_times = 0;
+            num_unknown_times = 0;
+        }
+
+        /* Check known/unknown times are not both present on a site */
+        if (unknown_time) {
+            num_unknown_times++;
+        } else {
+            num_known_times++;
+        }
+        if ((num_unknown_times > 0) && (num_known_times > 0)) {
+            ret = TSK_ERR_MUTATION_TIME_HAS_BOTH_KNOWN_AND_UNKNOWN;
+            goto out;
+        }
+
+        /* check parent site agrees */
+        if (parent_mut != TSK_NULL) {
+            if (mutations.site[parent_mut] != mutations.site[j]) {
+                ret = TSK_ERR_MUTATION_PARENT_DIFFERENT_SITE;
+                goto out;
+            }
+            /* If this mutation time is known, then the parent time
+             * must also be, or else the
+             * TSK_ERR_MUTATION_TIME_HAS_BOTH_KNOWN_AND_UNKNOWN check
+             * above will fail. */
+            if (!unknown_time && mutation_time > mutations.time[parent_mut]) {
+                ret = TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION;
+                goto out;
+            }
         }
 
         if (check_mutation_ordering) {
-            /* Check site ordering and reset time check if needed*/
-            if (j > 0) {
-                if (mutations.site[j - 1] > mutations.site[j]) {
-                    ret = TSK_ERR_UNSORTED_MUTATIONS;
-                    goto out;
-                }
-                if (mutations.site[j - 1] != mutations.site[j]) {
-                    last_known_time = INFINITY;
-                    unknown_times_seen = false;
-                }
-            }
-
-            /* Check known/unknown times are not both present on a site*/
-            if (unknown_time) {
-                unknown_times_seen = true;
-            } else if (unknown_times_seen) {
-                ret = TSK_ERR_MUTATION_TIME_HAS_BOTH_KNOWN_AND_UNKNOWN;
+            /* Check site ordering */
+            if (j > 0 && mutations.site[j - 1] > mutations.site[j]) {
+                ret = TSK_ERR_UNSORTED_MUTATIONS;
                 goto out;
             }
 
-            /* Check the mutation parents for ordering */
-            /* We can only check parent properties if it is non-null */
-            if (parent_mut != TSK_NULL) {
-                /* Parents must be listed before their children */
-                if (parent_mut > (tsk_id_t) j) {
-                    ret = TSK_ERR_MUTATION_PARENT_AFTER_CHILD;
-                    goto out;
-                }
-                if (mutations.site[parent_mut] != mutations.site[j]) {
-                    ret = TSK_ERR_MUTATION_PARENT_DIFFERENT_SITE;
-                    goto out;
-                }
+            /* Check if parents are listed before their children */
+            if (parent_mut != TSK_NULL && parent_mut > (tsk_id_t) j) {
+                ret = TSK_ERR_MUTATION_PARENT_AFTER_CHILD;
+                goto out;
             }
 
-            /* Check time value ordering */
+            /* Check time ordering. We do this after the other checks above,
+             * so that more specific errors trigger first */
             if (!unknown_time) {
-                if (mutation_time < node_time[mutations.node[j]]) {
-                    ret = TSK_ERR_MUTATION_TIME_YOUNGER_THAN_NODE;
-                    goto out;
-                }
-                /* If this mutation time is known, then the parent time
-                 * must also be as the
-                 * TSK_ERR_MUTATION_TIME_HAS_BOTH_KNOWN_AND_UNKNOWN check
-                 * above would otherwise fail. */
-                if (parent_mut != TSK_NULL
-                    && mutation_time > mutations.time[parent_mut]) {
-                    ret = TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION;
-                    goto out;
-                }
-                /* Check time ordering, we do this after the time checks above, so
-                that more specific errors trigger first */
                 if (mutation_time > last_known_time) {
                     ret = TSK_ERR_UNSORTED_MUTATIONS;
                     goto out;
@@ -9406,12 +9409,13 @@ tsk_table_collection_check_migration_integrity(
 {
     int ret = 0;
     tsk_size_t j;
-    double left, right;
+    double left, right, time;
     const double L = self->sequence_length;
     const tsk_migration_table_t migrations = self->migrations;
     const tsk_id_t num_nodes = (tsk_id_t) self->nodes.num_rows;
     const tsk_id_t num_populations = (tsk_id_t) self->populations.num_rows;
     const bool check_population_refs = !(options & TSK_NO_CHECK_POPULATION_REFS);
+    const bool check_migration_ordering = !!(options & TSK_CHECK_MIGRATION_ORDERING);
 
     for (j = 0; j < migrations.num_rows; j++) {
         if (migrations.node[j] < 0 || migrations.node[j] >= num_nodes) {
@@ -9428,9 +9432,16 @@ tsk_table_collection_check_migration_integrity(
                 goto out;
             }
         }
-        if (!isfinite(migrations.time[j])) {
+        time = migrations.time[j];
+        if (!isfinite(time)) {
             ret = TSK_ERR_TIME_NONFINITE;
             goto out;
+        }
+        if (j > 0) {
+            if (check_migration_ordering && migrations.time[j - 1] > time) {
+                ret = TSK_ERR_UNSORTED_MIGRATIONS;
+                goto out;
+            }
         }
         left = migrations.left[j];
         right = migrations.right[j];
@@ -9625,7 +9636,8 @@ tsk_table_collection_check_integrity(
         /* Checking the trees implies all the other checks */
         options |= TSK_CHECK_EDGE_ORDERING | TSK_CHECK_SITE_ORDERING
                    | TSK_CHECK_SITE_DUPLICATES | TSK_CHECK_MUTATION_ORDERING
-                   | TSK_CHECK_INDEXES | TSK_CHECK_INDIVIDUAL_ORDERING;
+                   | TSK_CHECK_INDIVIDUAL_ORDERING | TSK_CHECK_MIGRATION_ORDERING
+                   | TSK_CHECK_INDEXES;
     }
 
     if (self->sequence_length <= 0) {

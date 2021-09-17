@@ -313,6 +313,9 @@ An unsupported type was provided for a column in the file.
 #define TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_NODE                -508
 #define TSK_ERR_MUTATION_TIME_HAS_BOTH_KNOWN_AND_UNKNOWN            -509
 
+/* Migration errors */
+#define TSK_ERR_UNSORTED_MIGRATIONS                                 -550
+
 /* Sample errors */
 #define TSK_ERR_DUPLICATE_SAMPLE                                    -600
 #define TSK_ERR_BAD_SAMPLES                                         -601
