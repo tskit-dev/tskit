@@ -7,6 +7,10 @@
 - The ``tables`` argument to ``tsk_treeseq_init`` is no longer ``const``, to allow for future no-copy tree sequence creation.
   (:user:`benjeffery`, :issue:`1718`, :pr:`1719`)
 
+- ``num_tracked_samples`` and ``num_samples`` in ``tsk_tree_t`` are now typed as ``tsk_size_t``
+  (:user:`benjeffery`, :issue:`1723`, :pr:`1727`)
+
+
 **Features**
 
 - The default behaviour for table size growth is now to double the current size of the table,
@@ -50,7 +54,7 @@
 ----------------------
 **Fixes**
 
-- Fix segfault when very large columns overflow 
+- Fix segfault when very large columns overflow
   (:user:`bhaller`, :user:`benjeffery`, :issue:`1509`, :pr:`1511`).
 
 ----------------------

@@ -121,7 +121,7 @@ typedef struct _tsk_ls_hmm_t {
     /* The parent transition; used during compression */
     tsk_id_t *transition_parent;
     /* The number of samples directly subtended by a transition */
-    tsk_id_t *num_transition_samples;
+    tsk_size_t *num_transition_samples;
     int8_t *allelic_state;
     /* Algorithms set these values before they are run */
     int (*next_probability)(
