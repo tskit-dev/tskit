@@ -35,7 +35,6 @@
 #define _TSK_WORKAROUND_FALSE_CLANG_WARNING
 #include <tskit/tables.h>
 
-#define DEFAULT_SIZE_INCREMENT 1024
 #define TABLE_SEP "-----------------------------------------\n"
 
 #define TSK_COL_OPTIONAL (1 << 0)
@@ -495,18 +494,64 @@ calculate_max_rows(tsk_size_t num_rows, tsk_size_t max_rows,
             if (new_max_rows - max_rows > 2097152) {
                 new_max_rows = max_rows + 2097152;
             }
-            new_max_rows = TSK_MAX(new_max_rows, num_rows + additional_rows);
         } else {
             /* Use user increment value */
             if (check_table_overflow(max_rows, max_rows_increment)) {
                 ret = TSK_ERR_TABLE_OVERFLOW;
                 goto out;
             }
-            new_max_rows
-                = TSK_MAX(max_rows + max_rows_increment, num_rows + additional_rows);
+            new_max_rows = max_rows + max_rows_increment;
         }
+        new_max_rows = TSK_MAX(new_max_rows, num_rows + additional_rows);
     }
     *ret_new_max_rows = new_max_rows;
+out:
+    return ret;
+}
+
+static int
+calculate_max_length(tsk_size_t current_length, tsk_size_t max_length,
+    tsk_size_t max_length_increment, tsk_size_t additional_length,
+    tsk_size_t *ret_new_max_length)
+{
+    tsk_size_t new_max_length;
+    int ret = 0;
+
+    if (check_offset_overflow(current_length, additional_length)) {
+        ret = TSK_ERR_COLUMN_OVERFLOW;
+        goto out;
+    }
+
+    if (current_length + additional_length <= max_length) {
+        new_max_length = max_length;
+    } else {
+        if (max_length_increment == 0) {
+            /* Doubling by default */
+            new_max_length = TSK_MIN(max_length * 2, TSK_MAX_SIZE);
+            /* Add some constraints to prevent very small allocations */
+            if (new_max_length < 65536) {
+                new_max_length = 65536;
+            }
+            /* Prevent allocating more than 100MB additional unless needed*/
+            if (new_max_length - max_length > 104857600) {
+                new_max_length = max_length + 104857600;
+            }
+            new_max_length = TSK_MAX(new_max_length, current_length + additional_length);
+        } else {
+            /* Use user increment value */
+            if (check_offset_overflow(max_length, max_length_increment)) {
+                /* Here we could allocate to the maximum size.
+                 * Instead we are erroring out as this is much easier to test.
+                 * The cost is that (at most) the last "max_length_increment"-1
+                 * bytes of the possible array space can't be used. */
+                ret = TSK_ERR_COLUMN_OVERFLOW;
+                goto out;
+            }
+            new_max_length = max_length + max_length_increment;
+        }
+        new_max_length = TSK_MAX(new_max_length, current_length + additional_length);
+    }
+    *ret_new_max_length = new_max_length;
 out:
     return ret;
 }
@@ -533,27 +578,20 @@ expand_ragged_column(tsk_size_t current_length, tsk_size_t additional_length,
     size_t element_size)
 {
     int ret = 0;
-    tsk_size_t increment = TSK_MAX(additional_length, max_length_increment);
+    tsk_size_t new_max_length;
 
-    if (check_offset_overflow(current_length, additional_length)) {
-        ret = TSK_ERR_COLUMN_OVERFLOW;
+    ret = calculate_max_length(current_length, *max_length, max_length_increment,
+        additional_length, &new_max_length);
+    if (ret != 0) {
         goto out;
     }
-    if ((current_length + additional_length) > *max_length) {
-        if (check_offset_overflow(*max_length, increment)) {
-            /* Here we could allocate to the maximum size.
-             * Instead we are erroring out as this is much easier to test.
-             * The cost is that (at most) the last "max_length_increment"-1
-             * bytes of the possible array space can't be used. */
-            ret = TSK_ERR_COLUMN_OVERFLOW;
-            goto out;
-        }
 
-        ret = expand_column(column, *max_length + increment, element_size);
+    if (new_max_length > *max_length) {
+        ret = expand_column(column, new_max_length, element_size);
         if (ret != 0) {
             goto out;
         }
-        *max_length += increment;
+        *max_length = new_max_length;
     }
 out:
     return ret;
@@ -670,9 +708,6 @@ int
 tsk_individual_table_set_max_metadata_length_increment(
     tsk_individual_table_t *self, tsk_size_t max_metadata_length_increment)
 {
-    if (max_metadata_length_increment == 0) {
-        max_metadata_length_increment = DEFAULT_SIZE_INCREMENT;
-    }
     self->max_metadata_length_increment = (tsk_size_t) max_metadata_length_increment;
     return 0;
 }
@@ -681,9 +716,6 @@ int
 tsk_individual_table_set_max_location_length_increment(
     tsk_individual_table_t *self, tsk_size_t max_location_length_increment)
 {
-    if (max_location_length_increment == 0) {
-        max_location_length_increment = DEFAULT_SIZE_INCREMENT;
-    }
     self->max_location_length_increment = (tsk_size_t) max_location_length_increment;
     return 0;
 }
@@ -692,9 +724,6 @@ int
 tsk_individual_table_set_max_parents_length_increment(
     tsk_individual_table_t *self, tsk_size_t max_parents_length_increment)
 {
-    if (max_parents_length_increment == 0) {
-        max_parents_length_increment = DEFAULT_SIZE_INCREMENT;
-    }
     self->max_parents_length_increment = (tsk_size_t) max_parents_length_increment;
     return 0;
 }
@@ -731,9 +760,9 @@ tsk_individual_table_init(tsk_individual_table_t *self, tsk_flags_t TSK_UNUSED(o
     }
     self->metadata_offset[0] = 0;
     self->max_rows_increment = 0;
-    self->max_location_length_increment = DEFAULT_SIZE_INCREMENT;
-    self->max_parents_length_increment = DEFAULT_SIZE_INCREMENT;
-    self->max_metadata_length_increment = DEFAULT_SIZE_INCREMENT;
+    self->max_location_length_increment = 0;
+    self->max_parents_length_increment = 0;
+    self->max_metadata_length_increment = 0;
     tsk_individual_table_set_metadata_schema(self, NULL, 0);
 out:
     return ret;
@@ -1428,9 +1457,6 @@ int
 tsk_node_table_set_max_metadata_length_increment(
     tsk_node_table_t *self, tsk_size_t max_metadata_length_increment)
 {
-    if (max_metadata_length_increment == 0) {
-        max_metadata_length_increment = DEFAULT_SIZE_INCREMENT;
-    }
     self->max_metadata_length_increment = max_metadata_length_increment;
     return 0;
 }
@@ -1455,7 +1481,7 @@ tsk_node_table_init(tsk_node_table_t *self, tsk_flags_t TSK_UNUSED(options))
     }
     self->metadata_offset[0] = 0;
     self->max_rows_increment = 0;
-    self->max_metadata_length_increment = DEFAULT_SIZE_INCREMENT;
+    self->max_metadata_length_increment = 0;
     tsk_node_table_set_metadata_schema(self, NULL, 0);
 out:
     return ret;
@@ -2027,9 +2053,6 @@ int
 tsk_edge_table_set_max_metadata_length_increment(
     tsk_edge_table_t *self, tsk_size_t max_metadata_length_increment)
 {
-    if (max_metadata_length_increment == 0) {
-        max_metadata_length_increment = DEFAULT_SIZE_INCREMENT;
-    }
     self->max_metadata_length_increment = max_metadata_length_increment;
     return 0;
 }
@@ -2058,7 +2081,7 @@ tsk_edge_table_init(tsk_edge_table_t *self, tsk_flags_t options)
         self->metadata_offset[0] = 0;
     }
     self->max_rows_increment = 0;
-    self->max_metadata_length_increment = DEFAULT_SIZE_INCREMENT;
+    self->max_metadata_length_increment = 0;
     tsk_edge_table_set_metadata_schema(self, NULL, 0);
 out:
     return ret;
@@ -2702,9 +2725,6 @@ int
 tsk_site_table_set_max_metadata_length_increment(
     tsk_site_table_t *self, tsk_size_t max_metadata_length_increment)
 {
-    if (max_metadata_length_increment == 0) {
-        max_metadata_length_increment = DEFAULT_SIZE_INCREMENT;
-    }
     self->max_metadata_length_increment = max_metadata_length_increment;
     return 0;
 }
@@ -2713,9 +2733,6 @@ int
 tsk_site_table_set_max_ancestral_state_length_increment(
     tsk_site_table_t *self, tsk_size_t max_ancestral_state_length_increment)
 {
-    if (max_ancestral_state_length_increment == 0) {
-        max_ancestral_state_length_increment = DEFAULT_SIZE_INCREMENT;
-    }
     self->max_ancestral_state_length_increment = max_ancestral_state_length_increment;
     return 0;
 }
@@ -2747,8 +2764,8 @@ tsk_site_table_init(tsk_site_table_t *self, tsk_flags_t TSK_UNUSED(options))
     self->ancestral_state_offset[0] = 0;
     self->metadata_offset[0] = 0;
     self->max_rows_increment = 0;
-    self->max_ancestral_state_length_increment = DEFAULT_SIZE_INCREMENT;
-    self->max_metadata_length_increment = DEFAULT_SIZE_INCREMENT;
+    self->max_ancestral_state_length_increment = 0;
+    self->max_metadata_length_increment = 0;
     tsk_site_table_set_metadata_schema(self, NULL, 0);
 out:
     return ret;
@@ -3342,9 +3359,6 @@ int
 tsk_mutation_table_set_max_metadata_length_increment(
     tsk_mutation_table_t *self, tsk_size_t max_metadata_length_increment)
 {
-    if (max_metadata_length_increment == 0) {
-        max_metadata_length_increment = DEFAULT_SIZE_INCREMENT;
-    }
     self->max_metadata_length_increment = max_metadata_length_increment;
     return 0;
 }
@@ -3353,9 +3367,6 @@ int
 tsk_mutation_table_set_max_derived_state_length_increment(
     tsk_mutation_table_t *self, tsk_size_t max_derived_state_length_increment)
 {
-    if (max_derived_state_length_increment == 0) {
-        max_derived_state_length_increment = DEFAULT_SIZE_INCREMENT;
-    }
     self->max_derived_state_length_increment = max_derived_state_length_increment;
     return 0;
 }
@@ -3387,8 +3398,8 @@ tsk_mutation_table_init(tsk_mutation_table_t *self, tsk_flags_t TSK_UNUSED(optio
     self->derived_state_offset[0] = 0;
     self->metadata_offset[0] = 0;
     self->max_rows_increment = 0;
-    self->max_derived_state_length_increment = DEFAULT_SIZE_INCREMENT;
-    self->max_metadata_length_increment = DEFAULT_SIZE_INCREMENT;
+    self->max_derived_state_length_increment = 0;
+    self->max_metadata_length_increment = 0;
     tsk_mutation_table_set_metadata_schema(self, NULL, 0);
 out:
     return ret;
@@ -4021,9 +4032,6 @@ int
 tsk_migration_table_set_max_metadata_length_increment(
     tsk_migration_table_t *self, tsk_size_t max_metadata_length_increment)
 {
-    if (max_metadata_length_increment == 0) {
-        max_metadata_length_increment = DEFAULT_SIZE_INCREMENT;
-    }
     self->max_metadata_length_increment = max_metadata_length_increment;
     return 0;
 }
@@ -4049,7 +4057,7 @@ tsk_migration_table_init(tsk_migration_table_t *self, tsk_flags_t TSK_UNUSED(opt
     }
     self->metadata_offset[0] = 0;
     self->max_rows_increment = 0;
-    self->max_metadata_length_increment = DEFAULT_SIZE_INCREMENT;
+    self->max_metadata_length_increment = 0;
     tsk_migration_table_set_metadata_schema(self, NULL, 0);
 out:
     return ret;
@@ -4590,9 +4598,6 @@ int
 tsk_population_table_set_max_metadata_length_increment(
     tsk_population_table_t *self, tsk_size_t max_metadata_length_increment)
 {
-    if (max_metadata_length_increment == 0) {
-        max_metadata_length_increment = DEFAULT_SIZE_INCREMENT;
-    }
     self->max_metadata_length_increment = max_metadata_length_increment;
     return 0;
 }
@@ -4617,7 +4622,7 @@ tsk_population_table_init(tsk_population_table_t *self, tsk_flags_t TSK_UNUSED(o
     }
     self->metadata_offset[0] = 0;
     self->max_rows_increment = 0;
-    self->max_metadata_length_increment = DEFAULT_SIZE_INCREMENT;
+    self->max_metadata_length_increment = 0;
     tsk_population_table_set_metadata_schema(self, NULL, 0);
 out:
     return ret;
@@ -5109,9 +5114,6 @@ int
 tsk_provenance_table_set_max_timestamp_length_increment(
     tsk_provenance_table_t *self, tsk_size_t max_timestamp_length_increment)
 {
-    if (max_timestamp_length_increment == 0) {
-        max_timestamp_length_increment = DEFAULT_SIZE_INCREMENT;
-    }
     self->max_timestamp_length_increment = max_timestamp_length_increment;
     return 0;
 }
@@ -5120,9 +5122,6 @@ int
 tsk_provenance_table_set_max_record_length_increment(
     tsk_provenance_table_t *self, tsk_size_t max_record_length_increment)
 {
-    if (max_record_length_increment == 0) {
-        max_record_length_increment = DEFAULT_SIZE_INCREMENT;
-    }
     self->max_record_length_increment = max_record_length_increment;
     return 0;
 }
@@ -5153,8 +5152,8 @@ tsk_provenance_table_init(tsk_provenance_table_t *self, tsk_flags_t TSK_UNUSED(o
     }
     self->record_offset[0] = 0;
     self->max_rows_increment = 0;
-    self->max_timestamp_length_increment = DEFAULT_SIZE_INCREMENT;
-    self->max_record_length_increment = DEFAULT_SIZE_INCREMENT;
+    self->max_timestamp_length_increment = 0;
+    self->max_record_length_increment = 0;
 out:
     return ret;
 }
