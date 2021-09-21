@@ -681,12 +681,13 @@ typedef struct {
 #define TSK_CHECK_SITE_ORDERING (1 << 1)
 #define TSK_CHECK_SITE_DUPLICATES (1 << 2)
 #define TSK_CHECK_MUTATION_ORDERING (1 << 3)
-#define TSK_CHECK_INDEXES (1 << 4)
-#define TSK_CHECK_TREES (1 << 5)
-#define TSK_CHECK_INDIVIDUAL_ORDERING (1 << 6)
+#define TSK_CHECK_INDIVIDUAL_ORDERING (1 << 4)
+#define TSK_CHECK_MIGRATION_ORDERING (1 << 5)
+#define TSK_CHECK_INDEXES (1 << 6)
+#define TSK_CHECK_TREES (1 << 7)
 
 /* Leave room for more positive check flags */
-#define TSK_NO_CHECK_POPULATION_REFS (1 << 10)
+#define TSK_NO_CHECK_POPULATION_REFS (1 << 12)
 
 /* Flags for load tables */
 #define TSK_BUILD_INDEXES (1 << 0)
@@ -3655,9 +3656,12 @@ int tsk_table_collection_set_indexes(tsk_table_collection_t *self,
 
 Checks the integrity of this table collection. The default checks (i.e., with
 options = 0) guarantee the integrity of memory and entity references within the
-table collection. All spatial values (along the genome) are checked
+table collection. All positions along the genome are checked
 to see if they are finite values and within the required bounds. Time values
 are checked to see if they are finite or marked as unknown.
+Consistency of the direction of inheritance is also checked: whether
+parents are more recent than children, mutations are not more recent
+than their nodes or their mutation parents, etcetera.
 
 To check if a set of tables fulfills the :ref:`requirements
 <sec_valid_tree_sequence_requirements>` needed for a valid tree sequence, use
@@ -3686,6 +3690,8 @@ TSK_CHECK_MUTATION_ORDERING
     constraints.
 TSK_CHECK_INDIVIDUAL_ORDERING
     Check individual parents are before children, where specified.
+TSK_CHECK_MIGRATION_ORDERING
+    Check migrations are ordered by time.
 TSK_CHECK_INDEXES
     Check that the table indexes exist, and contain valid edge
     references.

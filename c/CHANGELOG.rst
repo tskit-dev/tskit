@@ -6,6 +6,8 @@
 
 - The ``tables`` argument to ``tsk_treeseq_init`` is no longer ``const``, to allow for future no-copy tree sequence creation.
   (:user:`benjeffery`, :issue:`1718`, :pr:`1719`)
+- Additional consistency checks for mutation tables are now run by ``tsk_table_collection_check_integrity``
+  even when ``TSK_CHECK_MUTATION_ORDERING`` is not passed in. (:user:`petrelharp`, :issue:`1713`, :pr:`1722`)
 
 - ``num_tracked_samples`` and ``num_samples`` in ``tsk_tree_t`` are now typed as ``tsk_size_t``
   (:user:`benjeffery`, :issue:`1723`, :pr:`1727`)
@@ -18,6 +20,7 @@
   ``tsk_edge_table_set_max_rows_increment(tables->edges, 1024)``, which results in adding
   space for 1024 additional rows each time we run out of space in the edge table.
   (:user:`benjeffery`, :issue:`5`, :pr:`1683`)
+- ``tsk_table_collection_check_integrity`` now has a ``TSK_CHECK_MIGRATION_ORDERING`` flag. (:user:`petrelharp`, :pr:`1722`)
 
 - The default behaviour for ragged column growth is now to double the current size of the column,
   up to a threshold. To keep the previous behaviour, use (e.g.)
