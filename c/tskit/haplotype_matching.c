@@ -1004,10 +1004,10 @@ out:
 static double
 tsk_ls_hmm_compute_normalisation_factor_forward(tsk_ls_hmm_t *self)
 {
-    tsk_id_t *restrict N = self->num_transition_samples;
+    tsk_size_t *restrict N = self->num_transition_samples;
     tsk_value_transition_t *restrict T = self->transitions;
     const tsk_id_t *restrict T_parent = self->transition_parent;
-    const tsk_id_t *restrict num_samples = self->tree.num_samples;
+    const tsk_size_t *restrict num_samples = self->tree.num_samples;
     const tsk_id_t num_transitions = (tsk_id_t) self->num_transitions;
     double normalisation_factor;
     tsk_id_t j;

@@ -163,7 +163,8 @@ tsk_ld_calc_overlap_within_tree(tsk_ld_calc_t *self, tsk_site_t sA, tsk_site_t s
 {
     const tsk_tree_t *t = self->inner_tree;
     const tsk_node_table_t *nodes = &self->tree_sequence->tables->nodes;
-    tsk_id_t u, v, nAB;
+    tsk_id_t u, v;
+    tsk_size_t nAB;
 
     tsk_bug_assert(sA.mutations_length == 1);
     tsk_bug_assert(sB.mutations_length == 1);

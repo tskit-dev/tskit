@@ -168,9 +168,8 @@ typedef struct {
      * from a specific subset. By default sample counts are tracked and roots
      * maintained. If TSK_NO_SAMPLE_COUNTS is specified, then neither sample
      * counts or roots are available. */
-    /* TODO should these be tsk_size_t values? */
-    tsk_id_t *num_samples;
-    tsk_id_t *num_tracked_samples;
+    tsk_size_t *num_samples;
+    tsk_size_t *num_tracked_samples;
     /* TODO the only place this feature seems to be used is in the ld_calculator.
      * when this is being replaced we should come up with a better way of doing
      * whatever this is being used for. */

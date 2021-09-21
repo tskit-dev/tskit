@@ -3151,8 +3151,8 @@ tsk_tree_clear(tsk_tree_t *self)
     tsk_memset(self->right_sib, 0xff, N * sizeof(tsk_id_t));
 
     if (sample_counts) {
-        tsk_memset(self->num_samples, 0, N * sizeof(tsk_id_t));
-        tsk_memset(self->marked, 0, N * sizeof(uint8_t));
+        tsk_memset(self->num_samples, 0, N * sizeof(*self->num_samples));
+        tsk_memset(self->marked, 0, N * sizeof(*self->marked));
         /* We can't reset the tracked samples via tsk_memset because we don't
          * know where the tracked samples are.
          */
@@ -3230,8 +3230,9 @@ tsk_tree_init(tsk_tree_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t 
         goto out;
     }
     if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
-        self->num_samples = tsk_calloc(num_nodes, sizeof(tsk_id_t));
-        self->num_tracked_samples = tsk_calloc(num_nodes, sizeof(tsk_id_t));
+        self->num_samples = tsk_calloc(num_nodes, sizeof(*self->num_samples));
+        self->num_tracked_samples
+            = tsk_calloc(num_nodes, sizeof(*self->num_tracked_samples));
         self->marked = tsk_calloc(num_nodes, sizeof(uint8_t));
         if (self->num_samples == NULL || self->num_tracked_samples == NULL
             || self->marked == NULL) {
@@ -3316,7 +3317,8 @@ tsk_tree_reset_tracked_samples(tsk_tree_t *self)
         ret = TSK_ERR_UNSUPPORTED_OPERATION;
         goto out;
     }
-    tsk_memset(self->num_tracked_samples, 0, self->num_nodes * sizeof(tsk_id_t));
+    tsk_memset(self->num_tracked_samples, 0,
+        self->num_nodes * sizeof(*self->num_tracked_samples));
 out:
     return ret;
 }
@@ -3604,7 +3606,7 @@ tsk_tree_get_num_tracked_samples(
         ret = TSK_ERR_UNSUPPORTED_OPERATION;
         goto out;
     }
-    *num_tracked_samples = (tsk_size_t) self->num_tracked_samples[u];
+    *num_tracked_samples = self->num_tracked_samples[u];
 out:
     return ret;
 }
@@ -3888,11 +3890,11 @@ tsk_tree_remove_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
     tsk_id_t *restrict right_child = self->right_child;
     tsk_id_t *restrict left_sib = self->left_sib;
     tsk_id_t *restrict right_sib = self->right_sib;
-    tsk_id_t *restrict num_samples = self->num_samples;
-    tsk_id_t *restrict num_tracked_samples = self->num_tracked_samples;
+    tsk_size_t *restrict num_samples = self->num_samples;
+    tsk_size_t *restrict num_tracked_samples = self->num_tracked_samples;
     uint8_t *restrict marked = self->marked;
     const uint8_t mark = self->mark;
-    const tsk_id_t root_threshold = (tsk_id_t) self->root_threshold;
+    const tsk_size_t root_threshold = self->root_threshold;
     tsk_id_t lsib, rsib, u, path_end, lroot, rroot;
     bool path_end_was_root;
 
@@ -3971,11 +3973,11 @@ tsk_tree_insert_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
     tsk_id_t *restrict right_child = self->right_child;
     tsk_id_t *restrict left_sib = self->left_sib;
     tsk_id_t *restrict right_sib = self->right_sib;
-    tsk_id_t *restrict num_samples = self->num_samples;
-    tsk_id_t *restrict num_tracked_samples = self->num_tracked_samples;
+    tsk_size_t *restrict num_samples = self->num_samples;
+    tsk_size_t *restrict num_tracked_samples = self->num_tracked_samples;
     uint8_t *restrict marked = self->marked;
     const uint8_t mark = self->mark;
-    const tsk_id_t root_threshold = (tsk_id_t) self->root_threshold;
+    const tsk_size_t root_threshold = self->root_threshold;
     tsk_id_t lsib, rsib, u, path_end, lroot;
     bool path_end_was_root;
 
