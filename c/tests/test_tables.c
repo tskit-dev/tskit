@@ -147,9 +147,11 @@ test_table_collection_equals_options(void)
     tsk_id_t ret_id;
     tsk_table_collection_t tc1, tc2;
 
+    char example_time_units[100] = "An example of time units with unicode ⏰";
     char example_metadata[100] = "An example of metadata with unicode 🎄🌳🌴🌲🎋";
     char example_metadata_schema[100]
         = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
+    tsk_size_t example_time_units_length = (tsk_size_t) strlen(example_time_units);
     tsk_size_t example_metadata_length = (tsk_size_t) strlen(example_metadata);
     tsk_size_t example_metadata_schema_length
         = (tsk_size_t) strlen(example_metadata_schema);
@@ -184,6 +186,11 @@ test_table_collection_equals_options(void)
     ret = tsk_table_collection_equals(&tc1, &tc2, 0);
     CU_ASSERT_FALSE(ret);
     ret = tsk_table_collection_copy(&tc1, &tc2, TSK_NO_INIT);
+    CU_ASSERT_EQUAL(ret, 0);
+
+    // Equivalent except for time_units
+    ret = tsk_table_collection_set_metadata(
+        &tc1, example_time_units, example_time_units_length);
     CU_ASSERT_EQUAL(ret, 0);
 
     // Equivalent except for metadata
@@ -396,6 +403,73 @@ test_table_collection_metadata(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_set_metadata_schema(
         &tc1, example_metadata_schema, example_metadata_schema_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_dump(&tc1, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_load(&tc2, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
+    tsk_table_collection_free(&tc1);
+    tsk_table_collection_free(&tc2);
+}
+
+static void
+test_table_collection_time_units(void)
+{
+    int ret;
+    tsk_table_collection_t tc1, tc2;
+
+    char example_time_units[100] = "An example of time units with unicode ⏰";
+    tsk_size_t example_time_units_length = (tsk_size_t) strlen(example_time_units);
+
+    // Test equality
+    ret = tsk_table_collection_init(&tc1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_init(&tc2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
+    ret = tsk_table_collection_set_time_units(
+        &tc1, example_time_units, example_time_units_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_table_collection_equals(&tc1, &tc2, 0));
+    ret = tsk_table_collection_set_time_units(
+        &tc2, example_time_units, example_time_units_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
+
+    // Test copy
+    tsk_table_collection_free(&tc1);
+    tsk_table_collection_free(&tc2);
+    ret = tsk_table_collection_init(&tc1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_set_time_units(
+        &tc1, example_time_units, example_time_units_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_copy(&tc1, &tc2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
+
+    // Test dump and load with default time_units
+    tsk_table_collection_free(&tc1);
+    tsk_table_collection_free(&tc2);
+    ret = tsk_table_collection_init(&tc1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, strncmp(tc1.time_units, TSK_DEFAULT_TIME_UNITS, 7));
+    tc1.sequence_length = 1.0;
+    ret = tsk_table_collection_dump(&tc1, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_load(&tc2, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
+
+    // Test dump and load with set time_units and schema
+    tsk_table_collection_free(&tc1);
+    tsk_table_collection_free(&tc2);
+    ret = tsk_table_collection_init(&tc1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tc1.sequence_length = 1.0;
+    ret = tsk_table_collection_set_time_units(
+        &tc1, example_time_units, example_time_units_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_dump(&tc1, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -8345,6 +8419,8 @@ test_table_collection_clear_with_options(tsk_flags_t options)
     ret = tsk_population_table_set_metadata_schema(&tables.populations, "test", 4);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
+    ret = tsk_table_collection_set_time_units(&tables, "test", 4);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_set_metadata(&tables, "test", 4);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_set_metadata_schema(&tables, "test", 4);
@@ -8378,6 +8454,7 @@ test_table_collection_clear_with_options(tsk_flags_t options)
     CU_ASSERT_EQUAL(tables.populations.metadata_schema_length, expected_len);
     CU_ASSERT_EQUAL(tables.metadata_schema_length, expected_len_ts);
     CU_ASSERT_EQUAL(tables.metadata_length, expected_len_ts);
+    CU_ASSERT_EQUAL(tables.time_units_length, strlen(TSK_DEFAULT_TIME_UNITS));
 
     tsk_table_collection_free(&tables);
 }
@@ -8436,6 +8513,7 @@ main(int argc, char **argv)
         { "test_table_collection_equals_options", test_table_collection_equals_options },
         { "test_table_collection_simplify_errors",
             test_table_collection_simplify_errors },
+        { "test_table_collection_time_units", test_table_collection_time_units },
         { "test_table_collection_metadata", test_table_collection_metadata },
         { "test_simplify_tables_drops_indexes", test_simplify_tables_drops_indexes },
         { "test_simplify_empty_tables", test_simplify_empty_tables },

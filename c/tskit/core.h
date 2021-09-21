@@ -109,6 +109,8 @@ __tsk_nan_f(void)
 }
 #define TSK_UNKNOWN_TIME __tsk_nan_f()
 
+#define TSK_DEFAULT_TIME_UNITS "unknown"
+
 /**
 @brief Tskit Object IDs.
 
@@ -197,7 +199,7 @@ to the API or ABI are introduced, i.e., internal refactors of bugfixes.
 #define TSK_FILE_FORMAT_NAME          "tskit.trees"
 #define TSK_FILE_FORMAT_NAME_LENGTH   11
 #define TSK_FILE_FORMAT_VERSION_MAJOR 12
-#define TSK_FILE_FORMAT_VERSION_MINOR 5
+#define TSK_FILE_FORMAT_VERSION_MINOR 6
 
 /**
 @defgroup GENERAL_ERROR_GROUP General errors.

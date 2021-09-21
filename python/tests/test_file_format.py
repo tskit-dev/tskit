@@ -43,7 +43,7 @@ import tskit.exceptions as exceptions
 
 
 CURRENT_FILE_MAJOR = 12
-CURRENT_FILE_MINOR = 5
+CURRENT_FILE_MINOR = 6
 
 test_data_dir = os.path.join(os.path.dirname(__file__), "data")
 
@@ -579,6 +579,7 @@ class TestDumpFormat(TestFileFormat):
             "sites/metadata_offset",
             "sites/metadata_schema",
             "sites/position",
+            "time_units",
             "uuid",
         ]
         ts.dump(self.temp_file)
@@ -899,6 +900,7 @@ class TestFileFormatErrors(TestFileFormat):
             # We skip these keys as they are optional
             if "metadata_schema" not in key and key not in [
                 "metadata",
+                "time_units",
                 "mutations/time",
             ]:
                 data = dict(all_data)

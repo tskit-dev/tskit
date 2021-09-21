@@ -9717,6 +9717,9 @@ tsk_table_collection_print_state(const tsk_table_collection_t *self, FILE *out)
     fprintf(out, "#metadata#\n");
     fprintf(out, "%.*s\n", (int) self->metadata_length, self->metadata);
     fprintf(out, "#end#metadata\n");
+    fprintf(out, "#time_units#\n");
+    fprintf(out, "%.*s\n", (int) self->time_units_length, self->time_units);
+    fprintf(out, "#end#time_units\n");
     tsk_individual_table_print_state(&self->individuals, out);
     tsk_node_table_print_state(&self->nodes, out);
     tsk_edge_table_print_state(&self->edges, out);
@@ -9737,6 +9740,14 @@ tsk_table_collection_init(tsk_table_collection_t *self, tsk_flags_t options)
     if (options & TSK_NO_EDGE_METADATA) {
         edge_options |= TSK_NO_METADATA;
     }
+
+    /* Set default time_units value */
+    ret = tsk_table_collection_set_time_units(
+        self, TSK_DEFAULT_TIME_UNITS, strlen(TSK_DEFAULT_TIME_UNITS));
+    if (ret != 0) {
+        goto out;
+    }
+
     ret = tsk_node_table_init(&self->nodes, 0);
     if (ret != 0) {
         goto out;
@@ -9787,6 +9798,7 @@ tsk_table_collection_free(tsk_table_collection_t *self)
     tsk_safe_free(self->indexes.edge_insertion_order);
     tsk_safe_free(self->indexes.edge_removal_order);
     tsk_safe_free(self->file_uuid);
+    tsk_safe_free(self->time_units);
     tsk_safe_free(self->metadata);
     tsk_safe_free(self->metadata_schema);
     return 0;
@@ -9806,7 +9818,11 @@ tsk_table_collection_equals(const tsk_table_collection_t *self,
           && tsk_site_table_equals(&self->sites, &other->sites, options)
           && tsk_mutation_table_equals(&self->mutations, &other->mutations, options)
           && tsk_population_table_equals(
-                 &self->populations, &other->populations, options);
+                 &self->populations, &other->populations, options)
+          && (self->time_units_length == other->time_units_length
+                 && tsk_memcmp(self->time_units, other->time_units,
+                        self->time_units_length * sizeof(char))
+                        == 0);
 
     /* TSK_CMP_IGNORE_TS_METADATA is implied by TSK_CMP_IGNORE_METADATA */
     if (options & TSK_CMP_IGNORE_METADATA) {
@@ -9829,6 +9845,14 @@ tsk_table_collection_equals(const tsk_table_collection_t *self,
                      &self->provenances, &other->provenances, options);
     }
     return ret;
+}
+
+int
+tsk_table_collection_set_time_units(
+    tsk_table_collection_t *self, const char *time_units, tsk_size_t time_units_length)
+{
+    return replace_string(
+        &self->time_units, &self->time_units_length, time_units, time_units_length);
 }
 
 int
@@ -10010,6 +10034,11 @@ tsk_table_collection_copy(const tsk_table_collection_t *self,
             goto out;
         }
     }
+    ret = tsk_table_collection_set_time_units(
+        dest, self->time_units, self->time_units_length);
+    if (ret != 0) {
+        goto out;
+    }
     ret = tsk_table_collection_set_metadata(dest, self->metadata, self->metadata_length);
     if (ret != 0) {
         goto out;
@@ -10033,9 +10062,10 @@ tsk_table_collection_read_format_data(tsk_table_collection_t *self, kastore_t *s
     int8_t *format_name, *uuid;
     double *L;
 
+    char *time_units = NULL;
     char *metadata = NULL;
     char *metadata_schema = NULL;
-    size_t metadata_length, metadata_schema_length;
+    size_t time_units_length, metadata_length, metadata_schema_length;
 
     ret = kastore_gets_int8(store, "format/name", &format_name, &len);
     if (ret != 0) {
@@ -10106,6 +10136,25 @@ tsk_table_collection_read_format_data(tsk_table_collection_t *self, kastore_t *s
     }
     tsk_memcpy(self->file_uuid, uuid, TSK_UUID_SIZE);
     self->file_uuid[TSK_UUID_SIZE] = '\0';
+
+    ret = kastore_containss(store, "time_units");
+    if (ret < 0) {
+        ret = tsk_set_kas_error(ret);
+        goto out;
+    }
+    if (ret == 1) {
+        ret = kastore_gets_int8(
+            store, "time_units", (int8_t **) &time_units, &time_units_length);
+        if (ret != 0) {
+            ret = tsk_set_kas_error(ret);
+            goto out;
+        }
+        ret = tsk_table_collection_set_time_units(
+            self, time_units, (tsk_size_t) time_units_length);
+        if (ret != 0) {
+            goto out;
+        }
+    }
 
     ret = kastore_containss(store, "metadata");
     if (ret < 0) {
@@ -10354,6 +10403,7 @@ tsk_table_collection_write_format_data(const tsk_table_collection_t *self,
         { "format/version", (void *) version, 2, KAS_UINT32 },
         { "sequence_length", (const void *) &self->sequence_length, 1, KAS_FLOAT64 },
         { "uuid", (void *) uuid, TSK_UUID_SIZE, KAS_INT8 },
+        { "time_units", (void *) self->time_units, self->time_units_length, KAS_INT8 },
         { "metadata", (void *) self->metadata, self->metadata_length, KAS_INT8 },
         { "metadata_schema", (void *) self->metadata_schema,
             self->metadata_schema_length, KAS_INT8 },
@@ -11097,6 +11147,10 @@ tsk_table_collection_clear(tsk_table_collection_t *self, tsk_flags_t options)
             goto out;
         }
     }
+
+    tsk_table_collection_set_time_units(
+        self, TSK_DEFAULT_TIME_UNITS, strlen(TSK_DEFAULT_TIME_UNITS));
+
 out:
     return ret;
 }
