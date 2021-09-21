@@ -859,7 +859,7 @@ and is not checked for compatibility with any existing schema on this table.
 @param other A pointer to a tsk_individual_table_t object where rows are copied from.
 @param num_rows The number of rows from ``other`` to append to this table.
 @param row_indexes Array of row indexes in ``other``. If ``NULL`` is passed then the
-first ``num_rows`` of ``other`` are used.
+    first ``num_rows`` of ``other`` are used.
 @param options Bitwise option flags. Currently unused; should be
     set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
@@ -961,19 +961,61 @@ on and may change arbitrarily between versions.
 */
 void tsk_individual_table_print_state(const tsk_individual_table_t *self, FILE *out);
 
-/** @} */
+/**
+@brief Replace this table's data by copying from a set of column arrays
 
-/* Undocumented methods */
+@rst
+Clears the data columns of this table and then copies column data from the specified
+set of arrays. The supplied arrays should all contain data on the same number of rows.
+The metadata schema is not affected.
+@endrst
 
+@param self A pointer to a tsk_individual_table_t object.
+@param num_rows The number of rows to copy from the specifed arrays.
+@param flags The array of tsk_flag_t flag values to be copied.
+@param location The array of double location values to be copied.
+@param location_offset The array of tsk_size_t location offset values to be copied.
+@param parents The array of tsk_id_t parent values to be copied.
+@param parents_offset The array of tsk_size_t parent offset values to be copied.
+@param metadata The array of char metadata values to be copied.
+@param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_individual_table_set_columns(tsk_individual_table_t *self, tsk_size_t num_rows,
     const tsk_flags_t *flags, const double *location, const tsk_size_t *location_offset,
     const tsk_id_t *parents, const tsk_size_t *parents_offset, const char *metadata,
     const tsk_size_t *metadata_offset);
+
+/**
+@brief Extends this table by copying from a set of column arrays
+
+@rst
+Copies column data from the specified set of arrays to create new rows at the end of the
+table. The supplied arrays should all contain data on the same number of rows. The
+metadata schema is not affected.
+@endrst
+
+@param self A pointer to a tsk_individual_table_t object.
+@param num_rows The number of rows to copy from the specifed arrays
+@param flags The array of tsk_flag_t flag values to be copied.
+@param location The array of double location values to be copied.
+@param location_offset The array of tsk_size_t location offset values to be copied.
+@param parents The array of tsk_id_t parent values to be copied.
+@param parents_offset The array of tsk_size_t parent offset values to be copied.
+@param metadata The array of char metadata values to be copied.
+@param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_individual_table_append_columns(tsk_individual_table_t *self,
     tsk_size_t num_rows, const tsk_flags_t *flags, const double *location,
     const tsk_size_t *location_offset, const tsk_id_t *parents,
     const tsk_size_t *parents_offset, const char *metadata,
     const tsk_size_t *metadata_offset);
+
+/** @} */
+
+/* Undocumented methods */
+
 int tsk_individual_table_dump_text(const tsk_individual_table_t *self, FILE *out);
 int tsk_individual_table_set_max_rows_increment(
     tsk_individual_table_t *self, tsk_size_t max_rows_increment);
@@ -1107,7 +1149,7 @@ and is not checked for compatibility with any existing schema on this table.
 @param other A pointer to a tsk_node_table_t object where rows are copied from.
 @param num_rows The number of rows from ``other`` to append to this table.
 @param row_indexes Array of row indexes in ``other``. If ``NULL`` is passed then the
-first ``num_rows`` of ``other`` are used.
+    first ``num_rows`` of ``other`` are used.
 @param options Bitwise option flags. Currently unused; should be
     set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
@@ -1204,6 +1246,52 @@ on and may change arbitrarily between versions.
 */
 void tsk_node_table_print_state(const tsk_node_table_t *self, FILE *out);
 
+/**
+@brief Replace this table's data by copying from a set of column arrays
+
+@rst
+Clears the data columns of this table and then copies column data from the specified
+set of arrays. The supplied arrays should all contain data on the same number of rows.
+The metadata schema is not affected.
+@endrst
+
+@param self A pointer to a tsk_node_table_t object.
+@param num_rows The number of rows to copy from the specifed arrays.
+@param flags The array of tsk_flag_t values to be copied.
+@param time The array of double time values to be copied.
+@param population The array of tsk_id_t population values to be copied.
+@param individual The array of tsk_id_t individual values to be copied.
+@param metadata The array of char metadata values to be copied.
+@param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_node_table_set_columns(tsk_node_table_t *self, tsk_size_t num_rows,
+    const tsk_flags_t *flags, const double *time, const tsk_id_t *population,
+    const tsk_id_t *individual, const char *metadata, const tsk_size_t *metadata_offset);
+
+/**
+@brief Extends this table by copying from a set of column arrays
+
+@rst
+Copies column data from the specified set of arrays to create new rows at the end of the
+table. The supplied arrays should all contain data on the same number of rows. The
+metadata schema is not affected.
+@endrst
+
+@param self A pointer to a tsk_node_table_t object.
+@param num_rows The number of rows to copy from the specifed arrays
+@param flags The array of tsk_flag_t values to be copied.
+@param time The array of double time values to be copied.
+@param population The array of tsk_id_t population values to be copied.
+@param individual The array of tsk_id_t individual values to be copied.
+@param metadata The array of char metadata values to be copied.
+@param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_node_table_append_columns(tsk_node_table_t *self, tsk_size_t num_rows,
+    const tsk_flags_t *flags, const double *time, const tsk_id_t *population,
+    const tsk_id_t *individual, const char *metadata, const tsk_size_t *metadata_offset);
+
 /** @} */
 
 /* Undocumented methods */
@@ -1212,12 +1300,6 @@ int tsk_node_table_set_max_rows_increment(
     tsk_node_table_t *self, tsk_size_t max_rows_increment);
 int tsk_node_table_set_max_metadata_length_increment(
     tsk_node_table_t *self, tsk_size_t max_metadata_length_increment);
-int tsk_node_table_set_columns(tsk_node_table_t *self, tsk_size_t num_rows,
-    const tsk_flags_t *flags, const double *time, const tsk_id_t *population,
-    const tsk_id_t *individual, const char *metadata, const tsk_size_t *metadata_length);
-int tsk_node_table_append_columns(tsk_node_table_t *self, tsk_size_t num_rows,
-    const tsk_flags_t *flags, const double *time, const tsk_id_t *population,
-    const tsk_id_t *individual, const char *metadata, const tsk_size_t *metadata_length);
 int tsk_node_table_dump_text(const tsk_node_table_t *self, FILE *out);
 
 /**
@@ -1352,7 +1434,7 @@ and is not checked for compatibility with any existing schema on this table.
 @param other A pointer to a tsk_edge_table_t object where rows are copied from.
 @param num_rows The number of rows from ``other`` to append to this table.
 @param row_indexes Array of row indexes in ``other``. If ``NULL`` is passed then the
-first ``num_rows`` of ``other`` are used.
+    first ``num_rows`` of ``other`` are used.
 @param options Bitwise option flags. Currently unused; should be
     set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
@@ -1449,6 +1531,51 @@ on and may change arbitrarily between versions.
 */
 void tsk_edge_table_print_state(const tsk_edge_table_t *self, FILE *out);
 
+/**
+@brief Replace this table's data by copying from a set of column arrays
+
+@rst
+Clears the data columns of this table and then copies column data from the specified
+set of arrays. The supplied arrays should all contain data on the same number of rows.
+The metadata schema is not affected.
+@endrst
+
+@param self A pointer to a tsk_edge_table_t object.
+@param num_rows The number of rows to copy from the specifed arrays.
+@param left The array of double left values to be copied.
+@param right The array of double right values to be copied.
+@param parent The array of tsk_id_t parent values to be copied.
+@param child The array of tsk_id_t child values to be copied.
+@param metadata The array of char metadata values to be copied.
+@param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_edge_table_set_columns(tsk_edge_table_t *self, tsk_size_t num_rows,
+    const double *left, const double *right, const tsk_id_t *parent,
+    const tsk_id_t *child, const char *metadata, const tsk_size_t *metadata_offset);
+
+/**
+@brief Extends this table by copying from a set of column arrays
+
+@rst
+Copies column data from the specified set of arrays to create new rows at the end of the
+table. The supplied arrays should all contain data on the same number of rows. The
+metadata schema is not affected.
+@endrst
+
+@param self A pointer to a tsk_edge_table_t object.
+@param num_rows The number of rows to copy from the specifed arrays.
+@param left The array of double left values to be copied.
+@param right The array of double right values to be copied.
+@param parent The array of tsk_id_t parent values to be copied.
+@param child The array of tsk_id_t child values to be copied.
+@param metadata The array of char metadata values to be copied.
+@param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+*/
+int tsk_edge_table_append_columns(tsk_edge_table_t *self, tsk_size_t num_rows,
+    const double *left, const double *right, const tsk_id_t *parent,
+    const tsk_id_t *child, const char *metadata, const tsk_size_t *metadata_offset);
+
 /** @} */
 
 /* Undocumented methods */
@@ -1457,12 +1584,6 @@ int tsk_edge_table_set_max_rows_increment(
     tsk_edge_table_t *self, tsk_size_t max_rows_increment);
 int tsk_edge_table_set_max_metadata_length_increment(
     tsk_edge_table_t *self, tsk_size_t max_metadata_length_increment);
-int tsk_edge_table_set_columns(tsk_edge_table_t *self, tsk_size_t num_rows,
-    const double *left, const double *right, const tsk_id_t *parent,
-    const tsk_id_t *child, const char *metadata, const tsk_size_t *metadata_length);
-int tsk_edge_table_append_columns(tsk_edge_table_t *self, tsk_size_t num_rows,
-    const double *left, const double *right, const tsk_id_t *parent,
-    const tsk_id_t *child, const char *metadata, const tsk_size_t *metadata_length);
 int tsk_edge_table_dump_text(const tsk_edge_table_t *self, FILE *out);
 
 int tsk_edge_table_squash(tsk_edge_table_t *self);
@@ -1595,7 +1716,7 @@ and is not checked for compatibility with any existing schema on this table.
 @param other A pointer to a tsk_migration_table_t object where rows are copied from.
 @param num_rows The number of rows from ``other`` to append to this table.
 @param row_indexes Array of row indexes in ``other``. If ``NULL`` is passed then the
-first ``num_rows`` of ``other`` are used.
+    first ``num_rows`` of ``other`` are used.
 @param options Bitwise option flags. Currently unused; should be
     set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
@@ -1694,6 +1815,58 @@ on and may change arbitrarily between versions.
 */
 void tsk_migration_table_print_state(const tsk_migration_table_t *self, FILE *out);
 
+/**
+@brief Replace this table's data by copying from a set of column arrays
+
+@rst
+Clears the data columns of this table and then copies column data from the specified
+set of arrays. The supplied arrays should all contain data on the same number of rows.
+The metadata schema is not affected.
+@endrst
+
+@param self A pointer to a tsk_migration_table_t object.
+@param num_rows The number of rows to copy from the specifed arrays.
+@param left The array of double left values to be copied.
+@param right The array of double right values to be copied.
+@param node The array of tsk_id_t node values to be copied.
+@param source The array of tsk_id_t source values to be copied.
+@param dest The array of tsk_id_t dest values to be copied.
+@param time The array of double time values to be copied.
+@param metadata The array of char metadata values to be copied.
+@param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_migration_table_set_columns(tsk_migration_table_t *self, tsk_size_t num_rows,
+    const double *left, const double *right, const tsk_id_t *node,
+    const tsk_id_t *source, const tsk_id_t *dest, const double *time,
+    const char *metadata, const tsk_size_t *metadata_offset);
+
+/**
+@brief Extends this table by copying from a set of column arrays
+
+@rst
+Copies column data from the specified set of arrays to create new rows at the end of the
+table. The supplied arrays should all contain data on the same number of rows. The
+metadata schema is not affected.
+@endrst
+
+@param self A pointer to a tsk_migration_table_t object.
+@param num_rows The number of rows to copy from the specifed arrays
+@param left The array of double left values to be copied.
+@param right The array of double right values to be copied.
+@param node The array of tsk_id_t node values to be copied.
+@param source The array of tsk_id_t source values to be copied.
+@param dest The array of tsk_id_t dest values to be copied.
+@param time The array of double time values to be copied.
+@param metadata The array of char metadata values to be copied.
+@param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_migration_table_append_columns(tsk_migration_table_t *self, tsk_size_t num_rows,
+    const double *left, const double *right, const tsk_id_t *node,
+    const tsk_id_t *source, const tsk_id_t *dest, const double *time,
+    const char *metadata, const tsk_size_t *metadata_offset);
+
 /** @} */
 
 /* Undocumented methods */
@@ -1702,14 +1875,6 @@ int tsk_migration_table_set_max_rows_increment(
     tsk_migration_table_t *self, tsk_size_t max_rows_increment);
 int tsk_migration_table_set_max_metadata_length_increment(
     tsk_migration_table_t *self, tsk_size_t max_metadata_length_increment);
-int tsk_migration_table_set_columns(tsk_migration_table_t *self, tsk_size_t num_rows,
-    const double *left, const double *right, const tsk_id_t *node,
-    const tsk_id_t *source, const tsk_id_t *dest, const double *time,
-    const char *metadata, const tsk_size_t *metadata_length);
-int tsk_migration_table_append_columns(tsk_migration_table_t *self, tsk_size_t num_rows,
-    const double *left, const double *right, const tsk_id_t *node,
-    const tsk_id_t *source, const tsk_id_t *dest, const double *time,
-    const char *metadata, const tsk_size_t *metadata_length);
 int tsk_migration_table_dump_text(const tsk_migration_table_t *self, FILE *out);
 
 /**
@@ -1833,7 +1998,7 @@ and is not checked for compatibility with any existing schema on this table.
 @param other A pointer to a tsk_site_table_t object where rows are copied from.
 @param num_rows The number of rows from ``other`` to append to this table.
 @param row_indexes Array of row indexes in ``other``. If ``NULL`` is passed then the
-first ``num_rows`` of ``other`` are used.
+    first ``num_rows`` of ``other`` are used.
 @param options Bitwise option flags. Currently unused; should be
     set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
@@ -1930,6 +2095,54 @@ on and may change arbitrarily between versions.
 */
 void tsk_site_table_print_state(const tsk_site_table_t *self, FILE *out);
 
+/**
+@brief Replace this table's data by copying from a set of column arrays
+
+@rst
+Clears the data columns of this table and then copies column data from the specified
+set of arrays. The supplied arrays should all contain data on the same number of rows.
+The metadata schema is not affected.
+@endrst
+
+@param self A pointer to a tsk_site_table_t object.
+@param num_rows The number of rows to copy from the specifed arrays.
+@param position The array of double position values to be copied.
+@param ancestral_state The array of char ancestral state values to be copied.
+@param ancestral_state_offset The array of tsk_size_t ancestral state offset values to be
+        copied.
+@param metadata The array of char metadata values to be copied.
+@param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_site_table_set_columns(tsk_site_table_t *self, tsk_size_t num_rows,
+    const double *position, const char *ancestral_state,
+    const tsk_size_t *ancestral_state_offset, const char *metadata,
+    const tsk_size_t *metadata_offset);
+
+/**
+@brief Extends this table by copying from a set of column arrays
+
+@rst
+Copies column data from the specified set of arrays to create new rows at the end of the
+table. The supplied arrays should all contain data on the same number of rows. The
+metadata schema is not affected.
+@endrst
+
+@param self A pointer to a tsk_site_table_t object.
+@param num_rows The number of rows to copy from the specifed arrays.
+@param position The array of double position values to be copied.
+@param ancestral_state The array of char ancestral state values to be copied.
+@param ancestral_state_offset The array of tsk_size_t ancestral state offset values to be
+    copied.
+@param metadata The array of char metadata values to be copied.
+@param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_site_table_append_columns(tsk_site_table_t *self, tsk_size_t num_rows,
+    const double *position, const char *ancestral_state,
+    const tsk_size_t *ancestral_state_offset, const char *metadata,
+    const tsk_size_t *metadata_offset);
+
 /** @} */
 
 /* Undocumented methods */
@@ -1940,14 +2153,6 @@ int tsk_site_table_set_max_metadata_length_increment(
     tsk_site_table_t *self, tsk_size_t max_metadata_length_increment);
 int tsk_site_table_set_max_ancestral_state_length_increment(
     tsk_site_table_t *self, tsk_size_t max_ancestral_state_length_increment);
-int tsk_site_table_set_columns(tsk_site_table_t *self, tsk_size_t num_rows,
-    const double *position, const char *ancestral_state,
-    const tsk_size_t *ancestral_state_length, const char *metadata,
-    const tsk_size_t *metadata_length);
-int tsk_site_table_append_columns(tsk_site_table_t *self, tsk_size_t num_rows,
-    const double *position, const char *ancestral_state,
-    const tsk_size_t *ancestral_state_length, const char *metadata,
-    const tsk_size_t *metadata_length);
 int tsk_site_table_dump_text(const tsk_site_table_t *self, FILE *out);
 
 /**
@@ -2078,7 +2283,7 @@ and is not checked for compatibility with any existing schema on this table.
 @param other A pointer to a tsk_mutation_table_t object where rows are copied from.
 @param num_rows The number of rows from ``other`` to append to this table.
 @param row_indexes Array of row indexes in ``other``. If ``NULL`` is passed then the
-first ``num_rows`` of ``other`` are used.
+    first ``num_rows`` of ``other`` are used.
 @param options Bitwise option flags. Currently unused; should be
     set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
@@ -2176,6 +2381,62 @@ on and may change arbitrarily between versions.
 */
 void tsk_mutation_table_print_state(const tsk_mutation_table_t *self, FILE *out);
 
+/**
+@brief Replace this table's data by copying from a set of column arrays
+
+@rst
+Clears the data columns of this table and then copies column data from the specified
+set of arrays. The supplied arrays should all contain data on the same number of rows.
+The metadata schema is not affected.
+@endrst
+
+@param self A pointer to a tsk_mutation_table_t object.
+@param num_rows The number of rows to copy from the specifed arrays.
+@param site The array of tsk_id_t site values to be copied.
+@param node The array of tsk_id_t node values to be copied.
+@param parent The array of tsk_id_t parent values to be copied.
+@param time The array of double time values to be copied.
+@param derived_state The array of char derived_state values to be copied.
+@param derived_state_offset The array of tsk_size_t derived state offset values to be
+copied.
+@param metadata The array of char metadata values to be copied.
+@param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_mutation_table_set_columns(tsk_mutation_table_t *self, tsk_size_t num_rows,
+    const tsk_id_t *site, const tsk_id_t *node, const tsk_id_t *parent,
+    const double *time, const char *derived_state,
+    const tsk_size_t *derived_state_offset, const char *metadata,
+    const tsk_size_t *metadata_offset);
+
+/**
+@brief Extends this table by copying from a set of column arrays
+
+@rst
+Copies column data from the specified set of arrays to create new rows at the end of the
+table. The supplied arrays should all contain data on the same number of rows. The
+metadata schema is not affected.
+@endrst
+
+@param self A pointer to a tsk_mutation_table_t object.
+@param num_rows The number of rows to copy from the specifed arrays.
+@param site The array of tsk_id_t site values to be copied.
+@param node The array of tsk_id_t node values to be copied.
+@param parent The array of tsk_id_t parent values to be copied.
+@param time The array of double time values to be copied.
+@param derived_state The array of char derived_state values to be copied.
+@param derived_state_offset The array of tsk_size_t derived state offset values to be
+    copied.
+@param metadata The array of char metadata values to be copied.
+@param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_mutation_table_append_columns(tsk_mutation_table_t *self, tsk_size_t num_rows,
+    const tsk_id_t *site, const tsk_id_t *node, const tsk_id_t *parent,
+    const double *time, const char *derived_state,
+    const tsk_size_t *derived_state_offset, const char *metadata,
+    const tsk_size_t *metadata_offset);
+
 /** @} */
 
 /* Undocumented methods */
@@ -2186,16 +2447,6 @@ int tsk_mutation_table_set_max_metadata_length_increment(
     tsk_mutation_table_t *self, tsk_size_t max_metadata_length_increment);
 int tsk_mutation_table_set_max_derived_state_length_increment(
     tsk_mutation_table_t *self, tsk_size_t max_derived_state_length_increment);
-int tsk_mutation_table_set_columns(tsk_mutation_table_t *self, tsk_size_t num_rows,
-    const tsk_id_t *site, const tsk_id_t *node, const tsk_id_t *parent,
-    const double *time, const char *derived_state,
-    const tsk_size_t *derived_state_length, const char *metadata,
-    const tsk_size_t *metadata_length);
-int tsk_mutation_table_append_columns(tsk_mutation_table_t *self, tsk_size_t num_rows,
-    const tsk_id_t *site, const tsk_id_t *node, const tsk_id_t *parent,
-    const double *time, const char *derived_state,
-    const tsk_size_t *derived_state_length, const char *metadata,
-    const tsk_size_t *metadata_length);
 int tsk_mutation_table_dump_text(const tsk_mutation_table_t *self, FILE *out);
 
 /**
@@ -2310,7 +2561,7 @@ and is not checked for compatibility with any existing schema on this table.
 @param other A pointer to a tsk_population_table_t object where rows are copied from.
 @param num_rows The number of rows from ``other`` to append to this table.
 @param row_indexes Array of row indexes in ``other``. If ``NULL`` is passed then the
-first ``num_rows`` of ``other`` are used.
+    first ``num_rows`` of ``other`` are used.
 @param options Bitwise option flags. Currently unused; should be
     set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
@@ -2410,6 +2661,42 @@ on and may change arbitrarily between versions.
 */
 void tsk_population_table_print_state(const tsk_population_table_t *self, FILE *out);
 
+/**
+@brief Replace this table's data by copying from a set of column arrays
+
+@rst
+Clears the data columns of this table and then copies column data from the specified
+set of arrays. The supplied arrays should all contain data on the same number of rows.
+The metadata schema is not affected.
+@endrst
+
+@param self A pointer to a tsk_population_table_t object.
+@param num_rows The number of rows to copy from the specifed arrays.
+@param metadata The array of char metadata values to be copied.
+@param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_population_table_set_columns(tsk_population_table_t *self, tsk_size_t num_rows,
+    const char *metadata, const tsk_size_t *metadata_offset);
+
+/**
+@brief Extends this table by copying from a set of column arrays
+
+@rst
+Copies column data from the specified set of arrays to create new rows at the end of the
+table. The supplied arrays should all contain data on the same number of rows. The
+metadata schema is not affected.
+@endrst
+
+@param self A pointer to a tsk_population_table_t object.
+@param num_rows The number of rows to copy from the specifed arrays.
+@param metadata The array of char metadata values to be copied.
+@param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_population_table_append_columns(tsk_population_table_t *self,
+    tsk_size_t num_rows, const char *metadata, const tsk_size_t *metadata_offset);
+
 /** @} */
 
 /* Undocumented methods */
@@ -2418,10 +2705,6 @@ int tsk_population_table_set_max_rows_increment(
     tsk_population_table_t *self, tsk_size_t max_rows_increment);
 int tsk_population_table_set_max_metadata_length_increment(
     tsk_population_table_t *self, tsk_size_t max_metadata_length_increment);
-int tsk_population_table_set_columns(tsk_population_table_t *self, tsk_size_t num_rows,
-    const char *metadata, const tsk_size_t *metadata_offset);
-int tsk_population_table_append_columns(tsk_population_table_t *self,
-    tsk_size_t num_rows, const char *metadata, const tsk_size_t *metadata_offset);
 int tsk_population_table_dump_text(const tsk_population_table_t *self, FILE *out);
 
 /**
@@ -2543,7 +2826,7 @@ the first ``num_rows`` from ``other`` to this table.
 @param other A pointer to a tsk_provenance_table_t object where rows are copied from.
 @param num_rows The number of rows from ``other`` to append to this table.
 @param row_indexes Array of row indexes in ``other``. If ``NULL`` is passed then the
-first ``num_rows`` of ``other`` are used.
+    first ``num_rows`` of ``other`` are used.
 @param options Bitwise option flags. Currently unused; should be
     set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
@@ -2628,6 +2911,48 @@ on and may change arbitrarily between versions.
 */
 void tsk_provenance_table_print_state(const tsk_provenance_table_t *self, FILE *out);
 
+/**
+@brief Replace this table's data by copying from a set of column arrays
+
+@rst
+Clears the data columns of this table and then copies column data from the specified
+set of arrays. The supplied arrays should all contain data on the same number of rows.
+The metadata schema is not affected.
+@endrst
+
+@param self A pointer to a tsk_provenance_table_t object.
+@param num_rows The number of rows to copy from the specifed arrays.
+@param timestamp The array of char timestamp values to be copied.
+@param timestamp_offset The array of tsk_size_t timestamp offset values to be copied.
+@param record The array of char record values to be copied.
+@param record_offset The array of tsk_size_t record offset values to be copied.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_provenance_table_set_columns(tsk_provenance_table_t *self, tsk_size_t num_rows,
+    const char *timestamp, const tsk_size_t *timestamp_offset, const char *record,
+    const tsk_size_t *record_offset);
+
+/**
+@brief Extends this table by copying from a set of column arrays
+
+@rst
+Copies column data from the specified set of arrays to create new rows at the end of the
+table. The supplied arrays should all contain data on the same number of rows. The
+metadata schema is not affected.
+@endrst
+
+@param self A pointer to a tsk_provenance_table_t object.
+@param num_rows The number of rows to copy from the specifed arrays.
+@param timestamp The array of char timestamp values to be copied.
+@param timestamp_offset The array of tsk_size_t timestamp offset values to be copied.
+@param record The array of char record values to be copied.
+@param record_offset The array of tsk_size_t record offset values to be copied.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_provenance_table_append_columns(tsk_provenance_table_t *self,
+    tsk_size_t num_rows, const char *timestamp, const tsk_size_t *timestamp_offset,
+    const char *record, const tsk_size_t *record_offset);
+
 /** @} */
 
 /* Undocumented methods */
@@ -2638,12 +2963,6 @@ int tsk_provenance_table_set_max_timestamp_length_increment(
     tsk_provenance_table_t *self, tsk_size_t max_timestamp_length_increment);
 int tsk_provenance_table_set_max_record_length_increment(
     tsk_provenance_table_t *self, tsk_size_t max_record_length_increment);
-int tsk_provenance_table_set_columns(tsk_provenance_table_t *self, tsk_size_t num_rows,
-    const char *timestamp, const tsk_size_t *timestamp_offset, const char *record,
-    const tsk_size_t *record_offset);
-int tsk_provenance_table_append_columns(tsk_provenance_table_t *self,
-    tsk_size_t num_rows, const char *timestamp, const tsk_size_t *timestamp_offset,
-    const char *record, const tsk_size_t *record_offset);
 int tsk_provenance_table_dump_text(const tsk_provenance_table_t *self, FILE *out);
 
 /****************************************************************************/
