@@ -162,6 +162,7 @@ def ts_fixture():
             )
     tables.metadata_schema = tskit.MetadataSchema({"codec": "json"})
     tables.metadata = "Test metadata"
+    tables.time_units = "Test time units"
 
     # Add some more rows to provenance to have enough for testing.
     for _ in range(3):

@@ -11134,9 +11134,6 @@ tsk_table_collection_clear(tsk_table_collection_t *self, tsk_flags_t options)
         }
     }
 
-    tsk_table_collection_set_time_units(
-        self, TSK_DEFAULT_TIME_UNITS, strlen(TSK_DEFAULT_TIME_UNITS));
-
 out:
     return ret;
 }
