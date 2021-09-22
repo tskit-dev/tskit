@@ -24,6 +24,7 @@
 Test cases for the low level C interface to tskit.
 """
 import collections
+import gc
 import inspect
 import itertools
 import os
@@ -387,13 +388,15 @@ class TestTableCollection(LowLevelTestCase):
 
 class TestIbd:
     def test_uninitialised(self):
-        result = _tskit.IbdResult.__new__(_tskit.IbdResult)
+        result = _tskit.IbdSegments.__new__(_tskit.IbdSegments)
         with pytest.raises(SystemError):
             result.get(0, 1)
         with pytest.raises(SystemError):
             result.print_state()
         with pytest.raises(SystemError):
-            result.total_segments
+            result.num_segments
+        with pytest.raises(SystemError):
+            result.total_span
         with pytest.raises(SystemError):
             result.get_keys()
 
@@ -401,14 +404,14 @@ class TestIbd:
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables._ll_tables
         pairs = [[0, 1], [0, 2], [1, 2]]
-        result = tc.find_ibd(within=[0, 1, 2])
+        result = tc.ibd_segments(within=[0, 1, 2])
         np.testing.assert_array_equal(result.get_keys(), pairs)
 
     def test_find_all_pairs(self):
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables._ll_tables
         num_pairs = ts.num_samples * (ts.num_samples - 1) / 2
-        result = tc.find_ibd()
+        result = tc.ibd_segments()
         assert result.num_pairs == num_pairs
         pairs = np.array(list(itertools.combinations(range(ts.num_samples), 2)))
         np.testing.assert_array_equal(result.get_keys(), pairs)
@@ -418,38 +421,43 @@ class TestIbd:
         tc = ts.tables._ll_tables
         for bad_samples in ["sdf", {}]:
             with pytest.raises(ValueError):
-                tc.find_ibd(bad_samples)
+                tc.ibd_segments(bad_samples)
         # input array must be 1D
         with pytest.raises(ValueError):
-            tc.find_ibd([[[1], [1]]])
+            tc.ibd_segments([[[1], [1]]])
         for bad_float in ["sdf", None, {}]:
             with pytest.raises(TypeError):
-                tc.find_ibd(min_length=bad_float)
+                tc.ibd_segments(min_length=bad_float)
             with pytest.raises(TypeError):
-                tc.find_ibd(max_time=bad_float)
+                tc.ibd_segments(max_time=bad_float)
         with pytest.raises(_tskit.LibraryError):
-            tc.find_ibd(max_time=-1)
+            tc.ibd_segments(max_time=-1)
         with pytest.raises(_tskit.LibraryError):
-            tc.find_ibd(min_length=-1)
+            tc.ibd_segments(min_length=-1)
 
     def test_get_output(self):
         ts = msprime.simulate(5, random_seed=1)
         tc = ts.tables._ll_tables
         pairs = [(0, 1), (2, 3)]
-        result = tc.find_ibd([0, 1, 2, 3])
-        assert isinstance(result, _tskit.IbdResult)
+        result = tc.ibd_segments([0, 1, 2, 3])
+        assert isinstance(result, _tskit.IbdSegments)
         for pair in pairs:
             value = result.get(*pair)
-            assert isinstance(value, dict)
-            assert len(value) == 3
-            assert list(value["left"]) == [0]
-            assert list(value["right"]) == [1]
-            assert len(value["node"]) == 1
+            assert isinstance(value, _tskit.IbdSegmentList)
+            assert value.num_segments == 1
+            assert isinstance(value.left, np.ndarray)
+            assert isinstance(value.right, np.ndarray)
+            assert isinstance(value.node, np.ndarray)
+            assert list(value.left) == [0]
+            assert list(value.right) == [1]
+            assert len(value.node) == 1
+            assert value.num_segments == 1
+            assert value.total_span == 1
 
     def test_get_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables._ll_tables
-        result = tc.find_ibd(within=[0, 1, 2])
+        result = tc.ibd_segments(within=[0, 1, 2])
         with pytest.raises(TypeError):
             result.get()
         with pytest.raises(TypeError):
@@ -466,7 +474,7 @@ class TestIbd:
     def test_print_state(self):
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables._ll_tables
-        result = tc.find_ibd()
+        result = tc.ibd_segments()
         with pytest.raises(TypeError):
             result.print_state()
 
@@ -479,14 +487,40 @@ class TestIbd:
 
     def test_direct_instantiation(self):
         # Nobody should do this, but just in case
-        result = _tskit.IbdResult()
-        assert result.total_segments == 0
+        result = _tskit.IbdSegments()
+        assert result.num_segments == 0
+        assert result.total_span == 0
         with tempfile.TemporaryFile("w+") as f:
             result.print_state(f)
             f.seek(0)
             output = f.read()
         assert len(output) > 0
         assert "IBD" in output
+
+
+class TestIbdSegmentList:
+    def test_direct_instantiation(self):
+        # Nobody should do this, but just in case
+        seglist = _tskit.IbdSegmentList()
+        attrs = ["num_segments", "total_span", "left", "right", "node"]
+        for attr in attrs:
+            with pytest.raises(SystemError, match="not initialised"):
+                getattr(seglist, attr)
+
+    def test_memory_management(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.tables._ll_tables
+        result = tc.ibd_segments()
+        del ts, tc
+        lst = result.get(0, 1)
+        assert lst.num_segments == 1
+        del result
+        gc.collect()
+        assert lst.num_segments == 1
+        # Do some allocs to see if we're still working properly
+        x = sum(list(range(1000)))
+        assert x > 0
+        assert lst.num_segments == 1
 
 
 class TestTableMethods:

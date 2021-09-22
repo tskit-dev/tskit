@@ -618,26 +618,33 @@ typedef struct _tsk_table_sorter_t {
  * TODO: document properly
  * */
 
-typedef struct _tsk_segment_t {
+/* Note for tskit developers: it's perhaps a bit confusing/pointless to
+ * have the tsk_ibd_segment_t struct as well as the internal tsk_segment_t
+ * struct (which is identical). However, we may want to implement either
+ * segment type differently in future, and since the tsk_ibd_segment_t
+ * is part of the public API we want to allow the freedom for the different
+ * structures to evolve over time */
+typedef struct _tsk_ibd_segment_t {
     double left;
     double right;
-    struct _tsk_segment_t *next;
+    struct _tsk_ibd_segment_t *next;
     tsk_id_t node;
-} tsk_segment_t;
+} tsk_ibd_segment_t;
 
 typedef struct {
     tsk_size_t num_segments;
     double total_span;
-    tsk_segment_t *head;
-    tsk_segment_t *tail;
-} tsk_segment_list_t;
+    tsk_ibd_segment_t *head;
+    tsk_ibd_segment_t *tail;
+} tsk_ibd_segment_list_t;
 
 typedef struct {
     tsk_size_t num_nodes;
     tsk_avl_tree_int_t pair_map;
-    tsk_size_t total_segments;
+    tsk_size_t num_segments;
+    double total_span;
     tsk_blkalloc_t heap;
-} tsk_ibd_result_t;
+} tsk_ibd_segments_t;
 
 /****************************************************************************/
 /* Common function options */
@@ -3723,8 +3730,8 @@ tsk_id_t tsk_table_collection_check_integrity(
 
 /* TODO be systematic about where "result" should be in the params
  * list, different here and in link_ancestors. */
-int tsk_table_collection_find_ibd(const tsk_table_collection_t *self,
-    tsk_ibd_result_t *result, const tsk_id_t *samples, tsk_size_t num_samples,
+int tsk_table_collection_ibd_segments(const tsk_table_collection_t *self,
+    tsk_ibd_segments_t *result, const tsk_id_t *samples, tsk_size_t num_samples,
     double min_length, double max_time, tsk_flags_t options);
 
 int tsk_table_collection_link_ancestors(tsk_table_collection_t *self, tsk_id_t *samples,
@@ -3816,17 +3823,18 @@ int tsk_table_sorter_free(struct _tsk_table_sorter_t *self);
 int tsk_squash_edges(
     tsk_edge_t *edges, tsk_size_t num_edges, tsk_size_t *num_output_edges);
 
-/* IBD finder API. This is experimental and the interface may change. */
+/* IBD segments API. This is experimental and the interface may change. */
 
-tsk_size_t tsk_ibd_result_get_total_segments(const tsk_ibd_result_t *self);
-tsk_size_t tsk_ibd_result_get_num_pairs(const tsk_ibd_result_t *self);
-int tsk_ibd_result_get_keys(const tsk_ibd_result_t *result, tsk_id_t *pairs);
-int tsk_ibd_result_get_items(
-    const tsk_ibd_result_t *self, tsk_id_t *pairs, tsk_segment_list_t **lists);
-void tsk_ibd_result_print_state(tsk_ibd_result_t *self, FILE *out);
-int tsk_ibd_result_free(tsk_ibd_result_t *self);
-int tsk_ibd_result_get(
-    const tsk_ibd_result_t *self, tsk_id_t a, tsk_id_t b, tsk_segment_list_t **ret_list);
+tsk_size_t tsk_ibd_segments_get_num_segments(const tsk_ibd_segments_t *self);
+double tsk_ibd_segments_get_total_span(const tsk_ibd_segments_t *self);
+tsk_size_t tsk_ibd_segments_get_num_pairs(const tsk_ibd_segments_t *self);
+int tsk_ibd_segments_get_keys(const tsk_ibd_segments_t *result, tsk_id_t *pairs);
+int tsk_ibd_segments_get_items(
+    const tsk_ibd_segments_t *self, tsk_id_t *pairs, tsk_ibd_segment_list_t **lists);
+void tsk_ibd_segments_print_state(tsk_ibd_segments_t *self, FILE *out);
+int tsk_ibd_segments_free(tsk_ibd_segments_t *self);
+int tsk_ibd_segments_get(const tsk_ibd_segments_t *self, tsk_id_t a, tsk_id_t b,
+    tsk_ibd_segment_list_t **ret_list);
 
 #ifdef __cplusplus
 }
