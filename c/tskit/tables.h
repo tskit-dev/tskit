@@ -545,6 +545,9 @@ typedef struct {
     /** @brief The sequence length defining the tree sequence's coordinate space */
     double sequence_length;
     char *file_uuid;
+    /** @brief The units of the time dimension */
+    char *time_units;
+    tsk_size_t time_units_length;
     /** @brief The tree-sequence metadata */
     char *metadata;
     tsk_size_t metadata_length;
@@ -3570,6 +3573,19 @@ will be added to self).
 int tsk_table_collection_union(tsk_table_collection_t *self,
     const tsk_table_collection_t *other, const tsk_id_t *other_node_mapping,
     tsk_flags_t options);
+
+/**
+@brief Set the time_units
+@rst
+Copies the time_units string to this table collection, replacing any existing.
+@endrst
+@param self A pointer to a tsk_table_collection_t object.
+@param time_units A pointer to a char array
+@param time_units_length The size of the time units string in bytes.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_table_collection_set_time_units(
+    tsk_table_collection_t *self, const char *time_units, tsk_size_t time_units_length);
 
 /**
 @brief Set the metadata

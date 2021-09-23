@@ -3326,7 +3326,7 @@ class TestTableCollection:
             array.nbytes * 2 if "_offset" in name else array.nbytes
             for name, array in store.items()
             # nbytes is the size of asdict, so exclude file format items
-            if name not in ["format/version", "format/name", "uuid"]
+            if name not in ["format/version", "format/name", "uuid", "time_units"]
         )
         assert nbytes == tables.nbytes
 
