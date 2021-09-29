@@ -7618,8 +7618,7 @@ tsk_ibd_finder_enqueue_segment(
     tsk_segment_t *seg;
     void *p;
 
-    tsk_bug_assert(left < right);
-    if (right - left > self->min_length) {
+    if ((right - left) > self->min_length) {
         /* Make sure we always have room for one more segment in the queue so we
          * can put a tail sentinel on it */
         if (self->segment_queue_size == self->max_segment_queue_size - 1) {
@@ -7632,12 +7631,12 @@ tsk_ibd_finder_enqueue_segment(
             }
             self->segment_queue = p;
         }
+        seg = self->segment_queue + self->segment_queue_size;
+        seg->left = left;
+        seg->right = right;
+        seg->node = node;
+        self->segment_queue_size++;
     }
-    seg = self->segment_queue + self->segment_queue_size;
-    seg->left = left;
-    seg->right = right;
-    seg->node = node;
-    self->segment_queue_size++;
 out:
     return ret;
 }
@@ -7763,7 +7762,7 @@ tsk_ibd_finder_run(tsk_ibd_finder_t *self)
         current_parent = input_edges->parent[j];
         current_time = self->tables->nodes.time[current_parent];
         if (current_time > self->max_time) {
-            goto out;
+            break;
         }
 
         // Extract segment.
@@ -7779,23 +7778,11 @@ tsk_ibd_finder_run(tsk_ibd_finder_t *self)
             }
         } else {
             for (s = self->ancestor_map_head[u]; s != NULL; s = s->next) {
-                if (seg->left > s->left) {
-                    intvl_l = seg->left;
-                } else {
-                    intvl_l = s->left;
-                }
-                if (seg->right < s->right) {
-                    intvl_r = seg->right;
-                } else {
-                    intvl_r = s->right;
-                }
-                // Add to the segment queue.
-                if (intvl_r - intvl_l > 0) {
-                    ret = tsk_ibd_finder_enqueue_segment(
-                        self, intvl_l, intvl_r, s->node);
-                    if (ret != 0) {
-                        goto out;
-                    }
+                intvl_l = TSK_MAX(seg->left, s->left);
+                intvl_r = TSK_MIN(seg->right, s->right);
+                ret = tsk_ibd_finder_enqueue_segment(self, intvl_l, intvl_r, s->node);
+                if (ret != 0) {
+                    goto out;
                 }
             }
         }
@@ -7803,9 +7790,9 @@ tsk_ibd_finder_run(tsk_ibd_finder_t *self)
         // Calculate new ibd segments descending from the current parent.
         if (self->segment_queue_size > 0) {
             ret = tsk_ibd_finder_calculate_ibd(self, current_parent);
-        }
-        if (ret != 0) {
-            goto out;
+            if (ret != 0) {
+                goto out;
+            }
         }
 
         // For samples that appear in the parent column of the edge table

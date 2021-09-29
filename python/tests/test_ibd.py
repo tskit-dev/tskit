@@ -853,6 +853,16 @@ class TestIbdResult:
         assert result.min_length == min_length
         self.verify_segments(ts, result)
 
+    @pytest.mark.parametrize("min_length", [100, 101, 100000])
+    def test_min_length_longer_than_seq_length(self, min_length):
+        ts = msprime.sim_ancestry(
+            100, recombination_rate=0.1, sequence_length=100, random_seed=2
+        )
+        result = ts.ibd_segments(min_length=min_length)
+        assert result.min_length == min_length
+        assert result.num_segments == 0
+        self.verify_segments(ts, result)
+
     def test_recombination_discrete(self):
         ts = msprime.sim_ancestry(
             10, sequence_length=100, recombination_rate=0.1, random_seed=2
