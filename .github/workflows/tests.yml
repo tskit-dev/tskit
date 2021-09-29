@@ -118,5 +118,53 @@ jobs:
           conda activate anaconda-client-env
           pytest -xv -n2
 
+  msys2:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+        - { sys: mingw32, env: i686 }
+        - { sys: mingw64, env: x86_64 }
+    name: Windows (${{ matrix.sys }}, ${{ matrix.env }})
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+    - name: Cancel Previous Runs
+      uses: styfle/cancel-workflow-action@0.6.0
+      with:
+        access_token: ${{ github.token }}
 
+    - name: 'Checkout'
+      uses: actions/checkout@v2
+      with:
+        submodules: true
 
+    - name: Setup MSYS2 ${{matrix.sys}}
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: ${{matrix.sys}}
+        update: true
+        install: >-
+          git
+          mingw-w64-${{matrix.env}}-toolchain
+          mingw-w64-${{matrix.env}}-ninja
+          mingw-w64-${{matrix.env}}-meson
+          mingw-w64-${{matrix.env}}-cunit
+
+    - name: Fix windows symlinks
+      working-directory: c
+      run: |
+        rm -f subprojects/kastore
+        cp -r --dereference subprojects/full-projects/kastore/c subprojects/kastore
+
+    - name: Build
+      working-directory: c
+      run: |
+        meson build -Dbuild_examples=false
+        ninja -C build
+
+    - name: Run tests
+      working-directory: c
+      run: |
+        ninja -C build test

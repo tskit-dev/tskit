@@ -787,9 +787,13 @@ test_metadata_schemas_optional(void)
     free(ts);
 }
 
+/* This test is problematic on windows because of the different off_t
+ * types. Doesn't seem worth the trouble of getting it working.
+ */
 static void
 test_load_bad_file_formats(void)
 {
+#if !defined(_WIN32)
     tsk_table_collection_t tables;
     tsk_treeseq_t ts;
     int ret, ret2;
@@ -818,6 +822,7 @@ test_load_bad_file_formats(void)
         CU_ASSERT_EQUAL_FATAL(ret ^ (1 << TSK_KAS_ERR_BIT), KAS_ERR_BAD_FILE_FORMAT);
         tsk_table_collection_free(&tables);
     }
+#endif
 }
 
 static void

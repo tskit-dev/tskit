@@ -5422,16 +5422,15 @@ test_ibd_segments_debug(void)
     tsk_treeseq_t ts;
     int ret;
     tsk_ibd_segments_t result;
-    FILE *tmp = stdout;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
         NULL, NULL, NULL, 0);
 
     /* Run the DEBUG code */
-    stdout = _devnull;
+    tsk_set_debug_stream(_devnull);
     ret = tsk_table_collection_ibd_segments(
         ts.tables, &result, NULL, 0, 0.0, DBL_MAX, TSK_DEBUG);
-    stdout = tmp;
+    tsk_set_debug_stream(stdout);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tsk_ibd_segments_free(&result);

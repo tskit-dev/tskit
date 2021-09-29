@@ -44,7 +44,7 @@ get_random_bytes(uint8_t *buf)
 {
     /* Based on CPython's code in bootstrap_hash.c */
     int ret = TSK_ERR_GENERATE_UUID;
-    HCRYPTPROV hCryptProv = NULL;
+    HCRYPTPROV hCryptProv = (HCRYPTPROV) NULL;
 
     if (!CryptAcquireContext(
             &hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
@@ -54,13 +54,13 @@ get_random_bytes(uint8_t *buf)
         goto out;
     }
     if (!CryptReleaseContext(hCryptProv, 0)) {
-        hCryptProv = NULL;
+        hCryptProv = (HCRYPTPROV) NULL;
         goto out;
     }
-    hCryptProv = NULL;
+    hCryptProv = (HCRYPTPROV) NULL;
     ret = 0;
 out:
-    if (hCryptProv != NULL) {
+    if (hCryptProv != (HCRYPTPROV) NULL) {
         CryptReleaseContext(hCryptProv, 0);
     }
     return ret;
@@ -715,6 +715,38 @@ tsk_is_unknown_time(double val)
     return nan_union.i == TSK_UNKNOWN_TIME_HEX;
 }
 
+/* Work around a bug which seems to show up on various mixtures of
+ * compiler and libc versions, where isfinite and isnan result in
+ * spurious warnings about casting down to float. The original issue
+ * is here:
+ * https://github.com/tskit-dev/tskit/issues/721
+ *
+ * The simplest approach seems to be to use the builtins where they
+ * are available (clang and gcc), and to use the library macro
+ * otherwise. There would be no disadvantage to using the builtin
+ * version, so there's no real harm in this approach.
+ */
+
+bool
+tsk_isnan(double val)
+{
+#if defined(__GNUC__)
+    return __builtin_isnan(val);
+#else
+    return isnan(val);
+#endif
+}
+
+bool
+tsk_isfinite(double val)
+{
+#if defined(__GNUC__)
+    return __builtin_isfinite(val);
+#else
+    return isfinite(val);
+#endif
+}
+
 void *
 tsk_malloc(tsk_size_t size)
 {
@@ -780,6 +812,44 @@ int
 tsk_memcmp(const void *s1, const void *s2, tsk_size_t size)
 {
     return memcmp(s1, s2, (size_t) size);
+}
+
+/* We can't initialise the streams to their real default values because
+ * of limitations on static initialisers. To work around this, we initialise
+ * them to NULL and then set the value to the required standard stream
+ * when called. */
+
+FILE *_tsk_debug_stream = NULL;
+FILE *_tsk_warn_stream = NULL;
+
+void
+tsk_set_debug_stream(FILE *f)
+{
+    _tsk_debug_stream = f;
+}
+
+FILE *
+tsk_get_debug_stream(void)
+{
+    if (_tsk_debug_stream == NULL) {
+        _tsk_debug_stream = stdout;
+    }
+    return _tsk_debug_stream;
+}
+
+void
+tsk_set_warn_stream(FILE *f)
+{
+    _tsk_warn_stream = f;
+}
+
+FILE *
+tsk_get_warn_stream(void)
+{
+    if (_tsk_warn_stream == NULL) {
+        _tsk_warn_stream = stderr;
+    }
+    return _tsk_warn_stream;
 }
 
 /* AVL Tree implementation. This is based directly on Knuth's implementation

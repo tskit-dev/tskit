@@ -337,7 +337,7 @@ test_blkalloc(void)
 static void
 test_unknown_time(void)
 {
-    CU_ASSERT_TRUE(isnan(TSK_UNKNOWN_TIME));
+    CU_ASSERT_TRUE(tsk_isnan(TSK_UNKNOWN_TIME));
     CU_ASSERT_TRUE(tsk_is_unknown_time(TSK_UNKNOWN_TIME));
     CU_ASSERT_FALSE(tsk_is_unknown_time(NAN));
     CU_ASSERT_FALSE(tsk_is_unknown_time(0));
@@ -369,6 +369,36 @@ test_malloc_overflow(void)
     p = tsk_calloc(size_max + 1, 1);
     CU_ASSERT_FATAL(p == NULL);
 #endif
+}
+
+static void
+test_debug_stream(void)
+{
+    FILE *f = fopen(_tmp_file_name, "w");
+    CU_ASSERT_FATAL(tsk_get_debug_stream() == stdout);
+    CU_ASSERT_FATAL(tsk_get_debug_stream() == stdout);
+
+    tsk_set_debug_stream(f);
+    CU_ASSERT_FATAL(tsk_get_debug_stream() == f);
+    tsk_set_debug_stream(stdout);
+    CU_ASSERT_FATAL(tsk_get_debug_stream() == stdout);
+
+    fclose(f);
+}
+
+static void
+test_warn_stream(void)
+{
+    FILE *f = fopen(_tmp_file_name, "w");
+    CU_ASSERT_FATAL(tsk_get_warn_stream() == stderr);
+    CU_ASSERT_FATAL(tsk_get_warn_stream() == stderr);
+
+    tsk_set_warn_stream(f);
+    CU_ASSERT_FATAL(tsk_get_warn_stream() == f);
+    tsk_set_warn_stream(stderr);
+    CU_ASSERT_FATAL(tsk_get_warn_stream() == stderr);
+
+    fclose(f);
 }
 
 static int
@@ -521,6 +551,8 @@ main(int argc, char **argv)
         { "test_unknown_time", test_unknown_time },
         { "test_malloc_zero", test_malloc_zero },
         { "test_malloc_overflow", test_malloc_overflow },
+        { "test_debug_stream", test_debug_stream },
+        { "test_warn_stream", test_warn_stream },
         { "test_avl_empty", test_avl_empty },
         { "test_avl_sequential", test_avl_sequential },
         { "test_avl_interleaved", test_avl_interleaved },

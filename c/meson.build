@@ -85,28 +85,37 @@ if not meson.is_subproject()
         dependencies: kastore_dep)
     test('minimal_cpp', test_minimal_cpp)
 
-    # The development CLI. Don't use extra C args because argtable code won't pass
-    executable('dev-cli',
-        sources: ['dev-tools/dev-cli.c', 'dev-tools/argtable3.c'],
-        link_with: [tskit_lib], c_args:['-Dlint'], dependencies: kastore_dep)
+    if get_option('build_examples')
+      # These example programs and the dev-cli use less portable features,
+      # and we don't want to always compile them. Use, e.g.,
+      # meson build -Dbuild_examples=false
 
-    # Example programs.
-    executable('api_structure',
-        sources: ['examples/api_structure.c'], link_with: [tskit_lib], dependencies: lib_deps)
-    executable('error_handling',
-        sources: ['examples/error_handling.c'], link_with: [tskit_lib], dependencies: lib_deps)
-    executable('tree_iteration',
-        sources: ['examples/tree_iteration.c'], link_with: [tskit_lib], dependencies: lib_deps)
-    executable('tree_traversal',
-        sources: ['examples/tree_traversal.c'], link_with: [tskit_lib], dependencies: lib_deps)
-    executable('streaming',
-        sources: ['examples/streaming.c'], link_with: [tskit_lib], dependencies: lib_deps)
-    executable('cpp_sorting_example',
-        sources: ['examples/cpp_sorting_example.cpp'], link_with: [tskit_lib], dependencies: lib_deps)
-     executable('haploid_wright_fisher',
-        sources: ['examples/haploid_wright_fisher.c'], link_with: [tskit_lib], dependencies: lib_deps)
+      # The development CLI. Don't use extra C args because argtable code won't pass
+      executable('dev-cli',
+          sources: ['dev-tools/dev-cli.c', 'dev-tools/argtable3.c'],
+          link_with: [tskit_lib], c_args:['-Dlint'], dependencies: kastore_dep)
+
+      # Example programs.
+      executable('api_structure',
+          sources: ['examples/api_structure.c'], 
+          link_with: [tskit_lib], dependencies: lib_deps)
+      executable('error_handling',
+          sources: ['examples/error_handling.c'], 
+          link_with: [tskit_lib], dependencies: lib_deps)
+      executable('tree_iteration',
+          sources: ['examples/tree_iteration.c'], 
+          link_with: [tskit_lib], dependencies: lib_deps)
+      executable('tree_traversal',
+          sources: ['examples/tree_traversal.c'], 
+          link_with: [tskit_lib], dependencies: lib_deps)
+      executable('streaming',
+          sources: ['examples/streaming.c'], 
+          link_with: [tskit_lib], dependencies: lib_deps)
+      executable('cpp_sorting_example',
+          sources: ['examples/cpp_sorting_example.cpp'], 
+          link_with: [tskit_lib], dependencies: lib_deps)
+      executable('haploid_wright_fisher',
+          sources: ['examples/haploid_wright_fisher.c'], 
+          link_with: [tskit_lib], dependencies: lib_deps)
+    endif
 endif
-
-# TMP: until we've ported all the tests, keep this compilable.
-# gsl_dep = dependency('gsl')
-# executable('old_tests', sources: ['tests/old_tests.c'], link_with: tskit_lib, #     dependencies: [cunit_dep, gsl_dep])
