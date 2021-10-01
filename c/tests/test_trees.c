@@ -1977,7 +1977,7 @@ test_simplest_individuals(void)
     CU_ASSERT_EQUAL(ret, 0);
     ret = tsk_treeseq_get_individual(&ts, 0, &individual);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT(!isfinite(individual.location[0]));
+    CU_ASSERT(!tsk_isfinite(individual.location[0]));
     tsk_treeseq_free(&ts);
 
     tsk_table_collection_free(&tables);
@@ -3957,16 +3957,15 @@ test_single_tree_simplify_debug(void)
     tsk_treeseq_t ts, simplified;
     tsk_id_t samples[] = { 0, 1 };
     int ret;
-    FILE *save_stdout = stdout;
     FILE *tmp = fopen(_tmp_file_name, "w");
 
     CU_ASSERT_FATAL(tmp != NULL);
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
         single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
 
-    stdout = tmp;
+    tsk_set_debug_stream(tmp);
     ret = tsk_treeseq_simplify(&ts, samples, 2, TSK_DEBUG, &simplified, NULL);
-    stdout = save_stdout;
+    tsk_set_debug_stream(stdout);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(ftell(tmp) > 0);
 
@@ -6143,15 +6142,14 @@ test_sample_counts_deprecated(void)
     tsk_tree_t tree;
     int ret;
     FILE *f = fopen(_tmp_file_name, "w");
-    FILE *tmp = stderr;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
         NULL, NULL, NULL, 0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 4);
 
-    stderr = f;
+    tsk_set_warn_stream(f);
     ret = tsk_tree_init(&tree, &ts, TSK_SAMPLE_COUNTS);
-    stderr = tmp;
+    tsk_set_warn_stream(stderr);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     CU_ASSERT_FATAL(ftell(f) > 0);

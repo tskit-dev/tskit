@@ -3209,9 +3209,10 @@ tsk_tree_init(tsk_tree_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t 
         goto out;
     }
     if (options & TSK_SAMPLE_COUNTS) {
-        fprintf(stderr, "TSK_SAMPLE_COUNTS is no longer supported. "
-                        "Sample counts are tracked by default since 0.99.3, "
-                        "Please use TSK_NO_SAMPLE_COUNTS to turn off sample counts.");
+        fprintf(tsk_get_warn_stream(),
+            "TSK_SAMPLE_COUNTS is no longer supported. "
+            "Sample counts are tracked by default since 0.99.3, "
+            "Please use TSK_NO_SAMPLE_COUNTS to turn off sample counts.");
     }
     num_nodes = tree_sequence->tables->nodes.num_rows;
     num_samples = tree_sequence->num_samples;

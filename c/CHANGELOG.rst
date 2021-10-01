@@ -28,6 +28,8 @@
   space for 1024 additional entries each time we run out of space in the ragged column.
   (:user:`benjeffery`, :issue:`1703`, :pr:`1709`)
 
+- Support for compiling the C library on Windows using msys2 (:user:`jeromekelleher`,
+  :pr:`1742`).
 
 **Fixes**
 

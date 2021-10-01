@@ -32,7 +32,6 @@
 #include <float.h>
 #include <math.h>
 
-#define _TSK_WORKAROUND_FALSE_CLANG_WARNING
 #include <tskit/tables.h>
 
 #define TABLE_SEP "-----------------------------------------\n"
@@ -9120,7 +9119,7 @@ tsk_table_collection_check_node_integrity(
 
     for (j = 0; j < self->nodes.num_rows; j++) {
         node_time = self->nodes.time[j];
-        if (!isfinite(node_time)) {
+        if (!tsk_isfinite(node_time)) {
             ret = TSK_ERR_TIME_NONFINITE;
             goto out;
         }
@@ -9191,7 +9190,7 @@ tsk_table_collection_check_edge_integrity(
             goto out;
         }
         /* Spatial requirements for edges */
-        if (!(isfinite(left) && isfinite(right))) {
+        if (!(tsk_isfinite(left) && tsk_isfinite(right))) {
             ret = TSK_ERR_GENOME_COORDS_NONFINITE;
             goto out;
         }
@@ -9269,7 +9268,7 @@ tsk_table_collection_check_site_integrity(
     for (j = 0; j < sites.num_rows; j++) {
         position = sites.position[j];
         /* Spatial requirements */
-        if (!isfinite(position)) {
+        if (!tsk_isfinite(position)) {
             ret = TSK_ERR_BAD_SITE_POSITION;
             goto out;
         }
@@ -9335,7 +9334,7 @@ tsk_table_collection_check_mutation_integrity(
         mutation_time = mutations.time[j];
         unknown_time = tsk_is_unknown_time(mutation_time);
         if (!unknown_time) {
-            if (!isfinite(mutation_time)) {
+            if (!tsk_isfinite(mutation_time)) {
                 ret = TSK_ERR_TIME_NONFINITE;
                 goto out;
             }
@@ -9437,7 +9436,7 @@ tsk_table_collection_check_migration_integrity(
             }
         }
         time = migrations.time[j];
-        if (!isfinite(time)) {
+        if (!tsk_isfinite(time)) {
             ret = TSK_ERR_TIME_NONFINITE;
             goto out;
         }
@@ -9451,7 +9450,7 @@ tsk_table_collection_check_migration_integrity(
         right = migrations.right[j];
         /* Spatial requirements */
         /* TODO it's a bit misleading to use the edge-specific errors here. */
-        if (!(isfinite(left) && isfinite(right))) {
+        if (!(tsk_isfinite(left) && tsk_isfinite(right))) {
             ret = TSK_ERR_GENOME_COORDS_NONFINITE;
             goto out;
         }
@@ -10560,7 +10559,7 @@ tsk_table_collection_simplify(tsk_table_collection_t *self, const tsk_id_t *samp
         goto out;
     }
     if (!!(options & TSK_DEBUG)) {
-        simplifier_print_state(&simplifier, stdout);
+        simplifier_print_state(&simplifier, tsk_get_debug_stream());
     }
     /* The indexes are invalidated now so drop them */
     ret = tsk_table_collection_drop_index(self, 0);
@@ -10634,7 +10633,7 @@ tsk_table_collection_ibd_segments(const tsk_table_collection_t *self,
         goto out;
     }
     if (!!(options & TSK_DEBUG)) {
-        tsk_ibd_finder_print_state(&ibd_finder, stdout);
+        tsk_ibd_finder_print_state(&ibd_finder, tsk_get_debug_stream());
     }
 out:
     tsk_ibd_finder_free(&ibd_finder);

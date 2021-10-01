@@ -40,28 +40,6 @@ extern "C" {
 #include <stdio.h>
 #include <limits.h>
 
-#if defined(_TSK_WORKAROUND_FALSE_CLANG_WARNING) && defined(__clang__)
-/* Work around bug in clang >= 6.0, https://github.com/tskit-dev/tskit/issues/721
- * (note: fixed in clang January 2019)
- * This workaround does some nasty fiddling with builtins and is only intended to
- * be used within the library. To turn it on, make sure
- * _TSK_WORKAROUND_FALSE_CLANG_WARNING is defined before including any tskit
- * headers.
- */
-#if __has_builtin(__builtin_isnan)
-#undef isnan
-#define isnan __builtin_isnan
-#else
-abort();
-#endif
-#if __has_builtin(__builtin_isfinite)
-#undef isfinite
-#define isfinite __builtin_isfinite
-#else
-abort();
-#endif
-#endif
-
 #ifdef __GNUC__
 #define TSK_WARN_UNUSED __attribute__((warn_unused_result))
 #define TSK_UNUSED(x) TSK_UNUSED_##x __attribute__((__unused__))
@@ -513,6 +491,11 @@ value and returns true iff it is equal to the specific NaN value TSK_UNKNOWN_TIM
 */
 bool tsk_is_unknown_time(double val);
 
+/* We define local versions of isnan and isfinite to workaround some portability
+ * issues. */
+bool tsk_isnan(double val);
+bool tsk_isfinite(double val);
+
 #define TSK_UUID_SIZE 36
 int tsk_generate_uuid(char *dest, int flags);
 
@@ -525,6 +508,12 @@ void *tsk_memset(void *ptr, int fill, tsk_size_t size);
 void *tsk_memcpy(void *dest, const void *src, tsk_size_t size);
 void *tsk_memmove(void *dest, const void *src, tsk_size_t size);
 int tsk_memcmp(const void *s1, const void *s2, tsk_size_t size);
+
+/* Developer debug utilities. These are **not** threadsafe */
+void tsk_set_debug_stream(FILE *f);
+FILE *tsk_get_debug_stream(void);
+void tsk_set_warn_stream(FILE *f);
+FILE *tsk_get_warn_stream(void);
 
 #ifdef __cplusplus
 }
