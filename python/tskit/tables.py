@@ -2403,7 +2403,7 @@ class IbdSegment:
     node: int
 
     @property
-    def span(self):
+    def span(self) -> float:
         return self.right - self.left
 
 
@@ -2425,7 +2425,8 @@ class IbdSegmentList(collections.abc.Iterable, collections.abc.Sized):
         return f"IbdSegmentList({repr(list(self))})"
 
     def __eq__(self, other):
-        # TODO what should be the semantics here if store_segments is False?
+        if not isinstance(other, IbdSegmentList):
+            return False
         return list(self) == list(other)
 
     @property
@@ -2445,7 +2446,7 @@ class IbdSegmentList(collections.abc.Iterable, collections.abc.Sized):
         return self._ll_segment_list.node
 
 
-class IbdResult(collections.abc.Mapping):
+class IbdSegments(collections.abc.Mapping):
     """
     TODO document
 
@@ -2460,55 +2461,60 @@ class IbdResult(collections.abc.Mapping):
     pairs are not clear yet, so not fixing on the details for now.
     """
 
-    def __init__(self, ll_result, *, max_time, min_length):
-        self._ll_result = ll_result
+    def __init__(self, ll_result, *, max_time, min_length, store_segments, store_pairs):
+        self._ll_ibd_segments = ll_result
         self.max_time = max_time
         self.min_length = min_length
+        self.store_segments = store_segments
+        self.store_pairs = store_pairs
 
     @property
     def num_segments(self):
-        return self._ll_result.num_segments
+        return self._ll_ibd_segments.num_segments
+
+    @property
+    def num_pairs(self):
+        return self._ll_ibd_segments.num_pairs
 
     @property
     def total_span(self):
-        return self._ll_result.total_span
+        return self._ll_ibd_segments.total_span
 
     @property
     def pairs(self):
-        return self._ll_result.get_keys()
+        return self._ll_ibd_segments.get_keys()
 
+    # We have two different versions of repr - one where we list out the segments
+    # for debugging, and the other that just shows the standard representation.
+    # We could have repr fail if store_segments isn't true, but then printing,
+    # e.g., a list of IbdSegments objects would fail unexpectedly.
     def __repr__(self):
-        return f"IbdResult({dict(self)})"
+        if self.store_segments:
+            return f"IbdSegments({dict(self)})"
+        return super().__repr__()
 
     def __str__(self):
-        s = "IBD Result:\n"
-        s += f"max_time       = {self.max_time}\n"
-        s += f"min_length     = {self.min_length}\n"
-        s += f"num_segments   = {self.num_segments}\n"
-        s += f"total_span     = {self.total_span}\n"
-        s += f"num node pairs = {len(self)}\n"
-        # TODO
-        # See #1680 for more info
-        # 1) Limit the number of IBD pairs here by getting the keys and only
-        #    printing (say) the first and last 10.
-        #    (Note that tskit._print_options["max_lines"] might be used here)
-        # 2) Show something more informative from the segment_list object,
-        #    rather than just the actual segments.
-        # commenting this out for now, so that we can get a useful summary
-        # of results
-        # for pair, value in self.items():
-        #     s += f"{pair}\t{value}\n"
-        return s
+        rows = [
+            ["max_time", str(self.max_time)],
+            ["min_length", str(self.min_length)],
+            ["store_pairs", str(self.store_pairs)],
+            ["store_segments", str(self.store_segments)],
+            ["num_segments", str(self.num_segments)],
+            ["total_span", str(self.total_span)],
+        ]
+        if self.store_pairs:
+            rows.append(["num_pairs", str(len(self))])
+        return util.unicode_table(rows, title="IbdSegments", row_separator=False)
 
     def __getitem__(self, key):
         sample_a, sample_b = key
-        return IbdSegmentList(self._ll_result.get(sample_a, sample_b))
+        return IbdSegmentList(self._ll_ibd_segments.get(sample_a, sample_b))
 
     def __iter__(self):
-        return map(tuple, self._ll_result.get_keys())
+        return map(tuple, self._ll_ibd_segments.get_keys())
 
     def __len__(self):
-        return self._ll_result.num_pairs
+        return self.num_pairs
 
 
 class TableCollection:
@@ -3646,7 +3652,15 @@ class TableCollection:
                 record=json.dumps(provenance.get_provenance_dict(parameters))
             )
 
-    def ibd_segments(self, *, within=None, max_time=None, min_length=None):
+    def ibd_segments(
+        self,
+        *,
+        within=None,
+        max_time=None,
+        min_length=None,
+        store_pairs=None,
+        store_segments=None,
+    ):
         """
         Equivalent to the :meth:`TreeSequence.ibd_segments` method; please see its
         documentation for more details, and use this method only if you specifically need
@@ -3678,9 +3692,21 @@ class TableCollection:
         """
         max_time = np.inf if max_time is None else max_time
         min_length = 0 if min_length is None else min_length
+        store_pairs = False if store_pairs is None else store_pairs
+        store_segments = False if store_segments is None else store_segments
         if within is not None:
             within = util.safe_np_int_cast(within, np.int32)
         ll_result = self._ll_tables.ibd_segments(
-            within=within, max_time=max_time, min_length=min_length
+            within=within,
+            max_time=max_time,
+            min_length=min_length,
+            store_pairs=store_pairs,
+            store_segments=store_segments,
         )
-        return IbdResult(ll_result, max_time=max_time, min_length=min_length)
+        return IbdSegments(
+            ll_result,
+            max_time=max_time,
+            min_length=min_length,
+            store_pairs=store_pairs,
+            store_segments=store_segments,
+        )

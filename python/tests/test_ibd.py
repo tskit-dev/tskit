@@ -34,7 +34,9 @@ def ibd_segments(
     ibd_segs = ibd_f.run()
     # ibd_f.print_state()
     if compare_lib:
-        c_out = ts.ibd_segments(within=within, max_time=max_time, min_length=min_length)
+        c_out = ts.ibd_segments(
+            within=within, max_time=max_time, min_length=min_length, store_segments=True
+        )
         if print_c:
             print("C output:\n")
             print(c_out)
@@ -265,8 +267,8 @@ class TestIbdSingleBinaryTree:
 
     # A simple test of the Python wrapper.
     def test_ts(self):
-        ibd_tab = self.ts.tables.ibd_segments()
-        ibd_ts = self.ts.ibd_segments()
+        ibd_tab = self.ts.tables.ibd_segments(store_segments=True)
+        ibd_ts = self.ts.ibd_segments(store_segments=True)
         assert len(ibd_tab) == len(ibd_ts)
         for k in ibd_tab.keys():
             assert ibd_tab[k] == ibd_ts[k]
@@ -764,9 +766,9 @@ class TestIbdRandomExamples:
         verify_equal_ibd(ts)
 
 
-class TestIbdResult:
+class TestIbdSegments:
     """
-    Test the IbdResult class interface.
+    Test the IbdSegments class interface.
     """
 
     def verify_segments(self, ts, ibd_segments):
@@ -798,29 +800,87 @@ class TestIbdResult:
         num_segments = sum(len(lst) for lst in ibd_segments.values())
         assert num_segments == ibd_segments.num_segments
 
-    def test_str(self):
+    @pytest.mark.parametrize("store_segments", [True, False])
+    @pytest.mark.parametrize("store_pairs", [True, False])
+    def test_str(self, store_segments, store_pairs):
         ts = msprime.sim_ancestry(2, random_seed=2)
-        result = ts.ibd_segments()
+        result = ts.ibd_segments(store_segments=store_segments, store_pairs=store_pairs)
         s = str(result)
-        assert s.startswith("IBD Result")
+        assert "IbdSegments" in s
+        assert "max_time" in s
+        assert "min_length" in s
 
-        for lst in result.values():
-            s = str(lst)
-            assert s.startswith("IbdSegmentList(num_segments=")
-
-    def test_repr(self):
+    def test_repr_store_segments(self):
         ts = msprime.sim_ancestry(2, random_seed=2)
-        result = ts.ibd_segments()
+        result = ts.ibd_segments(store_segments=True)
         s = repr(result)
-        assert s.startswith("IbdResult({")
+        assert s.startswith("IbdSegments({")
         for lst in result.values():
             s = repr(lst)
             assert s.startswith("IbdSegmentList([")
 
+    def test_repr_without_store_segments(self):
+        ts = msprime.sim_ancestry(2, random_seed=2)
+        result = ts.ibd_segments(store_pairs=True)
+        s = repr(result)
+        assert s.startswith("<tskit.tables.IbdSegments")
+        result = ts.ibd_segments()
+        s = repr(result)
+        assert s.startswith("<tskit.tables.IbdSegments")
+
+    def test_store_segs_implies_store_pairs(self):
+        ts = msprime.sim_ancestry(2, random_seed=2)
+        result = ts.ibd_segments(store_pairs=True)
+        assert result.num_pairs == 6
+        result = ts.ibd_segments(store_segments=True)
+        assert result.num_pairs == 6
+
+    def test_operations_available_by_default(self):
+        ts = msprime.sim_ancestry(2, random_seed=2)
+        result = ts.ibd_segments()
+        assert result.num_segments == 6
+        assert result.total_span == 6
+        with pytest.raises(tskit.IbdPairsNotStoredError):
+            _ = result.num_pairs
+        with pytest.raises(tskit.IbdPairsNotStoredError):
+            _ = len(result)
+        with pytest.raises(tskit.IbdPairsNotStoredError):
+            _ = result.pairs
+        with pytest.raises(tskit.IbdPairsNotStoredError):
+            _ = result[0, 1]
+        with pytest.raises(tskit.IbdPairsNotStoredError):
+            _ = list(result)
+        with pytest.raises(tskit.IbdPairsNotStoredError):
+            _ = result == result
+        # It's OK to when we compare with another type
+        assert result != []
+
+    def test_operations_available_store_pairs(self):
+        ts = msprime.sim_ancestry(2, random_seed=2)
+        result = ts.ibd_segments(store_pairs=True)
+        assert result.num_segments == 6
+        assert result.total_span == 6
+        assert result.num_pairs == 6
+        assert len(result) == 6
+        assert result.pairs is not None
+        seglist = result[0, 1]
+        assert seglist.total_span == 1
+        assert len(seglist) == 1
+        with pytest.raises(tskit.IbdSegmentsNotStoredError):
+            _ = list(seglist)
+        with pytest.raises(tskit.IbdSegmentsNotStoredError):
+            _ = seglist.left
+        with pytest.raises(tskit.IbdSegmentsNotStoredError):
+            _ = seglist.right
+        with pytest.raises(tskit.IbdSegmentsNotStoredError):
+            _ = seglist.node
+        with pytest.raises(tskit.IbdSegmentsNotStoredError):
+            _ = seglist == seglist
+
     @pytest.mark.parametrize("n", [1, 2, 3])
     def test_pairs_all_samples(self, n):
         ts = msprime.sim_ancestry(n, random_seed=2)
-        result = ts.ibd_segments()
+        result = ts.ibd_segments(store_segments=True)
         pairs = np.array(list(itertools.combinations(ts.samples(), 2)))
         np.testing.assert_array_equal(pairs, result.pairs)
         self.verify_segments(ts, result)
@@ -829,27 +889,27 @@ class TestIbdResult:
     def test_pairs_subset(self, n):
         ts = msprime.sim_ancestry(n, random_seed=2)
         pairs = np.array([(0, 1), (0, 2), (1, 2)])
-        result = ts.ibd_segments(within=[0, 1, 2])
+        result = ts.ibd_segments(within=[0, 1, 2], store_segments=True)
         np.testing.assert_array_equal(pairs, result.pairs)
         self.verify_segments(ts, result)
 
     @pytest.mark.parametrize("max_time", [0, 1, 10])
     def test_max_time(self, max_time):
         ts = msprime.sim_ancestry(2, random_seed=2)
-        result = ts.ibd_segments(max_time=max_time)
+        result = ts.ibd_segments(max_time=max_time, store_segments=True)
         assert result.max_time == max_time
         self.verify_segments(ts, result)
 
     def test_max_time_default(self):
         ts = msprime.sim_ancestry(2, random_seed=2)
-        result = ts.ibd_segments()
+        result = ts.ibd_segments(store_segments=True)
         assert np.isinf(result.max_time)
         self.verify_segments(ts, result)
 
     @pytest.mark.parametrize("min_length", [0, 1, 10])
     def test_min_length(self, min_length):
         ts = msprime.sim_ancestry(2, random_seed=2)
-        result = ts.ibd_segments(min_length=min_length)
+        result = ts.ibd_segments(min_length=min_length, store_segments=True)
         assert result.min_length == min_length
         self.verify_segments(ts, result)
 
@@ -858,7 +918,7 @@ class TestIbdResult:
         ts = msprime.sim_ancestry(
             100, recombination_rate=0.1, sequence_length=100, random_seed=2
         )
-        result = ts.ibd_segments(min_length=min_length)
+        result = ts.ibd_segments(min_length=min_length, store_segments=True)
         assert result.min_length == min_length
         assert result.num_segments == 0
         self.verify_segments(ts, result)
@@ -868,7 +928,7 @@ class TestIbdResult:
             10, sequence_length=100, recombination_rate=0.1, random_seed=2
         )
         assert ts.num_trees > 2
-        result = ts.ibd_segments()
+        result = ts.ibd_segments(store_segments=True)
         self.verify_segments(ts, result)
 
     def test_recombination_continuous(self):
@@ -880,13 +940,13 @@ class TestIbdResult:
             sequence_length=1,
         )
         assert ts.num_trees > 2
-        result = ts.ibd_segments()
+        result = ts.ibd_segments(store_segments=True)
         self.verify_segments(ts, result)
 
     def test_dict_interface(self):
         ts = msprime.sim_ancestry(5, random_seed=2)
         pairs = list(itertools.combinations(ts.samples(), 2))
-        result = ts.ibd_segments()
+        result = ts.ibd_segments(store_segments=True)
         assert len(result) == len(pairs)
         for pair in pairs:
             assert pair in result
@@ -894,3 +954,51 @@ class TestIbdResult:
         for k, v in result.items():
             assert k in pairs
             assert isinstance(v, tskit.IbdSegmentList)
+
+
+class TestIbdSegmentsList:
+    """
+    Tests for the IbdSegmentList class.
+    """
+
+    example_ts = msprime.sim_ancestry(
+        3, sequence_length=100, recombination_rate=0.1, random_seed=2
+    )
+
+    def test_list_semantics(self):
+        result = self.example_ts.ibd_segments(store_segments=True)
+        assert len(result) > 0
+        for seglist in result.values():
+            lst = list(seglist)
+            assert len(lst) == len(seglist)
+            assert lst == list(seglist)
+
+    def test_eq_semantics(self):
+        result = self.example_ts.ibd_segments(store_segments=True)
+        seglists = list(result.values())
+        assert len(result) == len(seglists)
+        assert len(seglists) > 1
+        for seglist1, seglist2 in zip(result.values(), seglists):
+            assert seglist1 == seglist2
+            assert not (seglist1 != seglist2)
+            assert seglist1 != result
+            assert seglist1 != []
+        # The chance of getting two identical seglists is miniscule
+        for seglist in seglists[1:]:
+            assert seglist != seglists[0]
+
+    def test_eq_fails_without_store_segments(self):
+        result = self.example_ts.ibd_segments(store_pairs=True)
+        for seglist in result.values():
+            with pytest.raises(tskit.IbdSegmentsNotStoredError):
+                _ = seglist == seglist
+            # But it's OK when comparing to another type, since we know
+            # it'll be False regardless
+            assert seglist != []
+
+    def test_list_contents(self):
+        result = self.example_ts.ibd_segments(store_segments=True)
+        assert len(result) > 0
+        for seglist in result.values():
+            for seg in seglist:
+                assert isinstance(seg, tskit.IbdSegment)

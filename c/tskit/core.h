@@ -364,7 +364,8 @@ An unsupported type was provided for a column in the file.
 
 /* IBD errors */
 #define TSK_ERR_SAME_NODES_IN_PAIR                                 -1500
-#define TSK_ERR_DUPLICATE_SAMPLE_PAIRS                             -1501
+#define TSK_ERR_IBD_PAIRS_NOT_STORED                               -1501
+#define TSK_ERR_IBD_SEGMENTS_NOT_STORED                            -1502
 
 /* Simplify errors */
 #define TSK_ERR_KEEP_UNARY_MUTUALLY_EXCLUSIVE                      -1600

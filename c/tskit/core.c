@@ -481,8 +481,15 @@ tsk_strerror_internal(int err)
             ret = "Both nodes in the sample pair are the same";
             break;
 
-        case TSK_ERR_DUPLICATE_SAMPLE_PAIRS:
-            ret = "There are duplicate sample pairs.";
+        case TSK_ERR_IBD_PAIRS_NOT_STORED:
+            ret = "The sample pairs are not stored by default in ibd_segments. Please "
+                  "add the TSK_IBD_STORE_PAIRS option flag if per-pair statistics are "
+                  "required.";
+            break;
+
+        case TSK_ERR_IBD_SEGMENTS_NOT_STORED:
+            ret = "All segments are not stored by default in ibd_segments. Please "
+                  "add the TSK_IBD_STORE_SEGMENTS option flag if they are required.";
             break;
 
         /* Simplify errors */

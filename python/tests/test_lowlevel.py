@@ -419,14 +419,41 @@ class TestIbd:
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables._ll_tables
         pairs = [[0, 1], [0, 2], [1, 2]]
-        result = tc.ibd_segments(within=[0, 1, 2])
+        result = tc.ibd_segments(within=[0, 1, 2], store_pairs=True)
         np.testing.assert_array_equal(result.get_keys(), pairs)
+
+    def test_store_pairs(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.tables._ll_tables
+        # By default we can't get any information about pairs.
+        result = tc.ibd_segments()
+        with pytest.raises(_tskit.IbdPairsNotStoredError):
+            result.get_keys()
+        with pytest.raises(_tskit.IbdPairsNotStoredError):
+            result.num_pairs
+        with pytest.raises(_tskit.IbdPairsNotStoredError):
+            result.get(0, 1)
+
+        num_pairs = 45
+        result = tc.ibd_segments(store_pairs=True)
+        assert len(result.get_keys()) == num_pairs
+        assert result.num_pairs == num_pairs
+
+        seglist = result.get(0, 1)
+        assert seglist.num_segments == 1
+        assert seglist.total_span == 1
+        with pytest.raises(_tskit.IbdSegmentsNotStoredError):
+            seglist.node
+        with pytest.raises(_tskit.IbdSegmentsNotStoredError):
+            seglist.left
+        with pytest.raises(_tskit.IbdSegmentsNotStoredError):
+            seglist.right
 
     def test_find_all_pairs(self):
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables._ll_tables
         num_pairs = ts.num_samples * (ts.num_samples - 1) / 2
-        result = tc.ibd_segments()
+        result = tc.ibd_segments(store_pairs=True)
         assert result.num_pairs == num_pairs
         pairs = np.array(list(itertools.combinations(range(ts.num_samples), 2)))
         np.testing.assert_array_equal(result.get_keys(), pairs)
@@ -454,7 +481,7 @@ class TestIbd:
         ts = msprime.simulate(5, random_seed=1)
         tc = ts.tables._ll_tables
         pairs = [(0, 1), (2, 3)]
-        result = tc.ibd_segments([0, 1, 2, 3])
+        result = tc.ibd_segments([0, 1, 2, 3], store_segments=True)
         assert isinstance(result, _tskit.IbdSegments)
         for pair in pairs:
             value = result.get(*pair)
@@ -472,7 +499,7 @@ class TestIbd:
     def test_get_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables._ll_tables
-        result = tc.ibd_segments(within=[0, 1, 2])
+        result = tc.ibd_segments(within=[0, 1, 2], store_segments=True)
         with pytest.raises(TypeError):
             result.get()
         with pytest.raises(TypeError):
@@ -525,7 +552,7 @@ class TestIbdSegmentList:
     def test_memory_management(self):
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables._ll_tables
-        result = tc.ibd_segments()
+        result = tc.ibd_segments(store_segments=True)
         del ts, tc
         lst = result.get(0, 1)
         assert lst.num_segments == 1

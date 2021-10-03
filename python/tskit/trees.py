@@ -7191,7 +7191,15 @@ class TreeSequence:
 
         yield from combinatorics.treeseq_count_topologies(self, sample_sets)
 
-    def ibd_segments(self, *, within=None, max_time=None, min_length=None):
+    def ibd_segments(
+        self,
+        *,
+        within=None,
+        max_time=None,
+        min_length=None,
+        store_pairs=None,
+        store_segments=None,
+    ):
         """
         Finds pairs of samples that are identical by descent (IBD). If ``within``
         is specified, only IBD segments for pairs of nodes within that set
@@ -7248,8 +7256,12 @@ class TreeSequence:
             np.float64 and np.int32 respectively.
         :rtype: dict
         """
-        return tables.TableCollection.ibd_segments(
-            self.tables, within=within, max_time=max_time, min_length=min_length
+        return self.tables.ibd_segments(
+            within=within,
+            max_time=max_time,
+            min_length=min_length,
+            store_segments=store_segments,
+            store_pairs=store_pairs,
         )
 
     ############################################
