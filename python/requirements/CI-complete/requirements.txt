@@ -3,7 +3,7 @@ black==21.9b0
 coverage==5.5
 flake8==3.9.2
 h5py==3.4.0
-jsonschema==3.2.0
+jsonschema==4.0.1
 kastore==0.3.1
 msgpack==1.0.2
 msprime==1.0.2
