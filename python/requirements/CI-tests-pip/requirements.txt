@@ -1,7 +1,7 @@
 numpy==1.21.2
 pytest==6.2.5
 pytest-xdist==2.3.0
-jsonschema==3.2.0
+jsonschema==4.0.1
 h5py==3.4.0
 svgwrite==1.4.1
 portion==2.1.6
