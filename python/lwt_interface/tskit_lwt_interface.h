@@ -151,12 +151,12 @@ out:
 }
 
 static const char *
-parse_metadata_schema_arg(PyObject *arg, Py_ssize_t *metadata_schema_length)
+parse_unicode_arg(PyObject *arg, Py_ssize_t *metadata_schema_length)
 {
     const char *ret = NULL;
     if (arg == NULL) {
         PyErr_Format(PyExc_AttributeError,
-            "Cannot del metadata_schema, set to empty string (\"\") to clear.");
+            "Cannot del attribute, set to empty string (\"\") to clear.");
         goto out;
     }
     ret = PyUnicode_AsUTF8AndSize(arg, metadata_schema_length);
@@ -297,7 +297,7 @@ parse_individual_table_dict(
 
     if (metadata_schema_input != Py_None) {
         metadata_schema
-            = parse_metadata_schema_arg(metadata_schema_input, &metadata_schema_length);
+            = parse_unicode_arg(metadata_schema_input, &metadata_schema_length);
         if (metadata_schema == NULL) {
             goto out;
         }
@@ -437,7 +437,7 @@ parse_node_table_dict(tsk_node_table_t *table, PyObject *dict, bool clear_table)
     }
     if (metadata_schema_input != Py_None) {
         metadata_schema
-            = parse_metadata_schema_arg(metadata_schema_input, &metadata_schema_length);
+            = parse_unicode_arg(metadata_schema_input, &metadata_schema_length);
         if (metadata_schema == NULL) {
             goto out;
         }
@@ -567,7 +567,7 @@ parse_edge_table_dict(tsk_edge_table_t *table, PyObject *dict, bool clear_table)
     }
     if (metadata_schema_input != Py_None) {
         metadata_schema
-            = parse_metadata_schema_arg(metadata_schema_input, &metadata_schema_length);
+            = parse_unicode_arg(metadata_schema_input, &metadata_schema_length);
         if (metadata_schema == NULL) {
             goto out;
         }
@@ -718,7 +718,7 @@ parse_migration_table_dict(
     }
     if (metadata_schema_input != Py_None) {
         metadata_schema
-            = parse_metadata_schema_arg(metadata_schema_input, &metadata_schema_length);
+            = parse_unicode_arg(metadata_schema_input, &metadata_schema_length);
         if (metadata_schema == NULL) {
             goto out;
         }
@@ -848,7 +848,7 @@ parse_site_table_dict(tsk_site_table_t *table, PyObject *dict, bool clear_table)
     }
     if (metadata_schema_input != Py_None) {
         metadata_schema
-            = parse_metadata_schema_arg(metadata_schema_input, &metadata_schema_length);
+            = parse_unicode_arg(metadata_schema_input, &metadata_schema_length);
         if (metadata_schema == NULL) {
             goto out;
         }
@@ -1016,7 +1016,7 @@ parse_mutation_table_dict(tsk_mutation_table_t *table, PyObject *dict, bool clea
     }
     if (metadata_schema_input != Py_None) {
         metadata_schema
-            = parse_metadata_schema_arg(metadata_schema_input, &metadata_schema_length);
+            = parse_unicode_arg(metadata_schema_input, &metadata_schema_length);
         if (metadata_schema == NULL) {
             goto out;
         }
@@ -1098,7 +1098,7 @@ parse_population_table_dict(
     }
     if (metadata_schema_input != Py_None) {
         metadata_schema
-            = parse_metadata_schema_arg(metadata_schema_input, &metadata_schema_length);
+            = parse_unicode_arg(metadata_schema_input, &metadata_schema_length);
         if (metadata_schema == NULL) {
             goto out;
         }
@@ -1277,9 +1277,10 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
     int ret = -1;
     PyObject *value = NULL;
     int err;
+    const char *time_units = NULL;
     char *metadata = NULL;
     const char *metadata_schema = NULL;
-    Py_ssize_t metadata_length, metadata_schema_length;
+    Py_ssize_t time_units_length, metadata_length, metadata_schema_length;
 
     value = get_table_dict_value(tables_dict, "sequence_length", true);
     if (value == NULL) {
@@ -1301,7 +1302,7 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
             PyErr_Format(PyExc_TypeError, "'metadata_schema' is not a string");
             goto out;
         }
-        metadata_schema = parse_metadata_schema_arg(value, &metadata_schema_length);
+        metadata_schema = parse_unicode_arg(value, &metadata_schema_length);
         if (metadata_schema == NULL) {
             goto out;
         }
@@ -1328,6 +1329,27 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
             goto out;
         }
         err = tsk_table_collection_set_metadata(tables, metadata, metadata_length);
+        if (err != 0) {
+            handle_tskit_error(err);
+            goto out;
+        }
+    }
+
+    /* time_units */
+    value = get_table_dict_value(tables_dict, "time_units", false);
+    if (value == NULL) {
+        goto out;
+    }
+    if (value != Py_None) {
+        if (!PyUnicode_Check(value)) {
+            PyErr_Format(PyExc_TypeError, "'time_units' is not a string");
+            goto out;
+        }
+        time_units = parse_unicode_arg(value, &time_units_length);
+        if (time_units == NULL) {
+            goto out;
+        }
+        err = tsk_table_collection_set_time_units(tables, time_units, time_units_length);
         if (err != 0) {
             handle_tskit_error(err);
             goto out;
@@ -1801,7 +1823,7 @@ dump_tables_dict(tsk_table_collection_t *tables, bool force_offset_64)
     }
 
     /* Dict representation version */
-    val = Py_BuildValue("ll", 1, 3);
+    val = Py_BuildValue("ll", 1, 5);
     if (val == NULL) {
         goto out;
     }
@@ -1845,6 +1867,17 @@ dump_tables_dict(tsk_table_collection_t *tables, bool force_offset_64)
         Py_DECREF(val);
         val = NULL;
     }
+
+    val = make_Py_Unicode_FromStringAndLength(
+        tables->time_units, tables->time_units_length);
+    if (val == NULL) {
+        goto out;
+    }
+    if (PyDict_SetItemString(dict, "time_units", val) != 0) {
+        goto out;
+    }
+    Py_DECREF(val);
+    val = NULL;
 
     err = write_table_arrays(tables, dict, force_offset_64);
     if (err != 0) {

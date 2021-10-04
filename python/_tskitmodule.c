@@ -1396,7 +1396,7 @@ IndividualTable_set_metadata_schema(IndividualTable *self, PyObject *arg, void *
     if (IndividualTable_check_state(self) != 0) {
         goto out;
     }
-    metadata_schema = parse_metadata_schema_arg(arg, &metadata_schema_length);
+    metadata_schema = parse_unicode_arg(arg, &metadata_schema_length);
     if (metadata_schema == NULL) {
         goto out;
     }
@@ -1963,7 +1963,7 @@ NodeTable_set_metadata_schema(NodeTable *self, PyObject *arg, void *closure)
     if (NodeTable_check_state(self) != 0) {
         goto out;
     }
-    metadata_schema = parse_metadata_schema_arg(arg, &metadata_schema_length);
+    metadata_schema = parse_unicode_arg(arg, &metadata_schema_length);
     if (metadata_schema == NULL) {
         goto out;
     }
@@ -2534,7 +2534,7 @@ EdgeTable_set_metadata_schema(EdgeTable *self, PyObject *arg, void *closure)
     if (EdgeTable_check_state(self) != 0) {
         goto out;
     }
-    metadata_schema = parse_metadata_schema_arg(arg, &metadata_schema_length);
+    metadata_schema = parse_unicode_arg(arg, &metadata_schema_length);
     if (metadata_schema == NULL) {
         goto out;
     }
@@ -3119,7 +3119,7 @@ MigrationTable_set_metadata_schema(MigrationTable *self, PyObject *arg, void *cl
     if (MigrationTable_check_state(self) != 0) {
         goto out;
     }
-    metadata_schema = parse_metadata_schema_arg(arg, &metadata_schema_length);
+    metadata_schema = parse_unicode_arg(arg, &metadata_schema_length);
     if (metadata_schema == NULL) {
         goto out;
     }
@@ -3661,7 +3661,7 @@ SiteTable_set_metadata_schema(SiteTable *self, PyObject *arg, void *closure)
     if (SiteTable_check_state(self) != 0) {
         goto out;
     }
-    metadata_schema = parse_metadata_schema_arg(arg, &metadata_schema_length);
+    metadata_schema = parse_unicode_arg(arg, &metadata_schema_length);
     if (metadata_schema == NULL) {
         goto out;
     }
@@ -4253,7 +4253,7 @@ MutationTable_set_metadata_schema(MutationTable *self, PyObject *arg, void *clos
     if (MutationTable_check_state(self) != 0) {
         goto out;
     }
-    metadata_schema = parse_metadata_schema_arg(arg, &metadata_schema_length);
+    metadata_schema = parse_unicode_arg(arg, &metadata_schema_length);
     if (metadata_schema == NULL) {
         goto out;
     }
@@ -4750,7 +4750,7 @@ PopulationTable_set_metadata_schema(PopulationTable *self, PyObject *arg, void *
     if (PopulationTable_check_state(self) != 0) {
         goto out;
     }
-    metadata_schema = parse_metadata_schema_arg(arg, &metadata_schema_length);
+    metadata_schema = parse_unicode_arg(arg, &metadata_schema_length);
     if (metadata_schema == NULL) {
         goto out;
     }
@@ -6029,6 +6029,46 @@ out:
 }
 
 static PyObject *
+TableCollection_get_time_units(TableCollection *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (TableCollection_check_state(self) != 0) {
+        goto out;
+    }
+    ret = make_Py_Unicode_FromStringAndLength(
+        self->tables->time_units, self->tables->time_units_length);
+out:
+    return ret;
+}
+
+static int
+TableCollection_set_time_units(TableCollection *self, PyObject *arg, void *closure)
+{
+    int ret = -1;
+    int err;
+    const char *time_units;
+    Py_ssize_t time_units_length;
+
+    if (TableCollection_check_state(self) != 0) {
+        goto out;
+    }
+    time_units = parse_unicode_arg(arg, &time_units_length);
+    if (time_units == NULL) {
+        goto out;
+    }
+    err = tsk_table_collection_set_time_units(
+        self->tables, time_units, time_units_length);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+static PyObject *
 TableCollection_get_metadata(TableCollection *self, void *closure)
 {
     PyObject *ret = NULL;
@@ -6097,7 +6137,7 @@ TableCollection_set_metadata_schema(TableCollection *self, PyObject *arg, void *
     if (TableCollection_check_state(self) != 0) {
         goto out;
     }
-    metadata_schema = parse_metadata_schema_arg(arg, &metadata_schema_length);
+    metadata_schema = parse_unicode_arg(arg, &metadata_schema_length);
     if (metadata_schema == NULL) {
         goto out;
     }
@@ -6870,6 +6910,10 @@ static PyGetSetDef TableCollection_getsetters[] = {
     { .name = "file_uuid",
         .get = (getter) TableCollection_get_file_uuid,
         .doc = "The UUID of the corresponding file." },
+    { .name = "time_units",
+        .get = (getter) TableCollection_get_time_units,
+        .set = (setter) TableCollection_set_time_units,
+        .doc = "The time_units." },
     { .name = "metadata",
         .get = (getter) TableCollection_get_metadata,
         .set = (setter) TableCollection_set_metadata,

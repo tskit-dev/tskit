@@ -3477,7 +3477,7 @@ class TestContainersAppend:
             table = getattr(tables, table_name)
             for i in range(len(getattr(ts_fixture.tables, table_name))):
                 table.append(getattr(ts_fixture, table_name[:-1])(i))
-        assert ts_fixture.tables == tables
+        ts_fixture.tables.assert_equals(tables)
 
 
 class TestTskitConversionOutput(unittest.TestCase):

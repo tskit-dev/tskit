@@ -38,6 +38,8 @@ import tskit.util as util
 
 lwt_module = None
 
+NON_UTF8_STRING = "\ud861\udd37"
+
 
 @pytest.fixture(scope="session")
 def full_ts():
@@ -114,7 +116,7 @@ def test_check_ts_full(tmp_path, full_ts):
 class TestEncodingVersion:
     def test_version(self):
         lwt = lwt_module.LightweightTableCollection()
-        assert lwt.asdict()["encoding_version"] == (1, 3)
+        assert lwt.asdict()["encoding_version"] == (1, 5)
 
 
 class TestRoundTrip:
@@ -202,6 +204,15 @@ class TestMissingData:
         with pytest.raises(TypeError):
             lwt.fromdict(d)
 
+    def test_missing_time_units(self, tables):
+        assert tables.time_units != ""
+        d = tables.asdict()
+        del d["time_units"]
+        lwt = lwt_module.LightweightTableCollection()
+        lwt.fromdict(d)
+        tables = tskit.TableCollection.fromdict(lwt.asdict())
+        assert tables.time_units == "unknown"
+
     def test_missing_metadata(self, tables):
         assert tables.metadata != b""
         d = tables.asdict()
@@ -226,6 +237,7 @@ class TestMissingData:
         d = tables.asdict()
         table_names = d.keys() - {
             "sequence_length",
+            "time_units",
             "metadata",
             "metadata_schema",
             "encoding_version",
@@ -248,6 +260,7 @@ class TestBadTypes:
         d = tables.asdict()
         table_names = set(d.keys()) - {
             "sequence_length",
+            "time_units",
             "metadata",
             "metadata_schema",
             "encoding_version",
@@ -290,6 +303,7 @@ class TestBadLengths:
         d = tables.asdict()
         table_names = set(d.keys()) - {
             "sequence_length",
+            "time_units",
             "metadata",
             "metadata_schema",
             "encoding_version",
@@ -580,6 +594,23 @@ class TestRequiredAndOptionalColumns:
                 "together$",
             ):
                 lwt.fromdict(d)
+
+    def test_top_level_time_units(self, tables):
+        d = tables.asdict()
+        # None should give default value
+        d["time_units"] = None
+        lwt = lwt_module.LightweightTableCollection()
+        lwt.fromdict(d)
+        out = lwt.asdict()
+        tables = tskit.TableCollection.fromdict(out)
+        assert tables.time_units == "unknown"
+        # Missing is tested in TestMissingData above
+        d = tables.asdict()
+        # None should give default value
+        d["time_units"] = NON_UTF8_STRING
+        lwt = lwt_module.LightweightTableCollection()
+        with pytest.raises(UnicodeEncodeError):
+            lwt.fromdict(d)
 
     def test_top_level_metadata(self, tables):
         d = tables.asdict()

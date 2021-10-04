@@ -224,11 +224,26 @@ class TestTableCollection(LowLevelTestCase):
             tables.sequence_length = value
             assert tables.sequence_length == value
 
+    def test_set_time_units_errors(self):
+        tables = _tskit.TableCollection(1)
+        with pytest.raises(AttributeError):
+            del tables.time_units
+        for bad_value in [b"no bytes", 59, 43.4, None, []]:
+            with pytest.raises(TypeError):
+                tables.time_units = bad_value
+
+    def test_set_time_units(self):
+        tables = _tskit.TableCollection(1)
+        assert tables.time_units == "unknown"
+        for value in ["foo", "", "💩", "null char \0 in string"]:
+            tables.time_units = value
+            assert tables.time_units == value
+
     def test_set_metadata_errors(self):
         tables = _tskit.TableCollection(1)
         with pytest.raises(AttributeError):
             del tables.metadata
-        for bad_value in ["bytes only", 59, 43.4, None, []]:
+        for bad_value in ["no bytes", 59, 43.4, None, []]:
             with pytest.raises(TypeError):
                 tables.metadata = bad_value
 
@@ -1298,6 +1313,10 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         tables.clear(clear_ts_metadata_and_schema=True)
         assert len(tables.metadata) == 0
         assert len(tables.metadata_schema) == 0
+
+        # Check for attributes that are not cleared
+        assert tables.sequence_length == ts_fixture.tables.sequence_length
+        assert tables.time_units == ts_fixture.tables.time_units
 
 
 class StatsInterfaceMixin:

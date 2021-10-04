@@ -3326,17 +3326,18 @@ class TestTableCollection:
             array.nbytes * 2 if "_offset" in name else array.nbytes
             for name, array in store.items()
             # nbytes is the size of asdict, so exclude file format items
-            if name not in ["format/version", "format/name", "uuid", "time_units"]
+            if name not in ["format/version", "format/name", "uuid"]
         )
         assert nbytes == tables.nbytes
 
     def test_asdict(self, ts_fixture):
         t = ts_fixture.dump_tables()
         d1 = {
-            "encoding_version": (1, 2),
+            "encoding_version": (1, 5),
             "sequence_length": t.sequence_length,
             "metadata_schema": repr(t.metadata_schema),
             "metadata": t.metadata_schema.encode_row(t.metadata),
+            "time_units": t.time_units,
             "individuals": t.individuals.asdict(),
             "populations": t.populations.asdict(),
             "nodes": t.nodes.asdict(),
@@ -3379,7 +3380,9 @@ class TestTableCollection:
         tables = ts_fixture.dump_tables()
         tables_dict = tables.asdict()
         del tables
-        assert tskit.TableCollection.fromdict(tables_dict) == ts_fixture.dump_tables()
+        tskit.TableCollection.fromdict(tables_dict).assert_equals(
+            ts_fixture.dump_tables()
+        )
 
     def test_from_dict(self, ts_fixture):
         t1 = ts_fixture.tables
@@ -3388,6 +3391,7 @@ class TestTableCollection:
             "sequence_length": t1.sequence_length,
             "metadata_schema": repr(t1.metadata_schema),
             "metadata": t1.metadata_schema.encode_row(t1.metadata),
+            "time_units": t1.time_units,
             "individuals": t1.individuals.asdict(),
             "populations": t1.populations.asdict(),
             "nodes": t1.nodes.asdict(),
@@ -3916,6 +3920,16 @@ class TestTableCollectionAssertEquals:
         t1.assert_equals(t2, ignore_metadata=True)
         t1.assert_equals(t2, ignore_ts_metadata=True)
 
+    def test_time_units(self, t1, t2):
+        t2.time_units = "microseconds"
+        with pytest.raises(
+            AssertionError,
+            match=re.escape(
+                "Time units differs: self=Test time units other=microseconds"
+            ),
+        ):
+            t1.assert_equals(t2)
+
     @pytest.mark.parametrize("table_name", tskit.TableCollection(1).name_map)
     def test_tables(self, t1, t2, table_name):
         table = getattr(t2, table_name)
@@ -4063,6 +4077,25 @@ class TestTableCollectionMetadata:
         # Setting bytes should fail
         with pytest.raises(AttributeError):
             tc.metadata_bytes = b"123"
+
+    def test_set_time_units(self):
+        tc = tskit.TableCollection(1)
+        assert tc.time_units == "unknown"
+
+        ex1 = "years"
+        ex2 = "generations"
+        # Set
+        tc.time_units = ex1
+        assert tc.time_units == ex1
+        # Overwrite
+        tc.time_units = ex2
+        assert tc.time_units == ex2
+        # Del should fail
+        with pytest.raises(AttributeError):
+            del tc.time_units
+        # None should fail
+        with pytest.raises(TypeError):
+            tc.time_units = None
 
     def test_default_metadata_schema(self):
         # Default should allow bytes

@@ -8453,7 +8453,7 @@ test_table_collection_clear_with_options(tsk_flags_t options)
     CU_ASSERT_EQUAL(tables.populations.metadata_schema_length, expected_len);
     CU_ASSERT_EQUAL(tables.metadata_schema_length, expected_len_ts);
     CU_ASSERT_EQUAL(tables.metadata_length, expected_len_ts);
-    CU_ASSERT_EQUAL(tables.time_units_length, strlen(TSK_DEFAULT_TIME_UNITS));
+    CU_ASSERT_EQUAL(tables.time_units_length, 4);
 
     tsk_table_collection_free(&tables);
 }

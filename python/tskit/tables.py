@@ -2491,6 +2491,7 @@ class IbdResult(collections.abc.Mapping):
         # See #1680 for more info
         # 1) Limit the number of IBD pairs here by getting the keys and only
         #    printing (say) the first and last 10.
+        #    (Note that tskit._print_options["max_lines"] might be used here)
         # 2) Show something more informative from the segment_list object,
         #    rather than just the actual segments.
         # commenting this out for now, so that we can get a useful summary
@@ -2637,6 +2638,17 @@ class TableCollection:
         """
         return self._ll_tables.metadata
 
+    @property
+    def time_units(self) -> str:
+        """
+        The units used for the time dimension of this TableCollection
+        """
+        return self._ll_tables.time_units
+
+    @time_units.setter
+    def time_units(self, time_units: str) -> None:
+        self._ll_tables.time_units = time_units
+
     def asdict(self, force_offset_64=False):
         """
         Returns the nested dictionary representation of this TableCollection
@@ -2683,6 +2695,7 @@ class TableCollection:
             (
                 8,  # sequence_length takes 8 bytes
                 len(self.metadata_bytes),
+                len(self.time_units.encode()),
                 len(repr(self.metadata_schema).encode()),
                 self.indexes.nbytes,
                 sum(table.nbytes for table in self.name_map.values()),
@@ -2695,6 +2708,7 @@ class TableCollection:
                 "TableCollection",
                 "",
                 f"Sequence Length: {self.sequence_length}",
+                f"Time units: {self.time_units}",
                 f"Metadata: {self.metadata}",
                 "",
                 "Individuals",
@@ -2806,6 +2820,12 @@ class TableCollection:
             ignore_timestamps=ignore_timestamps,
         ):
             return
+
+        if self.time_units != other.time_units:
+            raise AssertionError(
+                f"Time units differs: self={self.time_units} "
+                f"other={other.time_units}"
+            )
 
         if not ignore_metadata or ignore_ts_metadata:
             if self.metadata_schema != other.metadata_schema:
