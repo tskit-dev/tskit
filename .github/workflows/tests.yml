@@ -91,7 +91,9 @@ jobs:
       - name: Install pip deps
         if: steps.cache.outputs.cache-hit != 'true'
         shell: bash -l {0}
-        run: pip install -r python/requirements/CI-tests-pip/requirements.txt
+        run: |
+          pip install setuptools==57.5.0 #v58 broke some deps https://setuptools.pypa.io/en/latest/history.html#v58-0-0
+          pip install -r python/requirements/CI-tests-pip/requirements.txt
 
       - name: Fix OSX Cache Write #OSX Won't let the cache restore due to file perms
         if: steps.cache.outputs.cache-hit != 'true' && matrix.os == 'macos-latest'
