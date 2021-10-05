@@ -6169,9 +6169,10 @@ test_tree_sequence_metadata(void)
     char example_metadata[100] = "An example of metadata with unicode 🎄🌳🌴🌲🎋";
     char example_metadata_schema[100]
         = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
+    char example_time_units[100] = "An example of time units ⏰";
     tsk_size_t example_metadata_length = (tsk_size_t) strlen(example_metadata);
-    tsk_size_t example_metadata_schema_length
-        = (tsk_size_t) strlen(example_metadata_schema);
+    tsk_size_t example_time_units_length = (tsk_size_t) strlen(example_metadata_schema);
+    tsk_size_t example_metadata_schema_length = (tsk_size_t) strlen(example_time_units);
 
     ret = tsk_table_collection_init(&tc, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -6183,6 +6184,9 @@ test_tree_sequence_metadata(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_set_metadata_schema(
         &tc, example_metadata_schema, example_metadata_schema_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_set_time_units(
+        &tc, example_time_units, example_time_units_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_treeseq_init(&ts, &tc, 0);
@@ -6196,6 +6200,11 @@ test_tree_sequence_metadata(void)
         0);
     CU_ASSERT_EQUAL(tsk_memcmp(tsk_treeseq_get_metadata_schema(&ts),
                         example_metadata_schema, example_metadata_schema_length),
+        0);
+
+    CU_ASSERT_EQUAL(tsk_treeseq_get_time_units_length(&ts), example_time_units_length);
+    CU_ASSERT_EQUAL(tsk_memcmp(tsk_treeseq_get_time_units(&ts), example_time_units,
+                        example_time_units_length),
         0);
 
     tsk_treeseq_free(&ts);
