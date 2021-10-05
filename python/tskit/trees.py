@@ -3847,6 +3847,13 @@ class TreeSequence:
         )
 
     @property
+    def time_units(self) -> str:
+        """
+        String describing the units of the time dimension for this TreeSequence.
+        """
+        return self._ll_tree_sequence.get_time_units()
+
+    @property
     def num_edges(self):
         """
         Returns the number of :ref:`edges <sec_edge_table_definition>` in this
