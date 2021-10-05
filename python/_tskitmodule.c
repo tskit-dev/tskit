@@ -7357,6 +7357,20 @@ out:
 }
 
 static PyObject *
+TreeSequence_get_time_units(TreeSequence *self)
+{
+    PyObject *ret = NULL;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    ret = make_Py_Unicode_FromStringAndLength(self->tree_sequence->tables->time_units,
+        self->tree_sequence->tables->time_units_length);
+out:
+    return ret;
+}
+
+static PyObject *
 TreeSequence_get_table_metadata_schemas(TreeSequence *self)
 {
     PyObject *ret = NULL;
@@ -8880,6 +8894,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_get_metadata_schema,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns the metadata schema for the tree sequence metadata" },
+    { .ml_name = "get_time_units",
+        .ml_meth = (PyCFunction) TreeSequence_get_time_units,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the description of the units of the time dimension" },
     { .ml_name = "get_num_sites",
         .ml_meth = (PyCFunction) TreeSequence_get_num_sites,
         .ml_flags = METH_NOARGS,

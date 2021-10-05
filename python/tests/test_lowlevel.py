@@ -1222,6 +1222,18 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             ts.load_tables(tables)
             assert ts.get_metadata_schema() == value
 
+    def test_time_units(self):
+        tables = _tskit.TableCollection(1)
+        tables.build_index()
+        ts = _tskit.TreeSequence()
+        ts.load_tables(tables)
+        assert ts.get_time_units() == "unknown"
+        for value in ["foo", "", "💩", "null char \0 in string"]:
+            tables.time_units = value
+            ts = _tskit.TreeSequence()
+            ts.load_tables(tables)
+            assert ts.get_time_units() == value
+
     def test_kc_distance_errors(self):
         ts1 = self.get_example_tree_sequence(10)
         with pytest.raises(TypeError):
