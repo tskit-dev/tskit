@@ -412,6 +412,11 @@ tsk_treeseq_init(
     if (ret != 0) {
         goto out;
     }
+    if (tsk_treeseq_get_time_units_length(self) == strlen(TSK_TIME_UNITS_UNCALIBRATED)
+        && !strncmp(tsk_treeseq_get_time_units(self), TSK_TIME_UNITS_UNCALIBRATED,
+               strlen(TSK_TIME_UNITS_UNCALIBRATED))) {
+        self->time_uncalibrated = true;
+    }
 out:
     return ret;
 }
@@ -1079,7 +1084,7 @@ static int
 tsk_treeseq_branch_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
     const double *sample_weights, tsk_size_t result_dim, general_stat_func_t *f,
     void *f_params, tsk_size_t num_windows, const double *windows, double *result,
-    tsk_flags_t TSK_UNUSED(options))
+    tsk_flags_t options)
 {
     int ret = 0;
     tsk_id_t u, v;
@@ -1103,6 +1108,11 @@ tsk_treeseq_branch_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
     double *state = tsk_calloc(num_nodes * state_dim, sizeof(*state));
     double *summary = tsk_calloc(num_nodes * result_dim, sizeof(*summary));
     double *running_sum = tsk_calloc(result_dim, sizeof(*running_sum));
+
+    if (self->time_uncalibrated && !(options & TSK_STAT_ALLOW_TIME_UNCALIBRATED)) {
+        ret = TSK_ERR_TIME_UNCALIBRATED;
+        goto out;
+    }
 
     if (parent == NULL || branch_length == NULL || state == NULL || running_sum == NULL
         || summary == NULL) {
@@ -2172,6 +2182,11 @@ tsk_treeseq_branch_allele_frequency_spectrum(const tsk_treeseq_t *self,
     tsk_id_t tj, tk, h;
     double t_left, t_right, w_right;
     const tsk_size_t K = num_sample_sets + 1;
+
+    if (self->time_uncalibrated && !(options & TSK_STAT_ALLOW_TIME_UNCALIBRATED)) {
+        ret = TSK_ERR_TIME_UNCALIBRATED;
+        goto out;
+    }
 
     if (parent == NULL || last_update == NULL) {
         ret = TSK_ERR_NO_MEMORY;

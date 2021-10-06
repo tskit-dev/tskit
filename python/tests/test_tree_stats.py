@@ -6078,3 +6078,41 @@ class TestOutputDimensions(StatsTestCase):
     def test_f3_windows(self):
         ts = self.get_example_ts()
         self.verify_three_way_stat_windows(ts, ts.f3)
+
+
+class TestTimeUncalibratedErrors:
+    def test_uncalibrated_time_allele_frequency_spectrum(self, ts_fixture):
+        ts_fixture.allele_frequency_spectrum(mode="branch")
+        tables = ts_fixture.dump_tables()
+        tables.time_units = "uncalibrated"
+        ts_uncalibrated = tables.tree_sequence()
+        ts_uncalibrated.allele_frequency_spectrum(mode="site")
+        with pytest.raises(
+            tskit.LibraryError,
+            match="Statistics using branch lengths cannot be calculated when time_units"
+            " is 'uncalibrated'",
+        ):
+            ts_uncalibrated.allele_frequency_spectrum(mode="branch")
+
+    def test_uncalibrated_time_general_stat(self, ts_fixture):
+        W = np.ones((ts_fixture.num_samples, 2))
+        ts_fixture.general_stat(
+            W, lambda x: x * (x < ts_fixture.num_samples), W.shape[1], mode="branch"
+        )
+        tables = ts_fixture.dump_tables()
+        tables.time_units = "uncalibrated"
+        ts_uncalibrated = tables.tree_sequence()
+        ts_uncalibrated.general_stat(
+            W, lambda x: x * (x < ts_uncalibrated.num_samples), W.shape[1], mode="site"
+        )
+        with pytest.raises(
+            tskit.LibraryError,
+            match="Statistics using branch lengths cannot be calculated when time_units"
+            " is 'uncalibrated'",
+        ):
+            ts_uncalibrated.general_stat(
+                W,
+                lambda x: x * (x < ts_uncalibrated.num_samples),
+                W.shape[1],
+                mode="branch",
+            )

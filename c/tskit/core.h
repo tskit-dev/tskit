@@ -88,6 +88,7 @@ __tsk_nan_f(void)
 #define TSK_UNKNOWN_TIME __tsk_nan_f()
 
 #define TSK_DEFAULT_TIME_UNITS "unknown"
+#define TSK_TIME_UNITS_UNCALIBRATED "uncalibrated"
 
 /**
 @brief Tskit Object IDs.
@@ -329,6 +330,8 @@ An unsupported type was provided for a column in the file.
 #define TSK_ERR_BAD_SAMPLE_SET_INDEX                                -907
 #define TSK_ERR_EMPTY_SAMPLE_SET                                    -908
 #define TSK_ERR_UNSUPPORTED_STAT_MODE                               -909
+#define TSK_ERR_TIME_UNCALIBRATED                                   -910
+
 
 /* Mutation mapping errors */
 #define TSK_ERR_GENOTYPES_ALL_MISSING                              -1000
