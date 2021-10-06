@@ -386,21 +386,6 @@ test_debug_stream(void)
     fclose(f);
 }
 
-static void
-test_warn_stream(void)
-{
-    FILE *f = fopen(_tmp_file_name, "w");
-    CU_ASSERT_FATAL(tsk_get_warn_stream() == stderr);
-    CU_ASSERT_FATAL(tsk_get_warn_stream() == stderr);
-
-    tsk_set_warn_stream(f);
-    CU_ASSERT_FATAL(tsk_get_warn_stream() == f);
-    tsk_set_warn_stream(stderr);
-    CU_ASSERT_FATAL(tsk_get_warn_stream() == stderr);
-
-    fclose(f);
-}
-
 static int
 validate_avl_node(tsk_avl_node_int_t *node)
 {
@@ -552,7 +537,6 @@ main(int argc, char **argv)
         { "test_malloc_zero", test_malloc_zero },
         { "test_malloc_overflow", test_malloc_overflow },
         { "test_debug_stream", test_debug_stream },
-        { "test_warn_stream", test_warn_stream },
         { "test_avl_empty", test_avl_empty },
         { "test_avl_sequential", test_avl_sequential },
         { "test_avl_interleaved", test_avl_interleaved },

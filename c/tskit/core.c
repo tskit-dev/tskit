@@ -814,13 +814,12 @@ tsk_memcmp(const void *s1, const void *s2, tsk_size_t size)
     return memcmp(s1, s2, (size_t) size);
 }
 
-/* We can't initialise the streams to their real default values because
+/* We can't initialise the stream to its real default value because
  * of limitations on static initialisers. To work around this, we initialise
- * them to NULL and then set the value to the required standard stream
+ * it to NULL and then set the value to the required standard stream
  * when called. */
 
 FILE *_tsk_debug_stream = NULL;
-FILE *_tsk_warn_stream = NULL;
 
 void
 tsk_set_debug_stream(FILE *f)
@@ -835,21 +834,6 @@ tsk_get_debug_stream(void)
         _tsk_debug_stream = stdout;
     }
     return _tsk_debug_stream;
-}
-
-void
-tsk_set_warn_stream(FILE *f)
-{
-    _tsk_warn_stream = f;
-}
-
-FILE *
-tsk_get_warn_stream(void)
-{
-    if (_tsk_warn_stream == NULL) {
-        _tsk_warn_stream = stderr;
-    }
-    return _tsk_warn_stream;
 }
 
 /* AVL Tree implementation. This is based directly on Knuth's implementation

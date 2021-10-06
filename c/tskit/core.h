@@ -512,8 +512,6 @@ int tsk_memcmp(const void *s1, const void *s2, tsk_size_t size);
 /* Developer debug utilities. These are **not** threadsafe */
 void tsk_set_debug_stream(FILE *f);
 FILE *tsk_get_debug_stream(void);
-void tsk_set_warn_stream(FILE *f);
-FILE *tsk_get_warn_stream(void);
 
 #ifdef __cplusplus
 }

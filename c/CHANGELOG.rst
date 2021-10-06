@@ -12,6 +12,8 @@
 - ``num_tracked_samples`` and ``num_samples`` in ``tsk_tree_t`` are now typed as ``tsk_size_t``
   (:user:`benjeffery`, :issue:`1723`, :pr:`1727`)
 
+- The previously deprecated option ``TSK_SAMPLE_COUNTS`` has been removed. (:user:`benjeffery`, :issue:`1744`, :pr:`1761`).
+
 
 **Features**
 
