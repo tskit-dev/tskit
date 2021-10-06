@@ -253,6 +253,8 @@ const char *tsk_treeseq_get_metadata(const tsk_treeseq_t *self);
 tsk_size_t tsk_treeseq_get_metadata_length(const tsk_treeseq_t *self);
 const char *tsk_treeseq_get_metadata_schema(const tsk_treeseq_t *self);
 tsk_size_t tsk_treeseq_get_metadata_schema_length(const tsk_treeseq_t *self);
+const char *tsk_treeseq_get_time_units(const tsk_treeseq_t *self);
+tsk_size_t tsk_treeseq_get_time_units_length(const tsk_treeseq_t *self);
 const char *tsk_treeseq_get_file_uuid(const tsk_treeseq_t *self);
 double tsk_treeseq_get_sequence_length(const tsk_treeseq_t *self);
 const double *tsk_treeseq_get_breakpoints(const tsk_treeseq_t *self);

@@ -512,6 +512,18 @@ tsk_treeseq_get_metadata_schema_length(const tsk_treeseq_t *self)
     return self->tables->metadata_schema_length;
 }
 
+const char *
+tsk_treeseq_get_time_units(const tsk_treeseq_t *self)
+{
+    return self->tables->time_units;
+}
+
+tsk_size_t
+tsk_treeseq_get_time_units_length(const tsk_treeseq_t *self)
+{
+    return self->tables->time_units_length;
+}
+
 double
 tsk_treeseq_get_sequence_length(const tsk_treeseq_t *self)
 {

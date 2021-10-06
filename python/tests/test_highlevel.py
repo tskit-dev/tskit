@@ -1894,6 +1894,18 @@ class TestTreeSequenceMetadata:
         with pytest.raises(AttributeError):
             del ts.metadata
 
+    def test_tree_sequence_time_units(self):
+        tc = tskit.TableCollection(1)
+        ts = tc.tree_sequence()
+        assert ts.time_units == "unknown"
+        tc.time_units = "something else"
+        ts = tc.tree_sequence()
+        assert ts.time_units == "something else"
+        with pytest.raises(AttributeError):
+            del ts.time_units
+        with pytest.raises(AttributeError):
+            ts.time_units = "readonly"
+
     def test_table_metadata_schemas(self):
         ts = msprime.simulate(5)
         for table in self.metadata_tables:
