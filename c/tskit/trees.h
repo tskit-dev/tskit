@@ -36,13 +36,7 @@ extern "C" {
 
 #include <tskit/tables.h>
 
-/* The TSK_SAMPLE_COUNTS was removed in version 0.99.3, where
- * the default is now to always count samples except when
- * TSK_NO_SAMPLE_COUNTS is specified. This macro can be undefined
- * at some point in the future and the option reused for something
- * else. */
 // clang-format off
-#define TSK_SAMPLE_COUNTS           (1 << 0)
 #define TSK_SAMPLE_LISTS            (1 << 1)
 #define TSK_NO_SAMPLE_COUNTS        (1 << 2)
 
