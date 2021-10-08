@@ -126,7 +126,8 @@ class Simplifier:
         self.input_sites = list(ts.sites())
         self.A_head = [None for _ in range(ts.num_nodes)]
         self.A_tail = [None for _ in range(ts.num_nodes)]
-        self.tables = tskit.TableCollection(sequence_length=ts.sequence_length)
+        self.tables = self.ts.tables.copy()
+        self.tables.clear()
         self.edge_buffer = {}
         self.node_id_map = np.zeros(ts.num_nodes, dtype=np.int32) - 1
         self.mutation_node_map = [-1 for _ in range(self.num_mutations)]

@@ -551,6 +551,8 @@ class SvgPlot:
                 y_label = "Node time"
             else:
                 y_label = "Time"
+            if ts.time_units != "unknown":
+                y_label += f" ({ts.time_units})"
         self.x_label = x_label
         self.y_label = y_label
         self.offsets = Offsets() if offsets is None else offsets

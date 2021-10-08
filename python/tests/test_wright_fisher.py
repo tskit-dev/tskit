@@ -199,6 +199,7 @@ class WrightFisherSimulator:
         flattened = [n for pop in pops for n in pop]
         flags[flattened] = tskit.NODE_IS_SAMPLE
         tables.nodes.flags = flags
+        tables.time_units = "generations"
         return tables
 
 
@@ -249,6 +250,7 @@ class TestSimulation:
             seed=self.random_seed,
             record_migrations=True,
         )
+        assert tables.time_units == "generations"
         assert tables.nodes.num_rows == 5 * 4 * (1 + 1)
         assert tables.edges.num_rows > 0
         assert tables.migrations.num_rows == 5 * 4
