@@ -187,8 +187,7 @@ typedef struct {
     tsk_id_t right_index;
 } tsk_tree_t;
 
-/* Diff iterator. TODO Not sure if we want to keep this, as it's not used
- * very much in the C code. */
+/* Diff iterator. */
 typedef struct _tsk_edge_list_node_t {
     tsk_edge_t edge;
     struct _tsk_edge_list_node_t *next;
