@@ -466,6 +466,7 @@ def tree_sequence_html(ts):
                     <tbody>
                       <tr><td>Trees</td><td>{ts.num_trees}</td></tr>
                       <tr><td>Sequence Length</td><td>{ts.sequence_length}</td></tr>
+                      <tr><td>Time Units</td><td>{ts.time_units}</td></tr>
                       <tr><td>Sample Nodes</td><td>{ts.num_samples}</td></tr>
                       <tr><td>Total Size</td><td>{naturalsize(ts.nbytes)}</td></tr>
                       <tr>
