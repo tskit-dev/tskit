@@ -115,6 +115,7 @@ typedef struct _tsk_ls_hmm_t {
     double *values;
     tsk_size_t num_values;
     tsk_size_t max_values;
+    tsk_size_t max_parsimony_words;
     /* Number of machine words per node optimal value set. */
     tsk_size_t num_optimal_value_set_words;
     uint64_t *optimal_value_sets;

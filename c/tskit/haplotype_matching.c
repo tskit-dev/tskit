@@ -31,6 +31,8 @@
 
 #include <tskit/haplotype_matching.h>
 
+#define MAX_PARSIMONY_WORDS 256
+
 const char *_zero_one_alleles[] = { "0", "1", NULL };
 const char *_acgt_alleles[] = { "A", "C", "G", "T", NULL };
 
@@ -187,6 +189,10 @@ tsk_ls_hmm_init(tsk_ls_hmm_t *self, tsk_treeseq_t *tree_sequence,
     }
     self->num_values = 0;
     self->max_values = 0;
+    /* Keep this as a struct variable so that we can test overflow, but this
+     * should never be set to more than MAX_PARSIMONY_WORDS as we're doing
+     * a bunch of stack allocations based on this. */
+    self->max_parsimony_words = MAX_PARSIMONY_WORDS;
     ret = 0;
 out:
     return ret;
@@ -555,7 +561,6 @@ get_smallest_element(const uint64_t *restrict A, tsk_size_t u, tsk_size_t num_wo
     return j * 64 + get_smallest_set_bit(a[j]);
 }
 
-#define MAX_PARSIMONY_WORDS 256
 /* static variables are zero-initialised by default. */
 static const uint64_t zero_block[MAX_PARSIMONY_WORDS];
 
@@ -714,7 +719,7 @@ tsk_ls_hmm_setup_optimal_value_sets(tsk_ls_hmm_t *self)
      * could in principle release back the memory as well, but it doesn't seem
      * worth the bother. */
     self->num_optimal_value_set_words = (self->num_values / 64) + 1;
-    if (self->num_optimal_value_set_words > MAX_PARSIMONY_WORDS) {
+    if (self->num_optimal_value_set_words > self->max_parsimony_words) {
         ret = TSK_ERR_TOO_MANY_VALUES;
         goto out;
     }

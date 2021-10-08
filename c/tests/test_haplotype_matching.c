@@ -531,16 +531,20 @@ test_caterpillar_tree_many_values(void)
     tsk_compressed_matrix_t matrix;
     double unused[] = { 0, 0, 0, 0, 0 };
     int8_t h[] = { 0, 0, 0, 0, 0 };
-    tsk_size_t n[] = { 32, 64, 128 };
+    tsk_size_t n[] = {
+        8,
+        16,
+        32,
+        64,
+    };
     tsk_treeseq_t *ts;
     tsk_size_t j;
 
     for (j = 0; j < sizeof(n) / sizeof(*n); j++) {
         ts = caterpillar_tree(n[j], 5, n[j] - 2);
-
         ret = tsk_ls_hmm_init(&ls_hmm, ts, unused, unused, 0);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
-        ret = tsk_compressed_matrix_init(&matrix, ts, 1 << 20, 0);
+        ret = tsk_compressed_matrix_init(&matrix, ts, 1 << 10, 0);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         ret = run_test_hmm(&ls_hmm, h, &matrix);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -553,12 +557,14 @@ test_caterpillar_tree_many_values(void)
         free(ts);
     }
 
-    j = 15000;
+    j = 40;
     ts = caterpillar_tree(j, 5, j - 2);
     ret = tsk_ls_hmm_init(&ls_hmm, ts, unused, unused, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_compressed_matrix_init(&matrix, ts, 1 << 20, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+    /* Short circuit this value so we can run the test in reasonable time */
+    ls_hmm.max_parsimony_words = 1;
     ret = run_test_hmm(&ls_hmm, h, &matrix);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TOO_MANY_VALUES);
 
