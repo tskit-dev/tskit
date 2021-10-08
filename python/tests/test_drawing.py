@@ -2454,10 +2454,12 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         )
 
     def test_known_svg_ts_y_axis(self, overwrite_viz, draw_plotbox):
-        ts = self.get_simple_ts()
-        y_label = "Time (gens)"
-        svg = ts.draw_svg(y_axis=True, y_label=y_label, debug_box=draw_plotbox)
-        assert y_label in svg
+        tables = self.get_simple_ts().dump_tables()
+        # set units
+        tables.time_units = "generations"
+        ts = tables.tree_sequence()
+        svg = ts.draw_svg(y_axis=True, debug_box=draw_plotbox)
+        assert "Time (generations)" in svg
         self.verify_known_svg(
             svg, "ts_y_axis.svg", overwrite_viz, width=200 * ts.num_trees
         )
@@ -2546,15 +2548,16 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         )
         tables.sort()
         ts = tables.tree_sequence().simplify()
-        tables = msprime.mutate(ts, rate=0.1, random_seed=123).dump_tables()
+        tables = tsutil.jukes_cantor(ts, 10, mu=0.1, seed=123).dump_tables()
         # Set unknown times, so we are msprime 0.7.4 and 1.0.0 compatible
         tables.mutations.time = np.full(tables.mutations.num_rows, tskit.UNKNOWN_TIME)
         svg = tables.tree_sequence().draw_svg(
-            y_label="Time (WF gens)", y_gridlines=True, debug_box=draw_plotbox
+            y_axis=True, y_gridlines=True, debug_box=draw_plotbox
         )
         self.verify_known_svg(
             svg, "ts_multiroot.svg", overwrite_viz, width=200 * ts.num_trees
         )
+        assert "Time (generations)" in svg
 
     def test_known_svg_ts_xlim(self, overwrite_viz, draw_plotbox, caplog):
         ts = self.get_simple_ts()
