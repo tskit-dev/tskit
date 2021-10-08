@@ -3750,6 +3750,7 @@ class TreeSequence:
         ts_rows = [
             ["Trees", str(self.num_trees)],
             ["Sequence Length", str(self.sequence_length)],
+            ["Time Units", self.time_units],
             ["Sample Nodes", str(self.num_samples)],
             ["Total Size", util.naturalsize(self.nbytes)],
         ]
