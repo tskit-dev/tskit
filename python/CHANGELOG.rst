@@ -30,6 +30,10 @@
   metadata key into an array
   (:user:`petrelharp`, :issue:`1676`, :pr:`1690`).
 
+- Add ``time_units`` to ``TreeSequence`` to describe the units of the time dimension of the
+  tree sequence. This is then used to generate an error if ``time_units`` is ``uncalibrated`` when
+  using the branch lengths in statistics. (:user:`benjeffery`, :issue:`1644`, :pr:`1760`)
+
 --------------------
 [0.3.7] - 2021-07-08
 --------------------

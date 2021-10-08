@@ -45,8 +45,9 @@ extern "C" {
 #define TSK_STAT_NODE               (1 << 2)
 
 /* Leave room for other stat types */
-#define TSK_STAT_POLARISED          (1 << 10)
-#define TSK_STAT_SPAN_NORMALISE     (1 << 11)
+#define TSK_STAT_POLARISED               (1 << 10)
+#define TSK_STAT_SPAN_NORMALISE          (1 << 11)
+#define TSK_STAT_ALLOW_TIME_UNCALIBRATED (1 << 12)
 
 /* Options for map_mutations */
 #define TSK_MM_FIXED_ANCESTRAL_STATE (1 << 0)
@@ -65,6 +66,8 @@ typedef struct {
     tsk_size_t num_trees;
     tsk_size_t num_samples;
     tsk_id_t *samples;
+    /* Does this tree sequence have time_units == "uncalibrated" */
+    bool time_uncalibrated;
     /* Breakpoints along the sequence, including 0 and L. */
     double *breakpoints;
     /* If a node is a sample, map to its index in the samples list */

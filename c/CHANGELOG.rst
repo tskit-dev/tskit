@@ -33,6 +33,10 @@
 - Support for compiling the C library on Windows using msys2 (:user:`jeromekelleher`,
   :pr:`1742`).
 
+- Add ``time_units`` to ``tsk_table_collection_t`` to describe the units of the time dimension of the
+  tree sequence. This is then used to generate an error if ``time_units`` is ``uncalibrated`` when
+  using the branch lengths in statistics. (:user:`benjeffery`, :issue:`1644`, :pr:`1760`)
+
 **Fixes**
 
 ----------------------

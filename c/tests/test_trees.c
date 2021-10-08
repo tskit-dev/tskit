@@ -6187,6 +6187,92 @@ test_tree_sequence_metadata(void)
     tsk_table_collection_free(&tc);
 }
 
+static int
+dummy_stat(tsk_size_t K, const double *X, tsk_size_t M, double *Y, void *params)
+{
+    tsk_size_t k;
+    CU_ASSERT_FATAL(M == K);
+    CU_ASSERT_FATAL(params == NULL);
+
+    for (k = 0; k < K; k++) {
+        Y[k] = X[k];
+    }
+    return 0;
+}
+
+static void
+test_time_uncalibrated(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_treeseq_t ts;
+    tsk_treeseq_t ts2;
+    tsk_size_t sample_set_sizes[] = { 2, 2 };
+    tsk_id_t samples[] = { 0, 1, 2, 3 };
+    tsk_size_t num_samples;
+    double result[10];
+    double *W;
+    double *sigma;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ts.time_uncalibrated, false);
+    tsk_treeseq_free(&ts);
+
+    ret = tsk_table_collection_set_time_units(
+        &tables, TSK_TIME_UNITS_UNCALIBRATED, strlen(TSK_TIME_UNITS_UNCALIBRATED));
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ts.time_uncalibrated, true);
+    tsk_treeseq_free(&ts);
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
+    ret = tsk_table_collection_set_time_units(
+        ts.tables, TSK_TIME_UNITS_UNCALIBRATED, strlen(TSK_TIME_UNITS_UNCALIBRATED));
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_treeseq_init(&ts2, ts.tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_allele_frequency_spectrum(
+        &ts2, 2, sample_set_sizes, samples, 0, NULL, result, TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_treeseq_allele_frequency_spectrum(
+        &ts2, 2, sample_set_sizes, samples, 0, NULL, result, TSK_STAT_BRANCH);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TIME_UNCALIBRATED);
+    ret = tsk_treeseq_allele_frequency_spectrum(&ts2, 2, sample_set_sizes, samples, 0,
+        NULL, result, TSK_STAT_BRANCH | TSK_STAT_ALLOW_TIME_UNCALIBRATED);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    sigma = tsk_calloc(tsk_treeseq_get_num_nodes(&ts2), sizeof(double));
+    num_samples = tsk_treeseq_get_num_samples(&ts2);
+    W = tsk_calloc(num_samples, sizeof(double));
+
+    ret = tsk_treeseq_general_stat(&ts2, 1, W, 1, dummy_stat, NULL,
+        tsk_treeseq_get_num_trees(&ts2), tsk_treeseq_get_breakpoints(&ts2), sigma,
+        TSK_STAT_SITE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_treeseq_general_stat(&ts2, 1, W, 1, dummy_stat, NULL,
+        tsk_treeseq_get_num_trees(&ts2), tsk_treeseq_get_breakpoints(&ts2), sigma,
+        TSK_STAT_BRANCH);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TIME_UNCALIBRATED);
+    ret = tsk_treeseq_general_stat(&ts2, 1, W, 1, dummy_stat, NULL,
+        tsk_treeseq_get_num_trees(&ts2), tsk_treeseq_get_breakpoints(&ts2), sigma,
+        TSK_STAT_BRANCH | TSK_STAT_ALLOW_TIME_UNCALIBRATED);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tsk_safe_free(W);
+    tsk_safe_free(sigma);
+    tsk_treeseq_free(&ts);
+    tsk_treeseq_free(&ts2);
+    tsk_table_collection_free(&tables);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -6340,7 +6426,7 @@ main(int argc, char **argv)
         { "test_empty_tree_sequence", test_empty_tree_sequence },
         { "test_zero_edges", test_zero_edges },
         { "test_tree_sequence_metadata", test_tree_sequence_metadata },
-
+        { "test_time_uncalibrated", test_time_uncalibrated },
         { NULL, NULL },
     };
 

@@ -400,6 +400,10 @@ tsk_strerror_internal(int err)
         case TSK_ERR_UNSUPPORTED_STAT_MODE:
             ret = "Requested statistics mode not supported for this method.";
             break;
+        case TSK_ERR_TIME_UNCALIBRATED:
+            ret = "Statistics using branch lengths cannot be calculated when time_units "
+                  "is 'uncalibrated'";
+            break;
 
         /* Mutation mapping errors */
         case TSK_ERR_GENOTYPES_ALL_MISSING:
