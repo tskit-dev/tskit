@@ -48,6 +48,7 @@ pull_request_rules:
       - status-success=Python (3.7, windows-latest)
       - status-success=Python (3.9, windows-latest)
       - "status-success=ci/circleci: build"
+      - "status-success=ci/circleci: build-32"
       - status-success=codecov/patch
       - status-success=codecov/project/c-tests
       - status-success=codecov/project/python-c-tests
