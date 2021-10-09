@@ -3810,7 +3810,7 @@ tsk_tree_print_state(const tsk_tree_t *self, FILE *out)
 
 /* Methods for positioning the tree along the sequence */
 
-/* The following methods are very performance sensitive and so we use a
+/* The following methods are performance sensitive and so we use a
  * lot of restrict pointers. Because we are saying that we don't have
  * any aliases to these pointers, we pass around the reference to parent
  * since it's used in all the functions. */

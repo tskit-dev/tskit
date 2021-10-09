@@ -1171,18 +1171,17 @@ class TestDrawTextExamples(TestTreeDraw):
         )
         self.verify_text_rendering(t.draw_text(order="minlex"), tree)
 
-    @pytest.mark.skip("FIXME rendering differently now")
     def test_draw_multiroot_forky_tree(self):
         tree = (
-            "     13             \n"
-            "┏━┳━┳━╋━┳━━┓        \n"
-            "┃ ┃ ┃ ┃ ┃ 12        \n"
-            "┃ ┃ ┃ ┃ ┃ ┏┻┓       \n"
-            "┃ ┃ ┃ ┃ ┃ ┃ ┃  11   \n"
-            "┃ ┃ ┃ ┃ ┃ ┃ ┃ ┏━┻┓  \n"
-            "┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ 10  \n"
-            "┃ ┃ ┃ ┃ ┃ ┃ ┃ ┃ ┏┻┓ \n"
-            "2 4 5 6 9 1 7 8 0 3 \n"
+            "           13      \n"
+            "      ┏━┳━┳━╋━┳━━┓ \n"
+            "      ┃ ┃ ┃ ┃ ┃ 12 \n"
+            "      ┃ ┃ ┃ ┃ ┃ ┏┻┓\n"
+            " 11   ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+            "┏━┻┓  ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+            "┃ 10  ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+            "┃ ┏┻┓ ┃ ┃ ┃ ┃ ┃ ┃ ┃\n"
+            "8 0 3 2 4 5 6 9 1 7\n"
         )
         nodes = io.StringIO(
             """\
@@ -2354,7 +2353,6 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
             svg, "ts_no_axes.svg", overwrite_viz, width=200 * ts.num_trees
         )
 
-    @pytest.mark.skip("FIXME rendering differently now")
     def test_known_svg_ts_internal_sample(self, overwrite_viz, draw_plotbox):
         ts = tsutil.jiggle_samples(self.get_simple_ts())
         svg = ts.draw_svg(
@@ -2539,7 +2537,6 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
             width=200 * ts.num_trees,
         )
 
-    @pytest.mark.skip("FIXME rendering differently now")
     def test_known_svg_ts_multiroot(self, overwrite_viz, draw_plotbox, caplog):
         tables = wf.wf_sim(
             6,
