@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019 Tskit Developers
+ * Copyright (c) 2019-2021 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -425,6 +425,7 @@ int tsk_tree_set_tracked_samples_from_sample_list(
 
 int tsk_tree_get_parent(const tsk_tree_t *self, tsk_id_t u, tsk_id_t *parent);
 int tsk_tree_get_time(const tsk_tree_t *self, tsk_id_t u, double *t);
+int tsk_tree_get_depth(const tsk_tree_t *self, tsk_id_t u, int *depth);
 int tsk_tree_get_mrca(const tsk_tree_t *self, tsk_id_t u, tsk_id_t v, tsk_id_t *mrca);
 int tsk_tree_get_num_samples(
     const tsk_tree_t *self, tsk_id_t u, tsk_size_t *num_samples);
@@ -432,7 +433,11 @@ int tsk_tree_get_num_tracked_samples(
     const tsk_tree_t *self, tsk_id_t u, tsk_size_t *num_tracked_samples);
 int tsk_tree_get_sites(
     const tsk_tree_t *self, const tsk_site_t **sites, tsk_size_t *sites_length);
-int tsk_tree_depth(const tsk_tree_t *self, tsk_id_t u, tsk_size_t *depth);
+
+int tsk_tree_preorder(
+    const tsk_tree_t *self, tsk_id_t root, tsk_id_t *nodes, tsk_size_t *num_nodes);
+int tsk_tree_postorder(
+    const tsk_tree_t *self, tsk_id_t root, tsk_id_t *nodes, tsk_size_t *num_nodes);
 
 typedef struct {
     tsk_id_t node;

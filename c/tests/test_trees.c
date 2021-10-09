@@ -3863,8 +3863,8 @@ test_single_tree_iter_depths(void)
     const char *edges = "0  6   4   0,1\n"
                         "0  6   5   2,3\n"
                         "0  6   6   4,5\n";
-    unsigned int depths[] = { 2, 2, 2, 2, 1, 1, 0 };
-    tsk_size_t depth;
+    int depths[] = { 2, 2, 2, 2, 1, 1, 0 };
+    int depth;
     tsk_treeseq_t ts;
     tsk_tree_t tree;
     tsk_id_t u;
@@ -3878,14 +3878,14 @@ test_single_tree_iter_depths(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&ts), num_nodes);
 
     for (u = 0; u < (tsk_id_t) num_nodes; u++) {
-        ret = tsk_tree_depth(&tree, u, &depth);
+        ret = tsk_tree_get_depth(&tree, u, &depth);
         CU_ASSERT_EQUAL(ret, 0);
         CU_ASSERT_EQUAL(depth, depths[u]);
     }
 
-    ret = tsk_tree_depth(&tree, (tsk_id_t) num_nodes + 1, &depth);
+    ret = tsk_tree_get_depth(&tree, (tsk_id_t) num_nodes + 1, &depth);
     CU_ASSERT_EQUAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
-    ret = tsk_tree_depth(&tree, TSK_NULL, &depth);
+    ret = tsk_tree_get_depth(&tree, TSK_NULL, &depth);
     CU_ASSERT_EQUAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
     ret = tsk_tree_next(&tree);
@@ -5015,6 +5015,225 @@ test_non_sample_leaf_sample_lists(void)
 
     tsk_treeseq_free(&ts);
     tsk_tree_free(&t);
+}
+
+static void
+test_virtual_root_properties(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    int depth;
+    double time;
+    tsk_id_t node;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_get_depth(&t, t.virtual_root, &depth), 0)
+    CU_ASSERT_EQUAL_FATAL(depth, -1);
+
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_get_time(&t, t.virtual_root, &time), 0)
+    CU_ASSERT_TRUE(isinf(time));
+
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_get_mrca(&t, t.virtual_root, 0, &node), 0)
+    CU_ASSERT_EQUAL(node, t.virtual_root);
+
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_get_mrca(&t, 0, t.virtual_root, &node), 0)
+    CU_ASSERT_EQUAL(node, t.virtual_root);
+
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_get_parent(&t, t.virtual_root, &node), 0)
+    CU_ASSERT_EQUAL(node, TSK_NULL);
+
+    /* The definition of "descendant" is that node v is on the path from
+     * u to a root. Since there is no parent link from roots to the
+     * virtual_root, it's consistent with this definition to return false
+     * for every node. */
+    CU_ASSERT_FALSE(tsk_tree_is_descendant(&t, 0, t.virtual_root));
+    CU_ASSERT_FALSE(
+        tsk_tree_is_descendant(&t, t.left_child[t.virtual_root], t.virtual_root));
+    CU_ASSERT_FALSE(tsk_tree_is_descendant(&t, t.virtual_root, 0));
+    /* The virtual_root *is* a descendent of itself, though. This is
+     * consistent with other nodes that are not "in" the tree being
+     * descendents of themselves, despite not being roots in the tree. */
+    CU_ASSERT_TRUE(tsk_tree_is_descendant(&t, t.virtual_root, t.virtual_root));
+
+    CU_ASSERT_FALSE(tsk_tree_is_sample(&t, t.virtual_root));
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+/*=======================================================
+ * Tree traversals
+ *=======================================================*/
+
+static void
+verify_node_lists(tsk_size_t n, tsk_id_t *l1, tsk_id_t *l2)
+{
+    tsk_size_t j;
+
+    for (j = 0; j < n; j++) {
+        /* printf("%d %d\n", l1[j], l2[j]); */
+        CU_ASSERT_EQUAL(l1[j], l2[j]);
+    }
+}
+
+static void
+test_single_tree_traversal(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    tsk_size_t num_nodes = 7;
+    tsk_id_t preorder[] = { 6, 4, 0, 1, 5, 2, 3 };
+    tsk_id_t preorder_vr[] = { 7, 6, 4, 0, 1, 5, 2, 3 };
+    tsk_id_t postorder[] = { 0, 1, 4, 2, 3, 5, 6 };
+    tsk_id_t postorder_vr[] = { 0, 1, 4, 2, 3, 5, 6, 7 };
+    tsk_id_t nodes[num_nodes + 1];
+    tsk_size_t n;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+
+    ret = tsk_tree_preorder(&t, -1, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, num_nodes);
+    verify_node_lists(n, nodes, preorder);
+
+    ret = tsk_tree_preorder(&t, t.virtual_root, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, num_nodes + 1);
+    verify_node_lists(n, nodes, preorder_vr);
+
+    ret = tsk_tree_preorder(&t, 5, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 3);
+    verify_node_lists(n, nodes, preorder + 4);
+
+    ret = tsk_tree_postorder(&t, -1, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, num_nodes);
+    verify_node_lists(n, nodes, postorder);
+
+    ret = tsk_tree_postorder(&t, t.virtual_root, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, num_nodes + 1);
+    verify_node_lists(n, nodes, postorder_vr);
+
+    ret = tsk_tree_postorder(&t, 4, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 3);
+    verify_node_lists(n, nodes, postorder);
+
+    /* Check errors */
+    ret = tsk_tree_preorder(&t, -2, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    ret = tsk_tree_preorder(&t, 8, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    ret = tsk_tree_postorder(&t, -2, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    ret = tsk_tree_postorder(&t, 8, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+/* printed out in tree order.
+0.90┊             ┊         11  ┊             ┊
+    ┊             ┊         ┏┻┓ ┊             ┊
+0.80┊         10  ┊         ┃ ┃ ┊             ┊
+    ┊         ┏┻┓ ┊         ┃ ┃ ┊             ┊
+0.40┊     9   ┃ ┃ ┊    9    ┃ ┃ ┊     9       ┊
+    ┊   ┏━┻┓  ┃ ┃ ┊  ┏━┻━┓  ┃ ┃ ┊   ┏━┻━━┓    ┊
+0.30┊   ┃  ┃  ┃ ┃ ┊  ┃   8  ┃ ┃ ┊   ┃    8    ┊
+    ┊   ┃  ┃  ┃ ┃ ┊  ┃  ┏┻┓ ┃ ┃ ┊   ┃   ┏┻┓   ┊
+0.20┊   ┃  7  ┃ ┃ ┊  7  ┃ ┃ ┃ ┃ ┊   7   ┃ ┃   ┊
+    ┊   ┃ ┏┻┓ ┃ ┃ ┊ ┏┻┓ ┃ ┃ ┃ ┃ ┊ ┏━┻┓  ┃ ┃   ┊
+0.10┊   ┃ ┃ ┃ ┃ ┃ ┊ ┃ ┃ ┃ ┃ ┃ ┃ ┊ ┃  6  ┃ ┃   ┊
+    ┊   ┃ ┃ ┃ ┃ ┃ ┊ ┃ ┃ ┃ ┃ ┃ ┃ ┊ ┃ ┏┻┓ ┃ ┃   ┊
+0.00┊ 5 2 3 4 0 1 ┊ 3 4 1 2 0 5 ┊ 4 0 3 1 2 5 ┊
+    0             4             8            10
+*/
+
+static void
+test_multiroot_tree_traversal(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+
+    tsk_tree_t t;
+    tsk_id_t preorder[] = { 5, 9, 2, 7, 3, 4, 10, 0, 1 };
+    tsk_id_t preorder_vr[] = { 12, 5, 9, 2, 7, 3, 4, 10, 0, 1 };
+    tsk_id_t postorder[] = { 5, 2, 3, 4, 7, 9, 0, 1, 10 };
+    tsk_id_t postorder_vr[] = { 5, 2, 3, 4, 7, 9, 0, 1, 10, 12 };
+    tsk_id_t nodes[13];
+    tsk_size_t n;
+
+    tsk_treeseq_from_text(&ts, 10, multiroot_ex_nodes, multiroot_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+
+    ret = tsk_tree_preorder(&t, -1, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 9);
+    verify_node_lists(n, nodes, preorder);
+
+    ret = tsk_tree_preorder(&t, t.virtual_root, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 10);
+    verify_node_lists(n, nodes, preorder_vr);
+
+    ret = tsk_tree_preorder(&t, 10, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 3);
+    verify_node_lists(n, nodes, preorder + 6);
+
+    ret = tsk_tree_postorder(&t, -1, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 9);
+    verify_node_lists(n, nodes, postorder);
+
+    ret = tsk_tree_postorder(&t, t.virtual_root, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 10);
+    verify_node_lists(n, nodes, postorder_vr);
+
+    ret = tsk_tree_postorder(&t, 10, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 3);
+    verify_node_lists(n, nodes, postorder + 6);
+
+    /* Nodes that aren't "in" the tree have singleton traversal lists */
+
+    ret = tsk_tree_preorder(&t, 11, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 1);
+    CU_ASSERT_EQUAL_FATAL(nodes[0], 11);
+
+    ret = tsk_tree_postorder(&t, 11, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 1);
+    CU_ASSERT_EQUAL_FATAL(nodes[0], 11);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
 }
 
 /*=======================================================
@@ -6404,6 +6623,12 @@ main(int argc, char **argv)
         { "test_nonbinary_sample_sets", test_nonbinary_sample_sets },
         { "test_internal_sample_sample_sets", test_internal_sample_sample_sets },
         { "test_non_sample_leaf_sample_lists", test_non_sample_leaf_sample_lists },
+
+        { "test_virtual_root_properties", test_virtual_root_properties },
+
+        /* tree traversal orders */
+        { "test_single_tree_traversal", test_single_tree_traversal },
+        { "test_multiroot_tree_traversal", test_multiroot_tree_traversal },
 
         /* KC distance tests */
         { "test_single_tree_kc", test_single_tree_kc },

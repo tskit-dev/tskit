@@ -2622,162 +2622,6 @@ class TestGeneralSamples(TopologyTestCase):
         self.verify_permuted_nodes(ts)
 
 
-class TestTraversalOrder:
-    """
-    Tests node traversal orders.
-    """
-
-    #
-    #          9                        10
-    #         / \                      / \
-    #        /   \                    /   8
-    #       /     \                  /   / \
-    #      7       \                /   /   \
-    #     / \       6              /   /     6
-    #    /   5     / \            /   5     / \
-    #   /   / \   /   \          /   / \   /   \
-    #  4   0   1 2     3        4   0   1 2     3
-    #
-    # 0 ------------------ 0.5 ------------------ 1.0
-    nodes = """\
-    id      is_sample   population      time
-    0       1       0               0.00000000000000
-    1       1       0               0.00000000000000
-    2       1       0               0.00000000000000
-    3       1       0               0.00000000000000
-    4       1       0               0.00000000000000
-    5       0       0               0.14567111023387
-    6       0       0               0.21385545626353
-    7       0       0               0.43508024345063
-    8       0       0               0.60156352971203
-    9       0       0               0.90000000000000
-    10      0       0               1.20000000000000
-    """
-    edges = """\
-    id      left            right           parent  child
-    0       0.00000000      1.00000000      5       0,1
-    1       0.00000000      1.00000000      6       2,3
-    2       0.00000000      0.50000000      7       4,5
-    3       0.50000000      1.00000000      8       5,6
-    4       0.00000000      0.50000000      9       6,7
-    5       0.50000000      1.00000000      10      4,8
-    """
-    node_order_results = {
-        "preorder": [[9, 6, 2, 3, 7, 4, 5, 0, 1], [10, 4, 8, 5, 0, 1, 6, 2, 3]],
-        "inorder": [[2, 6, 3, 9, 4, 7, 0, 5, 1], [4, 10, 0, 5, 1, 8, 2, 6, 3]],
-        "postorder": [[2, 3, 6, 4, 0, 1, 5, 7, 9], [4, 0, 1, 5, 2, 3, 6, 8, 10]],
-        "levelorder": [[9, 6, 7, 2, 3, 4, 5, 0, 1], [10, 4, 8, 5, 6, 0, 1, 2, 3]],
-        "breadthfirst": [[9, 6, 7, 2, 3, 4, 5, 0, 1], [10, 4, 8, 5, 6, 0, 1, 2, 3]],
-        "timeasc": [[0, 1, 2, 3, 4, 5, 6, 7, 9], [0, 1, 2, 3, 4, 5, 6, 8, 10]],
-        "timedesc": [[9, 7, 6, 5, 4, 3, 2, 1, 0], [10, 8, 6, 5, 4, 3, 2, 1, 0]],
-        "minlex_postorder": [[0, 1, 5, 4, 7, 2, 3, 6, 9], [0, 1, 5, 2, 3, 6, 8, 4, 10]],
-    }
-
-    def test_traversal_order(self):
-        ts = tskit.load_text(
-            nodes=io.StringIO(self.nodes), edges=io.StringIO(self.edges), strict=False
-        )
-        for test_order, expected_result in self.node_order_results.items():
-            tree_orders = []
-            for tree in ts.trees():
-                tree_orders.append(list(tree.nodes(order=test_order)))
-            assert tree_orders == expected_result
-
-    def test_polytomy_inorder(self):
-        """
-        If there are N children, current inorder traversal first visits
-        floor(N/2) children, then the parent, then the remaining children.
-        Here we explicitly test that behaviour.
-        """
-        #
-        #    __4__
-        #   / / \ \
-        #  0 1   2 3
-        #
-        nodes_polytomy_4 = """\
-        id      is_sample   population      time
-        0       1       0               0.00000000000000
-        1       1       0               0.00000000000000
-        2       1       0               0.00000000000000
-        3       1       0               0.00000000000000
-        4       0       0               1.00000000000000
-        """
-        edges_polytomy_4 = """\
-        id      left            right           parent  child
-        0       0.00000000      1.00000000      4       0,1,2,3
-        """
-        #
-        #    __5__
-        #   / /|\ \
-        #  0 1 2 3 4
-        #
-        nodes_polytomy_5 = """\
-        id      is_sample   population      time
-        0       1       0               0.00000000000000
-        1       1       0               0.00000000000000
-        2       1       0               0.00000000000000
-        3       1       0               0.00000000000000
-        4       1       0               0.00000000000000
-        5       0       0               1.00000000000000
-        """
-        edges_polytomy_5 = """\
-        id      left            right           parent  child
-        0       0.00000000      1.00000000      5       0,1,2,3,4
-        """
-        for nodes_string, edges_string, expected_result in [
-            [nodes_polytomy_4, edges_polytomy_4, [[0, 1, 4, 2, 3]]],
-            [nodes_polytomy_5, edges_polytomy_5, [[0, 1, 5, 2, 3, 4]]],
-        ]:
-            ts = tskit.load_text(
-                nodes=io.StringIO(nodes_string),
-                edges=io.StringIO(edges_string),
-                strict=False,
-            )
-            tree_orders = []
-            for tree in ts.trees():
-                tree_orders.append(list(tree.nodes(order="inorder")))
-            assert tree_orders == expected_result
-
-    def test_minlex_postorder_multiple_roots(self):
-        #
-        #    10    8     9     11
-        #   / \   / \   / \   / \
-        #  5   3 2   4 6   7 1   0
-        #
-        nodes_string = """\
-        id      is_sample   population      time
-        0       1       0               0.00000000000000
-        1       1       0               0.00000000000000
-        2       1       0               0.00000000000000
-        3       1       0               0.00000000000000
-        4       1       0               0.00000000000000
-        5       1       0               0.00000000000000
-        6       1       0               0.00000000000000
-        7       1       0               0.00000000000000
-        8       0       0               1.00000000000000
-        9       0       0               1.00000000000000
-        10      0       0               1.00000000000000
-        11      0       0               1.00000000000000
-        """
-        edges_string = """\
-        id      left            right           parent  child
-        0       0.00000000      1.00000000      8       2,4
-        1       0.00000000      1.00000000      9       6,7
-        2       0.00000000      1.00000000      10      5,3
-        3       0.00000000      1.00000000      11      1,0
-        """
-        expected_result = [[0, 1, 11, 2, 4, 8, 3, 5, 10, 6, 7, 9]]
-        ts = tskit.load_text(
-            nodes=io.StringIO(nodes_string),
-            edges=io.StringIO(edges_string),
-            strict=False,
-        )
-        tree_orders = []
-        for tree in ts.trees():
-            tree_orders.append(list(tree.nodes(order="minlex_postorder")))
-        assert tree_orders == expected_result
-
-
 class TestSimplifyExamples(TopologyTestCase):
     """
     Tests for simplify where we write out the input and expected output
@@ -6605,7 +6449,8 @@ class TestVirtualRootAPIs(ExampleTopologyMixin):
             # The branch_length for roots is defined as 0, and it's consistent
             # to have the same for the virtual root.
             assert tree.branch_length(tree.virtual_root) == 0
-            assert tree.depth(tree.virtual_root) == 0
+            # The virtual root has depth -1 from the root
+            assert tree.depth(tree.virtual_root) == -1
             assert tree.num_children(tree.virtual_root) == tree.num_roots
             assert tree.num_samples(tree.virtual_root) == tree.num_samples()
             # We're not using tracked samples here.
@@ -6629,11 +6474,10 @@ class TestVirtualRootAPIs(ExampleTopologyMixin):
                 "inorder",
                 "levelorder",
                 "breadthfirst",
-                # https://github.com/tskit-dev/tskit/issues/1725
-                # "postorder",
-                # "timeasc",
-                # "timedesc",
-                # "minlex_postorder",
+                "postorder",
+                "timeasc",
+                "timedesc",
+                "minlex_postorder",
             ]
             for order in orders:
                 l_vr = list(tree.nodes(tree.virtual_root, order=order))
@@ -6647,7 +6491,7 @@ class TestVirtualRootAPIs(ExampleTopologyMixin):
             # Methods that imply looking up tree sequence properties of the
             # node raise an error
             # Some methods don't apply
-            for method in [tree.time, tree.population]:
+            for method in [tree.population]:
                 with pytest.raises(tskit.LibraryError, match="Node out of bounds"):
                     method(tree.virtual_root)
 

@@ -1265,8 +1265,10 @@ class Tree:
 
     def time(self, u):
         """
-        Returns the time of the specified node.
-        Equivalent to ``tree.tree_sequence.node(u).time``.
+        Returns the time of the specified node. This is equivalently
+        to ``tree.tree_sequence.node(u).time`` except for the special
+        case of the tree's :ref:`virtual root <sec_data_model_tree_roots>`,
+        which is defined as positive infinity.
 
         :param int u: The node of interest.
         :return: The time of u.
@@ -1279,6 +1281,9 @@ class Tree:
         Returns the number of nodes on the path from ``u`` to a
         root, not including ``u``. Thus, the depth of a root is
         zero.
+
+        As a special case, the depth of the :ref:`virtual root
+        <sec_data_model_tree_roots>` is defined as -1.
 
         :param int u: The node of interest.
         :return: The depth of u.
@@ -2086,50 +2091,37 @@ class Tree:
             roots = self.roots
         return sum(self._ll_tree.get_num_tracked_samples(root) for root in roots)
 
-    def _preorder_traversal(self, u):
-        stack = collections.deque([u])
-        # For perf we store these to avoid lookups in the tight loop
-        pop = stack.pop
-        extend = stack.extend
-        get_children = self.children
-        # Note: the usual style is to be explicit about what we're testing
-        # and use while len(stack) > 0, but this form is slightly faster.
-        while stack:
-            v = pop()
-            extend(reversed(get_children(v)))
-            yield v
+    def preorder(self, u=NULL):
+        return self._ll_tree.get_preorder(u)
 
-    def _postorder_traversal(self, u):
-        stack = collections.deque([u])
-        parent = NULL
-        # For perf we store these to avoid lookups in the tight loop
-        pop = stack.pop
-        extend = stack.extend
-        get_children = self.children
-        get_parent = self.get_parent
-        # Note: the usual style is to be explicit about what we're testing
-        # and use while len(stack) > 0, but this form is slightly faster.
-        while stack:
-            v = stack[-1]
-            children = [] if v == parent else get_children(v)
-            if children:
-                extend(reversed(children))
-            else:
-                parent = get_parent(v)
-                yield pop()
+    def postorder(self, u=NULL):
+        return self._ll_tree.get_postorder(u)
 
-    def _inorder_traversal(self, u):
+    def _preorder_traversal(self, root):
+        return map(int, self.preorder(root))
+
+    def _postorder_traversal(self, root):
+        return map(int, self.postorder(root))
+
+    def _inorder_traversal(self, root):
         # TODO add a nonrecursive version of the inorder traversal.
-        children = self.get_children(u)
-        mid = len(children) // 2
-        for c in children[:mid]:
-            yield from self._inorder_traversal(c)
-        yield u
-        for c in children[mid:]:
-            yield from self._inorder_traversal(c)
 
-    def _levelorder_traversal(self, u):
-        queue = collections.deque([u])
+        def traverse(u):
+            children = self.get_children(u)
+            mid = len(children) // 2
+            for c in children[:mid]:
+                yield from traverse(c)
+            yield u
+            for c in children[mid:]:
+                yield from traverse(c)
+
+        roots = self.roots if root == NULL else [root]
+        for root in roots:
+            yield from traverse(root)
+
+    def _levelorder_traversal(self, root):
+        roots = self.roots if root == NULL else [root]
+        queue = collections.deque(roots)
         # For perf we store these to avoid lookups in the tight loop
         pop = queue.popleft
         extend = queue.extend
@@ -2141,25 +2133,26 @@ class Tree:
             extend(children(v))
             yield v
 
-    def _timeasc_traversal(self, u):
+    def _timeasc_traversal(self, root):
         """
-        Sorts by increasing time but falls back to increasing ID for equal times.
+        A stricter version of postorder where nodes are visiting in time-increasing
+        order first, and in preorder within equal time-slices.
         """
+        # TODO implement with numpy?
         yield from sorted(
-            self.nodes(u, order="levelorder"), key=lambda u: (self.time(u), u)
+            self.nodes(root, order="postorder"), key=lambda u: self.time(u)
         )
 
-    def _timedesc_traversal(self, u):
+    def _timedesc_traversal(self, root):
         """
-        Sorts by decreasing time but falls back to decreasing ID for equal times.
+        A stricter version of preorder where nodes are visiting in time-descreasing
+        order first, and in preorder within equal time-slices.
         """
         yield from sorted(
-            self.nodes(u, order="levelorder"),
-            key=lambda u: (self.time(u), u),
-            reverse=True,
+            self.nodes(root, order="preorder"), key=lambda u: -self.time(u)
         )
 
-    def _minlex_postorder_traversal(self, u):
+    def _minlex_postorder_traversal(self, root):
         """
         Postorder traversal that visits leaves in minimum lexicographic order.
 
@@ -2169,55 +2162,46 @@ class Tree:
         multiple Trees of a TreeSequence, as it leads to more consistency
         between adjacent Trees.
         """
-        # We skip perf optimisations here (compared to _preorder_traversal and
-        # _postorder_traversal) as this ordering is unlikely to be used in perf
-        # sensitive applications
-        stack = collections.deque([u])
-        parent = NULL
 
         # We compute a dictionary mapping from internal node ID to min leaf ID
         # under the node, using a first postorder traversal
-        min_leaf_dict = {}
-        while len(stack) > 0:
-            v = stack[-1]
-            children = [] if v == parent else self.children(v)
-            if children:
-                # The first time visiting a node, we push its children onto the stack.
-                # reversed is not strictly necessary, but it gives the postorder
-                # we would intuitively expect.
-                stack.extend(reversed(children))
+        min_leaf = {}
+        for u in self.nodes(root, order="postorder"):
+            if self.is_leaf(u):
+                min_leaf[u] = u
             else:
-                # The second time visiting a node, we record its min leaf ID
-                # underneath, pop it, and update the parent variable
-                if v != parent:
-                    # at a leaf node
-                    min_leaf_dict[v] = v
-                else:
-                    # at a parent after finishing all its children
-                    min_leaf_dict[v] = min([min_leaf_dict[c] for c in self.children(v)])
-                parent = self.get_parent(v)
-                stack.pop()
+                min_leaf[u] = min(min_leaf[v] for v in self.children(u))
 
-        # Now we do a second postorder traversal
-        stack.clear()
-        stack.extend([u])
+        stack = []
+
+        def push(nodes):
+            stack.extend(sorted(nodes, key=lambda u: min_leaf[u], reverse=True))
+
+        # The postorder traversal isn't robust to using virtual_root directly
+        # as a node because we depend on tree.parent() returning the last
+        # node we visiting on the path from "root". So, we treat this as a
+        # special case.
+        is_virtual_root = root == self.virtual_root
+        roots = self.roots if root == -1 or is_virtual_root else [root]
+
+        push(roots)
         parent = NULL
         while len(stack) > 0:
             v = stack[-1]
             children = [] if v == parent else self.children(v)
-            if children:
+            if len(children) > 0:
                 # The first time visiting a node, we push onto the stack its children
                 # in order of reverse min leaf ID under each child. This guarantees
                 # that the earlier children visited have smaller min leaf ID,
                 # which is equivalent to the minlex condition.
-                stack.extend(
-                    sorted(children, key=lambda u: min_leaf_dict[u], reverse=True)
-                )
+                push(children)
             else:
                 # The second time visiting a node, we pop and yield it, and
                 # we update the parent variable
                 parent = self.get_parent(v)
                 yield stack.pop()
+        if is_virtual_root:
+            yield self.virtual_root
 
     def nodes(self, root=None, order="preorder"):
         """
@@ -2254,6 +2238,7 @@ class Tree:
               `Wikipedia
               <https://en.wikipedia.org/wiki/Tree_traversal\
 #Breadth-first_search_/_level_order>`__.
+            -  FIXME BEFORE MERGING timeas and timedesc
             - 'timeasc': visits the nodes in order of increasing time, falling back to
               increasing ID if times are equal.
             - 'timedesc': visits the nodes in order of decreasing time, falling back to
@@ -2289,23 +2274,9 @@ class Tree:
             iterator = methods[order]
         except KeyError:
             raise ValueError(f"Traversal ordering '{order}' not supported")
-        roots = [root]
-        if root is None:
-            roots = self.roots
-        if order == "minlex_postorder" and len(roots) > 1:
-            # we need to visit the roots in minlex order as well
-            # we first visit all the roots and then sort by the min value
-            root_values = []
-            for u in roots:
-                root_minlex_postorder = list(iterator(u))
-                min_value = root_minlex_postorder[0]
-                root_values.append([min_value, root_minlex_postorder])
-            root_values.sort()
-            for _, nodes_for_root in root_values:
-                yield from nodes_for_root
-        else:
-            for u in roots:
-                yield from iterator(u)
+
+        root = -1 if root is None else root
+        return iterator(root)
 
     def _node_edges(self):
         """

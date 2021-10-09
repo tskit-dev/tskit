@@ -3074,6 +3074,25 @@ class TestTree(LowLevelTestCase):
         a2[:] = 0
         assert a3 is not a2
 
+    @pytest.mark.parametrize("ordering", ["preorder", "postorder"])
+    def test_traversal_arrays(self, ordering):
+        ts = self.get_example_tree_sequence(10)
+        tree = _tskit.Tree(ts)
+        tree.first()
+        method = getattr(tree, "get_" + ordering)
+        for bad_type in [None, {}]:
+            with pytest.raises(TypeError):
+                method(bad_type)
+        for bad_node in [-2, 10 ** 6]:
+            with pytest.raises(_tskit.LibraryError, match="out of bounds"):
+                method(bad_node)
+        a = method(tree.get_virtual_root())
+        assert a.dtype == np.int32
+        assert not a.flags.writeable
+        assert a.flags.aligned
+        assert a.flags.c_contiguous
+        assert a.flags.owndata
+
 
 class TestTableMetadataSchema(MetadataTestMixin):
     def test_metadata_schema_attribute(self):

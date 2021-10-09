@@ -3474,6 +3474,13 @@ tsk_tree_get_mrca(const tsk_tree_t *self, tsk_id_t u, tsk_id_t v, tsk_id_t *mrca
         goto out;
     }
 
+    /* Simplest to make the virtual_root a special case here to avoid
+     * doing the time lookup. */
+    if (u == self->virtual_root || v == self->virtual_root) {
+        *mrca = self->virtual_root;
+        return 0;
+    }
+
     tu = time[u];
     tv = time[v];
     while (u != v) {
@@ -3615,11 +3622,16 @@ tsk_tree_get_time(const tsk_tree_t *self, tsk_id_t u, double *t)
     int ret = 0;
     tsk_node_t node;
 
-    ret = tsk_treeseq_get_node(self->tree_sequence, u, &node);
-    if (ret != 0) {
-        goto out;
+    if (u == self->virtual_root) {
+        *t = INFINITY;
+    } else {
+
+        ret = tsk_treeseq_get_node(self->tree_sequence, u, &node);
+        if (ret != 0) {
+            goto out;
+        }
+        *t = node.time;
     }
-    *t = node.time;
 out:
     return ret;
 }
@@ -3634,22 +3646,24 @@ tsk_tree_get_sites(
 }
 
 /* u must be a valid node in the tree. For internal use */
-static tsk_size_t
-tsk_tree_get_depth(const tsk_tree_t *self, tsk_id_t u)
+static int
+tsk_tree_get_depth_unsafe(const tsk_tree_t *self, tsk_id_t u)
 {
 
     tsk_id_t v;
-    tsk_size_t depth = 0;
+    int depth = 0;
 
+    if (u == self->virtual_root) {
+        return -1;
+    }
     for (v = self->parent[u]; v != TSK_NULL; v = self->parent[v]) {
         depth++;
     }
-
     return depth;
 }
 
 int TSK_WARN_UNUSED
-tsk_tree_depth(const tsk_tree_t *self, tsk_id_t u, tsk_size_t *depth_ret)
+tsk_tree_get_depth(const tsk_tree_t *self, tsk_id_t u, int *depth_ret)
 {
     int ret = 0;
 
@@ -3658,7 +3672,7 @@ tsk_tree_depth(const tsk_tree_t *self, tsk_id_t u, tsk_size_t *depth_ret)
         goto out;
     }
 
-    *depth_ret = tsk_tree_get_depth(self, u);
+    *depth_ret = tsk_tree_get_depth_unsafe(self, u);
 out:
     return ret;
 }
@@ -4237,6 +4251,121 @@ tsk_tree_clear(tsk_tree_t *self)
             }
         }
         self->left_root = self->left_child[self->virtual_root];
+    }
+    return ret;
+}
+
+/* Traversal orders */
+
+int
+tsk_tree_preorder(
+    const tsk_tree_t *self, tsk_id_t root, tsk_id_t *nodes, tsk_size_t *num_nodes_ret)
+{
+    int ret = 0;
+    const tsk_id_t *restrict right_child = self->right_child;
+    const tsk_id_t *restrict left_sib = self->left_sib;
+    tsk_id_t *restrict stack = tsk_malloc((self->num_nodes + 1) * sizeof(*stack));
+    tsk_size_t num_nodes = 0;
+    tsk_id_t u, v;
+    int stack_top;
+
+    if (stack == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    if (root == -1) {
+        stack_top = -1;
+        for (u = right_child[self->virtual_root]; u != TSK_NULL; u = left_sib[u]) {
+            stack_top++;
+            stack[stack_top] = u;
+        }
+    } else {
+        ret = tsk_tree_check_node(self, root);
+        if (ret != 0) {
+            goto out;
+        }
+        stack_top = 0;
+        stack[stack_top] = root;
+    }
+
+    while (stack_top >= 0) {
+        u = stack[stack_top];
+        stack_top--;
+        nodes[num_nodes] = u;
+        num_nodes++;
+        for (v = right_child[u]; v != TSK_NULL; v = left_sib[v]) {
+            stack_top++;
+            stack[stack_top] = v;
+        }
+    }
+    *num_nodes_ret = num_nodes;
+out:
+    /* can't use tsk_safe_free because this is a restrict pointer */
+    if (stack != NULL) {
+        free(stack);
+    }
+    return ret;
+}
+
+int
+tsk_tree_postorder(
+    const tsk_tree_t *self, tsk_id_t root, tsk_id_t *nodes, tsk_size_t *num_nodes_ret)
+{
+    int ret = 0;
+    const tsk_id_t *restrict right_child = self->right_child;
+    const tsk_id_t *restrict left_sib = self->left_sib;
+    const tsk_id_t *restrict parent = self->parent;
+    tsk_id_t *restrict stack = tsk_malloc((self->num_nodes + 1) * sizeof(*stack));
+    tsk_size_t num_nodes = 0;
+    tsk_id_t u, v, postorder_parent;
+    int stack_top;
+    bool is_virtual_root = root == self->virtual_root;
+
+    if (stack == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    if (root == -1 || is_virtual_root) {
+        stack_top = -1;
+        for (u = right_child[self->virtual_root]; u != TSK_NULL; u = left_sib[u]) {
+            stack_top++;
+            stack[stack_top] = u;
+        }
+    } else {
+        ret = tsk_tree_check_node(self, root);
+        if (ret != 0) {
+            goto out;
+        }
+        stack_top = 0;
+        stack[stack_top] = root;
+    }
+
+    postorder_parent = TSK_NULL;
+    while (stack_top >= 0) {
+        u = stack[stack_top];
+        if (right_child[u] != TSK_NULL && u != postorder_parent) {
+            for (v = right_child[u]; v != TSK_NULL; v = left_sib[v]) {
+                stack_top++;
+                stack[stack_top] = v;
+            }
+        } else {
+            stack_top--;
+            postorder_parent = parent[u];
+            nodes[num_nodes] = u;
+            num_nodes++;
+        }
+    }
+    if (is_virtual_root) {
+        nodes[num_nodes] = root;
+        num_nodes++;
+    }
+    *num_nodes_ret = num_nodes;
+out:
+    /* can't use tsk_safe_free because this is a restrict pointer */
+    if (stack != NULL) {
+        free(stack);
     }
     return ret;
 }

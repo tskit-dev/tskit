@@ -985,8 +985,12 @@ details of how to use the quintuply linked structure in the C API.
    ordering of the children of a node should therefore not be depended on.
 
 
+.. _sec_data_model_tree_roots:
+
 Accessing roots
 ===============
+
+.. todo:: Update this with a discussion of the virtual root
 
 The roots of a tree are defined as the unique endpoints of upward paths
 starting from sample nodes (if no path leads upward from a sample node,
