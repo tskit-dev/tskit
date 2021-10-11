@@ -1,7 +1,7 @@
 biopython==1.79
 black==21.9b0
 coverage==6.0
-flake8==3.9.2
+flake8==4.0.1
 h5py==3.4.0
 jsonschema==3.2.0
 kastore==0.3.1
