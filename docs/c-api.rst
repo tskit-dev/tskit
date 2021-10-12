@@ -118,6 +118,23 @@ be called to ensure that memory is not leaked.
 Most functions in ``tskit`` return an error status; we recommend that **every**
 return value is checked.
 
+.. _sec_c_api_memory_allocation_strategy:
+
+--------------------------
+Memory allocation strategy
+--------------------------
+
+To reduce the frequency of memory allocations tskit pre-allocates space for
+additional table rows in each table, along with space for the contents of 
+ragged columns. The default behaviour is to start with space for 1,024 rows
+in each table and 65,536 bytes in each ragged column. The table then grows
+as needed by doubling, until a maximum pre-allocation of 2,097,152 rows for
+a table or 104,857,600 bytes for a ragged column. This behaviour can be
+disabled and a fixed increment used, on a per-table and per-ragged-column
+basis using the ``tsk_X_table_set_max_rows_increment`` and 
+``tsk_provenance_table_set_max_X_length_increment`` methods where ``X`` is
+the name of the table or column.
+
 ---------------------------
 Using tskit in your project
 ---------------------------

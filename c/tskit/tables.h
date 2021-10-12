@@ -1023,20 +1023,79 @@ int tsk_individual_table_append_columns(tsk_individual_table_t *self,
     const tsk_size_t *parents_offset, const char *metadata,
     const tsk_size_t *metadata_offset);
 
+/**
+@brief Controls the pre-allocation strategy for this table
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_individual_table_t object.
+@param max_rows_increment The number of rows to pre-allocate, or zero for the default
+    doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_individual_table_set_max_rows_increment(
+    tsk_individual_table_t *self, tsk_size_t max_rows_increment);
+
+/**
+@brief Controls the pre-allocation strategy for the metadata column
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_individual_table_t object.
+@param max_metadata_length_increment The number of bytes to pre-allocate, or zero for
+the default doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_individual_table_set_max_metadata_length_increment(
+    tsk_individual_table_t *self, tsk_size_t max_metadata_length_increment);
+
+/**
+@brief Controls the pre-allocation strategy for the location column
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_individual_table_t object.
+@param max_location_length_increment The number of bytes to pre-allocate, or zero for
+the default doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_individual_table_set_max_location_length_increment(
+    tsk_individual_table_t *self, tsk_size_t max_location_length_increment);
+
+/**
+@brief Controls the pre-allocation strategy for the parents column
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_individual_table_t object.
+@param max_parents_length_increment The number of bytes to pre-allocate, or zero for
+the default doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_individual_table_set_max_parents_length_increment(
+    tsk_individual_table_t *self, tsk_size_t max_parents_length_increment);
+
 /** @} */
 
 /* Undocumented methods */
 
 int tsk_individual_table_dump_text(const tsk_individual_table_t *self, FILE *out);
-int tsk_individual_table_set_max_rows_increment(
-    tsk_individual_table_t *self, tsk_size_t max_rows_increment);
-int tsk_individual_table_set_max_metadata_length_increment(
-    tsk_individual_table_t *self, tsk_size_t max_metadata_length_increment);
-int tsk_individual_table_set_max_location_length_increment(
-    tsk_individual_table_t *self, tsk_size_t max_location_length_increment);
-int tsk_individual_table_set_max_parents_length_increment(
-    tsk_individual_table_t *self, tsk_size_t max_parents_length_increment);
-
 /**
 @defgroup NODE_TABLE_API_GROUP Node table API.
 @{
@@ -1303,14 +1362,45 @@ int tsk_node_table_append_columns(tsk_node_table_t *self, tsk_size_t num_rows,
     const tsk_flags_t *flags, const double *time, const tsk_id_t *population,
     const tsk_id_t *individual, const char *metadata, const tsk_size_t *metadata_offset);
 
+/**
+@brief Controls the pre-allocation strategy for this table
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_node_table_t object.
+@param max_rows_increment The number of rows to pre-allocate, or zero for the default
+    doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+
+int tsk_node_table_set_max_rows_increment(
+    tsk_node_table_t *self, tsk_size_t max_rows_increment);
+
+/**
+@brief Controls the pre-allocation strategy for the metadata column
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_node_table_t object.
+@param max_metadata_length_increment The number of bytes to pre-allocate, or zero for
+the default doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_node_table_set_max_metadata_length_increment(
+    tsk_node_table_t *self, tsk_size_t max_metadata_length_increment);
+
 /** @} */
 
 /* Undocumented methods */
 
-int tsk_node_table_set_max_rows_increment(
-    tsk_node_table_t *self, tsk_size_t max_rows_increment);
-int tsk_node_table_set_max_metadata_length_increment(
-    tsk_node_table_t *self, tsk_size_t max_metadata_length_increment);
 int tsk_node_table_dump_text(const tsk_node_table_t *self, FILE *out);
 
 /**
@@ -1587,14 +1677,44 @@ int tsk_edge_table_append_columns(tsk_edge_table_t *self, tsk_size_t num_rows,
     const double *left, const double *right, const tsk_id_t *parent,
     const tsk_id_t *child, const char *metadata, const tsk_size_t *metadata_offset);
 
+/**
+@brief Controls the pre-allocation strategy for this table
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_edge_table_t object.
+@param max_rows_increment The number of rows to pre-allocate, or zero for the default
+    doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_edge_table_set_max_rows_increment(
+    tsk_edge_table_t *self, tsk_size_t max_rows_increment);
+
+/**
+@brief Controls the pre-allocation strategy for the metadata column
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_edge_table_t object.
+@param max_metadata_length_increment The number of bytes to pre-allocate, or zero for
+the default doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_edge_table_set_max_metadata_length_increment(
+    tsk_edge_table_t *self, tsk_size_t max_metadata_length_increment);
+
 /** @} */
 
 /* Undocumented methods */
 
-int tsk_edge_table_set_max_rows_increment(
-    tsk_edge_table_t *self, tsk_size_t max_rows_increment);
-int tsk_edge_table_set_max_metadata_length_increment(
-    tsk_edge_table_t *self, tsk_size_t max_metadata_length_increment);
 int tsk_edge_table_dump_text(const tsk_edge_table_t *self, FILE *out);
 
 int tsk_edge_table_squash(tsk_edge_table_t *self);
@@ -1878,14 +1998,44 @@ int tsk_migration_table_append_columns(tsk_migration_table_t *self, tsk_size_t n
     const tsk_id_t *source, const tsk_id_t *dest, const double *time,
     const char *metadata, const tsk_size_t *metadata_offset);
 
+/**
+@brief Controls the pre-allocation strategy for this table
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_migration_table_t object.
+@param max_rows_increment The number of rows to pre-allocate, or zero for the default
+    doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_migration_table_set_max_rows_increment(
+    tsk_migration_table_t *self, tsk_size_t max_rows_increment);
+
+/**
+@brief Controls the pre-allocation strategy for the metadata column
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_migration_table_t object.
+@param max_metadata_length_increment The number of bytes to pre-allocate, or zero for
+the default doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_migration_table_set_max_metadata_length_increment(
+    tsk_migration_table_t *self, tsk_size_t max_metadata_length_increment);
+
 /** @} */
 
 /* Undocumented methods */
 
-int tsk_migration_table_set_max_rows_increment(
-    tsk_migration_table_t *self, tsk_size_t max_rows_increment);
-int tsk_migration_table_set_max_metadata_length_increment(
-    tsk_migration_table_t *self, tsk_size_t max_metadata_length_increment);
 int tsk_migration_table_dump_text(const tsk_migration_table_t *self, FILE *out);
 
 /**
@@ -2154,16 +2304,62 @@ int tsk_site_table_append_columns(tsk_site_table_t *self, tsk_size_t num_rows,
     const tsk_size_t *ancestral_state_offset, const char *metadata,
     const tsk_size_t *metadata_offset);
 
+/**
+@brief Controls the pre-allocation strategy for this table
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_site_table_t object.
+@param max_rows_increment The number of rows to pre-allocate, or zero for the default
+    doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_site_table_set_max_rows_increment(
+    tsk_site_table_t *self, tsk_size_t max_rows_increment);
+
+/**
+@brief Controls the pre-allocation strategy for the metadata column
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_site_table_t object.
+@param max_metadata_length_increment The number of bytes to pre-allocate, or zero for
+the default doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+
+int tsk_site_table_set_max_metadata_length_increment(
+    tsk_site_table_t *self, tsk_size_t max_metadata_length_increment);
+
+/**
+@brief Controls the pre-allocation strategy for the ancestral_state column
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_site_table_t object.
+@param max_ancestral_state_length_increment The number of bytes to pre-allocate, or zero
+for the default doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_site_table_set_max_ancestral_state_length_increment(
+    tsk_site_table_t *self, tsk_size_t max_ancestral_state_length_increment);
+
 /** @} */
 
 /* Undocumented methods */
 
-int tsk_site_table_set_max_rows_increment(
-    tsk_site_table_t *self, tsk_size_t max_rows_increment);
-int tsk_site_table_set_max_metadata_length_increment(
-    tsk_site_table_t *self, tsk_size_t max_metadata_length_increment);
-int tsk_site_table_set_max_ancestral_state_length_increment(
-    tsk_site_table_t *self, tsk_size_t max_ancestral_state_length_increment);
 int tsk_site_table_dump_text(const tsk_site_table_t *self, FILE *out);
 
 /**
@@ -2448,16 +2644,61 @@ int tsk_mutation_table_append_columns(tsk_mutation_table_t *self, tsk_size_t num
     const tsk_size_t *derived_state_offset, const char *metadata,
     const tsk_size_t *metadata_offset);
 
+/**
+@brief Controls the pre-allocation strategy for this table
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_mutation_table_t object.
+@param max_rows_increment The number of rows to pre-allocate, or zero for the default
+    doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_mutation_table_set_max_rows_increment(
+    tsk_mutation_table_t *self, tsk_size_t max_rows_increment);
+
+/**
+@brief Controls the pre-allocation strategy for the metadata column
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_mutation_table_t object.
+@param max_metadata_length_increment The number of bytes to pre-allocate, or zero for
+the default doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_mutation_table_set_max_metadata_length_increment(
+    tsk_mutation_table_t *self, tsk_size_t max_metadata_length_increment);
+
+/**
+@brief Controls the pre-allocation strategy for the derived_state column
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_mutation_table_t object.
+@param max_derived_state_length_increment The number of bytes to pre-allocate, or zero
+for the default doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_mutation_table_set_max_derived_state_length_increment(
+    tsk_mutation_table_t *self, tsk_size_t max_derived_state_length_increment);
+
 /** @} */
 
 /* Undocumented methods */
 
-int tsk_mutation_table_set_max_rows_increment(
-    tsk_mutation_table_t *self, tsk_size_t max_rows_increment);
-int tsk_mutation_table_set_max_metadata_length_increment(
-    tsk_mutation_table_t *self, tsk_size_t max_metadata_length_increment);
-int tsk_mutation_table_set_max_derived_state_length_increment(
-    tsk_mutation_table_t *self, tsk_size_t max_derived_state_length_increment);
 int tsk_mutation_table_dump_text(const tsk_mutation_table_t *self, FILE *out);
 
 /**
@@ -2708,14 +2949,44 @@ metadata schema is not affected.
 int tsk_population_table_append_columns(tsk_population_table_t *self,
     tsk_size_t num_rows, const char *metadata, const tsk_size_t *metadata_offset);
 
+/**
+@brief Controls the pre-allocation strategy for this table
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_population_table_t object.
+@param max_rows_increment The number of rows to pre-allocate, or zero for the default
+    doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_population_table_set_max_rows_increment(
+    tsk_population_table_t *self, tsk_size_t max_rows_increment);
+
+/**
+@brief Controls the pre-allocation strategy for the metadata column
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_population_table_t object.
+@param max_metadata_length_increment The number of bytes to pre-allocate, or zero for
+the default doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_population_table_set_max_metadata_length_increment(
+    tsk_population_table_t *self, tsk_size_t max_metadata_length_increment);
+
 /** @} */
 
 /* Undocumented methods */
 
-int tsk_population_table_set_max_rows_increment(
-    tsk_population_table_t *self, tsk_size_t max_rows_increment);
-int tsk_population_table_set_max_metadata_length_increment(
-    tsk_population_table_t *self, tsk_size_t max_metadata_length_increment);
 int tsk_population_table_dump_text(const tsk_population_table_t *self, FILE *out);
 
 /**
@@ -2964,16 +3235,60 @@ int tsk_provenance_table_append_columns(tsk_provenance_table_t *self,
     tsk_size_t num_rows, const char *timestamp, const tsk_size_t *timestamp_offset,
     const char *record, const tsk_size_t *record_offset);
 
+/**
+@brief Controls the pre-allocation strategy for this table
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_provenance_table_t object.
+@param max_rows_increment The number of rows to pre-allocate, or zero for the default
+    doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_provenance_table_set_max_rows_increment(
+    tsk_provenance_table_t *self, tsk_size_t max_rows_increment);
+
+/**
+@brief Controls the pre-allocation strategy for the timestamp column
+
+@rst
+Set a fixed pre-allocation size, or use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_provenance_table_t object.
+@param max_timestamp_length_increment The number of bytes to pre-allocate, or zero for
+the default doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_provenance_table_set_max_timestamp_length_increment(
+    tsk_provenance_table_t *self, tsk_size_t max_timestamp_length_increment);
+
+/**
+@brief Controls the pre-allocation strategy for the record column
+
+@rst
+Set a fixed pre-allocation size, use the default doubling strategy.
+See :ref:`sec_c_api_memory_allocation_strategy` for details on the default
+pre-allocation strategy,
+@endrst
+
+@param self A pointer to a tsk_provenance_table_t object.
+@param max_record_length_increment The number of bytes to pre-allocate, or zero for the
+default doubling strategy.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_provenance_table_set_max_record_length_increment(
+    tsk_provenance_table_t *self, tsk_size_t max_record_length_increment);
+
 /** @} */
 
 /* Undocumented methods */
-
-int tsk_provenance_table_set_max_rows_increment(
-    tsk_provenance_table_t *self, tsk_size_t max_rows_increment);
-int tsk_provenance_table_set_max_timestamp_length_increment(
-    tsk_provenance_table_t *self, tsk_size_t max_timestamp_length_increment);
-int tsk_provenance_table_set_max_record_length_increment(
-    tsk_provenance_table_t *self, tsk_size_t max_record_length_increment);
 int tsk_provenance_table_dump_text(const tsk_provenance_table_t *self, FILE *out);
 
 /****************************************************************************/
