@@ -2135,21 +2135,17 @@ class Tree:
 
     def _timeasc_traversal(self, root):
         """
-        A stricter version of postorder where nodes are visiting in time-increasing
-        order first, and in preorder within equal time-slices.
+        Sorts by increasing time but falls back to increasing ID for equal times.
         """
         # TODO implement with numpy?
-        yield from sorted(
-            self.nodes(root, order="postorder"), key=lambda u: self.time(u)
-        )
+        yield from sorted(self.nodes(root), key=lambda u: (self.time(u), u))
 
     def _timedesc_traversal(self, root):
         """
-        A stricter version of preorder where nodes are visiting in time-descreasing
-        order first, and in preorder within equal time-slices.
+        The reverse of timeasc.
         """
         yield from sorted(
-            self.nodes(root, order="preorder"), key=lambda u: -self.time(u)
+            self.nodes(root), key=lambda u: (self.time(u), u), reverse=True
         )
 
     def _minlex_postorder_traversal(self, root):
@@ -2238,7 +2234,6 @@ class Tree:
               `Wikipedia
               <https://en.wikipedia.org/wiki/Tree_traversal\
 #Breadth-first_search_/_level_order>`__.
-            -  FIXME BEFORE MERGING timeas and timedesc
             - 'timeasc': visits the nodes in order of increasing time, falling back to
               increasing ID if times are equal.
             - 'timedesc': visits the nodes in order of decreasing time, falling back to

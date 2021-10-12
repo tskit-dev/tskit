@@ -120,11 +120,11 @@ def traversal_minlex_postorder(tree, root=None):
 
 
 def traversal_timeasc(tree, root=None):
-    yield from sorted(tree.nodes(root, order="postorder"), key=lambda u: tree.time(u))
+    yield from sorted(tree.nodes(root), key=lambda u: (tree.time(u), u))
 
 
 def traversal_timedesc(tree, root=None):
-    yield from sorted(tree.nodes(root, order="preorder"), key=lambda u: -tree.time(u))
+    yield from sorted(tree.nodes(root), key=lambda u: (tree.time(u), u), reverse=True)
 
 
 traversal_map = {
@@ -482,7 +482,7 @@ class TestTreeTraversals:
         assert f(order="levelorder") == [8, 5, 7, 0, 1, 2, 6, 3, 4]
         assert f(order="breadthfirst") == [8, 5, 7, 0, 1, 2, 6, 3, 4]
         assert f(order="timeasc") == [0, 1, 2, 3, 4, 5, 6, 7, 8]
-        assert f(order="timedesc") == [8, 7, 5, 6, 0, 1, 2, 3, 4]
+        assert f(order="timedesc") == [8, 7, 6, 5, 4, 3, 2, 1, 0]
         assert f(order="minlex_postorder") == [0, 1, 5, 2, 3, 4, 6, 7, 8]
 
         q = t.virtual_root
@@ -492,7 +492,7 @@ class TestTreeTraversals:
         assert f(q, order="levelorder") == [q, 8, 5, 7, 0, 1, 2, 6, 3, 4]
         assert f(q, order="breadthfirst") == [q, 8, 5, 7, 0, 1, 2, 6, 3, 4]
         assert f(q, order="timeasc") == [0, 1, 2, 3, 4, 5, 6, 7, 8, q]
-        assert f(q, order="timedesc") == [q, 8, 7, 5, 6, 0, 1, 2, 3, 4]
+        assert f(q, order="timedesc") == [q, 8, 7, 6, 5, 4, 3, 2, 1, 0]
         assert f(q, order="minlex_postorder") == [0, 1, 5, 2, 3, 4, 6, 7, 8, q]
 
         assert f(7, order="preorder") == [7, 2, 6, 3, 4]
@@ -501,7 +501,7 @@ class TestTreeTraversals:
         assert f(7, order="levelorder") == [7, 2, 6, 3, 4]
         assert f(7, order="breadthfirst") == [7, 2, 6, 3, 4]
         assert f(7, order="timeasc") == [2, 3, 4, 6, 7]
-        assert f(7, order="timedesc") == [7, 6, 2, 3, 4]
+        assert f(7, order="timedesc") == [7, 6, 4, 3, 2]
         assert f(7, order="minlex_postorder") == [2, 3, 4, 6, 7]
 
     def test_ternary_example(self):
@@ -520,8 +520,8 @@ class TestTreeTraversals:
         assert f(order="inorder") == [0, 7, 1, 10, 2, 8, 3, 4, 9, 5, 6]
         assert f(order="levelorder") == [10, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
         assert f(order="breadthfirst") == [10, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
-        assert f(order="timeasc") == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        assert f(order="timedesc") == [10, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
+        assert f(order="timeasc") == list(range(11))
+        assert f(order="timedesc") == list(reversed(range(11)))
         assert f(order="minlex_postorder") == [0, 1, 7, 2, 3, 8, 4, 5, 6, 9, 10]
 
         q = t.virtual_root
@@ -530,8 +530,8 @@ class TestTreeTraversals:
         assert f(q, order="inorder") == [q, 0, 7, 1, 10, 2, 8, 3, 4, 9, 5, 6]
         assert f(q, order="levelorder") == [q, 10, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
         assert f(q, order="breadthfirst") == [q, 10, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
-        assert f(q, order="timeasc") == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, q]
-        assert f(q, order="timedesc") == [q, 10, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
+        assert f(q, order="timeasc") == list(range(12))
+        assert f(q, order="timedesc") == list(reversed(range(12)))
         assert f(q, order="minlex_postorder") == [0, 1, 7, 2, 3, 8, 4, 5, 6, 9, 10, q]
 
         assert f(9, order="preorder") == [9, 4, 5, 6]
@@ -540,7 +540,7 @@ class TestTreeTraversals:
         assert f(9, order="levelorder") == [9, 4, 5, 6]
         assert f(9, order="breadthfirst") == [9, 4, 5, 6]
         assert f(9, order="timeasc") == [4, 5, 6, 9]
-        assert f(9, order="timedesc") == [9, 4, 5, 6]
+        assert f(9, order="timedesc") == [9, 6, 5, 4]
         assert f(9, order="minlex_postorder") == [4, 5, 6, 9]
 
     def test_multiroot_example(self):
@@ -559,8 +559,8 @@ class TestTreeTraversals:
         assert f(order="inorder") == [0, 7, 1, 2, 8, 3, 4, 9, 5, 6]
         assert f(order="levelorder") == [7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
         assert f(order="breadthfirst") == [7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
-        assert f(order="timeasc") == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        assert f(order="timedesc") == [7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
+        assert f(order="timeasc") == list(range(10))
+        assert f(order="timedesc") == list(reversed(range(10)))
         assert f(order="minlex_postorder") == [0, 1, 7, 2, 3, 8, 4, 5, 6, 9]
 
         q = t.virtual_root
@@ -569,8 +569,8 @@ class TestTreeTraversals:
         assert f(q, order="inorder") == [0, 7, 1, q, 2, 8, 3, 4, 9, 5, 6]
         assert f(q, order="levelorder") == [q, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
         assert f(q, order="breadthfirst") == [q, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
-        assert f(q, order="timeasc") == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, q]
-        assert f(q, order="timedesc") == [q, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
+        assert f(q, order="timeasc") == list(range(10)) + [q]
+        assert f(q, order="timedesc") == [q] + list(reversed(range(10)))
         assert f(q, order="minlex_postorder") == [0, 1, 7, 2, 3, 8, 4, 5, 6, 9, q]
 
         assert f(9, order="preorder") == [9, 4, 5, 6]
@@ -580,7 +580,7 @@ class TestTreeTraversals:
         assert f(9, order="breadthfirst") == [9, 4, 5, 6]
         assert f(9, order="minlex_postorder") == [4, 5, 6, 9]
         assert f(9, order="timeasc") == [4, 5, 6, 9]
-        assert f(9, order="timedesc") == [9, 4, 5, 6]
+        assert f(9, order="timedesc") == [9, 6, 5, 4]
 
     def test_multiroot_non_lexical_example(self):
         nodes = io.StringIO(
@@ -652,8 +652,8 @@ class TestTreeTraversals:
         assert inord == [4, 6, 3, 12, 7, 5, 13, 9, 11, 0, 10, 2, 1, 14, 8]
         assert level == [4, 6, 12, 13, 14, 3, 7, 5, 11, 1, 8, 9, 10, 0, 2]
         assert breadth == [4, 6, 12, 13, 14, 3, 7, 5, 11, 1, 8, 9, 10, 0, 2]
-        assert timeasc == [4, 6, 3, 7, 5, 9, 0, 2, 1, 8, 10, 11, 12, 13, 14]
-        assert timedesc == [14, 13, 12, 11, 10, 4, 6, 3, 7, 5, 9, 0, 2, 1, 8]
+        assert timeasc == list(range(15))
+        assert timedesc == list(reversed(range(15)))
 
         # And the minlex tree:
         #         14
@@ -680,8 +680,8 @@ class TestTreeTraversals:
                 "breadthfirst",
                 [[9, 6, 7, 2, 3, 4, 5, 0, 1], [10, 4, 8, 5, 6, 0, 1, 2, 3]],
             ),
-            ("timeasc", [[2, 3, 4, 0, 1, 5, 6, 7, 9], [4, 0, 1, 2, 3, 5, 6, 8, 10]]),
-            ("timedesc", [[9, 7, 6, 5, 2, 3, 4, 0, 1], [10, 8, 6, 5, 4, 0, 1, 2, 3]]),
+            ("timeasc", [[0, 1, 2, 3, 4, 5, 6, 7, 9], [0, 1, 2, 3, 4, 5, 6, 8, 10]]),
+            ("timedesc", [[9, 7, 6, 5, 4, 3, 2, 1, 0], [10, 8, 6, 5, 4, 3, 2, 1, 0]]),
             (
                 "minlex_postorder",
                 [[0, 1, 5, 4, 7, 2, 3, 6, 9], [0, 1, 5, 2, 3, 6, 8, 4, 10]],
