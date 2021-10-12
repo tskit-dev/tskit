@@ -29,6 +29,7 @@
 - Add ``__setitem__`` to all tables allowing single rows to be updated. For example
   ``tables.nodes[0] = tables.nodes[0].replace(flags=tskit.NODE_IS_SAMPLE)``
   (:user:`jeromekelleher`, :user:`benjeffery`, :issue:`1545`, :pr:`1600`).
+
 - Added a new parameter ``time`` to ``TreeSequence.samples()`` allowing to select
   samples at a specific time point or time interval.
   (:user:`mufernando`, :user:`petrelharp`, :issue:`1692`, :pr:`1700`)
@@ -40,6 +41,14 @@
 - Add ``time_units`` to ``TreeSequence`` to describe the units of the time dimension of the
   tree sequence. This is then used to generate an error if ``time_units`` is ``uncalibrated`` when
   using the branch lengths in statistics. (:user:`benjeffery`, :issue:`1644`, :pr:`1760`)
+
+- Add the ``virtual_root`` property to Trees COMPLETEME
+
+- Add the ``num_edges`` property to Trees COMPLETEME
+
+- Improved performance for tree traversal methods (and library methods that are based
+  on tree traversals). TODO
+
 
 --------------------
 [0.3.7] - 2021-07-08

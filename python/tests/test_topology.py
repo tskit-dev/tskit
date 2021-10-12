@@ -6556,6 +6556,9 @@ class TestOneSampleRoot(ExampleTopologyMixin):
         tree2 = tskit.Tree(ts)
         tree2.first()
         for interval, tree1 in tsutil.algorithm_R(ts, root_threshold=1):
+            root_reachable_nodes = len(tree2.preorder())
+            size_bound = tree1.num_edges + ts.num_samples
+            assert size_bound >= root_reachable_nodes
             assert interval == tree2.interval
             assert tree1.roots() == tree2.roots
             # Definition here is the set unique path ends from samples
@@ -6591,6 +6594,11 @@ class RootThreshold(ExampleTopologyMixin):
         ):
             assert interval_py == tree_lib.interval
             assert interval_leg == tree_lib.interval
+
+            root_reachable_nodes = len(tree_lib.preorder())
+            size_bound = tree_py.num_edges + ts.num_samples
+            assert size_bound >= root_reachable_nodes
+            assert tree_py.num_edges == tree_lib.num_edges
 
             # Definition here is the set unique path ends from samples
             # that subtend at least k samples

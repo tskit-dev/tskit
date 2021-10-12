@@ -155,6 +155,12 @@ typedef struct {
      if node u has no siblings to its right.
      */
     tsk_id_t *right_sib;
+    /**
+     @brief The total number of edges defining the topology of this tree.
+     This is equal to the number of tree sequence edges that intersect with
+     the tree's genomic interval.
+     */
+    tsk_size_t num_edges;
 
     tsk_size_t num_nodes;
     tsk_flags_t options;

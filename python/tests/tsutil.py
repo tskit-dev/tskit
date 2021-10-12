@@ -1184,6 +1184,7 @@ class QuintuplyLinkedTree:
         self.left_sib = np.zeros(n + 1, dtype=np.int32) - 1
         self.right_sib = np.zeros(n + 1, dtype=np.int32) - 1
         self.num_samples = np.zeros(n + 1, dtype=np.int32)
+        self.num_edges = 0
 
     def __str__(self):
         s = "id\tparent\tlchild\trchild\tlsib\trsib\tnsamp\n"
@@ -1246,6 +1247,7 @@ class QuintuplyLinkedTree:
 
     def remove_edge(self, edge):
         self.remove_branch(edge.parent, edge.child)
+        self.num_edges -= 1
 
         u = edge.parent
         while u != -1:
@@ -1273,6 +1275,7 @@ class QuintuplyLinkedTree:
             self.insert_root(path_end)
 
         self.insert_branch(edge.parent, edge.child)
+        self.num_edges += 1
 
 
 def algorithm_R(ts, root_threshold=1):

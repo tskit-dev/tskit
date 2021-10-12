@@ -1204,6 +1204,19 @@ class Tree:
         return self._ll_tree.get_virtual_root()
 
     @property
+    def num_edges(self):
+        """
+        The total number of edges in this tree. This is equal to the
+        number of tree sequence edges that intersect with this tree's
+        genomic interval.
+
+        Note that this may be greater than the number of branches that
+        are reachable from the tree's roots, since we can have topology
+        that is not associated with any samples.
+        """
+        return self._ll_tree.get_num_edges()
+
+    @property
     def left_root(self):
         """
         The leftmost root in this tree. If there are multiple roots

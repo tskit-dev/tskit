@@ -3388,6 +3388,7 @@ tsk_tree_copy(const tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options)
     dest->sites = self->sites;
     dest->sites_length = self->sites_length;
     dest->root_threshold = self->root_threshold;
+    dest->num_edges = self->num_edges;
 
     tsk_memcpy(dest->parent, self->parent, N * sizeof(*self->parent));
     tsk_memcpy(dest->left_child, self->left_child, N * sizeof(*self->left_child));
@@ -3942,6 +3943,7 @@ tsk_tree_remove_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
 #define POTENTIAL_ROOT(U) (num_samples[U] >= root_threshold)
 
     tsk_tree_remove_branch(self, p, c, parent);
+    self->num_edges--;
 
     if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
         u = p;
@@ -4002,6 +4004,7 @@ tsk_tree_insert_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
     }
 
     tsk_tree_insert_branch(self, p, c, parent);
+    self->num_edges++;
 
     if (self->options & TSK_SAMPLE_LISTS) {
         tsk_tree_update_sample_lists(self, p, parent);
@@ -4201,6 +4204,7 @@ tsk_tree_clear(tsk_tree_t *self)
 
     self->left = 0;
     self->right = 0;
+    self->num_edges = 0;
     self->index = -1;
     /* TODO we should profile this method to see if just doing a single loop over
      * the nodes would be more efficient than multiple memsets.

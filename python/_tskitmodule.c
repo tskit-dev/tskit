@@ -9332,6 +9332,19 @@ out:
 }
 
 static PyObject *
+Tree_get_num_edges(Tree *self)
+{
+    PyObject *ret = NULL;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue("n", (Py_ssize_t) self->tree->num_edges);
+out:
+    return ret;
+}
+
+static PyObject *
 Tree_get_index(Tree *self)
 {
     PyObject *ret = NULL;
@@ -10257,6 +10270,10 @@ static PyMethodDef Tree_methods[] = {
         .ml_meth = (PyCFunction) Tree_get_virtual_root,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns the virtual root of the tree." },
+    { .ml_name = "get_num_edges",
+        .ml_meth = (PyCFunction) Tree_get_num_edges,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the number of branches in this tree." },
     { .ml_name = "get_left",
         .ml_meth = (PyCFunction) Tree_get_left,
         .ml_flags = METH_NOARGS,

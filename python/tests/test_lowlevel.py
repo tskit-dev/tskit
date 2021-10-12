@@ -2714,6 +2714,7 @@ class TestTree(LowLevelTestCase):
         def check_tree(tree):
             assert tree.get_index() == -1
             assert tree.get_left_child(tree.get_virtual_root()) == samples[0]
+            assert tree.get_num_edge() == 0
             assert tree.get_mrca(0, 1) == _tskit.NULL
             for u in range(ts.get_num_nodes()):
                 assert tree.get_parent(u) == _tskit.NULL
