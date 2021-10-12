@@ -6459,8 +6459,9 @@ class TestVirtualRootAPIs(ExampleTopologyMixin):
             assert tree.is_internal(tree.virtual_root)
             assert not tree.is_leaf(tree.virtual_root)
             assert not tree.is_sample(tree.virtual_root)
-            # The mrca of the virtual_root and anything except itself is -1
-            assert tree.mrca(0, tree.virtual_root) == tskit.NULL
+            # The mrca of the virtual_root and anything is itself
+            assert tree.mrca(0, tree.virtual_root) == tree.virtual_root
+            assert tree.mrca(tree.virtual_root, 0) == tree.virtual_root
             assert tree.mrca(tree.virtual_root, tree.virtual_root) == tree.virtual_root
             # The virtual_root is a descendant of nothing other than itself
             assert not tree.is_descendant(0, tree.virtual_root)

@@ -2097,6 +2097,22 @@ class Tree:
     def postorder(self, u=NULL):
         return self._ll_tree.get_postorder(u)
 
+    def timeasc(self, u=NULL):
+        nodes = self.preorder(u)
+        is_virtual_root = u == self.virtual_root
+        time = self.tree_sequence.tables.nodes.time
+        if is_virtual_root:
+            # We could avoid creating this array if we wanted to, but
+            # it's not that often people will be using this with the
+            # virtual_root as an argument, so doesn't seem worth
+            # the complexity
+            time = np.append(time, [np.inf])
+        order = np.lexsort([nodes, time[nodes]])
+        return nodes[order]
+
+    def timedesc(self, u=NULL):
+        return self.timeasc(u)[::-1]
+
     def _preorder_traversal(self, root):
         return map(int, self.preorder(root))
 
@@ -2137,16 +2153,13 @@ class Tree:
         """
         Sorts by increasing time but falls back to increasing ID for equal times.
         """
-        # TODO implement with numpy?
-        yield from sorted(self.nodes(root), key=lambda u: (self.time(u), u))
+        yield from self.timeasc(root)
 
     def _timedesc_traversal(self, root):
         """
         The reverse of timeasc.
         """
-        yield from sorted(
-            self.nodes(root), key=lambda u: (self.time(u), u), reverse=True
-        )
+        yield from self.timedesc(root)
 
     def _minlex_postorder_traversal(self, root):
         """
