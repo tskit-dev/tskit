@@ -411,6 +411,31 @@ int tsk_tree_prev(tsk_tree_t *self);
 int tsk_tree_clear(tsk_tree_t *self);
 
 void tsk_tree_print_state(const tsk_tree_t *self, FILE *out);
+
+/**
+@brief Return an upper bound on the number of nodes reachable
+    from the roots of this tree.
+
+@rst
+This function provides an upper bound on the number of nodes that
+can be reached in tree traversals, and is intended to be used
+for memory allocation purposes. If ``num_nodes`` is the number
+of nodes visited in a tree traversal from the virtual root
+(e.g., ``tsk_tree_preorder(tree, tree->virtual_root, nodes,
+&num_nodes)``), the bound ``N`` returned here is guaranteed to
+be greater than or equal to ``num_nodes``.
+
+.. warning:: The precise value returned is not defined and should
+    not be depended on, as it may change from version-to-version.
+
+@endrst
+
+@param self A pointer to a tsk_tree_t object.
+@return An upper bound on the number nodes reachable from the roots
+    of this tree, or zero if this tree has not been initialised.
+*/
+tsk_size_t tsk_tree_get_size_bound(const tsk_tree_t *self);
+
 /** @} */
 
 int tsk_tree_set_root_threshold(tsk_tree_t *self, tsk_size_t root_threshold);

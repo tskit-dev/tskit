@@ -3626,7 +3626,6 @@ tsk_tree_get_time(const tsk_tree_t *self, tsk_id_t u, double *t)
     if (u == self->virtual_root) {
         *t = INFINITY;
     } else {
-
         ret = tsk_treeseq_get_node(self->tree_sequence, u, &node);
         if (ret != 0) {
             goto out;
@@ -4259,7 +4258,39 @@ tsk_tree_clear(tsk_tree_t *self)
     return ret;
 }
 
+tsk_size_t
+tsk_tree_get_size_bound(const tsk_tree_t *self)
+{
+    tsk_size_t bound = 0;
+
+    if (self->tree_sequence != NULL) {
+        /* This is a safe upper bound which can be computed cheaply.
+         * We have at most n roots and each edge adds at most one new
+         * node to the tree. We also allow space for the virtual root,
+         * to simplify client code.
+         *
+         * In the common case of a binary tree with a single root, we have
+         * 2n - 1 nodes in total, and 2n - 2 edges. Therefore, we return
+         * 3n - 1, which is an over-estimate of 1/2 and we allocate
+         * 1.5 times as much memory as we need.
+         *
+         * Since tracking the exact number of nodes in the tree would require
+         * storing the number of nodes beneath every node and complicate
+         * the tree transition method, this seems like a good compromise
+         * and will result in less memory usage overall in nearly all cases.
+         */
+        bound = 1 + self->tree_sequence->num_samples + self->num_edges;
+    }
+    return bound;
+}
+
 /* Traversal orders */
+
+static tsk_id_t *
+tsk_tree_alloc_node_stack(const tsk_tree_t *self)
+{
+    return tsk_malloc(tsk_tree_get_size_bound(self) * sizeof(tsk_id_t));
+}
 
 int
 tsk_tree_preorder(
@@ -4268,7 +4299,7 @@ tsk_tree_preorder(
     int ret = 0;
     const tsk_id_t *restrict right_child = self->right_child;
     const tsk_id_t *restrict left_sib = self->left_sib;
-    tsk_id_t *restrict stack = tsk_malloc((self->num_nodes + 1) * sizeof(*stack));
+    tsk_id_t *restrict stack = tsk_tree_alloc_node_stack(self);
     tsk_size_t num_nodes = 0;
     tsk_id_t u, v;
     int stack_top;
@@ -4320,7 +4351,7 @@ tsk_tree_postorder(
     const tsk_id_t *restrict right_child = self->right_child;
     const tsk_id_t *restrict left_sib = self->left_sib;
     const tsk_id_t *restrict parent = self->parent;
-    tsk_id_t *restrict stack = tsk_malloc((self->num_nodes + 1) * sizeof(*stack));
+    tsk_id_t *restrict stack = tsk_tree_alloc_node_stack(self);
     tsk_size_t num_nodes = 0;
     tsk_id_t u, v, postorder_parent;
     int stack_top;

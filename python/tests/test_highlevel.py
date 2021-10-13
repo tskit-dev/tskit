@@ -445,6 +445,24 @@ def get_samples(ts, time=None, population=None):
 
 
 class TestTreeTraversals:
+    def test_bad_traversal_order(self):
+        ts = msprime.sim_ancestry(2, random_seed=234)
+        tree = ts.first()
+        for bad_order in ["pre", "post", "preorderorder", ("x",), b"preorder"]:
+            with pytest.raises(ValueError, match="Traversal order"):
+                tree.nodes(order=bad_order)
+
+    @pytest.mark.parametrize("order", list(traversal_map.keys()))
+    def test_returned_types(self, order):
+        ts = msprime.sim_ancestry(2, random_seed=234)
+        tree = ts.first()
+        iterator = tree.nodes(order=order)
+        assert isinstance(iterator, collections.abc.Iterable)
+        lst = list(iterator)
+        assert len(lst) > 0
+        for u in lst:
+            assert isinstance(u, int)
+
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     @pytest.mark.parametrize("order", list(traversal_map.keys()))
     def test_traversals_virtual_root(self, ts, order):

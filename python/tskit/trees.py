@@ -2127,9 +2127,11 @@ class Tree:
         return self.timeasc(u)[::-1]
 
     def _preorder_traversal(self, root):
+        # Return Python integers for compatibility
         return map(int, self.preorder(root))
 
     def _postorder_traversal(self, root):
+        # Return Python integers for compatibility
         return map(int, self.postorder(root))
 
     def _inorder_traversal(self, root):
@@ -2166,13 +2168,13 @@ class Tree:
         """
         Sorts by increasing time but falls back to increasing ID for equal times.
         """
-        yield from self.timeasc(root)
+        return map(int, self.timeasc(root))
 
     def _timedesc_traversal(self, root):
         """
         The reverse of timeasc.
         """
-        yield from self.timedesc(root)
+        return map(int, self.timedesc(root))
 
     def _minlex_postorder_traversal(self, root):
         """

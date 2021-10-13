@@ -10070,7 +10070,7 @@ Tree_get_traversal_array(Tree *self, PyObject *args, tsk_traversal_func *func)
     if (!PyArg_ParseTuple(args, "i", &root)) {
         goto out;
     }
-    data = PyDataMem_NEW((self->tree->num_nodes + 1) * sizeof(*data));
+    data = PyDataMem_NEW(tsk_tree_get_size_bound(self->tree) * sizeof(*data));
     if (data == NULL) {
         ret = PyErr_NoMemory();
         goto out;
