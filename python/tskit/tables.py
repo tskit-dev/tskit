@@ -3140,8 +3140,7 @@ class TableCollection:
         given parent ID are adjacent, but we do not require that they be listed in
         sorted order.
 
-        Individuals are sorted so that parents come before children, and the
-        parent column remapped as required.
+        Individuals are not sorted.
 
         Sites are sorted by position, and sites with the same position retain
         their relative ordering.
@@ -3163,6 +3162,15 @@ class TableCollection:
             (default=0; must be <= len(edges)).
         """
         self._ll_tables.sort(edge_start)
+        # TODO add provenance
+
+    def sort_individuals(self):
+        """
+        Sorts the individual table in place, so that parents come before children,
+        and the parent column is remapped as required. Node references to individuals
+        are also updated.
+        """
+        self._ll_tables.sort_individuals()
         # TODO add provenance
 
     def canonicalise(self, remove_unreferenced=None):

@@ -3204,12 +3204,10 @@ class TestSimplifyTables:
             shuffle_migrations=False,
         )
         # Check we have a mixed up order
-        with pytest.raises(
-            tskit.LibraryError,
-            match="Individuals must be provided in an order where"
-            " children are after their parent individuals",
-        ):
-            tables.tree_sequence()
+        tables2 = tables.copy()
+        tables2.sort_individuals()
+        with pytest.raises(AssertionError, match="IndividualTable row 0 differs"):
+            tables.assert_equals(tables2)
 
         tables.simplify()
         metadata = [

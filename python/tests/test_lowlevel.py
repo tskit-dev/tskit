@@ -400,6 +400,10 @@ class TestTableCollection(LowLevelTestCase):
             with pytest.raises(TypeError):
                 tc.fromdict(bad_type)
 
+    def test_sort_individuals(self):
+        tc = _tskit.TableCollection(1)
+        tc.sort_individuals()
+
 
 class TestIbd:
     def test_uninitialised(self):

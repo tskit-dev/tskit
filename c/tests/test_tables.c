@@ -6280,10 +6280,10 @@ test_sort_tables_offsets(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tables, &copy, 0));
 
-    /* Check that sorting would have had an effect */
+    /* Check that sorting would have had no effect as individuals not in default sort*/
     ret = tsk_table_collection_sort(&tables, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_FALSE(tsk_table_collection_equals(&tables, &copy, 0));
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tables, &copy, 0));
 
     tsk_memset(&bookmark, 0, sizeof(bookmark));
     bookmark.individuals = tables.individuals.num_rows - 1;
@@ -6802,35 +6802,52 @@ test_sort_tables_individuals(void)
     const char *individuals_cycle = "1      0.2    2  0\n"
                                     "2      0.5    0  1\n"
                                     "3      0.3    1  2\n";
+    const tsk_id_t bad_parents[] = { 200 };
+    tsk_id_t ret_id;
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 1.0;
     parse_individuals(individuals, &tables.individuals);
+
+    ret = tsk_table_collection_copy(&tables, &copy, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Table sort doesn't touch individuals by default*/
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &copy, 0));
+
     /* Not calling with TSK_CHECK_TREES so casting is safe */
     ret = (int) tsk_table_collection_check_integrity(
         &tables, TSK_CHECK_INDIVIDUAL_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_INDIVIDUALS);
 
-    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    ret = tsk_table_collection_individual_topological_sort(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = (int) tsk_table_collection_check_integrity(
         &tables, TSK_CHECK_INDIVIDUAL_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Check that the sort is stable */
+    tsk_table_collection_free(&copy);
     ret = tsk_table_collection_copy(&tables, &copy, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_individual_topological_sort(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &copy, 0));
 
-    ret = tsk_table_collection_sort(&tables, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT(tsk_table_collection_equals(&tables, &copy, 0));
+    /* Errors on bad table */
+    ret_id = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, bad_parents, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 6);
+    ret = tsk_table_collection_individual_topological_sort(&tables, 0);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
 
     /* Errors on cycle */
     tsk_individual_table_clear(&tables.individuals);
     parse_individuals(individuals_cycle, &tables.individuals);
-    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    ret = tsk_table_collection_individual_topological_sort(&tables, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_INDIVIDUAL_PARENT_CYCLE);
 
     tsk_table_collection_free(&tables);

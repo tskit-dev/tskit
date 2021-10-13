@@ -27,8 +27,14 @@
   are multiple roots. Previously orders were defined locally for each root, but
   are now globally across all roots. (:user:`jeromekelleher`, :pr:`1704`).
 
+- Individuals are no longer guaranteed or required to be topologically sorted in a tree sequence.
+  ``TableCollection.sort`` no longer sorts individuals.
+  (:user:`benjeffery`, :issue:`1774`, :pr:`1789`)
 
 **Features**
+
+- Add ``TableCollection.sort_individuals`` to sort the individuals as this is no longer done by the
+  default sort. (:user:`benjeffery`, :issue:`1774`, :pr:`1789`)
 
 - Add ``__setitem__`` to all tables allowing single rows to be updated. For example
   ``tables.nodes[0] = tables.nodes[0].replace(flags=tskit.NODE_IS_SAMPLE)``
