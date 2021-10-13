@@ -24,6 +24,8 @@
 Exceptions defined in tskit.
 """
 from _tskit import FileFormatError
+from _tskit import IbdPairsNotStoredError  # noqa: F401
+from _tskit import IbdSegmentsNotStoredError  # noqa: F401
 from _tskit import LibraryError
 from _tskit import TskitException
 from _tskit import VersionTooNewError

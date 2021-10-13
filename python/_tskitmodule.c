@@ -50,6 +50,8 @@ static PyObject *TskitLibraryError;
 static PyObject *TskitFileFormatError;
 static PyObject *TskitVersionTooOldError;
 static PyObject *TskitVersionTooNewError;
+static PyObject *TskitIbdPairsNotStoredError;
+static PyObject *TskitIbdSegmentsNotStoredError;
 
 #include "tskit_lwt_interface.h"
 
@@ -221,6 +223,18 @@ static PyStructSequence_Desc metadata_schemas_desc = {
 static void
 handle_library_error(int err)
 {
+    const char *ibd_pairs_not_stored_msg
+        = "Sample pairs are not stored by default "
+          "in the IbdSegments object returned by ibd_segments(), and you have "
+          "attempted to access functionality that requires them. Please use the "
+          "store_pairs=True option to ibd_segments (but beware this will need more "
+          "time and memory).";
+    const char *ibd_segments_not_stored_msg
+        = "The individual IBD segments are not "
+          "stored by default in the IbdSegments object returned by ibd_segments(), "
+          "and you have attempted to access functionality that requires them. "
+          "Please use the store_segments=True option to ibd_segments "
+          "(but beware this will need more time and memory).";
     if (tsk_is_kas_error(err)) {
         PyErr_SetString(TskitFileFormatError, tsk_strerror(err));
     } else {
@@ -237,7 +251,18 @@ handle_library_error(int err)
             case TSK_ERR_BAD_COLUMN_TYPE:
                 PyErr_SetString(TskitFileFormatError, tsk_strerror(err));
                 break;
+            case TSK_ERR_IBD_PAIRS_NOT_STORED:
+                PyErr_SetString(TskitIbdPairsNotStoredError, ibd_pairs_not_stored_msg);
+                break;
+            case TSK_ERR_IBD_SEGMENTS_NOT_STORED:
+                PyErr_SetString(
+                    TskitIbdSegmentsNotStoredError, ibd_segments_not_stored_msg);
+                break;
             case TSK_ERR_IO:
+                /* Note this case isn't covered by tests because it's actually
+                 * quite hard to provoke. Attempting to write to a read-only
+                 * file etc errors are caught before we go down to the C API.
+                 */
                 PyErr_SetFromErrno(PyExc_OSError);
                 break;
             case TSK_ERR_EOF:
@@ -5330,6 +5355,20 @@ out:
     return ret;
 }
 
+static int
+IbdSegmentList_check_segments_stored(IbdSegmentList *self)
+{
+    int ret = -1;
+    tsk_ibd_segments_t *ibd_segs = self->ibd_segments->ibd_segments;
+    if (!ibd_segs->store_segments) {
+        handle_library_error(TSK_ERR_IBD_SEGMENTS_NOT_STORED);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
 static void
 IbdSegmentList_dealloc(IbdSegmentList *self)
 {
@@ -5391,6 +5430,9 @@ IbdSegmentList_get_left(IbdSegmentList *self, void *closure)
     if (IbdSegmentList_check_state(self) != 0) {
         goto out;
     }
+    if (IbdSegmentList_check_segments_stored(self) != 0) {
+        goto out;
+    }
 
     num_segments = (npy_intp) self->segment_list->num_segments;
     left_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_FLOAT64);
@@ -5421,6 +5463,9 @@ IbdSegmentList_get_right(IbdSegmentList *self, void *closure)
     if (IbdSegmentList_check_state(self) != 0) {
         goto out;
     }
+    if (IbdSegmentList_check_segments_stored(self) != 0) {
+        goto out;
+    }
 
     num_segments = (npy_intp) self->segment_list->num_segments;
     right_array = (PyArrayObject *) PyArray_SimpleNew(1, &num_segments, NPY_FLOAT64);
@@ -5449,6 +5494,9 @@ IbdSegmentList_get_node(IbdSegmentList *self, void *closure)
     npy_intp num_segments;
 
     if (IbdSegmentList_check_state(self) != 0) {
+        goto out;
+    }
+    if (IbdSegmentList_check_segments_stored(self) != 0) {
         goto out;
     }
 
@@ -5683,6 +5731,10 @@ IbdSegments_get_num_pairs(IbdSegments *self, void *closure)
     PyObject *ret = NULL;
 
     if (IbdSegments_check_state(self) != 0) {
+        goto out;
+    }
+    if (!self->ibd_segments->store_pairs) {
+        handle_library_error(TSK_ERR_IBD_PAIRS_NOT_STORED);
         goto out;
     }
     ret = Py_BuildValue(
@@ -6409,14 +6461,18 @@ TableCollection_ibd_segments(TableCollection *self, PyObject *args, PyObject *kw
     tsk_size_t num_within = 0;
     double min_length = 0;
     double max_time = DBL_MAX;
+    int store_pairs = 0;
+    int store_segments = 0;
     npy_intp *shape;
-    static char *kwlist[] = { "within", "min_length", "max_time", NULL };
+    static char *kwlist[]
+        = { "within", "min_length", "max_time", "store_pairs", "store_segments", NULL };
+    tsk_flags_t options = 0;
 
     if (TableCollection_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(
-            args, kwds, "|Odd", kwlist, &py_within, &min_length, &max_time)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|Oddii", kwlist, &py_within,
+            &min_length, &max_time, &store_pairs, &store_segments)) {
         goto out;
     }
     if (py_within != Py_None) {
@@ -6433,8 +6489,16 @@ TableCollection_ibd_segments(TableCollection *self, PyObject *args, PyObject *kw
     if (result == NULL) {
         goto out;
     }
-    err = tsk_table_collection_ibd_segments(
-        self->tables, result->ibd_segments, within, num_within, min_length, max_time, 0);
+    options = 0;
+    if (store_pairs) {
+        options |= TSK_IBD_STORE_PAIRS;
+    }
+    if (store_segments) {
+        options |= TSK_IBD_STORE_SEGMENTS;
+    }
+
+    err = tsk_table_collection_ibd_segments(self->tables, result->ibd_segments, within,
+        num_within, min_length, max_time, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -11621,6 +11685,15 @@ PyInit__tskit(void)
         = PyErr_NewException("_tskit.VersionTooOldError", TskitException, NULL);
     Py_INCREF(TskitVersionTooOldError);
     PyModule_AddObject(module, "VersionTooOldError", TskitVersionTooOldError);
+    TskitIbdPairsNotStoredError
+        = PyErr_NewException("_tskit.IbdPairsNotStoredError", TskitException, NULL);
+    Py_INCREF(TskitIbdPairsNotStoredError);
+    PyModule_AddObject(module, "IbdPairsNotStoredError", TskitIbdPairsNotStoredError);
+    TskitIbdSegmentsNotStoredError
+        = PyErr_NewException("_tskit.IbdSegmentsNotStoredError", TskitException, NULL);
+    Py_INCREF(TskitIbdSegmentsNotStoredError);
+    PyModule_AddObject(
+        module, "IbdSegmentsNotStoredError", TskitIbdSegmentsNotStoredError);
 
     PyModule_AddIntConstant(module, "NULL", TSK_NULL);
     PyModule_AddIntConstant(module, "MISSING_DATA", TSK_MISSING_DATA);

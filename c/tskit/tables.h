@@ -647,6 +647,8 @@ typedef struct {
     tsk_size_t num_segments;
     double total_span;
     tsk_blkalloc_t heap;
+    bool store_segments;
+    bool store_pairs;
 } tsk_ibd_segments_t;
 
 /****************************************************************************/
@@ -4059,6 +4061,10 @@ tsk_id_t tsk_table_collection_check_integrity(
 
 /* Undocumented methods */
 
+/* Flags for ibd_segments */
+#define TSK_IBD_STORE_PAIRS (1 << 0)
+#define TSK_IBD_STORE_SEGMENTS (1 << 1)
+
 /* TODO be systematic about where "result" should be in the params
  * list, different here and in link_ancestors. */
 int tsk_table_collection_ibd_segments(const tsk_table_collection_t *self,
@@ -4162,10 +4168,10 @@ tsk_size_t tsk_ibd_segments_get_num_pairs(const tsk_ibd_segments_t *self);
 int tsk_ibd_segments_get_keys(const tsk_ibd_segments_t *result, tsk_id_t *pairs);
 int tsk_ibd_segments_get_items(
     const tsk_ibd_segments_t *self, tsk_id_t *pairs, tsk_ibd_segment_list_t **lists);
-void tsk_ibd_segments_print_state(tsk_ibd_segments_t *self, FILE *out);
-int tsk_ibd_segments_free(tsk_ibd_segments_t *self);
 int tsk_ibd_segments_get(const tsk_ibd_segments_t *self, tsk_id_t a, tsk_id_t b,
     tsk_ibd_segment_list_t **ret_list);
+void tsk_ibd_segments_print_state(tsk_ibd_segments_t *self, FILE *out);
+int tsk_ibd_segments_free(tsk_ibd_segments_t *self);
 
 #ifdef __cplusplus
 }
