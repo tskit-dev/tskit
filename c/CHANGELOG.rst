@@ -14,6 +14,7 @@
 
 - The previously deprecated option ``TSK_SAMPLE_COUNTS`` has been removed. (:user:`benjeffery`, :issue:`1744`, :pr:`1761`).
 
+- FIXME breaking changes for tree API and virtual root
 
 **Features**
 
@@ -36,6 +37,8 @@
 - Add ``time_units`` to ``tsk_table_collection_t`` to describe the units of the time dimension of the
   tree sequence. This is then used to generate an error if ``time_units`` is ``uncalibrated`` when
   using the branch lengths in statistics. (:user:`benjeffery`, :issue:`1644`, :pr:`1760`)
+
+- FIXME add features for virtual root, num_edges, stack allocation size etc
 
 **Fixes**
 

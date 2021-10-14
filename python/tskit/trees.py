@@ -1050,10 +1050,12 @@ class Tree:
         """
         A numpy array (dtype=np.int32) encoding the parent of each node
         in this tree, such that ``tree.parent_array[u] == tree.parent(u)``
-        for all ``0 <= u < ts.num_nodes``. See the :meth:`~.parent`
+        for all ``0 <= u <= ts.num_nodes``. See the :meth:`~.parent`
         method for details on the semantics of tree parents and the
         :ref:`sec_data_model_tree_structure` section for information on the
         quintuply linked tree encoding.
+
+        .. note:: |virtual_root_array_note|
 
         .. warning:: |tree_array_warning|
         """
@@ -1085,10 +1087,12 @@ class Tree:
         """
         A numpy array (dtype=np.int32) encoding the left child of each node
         in this tree, such that ``tree.left_child_array[u] == tree.left_child(u)``
-        for all ``0 <= u < ts.num_nodes``. See the :meth:`~.left_child`
+        for all ``0 <= u <= ts.num_nodes``. See the :meth:`~.left_child`
         method for details on the semantics of tree left_child and the
         :ref:`sec_data_model_tree_structure` section for information on the
         quintuply linked tree encoding.
+
+        .. note:: |virtual_root_array_note|
 
         .. warning:: |tree_array_warning|
         """
@@ -1118,10 +1122,12 @@ class Tree:
         """
         A numpy array (dtype=np.int32) encoding the right child of each node
         in this tree, such that ``tree.right_child_array[u] == tree.right_child(u)``
-        for all ``0 <= u < ts.num_nodes``. See the :meth:`~.right_child`
+        for all ``0 <= u <= ts.num_nodes``. See the :meth:`~.right_child`
         method for details on the semantics of tree right_child and the
         :ref:`sec_data_model_tree_structure` section for information on the
         quintuply linked tree encoding.
+
+        .. note:: |virtual_root_array_note|
 
         .. warning:: |tree_array_warning|
         """
@@ -1147,10 +1153,12 @@ class Tree:
         """
         A numpy array (dtype=np.int32) encoding the left sib of each node
         in this tree, such that ``tree.left_sib_array[u] == tree.left_sib(u)``
-        for all ``0 <= u < ts.num_nodes``. See the :meth:`~.left_sib`
+        for all ``0 <= u <= ts.num_nodes``. See the :meth:`~.left_sib`
         method for details on the semantics of tree left_sib and the
         :ref:`sec_data_model_tree_structure` section for information on the
         quintuply linked tree encoding.
+
+        .. note:: |virtual_root_array_note|
 
         .. warning:: |tree_array_warning|
         """
@@ -1176,10 +1184,12 @@ class Tree:
         """
         A numpy array (dtype=np.int32) encoding the right sib of each node
         in this tree, such that ``tree.right_sib_array[u] == tree.right_sib(u)``
-        for all ``0 <= u < ts.num_nodes``. See the :meth:`~.right_sib`
+        for all ``0 <= u <= ts.num_nodes``. See the :meth:`~.right_sib`
         method for details on the semantics of tree right_sib and the
         :ref:`sec_data_model_tree_structure` section for information on the
         quintuply linked tree encoding.
+
+        .. note:: |virtual_root_array_note|
 
         .. warning:: |tree_array_warning|
         """
@@ -1199,7 +1209,11 @@ class Tree:
     @property
     def virtual_root(self):
         """
-        The ID of the virtual root in this tree.
+        The ID of the virtual root in this tree. This is equal to
+        :attr:`TreeSequence.num_nodes`.
+
+        Please see the :ref:`tree roots <sec_data_model_tree_roots>`
+        section for more details.
         """
         return self._ll_tree.get_virtual_root()
 
@@ -2104,6 +2118,8 @@ class Tree:
             roots = self.roots
         return sum(self._ll_tree.get_num_tracked_samples(root) for root in roots)
 
+    # TODO document these traversal arrays
+    # https://github.com/tskit-dev/tskit/issues/1788
     def preorder(self, u=NULL):
         return self._ll_tree.get_preorder(u)
 
@@ -2229,52 +2245,59 @@ class Tree:
 
     def nodes(self, root=None, order="preorder"):
         """
-        Returns an iterator over the node IDs reachable from the root(s) in this tree.
-        See :meth:`Tree.roots` for which nodes are considered roots. If the root
-        parameter is provided, only the subtree rooted at this single root node
-        will be iterated over. If this parameter is None, iterate over the node IDs in
-        the subtrees rooted at each root node in turn. If the order parameter is
-        provided, iterate over the nodes in each subtree in the specified tree traversal
-        order.
+        Returns an iterator over the node IDs reachable from the root(s) in this
+        tree in the specified traversal order.
 
         .. note::
             Unlike the :meth:`TreeSequence.nodes` method, this iterator produces
             integer node IDs, not :class:`Node` objects.
 
-        The currently implemented traversal orders are:
+        If the ``root`` parameter is not provided or none, iterate over all
+        nodes reachable from the roots (see :meth:`Tree.roots` for details
+        on which nodes are considered roots). If the ``root`` parameter
+        is provided, only the nodes in the subtree rooted at this node
+        (including the specified node) will be iterated over. If the
+        :attr:`.virtual_root` is specified as the traversal root, it will
+        be included in the traversed nodes in the appropriate position
+        for the given ordering. (See the
+        :ref:`tree roots <sec_data_model_tree_roots>` section for more
+        information on the virtual root.)
 
-            - 'preorder': starting at root, yield the current node, then recurse
-              and do a preorder on each child of the current node. See also `Wikipedia
-              <https://en.wikipedia.org/wiki/Tree_traversal#Pre-order_(NLR)>`__.
-            - 'inorder': starting at root, assuming binary trees, recurse and do
-              an inorder on the first child, then yield the current node, then
-              recurse and do an inorder on the second child. In the case of ``n``
-              child nodes (not necessarily 2), the first ``n // 2`` children are
-              visited in the first stage, and the remaining ``n - n // 2`` children
-              are visited in the second stage. See also `Wikipedia
-              <https://en.wikipedia.org/wiki/Tree_traversal#In-order_(LNR)>`__.
-            - 'postorder': starting at root, recurse and do a postorder on each
-              child of the current node, then yield the current node. See also
-              `Wikipedia
-              <https://en.wikipedia.org/wiki/Tree_traversal#Post-order_(LRN)>`__.
-            - 'levelorder' ('breadthfirst'): visit the nodes under root (including
-              the root) in increasing order of their depth from root. See also
-              `Wikipedia
-              <https://en.wikipedia.org/wiki/Tree_traversal\
+        The ``order`` parameter defines the order in which tree nodes
+        are visited in the iteration. The available orders are:
+
+        - 'preorder': starting at root, yield the current node, then recurse
+          and do a preorder on each child of the current node. See also `Wikipedia
+          <https://en.wikipedia.org/wiki/Tree_traversal#Pre-order_(NLR)>`__.
+        - 'inorder': starting at root, assuming binary trees, recurse and do
+          an inorder on the first child, then yield the current node, then
+          recurse and do an inorder on the second child. In the case of ``n``
+          child nodes (not necessarily 2), the first ``n // 2`` children are
+          visited in the first stage, and the remaining ``n - n // 2`` children
+          are visited in the second stage. See also `Wikipedia
+          <https://en.wikipedia.org/wiki/Tree_traversal#In-order_(LNR)>`__.
+        - 'postorder': starting at root, recurse and do a postorder on each
+          child of the current node, then yield the current node. See also
+          `Wikipedia
+          <https://en.wikipedia.org/wiki/Tree_traversal#Post-order_(LRN)>`__.
+        - 'levelorder' ('breadthfirst'): visit the nodes under root (including
+          the root) in increasing order of their depth from root. See also
+          `Wikipedia
+          <https://en.wikipedia.org/wiki/Tree_traversal\
 #Breadth-first_search_/_level_order>`__.
-            - 'timeasc': visits the nodes in order of increasing time, falling back to
-              increasing ID if times are equal.
-            - 'timedesc': visits the nodes in order of decreasing time, falling back to
-              decreasing ID if times are equal.
-            - 'minlex_postorder': a usual postorder has ambiguity in the order in
-              which children of a node are visited. We constrain this by outputting
-              a postorder such that the leaves visited, when their IDs are
-              listed out, have minimum `lexicographic order
-              <https://en.wikipedia.org/wiki/Lexicographical_order>`__ out of all valid
-              traversals. This traversal is useful for drawing multiple trees of
-              a ``TreeSequence``, as it leads to more consistency between adjacent
-              trees. Note that internal non-leaf nodes are not counted in
-              assessing the lexicographic order.
+        - 'timeasc': visits the nodes in order of increasing time, falling back to
+          increasing ID if times are equal.
+        - 'timedesc': visits the nodes in order of decreasing time, falling back to
+          decreasing ID if times are equal.
+        - 'minlex_postorder': a usual postorder has ambiguity in the order in
+          which children of a node are visited. We constrain this by outputting
+          a postorder such that the leaves visited, when their IDs are
+          listed out, have minimum `lexicographic order
+          <https://en.wikipedia.org/wiki/Lexicographical_order>`__ out of all valid
+          traversals. This traversal is useful for drawing multiple trees of
+          a ``TreeSequence``, as it leads to more consistency between adjacent
+          trees. Note that internal non-leaf nodes are not counted in
+          assessing the lexicographic order.
 
         :param int root: The root of the subtree we are traversing.
         :param str order: The traversal ordering. Currently 'preorder',
@@ -5565,7 +5588,7 @@ class TreeSequence:
         :param str order: The left-to-right ordering of child nodes in each drawn tree.
             This can be either: ``"minlex"``, which minimises the differences
             between adjacent trees (see also the ``"minlex_postorder"`` traversal
-            order for the :meth:`.nodes` method); or ``"tree"`` which draws trees
+            order for the :meth:`.Tree.nodes` method); or ``"tree"`` which draws trees
             in the left-to-right order defined by the
             :ref:`quintuply linked tree structure <sec_data_model_tree_structure>`.
             If not specified or None, this defaults to ``"minlex"``.
@@ -5674,7 +5697,7 @@ class TreeSequence:
         :param str order: The left-to-right ordering of child nodes in the drawn tree.
             This can be either: ``"minlex"``, which minimises the differences
             between adjacent trees (see also the ``"minlex_postorder"`` traversal
-            order for the :meth:`.nodes` method); or ``"tree"`` which draws trees
+            order for the :meth:`.Tree.nodes` method); or ``"tree"`` which draws trees
             in the left-to-right order defined by the
             :ref:`quintuply linked tree structure <sec_data_model_tree_structure>`.
             If not specified or None, this defaults to ``"minlex"``.

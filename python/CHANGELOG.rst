@@ -23,6 +23,10 @@
   all have one extra element.
   (:user:`jeromekelleher`, :issue:`1691`, :pr:`1704`).
 
+- Tree traversal orders returned by the ``nodes`` method have changed when there
+  are multiple roots. Previously orders were defined locally for each root, but
+  are now globally across all roots. (:user:`jeromekelleher`, :pr:`1704`).
+
 
 **Features**
 
@@ -42,12 +46,13 @@
   tree sequence. This is then used to generate an error if ``time_units`` is ``uncalibrated`` when
   using the branch lengths in statistics. (:user:`benjeffery`, :issue:`1644`, :pr:`1760`)
 
-- Add the ``virtual_root`` property to Trees COMPLETEME
+- Add the ``virtual_root`` property to the Tree class (:user:`jeromekelleher`, :pr:`1704`).
 
-- Add the ``num_edges`` property to Trees COMPLETEME
+- Add the ``num_edges`` property to the Tree class (:user:`jeromekelleher`, :pr:`1704`).
 
-- Improved performance for tree traversal methods (and library methods that are based
-  on tree traversals). TODO
+- Improved performance for tree traversal methods in the ``nodes`` iterator.
+  Roughly a 10X performance increase for "preorder", "postorder", "timeasc"
+  and "timedesc" (:user:`jeromekelleher`, :pr:`1704`).
 
 
 --------------------

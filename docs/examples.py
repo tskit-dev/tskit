@@ -257,7 +257,7 @@ def stats():
 
 
 def tree_structure():
-    def write_table(tree):
+    def write_table(tree, show_virtual_root=False):
         fmt = "{:<12}"
         heading = [
             "node",
@@ -273,7 +273,7 @@ def tree_structure():
         print(line)
         print(col_def)
 
-        for u in range(ts.num_nodes):
+        for u in range(ts.num_nodes + int(show_virtual_root)):
             line = "".join(
                 fmt.format(v)
                 for v in [
@@ -325,7 +325,7 @@ def tree_structure():
     )
     tree = ts.first()
 
-    write_table(tree)
+    write_table(tree, show_virtual_root=True)
     print(tree.draw_text())
     tree.draw_svg("_static/tree_structure2.svg", time_scale="rank")
 
@@ -404,6 +404,6 @@ def finding_nearest_neighbors():
 # allele_frequency_spectra()
 # missing_data()
 # stats()
-# tree_structure()
+tree_structure()
 tree_traversal()
 finding_nearest_neighbors()
