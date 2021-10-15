@@ -5106,8 +5106,9 @@ class TreeSequence:
 
         s = "#NEXUS\n"
         s += "BEGIN TAXA;\n"
+        s += "DIMENSIONS NTAX={};".format(len(node_labels))
         s += "TAXLABELS "
-        s += ",".join(node_labels[node.id] for node in self.nodes()) + ";\n"
+        s += " ".join(node_labels[node.id] for node in self.nodes()) + ";\n"
         s += "END;\n"
 
         s += "BEGIN TREES;\n"
