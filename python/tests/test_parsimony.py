@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2019-2020 Tskit Developers
+# Copyright (c) 2019-2021 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,10 +22,10 @@
 """
 Tests for the tree parsimony methods.
 """
+import dataclasses
 import io
 import itertools
 
-import attr
 import Bio.Phylo.TreeConstruction
 import msprime
 import numpy as np
@@ -219,48 +219,39 @@ def hartigan_map_mutations(tree, genotypes, alleles, ancestral_state=None):
             optimal_set[u] = 1
 
     allele_count = np.zeros(num_alleles, dtype=int)
-    for root in tree.roots:
-        for u in tree.nodes(root, order="postorder"):
-            allele_count[:] = 0
-            for v in tree.children(u):
-                for j in range(num_alleles):
-                    allele_count[j] += optimal_set[v, j]
-            if not tree.is_sample(u):
-                max_allele_count = np.max(allele_count)
-                optimal_set[u, allele_count == max_allele_count] = 1
-
-    if ancestral_state is None:
+    for u in tree.nodes(tree.virtual_root, order="postorder"):
         allele_count[:] = 0
-        for v in tree.roots:
+        for v in tree.children(u):
             for j in range(num_alleles):
                 allele_count[j] += optimal_set[v, j]
-        max_allele_count = np.max(allele_count)
-        optimal_root_set = np.zeros(num_alleles, dtype=int)
-        optimal_root_set[allele_count == max_allele_count] = 1
-        ancestral_state = np.argmax(optimal_root_set)
+        if not tree.is_sample(u):
+            max_allele_count = np.max(allele_count)
+            optimal_set[u, allele_count == max_allele_count] = 1
 
-    @attr.s
+    if ancestral_state is None:
+        ancestral_state = np.argmax(optimal_set[tree.virtual_root])
+
+    @dataclasses.dataclass
     class StackElement:
-        node = attr.ib()
-        state = attr.ib()
-        mutation_parent = attr.ib()
+        node: int
+        state: int
+        mutation_parent: int
 
     mutations = []
-    for root in tree.roots:
-        stack = [StackElement(root, ancestral_state, -1)]
-        while len(stack) > 0:
-            s = stack.pop()
-            if optimal_set[s.node, s.state] == 0:
-                s.state = np.argmax(optimal_set[s.node])
-                mutation = tskit.Mutation(
-                    node=s.node,
-                    derived_state=alleles[s.state],
-                    parent=s.mutation_parent,
-                )
-                s.mutation_parent = len(mutations)
-                mutations.append(mutation)
-            for v in tree.children(s.node):
-                stack.append(StackElement(v, s.state, s.mutation_parent))
+    stack = [StackElement(root, ancestral_state, -1) for root in reversed(tree.roots)]
+    while len(stack) > 0:
+        s = stack.pop()
+        if optimal_set[s.node, s.state] == 0:
+            s.state = np.argmax(optimal_set[s.node])
+            mutation = tskit.Mutation(
+                node=s.node,
+                derived_state=alleles[s.state],
+                parent=s.mutation_parent,
+            )
+            s.mutation_parent = len(mutations)
+            mutations.append(mutation)
+        for v in tree.children(s.node):
+            stack.append(StackElement(v, s.state, s.mutation_parent))
     return alleles[ancestral_state], mutations
 
 

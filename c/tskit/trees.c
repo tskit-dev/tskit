@@ -3509,34 +3509,29 @@ tsk_tree_get_num_samples_by_traversal(
     const tsk_tree_t *self, tsk_id_t u, tsk_size_t *num_samples)
 {
     int ret = 0;
-    tsk_id_t *stack = NULL;
-    tsk_id_t v;
+    tsk_size_t num_nodes, j;
     tsk_size_t count = 0;
-    int stack_top = 0;
+    const tsk_flags_t *restrict flags = self->tree_sequence->tables->nodes.flags;
+    tsk_id_t *nodes = tsk_malloc(tsk_tree_get_size_bound(self) * sizeof(*nodes));
+    tsk_id_t v;
 
-    stack = tsk_malloc(self->num_nodes * sizeof(*stack));
-    if (stack == NULL) {
+    if (nodes == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-
-    stack[0] = u;
-    while (stack_top >= 0) {
-        v = stack[stack_top];
-        stack_top--;
-        if (tsk_treeseq_is_sample(self->tree_sequence, v)) {
+    ret = tsk_tree_preorder(self, u, nodes, &num_nodes);
+    if (ret != 0) {
+        goto out;
+    }
+    for (j = 0; j < num_nodes; j++) {
+        v = nodes[j];
+        if (flags[v] & TSK_NODE_IS_SAMPLE) {
             count++;
-        }
-        v = self->left_child[v];
-        while (v != TSK_NULL) {
-            stack_top++;
-            stack[stack_top] = v;
-            v = self->right_sib[v];
         }
     }
     *num_samples = count;
 out:
-    tsk_safe_free(stack);
+    tsk_safe_free(nodes);
     return ret;
 }
 
@@ -3649,14 +3644,14 @@ tsk_tree_get_sites(
 static int
 tsk_tree_get_depth_unsafe(const tsk_tree_t *self, tsk_id_t u)
 {
-
     tsk_id_t v;
+    const tsk_id_t *restrict parent = self->parent;
     int depth = 0;
 
     if (u == self->virtual_root) {
         return -1;
     }
-    for (v = self->parent[u]; v != TSK_NULL; v = self->parent[v]) {
+    for (v = parent[u]; v != TSK_NULL; v = parent[v]) {
         depth++;
     }
     return depth;
@@ -4443,6 +4438,9 @@ get_smallest_set_bit(uint64_t v)
  * use a general cost matrix, in which case we'll use the Sankoff algorithm. For
  * now this is unused.
  *
+ * We should also vectorise the function so that several sites can be processed
+ * at once.
+ *
  * The algorithm used here is Hartigan parsimony, "Minimum Mutation Fits to a
  * Given Tree", Biometrics 1973.
  */
@@ -4458,30 +4456,34 @@ tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
         int8_t state;
     };
     const tsk_size_t num_samples = self->tree_sequence->num_samples;
-    const tsk_size_t num_nodes = self->num_nodes;
     const tsk_id_t *restrict left_child = self->left_child;
     const tsk_id_t *restrict right_sib = self->right_sib;
-    const tsk_id_t *restrict parent = self->parent;
+    const tsk_size_t N = tsk_treeseq_get_num_nodes(self->tree_sequence);
     const tsk_flags_t *restrict node_flags = self->tree_sequence->tables->nodes.flags;
-    uint64_t optimal_root_set;
-    uint64_t *restrict optimal_set = tsk_calloc(num_nodes, sizeof(*optimal_set));
-    tsk_id_t *restrict postorder_stack
-        = tsk_malloc(num_nodes * sizeof(*postorder_stack));
+    tsk_id_t *nodes = tsk_malloc(tsk_tree_get_size_bound(self) * sizeof(*nodes));
+    /* Note: to use less memory here and to improve cache performance we should
+     * probably change to allocating exactly the number of nodes returned by
+     * a preorder traversal, and then lay the memory out in this order. So, we'd
+     * need a map from node ID to its index in the preorder traversal, but this
+     * is trivial to compute. Probably doesn't matter so much at the moment
+     * when we're doing a single site, but it would make a big difference if
+     * we were vectorising over lots of sites. */
+    uint64_t *restrict optimal_set = tsk_calloc(N + 1, sizeof(*optimal_set));
     struct stack_elem *restrict preorder_stack
-        = tsk_malloc(num_nodes * sizeof(*preorder_stack));
-    tsk_id_t postorder_parent, root, u, v;
+        = tsk_malloc(tsk_tree_get_size_bound(self) * sizeof(*preorder_stack));
+    tsk_id_t root, u, v;
     /* The largest possible number of transitions is one over every sample */
     tsk_state_transition_t *transitions = tsk_malloc(num_samples * sizeof(*transitions));
     int8_t allele, ancestral_state;
     int stack_top;
     struct stack_elem s;
-    tsk_size_t j, num_transitions, max_allele_count;
+    tsk_size_t j, num_transitions, max_allele_count, num_nodes;
     tsk_size_t allele_count[HARTIGAN_MAX_ALLELES];
     tsk_size_t non_missing = 0;
     int8_t num_alleles = 0;
 
-    if (optimal_set == NULL || preorder_stack == NULL || postorder_stack == NULL
-        || transitions == NULL) {
+    if (optimal_set == NULL || preorder_stack == NULL || transitions == NULL
+        || nodes == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
@@ -4518,68 +4520,33 @@ tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
         }
     }
 
-    for (root = self->left_root; root != TSK_NULL; root = self->right_sib[root]) {
-        /* Do a post order traversal */
-        postorder_stack[0] = root;
-        stack_top = 0;
-        postorder_parent = TSK_NULL;
-        while (stack_top >= 0) {
-            u = postorder_stack[stack_top];
-            if (left_child[u] != TSK_NULL && u != postorder_parent) {
-                for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
-                    stack_top++;
-                    postorder_stack[stack_top] = v;
-                }
-            } else {
-                stack_top--;
-                postorder_parent = parent[u];
-
-                /* Visit u */
-                tsk_memset(
-                    allele_count, 0, ((size_t) num_alleles) * sizeof(*allele_count));
-                for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
-                    for (allele = 0; allele < num_alleles; allele++) {
-                        allele_count[allele] += bit_is_set(optimal_set[v], allele);
-                    }
-                }
-                if (!(node_flags[u] & TSK_NODE_IS_SAMPLE)) {
-                    max_allele_count = 0;
-                    for (allele = 0; allele < num_alleles; allele++) {
-                        max_allele_count
-                            = TSK_MAX(max_allele_count, allele_count[allele]);
-                    }
-                    for (allele = 0; allele < num_alleles; allele++) {
-                        if (allele_count[allele] == max_allele_count) {
-                            optimal_set[u] = set_bit(optimal_set[u], allele);
-                        }
-                    }
+    ret = tsk_tree_postorder(self, self->virtual_root, nodes, &num_nodes);
+    if (ret != 0) {
+        goto out;
+    }
+    for (j = 0; j < num_nodes; j++) {
+        u = nodes[j];
+        tsk_memset(allele_count, 0, ((size_t) num_alleles) * sizeof(*allele_count));
+        for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
+            for (allele = 0; allele < num_alleles; allele++) {
+                allele_count[allele] += bit_is_set(optimal_set[v], allele);
+            }
+        }
+        /* the virtual root has no flags defined */
+        if (u == (tsk_id_t) N || !(node_flags[u] & TSK_NODE_IS_SAMPLE)) {
+            max_allele_count = 0;
+            for (allele = 0; allele < num_alleles; allele++) {
+                max_allele_count = TSK_MAX(max_allele_count, allele_count[allele]);
+            }
+            for (allele = 0; allele < num_alleles; allele++) {
+                if (allele_count[allele] == max_allele_count) {
+                    optimal_set[u] = set_bit(optimal_set[u], allele);
                 }
             }
         }
     }
-
     if (!(options & TSK_MM_FIXED_ANCESTRAL_STATE)) {
-        optimal_root_set = 0;
-        /* TODO it's annoying that this is essentially the same as the
-         * visit function above. It would be nice if we had an extra
-         * node that was the parent of all roots, then the algorithm
-         * would work as-is */
-        tsk_memset(allele_count, 0, ((size_t) num_alleles) * sizeof(*allele_count));
-        for (root = self->left_root; root != TSK_NULL; root = right_sib[root]) {
-            for (allele = 0; allele < num_alleles; allele++) {
-                allele_count[allele] += bit_is_set(optimal_set[root], allele);
-            }
-        }
-        max_allele_count = 0;
-        for (allele = 0; allele < num_alleles; allele++) {
-            max_allele_count = TSK_MAX(max_allele_count, allele_count[allele]);
-        }
-        for (allele = 0; allele < num_alleles; allele++) {
-            if (allele_count[allele] == max_allele_count) {
-                optimal_root_set = set_bit(optimal_root_set, allele);
-            }
-        }
-        ancestral_state = get_smallest_set_bit(optimal_root_set);
+        ancestral_state = get_smallest_set_bit(optimal_set[N]);
     }
 
     num_transitions = 0;
@@ -4622,8 +4589,8 @@ out:
     if (preorder_stack != NULL) {
         free(preorder_stack);
     }
-    if (postorder_stack != NULL) {
-        free(postorder_stack);
+    if (nodes != NULL) {
+        free(nodes);
     }
     return ret;
 }
@@ -4888,7 +4855,7 @@ fill_kc_vectors(const tsk_tree_t *t, kc_vectors *kc_vecs)
     int ret = 0;
     const tsk_treeseq_t *ts = t->tree_sequence;
 
-    stack = tsk_malloc(t->num_nodes * sizeof(*stack));
+    stack = tsk_malloc(tsk_tree_get_size_bound(t) * sizeof(*stack));
     if (stack == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -5094,7 +5061,7 @@ update_kc_subtree_state(
     tsk_id_t *stack = NULL;
     int ret = 0;
 
-    stack = tsk_malloc(t->num_nodes * sizeof(*stack));
+    stack = tsk_malloc(tsk_tree_get_size_bound(t) * sizeof(*stack));
     if (stack == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
