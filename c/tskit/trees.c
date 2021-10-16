@@ -3631,6 +3631,40 @@ out:
     return ret;
 }
 
+int
+tsk_tree_get_total_branch_length(const tsk_tree_t *self, tsk_id_t node, double *ret_tbl)
+{
+    int ret = 0;
+    tsk_size_t j, num_nodes;
+    tsk_id_t u, v;
+    const tsk_id_t *restrict parent = self->parent;
+    const double *restrict time = self->tree_sequence->tables->nodes.time;
+    tsk_id_t *nodes = tsk_malloc(tsk_tree_get_size_bound(self) * sizeof(*nodes));
+    double sum = 0;
+
+    if (nodes == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    ret = tsk_tree_preorder(self, node, nodes, &num_nodes);
+    if (ret != 0) {
+        goto out;
+    }
+    /* We always skip the first node because we don't return the branch length
+     * over the input node. */
+    for (j = 1; j < num_nodes; j++) {
+        u = nodes[j];
+        v = parent[u];
+        if (v != TSK_NULL) {
+            sum += time[v] - time[u];
+        }
+    }
+    *ret_tbl = sum;
+out:
+    tsk_safe_free(nodes);
+    return ret;
+}
+
 int TSK_WARN_UNUSED
 tsk_tree_get_sites(
     const tsk_tree_t *self, const tsk_site_t **sites, tsk_size_t *sites_length)

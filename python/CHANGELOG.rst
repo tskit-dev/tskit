@@ -60,6 +60,8 @@
   Roughly a 10X performance increase for "preorder", "postorder", "timeasc"
   and "timedesc" (:user:`jeromekelleher`, :pr:`1704`).
 
+- Substantial performance improvement for ``Tree.total_branch_length``
+  (:user:`jeromekelleher`, :issue:`1794` :pr:`1799`)
 
 --------------------
 [0.3.7] - 2021-07-08

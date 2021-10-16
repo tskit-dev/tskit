@@ -4330,6 +4330,44 @@ test_single_tree_is_descendant(void)
 }
 
 static void
+test_single_tree_total_branch_length(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_tree_t tree;
+    double length;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+    ret = tsk_tree_init(&tree, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&tree);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_get_total_branch_length(&tree, TSK_NULL, &length), 0);
+    CU_ASSERT_EQUAL_FATAL(length, 9);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_get_total_branch_length(&tree, 7, &length), 0);
+    CU_ASSERT_EQUAL_FATAL(length, 9);
+    CU_ASSERT_EQUAL_FATAL(
+        tsk_tree_get_total_branch_length(&tree, tree.virtual_root, &length), 0);
+    CU_ASSERT_EQUAL_FATAL(length, 9);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_get_total_branch_length(&tree, 4, &length), 0);
+    CU_ASSERT_EQUAL_FATAL(length, 2);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_get_total_branch_length(&tree, 0, &length), 0);
+    CU_ASSERT_EQUAL_FATAL(length, 0);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_get_total_branch_length(&tree, 5, &length), 0);
+    CU_ASSERT_EQUAL_FATAL(length, 4);
+
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_get_total_branch_length(&tree, -2, &length),
+        TSK_ERR_NODE_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(
+        tsk_tree_get_total_branch_length(&tree, 8, &length), TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    tsk_tree_free(&tree);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_single_tree_map_mutations(void)
 {
     tsk_treeseq_t ts;
@@ -6605,6 +6643,7 @@ main(int argc, char **argv)
         { "test_single_tree_compute_mutation_times",
             test_single_tree_compute_mutation_times },
         { "test_single_tree_is_descendant", test_single_tree_is_descendant },
+        { "test_single_tree_total_branch_length", test_single_tree_total_branch_length },
         { "test_single_tree_map_mutations", test_single_tree_map_mutations },
         { "test_single_tree_map_mutations_internal_samples",
             test_single_tree_map_mutations_internal_samples },
