@@ -5084,7 +5084,7 @@ class TreeSequence:
 
     def to_nexus(self,
                 precision=14,
-                unquoted_underscores=False,
+                unquoted_underscores=True,
                 ):
         """
         Returns a `nexus encoding <https://en.wikipedia.org/wiki/Nexus_file>`_
