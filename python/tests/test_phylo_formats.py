@@ -143,7 +143,13 @@ class TestNewick(TreeExamples):
         if node_labels is None:
             leaf_labels = {u: str(u + 1) for u in tree.leaves(root)}
         else:
-            leaf_labels = {u: node_labels[u] for u in tree.leaves(root)}
+            leaf_labels = {}
+            for u in tree.leaves(root):
+                label = node_labels[u]
+                if label.startswith("'") and label.endswith("'"):
+                    label = label[1:-1]
+                leaf_labels[u] = label
+            # leaf_labels = {u: node_labels[u] for u in tree.leaves(root)}
         # default newick lib outputs 0.0 if length is None => replace the length_parser
         newick_tree = newick.loads(
             ns, length_parser=lambda x: None if x is None else float(x)
