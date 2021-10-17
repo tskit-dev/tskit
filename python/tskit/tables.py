@@ -3656,6 +3656,7 @@ class TableCollection:
         self,
         *,
         within=None,
+        between=None,
         max_time=None,
         min_length=None,
         store_pairs=None,
@@ -3694,15 +3695,42 @@ class TableCollection:
         min_length = 0 if min_length is None else min_length
         store_pairs = False if store_pairs is None else store_pairs
         store_segments = False if store_segments is None else store_segments
-        if within is not None:
-            within = util.safe_np_int_cast(within, np.int32)
-        ll_result = self._ll_tables.ibd_segments(
-            within=within,
-            max_time=max_time,
-            min_length=min_length,
-            store_pairs=store_pairs,
-            store_segments=store_segments,
-        )
+        if within is not None and between is not None:
+            raise ValueError(
+                "The ``within`` and ``between`` arguments are mutually exclusive"
+            )
+        if between is not None:
+            sample_set_sizes = np.array(
+                [len(sample_set) for sample_set in between], dtype=np.uint64
+            )
+            # hstack has some annoying quirks around its handling of empty
+            # lists which we need to work around. In a way it would be more
+            # convenient to detect these conditions as errors, but then we
+            # end up having to workaround edge cases in the tests and its
+            # mathematically neater this way.
+            pre_flattened = [lst for lst in between if len(lst) > 0]
+            if len(pre_flattened) == 0:
+                flattened = []
+            else:
+                flattened = util.safe_np_int_cast(np.hstack(pre_flattened), np.int32)
+            ll_result = self._ll_tables.ibd_segments_between(
+                sample_set_sizes=sample_set_sizes,
+                sample_sets=flattened,
+                max_time=max_time,
+                min_length=min_length,
+                store_pairs=store_pairs,
+                store_segments=store_segments,
+            )
+        else:
+            if within is not None:
+                within = util.safe_np_int_cast(within, np.int32)
+            ll_result = self._ll_tables.ibd_segments_within(
+                samples=within,
+                max_time=max_time,
+                min_length=min_length,
+                store_pairs=store_pairs,
+                store_segments=store_segments,
+            )
         return IbdSegments(
             ll_result,
             max_time=max_time,

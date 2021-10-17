@@ -143,16 +143,22 @@ class IbdFinder:
     Finds all IBD relationships between specified sample pairs in a tree sequence.
     """
 
-    def __init__(self, ts, *, within=None, min_length=0, max_time=None):
-
+    def __init__(self, ts, *, within=None, between=None, min_length=0, max_time=None):
         self.ts = ts
         self.result = IbdResult()
-        if within is None:
-            within = ts.samples()
-        self.samples = within
-        self.sample_id_map = np.zeros(ts.num_nodes, dtype=int) - 1
-        for index, u in enumerate(self.samples):
-            self.sample_id_map[u] = index
+        if within is not None and between is not None:
+            raise ValueError("within and between are mutually exclusive")
+
+        self.sample_set_id = np.zeros(ts.num_nodes, dtype=int) - 1
+        self.finding_between = False
+        if between is not None:
+            self.finding_between = True
+            for set_id, samples in enumerate(between):
+                self.sample_set_id[samples] = set_id
+        else:
+            if within is None:
+                within = ts.samples()
+            self.sample_set_id[within] = 0
         self.min_length = min_length
         self.max_time = np.inf if max_time is None else max_time
         self.A = [None for _ in range(ts.num_nodes)]  # Descendant segments
@@ -160,9 +166,12 @@ class IbdFinder:
 
     def print_state(self):
         print("IBD Finder")
-        print("A = ")
+        print("min_length = ", self.min_length)
+        print("max_time   = ", self.max_time)
+        print("finding_between = ", self.finding_between)
+        print("u\tset_id\tA = ")
         for u, a in enumerate(self.A):
-            print(u, "\t", a)
+            print(u, self.sample_set_id[u], a, sep="\t")
 
     def run(self):
         """
@@ -190,7 +199,7 @@ class IbdFinder:
             # Create a SegmentList() holding all segments that descend from seg.
             list_to_add = SegmentList()
             u = seg.node
-            if self.sample_id_map[u] != tskit.NULL:
+            if self.sample_set_id[u] != tskit.NULL:
                 list_to_add.add(seg)
             else:
                 if self.A[u] is not None:
@@ -209,11 +218,10 @@ class IbdFinder:
 
             # For parents that are also samples
             if (
-                self.sample_id_map[current_parent] != tskit.NULL
+                self.sample_set_id[current_parent] != tskit.NULL
             ) and parent_should_be_added:
                 singleton_seg = SegmentList()
                 singleton_seg.add(Segment(0, self.ts.sequence_length, current_parent))
-                # u
                 # if self.A[u] is not None:
                 #     list_to_add.add(self.A[u])
                 self.calculate_ibd_segs(current_parent, singleton_seg)
@@ -228,6 +236,16 @@ class IbdFinder:
                 parent_should_be_added = True
 
         return self.result.segments
+
+    def passes_filters(self, a, b, left, right):
+        if a == b:
+            return False
+        if right - left <= self.min_length:
+            return False
+        if self.finding_between:
+            return self.sample_set_id[a] != self.sample_set_id[b]
+        else:
+            return True
 
     def calculate_ibd_segs(self, current_parent, list_to_add):
         """
@@ -244,7 +262,7 @@ class IbdFinder:
                     right = min(seg0.right, seg1.right)
                     # If there are any overlapping segments, record as a new
                     # IBD relationship.
-                    if seg0.node != seg1.node and right - left > self.min_length:
+                    if self.passes_filters(seg0.node, seg1.node, left, right):
                         self.result.add_segment(
                             seg0.node, seg1.node, Segment(left, right, current_parent)
                         )

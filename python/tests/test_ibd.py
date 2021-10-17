@@ -1,6 +1,8 @@
 """
 Tests of IBD finding algorithms.
 """
+import collections
+import functools
 import io
 import itertools
 import random
@@ -12,14 +14,26 @@ import pytest
 import tests.ibd as ibd
 import tests.test_wright_fisher as wf
 import tskit
+from tests.test_highlevel import get_example_tree_sequences
 
-# Functions for computing IBD 'naively'.
+
+@functools.lru_cache(maxsize=1)
+def example_ts():
+    return [msprime.sim_ancestry(2, random_seed=1)]
+
+
+# ↑ See https://github.com/tskit-dev/tskit/issues/1804 for when
+# we can remove this. The example_ts here is intended to be the
+# basic tree sequence which should give a meaningful result for
+# most operations. Probably rename it to ``examples.simple_ts()``
+# or something.
 
 
 def ibd_segments(
     ts,
     *,
     within=None,
+    between=None,
     min_length=0,
     max_time=None,
     compare_lib=True,
@@ -30,19 +44,25 @@ def ibd_segments(
     Calculates IBD segments using Python and converts output to lists of segments.
     Also compares result with C library.
     """
-    ibd_f = ibd.IbdFinder(ts, within=within, max_time=max_time, min_length=min_length)
+    ibd_f = ibd.IbdFinder(
+        ts, within=within, between=between, max_time=max_time, min_length=min_length
+    )
     ibd_segs = ibd_f.run()
+    if print_py:
+        print("Python output:\n")
+        print(ibd_segs)
     # ibd_f.print_state()
     if compare_lib:
         c_out = ts.ibd_segments(
-            within=within, max_time=max_time, min_length=min_length, store_segments=True
+            within=within,
+            between=between,
+            max_time=max_time,
+            min_length=min_length,
+            store_segments=True,
         )
         if print_c:
             print("C output:\n")
             print(c_out)
-        if print_py:
-            print("Python output:\n")
-            print(ibd_segs)
         assert_ibd_equal(ibd_segs, c_out)
     return ibd_segs
 
@@ -168,22 +188,6 @@ def subtrees_are_equal(tree1, pdict0, root):
     return True
 
 
-def verify_equal_ibd(ts, within=None, compare_lib=True, print_c=False, print_py=False):
-    """
-    Calculates IBD segments using both the 'naive' and sophisticated algorithms,
-    verifies that the same output is produced.
-    """
-    ibd0 = ibd_segments(
-        ts,
-        within=within,
-        compare_lib=compare_lib,
-        print_c=print_c,
-        print_py=print_py,
-    )
-    ibd1 = get_ibd_all_pairs(ts, path_ibd=True, mrca_ibd=True)
-    assert_ibd_equal(ibd0, ibd1)
-
-
 def convert_ibd_output_to_seglists(ibd_out):
     """
     Converts the Python mock-up output back into lists of segments.
@@ -243,7 +247,44 @@ class TestIbdSingleBinaryTree:
         }
         ibd_segs = ibd_segments(self.ts, within=[0, 1, 2])
         assert_ibd_equal(ibd_segs, true_segs)
-        assert_ibd_equal(ibd_segments(self.ts), true_segs)
+
+    def test_within(self):
+        true_segs = {
+            (0, 1): [tskit.IbdSegment(0.0, 1.0, 3)],
+        }
+        ibd_segs = ibd_segments(self.ts, within=[0, 1])
+        assert_ibd_equal(ibd_segs, true_segs)
+
+    def test_between_0_1(self):
+        true_segs = {
+            (0, 1): [tskit.IbdSegment(0.0, 1.0, 3)],
+        }
+        ibd_segs = ibd_segments(self.ts, between=[[0], [1]])
+        assert_ibd_equal(ibd_segs, true_segs)
+
+    def test_between_0_2(self):
+        true_segs = {
+            (0, 2): [tskit.IbdSegment(0.0, 1.0, 4)],
+        }
+        ibd_segs = ibd_segments(self.ts, between=[[0], [2]])
+        assert_ibd_equal(ibd_segs, true_segs)
+
+    def test_between_0_1_2(self):
+        true_segs = {
+            (0, 1): [tskit.IbdSegment(0.0, 1.0, 3)],
+            (0, 2): [tskit.IbdSegment(0.0, 1.0, 4)],
+            (1, 2): [tskit.IbdSegment(0.0, 1.0, 4)],
+        }
+        ibd_segs = ibd_segments(self.ts, between=[[0], [1], [2]])
+        assert_ibd_equal(ibd_segs, true_segs)
+
+    def test_between_0_12(self):
+        true_segs = {
+            (0, 1): [tskit.IbdSegment(0.0, 1.0, 3)],
+            (0, 2): [tskit.IbdSegment(0.0, 1.0, 4)],
+        }
+        ibd_segs = ibd_segments(self.ts, between=[[0], [1, 2]])
+        assert_ibd_equal(ibd_segs, true_segs)
 
     def test_time(self):
         ibd_segs = ibd_segments(
@@ -254,24 +295,51 @@ class TestIbdSingleBinaryTree:
         true_segs = {(0, 1): [tskit.IbdSegment(0.0, 1.0, 3)]}
         assert_ibd_equal(ibd_segs, true_segs)
 
-    # Min length = 2
     def test_length(self):
         ibd_segs = ibd_segments(self.ts, min_length=2)
         assert_ibd_equal(ibd_segs, {})
 
-    def test_input_errors(self):
-        with pytest.raises(tskit.LibraryError, match="Node out of bounds"):
-            self.ts.ibd_segments(within=[-1])
-        with pytest.raises(tskit.LibraryError, match="Duplicate sample value"):
-            self.ts.ibd_segments(within=[0, 0])
 
-    # A simple test of the Python wrapper.
-    def test_ts(self):
-        ibd_tab = self.ts.tables.ibd_segments(store_segments=True)
-        ibd_ts = self.ts.ibd_segments(store_segments=True)
-        assert len(ibd_tab) == len(ibd_ts)
-        for k in ibd_tab.keys():
-            assert ibd_tab[k] == ibd_ts[k]
+class TestIbdInterface:
+    @pytest.mark.parametrize("ts", example_ts())
+    def test_input_errors_within(self, ts):
+        with pytest.raises(tskit.LibraryError, match="Node out of bounds"):
+            ts.ibd_segments(within=[-1])
+        with pytest.raises(tskit.LibraryError, match="Duplicate sample value"):
+            ts.ibd_segments(within=[0, 0])
+
+    @pytest.mark.parametrize("ts", example_ts())
+    def test_input_errors_between(self, ts):
+        with pytest.raises(tskit.LibraryError, match="Node out of bounds"):
+            ts.ibd_segments(between=[[0], [-1]])
+        with pytest.raises(tskit.LibraryError, match="Duplicate sample"):
+            ts.ibd_segments(between=[[0], [0]])
+
+    @pytest.mark.parametrize("ts", example_ts())
+    def test_within_between_mutually_exclusive(self, ts):
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            ts.ibd_segments(within=[0], between=[1])
+
+    @pytest.mark.parametrize("ts", example_ts())
+    def test_tables_interface(self, ts):
+        ibd_tab = ts.tables.ibd_segments(store_segments=True)
+        ibd_ts = ts.ibd_segments(store_segments=True)
+        assert ibd_tab == ibd_ts
+
+    @pytest.mark.parametrize("ts", example_ts())
+    def test_empty_within(self, ts):
+        ibd = ts.ibd_segments(within=[], store_pairs=True)
+        assert len(ibd) == 0
+
+    @pytest.mark.parametrize("ts", example_ts())
+    def test_empty_between(self, ts):
+        ibd = ts.ibd_segments(between=[], store_pairs=True)
+        assert len(ibd) == 0
+
+    @pytest.mark.parametrize("ts", example_ts())
+    def test_empty_in_between(self, ts):
+        ibd = ts.ibd_segments(between=[[1, 2], []], store_pairs=True)
+        assert len(ibd) == 0
 
 
 class TestIbdTwoSamplesTwoTrees:
@@ -712,15 +780,90 @@ class TestIbdLengthThreshold:
         assert_ibd_equal(ibd_segs, true_segs)
 
 
+class TestIbdProperties:
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_default_within_all_samples(self, ts):
+        segs = ts.ibd_segments(store_pairs=True)
+        for a, b in segs.keys():
+            assert ts.node(a).is_sample()
+            assert ts.node(b).is_sample()
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_within_subset(self, ts):
+        samples = ts.samples()
+        samples = samples[:3]
+        segs = ts.ibd_segments(store_pairs=True, within=samples)
+        for a, b in segs.keys():
+            assert a in samples
+            assert b in samples
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_between_two_subsets(self, ts):
+        samples = ts.samples()
+        k = len(samples) // 2
+        A = samples[:k]
+        B = samples[k:]
+        segs = ts.ibd_segments(store_pairs=True, between=[A, B])
+        for a, b in segs.keys():
+            assert a in A
+            assert b in B
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_between_same_segments_as_filtered_within_pair(self, ts):
+        samples = ts.samples()[:10]
+        all_segs = ts.ibd_segments(within=samples, store_segments=True)
+        A = samples[1::2]
+        B = samples[::2]
+        between_segs = ts.ibd_segments(store_segments=True, between=[A, B])
+        filtered_segs = collections.defaultdict(list)
+        for (u, v), seglist in all_segs.items():
+            if (u in A and v in B) or (v in A and u in B):
+                filtered_segs[(u, v)] = seglist
+        assert_ibd_equal(between_segs, filtered_segs)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_between_same_segments_as_filtered_within_triple(self, ts):
+        samples = ts.samples()[:9]  # Limit the number of samples
+        all_segs = ts.ibd_segments(within=samples, store_segments=True)
+        A = samples[1::3]
+        B = samples[2::3]
+        C = samples[0::3]
+        all_pairs = set()
+        for set_pair in itertools.combinations([A, B, C], 2):
+            for pair in itertools.product(*set_pair):
+                all_pairs.add(tuple(sorted(pair)))
+        between_segs = ts.ibd_segments(store_segments=True, between=[A, B, C])
+        filtered_segs = collections.defaultdict(list)
+        for pair, seglist in all_segs.items():
+            if pair in all_pairs:
+                filtered_segs[pair] = seglist
+        assert_ibd_equal(between_segs, filtered_segs)
+
+
 class TestIbdRandomExamples:
     """
     Randomly generated test cases.
     """
 
+    def verify(self, ts, within=None, compare_lib=True, print_c=False, print_py=False):
+        """
+        Calculates IBD segments using both the 'naive' and sophisticated algorithms,
+        verifies that the same output is produced.
+        """
+        ibd0 = ibd_segments(
+            ts,
+            within=within,
+            compare_lib=compare_lib,
+            print_c=print_c,
+            print_py=print_py,
+        )
+        ibd1 = get_ibd_all_pairs(ts, path_ibd=True, mrca_ibd=True)
+        assert_ibd_equal(ibd0, ibd1)
+
     @pytest.mark.parametrize("seed", range(1, 5))
     def test_random_examples(self, seed):
         ts = msprime.simulate(sample_size=10, recombination_rate=0.3, random_seed=seed)
-        verify_equal_ibd(ts)
+        self.verify(ts)
 
     # Finite sites
     # TODO update this to use msprime 1.0 APIs
@@ -748,12 +891,12 @@ class TestIbdRandomExamples:
     @pytest.mark.parametrize("seed", range(1, 5))
     def test_finite_sites(self, seed):
         ts = self.sim_finite_sites(seed)
-        verify_equal_ibd(ts)
+        self.verify(ts)
 
     @pytest.mark.parametrize("seed", range(1, 5))
     def test_dtwf(self, seed):
         ts = self.sim_finite_sites(seed, dtwf=True)
-        verify_equal_ibd(ts)
+        self.verify(ts)
 
     @pytest.mark.skip("FIXME: issue 1677")
     @pytest.mark.parametrize("seed", range(1, 5))
@@ -763,7 +906,7 @@ class TestIbdRandomExamples:
         tables = wf.wf_sim(10, number_of_gens, deep_history=False, seed=seed)
         tables.sort()
         ts = tables.tree_sequence()
-        verify_equal_ibd(ts)
+        self.verify(ts)
 
 
 class TestIbdSegments:
