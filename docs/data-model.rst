@@ -618,9 +618,6 @@ To ensure a valid tree sequence there is one further requirement:
 This guarantees that we cannot have contradictory edges (i.e.,
 where a node ``a`` is a child of both ``b`` and ``c``), and ensures that
 at each point on the sequence we have a well-formed forest of trees.
-Because this is a more complex semantic requirement, it is **not** detected
-at load time. This error is detected during tree traversal, via, e.g.,
-the :meth:`TreeSequence.trees` iterator.
 
 In the interest of algorithmic efficiency, edges must have the following
 sortedness properties:
