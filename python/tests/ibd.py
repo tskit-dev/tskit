@@ -75,53 +75,48 @@ class SegmentList:
     A class representing a list of segments that are descended from a given ancestral
     node via a particular child of the ancestor.
     Each SegmentList keeps track of the first and last segment in the list, head and
-    tail. The next attribute points to another SegmentList, allowing SegmentList
-    objects to be 'chained' to one another.
+    tail.
     """
 
-    def __init__(self, head=None, tail=None, next_list=None):
+    def __init__(self, head=None, tail=None):
         self.head = head
         self.tail = tail
-        self.next = next_list
 
     def __str__(self):
-        s = "head={},tail={},next={}".format(self.head, self.tail, repr(self.next))
-        return s
+        return repr(self)
 
     def __repr__(self):
+        tuple_segs = []
+        seg = self.head
+        while seg is not None:
+            tuple_segs.append((seg.left, seg.right, seg.node))
+            seg = seg.next
+        return repr(tuple_segs)
+
+    def extend(self, seglist):
+        """
+        Extends this segment list with the segments in the specified list.
+        """
+        assert isinstance(seglist, SegmentList)
+        if seglist.head is not None:
+            if self.head is None:
+                self.head = seglist.head
+                self.tail = seglist.tail
+            else:
+                self.tail.next = seglist.head
+                self.tail = seglist.tail
+
+    def append(self, segment):
+        """
+        Append the specified segment to the end of this list.
+        """
+        assert isinstance(segment, Segment)
         if self.head is None:
-            s = "[{}]".format(repr(None))
-        elif self.head == self.tail:
-            s = "[{}]".format(repr(self.head))
-        elif self.head.next == self.tail:
-            s = "[{}, {}]".format(repr(self.head), repr(self.tail))
+            self.head = segment
+            self.tail = segment
         else:
-            s = "[{}, ..., {}]".format(repr(self.head), repr(self.tail))
-        return s
-
-    def add(self, other):
-        """
-        Use to append another SegmentList, or a single segment.
-        SegmentList1.add(SegmentList2) will modify SegmentList1 so that
-        SegmentList1.tail.next = SegmentList2.head
-        SegmentList1.add(Segment1) will add Segment1 to the tail of SegmentList1
-        """
-        assert isinstance(other, SegmentList) or isinstance(other, Segment)
-
-        if isinstance(other, SegmentList):
-            if self.head is None:
-                self.head = other.head
-                self.tail = other.tail
-            else:
-                self.tail.next = other.head
-                self.tail = other.tail
-        elif isinstance(other, Segment):
-            if self.head is None:
-                self.head = other
-                self.tail = other
-            else:
-                self.tail.next = other
-                self.tail = other
+            self.tail.next = segment
+            self.tail = segment
 
 
 class IbdResult:
@@ -132,6 +127,12 @@ class IbdResult:
 
     def __init__(self):
         self.segments = collections.defaultdict(list)
+
+    def __repr__(self):
+        return repr(self.segments)
+
+    def __str__(self):
+        return repr(self)
 
     def add_segment(self, a, b, seg):
         key = (a, b) if a < b else (b, a)
@@ -161,7 +162,10 @@ class IbdFinder:
             self.sample_set_id[within] = 0
         self.min_length = min_length
         self.max_time = np.inf if max_time is None else max_time
-        self.A = [None for _ in range(ts.num_nodes)]  # Descendant segments
+        self.A = [SegmentList() for _ in range(ts.num_nodes)]  # Descendant segments
+        for u in range(ts.num_nodes):
+            if self.sample_set_id[u] != -1:
+                self.A[u].append(Segment(0, ts.sequence_length, u))
         self.tables = self.ts.tables
 
     def print_state(self):
@@ -174,68 +178,51 @@ class IbdFinder:
             print(u, self.sample_set_id[u], a, sep="\t")
 
     def run(self):
-        """
-        The wrapper for the procedure that calculates IBD segments.
-        """
-
-        # Set up an iterator over the edges in the tree sequence.
-        edges_iter = iter(self.ts.edges())
-        e = next(edges_iter)
-        parent_should_be_added = True
         node_times = self.tables.nodes.time
-
-        # Iterate over the edges.
-        while e is not None:
-
-            current_parent = e.parent
-            current_time = node_times[current_parent]
-            if current_time > self.max_time:
+        for e in self.ts.edges():
+            time = node_times[e.parent]
+            if time > self.max_time:
                 # Stop looking for IBD segments once the
                 # processed nodes are older than the max time.
                 break
-
-            seg = Segment(e.left, e.right, e.child)
-
-            # Create a SegmentList() holding all segments that descend from seg.
-            list_to_add = SegmentList()
-            u = seg.node
-            if self.sample_set_id[u] != tskit.NULL:
-                list_to_add.add(seg)
-            else:
-                if self.A[u] is not None:
-                    s = self.A[u].head
-                    while s is not None:
-                        intvl = (
-                            max(seg.left, s.left),
-                            min(seg.right, s.right),
-                        )
-                        if intvl[1] - intvl[0] > self.min_length:
-                            list_to_add.add(Segment(intvl[0], intvl[1], s.node))
-                        s = s.next
-
-            if list_to_add.head is not None:
-                self.calculate_ibd_segs(current_parent, list_to_add)
-
-            # For parents that are also samples
-            if (
-                self.sample_set_id[current_parent] != tskit.NULL
-            ) and parent_should_be_added:
-                singleton_seg = SegmentList()
-                singleton_seg.add(Segment(0, self.ts.sequence_length, current_parent))
-                # if self.A[u] is not None:
-                #     list_to_add.add(self.A[u])
-                self.calculate_ibd_segs(current_parent, singleton_seg)
-                parent_should_be_added = False
-
-            # Move to next edge.
-            e = next(edges_iter, None)
-
-            # Remove any processed nodes that are no longer needed.
-            # Update parent_should_be_added.
-            if e is not None and e.parent != current_parent:
-                parent_should_be_added = True
-
+            child_segs = SegmentList()
+            s = self.A[e.child].head
+            while s is not None:
+                intvl = (
+                    max(e.left, s.left),
+                    min(e.right, s.right),
+                )
+                if intvl[1] - intvl[0] > self.min_length:
+                    child_segs.append(Segment(intvl[0], intvl[1], s.node))
+                s = s.next
+            self.record_ibd(e.parent, child_segs)
+            self.A[e.parent].extend(child_segs)
         return self.result.segments
+
+    def record_ibd(self, current_parent, child_segs):
+        """
+        Given the specified set of child segments for the current parent
+        record the IBD segments that will occur as a result of adding these
+        new segments into the existing list.
+        """
+        # Note the implementation here is O(n^2) because we have to compare
+        # every segment with every other one. If the segments were stored in
+        # left-to-right sorted order, we could avoid and merge them more
+        # efficiently. There is some added complexity in doing this, however.
+        seg0 = self.A[current_parent].head
+        while seg0 is not None:
+            seg1 = child_segs.head
+            while seg1 is not None:
+                left = max(seg0.left, seg1.left)
+                right = min(seg0.right, seg1.right)
+                # If there are any overlapping segments, record as a new
+                # IBD relationship.
+                if self.passes_filters(seg0.node, seg1.node, left, right):
+                    self.result.add_segment(
+                        seg0.node, seg1.node, Segment(left, right, current_parent)
+                    )
+                seg1 = seg1.next
+            seg0 = seg0.next
 
     def passes_filters(self, a, b, left, right):
         if a == b:
@@ -246,30 +233,6 @@ class IbdFinder:
             return self.sample_set_id[a] != self.sample_set_id[b]
         else:
             return True
-
-    def calculate_ibd_segs(self, current_parent, list_to_add):
-        """
-        TODO describe what this does
-        """
-        if self.A[current_parent] is None:
-            self.A[current_parent] = list_to_add
-        else:
-            seg0 = self.A[current_parent].head
-            while seg0 is not None:
-                seg1 = list_to_add.head
-                while seg1 is not None:
-                    left = max(seg0.left, seg1.left)
-                    right = min(seg0.right, seg1.right)
-                    # If there are any overlapping segments, record as a new
-                    # IBD relationship.
-                    if self.passes_filters(seg0.node, seg1.node, left, right):
-                        self.result.add_segment(
-                            seg0.node, seg1.node, Segment(left, right, current_parent)
-                        )
-                    seg1 = seg1.next
-                seg0 = seg0.next
-            # Add list_to_add to A[u].
-            self.A[current_parent].add(list_to_add)
 
 
 if __name__ == "__main__":

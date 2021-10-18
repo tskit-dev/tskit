@@ -5455,6 +5455,22 @@ test_ibd_segments_debug(void)
 }
 
 static void
+test_ibd_segments_caterpillar_tree(void)
+{
+    int ret;
+    tsk_ibd_segments_t result;
+    tsk_treeseq_t *ts = caterpillar_tree(100, 1, 5);
+
+    /* We're just testing out the memory expansion in ibd_finder */
+    ret = tsk_table_collection_ibd_within(ts->tables, &result, NULL, 0, 0.0, DBL_MAX, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_ibd_segments_free(&result);
+
+    tsk_treeseq_free(ts);
+    free(ts);
+}
+
+static void
 test_ibd_segments_single_tree(void)
 {
     int ret;
@@ -5947,14 +5963,12 @@ test_ibd_segments_errors(void)
 static void
 test_ibd_segments_samples_are_descendants(void)
 {
-    printf("\n\nFIXME Issue #1678\n\n");
-#if 0
     int ret;
     tsk_treeseq_t ts;
     tsk_id_t samples[] = { 0, 1, 2, 3, 4, 5 };
     tsk_size_t num_samples = 6;
     tsk_ibd_segments_t result;
-    tsk_id_t pairs[][2] = { {0, 2}, {0, 4}, {2, 4}, {1, 3}, {1, 5}, {3, 5} };
+    tsk_id_t pairs[][2] = { { 0, 2 }, { 0, 4 }, { 2, 4 }, { 1, 3 }, { 1, 5 }, { 3, 5 } };
     tsk_size_t num_pairs = 6;
     tsk_id_t true_node[] = { 2, 4, 4, 3, 5, 5 };
     tsk_size_t j;
@@ -5965,10 +5979,9 @@ test_ibd_segments_samples_are_descendants(void)
         NULL, NULL, NULL, NULL, NULL, 0);
 
     ret = tsk_table_collection_ibd_within(
-        ts.tables, &result, samples, num_samples, 0.0, DBL_MAX, 0);
+        ts.tables, &result, samples, num_samples, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    /* tsk_ibd_segments_print_state(&result, stdout); */
     for (j = 0; j < num_pairs; j++) {
         tsk_ibd_segments_get(&result, pairs[j][0], pairs[j][1], &list);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -5984,7 +5997,6 @@ test_ibd_segments_samples_are_descendants(void)
     verify_ibd_result(&result);
     tsk_ibd_segments_free(&result);
     tsk_treeseq_free(&ts);
-#endif
 }
 
 static void
@@ -8795,6 +8807,7 @@ main(int argc, char **argv)
         { "test_link_ancestors_multiple_to_single_tree",
             test_link_ancestors_multiple_to_single_tree },
         { "test_ibd_segments_debug", test_ibd_segments_debug },
+        { "test_ibd_segments_caterpillar_tree", test_ibd_segments_caterpillar_tree },
         { "test_ibd_segments_single_tree", test_ibd_segments_single_tree },
         { "test_ibd_segments_single_tree_options",
             test_ibd_segments_single_tree_options },
