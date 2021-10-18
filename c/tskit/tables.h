@@ -4067,9 +4067,16 @@ tsk_id_t tsk_table_collection_check_integrity(
 
 /* TODO be systematic about where "result" should be in the params
  * list, different here and in link_ancestors. */
-int tsk_table_collection_ibd_segments(const tsk_table_collection_t *self,
+/* FIXME the order of num_samples and samples needs to be reversed in within.
+ * This should be done as part of documenting, I guess. */
+int tsk_table_collection_ibd_within(const tsk_table_collection_t *self,
     tsk_ibd_segments_t *result, const tsk_id_t *samples, tsk_size_t num_samples,
     double min_length, double max_time, tsk_flags_t options);
+
+int tsk_table_collection_ibd_between(const tsk_table_collection_t *self,
+    tsk_ibd_segments_t *result, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets, double min_length,
+    double max_time, tsk_flags_t options);
 
 int tsk_table_collection_link_ancestors(tsk_table_collection_t *self, tsk_id_t *samples,
     tsk_size_t num_samples, tsk_id_t *ancestors, tsk_size_t num_ancestors,

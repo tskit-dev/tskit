@@ -7475,7 +7475,11 @@ typedef struct {
     double min_length;
     double max_time;
     const tsk_table_collection_t *tables;
-    bool *is_sample;
+    /* Maps nodes to their sample set IDs. Input samples map to set 0
+     * in the "within" case. */
+    tsk_id_t *sample_set_id;
+    /* True if we're finding IBD between sample sets, false otherwise. */
+    bool finding_between;
     tsk_segment_t **ancestor_map_head;
     tsk_segment_t **ancestor_map_tail;
     tsk_segment_t *segment_queue;
@@ -7547,11 +7551,11 @@ tsk_ibd_finder_init_samples_from_set(
             ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
             goto out;
         }
-        if (self->is_sample[u]) {
+        if (self->sample_set_id[u] != TSK_NULL) {
             ret = TSK_ERR_DUPLICATE_SAMPLE;
             goto out;
         }
-        self->is_sample[u] = true;
+        self->sample_set_id[u] = 0;
     }
 out:
     return ret;
@@ -7566,7 +7570,7 @@ tsk_ibd_finder_init_samples_from_nodes(tsk_ibd_finder_t *self)
 
     for (u = 0; u < num_nodes; u++) {
         if (flags[u] & TSK_NODE_IS_SAMPLE) {
-            self->is_sample[u] = true;
+            self->sample_set_id[u] = 0;
         }
     }
 }
@@ -7581,7 +7585,7 @@ tsk_ibd_finder_add_sample_ancestry(tsk_ibd_finder_t *self)
     const double L = self->tables->sequence_length;
 
     for (u = 0; u < num_nodes; u++) {
-        if (self->is_sample[u]) {
+        if (self->sample_set_id[u] != TSK_NULL) {
             ret = tsk_ibd_finder_add_ancestry(self, u, 0, L, u);
             if (ret != 0) {
                 goto out;
@@ -7594,16 +7598,26 @@ out:
 
 static int TSK_WARN_UNUSED
 tsk_ibd_finder_init(tsk_ibd_finder_t *self, const tsk_table_collection_t *tables,
-    tsk_ibd_segments_t *result)
+    tsk_ibd_segments_t *result, double min_length, double max_time)
 {
     int ret = 0;
     tsk_size_t num_nodes;
 
     tsk_memset(self, 0, sizeof(tsk_ibd_finder_t));
+
+    if (min_length < 0) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+    if (max_time < 0) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+
     self->tables = tables;
     self->result = result;
-    self->max_time = DBL_MAX;
-    self->min_length = 0;
+    self->max_time = max_time;
+    self->min_length = min_length;
 
     ret = tsk_blkalloc_init(&self->segment_heap, 8192);
     if (ret != 0) {
@@ -7613,42 +7627,18 @@ tsk_ibd_finder_init(tsk_ibd_finder_t *self, const tsk_table_collection_t *tables
     num_nodes = tables->nodes.num_rows;
     self->ancestor_map_head = tsk_calloc(num_nodes, sizeof(*self->ancestor_map_head));
     self->ancestor_map_tail = tsk_calloc(num_nodes, sizeof(*self->ancestor_map_tail));
-    self->is_sample = tsk_calloc(num_nodes, sizeof(*self->is_sample));
+    self->sample_set_id = tsk_malloc(num_nodes * sizeof(*self->sample_set_id));
     self->segment_queue_size = 0;
     self->max_segment_queue_size = 64;
     self->segment_queue
         = tsk_malloc(self->max_segment_queue_size * sizeof(*self->segment_queue));
     if (self->ancestor_map_head == NULL || self->ancestor_map_tail == NULL
-        || self->is_sample == NULL || self->segment_queue == NULL) {
+        || self->sample_set_id == NULL || self->segment_queue == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-
+    tsk_memset(self->sample_set_id, TSK_NULL, num_nodes * sizeof(*self->sample_set_id));
 out:
-    return ret;
-}
-
-static int TSK_WARN_UNUSED
-tsk_ibd_finder_set_min_length(tsk_ibd_finder_t *self, double min_length)
-{
-    int ret = 0;
-
-    if (min_length < 0) {
-        ret = TSK_ERR_BAD_PARAM_VALUE;
-    }
-    self->min_length = min_length;
-    return ret;
-}
-
-static int TSK_WARN_UNUSED
-tsk_ibd_finder_set_max_time(tsk_ibd_finder_t *self, double max_time)
-{
-    int ret = 0;
-
-    if (max_time < 0) {
-        ret = TSK_ERR_BAD_PARAM_VALUE;
-    }
-    self->max_time = max_time;
     return ret;
 }
 
@@ -7683,6 +7673,23 @@ out:
     return ret;
 }
 
+static bool
+tsk_ibd_finder_passes_filters(
+    const tsk_ibd_finder_t *self, tsk_id_t a, tsk_id_t b, double left, double right)
+{
+    if (a == b) {
+        return false;
+    }
+    if ((right - left) <= self->min_length) {
+        return false;
+    }
+    if (self->finding_between) {
+        return self->sample_set_id[a] != self->sample_set_id[b];
+    } else {
+        return true;
+    }
+}
+
 static int TSK_WARN_UNUSED
 tsk_ibd_finder_calculate_ibd(tsk_ibd_finder_t *self, tsk_id_t current_parent)
 {
@@ -7707,7 +7714,8 @@ tsk_ibd_finder_calculate_ibd(tsk_ibd_finder_t *self, tsk_id_t current_parent)
                 seg1 = &self->segment_queue[j];
                 left = TSK_MAX(seg0->left, seg1->left);
                 right = TSK_MIN(seg0->right, seg1->right);
-                if (seg0->node != seg1->node && (right - left) > self->min_length) {
+                if (tsk_ibd_finder_passes_filters(
+                        self, seg0->node, seg1->node, left, right)) {
                     ret = tsk_ibd_segments_add_segment(self->result, seg0->node,
                         seg1->node, left, right, current_parent);
                     if (ret != 0) {
@@ -7738,6 +7746,9 @@ tsk_ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out)
     tsk_segment_t *u = NULL;
 
     fprintf(out, "--ibd-finder stats--\n");
+    fprintf(out, "max_time = %f\n", self->max_time);
+    fprintf(out, "min_length = %f\n", self->min_length);
+    fprintf(out, "finding_between = %d\n", self->finding_between);
     fprintf(out, "===\nEdges\n===\n");
     for (j = 0; j < self->tables->edges.num_rows; j++) {
         fprintf(out, "L:%f, R:%f, P:%lld, C:%lld\n", self->tables->edges.left[j],
@@ -7746,9 +7757,9 @@ tsk_ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out)
     }
     fprintf(out, "===\nNodes\n===\n");
     for (j = 0; j < self->tables->nodes.num_rows; j++) {
-        fprintf(out, "ID:%d, Time:%f, Flag:%lld Sample:%d\n", (int) j,
+        fprintf(out, "ID:%d, Time:%f, Flag:%lld Sample set:%d\n", (int) j,
             self->tables->nodes.time[j], (long long) self->tables->nodes.flags[j],
-            self->is_sample[j]);
+            (int) self->sample_set_id[j]);
     }
     fprintf(out, "===\nAncestral map\n===\n");
     for (j = 0; j < self->tables->nodes.num_rows; j++) {
@@ -7775,6 +7786,37 @@ tsk_ibd_finder_init_within(
             goto out;
         }
     }
+    self->finding_between = false;
+    ret = tsk_ibd_finder_add_sample_ancestry(self);
+out:
+    return ret;
+}
+
+static int TSK_WARN_UNUSED
+tsk_ibd_finder_init_between(tsk_ibd_finder_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets)
+{
+    int ret = 0;
+    tsk_size_t j, k, index;
+    tsk_id_t u;
+
+    index = 0;
+    for (j = 0; j < num_sample_sets; j++) {
+        for (k = 0; k < sample_set_sizes[j]; k++) {
+            u = sample_sets[index];
+            if (u < 0 || u > (tsk_id_t) self->tables->nodes.num_rows) {
+                ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
+                goto out;
+            }
+            if (self->sample_set_id[u] != TSK_NULL) {
+                ret = TSK_ERR_DUPLICATE_SAMPLE;
+                goto out;
+            }
+            self->sample_set_id[u] = (tsk_id_t) j;
+            index++;
+        }
+    }
+    self->finding_between = true;
     ret = tsk_ibd_finder_add_sample_ancestry(self);
 out:
     return ret;
@@ -7813,7 +7855,7 @@ tsk_ibd_finder_run(tsk_ibd_finder_t *self)
         // Create a SegmentList holding all of the sample segments descending from
         // seg.
         u = seg->node;
-        if (self->is_sample[u]) {
+        if (self->sample_set_id[u] != TSK_NULL) {
             ret = tsk_ibd_finder_enqueue_segment(self, seg->left, seg->right, seg->node);
             if (ret != 0) {
                 goto out;
@@ -7838,7 +7880,8 @@ tsk_ibd_finder_run(tsk_ibd_finder_t *self)
         }
 
         // For samples that appear in the parent column of the edge table
-        if (self->is_sample[current_parent] && parent_should_be_added) {
+        if ((self->sample_set_id[current_parent] != TSK_NULL)
+            && parent_should_be_added) {
             parent_should_be_added = false;
         }
     }
@@ -7850,7 +7893,7 @@ static int
 tsk_ibd_finder_free(tsk_ibd_finder_t *self)
 {
     tsk_blkalloc_free(&self->segment_heap);
-    tsk_safe_free(self->is_sample);
+    tsk_safe_free(self->sample_set_id);
     tsk_safe_free(self->ancestor_map_head);
     tsk_safe_free(self->ancestor_map_tail);
     tsk_safe_free(self->segment_queue);
@@ -10642,7 +10685,7 @@ out:
 }
 
 int TSK_WARN_UNUSED
-tsk_table_collection_ibd_segments(const tsk_table_collection_t *self,
+tsk_table_collection_ibd_within(const tsk_table_collection_t *self,
     tsk_ibd_segments_t *result, const tsk_id_t *samples, tsk_size_t num_samples,
     double min_length, double max_time, tsk_flags_t options)
 {
@@ -10653,7 +10696,7 @@ tsk_table_collection_ibd_segments(const tsk_table_collection_t *self,
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_ibd_finder_init(&ibd_finder, self, result);
+    ret = tsk_ibd_finder_init(&ibd_finder, self, result, min_length, max_time);
     if (ret != 0) {
         goto out;
     }
@@ -10661,11 +10704,37 @@ tsk_table_collection_ibd_segments(const tsk_table_collection_t *self,
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_ibd_finder_set_min_length(&ibd_finder, min_length);
+    ret = tsk_ibd_finder_run(&ibd_finder);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_ibd_finder_set_max_time(&ibd_finder, max_time);
+    if (!!(options & TSK_DEBUG)) {
+        tsk_ibd_finder_print_state(&ibd_finder, tsk_get_debug_stream());
+    }
+out:
+    tsk_ibd_finder_free(&ibd_finder);
+    return ret;
+}
+
+int TSK_WARN_UNUSED
+tsk_table_collection_ibd_between(const tsk_table_collection_t *self,
+    tsk_ibd_segments_t *result, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets, double min_length,
+    double max_time, tsk_flags_t options)
+{
+    int ret = 0;
+    tsk_ibd_finder_t ibd_finder;
+
+    ret = tsk_ibd_segments_init(result, self->nodes.num_rows, options);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_ibd_finder_init(&ibd_finder, self, result, min_length, max_time);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_ibd_finder_init_between(
+        &ibd_finder, num_sample_sets, sample_set_sizes, sample_sets);
     if (ret != 0) {
         goto out;
     }

@@ -7224,6 +7224,7 @@ class TreeSequence:
         self,
         *,
         within=None,
+        between=None,
         max_time=None,
         min_length=None,
         store_pairs=None,
@@ -7287,6 +7288,7 @@ class TreeSequence:
         """
         return self.tables.ibd_segments(
             within=within,
+            between=between,
             max_time=max_time,
             min_length=min_length,
             store_segments=store_segments,
