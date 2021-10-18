@@ -985,8 +985,10 @@ details of how to use the quintuply linked structure in the C API.
    ordering of the children of a node should therefore not be depended on.
 
 
-Accessing roots
-===============
+.. _sec_data_model_tree_roots:
+
+Roots
+=====
 
 The roots of a tree are defined as the unique endpoints of upward paths
 starting from sample nodes (if no path leads upward from a sample node,
@@ -999,6 +1001,10 @@ example, we get a tree with two roots:
    :width: 200px
    :alt: An example tree with multiple roots
 
+We keep track of roots in tskit by using a special additional node
+called the **virtual root**, whose children are the roots. In the
+quintuply linked tree encoding this is an extra element at the end
+of each of the tree arrays, as shown here:
 
 =========== =========== =========== =========== =========== ===========
 node        parent      left_child  right_child left_sib    right_sib
@@ -1009,17 +1015,37 @@ node        parent      left_child  right_child left_sib    right_sib
 3           6           -1          -1          -1          4
 4           6           -1          -1          3           -1
 5           7           0           2           -1          -1
-6           -1          3           4           7           -1
-7           -1          5           5           -1          6
+6           -1          3           4           -1          7
+7           -1          5           5           6           -1
+**8**       **-1**      **6**       **7**       **-1**      **-1**
 =========== =========== =========== =========== =========== ===========
 
-To gain efficient access to the roots in the quintuply linked encoding we keep
-one extra piece of information: the ``left_root``. In this example
-the leftmost root is ``7``. Roots are considered siblings, and so
-once we have one root we can find all the other roots efficiently using
-the ``left_sib`` and ``right_sib`` arrays. For example, we can see here
-that the right sibling of ``7`` is ``6``, and the left sibling of ``6``
-is ``7``.
+In this example, node 8 is the virtual root; its left child is 6
+and its right child is 7.
+Importantly, though, this is an asymmetric
+relationship, since the parent of the "real" roots 6 and 7 is null
+(-1) and *not* the virtual root. To emphasise that this is not a "real"
+node, we've shown the values for the virtual root here in bold.
+
+The main function of the virtual root is to efficiently keep track of
+tree roots in the internal library algorithms, and is usually not
+something we need to think about unless working directly with
+the quintuply linked tree structure. However, the virtual root can be
+useful in some algorithms and so it can optionally be returned in traversal
+orders (see :meth:`.Tree.nodes`). The virtual root has the following
+properties:
+
+- Its ID is always equal to the number of nodes in the tree sequence (i.e.,
+  the length of the node table). However, there is **no corresponding row**
+  in the node table, and any attempts to access information about the
+  virtual root via either the tree sequence or tables APIs will fail with
+  an out-of-bounds error.
+- The parent  and siblings of the virtual root are null.
+- The time of the virtual root is defined as positive infinity (if
+  accessed via :meth:`.Tree.time`). This is useful in defining the
+  time-based node traversal orderings.
+- The virtual root is the parent of no other node---roots do **not**
+  have parent pointers to the virtual root.
 
 
 .. _sec_data_model_missing_data:

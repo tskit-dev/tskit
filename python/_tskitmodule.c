@@ -772,20 +772,6 @@ table_get_offset_array(tsk_size_t num_rows, tsk_size_t *data)
     PyArrayObject *array;
     npy_intp dims = (npy_intp) num_rows + 1;
 
-    /* npy_intp j; */
-    /* uint32_t *offset32; */
-    /* /1* TODO make this conditional on the size of the data *1/ */
-    /* /1* Actually, this should probably always return a uint64. Let's get */
-    /*  * other stuff working first and see how much it breaks if we always */
-    /*  * return 64 bit. *1/ */
-    /* array = (PyArrayObject *) PyArray_EMPTY(1, &dims, NPY_UINT32, 0); */
-    /* if (array == NULL) { */
-    /*     goto out; */
-    /* } */
-    /* offset32 = PyArray_DATA(array); */
-    /* for (j = 0; j < dims; j++) { */
-    /*     offset32[j] = (uint32_t) data[j]; */
-    /* } */
     array = (PyArrayObject *) PyArray_EMPTY(1, &dims, NPY_UINT64, 0);
     if (array == NULL) {
         goto out;
@@ -9103,7 +9089,7 @@ static int
 Tree_check_bounds(Tree *self, int node)
 {
     int ret = 0;
-    if (node < 0 || node >= (int) self->tree->num_nodes) {
+    if (node < 0 || node > (int) self->tree->num_nodes) {
         PyErr_SetString(PyExc_ValueError, "Node index out of bounds");
         ret = -1;
     }
@@ -9333,6 +9319,32 @@ out:
 }
 
 static PyObject *
+Tree_get_virtual_root(Tree *self)
+{
+    PyObject *ret = NULL;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue("n", (Py_ssize_t) self->tree->virtual_root);
+out:
+    return ret;
+}
+
+static PyObject *
+Tree_get_num_edges(Tree *self)
+{
+    PyObject *ret = NULL;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue("n", (Py_ssize_t) self->tree->num_edges);
+out:
+    return ret;
+}
+
+static PyObject *
 Tree_get_index(Tree *self)
 {
     PyObject *ret = NULL;
@@ -9341,19 +9353,6 @@ Tree_get_index(Tree *self)
         goto out;
     }
     ret = Py_BuildValue("n", (Py_ssize_t) self->tree->index);
-out:
-    return ret;
-}
-
-static PyObject *
-Tree_get_left_root(Tree *self)
-{
-    PyObject *ret = NULL;
-
-    if (Tree_check_state(self) != 0) {
-        goto out;
-    }
-    ret = Py_BuildValue("i", (int) self->tree->left_root);
 out:
     return ret;
 }
@@ -9494,13 +9493,13 @@ Tree_get_time(Tree *self, PyObject *args)
 {
     PyObject *ret = NULL;
     double time;
-    int node, err;
+    int node_id, err;
 
-    if (Tree_get_node_argument(self, args, &node) != 0) {
+    if (Tree_get_node_argument(self, args, &node_id) != 0) {
         goto out;
     }
-    err = tsk_tree_get_time(self->tree, node, &time);
-    if (ret != 0) {
+    err = tsk_tree_get_time(self->tree, node_id, &time);
+    if (err != 0) {
         handle_library_error(err);
         goto out;
     }
@@ -9611,18 +9610,18 @@ static PyObject *
 Tree_depth(Tree *self, PyObject *args)
 {
     PyObject *ret = NULL;
-    tsk_size_t depth;
+    int depth;
     int node, err;
 
     if (Tree_get_node_argument(self, args, &node) != 0) {
         goto out;
     }
-    err = tsk_tree_depth(self->tree, node, &depth);
+    err = tsk_tree_get_depth(self->tree, node, &depth);
     if (ret != 0) {
         handle_library_error(err);
         goto out;
     }
-    ret = Py_BuildValue("I", (unsigned int) depth);
+    ret = Py_BuildValue("i", depth);
 out:
     return ret;
 }
@@ -10051,18 +10050,82 @@ out:
     return ret;
 }
 
+typedef int tsk_traversal_func(
+    const tsk_tree_t *self, tsk_id_t root, tsk_id_t *nodes, tsk_size_t *num_nodes);
+
+static PyObject *
+Tree_get_traversal_array(Tree *self, PyObject *args, tsk_traversal_func *func)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *array = NULL;
+    int32_t *data = NULL;
+    int root = TSK_NULL;
+    npy_intp dims;
+    tsk_size_t length;
+    int err;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTuple(args, "i", &root)) {
+        goto out;
+    }
+    data = PyDataMem_NEW(tsk_tree_get_size_bound(self->tree) * sizeof(*data));
+    if (data == NULL) {
+        ret = PyErr_NoMemory();
+        goto out;
+    }
+    err = func(self->tree, (tsk_id_t) root, data, &length);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    dims = (npy_intp) length;
+    array = (PyArrayObject *) PyArray_SimpleNewFromData(1, &dims, NPY_INT32, data);
+    if (array == NULL) {
+        goto out;
+    }
+    /* Set the OWNDATA flag on that the data will be freed with the array */
+    PyArray_ENABLEFLAGS(array, NPY_ARRAY_OWNDATA);
+    /* Not strictly necessary since we're creating a new array, but let's
+     * keep the door open to future optimisations. */
+    PyArray_CLEARFLAGS(array, NPY_ARRAY_WRITEABLE);
+
+    ret = (PyObject *) array;
+    data = NULL;
+    array = NULL;
+out:
+    Py_XDECREF(array);
+    if (data != NULL) {
+        PyDataMem_FREE(data);
+    }
+    return ret;
+}
+
+static PyObject *
+Tree_get_preorder(Tree *self, PyObject *args)
+{
+    return Tree_get_traversal_array(self, args, tsk_tree_preorder);
+}
+
+static PyObject *
+Tree_get_postorder(Tree *self, PyObject *args)
+{
+    return Tree_get_traversal_array(self, args, tsk_tree_postorder);
+}
+
 /* The x_array properties are the high-performance zero-copy interface to the
  * corresponding arrays in the tsk_tree object. We use properties and
  * return a new array each time rather than trying to create a single array
  * at Tree initialisation time to avoid a circular reference counting loop,
- * which (it seems) the even cyclic garbage collection support can't resolve.
+ * which (it seems) even cyclic garbage collection support can't resolve.
  */
 static PyObject *
 Tree_make_array(Tree *self, int dtype, void *data)
 {
     PyObject *ret = NULL;
     PyArrayObject *array = NULL;
-    npy_intp dims = self->tree->num_nodes;
+    npy_intp dims = self->tree->num_nodes + 1;
 
     array = (PyArrayObject *) PyArray_SimpleNewFromData(1, &dims, dtype, data);
     if (array == NULL) {
@@ -10203,10 +10266,14 @@ static PyMethodDef Tree_methods[] = {
         .ml_meth = (PyCFunction) Tree_get_index,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns the index this tree occupies within the tree sequence." },
-    { .ml_name = "get_left_root",
-        .ml_meth = (PyCFunction) Tree_get_left_root,
+    { .ml_name = "get_virtual_root",
+        .ml_meth = (PyCFunction) Tree_get_virtual_root,
         .ml_flags = METH_NOARGS,
-        .ml_doc = "Returns the root of the tree." },
+        .ml_doc = "Returns the virtual root of the tree." },
+    { .ml_name = "get_num_edges",
+        .ml_meth = (PyCFunction) Tree_get_num_edges,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the number of branches in this tree." },
     { .ml_name = "get_left",
         .ml_meth = (PyCFunction) Tree_get_left,
         .ml_flags = METH_NOARGS,
@@ -10329,6 +10396,14 @@ static PyMethodDef Tree_methods[] = {
         .ml_meth = (PyCFunction) Tree_get_root_threshold,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns the root threshold for this tree." },
+    { .ml_name = "get_preorder",
+        .ml_meth = (PyCFunction) Tree_get_preorder,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the nodes in this tree in preorder." },
+    { .ml_name = "get_postorder",
+        .ml_meth = (PyCFunction) Tree_get_postorder,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the nodes in this tree in postorder." },
     { NULL } /* Sentinel */
 };
 

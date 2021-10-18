@@ -17,11 +17,23 @@
   :issue:`1554`, :issue:`1573`, :issue:`1589`,:issue:`1598`,:issue:`1628`, :pr:`1571`,
   :pr:`1579`, :pr:`1585`, :pr:`1590`, :pr:`1602`, :pr:`1618`, :pr:`1620`, :pr:`1652`).
 
+- The Tree class now conceptually has an extra node, the "virtual root" whose
+  children are the roots of the tree. The quintuply linked tree arrays
+  (parent_array, left_child_array, right_child_array, left_sib_array and right_sib_array)
+  all have one extra element.
+  (:user:`jeromekelleher`, :issue:`1691`, :pr:`1704`).
+
+- Tree traversal orders returned by the ``nodes`` method have changed when there
+  are multiple roots. Previously orders were defined locally for each root, but
+  are now globally across all roots. (:user:`jeromekelleher`, :pr:`1704`).
+
+
 **Features**
 
 - Add ``__setitem__`` to all tables allowing single rows to be updated. For example
   ``tables.nodes[0] = tables.nodes[0].replace(flags=tskit.NODE_IS_SAMPLE)``
   (:user:`jeromekelleher`, :user:`benjeffery`, :issue:`1545`, :pr:`1600`).
+
 - Added a new parameter ``time`` to ``TreeSequence.samples()`` allowing to select
   samples at a specific time point or time interval.
   (:user:`mufernando`, :user:`petrelharp`, :issue:`1692`, :pr:`1700`)
@@ -33,6 +45,15 @@
 - Add ``time_units`` to ``TreeSequence`` to describe the units of the time dimension of the
   tree sequence. This is then used to generate an error if ``time_units`` is ``uncalibrated`` when
   using the branch lengths in statistics. (:user:`benjeffery`, :issue:`1644`, :pr:`1760`)
+
+- Add the ``virtual_root`` property to the Tree class (:user:`jeromekelleher`, :pr:`1704`).
+
+- Add the ``num_edges`` property to the Tree class (:user:`jeromekelleher`, :pr:`1704`).
+
+- Improved performance for tree traversal methods in the ``nodes`` iterator.
+  Roughly a 10X performance increase for "preorder", "postorder", "timeasc"
+  and "timedesc" (:user:`jeromekelleher`, :pr:`1704`).
+
 
 --------------------
 [0.3.7] - 2021-07-08
@@ -68,7 +89,7 @@
 
 - SVG visualization of a tree sequence can be restricted to displaying between left
   and right genomic coordinates using the ``x_lim`` parameter. The default settings
-  now mean that if the left or right flanks of a tree sequence are entirely empty, 
+  now mean that if the left or right flanks of a tree sequence are entirely empty,
   these regions will not be plotted in the SVG (:user:`hyanwong`, :pr:`1288`).
 
 - SVG visualization of a single tree allows all mutations on an edge to be plotted

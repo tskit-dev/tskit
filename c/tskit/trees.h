@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019 Tskit Developers
+ * Copyright (c) 2019-2021 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -126,6 +126,11 @@ typedef struct {
      */
     tsk_id_t left_root;
     /**
+     @brief The ID of the "virtual root" whose children are the roots of the
+     tree.
+     */
+    tsk_id_t virtual_root;
+    /**
      @brief The parent of node u is parent[u]. Equal to TSK_NULL if node u is a
      root or is not a node in the current tree.
      */
@@ -150,6 +155,12 @@ typedef struct {
      if node u has no siblings to its right.
      */
     tsk_id_t *right_sib;
+    /**
+     @brief The total number of edges defining the topology of this tree.
+     This is equal to the number of tree sequence edges that intersect with
+     the tree's genomic interval.
+     */
+    tsk_size_t num_edges;
 
     tsk_size_t num_nodes;
     tsk_flags_t options;
@@ -400,6 +411,31 @@ int tsk_tree_prev(tsk_tree_t *self);
 int tsk_tree_clear(tsk_tree_t *self);
 
 void tsk_tree_print_state(const tsk_tree_t *self, FILE *out);
+
+/**
+@brief Return an upper bound on the number of nodes reachable
+    from the roots of this tree.
+
+@rst
+This function provides an upper bound on the number of nodes that
+can be reached in tree traversals, and is intended to be used
+for memory allocation purposes. If ``num_nodes`` is the number
+of nodes visited in a tree traversal from the virtual root
+(e.g., ``tsk_tree_preorder(tree, tree->virtual_root, nodes,
+&num_nodes)``), the bound ``N`` returned here is guaranteed to
+be greater than or equal to ``num_nodes``.
+
+.. warning:: The precise value returned is not defined and should
+    not be depended on, as it may change from version-to-version.
+
+@endrst
+
+@param self A pointer to a tsk_tree_t object.
+@return An upper bound on the number nodes reachable from the roots
+    of this tree, or zero if this tree has not been initialised.
+*/
+tsk_size_t tsk_tree_get_size_bound(const tsk_tree_t *self);
+
 /** @} */
 
 int tsk_tree_set_root_threshold(tsk_tree_t *self, tsk_size_t root_threshold);
@@ -420,6 +456,7 @@ int tsk_tree_set_tracked_samples_from_sample_list(
 
 int tsk_tree_get_parent(const tsk_tree_t *self, tsk_id_t u, tsk_id_t *parent);
 int tsk_tree_get_time(const tsk_tree_t *self, tsk_id_t u, double *t);
+int tsk_tree_get_depth(const tsk_tree_t *self, tsk_id_t u, int *depth);
 int tsk_tree_get_mrca(const tsk_tree_t *self, tsk_id_t u, tsk_id_t v, tsk_id_t *mrca);
 int tsk_tree_get_num_samples(
     const tsk_tree_t *self, tsk_id_t u, tsk_size_t *num_samples);
@@ -427,7 +464,11 @@ int tsk_tree_get_num_tracked_samples(
     const tsk_tree_t *self, tsk_id_t u, tsk_size_t *num_tracked_samples);
 int tsk_tree_get_sites(
     const tsk_tree_t *self, const tsk_site_t **sites, tsk_size_t *sites_length);
-int tsk_tree_depth(const tsk_tree_t *self, tsk_id_t u, tsk_size_t *depth);
+
+int tsk_tree_preorder(
+    const tsk_tree_t *self, tsk_id_t root, tsk_id_t *nodes, tsk_size_t *num_nodes);
+int tsk_tree_postorder(
+    const tsk_tree_t *self, tsk_id_t root, tsk_id_t *nodes, tsk_size_t *num_nodes);
 
 typedef struct {
     tsk_id_t node;
