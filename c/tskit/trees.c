@@ -32,6 +32,12 @@
 
 #include <tskit/trees.h>
 
+static inline bool
+is_discrete(double x)
+{
+    return trunc(x) == x;
+}
+
 /* ======================================================== *
  * tree sequence
  * ======================================================== */
@@ -127,6 +133,8 @@ tsk_treeseq_init_sites(tsk_treeseq_t *self)
     const tsk_size_t num_mutations = self->tables->mutations.num_rows;
     const tsk_size_t num_sites = self->tables->sites.num_rows;
     const tsk_id_t *restrict mutation_site = self->tables->mutations.site;
+    const double *restrict site_position = self->tables->sites.position;
+    bool discrete_sites = true;
 
     self->site_mutations_mem
         = tsk_malloc(num_mutations * sizeof(*self->site_mutations_mem));
@@ -148,6 +156,7 @@ tsk_treeseq_init_sites(tsk_treeseq_t *self)
     }
     k = 0;
     for (j = 0; j < (tsk_id_t) num_sites; j++) {
+        discrete_sites = discrete_sites && is_discrete(site_position[j]);
         self->site_mutations[j] = self->site_mutations_mem + offset;
         self->site_mutations_length[j] = 0;
         /* Go through all mutations for this site */
@@ -161,6 +170,7 @@ tsk_treeseq_init_sites(tsk_treeseq_t *self)
             goto out;
         }
     }
+    self->discrete_genome = self->discrete_genome && discrete_sites;
 out:
     return ret;
 }
@@ -243,6 +253,7 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
     const double *restrict edge_right = self->tables->edges.right;
     const double *restrict edge_left = self->tables->edges.left;
     tsk_size_t num_trees_alloc = self->num_trees + 1;
+    bool discrete_breakpoints = true;
 
     self->tree_sites_length
         = tsk_malloc(num_trees_alloc * sizeof(*self->tree_sites_length));
@@ -264,6 +275,7 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
     j = 0;
     k = 0;
     while (j < num_edges || tree_left < sequence_length) {
+        discrete_breakpoints = discrete_breakpoints && is_discrete(tree_left);
         self->breakpoints[tree_index] = tree_left;
         while (k < num_edges && edge_right[O[k]] == tree_left) {
             k++;
@@ -289,9 +301,27 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
     tsk_bug_assert(site == num_sites);
     tsk_bug_assert(tree_index == self->num_trees);
     self->breakpoints[tree_index] = tree_right;
+    discrete_breakpoints = discrete_breakpoints && is_discrete(tree_right);
+    self->discrete_genome = self->discrete_genome && discrete_breakpoints;
     ret = 0;
 out:
     return ret;
+}
+
+static void
+tsk_treeseq_init_migrations(tsk_treeseq_t *self)
+{
+    tsk_size_t j;
+    tsk_size_t num_migrations = self->tables->migrations.num_rows;
+    const double *restrict left = self->tables->migrations.left;
+    const double *restrict right = self->tables->migrations.right;
+    bool discrete_breakpoints = true;
+
+    for (j = 0; j < num_migrations; j++) {
+        discrete_breakpoints
+            = discrete_breakpoints && is_discrete(left[j]) && is_discrete(right[j]);
+    }
+    self->discrete_genome = self->discrete_genome && discrete_breakpoints;
 }
 
 static int
@@ -400,6 +430,7 @@ tsk_treeseq_init(
     if (ret != 0) {
         goto out;
     }
+    self->discrete_genome = true;
     ret = tsk_treeseq_init_sites(self);
     if (ret != 0) {
         goto out;
@@ -412,6 +443,8 @@ tsk_treeseq_init(
     if (ret != 0) {
         goto out;
     }
+    tsk_treeseq_init_migrations(self);
+
     if (tsk_treeseq_get_time_units_length(self) == strlen(TSK_TIME_UNITS_UNCALIBRATED)
         && !strncmp(tsk_treeseq_get_time_units(self), TSK_TIME_UNITS_UNCALIBRATED,
                strlen(TSK_TIME_UNITS_UNCALIBRATED))) {
@@ -628,6 +661,12 @@ tsk_treeseq_is_sample(const tsk_treeseq_t *self, tsk_id_t u)
         ret = !!(self->tables->nodes.flags[u] & TSK_NODE_IS_SAMPLE);
     }
     return ret;
+}
+
+bool
+tsk_treeseq_get_discrete_genome(const tsk_treeseq_t *self)
+{
+    return self->discrete_genome;
 }
 
 /* Stats functions */

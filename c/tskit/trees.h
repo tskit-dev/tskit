@@ -68,6 +68,8 @@ typedef struct {
     tsk_id_t *samples;
     /* Does this tree sequence have time_units == "uncalibrated" */
     bool time_uncalibrated;
+    /* Are all genome coordinates discrete? */
+    bool discrete_genome;
     /* Breakpoints along the sequence, including 0 and L. */
     double *breakpoints;
     /* If a node is a sample, map to its index in the samples list */
@@ -268,6 +270,7 @@ const double *tsk_treeseq_get_breakpoints(const tsk_treeseq_t *self);
 const tsk_id_t *tsk_treeseq_get_samples(const tsk_treeseq_t *self);
 const tsk_id_t *tsk_treeseq_get_sample_index_map(const tsk_treeseq_t *self);
 bool tsk_treeseq_is_sample(const tsk_treeseq_t *self, tsk_id_t u);
+bool tsk_treeseq_get_discrete_genome(const tsk_treeseq_t *self);
 
 int tsk_treeseq_get_node(const tsk_treeseq_t *self, tsk_id_t index, tsk_node_t *node);
 int tsk_treeseq_get_edge(const tsk_treeseq_t *self, tsk_id_t index, tsk_edge_t *edge);

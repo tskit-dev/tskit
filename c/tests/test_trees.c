@@ -926,6 +926,104 @@ verify_empty_tree_sequence(tsk_treeseq_t *ts, double sequence_length)
  *======================================================*/
 
 static void
+test_simplest_discrete_genome(void)
+{
+    const char *nodes = "1  0   0\n"
+                        "1  0   0\n"
+                        "0  1   0";
+    const char *edges = "0  1   2   0,1\n";
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_id_t ret_id;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
+    CU_ASSERT_TRUE(tsk_treeseq_get_discrete_genome(&ts));
+
+    ret = tsk_table_collection_copy(ts.tables, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+
+    tables.sequence_length = 1.001;
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_treeseq_get_discrete_genome(&ts));
+    tsk_treeseq_free(&ts);
+    tables.sequence_length = 1;
+
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_treeseq_get_discrete_genome(&ts));
+    tsk_treeseq_free(&ts);
+
+    tables.edges.right[0] = 0.999;
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_treeseq_get_discrete_genome(&ts));
+    tsk_treeseq_free(&ts);
+    tables.edges.right[0] = 1.0;
+
+    tables.edges.left[0] = 0.999;
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_treeseq_get_discrete_genome(&ts));
+    tsk_treeseq_free(&ts);
+    tables.edges.left[0] = 0;
+
+    ret_id = tsk_site_table_add_row(&tables.sites, 0, "A", 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_treeseq_get_discrete_genome(&ts));
+    tsk_treeseq_free(&ts);
+
+    tables.sites.position[0] = 0.001;
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_treeseq_get_discrete_genome(&ts));
+    tsk_treeseq_free(&ts);
+    tables.sites.position[0] = 0;
+
+    /* Need another population for a migration */
+    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+
+    ret_id
+        = tsk_migration_table_add_row(&tables.migrations, 0, 1, 0, 0, 1, 1.0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_treeseq_get_discrete_genome(&ts));
+    tsk_treeseq_free(&ts);
+
+    tables.migrations.left[0] = 0.001;
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_treeseq_get_discrete_genome(&ts));
+    tsk_treeseq_free(&ts);
+    tables.migrations.left[0] = 0;
+
+    tables.migrations.right[0] = 0.999;
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_treeseq_get_discrete_genome(&ts));
+    tsk_treeseq_free(&ts);
+    tables.migrations.right[0] = 1;
+
+    /* An empty tree sequence is has a discrete genome. */
+    tsk_table_collection_clear(&tables, 0);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_treeseq_get_discrete_genome(&ts));
+    tsk_treeseq_free(&ts);
+
+    tsk_table_collection_free(&tables);
+}
+
+static void
 test_simplest_records(void)
 {
     const char *nodes = "1  0   0\n"
@@ -6558,6 +6656,7 @@ main(int argc, char **argv)
 {
     CU_TestInfo tests[] = {
         /* simplest example tests */
+        { "test_simplest_discrete_genome", test_simplest_discrete_genome },
         { "test_simplest_records", test_simplest_records },
         { "test_simplest_nonbinary_records", test_simplest_nonbinary_records },
         { "test_simplest_unary_records", test_simplest_unary_records },

@@ -3843,6 +3843,22 @@ class TreeSequence:
         return self._ll_tree_sequence.get_file_uuid()
 
     @property
+    def discrete_genome(self):
+        """
+        Returns True if all genome coordinates in this TreeSequence are
+        discrete integer values. This is true iff all the following are true:
+
+        - The sequence length is discrete
+        - All site positions are discrete
+        - All left and right edge coordinates are discrete
+        - All migration left and right coordinates are discrete
+
+        :return: True if this TreeSequence uses discrete genome coordinates.
+        :rtype: bool
+        """
+        return bool(self._ll_tree_sequence.get_discrete_genome())
+
+    @property
     def sequence_length(self):
         """
         Returns the sequence length in this tree sequence. This defines the

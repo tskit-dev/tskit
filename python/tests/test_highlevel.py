@@ -1241,6 +1241,22 @@ class TestTreeSequence(HighLevelTestCase):
     Tests for the tree sequence object.
     """
 
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_discrete_genome(self, ts):
+        def is_discrete(a):
+            return np.all(np.floor(a) == a)
+
+        tables = ts.tables
+        discrete_genome = (
+            is_discrete([tables.sequence_length])
+            and is_discrete(tables.edges.left)
+            and is_discrete(tables.edges.right)
+            and is_discrete(tables.sites.position)
+            and is_discrete(tables.migrations.left)
+            and is_discrete(tables.migrations.right)
+        )
+        assert ts.discrete_genome == discrete_genome
+
     def test_trees(self):
         for ts in get_example_tree_sequences():
             self.verify_trees(ts)
