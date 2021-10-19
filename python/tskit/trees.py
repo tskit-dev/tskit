@@ -6047,8 +6047,13 @@ class TreeSequence:
         self, sample_sets=None, windows=None, mode="site", span_normalise=True
     ):
         """
-        Computes mean genetic diversity (also knowns as "Tajima's pi") in each of the
-        sets of nodes from ``sample_sets``.
+        Computes mean genetic diversity (also known as "pi") in each of the
+        sets of nodes from ``sample_sets``.  The statistic is also known as
+        "sample heterozygosity"; a common citation for the definition is
+        `Nei and Li (1979) <https://doi.org/10.1073/pnas.76.10.5269>`_
+        (equation 22), so it is sometimes called called "Nei's pi"
+        (but also sometimes "Tajima's pi").
+
         Please see the :ref:`one-way statistics <sec_stats_sample_sets_one_way>`
         section for details on how the ``sample_sets`` argument is interpreted
         and how it interacts with the dimensions of the output array.
@@ -6098,9 +6103,15 @@ class TreeSequence:
     def divergence(
         self, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True
     ):
-        """
+        r"""
         Computes mean genetic divergence between (and within) pairs of
         sets of nodes from ``sample_sets``.
+        This is the "average number of differences", usually referred to as "dxy";
+        a common citation for this definition is Nei and Li (1979), who called it
+        :math:`\pi_{XY}`. Note that computing the divergence of a population to itself
+        gives the mean pairwise nucleotide diversity within that population,
+        which is :meth:`diversity <.TreeSequence.diversity>`.
+
         Operates on ``k = 2`` sample sets at a time; please see the
         :ref:`multi-way statistics <sec_stats_sample_sets_multi_way>`
         section for details on how the ``sample_sets`` and ``indexes`` arguments are
@@ -7016,9 +7027,19 @@ class TreeSequence:
     def f3(
         self, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True
     ):
-        """
+        r"""
         Computes Patterson's f3 statistic between three groups of nodes from
         ``sample_sets``.
+        Note that the order of the arguments of f3 differs across the literature:
+        here, ``f3([A, B, C])`` for sample sets ``A``, ``B``, and ``C``
+        will estimate
+        :math:`f_3(A; B, C) = \mathbb{E}[(p_A - p_B) (p_A - p_C)]`,
+        where :math:`p_A` is the allele frequency in ``A``.
+        When used as a test for admixture, the putatively admixed population
+        is usually placed as population ``A`` (see
+        `Peter (2016) <https://doi.org/10.1534/genetics.115.183913>`_
+        for more discussion).
+
         Operates on ``k = 3`` sample sets at a time; please see the
         :ref:`multi-way statistics <sec_stats_sample_sets_multi_way>`
         section for details on how the ``sample_sets`` and ``indexes`` arguments are
