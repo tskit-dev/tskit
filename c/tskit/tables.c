@@ -6143,15 +6143,16 @@ out:
     return ret;
 }
 
-static int
-tsk_table_sorter_sort_individuals(tsk_table_sorter_t *self)
+int
+tsk_table_collection_individual_topological_sort(
+    tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
     tsk_id_t i, ret_id;
     tsk_individual_table_t copy;
     tsk_individual_t individual;
-    tsk_individual_table_t *individuals = &self->tables->individuals;
-    tsk_node_table_t *nodes = &self->tables->nodes;
+    tsk_individual_table_t *individuals = &self->individuals;
+    tsk_node_table_t *nodes = &self->nodes;
     tsk_size_t num_individuals = individuals->num_rows;
     tsk_id_t *traversal_order = tsk_malloc(num_individuals * sizeof(*traversal_order));
     tsk_id_t *new_id_map = tsk_malloc(num_individuals * sizeof(*new_id_map));
@@ -6164,6 +6165,12 @@ tsk_table_sorter_sort_individuals(tsk_table_sorter_t *self)
 
     ret = tsk_individual_table_copy(individuals, &copy, 0);
     if (ret != 0) {
+        goto out;
+    }
+
+    ret_id = tsk_table_collection_check_integrity(self, 0);
+    if (ret_id != 0) {
+        ret = (int) ret_id;
         goto out;
     }
 
@@ -6379,7 +6386,7 @@ tsk_table_sorter_run(tsk_table_sorter_t *self, const tsk_bookmark_t *start)
             goto out;
         }
     }
-    if (!skip_individuals) {
+    if (!skip_individuals && self->sort_individuals != NULL) {
         ret = self->sort_individuals(self);
         if (ret != 0) {
             goto out;
@@ -6415,7 +6422,8 @@ tsk_table_sorter_init(
     /* Set the sort_edges and sort_mutations methods to the default. */
     self->sort_edges = tsk_table_sorter_sort_edges;
     self->sort_mutations = tsk_table_sorter_sort_mutations;
-    self->sort_individuals = tsk_table_sorter_sort_individuals;
+    /* Default sort doesn't touch individuals */
+    self->sort_individuals = NULL;
 out:
     return ret;
 }
@@ -9722,11 +9730,10 @@ tsk_table_collection_check_integrity(
     tsk_id_t ret = 0;
 
     if (options & TSK_CHECK_TREES) {
-        /* Checking the trees implies all the other checks */
+        /* Checking the trees implies these checks */
         options |= TSK_CHECK_EDGE_ORDERING | TSK_CHECK_SITE_ORDERING
                    | TSK_CHECK_SITE_DUPLICATES | TSK_CHECK_MUTATION_ORDERING
-                   | TSK_CHECK_INDIVIDUAL_ORDERING | TSK_CHECK_MIGRATION_ORDERING
-                   | TSK_CHECK_INDEXES;
+                   | TSK_CHECK_MIGRATION_ORDERING | TSK_CHECK_INDEXES;
     }
 
     if (self->sequence_length <= 0) {

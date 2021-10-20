@@ -6633,6 +6633,26 @@ out:
 }
 
 static PyObject *
+TableCollection_sort_individuals(TableCollection *self, PyObject *args, PyObject *kwds)
+{
+    int err;
+    PyObject *ret = NULL;
+
+    if (TableCollection_check_state(self) != 0) {
+        goto out;
+    }
+
+    err = tsk_table_collection_individual_topological_sort(self->tables, 0);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
+static PyObject *
 TableCollection_canonicalise(TableCollection *self, PyObject *args, PyObject *kwds)
 {
     int err;
@@ -7115,6 +7135,10 @@ static PyMethodDef TableCollection_methods[] = {
         .ml_meth = (PyCFunction) TableCollection_sort,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Sorts the tables to satisfy tree sequence requirements." },
+    { .ml_name = "sort_individuals",
+        .ml_meth = (PyCFunction) TableCollection_sort_individuals,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Sorts the individual table topologically" },
     { .ml_name = "canonicalise",
         .ml_meth = (PyCFunction) TableCollection_canonicalise,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,

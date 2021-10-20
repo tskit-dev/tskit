@@ -16,7 +16,14 @@
 
 - FIXME breaking changes for tree API and virtual root
 
+- Individuals are no longer guaranteed or required to be topologically sorted in a tree sequence. 
+  ``tsk_table_collection_sort`` no longer sorts individuals.
+  (:user:`benjeffery`, :issue:`1774`, :pr:`1789`)
+
 **Features**
+
+- Add ``tsk_table_collection_individual_topological_sort`` to sort the individuals as this is no longer done by the
+  default sort. (:user:`benjeffery`, :issue:`1774`, :pr:`1789`)
 
 - The default behaviour for table size growth is now to double the current size of the table,
   up to a threshold. To keep the previous behaviour, use (e.g.)

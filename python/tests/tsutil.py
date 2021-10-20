@@ -1132,8 +1132,6 @@ def py_sort(tables, canonical=False):
                 )
             )
         tables.nodes.individual = [ind_id_map[i] for i in tables.nodes.individual]
-    else:
-        sort_individual_table(tables)
 
 
 def algorithm_T(ts):
