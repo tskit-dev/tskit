@@ -39,8 +39,11 @@
 
 **Features**
 
+- Allow skipping of site and mutation tables in ``TableCollection.sort``
+  (:user:`benjeffery`, :issue:`1475`, :pr:`1826`).
+
 - Add ``TableCollection.sort_individuals`` to sort the individuals as this is no longer done by the
-  default sort. (:user:`benjeffery`, :issue:`1774`, :pr:`1789`)
+  default sort (:user:`benjeffery`, :issue:`1774`, :pr:`1789`).
 
 - Add ``__setitem__`` to all tables allowing single rows to be updated. For example
   ``tables.nodes[0] = tables.nodes[0].replace(flags=tskit.NODE_IS_SAMPLE)``

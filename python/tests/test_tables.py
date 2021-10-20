@@ -2216,7 +2216,7 @@ class TestSortTables:
         self.verify_sort_mutation_consistency(tables, seed)
         self.verify_randomise_tables(tables, seed)
 
-    def verify_edge_sort_offset(self, ts):
+    def verify_sort_offset(self, ts):
         """
         Verifies the behaviour of the edge_start offset value.
         """
@@ -2225,7 +2225,6 @@ class TestSortTables:
         starts = [0]
         if len(edges) > 2:
             starts = [0, 1, len(edges) // 2, len(edges) - 2]
-        random.seed(self.random_seed)
         for start in starts:
             # Unsort the edges starting from index start
             all_edges = list(ts.edges())
@@ -2235,7 +2234,7 @@ class TestSortTables:
             tables.edges.clear()
             for e in all_edges:
                 tables.edges.append(e)
-            # Verify that import fails for randomised edges
+            # Verify that import fails for reversed edges
             with pytest.raises(_tskit.LibraryError):
                 tables.tree_sequence()
             # If we sort after the start value we should still fail.
@@ -2249,6 +2248,22 @@ class TestSortTables:
             tables.sort(edge_start=start)
             # Verify the new and old edges are equal.
             assert edges == tables.edges
+
+        tables.tree_sequence()
+        if len(tables.mutations) > 2:
+            mutations = tables.mutations.copy()
+            tables.mutations.clear()
+            for m in mutations[::-1]:
+                tables.mutations.append(m)
+            with pytest.raises(_tskit.LibraryError):
+                tables.tree_sequence()
+            tables.sort(
+                0, site_start=len(tables.sites), mutation_start=len(tables.mutations)
+            )
+            with pytest.raises(_tskit.LibraryError):
+                tables.tree_sequence()
+            tables.sort(0)
+            tables.tree_sequence()
 
     def get_wf_example(self, seed):
         tables = wf.wf_sim(
@@ -2277,7 +2292,7 @@ class TestSortTables:
 
     def test_single_tree_no_mutations(self):
         ts = msprime.simulate(10, random_seed=self.random_seed)
-        self.verify_edge_sort_offset(ts)
+        self.verify_sort_offset(ts)
         self.verify_sort(ts.tables, 432)
 
     def test_single_tree_no_mutations_metadata(self):
@@ -2288,13 +2303,13 @@ class TestSortTables:
     def test_many_trees_no_mutations(self):
         ts = msprime.simulate(10, recombination_rate=2, random_seed=self.random_seed)
         assert ts.num_trees > 2
-        self.verify_edge_sort_offset(ts)
+        self.verify_sort_offset(ts)
         self.verify_sort(ts.tables, 31)
 
     def test_single_tree_mutations(self):
         ts = msprime.simulate(10, mutation_rate=2, random_seed=self.random_seed)
         assert ts.num_sites > 2
-        self.verify_edge_sort_offset(ts)
+        self.verify_sort_offset(ts)
         self.verify_sort(ts.tables, 83)
 
     def test_single_tree_mutations_metadata(self):
@@ -2320,7 +2335,7 @@ class TestSortTables:
         )
         assert ts.num_trees > 2
         assert ts.num_sites > 2
-        self.verify_edge_sort_offset(ts)
+        self.verify_sort_offset(ts)
         self.verify_sort(ts.tables, 173)
 
     def test_many_trees_multichar_mutations(self):
@@ -2358,14 +2373,14 @@ class TestSortTables:
 
     def test_nonbinary_trees(self):
         ts = self.get_nonbinary_example(mutation_rate=0)
-        self.verify_edge_sort_offset(ts)
+        self.verify_sort_offset(ts)
         self.verify_sort(ts.tables, 9182)
 
     def test_nonbinary_trees_mutations(self):
         ts = self.get_nonbinary_example(mutation_rate=2)
         assert ts.num_trees > 2
         assert ts.num_sites > 2
-        self.verify_edge_sort_offset(ts)
+        self.verify_sort_offset(ts)
         self.verify_sort(ts.tables, 44)
 
     def test_unknown_times(self):
