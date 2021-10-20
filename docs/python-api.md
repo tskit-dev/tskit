@@ -611,3 +611,7 @@ Some top-level utility functions.
 ```{eval-rst}
 .. autofunction:: is_unknown_time
 ```
+
+```{eval-rst}
+.. autofunction:: random_nucleotides
+```

@@ -9,6 +9,7 @@ import msprime
 import numpy as np
 import pytest
 
+import tests
 import tests.ibd as ibd
 import tests.test_wright_fisher as wf
 import tskit
@@ -22,23 +23,7 @@ from tests.test_highlevel import get_example_tree_sequences
 # or something.
 
 
-def cached_example(ts_func):
-    """
-    Utility decorator to cache the result of a single function call
-    returning a tree sequence example.
-    """
-    cache = None
-
-    def f(*args):
-        nonlocal cache
-        if cache is None:
-            cache = ts_func(*args)
-        return cache
-
-    return f
-
-
-@cached_example
+@tests.cached_example
 def example_ts():
     return [msprime.sim_ancestry(2, random_seed=1)]
 
@@ -167,7 +152,7 @@ def assert_ibd_equal(dict1, dict2):
 
 
 class TestIbdSingleBinaryTree:
-    @cached_example
+    @tests.cached_example
     def ts(self):
         #
         # 2        4
@@ -309,7 +294,7 @@ class TestIbdTwoSamplesTwoTrees:
     # |------------|----------|
     # 0.0          0.4        1.0
 
-    @cached_example
+    @tests.cached_example
     def ts(self):
         nodes = io.StringIO(
             """\
@@ -357,7 +342,7 @@ class TestIbdUnrelatedSamples:
     #    |   |
     #    0   1
 
-    @cached_example
+    @tests.cached_example
     def ts(self):
 
         nodes = io.StringIO(
@@ -400,7 +385,7 @@ class TestIbdNoSamples:
     #  /     \
     # (0)   (1)
 
-    @cached_example
+    @tests.cached_example
     def ts(self):
         nodes = io.StringIO(
             """\
@@ -441,7 +426,7 @@ class TestIbdSamplesAreDescendants:
     # |     |
     # 0     1
     #
-    @cached_example
+    @tests.cached_example
     def ts(self):
         nodes = io.StringIO(
             """\
@@ -504,7 +489,7 @@ class TestIbdSimpleInternalSampleChain:
     # |
     # 0
     #
-    @cached_example
+    @tests.cached_example
     def ts(self):
         nodes = io.StringIO(
             """\
@@ -546,7 +531,7 @@ class TestIbdDifferentPaths:
     #                |              |
     #                0.2            0.7
 
-    @cached_example
+    @tests.cached_example
     def ts(self):
         nodes = io.StringIO(
             """\
@@ -607,7 +592,7 @@ class TestIbdDifferentPaths2:
     #                  |
     #                  0.2
 
-    @cached_example
+    @tests.cached_example
     def ts(self):
         nodes = io.StringIO(
             """\
@@ -649,7 +634,7 @@ class TestIbdDifferentPaths3:
     #     ┊ ┃ ┃   ┊ ┃ ┃   ┊
     # 0.00┊ 0 1   ┊ 0 1   ┊
     #     0       5      10
-    @cached_example
+    @tests.cached_example
     def ts(self):
         t = tskit.TableCollection(sequence_length=10)
         t.nodes.add_row(flags=1, time=0)
@@ -686,7 +671,7 @@ class TestIbdPolytomies:
     #                    |
     #                   0.3
 
-    @cached_example
+    @tests.cached_example
     def ts(self):
         nodes = io.StringIO(
             """\
@@ -767,7 +752,7 @@ class TestIbdInternalSamples:
     #   /     \
     #  0      (1)
 
-    @cached_example
+    @tests.cached_example
     def ts(self):
         nodes = io.StringIO(
             """\
@@ -809,7 +794,7 @@ class TestIbdLengthThreshold:
     # |------------|----------|
     # 0.0          0.4        1.0
 
-    @cached_example
+    @tests.cached_example
     def ts(self):
         nodes = io.StringIO(
             """\

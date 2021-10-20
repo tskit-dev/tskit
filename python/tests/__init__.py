@@ -359,3 +359,19 @@ def base64_encode(metadata):
     string.
     """
     return base64.b64encode(metadata).decode("utf8")
+
+
+def cached_example(ts_func):
+    """
+    Utility decorator to cache the result of a single function call
+    returning a tree sequence example.
+    """
+    cache = None
+
+    def f(*args):
+        nonlocal cache
+        if cache is None:
+            cache = ts_func(*args)
+        return cache
+
+    return f

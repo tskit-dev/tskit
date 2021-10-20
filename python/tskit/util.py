@@ -24,7 +24,9 @@ Module responsible for various utility functions used in other modules.
 """
 import dataclasses
 import json
+import numbers
 import os
+from typing import Union
 
 import numpy as np
 
@@ -572,3 +574,21 @@ def set_print_options(*, max_lines=40):
     this number the middle of the table will be skipped.
     """
     tskit._print_options = {"max_lines": max_lines}
+
+
+def random_nucleotides(length: numbers.Number, *, seed: Union[int, None] = None) -> str:
+    """
+    Returns a random string of nucleotides of the specified length. Characters
+    are drawn uniformly from the alphabet "ACTG".
+
+    :param int length: The length of the random sequence.
+    :return: A string of the specified length consisting of random nucleotide
+       characters.
+    :rtype: str
+    """
+    if int(length) != length:
+        raise ValueError("length must be an integer")
+    rng = np.random.RandomState(seed)
+    encoded_nucleotides = np.array(list(map(ord, "ACTG")), dtype=np.int8)
+    a = rng.choice(encoded_nucleotides, size=int(length))
+    return a.tobytes().decode("ascii")

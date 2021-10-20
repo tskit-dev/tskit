@@ -4500,6 +4500,39 @@ class TreeSequence:
             if tree2.interval.right == right:
                 tree2 = next(trees2, None)
 
+    def _haplotypes_array(self, *, isolated_as_missing, missing_data_character):
+        H = np.empty((self.num_samples, self.num_sites), dtype=np.int8)
+        missing_int8 = ord(missing_data_character.encode("ascii"))
+        for var in self.variants(isolated_as_missing=isolated_as_missing):
+            alleles = np.full(len(var.alleles), missing_int8, dtype=np.int8)
+            for i, allele in enumerate(var.alleles):
+                if allele is not None:
+                    if len(allele) != 1:
+                        raise TypeError(
+                            "Multi-letter allele or deletion detected at site {}".format(
+                                var.site.id
+                            )
+                        )
+                    try:
+                        ascii_allele = allele.encode("ascii")
+                    except UnicodeEncodeError:
+                        raise TypeError(
+                            "Non-ascii character in allele at site {}".format(
+                                var.site.id
+                            )
+                        )
+                    allele_int8 = ord(ascii_allele)
+                    if allele_int8 == missing_int8:
+                        raise ValueError(
+                            "The missing data character '{}' clashes with an "
+                            "existing allele at site {}".format(
+                                missing_data_character, var.site.id
+                            )
+                        )
+                    alleles[i] = allele_int8
+            H[:, var.site.id] = alleles[var.genotypes]
+        return H
+
     def haplotypes(
         self,
         *,
@@ -4561,7 +4594,7 @@ class TreeSequence:
             Will be removed in a future version*
         :rtype: collections.abc.Iterable
         :raises: TypeError if the ``missing_data_character`` or any of the alleles
-            at a site or the are not a single ascii character.
+            at a site are not a single ascii character.
         :raises: ValueError
             if the ``missing_data_character`` exists in one of the alleles
         """
@@ -4575,37 +4608,10 @@ class TreeSequence:
         # Only use impute_missing_data if isolated_as_missing has the default value
         if isolated_as_missing is None:
             isolated_as_missing = not impute_missing_data
-
-        H = np.empty((self.num_samples, self.num_sites), dtype=np.int8)
-        missing_int8 = ord(missing_data_character.encode("ascii"))
-        for var in self.variants(isolated_as_missing=isolated_as_missing):
-            alleles = np.full(len(var.alleles), missing_int8, dtype=np.int8)
-            for i, allele in enumerate(var.alleles):
-                if allele is not None:
-                    if len(allele) != 1:
-                        raise TypeError(
-                            "Multi-letter allele or deletion detected at site {}".format(
-                                var.site.id
-                            )
-                        )
-                    try:
-                        ascii_allele = allele.encode("ascii")
-                    except UnicodeEncodeError:
-                        raise TypeError(
-                            "Non-ascii character in allele at site {}".format(
-                                var.site.id
-                            )
-                        )
-                    allele_int8 = ord(ascii_allele)
-                    if allele_int8 == missing_int8:
-                        raise ValueError(
-                            "The missing data character '{}' clashes with an "
-                            "existing allele at site {}".format(
-                                missing_data_character, var.site.id
-                            )
-                        )
-                    alleles[i] = allele_int8
-            H[:, var.site.id] = alleles[var.genotypes]
+        H = self._haplotypes_array(
+            isolated_as_missing=isolated_as_missing,
+            missing_data_character=missing_data_character,
+        )
         for h in H:
             yield h.tobytes().decode("ascii")
 
@@ -4771,6 +4777,121 @@ class TreeSequence:
         return self._ll_tree_sequence.get_genotype_matrix(
             isolated_as_missing=isolated_as_missing, alleles=alleles
         )
+
+    def alignments(
+        self,
+        *,
+        reference_sequence=None,
+        isolated_as_missing=None,
+        missing_data_character=None,
+    ):
+        """
+        Returns an iterator over the full sequence alignments for the samples in this
+        tree sequence. Each alignment ``a`` is a string of length ``L`` where ``L``
+        is the sequence length of this tree sequence, and ``a[j]`` is the nucleotide
+        value for position ``j`` on the sequence.
+
+        .. note:: This is inherently a **zero-based** representation of the sequence
+            coordinate space. Care will be needed when interacting with other
+            libraries and upstream coordinate spaces.
+
+        If a ``reference_sequence`` is supplied this will be used to fill
+        in the nucleotide positions between the sites in the tree sequence.
+
+        .. warning:: The ``reference_sequence`` is currently a mandatory
+            argument to ensure compatibility with future versions
+            of tskit, which will allow reference sequences to be associated
+            with a tree sequence. In this case, the associated reference
+            will be used by default, if present. See
+            https://github.com/tskit-dev/tskit/issues/1888
+            and
+            https://github.com/tskit-dev/tskit/issues/146 for more details.
+
+        Two common approaches to filling in the gaps between sites in the tree
+        sequence are:
+
+        1. Mark them as missing data, by setting
+           ``reference_sequence="-" * int(ts.sequence_length)``
+        2. Fill the gaps with random nucleotides, by setting
+           ``reference_sequence=tskit.random_nucleotides(ts.sequence_length)``.
+           See the :func:`.random_nucleotides` function for more information.
+
+        Site information from the tree sequence takes precedence over the reference
+        sequence so that, for example, at a site with no mutations all samples
+        will have the site's ancestral state.
+
+        This method is only defined for tree sequences with discrete genome
+        coordinates and the alleles at each site must be represented by
+        single byte characters, (i.e., variants must be single nucleotide
+        polymorphisms, or SNPs).
+
+        If ``isolated_as_missing`` is True (the default), isolated samples without
+        mutations directly above them will be treated as
+        :ref:`missing data<sec_data_model_missing_data>` and will be
+        represented in the string by the ``missing_data_character``. If
+        instead it is set to False, missing data will be assigned the ancestral state
+        (unless they have mutations directly above them, in which case they will take
+        the most recent derived mutational state for that node).
+
+        See also the :meth:`.variants` iterator for site-centric access
+        to sample genotypes and :meth:`.haplotypes` for access to sample sequences
+        at just the sites in the tree sequence.
+
+        :return: An iterator over the alignment strings for the samples in
+            this tree sequence.
+        :param bool isolated_as_missing: If True, the allele assigned to
+            missing samples (i.e., isolated samples without mutations) is
+            the ``missing_data_character``. If False,
+            missing samples will be assigned the ancestral state.
+            Default: True.
+        :param str missing_data_character: A single ascii character that will
+            be used to represent missing data.
+            If any normal allele contains this character, an error is raised.
+            Default: '-'.
+        :rtype: collections.abc.Iterable
+        :raises: ValueError
+            if all coordinates in this tree sequence are not discrete, or
+            if the ``missing_data_character`` exists in one of the alleles,
+            or if the ``reference_sequence`` is not of the correct length.
+        :raises: TypeError if the ``missing_data_character`` or any of the alleles
+            at a site are not a single ascii character.
+        """
+        if not self.discrete_genome:
+            raise ValueError("sequence alignments only defined for discrete genomes")
+
+        missing_data_character = (
+            "-" if missing_data_character is None else missing_data_character
+        )
+        L = int(self.sequence_length)
+        a = np.empty(L, dtype=np.int8)
+        if reference_sequence is None:
+            raise ValueError(
+                "A ``reference_sequence`` must be supplied to this function. "
+                "This is to ensure forward compatibility with future versions "
+                "of tskit which will allow reference sequences to be associated "
+                "with a tree sequence. In this case, the associated reference "
+                "will be used by default, if present. See "
+                "https://github.com/tskit-dev/tskit/issues/1888"
+            )
+        else:
+            # Note: we might want to relax this to a warning if the reference
+            # is longer than L at some point, but let's not complicate things
+            # until we have a good reason.
+            if len(reference_sequence) != L:
+                raise ValueError(
+                    "The reference sequence must have the same length as "
+                    f"this tree sequence: {len(reference_sequence)} != {L}"
+                )
+            ref_bytes = reference_sequence.encode("ascii")
+            a[:] = np.frombuffer(ref_bytes, dtype=np.int8)
+        H = self._haplotypes_array(
+            isolated_as_missing=isolated_as_missing,
+            missing_data_character=missing_data_character,
+        )
+        site_pos = self.tables.sites.position.astype(np.int64)
+        for h in H:
+            a[site_pos] = h
+            yield a.tobytes().decode("ascii")
 
     def individual(self, id_):
         """

@@ -304,7 +304,15 @@ def get_example_tree_sequences(back_mutations=True, gaps=True, internal_samples=
             random_seed=seed,
             model=msprime.InfiniteSites(msprime.NUCLEOTIDES),
         )
-    ts = msprime.simulate(15, length=4, recombination_rate=1, random_seed=seed)
+    ts = msprime.sim_ancestry(
+        8, sequence_length=40, recombination_rate=0.1, random_seed=seed
+    )
+    # FIXME various tests in this file assume bytes as metadata. Also
+    # see this bug in the text file format:
+    # https://github.com/tskit-dev/tskit/issues/1860
+    tables = ts.dump_tables()
+    tables.populations.metadata_schema = tskit.MetadataSchema(None)
+    ts = tables.tree_sequence()
     assert ts.num_trees > 1
     if back_mutations:
         yield tsutil.insert_branch_mutations(ts, mutations_per_branch=2)

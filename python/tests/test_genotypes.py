@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2019-2020 Tskit Developers
+# Copyright (c) 2019-2021 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -29,10 +29,31 @@ import msprime
 import numpy as np
 import pytest
 
+import tests
 import tests.test_wright_fisher as wf
 import tests.tsutil as tsutil
 import tskit
+from tests.test_highlevel import get_example_tree_sequences
 from tskit import exceptions
+
+# ↑ See https://github.com/tskit-dev/tskit/issues/1804 for when
+# we can remove this.
+
+# TODO replace this with a call to
+# example_tree_sequences(discrete_genome=True, snps_only=True)
+
+
+@tests.cached_example
+def get_example_discrete_genome_tree_sequences():
+    ret = []
+    for ts in get_example_tree_sequences():
+        if ts.discrete_genome:
+            snps = all(len(site.ancestral_state) == 1 for site in ts.sites()) and all(
+                len(mut.derived_state) == 1 for mut in ts.mutations()
+            )
+            if snps:
+                ret.append(ts)
+    return ret
 
 
 def naive_get_ancestral_haplotypes(ts):
@@ -1059,3 +1080,230 @@ class TestUserAllelesRoundTrip:
         ]
         for alleles in valid_alleles:
             self.verify(ts, alleles)
+
+
+class TestBinaryTreeExample:
+    # 2.00┊   4   ┊
+    #     ┊ ┏━┻┓  ┊
+    # 1.00┊ ┃  3  ┊
+    #     ┊ ┃ ┏┻┓ ┊
+    # 0.00┊ 0 1 2 ┊
+    #     0      10
+    #      |    |
+    #  pos 2    9
+    #  anc A    T
+    @tests.cached_example
+    def ts(self):
+        ts = tskit.Tree.generate_balanced(3, span=10).tree_sequence
+        tables = ts.dump_tables()
+        tables.sites.add_row(2, ancestral_state="A")
+        tables.sites.add_row(9, ancestral_state="T")
+        tables.mutations.add_row(site=0, node=0, derived_state="G")
+        tables.mutations.add_row(site=1, node=3, derived_state="C")
+        return tables.tree_sequence()
+
+    def test_haplotypes(self):
+        H = list(self.ts().haplotypes())
+        assert H[0] == "GT"
+        assert H[1] == "AC"
+        assert H[2] == "AC"
+
+    def test_genotypes(self):
+        G = self.ts().genotype_matrix()
+        Gp = [[1, 0, 0], [0, 1, 1]]
+        np.testing.assert_array_equal(G, Gp)
+
+    @pytest.mark.skip("Reference sequence not implemented #1888")
+    def test_alignments_default(self):
+        A = list(self.ts().alignments())
+        assert A[0] == "--G------T"
+        assert A[1] == "--A------C"
+        assert A[2] == "--A------C"
+
+    @pytest.mark.skip("Reference sequence not implemented #1888")
+    def test_alignments_missing_char(self):
+        A = list(self.ts().alignments(missing_data_character="z"))
+        assert A[0] == "zzGzzzzzzT"
+        assert A[1] == "zzAzzzzzzC"
+        assert A[2] == "zzAzzzzzzC"
+
+    def test_alignments_reference_sequence(self):
+        ref = "0123456789"
+        A = list(self.ts().alignments(reference_sequence=ref))
+        assert A[0] == "01G345678T"
+        assert A[1] == "01A345678C"
+        assert A[2] == "01A345678C"
+
+    def test_alignments_reference_sequence_embedded_null(self):
+        # This is a total corner case, but just want to make sure
+        # we do something sensible.
+        ref = "0123" + "\0" + "56789"
+        A = list(self.ts().alignments(reference_sequence=ref))
+        assert A[0] == "01G3\x005678T"
+        assert A[1] == "01A3\x005678C"
+        assert A[2] == "01A3\x005678C"
+
+
+class TestMissingDataExample:
+    # 2.00┊   4     ┊
+    #     ┊ ┏━┻┓    ┊
+    # 1.00┊ ┃  3    ┊
+    #     ┊ ┃ ┏┻┓   ┊
+    # 0.00┊ 0 1 2 5 ┊
+    #     0        10
+    #      |      |
+    #  pos 2      9
+    #  anc A      T
+    @tests.cached_example
+    def ts(self):
+        ts = tskit.Tree.generate_balanced(3, span=10).tree_sequence
+        tables = ts.dump_tables()
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.sites.add_row(2, ancestral_state="A")
+        tables.sites.add_row(9, ancestral_state="T")
+        tables.mutations.add_row(site=0, node=0, derived_state="G")
+        tables.mutations.add_row(site=1, node=3, derived_state="C")
+        return tables.tree_sequence()
+
+    def test_haplotypes(self):
+        H = list(self.ts().haplotypes())
+        assert H[0] == "GT"
+        assert H[1] == "AC"
+        assert H[2] == "AC"
+        assert H[3] == "--"
+
+    def test_haplotypes_missing_data_char(self):
+        H = list(self.ts().haplotypes(missing_data_character="|"))
+        assert H[0] == "GT"
+        assert H[1] == "AC"
+        assert H[2] == "AC"
+        assert H[3] == "||"
+
+    def test_genotypes(self):
+        G = self.ts().genotype_matrix()
+        Gp = [[1, 0, 0, -1], [0, 1, 1, -1]]
+        np.testing.assert_array_equal(G, Gp)
+
+    @pytest.mark.skip("Reference sequence not implemented #1888")
+    def test_alignments_default(self):
+        A = list(self.ts().alignments())
+        assert A[0] == "--G------T"
+        assert A[1] == "--A------C"
+        assert A[2] == "--A------C"
+        assert A[3] == "----------"
+
+    def test_alignments_impute_missing(self):
+        ref = "-" * 10
+        A = list(
+            self.ts().alignments(reference_sequence=ref, isolated_as_missing=False)
+        )
+        assert A[0] == "--G------T"
+        assert A[1] == "--A------C"
+        assert A[2] == "--A------C"
+        assert A[3] == "--A------T"
+
+    @pytest.mark.skip("Reference sequence not implemented #1888")
+    def test_alignments_missing_char(self):
+        A = list(self.ts().alignments(missing_data_character="z"))
+        assert A[0] == "zzGzzzzzzT"
+        assert A[1] == "zzAzzzzzzC"
+        assert A[2] == "zzAzzzzzzC"
+        assert A[3] == "zzzzzzzzzz"
+
+    @pytest.mark.skip("Reference sequence not implemented #1888")
+    def test_alignments_missing_char_ref(self):
+        A = list(self.ts().alignments(missing_data_character="z"))
+        assert A[0] == "--G------T"
+        assert A[1] == "--A------C"
+        assert A[2] == "--A------C"
+        assert A[3] == "--z------z"
+
+    def test_alignments_reference_sequence(self):
+        ref = "0123456789"
+        A = list(self.ts().alignments(reference_sequence=ref))
+        assert A[0] == "01G345678T"
+        assert A[1] == "01A345678C"
+        assert A[2] == "01A345678C"
+        assert A[3] == "01-345678-"
+
+    def test_alignments_reference_sequence_missing_data_char(self):
+        ref = "0123456789"
+        A = list(
+            self.ts().alignments(reference_sequence=ref, missing_data_character="Q")
+        )
+        assert A[0] == "01G345678T"
+        assert A[1] == "01A345678C"
+        assert A[2] == "01A345678C"
+        assert A[3] == "01Q345678Q"
+
+
+class TestAlignmentsErrors:
+    @tests.cached_example
+    def simplest_ts(self):
+        tables = tskit.TableCollection(1)
+        tables.nodes.add_row(flags=1, time=0)
+        return tables.tree_sequence()
+
+    def test_non_discrete_genome(self):
+        ts = tskit.TableCollection(1.1).tree_sequence()
+        assert not ts.discrete_genome
+        with pytest.raises(ValueError, match="defined for discrete genomes"):
+            list(ts.alignments())
+
+    def test_no_reference(self):
+        ts = tskit.TableCollection(1).tree_sequence()
+        with pytest.raises(ValueError, match="1888"):
+            list(ts.alignments())
+
+    @pytest.mark.parametrize("ref", ["", "xy"])
+    def test_reference_sequence_length_mismatch(self, ref):
+        ts = self.simplest_ts()
+        with pytest.raises(ValueError, match="same length"):
+            list(ts.alignments(reference_sequence=ref))
+
+    @pytest.mark.parametrize("ref", ["À", "┃", "α"])
+    def test_non_ascii_references(self, ref):
+        ts = self.simplest_ts()
+        with pytest.raises(UnicodeEncodeError):
+            list(ts.alignments(reference_sequence=ref))
+
+    @pytest.mark.parametrize("missing_data_char", ["À", "┃", "α"])
+    def test_non_ascii_missing_data_char(self, missing_data_char):
+        ts = self.simplest_ts()
+        with pytest.raises(UnicodeEncodeError):
+            list(
+                ts.alignments(
+                    reference_sequence="-", missing_data_character=missing_data_char
+                )
+            )
+
+
+class TestAlignmentExamples:
+    @pytest.mark.skip("Reference sequence not implemented #1888")
+    @pytest.mark.parametrize("ts", get_example_discrete_genome_tree_sequences())
+    def test_defaults(self, ts):
+        A = list(ts.alignments())
+        assert len(A) == ts.num_samples
+        H = list(ts.haplotypes())
+        pos = ts.tables.sites.position.astype(int)
+        for a, h in map(np.array, zip(A, H)):
+            last = 0
+            for j, x in enumerate(pos):
+                assert a[last:x] == "-" * (x - last)
+                assert a[x] == h[j]
+                last = x + 1
+
+    @pytest.mark.parametrize("ts", get_example_discrete_genome_tree_sequences())
+    def test_reference_sequence(self, ts):
+        ref = tskit.random_nucleotides(ts.sequence_length, seed=1234)
+        A = list(ts.alignments(reference_sequence=ref))
+        assert len(A) == ts.num_samples
+        H = list(ts.haplotypes())
+        pos = ts.tables.sites.position.astype(int)
+        for a, h in map(np.array, zip(A, H)):
+            last = 0
+            for j, x in enumerate(pos):
+                assert a[last:x] == ref[last:x]
+                assert a[x] == h[j]
+                last = x + 1
+            assert a[last:] == ref[last:]
