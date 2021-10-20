@@ -5105,10 +5105,7 @@ class TreeSequence:
         :return: A nexus representation of this TreeSequence.
         :rtype: str
         """
-        node_labels = {
-            node.id: f"tsk_{node.id}_{node.flags}"
-            for node in self.nodes()
-        }
+        node_labels = {node.id: f"tsk_{node.id}_{node.flags}" for node in self.nodes()}
 
         s = "#NEXUS\n"
         s += "BEGIN TAXA;\n"
