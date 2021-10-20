@@ -144,7 +144,12 @@ class JSONCodec(AbstractMetadataCodec):
         }
 
     def encode(self, obj: Any) -> bytes:
-        return tskit.canonical_json(obj).encode()
+        try:
+            return tskit.canonical_json(obj).encode()
+        except TypeError as e:
+            raise exceptions.MetadataEncodingError(
+                f"Could not encode metadata of type {str(e).split()[3]}"
+            )
 
     def decode(self, encoded: bytes) -> Any:
         result = json.loads(encoded.decode())

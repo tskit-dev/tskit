@@ -566,6 +566,14 @@ class TestJSONCodec:
         ):
             tskit.MetadataSchema(schema)
 
+    def test_bad_type_error(self):
+        ms = tskit.MetadataSchema({"codec": "json"})
+        with pytest.raises(
+            exceptions.MetadataEncodingError,
+            match="Could not encode metadata of type TableCollection",
+        ):
+            ms.validate_and_encode_row(tskit.TableCollection(1))
+
 
 class TestStructCodec:
     def encode_decode(self, method_name, sub_schema, obj, buffer):
