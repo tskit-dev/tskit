@@ -436,6 +436,31 @@ be greater than or equal to ``num_nodes``.
 */
 tsk_size_t tsk_tree_get_size_bound(const tsk_tree_t *self);
 
+/**
+@brief Returns the sum of the lengths of all branches reachable from
+    the specified node, or from all roots if node=TSK_NULL.
+
+@rst
+Return the total branch length in a particular subtree or of the
+entire tree. If the specified node is TSK_NULL (or the virtual
+root) the sum of the lengths of all branches reachable from roots
+is returned. Branch length is defined as difference between the time
+of a node and its parent. The branch length of a root is zero.
+
+Note that if the specified node is internal its branch length is
+*not* included, so that, e.g., the total branch length of a
+leaf node is zero.
+@endrst
+
+@param self A pointer to a tsk_tree_t object.
+@param node The tree node to compute branch length or TSK_NULL to return the
+    total branch length of the tree.
+@param ret_tbl A double pointer to store the returned total branch length.
+@return 0 on success or a negative value on failure.
+*/
+int tsk_tree_get_total_branch_length(
+    const tsk_tree_t *self, tsk_id_t node, double *ret_tbl);
+
 /** @} */
 
 int tsk_tree_set_root_threshold(tsk_tree_t *self, tsk_size_t root_threshold);

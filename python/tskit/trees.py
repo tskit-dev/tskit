@@ -994,7 +994,7 @@ class Tree:
         :return: The sum of lengths of branches in this tree.
         :rtype: float
         """
-        return sum(self.branch_length(u) for u in self.nodes())
+        return self._ll_tree.get_total_branch_length()
 
     def get_mrca(self, u, v):
         # Deprecated alias for mrca
