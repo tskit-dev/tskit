@@ -5085,7 +5085,6 @@ class TreeSequence:
     def to_nexus(
         self,
         precision=14,
-        unquoted_underscores=True,
     ):
         """
         Returns a `nexus encoding <https://en.wikipedia.org/wiki/Nexus_file>`_
@@ -5106,12 +5105,8 @@ class TreeSequence:
         :return: A nexus representation of this TreeSequence.
         :rtype: str
         """
-        if unquoted_underscores:
-            quote = ""
-        else:
-            quote = "'"
         node_labels = {
-            node.id: f"{quote}tsk_{node.id}_{node.flags}{quote}"
+            node.id: f"tsk_{node.id}_{node.flags}"
             for node in self.nodes()
         }
 
