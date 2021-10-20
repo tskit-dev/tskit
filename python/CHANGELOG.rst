@@ -63,6 +63,9 @@
 - Substantial performance improvement for ``Tree.total_branch_length``
   (:user:`jeromekelleher`, :issue:`1794` :pr:`1799`)
 
+- Add the ``discrete_genome`` property to the TreeSequence class which is true if
+  all coordinates are discrete (:user:`jeromekelleher`, :issue:`1144`, :pr:`1819`)
+
 --------------------
 [0.3.7] - 2021-07-08
 --------------------

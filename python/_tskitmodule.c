@@ -7813,6 +7813,19 @@ out:
 }
 
 static PyObject *
+TreeSequence_get_discrete_genome(TreeSequence *self)
+{
+    PyObject *ret = NULL;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue("i", tsk_treeseq_get_discrete_genome(self->tree_sequence));
+out:
+    return ret;
+}
+
+static PyObject *
 TreeSequence_get_breakpoints(TreeSequence *self)
 {
     PyObject *ret = NULL;
@@ -9017,6 +9030,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_get_sequence_length,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns the sequence length in bases." },
+    { .ml_name = "get_discrete_genome",
+        .ml_meth = (PyCFunction) TreeSequence_get_discrete_genome,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns True if this TreeSequence has discrete coordinates" },
     { .ml_name = "get_breakpoints",
         .ml_meth = (PyCFunction) TreeSequence_get_breakpoints,
         .ml_flags = METH_NOARGS,
