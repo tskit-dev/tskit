@@ -54,3 +54,9 @@ class MetadataSchemaValidationError(TskitException):
     """
     A metadata schema object did not validate against the metaschema.
     """
+
+
+class MetadataEncodingError(TskitException):
+    """
+    A metadata object was of a type that could not be encoded
+    """

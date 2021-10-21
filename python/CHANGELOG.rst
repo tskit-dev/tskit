@@ -31,6 +31,9 @@
   ``TableCollection.sort`` no longer sorts individuals.
   (:user:`benjeffery`, :issue:`1774`, :pr:`1789`)
 
+- Metadata encoding errors now raise ``MetadataEncodingError``
+  (:user:`benjeffery`, :issue:`1505`, :pr:`1827`).
+
 **Features**
 
 - Add ``TableCollection.sort_individuals`` to sort the individuals as this is no longer done by the
