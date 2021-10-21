@@ -22,8 +22,12 @@
 """
 Python implementation of the IBD-finding algorithms.
 """
-import argparse
+from __future__ import annotations
+
 import collections
+import dataclasses
+from typing import List
+from typing import Union
 
 import numpy as np
 
@@ -139,6 +143,96 @@ class IbdResult:
         self.segments[key].append(tskit.IbdSegment(seg.left, seg.right, seg.node))
 
 
+@dataclasses.dataclass
+class AncestrySegment:
+    left: float
+    right: float
+    samples: List[int] = dataclasses.field(default_factory=list)
+    next: Union[None, AncestrySegment] = None  # noqa: A003
+    prev: Union[None, AncestrySegment] = None
+
+    def __repr__(self):
+        return repr((self.left, self.right, self.samples))
+
+
+@dataclasses.dataclass
+class AncestrySegmentList:
+    head: AncestrySegment
+    tail: AncestrySegment
+
+    def __repr__(self):
+        lst = []
+        u = self.head.next
+        while u != self.tail:
+            lst.append((u.left, u.right, u.samples))
+            u = u.next
+        return repr(lst)
+
+    def check(self):
+        prev = None
+        u = self.head
+        while u is not None:
+            assert u.prev is prev
+            if prev is not None:
+                assert prev.right == u.left
+            assert u.left < u.right
+
+            prev = u
+            u = u.next
+        assert prev == self.tail
+
+    def insert(self, left, right, node):
+        """
+        Insert the specified sample node into the segment list for the
+        specified interval.
+        """
+        # print("INSERT", left, right, node, "::", repr(self))
+        # Skip ahead until we intersect with the left edge
+        u = self.head
+        while left >= u.right:
+            u = u.next
+        if u.left < left:
+            #             left
+            #     u.left   |    u.right
+            # ----|--------------|
+            #
+            # ->
+            #         v       u
+            # ----|--------|-----|
+            v = AncestrySegment(u.left, left, list(u.samples), prev=u.prev, next=u)
+            u.left = left
+            u.prev.next = v
+            u.prev = v
+        # Update segments completely contained in the interval
+        while u.right <= right:
+            # print("updating u", repr(u), left, right)
+            u.samples.append(node)
+            u = u.next
+        # Update and trim the last segment overlapping the interval
+        if right > u.left:
+            #             right
+            #     u.left   |    u.right
+            # ----|--------------|
+            #
+            # ->
+            #         u       v
+            # ----|--------|-----|
+            v = AncestrySegment(right, u.right, list(u.samples), prev=u, next=u.next)
+            u.right = right
+            u.next.prev = v
+            u.next = v
+            u.samples.append(node)
+        # print("DONE:", repr(self))
+        # print()
+
+    def update(self, segs):
+        seg = segs.head
+        while seg is not None:
+            self.insert(seg.left, seg.right, seg.node)
+            seg = seg.next
+            self.check()
+
+
 class IbdFinder:
     """
     Finds all IBD relationships between specified sample pairs in a tree sequence.
@@ -163,9 +257,17 @@ class IbdFinder:
         self.min_length = min_length
         self.max_time = np.inf if max_time is None else max_time
         self.A = [SegmentList() for _ in range(ts.num_nodes)]  # Descendant segments
+        self.D = [None for _ in range(ts.num_nodes)]
         for u in range(ts.num_nodes):
+            head = AncestrySegment(-1, 0)
+            tail = AncestrySegment(ts.sequence_length, ts.sequence_length + 1)
+            lst = AncestrySegment(0, ts.sequence_length, prev=head, next=tail)
+            head.next = lst
+            tail.prev = lst
+            self.D[u] = AncestrySegmentList(head, tail)
             if self.sample_set_id[u] != -1:
                 self.A[u].append(Segment(0, ts.sequence_length, u))
+                lst.samples.append(u)
         self.tables = self.ts.tables
 
     def print_state(self):
@@ -177,6 +279,37 @@ class IbdFinder:
         for u, a in enumerate(self.A):
             print(u, self.sample_set_id[u], a, sep="\t")
 
+        print("u\tset_id\tD = ")
+        for u, a in enumerate(self.D):
+            print(u, self.sample_set_id[u], a, sep="\t")
+
+        self.check_state()
+
+    def check_state(self):
+        L = int(self.tables.sequence_length)
+        for u in range(len(self.tables.nodes)):
+            # print("CHECK", u)
+            a_set = [[] for _ in range(L)]
+            seg = self.A[u].head
+            while seg is not None:
+                for j in range(int(seg.left), int(seg.right)):
+                    a_set[j].append(seg.node)
+                # a_set[(seg.left, seg.right)].append(seg.node)
+                seg = seg.next
+            # print(a_set)
+            d_set = [[] for _ in range(L)]
+            seg = self.D[u].head.next
+            while seg is not self.D[u].tail:
+                for j in range(int(seg.left), int(seg.right)):
+                    d_set[j] = list(sorted(seg.samples))
+                seg = seg.next
+            # print(d_set)
+            assert len(a_set) == len(d_set)
+            for j in range(L):
+                a_samples = list(sorted(a_set[j]))
+                # print(d_set[j], a_samples)
+                assert d_set[j] == a_samples
+
     def run(self):
         node_times = self.tables.nodes.time
         for e in self.ts.edges():
@@ -185,6 +318,7 @@ class IbdFinder:
                 # Stop looking for IBD segments once the
                 # processed nodes are older than the max time.
                 break
+            # print("processing edge", e)
             child_segs = SegmentList()
             s = self.A[e.child].head
             while s is not None:
@@ -197,6 +331,8 @@ class IbdFinder:
                 s = s.next
             self.record_ibd(e.parent, child_segs)
             self.A[e.parent].extend(child_segs)
+            self.D[e.parent].update(child_segs)
+        self.check_state()
         return self.result.segments
 
     def record_ibd(self, current_parent, child_segs):
@@ -205,6 +341,7 @@ class IbdFinder:
         record the IBD segments that will occur as a result of adding these
         new segments into the existing list.
         """
+        # print("Recording IBD for segs", current_parent, child_segs)
         # Note the implementation here is O(n^2) because we have to compare
         # every segment with every other one. If the segments were stored in
         # left-to-right sorted order, we could avoid and merge them more
@@ -233,71 +370,3 @@ class IbdFinder:
             return self.sample_set_id[a] != self.sample_set_id[b]
         else:
             return True
-
-
-if __name__ == "__main__":
-    """
-    A simple CLI for running IBDFinder on a command line from the `python`
-    subdirectory. Basic usage:
-    > python3 ./tests/ibd.py --infile test.trees
-    """
-
-    parser = argparse.ArgumentParser(
-        description="Command line interface for the IBDFinder."
-    )
-
-    parser.add_argument(
-        "--infile",
-        type=str,
-        dest="infile",
-        nargs=1,
-        metavar="IN_FILE",
-        help="The tree sequence to be analysed.",
-    )
-
-    parser.add_argument(
-        "--min-length",
-        type=float,
-        dest="min_length",
-        nargs=1,
-        metavar="MIN_LENGTH",
-        help="Only segments longer than this cutoff will be returned.",
-    )
-
-    parser.add_argument(
-        "--max-time",
-        type=float,
-        dest="max_time",
-        nargs=1,
-        metavar="MAX_TIME",
-        help="Only segments younger this time will be returned.",
-    )
-
-    parser.add_argument(
-        "--samples",
-        type=int,
-        dest="samples",
-        nargs=2,
-        metavar="SAMPLES",
-        help="If provided, only this pair's IBD info is returned.",
-    )
-
-    args = parser.parse_args()
-    ts = tskit.load(args.infile[0])
-    if args.min_length is None:
-        min_length = 0
-    else:
-        min_length = args.min_length[0]
-    if args.max_time is None:
-        max_time = None
-    else:
-        max_time = args.max_time[0]
-
-    s = IbdFinder(ts, samples=ts.samples(), min_length=min_length, max_time=max_time)
-    all_segs = s.find_ibd_segments()
-
-    if args.samples is None:
-        print(all_segs)
-    else:
-        samples = args.samples
-        print(all_segs[(samples[0], samples[1])])
