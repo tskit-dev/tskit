@@ -4851,7 +4851,7 @@ class TreeSequence:
         # Deprecated alias for samples()
         return self.samples(population_id)
 
-    def samples(self, population=None, population_id=None, time=None):
+    def samples(self, population=None, *, population_id=None, time=None):
         """
         Returns an array of the sample node IDs in this tree sequence. If
         `population` is specified, only return sample IDs from that population.

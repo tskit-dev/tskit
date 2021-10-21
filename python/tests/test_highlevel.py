@@ -1187,6 +1187,11 @@ class TestNumpySamples:
         with pytest.raises(ValueError):
             ts.samples(time=(2.4, 1))
 
+    def test_samples_args(self, ts_fixture):
+        ts_fixture.samples(1)
+        with pytest.raises(TypeError, match="takes from 1 to 2 positional arguments"):
+            ts_fixture.samples(1, 2)
+
     def test_genotype_matrix_indexing(self):
         num_demes = 4
         ts = self.get_tree_sequence(num_demes)
