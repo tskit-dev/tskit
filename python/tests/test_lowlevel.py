@@ -400,6 +400,10 @@ class TestTableCollection(LowLevelTestCase):
             with pytest.raises(TypeError):
                 tc.fromdict(bad_type)
 
+    def test_sort_individuals(self):
+        tc = _tskit.TableCollection(1)
+        tc.sort_individuals()
+
 
 class TestIbd:
     def test_uninitialised(self):
@@ -419,14 +423,14 @@ class TestIbd:
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables._ll_tables
         pairs = [[0, 1], [0, 2], [1, 2]]
-        result = tc.ibd_segments(within=[0, 1, 2], store_pairs=True)
+        result = tc.ibd_segments_within([0, 1, 2], store_pairs=True)
         np.testing.assert_array_equal(result.get_keys(), pairs)
 
     def test_store_pairs(self):
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables._ll_tables
         # By default we can't get any information about pairs.
-        result = tc.ibd_segments()
+        result = tc.ibd_segments_within()
         with pytest.raises(_tskit.IbdPairsNotStoredError):
             result.get_keys()
         with pytest.raises(_tskit.IbdPairsNotStoredError):
@@ -435,7 +439,7 @@ class TestIbd:
             result.get(0, 1)
 
         num_pairs = 45
-        result = tc.ibd_segments(store_pairs=True)
+        result = tc.ibd_segments_within(store_pairs=True)
         assert len(result.get_keys()) == num_pairs
         assert result.num_pairs == num_pairs
 
@@ -449,39 +453,75 @@ class TestIbd:
         with pytest.raises(_tskit.IbdSegmentsNotStoredError):
             seglist.right
 
-    def test_find_all_pairs(self):
+    def test_within_all_pairs(self):
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables._ll_tables
         num_pairs = ts.num_samples * (ts.num_samples - 1) / 2
-        result = tc.ibd_segments(store_pairs=True)
+        result = tc.ibd_segments_within(store_pairs=True)
         assert result.num_pairs == num_pairs
         pairs = np.array(list(itertools.combinations(range(ts.num_samples), 2)))
         np.testing.assert_array_equal(result.get_keys(), pairs)
 
-    def test_find_bad_args(self):
+    def test_between_all_pairs(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.tables._ll_tables
+        result = tc.ibd_segments_between([5, 5], range(10), store_pairs=True)
+        assert result.num_pairs == 25
+        pairs = np.array(list(itertools.product(range(5), range(5, 10))))
+        np.testing.assert_array_equal(result.get_keys(), pairs)
+
+    def test_within_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables._ll_tables
         for bad_samples in ["sdf", {}]:
             with pytest.raises(ValueError):
-                tc.ibd_segments(bad_samples)
+                tc.ibd_segments_within(bad_samples)
         # input array must be 1D
         with pytest.raises(ValueError):
-            tc.ibd_segments([[[1], [1]]])
+            tc.ibd_segments_within([[[1], [1]]])
         for bad_float in ["sdf", None, {}]:
             with pytest.raises(TypeError):
-                tc.ibd_segments(min_length=bad_float)
+                tc.ibd_segments_within(min_length=bad_float)
             with pytest.raises(TypeError):
-                tc.ibd_segments(max_time=bad_float)
+                tc.ibd_segments_within(max_time=bad_float)
         with pytest.raises(_tskit.LibraryError):
-            tc.ibd_segments(max_time=-1)
+            tc.ibd_segments_within(max_time=-1)
         with pytest.raises(_tskit.LibraryError):
-            tc.ibd_segments(min_length=-1)
+            tc.ibd_segments_within(min_length=-1)
+
+    def test_between_bad_args(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.tables._ll_tables
+        with pytest.raises(TypeError):
+            tc.ibd_segments_between()
+        with pytest.raises(TypeError):
+            tc.ibd_segments_between([1])
+
+        with pytest.raises(ValueError):
+            tc.ibd_segments_between("sdf", [1, 2])
+        with pytest.raises(ValueError):
+            tc.ibd_segments_between([1, 2], "sdf")
+        # The sample_set parsing code is tested elsewhere, so just test
+        # something basic.
+        with pytest.raises(ValueError, match="Sum of sample_set_sizes"):
+            tc.ibd_segments_between([1, 1], [1])
+        for bad_float in ["sdf", None, {}]:
+            with pytest.raises(TypeError):
+                tc.ibd_segments_between([1, 1], [0, 1], min_length=bad_float)
+            with pytest.raises(TypeError):
+                tc.ibd_segments_between([1, 1], [0, 1], max_time=bad_float)
+        with pytest.raises(_tskit.LibraryError):
+            tc.ibd_segments_between([1, 1], [0, 1], min_length=-1)
+        with pytest.raises(_tskit.LibraryError):
+            tc.ibd_segments_between([1, 1], [0, 1], max_time=-1)
+        with pytest.raises(_tskit.LibraryError, match="Duplicate sample"):
+            tc.ibd_segments_between([1, 1], [0, 0])
 
     def test_get_output(self):
         ts = msprime.simulate(5, random_seed=1)
         tc = ts.tables._ll_tables
         pairs = [(0, 1), (2, 3)]
-        result = tc.ibd_segments([0, 1, 2, 3], store_segments=True)
+        result = tc.ibd_segments_within([0, 1, 2, 3], store_segments=True)
         assert isinstance(result, _tskit.IbdSegments)
         for pair in pairs:
             value = result.get(*pair)
@@ -499,7 +539,7 @@ class TestIbd:
     def test_get_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables._ll_tables
-        result = tc.ibd_segments(within=[0, 1, 2], store_segments=True)
+        result = tc.ibd_segments_within([0, 1, 2], store_segments=True)
         with pytest.raises(TypeError):
             result.get()
         with pytest.raises(TypeError):
@@ -516,7 +556,7 @@ class TestIbd:
     def test_print_state(self):
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables._ll_tables
-        result = tc.ibd_segments()
+        result = tc.ibd_segments_within()
         with pytest.raises(TypeError):
             result.print_state()
 
@@ -549,12 +589,27 @@ class TestIbdSegmentList:
             with pytest.raises(SystemError, match="not initialised"):
                 getattr(seglist, attr)
 
-    def test_memory_management(self):
+    def test_memory_management_within(self):
         ts = msprime.simulate(10, random_seed=1)
         tc = ts.tables._ll_tables
-        result = tc.ibd_segments(store_segments=True)
+        result = tc.ibd_segments_within(store_segments=True)
         del ts, tc
         lst = result.get(0, 1)
+        assert lst.num_segments == 1
+        del result
+        gc.collect()
+        assert lst.num_segments == 1
+        # Do some allocs to see if we're still working properly
+        x = sum(list(range(1000)))
+        assert x > 0
+        assert lst.num_segments == 1
+
+    def test_memory_management_between(self):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.tables._ll_tables
+        result = tc.ibd_segments_between([2, 2], range(4), store_segments=True)
+        del ts, tc
+        lst = result.get(0, 2)
         assert lst.num_segments == 1
         del result
         gc.collect()
@@ -2511,7 +2566,9 @@ class TestTree(LowLevelTestCase):
             st = _tskit.Tree(ts)
             assert st.get_num_nodes() == ts.get_num_nodes()
             # An uninitialised tree should always be zero.
-            assert st.get_left_root() == 0
+            samples = ts.get_samples()
+            assert st.get_left_child(st.get_virtual_root()) == samples[0]
+            assert st.get_right_child(st.get_virtual_root()) == samples[-1]
             assert st.get_left() == 0
             assert st.get_right() == 0
             for j in range(ts.get_num_samples()):
@@ -2656,7 +2713,7 @@ class TestTree(LowLevelTestCase):
         for ts in self.get_example_tree_sequences():
             num_nodes = ts.get_num_nodes()
             st = _tskit.Tree(ts)
-            for v in [num_nodes, 10 ** 6, _tskit.NULL]:
+            for v in [num_nodes + 1, 10 ** 6, _tskit.NULL]:
                 with pytest.raises(ValueError):
                     st.get_mrca(v, v)
                 with pytest.raises(ValueError):
@@ -2694,9 +2751,8 @@ class TestTree(LowLevelTestCase):
             with pytest.raises(ValueError):
                 st.get_newick(root=0, precision=100)
             for precision in range(17):
-                tree = st.get_newick(
-                    root=st.get_left_root(), precision=precision
-                ).decode()
+                root = st.get_left_child(st.get_virtual_root())
+                tree = st.get_newick(root=root, precision=precision).decode()
                 times = get_times(tree)
                 assert len(times) > ts.get_num_samples()
                 for t in times:
@@ -2712,7 +2768,8 @@ class TestTree(LowLevelTestCase):
 
         def check_tree(tree):
             assert tree.get_index() == -1
-            assert tree.get_left_root() == samples[0]
+            assert tree.get_left_child(tree.get_virtual_root()) == samples[0]
+            assert tree.get_num_edges() == 0
             assert tree.get_mrca(0, 1) == _tskit.NULL
             for u in range(ts.get_num_nodes()):
                 assert tree.get_parent(u) == _tskit.NULL
@@ -2739,7 +2796,7 @@ class TestTree(LowLevelTestCase):
             with pytest.raises(TypeError):
                 st.get_newick(ts, buffer_size=bad_type)
         while st.next():
-            u = st.get_left_root()
+            u = st.get_left_child(st.get_virtual_root())
             newick = st.get_newick(u)
             assert newick.endswith(b";")
             with pytest.raises(ValueError):
@@ -2830,7 +2887,7 @@ class TestTree(LowLevelTestCase):
                         assert t.get_left_sample(j) == _tskit.NULL
                         assert t.get_right_sample(j) == _tskit.NULL
                 # The roots should have all samples.
-                u = t.get_left_root()
+                u = t.get_left_child(t.get_virtual_root())
                 samples = []
                 while u != _tskit.NULL:
                     sample = t.get_left_sample(u)
@@ -3032,7 +3089,7 @@ class TestTree(LowLevelTestCase):
         t1.first()
         a = getattr(t1, array + "_array")
         assert a.dtype == np.int32
-        assert a.shape == (ts1.get_num_nodes(),)
+        assert a.shape == (ts1.get_num_nodes() + 1,)
         assert a.base == t1
         assert not a.flags.writeable
         assert a.flags.aligned
@@ -3072,6 +3129,25 @@ class TestTree(LowLevelTestCase):
         # Just do something to touch memory
         a2[:] = 0
         assert a3 is not a2
+
+    @pytest.mark.parametrize("ordering", ["preorder", "postorder"])
+    def test_traversal_arrays(self, ordering):
+        ts = self.get_example_tree_sequence(10)
+        tree = _tskit.Tree(ts)
+        tree.first()
+        method = getattr(tree, "get_" + ordering)
+        for bad_type in [None, {}]:
+            with pytest.raises(TypeError):
+                method(bad_type)
+        for bad_node in [-2, 10 ** 6]:
+            with pytest.raises(_tskit.LibraryError, match="out of bounds"):
+                method(bad_node)
+        a = method(tree.get_virtual_root())
+        assert a.dtype == np.int32
+        assert not a.flags.writeable
+        assert a.flags.aligned
+        assert a.flags.c_contiguous
+        assert a.flags.owndata
 
 
 class TestTableMetadataSchema(MetadataTestMixin):

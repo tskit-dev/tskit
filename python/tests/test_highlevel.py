@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2020 Tskit Developers
+# Copyright (c) 2018-2021 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -56,6 +56,87 @@ import tests.tsutil as tsutil
 import tskit
 import tskit.util as util
 from tskit import UNKNOWN_TIME
+
+
+def traversal_preorder(tree, root=None):
+    roots = tree.roots if root is None else [root]
+    for node in roots:
+        yield node
+        for child in tree.children(node):
+            yield from traversal_preorder(tree, child)
+
+
+def traversal_postorder(tree, root=None):
+    roots = tree.roots if root is None else [root]
+    for node in roots:
+        for child in tree.children(node):
+            yield from traversal_postorder(tree, child)
+        yield node
+
+
+def traversal_inorder(tree, root=None):
+    roots = tree.roots if root is None else [root]
+    for node in roots:
+        children = list(tree.children(node))
+        half = len(children) // 2
+        for child in children[:half]:
+            yield from traversal_inorder(tree, child)
+        yield node
+        for child in children[half:]:
+            yield from traversal_inorder(tree, child)
+
+
+def traversal_levelorder(tree, root=None):
+    yield from sorted(list(tree.nodes(root)), key=lambda u: tree.depth(u))
+
+
+def _traversal_minlex_postorder(tree, u):
+    """
+    For a given input ID u, this function returns a tuple whose first value
+    is the minimum leaf node ID under node u, and whose second value is
+    a list containing the minlex postorder for the subtree rooted at node u.
+    The first value is needed for sorting, and the second value is what
+    finally gets returned.
+    """
+    children = tree.children(u)
+    if len(children) > 0:
+        children_return = [_traversal_minlex_postorder(tree, c) for c in children]
+        # sorts by first value, which is the minimum leaf node ID
+        children_return.sort(key=lambda x: x[0])
+        minlex_postorder = []
+        for _, child_minlex_postorder in children_return:
+            minlex_postorder.extend(child_minlex_postorder)
+        minlex_postorder.extend([u])
+        return (children_return[0][0], minlex_postorder)
+    else:
+        return (u, [u])
+
+
+def traversal_minlex_postorder(tree, root=None):
+    roots = tree.roots if root is None else [root]
+    root_lists = [_traversal_minlex_postorder(tree, node) for node in roots]
+    for _, node_list in sorted(root_lists, key=lambda x: x[0]):
+        yield from node_list
+
+
+def traversal_timeasc(tree, root=None):
+    yield from sorted(tree.nodes(root), key=lambda u: (tree.time(u), u))
+
+
+def traversal_timedesc(tree, root=None):
+    yield from sorted(tree.nodes(root), key=lambda u: (tree.time(u), u), reverse=True)
+
+
+traversal_map = {
+    "preorder": traversal_preorder,
+    "postorder": traversal_postorder,
+    "inorder": traversal_inorder,
+    "levelorder": traversal_levelorder,
+    "breadthfirst": traversal_levelorder,
+    "minlex_postorder": traversal_minlex_postorder,
+    "timeasc": traversal_timeasc,
+    "timedesc": traversal_timedesc,
+}
 
 
 def insert_uniform_mutations(tables, num_mutations, nodes):
@@ -361,6 +442,407 @@ def get_samples(ts, time=None, population=None):
         if keep:
             samples.append(node.id)
     return np.array(samples)
+
+
+class TestTreeTraversals:
+    def test_bad_traversal_order(self):
+        ts = msprime.sim_ancestry(2, random_seed=234)
+        tree = ts.first()
+        for bad_order in ["pre", "post", "preorderorder", ("x",), b"preorder"]:
+            with pytest.raises(ValueError, match="Traversal order"):
+                tree.nodes(order=bad_order)
+
+    @pytest.mark.parametrize("order", list(traversal_map.keys()))
+    def test_returned_types(self, order):
+        ts = msprime.sim_ancestry(2, random_seed=234)
+        tree = ts.first()
+        iterator = tree.nodes(order=order)
+        assert isinstance(iterator, collections.abc.Iterable)
+        lst = list(iterator)
+        assert len(lst) > 0
+        for u in lst:
+            assert isinstance(u, int)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    @pytest.mark.parametrize("order", list(traversal_map.keys()))
+    def test_traversals_virtual_root(self, ts, order):
+        tree = ts.first()
+        node_list2 = list(traversal_map[order](tree, tree.virtual_root))
+        node_list1 = list(tree.nodes(tree.virtual_root, order=order))
+        assert tree.virtual_root in node_list1
+        assert node_list1 == node_list2
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    @pytest.mark.parametrize("order", list(traversal_map.keys()))
+    def test_traversals(self, ts, order):
+        tree = next(ts.trees())
+        traverser = traversal_map[order]
+        node_list1 = list(tree.nodes(order=order))
+        node_list2 = list(traverser(tree))
+        assert node_list1 == node_list2
+
+    def test_binary_example(self):
+        t = tskit.Tree.generate_balanced(5)
+        #     8
+        #  ┏━━┻━┓
+        #  ┃    7
+        #  ┃  ┏━┻┓
+        #  5  ┃  6
+        # ┏┻┓ ┃ ┏┻┓
+        # 0 1 2 3 4
+
+        def f(node=None, order=None):
+            return list(t.nodes(node, order))
+
+        assert f(order="preorder") == [8, 5, 0, 1, 7, 2, 6, 3, 4]
+        assert f(order="postorder") == [0, 1, 5, 2, 3, 4, 6, 7, 8]
+        assert f(order="inorder") == [0, 5, 1, 8, 2, 7, 3, 6, 4]
+        assert f(order="levelorder") == [8, 5, 7, 0, 1, 2, 6, 3, 4]
+        assert f(order="breadthfirst") == [8, 5, 7, 0, 1, 2, 6, 3, 4]
+        assert f(order="timeasc") == [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        assert f(order="timedesc") == [8, 7, 6, 5, 4, 3, 2, 1, 0]
+        assert f(order="minlex_postorder") == [0, 1, 5, 2, 3, 4, 6, 7, 8]
+
+        q = t.virtual_root
+        assert f(q, order="preorder") == [q, 8, 5, 0, 1, 7, 2, 6, 3, 4]
+        assert f(q, order="postorder") == [0, 1, 5, 2, 3, 4, 6, 7, 8, q]
+        assert f(q, order="inorder") == [q, 0, 5, 1, 8, 2, 7, 3, 6, 4]
+        assert f(q, order="levelorder") == [q, 8, 5, 7, 0, 1, 2, 6, 3, 4]
+        assert f(q, order="breadthfirst") == [q, 8, 5, 7, 0, 1, 2, 6, 3, 4]
+        assert f(q, order="timeasc") == [0, 1, 2, 3, 4, 5, 6, 7, 8, q]
+        assert f(q, order="timedesc") == [q, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+        assert f(q, order="minlex_postorder") == [0, 1, 5, 2, 3, 4, 6, 7, 8, q]
+
+        assert f(7, order="preorder") == [7, 2, 6, 3, 4]
+        assert f(7, order="postorder") == [2, 3, 4, 6, 7]
+        assert f(7, order="inorder") == [2, 7, 3, 6, 4]
+        assert f(7, order="levelorder") == [7, 2, 6, 3, 4]
+        assert f(7, order="breadthfirst") == [7, 2, 6, 3, 4]
+        assert f(7, order="timeasc") == [2, 3, 4, 6, 7]
+        assert f(7, order="timedesc") == [7, 6, 4, 3, 2]
+        assert f(7, order="minlex_postorder") == [2, 3, 4, 6, 7]
+
+    def test_ternary_example(self):
+        t = tskit.Tree.generate_balanced(7, arity=3)
+        #      10
+        #  ┏━━━┳┻━━━┓
+        #  7   8    9
+        # ┏┻┓ ┏┻┓ ┏━╋━┓
+        # 0 1 2 3 4 5 6
+
+        def f(node=None, order=None):
+            return list(t.nodes(node, order))
+
+        assert f(order="preorder") == [10, 7, 0, 1, 8, 2, 3, 9, 4, 5, 6]
+        assert f(order="postorder") == [0, 1, 7, 2, 3, 8, 4, 5, 6, 9, 10]
+        assert f(order="inorder") == [0, 7, 1, 10, 2, 8, 3, 4, 9, 5, 6]
+        assert f(order="levelorder") == [10, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
+        assert f(order="breadthfirst") == [10, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
+        assert f(order="timeasc") == list(range(11))
+        assert f(order="timedesc") == list(reversed(range(11)))
+        assert f(order="minlex_postorder") == [0, 1, 7, 2, 3, 8, 4, 5, 6, 9, 10]
+
+        q = t.virtual_root
+        assert f(q, order="preorder") == [q, 10, 7, 0, 1, 8, 2, 3, 9, 4, 5, 6]
+        assert f(q, order="postorder") == [0, 1, 7, 2, 3, 8, 4, 5, 6, 9, 10, q]
+        assert f(q, order="inorder") == [q, 0, 7, 1, 10, 2, 8, 3, 4, 9, 5, 6]
+        assert f(q, order="levelorder") == [q, 10, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
+        assert f(q, order="breadthfirst") == [q, 10, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
+        assert f(q, order="timeasc") == list(range(12))
+        assert f(q, order="timedesc") == list(reversed(range(12)))
+        assert f(q, order="minlex_postorder") == [0, 1, 7, 2, 3, 8, 4, 5, 6, 9, 10, q]
+
+        assert f(9, order="preorder") == [9, 4, 5, 6]
+        assert f(9, order="postorder") == [4, 5, 6, 9]
+        assert f(9, order="inorder") == [4, 9, 5, 6]
+        assert f(9, order="levelorder") == [9, 4, 5, 6]
+        assert f(9, order="breadthfirst") == [9, 4, 5, 6]
+        assert f(9, order="timeasc") == [4, 5, 6, 9]
+        assert f(9, order="timedesc") == [9, 6, 5, 4]
+        assert f(9, order="minlex_postorder") == [4, 5, 6, 9]
+
+    def test_multiroot_example(self):
+        tables = tskit.Tree.generate_balanced(7, arity=3).tree_sequence.dump_tables()
+        tables.edges.truncate(len(tables.edges) - 3)
+        t = tables.tree_sequence().first()
+
+        #  7   8    9
+        # ┏┻┓ ┏┻┓ ┏━╋━┓
+        # 0 1 2 3 4 5 6
+        def f(node=None, order=None):
+            return list(t.nodes(node, order))
+
+        assert f(order="preorder") == [7, 0, 1, 8, 2, 3, 9, 4, 5, 6]
+        assert f(order="postorder") == [0, 1, 7, 2, 3, 8, 4, 5, 6, 9]
+        assert f(order="inorder") == [0, 7, 1, 2, 8, 3, 4, 9, 5, 6]
+        assert f(order="levelorder") == [7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
+        assert f(order="breadthfirst") == [7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
+        assert f(order="timeasc") == list(range(10))
+        assert f(order="timedesc") == list(reversed(range(10)))
+        assert f(order="minlex_postorder") == [0, 1, 7, 2, 3, 8, 4, 5, 6, 9]
+
+        q = t.virtual_root
+        assert f(q, order="preorder") == [q, 7, 0, 1, 8, 2, 3, 9, 4, 5, 6]
+        assert f(q, order="postorder") == [0, 1, 7, 2, 3, 8, 4, 5, 6, 9, q]
+        assert f(q, order="inorder") == [0, 7, 1, q, 2, 8, 3, 4, 9, 5, 6]
+        assert f(q, order="levelorder") == [q, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
+        assert f(q, order="breadthfirst") == [q, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
+        assert f(q, order="timeasc") == list(range(10)) + [q]
+        assert f(q, order="timedesc") == [q] + list(reversed(range(10)))
+        assert f(q, order="minlex_postorder") == [0, 1, 7, 2, 3, 8, 4, 5, 6, 9, q]
+
+        assert f(9, order="preorder") == [9, 4, 5, 6]
+        assert f(9, order="postorder") == [4, 5, 6, 9]
+        assert f(9, order="inorder") == [4, 9, 5, 6]
+        assert f(9, order="levelorder") == [9, 4, 5, 6]
+        assert f(9, order="breadthfirst") == [9, 4, 5, 6]
+        assert f(9, order="minlex_postorder") == [4, 5, 6, 9]
+        assert f(9, order="timeasc") == [4, 5, 6, 9]
+        assert f(9, order="timedesc") == [9, 6, 5, 4]
+
+    def test_multiroot_non_lexical_example(self):
+        nodes = io.StringIO(
+            """\
+        id  is_sample   time    population  individual  metadata
+        0   1   0.000000    0   -1  b''
+        1   1   0.000000    0   -1  b''
+        2   1   0.000000    0   -1  b''
+        3   1   0.000000    0   -1  b''
+        4   1   0.000000    0   -1  b''
+        5   1   0.000000    0   -1  b''
+        6   1   0.000000    0   -1  b''
+        7   1   0.000000    0   -1  b''
+        8   1   0.000000    0   -1  b''
+        9   1   0.000000    0   -1  b''
+        10  0   0.047734    0   -1  b''
+        11  0   0.061603    0   -1  b''
+        12  0   0.189503    0   -1  b''
+        13  0   0.275885    0   -1  b''
+        14  0   0.518301    0   -1  b''
+        """
+        )
+        edges = io.StringIO(
+            """\
+        left    right   parent  child
+        0.000000    10000.000000    10  0
+        0.000000    10000.000000    10  2
+        0.000000    10000.000000    11  9
+        0.000000    10000.000000    11  10
+        0.000000    10000.000000    12  3
+        0.000000    10000.000000    12  7
+        0.000000    10000.000000    13  5
+        0.000000    10000.000000    13  11
+        0.000000    10000.000000    14  1
+        0.000000    10000.000000    14  8
+        """
+        )
+        ts = tskit.load_text(
+            nodes, edges, sequence_length=10000, strict=False, base64_metadata=False
+        )
+        t = ts.first()
+
+        # Note: this is drawn out in "tree" order.
+        #                 14
+        #                 ┏┻┓
+        #          13     ┃ ┃
+        #         ┏━┻━┓   ┃ ┃
+        #     12  ┃   ┃   ┃ ┃
+        #     ┏┻┓ ┃   ┃   ┃ ┃
+        #     ┃ ┃ ┃  11   ┃ ┃
+        #     ┃ ┃ ┃ ┏━┻┓  ┃ ┃
+        #     ┃ ┃ ┃ ┃ 10  ┃ ┃
+        #     ┃ ┃ ┃ ┃ ┏┻┓ ┃ ┃
+        # 4 6 3 7 5 9 0 2 1 8
+
+        def f(node=None, order=None):
+            return list(t.nodes(node, order))
+
+        pre = f(order="preorder")
+        post = f(order="postorder")
+        inord = f(order="inorder")
+        level = f(order="levelorder")
+        breadth = f(order="breadthfirst")
+        timeasc = f(order="timeasc")
+        timedesc = f(order="timedesc")
+        minlex = f(order="minlex_postorder")
+        assert pre == [4, 6, 12, 3, 7, 13, 5, 11, 9, 10, 0, 2, 14, 1, 8]
+        assert post == [4, 6, 3, 7, 12, 5, 9, 0, 2, 10, 11, 13, 1, 8, 14]
+        assert inord == [4, 6, 3, 12, 7, 5, 13, 9, 11, 0, 10, 2, 1, 14, 8]
+        assert level == [4, 6, 12, 13, 14, 3, 7, 5, 11, 1, 8, 9, 10, 0, 2]
+        assert breadth == [4, 6, 12, 13, 14, 3, 7, 5, 11, 1, 8, 9, 10, 0, 2]
+        assert timeasc == list(range(15))
+        assert timedesc == list(reversed(range(15)))
+
+        # And the minlex tree:
+        #         14
+        #         ┏┻┓
+        #    13   ┃ ┃
+        #   ┏━┻━┓ ┃ ┃
+        #   ┃   ┃ ┃ ┃ 12
+        #   ┃   ┃ ┃ ┃ ┏┻┓
+        #  11   ┃ ┃ ┃ ┃ ┃
+        #  ┏┻━┓ ┃ ┃ ┃ ┃ ┃
+        # 10  ┃ ┃ ┃ ┃ ┃ ┃
+        # ┏┻┓ ┃ ┃ ┃ ┃ ┃ ┃
+        # 0 2 9 5 1 8 3 7 4 6
+        assert minlex == [0, 2, 10, 9, 11, 5, 13, 1, 8, 14, 3, 7, 12, 4, 6]
+
+    @pytest.mark.parametrize(
+        ["order", "expected"],
+        [
+            ("preorder", [[9, 6, 2, 3, 7, 4, 5, 0, 1], [10, 4, 8, 5, 0, 1, 6, 2, 3]]),
+            ("inorder", [[2, 6, 3, 9, 4, 7, 0, 5, 1], [4, 10, 0, 5, 1, 8, 2, 6, 3]]),
+            ("postorder", [[2, 3, 6, 4, 0, 1, 5, 7, 9], [4, 0, 1, 5, 2, 3, 6, 8, 10]]),
+            ("levelorder", [[9, 6, 7, 2, 3, 4, 5, 0, 1], [10, 4, 8, 5, 6, 0, 1, 2, 3]]),
+            (
+                "breadthfirst",
+                [[9, 6, 7, 2, 3, 4, 5, 0, 1], [10, 4, 8, 5, 6, 0, 1, 2, 3]],
+            ),
+            ("timeasc", [[0, 1, 2, 3, 4, 5, 6, 7, 9], [0, 1, 2, 3, 4, 5, 6, 8, 10]]),
+            ("timedesc", [[9, 7, 6, 5, 4, 3, 2, 1, 0], [10, 8, 6, 5, 4, 3, 2, 1, 0]]),
+            (
+                "minlex_postorder",
+                [[0, 1, 5, 4, 7, 2, 3, 6, 9], [0, 1, 5, 2, 3, 6, 8, 4, 10]],
+            ),
+        ],
+    )
+    def test_ts_example(self, order, expected):
+        # 1.20┊           ┊  10       ┊
+        #     ┊           ┊ ┏━┻━━┓    ┊
+        # 0.90┊     9     ┊ ┃    ┃    ┊
+        #     ┊  ┏━━┻━┓   ┊ ┃    ┃    ┊
+        # 0.60┊  ┃    ┃   ┊ ┃    8    ┊
+        #     ┊  ┃    ┃   ┊ ┃  ┏━┻━┓  ┊
+        # 0.44┊  ┃    7   ┊ ┃  ┃   ┃  ┊
+        #     ┊  ┃  ┏━┻┓  ┊ ┃  ┃   ┃  ┊
+        # 0.21┊  6  ┃  ┃  ┊ ┃  ┃   6  ┊
+        #     ┊ ┏┻┓ ┃  ┃  ┊ ┃  ┃  ┏┻┓ ┊
+        # 0.15┊ ┃ ┃ ┃  5  ┊ ┃  5  ┃ ┃ ┊
+        #     ┊ ┃ ┃ ┃ ┏┻┓ ┊ ┃ ┏┻┓ ┃ ┃ ┊
+        # 0.00┊ 2 3 4 0 1 ┊ 4 0 1 2 3 ┊
+        #   0.00        0.50        1.00
+        nodes = """\
+        id      is_sample   population      time
+        0       1       0               0.00000000000000
+        1       1       0               0.00000000000000
+        2       1       0               0.00000000000000
+        3       1       0               0.00000000000000
+        4       1       0               0.00000000000000
+        5       0       0               0.14567111023387
+        6       0       0               0.21385545626353
+        7       0       0               0.43508024345063
+        8       0       0               0.60156352971203
+        9       0       0               0.90000000000000
+        10      0       0               1.20000000000000
+        """
+        edges = """\
+        id      left            right           parent  child
+        0       0.00000000      1.00000000      5       0,1
+        1       0.00000000      1.00000000      6       2,3
+        2       0.00000000      0.50000000      7       4,5
+        3       0.50000000      1.00000000      8       5,6
+        4       0.00000000      0.50000000      9       6,7
+        5       0.50000000      1.00000000      10      4,8
+        """
+        ts = tskit.load_text(
+            nodes=io.StringIO(nodes), edges=io.StringIO(edges), strict=False
+        )
+        tree_orders = [list(tree.nodes(order=order)) for tree in ts.trees()]
+        assert tree_orders == expected
+
+    def test_polytomy_inorder(self):
+        """
+        If there are N children, current inorder traversal first visits
+        floor(N/2) children, then the parent, then the remaining children.
+        Here we explicitly test that behaviour.
+        """
+        #
+        #    __4__
+        #   / / \ \
+        #  0 1   2 3
+        #
+        nodes_polytomy_4 = """\
+        id      is_sample   population      time
+        0       1       0               0.00000000000000
+        1       1       0               0.00000000000000
+        2       1       0               0.00000000000000
+        3       1       0               0.00000000000000
+        4       0       0               1.00000000000000
+        """
+        edges_polytomy_4 = """\
+        id      left            right           parent  child
+        0       0.00000000      1.00000000      4       0,1,2,3
+        """
+        #
+        #    __5__
+        #   / /|\ \
+        #  0 1 2 3 4
+        #
+        nodes_polytomy_5 = """\
+        id      is_sample   population      time
+        0       1       0               0.00000000000000
+        1       1       0               0.00000000000000
+        2       1       0               0.00000000000000
+        3       1       0               0.00000000000000
+        4       1       0               0.00000000000000
+        5       0       0               1.00000000000000
+        """
+        edges_polytomy_5 = """\
+        id      left            right           parent  child
+        0       0.00000000      1.00000000      5       0,1,2,3,4
+        """
+        for nodes_string, edges_string, expected_result in [
+            [nodes_polytomy_4, edges_polytomy_4, [[0, 1, 4, 2, 3]]],
+            [nodes_polytomy_5, edges_polytomy_5, [[0, 1, 5, 2, 3, 4]]],
+        ]:
+            ts = tskit.load_text(
+                nodes=io.StringIO(nodes_string),
+                edges=io.StringIO(edges_string),
+                strict=False,
+            )
+            tree_orders = []
+            for tree in ts.trees():
+                tree_orders.append(list(tree.nodes(order="inorder")))
+            assert tree_orders == expected_result
+
+    def test_minlex_postorder_multiple_roots(self):
+        #
+        #    10    8     9     11
+        #   / \   / \   / \   / \
+        #  5   3 2   4 6   7 1   0
+        #
+        nodes_string = """\
+        id      is_sample   population      time
+        0       1       0               0.00000000000000
+        1       1       0               0.00000000000000
+        2       1       0               0.00000000000000
+        3       1       0               0.00000000000000
+        4       1       0               0.00000000000000
+        5       1       0               0.00000000000000
+        6       1       0               0.00000000000000
+        7       1       0               0.00000000000000
+        8       0       0               1.00000000000000
+        9       0       0               1.00000000000000
+        10      0       0               1.00000000000000
+        11      0       0               1.00000000000000
+        """
+        edges_string = """\
+        id      left            right           parent  child
+        0       0.00000000      1.00000000      8       2,4
+        1       0.00000000      1.00000000      9       6,7
+        2       0.00000000      1.00000000      10      5,3
+        3       0.00000000      1.00000000      11      1,0
+        """
+        expected_result = [[0, 1, 11, 2, 4, 8, 3, 5, 10, 6, 7, 9]]
+        ts = tskit.load_text(
+            nodes=io.StringIO(nodes_string),
+            edges=io.StringIO(edges_string),
+            strict=False,
+        )
+        tree_orders = []
+        for tree in ts.trees():
+            tree_orders.append(list(tree.nodes(order="minlex_postorder")))
+        assert tree_orders == expected_result
 
 
 class TestMRCACalculator:
@@ -705,6 +1187,11 @@ class TestNumpySamples:
         with pytest.raises(ValueError):
             ts.samples(time=(2.4, 1))
 
+    def test_samples_args(self, ts_fixture):
+        ts_fixture.samples(1)
+        with pytest.raises(TypeError, match="takes from 1 to 2 positional arguments"):
+            ts_fixture.samples(1, 2)
+
     def test_genotype_matrix_indexing(self):
         num_demes = 4
         ts = self.get_tree_sequence(num_demes)
@@ -758,6 +1245,22 @@ class TestTreeSequence(HighLevelTestCase):
     """
     Tests for the tree sequence object.
     """
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_discrete_genome(self, ts):
+        def is_discrete(a):
+            return np.all(np.floor(a) == a)
+
+        tables = ts.tables
+        discrete_genome = (
+            is_discrete([tables.sequence_length])
+            and is_discrete(tables.edges.left)
+            and is_discrete(tables.edges.right)
+            and is_discrete(tables.sites.position)
+            and is_discrete(tables.migrations.left)
+            and is_discrete(tables.migrations.right)
+        )
+        assert ts.discrete_genome == discrete_genome
 
     def test_trees(self):
         for ts in get_example_tree_sequences():
@@ -2398,6 +2901,16 @@ class TestTree(HighLevelTestCase):
         for u in tree.nodes():
             assert tree.num_children(u) == len(tree.children(u))
 
+    def test_virtual_root_semantics(self):
+        for ts in get_example_tree_sequences():
+            for tree in ts.trees():
+                assert math.isinf(tree.time(tree.virtual_root))
+                assert tree.depth(tree.virtual_root) == -1
+                assert tree.parent(tree.virtual_root) == -1
+                assert list(tree.children(tree.virtual_root)) == tree.roots
+                with pytest.raises(tskit.LibraryError, match="bounds"):
+                    tree.population(tree.virtual_root)
+
     def test_root_properties(self):
         tested = set()
         for ts in get_example_tree_sequences():
@@ -2649,75 +3162,6 @@ class TestTree(HighLevelTestCase):
         nearest_neighbor_of = [min(dist_dod[u], key=dist_dod[u].get) for u in range(3)]
         assert [2, 2, 1] == [nearest_neighbor_of[u] for u in range(3)]
 
-    def test_traversals(self):
-        for ts in get_example_tree_sequences():
-            tree = next(ts.trees())
-            self.verify_traversals(tree)
-
-            # Verify time-ordered traversals separately, because the PythonTree
-            # class does not contain time information at the moment
-            for root in tree.roots:
-                time_ordered = tree.nodes(root, order="timeasc")
-                t = tree.time(next(time_ordered))
-                for u in time_ordered:
-                    next_t = tree.time(u)
-                    assert next_t >= t
-                    t = next_t
-                time_ordered = tree.nodes(root, order="timedesc")
-                t = tree.time(next(time_ordered))
-                for u in time_ordered:
-                    next_t = tree.time(u)
-                    assert next_t <= t
-                    t = next_t
-
-    def verify_traversals(self, tree):
-        t1 = tree
-        t2 = tests.PythonTree.from_tree(t1)
-        assert list(t1.nodes()) == list(t2.nodes())
-        orders = [
-            "inorder",
-            "postorder",
-            "levelorder",
-            "breadthfirst",
-            "minlex_postorder",
-        ]
-        if tree.num_roots == 1:
-            with pytest.raises(ValueError):
-                list(t1.nodes(order="bad order"))
-            assert list(t1.nodes()) == list(t1.nodes(t1.get_root()))
-            assert list(t1.nodes()) == list(t1.nodes(t1.get_root(), "preorder"))
-            for u in t1.nodes():
-                assert list(t1.nodes(u)) == list(t2.nodes(u))
-            for test_order in orders:
-                assert sorted(list(t1.nodes())) == sorted(
-                    list(t1.nodes(order=test_order))
-                )
-                assert list(t1.nodes(order=test_order)) == list(
-                    t1.nodes(t1.get_root(), order=test_order)
-                )
-                assert list(t1.nodes(order=test_order)) == list(
-                    t1.nodes(t1.get_root(), test_order)
-                )
-                assert list(t1.nodes(order=test_order)) == list(
-                    t2.nodes(order=test_order)
-                )
-                for u in t1.nodes():
-                    assert list(t1.nodes(u, test_order)) == list(
-                        t2.nodes(u, test_order)
-                    )
-        else:
-            for test_order in orders:
-                all_nodes = []
-                for root in t1.roots:
-                    assert list(t1.nodes(root, order=test_order)) == list(
-                        t2.nodes(root, order=test_order)
-                    )
-                    all_nodes.extend(t1.nodes(root, order=test_order))
-                # minlex_postorder reorders the roots, so this last test is
-                # not appropriate
-                if test_order != "minlex_postorder":
-                    assert all_nodes == list(t1.nodes(order=test_order))
-
     def test_total_branch_length(self):
         # Note: this definition works when we have no non-sample branches.
         t1 = self.get_tree()
@@ -2751,7 +3195,10 @@ class TestTree(HighLevelTestCase):
         tree = self.get_tree()
         for u, v in itertools.product(range(tree.num_nodes), repeat=2):
             assert is_descendant(tree, u, v) == tree.is_descendant(u, v)
-        for bad_node in [-1, -2, tree.num_nodes, tree.num_nodes + 1]:
+        # All nodes are descendents of themselves
+        for u in range(tree.num_nodes + 1):
+            assert tree.is_descendant(u, u)
+        for bad_node in [-1, -2, tree.num_nodes + 1]:
             with pytest.raises(ValueError):
                 tree.is_descendant(0, bad_node)
             with pytest.raises(ValueError):
@@ -2909,12 +3356,13 @@ class TestTree(HighLevelTestCase):
 
     def verify_tree_arrays(self, tree):
         ts = tree.tree_sequence
-        assert tree.parent_array.shape == (ts.num_nodes,)
-        assert tree.left_child_array.shape == (ts.num_nodes,)
-        assert tree.right_child_array.shape == (ts.num_nodes,)
-        assert tree.left_sib_array.shape == (ts.num_nodes,)
-        assert tree.right_sib_array.shape == (ts.num_nodes,)
-        for u in range(ts.num_nodes):
+        N = ts.num_nodes + 1
+        assert tree.parent_array.shape == (N,)
+        assert tree.left_child_array.shape == (N,)
+        assert tree.right_child_array.shape == (N,)
+        assert tree.left_sib_array.shape == (N,)
+        assert tree.right_sib_array.shape == (N,)
+        for u in range(N):
             assert tree.parent(u) == tree.parent_array[u]
             assert tree.left_child(u) == tree.left_child_array[u]
             assert tree.right_child(u) == tree.right_child_array[u]

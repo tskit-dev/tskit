@@ -1,0 +1,94 @@
+# Book settings
+# Learn more at https://jupyterbook.org/customize/config.html
+
+title: Tskit manual
+author: Tskit Developers
+copyright: "2021"
+only_build_toc_files: true
+# logo: logo.png
+
+execute:
+  execute_notebooks: cache
+
+launch_buttons:
+  binderhub_url: ""
+
+repository:
+  url: https://github.com/tskit-dev/tskit
+  branch: main
+  path_to_book: docs
+
+html:
+  use_issues_button: true
+  use_repository_button: true
+  use_edit_page_button: true
+  # Do not edit this - the version placeholder is replaced by the
+  # current version during a distribution build in the Makefile
+  extra_navbar: tskit __TSKIT_VERSION__
+  extra_footer: tskit __TSKIT_VERSION__
+
+sphinx:
+    extra_extensions:
+    - breathe
+    - sphinx.ext.autodoc
+    - sphinx.ext.autosummary
+    - autodocsumm
+    - sphinx.ext.todo
+    - sphinx.ext.viewcode
+    - sphinx.ext.intersphinx
+    - sphinx_issues
+    - sphinxarg.ext
+
+    config:
+      myst_enable_extensions:
+      - colon_fence
+      - deflist
+      - dollarmath
+      - substitution
+      issues_github_path: tskit-dev/tskit
+      todo_include_todos: true
+      intersphinx_mapping:
+        python: ["https://docs.python.org/3/", null]
+        tutorials: ["https://tskit.dev/tutorials/", null]
+        stdpopsim: ["https://stdpopsim.readthedocs.io/en/stable", null]
+        pyslim: ["https://tskit.dev/pyslim/docs/latest/", null]
+        numpy: ["https://numpy.org/doc/stable/", null]
+
+      breathe_projects: {"tskit": "doxygen/xml"}
+      breathe_default_project: "tskit"
+      breathe_domain_by_extension: {"h": "c"}
+      breathe_show_define_initializer: True
+
+      # TODO these are not ignored, see https://github.com/sphinx-doc/sphinx/issues/9748
+      # so currently nitpicky is turned off when building the jupyterbook in build.sh
+      nitpick_ignore: [
+          ["c:identifier", "int32_t"],
+          ["c:identifier", "uint32_t"],
+          ["c:identifier", "uint64_t"],
+          ["c:identifier", "FILE"],
+          ["c:type", "int32_t"],
+          ["c:type", "uint32_t"],
+          ["c:type", "uint64_t"],
+          ["c:type", "bool"],
+          ["py:class", "tskit.metadata.AbstractMetadataCodec"],
+          ["py:class", "tskit.trees.Site"],
+          # TODO these have been triaged here to make the docs compile, but we should
+          # sort them out properly. https://github.com/tskit-dev/tskit/issues/336
+          ["py:class", "array_like"],
+          ["py:class", "row-like"],
+          ["py:class", "array-like"],
+          ["py:class", "dtype=np.uint32"],
+          ["py:class", "dtype=np.uint32."],
+          ["py:class", "dtype=np.int32"],
+          ["py:class", "dtype=np.int8"],
+          ["py:class", "dtype=np.float64"],
+          ["py:class", "dtype=np.int64"],
+      ]
+      
+      autodoc_member_order: bysource
+
+      # Without this option, autodoc tries to put links for all return types
+      # in terms of the fully-qualified classnames which we don't want, and also
+      # leads to broken links and nitpick failures. So, until we tackle
+      # typehints fully, this is the simplest approach.
+      autodoc_typehints: none

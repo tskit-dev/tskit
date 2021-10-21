@@ -808,13 +808,8 @@ class Tree:
         index in the parent tree sequence. Negative indexes following the
         standard Python conventions are allowed, i.e., ``index=-1`` will
         seek to the last tree in the sequence.
-        |LinearTraversalWarning|
 
-        .. |LinearTraversalWarning| replace:: warning::
-           The current implementation of this operation is linear in the number of
-           trees, so may be inefficient for large tree sequences. See
-           <this issue <https://github.com/tskit-dev/tskit/issues/684>_ for more
-           information.
+        .. include:: substitutions/linear_traversal_warning.rst
 
 
         :param int index: The tree index to seek to.
@@ -838,7 +833,8 @@ class Tree:
         position in the parent tree sequence. After a successful return
         of this method we have ``tree.interval.left`` <= ``position``
         < ``tree.interval.right``.
-        |LinearTraversalWarning|
+
+        .. include:: substitutions/linear_traversal_warning.rst
 
         :param float position: The position along the sequence length to
             seek to.
@@ -994,7 +990,7 @@ class Tree:
         :return: The sum of lengths of branches in this tree.
         :rtype: float
         """
-        return sum(self.branch_length(u) for u in self.nodes())
+        return self._ll_tree.get_total_branch_length()
 
     def get_mrca(self, u, v):
         # Deprecated alias for mrca
@@ -1050,12 +1046,14 @@ class Tree:
         """
         A numpy array (dtype=np.int32) encoding the parent of each node
         in this tree, such that ``tree.parent_array[u] == tree.parent(u)``
-        for all ``0 <= u < ts.num_nodes``. See the :meth:`~.parent`
+        for all ``0 <= u <= ts.num_nodes``. See the :meth:`~.parent`
         method for details on the semantics of tree parents and the
         :ref:`sec_data_model_tree_structure` section for information on the
         quintuply linked tree encoding.
 
-        .. warning:: |tree_array_warning|
+        .. include:: substitutions/virtual_root_array_note.rst
+
+        .. include:: substitutions/tree_array_warning.rst
         """
         return self._parent_array
 
@@ -1085,12 +1083,14 @@ class Tree:
         """
         A numpy array (dtype=np.int32) encoding the left child of each node
         in this tree, such that ``tree.left_child_array[u] == tree.left_child(u)``
-        for all ``0 <= u < ts.num_nodes``. See the :meth:`~.left_child`
+        for all ``0 <= u <= ts.num_nodes``. See the :meth:`~.left_child`
         method for details on the semantics of tree left_child and the
         :ref:`sec_data_model_tree_structure` section for information on the
         quintuply linked tree encoding.
 
-        .. warning:: |tree_array_warning|
+        .. include:: substitutions/virtual_root_array_note.rst
+
+        .. include:: substitutions/tree_array_warning.rst
         """
         return self._left_child_array
 
@@ -1118,12 +1118,14 @@ class Tree:
         """
         A numpy array (dtype=np.int32) encoding the right child of each node
         in this tree, such that ``tree.right_child_array[u] == tree.right_child(u)``
-        for all ``0 <= u < ts.num_nodes``. See the :meth:`~.right_child`
+        for all ``0 <= u <= ts.num_nodes``. See the :meth:`~.right_child`
         method for details on the semantics of tree right_child and the
         :ref:`sec_data_model_tree_structure` section for information on the
         quintuply linked tree encoding.
 
-        .. warning:: |tree_array_warning|
+        .. include:: substitutions/virtual_root_array_note.rst
+
+        .. include:: substitutions/tree_array_warning.rst
         """
         return self._right_child_array
 
@@ -1147,12 +1149,14 @@ class Tree:
         """
         A numpy array (dtype=np.int32) encoding the left sib of each node
         in this tree, such that ``tree.left_sib_array[u] == tree.left_sib(u)``
-        for all ``0 <= u < ts.num_nodes``. See the :meth:`~.left_sib`
+        for all ``0 <= u <= ts.num_nodes``. See the :meth:`~.left_sib`
         method for details on the semantics of tree left_sib and the
         :ref:`sec_data_model_tree_structure` section for information on the
         quintuply linked tree encoding.
 
-        .. warning:: |tree_array_warning|
+        .. include:: substitutions/virtual_root_array_note.rst
+
+        .. include:: substitutions/tree_array_warning.rst
         """
         return self._left_sib_array
 
@@ -1176,12 +1180,14 @@ class Tree:
         """
         A numpy array (dtype=np.int32) encoding the right sib of each node
         in this tree, such that ``tree.right_sib_array[u] == tree.right_sib(u)``
-        for all ``0 <= u < ts.num_nodes``. See the :meth:`~.right_sib`
+        for all ``0 <= u <= ts.num_nodes``. See the :meth:`~.right_sib`
         method for details on the semantics of tree right_sib and the
         :ref:`sec_data_model_tree_structure` section for information on the
         quintuply linked tree encoding.
 
-        .. warning:: |tree_array_warning|
+        .. include:: substitutions/virtual_root_array_note.rst
+
+        .. include:: substitutions/tree_array_warning.rst
         """
         return self._right_sib_array
 
@@ -1196,7 +1202,30 @@ class Tree:
     def next_sample(self, u):
         return self._ll_tree.get_next_sample(u)
 
-    # TODO do we also have right_root?
+    @property
+    def virtual_root(self):
+        """
+        The ID of the virtual root in this tree. This is equal to
+        :attr:`TreeSequence.num_nodes`.
+
+        Please see the :ref:`tree roots <sec_data_model_tree_roots>`
+        section for more details.
+        """
+        return self._ll_tree.get_virtual_root()
+
+    @property
+    def num_edges(self):
+        """
+        The total number of edges in this tree. This is equal to the
+        number of tree sequence edges that intersect with this tree's
+        genomic interval.
+
+        Note that this may be greater than the number of branches that
+        are reachable from the tree's roots, since we can have topology
+        that is not associated with any samples.
+        """
+        return self._ll_tree.get_num_edges()
+
     @property
     def left_root(self):
         """
@@ -1229,7 +1258,11 @@ class Tree:
 
         :rtype: int
         """
-        return self._ll_tree.get_left_root()
+        return self.left_child(self.virtual_root)
+
+    @property
+    def right_root(self):
+        return self.right_child(self.virtual_root)
 
     def get_children(self, u):
         # Deprecated alias for self.children
@@ -1255,8 +1288,10 @@ class Tree:
 
     def time(self, u):
         """
-        Returns the time of the specified node.
-        Equivalent to ``tree.tree_sequence.node(u).time``.
+        Returns the time of the specified node. This is equivalently
+        to ``tree.tree_sequence.node(u).time`` except for the special
+        case of the tree's :ref:`virtual root <sec_data_model_tree_roots>`,
+        which is defined as positive infinity.
 
         :param int u: The node of interest.
         :return: The time of u.
@@ -1269,6 +1304,9 @@ class Tree:
         Returns the number of nodes on the path from ``u`` to a
         root, not including ``u``. Thus, the depth of a root is
         zero.
+
+        As a special case, the depth of the :ref:`virtual root
+        <sec_data_model_tree_roots>` is defined as -1.
 
         :param int u: The node of interest.
         :return: The depth of u.
@@ -2040,10 +2078,8 @@ class Tree:
         :return: The number of samples in the subtree rooted at u.
         :rtype: int
         """
-        if u is None:
-            return sum(self._ll_tree.get_num_samples(u) for u in self.roots)
-        else:
-            return self._ll_tree.get_num_samples(u)
+        u = self.virtual_root if u is None else u
+        return self._ll_tree.get_num_samples(u)
 
     def get_num_tracked_leaves(self, u):
         # Deprecated alias for num_tracked_samples. The method name is inaccurate
@@ -2069,55 +2105,66 @@ class Tree:
             the subtree rooted at u.
         :rtype: int
         """
+        # This should work, there's a but somethings wrong somewhere
+        # https://github.com/tskit-dev/tskit/issues/1724
+        # u = self.virtual_root if u is None else u
+        # return self._ll_tree.get_num_tracked_samples(u)
         roots = [u]
         if u is None:
             roots = self.roots
         return sum(self._ll_tree.get_num_tracked_samples(root) for root in roots)
 
-    def _preorder_traversal(self, u):
-        stack = collections.deque([u])
-        # For perf we store these to avoid lookups in the tight loop
-        pop = stack.pop
-        extend = stack.extend
-        get_children = self.children
-        # Note: the usual style is to be explicit about what we're testing
-        # and use while len(stack) > 0, but this form is slightly faster.
-        while stack:
-            v = pop()
-            extend(reversed(get_children(v)))
-            yield v
+    # TODO document these traversal arrays
+    # https://github.com/tskit-dev/tskit/issues/1788
+    def preorder(self, u=NULL):
+        return self._ll_tree.get_preorder(u)
 
-    def _postorder_traversal(self, u):
-        stack = collections.deque([u])
-        parent = NULL
-        # For perf we store these to avoid lookups in the tight loop
-        pop = stack.pop
-        extend = stack.extend
-        get_children = self.children
-        get_parent = self.get_parent
-        # Note: the usual style is to be explicit about what we're testing
-        # and use while len(stack) > 0, but this form is slightly faster.
-        while stack:
-            v = stack[-1]
-            children = [] if v == parent else get_children(v)
-            if children:
-                extend(reversed(children))
-            else:
-                parent = get_parent(v)
-                yield pop()
+    def postorder(self, u=NULL):
+        return self._ll_tree.get_postorder(u)
 
-    def _inorder_traversal(self, u):
+    def timeasc(self, u=NULL):
+        nodes = self.preorder(u)
+        is_virtual_root = u == self.virtual_root
+        time = self.tree_sequence.tables.nodes.time
+        if is_virtual_root:
+            # We could avoid creating this array if we wanted to, but
+            # it's not that often people will be using this with the
+            # virtual_root as an argument, so doesn't seem worth
+            # the complexity
+            time = np.append(time, [np.inf])
+        order = np.lexsort([nodes, time[nodes]])
+        return nodes[order]
+
+    def timedesc(self, u=NULL):
+        return self.timeasc(u)[::-1]
+
+    def _preorder_traversal(self, root):
+        # Return Python integers for compatibility
+        return map(int, self.preorder(root))
+
+    def _postorder_traversal(self, root):
+        # Return Python integers for compatibility
+        return map(int, self.postorder(root))
+
+    def _inorder_traversal(self, root):
         # TODO add a nonrecursive version of the inorder traversal.
-        children = self.get_children(u)
-        mid = len(children) // 2
-        for c in children[:mid]:
-            yield from self._inorder_traversal(c)
-        yield u
-        for c in children[mid:]:
-            yield from self._inorder_traversal(c)
 
-    def _levelorder_traversal(self, u):
-        queue = collections.deque([u])
+        def traverse(u):
+            children = self.get_children(u)
+            mid = len(children) // 2
+            for c in children[:mid]:
+                yield from traverse(c)
+            yield u
+            for c in children[mid:]:
+                yield from traverse(c)
+
+        roots = self.roots if root == NULL else [root]
+        for root in roots:
+            yield from traverse(root)
+
+    def _levelorder_traversal(self, root):
+        roots = self.roots if root == NULL else [root]
+        queue = collections.deque(roots)
         # For perf we store these to avoid lookups in the tight loop
         pop = queue.popleft
         extend = queue.extend
@@ -2129,25 +2176,19 @@ class Tree:
             extend(children(v))
             yield v
 
-    def _timeasc_traversal(self, u):
+    def _timeasc_traversal(self, root):
         """
         Sorts by increasing time but falls back to increasing ID for equal times.
         """
-        yield from sorted(
-            self.nodes(u, order="levelorder"), key=lambda u: (self.time(u), u)
-        )
+        return map(int, self.timeasc(root))
 
-    def _timedesc_traversal(self, u):
+    def _timedesc_traversal(self, root):
         """
-        Sorts by decreasing time but falls back to decreasing ID for equal times.
+        The reverse of timeasc.
         """
-        yield from sorted(
-            self.nodes(u, order="levelorder"),
-            key=lambda u: (self.time(u), u),
-            reverse=True,
-        )
+        return map(int, self.timedesc(root))
 
-    def _minlex_postorder_traversal(self, u):
+    def _minlex_postorder_traversal(self, root):
         """
         Postorder traversal that visits leaves in minimum lexicographic order.
 
@@ -2157,104 +2198,102 @@ class Tree:
         multiple Trees of a TreeSequence, as it leads to more consistency
         between adjacent Trees.
         """
-        # We skip perf optimisations here (compared to _preorder_traversal and
-        # _postorder_traversal) as this ordering is unlikely to be used in perf
-        # sensitive applications
-        stack = collections.deque([u])
-        parent = NULL
 
         # We compute a dictionary mapping from internal node ID to min leaf ID
         # under the node, using a first postorder traversal
-        min_leaf_dict = {}
-        while len(stack) > 0:
-            v = stack[-1]
-            children = [] if v == parent else self.children(v)
-            if children:
-                # The first time visiting a node, we push its children onto the stack.
-                # reversed is not strictly necessary, but it gives the postorder
-                # we would intuitively expect.
-                stack.extend(reversed(children))
+        min_leaf = {}
+        for u in self.nodes(root, order="postorder"):
+            if self.is_leaf(u):
+                min_leaf[u] = u
             else:
-                # The second time visiting a node, we record its min leaf ID
-                # underneath, pop it, and update the parent variable
-                if v != parent:
-                    # at a leaf node
-                    min_leaf_dict[v] = v
-                else:
-                    # at a parent after finishing all its children
-                    min_leaf_dict[v] = min([min_leaf_dict[c] for c in self.children(v)])
-                parent = self.get_parent(v)
-                stack.pop()
+                min_leaf[u] = min(min_leaf[v] for v in self.children(u))
 
-        # Now we do a second postorder traversal
-        stack.clear()
-        stack.extend([u])
+        stack = []
+
+        def push(nodes):
+            stack.extend(sorted(nodes, key=lambda u: min_leaf[u], reverse=True))
+
+        # The postorder traversal isn't robust to using virtual_root directly
+        # as a node because we depend on tree.parent() returning the last
+        # node we visiting on the path from "root". So, we treat this as a
+        # special case.
+        is_virtual_root = root == self.virtual_root
+        roots = self.roots if root == -1 or is_virtual_root else [root]
+
+        push(roots)
         parent = NULL
         while len(stack) > 0:
             v = stack[-1]
             children = [] if v == parent else self.children(v)
-            if children:
+            if len(children) > 0:
                 # The first time visiting a node, we push onto the stack its children
                 # in order of reverse min leaf ID under each child. This guarantees
                 # that the earlier children visited have smaller min leaf ID,
                 # which is equivalent to the minlex condition.
-                stack.extend(
-                    sorted(children, key=lambda u: min_leaf_dict[u], reverse=True)
-                )
+                push(children)
             else:
                 # The second time visiting a node, we pop and yield it, and
                 # we update the parent variable
                 parent = self.get_parent(v)
                 yield stack.pop()
+        if is_virtual_root:
+            yield self.virtual_root
 
     def nodes(self, root=None, order="preorder"):
         """
-        Returns an iterator over the node IDs reachable from the root(s) in this tree.
-        See :meth:`Tree.roots` for which nodes are considered roots. If the root
-        parameter is provided, only the subtree rooted at this single root node
-        will be iterated over. If this parameter is None, iterate over the node IDs in
-        the subtrees rooted at each root node in turn. If the order parameter is
-        provided, iterate over the nodes in each subtree in the specified tree traversal
-        order.
+        Returns an iterator over the node IDs reachable from the root(s) in this
+        tree in the specified traversal order.
 
         .. note::
             Unlike the :meth:`TreeSequence.nodes` method, this iterator produces
             integer node IDs, not :class:`Node` objects.
 
-        The currently implemented traversal orders are:
+        If the ``root`` parameter is not provided or none, iterate over all
+        nodes reachable from the roots (see :meth:`Tree.roots` for details
+        on which nodes are considered roots). If the ``root`` parameter
+        is provided, only the nodes in the subtree rooted at this node
+        (including the specified node) will be iterated over. If the
+        :attr:`.virtual_root` is specified as the traversal root, it will
+        be included in the traversed nodes in the appropriate position
+        for the given ordering. (See the
+        :ref:`tree roots <sec_data_model_tree_roots>` section for more
+        information on the virtual root.)
 
-            - 'preorder': starting at root, yield the current node, then recurse
-              and do a preorder on each child of the current node. See also `Wikipedia
-              <https://en.wikipedia.org/wiki/Tree_traversal#Pre-order_(NLR)>`__.
-            - 'inorder': starting at root, assuming binary trees, recurse and do
-              an inorder on the first child, then yield the current node, then
-              recurse and do an inorder on the second child. In the case of ``n``
-              child nodes (not necessarily 2), the first ``n // 2`` children are
-              visited in the first stage, and the remaining ``n - n // 2`` children
-              are visited in the second stage. See also `Wikipedia
-              <https://en.wikipedia.org/wiki/Tree_traversal#In-order_(LNR)>`__.
-            - 'postorder': starting at root, recurse and do a postorder on each
-              child of the current node, then yield the current node. See also
-              `Wikipedia
-              <https://en.wikipedia.org/wiki/Tree_traversal#Post-order_(LRN)>`__.
-            - 'levelorder' ('breadthfirst'): visit the nodes under root (including
-              the root) in increasing order of their depth from root. See also
-              `Wikipedia
-              <https://en.wikipedia.org/wiki/Tree_traversal\
+        The ``order`` parameter defines the order in which tree nodes
+        are visited in the iteration. The available orders are:
+
+        - 'preorder': starting at root, yield the current node, then recurse
+          and do a preorder on each child of the current node. See also `Wikipedia
+          <https://en.wikipedia.org/wiki/Tree_traversal#Pre-order_(NLR)>`__.
+        - 'inorder': starting at root, assuming binary trees, recurse and do
+          an inorder on the first child, then yield the current node, then
+          recurse and do an inorder on the second child. In the case of ``n``
+          child nodes (not necessarily 2), the first ``n // 2`` children are
+          visited in the first stage, and the remaining ``n - n // 2`` children
+          are visited in the second stage. See also `Wikipedia
+          <https://en.wikipedia.org/wiki/Tree_traversal#In-order_(LNR)>`__.
+        - 'postorder': starting at root, recurse and do a postorder on each
+          child of the current node, then yield the current node. See also
+          `Wikipedia
+          <https://en.wikipedia.org/wiki/Tree_traversal#Post-order_(LRN)>`__.
+        - 'levelorder' ('breadthfirst'): visit the nodes under root (including
+          the root) in increasing order of their depth from root. See also
+          `Wikipedia
+          <https://en.wikipedia.org/wiki/Tree_traversal\
 #Breadth-first_search_/_level_order>`__.
-            - 'timeasc': visits the nodes in order of increasing time, falling back to
-              increasing ID if times are equal.
-            - 'timedesc': visits the nodes in order of decreasing time, falling back to
-              decreasing ID if times are equal.
-            - 'minlex_postorder': a usual postorder has ambiguity in the order in
-              which children of a node are visited. We constrain this by outputting
-              a postorder such that the leaves visited, when their IDs are
-              listed out, have minimum `lexicographic order
-              <https://en.wikipedia.org/wiki/Lexicographical_order>`__ out of all valid
-              traversals. This traversal is useful for drawing multiple trees of
-              a ``TreeSequence``, as it leads to more consistency between adjacent
-              trees. Note that internal non-leaf nodes are not counted in
-              assessing the lexicographic order.
+        - 'timeasc': visits the nodes in order of increasing time, falling back to
+          increasing ID if times are equal.
+        - 'timedesc': visits the nodes in order of decreasing time, falling back to
+          decreasing ID if times are equal.
+        - 'minlex_postorder': a usual postorder has ambiguity in the order in
+          which children of a node are visited. We constrain this by outputting
+          a postorder such that the leaves visited, when their IDs are
+          listed out, have minimum `lexicographic order
+          <https://en.wikipedia.org/wiki/Lexicographical_order>`__ out of all valid
+          traversals. This traversal is useful for drawing multiple trees of
+          a ``TreeSequence``, as it leads to more consistency between adjacent
+          trees. Note that internal non-leaf nodes are not counted in
+          assessing the lexicographic order.
 
         :param int root: The root of the subtree we are traversing.
         :param str order: The traversal ordering. Currently 'preorder',
@@ -2277,23 +2316,9 @@ class Tree:
             iterator = methods[order]
         except KeyError:
             raise ValueError(f"Traversal ordering '{order}' not supported")
-        roots = [root]
-        if root is None:
-            roots = self.roots
-        if order == "minlex_postorder" and len(roots) > 1:
-            # we need to visit the roots in minlex order as well
-            # we first visit all the roots and then sort by the min value
-            root_values = []
-            for u in roots:
-                root_minlex_postorder = list(iterator(u))
-                min_value = root_minlex_postorder[0]
-                root_values.append([min_value, root_minlex_postorder])
-            root_values.sort()
-            for _, nodes_for_root in root_values:
-                yield from nodes_for_root
-        else:
-            for u in roots:
-                yield from iterator(u)
+
+        root = -1 if root is None else root
+        return iterator(root)
 
     def _node_edges(self):
         """
@@ -3814,6 +3839,22 @@ class TreeSequence:
         return self._ll_tree_sequence.get_file_uuid()
 
     @property
+    def discrete_genome(self):
+        """
+        Returns True if all genome coordinates in this TreeSequence are
+        discrete integer values. This is true iff all the following are true:
+
+        - The sequence length is discrete
+        - All site positions are discrete
+        - All left and right edge coordinates are discrete
+        - All migration left and right coordinates are discrete
+
+        :return: True if this TreeSequence uses discrete genome coordinates.
+        :rtype: bool
+        """
+        return bool(self._ll_tree_sequence.get_discrete_genome())
+
+    @property
     def sequence_length(self):
         """
         Returns the sequence length in this tree sequence. This defines the
@@ -4203,7 +4244,8 @@ class TreeSequence:
         Returns the tree covering the specified genomic location. The returned tree
         will have ``tree.interval.left`` <= ``position`` < ``tree.interval.right``.
         See also :meth:`Tree.seek`.
-        |LinearTraversalWarning|
+
+        .. include:: substitutions/linear_traversal_warning.rst
 
         :param float position: A genomic location.
         :param \\**kwargs: Further arguments used as parameters when constructing the
@@ -4220,7 +4262,8 @@ class TreeSequence:
     def at_index(self, index, **kwargs):
         """
         Returns the tree at the specified index. See also :meth:`Tree.seek_index`.
-        |LinearTraversalWarning|
+
+        .. include:: substitutions/linear_traversal_warning.rst
 
         :param int index: The index of the required tree.
         :param \\**kwargs: Further arguments used as parameters when constructing the
@@ -4808,7 +4851,7 @@ class TreeSequence:
         # Deprecated alias for samples()
         return self.samples(population_id)
 
-    def samples(self, population=None, population_id=None, time=None):
+    def samples(self, population=None, *, population_id=None, time=None):
         """
         Returns an array of the sample node IDs in this tree sequence. If
         `population` is specified, only return sample IDs from that population.
@@ -5563,7 +5606,7 @@ class TreeSequence:
         :param str order: The left-to-right ordering of child nodes in each drawn tree.
             This can be either: ``"minlex"``, which minimises the differences
             between adjacent trees (see also the ``"minlex_postorder"`` traversal
-            order for the :meth:`.nodes` method); or ``"tree"`` which draws trees
+            order for the :meth:`.Tree.nodes` method); or ``"tree"`` which draws trees
             in the left-to-right order defined by the
             :ref:`quintuply linked tree structure <sec_data_model_tree_structure>`.
             If not specified or None, this defaults to ``"minlex"``.
@@ -5672,7 +5715,7 @@ class TreeSequence:
         :param str order: The left-to-right ordering of child nodes in the drawn tree.
             This can be either: ``"minlex"``, which minimises the differences
             between adjacent trees (see also the ``"minlex_postorder"`` traversal
-            order for the :meth:`.nodes` method); or ``"tree"`` which draws trees
+            order for the :meth:`.Tree.nodes` method); or ``"tree"`` which draws trees
             in the left-to-right order defined by the
             :ref:`quintuply linked tree structure <sec_data_model_tree_structure>`.
             If not specified or None, this defaults to ``"minlex"``.
@@ -6022,8 +6065,13 @@ class TreeSequence:
         self, sample_sets=None, windows=None, mode="site", span_normalise=True
     ):
         """
-        Computes mean genetic diversity (also knowns as "Tajima's pi") in each of the
-        sets of nodes from ``sample_sets``.
+        Computes mean genetic diversity (also known as "pi") in each of the
+        sets of nodes from ``sample_sets``.  The statistic is also known as
+        "sample heterozygosity"; a common citation for the definition is
+        `Nei and Li (1979) <https://doi.org/10.1073/pnas.76.10.5269>`_
+        (equation 22), so it is sometimes called called "Nei's pi"
+        (but also sometimes "Tajima's pi").
+
         Please see the :ref:`one-way statistics <sec_stats_sample_sets_one_way>`
         section for details on how the ``sample_sets`` argument is interpreted
         and how it interacts with the dimensions of the output array.
@@ -6073,9 +6121,15 @@ class TreeSequence:
     def divergence(
         self, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True
     ):
-        """
+        r"""
         Computes mean genetic divergence between (and within) pairs of
         sets of nodes from ``sample_sets``.
+        This is the "average number of differences", usually referred to as "dxy";
+        a common citation for this definition is Nei and Li (1979), who called it
+        :math:`\pi_{XY}`. Note that computing the divergence of a population to itself
+        gives the mean pairwise nucleotide diversity within that population,
+        which is :meth:`diversity <.TreeSequence.diversity>`.
+
         Operates on ``k = 2`` sample sets at a time; please see the
         :ref:`multi-way statistics <sec_stats_sample_sets_multi_way>`
         section for details on how the ``sample_sets`` and ``indexes`` arguments are
@@ -6991,9 +7045,19 @@ class TreeSequence:
     def f3(
         self, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True
     ):
-        """
+        r"""
         Computes Patterson's f3 statistic between three groups of nodes from
         ``sample_sets``.
+        Note that the order of the arguments of f3 differs across the literature:
+        here, ``f3([A, B, C])`` for sample sets ``A``, ``B``, and ``C``
+        will estimate
+        :math:`f_3(A; B, C) = \mathbb{E}[(p_A - p_B) (p_A - p_C)]`,
+        where :math:`p_A` is the allele frequency in ``A``.
+        When used as a test for admixture, the putatively admixed population
+        is usually placed as population ``A`` (see
+        `Peter (2016) <https://doi.org/10.1534/genetics.115.183913>`_
+        for more discussion).
+
         Operates on ``k = 3`` sample sets at a time; please see the
         :ref:`multi-way statistics <sec_stats_sample_sets_multi_way>`
         section for details on how the ``sample_sets`` and ``indexes`` arguments are
@@ -7199,6 +7263,7 @@ class TreeSequence:
         self,
         *,
         within=None,
+        between=None,
         max_time=None,
         min_length=None,
         store_pairs=None,
@@ -7262,6 +7327,7 @@ class TreeSequence:
         """
         return self.tables.ibd_segments(
             within=within,
+            between=between,
             max_time=max_time,
             min_length=min_length,
             store_segments=store_segments,

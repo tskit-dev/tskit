@@ -19,7 +19,7 @@ those listed above. Please see the
 [documentation](https://tskit.readthedocs.io/en/latest/) for further details, which
 includes
 [installation instructions](https://tskit.readthedocs.io/en/latest/installation.html).
-See the [road map](https://github.com/tskit-dev/tskit/blob/main/ROADMAP.md)
+See the [road map](https://github.com/tskit-dev/tskit/blob/main/ROADMAP.md) for planned improvements and additions to the library.
 
 To get started with tskit, tutorials and other content are at http://tskit.dev. For help
 and support from the community you can use

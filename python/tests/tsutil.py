@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2019 Tskit Developers
+# Copyright (c) 2018-2021 Tskit Developers
 # Copyright (C) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -1132,8 +1132,6 @@ def py_sort(tables, canonical=False):
                 )
             )
         tables.nodes.individual = [ind_id_map[i] for i in tables.nodes.individual]
-    else:
-        sort_individual_table(tables)
 
 
 def algorithm_T(ts):
@@ -1172,6 +1170,146 @@ def algorithm_T(ts):
         if k < M:
             right = min(right, edges[out_order[k]].right)
         yield (left, right), parent
+        left = right
+
+
+class QuintuplyLinkedTree:
+    def __init__(self, n, root_threshold=1):
+        self.root_threshold = root_threshold
+        self.parent = np.zeros(n + 1, dtype=np.int32) - 1
+        self.left_child = np.zeros(n + 1, dtype=np.int32) - 1
+        self.right_child = np.zeros(n + 1, dtype=np.int32) - 1
+        self.left_sib = np.zeros(n + 1, dtype=np.int32) - 1
+        self.right_sib = np.zeros(n + 1, dtype=np.int32) - 1
+        self.num_samples = np.zeros(n + 1, dtype=np.int32)
+        self.num_edges = 0
+
+    def __str__(self):
+        s = "id\tparent\tlchild\trchild\tlsib\trsib\tnsamp\n"
+        for j in range(len(self.parent)):
+            s += (
+                f"{j}\t{self.parent[j]}\t"
+                f"{self.left_child[j]}\t{self.right_child[j]}\t"
+                f"{self.left_sib[j]}\t{self.right_sib[j]}\t"
+                f"{self.num_samples[j]}\n"
+            )
+        return s
+
+    def roots(self):
+        roots = []
+        u = self.left_child[-1]
+        while u != -1:
+            roots.append(u)
+            u = self.right_sib[u]
+        return roots
+
+    def remove_branch(self, p, c):
+        lsib = self.left_sib[c]
+        rsib = self.right_sib[c]
+        if lsib == -1:
+            self.left_child[p] = rsib
+        else:
+            self.right_sib[lsib] = rsib
+        if rsib == -1:
+            self.right_child[p] = lsib
+        else:
+            self.left_sib[rsib] = lsib
+        self.parent[c] = -1
+        self.left_sib[c] = -1
+        self.right_sib[c] = -1
+
+    def insert_branch(self, p, c):
+        assert self.parent[c] == -1, "contradictory edges"
+        self.parent[c] = p
+        u = self.right_child[p]
+        if u == -1:
+            self.left_child[p] = c
+            self.left_sib[c] = -1
+            self.right_sib[c] = -1
+        else:
+            self.right_sib[u] = c
+            self.left_sib[c] = u
+            self.right_sib[c] = -1
+        self.right_child[p] = c
+
+    def is_potential_root(self, u):
+        return self.num_samples[u] >= self.root_threshold
+
+    # Note we cheat a bit here and use the -1 == last element semantics from Python.
+    # We could use self.insert_branch(N, root) and then set self.parent[root] = -1.
+    def insert_root(self, root):
+        self.insert_branch(-1, root)
+
+    def remove_root(self, root):
+        self.remove_branch(-1, root)
+
+    def remove_edge(self, edge):
+        self.remove_branch(edge.parent, edge.child)
+        self.num_edges -= 1
+
+        u = edge.parent
+        while u != -1:
+            path_end = u
+            path_end_was_root = self.is_potential_root(u)
+            self.num_samples[u] -= self.num_samples[edge.child]
+            u = self.parent[u]
+
+        if path_end_was_root and not self.is_potential_root(path_end):
+            self.remove_root(path_end)
+        if self.is_potential_root(edge.child):
+            self.insert_root(edge.child)
+
+    def insert_edge(self, edge):
+        u = edge.parent
+        while u != -1:
+            path_end = u
+            path_end_was_root = self.is_potential_root(u)
+            self.num_samples[u] += self.num_samples[edge.child]
+            u = self.parent[u]
+
+        if self.is_potential_root(edge.child):
+            self.remove_root(edge.child)
+        if self.is_potential_root(path_end) and not path_end_was_root:
+            self.insert_root(path_end)
+
+        self.insert_branch(edge.parent, edge.child)
+        self.num_edges += 1
+
+
+def algorithm_R(ts, root_threshold=1):
+    """
+    Quintuply linked tree with root tracking.
+    """
+    sequence_length = ts.sequence_length
+    N = ts.num_nodes
+    M = ts.num_edges
+    tree = QuintuplyLinkedTree(N, root_threshold=root_threshold)
+    edges = list(ts.edges())
+    in_order = ts.tables.indexes.edge_insertion_order
+    out_order = ts.tables.indexes.edge_removal_order
+
+    # Initialise the tree
+    for u in ts.samples():
+        tree.num_samples[u] = 1
+        if tree.is_potential_root(u):
+            tree.insert_root(u)
+
+    j = 0
+    k = 0
+    left = 0
+    while j < M or left < sequence_length:
+        while k < M and edges[out_order[k]].right == left:
+            tree.remove_edge(edges[out_order[k]])
+            k += 1
+        while j < M and edges[in_order[j]].left == left:
+            tree.insert_edge(edges[in_order[j]])
+            j += 1
+        right = sequence_length
+        if j < M:
+            right = min(right, edges[in_order[j]].left)
+        if k < M:
+            right = min(right, edges[out_order[k]].right)
+        yield (left, right), tree
         left = right
 
 
@@ -1315,15 +1453,8 @@ class SampleListTree:
         sequence_length = ts.sequence_length
         edges = list(ts.edges())
         M = len(edges)
-        time = [ts.node(edge.parent).time for edge in edges]
-        in_order = sorted(
-            range(M),
-            key=lambda j: (edges[j].left, time[j], edges[j].parent, edges[j].child),
-        )
-        out_order = sorted(
-            range(M),
-            key=lambda j: (edges[j].right, -time[j], -edges[j].parent, -edges[j].child),
-        )
+        in_order = ts.tables.indexes.edge_insertion_order
+        out_order = ts.tables.indexes.edge_removal_order
         j = 0
         k = 0
         left = 0
@@ -1348,10 +1479,12 @@ class SampleListTree:
             left = right
 
 
-class RootThresholdTree:
+class LegacyRootThresholdTree:
     """
-    Straightforward implementation of the quintuply linked tree for developing
-    and testing the root_threshold feature.
+    Implementation of the quintuply linked tree with root tracking using the
+    pre C 1.0/Python 0.4.0 algorithm. We keep this version around to make sure
+    that we can be clear what the differences in the semantics of the new
+    and old versions are.
 
     NOTE: The interface is pretty awkward; it's not intended for anything other
     than testing.
@@ -1512,15 +1645,8 @@ class RootThresholdTree:
         sequence_length = ts.sequence_length
         edges = list(ts.edges())
         M = len(edges)
-        time = [ts.node(edge.parent).time for edge in edges]
-        in_order = sorted(
-            range(M),
-            key=lambda j: (edges[j].left, time[j], edges[j].parent, edges[j].child),
-        )
-        out_order = sorted(
-            range(M),
-            key=lambda j: (edges[j].right, -time[j], -edges[j].parent, -edges[j].child),
-        )
+        in_order = ts.tables.indexes.edge_insertion_order
+        out_order = ts.tables.indexes.edge_removal_order
         j = 0
         k = 0
         left = 0

@@ -5422,23 +5422,30 @@ test_ibd_segments_debug(void)
     tsk_treeseq_t ts;
     int ret;
     tsk_ibd_segments_t result;
+    tsk_size_t sizes[] = { 2, 2 };
+    tsk_id_t samples[] = { 0, 1, 2, 3 };
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
         NULL, NULL, NULL, 0);
 
     tsk_set_debug_stream(_devnull);
     /* Run the DEBUG code */
-    ret = tsk_table_collection_ibd_segments(
+    ret = tsk_table_collection_ibd_within(
         ts.tables, &result, NULL, 0, 0.0, DBL_MAX, TSK_DEBUG);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_ibd_segments_free(&result);
 
-    ret = tsk_table_collection_ibd_segments(
+    ret = tsk_table_collection_ibd_between(
+        ts.tables, &result, 2, sizes, samples, 0.0, DBL_MAX, TSK_DEBUG);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_ibd_segments_free(&result);
+
+    ret = tsk_table_collection_ibd_within(
         ts.tables, &result, NULL, 0, 0.0, DBL_MAX, TSK_DEBUG | TSK_IBD_STORE_PAIRS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_ibd_segments_free(&result);
 
-    ret = tsk_table_collection_ibd_segments(
+    ret = tsk_table_collection_ibd_within(
         ts.tables, &result, NULL, 0, 0.0, DBL_MAX, TSK_DEBUG | TSK_IBD_STORE_SEGMENTS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_ibd_segments_free(&result);
@@ -5448,12 +5455,29 @@ test_ibd_segments_debug(void)
 }
 
 static void
+test_ibd_segments_caterpillar_tree(void)
+{
+    int ret;
+    tsk_ibd_segments_t result;
+    tsk_treeseq_t *ts = caterpillar_tree(100, 1, 5);
+
+    /* We're just testing out the memory expansion in ibd_finder */
+    ret = tsk_table_collection_ibd_within(ts->tables, &result, NULL, 0, 0.0, DBL_MAX, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_ibd_segments_free(&result);
+
+    tsk_treeseq_free(ts);
+    free(ts);
+}
+
+static void
 test_ibd_segments_single_tree(void)
 {
     int ret;
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
     tsk_id_t samples[] = { 0, 1 };
+    tsk_size_t sizes[] = { 1, 1 };
     tsk_ibd_segments_t result;
     tsk_ibd_segment_list_t *list = NULL;
     tsk_ibd_segment_t *seg = NULL;
@@ -5464,7 +5488,7 @@ test_ibd_segments_single_tree(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Only get IBD segs for (0, 1) */
-    ret = tsk_table_collection_ibd_segments(
+    ret = tsk_table_collection_ibd_within(
         &tables, &result, samples, 2, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
@@ -5492,7 +5516,7 @@ test_ibd_segments_single_tree(void)
     tsk_ibd_segments_free(&result);
 
     /* Get IBD segs among all pairs of samples */
-    ret = tsk_table_collection_ibd_segments(
+    ret = tsk_table_collection_ibd_within(
         &tables, &result, NULL, 0, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
@@ -5521,6 +5545,45 @@ test_ibd_segments_single_tree(void)
     verify_ibd_result(&result);
     tsk_ibd_segments_free(&result);
 
+    /* Get segs between {0} and {1} */
+    ret = tsk_table_collection_ibd_between(
+        ts.tables, &result, 2, sizes, samples, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    verify_ibd_result(&result);
+    CU_ASSERT_EQUAL_FATAL(tsk_ibd_segments_get_num_segments(&result), 1);
+    ret = tsk_ibd_segments_get(&result, 0, 1, &list);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    seg = list->head;
+    CU_ASSERT_FATAL(seg != NULL);
+    CU_ASSERT_EQUAL_FATAL(seg->next, NULL);
+    CU_ASSERT_EQUAL_FATAL(seg->left, 0);
+    CU_ASSERT_EQUAL_FATAL(seg->right, 1);
+    CU_ASSERT_EQUAL_FATAL(seg->node, 4);
+
+    tsk_ibd_segments_free(&result);
+
+    /* within an empty list gives no segments */
+    ret = tsk_table_collection_ibd_within(&tables, &result, samples, 0, 0.0, DBL_MAX, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tsk_ibd_segments_get_num_segments(&result), 0);
+    tsk_ibd_segments_free(&result);
+
+    /* Between an empty list gives no segments */
+    ret = tsk_table_collection_ibd_between(
+        ts.tables, &result, 0, sizes, samples, 0.0, DBL_MAX, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tsk_ibd_segments_get_num_segments(&result), 0);
+    tsk_ibd_segments_free(&result);
+
+    /* Between one empty list gives no segments*/
+    sizes[0] = 0;
+    ret = tsk_table_collection_ibd_between(
+        ts.tables, &result, 2, sizes, samples, 0.0, DBL_MAX, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(tsk_ibd_segments_get_num_segments(&result), 0);
+    tsk_ibd_segments_free(&result);
+    sizes[0] = 2;
+
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);
 }
@@ -5537,14 +5600,13 @@ test_ibd_segments_single_tree_options(void)
     tsk_ibd_segment_list_t *lists[6];
     tsk_flags_t options[2];
     int k;
-    /* tsk_ibd_segment_t *seg = NULL; */
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
         NULL, NULL, NULL, 0);
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_ibd_segments(&tables, &result, NULL, 0, 0.0, DBL_MAX, 0);
+    ret = tsk_table_collection_ibd_within(&tables, &result, NULL, 0, 0.0, DBL_MAX, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* We have 4 samples, so 4 choose 2 sample pairs */
@@ -5562,7 +5624,7 @@ test_ibd_segments_single_tree_options(void)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_IBD_PAIRS_NOT_STORED);
     tsk_ibd_segments_free(&result);
 
-    ret = tsk_table_collection_ibd_segments(
+    ret = tsk_table_collection_ibd_within(
         &tables, &result, NULL, 0, 0.0, DBL_MAX, TSK_IBD_STORE_PAIRS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     /* out-of-bounds is still detected */
@@ -5593,7 +5655,7 @@ test_ibd_segments_single_tree_options(void)
     options[1] = TSK_IBD_STORE_PAIRS | TSK_IBD_STORE_SEGMENTS;
     for (k = 0; k < 2; k++) {
 
-        ret = tsk_table_collection_ibd_segments(
+        ret = tsk_table_collection_ibd_within(
             &tables, &result, NULL, 0, 0.0, DBL_MAX, options[k]);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         /* out-of-bounds is still detected */
@@ -5629,6 +5691,72 @@ test_ibd_segments_single_tree_options(void)
 }
 
 static void
+test_ibd_segments_single_tree_between(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_id_t samples[] = { 0, 1, 2, 3 };
+    tsk_size_t sizes[] = { 2, 2 };
+    tsk_ibd_segments_t result;
+    tsk_ibd_segment_list_t *list = NULL;
+    tsk_ibd_segment_t *seg = NULL;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Get segs between {0, 1} and {2, 3} */
+    ret = tsk_table_collection_ibd_between(
+        ts.tables, &result, 2, sizes, samples, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    verify_ibd_result(&result);
+    CU_ASSERT_EQUAL_FATAL(tsk_ibd_segments_get_num_segments(&result), 4);
+
+    ret = tsk_ibd_segments_get(&result, 0, 2, &list);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    seg = list->head;
+    CU_ASSERT_FATAL(seg != NULL);
+    CU_ASSERT_EQUAL_FATAL(seg->next, NULL);
+    CU_ASSERT_EQUAL_FATAL(seg->left, 0);
+    CU_ASSERT_EQUAL_FATAL(seg->right, 1);
+    CU_ASSERT_EQUAL_FATAL(seg->node, 6);
+
+    ret = tsk_ibd_segments_get(&result, 0, 3, &list);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    seg = list->head;
+    CU_ASSERT_FATAL(seg != NULL);
+    CU_ASSERT_EQUAL_FATAL(seg->next, NULL);
+    CU_ASSERT_EQUAL_FATAL(seg->left, 0);
+    CU_ASSERT_EQUAL_FATAL(seg->right, 1);
+    CU_ASSERT_EQUAL_FATAL(seg->node, 6);
+
+    ret = tsk_ibd_segments_get(&result, 1, 2, &list);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    seg = list->head;
+    CU_ASSERT_FATAL(seg != NULL);
+    CU_ASSERT_EQUAL_FATAL(seg->next, NULL);
+    CU_ASSERT_EQUAL_FATAL(seg->left, 0);
+    CU_ASSERT_EQUAL_FATAL(seg->right, 1);
+    CU_ASSERT_EQUAL_FATAL(seg->node, 6);
+
+    ret = tsk_ibd_segments_get(&result, 1, 3, &list);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    seg = list->head;
+    CU_ASSERT_FATAL(seg != NULL);
+    CU_ASSERT_EQUAL_FATAL(seg->next, NULL);
+    CU_ASSERT_EQUAL_FATAL(seg->left, 0);
+    CU_ASSERT_EQUAL_FATAL(seg->right, 1);
+    CU_ASSERT_EQUAL_FATAL(seg->node, 6);
+
+    tsk_ibd_segments_free(&result);
+
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_ibd_segments_multiple_trees(void)
 {
     int ret;
@@ -5651,7 +5779,7 @@ test_ibd_segments_multiple_trees(void)
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_ibd_segments(
+    ret = tsk_table_collection_ibd_within(
         &tables, &result, samples, num_samples, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     for (j = 0; j < num_pairs; j++) {
@@ -5671,7 +5799,7 @@ test_ibd_segments_multiple_trees(void)
     verify_ibd_result(&result);
     tsk_ibd_segments_free(&result);
 
-    ret = tsk_table_collection_ibd_segments(
+    ret = tsk_table_collection_ibd_within(
         &tables, &result, NULL, 0, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     verify_ibd_result(&result);
@@ -5696,7 +5824,7 @@ test_ibd_segments_empty_result(void)
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_ibd_segments(
+    ret = tsk_table_collection_ibd_within(
         &tables, &result, samples, 1, 0.0, 0.5, TSK_IBD_STORE_SEGMENTS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
@@ -5722,7 +5850,7 @@ test_ibd_segments_min_length_max_time(void)
     tsk_treeseq_from_text(&ts, 2, multiple_tree_ex_nodes, multiple_tree_ex_edges, NULL,
         NULL, NULL, NULL, NULL, 0);
 
-    ret = tsk_table_collection_ibd_segments(
+    ret = tsk_table_collection_ibd_within(
         ts.tables, &result, NULL, 0, 0.5, 3.0, TSK_IBD_STORE_SEGMENTS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
@@ -5757,6 +5885,7 @@ test_ibd_segments_errors(void)
     tsk_id_t samples[] = { 0, 1, 2 };
     tsk_id_t duplicate_samples[] = { 0, 1, 0 };
     tsk_id_t samples2[] = { -1, 1 };
+    tsk_size_t sample_set_sizes[] = { 3 };
     tsk_ibd_segments_t result;
     tsk_ibd_segment_list_t *list;
 
@@ -5766,27 +5895,46 @@ test_ibd_segments_errors(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // Invalid sample IDs
-    ret = tsk_table_collection_ibd_segments(
+    ret = tsk_table_collection_ibd_within(
         &tables, &result, samples2, 1, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
     tsk_ibd_segments_free(&result);
 
+    ret = tsk_table_collection_ibd_between(&tables, &result, 1, sample_set_sizes,
+        samples2, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    tsk_ibd_segments_free(&result);
+
     // Bad length or time
-    ret = tsk_table_collection_ibd_segments(&tables, &result, samples, 2, 0.0, -1, 0);
+    ret = tsk_table_collection_ibd_within(&tables, &result, samples, 2, 0.0, -1, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     tsk_ibd_segments_free(&result);
-    ret = tsk_table_collection_ibd_segments(&tables, &result, samples, 2, -1, 0.0, 0);
+    ret = tsk_table_collection_ibd_within(&tables, &result, samples, 2, -1, 0.0, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    tsk_ibd_segments_free(&result);
+
+    ret = tsk_table_collection_ibd_between(&tables, &result, 1, sample_set_sizes,
+        samples, -1, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    tsk_ibd_segments_free(&result);
+    ret = tsk_table_collection_ibd_between(
+        &tables, &result, 1, sample_set_sizes, samples, 0, -1, TSK_IBD_STORE_SEGMENTS);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     tsk_ibd_segments_free(&result);
 
     // Duplicate samples
-    ret = tsk_table_collection_ibd_segments(
+    ret = tsk_table_collection_ibd_within(
         &tables, &result, duplicate_samples, 3, 0.0, DBL_MAX, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
     tsk_ibd_segments_free(&result);
 
+    ret = tsk_table_collection_ibd_between(&tables, &result, 1, sample_set_sizes,
+        duplicate_samples, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
+    tsk_ibd_segments_free(&result);
+
     // Check for bad inputs to result
-    ret = tsk_table_collection_ibd_segments(
+    ret = tsk_table_collection_ibd_within(
         &tables, &result, NULL, 0, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
@@ -5815,14 +5963,12 @@ test_ibd_segments_errors(void)
 static void
 test_ibd_segments_samples_are_descendants(void)
 {
-    printf("\n\nFIXME Issue #1678\n\n");
-#if 0
     int ret;
     tsk_treeseq_t ts;
     tsk_id_t samples[] = { 0, 1, 2, 3, 4, 5 };
     tsk_size_t num_samples = 6;
     tsk_ibd_segments_t result;
-    tsk_id_t pairs[][2] = { {0, 2}, {0, 4}, {2, 4}, {1, 3}, {1, 5}, {3, 5} };
+    tsk_id_t pairs[][2] = { { 0, 2 }, { 0, 4 }, { 2, 4 }, { 1, 3 }, { 1, 5 }, { 3, 5 } };
     tsk_size_t num_pairs = 6;
     tsk_id_t true_node[] = { 2, 4, 4, 3, 5, 5 };
     tsk_size_t j;
@@ -5832,11 +5978,10 @@ test_ibd_segments_samples_are_descendants(void)
     tsk_treeseq_from_text(&ts, 1, multi_root_tree_ex_nodes, multi_root_tree_ex_edges,
         NULL, NULL, NULL, NULL, NULL, 0);
 
-    ret = tsk_table_collection_ibd_segments(
-        ts.tables, &result, samples, num_samples, 0.0, DBL_MAX, 0);
+    ret = tsk_table_collection_ibd_within(
+        ts.tables, &result, samples, num_samples, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    /* tsk_ibd_segments_print_state(&result, stdout); */
     for (j = 0; j < num_pairs; j++) {
         tsk_ibd_segments_get(&result, pairs[j][0], pairs[j][1], &list);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -5852,7 +5997,6 @@ test_ibd_segments_samples_are_descendants(void)
     verify_ibd_result(&result);
     tsk_ibd_segments_free(&result);
     tsk_treeseq_free(&ts);
-#endif
 }
 
 static void
@@ -5873,7 +6017,7 @@ test_ibd_segments_multiple_ibd_paths(void)
     tsk_treeseq_from_text(&ts, 2, multi_path_tree_ex_nodes, multi_path_tree_ex_edges,
         NULL, NULL, NULL, NULL, NULL, 0);
 
-    ret = tsk_table_collection_ibd_segments(
+    ret = tsk_table_collection_ibd_within(
         ts.tables, &result, NULL, 0, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
@@ -5913,14 +6057,14 @@ test_ibd_segments_odd_topologies(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // Multiple roots.
-    ret = tsk_table_collection_ibd_segments(
+    ret = tsk_table_collection_ibd_within(
         &tables, &result, samples, 1, 0, 0, TSK_IBD_STORE_SEGMENTS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     verify_ibd_result(&result);
     tsk_ibd_segments_free(&result);
 
     // Parent is a sample.
-    ret = tsk_table_collection_ibd_segments(
+    ret = tsk_table_collection_ibd_within(
         &tables, &result, samples1, 1, 0, 0, TSK_IBD_STORE_SEGMENTS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     verify_ibd_result(&result);
@@ -6148,10 +6292,10 @@ test_sort_tables_offsets(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tables, &copy, 0));
 
-    /* Check that sorting would have had an effect */
+    /* Check that sorting would have had no effect as individuals not in default sort*/
     ret = tsk_table_collection_sort(&tables, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_FALSE(tsk_table_collection_equals(&tables, &copy, 0));
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tables, &copy, 0));
 
     tsk_memset(&bookmark, 0, sizeof(bookmark));
     bookmark.individuals = tables.individuals.num_rows - 1;
@@ -6670,35 +6814,52 @@ test_sort_tables_individuals(void)
     const char *individuals_cycle = "1      0.2    2  0\n"
                                     "2      0.5    0  1\n"
                                     "3      0.3    1  2\n";
+    const tsk_id_t bad_parents[] = { 200 };
+    tsk_id_t ret_id;
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 1.0;
     parse_individuals(individuals, &tables.individuals);
+
+    ret = tsk_table_collection_copy(&tables, &copy, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Table sort doesn't touch individuals by default*/
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &copy, 0));
+
     /* Not calling with TSK_CHECK_TREES so casting is safe */
     ret = (int) tsk_table_collection_check_integrity(
         &tables, TSK_CHECK_INDIVIDUAL_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_INDIVIDUALS);
 
-    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    ret = tsk_table_collection_individual_topological_sort(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = (int) tsk_table_collection_check_integrity(
         &tables, TSK_CHECK_INDIVIDUAL_ORDERING);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Check that the sort is stable */
+    tsk_table_collection_free(&copy);
     ret = tsk_table_collection_copy(&tables, &copy, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_individual_topological_sort(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &copy, 0));
 
-    ret = tsk_table_collection_sort(&tables, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT(tsk_table_collection_equals(&tables, &copy, 0));
+    /* Errors on bad table */
+    ret_id = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, bad_parents, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 6);
+    ret = tsk_table_collection_individual_topological_sort(&tables, 0);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
 
     /* Errors on cycle */
     tsk_individual_table_clear(&tables.individuals);
     parse_individuals(individuals_cycle, &tables.individuals);
-    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    ret = tsk_table_collection_individual_topological_sort(&tables, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_INDIVIDUAL_PARENT_CYCLE);
 
     tsk_table_collection_free(&tables);
@@ -8646,6 +8807,7 @@ main(int argc, char **argv)
         { "test_link_ancestors_multiple_to_single_tree",
             test_link_ancestors_multiple_to_single_tree },
         { "test_ibd_segments_debug", test_ibd_segments_debug },
+        { "test_ibd_segments_caterpillar_tree", test_ibd_segments_caterpillar_tree },
         { "test_ibd_segments_single_tree", test_ibd_segments_single_tree },
         { "test_ibd_segments_single_tree_options",
             test_ibd_segments_single_tree_options },
@@ -8653,6 +8815,8 @@ main(int argc, char **argv)
         { "test_ibd_segments_empty_result", test_ibd_segments_empty_result },
         { "test_ibd_segments_min_length_max_time",
             test_ibd_segments_min_length_max_time },
+        { "test_ibd_segments_single_tree_between",
+            test_ibd_segments_single_tree_between },
         { "test_ibd_segments_samples_are_descendants",
             test_ibd_segments_samples_are_descendants },
         { "test_ibd_segments_multiple_ibd_paths", test_ibd_segments_multiple_ibd_paths },

@@ -1,30 +1,24 @@
-# Minimal makefile for Sphinx documentation
-#
 
-# You can set these variables from the command line.
-SPHINXOPTS    = -W --keep-going
-SPHINXBUILD   = python3 -m sphinx
-SOURCEDIR     = .
+# Need to set PYTHONPATH so that we pick up the local tskit
+PYPATH=$(shell pwd)/../python/
+TSK_VERSION:=$(shell PYTHONPATH=${PYPATH} \
+   python3 -c 'import tskit; print(tskit.__version__.split("+")[0])')
+
 BUILDDIR      = _build
-
 DOXYGEN_XML=doxygen/xml
 
-all: ${DOXYGEN_XML}
-	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+all: ${DOXYGEN_XML} dev
 
 ${DOXYGEN_XML}: ../c/tskit/*.h
 	cd doxygen && doxygen
 
-# Put it first so that "make" without argument is like "make help".
-help:
-	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+dev:
+	PYTHONPATH=${PYPATH} ./build.sh
+
+dist:
+	@echo Building distribution for tskit version ${TSK_VERSION}
+	sed -i '' -e s/__TSKIT_VERSION__/${TSK_VERSION}/g _config.yml
+	PYTHONPATH=${PYPATH} ./build.sh
 
 clean:
-	rm -rf $(BUILDDIR) $(DOXYGEN_XML)
-
-# .PHONY: help Makefile
-
-# # Catch-all target: route all unknown targets to Sphinx using the new
-# # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
-# %: Makefile
-# 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	rm -fR $(BUILDDIR) $(DOXYGEN_XML)

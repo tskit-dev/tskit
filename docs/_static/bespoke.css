@@ -1,0 +1,3 @@
+/* When a code cell outputs tskit tables in plain text, widen the tab size so column
+   contents line up. Invoke this by adding :tags:["output-wide-tabs"] to the cell */
+.tag_output-wide-tabs .cell_output pre {tab-size: 16}

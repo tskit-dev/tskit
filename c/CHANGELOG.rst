@@ -14,8 +14,16 @@
 
 - The previously deprecated option ``TSK_SAMPLE_COUNTS`` has been removed. (:user:`benjeffery`, :issue:`1744`, :pr:`1761`).
 
+- FIXME breaking changes for tree API and virtual root
+
+- Individuals are no longer guaranteed or required to be topologically sorted in a tree sequence. 
+  ``tsk_table_collection_sort`` no longer sorts individuals.
+  (:user:`benjeffery`, :issue:`1774`, :pr:`1789`)
 
 **Features**
+
+- Add ``tsk_table_collection_individual_topological_sort`` to sort the individuals as this is no longer done by the
+  default sort. (:user:`benjeffery`, :issue:`1774`, :pr:`1789`)
 
 - The default behaviour for table size growth is now to double the current size of the table,
   up to a threshold. To keep the previous behaviour, use (e.g.)
@@ -36,6 +44,8 @@
 - Add ``time_units`` to ``tsk_table_collection_t`` to describe the units of the time dimension of the
   tree sequence. This is then used to generate an error if ``time_units`` is ``uncalibrated`` when
   using the branch lengths in statistics. (:user:`benjeffery`, :issue:`1644`, :pr:`1760`)
+
+- FIXME add features for virtual root, num_edges, stack allocation size etc
 
 **Fixes**
 

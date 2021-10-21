@@ -747,6 +747,53 @@ out:
     return ret;
 }
 
+static int
+parse_sample_sets(PyObject *sample_set_sizes, PyArrayObject **ret_sample_set_sizes_array,
+    PyObject *sample_sets, PyArrayObject **ret_sample_sets_array,
+    tsk_size_t *ret_num_sample_sets)
+{
+    int ret = -1;
+    PyArrayObject *sample_set_sizes_array = NULL;
+    PyArrayObject *sample_sets_array = NULL;
+    npy_intp *shape;
+    tsk_size_t num_sample_sets = 0;
+    tsk_size_t j, sum;
+    uint64_t *a;
+
+    sample_set_sizes_array = (PyArrayObject *) PyArray_FROMANY(
+        sample_set_sizes, NPY_UINT64, 1, 1, NPY_ARRAY_IN_ARRAY);
+    if (sample_set_sizes_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(sample_set_sizes_array);
+    num_sample_sets = shape[0];
+    /* The sum of the lengths in sample_set_sizes must be equal to the length
+     * of the sample_sets array */
+    sum = 0;
+    a = PyArray_DATA(sample_set_sizes_array);
+    for (j = 0; j < num_sample_sets; j++) {
+        sum += a[j];
+    }
+
+    sample_sets_array = (PyArrayObject *) PyArray_FROMANY(
+        sample_sets, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
+    if (sample_sets_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(sample_sets_array);
+    if (sum != (tsk_size_t) shape[0]) {
+        PyErr_SetString(PyExc_ValueError,
+            "Sum of sample_set_sizes must equal length of sample_sets array");
+        goto out;
+    }
+    ret = 0;
+out:
+    *ret_sample_set_sizes_array = sample_set_sizes_array;
+    *ret_sample_sets_array = sample_sets_array;
+    *ret_num_sample_sets = num_sample_sets;
+    return ret;
+}
+
 static PyObject *
 table_get_column_array(
     tsk_size_t num_rows, void *data, int npy_type, size_t element_size)
@@ -772,20 +819,6 @@ table_get_offset_array(tsk_size_t num_rows, tsk_size_t *data)
     PyArrayObject *array;
     npy_intp dims = (npy_intp) num_rows + 1;
 
-    /* npy_intp j; */
-    /* uint32_t *offset32; */
-    /* /1* TODO make this conditional on the size of the data *1/ */
-    /* /1* Actually, this should probably always return a uint64. Let's get */
-    /*  * other stuff working first and see how much it breaks if we always */
-    /*  * return 64 bit. *1/ */
-    /* array = (PyArrayObject *) PyArray_EMPTY(1, &dims, NPY_UINT32, 0); */
-    /* if (array == NULL) { */
-    /*     goto out; */
-    /* } */
-    /* offset32 = PyArray_DATA(array); */
-    /* for (j = 0; j < dims; j++) { */
-    /*     offset32[j] = (uint32_t) data[j]; */
-    /* } */
     array = (PyArrayObject *) PyArray_EMPTY(1, &dims, NPY_UINT64, 0);
     if (array == NULL) {
         goto out;
@@ -6450,40 +6483,41 @@ out:
 }
 
 static PyObject *
-TableCollection_ibd_segments(TableCollection *self, PyObject *args, PyObject *kwds)
+TableCollection_ibd_segments_within(
+    TableCollection *self, PyObject *args, PyObject *kwds)
 {
     int err;
     PyObject *ret = NULL;
-    PyObject *py_within = Py_None;
+    PyObject *py_samples = Py_None;
     IbdSegments *result = NULL;
-    PyArrayObject *within_array = NULL;
-    int32_t *within = NULL;
-    tsk_size_t num_within = 0;
+    PyArrayObject *samples_array = NULL;
+    int32_t *samples = NULL;
+    tsk_size_t num_samples = 0;
     double min_length = 0;
     double max_time = DBL_MAX;
     int store_pairs = 0;
     int store_segments = 0;
     npy_intp *shape;
     static char *kwlist[]
-        = { "within", "min_length", "max_time", "store_pairs", "store_segments", NULL };
+        = { "samples", "min_length", "max_time", "store_pairs", "store_segments", NULL };
     tsk_flags_t options = 0;
 
     if (TableCollection_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|Oddii", kwlist, &py_within,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|Oddii", kwlist, &py_samples,
             &min_length, &max_time, &store_pairs, &store_segments)) {
         goto out;
     }
-    if (py_within != Py_None) {
-        within_array = (PyArrayObject *) PyArray_FROMANY(
-            py_within, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
-        if (within_array == NULL) {
+    if (py_samples != Py_None) {
+        samples_array = (PyArrayObject *) PyArray_FROMANY(
+            py_samples, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
+        if (samples_array == NULL) {
             goto out;
         }
-        shape = PyArray_DIMS(within_array);
-        within = PyArray_DATA(within_array);
-        num_within = (tsk_size_t) shape[0];
+        shape = PyArray_DIMS(samples_array);
+        samples = PyArray_DATA(samples_array);
+        num_samples = (tsk_size_t) shape[0];
     }
     result = (IbdSegments *) PyObject_CallObject((PyObject *) &IbdSegmentsType, NULL);
     if (result == NULL) {
@@ -6497,8 +6531,8 @@ TableCollection_ibd_segments(TableCollection *self, PyObject *args, PyObject *kw
         options |= TSK_IBD_STORE_SEGMENTS;
     }
 
-    err = tsk_table_collection_ibd_segments(self->tables, result->ibd_segments, within,
-        num_within, min_length, max_time, options);
+    err = tsk_table_collection_ibd_within(self->tables, result->ibd_segments, samples,
+        num_samples, min_length, max_time, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -6506,7 +6540,67 @@ TableCollection_ibd_segments(TableCollection *self, PyObject *args, PyObject *kw
     ret = (PyObject *) result;
     result = NULL;
 out:
-    Py_XDECREF(within_array);
+    Py_XDECREF(samples_array);
+    Py_XDECREF(result);
+    return ret;
+}
+
+static PyObject *
+TableCollection_ibd_segments_between(
+    TableCollection *self, PyObject *args, PyObject *kwds)
+{
+    int err;
+    PyObject *ret = NULL;
+    PyObject *sample_sets = NULL;
+    PyObject *sample_set_sizes = NULL;
+    PyArrayObject *sample_sets_array = NULL;
+    PyArrayObject *sample_set_sizes_array = NULL;
+    IbdSegments *result = NULL;
+    tsk_size_t num_sample_sets;
+    double min_length = 0;
+    double max_time = DBL_MAX;
+    int store_pairs = 0;
+    int store_segments = 0;
+    static char *kwlist[] = { "sample_set_sizes", "sample_sets", "min_length",
+        "max_time", "store_pairs", "store_segments", NULL };
+    tsk_flags_t options = 0;
+
+    if (TableCollection_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|ddii", kwlist, &sample_set_sizes,
+            &sample_sets, &min_length, &max_time, &store_pairs, &store_segments)) {
+        goto out;
+    }
+    if (parse_sample_sets(sample_set_sizes, &sample_set_sizes_array, sample_sets,
+            &sample_sets_array, &num_sample_sets)
+        != 0) {
+        goto out;
+    }
+    result = (IbdSegments *) PyObject_CallObject((PyObject *) &IbdSegmentsType, NULL);
+    if (result == NULL) {
+        goto out;
+    }
+    options = 0;
+    if (store_pairs) {
+        options |= TSK_IBD_STORE_PAIRS;
+    }
+    if (store_segments) {
+        options |= TSK_IBD_STORE_SEGMENTS;
+    }
+
+    err = tsk_table_collection_ibd_between(self->tables, result->ibd_segments,
+        num_sample_sets, (tsk_size_t *) PyArray_DATA(sample_set_sizes_array),
+        (tsk_id_t *) PyArray_DATA(sample_sets_array), min_length, max_time, options);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = (PyObject *) result;
+    result = NULL;
+out:
+    Py_XDECREF(sample_set_sizes_array);
+    Py_XDECREF(sample_sets_array);
     Py_XDECREF(result);
     return ret;
 }
@@ -6529,6 +6623,26 @@ TableCollection_sort(TableCollection *self, PyObject *args, PyObject *kwds)
     memset(&start, 0, sizeof(start));
     start.edges = edge_start;
     err = tsk_table_collection_sort(self->tables, &start, 0);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
+static PyObject *
+TableCollection_sort_individuals(TableCollection *self, PyObject *args, PyObject *kwds)
+{
+    int err;
+    PyObject *ret = NULL;
+
+    if (TableCollection_check_state(self) != 0) {
+        goto out;
+    }
+
+    err = tsk_table_collection_individual_topological_sort(self->tables, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -7009,14 +7123,22 @@ static PyMethodDef TableCollection_methods[] = {
         .ml_doc
         = "Adds to this table collection the portions of another table collection "
           "that are not shared with this one." },
-    { .ml_name = "ibd_segments",
-        .ml_meth = (PyCFunction) TableCollection_ibd_segments,
+    { .ml_name = "ibd_segments_within",
+        .ml_meth = (PyCFunction) TableCollection_ibd_segments_within,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
-        .ml_doc = "Returns IBD segments for the specified sample pairs." },
+        .ml_doc = "Returns IBD segments within the specified set of samples." },
+    { .ml_name = "ibd_segments_between",
+        .ml_meth = (PyCFunction) TableCollection_ibd_segments_between,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Returns IBD segments between pairs in the specified sets." },
     { .ml_name = "sort",
         .ml_meth = (PyCFunction) TableCollection_sort,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Sorts the tables to satisfy tree sequence requirements." },
+    { .ml_name = "sort_individuals",
+        .ml_meth = (PyCFunction) TableCollection_sort_individuals,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Sorts the individual table topologically" },
     { .ml_name = "canonicalise",
         .ml_meth = (PyCFunction) TableCollection_canonicalise,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
@@ -7691,6 +7813,19 @@ out:
 }
 
 static PyObject *
+TreeSequence_get_discrete_genome(TreeSequence *self)
+{
+    PyObject *ret = NULL;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue("i", tsk_treeseq_get_discrete_genome(self->tree_sequence));
+out:
+    return ret;
+}
+
+static PyObject *
 TreeSequence_get_breakpoints(TreeSequence *self)
 {
     PyObject *ret = NULL;
@@ -8214,53 +8349,6 @@ out:
     Py_XDECREF(weights_array);
     Py_XDECREF(windows_array);
     Py_XDECREF(result_array);
-    return ret;
-}
-
-static int
-parse_sample_sets(PyObject *sample_set_sizes, PyArrayObject **ret_sample_set_sizes_array,
-    PyObject *sample_sets, PyArrayObject **ret_sample_sets_array,
-    tsk_size_t *ret_num_sample_sets)
-{
-    int ret = -1;
-    PyArrayObject *sample_set_sizes_array = NULL;
-    PyArrayObject *sample_sets_array = NULL;
-    npy_intp *shape;
-    tsk_size_t num_sample_sets = 0;
-    tsk_size_t j, sum;
-    uint64_t *a;
-
-    sample_set_sizes_array = (PyArrayObject *) PyArray_FROMANY(
-        sample_set_sizes, NPY_UINT64, 1, 1, NPY_ARRAY_IN_ARRAY);
-    if (sample_set_sizes_array == NULL) {
-        goto out;
-    }
-    shape = PyArray_DIMS(sample_set_sizes_array);
-    num_sample_sets = shape[0];
-    /* The sum of the lengths in sample_set_sizes must be equal to the length
-     * of the sample_sets array */
-    sum = 0;
-    a = PyArray_DATA(sample_set_sizes_array);
-    for (j = 0; j < num_sample_sets; j++) {
-        sum += a[j];
-    }
-
-    sample_sets_array = (PyArrayObject *) PyArray_FROMANY(
-        sample_sets, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
-    if (sample_sets_array == NULL) {
-        goto out;
-    }
-    shape = PyArray_DIMS(sample_sets_array);
-    if (sum != (tsk_size_t) shape[0]) {
-        PyErr_SetString(PyExc_ValueError,
-            "Sum of sample_set_sizes must equal length of sample_sets array");
-        goto out;
-    }
-    ret = 0;
-out:
-    *ret_sample_set_sizes_array = sample_set_sizes_array;
-    *ret_sample_sets_array = sample_sets_array;
-    *ret_num_sample_sets = num_sample_sets;
     return ret;
 }
 
@@ -8942,6 +9030,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_get_sequence_length,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns the sequence length in bases." },
+    { .ml_name = "get_discrete_genome",
+        .ml_meth = (PyCFunction) TreeSequence_get_discrete_genome,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns True if this TreeSequence has discrete coordinates" },
     { .ml_name = "get_breakpoints",
         .ml_meth = (PyCFunction) TreeSequence_get_breakpoints,
         .ml_flags = METH_NOARGS,
@@ -9103,7 +9195,7 @@ static int
 Tree_check_bounds(Tree *self, int node)
 {
     int ret = 0;
-    if (node < 0 || node >= (int) self->tree->num_nodes) {
+    if (node < 0 || node > (int) self->tree->num_nodes) {
         PyErr_SetString(PyExc_ValueError, "Node index out of bounds");
         ret = -1;
     }
@@ -9333,6 +9425,52 @@ out:
 }
 
 static PyObject *
+Tree_get_virtual_root(Tree *self)
+{
+    PyObject *ret = NULL;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue("n", (Py_ssize_t) self->tree->virtual_root);
+out:
+    return ret;
+}
+
+static PyObject *
+Tree_get_num_edges(Tree *self)
+{
+    PyObject *ret = NULL;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue("n", (Py_ssize_t) self->tree->num_edges);
+out:
+    return ret;
+}
+
+static PyObject *
+Tree_get_total_branch_length(Tree *self)
+{
+    PyObject *ret = NULL;
+    double length;
+    int err;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    err = tsk_tree_get_total_branch_length(self->tree, TSK_NULL, &length);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("d", length);
+out:
+    return ret;
+}
+
+static PyObject *
 Tree_get_index(Tree *self)
 {
     PyObject *ret = NULL;
@@ -9341,19 +9479,6 @@ Tree_get_index(Tree *self)
         goto out;
     }
     ret = Py_BuildValue("n", (Py_ssize_t) self->tree->index);
-out:
-    return ret;
-}
-
-static PyObject *
-Tree_get_left_root(Tree *self)
-{
-    PyObject *ret = NULL;
-
-    if (Tree_check_state(self) != 0) {
-        goto out;
-    }
-    ret = Py_BuildValue("i", (int) self->tree->left_root);
 out:
     return ret;
 }
@@ -9494,13 +9619,13 @@ Tree_get_time(Tree *self, PyObject *args)
 {
     PyObject *ret = NULL;
     double time;
-    int node, err;
+    int node_id, err;
 
-    if (Tree_get_node_argument(self, args, &node) != 0) {
+    if (Tree_get_node_argument(self, args, &node_id) != 0) {
         goto out;
     }
-    err = tsk_tree_get_time(self->tree, node, &time);
-    if (ret != 0) {
+    err = tsk_tree_get_time(self->tree, node_id, &time);
+    if (err != 0) {
         handle_library_error(err);
         goto out;
     }
@@ -9611,18 +9736,18 @@ static PyObject *
 Tree_depth(Tree *self, PyObject *args)
 {
     PyObject *ret = NULL;
-    tsk_size_t depth;
+    int depth;
     int node, err;
 
     if (Tree_get_node_argument(self, args, &node) != 0) {
         goto out;
     }
-    err = tsk_tree_depth(self->tree, node, &depth);
+    err = tsk_tree_get_depth(self->tree, node, &depth);
     if (ret != 0) {
         handle_library_error(err);
         goto out;
     }
-    ret = Py_BuildValue("I", (unsigned int) depth);
+    ret = Py_BuildValue("i", depth);
 out:
     return ret;
 }
@@ -10051,18 +10176,82 @@ out:
     return ret;
 }
 
+typedef int tsk_traversal_func(
+    const tsk_tree_t *self, tsk_id_t root, tsk_id_t *nodes, tsk_size_t *num_nodes);
+
+static PyObject *
+Tree_get_traversal_array(Tree *self, PyObject *args, tsk_traversal_func *func)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *array = NULL;
+    int32_t *data = NULL;
+    int root = TSK_NULL;
+    npy_intp dims;
+    tsk_size_t length;
+    int err;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTuple(args, "i", &root)) {
+        goto out;
+    }
+    data = PyDataMem_NEW(tsk_tree_get_size_bound(self->tree) * sizeof(*data));
+    if (data == NULL) {
+        ret = PyErr_NoMemory();
+        goto out;
+    }
+    err = func(self->tree, (tsk_id_t) root, data, &length);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    dims = (npy_intp) length;
+    array = (PyArrayObject *) PyArray_SimpleNewFromData(1, &dims, NPY_INT32, data);
+    if (array == NULL) {
+        goto out;
+    }
+    /* Set the OWNDATA flag on that the data will be freed with the array */
+    PyArray_ENABLEFLAGS(array, NPY_ARRAY_OWNDATA);
+    /* Not strictly necessary since we're creating a new array, but let's
+     * keep the door open to future optimisations. */
+    PyArray_CLEARFLAGS(array, NPY_ARRAY_WRITEABLE);
+
+    ret = (PyObject *) array;
+    data = NULL;
+    array = NULL;
+out:
+    Py_XDECREF(array);
+    if (data != NULL) {
+        PyDataMem_FREE(data);
+    }
+    return ret;
+}
+
+static PyObject *
+Tree_get_preorder(Tree *self, PyObject *args)
+{
+    return Tree_get_traversal_array(self, args, tsk_tree_preorder);
+}
+
+static PyObject *
+Tree_get_postorder(Tree *self, PyObject *args)
+{
+    return Tree_get_traversal_array(self, args, tsk_tree_postorder);
+}
+
 /* The x_array properties are the high-performance zero-copy interface to the
  * corresponding arrays in the tsk_tree object. We use properties and
  * return a new array each time rather than trying to create a single array
  * at Tree initialisation time to avoid a circular reference counting loop,
- * which (it seems) the even cyclic garbage collection support can't resolve.
+ * which (it seems) even cyclic garbage collection support can't resolve.
  */
 static PyObject *
 Tree_make_array(Tree *self, int dtype, void *data)
 {
     PyObject *ret = NULL;
     PyArrayObject *array = NULL;
-    npy_intp dims = self->tree->num_nodes;
+    npy_intp dims = self->tree->num_nodes + 1;
 
     array = (PyArrayObject *) PyArray_SimpleNewFromData(1, &dims, dtype, data);
     if (array == NULL) {
@@ -10203,10 +10392,18 @@ static PyMethodDef Tree_methods[] = {
         .ml_meth = (PyCFunction) Tree_get_index,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns the index this tree occupies within the tree sequence." },
-    { .ml_name = "get_left_root",
-        .ml_meth = (PyCFunction) Tree_get_left_root,
+    { .ml_name = "get_virtual_root",
+        .ml_meth = (PyCFunction) Tree_get_virtual_root,
         .ml_flags = METH_NOARGS,
-        .ml_doc = "Returns the root of the tree." },
+        .ml_doc = "Returns the virtual root of the tree." },
+    { .ml_name = "get_num_edges",
+        .ml_meth = (PyCFunction) Tree_get_num_edges,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the number of branches in this tree." },
+    { .ml_name = "get_total_branch_length",
+        .ml_meth = (PyCFunction) Tree_get_total_branch_length,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the sum of the branch lengths reachable from roots" },
     { .ml_name = "get_left",
         .ml_meth = (PyCFunction) Tree_get_left,
         .ml_flags = METH_NOARGS,
@@ -10329,6 +10526,14 @@ static PyMethodDef Tree_methods[] = {
         .ml_meth = (PyCFunction) Tree_get_root_threshold,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns the root threshold for this tree." },
+    { .ml_name = "get_preorder",
+        .ml_meth = (PyCFunction) Tree_get_preorder,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the nodes in this tree in preorder." },
+    { .ml_name = "get_postorder",
+        .ml_meth = (PyCFunction) Tree_get_postorder,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the nodes in this tree in postorder." },
     { NULL } /* Sentinel */
 };
 

@@ -32,6 +32,12 @@
 
 #include <tskit/trees.h>
 
+static inline bool
+is_discrete(double x)
+{
+    return trunc(x) == x;
+}
+
 /* ======================================================== *
  * tree sequence
  * ======================================================== */
@@ -127,6 +133,8 @@ tsk_treeseq_init_sites(tsk_treeseq_t *self)
     const tsk_size_t num_mutations = self->tables->mutations.num_rows;
     const tsk_size_t num_sites = self->tables->sites.num_rows;
     const tsk_id_t *restrict mutation_site = self->tables->mutations.site;
+    const double *restrict site_position = self->tables->sites.position;
+    bool discrete_sites = true;
 
     self->site_mutations_mem
         = tsk_malloc(num_mutations * sizeof(*self->site_mutations_mem));
@@ -148,6 +156,7 @@ tsk_treeseq_init_sites(tsk_treeseq_t *self)
     }
     k = 0;
     for (j = 0; j < (tsk_id_t) num_sites; j++) {
+        discrete_sites = discrete_sites && is_discrete(site_position[j]);
         self->site_mutations[j] = self->site_mutations_mem + offset;
         self->site_mutations_length[j] = 0;
         /* Go through all mutations for this site */
@@ -161,6 +170,7 @@ tsk_treeseq_init_sites(tsk_treeseq_t *self)
             goto out;
         }
     }
+    self->discrete_genome = self->discrete_genome && discrete_sites;
 out:
     return ret;
 }
@@ -243,6 +253,7 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
     const double *restrict edge_right = self->tables->edges.right;
     const double *restrict edge_left = self->tables->edges.left;
     tsk_size_t num_trees_alloc = self->num_trees + 1;
+    bool discrete_breakpoints = true;
 
     self->tree_sites_length
         = tsk_malloc(num_trees_alloc * sizeof(*self->tree_sites_length));
@@ -264,6 +275,7 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
     j = 0;
     k = 0;
     while (j < num_edges || tree_left < sequence_length) {
+        discrete_breakpoints = discrete_breakpoints && is_discrete(tree_left);
         self->breakpoints[tree_index] = tree_left;
         while (k < num_edges && edge_right[O[k]] == tree_left) {
             k++;
@@ -289,9 +301,27 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
     tsk_bug_assert(site == num_sites);
     tsk_bug_assert(tree_index == self->num_trees);
     self->breakpoints[tree_index] = tree_right;
+    discrete_breakpoints = discrete_breakpoints && is_discrete(tree_right);
+    self->discrete_genome = self->discrete_genome && discrete_breakpoints;
     ret = 0;
 out:
     return ret;
+}
+
+static void
+tsk_treeseq_init_migrations(tsk_treeseq_t *self)
+{
+    tsk_size_t j;
+    tsk_size_t num_migrations = self->tables->migrations.num_rows;
+    const double *restrict left = self->tables->migrations.left;
+    const double *restrict right = self->tables->migrations.right;
+    bool discrete_breakpoints = true;
+
+    for (j = 0; j < num_migrations; j++) {
+        discrete_breakpoints
+            = discrete_breakpoints && is_discrete(left[j]) && is_discrete(right[j]);
+    }
+    self->discrete_genome = self->discrete_genome && discrete_breakpoints;
 }
 
 static int
@@ -400,6 +430,7 @@ tsk_treeseq_init(
     if (ret != 0) {
         goto out;
     }
+    self->discrete_genome = true;
     ret = tsk_treeseq_init_sites(self);
     if (ret != 0) {
         goto out;
@@ -412,6 +443,8 @@ tsk_treeseq_init(
     if (ret != 0) {
         goto out;
     }
+    tsk_treeseq_init_migrations(self);
+
     if (tsk_treeseq_get_time_units_length(self) == strlen(TSK_TIME_UNITS_UNCALIBRATED)
         && !strncmp(tsk_treeseq_get_time_units(self), TSK_TIME_UNITS_UNCALIBRATED,
                strlen(TSK_TIME_UNITS_UNCALIBRATED))) {
@@ -628,6 +661,12 @@ tsk_treeseq_is_sample(const tsk_treeseq_t *self, tsk_id_t u)
         ret = !!(self->tables->nodes.flags[u] & TSK_NODE_IS_SAMPLE);
     }
     return ret;
+}
+
+bool
+tsk_treeseq_get_discrete_genome(const tsk_treeseq_t *self)
+{
+    return self->discrete_genome;
 }
 
 /* Stats functions */
@@ -3155,80 +3194,10 @@ out:
  * ======================================================== */
 
 int TSK_WARN_UNUSED
-tsk_tree_clear(tsk_tree_t *self)
-{
-    int ret = 0;
-    tsk_size_t j;
-    tsk_id_t u;
-    const tsk_size_t N = self->num_nodes;
-    const tsk_size_t num_samples = self->tree_sequence->num_samples;
-    const bool sample_counts = !(self->options & TSK_NO_SAMPLE_COUNTS);
-    const bool sample_lists = !!(self->options & TSK_SAMPLE_LISTS);
-
-    self->left = 0;
-    self->right = 0;
-    self->index = -1;
-    /* TODO we should profile this method to see if just doing a single loop over
-     * the nodes would be more efficient than multiple memsets.
-     */
-    tsk_memset(self->parent, 0xff, N * sizeof(tsk_id_t));
-    tsk_memset(self->left_child, 0xff, N * sizeof(tsk_id_t));
-    tsk_memset(self->right_child, 0xff, N * sizeof(tsk_id_t));
-    tsk_memset(self->left_sib, 0xff, N * sizeof(tsk_id_t));
-    tsk_memset(self->right_sib, 0xff, N * sizeof(tsk_id_t));
-
-    if (sample_counts) {
-        tsk_memset(self->num_samples, 0, N * sizeof(*self->num_samples));
-        tsk_memset(self->marked, 0, N * sizeof(*self->marked));
-        /* We can't reset the tracked samples via tsk_memset because we don't
-         * know where the tracked samples are.
-         */
-        for (j = 0; j < self->num_nodes; j++) {
-            if (!tsk_treeseq_is_sample(self->tree_sequence, (tsk_id_t) j)) {
-                self->num_tracked_samples[j] = 0;
-            }
-        }
-    }
-    if (sample_lists) {
-        tsk_memset(self->left_sample, 0xff, N * sizeof(tsk_id_t));
-        tsk_memset(self->right_sample, 0xff, N * sizeof(tsk_id_t));
-        tsk_memset(self->next_sample, 0xff, num_samples * sizeof(tsk_id_t));
-    }
-    /* Set the sample attributes */
-    for (j = 0; j < num_samples; j++) {
-        u = self->samples[j];
-        if (sample_counts) {
-            self->num_samples[u] = 1;
-        }
-        if (sample_lists) {
-            /* We are mapping to *indexes* into the list of samples here */
-            self->left_sample[u] = (tsk_id_t) j;
-            self->right_sample[u] = (tsk_id_t) j;
-        }
-    }
-    self->left_root = TSK_NULL;
-    if (sample_counts && self->root_threshold == 1 && num_samples > 0) {
-        self->left_root = self->samples[0];
-        for (j = 0; j < num_samples; j++) {
-            /* Set initial roots */
-            u = self->samples[j];
-            if (j < num_samples - 1) {
-                self->right_sib[u] = self->samples[j + 1];
-            }
-            if (j > 0) {
-                self->left_sib[u] = self->samples[j - 1];
-            }
-        }
-    }
-    return ret;
-}
-
-int TSK_WARN_UNUSED
 tsk_tree_init(tsk_tree_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t options)
 {
     int ret = TSK_ERR_NO_MEMORY;
-    tsk_size_t num_samples;
-    tsk_size_t num_nodes;
+    tsk_size_t num_samples, num_nodes, N;
 
     tsk_memset(self, 0, sizeof(tsk_tree_t));
     if (tree_sequence == NULL) {
@@ -3238,32 +3207,35 @@ tsk_tree_init(tsk_tree_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t 
     num_nodes = tree_sequence->tables->nodes.num_rows;
     num_samples = tree_sequence->num_samples;
     self->num_nodes = num_nodes;
+    self->virtual_root = (tsk_id_t) num_nodes;
     self->tree_sequence = tree_sequence;
     self->samples = tree_sequence->samples;
     self->options = options;
     self->root_threshold = 1;
-    self->parent = tsk_malloc(num_nodes * sizeof(tsk_id_t));
-    self->left_child = tsk_malloc(num_nodes * sizeof(tsk_id_t));
-    self->right_child = tsk_malloc(num_nodes * sizeof(tsk_id_t));
-    self->left_sib = tsk_malloc(num_nodes * sizeof(tsk_id_t));
-    self->right_sib = tsk_malloc(num_nodes * sizeof(tsk_id_t));
+
+    /* Allocate space in the quintuply linked tree for the virtual root */
+    N = num_nodes + 1;
+    self->parent = tsk_malloc(N * sizeof(*self->parent));
+    self->left_child = tsk_malloc(N * sizeof(*self->left_child));
+    self->right_child = tsk_malloc(N * sizeof(*self->right_child));
+    self->left_sib = tsk_malloc(N * sizeof(*self->left_sib));
+    self->right_sib = tsk_malloc(N * sizeof(*self->right_sib));
     if (self->parent == NULL || self->left_child == NULL || self->right_child == NULL
         || self->left_sib == NULL || self->right_sib == NULL) {
         goto out;
     }
     if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
-        self->num_samples = tsk_calloc(num_nodes, sizeof(*self->num_samples));
-        self->num_tracked_samples
-            = tsk_calloc(num_nodes, sizeof(*self->num_tracked_samples));
-        self->marked = tsk_calloc(num_nodes, sizeof(uint8_t));
+        self->num_samples = tsk_calloc(N, sizeof(*self->num_samples));
+        self->num_tracked_samples = tsk_calloc(N, sizeof(*self->num_tracked_samples));
+        self->marked = tsk_calloc(N, sizeof(*self->marked));
         if (self->num_samples == NULL || self->num_tracked_samples == NULL
             || self->marked == NULL) {
             goto out;
         }
     }
     if (self->options & TSK_SAMPLE_LISTS) {
-        self->left_sample = tsk_malloc(num_nodes * sizeof(*self->left_sample));
-        self->right_sample = tsk_malloc(num_nodes * sizeof(*self->right_sample));
+        self->left_sample = tsk_malloc(N * sizeof(*self->left_sample));
+        self->right_sample = tsk_malloc(N * sizeof(*self->right_sample));
         self->next_sample = tsk_malloc(num_samples * sizeof(*self->next_sample));
         if (self->left_sample == NULL || self->right_sample == NULL
             || self->next_sample == NULL) {
@@ -3291,6 +3263,8 @@ tsk_tree_set_root_threshold(tsk_tree_t *self, tsk_size_t root_threshold)
         goto out;
     }
     self->root_threshold = root_threshold;
+    /* Reset the roots */
+    ret = tsk_tree_clear(self);
 out:
     return ret;
 }
@@ -3360,6 +3334,7 @@ tsk_tree_set_tracked_samples(
     if (ret != 0) {
         goto out;
     }
+    self->num_tracked_samples[self->virtual_root] = num_tracked_samples;
     for (j = 0; j < num_tracked_samples; j++) {
         u = tracked_samples[j];
         if (u < 0 || u >= (tsk_id_t) self->num_nodes) {
@@ -3430,7 +3405,7 @@ int TSK_WARN_UNUSED
 tsk_tree_copy(const tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options)
 {
     int ret = TSK_ERR_GENERIC;
-    tsk_size_t N = self->num_nodes;
+    tsk_size_t N = self->num_nodes + 1;
 
     if (!(options & TSK_NO_INIT)) {
         ret = tsk_tree_init(dest, self->tree_sequence, options);
@@ -3452,12 +3427,13 @@ tsk_tree_copy(const tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options)
     dest->sites = self->sites;
     dest->sites_length = self->sites_length;
     dest->root_threshold = self->root_threshold;
+    dest->num_edges = self->num_edges;
 
-    tsk_memcpy(dest->parent, self->parent, N * sizeof(tsk_id_t));
-    tsk_memcpy(dest->left_child, self->left_child, N * sizeof(tsk_id_t));
-    tsk_memcpy(dest->right_child, self->right_child, N * sizeof(tsk_id_t));
-    tsk_memcpy(dest->left_sib, self->left_sib, N * sizeof(tsk_id_t));
-    tsk_memcpy(dest->right_sib, self->right_sib, N * sizeof(tsk_id_t));
+    tsk_memcpy(dest->parent, self->parent, N * sizeof(*self->parent));
+    tsk_memcpy(dest->left_child, self->left_child, N * sizeof(*self->left_child));
+    tsk_memcpy(dest->right_child, self->right_child, N * sizeof(*self->right_child));
+    tsk_memcpy(dest->left_sib, self->left_sib, N * sizeof(*self->left_sib));
+    tsk_memcpy(dest->right_sib, self->right_sib, N * sizeof(*self->right_sib));
     if (!(dest->options & TSK_NO_SAMPLE_COUNTS)) {
         if (self->options & TSK_NO_SAMPLE_COUNTS) {
             ret = TSK_ERR_UNSUPPORTED_OPERATION;
@@ -3473,10 +3449,11 @@ tsk_tree_copy(const tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options)
             ret = TSK_ERR_UNSUPPORTED_OPERATION;
             goto out;
         }
-        tsk_memcpy(dest->left_sample, self->left_sample, N * sizeof(tsk_id_t));
-        tsk_memcpy(dest->right_sample, self->right_sample, N * sizeof(tsk_id_t));
+        tsk_memcpy(dest->left_sample, self->left_sample, N * sizeof(*self->left_sample));
+        tsk_memcpy(
+            dest->right_sample, self->right_sample, N * sizeof(*self->right_sample));
         tsk_memcpy(dest->next_sample, self->next_sample,
-            self->tree_sequence->num_samples * sizeof(tsk_id_t));
+            self->tree_sequence->num_samples * sizeof(*self->next_sample));
     }
     ret = 0;
 out:
@@ -3498,7 +3475,7 @@ static int
 tsk_tree_check_node(const tsk_tree_t *self, tsk_id_t u)
 {
     int ret = 0;
-    if (u < 0 || u >= (tsk_id_t) self->num_nodes) {
+    if (u < 0 || u > (tsk_id_t) self->num_nodes) {
         ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
     }
     return ret;
@@ -3537,6 +3514,13 @@ tsk_tree_get_mrca(const tsk_tree_t *self, tsk_id_t u, tsk_id_t v, tsk_id_t *mrca
         goto out;
     }
 
+    /* Simplest to make the virtual_root a special case here to avoid
+     * doing the time lookup. */
+    if (u == self->virtual_root || v == self->virtual_root) {
+        *mrca = self->virtual_root;
+        return 0;
+    }
+
     tu = time[u];
     tv = time[v];
     while (u != v) {
@@ -3564,34 +3548,29 @@ tsk_tree_get_num_samples_by_traversal(
     const tsk_tree_t *self, tsk_id_t u, tsk_size_t *num_samples)
 {
     int ret = 0;
-    tsk_id_t *stack = NULL;
-    tsk_id_t v;
+    tsk_size_t num_nodes, j;
     tsk_size_t count = 0;
-    int stack_top = 0;
+    const tsk_flags_t *restrict flags = self->tree_sequence->tables->nodes.flags;
+    tsk_id_t *nodes = tsk_malloc(tsk_tree_get_size_bound(self) * sizeof(*nodes));
+    tsk_id_t v;
 
-    stack = tsk_malloc(self->num_nodes * sizeof(*stack));
-    if (stack == NULL) {
+    if (nodes == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-
-    stack[0] = u;
-    while (stack_top >= 0) {
-        v = stack[stack_top];
-        stack_top--;
-        if (tsk_treeseq_is_sample(self->tree_sequence, v)) {
+    ret = tsk_tree_preorder(self, u, nodes, &num_nodes);
+    if (ret != 0) {
+        goto out;
+    }
+    for (j = 0; j < num_nodes; j++) {
+        v = nodes[j];
+        if (flags[v] & TSK_NODE_IS_SAMPLE) {
             count++;
-        }
-        v = self->left_child[v];
-        while (v != TSK_NULL) {
-            stack_top++;
-            stack[stack_top] = v;
-            v = self->right_sib[v];
         }
     }
     *num_samples = count;
 out:
-    tsk_safe_free(stack);
+    tsk_safe_free(nodes);
     return ret;
 }
 
@@ -3678,12 +3657,50 @@ tsk_tree_get_time(const tsk_tree_t *self, tsk_id_t u, double *t)
     int ret = 0;
     tsk_node_t node;
 
-    ret = tsk_treeseq_get_node(self->tree_sequence, u, &node);
+    if (u == self->virtual_root) {
+        *t = INFINITY;
+    } else {
+        ret = tsk_treeseq_get_node(self->tree_sequence, u, &node);
+        if (ret != 0) {
+            goto out;
+        }
+        *t = node.time;
+    }
+out:
+    return ret;
+}
+
+int
+tsk_tree_get_total_branch_length(const tsk_tree_t *self, tsk_id_t node, double *ret_tbl)
+{
+    int ret = 0;
+    tsk_size_t j, num_nodes;
+    tsk_id_t u, v;
+    const tsk_id_t *restrict parent = self->parent;
+    const double *restrict time = self->tree_sequence->tables->nodes.time;
+    tsk_id_t *nodes = tsk_malloc(tsk_tree_get_size_bound(self) * sizeof(*nodes));
+    double sum = 0;
+
+    if (nodes == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    ret = tsk_tree_preorder(self, node, nodes, &num_nodes);
     if (ret != 0) {
         goto out;
     }
-    *t = node.time;
+    /* We always skip the first node because we don't return the branch length
+     * over the input node. */
+    for (j = 1; j < num_nodes; j++) {
+        u = nodes[j];
+        v = parent[u];
+        if (v != TSK_NULL) {
+            sum += time[v] - time[u];
+        }
+    }
+    *ret_tbl = sum;
 out:
+    tsk_safe_free(nodes);
     return ret;
 }
 
@@ -3697,22 +3714,24 @@ tsk_tree_get_sites(
 }
 
 /* u must be a valid node in the tree. For internal use */
-static tsk_size_t
-tsk_tree_get_depth(const tsk_tree_t *self, tsk_id_t u)
+static int
+tsk_tree_get_depth_unsafe(const tsk_tree_t *self, tsk_id_t u)
 {
-
     tsk_id_t v;
-    tsk_size_t depth = 0;
+    const tsk_id_t *restrict parent = self->parent;
+    int depth = 0;
 
-    for (v = self->parent[u]; v != TSK_NULL; v = self->parent[v]) {
+    if (u == self->virtual_root) {
+        return -1;
+    }
+    for (v = parent[u]; v != TSK_NULL; v = parent[v]) {
         depth++;
     }
-
     return depth;
 }
 
 int TSK_WARN_UNUSED
-tsk_tree_depth(const tsk_tree_t *self, tsk_id_t u, tsk_size_t *depth_ret)
+tsk_tree_get_depth(const tsk_tree_t *self, tsk_id_t u, int *depth_ret)
 {
     int ret = 0;
 
@@ -3721,7 +3740,7 @@ tsk_tree_depth(const tsk_tree_t *self, tsk_id_t u, tsk_size_t *depth_ret)
         goto out;
     }
 
-    *depth_ret = tsk_tree_get_depth(self, u);
+    *depth_ret = tsk_tree_get_depth_unsafe(self, u);
 out:
     return ret;
 }
@@ -3760,6 +3779,11 @@ tsk_tree_check_state(const tsk_tree_t *self)
 
     tsk_bug_assert(children != NULL);
 
+    /* Check the virtual root properties */
+    tsk_bug_assert(self->parent[self->virtual_root] == TSK_NULL);
+    tsk_bug_assert(self->left_sib[self->virtual_root] == TSK_NULL);
+    tsk_bug_assert(self->right_sib[self->virtual_root] == TSK_NULL);
+
     for (j = 0; j < self->tree_sequence->num_samples; j++) {
         u = self->samples[j];
         while (self->parent[u] != TSK_NULL) {
@@ -3772,6 +3796,7 @@ tsk_tree_check_state(const tsk_tree_t *self)
     } else {
         tsk_bug_assert(self->left_sib[self->left_root] == TSK_NULL);
     }
+
     /* Iterate over the roots and make sure they are set */
     for (u = self->left_root; u != TSK_NULL; u = self->right_sib[u]) {
         tsk_bug_assert(is_root[u]);
@@ -3842,7 +3867,7 @@ tsk_tree_print_state(const tsk_tree_t *self, FILE *out)
     }
     fprintf(out, "\n");
 
-    for (j = 0; j < self->num_nodes; j++) {
+    for (j = 0; j < self->num_nodes + 1; j++) {
         fprintf(out, "%lld\t%lld\t%lld\t%lld\t%lld\t%lld", (long long) j,
             (long long) self->parent[j], (long long) self->left_child[j],
             (long long) self->right_child[j], (long long) self->left_sib[j],
@@ -3867,15 +3892,17 @@ tsk_tree_print_state(const tsk_tree_t *self, FILE *out)
 
 /* Methods for positioning the tree along the sequence */
 
-/* parent, left_child and right_sib are restrict pointers in the calling function,
- * so we pass these as parameters to ensure the relationships are clear to the
- * compiler. */
+/* The following methods are performance sensitive and so we use a
+ * lot of restrict pointers. Because we are saying that we don't have
+ * any aliases to these pointers, we pass around the reference to parent
+ * since it's used in all the functions. */
 static inline void
-tsk_tree_update_sample_lists(tsk_tree_t *self, const tsk_id_t *restrict parent,
-    const tsk_id_t *restrict left_child, const tsk_id_t *restrict right_sib,
-    tsk_id_t node)
+tsk_tree_update_sample_lists(
+    tsk_tree_t *self, tsk_id_t node, const tsk_id_t *restrict parent)
 {
     tsk_id_t u, v, sample_index;
+    tsk_id_t *restrict left_child = self->left_child;
+    tsk_id_t *restrict right_sib = self->right_sib;
     tsk_id_t *restrict left = self->left_sample;
     tsk_id_t *restrict right = self->right_sample;
     tsk_id_t *restrict next = self->next_sample;
@@ -3904,26 +3931,17 @@ tsk_tree_update_sample_lists(tsk_tree_t *self, const tsk_id_t *restrict parent,
     }
 }
 
-static void
-tsk_tree_remove_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
+static inline void
+tsk_tree_remove_branch(
+    tsk_tree_t *self, tsk_id_t p, tsk_id_t c, tsk_id_t *restrict parent)
 {
-    tsk_id_t *restrict parent = self->parent;
     tsk_id_t *restrict left_child = self->left_child;
     tsk_id_t *restrict right_child = self->right_child;
     tsk_id_t *restrict left_sib = self->left_sib;
     tsk_id_t *restrict right_sib = self->right_sib;
-    tsk_size_t *restrict num_samples = self->num_samples;
-    tsk_size_t *restrict num_tracked_samples = self->num_tracked_samples;
-    uint8_t *restrict marked = self->marked;
-    const uint8_t mark = self->mark;
-    const tsk_size_t root_threshold = self->root_threshold;
-    tsk_id_t lsib, rsib, u, path_end, lroot, rroot;
-    bool path_end_was_root;
+    tsk_id_t lsib = left_sib[c];
+    tsk_id_t rsib = right_sib[c];
 
-#define IS_ROOT(U) (num_samples[U] >= root_threshold)
-
-    lsib = left_sib[c];
-    rsib = right_sib[c];
     if (lsib == TSK_NULL) {
         left_child[p] = rsib;
     } else {
@@ -3937,78 +3955,20 @@ tsk_tree_remove_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
     parent[c] = TSK_NULL;
     left_sib[c] = TSK_NULL;
     right_sib[c] = TSK_NULL;
-
-    if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
-        /* keep the compiler happy */
-        path_end_was_root = false;
-        path_end = TSK_NULL;
-
-        u = p;
-        while (u != TSK_NULL) {
-            path_end = u;
-            path_end_was_root = IS_ROOT(u);
-            num_samples[u] -= num_samples[c];
-            num_tracked_samples[u] -= num_tracked_samples[c];
-            marked[u] = mark;
-            u = parent[u];
-        }
-        if (path_end_was_root && !IS_ROOT(path_end)) {
-            /* remove path_end from the list of roots */
-            lroot = left_sib[path_end];
-            rroot = right_sib[path_end];
-            self->left_root = TSK_NULL;
-            if (lroot != TSK_NULL) {
-                right_sib[lroot] = rroot;
-                self->left_root = lroot;
-            }
-            if (rroot != TSK_NULL) {
-                left_sib[rroot] = lroot;
-                self->left_root = rroot;
-            }
-            left_sib[path_end] = TSK_NULL;
-            right_sib[path_end] = TSK_NULL;
-        }
-        if (IS_ROOT(c)) {
-            if (self->left_root != TSK_NULL) {
-                lroot = left_sib[self->left_root];
-                if (lroot != TSK_NULL) {
-                    right_sib[lroot] = c;
-                }
-                left_sib[c] = lroot;
-                left_sib[self->left_root] = c;
-            }
-            right_sib[c] = self->left_root;
-            self->left_root = c;
-        }
-    }
-
-    if (self->options & TSK_SAMPLE_LISTS) {
-        tsk_tree_update_sample_lists(self, parent, left_child, right_sib, p);
-    }
 }
 
-static void
-tsk_tree_insert_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
+static inline void
+tsk_tree_insert_branch(
+    tsk_tree_t *self, tsk_id_t p, tsk_id_t c, tsk_id_t *restrict parent)
 {
-    tsk_id_t *restrict parent = self->parent;
     tsk_id_t *restrict left_child = self->left_child;
     tsk_id_t *restrict right_child = self->right_child;
     tsk_id_t *restrict left_sib = self->left_sib;
     tsk_id_t *restrict right_sib = self->right_sib;
-    tsk_size_t *restrict num_samples = self->num_samples;
-    tsk_size_t *restrict num_tracked_samples = self->num_tracked_samples;
-    uint8_t *restrict marked = self->marked;
-    const uint8_t mark = self->mark;
-    const tsk_size_t root_threshold = self->root_threshold;
-    tsk_id_t lsib, rsib, u, path_end, lroot;
-    bool path_end_was_root;
-
-#define IS_ROOT(U) (num_samples[U] >= root_threshold)
+    tsk_id_t u;
 
     parent[c] = p;
     u = right_child[p];
-    lsib = left_sib[c];
-    rsib = right_sib[c];
     if (u == TSK_NULL) {
         left_child[p] = c;
         left_sib[c] = TSK_NULL;
@@ -4019,65 +3979,102 @@ tsk_tree_insert_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
         right_sib[c] = TSK_NULL;
     }
     right_child[p] = c;
+}
+
+static inline void
+tsk_tree_insert_root(tsk_tree_t *self, tsk_id_t root, tsk_id_t *restrict parent)
+{
+    tsk_tree_insert_branch(self, self->virtual_root, root, parent);
+    parent[root] = TSK_NULL;
+}
+
+static inline void
+tsk_tree_remove_root(tsk_tree_t *self, tsk_id_t root, tsk_id_t *restrict parent)
+{
+    tsk_tree_remove_branch(self, self->virtual_root, root, parent);
+}
+
+static void
+tsk_tree_remove_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
+{
+    tsk_id_t *restrict parent = self->parent;
+    tsk_size_t *restrict num_samples = self->num_samples;
+    tsk_size_t *restrict num_tracked_samples = self->num_tracked_samples;
+    uint8_t *restrict marked = self->marked;
+    const uint8_t mark = self->mark;
+    const tsk_size_t root_threshold = self->root_threshold;
+    tsk_id_t u;
+    tsk_id_t path_end = TSK_NULL;
+    bool path_end_was_root = false;
+
+#define POTENTIAL_ROOT(U) (num_samples[U] >= root_threshold)
+
+    tsk_tree_remove_branch(self, p, c, parent);
+    self->num_edges--;
 
     if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
-
-        /* keep compiler happy */
-        path_end = TSK_NULL;
-        path_end_was_root = false;
-
         u = p;
         while (u != TSK_NULL) {
             path_end = u;
-            path_end_was_root = IS_ROOT(u);
+            path_end_was_root = POTENTIAL_ROOT(u);
+            num_samples[u] -= num_samples[c];
+            num_tracked_samples[u] -= num_tracked_samples[c];
+            marked[u] = mark;
+            u = parent[u];
+        }
+
+        if (path_end_was_root && !POTENTIAL_ROOT(path_end)) {
+            tsk_tree_remove_root(self, path_end, parent);
+        }
+        if (POTENTIAL_ROOT(c)) {
+            tsk_tree_insert_root(self, c, parent);
+        }
+    }
+
+    if (self->options & TSK_SAMPLE_LISTS) {
+        tsk_tree_update_sample_lists(self, p, parent);
+    }
+}
+
+static void
+tsk_tree_insert_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
+{
+    tsk_id_t *restrict parent = self->parent;
+    tsk_size_t *restrict num_samples = self->num_samples;
+    tsk_size_t *restrict num_tracked_samples = self->num_tracked_samples;
+    uint8_t *restrict marked = self->marked;
+    const uint8_t mark = self->mark;
+    const tsk_size_t root_threshold = self->root_threshold;
+    tsk_id_t u;
+    tsk_id_t path_end = TSK_NULL;
+    bool path_end_was_root = false;
+
+#define POTENTIAL_ROOT(U) (num_samples[U] >= root_threshold)
+
+    if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
+        u = p;
+        while (u != TSK_NULL) {
+            path_end = u;
+            path_end_was_root = POTENTIAL_ROOT(u);
             num_samples[u] += num_samples[c];
             num_tracked_samples[u] += num_tracked_samples[c];
             marked[u] = mark;
             u = parent[u];
         }
 
-        if (IS_ROOT(c)) {
-            if (path_end_was_root) {
-                /* Remove c from the root list */
-                self->left_root = TSK_NULL;
-                if (lsib != TSK_NULL) {
-                    right_sib[lsib] = rsib;
-                    self->left_root = lsib;
-                }
-                if (rsib != TSK_NULL) {
-                    left_sib[rsib] = lsib;
-                    self->left_root = rsib;
-                }
-            } else {
-                /* Replace c with path_end in root list */
-                if (lsib != TSK_NULL) {
-                    right_sib[lsib] = path_end;
-                }
-                if (rsib != TSK_NULL) {
-                    left_sib[rsib] = path_end;
-                }
-                left_sib[path_end] = lsib;
-                right_sib[path_end] = rsib;
-                self->left_root = path_end;
-            }
-        } else {
-            if (IS_ROOT(path_end) && !path_end_was_root) {
-                /* Add a path_end as new root */
-                if (self->left_root != TSK_NULL) {
-                    lroot = left_sib[self->left_root];
-                    if (lroot != TSK_NULL) {
-                        right_sib[lroot] = path_end;
-                    }
-                    left_sib[path_end] = lroot;
-                    left_sib[self->left_root] = path_end;
-                }
-                right_sib[path_end] = self->left_root;
-                self->left_root = path_end;
-            }
+        if (POTENTIAL_ROOT(c)) {
+            tsk_tree_remove_root(self, c, parent);
+        }
+        if (POTENTIAL_ROOT(path_end) && !path_end_was_root) {
+            tsk_tree_insert_root(self, path_end, parent);
         }
     }
+
+    tsk_tree_insert_branch(self, p, c, parent);
+    self->num_edges++;
+
     if (self->options & TSK_SAMPLE_LISTS) {
-        tsk_tree_update_sample_lists(self, parent, left_child, right_sib, p);
+        tsk_tree_update_sample_lists(self, p, parent);
     }
 }
 
@@ -4117,12 +4114,7 @@ tsk_tree_advance(tsk_tree_t *self, int direction, const double *restrict out_bre
         tsk_tree_insert_edge(self, edge_parent[k], edge_child[k]);
     }
 
-    if (self->left_root != TSK_NULL) {
-        /* Ensure that left_root is the left-most root */
-        while (self->left_sib[self->left_root] != TSK_NULL) {
-            self->left_root = self->left_sib[self->left_root];
-        }
-    }
+    self->left_root = self->left_child[self->virtual_root];
 
     self->direction = direction;
     self->index = self->index + direction;
@@ -4266,6 +4258,221 @@ tsk_tree_prev(tsk_tree_t *self)
     return ret;
 }
 
+int TSK_WARN_UNUSED
+tsk_tree_clear(tsk_tree_t *self)
+{
+    int ret = 0;
+    tsk_size_t j;
+    tsk_id_t u;
+    const tsk_size_t N = self->num_nodes + 1;
+    const tsk_size_t num_samples = self->tree_sequence->num_samples;
+    const bool sample_counts = !(self->options & TSK_NO_SAMPLE_COUNTS);
+    const bool sample_lists = !!(self->options & TSK_SAMPLE_LISTS);
+
+    self->left = 0;
+    self->right = 0;
+    self->num_edges = 0;
+    self->index = -1;
+    /* TODO we should profile this method to see if just doing a single loop over
+     * the nodes would be more efficient than multiple memsets.
+     */
+    tsk_memset(self->parent, 0xff, N * sizeof(*self->parent));
+    tsk_memset(self->left_child, 0xff, N * sizeof(*self->left_child));
+    tsk_memset(self->right_child, 0xff, N * sizeof(*self->right_child));
+    tsk_memset(self->left_sib, 0xff, N * sizeof(*self->left_sib));
+    tsk_memset(self->right_sib, 0xff, N * sizeof(*self->right_sib));
+
+    if (sample_counts) {
+        tsk_memset(self->num_samples, 0, N * sizeof(*self->num_samples));
+        tsk_memset(self->marked, 0, N * sizeof(*self->marked));
+        /* We can't reset the tracked samples via memset because we don't
+         * know where the tracked samples are.
+         */
+        for (j = 0; j < self->num_nodes; j++) {
+            if (!tsk_treeseq_is_sample(self->tree_sequence, (tsk_id_t) j)) {
+                self->num_tracked_samples[j] = 0;
+            }
+        }
+        self->num_tracked_samples[self->virtual_root] = 0;
+        self->num_samples[self->virtual_root] = num_samples;
+    }
+    if (sample_lists) {
+        tsk_memset(self->left_sample, 0xff, N * sizeof(tsk_id_t));
+        tsk_memset(self->right_sample, 0xff, N * sizeof(tsk_id_t));
+        tsk_memset(self->next_sample, 0xff, num_samples * sizeof(tsk_id_t));
+    }
+    /* Set the sample attributes */
+    for (j = 0; j < num_samples; j++) {
+        u = self->samples[j];
+        if (sample_counts) {
+            self->num_samples[u] = 1;
+        }
+        if (sample_lists) {
+            /* We are mapping to *indexes* into the list of samples here */
+            self->left_sample[u] = (tsk_id_t) j;
+            self->right_sample[u] = (tsk_id_t) j;
+        }
+    }
+    self->left_root = TSK_NULL;
+    if (sample_counts && self->root_threshold == 1 && num_samples > 0) {
+        for (j = 0; j < num_samples; j++) {
+            /* Set initial roots */
+            if (self->root_threshold == 1) {
+                tsk_tree_insert_root(self, self->samples[j], self->parent);
+            }
+        }
+        self->left_root = self->left_child[self->virtual_root];
+    }
+    return ret;
+}
+
+tsk_size_t
+tsk_tree_get_size_bound(const tsk_tree_t *self)
+{
+    tsk_size_t bound = 0;
+
+    if (self->tree_sequence != NULL) {
+        /* This is a safe upper bound which can be computed cheaply.
+         * We have at most n roots and each edge adds at most one new
+         * node to the tree. We also allow space for the virtual root,
+         * to simplify client code.
+         *
+         * In the common case of a binary tree with a single root, we have
+         * 2n - 1 nodes in total, and 2n - 2 edges. Therefore, we return
+         * 3n - 1, which is an over-estimate of 1/2 and we allocate
+         * 1.5 times as much memory as we need.
+         *
+         * Since tracking the exact number of nodes in the tree would require
+         * storing the number of nodes beneath every node and complicate
+         * the tree transition method, this seems like a good compromise
+         * and will result in less memory usage overall in nearly all cases.
+         */
+        bound = 1 + self->tree_sequence->num_samples + self->num_edges;
+    }
+    return bound;
+}
+
+/* Traversal orders */
+
+static tsk_id_t *
+tsk_tree_alloc_node_stack(const tsk_tree_t *self)
+{
+    return tsk_malloc(tsk_tree_get_size_bound(self) * sizeof(tsk_id_t));
+}
+
+int
+tsk_tree_preorder(
+    const tsk_tree_t *self, tsk_id_t root, tsk_id_t *nodes, tsk_size_t *num_nodes_ret)
+{
+    int ret = 0;
+    const tsk_id_t *restrict right_child = self->right_child;
+    const tsk_id_t *restrict left_sib = self->left_sib;
+    tsk_id_t *restrict stack = tsk_tree_alloc_node_stack(self);
+    tsk_size_t num_nodes = 0;
+    tsk_id_t u, v;
+    int stack_top;
+
+    if (stack == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    if (root == -1) {
+        stack_top = -1;
+        for (u = right_child[self->virtual_root]; u != TSK_NULL; u = left_sib[u]) {
+            stack_top++;
+            stack[stack_top] = u;
+        }
+    } else {
+        ret = tsk_tree_check_node(self, root);
+        if (ret != 0) {
+            goto out;
+        }
+        stack_top = 0;
+        stack[stack_top] = root;
+    }
+
+    while (stack_top >= 0) {
+        u = stack[stack_top];
+        stack_top--;
+        nodes[num_nodes] = u;
+        num_nodes++;
+        for (v = right_child[u]; v != TSK_NULL; v = left_sib[v]) {
+            stack_top++;
+            stack[stack_top] = v;
+        }
+    }
+    *num_nodes_ret = num_nodes;
+out:
+    /* can't use tsk_safe_free because this is a restrict pointer */
+    if (stack != NULL) {
+        free(stack);
+    }
+    return ret;
+}
+
+int
+tsk_tree_postorder(
+    const tsk_tree_t *self, tsk_id_t root, tsk_id_t *nodes, tsk_size_t *num_nodes_ret)
+{
+    int ret = 0;
+    const tsk_id_t *restrict right_child = self->right_child;
+    const tsk_id_t *restrict left_sib = self->left_sib;
+    const tsk_id_t *restrict parent = self->parent;
+    tsk_id_t *restrict stack = tsk_tree_alloc_node_stack(self);
+    tsk_size_t num_nodes = 0;
+    tsk_id_t u, v, postorder_parent;
+    int stack_top;
+    bool is_virtual_root = root == self->virtual_root;
+
+    if (stack == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    if (root == -1 || is_virtual_root) {
+        stack_top = -1;
+        for (u = right_child[self->virtual_root]; u != TSK_NULL; u = left_sib[u]) {
+            stack_top++;
+            stack[stack_top] = u;
+        }
+    } else {
+        ret = tsk_tree_check_node(self, root);
+        if (ret != 0) {
+            goto out;
+        }
+        stack_top = 0;
+        stack[stack_top] = root;
+    }
+
+    postorder_parent = TSK_NULL;
+    while (stack_top >= 0) {
+        u = stack[stack_top];
+        if (right_child[u] != TSK_NULL && u != postorder_parent) {
+            for (v = right_child[u]; v != TSK_NULL; v = left_sib[v]) {
+                stack_top++;
+                stack[stack_top] = v;
+            }
+        } else {
+            stack_top--;
+            postorder_parent = parent[u];
+            nodes[num_nodes] = u;
+            num_nodes++;
+        }
+    }
+    if (is_virtual_root) {
+        nodes[num_nodes] = root;
+        num_nodes++;
+    }
+    *num_nodes_ret = num_nodes;
+out:
+    /* can't use tsk_safe_free because this is a restrict pointer */
+    if (stack != NULL) {
+        free(stack);
+    }
+    return ret;
+}
+
 /* Parsimony methods */
 
 static inline uint64_t
@@ -4304,6 +4511,9 @@ get_smallest_set_bit(uint64_t v)
  * use a general cost matrix, in which case we'll use the Sankoff algorithm. For
  * now this is unused.
  *
+ * We should also vectorise the function so that several sites can be processed
+ * at once.
+ *
  * The algorithm used here is Hartigan parsimony, "Minimum Mutation Fits to a
  * Given Tree", Biometrics 1973.
  */
@@ -4319,30 +4529,34 @@ tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
         int8_t state;
     };
     const tsk_size_t num_samples = self->tree_sequence->num_samples;
-    const tsk_size_t num_nodes = self->num_nodes;
     const tsk_id_t *restrict left_child = self->left_child;
     const tsk_id_t *restrict right_sib = self->right_sib;
-    const tsk_id_t *restrict parent = self->parent;
+    const tsk_size_t N = tsk_treeseq_get_num_nodes(self->tree_sequence);
     const tsk_flags_t *restrict node_flags = self->tree_sequence->tables->nodes.flags;
-    uint64_t optimal_root_set;
-    uint64_t *restrict optimal_set = tsk_calloc(num_nodes, sizeof(*optimal_set));
-    tsk_id_t *restrict postorder_stack
-        = tsk_malloc(num_nodes * sizeof(*postorder_stack));
+    tsk_id_t *nodes = tsk_malloc(tsk_tree_get_size_bound(self) * sizeof(*nodes));
+    /* Note: to use less memory here and to improve cache performance we should
+     * probably change to allocating exactly the number of nodes returned by
+     * a preorder traversal, and then lay the memory out in this order. So, we'd
+     * need a map from node ID to its index in the preorder traversal, but this
+     * is trivial to compute. Probably doesn't matter so much at the moment
+     * when we're doing a single site, but it would make a big difference if
+     * we were vectorising over lots of sites. */
+    uint64_t *restrict optimal_set = tsk_calloc(N + 1, sizeof(*optimal_set));
     struct stack_elem *restrict preorder_stack
-        = tsk_malloc(num_nodes * sizeof(*preorder_stack));
-    tsk_id_t postorder_parent, root, u, v;
+        = tsk_malloc(tsk_tree_get_size_bound(self) * sizeof(*preorder_stack));
+    tsk_id_t root, u, v;
     /* The largest possible number of transitions is one over every sample */
     tsk_state_transition_t *transitions = tsk_malloc(num_samples * sizeof(*transitions));
     int8_t allele, ancestral_state;
     int stack_top;
     struct stack_elem s;
-    tsk_size_t j, num_transitions, max_allele_count;
+    tsk_size_t j, num_transitions, max_allele_count, num_nodes;
     tsk_size_t allele_count[HARTIGAN_MAX_ALLELES];
     tsk_size_t non_missing = 0;
     int8_t num_alleles = 0;
 
-    if (optimal_set == NULL || preorder_stack == NULL || postorder_stack == NULL
-        || transitions == NULL) {
+    if (optimal_set == NULL || preorder_stack == NULL || transitions == NULL
+        || nodes == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
@@ -4379,68 +4593,33 @@ tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
         }
     }
 
-    for (root = self->left_root; root != TSK_NULL; root = self->right_sib[root]) {
-        /* Do a post order traversal */
-        postorder_stack[0] = root;
-        stack_top = 0;
-        postorder_parent = TSK_NULL;
-        while (stack_top >= 0) {
-            u = postorder_stack[stack_top];
-            if (left_child[u] != TSK_NULL && u != postorder_parent) {
-                for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
-                    stack_top++;
-                    postorder_stack[stack_top] = v;
-                }
-            } else {
-                stack_top--;
-                postorder_parent = parent[u];
-
-                /* Visit u */
-                tsk_memset(
-                    allele_count, 0, ((size_t) num_alleles) * sizeof(*allele_count));
-                for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
-                    for (allele = 0; allele < num_alleles; allele++) {
-                        allele_count[allele] += bit_is_set(optimal_set[v], allele);
-                    }
-                }
-                if (!(node_flags[u] & TSK_NODE_IS_SAMPLE)) {
-                    max_allele_count = 0;
-                    for (allele = 0; allele < num_alleles; allele++) {
-                        max_allele_count
-                            = TSK_MAX(max_allele_count, allele_count[allele]);
-                    }
-                    for (allele = 0; allele < num_alleles; allele++) {
-                        if (allele_count[allele] == max_allele_count) {
-                            optimal_set[u] = set_bit(optimal_set[u], allele);
-                        }
-                    }
+    ret = tsk_tree_postorder(self, self->virtual_root, nodes, &num_nodes);
+    if (ret != 0) {
+        goto out;
+    }
+    for (j = 0; j < num_nodes; j++) {
+        u = nodes[j];
+        tsk_memset(allele_count, 0, ((size_t) num_alleles) * sizeof(*allele_count));
+        for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
+            for (allele = 0; allele < num_alleles; allele++) {
+                allele_count[allele] += bit_is_set(optimal_set[v], allele);
+            }
+        }
+        /* the virtual root has no flags defined */
+        if (u == (tsk_id_t) N || !(node_flags[u] & TSK_NODE_IS_SAMPLE)) {
+            max_allele_count = 0;
+            for (allele = 0; allele < num_alleles; allele++) {
+                max_allele_count = TSK_MAX(max_allele_count, allele_count[allele]);
+            }
+            for (allele = 0; allele < num_alleles; allele++) {
+                if (allele_count[allele] == max_allele_count) {
+                    optimal_set[u] = set_bit(optimal_set[u], allele);
                 }
             }
         }
     }
-
     if (!(options & TSK_MM_FIXED_ANCESTRAL_STATE)) {
-        optimal_root_set = 0;
-        /* TODO it's annoying that this is essentially the same as the
-         * visit function above. It would be nice if we had an extra
-         * node that was the parent of all roots, then the algorithm
-         * would work as-is */
-        tsk_memset(allele_count, 0, ((size_t) num_alleles) * sizeof(*allele_count));
-        for (root = self->left_root; root != TSK_NULL; root = right_sib[root]) {
-            for (allele = 0; allele < num_alleles; allele++) {
-                allele_count[allele] += bit_is_set(optimal_set[root], allele);
-            }
-        }
-        max_allele_count = 0;
-        for (allele = 0; allele < num_alleles; allele++) {
-            max_allele_count = TSK_MAX(max_allele_count, allele_count[allele]);
-        }
-        for (allele = 0; allele < num_alleles; allele++) {
-            if (allele_count[allele] == max_allele_count) {
-                optimal_root_set = set_bit(optimal_root_set, allele);
-            }
-        }
-        ancestral_state = get_smallest_set_bit(optimal_root_set);
+        ancestral_state = get_smallest_set_bit(optimal_set[N]);
     }
 
     num_transitions = 0;
@@ -4483,8 +4662,8 @@ out:
     if (preorder_stack != NULL) {
         free(preorder_stack);
     }
-    if (postorder_stack != NULL) {
-        free(postorder_stack);
+    if (nodes != NULL) {
+        free(nodes);
     }
     return ret;
 }
@@ -4749,7 +4928,7 @@ fill_kc_vectors(const tsk_tree_t *t, kc_vectors *kc_vecs)
     int ret = 0;
     const tsk_treeseq_t *ts = t->tree_sequence;
 
-    stack = tsk_malloc(t->num_nodes * sizeof(*stack));
+    stack = tsk_malloc(tsk_tree_get_size_bound(t) * sizeof(*stack));
     if (stack == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -4955,7 +5134,7 @@ update_kc_subtree_state(
     tsk_id_t *stack = NULL;
     int ret = 0;
 
-    stack = tsk_malloc(t->num_nodes * sizeof(*stack));
+    stack = tsk_malloc(tsk_tree_get_size_bound(t) * sizeof(*stack));
     if (stack == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;

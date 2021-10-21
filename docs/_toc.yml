@@ -1,0 +1,20 @@
+format: jb-book
+root: introduction
+parts:
+- caption: Getting started
+  chapters:
+  - file: installation
+- caption: APIs
+  chapters:
+  - file: python-api
+  - file: c-api
+  - file: stats
+- caption: Miscellaneous
+  chapters:
+  - file: cli
+  - file: data-model
+  - file: metadata
+  - file: combinatorics
+  - file: provenance
+  - file: development
+  - file: changelogs

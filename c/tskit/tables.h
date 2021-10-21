@@ -3672,16 +3672,32 @@ TSK_NO_CHECK_INTEGRITY
 
 @endrst
 
-@param self A pointer to a tsk_individual_table_t object.
+@param self A pointer to a tsk_table_collection_t object.
 @param start The position to begin sorting in each table; all rows less than this
     position must fulfill the tree sequence sortedness requirements. If this is
     NULL, sort all rows.
-@param options Sort options. Currently unused; should be
-    set to zero to ensure compatibility with later versions of tskit.
+@param options Sort options.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_table_collection_sort(
     tsk_table_collection_t *self, const tsk_bookmark_t *start, tsk_flags_t options);
+
+/**
+@brief Sorts the individual table in this collection.
+
+@rst
+Sorts the individual table in place, so that parents come before children,
+and the parent column is remapped as required. Node references to individuals
+are also updated.
+@endrst
+
+@param self A pointer to a tsk_table_collection_t object.
+@param options Sort options. Currently unused; should be
+    set to zero to ensure compatibility with later versions of tskit.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_table_collection_individual_topological_sort(
+    tsk_table_collection_t *self, tsk_flags_t options);
 
 /**
 @brief Puts the tables into canonical form.
@@ -4067,9 +4083,16 @@ tsk_id_t tsk_table_collection_check_integrity(
 
 /* TODO be systematic about where "result" should be in the params
  * list, different here and in link_ancestors. */
-int tsk_table_collection_ibd_segments(const tsk_table_collection_t *self,
+/* FIXME the order of num_samples and samples needs to be reversed in within.
+ * This should be done as part of documenting, I guess. */
+int tsk_table_collection_ibd_within(const tsk_table_collection_t *self,
     tsk_ibd_segments_t *result, const tsk_id_t *samples, tsk_size_t num_samples,
     double min_length, double max_time, tsk_flags_t options);
+
+int tsk_table_collection_ibd_between(const tsk_table_collection_t *self,
+    tsk_ibd_segments_t *result, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets, double min_length,
+    double max_time, tsk_flags_t options);
 
 int tsk_table_collection_link_ancestors(tsk_table_collection_t *self, tsk_id_t *samples,
     tsk_size_t num_samples, tsk_id_t *ancestors, tsk_size_t num_ancestors,
