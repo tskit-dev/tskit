@@ -11915,5 +11915,9 @@ PyInit__tskit(void)
     PyModule_AddIntConstant(module, "FORWARD", TSK_DIR_FORWARD);
     PyModule_AddIntConstant(module, "REVERSE", TSK_DIR_REVERSE);
 
+    PyModule_AddStringConstant(module, "TIME_UNITS_UNKNOWN", TSK_TIME_UNITS_UNKNOWN);
+    PyModule_AddStringConstant(
+        module, "TIME_UNITS_UNCALIBRATED", TSK_TIME_UNITS_UNCALIBRATED);
+
     return module;
 }

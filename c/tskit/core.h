@@ -87,7 +87,7 @@ __tsk_nan_f(void)
 }
 #define TSK_UNKNOWN_TIME __tsk_nan_f()
 
-#define TSK_DEFAULT_TIME_UNITS "unknown"
+#define TSK_TIME_UNITS_UNKNOWN "unknown"
 #define TSK_TIME_UNITS_UNCALIBRATED "uncalibrated"
 
 /**

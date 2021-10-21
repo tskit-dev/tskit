@@ -2402,7 +2402,7 @@ class TestTreeSequenceMetadata:
     def test_tree_sequence_time_units(self):
         tc = tskit.TableCollection(1)
         ts = tc.tree_sequence()
-        assert ts.time_units == "unknown"
+        assert ts.time_units == tskit.TIME_UNITS_UNKNOWN
         tc.time_units = "something else"
         ts = tc.tree_sequence()
         assert ts.time_units == "something else"
@@ -2410,6 +2410,8 @@ class TestTreeSequenceMetadata:
             del ts.time_units
         with pytest.raises(AttributeError):
             ts.time_units = "readonly"
+        assert tskit.TIME_UNITS_UNKNOWN == "unknown"
+        assert tskit.TIME_UNITS_UNCALIBRATED == "uncalibrated"
 
     def test_table_metadata_schemas(self):
         ts = msprime.simulate(5)

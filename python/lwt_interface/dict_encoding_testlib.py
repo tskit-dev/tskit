@@ -211,7 +211,7 @@ class TestMissingData:
         lwt = lwt_module.LightweightTableCollection()
         lwt.fromdict(d)
         tables = tskit.TableCollection.fromdict(lwt.asdict())
-        assert tables.time_units == "unknown"
+        assert tables.time_units == tskit.TIME_UNITS_UNKNOWN
 
     def test_missing_metadata(self, tables):
         assert tables.metadata != b""
@@ -603,7 +603,7 @@ class TestRequiredAndOptionalColumns:
         lwt.fromdict(d)
         out = lwt.asdict()
         tables = tskit.TableCollection.fromdict(out)
-        assert tables.time_units == "unknown"
+        assert tables.time_units == tskit.TIME_UNITS_UNKNOWN
         # Missing is tested in TestMissingData above
         d = tables.asdict()
         # None should give default value

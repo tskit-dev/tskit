@@ -56,7 +56,7 @@
 
 - Add ``time_units`` to ``TreeSequence`` to describe the units of the time dimension of the
   tree sequence. This is then used to generate an error if ``time_units`` is ``uncalibrated`` when
-  using the branch lengths in statistics. (:user:`benjeffery`, :issue:`1644`, :pr:`1760`)
+  using the branch lengths in statistics. (:user:`benjeffery`, :issue:`1644`, :pr:`1760`, :pr:`1832`)
 
 - Add the ``virtual_root`` property to the Tree class (:user:`jeromekelleher`, :pr:`1704`).
 

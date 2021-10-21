@@ -4078,7 +4078,7 @@ class TestTableCollectionMetadata:
 
     def test_set_time_units(self):
         tc = tskit.TableCollection(1)
-        assert tc.time_units == "unknown"
+        assert tc.time_units == tskit.TIME_UNITS_UNKNOWN
 
         ex1 = "years"
         ex2 = "generations"
