@@ -808,13 +808,8 @@ class Tree:
         index in the parent tree sequence. Negative indexes following the
         standard Python conventions are allowed, i.e., ``index=-1`` will
         seek to the last tree in the sequence.
-        |LinearTraversalWarning|
 
-        .. |LinearTraversalWarning| replace:: warning::
-           The current implementation of this operation is linear in the number of
-           trees, so may be inefficient for large tree sequences. See
-           <this issue <https://github.com/tskit-dev/tskit/issues/684>_ for more
-           information.
+        .. include:: substitutions/linear_traversal_warning.rst
 
 
         :param int index: The tree index to seek to.
@@ -838,7 +833,8 @@ class Tree:
         position in the parent tree sequence. After a successful return
         of this method we have ``tree.interval.left`` <= ``position``
         < ``tree.interval.right``.
-        |LinearTraversalWarning|
+
+        .. include:: substitutions/linear_traversal_warning.rst
 
         :param float position: The position along the sequence length to
             seek to.
@@ -1055,9 +1051,9 @@ class Tree:
         :ref:`sec_data_model_tree_structure` section for information on the
         quintuply linked tree encoding.
 
-        .. note:: |virtual_root_array_note|
+        .. include:: substitutions/virtual_root_array_note.rst
 
-        .. warning:: |tree_array_warning|
+        .. include:: substitutions/tree_array_warning.rst
         """
         return self._parent_array
 
@@ -1092,9 +1088,9 @@ class Tree:
         :ref:`sec_data_model_tree_structure` section for information on the
         quintuply linked tree encoding.
 
-        .. note:: |virtual_root_array_note|
+        .. include:: substitutions/virtual_root_array_note.rst
 
-        .. warning:: |tree_array_warning|
+        .. include:: substitutions/tree_array_warning.rst
         """
         return self._left_child_array
 
@@ -1127,9 +1123,9 @@ class Tree:
         :ref:`sec_data_model_tree_structure` section for information on the
         quintuply linked tree encoding.
 
-        .. note:: |virtual_root_array_note|
+        .. include:: substitutions/virtual_root_array_note.rst
 
-        .. warning:: |tree_array_warning|
+        .. include:: substitutions/tree_array_warning.rst
         """
         return self._right_child_array
 
@@ -1158,9 +1154,9 @@ class Tree:
         :ref:`sec_data_model_tree_structure` section for information on the
         quintuply linked tree encoding.
 
-        .. note:: |virtual_root_array_note|
+        .. include:: substitutions/virtual_root_array_note.rst
 
-        .. warning:: |tree_array_warning|
+        .. include:: substitutions/tree_array_warning.rst
         """
         return self._left_sib_array
 
@@ -1189,9 +1185,9 @@ class Tree:
         :ref:`sec_data_model_tree_structure` section for information on the
         quintuply linked tree encoding.
 
-        .. note:: |virtual_root_array_note|
+        .. include:: substitutions/virtual_root_array_note.rst
 
-        .. warning:: |tree_array_warning|
+        .. include:: substitutions/tree_array_warning.rst
         """
         return self._right_sib_array
 
@@ -4248,7 +4244,8 @@ class TreeSequence:
         Returns the tree covering the specified genomic location. The returned tree
         will have ``tree.interval.left`` <= ``position`` < ``tree.interval.right``.
         See also :meth:`Tree.seek`.
-        |LinearTraversalWarning|
+
+        .. include:: substitutions/linear_traversal_warning.rst
 
         :param float position: A genomic location.
         :param \\**kwargs: Further arguments used as parameters when constructing the
@@ -4265,7 +4262,8 @@ class TreeSequence:
     def at_index(self, index, **kwargs):
         """
         Returns the tree at the specified index. See also :meth:`Tree.seek_index`.
-        |LinearTraversalWarning|
+
+        .. include:: substitutions/linear_traversal_warning.rst
 
         :param int index: The index of the required tree.
         :param \\**kwargs: Further arguments used as parameters when constructing the

@@ -1,4 +1,4 @@
-autodocsumm==0.1.13 #Pinned as errors on 0.2.0
+autodocsumm>=0.2.7
 biopython
 black
 breathe
@@ -7,6 +7,7 @@ coverage
 flake8
 h5py>=2.6.0
 jsonschema>=3.0.0
+jupyter-book>=0.12.0
 kastore
 # More recent meson is too strict. See #1515.
 meson<=0.56
@@ -26,9 +27,10 @@ pytest-cov
 pytest-xdist
 python_jsonschema_objects
 PyVCF
-sphinx<=3.3.1
+sphinx<=4.0.1
 sphinx-argparse
 sphinx-issues
+sphinx-jupyterbook-latex
 sphinx_rtd_theme
 svgwrite>=1.1.10
 xmlunittest
