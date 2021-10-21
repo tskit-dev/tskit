@@ -155,11 +155,6 @@ class AncestrySegment:
     def __repr__(self):
         return repr((self.left, self.right, self.samples))
 
-    def add_ibd_samples(self, new_samples):
-        print("adding", new_samples, "to ", self.samples, "on", self.left, self.right)
-
-        self.samples.extend(new_samples)
-
 
 @dataclasses.dataclass
 class AncestrySegmentList:
@@ -186,70 +181,6 @@ class AncestrySegmentList:
             prev = u
             u = u.next
         assert prev == self.tail
-
-    def insert(self, left, right, samples):
-        """
-        Insert the specified sample node into the segment list for the
-        specified interval.
-        """
-        # print("INSERT", left, right, node, "::", repr(self))
-        # Skip ahead until we intersect with the left edge
-        u = self.head
-        while left >= u.right:
-            u = u.next
-        if u.left < left:
-            #             left
-            #     u.left   |    u.right
-            # ----|--------------|
-            #
-            # ->
-            #         v       u
-            # ----|--------|-----|
-            v = AncestrySegment(u.left, left, list(u.samples), prev=u.prev, next=u)
-            u.left = left
-            u.prev.next = v
-            u.prev = v
-        # Update segments completely contained in the interval
-        while u.right <= right:
-            # print("updating u", repr(u), left, right)
-            # u.samples.append(node)
-            # u.samples.extend(samples)
-            u.add_ibd_samples(samples)
-            u = u.next
-        # Update and trim the last segment overlapping the interval
-        if right > u.left:
-            #             right
-            #     u.left   |    u.right
-            # ----|--------------|
-            #
-            # ->
-            #         u       v
-            # ----|--------|-----|
-            v = AncestrySegment(right, u.right, list(u.samples), prev=u, next=u.next)
-            u.right = right
-            u.next.prev = v
-            u.next = v
-            # u.samples.append(node)
-            u.add_ibd_samples(samples)
-            # u.samples.extend(samples)
-        # print("DONE:", repr(self))
-        # print()
-
-    def update2(self, segs):
-        # seg = segs.head
-        # while seg is not None:
-        for seg in segs:
-            print(seg)
-            self.insert(seg.left, seg.right, seg.samples)
-            seg = seg.next
-            # self.check()
-
-    def update(self, segs):
-        seg = segs.head
-        while seg is not None:
-            self.insert(seg.left, seg.right, seg.node)
-            seg = seg.next
-            self.check()
 
 
 class IbdFinder:
@@ -299,31 +230,6 @@ class IbdFinder:
             print(u, self.sample_set_id[u], a, sep="\t")
 
         # self.check_state()
-
-    def check_state(self):
-        L = int(self.tables.sequence_length)
-        for u in range(len(self.tables.nodes)):
-            # print("CHECK", u)
-            a_set = [[] for _ in range(L)]
-            seg = self.A[u].head
-            while seg is not None:
-                for j in range(int(seg.left), int(seg.right)):
-                    a_set[j].append(seg.node)
-                # a_set[(seg.left, seg.right)].append(seg.node)
-                seg = seg.next
-            # print(a_set)
-            d_set = [[] for _ in range(L)]
-            seg = self.D[u].head.next
-            while seg is not self.D[u].tail:
-                for j in range(int(seg.left), int(seg.right)):
-                    d_set[j] = list(sorted(seg.samples))
-                seg = seg.next
-            # print(d_set)
-            assert len(a_set) == len(d_set)
-            for j in range(L):
-                a_samples = list(sorted(a_set[j]))
-                # print(d_set[j], a_samples)
-                assert d_set[j] == a_samples
 
     def add_ibd_samples(self, parent, segment, samples):
 
