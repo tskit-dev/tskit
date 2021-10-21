@@ -5082,7 +5082,10 @@ class TreeSequence:
         )
         writer.write(output)
 
-    def to_nexus(self, precision=14):
+    def to_nexus(
+        self,
+        precision=14,
+    ):
         """
         Returns a `nexus encoding <https://en.wikipedia.org/wiki/Nexus_file>`_
         of this tree sequence. Trees along the sequence are listed sequentially in
@@ -5106,8 +5109,9 @@ class TreeSequence:
 
         s = "#NEXUS\n"
         s += "BEGIN TAXA;\n"
+        s += "DIMENSIONS NTAX={};".format(len(node_labels))
         s += "TAXLABELS "
-        s += ",".join(node_labels[node.id] for node in self.nodes()) + ";\n"
+        s += " ".join(node_labels[node.id] for node in self.nodes()) + ";\n"
         s += "END;\n"
 
         s += "BEGIN TREES;\n"
