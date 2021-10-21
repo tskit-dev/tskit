@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import collections
 import dataclasses
+import itertools
 from typing import List
 from typing import Union
 
@@ -154,6 +155,11 @@ class AncestrySegment:
     def __repr__(self):
         return repr((self.left, self.right, self.samples))
 
+    def add_ibd_samples(self, new_samples):
+        print("adding", new_samples, "to ", self.samples, "on", self.left, self.right)
+
+        self.samples.extend(new_samples)
+
 
 @dataclasses.dataclass
 class AncestrySegmentList:
@@ -181,7 +187,7 @@ class AncestrySegmentList:
             u = u.next
         assert prev == self.tail
 
-    def insert(self, left, right, node):
+    def insert(self, left, right, samples):
         """
         Insert the specified sample node into the segment list for the
         specified interval.
@@ -206,7 +212,9 @@ class AncestrySegmentList:
         # Update segments completely contained in the interval
         while u.right <= right:
             # print("updating u", repr(u), left, right)
-            u.samples.append(node)
+            # u.samples.append(node)
+            # u.samples.extend(samples)
+            u.add_ibd_samples(samples)
             u = u.next
         # Update and trim the last segment overlapping the interval
         if right > u.left:
@@ -221,9 +229,20 @@ class AncestrySegmentList:
             u.right = right
             u.next.prev = v
             u.next = v
-            u.samples.append(node)
+            # u.samples.append(node)
+            u.add_ibd_samples(samples)
+            # u.samples.extend(samples)
         # print("DONE:", repr(self))
         # print()
+
+    def update2(self, segs):
+        # seg = segs.head
+        # while seg is not None:
+        for seg in segs:
+            print(seg)
+            self.insert(seg.left, seg.right, seg.samples)
+            seg = seg.next
+            # self.check()
 
     def update(self, segs):
         seg = segs.head
@@ -256,7 +275,6 @@ class IbdFinder:
             self.sample_set_id[within] = 0
         self.min_length = min_length
         self.max_time = np.inf if max_time is None else max_time
-        self.A = [SegmentList() for _ in range(ts.num_nodes)]  # Descendant segments
         self.D = [None for _ in range(ts.num_nodes)]
         for u in range(ts.num_nodes):
             head = AncestrySegment(-1, 0)
@@ -266,7 +284,6 @@ class IbdFinder:
             tail.prev = lst
             self.D[u] = AncestrySegmentList(head, tail)
             if self.sample_set_id[u] != -1:
-                self.A[u].append(Segment(0, ts.sequence_length, u))
                 lst.samples.append(u)
         self.tables = self.ts.tables
 
@@ -276,14 +293,12 @@ class IbdFinder:
         print("max_time   = ", self.max_time)
         print("finding_between = ", self.finding_between)
         print("u\tset_id\tA = ")
-        for u, a in enumerate(self.A):
-            print(u, self.sample_set_id[u], a, sep="\t")
 
         print("u\tset_id\tD = ")
         for u, a in enumerate(self.D):
             print(u, self.sample_set_id[u], a, sep="\t")
 
-        self.check_state()
+        # self.check_state()
 
     def check_state(self):
         L = int(self.tables.sequence_length)
@@ -310,6 +325,61 @@ class IbdFinder:
                 # print(d_set[j], a_samples)
                 assert d_set[j] == a_samples
 
+    def add_ibd_samples(self, parent, segment, samples):
+
+        for a, b in itertools.product(samples, segment.samples):
+            if self.passes_filters(a, b, segment.left, segment.right):
+                self.result.add_segment(
+                    a, b, Segment(segment.left, segment.right, parent)
+                )
+        segment.samples.extend(samples)
+
+    def update_ancestry(self, left, right, parent, samples):
+        """
+        Update the sample lists for the specified interval on the
+        specified parent to include the specified list. Also record
+        any qualifying IBD segments that result.
+        """
+        if right - left <= self.min_length:
+            return
+
+        u = self.D[parent].head
+        while left >= u.right:
+            u = u.next
+        if u.left < left:
+            #             left
+            #     u.left   |    u.right
+            # ----|--------------|
+            #
+            # ->
+            #         v       u
+            # ----|--------|-----|
+            v = AncestrySegment(u.left, left, list(u.samples), prev=u.prev, next=u)
+            u.left = left
+            u.prev.next = v
+            u.prev = v
+        # Update segments completely contained in the interval
+        while u.right <= right:
+            # print("updating u", repr(u), left, right)
+            self.add_ibd_samples(parent, u, samples)
+            u = u.next
+        # Update and trim the last segment overlapping the interval
+        if right > u.left:
+            #             right
+            #     u.left   |    u.right
+            # ----|--------------|
+            #
+            # ->
+            #         u       v
+            # ----|--------|-----|
+            v = AncestrySegment(right, u.right, list(u.samples), prev=u, next=u.next)
+            u.right = right
+            u.next.prev = v
+            u.next = v
+            self.add_ibd_samples(parent, u, samples)
+        # print("DONE:", repr(self))
+        # print()
+
     def run(self):
         node_times = self.tables.nodes.time
         for e in self.ts.edges():
@@ -319,53 +389,23 @@ class IbdFinder:
                 # processed nodes are older than the max time.
                 break
             # print("processing edge", e)
-            child_segs = SegmentList()
-            s = self.A[e.child].head
+            s = self.D[e.child].head.next
             while s is not None:
-                intvl = (
+                interval = (
                     max(e.left, s.left),
                     min(e.right, s.right),
                 )
-                if intvl[1] - intvl[0] > self.min_length:
-                    child_segs.append(Segment(intvl[0], intvl[1], s.node))
+                self.update_ancestry(*interval, e.parent, s.samples)
                 s = s.next
-            self.record_ibd(e.parent, child_segs)
-            self.A[e.parent].extend(child_segs)
-            self.D[e.parent].update(child_segs)
-        self.check_state()
+        # self.check_state()
         return self.result.segments
 
-    def record_ibd(self, current_parent, child_segs):
-        """
-        Given the specified set of child segments for the current parent
-        record the IBD segments that will occur as a result of adding these
-        new segments into the existing list.
-        """
-        # print("Recording IBD for segs", current_parent, child_segs)
-        # Note the implementation here is O(n^2) because we have to compare
-        # every segment with every other one. If the segments were stored in
-        # left-to-right sorted order, we could avoid and merge them more
-        # efficiently. There is some added complexity in doing this, however.
-        seg0 = self.A[current_parent].head
-        while seg0 is not None:
-            seg1 = child_segs.head
-            while seg1 is not None:
-                left = max(seg0.left, seg1.left)
-                right = min(seg0.right, seg1.right)
-                # If there are any overlapping segments, record as a new
-                # IBD relationship.
-                if self.passes_filters(seg0.node, seg1.node, left, right):
-                    self.result.add_segment(
-                        seg0.node, seg1.node, Segment(left, right, current_parent)
-                    )
-                seg1 = seg1.next
-            seg0 = seg0.next
-
     def passes_filters(self, a, b, left, right):
-        if a == b:
-            return False
-        if right - left <= self.min_length:
-            return False
+        # These are already tested
+        # if a == b:
+        #     return False
+        # if right - left <= self.min_length:
+        #     return False
         if self.finding_between:
             return self.sample_set_id[a] != self.sample_set_id[b]
         else:
