@@ -34,6 +34,9 @@
 - Metadata encoding errors now raise ``MetadataEncodingError``
   (:user:`benjeffery`, :issue:`1505`, :pr:`1827`).
 
+- For ``TreeSequence.samples`` all arguments after ``population`` are now keyword only
+  (:user:`benjeffery`, :issue:`1715`, :pr:`1831`).
+
 **Features**
 
 - Add ``TableCollection.sort_individuals`` to sort the individuals as this is no longer done by the
