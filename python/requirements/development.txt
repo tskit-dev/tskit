@@ -25,7 +25,6 @@ pysam
 pytest
 pytest-cov
 pytest-xdist
-python_jsonschema_objects
 PyVCF
 sphinx<=4.0.1
 sphinx-argparse

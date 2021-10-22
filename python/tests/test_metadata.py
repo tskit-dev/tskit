@@ -37,7 +37,6 @@ import msgpack
 import msprime
 import numpy as np
 import pytest
-import python_jsonschema_objects as pjs
 
 import tskit
 import tskit.exceptions as exceptions
@@ -168,37 +167,6 @@ class TestMetadataPickleDecoding:
         unpickled = pickle.loads(mutation.metadata)
         assert unpickled.one == metadata.one
         assert unpickled.two == metadata.two
-
-
-class TestJSONSchemaDecoding:
-    """
-    Tests in which use json-schema to decode the metadata.
-    """
-
-    schema = """{
-        "title": "Example Metadata",
-        "type": "object",
-        "properties": {
-            "one": {"type": "string"},
-            "two": {"type": "string"}
-        },
-        "required": ["one", "two"]
-    }"""
-
-    def test_nodes(self):
-        tables = tskit.TableCollection(sequence_length=1)
-        builder = pjs.ObjectBuilder(json.loads(self.schema))
-        ns = builder.build_classes()
-        metadata = ns.ExampleMetadata(one="node1", two="node2")
-        encoded = json.dumps(metadata.as_dict()).encode()
-        tables.nodes.add_row(time=0.125, metadata=encoded)
-        ts = tables.tree_sequence()
-        node = ts.node(0)
-        assert node.time == 0.125
-        assert node.metadata == encoded
-        decoded = ns.ExampleMetadata.from_json(node.metadata.decode())
-        assert decoded.one == metadata.one
-        assert decoded.two == metadata.two
 
 
 class TestLoadTextMetadata:
