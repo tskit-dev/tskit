@@ -234,7 +234,7 @@ class TestTableCollection(LowLevelTestCase):
 
     def test_set_time_units(self):
         tables = _tskit.TableCollection(1)
-        assert tables.time_units == "unknown"
+        assert tables.time_units == tskit.TIME_UNITS_UNKNOWN
         for value in ["foo", "", "💩", "null char \0 in string"]:
             tables.time_units = value
             assert tables.time_units == value
@@ -1309,7 +1309,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         tables.build_index()
         ts = _tskit.TreeSequence()
         ts.load_tables(tables)
-        assert ts.get_time_units() == "unknown"
+        assert ts.get_time_units() == tskit.TIME_UNITS_UNKNOWN
         for value in ["foo", "", "💩", "null char \0 in string"]:
             tables.time_units = value
             ts = _tskit.TreeSequence()
@@ -3254,3 +3254,8 @@ def test_uninitialised():
                 method = getattr(uninitialised, method_name)
                 with pytest.raises((SystemError, ValueError)):
                     method()
+
+
+def test_constants():
+    assert _tskit.TIME_UNITS_UNKNOWN == "unknown"
+    assert _tskit.TIME_UNITS_UNCALIBRATED == "uncalibrated"

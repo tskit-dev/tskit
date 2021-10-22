@@ -50,6 +50,12 @@ ALLELES_ACGT = ("A", "C", "G", "T")
 #: NAN value, you cannot use `==` to test for it. Use :func:`is_unknown_time` instead.
 UNKNOWN_TIME = _tskit.UNKNOWN_TIME
 
+#: Default value of ts.time_units
+TIME_UNITS_UNKNOWN = _tskit.TIME_UNITS_UNKNOWN
+
+#: ts.time_units value when dimension is uncalibrated
+TIME_UNITS_UNCALIBRATED = _tskit.TIME_UNITS_UNCALIBRATED
+
 #: Options for printing to strings and HTML, modify with tskit.set_print_options.
 _print_options = {"max_lines": 40}
 

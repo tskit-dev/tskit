@@ -9789,7 +9789,7 @@ tsk_table_collection_init(tsk_table_collection_t *self, tsk_flags_t options)
 
     /* Set default time_units value */
     ret = tsk_table_collection_set_time_units(
-        self, TSK_DEFAULT_TIME_UNITS, strlen(TSK_DEFAULT_TIME_UNITS));
+        self, TSK_TIME_UNITS_UNKNOWN, strlen(TSK_TIME_UNITS_UNKNOWN));
     if (ret != 0) {
         goto out;
     }

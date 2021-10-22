@@ -38,6 +38,7 @@ from typing import Union
 import numpy as np
 import svgwrite
 
+import tskit
 import tskit.util as util
 from _tskit import NODE_IS_SAMPLE
 from _tskit import NULL
@@ -551,7 +552,7 @@ class SvgPlot:
                 y_label = "Node time"
             else:
                 y_label = "Time"
-            if ts.time_units != "unknown":
+            if ts.time_units != tskit.TIME_UNITS_UNKNOWN:
                 y_label += f" ({ts.time_units})"
         self.x_label = x_label
         self.y_label = y_label

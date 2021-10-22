@@ -6084,7 +6084,7 @@ class TestTimeUncalibratedErrors:
     def test_uncalibrated_time_allele_frequency_spectrum(self, ts_fixture):
         ts_fixture.allele_frequency_spectrum(mode="branch")
         tables = ts_fixture.dump_tables()
-        tables.time_units = "uncalibrated"
+        tables.time_units = tskit.TIME_UNITS_UNCALIBRATED
         ts_uncalibrated = tables.tree_sequence()
         ts_uncalibrated.allele_frequency_spectrum(mode="site")
         with pytest.raises(
@@ -6100,7 +6100,7 @@ class TestTimeUncalibratedErrors:
             W, lambda x: x * (x < ts_fixture.num_samples), W.shape[1], mode="branch"
         )
         tables = ts_fixture.dump_tables()
-        tables.time_units = "uncalibrated"
+        tables.time_units = tskit.TIME_UNITS_UNCALIBRATED
         ts_uncalibrated = tables.tree_sequence()
         ts_uncalibrated.general_stat(
             W, lambda x: x * (x < ts_uncalibrated.num_samples), W.shape[1], mode="site"

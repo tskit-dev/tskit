@@ -41,6 +41,7 @@ from typing import Union
 import numpy as np
 
 import _tskit
+import tskit
 import tskit.combinatorics as combinatorics
 import tskit.drawing as drawing
 import tskit.exceptions as exceptions
@@ -3153,7 +3154,7 @@ def parse_mutations(
         if len(tokens) >= 3:
             site = int(tokens[site_index])
             node = int(tokens[node_index])
-            if time_index is None or tokens[time_index] == "unknown":
+            if time_index is None or tokens[time_index] == tskit.TIME_UNITS_UNKNOWN:
                 time = UNKNOWN_TIME
             else:
                 time = float(tokens[time_index])

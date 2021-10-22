@@ -454,7 +454,7 @@ test_table_collection_time_units(void)
     tsk_table_collection_free(&tc2);
     ret = tsk_table_collection_init(&tc1, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, strncmp(tc1.time_units, TSK_DEFAULT_TIME_UNITS, 7));
+    CU_ASSERT_EQUAL_FATAL(ret, strncmp(tc1.time_units, TSK_TIME_UNITS_UNKNOWN, 7));
     tc1.sequence_length = 1.0;
     ret = tsk_table_collection_dump(&tc1, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
