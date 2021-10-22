@@ -3111,7 +3111,7 @@ class TableCollection:
         # A deprecated alias for link_ancestors()
         return self.link_ancestors(*args, **kwargs)
 
-    def sort(self, edge_start=0):
+    def sort(self, edge_start=0, *, site_start=0, mutation_start=0):
         """
         Sorts the tables in place. This ensures that all tree sequence ordering
         requirements listed in the
@@ -3123,6 +3123,10 @@ class TableCollection:
         greater than or equal to ``edge_start`` are sorted; rows before this index
         are not affected. This parameter is provided to allow for efficient sorting
         when the user knows that the edges up to a given index are already sorted.
+
+        If both ``site_start`` and ``mutation_start`` are equal to the number of rows
+        in their retrospective tables then neither is sorted. Note that a partial
+        non-sorting is not possible, and both or neither must be skipped.
 
         The node, population and provenance tables are not affected
         by this method.
@@ -3160,8 +3164,12 @@ class TableCollection:
 
         :param int edge_start: The index in the edge table where sorting starts
             (default=0; must be <= len(edges)).
+        :param int site_start: The index in the site table where sorting starts
+            (default=0; must be one of [0, len(sites)]).
+        :param int mutation_start: The index in the mutation table where sorting starts
+            (default=0; must be one of [0, len(mutations)]).
         """
-        self._ll_tables.sort(edge_start)
+        self._ll_tables.sort(edge_start, site_start, mutation_start)
         # TODO add provenance
 
     def sort_individuals(self):

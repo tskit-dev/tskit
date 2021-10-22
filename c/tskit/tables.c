@@ -6348,14 +6348,6 @@ tsk_table_sorter_run(tsk_table_sorter_t *self, const tsk_bookmark_t *start)
             ret = TSK_ERR_SORT_OFFSET_NOT_SUPPORTED;
             goto out;
         }
-
-        /* Individuals also must be all sorted or skipped entirely */
-        if (start->individuals == self->tables->individuals.num_rows) {
-            skip_individuals = true;
-        } else if (start->individuals != 0) {
-            ret = TSK_ERR_SORT_OFFSET_NOT_SUPPORTED;
-            goto out;
-        }
     }
     /* The indexes will be invalidated, so drop them */
     ret = tsk_table_collection_drop_index(self->tables, 0);

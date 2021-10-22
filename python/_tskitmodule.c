@@ -6611,17 +6611,22 @@ TableCollection_sort(TableCollection *self, PyObject *args, PyObject *kwds)
     int err;
     PyObject *ret = NULL;
     Py_ssize_t edge_start = 0;
+    Py_ssize_t site_start = 0;
+    Py_ssize_t mutation_start = 0;
     tsk_bookmark_t start;
-    static char *kwlist[] = { "edge_start", NULL };
+    static char *kwlist[] = { "edge_start", "site_start", "mutation_start", NULL };
 
     if (TableCollection_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|n", kwlist, &edge_start)) {
+    if (!PyArg_ParseTupleAndKeywords(
+            args, kwds, "|nnn", kwlist, &edge_start, &site_start, &mutation_start)) {
         goto out;
     }
     memset(&start, 0, sizeof(start));
-    start.edges = edge_start;
+    start.edges = (tsk_size_t) edge_start;
+    start.sites = (tsk_size_t) site_start;
+    start.mutations = (tsk_size_t) mutation_start;
     err = tsk_table_collection_sort(self->tables, &start, 0);
     if (err != 0) {
         handle_library_error(err);

@@ -6297,10 +6297,11 @@ test_sort_tables_offsets(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tables, &copy, 0));
 
+    /* Individual bookmark ignored */
     tsk_memset(&bookmark, 0, sizeof(bookmark));
     bookmark.individuals = tables.individuals.num_rows - 1;
     ret = tsk_table_collection_sort(&tables, &bookmark, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_OFFSET_NOT_SUPPORTED);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tsk_table_collection_free(&tables);
     tsk_table_collection_free(&copy);
@@ -6409,8 +6410,8 @@ test_sort_tables_errors(void)
     tsk_table_collection_t tables;
     tsk_bookmark_t pos;
 
-    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
-        NULL, NULL, NULL, 0);
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
@@ -6457,8 +6458,7 @@ test_sort_tables_errors(void)
     ret = tsk_table_collection_sort(&tables, &pos, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    /* Setting sites or mutations gives a BAD_PARAM. See
-     * github.com/tskit-dev/tskit/issues/101 */
+    /* Specifying only one of sites or mutations is an error */
     tsk_memset(&pos, 0, sizeof(pos));
     pos.sites = 1;
     ret = tsk_table_collection_sort(&tables, &pos, 0);
