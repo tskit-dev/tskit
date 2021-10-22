@@ -39,4 +39,3 @@ dependencies:
     - newick
     - xmlunittest
     - msgpack>=1.0.0
-    - python_jsonschema_objects
