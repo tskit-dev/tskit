@@ -4,6 +4,7 @@ black
 breathe
 codecov
 coverage
+dendropy
 flake8
 h5py>=2.6.0
 jsonschema>=3.0.0
