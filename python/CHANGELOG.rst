@@ -37,6 +37,11 @@
 - For ``TreeSequence.samples`` all arguments after ``population`` are now keyword only
   (:user:`benjeffery`, :issue:`1715`, :pr:`1831`).
 
+- Fix bugs in the format produced by ``TreeSequence.to_nexus`` to make
+  it standards-compliant. (:user:`jeetsukumaran`, :user:`jeromekelleher`,
+  :issue:`1785`, :pr:`1835`, :pr:`1836`)
+  [FIXME MORE UPDATES HERE AS WE CHANGE THE LABELS ETC]
+
 **Features**
 
 - Allow skipping of site and mutation tables in ``TableCollection.sort``

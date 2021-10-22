@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2019 Tskit Developers
+# Copyright (c) 2018-2021 Tskit Developers
 # Copyright (c) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,19 +23,16 @@
 """
 Tests for the newick output feature.
 """
-import itertools
-import unittest
-
+import dendropy
 import msprime
 import newick
 import pytest
-from Bio.Nexus import Nexus
 
 import tskit
 from tests import tsutil
 
 
-class TreeExamples(unittest.TestCase):
+class TreeExamples:
     """
     Generates trees for testing the phylo format outputs.
     """
@@ -154,8 +151,10 @@ class TestNewick(TreeExamples):
             name = leaf_labels[u]
             node = newick_tree.get_node(name)
             while u != root:
-                branch_len = tree.branch_length(u) if include_branch_lengths else None
-                self.assertAlmostEqual(node.length, branch_len)
+                if include_branch_lengths:
+                    assert node.length == pytest.approx(tree.branch_length(u))
+                else:
+                    assert node.length is None
                 node = node.ancestor
                 u = tree.parent(u)
             assert node.ancestor is None
@@ -245,48 +244,56 @@ class TestNewick(TreeExamples):
 class TestNexus(TreeExamples):
     """
     Tests that the nexus output has the properties that we need using
-    external Nexus parser.
+    an external Nexus parser.
     """
 
-    def verify_tree(self, nexus_tree, tsk_tree):
-        assert len(nexus_tree.get_terminals()) == tsk_tree.num_samples()
+    def verify_tree(self, tsk_tree, dpy_tree):
+        """
+        Checks that the specified Dendropy tree is equal to the specified
+        tskit tree, up to the limits imposed by newick.
+        """
+        label_map = {}
+        for node in dpy_tree:
+            label_map[str(node.taxon.label)] = node
 
-        bio_node_map = {}
-        for node_id in nexus_tree.all_ids():
-            bio_node = nexus_tree.node(node_id)
-            bio_node_map[bio_node.data.taxon] = bio_node
-
-        for u in tsk_tree.nodes():
+        def get_label(u):
             node = tsk_tree.tree_sequence.node(u)
-            label = f"tsk_{node.id}_{node.flags}"
-            bio_node = bio_node_map.pop(label)
-            self.assertAlmostEqual(
-                bio_node.data.branchlength, tsk_tree.branch_length(u)
-            )
-            if tsk_tree.parent(u) == tskit.NULL:
-                assert bio_node.prev is None
+            return f"tsk_{node.id}_{node.flags}"
+
+        for u in tsk_tree.nodes(order="postorder"):
+            # Consume the nodes in the dendropy node map one-by-one
+            dpy_node = label_map.pop(get_label(u))
+            parent = tsk_tree.parent(u)
+            if parent == tskit.NULL:
+                assert dpy_node.edge_length is None
+                assert dpy_node.parent_node is None
             else:
-                bio_node_parent = nexus_tree.node(bio_node.prev)
-                parent = tsk_tree.tree_sequence.node(tsk_tree.parent(u))
-                assert bio_node_parent.data.taxon == f"tsk_{parent.id}_{parent.flags}"
-        assert len(bio_node_map) == 0
+                assert tsk_tree.branch_length(u) == pytest.approx(dpy_node.edge_length)
+                assert dpy_node.parent_node is label_map[get_label(parent)]
 
-    def verify_nexus_topology(self, treeseq):
-        nexus = treeseq.to_nexus(precision=16)
-        nexus_treeseq = Nexus.Nexus(nexus)
-        assert treeseq.num_trees == len(nexus_treeseq.trees)
-        for tree, nexus_tree in itertools.zip_longest(
-            treeseq.trees(), nexus_treeseq.trees
-        ):
-            name = nexus_tree.name
-            split_name = name.split("_")
-            assert len(split_name) == 2
-            start = float(split_name[0][4:])
-            end = float(split_name[1])
-            self.assertAlmostEqual(tree.interval.left, start)
-            self.assertAlmostEqual(tree.interval.right, end)
+        assert len(label_map) == 0
 
-            self.verify_tree(nexus_tree, tree)
+    def verify_nexus_topology(self, ts):
+        nexus = ts.to_nexus(precision=16)
+        tree_list = dendropy.TreeList()
+        tree_list.read(
+            data=nexus,
+            schema="nexus",
+            preserve_underscores=True,  # TODO remove this when we update labels
+            rooting="default-rooted",  # Remove this when we have root marking, #1815
+            suppress_internal_node_taxa=False,
+        )
+        assert ts.num_trees == len(tree_list)
+        for tsk_tree, dpy_tree in zip(ts.trees(), tree_list):
+            # https://github.com/tskit-dev/tskit/issues/1815
+            # FIXME this label should probably start with "[&R]" and
+            # use some other separator than "_" to delimit the
+            # left and right coords. Should we use a "weight" instead?
+            assert dpy_tree.label.startswith("tree")
+            left, right = map(float, dpy_tree.label[4:].split("_"))
+            assert tsk_tree.interval.left == pytest.approx(left)
+            assert tsk_tree.interval.right == pytest.approx(right)
+            self.verify_tree(tsk_tree, dpy_tree)
 
     def test_binary_tree(self):
         ts = self.get_binary_example()

@@ -10,6 +10,7 @@ dependencies:
   - codecov
   - coverage
   - cunit
+  - dendropy
   - doxygen
   - flake8
   - h5py>=2.6.0
