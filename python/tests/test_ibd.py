@@ -58,7 +58,7 @@ def ibd_segments(
     Calculates IBD segments using Python and converts output to lists of segments.
     Also compares result with C library.
     """
-    ibd_f = ibd.IbdFinder(
+    ibd_f = ibd.IbdFinderIntervalTrees(
         ts, within=within, between=between, max_time=max_time, min_length=min_length
     )
     ibd_segs = ibd_f.run()
