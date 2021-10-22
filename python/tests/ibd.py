@@ -25,10 +25,6 @@ Python implementation of the IBD-finding algorithms.
 from __future__ import annotations
 
 import collections
-import dataclasses
-import itertools
-from typing import List
-from typing import Union
 
 import intervaltree
 import numpy as np
@@ -145,181 +141,7 @@ class IbdResult:
         self.segments[key].append(tskit.IbdSegment(seg.left, seg.right, seg.node))
 
 
-@dataclasses.dataclass
-class AncestrySegment:
-    left: float
-    right: float
-    samples: List[int] = dataclasses.field(default_factory=list)
-    next: Union[None, AncestrySegment] = None  # noqa: A003
-    prev: Union[None, AncestrySegment] = None
-
-    def __repr__(self):
-        return repr((self.left, self.right, self.samples))
-
-
-@dataclasses.dataclass
-class AncestrySegmentList:
-    head: AncestrySegment
-    tail: AncestrySegment
-
-    def __repr__(self):
-        lst = []
-        u = self.head.next
-        while u != self.tail:
-            lst.append((u.left, u.right, u.samples))
-            u = u.next
-        return repr(lst)
-
-    def check(self):
-        prev = None
-        u = self.head
-        while u is not None:
-            assert u.prev is prev
-            if prev is not None:
-                assert prev.right == u.left
-            assert u.left < u.right
-
-            prev = u
-            u = u.next
-        assert prev == self.tail
-
-
-class IbdFinderBroken:
-    """
-    Finds all IBD relationships between specified sample pairs in a tree sequence.
-    """
-
-    def __init__(self, ts, *, within=None, between=None, min_length=0, max_time=None):
-        self.ts = ts
-        self.result = IbdResult()
-        if within is not None and between is not None:
-            raise ValueError("within and between are mutually exclusive")
-
-        self.sample_set_id = np.zeros(ts.num_nodes, dtype=int) - 1
-        self.finding_between = False
-        if between is not None:
-            self.finding_between = True
-            for set_id, samples in enumerate(between):
-                self.sample_set_id[samples] = set_id
-        else:
-            if within is None:
-                within = ts.samples()
-            self.sample_set_id[within] = 0
-        self.min_length = min_length
-        self.max_time = np.inf if max_time is None else max_time
-        self.D = [None for _ in range(ts.num_nodes)]
-        for u in range(ts.num_nodes):
-            head = AncestrySegment(-1, 0)
-            tail = AncestrySegment(ts.sequence_length, ts.sequence_length + 1)
-            lst = AncestrySegment(0, ts.sequence_length, prev=head, next=tail)
-            head.next = lst
-            tail.prev = lst
-            self.D[u] = AncestrySegmentList(head, tail)
-            if self.sample_set_id[u] != -1:
-                lst.samples.append(u)
-        self.tables = self.ts.tables
-
-    def print_state(self):
-        print("IBD Finder")
-        print("min_length = ", self.min_length)
-        print("max_time   = ", self.max_time)
-        print("finding_between = ", self.finding_between)
-        print("u\tset_id\tD = ")
-        for u, a in enumerate(self.D):
-            print(u, self.sample_set_id[u], a, sep="\t")
-
-        # self.check_state()
-
-    def add_ibd_samples(self, parent, segment, samples):
-
-        for a, b in itertools.product(samples, segment.samples):
-            if self.passes_filters(a, b, segment.left, segment.right):
-                self.result.add_segment(
-                    a, b, Segment(segment.left, segment.right, parent)
-                )
-        segment.samples.extend(samples)
-
-    def update_ancestry(self, left, right, parent, samples):
-        """
-        Update the sample lists for the specified interval on the
-        specified parent to include the specified list. Also record
-        any qualifying IBD segments that result.
-        """
-        if right - left <= self.min_length:
-            return
-
-        u = self.D[parent].head
-        while left >= u.right:
-            u = u.next
-        if u.left < left:
-            #             left
-            #     u.left   |    u.right
-            # ----|--------------|
-            #
-            # ->
-            #         v       u
-            # ----|--------|-----|
-            v = AncestrySegment(u.left, left, list(u.samples), prev=u.prev, next=u)
-            u.left = left
-            u.prev.next = v
-            u.prev = v
-        # Update segments completely contained in the interval
-        while u.right <= right:
-            # print("updating u", repr(u), left, right)
-            self.add_ibd_samples(parent, u, samples)
-            u = u.next
-        # Update and trim the last segment overlapping the interval
-        if right > u.left:
-            #             right
-            #     u.left   |    u.right
-            # ----|--------------|
-            #
-            # ->
-            #         u       v
-            # ----|--------|-----|
-            v = AncestrySegment(right, u.right, list(u.samples), prev=u, next=u.next)
-            u.right = right
-            u.next.prev = v
-            u.next = v
-            self.add_ibd_samples(parent, u, samples)
-        # print("DONE:", repr(self))
-        # print()
-
-    def run(self):
-        node_times = self.tables.nodes.time
-        for e in self.ts.edges():
-            time = node_times[e.parent]
-            if time > self.max_time:
-                # Stop looking for IBD segments once the
-                # processed nodes are older than the max time.
-                break
-            # print("processing edge", e)
-            s = self.D[e.child].head.next
-            while s is not None:
-                interval = (
-                    max(e.left, s.left),
-                    min(e.right, s.right),
-                )
-                self.update_ancestry(*interval, e.parent, s.samples)
-                s = s.next
-        # self.check_state()
-        return self.result.segments
-
-    def passes_filters(self, a, b, left, right):
-        # These are already tested
-        # if a == b:
-        #     return False
-        # if right - left <= self.min_length:
-        #     return False
-        if self.finding_between:
-            return self.sample_set_id[a] != self.sample_set_id[b]
-        else:
-            return True
-
-
 class IbdFinderIntervalTrees:
-    """"""
-
     def __init__(self, ts, *, within=None, between=None, min_length=0, max_time=None):
         self.ts = ts
 
@@ -362,33 +184,55 @@ class IbdFinderIntervalTrees:
     def run(self):
         result = collections.defaultdict(list)
         node_times = self.tables.nodes.time
+        child_count = np.zeros(self.ts.num_nodes, dtype=int)
+        for e in self.ts.edges():
+            child_count[e.child] += 1
+
         L = self.ts.sequence_length
         for e in self.ts.edges():
             if node_times[e.parent] > self.max_time:
                 # Stop looking for IBD segments once the
                 # processed nodes are older than the max time.
                 break
-            t_child = self.A[e.child].copy()
-            # print(e)
-            # There's no operation to "keep" an interval
-            t_child.chop(0, e.left)
-            t_child.chop(e.right, L)
-            t_parent = self.A[e.parent].copy()
-            t_parent.chop(0, e.left)
-            t_parent.chop(e.right, L)
 
-            for int1, int2 in itertools.product(t_parent, t_child):
-                if int1.overlap_size(int2) > self.min_length:
-                    key = tuple(sorted([int1.data, int2.data]))
-                    intersection = (
-                        max(int1.begin, int2.begin),
-                        min(int1.end, int2.end),
-                    )
-                    if self.keep_pair(*key):
-                        result[key].append(tskit.IbdSegment(*intersection, e.parent))
+            # Any intervals resulting from going through this
+            # edge are at-most as long as it, so it suffices to
+            # skip processing this edge to filter out short IBD
+            # segments for the edge.
+            if e.right - e.left > self.min_length:
+                # Get the intervals intersecting with this edge in the
+                # parent and child sets. Each interval tree operation is
+                # roughly O(m + log n) where m is the number of intervals
+                # returned and n is the total number of intervals in the tree.
 
-            # Update parent's intervals
-            self.A[e.parent] |= t_child
+                t_child = self.A[e.child].copy()
+                # # There's no operation to "snip" an interval :(
+                t_child.chop(0, e.left)
+                t_child.chop(e.right, L)
+
+                # This is the inevitable quadratic bit: for every interval
+                # in the child's list that intersects with this edge, we must
+                # register an IBD segment with each of the intervals in the parent's
+                # list that intersect with this edge.
+                for int1 in t_child:
+                    for int2 in self.A[e.parent].overlap(int1):
+                        key = tuple(sorted([int1.data, int2.data]))
+                        left = max(int1.begin, int2.begin, e.left)
+                        right = min(int1.end, int2.end, e.right)
+                        # This is just for the "within" semantics - not interesting
+                        # from an algorithm perspective, but simpler to implement
+                        # it to keep tests working
+                        if self.keep_pair(*key):
+                            result[key].append(tskit.IbdSegment(left, right, e.parent))
+
+                # Update parent's intervals
+                self.A[e.parent] |= t_child
+
+            # If there are no more edges referring to this child we don't need
+            # its intervals any more.
+            child_count[e.child] -= 1
+            if child_count[e.child] == 0:
+                self.A[e.child].clear()
         return result
 
 
