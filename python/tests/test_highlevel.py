@@ -1951,6 +1951,8 @@ class TestTreeSequence(HighLevelTestCase):
             ts.diffs()
         with pytest.raises(NotImplementedError):
             ts.newick_trees()
+        with pytest.raises(NotImplementedError):
+            ts.to_nexus()
 
     def test_dump_pathlib(self, ts_fixture, tmp_path):
         path = tmp_path / "tmp.trees"
@@ -2954,121 +2956,6 @@ class TestTree(HighLevelTestCase):
                     assert tree.num_roots == 0
                     assert tree.root == tskit.NULL
         assert len(tested) == 3
-
-    def verify_newick(self, tree):
-        """
-        Verifies that we output the newick tree as expected.
-        """
-        # TODO to make this work we may need to clamp the precision of node
-        # times because Python and C float printing algorithms work slightly
-        # differently. Seems to work OK now, so leaving alone.
-        if tree.has_single_root:
-            py_tree = tests.PythonTree.from_tree(tree)
-            newick1 = tree.newick(precision=16)
-            newick2 = py_tree.newick()
-            assert newick1 == newick2
-
-            # Make sure we get the same results for a leaf root.
-            newick1 = tree.newick(root=0, precision=16)
-            newick2 = py_tree.newick(root=0)
-            assert newick1 == newick2
-
-            # When we specify the node_labels we should get precisely the
-            # same result as we are using Python code now.
-            for precision in [0, 3, 19]:
-                newick1 = tree.newick(precision=precision, node_labels={})
-                newick2 = py_tree.newick(precision=precision, node_labels={})
-                assert newick1 == newick2
-        else:
-            with pytest.raises(ValueError):
-                tree.newick()
-            for root in tree.roots:
-                py_tree = tests.PythonTree.from_tree(tree)
-                newick1 = tree.newick(precision=16, root=root)
-                newick2 = py_tree.newick(root=root)
-                assert newick1 == newick2
-
-    def test_newick(self):
-        for ts in get_example_tree_sequences():
-            for tree in ts.trees():
-                self.verify_newick(tree)
-
-    def test_newick_large_times(self):
-        for n in [2, 10, 20, 100]:
-            ts = msprime.simulate(n, Ne=100e6, random_seed=1)
-            tree = ts.first()
-            for precision in [0, 1, 16]:
-                newick_py = tree.newick(
-                    node_labels={u: str(u + 1) for u in ts.samples()},
-                    precision=precision,
-                )
-                newick_c = tree.newick(precision=precision)
-                assert newick_c == newick_py
-
-    def test_bifurcating_newick(self):
-        for n_tips in range(2, 6):
-            ts = msprime.simulate(n_tips, random_seed=1)  # msprime trees are binary
-            for tree in ts.trees():
-                base_newick = tree.newick(include_branch_lengths=False).strip(";")
-                for i in range(n_tips):
-                    # Each tip number (i+1) mentioned once
-                    assert base_newick.count(str(i + 1)) == 1
-                # Binary newick trees have 3 chars per extra tip: "(,)"
-                assert len(base_newick) == n_tips + 3 * (n_tips - 1)
-
-    def test_newick_topology_equiv(self):
-        replace_numeric = {ord(x): None for x in "1234567890:."}
-        for ts in get_example_tree_sequences():
-            for tree in ts.trees():
-                if not tree.has_single_root:
-                    with pytest.raises(ValueError) as plain_newick_err:
-                        tree.newick(node_labels={}, include_branch_lengths=False)
-                    with pytest.raises(ValueError) as newick1_err:
-                        tree.newick()
-                    with pytest.raises(ValueError) as newick2_err:
-                        tree.newick(node_labels={})
-                    assert str(newick1_err) == str(newick2_err)
-                    assert str(newick1_err) == str(plain_newick_err)
-                else:
-                    plain_newick = tree.newick(
-                        node_labels={}, include_branch_lengths=False
-                    )
-                    newick1 = tree.newick().translate(replace_numeric)
-                    newick2 = tree.newick(node_labels={}).translate(replace_numeric)
-                    assert newick1 == newick2
-                    assert newick2 == plain_newick
-
-    def test_newick_buffer_too_small_bug(self):
-        nodes = io.StringIO(
-            """\
-        id  is_sample   population individual time
-        0       1       0       -1      0.00000000000000
-        1       1       0       -1      0.00000000000000
-        2       1       0       -1      0.00000000000000
-        3       1       0       -1      0.00000000000000
-        4       0       0       -1      0.21204940078588
-        5       0       0       -1      0.38445004304611
-        6       0       0       -1      0.83130278081275
-        """
-        )
-        edges = io.StringIO(
-            """\
-        id      left            right           parent  child
-        0       0.00000000      1.00000000      4       0
-        1       0.00000000      1.00000000      4       2
-        2       0.00000000      1.00000000      5       1
-        3       0.00000000      1.00000000      5       3
-        4       0.00000000      1.00000000      6       4
-        5       0.00000000      1.00000000      6       5
-        """
-        )
-        ts = tskit.load_text(nodes, edges, sequence_length=1, strict=False)
-        tree = ts.first()
-        for precision in range(17):
-            newick_c = tree.newick(precision=precision)
-            node_labels = {u: str(u + 1) for u in ts.samples()}
-            newick_py = tree.newick(precision=precision, node_labels=node_labels)
-            assert newick_c == newick_py
 
     def test_as_dict_of_dicts(self):
         for ts in get_example_tree_sequences():

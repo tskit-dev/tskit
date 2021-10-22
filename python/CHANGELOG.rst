@@ -1,5 +1,5 @@
 --------------------
-[0.3.8] - 2021-0X-XX
+[0.4.0] - 2021-1X-XX
 --------------------
 
 **Breaking changes**
@@ -37,10 +37,12 @@
 - For ``TreeSequence.samples`` all arguments after ``population`` are now keyword only
   (:user:`benjeffery`, :issue:`1715`, :pr:`1831`).
 
-- Fix bugs in the format produced by ``TreeSequence.to_nexus`` to make
-  it standards-compliant. (:user:`jeetsukumaran`, :user:`jeromekelleher`,
-  :issue:`1785`, :pr:`1835`, :pr:`1836`)
-  [FIXME MORE UPDATES HERE AS WE CHANGE THE LABELS ETC]
+- Remove the method ``TreeSequence.to_nexus`` and replace with ``TreeSequence.as_nexus``.
+  As the old method was not generating standards-compliant output, it seems unlikely
+  that it was used by anyone. Calls to ``to_nexus`` will result in a
+  NotImplementedError, informing users of the change. See below for details on
+  ``as_nexus``.
+
 
 **Features**
 
@@ -83,6 +85,17 @@
 **Fixes**
 
 - `dump_tables` omitted individual parents. (:user:`benjeffery`, :issue:`1828`, :pr:`1884`)
+
+- Add the ``Tree.as_newick`` method and deprecate ``Tree.newick``. The
+  ``as_newick`` method by default labels samples with the pattern ``"n{node_id}"``
+  which is much more useful that the behaviour of ``Tree.newick`` (which mimics
+  ``ms`` output). (:user:`jeromekelleher`, :issue:`1671`, :pr:`1838`.)
+
+- Add the ``as_nexus`` and ``write_nexus`` methods to the TreeSequence class,
+  replacing the broken ``to_nexus`` method (see above). This uses the same
+  sample labelling pattern as ``as_newick``.
+  (:user:`jeetsukumaran`, :user:`jeromekelleher`, :issue:`1785`, :pr:`1835`,
+  :pr:`1836`, :pr:`1838`)
 
 --------------------
 [0.3.7] - 2021-07-08
