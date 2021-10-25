@@ -91,7 +91,7 @@ method.
 
 ```{code-cell} ipython3
 for rank in [(0, 0), (1, 0), (1, 1), (1, 2)]:
-    t = tskit.Tree.unrank(3, rank)
+    t = tskit.Tree.unrank(num_leaves=3, rank=rank)
     display(SVG(t.draw_svg(node_labels={0: 0, 1: 1, 2: 2}, order="tree", size=(120, 120))))
 ```
 
@@ -107,12 +107,13 @@ samples are synonymous with leaves.
 ```{code-cell} ipython3
 import collections
 import msprime
+# Simulate a tree sequence with 2 diploid individuals (i.e. 4 samples)
 ts = msprime.sim_ancestry(2, sequence_length=1e8, recombination_rate=1e-7, random_seed=1)
 rank_counts = collections.Counter(t.rank() for t in ts.trees())
 most_freq_rank, count = rank_counts.most_common(1)[0]
 most_freq_topology = tskit.Tree.unrank(ts.num_samples, most_freq_rank)
 print("Most frequent topology")
-display(SVG(most_freq_topology.draw_svg()))
+display(SVG(most_freq_topology.draw_svg(node_labels={0: 0, 1: 1, 2: 2, 3: 3})))
 ```
 
 (sec_enumerating_topologies)=
@@ -174,18 +175,13 @@ of $T$. This process of choosing labels is repeated for the other
 children of $T$ and then recursively for the subtrees.
 
 Looking back to the example from {ref}`sec_tree_ranks`, we can see
-the different unique ways to label a particular tree of three leaves.
+the second tree shape, where the tree is a strictly bifucating tree of
+three leaves, can be labelled in 3 different unique ways.
 
-```{image} _static/topology_1_0.svg
-:width: 32%
-```
-
-```{image} _static/topology_1_1.svg
-:width: 32%
-```
-
-```{image} _static/topology_1_2.svg
-:width: 32%
+```{code-cell} ipython3
+second_tree = tskit.Tree.unrank(num_leaves=3, rank=(1, 0))
+for t in tskit.all_tree_labellings(second_tree):
+    display(SVG(t.draw_svg(node_labels={0: 0, 1: 1, 2: 2}, order="tree", size=(120, 120))))
 ```
 
 The order of the tree labellings is a direct result of the way in which
