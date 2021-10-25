@@ -1,4 +1,4 @@
-numpy==1.21.2
+numpy==1.21.3
 pytest==6.2.5
 pytest-xdist==2.3.0
 h5py==3.4.0
