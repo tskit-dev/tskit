@@ -4,7 +4,7 @@ coverage==6.0.2
 dendropy==4.5.2
 flake8==4.0.1
 h5py==3.4.0
-jsonschema==3.2.0
+jsonschema==4.1.2
 kastore==0.3.1
 msgpack==1.0.2
 msprime==1.0.2
