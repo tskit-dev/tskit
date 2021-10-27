@@ -180,8 +180,8 @@ skip to {ref}`sec_development_workflow_anothers_commit`.
    a local copy as detailed in {ref}`sec_development_getting_started_environment`.
 
 2. Make sure that your local repository has been configured with an
-   [upstream remote](https://help.github
-   .com/articles/configuring-a-remote-for-a-fork/):
+   [upstream remote](
+   https://help.github.com/articles/configuring-a-remote-for-a-fork/):
    ```bash
    $ git remote add upstream git@github.com:tskit-dev/tskit.git
    ```
