@@ -2106,14 +2106,8 @@ class Tree:
             the subtree rooted at u.
         :rtype: int
         """
-        # This should work, there's a but somethings wrong somewhere
-        # https://github.com/tskit-dev/tskit/issues/1724
-        # u = self.virtual_root if u is None else u
-        # return self._ll_tree.get_num_tracked_samples(u)
-        roots = [u]
-        if u is None:
-            roots = self.roots
-        return sum(self._ll_tree.get_num_tracked_samples(root) for root in roots)
+        u = self.virtual_root if u is None else u
+        return self._ll_tree.get_num_tracked_samples(u)
 
     # TODO document these traversal arrays
     # https://github.com/tskit-dev/tskit/issues/1788

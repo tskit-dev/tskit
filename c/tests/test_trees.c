@@ -4639,6 +4639,89 @@ test_single_tree_map_mutations_internal_samples(void)
     tsk_tree_free(&t);
 }
 
+static void
+test_single_tree_tracked_samples(void)
+{
+    tsk_treeseq_t ts;
+    tsk_tree_t tree;
+    tsk_id_t samples[] = { 0, 1 };
+    tsk_size_t n;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
+
+    ret = tsk_tree_init(&tree, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_tree_set_tracked_samples(&tree, 2, samples);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_get_num_tracked_samples(&tree, 0, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 1);
+    ret = tsk_tree_get_num_tracked_samples(&tree, 4, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 0);
+    ret = tsk_tree_get_num_tracked_samples(&tree, tree.virtual_root, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 2);
+
+    ret = tsk_tree_first(&tree);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+
+    ret = tsk_tree_get_num_tracked_samples(&tree, 0, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 1);
+    ret = tsk_tree_get_num_tracked_samples(&tree, 4, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 2);
+    ret = tsk_tree_get_num_tracked_samples(&tree, 5, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 0);
+    ret = tsk_tree_get_num_tracked_samples(&tree, 6, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 2);
+    ret = tsk_tree_get_num_tracked_samples(&tree, tree.virtual_root, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 2);
+
+    ret = tsk_tree_next(&tree);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_get_num_tracked_samples(&tree, 0, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 1);
+    ret = tsk_tree_get_num_tracked_samples(&tree, 4, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 0);
+    ret = tsk_tree_get_num_tracked_samples(&tree, tree.virtual_root, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 2);
+
+    ret = tsk_tree_next(&tree);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    ret = tsk_tree_get_num_tracked_samples(&tree, 0, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 1);
+    ret = tsk_tree_get_num_tracked_samples(&tree, 4, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 2);
+    ret = tsk_tree_get_num_tracked_samples(&tree, tree.virtual_root, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 2);
+
+    ret = tsk_tree_set_tracked_samples(&tree, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_get_num_tracked_samples(&tree, 0, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 0);
+    ret = tsk_tree_get_num_tracked_samples(&tree, tree.virtual_root, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 0);
+
+    tsk_treeseq_free(&ts);
+    tsk_tree_free(&tree);
+}
+
 /*=======================================================
  * Multi tree tests.
  *======================================================*/
@@ -6746,6 +6829,7 @@ main(int argc, char **argv)
         { "test_single_tree_map_mutations", test_single_tree_map_mutations },
         { "test_single_tree_map_mutations_internal_samples",
             test_single_tree_map_mutations_internal_samples },
+        { "test_single_tree_tracked_samples", test_single_tree_tracked_samples },
 
         /* Multi tree tests */
         { "test_simple_multi_tree", test_simple_multi_tree },
