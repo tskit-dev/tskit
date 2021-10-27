@@ -122,12 +122,8 @@ print_ld_matrix(tsk_treeseq_t *ts)
             if (ret != 0) {
                 fatal_library_error(ret, "get_site");
             }
-            printf("%d\t%f\t%d\t%f\t%.3f\n",
-                (int) sA.id,
-                sA.position,
-                (int) sB.id,
-                sB.position,
-                r2[k]);
+            printf("%d\t%f\t%d\t%f\t%.3f\n", (int) sA.id, sA.position, (int) sB.id,
+                sB.position, r2[k]);
         }
     }
     free(r2);
@@ -156,8 +152,8 @@ print_newick_trees(tsk_treeseq_t *ts)
         fatal_error("ERROR: %d: %s\n", ret, tsk_strerror(ret));
     }
     for (ret = tsk_tree_first(&tree); ret == 1; ret = tsk_tree_next(&tree)) {
-        ret = tsk_convert_newick(
-            &tree, tree.left_root, precision, 0, newick_buffer_size, newick);
+        ret = tsk_convert_newick(&tree, tsk_tree_get_left_root(&tree), precision, 0,
+            newick_buffer_size, newick);
         if (ret != 0) {
             fatal_library_error(ret, "newick");
         }
@@ -187,9 +183,7 @@ print_tree_sequence(tsk_treeseq_t *ts, int verbose)
         }
         for (ret = tsk_tree_first(&tree); ret == 1; ret = tsk_tree_next(&tree)) {
             printf("-------------------------\n");
-            printf("New tree: %d: %f (%d)\n",
-                (int) tree.index,
-                tree.right - tree.left,
+            printf("New tree: %d: %f (%d)\n", (int) tree.index, tree.right - tree.left,
                 (int) tree.num_nodes);
             printf("-------------------------\n");
             tsk_tree_print_state(&tree, stdout);
@@ -242,11 +236,8 @@ run_newick(const char *filename, int TSK_UNUSED(verbose))
 }
 
 static void
-run_simplify(const char *input_filename,
-    const char *output_filename,
-    size_t num_samples,
-    bool filter_sites,
-    int verbose)
+run_simplify(const char *input_filename, const char *output_filename, size_t num_samples,
+    bool filter_sites, int verbose)
 {
     tsk_treeseq_t ts, subset;
     const tsk_id_t *samples;
@@ -290,9 +281,7 @@ main(int argc, char **argv)
     /* SYNTAX 1: simplify [-vi] [-s] <input-file> <output-file> */
     struct arg_rex *cmd1 = arg_rex1(NULL, NULL, "simplify", NULL, REG_ICASE, NULL);
     struct arg_lit *verbose1 = arg_lit0("v", "verbose", NULL);
-    struct arg_int *num_samples1 = arg_int0("s",
-        "sample-size",
-        "<sample-size>",
+    struct arg_int *num_samples1 = arg_int0("s", "sample-size", "<sample-size>",
         "Number of samples to keep in the simplified tree sequence.");
     struct arg_lit *filter_sites1
         = arg_lit0("i", "filter-invariant-sites", "<filter-invariant-sites>");
@@ -348,10 +337,8 @@ main(int argc, char **argv)
     nerrors5 = arg_parse(argc, argv, argtable5);
 
     if (nerrors1 == 0) {
-        run_simplify(infiles1->filename[0],
-            outfiles1->filename[0],
-            (size_t) num_samples1->ival[0],
-            (bool) filter_sites1->count,
+        run_simplify(infiles1->filename[0], outfiles1->filename[0],
+            (size_t) num_samples1->ival[0], (bool) filter_sites1->count,
             verbose1->count);
     } else if (nerrors2 == 0) {
         run_ld(infiles2->filename[0], verbose2->count);

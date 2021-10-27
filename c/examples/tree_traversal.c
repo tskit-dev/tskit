@@ -9,6 +9,34 @@
         errx(EXIT_FAILURE, "line %d: %s", __LINE__, tsk_strerror(val));                 \
     }
 
+
+static void
+traverse_standard(tsk_tree_t *tree)
+{
+    int ret;
+    tsk_size_t num_nodes, j;
+    tsk_id_t *nodes = malloc(tsk_tree_get_size_bound(tree) * sizeof(*nodes));
+
+    if (nodes == NULL) {
+        errx(EXIT_FAILURE, "Out of memory");
+    }
+
+    ret = tsk_tree_preorder(tree, -1, nodes, &num_nodes);
+    check_tsk_error(ret);
+    for (j = 0; j < num_nodes; j++) {
+        printf("Visit preorder %lld\n", (long long) nodes[j]);
+    }
+
+    ret = tsk_tree_postorder(tree, -1, nodes, &num_nodes);
+    check_tsk_error(ret);
+    for (j = 0; j < num_nodes; j++) {
+        printf("Visit postorder %lld\n", (long long) nodes[j]);
+    }
+
+    free(nodes);
+}
+
+
 static void
 _traverse(tsk_tree_t *tree, tsk_id_t u, int depth)
 {
@@ -27,36 +55,29 @@ _traverse(tsk_tree_t *tree, tsk_id_t u, int depth)
 static void
 traverse_recursive(tsk_tree_t *tree)
 {
-    tsk_id_t root;
-
-    for (root = tree->left_root; root != TSK_NULL; root = tree->right_sib[root]) {
-        _traverse(tree, root, 0);
-    }
+    _traverse(tree, tree->virtual_root, -1);
 }
 
 static void
 traverse_stack(tsk_tree_t *tree)
 {
     int stack_top;
-    tsk_id_t u, v, root;
-    tsk_id_t *stack
-        = malloc(tsk_treeseq_get_num_nodes(tree->tree_sequence) * sizeof(*stack));
+    tsk_id_t u, v;
+    tsk_id_t *stack = malloc(tsk_tree_get_size_bound(tree) * sizeof(*stack));
 
     if (stack == NULL) {
         errx(EXIT_FAILURE, "Out of memory");
     }
-    for (root = tree->left_root; root != TSK_NULL; root = tree->right_sib[root]) {
-        stack_top = 0;
-        stack[stack_top] = root;
-        while (stack_top >= 0) {
-            u = stack[stack_top];
-            stack_top--;
-            printf("Visit stack %lld\n", (long long) u);
-            /* Put nodes on the stack right-to-left, so we visit in left-to-right */
-            for (v = tree->right_child[u]; v != TSK_NULL; v = tree->left_sib[v]) {
-                stack_top++;
-                stack[stack_top] = v;
-            }
+    stack_top = 0;
+    stack[stack_top] = tree->virtual_root;
+    while (stack_top >= 0) {
+        u = stack[stack_top];
+        stack_top--;
+        printf("Visit stack %lld\n", (long long) u);
+        /* Put nodes on the stack right-to-left, so we visit in left-to-right */
+        for (v = tree->right_child[u]; v != TSK_NULL; v = tree->left_sib[v]) {
+            stack_top++;
+            stack[stack_top] = v;
         }
     }
     free(stack);
@@ -95,6 +116,8 @@ main(int argc, char **argv)
     check_tsk_error(ret);
     ret = tsk_tree_first(&tree);
     check_tsk_error(ret);
+
+    traverse_standard(&tree);
 
     traverse_recursive(&tree);
 

@@ -274,7 +274,7 @@ tsk_ls_hmm_remove_dead_roots(tsk_ls_hmm_t *self)
     tsk_id_t *restrict T_index = self->transition_index;
     tsk_value_transition_t *restrict T = self->transitions;
     const tsk_id_t *restrict right_sib = self->tree.right_sib;
-    const tsk_id_t left_root = self->tree.left_root;
+    const tsk_id_t left_root = tsk_tree_get_left_root(&self->tree);
     const tsk_id_t *restrict parent = self->parent;
     tsk_id_t root, u;
     tsk_size_t j;
@@ -404,6 +404,7 @@ tsk_ls_hmm_update_probabilities(
     tsk_id_t *restrict T_index = self->transition_index;
     tsk_value_transition_t *restrict T = self->transitions;
     int8_t *restrict allelic_state = self->allelic_state;
+    const tsk_id_t left_root = tsk_tree_get_left_root(tree);
     tsk_mutation_t mut;
     tsk_id_t j, u, v;
     double x;
@@ -415,7 +416,7 @@ tsk_ls_hmm_update_probabilities(
     if (ret < 0) {
         goto out;
     }
-    for (root = tree->left_root; root != TSK_NULL; root = tree->right_sib[root]) {
+    for (root = left_root; root != TSK_NULL; root = tree->right_sib[root]) {
         allelic_state[root] = (int8_t) ret;
     }
 
@@ -460,7 +461,7 @@ tsk_ls_hmm_update_probabilities(
     }
 
     /* Unset the allelic states */
-    for (root = tree->left_root; root != TSK_NULL; root = tree->right_sib[root]) {
+    for (root = left_root; root != TSK_NULL; root = tree->right_sib[root]) {
         allelic_state[root] = TSK_MISSING_DATA;
     }
     for (j = 0; j < (tsk_id_t) site->mutations_length; j++) {
@@ -819,7 +820,11 @@ tsk_ls_hmm_redistribute_transitions(tsk_ls_hmm_t *self)
     old_num_transitions = self->num_transitions;
     self->num_transitions = 0;
 
-    for (root = self->tree.left_root; root != TSK_NULL; root = right_sib[root]) {
+    /* TODO refactor this to push the virtual root onto the stack rather then
+     * iterating over the roots. See the existing parsimony implementations
+     * for an example. */
+    for (root = tsk_tree_get_left_root(&self->tree); root != TSK_NULL;
+         root = right_sib[root]) {
         stack[0].tree_node = root;
         stack[0].old_state = T_old[T_index[root]].value_index;
         stack[0].new_state

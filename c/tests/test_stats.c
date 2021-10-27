@@ -635,15 +635,15 @@ verify_branch_general_stat_identity(tsk_treeseq_t *ts)
     int ret;
     tsk_size_t num_samples = tsk_treeseq_get_num_samples(ts);
     double *W = tsk_malloc(num_samples * sizeof(double));
-    tsk_id_t *stack = tsk_malloc(tsk_treeseq_get_num_nodes(ts) * sizeof(*stack));
-    tsk_id_t root, u, v;
-    int stack_top;
+    tsk_id_t *nodes = tsk_malloc(tsk_treeseq_get_num_nodes(ts) * sizeof(*nodes));
+    tsk_id_t u;
+    tsk_size_t num_nodes;
     double s, branch_length;
     double *sigma = tsk_malloc(tsk_treeseq_get_num_trees(ts) * sizeof(*sigma));
     tsk_tree_t tree;
     tsk_size_t j;
     CU_ASSERT_FATAL(W != NULL);
-    CU_ASSERT_FATAL(stack != NULL);
+    CU_ASSERT_FATAL(nodes != NULL);
 
     for (j = 0; j < num_samples; j++) {
         W[j] = 1;
@@ -658,30 +658,21 @@ verify_branch_general_stat_identity(tsk_treeseq_t *ts)
     CU_ASSERT_EQUAL(ret, 0);
 
     for (ret = tsk_tree_first(&tree); ret == 1; ret = tsk_tree_next(&tree)) {
-        s = 0;
-        for (root = tree.left_root; root != TSK_NULL; root = tree.right_sib[root]) {
-            stack_top = 0;
-            stack[stack_top] = root;
-            while (stack_top >= 0) {
-                u = stack[stack_top];
-                stack_top--;
+        ret = tsk_tree_preorder(&tree, -1, nodes, &num_nodes);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-                for (v = tree.right_child[u]; v != TSK_NULL; v = tree.left_sib[v]) {
-                    branch_length
-                        = ts->tables->nodes.time[u] - ts->tables->nodes.time[v];
-                    /* printf("u = %d v= %d s = %d bl = %f \n", u, v,
-                     * tree.num_samples[v], */
-                    /*         branch_length); */
-                    s += branch_length * (double) tree.num_samples[v];
-                    stack_top++;
-                    stack[stack_top] = v;
-                }
-            }
+        s = 0;
+        for (j = 0; j < num_nodes; j++) {
+            u = nodes[j];
+            ret = tsk_tree_get_branch_length(&tree, u, &branch_length);
+            CU_ASSERT_EQUAL_FATAL(ret, 0);
+            s += branch_length * (double) tree.num_samples[u];
         }
         CU_ASSERT_DOUBLE_EQUAL_FATAL(sigma[tree.index], s, 1e-6);
     }
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    free(stack);
+
+    free(nodes);
     tsk_tree_free(&tree);
     free(W);
     free(sigma);
