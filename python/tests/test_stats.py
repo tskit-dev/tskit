@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2019 Tskit Developers
+# Copyright (c) 2018-2021 Tskit Developers
 # Copyright (C) 2016 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -25,7 +25,6 @@ Test cases for stats calculations in tskit.
 """
 import contextlib
 import io
-import sys
 
 import msprime
 import numpy as np
@@ -119,13 +118,13 @@ class LdArrayCalculator:
         self._check_site(target_site)
 
         distance = abs(target_site.position - self.focal_site.position)
-        if distance > self.max_distance:
+        if distance > self.max_distance or len(self.result) >= self.max_sites:
             return True
         r2 = _compute_r2(
             self.tree, self.ts.num_samples, self.focal_frequency, target_site
         )
         self.result.append(r2)
-        return len(self.result) == self.max_sites
+        return False
 
     def _compute_forward(self):
         done = False
@@ -276,18 +275,14 @@ class BaseTestLd:
     matrix.
     """
 
-    def test_r2_first_sites(self):
+    def test_r2_all_pairs(self):
         ts, A = self.ts()
         ldc = tskit.LdCalculator(ts)
-        assert ldc.r2(0, 1) == ts_r2(ts, 0, 1)
-        assert ldc.r2(0, 1) == A[0, 1]
-
-    def test_r2_first_last_sites(self):
-        ts, A = self.ts()
-        ldc = tskit.LdCalculator(ts)
-        b = ts.num_sites - 1
-        assert ldc.r2(0, b) == ts_r2(ts, 0, b)
-        assert ldc.r2(0, b) == A[0, b]
+        for j in range(ts.num_sites):
+            for k in range(ts.num_sites):
+                r2 = A[j, k]
+                assert ldc.r2(j, k) == pytest.approx(r2)
+                assert ts_r2(ts, j, k) == pytest.approx(r2)
 
     def test_r2_array_first_site_forward(self):
         ts, A = self.ts()
@@ -355,6 +350,26 @@ class BaseTestLd:
         A1 = ldc.r2_array(a, direction=-1, max_distance=3)
         A2 = ts_r2_array(ts, a, direction=-1, max_distance=3)
         np.testing.assert_array_almost_equal(A1, A2)
+
+    @pytest.mark.parametrize("max_sites", [0, 1, 2])
+    def test_r2_array_forward_max_sites_zero(self, max_sites):
+        ts, A = self.ts()
+        ldc = tskit.LdCalculator(ts)
+        site = ts.num_sites // 2
+        A1 = ldc.r2_array(site, direction=1, max_sites=max_sites)
+        assert A1.shape[0] == max_sites
+        A2 = ts_r2_array(ts, site, direction=1, max_sites=max_sites)
+        assert A2.shape[0] == max_sites
+
+    @pytest.mark.parametrize("max_sites", [0, 1, 2])
+    def test_r2_array_backward_max_sites_zero(self, max_sites):
+        ts, A = self.ts()
+        ldc = tskit.LdCalculator(ts)
+        site = ts.num_sites // 2
+        A1 = ldc.r2_array(site, direction=-1, max_sites=max_sites)
+        assert A1.shape[0] == max_sites
+        A2 = ts_r2_array(ts, site, direction=-1, max_sites=max_sites)
+        assert A2.shape[0] == max_sites
 
 
 class TestLdOneSitePerTree(BaseTestLd):
@@ -538,8 +553,6 @@ class TestLdCalculator:
         self.verify_matrix(ts)
         self.verify_max_distance(ts)
 
-    # https://github.com/tskit-dev/tskit/issues/1591
-    @pytest.mark.skipif(sys.maxsize <= 2 ** 32, reason="Skipping on 32 bit")
     def test_tree_sequence_simulated_mutations(self):
         ts = msprime.simulate(20, mutation_rate=10, recombination_rate=10)
         assert ts.get_num_trees() > 10

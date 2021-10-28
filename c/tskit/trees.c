@@ -4317,6 +4317,32 @@ tsk_tree_prev(tsk_tree_t *self)
 }
 
 int TSK_WARN_UNUSED
+tsk_tree_seek(tsk_tree_t *self, double position, tsk_flags_t TSK_UNUSED(options))
+{
+    int ret = 0;
+
+    if (position < 0
+        || position >= tsk_treeseq_get_sequence_length(self->tree_sequence)) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+
+    ret = tsk_tree_first(self);
+    if (ret < 0) {
+        goto out;
+    }
+    while (self->right <= position) {
+        ret = tsk_tree_next(self);
+        if (ret < 0) {
+            goto out;
+        }
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+int TSK_WARN_UNUSED
 tsk_tree_clear(tsk_tree_t *self)
 {
     int ret = 0;
@@ -4409,7 +4435,6 @@ tsk_tree_get_size_bound(const tsk_tree_t *self)
 }
 
 /* Traversal orders */
-
 static tsk_id_t *
 tsk_tree_alloc_node_stack(const tsk_tree_t *self)
 {
@@ -4423,7 +4448,7 @@ tsk_tree_preorder(
     int ret = 0;
     const tsk_id_t *restrict right_child = self->right_child;
     const tsk_id_t *restrict left_sib = self->left_sib;
-    tsk_id_t *restrict stack = tsk_tree_alloc_node_stack(self);
+    tsk_id_t *stack = tsk_tree_alloc_node_stack(self);
     tsk_size_t num_nodes = 0;
     tsk_id_t u, v;
     int stack_top;
@@ -4460,10 +4485,62 @@ tsk_tree_preorder(
     }
     *num_nodes_ret = num_nodes;
 out:
-    /* can't use tsk_safe_free because this is a restrict pointer */
-    if (stack != NULL) {
-        free(stack);
+    tsk_safe_free(stack);
+    return ret;
+}
+
+/* We could implement this using the preorder function, but since it's
+ * going to be performance critical we want to avoid the overhead
+ * of mallocing the intermediate node list (which will be bigger than
+ * the number of samples). */
+int
+tsk_tree_preorder_samples(
+    const tsk_tree_t *self, tsk_id_t root, tsk_id_t *nodes, tsk_size_t *num_nodes_ret)
+{
+    int ret = 0;
+    const tsk_id_t *restrict right_child = self->right_child;
+    const tsk_id_t *restrict left_sib = self->left_sib;
+    const tsk_flags_t *restrict flags = self->tree_sequence->tables->nodes.flags;
+    tsk_id_t *stack = tsk_tree_alloc_node_stack(self);
+    tsk_size_t num_nodes = 0;
+    tsk_id_t u, v;
+    int stack_top;
+
+    if (stack == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
     }
+
+    if (root == -1) {
+        stack_top = -1;
+        for (u = right_child[self->virtual_root]; u != TSK_NULL; u = left_sib[u]) {
+            stack_top++;
+            stack[stack_top] = u;
+        }
+    } else {
+        ret = tsk_tree_check_node(self, root);
+        if (ret != 0) {
+            goto out;
+        }
+        stack_top = 0;
+        stack[stack_top] = root;
+    }
+
+    while (stack_top >= 0) {
+        u = stack[stack_top];
+        stack_top--;
+        if (flags[u] & TSK_NODE_IS_SAMPLE) {
+            nodes[num_nodes] = u;
+            num_nodes++;
+        }
+        for (v = right_child[u]; v != TSK_NULL; v = left_sib[v]) {
+            stack_top++;
+            stack[stack_top] = v;
+        }
+    }
+    *num_nodes_ret = num_nodes;
+out:
+    tsk_safe_free(stack);
     return ret;
 }
 
@@ -4475,7 +4552,7 @@ tsk_tree_postorder(
     const tsk_id_t *restrict right_child = self->right_child;
     const tsk_id_t *restrict left_sib = self->left_sib;
     const tsk_id_t *restrict parent = self->parent;
-    tsk_id_t *restrict stack = tsk_tree_alloc_node_stack(self);
+    tsk_id_t *stack = tsk_tree_alloc_node_stack(self);
     tsk_size_t num_nodes = 0;
     tsk_id_t u, v, postorder_parent;
     int stack_top;
@@ -4522,10 +4599,7 @@ tsk_tree_postorder(
     }
     *num_nodes_ret = num_nodes;
 out:
-    /* can't use tsk_safe_free because this is a restrict pointer */
-    if (stack != NULL) {
-        free(stack);
-    }
+    tsk_safe_free(stack);
     return ret;
 }
 

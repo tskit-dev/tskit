@@ -112,7 +112,6 @@ verify_ld(tsk_treeseq_t *ts)
         } else {
             CU_ASSERT_EQUAL_FATAL(ret, 0);
             CU_ASSERT_EQUAL_FATAL(num_r2_values, num_sites - 1);
-            tsk_ld_calc_print_state(&ld_calc, _devnull);
             for (j = 0; j < (tsk_id_t) num_r2_values; j++) {
                 CU_ASSERT_EQUAL_FATAL(r2[j], r2_prime[j]);
                 ret = tsk_ld_calc_get_r2(&ld_calc, 0, j + 1, &x);
@@ -140,7 +139,6 @@ verify_ld(tsk_treeseq_t *ts)
             CU_ASSERT_EQUAL_FATAL(ret, 0);
             CU_ASSERT_EQUAL_FATAL(num_r2_values, 1);
         }
-        tsk_ld_calc_print_state(&ld_calc, _devnull);
 
         ret = tsk_ld_calc_get_r2_array(&ld_calc, (tsk_id_t) num_sites - 1,
             TSK_DIR_REVERSE, num_sites, DBL_MAX, r2_prime, &num_r2_values);
@@ -194,11 +192,11 @@ verify_ld(tsk_treeseq_t *ts)
     for (j = (tsk_id_t) num_sites; j < (tsk_id_t) num_sites + 2; j++) {
         ret = tsk_ld_calc_get_r2_array(
             &ld_calc, j, TSK_DIR_FORWARD, num_sites, DBL_MAX, r2, &num_r2_values);
-        CU_ASSERT_EQUAL(ret, TSK_ERR_OUT_OF_BOUNDS);
+        CU_ASSERT_EQUAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
         ret = tsk_ld_calc_get_r2(&ld_calc, j, 0, r2);
-        CU_ASSERT_EQUAL(ret, TSK_ERR_OUT_OF_BOUNDS);
+        CU_ASSERT_EQUAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
         ret = tsk_ld_calc_get_r2(&ld_calc, 0, j, r2);
-        CU_ASSERT_EQUAL(ret, TSK_ERR_OUT_OF_BOUNDS);
+        CU_ASSERT_EQUAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
     }
 
     tsk_ld_calc_free(&ld_calc);

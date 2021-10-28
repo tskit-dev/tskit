@@ -81,7 +81,12 @@ class LdCalculator:
 
     def get_r2_array(self, a, direction=1, max_mutations=None, max_distance=None):
         # Deprecated alias for r2_array
-        return self.r2_array(a, direction, max_mutations, max_distance)
+        return self.r2_array(
+            a,
+            direction=direction,
+            max_mutations=max_mutations,
+            max_distance=max_distance,
+        )
 
     def r2_array(
         self, a, direction=1, max_mutations=None, max_distance=None, max_sites=None
