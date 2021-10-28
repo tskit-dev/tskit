@@ -83,7 +83,9 @@ class LdCalculator:
         # Deprecated alias for r2_array
         return self.r2_array(a, direction, max_mutations, max_distance)
 
-    def r2_array(self, a, direction=1, max_mutations=None, max_distance=None):
+    def r2_array(
+        self, a, direction=1, max_mutations=None, max_distance=None, max_sites=None
+    ):
         """
         Returns the value of the :math:`r^2` statistic between the focal
         mutation at index :math:`a` and a set of other mutations. The method
@@ -124,6 +126,10 @@ class LdCalculator:
             ``get_r2_array()`` for later processing you **must** take a
             copy of the array!
         """
+        if max_mutations is not None and max_sites is not None:
+            raise ValueError("max_mutations is a deprecated synonym for max_sites")
+        if max_sites is not None:
+            max_mutations = max_sites
         if max_mutations is None:
             max_mutations = -1
         if max_distance is None:
