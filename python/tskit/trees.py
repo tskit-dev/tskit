@@ -6660,7 +6660,7 @@ class TreeSequence:
         all ``j > len(S) / 2``, so that alleles at frequency ``j`` and ``len(S) - j``
         both add to the same entry. If there is more than one sample set, the
         returned array is "lower triangular" in a similar way. For more details,
-        especially about handling of multiallelic sites, see :ref:`sec_stats_afs`.
+        especially about handling of multiallelic sites, see :ref:`sec_stats_notes_afs`.
 
         What is computed depends on ``mode``:
 
