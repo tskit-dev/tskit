@@ -4003,6 +4003,21 @@ class TestTableCollectionAssertEquals:
         t1.assert_equals(t2, ignore_provenance=True)
         t1.assert_equals(t2, ignore_timestamps=True)
 
+    def test_ignore_tables(self, t1, t2):
+        t2.individuals.truncate(0)
+        t2.nodes.truncate(0)
+        t2.edges.truncate(0)
+        t2.migrations.truncate(0)
+        t2.sites.truncate(0)
+        t2.mutations.truncate(0)
+        t2.populations.truncate(0)
+        with pytest.raises(
+            AssertionError,
+            match="EdgeTable number of rows differ: self=390 other=0",
+        ):
+            t1.assert_equals(t2)
+        t1.assert_equals(t2, ignore_tables=True)
+
 
 class TestTableCollectionMethodSignatures:
     tc = msprime.simulate(10, random_seed=1234).dump_tables()

@@ -279,6 +279,41 @@ test_table_collection_equals_options(void)
 
     tsk_table_collection_free(&tc1);
     tsk_table_collection_free(&tc2);
+
+    // Ignore tables
+    ret = tsk_table_collection_init(&tc1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_init(&tc2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_set_metadata(
+        &tc1, example_metadata, example_metadata_length);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_table_collection_set_metadata(
+        &tc2, example_metadata, example_metadata_length);
+    CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
+    // Add one row for each table we're ignoring
+    ret_id
+        = tsk_individual_table_add_row(&tc1.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
+    CU_ASSERT(ret_id >= 0);
+    ret_id = tsk_node_table_add_row(&tc1.nodes, TSK_NODE_IS_SAMPLE, 0.0, 0, 0, NULL, 0);
+    CU_ASSERT(ret_id >= 0);
+    ret_id = tsk_edge_table_add_row(&tc1.edges, 0.0, 1.0, 1, 0, NULL, 0);
+    CU_ASSERT(ret_id >= 0);
+    ret_id = tsk_migration_table_add_row(&tc1.migrations, 0, 0, 0, 0, 0, 0, NULL, 0);
+    CU_ASSERT(ret_id >= 0);
+    ret_id = tsk_site_table_add_row(&tc1.sites, 0.2, "A", 1, NULL, 0);
+    CU_ASSERT(ret_id >= 0);
+    ret_id = tsk_mutation_table_add_row(
+        &tc1.mutations, 0, 0, TSK_NULL, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
+    CU_ASSERT(ret_id >= 0);
+    ret_id = tsk_population_table_add_row(&tc1.populations, NULL, 0);
+    CU_ASSERT(ret_id >= 0);
+    CU_ASSERT_FALSE(tsk_table_collection_equals(&tc1, &tc2, 0));
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, TSK_CMP_IGNORE_TABLES));
+
+    tsk_table_collection_free(&tc1);
+    tsk_table_collection_free(&tc2);
 }
 
 static void

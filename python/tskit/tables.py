@@ -2747,6 +2747,7 @@ class TableCollection:
         ignore_ts_metadata=False,
         ignore_provenance=False,
         ignore_timestamps=False,
+        ignore_tables=False,
     ):
         """
         Returns True if  `self` and `other` are equal. By default, two table
@@ -2775,6 +2776,8 @@ class TableCollection:
         :param bool ignore_timestamps: If True the provenance timestamp column
             is ignored in the comparison. If ``ignore_provenance`` is True, this
             parameter has no effect.
+        :param bool ignore_tables: If True no tables are included in the
+            comparison, thus comparing only the top-level information.
         :return: True if other is equal to this table collection; False otherwise.
         :rtype: bool
         """
@@ -2787,6 +2790,7 @@ class TableCollection:
                     ignore_ts_metadata=bool(ignore_ts_metadata),
                     ignore_provenance=bool(ignore_provenance),
                     ignore_timestamps=bool(ignore_timestamps),
+                    ignore_tables=bool(ignore_tables),
                 )
             )
         return ret
@@ -2799,6 +2803,7 @@ class TableCollection:
         ignore_ts_metadata=False,
         ignore_provenance=False,
         ignore_timestamps=False,
+        ignore_tables=False,
     ):
         """
         Raise an AssertionError for the first found difference between
@@ -2816,6 +2821,8 @@ class TableCollection:
         :param bool ignore_timestamps: If True the provenance timestamp column
             is ignored in the comparison. If ``ignore_provenance`` is True, this
             parameter has no effect.
+        :param bool ignore_tables: If True no tables are included in the
+            comparison, thus comparing only the top-level information.
         """
         if type(other) is not type(self):
             raise AssertionError(f"Types differ: self={type(self)} other={type(other)}")
@@ -2827,6 +2834,7 @@ class TableCollection:
             ignore_ts_metadata=ignore_ts_metadata,
             ignore_provenance=ignore_provenance,
             ignore_timestamps=ignore_timestamps,
+            ignore_tables=ignore_tables,
         ):
             return
 
@@ -2876,10 +2884,10 @@ class TableCollection:
         return self.asdict()
 
     @classmethod
-    def load(cls, file_or_path):
+    def load(cls, file_or_path, *, skip_tables=False):
         file, local_file = util.convert_file_like_to_open_file(file_or_path, "rb")
         ll_tc = _tskit.TableCollection(1)
-        ll_tc.load(file)
+        ll_tc.load(file, skip_tables=skip_tables)
         tc = TableCollection(1)
         tc._ll_tables = ll_tc
         return tc

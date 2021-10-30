@@ -97,6 +97,11 @@
 - Add the ``discrete_time`` property to the TreeSequence class which is true if
   all time coordinates are discrete or unknown (:user:`benjeffery`, :issue:`1839`, :pr:`1890`)
 
+- Add the ``skip_tables`` option to ``load`` to support only loading
+  top-level information from a file. Also add the ``ignore_tables`` option to
+  to the ``TableCollection.equals`` and ``TableCollection.assert_equals`` to
+  compare only top-level information. (:user:`clwgg`, :pr:`1882`, :issue:`1854`).
+
 **Fixes**
 
 - `dump_tables` omitted individual parents. (:user:`benjeffery`, :issue:`1828`, :pr:`1884`)

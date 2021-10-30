@@ -6887,15 +6887,16 @@ TableCollection_equals(TableCollection *self, PyObject *args, PyObject *kwds)
     int ignore_ts_metadata = false;
     int ignore_provenance = false;
     int ignore_timestamps = true;
+    int ignore_tables = false;
     static char *kwlist[] = { "other", "ignore_metadata", "ignore_ts_metadata",
-        "ignore_provenance", "ignore_timestamps", NULL };
+        "ignore_provenance", "ignore_timestamps", "ignore_tables", NULL };
 
     if (TableCollection_check_state(self)) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|iiii", kwlist, &TableCollectionType,
-            &other, &ignore_metadata, &ignore_ts_metadata, &ignore_provenance,
-            &ignore_timestamps)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|iiiii", kwlist,
+            &TableCollectionType, &other, &ignore_metadata, &ignore_ts_metadata,
+            &ignore_provenance, &ignore_timestamps, &ignore_tables)) {
         goto out;
     }
     if (ignore_metadata) {
@@ -6909,6 +6910,9 @@ TableCollection_equals(TableCollection *self, PyObject *args, PyObject *kwds)
     }
     if (ignore_timestamps) {
         options |= TSK_CMP_IGNORE_TIMESTAMPS;
+    }
+    if (ignore_tables) {
+        options |= TSK_CMP_IGNORE_TABLES;
     }
     if (TableCollection_check_state(other) != 0) {
         goto out;
@@ -6999,10 +7003,16 @@ TableCollection_load(TableCollection *self, PyObject *args, PyObject *kwds)
     PyObject *ret = NULL;
     PyObject *py_file;
     FILE *file = NULL;
-    static char *kwlist[] = { "file", NULL };
+    tsk_flags_t options = 0;
+    int skip_tables = false;
+    static char *kwlist[] = { "file", "skip_tables", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &py_file)) {
+    if (!PyArg_ParseTupleAndKeywords(
+            args, kwds, "O|i", kwlist, &py_file, &skip_tables)) {
         goto out;
+    }
+    if (skip_tables) {
+        options |= TSK_LOAD_SKIP_TABLES;
     }
     file = make_file(py_file, "rb");
     if (file == NULL) {
@@ -7021,7 +7031,7 @@ TableCollection_load(TableCollection *self, PyObject *args, PyObject *kwds)
     if (err != 0) {
         goto out;
     }
-    err = tsk_table_collection_loadf(self->tables, file, 0);
+    err = tsk_table_collection_loadf(self->tables, file, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -7383,10 +7393,16 @@ TreeSequence_load(TreeSequence *self, PyObject *args, PyObject *kwds)
     PyObject *ret = NULL;
     PyObject *py_file;
     FILE *file = NULL;
-    static char *kwlist[] = { "file", NULL };
+    tsk_flags_t options = 0;
+    int skip_tables = false;
+    static char *kwlist[] = { "file", "skip_tables", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &py_file)) {
+    if (!PyArg_ParseTupleAndKeywords(
+            args, kwds, "O|i", kwlist, &py_file, &skip_tables)) {
         goto out;
+    }
+    if (skip_tables) {
+        options |= TSK_LOAD_SKIP_TABLES;
     }
     file = make_file(py_file, "rb");
     if (file == NULL) {
@@ -7405,7 +7421,7 @@ TreeSequence_load(TreeSequence *self, PyObject *args, PyObject *kwds)
     if (err != 0) {
         goto out;
     }
-    err = tsk_treeseq_loadf(self->tree_sequence, file, 0);
+    err = tsk_treeseq_loadf(self->tree_sequence, file, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;

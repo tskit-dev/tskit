@@ -2301,6 +2301,23 @@ class TestTreeSequence(HighLevelTestCase):
         assert t1.equals(t2)
         assert t2.equals(t1)
 
+        # Empty out tables to test ignore_tables flag
+        tc = t2.dump_tables()
+        tc.individuals.truncate(0)
+        tc.nodes.truncate(0)
+        tc.edges.truncate(0)
+        tc.migrations.truncate(0)
+        tc.sites.truncate(0)
+        tc.mutations.truncate(0)
+        tc.populations.truncate(0)
+        t2 = tc.tree_sequence()
+        assert not t1.equals(t2)
+        assert t1.equals(t2, ignore_tables=True)
+        # Make t1 and t2 equal again
+        t2 = t1.dump_tables().tree_sequence()
+        assert t1.equals(t2)
+        assert t2.equals(t1)
+
     def test_tree_node_edges(self):
         for ts in get_example_tree_sequences():
             edge_visited = np.zeros(ts.num_edges, dtype=bool)

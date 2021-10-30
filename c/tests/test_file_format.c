@@ -1213,6 +1213,76 @@ test_copy_store_drop_columns(void)
     free(ts);
 }
 
+static void
+test_skip_tables(void)
+{
+    int ret;
+    tsk_treeseq_t *ts1 = caterpillar_tree(5, 3, 3);
+    tsk_treeseq_t ts2;
+    tsk_table_collection_t t1, t2;
+    FILE *f;
+
+    ret = tsk_treeseq_dump(ts1, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_load(&t1, _tmp_file_name, TSK_LOAD_SKIP_TABLES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, ts1->tables, TSK_CMP_IGNORE_TABLES));
+    CU_ASSERT_EQUAL(t1.individuals.num_rows, 0);
+    CU_ASSERT_EQUAL(t1.nodes.num_rows, 0);
+    CU_ASSERT_EQUAL(t1.edges.num_rows, 0);
+    CU_ASSERT_EQUAL(t1.migrations.num_rows, 0);
+    CU_ASSERT_EQUAL(t1.sites.num_rows, 0);
+    CU_ASSERT_EQUAL(t1.mutations.num_rows, 0);
+    CU_ASSERT_EQUAL(t1.provenances.num_rows, 0);
+
+    /* Test _loadf code path as well */
+    f = fopen(_tmp_file_name, "r+");
+    ret = tsk_table_collection_loadf(&t2, f, TSK_LOAD_SKIP_TABLES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2, 0));
+    fclose(f);
+    tsk_table_collection_free(&t2);
+
+    /* Without TSK_LOAD_SKIP_TABLES we reach end of file */
+    f = fopen(_tmp_file_name, "r+");
+    ret = tsk_table_collection_loadf(&t2, f, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(fgetc(f), EOF);
+    fclose(f);
+    tsk_table_collection_free(&t2);
+
+    /* Setting TSK_LOAD_SKIP_TABLES only reads part of the file */
+    f = fopen(_tmp_file_name, "r+");
+    ret = tsk_table_collection_loadf(&t2, f, TSK_LOAD_SKIP_TABLES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_NOT_EQUAL(fgetc(f), EOF);
+    fclose(f);
+    tsk_table_collection_free(&t2);
+
+    /* We should be able to make a tree sequence */
+    ret = tsk_treeseq_init(&ts2, &t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts2);
+
+    /* Do the same thing with treeseq API */
+    ret = tsk_treeseq_load(&ts2, _tmp_file_name, TSK_LOAD_SKIP_TABLES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, ts2.tables, 0));
+    tsk_treeseq_free(&ts2);
+
+    f = fopen(_tmp_file_name, "r+");
+    ret = tsk_treeseq_loadf(&ts2, f, TSK_LOAD_SKIP_TABLES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, ts2.tables, 0));
+    fclose(f);
+    tsk_treeseq_free(&ts2);
+
+    tsk_table_collection_free(&t1);
+    tsk_treeseq_free(ts1);
+    free(ts1);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1235,6 +1305,7 @@ main(int argc, char **argv)
         { "test_example_round_trip", test_example_round_trip },
         { "test_multiple_round_trip", test_multiple_round_trip },
         { "test_copy_store_drop_columns", test_copy_store_drop_columns },
+        { "test_skip_tables", test_skip_tables },
         { NULL, NULL },
     };
 
