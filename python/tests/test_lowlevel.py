@@ -2551,6 +2551,16 @@ class TestTree(LowLevelTestCase):
         with pytest.raises(_tskit.LibraryError):
             tree.set_root_threshold(2)
 
+    def test_seek_errors(self):
+        ts = self.get_example_tree_sequence()
+        tree = _tskit.Tree(ts)
+        for bad_type in ["", "x", {}]:
+            with pytest.raises(TypeError):
+                tree.seek(bad_type)
+        for bad_pos in [-1, 1e6]:
+            with pytest.raises(_tskit.LibraryError):
+                tree.seek(bad_pos)
+
     def test_root_threshold(self):
         for ts in self.get_example_tree_sequences():
             tree = _tskit.Tree(ts)

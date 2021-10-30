@@ -848,12 +848,7 @@ class Tree:
         """
         if position < 0 or position >= self.tree_sequence.sequence_length:
             raise ValueError("Position out of bounds")
-        # This should be implemented in C efficiently using the indexes.
-        # No point in complicating the current implementation by trying
-        # to seek from the correct direction.
-        self.first()
-        while self.interval.right <= position:
-            self.next()
+        self._ll_tree.seek(position)
 
     def rank(self):
         """

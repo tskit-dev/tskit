@@ -3249,28 +3249,6 @@ class TestTree(HighLevelTestCase):
         tree.next()
         assert tree.index == -1
 
-    def test_seek(self):
-        L = 10
-        ts = msprime.simulate(10, recombination_rate=3, length=L, random_seed=42)
-        assert ts.num_trees > 5
-        same_tree = tskit.Tree(ts)
-        for tree in [same_tree, tskit.Tree(ts)]:
-            for j in range(L):
-                tree.seek(j)
-                index = tree.index
-                assert tree.interval.left <= j < tree.interval.right
-                tree.seek(tree.interval.left)
-                assert tree.index == index
-                if tree.interval.right < L:
-                    tree.seek(tree.interval.right)
-                    assert tree.index == index + 1
-            for j in reversed(range(L)):
-                tree.seek(j)
-                assert tree.interval.left <= j < tree.interval.right
-        for bad_position in [-1, L, L + 1, -L]:
-            with pytest.raises(ValueError):
-                tree.seek(bad_position)
-
     def test_interval(self):
         ts = msprime.simulate(10, recombination_rate=1, random_seed=1)
         assert ts.num_trees > 1
@@ -3626,6 +3604,76 @@ class TestNodeOrdering(HighLevelTestCase):
         assert found
         for _ in range(self.num_random_permutations):
             self.verify_random_permutation(ts)
+
+
+class TestSeek:
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_new_seek_breakpoints(self, ts):
+        breakpoints = ts.breakpoints(as_array=True)
+        for index, left in enumerate(breakpoints[:-1]):
+            tree = tskit.Tree(ts)
+            tree.seek(left)
+            assert tree.index == index
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_new_seek_mid(self, ts):
+        breakpoints = ts.breakpoints(as_array=True)
+        mid = breakpoints[:-1] + np.diff(breakpoints) / 2
+        for index, left in enumerate(mid[:-1]):
+            tree = tskit.Tree(ts)
+            tree.seek(left)
+            assert tree.index == index
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_same_seek_breakpoints(self, ts):
+        breakpoints = ts.breakpoints(as_array=True)
+        tree = tskit.Tree(ts)
+        for index, left in enumerate(breakpoints[:-1]):
+            tree.seek(left)
+            assert tree.index == index
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_new_seek_breakpoints_reversed(self, ts):
+        breakpoints = ts.breakpoints(as_array=True)
+        for index, left in reversed(list(enumerate(breakpoints[:-1]))):
+            tree = tskit.Tree(ts)
+            tree.seek(left)
+            assert tree.index == index
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_same_seek_breakpoints_reversed(self, ts):
+        breakpoints = ts.breakpoints(as_array=True)
+        tree = tskit.Tree(ts)
+        for index, left in reversed(list(enumerate(breakpoints[:-1]))):
+            tree.seek(left)
+            assert tree.index == index
+
+    def test_example(self):
+        L = 10
+        ts = msprime.simulate(10, recombination_rate=3, length=L, random_seed=42)
+        assert ts.num_trees > 5
+        same_tree = tskit.Tree(ts)
+        for j in range(L):
+            for tree in [same_tree, tskit.Tree(ts)]:
+                tree.seek(j)
+                index = tree.index
+                assert tree.interval.left <= j < tree.interval.right
+                tree.seek(tree.interval.left)
+                assert tree.index == index
+                if tree.interval.right < L:
+                    tree.seek(tree.interval.right)
+                    assert tree.index == index + 1
+        for j in reversed(range(L)):
+            for tree in [same_tree, tskit.Tree(ts)]:
+                tree.seek(j)
+                assert tree.interval.left <= j < tree.interval.right
+
+    def test_errors(self, ts_fixture):
+        L = ts_fixture.sequence_length
+        tree = tskit.Tree(ts_fixture)
+        for bad_position in [-1, L, L + 1, -L]:
+            with pytest.raises(ValueError):
+                tree.seek(bad_position)
 
 
 class SimpleContainersMixin:

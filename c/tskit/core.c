@@ -216,6 +216,9 @@ tsk_strerror_internal(int err)
         case TSK_ERR_GENOME_COORDS_NONFINITE:
             ret = "Genome coordinates must be finite numbers";
             break;
+        case TSK_ERR_SEEK_OUT_OF_BOUNDS:
+            ret = "Tree seek position out of bounds";
+            break;
 
         /* Edge errors */
         case TSK_ERR_NULL_PARENT:

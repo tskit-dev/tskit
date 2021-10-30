@@ -4320,21 +4320,33 @@ int TSK_WARN_UNUSED
 tsk_tree_seek(tsk_tree_t *self, double position, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
+    double midpoint, distance;
 
     if (position < 0
         || position >= tsk_treeseq_get_sequence_length(self->tree_sequence)) {
-        ret = TSK_ERR_BAD_PARAM_VALUE;
+        ret = TSK_ERR_SEEK_OUT_OF_BOUNDS;
         goto out;
     }
+    /* TODO: This isn't quite right, we should be seeking in the direction
+     * of the minimum distance, treating the coordinate space as circular.
+     * For example, if we're currently positioned at the last tree this
+     * will seek to the first backwards */
+    midpoint = self->left + (self->right - self->left) / 2;
+    distance = position - midpoint;
 
-    ret = tsk_tree_first(self);
-    if (ret < 0) {
-        goto out;
-    }
-    while (self->right <= position) {
-        ret = tsk_tree_next(self);
-        if (ret < 0) {
-            goto out;
+    if (distance >= 0) {
+        while (self->right <= position) {
+            ret = tsk_tree_next(self);
+            if (ret < 0) {
+                goto out;
+            }
+        }
+    } else {
+        while (self->left > position) {
+            ret = tsk_tree_prev(self);
+            if (ret < 0) {
+                goto out;
+            }
         }
     }
     ret = 0;
@@ -4511,7 +4523,11 @@ tsk_tree_preorder_samples(
         goto out;
     }
 
-    if (root == -1) {
+    /* We could push the virtual_root onto the stack directly to simplify
+     * the code a little, but then we'd have to check put an extra check
+     * when looking up the flags array (which isn't defined for virtual_root).
+     */
+    if (root == -1 || root == self->virtual_root) {
         stack_top = -1;
         for (u = right_child[self->virtual_root]; u != TSK_NULL; u = left_sib[u]) {
             stack_top++;

@@ -261,6 +261,7 @@ An unsupported type was provided for a column in the file.
 #define TSK_ERR_PROVENANCE_OUT_OF_BOUNDS                            -209
 #define TSK_ERR_TIME_NONFINITE                                      -210
 #define TSK_ERR_GENOME_COORDS_NONFINITE                             -211
+#define TSK_ERR_SEEK_OUT_OF_BOUNDS                                  -212
 
 /* Edge errors */
 #define TSK_ERR_NULL_PARENT                                         -300
