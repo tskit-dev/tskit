@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019 Tskit Developers
+ * Copyright (c) 2019-2021 Tskit Developers
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -162,30 +162,6 @@ verify_ld(tsk_treeseq_t *ts)
         ret = tsk_ld_calc_get_r2_array(
             &ld_calc, 0, 0, num_sites, DBL_MAX, r2, &num_r2_values);
         CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    }
-
-    if (num_sites > 3) {
-        /* Check for some basic distance calculations */
-        j = (tsk_id_t) num_sites / 2;
-        x = sites[j + 1].position - sites[j].position;
-        ret = tsk_ld_calc_get_r2_array(
-            &ld_calc, j, TSK_DIR_FORWARD, num_sites, x, r2, &num_r2_values);
-        if (multi_mutations_exist(ts, j, (tsk_id_t) num_sites)) {
-            CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_ONLY_INFINITE_SITES);
-        } else {
-            CU_ASSERT_EQUAL_FATAL(ret, 0);
-            CU_ASSERT_EQUAL_FATAL(num_r2_values, 1);
-        }
-
-        x = sites[j].position - sites[j - 1].position;
-        ret = tsk_ld_calc_get_r2_array(
-            &ld_calc, j, TSK_DIR_REVERSE, num_sites, x, r2, &num_r2_values);
-        if (multi_mutations_exist(ts, 0, j + 1)) {
-            CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_ONLY_INFINITE_SITES);
-        } else {
-            CU_ASSERT_EQUAL_FATAL(ret, 0);
-            CU_ASSERT_EQUAL_FATAL(num_r2_values, 1);
-        }
     }
 
     /* Check some error conditions */
@@ -1001,10 +977,30 @@ static void
 test_paper_ex_ld(void)
 {
     tsk_treeseq_t ts;
+    tsk_ld_calc_t ld_calc;
+    double r2[3];
+    tsk_size_t num_r2_values;
+    int ret;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_ld(&ts);
+
+    /* Check early exit corner cases */
+    ret = tsk_ld_calc_init(&ld_calc, &ts);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_ld_calc_get_r2_array(
+        &ld_calc, 0, TSK_DIR_FORWARD, 1, DBL_MAX, r2, &num_r2_values);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(num_r2_values, 1);
+
+    ret = tsk_ld_calc_get_r2_array(
+        &ld_calc, 2, TSK_DIR_REVERSE, 1, DBL_MAX, r2, &num_r2_values);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(num_r2_values, 1);
+
+    tsk_ld_calc_free(&ld_calc);
     tsk_treeseq_free(&ts);
 }
 
@@ -1657,6 +1653,34 @@ test_nonbinary_ex_general_stat_errors(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_caterpillar_tree_ld(void)
+{
+    tsk_treeseq_t *ts = caterpillar_tree(50, 20, 1);
+    tsk_ld_calc_t ld_calc;
+    double r2[20];
+    tsk_size_t num_r2_values;
+    int ret = tsk_ld_calc_init(&ld_calc, ts);
+
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    verify_ld(ts);
+
+    ret = tsk_ld_calc_get_r2_array(
+        &ld_calc, 0, TSK_DIR_FORWARD, 5, DBL_MAX, r2, &num_r2_values);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(num_r2_values, 5);
+
+    ret = tsk_ld_calc_get_r2_array(
+        &ld_calc, 10, TSK_DIR_REVERSE, 5, DBL_MAX, r2, &num_r2_values);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(num_r2_values, 5);
+
+    tsk_ld_calc_free(&ld_calc);
+    tsk_treeseq_free(ts);
+    free(ts);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1724,6 +1748,8 @@ main(int argc, char **argv)
         { "test_nonbinary_ex_general_stat", test_nonbinary_ex_general_stat },
         { "test_nonbinary_ex_general_stat_errors",
             test_nonbinary_ex_general_stat_errors },
+
+        { "test_caterpillar_tree_ld", test_caterpillar_tree_ld },
 
         { NULL, NULL },
     };

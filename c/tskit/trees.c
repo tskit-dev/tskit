@@ -3360,6 +3360,8 @@ tsk_tree_set_tracked_samples(
     tsk_tree_t *self, tsk_size_t num_tracked_samples, const tsk_id_t *tracked_samples)
 {
     int ret = TSK_ERR_GENERIC;
+    tsk_size_t *tree_num_tracked_samples = self->num_tracked_samples;
+    const tsk_id_t *parent = self->parent;
     tsk_size_t j;
     tsk_id_t u;
 
@@ -3387,11 +3389,56 @@ tsk_tree_set_tracked_samples(
         }
         /* Propagate this upwards */
         while (u != TSK_NULL) {
-            self->num_tracked_samples[u] += 1;
-            u = self->parent[u];
+            tree_num_tracked_samples[u]++;
+            u = parent[u];
         }
     }
 out:
+    return ret;
+}
+
+int TSK_WARN_UNUSED
+tsk_tree_track_descendant_samples(tsk_tree_t *self, tsk_id_t node)
+{
+    int ret = 0;
+    tsk_id_t *nodes = tsk_malloc(tsk_tree_get_size_bound(self) * sizeof(*nodes));
+    const tsk_id_t *restrict parent = self->parent;
+    const tsk_id_t *restrict left_child = self->left_child;
+    const tsk_id_t *restrict right_sib = self->right_sib;
+    const tsk_flags_t *restrict flags = self->tree_sequence->tables->nodes.flags;
+    tsk_size_t *num_tracked_samples = self->num_tracked_samples;
+    tsk_size_t n, j, num_nodes;
+    tsk_id_t u, v;
+
+    if (nodes == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    ret = tsk_tree_postorder(self, node, nodes, &num_nodes);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_tree_reset_tracked_samples(self);
+    if (ret != 0) {
+        goto out;
+    }
+    u = 0; /* keep the compiler happy */
+    for (j = 0; j < num_nodes; j++) {
+        u = nodes[j];
+        for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
+            num_tracked_samples[u] += num_tracked_samples[v];
+        }
+        num_tracked_samples[u] += flags[u] & TSK_NODE_IS_SAMPLE ? 1 : 0;
+    }
+    n = num_tracked_samples[u];
+    u = parent[u];
+    while (u != TSK_NULL) {
+        num_tracked_samples[u] = n;
+        u = parent[u];
+    }
+    num_tracked_samples[self->virtual_root] = n;
+out:
+    tsk_safe_free(nodes);
     return ret;
 }
 
@@ -4378,6 +4425,7 @@ tsk_tree_clear(tsk_tree_t *self)
     const tsk_size_t num_samples = self->tree_sequence->num_samples;
     const bool sample_counts = !(self->options & TSK_NO_SAMPLE_COUNTS);
     const bool sample_lists = !!(self->options & TSK_SAMPLE_LISTS);
+    const tsk_flags_t *flags = self->tree_sequence->tables->nodes.flags;
 
     self->left = 0;
     self->right = 0;
@@ -4399,7 +4447,7 @@ tsk_tree_clear(tsk_tree_t *self)
          * know where the tracked samples are.
          */
         for (j = 0; j < self->num_nodes; j++) {
-            if (!tsk_treeseq_is_sample(self->tree_sequence, (tsk_id_t) j)) {
+            if (!(flags[j] & TSK_NODE_IS_SAMPLE)) {
                 self->num_tracked_samples[j] = 0;
             }
         }

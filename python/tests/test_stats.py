@@ -516,7 +516,7 @@ class TestLdCalculator:
         self.verify_matrix(ts)
         self.verify_max_distance(ts)
 
-    def test_deprecated_aliases(self):
+    def test_deprecated_get_aliases(self):
         ts = msprime.simulate(20, mutation_rate=10, random_seed=15)
         ts = tsutil.subsample_sites(ts, self.num_test_sites)
         ldc = tskit.LdCalculator(ts)
@@ -527,6 +527,12 @@ class TestLdCalculator:
         b = ldc.r2_array(0)
         assert np.array_equal(a, b)
         assert ldc.get_r2(0, 1) == ldc.r2(0, 1)
+
+    def test_deprecated_max_mutations_alias(self):
+        ts = msprime.simulate(2, mutation_rate=0.1, random_seed=15)
+        ldc = tskit.LdCalculator(ts)
+        with pytest.raises(ValueError, match="deprecated synonym"):
+            ldc.r2_array(0, max_sites=1, max_mutations=1)
 
     def test_single_tree_regular_mutations(self):
         ts = msprime.simulate(self.num_test_sites, length=self.num_test_sites)

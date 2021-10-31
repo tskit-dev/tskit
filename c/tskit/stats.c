@@ -84,18 +84,13 @@ static int
 tsk_ld_calc_set_focal_samples(tsk_ld_calc_t *self)
 {
     int ret = 0;
-    tsk_size_t num_samples;
     tsk_id_t focal_node = self->focal_site.mutations[0].node;
 
-    ret = tsk_tree_preorder_samples(
-        &self->tree, focal_node, self->sample_buffer, &num_samples);
+    ret = tsk_tree_track_descendant_samples(&self->tree, focal_node);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_tree_set_tracked_samples(&self->tree, num_samples, self->sample_buffer);
-    /* Any errors must be a bug as all values are already checked */
-    tsk_bug_assert(ret == 0);
-    self->focal_samples = num_samples;
+    self->focal_samples = self->tree.num_tracked_samples[focal_node];
 out:
     return ret;
 }

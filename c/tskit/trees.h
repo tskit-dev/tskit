@@ -479,6 +479,8 @@ tsk_id_t tsk_tree_get_left_root(const tsk_tree_t *self);
 tsk_id_t tsk_tree_get_right_root(const tsk_tree_t *self);
 
 int tsk_tree_copy(const tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options);
+
+int tsk_tree_track_descendant_samples(tsk_tree_t *self, tsk_id_t node);
 int tsk_tree_set_tracked_samples(
     tsk_tree_t *self, tsk_size_t num_tracked_samples, const tsk_id_t *tracked_samples);
 int tsk_tree_set_tracked_samples_from_sample_list(
