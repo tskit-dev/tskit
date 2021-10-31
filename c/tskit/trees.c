@@ -3395,6 +3395,7 @@ out:
     return ret;
 }
 
+/* TODO REMOVE ME */
 int TSK_WARN_UNUSED
 tsk_tree_set_tracked_samples_from_sample_list(
     tsk_tree_t *self, tsk_tree_t *other, tsk_id_t node)
@@ -4316,33 +4317,46 @@ tsk_tree_prev(tsk_tree_t *self)
     return ret;
 }
 
+static inline bool
+tsk_tree_position_in_interval(const tsk_tree_t *self, double x)
+{
+    return self->left <= x && x < self->right;
+}
+
 int TSK_WARN_UNUSED
-tsk_tree_seek(tsk_tree_t *self, double position, tsk_flags_t TSK_UNUSED(options))
+tsk_tree_seek(tsk_tree_t *self, double x, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
-    double midpoint, distance;
+    const double L = tsk_treeseq_get_sequence_length(self->tree_sequence);
+    const double t_l = self->left;
+    const double t_r = self->right;
+    double distance_left, distance_right;
 
-    if (position < 0
-        || position >= tsk_treeseq_get_sequence_length(self->tree_sequence)) {
+    if (x < 0 || x >= L) {
         ret = TSK_ERR_SEEK_OUT_OF_BOUNDS;
         goto out;
     }
-    /* TODO: This isn't quite right, we should be seeking in the direction
-     * of the minimum distance, treating the coordinate space as circular.
-     * For example, if we're currently positioned at the last tree this
-     * will seek to the first backwards */
-    midpoint = self->left + (self->right - self->left) / 2;
-    distance = position - midpoint;
 
-    if (distance >= 0) {
-        while (self->right <= position) {
+    if (x < t_l) {
+        /* |-----|-----|========|---------| */
+        /* 0     x    t_l      t_r        L */
+        distance_left = t_l - x;
+        distance_right = L - t_r + x;
+    } else {
+        /* |------|========|------|-------| */
+        /* 0     t_l      t_r     x       L */
+        distance_right = x - t_r;
+        distance_left = t_l + L - x;
+    }
+    if (distance_right <= distance_left) {
+        while (!tsk_tree_position_in_interval(self, x)) {
             ret = tsk_tree_next(self);
             if (ret < 0) {
                 goto out;
             }
         }
     } else {
-        while (self->left > position) {
+        while (!tsk_tree_position_in_interval(self, x)) {
             ret = tsk_tree_prev(self);
             if (ret < 0) {
                 goto out;

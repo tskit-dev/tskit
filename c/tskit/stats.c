@@ -34,7 +34,6 @@ void
 tsk_ld_calc_print_state(const tsk_ld_calc_t *self, FILE *out)
 {
     fprintf(out, "tree = %p\n", (const void *) &self->tree);
-    fprintf(out, "direction = %d\n", self->direction);
     fprintf(out, "max_sites = %d\n", (int) self->max_sites);
     fprintf(out, "max_distance = %f\n", self->max_distance);
 }
@@ -51,6 +50,11 @@ tsk_ld_calc_init(tsk_ld_calc_t *self, const tsk_treeseq_t *tree_sequence)
     }
     self->tree_sequence = tree_sequence;
     self->total_samples = tsk_treeseq_get_num_samples(self->tree_sequence);
+
+    self->sample_buffer = tsk_malloc(self->total_samples * sizeof(*self->sample_buffer));
+    if (self->sample_buffer == NULL) {
+        goto out;
+    }
 out:
     return ret;
 }
@@ -59,6 +63,7 @@ int
 tsk_ld_calc_free(tsk_ld_calc_t *self)
 {
     tsk_tree_free(&self->tree);
+    tsk_safe_free(self->sample_buffer);
     return 0;
 }
 
@@ -81,23 +86,17 @@ tsk_ld_calc_set_focal_samples(tsk_ld_calc_t *self)
     int ret = 0;
     tsk_size_t num_samples;
     tsk_id_t focal_node = self->focal_site.mutations[0].node;
-    tsk_id_t *samples = tsk_malloc(self->total_samples * sizeof(*samples));
 
-    if (samples == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
-        goto out;
-    }
-    ret = tsk_tree_preorder_samples(&self->tree, focal_node, samples, &num_samples);
+    ret = tsk_tree_preorder_samples(
+        &self->tree, focal_node, self->sample_buffer, &num_samples);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_tree_set_tracked_samples(&self->tree, num_samples, samples);
-    if (ret != 0) {
-        goto out;
-    }
+    ret = tsk_tree_set_tracked_samples(&self->tree, num_samples, self->sample_buffer);
+    /* Any errors must be a bug as all values are already checked */
+    tsk_bug_assert(ret == 0);
     self->focal_samples = num_samples;
 out:
-    tsk_safe_free(samples);
     return ret;
 }
 

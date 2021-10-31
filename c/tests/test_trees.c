@@ -5601,8 +5601,8 @@ test_seek_multi_tree(void)
     tsk_treeseq_t ts;
     tsk_tree_t t;
     double breakpoints[] = { 0, 2, 7, 10 };
-    tsk_size_t num_trees = 3;
-    tsk_size_t j, k;
+    tsk_id_t num_trees = 3;
+    tsk_id_t j, k;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, NULL, NULL,
         paper_ex_individuals, NULL, 0);

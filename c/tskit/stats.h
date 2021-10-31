@@ -37,10 +37,10 @@ typedef struct {
     tsk_site_t focal_site;
     tsk_size_t total_samples;
     tsk_size_t focal_samples;
-    int direction;
     double max_distance;
     tsk_size_t max_sites;
     tsk_tree_t tree;
+    tsk_id_t *sample_buffer;
     double *result;
     tsk_size_t result_length;
 } tsk_ld_calc_t;

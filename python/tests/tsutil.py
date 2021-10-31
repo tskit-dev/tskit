@@ -1866,3 +1866,31 @@ def metadata_map(tables):
         for j, x in enumerate(getattr(tables, t)):
             out[t][x.metadata] = j
     return out
+
+
+@functools.lru_cache(maxsize=None)
+def all_trees_ts(n):
+    """
+    Generate a tree sequence that corresponds to the lexicographic listing
+    of all trees with n leaves (i.e. from tskit.all_trees(n)).
+
+    Note: it would be nice to include a version of this in the combinatorics
+    module at some point but the implementation is quite inefficient. Also
+    it's not entirely clear that the way we're allocating node times is
+    guaranteed to work.
+    """
+    tables = tskit.TableCollection(0)
+    for _ in range(n):
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+    for j in range(1, n):
+        tables.nodes.add_row(flags=0, time=j)
+
+    L = 0
+    for tree in tskit.all_trees(n):
+        for u in tree.preorder()[1:]:
+            tables.edges.add_row(L, L + 1, tree.parent(u), u)
+        L += 1
+    tables.sequence_length = L
+    tables.sort()
+    tables.simplify()
+    return tables.tree_sequence()
