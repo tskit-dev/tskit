@@ -557,10 +557,6 @@ class TopologyExamplesMixin:
     actual tests.
     """
 
-    def test_single_tree(self):
-        ts = msprime.simulate(6, random_seed=1)
-        self.verify(ts)
-
     def test_single_tree_sequence_length(self):
         ts = msprime.simulate(6, length=10, random_seed=1)
         self.verify(ts)
@@ -575,10 +571,10 @@ class TopologyExamplesMixin:
         assert ts.num_trees > 2
         self.verify(ts)
 
-    def test_many_trees_sequence_length(self):
-        for L in [0.5, 3.3333]:
-            ts = msprime.simulate(6, length=L, recombination_rate=2, random_seed=1)
-            self.verify(ts)
+    def test_short_sequence_length(self):
+        ts = msprime.simulate(6, length=0.5, recombination_rate=2, random_seed=1)
+        assert ts.num_trees > 2
+        self.verify(ts)
 
     def test_wright_fisher_unsimplified(self):
         tables = wf.wf_sim(
