@@ -133,7 +133,7 @@ commands:
           name: Run Python tests
           command: |
             cd python
-            python -m pytest --cov=tskit  --cov-report=xml --cov-branch -n2 tests
+            python -m pytest --cov=tskit  --cov-report=xml --cov-branch -n2 tests/test_lowlevel.py tests/test_tables.py
 
       - run:
           name: Upload Python coverage
@@ -142,9 +142,8 @@ commands:
             rm -fR build-gcc
             cd python
             gcov -pb -o ./build/temp.linux*/*.gcno _tskitmodule.c
-            bash <(curl -s https://codecov.io/bash) -f coverage.xml -F python-tests
-            rm -f coverage.xml
             bash <(curl -s https://codecov.io/bash) -X gcov -F python-c-tests
+
       - run:
           name: Build Python package
           command: |

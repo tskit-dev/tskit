@@ -118,7 +118,18 @@ jobs:
         run: |
           source ~/.profile
           conda activate anaconda-client-env
-          pytest -xv -n2
+          # pytest -xv -n2
+          python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 tests
+
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v2
+        with:
+          working-directory: python
+          fail_ci_if_error: true
+          flags: python-tests
+          name: codecov-umbrella
+          verbose: true
 
   msys2:
     runs-on: windows-latest
