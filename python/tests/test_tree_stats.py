@@ -43,6 +43,25 @@ import tskit.exceptions as exceptions
 np.random.seed(5)
 
 
+def cached_np(func):
+    """
+    Decorator to speed up functions that take numpy arrays as positional
+    arguments that get called a lot with the same arguments.
+
+    # See https://github.com/tskit-dev/tskit/issues/1856 for more info
+    """
+    cache = {}
+
+    def f(*args):
+        nonlocal cache
+        key = tuple(x.tobytes() for x in args)
+        if key not in cache:
+            cache[key] = func(*args)
+        return cache[key]
+
+    return f
+
+
 def subset_combos(*args, p=0.5, min_tests=3):
     # We have too many tests, combinatorially; so we will run a random subset
     # of them, using this function, below. If we don't set a seed, a different
@@ -4183,11 +4202,13 @@ class TestGeneralNodeStats(StatsTestCase):
 ##############################
 
 
+@cached_np
 def covsq(x, y):
     cov = np.dot(x - np.mean(x), y - np.mean(y)) / (len(x) - 1)
     return cov * cov
 
 
+@cached_np
 def corsq(x, y):
     vx = covsq(x, x)
     vy = covsq(y, y)
@@ -4632,6 +4653,7 @@ class TestSiteTraitCorrelation(
 _lm_cache = {}
 
 
+@cached_np
 def linear_model(y, x, z):
     key = (y.tobytes(), x.tobytes(), z.tobytes())
     if key not in _lm_cache:
