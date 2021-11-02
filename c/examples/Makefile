@@ -20,19 +20,15 @@
 CFLAGS=-I../ -I../subprojects/kastore
 TSKIT_SOURCE=../tskit/*.c ../subprojects/kastore/kastore.c
 
-all: tree_iteration haploid_wright_fisher tree_traversal streaming
+targets = api_structure error_handling \
+	haploid_wright_fisher streaming \
+	tree_iteration tree_traversal
 
-tree_iteration: tree_iteration.c
-	${CC} ${CFLAGS} -o $@ $< ${TSKIT_SOURCE} -lm
+all: $(targets)
 
-tree_traversal: tree_traversal.c
-	${CC} ${CFLAGS} -o $@ $< ${TSKIT_SOURCE} -lm
-
-streaming: streaming.c
-	${CC} ${CFLAGS} -o $@ $< ${TSKIT_SOURCE} -lm
-
-haploid_wright_fisher: haploid_wright_fisher.c
+$(targets): %: %.c
 	${CC} ${CFLAGS} -o $@ $< ${TSKIT_SOURCE} -lm
 
 clean:
-	rm -f haploid_wright_fisher tree_iteration
+	rm -f $(targets)
+
