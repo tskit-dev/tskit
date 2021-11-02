@@ -4622,8 +4622,24 @@ class TestSiteTraitCorrelation(
 # Trait linear_model
 ##############################
 
+# Quick hack to speed up the tests a bit. We're running this linear_model
+# function a gazillion times with similar arguments, so it's worth
+# caching the results. We could use functools.lru_cache, but the arguments
+# are numpy arrays and so we have to do something different. This
+# reduces runtime from ~40 seconds to ~7 seconds on the
+# TestNodeTraitLinearModel.
+# See https://github.com/tskit-dev/tskit/issues/1856 for more info
+_lm_cache = {}
+
 
 def linear_model(y, x, z):
+    key = (y.tobytes(), x.tobytes(), z.tobytes())
+    if key not in _lm_cache:
+        _lm_cache[key] = _linear_model(y, x, z)
+    return _lm_cache[key]
+
+
+def _linear_model(y, x, z):
     """
     Returns the squared coefficient of x in the least-squares linear model
     :   y ~ x + z
