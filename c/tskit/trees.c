@@ -3314,7 +3314,7 @@ tsk_tree_reset_tracked_samples(tsk_tree_t *self)
         goto out;
     }
     tsk_memset(self->num_tracked_samples, 0,
-        self->num_nodes * sizeof(*self->num_tracked_samples));
+        (self->num_nodes + 1) * sizeof(*self->num_tracked_samples));
 out:
     return ret;
 }
@@ -3367,6 +3367,7 @@ tsk_tree_set_tracked_samples_from_sample_list(
     tsk_id_t u, stop, index;
     const tsk_id_t *next = other->next_sample;
     const tsk_id_t *samples = other->tree_sequence->samples;
+    tsk_size_t num_tracked_samples = 0;
 
     if (!tsk_tree_has_sample_lists(other)) {
         ret = TSK_ERR_UNSUPPORTED_OPERATION;
@@ -3385,6 +3386,7 @@ tsk_tree_set_tracked_samples_from_sample_list(
         stop = other->right_sample[node];
         while (true) {
             u = samples[index];
+            num_tracked_samples++;
             tsk_bug_assert(self->num_tracked_samples[u] == 0);
             /* Propagate this upwards */
             while (u != TSK_NULL) {
@@ -3397,6 +3399,7 @@ tsk_tree_set_tracked_samples_from_sample_list(
             index = next[index];
         }
     }
+    self->num_tracked_samples[self->virtual_root] = num_tracked_samples;
 out:
     return ret;
 }
@@ -4293,7 +4296,7 @@ tsk_tree_clear(tsk_tree_t *self)
                 self->num_tracked_samples[j] = 0;
             }
         }
-        self->num_tracked_samples[self->virtual_root] = 0;
+        /* The total tracked_samples gets set in set_tracked_samples */
         self->num_samples[self->virtual_root] = num_samples;
     }
     if (sample_lists) {

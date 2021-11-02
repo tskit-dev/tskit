@@ -1464,39 +1464,32 @@ class TestTreeSequence(HighLevelTestCase):
             # Check we have valid times
             tables.tree_sequence()
 
-    def verify_tracked_samples(self, ts):
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_tracked_samples(self, ts):
         # Should be empty list by default.
         for tree in ts.trees():
-            assert tree.get_num_tracked_samples() == 0
+            assert tree.num_tracked_samples() == 0
             for u in tree.nodes():
-                assert tree.get_num_tracked_samples(u) == 0
+                assert tree.num_tracked_samples(u) == 0
         samples = list(ts.samples())
         tracked_samples = samples[:2]
         for tree in ts.trees(tracked_samples=tracked_samples):
-            if len(tree.parent_dict) == 0:
-                # This is a crude way of checking if we have multiple roots.
-                # We'll need to fix this code up properly when we support multiple
-                # roots and remove this check
-                break
-            nu = [0 for j in range(ts.get_num_nodes())]
-            assert tree.get_num_tracked_samples() == len(tracked_samples)
+            nu = [0 for j in range(ts.num_nodes)]
+            assert tree.num_tracked_samples() == len(tracked_samples)
             for j in tracked_samples:
                 u = j
                 while u != tskit.NULL:
                     nu[u] += 1
-                    u = tree.get_parent(u)
+                    u = tree.parent(u)
             for u, count in enumerate(nu):
-                assert tree.get_num_tracked_samples(u) == count
-
-    def test_tracked_samples(self):
-        for ts in get_example_tree_sequences():
-            self.verify_tracked_samples(ts)
+                assert tree.num_tracked_samples(u) == count
+            assert tree.num_tracked_samples(tree.virtual_root) == len(tracked_samples)
 
     def test_tracked_samples_is_first_arg(self):
-        for ts in get_example_tree_sequences():
-            samples = list(ts.samples())[:2]
-            for a, b in zip(ts.trees(samples), ts.trees(tracked_samples=samples)):
-                assert a.get_num_tracked_samples() == b.get_num_tracked_samples()
+        ts = tskit.Tree.generate_balanced(6).tree_sequence
+        samples = [0, 1, 2]
+        tree = next(ts.trees(samples))
+        assert tree.num_tracked_samples() == 3
 
     def test_deprecated_sample_aliases(self):
         for ts in get_example_tree_sequences():
