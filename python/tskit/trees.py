@@ -5977,7 +5977,7 @@ class TreeSequence:
         # the corresponding dimension from the output.
         drop_dimension = False
         try:
-            sample_sets = np.array(sample_sets, dtype=np.int32)
+            sample_sets = np.array(sample_sets, dtype=np.uint64)
         except ValueError:
             pass
         else:
