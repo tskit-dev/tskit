@@ -268,15 +268,20 @@ def raise_hdf5_format_error(filename, original_exception):
     Tries to open the specified file as a legacy HDF5 file. If it looks like
     an msprime format HDF5 file, raise an error advising to run tskit upgrade.
     """
-    h5py = get_h5py()
+    hdf_magic = b"\211HDF\r\n\032\n"
     try:
-        with h5py.File(filename, "r") as root:
-            version = tuple(root.attrs["format_version"])
-            raise exceptions.VersionTooOldError(
-                "File format {} is too old. Please use the ``tskit upgrade`` command "
-                "to upgrade this file to the latest version".format(version)
-            )
-    except (OSError, KeyError):
+        with open(filename, "rb") as f:
+            if f.read(len(hdf_magic)) == hdf_magic:
+                raise exceptions.FileFormatError(
+                    "This HDF File cannot be read. Either format is too old, or the file"
+                    " corrupt. Try the ``tskit upgrade`` command "
+                    "to upgrade this file to the latest version"
+                )
+            else:
+                raise exceptions.FileFormatError(
+                    str(original_exception)
+                ) from original_exception
+    except OSError:
         # We want to keep a useful error message here as well as the chaining history.
         raise exceptions.FileFormatError(
             str(original_exception)
