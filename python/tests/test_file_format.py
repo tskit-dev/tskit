@@ -262,7 +262,11 @@ class TestLoadLegacyExamples(TestFileFormat):
         ]
         for filename in files:
             path = os.path.join(test_data_dir, "hdf5-formats", filename)
-            with pytest.raises(exceptions.VersionTooOldError):
+            with pytest.raises(
+                exceptions.FileFormatError,
+                match="This HDF File cannot be read. Either format is"
+                " too old, or the file corrupt.",
+            ):
                 tskit.load(path)
 
     def test_msprime_v_0_5_0(self):
@@ -497,19 +501,16 @@ class TestErrors(TestFileFormat):
 
     def test_no_h5py(self):
         ts = msprime.simulate(10)
+        path = os.path.join(test_data_dir, "hdf5-formats", "msprime-0.3.0_v2.0.hdf5")
         msg = (
             "Legacy formats require h5py. Install via `pip install h5py` or"
             " `conda install h5py`"
         )
-        with h5py.File(self.temp_file, "w") as root:
-            root["x"] = np.zeros(10)
         with mock.patch.dict(sys.modules, {"h5py": None}):
             with pytest.raises(ImportError, match=msg):
-                tskit.load(self.temp_file)
+                tskit.load_legacy(path)
             with pytest.raises(ImportError, match=msg):
-                tskit.load_legacy(self.temp_file)
-            with pytest.raises(ImportError, match=msg):
-                tskit.dump_legacy(ts, self.temp_file)
+                tskit.dump_legacy(ts, path)
 
 
 class TestDumpFormat(TestFileFormat):
