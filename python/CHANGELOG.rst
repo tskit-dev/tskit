@@ -80,6 +80,10 @@
 - Add the ``discrete_genome`` property to the TreeSequence class which is true if
   all coordinates are discrete (:user:`jeromekelleher`, :issue:`1144`, :pr:`1819`)
 
+**Fixes**
+
+- `dump_tables` omitted individual parents. (:user:`benjeffery`, :issue:`1828`, :pr:`1884`)
+
 --------------------
 [0.3.7] - 2021-07-08
 --------------------
