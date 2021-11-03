@@ -2650,6 +2650,31 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
             assert str(mutation.parent) == splits[4]
             assert tests.base64_encode(mutation.metadata) == splits[5]
 
+    def verify_individuals_format(self, ts, individuals_file, precision):
+        """
+        Verifies that the individuals we output have the correct form.
+        """
+
+        def convert(v):
+            return "{:.{}f}".format(v, precision)
+
+        output_individuals = individuals_file.read().splitlines()
+        assert len(output_individuals) - 1 == ts.num_individuals
+        assert list(output_individuals[0].split()) == [
+            "id",
+            "flags",
+            "location",
+            "parents",
+            "metadata",
+        ]
+        for individual, line in zip(ts.individuals(), output_individuals[1:]):
+            splits = line.split("\t")
+            assert str(individual.id) == splits[0]
+            assert str(individual.flags) == splits[1]
+            assert ",".join(map(str, individual.location)) == splits[2]
+            assert ",".join(map(str, individual.parents)) == splits[3]
+            assert tests.base64_encode(individual.metadata) == splits[4]
+
     def test_output_format(self):
         for ts in get_example_tree_sequences():
             for precision in [2, 7]:
@@ -2657,21 +2682,25 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
                 edges_file = io.StringIO()
                 sites_file = io.StringIO()
                 mutations_file = io.StringIO()
+                individuals_file = io.StringIO()
                 ts.dump_text(
                     nodes=nodes_file,
                     edges=edges_file,
                     sites=sites_file,
                     mutations=mutations_file,
+                    individuals=individuals_file,
                     precision=precision,
                 )
                 nodes_file.seek(0)
                 edges_file.seek(0)
                 sites_file.seek(0)
                 mutations_file.seek(0)
+                individuals_file.seek(0)
                 self.verify_nodes_format(ts, nodes_file, precision)
                 self.verify_edges_format(ts, edges_file, precision)
                 self.verify_sites_format(ts, sites_file, precision)
                 self.verify_mutations_format(ts, mutations_file, precision)
+                self.verify_individuals_format(ts, individuals_file, precision)
 
     def verify_approximate_equality(self, ts1, ts2):
         """

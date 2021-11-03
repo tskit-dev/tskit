@@ -3731,16 +3731,28 @@ class TreeSequence:
                     print(row, file=mutations)
 
         if individuals is not None:
-            print("id", "flags", "location", "metadata", sep="\t", file=individuals)
+            print(
+                "id",
+                "flags",
+                "location",
+                "parents",
+                "metadata",
+                sep="\t",
+                file=individuals,
+            )
             for individual in self.individuals():
                 metadata = individual.metadata
                 if base64_metadata:
                     metadata = base64.b64encode(metadata).decode(encoding)
                 location = ",".join(map(str, individual.location))
-                row = ("{id}\t" "{flags}\t" "{location}\t" "{metadata}").format(
+                parents = ",".join(map(str, individual.parents))
+                row = (
+                    "{id}\t" "{flags}\t" "{location}\t" "{parents}\t" "{metadata}"
+                ).format(
                     id=individual.id,
                     flags=individual.flags,
                     location=location,
+                    parents=parents,
                     metadata=metadata,
                 )
                 print(row, file=individuals)
