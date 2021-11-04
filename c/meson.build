@@ -86,16 +86,9 @@ if not meson.is_subproject()
     test('minimal_cpp', test_minimal_cpp)
 
     if get_option('build_examples')
-      # These example programs and the dev-cli use less portable features,
+      # These example programs use less portable features,
       # and we don't want to always compile them. Use, e.g.,
       # meson build -Dbuild_examples=false
-
-      # The development CLI. Don't use extra C args because argtable code won't pass
-      executable('dev-cli',
-          sources: ['dev-tools/dev-cli.c', 'dev-tools/argtable3.c'],
-          link_with: [tskit_lib], c_args:['-Dlint'], dependencies: kastore_dep)
-
-      # Example programs.
       executable('api_structure',
           sources: ['examples/api_structure.c'], 
           link_with: [tskit_lib], dependencies: lib_deps)
