@@ -9954,24 +9954,27 @@ static PyObject *
 Tree_get_newick(Tree *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
-    static char *kwlist[] = { "root", "precision", "buffer_size", NULL };
+    static char *kwlist[]
+        = { "root", "precision", "buffer_size", "legacy_ms_labels", NULL };
     int precision = 14;
     /* We have a default bufsize for convenience, but the high-level code
      * should set this by computing an upper bound. */
     Py_ssize_t buffer_size = 1024;
     int root, err;
     char *buffer = NULL;
+    int legacy_ms_labels = false;
+    tsk_flags_t options = 0;
 
     if (Tree_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(
-            args, kwds, "i|in", kwlist, &root, &precision, &buffer_size)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "i|ini", kwlist, &root, &precision,
+            &buffer_size, &legacy_ms_labels)) {
         goto out;
     }
-    if (precision < 0 || precision > 16) {
+    if (precision < 0 || precision > 17) {
         PyErr_SetString(
-            PyExc_ValueError, "Precision must be between 0 and 16, inclusive");
+            PyExc_ValueError, "Precision must be between 0 and 17, inclusive");
         goto out;
     }
     if (buffer_size <= 0) {
@@ -9982,13 +9985,16 @@ Tree_get_newick(Tree *self, PyObject *args, PyObject *kwds)
     if (buffer == NULL) {
         PyErr_NoMemory();
     }
+    if (legacy_ms_labels) {
+        options |= TSK_NEWICK_LEGACY_MS_LABELS;
+    }
     err = tsk_convert_newick(
-        self->tree, (tsk_id_t) root, precision, 0, (size_t) buffer_size, buffer);
+        self->tree, (tsk_id_t) root, precision, options, (size_t) buffer_size, buffer);
     if (err != 0) {
         handle_library_error(err);
         goto out;
     }
-    ret = PyBytes_FromString(buffer);
+    ret = PyUnicode_FromString(buffer);
 out:
     if (buffer != NULL) {
         PyMem_Free(buffer);

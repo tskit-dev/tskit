@@ -43,10 +43,10 @@ def bp_sankoff_score(tree, genotypes, cost_matrix):
     Returns the sankoff score matrix computed by BioPython.
     """
     ts = tree.tree_sequence
-    bp_tree = Bio.Phylo.read(io.StringIO(tree.newick()), "newick")
+    bp_tree = Bio.Phylo.read(io.StringIO(tree.as_newick()), "newick")
     records = [
-        Bio.SeqRecord.SeqRecord(Bio.Seq.Seq(str(genotypes[j])), id=str(j + 1))
-        for j in range(ts.num_samples)
+        Bio.SeqRecord.SeqRecord(Bio.Seq.Seq(str(genotypes[j])), id=f"n{u}")
+        for j, u in enumerate(ts.samples())
     ]
     alignment = Bio.Align.MultipleSeqAlignment(records)
     lower_triangular = []
@@ -64,10 +64,10 @@ def bp_fitch_score(tree, genotypes):
     Returns the Fitch parsimony score computed by BioPython.
     """
     ts = tree.tree_sequence
-    bp_tree = Bio.Phylo.read(io.StringIO(tree.newick()), "newick")
+    bp_tree = Bio.Phylo.read(io.StringIO(tree.as_newick()), "newick")
     records = [
-        Bio.SeqRecord.SeqRecord(Bio.Seq.Seq(str(genotypes[j])), id=str(j + 1))
-        for j in range(ts.num_samples)
+        Bio.SeqRecord.SeqRecord(Bio.Seq.Seq(str(genotypes[j])), id=f"n{u}")
+        for j, u in enumerate(ts.samples())
     ]
     alignment = Bio.Align.MultipleSeqAlignment(records)
     ps = Bio.Phylo.TreeConstruction.ParsimonyScorer()

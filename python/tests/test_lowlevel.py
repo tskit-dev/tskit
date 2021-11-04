@@ -2725,42 +2725,25 @@ class TestTree(LowLevelTestCase):
                 assert st.get_mrca(u, v) == _tskit.NULL
 
     def test_newick_precision(self):
-        def get_times(tree):
-            """
-            Returns the time strings from the specified newick tree.
-            """
-            ret = []
-            current_time = None
-            for c in tree:
-                if c == ":":
-                    current_time = ""
-                elif c in [",", ")"]:
-                    ret.append(current_time)
-                    current_time = None
-                elif current_time is not None:
-                    current_time += c
-            return ret
-
         ts = self.get_example_tree_sequence()
         st = _tskit.Tree(ts)
-        while st.next():
-            with pytest.raises(ValueError):
-                st.get_newick(root=0, precision=-1)
-            with pytest.raises(ValueError):
-                st.get_newick(root=0, precision=17)
-            with pytest.raises(ValueError):
-                st.get_newick(root=0, precision=100)
-            for precision in range(17):
-                root = st.get_left_child(st.get_virtual_root())
-                tree = st.get_newick(root=root, precision=precision).decode()
-                times = get_times(tree)
-                assert len(times) > ts.get_num_samples()
-                for t in times:
-                    if precision == 0:
-                        assert "." not in t
-                    else:
-                        point = t.find(".")
-                        assert precision == len(t) - point - 1
+        assert st.next()
+        with pytest.raises(ValueError):
+            st.get_newick(root=0, precision=-1)
+        with pytest.raises(ValueError):
+            st.get_newick(root=0, precision=18)
+        with pytest.raises(ValueError):
+            st.get_newick(root=0, precision=100)
+
+    def test_newick_legacy_ms(self):
+        ts = self.get_example_tree_sequence()
+        st = _tskit.Tree(ts)
+        assert st.next()
+        root = st.get_left_child(st.get_virtual_root())
+        ns = st.get_newick(root)
+        assert "n0" in ns
+        assert ns == st.get_newick(root, legacy_ms_labels=False)
+        assert ns != st.get_newick(root, legacy_ms_labels=True)
 
     def test_cleared_tree(self):
         ts = self.get_example_tree_sequence()
@@ -2789,20 +2772,30 @@ class TestTree(LowLevelTestCase):
         ts = self.get_example_tree_sequence()
         st = _tskit.Tree(ts)
         # TODO this will break when we correctly handle multiple roots.
-        assert st.get_newick(0) == b"1;"
+        assert st.get_newick(0) == "n0;"
         for bad_type in [None, "", [], {}]:
             with pytest.raises(TypeError):
-                st.get_newick(precision=bad_type)
+                st.get_newick(0, precision=bad_type)
             with pytest.raises(TypeError):
-                st.get_newick(ts, buffer_size=bad_type)
-        while st.next():
-            u = st.get_left_child(st.get_virtual_root())
-            newick = st.get_newick(u)
-            assert newick.endswith(b";")
-            with pytest.raises(ValueError):
-                st.get_newick(u, buffer_size=-1)
-            with pytest.raises(_tskit.LibraryError):
-                st.get_newick(u, buffer_size=1)
+                st.get_newick(0, buffer_size=bad_type)
+            with pytest.raises(TypeError):
+                st.get_newick(0, legacy_ms_labels=bad_type)
+
+    def test_newick_buffer_size(self):
+        ts = self.get_example_tree_sequence()
+        st = _tskit.Tree(ts)
+        assert st.next
+        u = st.get_left_child(st.get_virtual_root())
+        newick = st.get_newick(u)
+        assert newick.endswith(";")
+        with pytest.raises(ValueError):
+            st.get_newick(u, buffer_size=-1)
+        with pytest.raises(_tskit.LibraryError):
+            st.get_newick(u, buffer_size=1)
+        newick2 = st.get_newick(u, len(newick))
+        assert newick2 == newick
+        with pytest.raises(_tskit.LibraryError):
+            st.get_newick(u, buffer_size=len(newick) - 1)
 
     def test_index(self):
         for ts in self.get_example_tree_sequences():

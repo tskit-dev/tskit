@@ -45,19 +45,30 @@ test_single_tree_newick(void)
     ret = tsk_tree_first(&t);
     CU_ASSERT_EQUAL_FATAL(ret, 1)
 
-    ret = tsk_convert_newick(&t, 0, 0, 0, buffer_size, newick);
+    ret = tsk_convert_newick(&t, 0, 0, TSK_NEWICK_LEGACY_MS_LABELS, buffer_size, newick);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     /* Seems odd, but this is what a single node newick tree looks like.
      * Newick parsers seems to accept it in any case */
     CU_ASSERT_STRING_EQUAL(newick, "1;");
 
-    ret = tsk_convert_newick(&t, 4, 0, 0, buffer_size, newick);
+    ret = tsk_convert_newick(&t, 0, 0, 0, buffer_size, newick);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_STRING_EQUAL(newick, "n0;");
+
+    ret = tsk_convert_newick(&t, 4, 0, TSK_NEWICK_LEGACY_MS_LABELS, buffer_size, newick);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_STRING_EQUAL(newick, "(1:1,2:1);");
+    ret = tsk_convert_newick(&t, 4, 0, 0, buffer_size, newick);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_STRING_EQUAL(newick, "(n0:1,n1:1);");
+
+    ret = tsk_convert_newick(&t, 6, 0, TSK_NEWICK_LEGACY_MS_LABELS, buffer_size, newick);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_STRING_EQUAL(newick, "((1:1,2:1):2,(3:2,4:2):1);");
 
     ret = tsk_convert_newick(&t, 6, 0, 0, buffer_size, newick);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_STRING_EQUAL(newick, "((1:1,2:1):2,(3:2,4:2):1);");
+    CU_ASSERT_STRING_EQUAL(newick, "((n0:1,n1:1):2,(n2:2,n3:2):1);");
 
     tsk_tree_free(&t);
     tsk_treeseq_free(&ts);
@@ -95,7 +106,8 @@ test_single_tree_newick_errors(void)
         ret = tsk_convert_newick(&t, 6, 0, 0, j, newick);
         CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BUFFER_OVERFLOW);
     }
-    ret = tsk_convert_newick(&t, 6, 0, 0, len, newick);
+    ret = tsk_convert_newick(&t, 6, 0, TSK_NEWICK_LEGACY_MS_LABELS, len, newick);
+
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_STRING_EQUAL(newick, "((1:1,2:1):2,(3:2,4:2):1);");
 

@@ -87,3 +87,69 @@ def parse_fam(fam_file):
     tc.sort()
 
     return tb
+
+
+def write_nexus(ts, out, *, precision=None):
+    # See TreeSequence.write_nexus for documentation on parameters.
+    if precision is None:
+        pos_precision = 0 if ts.discrete_genome else 17
+        time_precision = None
+    else:
+        pos_precision = precision
+        time_precision = precision
+
+    indent = "  "
+    print("#NEXUS", file=out)
+    print("BEGIN TAXA;", file=out)
+    print("", f"DIMENSIONS NTAX={ts.num_samples};", sep=indent, file=out)
+    taxlabels = " ".join(f"n{u}" for u in ts.samples())
+    print("", f"TAXLABELS {taxlabels};", sep=indent, file=out)
+    print("END;", file=out)
+
+    # TODO add a DATA section here to output the alignments
+
+    print("BEGIN TREES;", file=out)
+    for tree in ts.trees():
+        start_interval = "{0:.{1}f}".format(tree.interval.left, pos_precision)
+        end_interval = "{0:.{1}f}".format(tree.interval.right, pos_precision)
+        tree_label = f"t{start_interval}^{end_interval}"
+        newick = tree.as_newick(precision=time_precision)
+        print("", f"TREE {tree_label} = [&R] {newick}", sep=indent, file=out)
+    print("END;", file=out)
+
+
+def _build_newick(tree, *, node, precision, node_labels, include_branch_lengths):
+    label = node_labels.get(node, "")
+    if tree.is_leaf(node):
+        s = f"{label}"
+    else:
+        s = "("
+        for child in tree.children(node):
+            branch_length = tree.branch_length(child)
+            subtree = _build_newick(
+                tree,
+                node=child,
+                precision=precision,
+                node_labels=node_labels,
+                include_branch_lengths=include_branch_lengths,
+            )
+            if include_branch_lengths:
+                subtree += ":{0:.{1}f}".format(branch_length, precision)
+            s += subtree + ","
+        s = s[:-1] + f"){label}"
+    return s
+
+
+def build_newick(tree, *, root, precision, node_labels, include_branch_lengths):
+    """
+    Simple recursive version of the newick generator used when non-default
+    node labels are needed, or when branch lengths are omitted
+    """
+    s = _build_newick(
+        tree,
+        node=root,
+        precision=precision,
+        node_labels=node_labels,
+        include_branch_lengths=include_branch_lengths,
+    )
+    return s + ";"
