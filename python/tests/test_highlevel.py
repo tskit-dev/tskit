@@ -1270,6 +1270,19 @@ class TestTreeSequence(HighLevelTestCase):
         )
         assert ts.discrete_genome == discrete_genome
 
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_discrete_time(self, ts):
+        def is_discrete(a):
+            return np.all(np.logical_or(np.floor(a) == a, tskit.is_unknown_time(a)))
+
+        tables = ts.tables
+        discrete_time = (
+            is_discrete(tables.nodes.time)
+            and is_discrete(tables.mutations.time)
+            and is_discrete(tables.migrations.time)
+        )
+        assert ts.discrete_time == discrete_time
+
     def test_trees(self):
         for ts in get_example_tree_sequences():
             self.verify_trees(ts)

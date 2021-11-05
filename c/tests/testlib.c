@@ -494,6 +494,63 @@ parse_edges(const char *text, tsk_edge_table_t *edge_table)
 }
 
 void
+parse_migrations(const char *text, tsk_migration_table_t *migration_table)
+{
+    tsk_id_t ret_id;
+    size_t c, k;
+    size_t MAX_LINE = 1024;
+    char line[MAX_LINE];
+    const char *whitespace = " \t";
+    char *p;
+    double left, right, time;
+    int node, source, dest;
+    char *metadata;
+
+    c = 0;
+    while (text[c] != '\0') {
+        /* Fill in the line */
+        k = 0;
+        while (text[c] != '\n' && text[c] != '\0') {
+            CU_ASSERT_FATAL(k < MAX_LINE - 1);
+            line[k] = text[c];
+            c++;
+            k++;
+        }
+        if (text[c] == '\n') {
+            c++;
+        }
+        line[k] = '\0';
+        p = strtok(line, whitespace);
+        CU_ASSERT_FATAL(p != NULL);
+        left = atof(p);
+        p = strtok(NULL, whitespace);
+        CU_ASSERT_FATAL(p != NULL);
+        right = atof(p);
+        p = strtok(NULL, whitespace);
+        CU_ASSERT_FATAL(p != NULL);
+        node = atoi(p);
+        p = strtok(NULL, whitespace);
+        CU_ASSERT_FATAL(p != NULL);
+        source = atoi(p);
+        p = strtok(NULL, whitespace);
+        CU_ASSERT_FATAL(p != NULL);
+        dest = atoi(p);
+        p = strtok(NULL, whitespace);
+        CU_ASSERT_FATAL(p != NULL);
+        time = atof(p);
+        p = strtok(NULL, whitespace);
+        if (p == NULL) {
+            metadata = "";
+        } else {
+            metadata = p;
+        }
+        ret_id = tsk_migration_table_add_row(migration_table, left, right, node, source,
+            dest, time, metadata, strlen(metadata));
+        CU_ASSERT_FATAL(ret_id >= 0);
+    }
+}
+
+void
 parse_sites(const char *text, tsk_site_table_t *site_table)
 {
     tsk_id_t ret_id;
@@ -706,10 +763,17 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length, const char *nod
     if (individuals != NULL) {
         parse_individuals(individuals, &tables.individuals);
     }
+    if (migrations != NULL) {
+        parse_migrations(migrations, &tables.migrations);
+    }
     /* We need to add in populations if they are referenced */
     max_population_id = -1;
     for (j = 0; j < tables.nodes.num_rows; j++) {
         max_population_id = TSK_MAX(max_population_id, tables.nodes.population[j]);
+    }
+    for (j = 0; j < tables.migrations.num_rows; j++) {
+        max_population_id = TSK_MAX(max_population_id, tables.migrations.source[j]);
+        max_population_id = TSK_MAX(max_population_id, tables.migrations.dest[j]);
     }
     if (max_population_id >= 0) {
         for (j = 0; j <= (tsk_size_t) max_population_id; j++) {

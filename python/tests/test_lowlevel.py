@@ -1412,6 +1412,20 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         assert tables.sequence_length == ts_fixture.tables.sequence_length
         assert tables.time_units == ts_fixture.tables.time_units
 
+    def test_discrete_genome(self):
+        tables = _tskit.TableCollection(1)
+        tables.build_index()
+        ts = _tskit.TreeSequence()
+        ts.load_tables(tables)
+        assert ts.get_discrete_genome() == 1
+
+    def test_discrete_time(self):
+        tables = _tskit.TableCollection(1)
+        tables.build_index()
+        ts = _tskit.TreeSequence()
+        ts.load_tables(tables)
+        assert ts.get_discrete_time() == 1
+
 
 class StatsInterfaceMixin:
     """
