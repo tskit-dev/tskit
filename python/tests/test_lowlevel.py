@@ -2998,10 +2998,12 @@ class TestTree(LowLevelTestCase):
         genotypes = np.arange(n, dtype=np.int8)
         ancestral_state, transitions = tree.map_mutations(genotypes)
         assert ancestral_state == 0
+        assert len(transitions) == n - 1
         for j in range(n - 1):
-            assert transitions[j][0] == j + 1
+            x = n - j - 1
+            assert transitions[j][0] == x
             assert transitions[j][1] == -1
-            assert transitions[j][2] == j + 1
+            assert transitions[j][2] == x
 
     def test_map_mutations(self):
         ts = self.get_example_tree_sequence()

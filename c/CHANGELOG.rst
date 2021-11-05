@@ -13,12 +13,19 @@
   (:user:`benjeffery`, :issue:`1723`, :pr:`1727`)
 
 - The previously deprecated option ``TSK_SAMPLE_COUNTS`` has been removed. (:user:`benjeffery`, :issue:`1744`, :pr:`1761`).
-
-- FIXME breaking changes for tree API and virtual root
-
-- Individuals are no longer guaranteed or required to be topologically sorted in a tree sequence. 
+- Individuals are no longer guaranteed or required to be topologically sorted in a tree sequence.
   ``tsk_table_collection_sort`` no longer sorts individuals.
   (:user:`benjeffery`, :issue:`1774`, :pr:`1789`)
+
+- FIXME breaking changes for tree API and virtual root.
+
+- The ``tsk_tree_t.left_root`` member has been removed. Client code can be updated
+  most easily by using the equivalent ``tsk_tree_get_left_root`` function. However,
+  it may be worth considering updating code to use either the standard traversal
+  functions (which automatically iterate over roots) or to use the ``virtual_root``
+  member (which may lead to more concise code). (:user:`jeromekelleher`, :issue:`1796`,
+  :pr:`1862`)
+
 
 **Features**
 

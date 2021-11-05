@@ -123,11 +123,6 @@ typedef struct {
      */
     const tsk_treeseq_t *tree_sequence;
     /**
-     * @brief The leftmost root in the tree. Roots are siblings, and
-     * other roots can be found using right_sib.
-     */
-    tsk_id_t left_root;
-    /**
      @brief The ID of the "virtual root" whose children are the roots of the
      tree.
      */
@@ -476,14 +471,19 @@ bool tsk_tree_equals(const tsk_tree_t *self, const tsk_tree_t *other);
 bool tsk_tree_is_descendant(const tsk_tree_t *self, tsk_id_t u, tsk_id_t v);
 bool tsk_tree_is_sample(const tsk_tree_t *self, tsk_id_t u);
 
+tsk_id_t tsk_tree_get_left_root(const tsk_tree_t *self);
+tsk_id_t tsk_tree_get_right_root(const tsk_tree_t *self);
+
 int tsk_tree_copy(const tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options);
 int tsk_tree_set_tracked_samples(
     tsk_tree_t *self, tsk_size_t num_tracked_samples, const tsk_id_t *tracked_samples);
 int tsk_tree_set_tracked_samples_from_sample_list(
     tsk_tree_t *self, tsk_tree_t *other, tsk_id_t node);
 
-int tsk_tree_get_parent(const tsk_tree_t *self, tsk_id_t u, tsk_id_t *parent);
+int tsk_tree_get_branch_length(
+    const tsk_tree_t *self, tsk_id_t u, double *branch_length);
 int tsk_tree_get_time(const tsk_tree_t *self, tsk_id_t u, double *t);
+int tsk_tree_get_parent(const tsk_tree_t *self, tsk_id_t u, tsk_id_t *parent);
 int tsk_tree_get_depth(const tsk_tree_t *self, tsk_id_t u, int *depth);
 int tsk_tree_get_mrca(const tsk_tree_t *self, tsk_id_t u, tsk_id_t v, tsk_id_t *mrca);
 int tsk_tree_get_num_samples(

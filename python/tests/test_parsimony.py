@@ -230,6 +230,8 @@ def hartigan_map_mutations(tree, genotypes, alleles, ancestral_state=None):
 
     if ancestral_state is None:
         ancestral_state = np.argmax(optimal_set[tree.virtual_root])
+    else:
+        optimal_set[tree.virtual_root] = 1
 
     @dataclasses.dataclass
     class StackElement:
@@ -238,7 +240,7 @@ def hartigan_map_mutations(tree, genotypes, alleles, ancestral_state=None):
         mutation_parent: int
 
     mutations = []
-    stack = [StackElement(root, ancestral_state, -1) for root in reversed(tree.roots)]
+    stack = [StackElement(tree.virtual_root, ancestral_state, -1)]
     while len(stack) > 0:
         s = stack.pop()
         if optimal_set[s.node, s.state] == 0:
@@ -538,6 +540,9 @@ class TestParsimonyBase:
             )
             assert ancestral_state1 == ancestral_state2
             assert len(transitions1) == len(transitions2)
+            sorted_t1 = sorted([(m.node, m.derived_state) for m in transitions1])
+            sorted_t2 = sorted([(m.node, m.derived_state) for m in transitions2])
+            assert sorted_t1 == sorted_t2
             assert transitions1 == transitions2
         return ancestral_state1, transitions1
 
