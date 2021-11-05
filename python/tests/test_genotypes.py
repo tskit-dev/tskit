@@ -24,6 +24,7 @@ Test cases for generating genotypes/haplotypes.
 """
 import itertools
 import random
+import textwrap
 
 import msprime
 import numpy as np
@@ -1143,6 +1144,20 @@ class TestBinaryTreeExample:
         assert A[1] == "01A3\x005678C"
         assert A[2] == "01A3\x005678C"
 
+    def test_fasta_reference_sequence(self):
+        ref = "0123456789"
+        expected = textwrap.dedent(
+            """\
+            >n0
+            01G345678T
+            >n1
+            01A345678C
+            >n2
+            01A345678C
+            """
+        )
+        assert expected == self.ts().as_fasta(reference_sequence=ref)
+
 
 class TestMissingDataExample:
     # 2.00┊   4     ┊
@@ -1235,6 +1250,58 @@ class TestMissingDataExample:
         assert A[1] == "01A345678C"
         assert A[2] == "01A345678C"
         assert A[3] == "01Q345678Q"
+
+    def test_fasta_reference_sequence(self):
+        ref = "0123456789"
+        expected = textwrap.dedent(
+            """\
+            >n0
+            01G345678T
+            >n1
+            01A345678C
+            >n2
+            01A345678C
+            >n5
+            01-345678-
+            """
+        )
+        assert expected == self.ts().as_fasta(reference_sequence=ref)
+
+    def test_fasta_reference_sequence_missing_data_char(self):
+        ref = "0123456789"
+        expected = textwrap.dedent(
+            """\
+            >n0
+            01G345678T
+            >n1
+            01A345678C
+            >n2
+            01A345678C
+            >n5
+            01Q345678Q
+            """
+        )
+        assert expected == self.ts().as_fasta(
+            reference_sequence=ref, missing_data_character="Q"
+        )
+
+    def test_fasta_impute_missing(self):
+        ref = "-" * 10
+        expected = textwrap.dedent(
+            """\
+            >n0
+            --G------T
+            >n1
+            --A------C
+            >n2
+            --A------C
+            >n5
+            --A------T
+            """
+        )
+        assert expected == self.ts().as_fasta(
+            reference_sequence=ref, isolated_as_missing=False
+        )
 
 
 class TestAlignmentsErrors:

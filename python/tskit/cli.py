@@ -188,7 +188,8 @@ def get_tskit_parser():
         help="Remove any duplicated mutation positions in the source file. ",
     )
     parser.set_defaults(runner=run_upgrade)
-    # suppress fasta visibility pending https://github.com/tskit-dev/tskit/issues/353
+    # suppress fasta visibility until we have a reference sequence
+    # See https://github.com/tskit-dev/tskit/issues/1888
     # parser = subparsers.add_parser(
     #    "fasta",
     #     help="Convert the tree sequence haplotypes to fasta format")
