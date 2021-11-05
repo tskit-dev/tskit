@@ -25,6 +25,7 @@ Module responsible for working with text format data.
 import numpy as np
 
 import tskit
+from tskit import util
 
 
 def parse_fam(fam_file):
@@ -89,6 +90,23 @@ def parse_fam(fam_file):
     return tb
 
 
+def flexible_file_output(ts_export_func):
+    """
+    Decorator to support writing to either an open file-like object
+    or to a path. Assumes the second argument is the output.
+    """
+
+    def f(ts, file_or_path, **kwargs):
+        file, local_file = util.convert_file_like_to_open_file(file_or_path, "w")
+        try:
+            ts_export_func(ts, file, **kwargs)
+        finally:
+            if local_file:
+                file.close()
+
+    return f
+
+
 def write_nexus(ts, out, *, precision=None):
     # See TreeSequence.write_nexus for documentation on parameters.
     if precision is None:
@@ -116,6 +134,51 @@ def write_nexus(ts, out, *, precision=None):
         newick = tree.as_newick(precision=time_precision)
         print("", f"TREE {tree_label} = [&R] {newick}", sep=indent, file=out)
     print("END;", file=out)
+
+
+def wrap_text(text, width):
+    """
+    Return an iterator over the lines in the specified string of at most the
+    specified width. (We could use textwrap.wrap for this, but it uses a
+    more complicated algorithm appropriate for blocks of words.)
+    """
+    width = len(text) if width == 0 else width
+    N = len(text) // width
+    offset = 0
+    for _ in range(N):
+        yield text[offset : offset + width]
+        offset += width
+    if offset != len(text):
+        yield text[offset:]
+
+
+@flexible_file_output
+def write_fasta(
+    ts,
+    output,
+    *,
+    reference_sequence,
+    missing_data_character,
+    isolated_as_missing,
+    wrap_width,
+):
+    # See TreeSequence.write_fasta for documentation
+    if wrap_width < 0 or int(wrap_width) != wrap_width:
+        raise ValueError(
+            "wrap_width must be a non-negative integer. "
+            "You may specify `wrap_width=0` "
+            "if you do not want any wrapping."
+        )
+    wrap_width = int(wrap_width)
+    alignments = ts.alignments(
+        reference_sequence=reference_sequence,
+        missing_data_character=missing_data_character,
+        isolated_as_missing=isolated_as_missing,
+    )
+    for u, alignment in zip(ts.samples(), alignments):
+        print(">", f"n{u}", sep="", file=output)
+        for line in wrap_text(alignment, wrap_width):
+            print(line, file=output)
 
 
 def _build_newick(tree, *, node, precision, node_labels, include_branch_lengths):

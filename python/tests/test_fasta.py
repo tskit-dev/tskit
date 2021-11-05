@@ -23,26 +23,89 @@
 """
 Test cases for fasta output in tskit.
 """
+import functools
 import io
-import itertools
-import os
-import tempfile
 
+import dendropy
 import msprime
+import numpy as np
 import pytest
 from Bio import SeqIO
 
-from tests import tsutil
+import tests
+import tskit
 
 
 # setting up some basic haplotype data for tests
-def create_data(length):
-    ts = msprime.simulate(
-        sample_size=10, length=length, mutation_rate=1e-2, random_seed=123
+@functools.lru_cache(maxsize=100)
+def create_data(sequence_length):
+    ts = msprime.sim_ancestry(
+        samples=5, sequence_length=sequence_length, random_seed=123
     )
-    ts = tsutil.jukes_cantor(ts, length, 1.0, seed=123)
-    assert ts.num_sites == length
+    ts = msprime.sim_mutations(ts, rate=0.1, random_seed=1234)
+    assert ts.num_sites > 5
     return ts
+
+
+@tests.cached_example
+def missing_data_example():
+    # 2.00┊   4     ┊
+    #     ┊ ┏━┻┓    ┊
+    # 1.00┊ ┃  3    ┊
+    #     ┊ ┃ ┏┻┓   ┊
+    # 0.00┊ 0 1 2 5 ┊
+    #     0        10
+    #      |      |
+    #  pos 2      9
+    #  anc A      T
+    ts = tskit.Tree.generate_balanced(3, span=10).tree_sequence
+    tables = ts.dump_tables()
+    tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+    tables.sites.add_row(2, ancestral_state="A")
+    tables.sites.add_row(9, ancestral_state="T")
+    tables.mutations.add_row(site=0, node=0, derived_state="G")
+    tables.mutations.add_row(site=1, node=3, derived_state="C")
+    return tables.tree_sequence()
+
+
+class TestWrapText:
+    def test_even_split(self):
+        example = "ABCDEFGH"
+        result = list(tskit.text_formats.wrap_text(example, 4))
+        assert result == ["ABCD", "EFGH"]
+
+    def test_non_even_split(self):
+        example = "ABCDEFGH"
+        result = list(tskit.text_formats.wrap_text(example, 3))
+        assert result == ["ABC", "DEF", "GH"]
+
+    def test_width_one(self):
+        example = "ABCDEFGH"
+        result = list(tskit.text_formats.wrap_text(example, 1))
+        assert result == ["A", "B", "C", "D", "E", "F", "G", "H"]
+
+    def test_width_full_length(self):
+        example = "ABCDEFGH"
+        result = list(tskit.text_formats.wrap_text(example, 8))
+        assert result == ["ABCDEFGH"]
+
+    def test_width_more_than_length(self):
+        example = "ABCDEFGH"
+        result = list(tskit.text_formats.wrap_text(example, 100))
+        assert result == ["ABCDEFGH"]
+
+    def test_width_0(self):
+        example = "ABCDEFGH"
+        result = list(tskit.text_formats.wrap_text(example, 0))
+        assert result == ["ABCDEFGH"]
+
+    @pytest.mark.parametrize("width", [-1, -2, -8, -100])
+    def test_width_negative(self, width):
+        # Just documenting that the current implementation works for negative
+        # values fine.
+        example = "ABCDEFGH"
+        result = list(tskit.text_formats.wrap_text(example, width))
+        assert result == ["ABCDEFGH"]
 
 
 class TestLineLength:
@@ -53,10 +116,10 @@ class TestLineLength:
 
     def verify_line_length(self, length, wrap_width=60):
         # set up data
-        length = length
         ts = create_data(length)
         output = io.StringIO()
-        ts.write_fasta(output, wrap_width=wrap_width)
+        ref = "A" * length
+        ts.write_fasta(output, wrap_width=wrap_width, reference_sequence=ref)
         output.seek(0)
 
         # check if length perfectly divisible by wrap_width or not and thus
@@ -117,79 +180,97 @@ class TestLineLength:
         # no wrapping set by wrap_width = 0
         self.verify_line_length(length=100, wrap_width=0)
 
-    def test_bad_wrap(self):
-        ts = create_data(100)
+    def test_negative_wrap(self):
+        ts = create_data(10)
+        ref = "-" * 10
+        with pytest.raises(ValueError, match="non-negative integer"):
+            ts.as_fasta(reference_sequence=ref, wrap_width=-1)
+
+    def test_floating_wrap(self):
+        ts = create_data(10)
+        ref = "-" * 10
         with pytest.raises(ValueError):
-            ts.write_fasta(io.StringIO(), wrap_width=-1)
+            ts.as_fasta(reference_sequence=ref, wrap_width=1.1)
+
+    def test_numpy_wrap(self):
+        ts = create_data(10)
+        ref = "-" * 10
+        x1 = ts.as_fasta(reference_sequence=ref, wrap_width=4)
+        x2 = ts.as_fasta(reference_sequence=ref, wrap_width=np.array([4.0])[0])
+        assert x1 == x2
 
 
-class TestSequenceIds:
-    """
-    Tests that sequence IDs are output correctly, whether default or custom
-    and that the length of IDs supplied must equal number of sequences
-    """
+class TestFileTextOutputEqual:
+    @tests.cached_example
+    def ts(self):
+        return create_data(20)
 
-    def verify_ids(self, ts, seq_ids_in=None):
-        seq_ids_read = []
-        with tempfile.TemporaryDirectory() as temp_dir:
-            fasta_path = os.path.join(temp_dir, "testing_def_fasta.txt")
-            with open(fasta_path, "w") as f:
-                ts.write_fasta(f, sequence_ids=seq_ids_in)
-            with open(fasta_path) as handle:
-                for record in SeqIO.parse(handle, "fasta"):
-                    seq_ids_read.append(record.id)
+    def test_defaults(self):
+        ts = self.ts()
+        buff = io.StringIO()
+        ref = "_" * int(ts.sequence_length)
+        ts.write_fasta(buff, reference_sequence=ref)
+        assert buff.getvalue() == ts.as_fasta(reference_sequence=ref)
 
-        # test default seq ids
-        if seq_ids_in in [None]:
-            for i, val in enumerate(seq_ids_read):
-                assert f"tsk_{i}" == val
-        # test custom seq ids
-        else:
-            for i, j in itertools.zip_longest(seq_ids_in, seq_ids_read):
-                assert i == j
-
-    def test_default_ids(self):
-        # test that default sequence ids, immediately following '>', are as expected
-        ts = create_data(100)
-        self.verify_ids(ts)
-
-    def test_custom_ids(self):
-        # test that custom sequence ids, immediately following '>', are as expected
-        ts = create_data(100)
-        seq_ids_in = [f"x_{_}" for _ in range(ts.num_samples)]
-        self.verify_ids(ts, seq_ids_in)
-
-    def test_bad_length_ids(self):
-        ts = create_data(100)
-        with pytest.raises(ValueError):
-            seq_ids_in = [f"x_{_}" for _ in range(ts.num_samples - 1)]
-            ts.write_fasta(io.StringIO(), sequence_ids=seq_ids_in)
-        with pytest.raises(ValueError):
-            seq_ids_in = [f"x_{_}" for _ in range(ts.num_samples + 1)]
-            ts.write_fasta(io.StringIO(), sequence_ids=seq_ids_in)
-        with pytest.raises(ValueError):
-            seq_ids_in = []
-            ts.write_fasta(io.StringIO(), sequence_ids=seq_ids_in)
+    def test_wrap_width(self):
+        ts = self.ts()
+        buff = io.StringIO()
+        ref = "X" * int(ts.sequence_length)
+        ts.write_fasta(buff, reference_sequence=ref, wrap_width=4)
+        assert buff.getvalue() == ts.as_fasta(reference_sequence=ref, wrap_width=4)
 
 
-class TestRoundTrip:
+class TestFlexibleFileArg:
+    @tests.cached_example
+    def ts(self):
+        return create_data(20)
+
+    def test_pathlib(self, tmp_path):
+        path = tmp_path / "file.fa"
+        ts = self.ts()
+        ref = "-" * int(ts.sequence_length)
+        ts.write_fasta(path, reference_sequence=ref)
+        with open(path) as f:
+            assert f.read() == ts.as_fasta(reference_sequence=ref)
+
+    def test_path_str(self, tmp_path):
+        path = str(tmp_path / "file.fa")
+        ts = self.ts()
+        ref = "-" * int(ts.sequence_length)
+        ts.write_fasta(path, reference_sequence=ref)
+        with open(path) as f:
+            assert f.read() == ts.as_fasta(reference_sequence=ref)
+
+    def test_fileobj(self, tmp_path):
+        path = tmp_path / "file.fa"
+        ts = self.ts()
+        ref = "-" * int(ts.sequence_length)
+        with open(path, "w") as f:
+            ts.write_fasta(f, reference_sequence=ref)
+        with open(path) as f:
+            assert f.read() == ts.as_fasta(reference_sequence=ref)
+
+
+def get_alignment_map(ts, reference_sequence):
+    alignments = ts.alignments(reference_sequence=reference_sequence)
+    return {f"n{u}": alignment for u, alignment in zip(ts.samples(), alignments)}
+
+
+class TestBioPythonRoundTrip:
     """
     Tests that output from our code is read in by available software packages
     Here test for compatability with biopython processing - Bio.SeqIO
     """
 
-    def verify(self, ts, wrap_width=60):
-        biopython_fasta_read = []
-        with tempfile.TemporaryDirectory() as temp_dir:
-            fasta_path = os.path.join(temp_dir, "testing_def_fasta.txt")
-            with open(fasta_path, "w") as f:
-                ts.write_fasta(f, wrap_width=wrap_width)
-            with open(fasta_path) as handle:
-                for record in SeqIO.parse(handle, "fasta"):
-                    biopython_fasta_read.append(record.seq)
-
-        for i, j in itertools.zip_longest(biopython_fasta_read, ts.haplotypes()):
-            assert i == j
+    def verify(self, ts, wrap_width=60, reference_sequence=None):
+        if reference_sequence is None:
+            reference_sequence = "-" * int(ts.sequence_length)
+        text = ts.as_fasta(wrap_width=wrap_width, reference_sequence=reference_sequence)
+        bio_map = {
+            k: v.seq
+            for k, v in SeqIO.to_dict(SeqIO.parse(io.StringIO(text), "fasta")).items()
+        }
+        assert bio_map == get_alignment_map(ts, reference_sequence)
 
     def test_equal_lines(self):
         # sequence length perfectly divisible by wrap_width
@@ -205,3 +286,37 @@ class TestRoundTrip:
         # sequences not wrapped
         ts = create_data(300)
         self.verify(ts, wrap_width=0)
+
+    def test_A_reference(self):
+        ts = create_data(20)
+        self.verify(ts, reference_sequence="A" * 20)
+
+    def test_missing_data(self):
+        self.verify(missing_data_example())
+
+
+class TestDendropyRoundTrip:
+    def parse(self, fasta):
+        d = dendropy.DnaCharacterMatrix.get(data=fasta, schema="fasta")
+        return {str(k.label): str(v) for k, v in d.items()}
+
+    def test_wrapped(self):
+        ts = create_data(300)
+        ref = "-" * int(ts.sequence_length)
+        text = ts.as_fasta(reference_sequence=ref)
+        alignment_map = self.parse(text)
+        assert get_alignment_map(ts, ref) == alignment_map
+
+    def test_unwrapped(self):
+        ts = create_data(300)
+        ref = "-" * int(ts.sequence_length)
+        text = ts.as_fasta(reference_sequence=ref, wrap_width=0)
+        alignment_map = self.parse(text)
+        assert get_alignment_map(ts, ref) == alignment_map
+
+    def test_missing_data(self):
+        ts = missing_data_example()
+        ref = "-" * int(ts.sequence_length)
+        text = ts.as_fasta(reference_sequence=ref, wrap_width=0)
+        alignment_map = self.parse(text)
+        assert get_alignment_map(ts, ref) == alignment_map

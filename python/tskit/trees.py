@@ -31,7 +31,6 @@ import functools
 import io
 import itertools
 import math
-import textwrap
 import warnings
 from dataclasses import dataclass
 from typing import Any
@@ -4839,6 +4838,8 @@ class TreeSequence:
 
         :return: An iterator over the alignment strings for the samples in
             this tree sequence.
+        :param str reference_sequence: The reference sequence to fill in
+            gaps between sites in the alignments.
         :param bool isolated_as_missing: If True, the allele assigned to
             missing samples (i.e., isolated samples without mutations) is
             the ``missing_data_character``. If False,
@@ -5116,74 +5117,6 @@ class TreeSequence:
                 )
         return samples[keep]
 
-    def write_fasta(self, output, sequence_ids=None, wrap_width=60):
-        ""
-        # suppress fasta visibility pending https://github.com/tskit-dev/tskit/issues/353
-        """
-        Writes haplotype data for samples in FASTA format to the
-        specified file-like object.
-
-        Default `sequence_ids` (i.e., the text immediately following ">") are
-        "tsk_{sample_number}" e.g. "tsk_0", "tsk_1" etc. They can be set by providing
-        a list of strings to the `sequence_ids` argument, which must equal the length
-        of the number of samples. Please ensure that these are unique and compatible with
-        fasta standards, since we do not check this.
-        Default `wrap_width` for sequences is 60 characters in accordance with fasta
-        standard outputs, but this can be specified. In order to avoid any line-wrapping
-        of sequences, set `wrap_width = 0`.
-
-        Example usage:
-
-        .. code-block:: python
-
-            with open("output.fasta", "w") as fasta_file:
-                ts.write_fasta(fasta_file)
-
-        This can also be achieved on the command line use the ``tskit fasta`` command,
-        e.g.:
-
-        .. code-block:: bash
-
-            $ tskit fasta example.trees > example.fasta
-
-        :param io.IOBase output: The file-like object to write the fasta output.
-        :param list(str) sequence_ids: A list of string names to uniquely identify
-            each of the sequences in the fasta file. If specified, this must be a
-            list of strings of length equal to the number of samples which are output.
-            Note that we do not check the form of these strings in any way, so that it
-            is possible to output bad fasta IDs (for example, by including spaces
-            before the unique identifying part of the string).
-            The default is to output ``tsk_j`` for the jth individual.
-        :param int wrap_width: This parameter specifies the number of sequence
-            characters to include on each line in the fasta file, before wrapping
-            to the next line for each sequence. Defaults to 60 characters in
-            accordance with fasta standard outputs. To avoid any line-wrapping of
-            sequences, set `wrap_width = 0`. Otherwise, supply any positive integer.
-        """
-        # if not specified, IDs default to sample index
-        if sequence_ids is None:
-            sequence_ids = [f"tsk_{j}" for j in self.samples()]
-        if len(sequence_ids) != self.num_samples:
-            raise ValueError(
-                "sequence_ids must have length equal to the number of samples."
-            )
-
-        wrap_width = int(wrap_width)
-        if wrap_width < 0:
-            raise ValueError(
-                "wrap_width must be a non-negative integer. "
-                "You may specify `wrap_width=0` "
-                "if you do not want any wrapping."
-            )
-
-        for j, hap in enumerate(self.haplotypes()):
-            print(">", sequence_ids[j], sep="", file=output)
-            if wrap_width == 0:
-                print(hap, file=output)
-            else:
-                for hap_wrap in textwrap.wrap(hap, wrap_width):
-                    print(hap_wrap, file=output)
-
     def write_vcf(
         self,
         output,
@@ -5342,6 +5275,81 @@ class TreeSequence:
         )
         writer.write(output)
 
+    def write_fasta(
+        self,
+        file_or_path,
+        *,
+        wrap_width=60,
+        reference_sequence=None,
+        missing_data_character=None,
+        isolated_as_missing=None,
+    ):
+        """
+        Writes the :meth:`.alignments` for this tree sequence to file in
+        `FASTA <https://en.wikipedia.org/wiki/FASTA_format>`__ format. The
+        ``reference_sequence``, ``missing_data_character`` and
+        ``isolated_as_missing`` arguments are passed directly to the
+        :meth:`.alignments` method; please its documentation for more details.
+
+        .. warning:: The ``reference_sequence`` is currently a mandatory
+            argument to ensure compatibility with future versions
+            of tskit, which will allow reference sequences to be associated
+            with a tree sequence. In this case, the associated reference
+            will be used by default, if present. See
+            https://github.com/tskit-dev/tskit/issues/1888
+            and
+            https://github.com/tskit-dev/tskit/issues/146 for more details.
+
+        Alignments are returned for the
+        :ref:`sample nodes<sec_data_model_definitions>` in this tree
+        sequence, and a sample with node id ``u`` is given the label
+        ``f"n{u}"``, following the same convention as the
+        :meth:`.write_nexus` and :meth:`Tree.as_newick` methods.
+
+        The ``wrap_width`` parameter controls the maximum width of lines
+        of sequence data in the output. By default this is 60
+        characters in accordance with fasta standard outputs. To turn off
+        line-wrapping of sequences, set ``wrap_width`` = 0.
+
+        Example usage:
+
+        .. code-block:: python
+
+            ref = "-" * int(ts.sequence_length)
+            ts.write_fasta("output.fa", reference_sequence=ref)
+
+        :param file_or_path: The file object or path to write the output.
+            Paths can be either strings or :class:`python:pathlib.Path` objects.
+        :param int wrap_width: The number of sequence
+            characters to include on each line in the fasta file, before wrapping
+            to the next line for each sequence, or 0 to turn off line wrapping.
+            (Default=60).
+        :param str reference_sequence: As for the :meth:`.alignments` method.
+        :param bool isolated_as_missing: As for the :meth:`.alignments` method.
+        :param str missing_data_character: As for the :meth:`.alignments` method.
+        """
+        text_formats.write_fasta(
+            self,
+            file_or_path,
+            wrap_width=wrap_width,
+            reference_sequence=reference_sequence,
+            missing_data_character=missing_data_character,
+            isolated_as_missing=isolated_as_missing,
+        )
+
+    def as_fasta(self, **kwargs):
+        """
+        Return the result of :meth:`.write_fasta` as a string without writing
+        to file. Keyword parameters are as defined in :meth:`.write_fasta`.
+
+        :return: A FASTA encoding of the alignments in this tree sequence as a string.
+        :rtype: str
+        """
+        buff = io.StringIO()
+        self.write_fasta(buff, **kwargs)
+        return buff.getvalue()
+
+    # TODO move the documentation to write_nexus like write_fasta
     def as_nexus(self, *, precision=None):
         """
         Returns a `nexus encoding <https://en.wikipedia.org/wiki/Nexus_file>`_
@@ -5407,7 +5415,6 @@ class TreeSequence:
 
         :param io.IOBase output: The file-like object to write the output.
         """
-        # TODO nice if we supported pathlike-objects here also
         text_formats.write_nexus(self, output, **kwargs)
 
     # TODO
