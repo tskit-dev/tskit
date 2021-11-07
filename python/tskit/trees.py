@@ -4548,7 +4548,7 @@ class TreeSequence:
         self,
         *,
         isolated_as_missing=None,
-        missing_data_character="-",
+        missing_data_character="N",
         impute_missing_data=None,
     ):
         """
@@ -4599,7 +4599,7 @@ class TreeSequence:
         :param str missing_data_character: A single ascii character that will
             be used to represent missing data.
             If any normal allele contains this character, an error is raised.
-            Default: '-'.
+            Default: 'N'.
         :param bool impute_missing_data:
             *Deprecated in 0.3.0. Use ``isolated_as_missing``, but inverting value.
             Will be removed in a future version*
@@ -4758,7 +4758,7 @@ class TreeSequence:
 
         :param bool isolated_as_missing: If True, the allele assigned to
             missing samples (i.e., isolated samples without mutations) is
-            the ``missing_data_character``. If False, missing samples will be
+            :data:`.MISSING_DATA` (-1). If False, missing samples will be
             assigned the ancestral state.
             Default: True.
         :param tuple alleles: A tuple of strings describing the encoding of
@@ -4822,7 +4822,7 @@ class TreeSequence:
         sequence are:
 
         1. Mark them as missing data, by setting
-           ``reference_sequence="-" * int(ts.sequence_length)``
+           ``reference_sequence="N" * int(ts.sequence_length)``
         2. Fill the gaps with random nucleotides, by setting
            ``reference_sequence=tskit.random_nucleotides(ts.sequence_length)``.
            See the :func:`.random_nucleotides` function for more information.
@@ -4860,7 +4860,7 @@ class TreeSequence:
         :param str missing_data_character: A single ascii character that will
             be used to represent missing data.
             If any normal allele contains this character, an error is raised.
-            Default: '-'.
+            Default: 'N'.
         :rtype: collections.abc.Iterable
         :raises: ValueError
             if all coordinates in this tree sequence are not discrete, or
@@ -4873,7 +4873,7 @@ class TreeSequence:
             raise ValueError("sequence alignments only defined for discrete genomes")
 
         missing_data_character = (
-            "-" if missing_data_character is None else missing_data_character
+            "N" if missing_data_character is None else missing_data_character
         )
         L = int(self.sequence_length)
         a = np.empty(L, dtype=np.int8)

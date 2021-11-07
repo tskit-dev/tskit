@@ -137,14 +137,15 @@ def write_nexus(
     if include_alignments is None:
         include_alignments = ts.discrete_genome and ts.num_sites > 0
     if include_alignments:
+        # Following the default in Maddison et al 1997
         missing_data_character = (
-            "-" if missing_data_character is None else missing_data_character
+            "?" if missing_data_character is None else missing_data_character
         )
         print("BEGIN DATA;", file=out)
         print("", f"DIMENSIONS NCHAR={int(ts.sequence_length)};", sep=indent, file=out)
         print(
             "",
-            f"FORMAT datatype=dna missing={missing_data_character};",
+            f"FORMAT DATATYPE=DNA MISSING={missing_data_character};",
             sep=indent,
             file=out,
         )

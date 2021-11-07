@@ -832,24 +832,24 @@ class TestHaplotypeGenerator:
             h = list(ts.haplotypes(missing_data_character=c))
             assert h == [c, c]
         h = list(ts.haplotypes(isolated_as_missing=True))
-        assert h == ["-", "-"]
+        assert h == ["N", "N"]
         h = list(ts.haplotypes(isolated_as_missing=False))
         assert h == ["A", "A"]
         h = list(ts.haplotypes())
-        assert h == ["-", "-"]
+        assert h == ["N", "N"]
         # Test deprecated method
         with pytest.warns(FutureWarning):
             h = list(ts.haplotypes(impute_missing_data=True))
         assert h == ["A", "A"]
         with pytest.warns(FutureWarning):
             h = list(ts.haplotypes(impute_missing_data=False))
-        assert h == ["-", "-"]
+        assert h == ["N", "N"]
         with pytest.warns(FutureWarning):
             h = list(ts.haplotypes(isolated_as_missing=True, impute_missing_data=True))
-        assert h == ["-", "-"]
+        assert h == ["N", "N"]
         with pytest.warns(FutureWarning):
             h = list(ts.haplotypes(isolated_as_missing=True, impute_missing_data=False))
-        assert h == ["-", "-"]
+        assert h == ["N", "N"]
         with pytest.warns(FutureWarning):
             h = list(ts.haplotypes(isolated_as_missing=False, impute_missing_data=True))
         assert h == ["A", "A"]
@@ -1117,9 +1117,9 @@ class TestBinaryTreeExample:
     @pytest.mark.skip("Reference sequence not implemented #1888")
     def test_alignments_default(self):
         A = list(self.ts().alignments())
-        assert A[0] == "--G------T"
-        assert A[1] == "--A------C"
-        assert A[2] == "--A------C"
+        assert A[0] == "NNGNNNNNNT"
+        assert A[1] == "NNANNNNNNC"
+        assert A[2] == "NNANNNNNNC"
 
     @pytest.mark.skip("Reference sequence not implemented #1888")
     def test_alignments_missing_char(self):
@@ -1169,7 +1169,7 @@ class TestBinaryTreeExample:
             END;
             BEGIN DATA;
               DIMENSIONS NCHAR=10;
-              FORMAT datatype=dna missing=-;
+              FORMAT DATATYPE=DNA MISSING=?;
               MATRIX
                 n0 01G345678T
                 n1 01A345678C
@@ -1210,14 +1210,14 @@ class TestMissingDataExample:
         assert H[0] == "GT"
         assert H[1] == "AC"
         assert H[2] == "AC"
-        assert H[3] == "--"
+        assert H[3] == "NN"
 
     def test_haplotypes_missing_data_char(self):
-        H = list(self.ts().haplotypes(missing_data_character="|"))
+        H = list(self.ts().haplotypes(missing_data_character="?"))
         assert H[0] == "GT"
         assert H[1] == "AC"
         assert H[2] == "AC"
-        assert H[3] == "||"
+        assert H[3] == "??"
 
     def test_genotypes(self):
         G = self.ts().genotype_matrix()
@@ -1227,20 +1227,20 @@ class TestMissingDataExample:
     @pytest.mark.skip("Reference sequence not implemented #1888")
     def test_alignments_default(self):
         A = list(self.ts().alignments())
-        assert A[0] == "--G------T"
-        assert A[1] == "--A------C"
-        assert A[2] == "--A------C"
-        assert A[3] == "----------"
+        assert A[0] == "NNGNNNNNNT"
+        assert A[1] == "NNANNNNNNC"
+        assert A[2] == "NNANNNNNNC"
+        assert A[3] == "NNNNNNNNNN"
 
     def test_alignments_impute_missing(self):
-        ref = "-" * 10
+        ref = "N" * 10
         A = list(
             self.ts().alignments(reference_sequence=ref, isolated_as_missing=False)
         )
-        assert A[0] == "--G------T"
-        assert A[1] == "--A------C"
-        assert A[2] == "--A------C"
-        assert A[3] == "--A------T"
+        assert A[0] == "NNGNNNNNNT"
+        assert A[1] == "NNANNNNNNC"
+        assert A[2] == "NNANNNNNNC"
+        assert A[3] == "NNANNNNNNT"
 
     @pytest.mark.skip("Reference sequence not implemented #1888")
     def test_alignments_missing_char(self):
@@ -1253,10 +1253,10 @@ class TestMissingDataExample:
     @pytest.mark.skip("Reference sequence not implemented #1888")
     def test_alignments_missing_char_ref(self):
         A = list(self.ts().alignments(missing_data_character="z"))
-        assert A[0] == "--G------T"
-        assert A[1] == "--A------C"
-        assert A[2] == "--A------C"
-        assert A[3] == "--z------z"
+        assert A[0] == "NNGNNNNNNT"
+        assert A[1] == "NNANNNNNNC"
+        assert A[2] == "NNANNNNNNC"
+        assert A[3] == "NNzNNNNNNz"
 
     def test_alignments_reference_sequence(self):
         ref = "0123456789"
@@ -1264,7 +1264,7 @@ class TestMissingDataExample:
         assert A[0] == "01G345678T"
         assert A[1] == "01A345678C"
         assert A[2] == "01A345678C"
-        assert A[3] == "01-345678-"
+        assert A[3] == "01N345678N"
 
     def test_alignments_reference_sequence_missing_data_char(self):
         ref = "0123456789"
@@ -1287,7 +1287,7 @@ class TestMissingDataExample:
             >n2
             01A345678C
             >n5
-            01-345678-
+            01N345678N
             """
         )
         assert expected == self.ts().as_fasta(reference_sequence=ref)
@@ -1311,17 +1311,17 @@ class TestMissingDataExample:
         )
 
     def test_fasta_impute_missing(self):
-        ref = "-" * 10
+        ref = "N" * 10
         expected = textwrap.dedent(
             """\
             >n0
-            --G------T
+            NNGNNNNNNT
             >n1
-            --A------C
+            NNANNNNNNC
             >n2
-            --A------C
+            NNANNNNNNC
             >n5
-            --A------T
+            NNANNNNNNT
             """
         )
         assert expected == self.ts().as_fasta(
@@ -1330,7 +1330,7 @@ class TestMissingDataExample:
 
     # Note: the nexus tree output isn't compatible with our representation of
     # missing data as trees with isolated roots (newick parsers won't accept
-    # this as valid input), so we set include_trees=False for thes examples.
+    # this as valid input), so we set include_trees=False for these examples.
     def test_nexus_reference_sequence(self):
         ref = "0123456789"
         expected = textwrap.dedent(
@@ -1342,12 +1342,12 @@ class TestMissingDataExample:
             END;
             BEGIN DATA;
               DIMENSIONS NCHAR=10;
-              FORMAT datatype=dna missing=-;
+              FORMAT DATATYPE=DNA MISSING=?;
               MATRIX
                 n0 01G345678T
                 n1 01A345678C
                 n2 01A345678C
-                n5 01-345678-
+                n5 01?345678?
               ;
             END;
             """
@@ -1367,7 +1367,7 @@ class TestMissingDataExample:
             END;
             BEGIN DATA;
               DIMENSIONS NCHAR=10;
-              FORMAT datatype=dna missing=Q;
+              FORMAT DATATYPE=DNA MISSING=Q;
               MATRIX
                 n0 01G345678T
                 n1 01A345678C
@@ -1394,7 +1394,7 @@ class TestMissingDataExample:
             END;
             BEGIN DATA;
               DIMENSIONS NCHAR=10;
-              FORMAT datatype=dna missing=-;
+              FORMAT DATATYPE=DNA MISSING=?;
               MATRIX
                 n0 01G345678T
                 n1 01A345678C
