@@ -1158,6 +1158,31 @@ class TestBinaryTreeExample:
         )
         assert expected == self.ts().as_fasta(reference_sequence=ref)
 
+    def test_nexus_reference_sequence(self):
+        ref = "0123456789"
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=3;
+              TAXLABELS n0 n1 n2;
+            END;
+            BEGIN DATA;
+              DIMENSIONS NCHAR=10;
+              FORMAT datatype=dna missing=-;
+              MATRIX
+                n0 01G345678T
+                n1 01A345678C
+                n2 01A345678C
+              ;
+            END;
+            BEGIN TREES;
+              TREE t0^10 = [&R] (n0:2,(n1:1,n2:1):1);
+            END;
+            """
+        )
+        assert expected == self.ts().as_nexus(reference_sequence=ref)
+
 
 class TestMissingDataExample:
     # 2.00┊   4     ┊
@@ -1301,6 +1326,88 @@ class TestMissingDataExample:
         )
         assert expected == self.ts().as_fasta(
             reference_sequence=ref, isolated_as_missing=False
+        )
+
+    # Note: the nexus tree output isn't compatible with our representation of
+    # missing data as trees with isolated roots (newick parsers won't accept
+    # this as valid input), so we set include_trees=False for thes examples.
+    def test_nexus_reference_sequence(self):
+        ref = "0123456789"
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=4;
+              TAXLABELS n0 n1 n2 n5;
+            END;
+            BEGIN DATA;
+              DIMENSIONS NCHAR=10;
+              FORMAT datatype=dna missing=-;
+              MATRIX
+                n0 01G345678T
+                n1 01A345678C
+                n2 01A345678C
+                n5 01-345678-
+              ;
+            END;
+            """
+        )
+        assert expected == self.ts().as_nexus(
+            reference_sequence=ref, include_trees=False
+        )
+
+    def test_nexus_reference_sequence_missing_data_char(self):
+        ref = "0123456789"
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=4;
+              TAXLABELS n0 n1 n2 n5;
+            END;
+            BEGIN DATA;
+              DIMENSIONS NCHAR=10;
+              FORMAT datatype=dna missing=Q;
+              MATRIX
+                n0 01G345678T
+                n1 01A345678C
+                n2 01A345678C
+                n5 01Q345678Q
+              ;
+            END;
+            """
+        )
+        assert expected == self.ts().as_nexus(
+            reference_sequence=ref,
+            missing_data_character="Q",
+            include_trees=False,
+        )
+
+    def test_nexus_impute_missing(self):
+        ref = "0123456789"
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=4;
+              TAXLABELS n0 n1 n2 n5;
+            END;
+            BEGIN DATA;
+              DIMENSIONS NCHAR=10;
+              FORMAT datatype=dna missing=-;
+              MATRIX
+                n0 01G345678T
+                n1 01A345678C
+                n2 01A345678C
+                n5 01A345678T
+              ;
+            END;
+            """
+        )
+        assert expected == self.ts().as_nexus(
+            reference_sequence=ref,
+            isolated_as_missing=False,
+            include_trees=False,
         )
 
 

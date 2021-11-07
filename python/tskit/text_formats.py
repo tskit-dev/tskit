@@ -107,7 +107,17 @@ def flexible_file_output(ts_export_func):
     return f
 
 
-def write_nexus(ts, out, *, precision=None):
+def write_nexus(
+    ts,
+    out,
+    *,
+    precision,
+    include_trees,
+    include_alignments,
+    reference_sequence,
+    missing_data_character,
+    isolated_as_missing,
+):
     # See TreeSequence.write_nexus for documentation on parameters.
     if precision is None:
         pos_precision = 0 if ts.discrete_genome else 17
@@ -124,16 +134,41 @@ def write_nexus(ts, out, *, precision=None):
     print("", f"TAXLABELS {taxlabels};", sep=indent, file=out)
     print("END;", file=out)
 
-    # TODO add a DATA section here to output the alignments
+    if include_alignments is None:
+        include_alignments = ts.discrete_genome and ts.num_sites > 0
+    if include_alignments:
+        missing_data_character = (
+            "-" if missing_data_character is None else missing_data_character
+        )
+        print("BEGIN DATA;", file=out)
+        print("", f"DIMENSIONS NCHAR={int(ts.sequence_length)};", sep=indent, file=out)
+        print(
+            "",
+            f"FORMAT datatype=dna missing={missing_data_character};",
+            sep=indent,
+            file=out,
+        )
+        print("", "MATRIX", file=out, sep=indent)
+        alignments = ts.alignments(
+            reference_sequence=reference_sequence,
+            missing_data_character=missing_data_character,
+            isolated_as_missing=isolated_as_missing,
+        )
+        for u, alignment in zip(ts.samples(), alignments):
+            print(2 * indent, f"n{u}", " ", alignment, sep="", file=out)
+        print("", ";", sep=indent, file=out)
+        print("END;", file=out)
 
-    print("BEGIN TREES;", file=out)
-    for tree in ts.trees():
-        start_interval = "{0:.{1}f}".format(tree.interval.left, pos_precision)
-        end_interval = "{0:.{1}f}".format(tree.interval.right, pos_precision)
-        tree_label = f"t{start_interval}^{end_interval}"
-        newick = tree.as_newick(precision=time_precision)
-        print("", f"TREE {tree_label} = [&R] {newick}", sep=indent, file=out)
-    print("END;", file=out)
+    include_trees = True if include_trees is None else include_trees
+    if include_trees:
+        print("BEGIN TREES;", file=out)
+        for tree in ts.trees():
+            start_interval = "{0:.{1}f}".format(tree.interval.left, pos_precision)
+            end_interval = "{0:.{1}f}".format(tree.interval.right, pos_precision)
+            tree_label = f"t{start_interval}^{end_interval}"
+            newick = tree.as_newick(precision=time_precision)
+            print("", f"TREE {tree_label} = [&R] {newick}", sep=indent, file=out)
+        print("END;", file=out)
 
 
 def wrap_text(text, width):
@@ -157,10 +192,10 @@ def write_fasta(
     ts,
     output,
     *,
+    wrap_width,
     reference_sequence,
     missing_data_character,
     isolated_as_missing,
-    wrap_width,
 ):
     # See TreeSequence.write_fasta for documentation
     if wrap_width < 0 or int(wrap_width) != wrap_width:

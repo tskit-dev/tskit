@@ -5361,8 +5361,17 @@ class TreeSequence:
         self.write_fasta(buff, **kwargs)
         return buff.getvalue()
 
-    # TODO move the documentation to write_nexus like write_fasta
-    def as_nexus(self, *, precision=None):
+    def write_nexus(
+        self,
+        file_or_path,
+        *,
+        precision=None,
+        include_trees=None,
+        include_alignments=None,
+        reference_sequence=None,
+        missing_data_character=None,
+        isolated_as_missing=None,
+    ):
         """
         Returns a `nexus encoding <https://en.wikipedia.org/wiki/Nexus_file>`_
         of this tree sequence. Tree topologies and branch lengths are listed
@@ -5387,6 +5396,8 @@ class TreeSequence:
         If the ``precision`` argument is provided, genome positions and
         branch lengths are printed out with this many digits of precision.
 
+        .. note:: Missing data is tricky
+
         For example, here is the nexus encoding of a simple tree sequence
         with integer times and genome coordinates with three samples
         and two trees::
@@ -5401,33 +5412,34 @@ class TreeSequence:
               TREE t2^10 = [&R] (n1:2,(n0:1,n2:1):1);
             END;
 
-        .. seealso: See also the :meth:`.write_nexus` method which will
-            write this nexus representation directly to file.
+        .. seealso: See also the :meth:`.as_nexus` method which will
+            return this nexus representation as a string.
 
         :param int precision: The numerical precision with which branch lengths
             and tree positions are printed.
         :return: A nexus representation of this :class:`TreeSequence`
         :rtype: str
         """
-        # NOTE: it would be straightforward to support node_labels here
-        # but we'll leave it out for the moment until we know whether
-        # we want to output the alignments or not. This would raise
-        # some extra questions about whether we want to output alignments
-        # for all the labelled nodes, etc.
-        # https://github.com/tskit-dev/tskit/issues/1840
-        # https://github.com/tskit-dev/tskit/issues/1812
-        buff = io.StringIO()
-        text_formats.write_nexus(self, buff, precision=precision)
-        return buff.getvalue()
+        text_formats.write_nexus(
+            self,
+            file_or_path,
+            precision=precision,
+            include_trees=include_trees,
+            include_alignments=include_alignments,
+            reference_sequence=reference_sequence,
+            missing_data_character=missing_data_character,
+            isolated_as_missing=isolated_as_missing,
+        )
 
-    def write_nexus(self, output, **kwargs):
+    def as_nexus(self, **kwargs):
         """
         Write the result of :meth:`.as_nexus` directly to file. Keyword
         parameters are passed to :meth:`.as_nexus`.
 
-        :param io.IOBase output: The file-like object to write the output.
         """
-        text_formats.write_nexus(self, output, **kwargs)
+        buff = io.StringIO()
+        self.write_nexus(buff, **kwargs)
+        return buff.getvalue()
 
     # TODO
     # (1) Move the definition to text_formats.py

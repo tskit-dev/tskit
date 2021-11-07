@@ -316,7 +316,49 @@ class TestDendropyRoundTrip:
 
     def test_missing_data(self):
         ts = missing_data_example()
-        ref = "-" * int(ts.sequence_length)
-        text = ts.as_fasta(reference_sequence=ref, wrap_width=0)
+        ref = "A" * int(ts.sequence_length)
+        text = ts.as_fasta(reference_sequence=ref)
         alignment_map = self.parse(text)
         assert get_alignment_map(ts, ref) == alignment_map
+
+
+class TestDendropyMissingData:
+    """
+    Test that we detect missing data correctly in dendropy under
+    various combinations of options.
+    """
+
+    # 2.00┊   4     ┊
+    #     ┊ ┏━┻┓    ┊
+    # 1.00┊ ┃  3    ┊
+    #     ┊ ┃ ┏┻┓   ┊
+    # 0.00┊ 0 1 2 5 ┊
+    #     0        10
+    #      |      |
+    #  pos 2      9
+    #  anc A      T
+
+    def ts(self):
+        ts = tskit.Tree.generate_balanced(3, span=10).tree_sequence
+        tables = ts.dump_tables()
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.sites.add_row(2, ancestral_state="A")
+        tables.sites.add_row(9, ancestral_state="T")
+        tables.mutations.add_row(site=0, node=0, derived_state="G")
+        tables.mutations.add_row(site=1, node=3, derived_state="C")
+        return tables.tree_sequence()
+
+    def test_defaults_A_ref(self):
+        ts = self.ts()
+        ref = "A" * int(ts.sequence_length)
+        text = ts.as_fasta(reference_sequence=ref, missing_data_character="N")
+        # print(text)
+        d = dendropy.DnaCharacterMatrix.get(data=text, schema="fasta")
+        assert d.sequence_size == 10
+        # for k, v in d.items():
+        #     print(k, v)
+        # FINISH ME
+        # a0 = d["n0"]
+        # a5 = d["n5"]
+        # print(a0.character_type_at(0))
+        # print(a5)

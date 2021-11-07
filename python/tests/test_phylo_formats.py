@@ -31,6 +31,7 @@ import newick
 import numpy as np
 import pytest
 
+import tests
 import tskit
 from tests.test_highlevel import get_example_tree_sequences
 
@@ -41,20 +42,9 @@ from tests.test_highlevel import get_example_tree_sequences
 # or something.
 
 
-def cached_example(ts_func):
-    """
-    Utility decorator to cache the result of a single function call
-    returning a tree sequence example.
-    """
-    cache = None
-
-    def f(*args):
-        nonlocal cache
-        if cache is None:
-            cache = ts_func(*args)
-        return cache
-
-    return f
+def alignment_map(ts, **kwargs):
+    alignments = ts.alignments(**kwargs)
+    return {f"n{u}": alignment for u, alignment in zip(ts.samples(), alignments)}
 
 
 def assert_fully_labelled_trees_equal(tree, root, node_labels, dpy_tree):
@@ -98,6 +88,22 @@ def assert_sample_labelled_trees_equal(tree, dpy_tree):
             dpy_node = dpy_node.parent_node
         assert len(p1) == len(p2)
         np.testing.assert_array_almost_equal(p1, p2)
+
+
+def assert_dpy_tree_list_equal(ts, tree_list):
+    """
+    Check that the nexus-encoded tree list output from tskit is
+    parsed correctly by dendropy.
+    """
+    assert ts.num_trees == len(tree_list)
+    for tsk_tree, dpy_tree in zip(ts.trees(), tree_list):
+        # We're specifying that the tree is rooted.
+        assert dpy_tree.is_rooted
+        assert dpy_tree.label.startswith("t")
+        left, right = map(float, dpy_tree.label[1:].split("^"))
+        assert tsk_tree.interval.left == pytest.approx(left)
+        assert tsk_tree.interval.right == pytest.approx(right)
+        assert_sample_labelled_trees_equal(tsk_tree, dpy_tree)
 
 
 class TestBackendsGiveIdenticalOutput:
@@ -162,9 +168,9 @@ class TestNewickRoundTrip:
                 assert_fully_labelled_trees_equal(tree, root, node_labels, dpy_tree)
 
 
-class TestNexusRoundTrip:
+class TestNexusTreeRoundTrip:
     """
-    Test that the nexus formats can round-trip the data under various
+    Test that the nexus format can round-trip tree data under various
     assumptions.
     """
 
@@ -172,24 +178,62 @@ class TestNexusRoundTrip:
     def test_dendropy_defaults(self, ts):
         if any(tree.num_roots != 1 for tree in ts.trees()):
             with pytest.raises(ValueError, match="single root"):
-                ts.as_nexus()
+                ts.as_nexus(include_alignments=False)
         else:
-            nexus = ts.as_nexus()
+            nexus = ts.as_nexus(include_alignments=False)
             tree_list = dendropy.TreeList()
             tree_list.read(
                 data=nexus,
                 schema="nexus",
                 suppress_internal_node_taxa=False,
             )
-            assert ts.num_trees == len(tree_list)
-            for tsk_tree, dpy_tree in zip(ts.trees(), tree_list):
-                # We're specifying that the tree is rooted.
-                assert dpy_tree.is_rooted
-                assert dpy_tree.label.startswith("t")
-                left, right = map(float, dpy_tree.label[1:].split("^"))
-                assert tsk_tree.interval.left == pytest.approx(left)
-                assert tsk_tree.interval.right == pytest.approx(right)
-                assert_sample_labelled_trees_equal(tsk_tree, dpy_tree)
+            assert_dpy_tree_list_equal(ts, tree_list)
+
+
+class TestMissingDataReferenceRoundTrip:
+    """
+    Test that the nexus formats can round-trip all data.
+    """
+
+    @tests.cached_example
+    def ts(self):
+        # 2.00┊   4   ┊
+        #     ┊ ┏━┻┓  ┊
+        # 1.00┊ ┃  3  ┊
+        #     ┊ ┃ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0      10
+        #      |    |
+        #  pos 2    9
+        #  anc A    T
+        ts = tskit.Tree.generate_balanced(3, span=10).tree_sequence
+        tables = ts.dump_tables()
+        tables.sites.add_row(2, ancestral_state="A")
+        tables.sites.add_row(9, ancestral_state="T")
+        tables.mutations.add_row(site=0, node=0, derived_state="G")
+        tables.mutations.add_row(site=1, node=3, derived_state="C")
+        return tables.tree_sequence()
+
+    def verify(self, ref):
+        ts = self.ts()
+        nexus = ts.as_nexus(reference_sequence=ref)
+        ds = dendropy.DataSet.get(schema="nexus", data=nexus)
+        assert len(ds.taxon_namespaces) == 1
+        assert len(ds.tree_lists) == 1
+        assert len(ds.char_matrices) == 1
+        taxa = [taxon.label for taxon in ds.taxon_namespaces[0]]
+        assert len(taxa) == ts.num_samples
+        assert set(taxa) == {f"n{u}" for u in ts.samples()}
+        assert_dpy_tree_list_equal(ts, ds.tree_lists[0])
+        ts_map = alignment_map(ts, reference_sequence=ref)
+        dpy_map = {str(k.label): str(v) for k, v in ds.char_matrices[0].items()}
+        assert ts_map == dpy_map
+        cm = ds.char_matrices[0]
+        print(cm.description())
+        print(cm.taxon_state_sets_map())
+
+    def test_hyphen_ref(self):
+        self.verify("-" * 10)
 
 
 class TestNewickCodePaths:
@@ -226,7 +270,7 @@ class TestBalancedBinaryExample:
     # ┃  3
     # ┃ ┏┻┓
     # 0 1 2
-    @cached_example
+    @tests.cached_example
     def tree(self):
         return tskit.Tree.generate_balanced(3)
 
@@ -324,7 +368,7 @@ class TestFractionalBranchLengths:
     #     ┊ ┃ ┏┻┓ ┊
     # 0.00┊ 0 1 2 ┊
     #     0       1
-    @cached_example
+    @tests.cached_example
     def tree(self):
         return tskit.Tree.generate_balanced(3, branch_length=1 / 3)
 
@@ -369,7 +413,7 @@ class TestLargeBranchLengths:
     #              ┊ ┃ ┏┻┓ ┊
     # 0.00         ┊ 0 1 2 ┊
     #              0       1
-    @cached_example
+    @tests.cached_example
     def tree(self):
         return tskit.Tree.generate_balanced(3, branch_length=1e9)
 
@@ -400,7 +444,7 @@ class TestInternalSampleExample:
     # ┃ ┏┻┓
     # 0 1 2
     # Leaves are samples but 3 is also a sample.
-    @cached_example
+    @tests.cached_example
     def tree(self):
         tables = tskit.Tree.generate_balanced(3).tree_sequence.dump_tables()
         flags = tables.nodes.flags
@@ -445,7 +489,7 @@ class TestAncientSampleExample:
     # 0 1 ┃  6
     #     ┃ ┏┻┓
     #     2 3 4
-    @cached_example
+    @tests.cached_example
     def tree(self):
         tables = tskit.Tree.generate_balanced(5).tree_sequence.dump_tables()
         time = tables.nodes.time
@@ -472,7 +516,7 @@ class TestNonSampleLeafExample:
     # ┃ ┏┻┓
     # |0|1 2
     # Leaf 0 is *not* a sample
-    @cached_example
+    @tests.cached_example
     def tree(self):
         tables = tskit.Tree.generate_balanced(3).tree_sequence.dump_tables()
         flags = tables.nodes.flags
@@ -526,7 +570,7 @@ class TestNonBinaryExample:
     #     ┊ ┏━╋━┓ ┏━╋━┓ ┏━╋━┓ ┊
     # 0.00┊ 0 1 2 3 4 5 6 7 8 ┊
     #     0                   1
-    @cached_example
+    @tests.cached_example
     def tree(self):
         return tskit.Tree.generate_balanced(9, arity=3)
 
@@ -545,7 +589,7 @@ class TestMultiRootExample:
     #     ┊ ┏━╋━┓ ┏━╋━┓ ┏━╋━┓ ┊
     # 0.00┊ 0 1 2 3 4 5 6 7 8 ┊
     #     0                   1
-    @cached_example
+    @tests.cached_example
     def tree(self):
         tables = tskit.Tree.generate_balanced(9, arity=3).tree_sequence.dump_tables()
         edges = tables.edges.copy()
@@ -586,7 +630,7 @@ class TestLineTree:
     # 0.00┊ 0 ┊
     #     0   1
 
-    @cached_example
+    @tests.cached_example
     def tree(self):
         tables = tskit.TableCollection(1.0)
         tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
@@ -663,7 +707,7 @@ class TestIntegerTreeSequence:
     #     ┊ ┃ ┃ ┃ ┊ ┏┻┓ ┃ ┊
     # 0.00┊ 0 1 2 ┊ 0 2 1 ┊
     #     0       2      10
-    @cached_example
+    @tests.cached_example
     def ts(self):
         nodes = io.StringIO(
             """\
@@ -741,7 +785,7 @@ class TestFloatTimeTreeSequence:
     #     ┊ ┃ ┃ ┃ ┊ ┏┻┓ ┃ ┊
     # 0.00┊ 0 1 2 ┊ 0 2 1 ┊
     #     0       2      10
-    @cached_example
+    @tests.cached_example
     def ts(self):
         nodes = io.StringIO(
             """\
@@ -812,7 +856,7 @@ class TestFloatPositionTreeSequence:
     #     ┊ ┃ ┃ ┃ ┊ ┏┻┓ ┃ ┊
     # 0.00┊ 0 1 2 ┊ 0 2 1 ┊
     #     0      2.5      10
-    @cached_example
+    @tests.cached_example
     def ts(self):
         nodes = io.StringIO(
             """\
