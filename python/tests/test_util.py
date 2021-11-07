@@ -489,3 +489,54 @@ def test_set_printoptions():
     assert tskit._print_options == {"max_lines": 40}
     with pytest.raises(TypeError):
         util.set_print_options(40)
+
+
+class TestRandomNuceotides:
+    @pytest.mark.parametrize("length", [0, 1, 10, 10.0, np.array([10])[0]])
+    def test_length(self, length):
+        s = tskit.random_nucleotides(length, seed=42)
+        assert len(s) == length
+        assert isinstance(s, str)
+
+    def test_default_alphabet(self):
+        s = tskit.random_nucleotides(100, seed=42)
+        assert "".join(sorted(set(s))) == "ACGT"
+
+    def test_length_keyword(self):
+        s1 = tskit.random_nucleotides(length=10, seed=42)
+        s2 = tskit.random_nucleotides(length=10, seed=42)
+        assert s1 == s2
+
+    def test_length_required(self):
+        with pytest.raises(TypeError, match="required positional"):
+            tskit.random_nucleotides()
+
+    def test_seed_keyword_only(self):
+        with pytest.raises(TypeError, match="1 positional"):
+            tskit.random_nucleotides(10, 42)
+
+    @pytest.mark.parametrize("seed", [1, 2, 3])
+    def test_seed_equality(self, seed):
+        s1 = tskit.random_nucleotides(10, seed=seed)
+        s2 = tskit.random_nucleotides(10, seed=seed)
+        assert s1 == s2
+
+    def test_different_seed_not_equal(self):
+        s1 = tskit.random_nucleotides(20, seed=1)
+        s2 = tskit.random_nucleotides(20, seed=2)
+        assert s1 != s2
+
+    def test_no_seed_different_values(self):
+        s1 = tskit.random_nucleotides(20)
+        s2 = tskit.random_nucleotides(20)
+        assert s1 != s2
+
+    @pytest.mark.parametrize("length", ["0", 0.1, np.array([1.1])[0]])
+    def test_length_bad_value(self, length):
+        with pytest.raises(ValueError, match="must be an integer"):
+            tskit.random_nucleotides(length)
+
+    @pytest.mark.parametrize("length", [{}, None])
+    def test_length_bad_type(self, length):
+        with pytest.raises(TypeError, match="argument must be a string"):
+            tskit.random_nucleotides(length)
