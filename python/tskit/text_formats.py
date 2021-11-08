@@ -107,6 +107,7 @@ def flexible_file_output(ts_export_func):
     return f
 
 
+@flexible_file_output
 def write_nexus(
     ts,
     out,
@@ -115,8 +116,6 @@ def write_nexus(
     include_trees,
     include_alignments,
     reference_sequence,
-    missing_data_character,
-    isolated_as_missing,
 ):
     # See TreeSequence.write_nexus for documentation on parameters.
     if precision is None:
@@ -137,24 +136,16 @@ def write_nexus(
     if include_alignments is None:
         include_alignments = ts.discrete_genome and ts.num_sites > 0
     if include_alignments:
-        # Following the default in Maddison et al 1997
-        missing_data_character = (
-            "?" if missing_data_character is None else missing_data_character
-        )
         print("BEGIN DATA;", file=out)
         print("", f"DIMENSIONS NCHAR={int(ts.sequence_length)};", sep=indent, file=out)
         print(
             "",
-            f"FORMAT DATATYPE=DNA MISSING={missing_data_character};",
+            "FORMAT DATATYPE=DNA;",
             sep=indent,
             file=out,
         )
         print("", "MATRIX", file=out, sep=indent)
-        alignments = ts.alignments(
-            reference_sequence=reference_sequence,
-            missing_data_character=missing_data_character,
-            isolated_as_missing=isolated_as_missing,
-        )
+        alignments = ts.alignments(reference_sequence=reference_sequence)
         for u, alignment in zip(ts.samples(), alignments):
             print(2 * indent, f"n{u}", " ", alignment, sep="", file=out)
         print("", ";", sep=indent, file=out)
@@ -195,8 +186,6 @@ def write_fasta(
     *,
     wrap_width,
     reference_sequence,
-    missing_data_character,
-    isolated_as_missing,
 ):
     # See TreeSequence.write_fasta for documentation
     if wrap_width < 0 or int(wrap_width) != wrap_width:
@@ -206,11 +195,7 @@ def write_fasta(
             "if you do not want any wrapping."
         )
     wrap_width = int(wrap_width)
-    alignments = ts.alignments(
-        reference_sequence=reference_sequence,
-        missing_data_character=missing_data_character,
-        isolated_as_missing=isolated_as_missing,
-    )
+    alignments = ts.alignments(reference_sequence=reference_sequence)
     for u, alignment in zip(ts.samples(), alignments):
         print(">", f"n{u}", sep="", file=output)
         for line in wrap_text(alignment, wrap_width):

@@ -90,6 +90,10 @@
 
 - Add the ``TreeSequence.alignments`` method. (user:`jeromekelleher`, :pr:`1825`)
 
+- Add alignment export in the FASTA and nexus formats using the
+  ``TreeSequence.write_nexus`` and ``TreeSequence.write_fasta`` methods.
+  (:user:`jeromekelleher`, :user:`hyanwong`, :pr:`1894`)
+
 - Add the ``discrete_time`` property to the TreeSequence class which is true if
   all time coordinates are discrete or unknown (:user:`benjeffery`, :issue:`1839`, :pr:`1890`)
 

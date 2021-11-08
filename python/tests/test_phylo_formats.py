@@ -45,6 +45,37 @@ from tests.test_highlevel import get_example_tree_sequences
 # or something.
 
 
+@functools.lru_cache(maxsize=100)
+def alignment_example(sequence_length):
+    ts = msprime.sim_ancestry(
+        samples=5, sequence_length=sequence_length, random_seed=123
+    )
+    ts = msprime.sim_mutations(ts, rate=0.1, random_seed=1234)
+    assert ts.num_sites > 5
+    return ts
+
+
+@tests.cached_example
+def missing_data_example():
+    # 2.00┊   4     ┊
+    #     ┊ ┏━┻┓    ┊
+    # 1.00┊ ┃  3    ┊
+    #     ┊ ┃ ┏┻┓   ┊
+    # 0.00┊ 0 1 2 5 ┊
+    #     0        10
+    #      |      |
+    #  pos 2      9
+    #  anc A      T
+    ts = tskit.Tree.generate_balanced(3, span=10).tree_sequence
+    tables = ts.dump_tables()
+    tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+    tables.sites.add_row(2, ancestral_state="A")
+    tables.sites.add_row(9, ancestral_state="T")
+    tables.mutations.add_row(site=0, node=0, derived_state="G")
+    tables.mutations.add_row(site=1, node=3, derived_state="C")
+    return tables.tree_sequence()
+
+
 def alignment_map(ts, **kwargs):
     alignments = ts.alignments(**kwargs)
     return {f"n{u}": alignment for u, alignment in zip(ts.samples(), alignments)}
@@ -193,9 +224,9 @@ class TestNexusTreeRoundTrip:
             assert_dpy_tree_list_equal(ts, tree_list)
 
 
-class TestMissingDataReferenceRoundTrip:
+class TestNexusIncludeSections:
     """
-    Test that the nexus formats can round-trip all data.
+    Test if we include the sections as expected.
     """
 
     @tests.cached_example
@@ -217,26 +248,83 @@ class TestMissingDataReferenceRoundTrip:
         tables.mutations.add_row(site=1, node=3, derived_state="C")
         return tables.tree_sequence()
 
-    def verify(self, ref):
-        ts = self.ts()
-        nexus = ts.as_nexus(reference_sequence=ref)
-        ds = dendropy.DataSet.get(schema="nexus", data=nexus)
-        assert len(ds.taxon_namespaces) == 1
-        assert len(ds.tree_lists) == 1
-        assert len(ds.char_matrices) == 1
-        taxa = [taxon.label for taxon in ds.taxon_namespaces[0]]
-        assert len(taxa) == ts.num_samples
-        assert set(taxa) == {f"n{u}" for u in ts.samples()}
-        assert_dpy_tree_list_equal(ts, ds.tree_lists[0])
-        ts_map = alignment_map(ts, reference_sequence=ref)
-        dpy_map = {str(k.label): str(v) for k, v in ds.char_matrices[0].items()}
-        assert ts_map == dpy_map
-        cm = ds.char_matrices[0]
-        print(cm.description())
-        print(cm.taxon_state_sets_map())
+    def test_nexus_default(self):
+        ref = "ACTGACTGAC"
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=3;
+              TAXLABELS n0 n1 n2;
+            END;
+            BEGIN DATA;
+              DIMENSIONS NCHAR=10;
+              FORMAT DATATYPE=DNA;
+              MATRIX
+                n0 ACGGACTGAT
+                n1 ACAGACTGAC
+                n2 ACAGACTGAC
+              ;
+            END;
+            BEGIN TREES;
+              TREE t0^10 = [&R] (n0:2,(n1:1,n2:1):1);
+            END;
+            """
+        )
+        assert expected == self.ts().as_nexus(reference_sequence=ref)
 
-    def test_hyphen_ref(self):
-        self.verify("-" * 10)
+    def test_nexus_no_trees(self):
+        ref = "ACTGACTGAC"
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=3;
+              TAXLABELS n0 n1 n2;
+            END;
+            BEGIN DATA;
+              DIMENSIONS NCHAR=10;
+              FORMAT DATATYPE=DNA;
+              MATRIX
+                n0 ACGGACTGAT
+                n1 ACAGACTGAC
+                n2 ACAGACTGAC
+              ;
+            END;
+            """
+        )
+        assert expected == self.ts().as_nexus(
+            reference_sequence=ref, include_trees=False
+        )
+
+    def test_nexus_no_alignments(self):
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=3;
+              TAXLABELS n0 n1 n2;
+            END;
+            BEGIN TREES;
+              TREE t0^10 = [&R] (n0:2,(n1:1,n2:1):1);
+            END;
+            """
+        )
+        assert expected == self.ts().as_nexus(include_alignments=False)
+
+    def test_nexus_no_trees_or_alignments(self):
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=3;
+              TAXLABELS n0 n1 n2;
+            END;
+            """
+        )
+        assert expected == self.ts().as_nexus(
+            include_trees=False, include_alignments=False
+        )
 
 
 class TestNewickCodePaths:
@@ -362,6 +450,22 @@ class TestBalancedBinaryExample:
         """
         )
         assert ts.as_nexus() == expected
+
+    def test_as_nexus_precision_1(self):
+        ts = self.tree().tree_sequence
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=3;
+              TAXLABELS n0 n1 n2;
+            END;
+            BEGIN TREES;
+              TREE t0.0^1.0 = [&R] (n0:2.0,(n1:1.0,n2:1.0):1.0);
+            END;
+        """
+        )
+        assert ts.as_nexus(precision=1) == expected
 
 
 class TestFractionalBranchLengths:
@@ -954,38 +1058,6 @@ def test_newick_buffer_too_small_bug():
         assert newick_c == newick_py
 
 
-# setting up some basic haplotype data for tests
-@functools.lru_cache(maxsize=100)
-def create_data(sequence_length):
-    ts = msprime.sim_ancestry(
-        samples=5, sequence_length=sequence_length, random_seed=123
-    )
-    ts = msprime.sim_mutations(ts, rate=0.1, random_seed=1234)
-    assert ts.num_sites > 5
-    return ts
-
-
-@tests.cached_example
-def missing_data_example():
-    # 2.00┊   4     ┊
-    #     ┊ ┏━┻┓    ┊
-    # 1.00┊ ┃  3    ┊
-    #     ┊ ┃ ┏┻┓   ┊
-    # 0.00┊ 0 1 2 5 ┊
-    #     0        10
-    #      |      |
-    #  pos 2      9
-    #  anc A      T
-    ts = tskit.Tree.generate_balanced(3, span=10).tree_sequence
-    tables = ts.dump_tables()
-    tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
-    tables.sites.add_row(2, ancestral_state="A")
-    tables.sites.add_row(9, ancestral_state="T")
-    tables.mutations.add_row(site=0, node=0, derived_state="G")
-    tables.mutations.add_row(site=1, node=3, derived_state="C")
-    return tables.tree_sequence()
-
-
 class TestWrapText:
     def test_even_split(self):
         example = "ABCDEFGH"
@@ -1026,7 +1098,7 @@ class TestWrapText:
         assert result == ["ABCDEFGH"]
 
 
-class TestLineLength:
+class TestFastaLineLength:
     """
     Tests if the fasta file produced has the correct line lengths for
     default, custom, and no-wrapping options.
@@ -1034,7 +1106,7 @@ class TestLineLength:
 
     def verify_line_length(self, length, wrap_width=60):
         # set up data
-        ts = create_data(length)
+        ts = alignment_example(length)
         output = io.StringIO()
         ref = "A" * length
         ts.write_fasta(output, wrap_width=wrap_width, reference_sequence=ref)
@@ -1099,19 +1171,19 @@ class TestLineLength:
         self.verify_line_length(length=100, wrap_width=0)
 
     def test_negative_wrap(self):
-        ts = create_data(10)
+        ts = alignment_example(10)
         ref = "-" * 10
         with pytest.raises(ValueError, match="non-negative integer"):
             ts.as_fasta(reference_sequence=ref, wrap_width=-1)
 
     def test_floating_wrap(self):
-        ts = create_data(10)
+        ts = alignment_example(10)
         ref = "-" * 10
         with pytest.raises(ValueError):
             ts.as_fasta(reference_sequence=ref, wrap_width=1.1)
 
     def test_numpy_wrap(self):
-        ts = create_data(10)
+        ts = alignment_example(10)
         ref = "-" * 10
         x1 = ts.as_fasta(reference_sequence=ref, wrap_width=4)
         x2 = ts.as_fasta(reference_sequence=ref, wrap_width=np.array([4.0])[0])
@@ -1121,27 +1193,41 @@ class TestLineLength:
 class TestFileTextOutputEqual:
     @tests.cached_example
     def ts(self):
-        return create_data(20)
+        return alignment_example(20)
 
-    def test_defaults(self):
+    def test_fasta_defaults(self):
         ts = self.ts()
         buff = io.StringIO()
         ref = "_" * int(ts.sequence_length)
         ts.write_fasta(buff, reference_sequence=ref)
         assert buff.getvalue() == ts.as_fasta(reference_sequence=ref)
 
-    def test_wrap_width(self):
+    def test_fasta_wrap_width(self):
         ts = self.ts()
         buff = io.StringIO()
         ref = "X" * int(ts.sequence_length)
         ts.write_fasta(buff, reference_sequence=ref, wrap_width=4)
         assert buff.getvalue() == ts.as_fasta(reference_sequence=ref, wrap_width=4)
 
+    def test_nexus_defaults(self):
+        ts = self.ts()
+        buff = io.StringIO()
+        ref = "N" * int(ts.sequence_length)
+        ts.write_nexus(buff, reference_sequence=ref)
+        assert buff.getvalue() == ts.as_nexus(reference_sequence=ref)
 
-class TestFlexibleFileArg:
+    def test_nexus_precision(self):
+        ts = self.ts()
+        buff = io.StringIO()
+        ref = "N" * int(ts.sequence_length)
+        ts.write_nexus(buff, reference_sequence=ref, precision=2)
+        assert buff.getvalue() == ts.as_nexus(reference_sequence=ref, precision=2)
+
+
+class TestFlexibleFileArgFasta:
     @tests.cached_example
     def ts(self):
-        return create_data(20)
+        return alignment_example(20)
 
     def test_pathlib(self, tmp_path):
         path = tmp_path / "file.fa"
@@ -1169,12 +1255,43 @@ class TestFlexibleFileArg:
             assert f.read() == ts.as_fasta(reference_sequence=ref)
 
 
+class TestFlexibleFileArgNexus:
+    @tests.cached_example
+    def ts(self):
+        return alignment_example(20)
+
+    def test_pathlib(self, tmp_path):
+        path = tmp_path / "file.nex"
+        ts = self.ts()
+        ref = "-" * int(ts.sequence_length)
+        ts.write_nexus(path, reference_sequence=ref)
+        with open(path) as f:
+            assert f.read() == ts.as_nexus(reference_sequence=ref)
+
+    def test_path_str(self, tmp_path):
+        path = str(tmp_path / "file.nex")
+        ts = self.ts()
+        ref = "-" * int(ts.sequence_length)
+        ts.write_nexus(path, reference_sequence=ref)
+        with open(path) as f:
+            assert f.read() == ts.as_nexus(reference_sequence=ref)
+
+    def test_fileobj(self, tmp_path):
+        path = tmp_path / "file.nex"
+        ts = self.ts()
+        ref = "-" * int(ts.sequence_length)
+        with open(path, "w") as f:
+            ts.write_nexus(f, reference_sequence=ref)
+        with open(path) as f:
+            assert f.read() == ts.as_nexus(reference_sequence=ref)
+
+
 def get_alignment_map(ts, reference_sequence):
     alignments = ts.alignments(reference_sequence=reference_sequence)
     return {f"n{u}": alignment for u, alignment in zip(ts.samples(), alignments)}
 
 
-class TestBioPythonRoundTrip:
+class TestFastaBioPythonRoundTrip:
     """
     Tests that output from our code is read in by available software packages
     Here test for compatability with biopython processing - Bio.SeqIO
@@ -1182,7 +1299,7 @@ class TestBioPythonRoundTrip:
 
     def verify(self, ts, wrap_width=60, reference_sequence=None):
         if reference_sequence is None:
-            reference_sequence = "-" * int(ts.sequence_length)
+            reference_sequence = "N" * int(ts.sequence_length)
         text = ts.as_fasta(wrap_width=wrap_width, reference_sequence=reference_sequence)
         bio_map = {
             k: v.seq
@@ -1192,46 +1309,48 @@ class TestBioPythonRoundTrip:
 
     def test_equal_lines(self):
         # sequence length perfectly divisible by wrap_width
-        ts = create_data(300)
+        ts = alignment_example(300)
         self.verify(ts)
 
     def test_unequal_lines(self):
         # sequence length not perfectly divisible by wrap_width
-        ts = create_data(280)
+        ts = alignment_example(280)
         self.verify(ts)
 
     def test_unwrapped(self):
         # sequences not wrapped
-        ts = create_data(300)
+        ts = alignment_example(300)
         self.verify(ts, wrap_width=0)
 
     def test_A_reference(self):
-        ts = create_data(20)
+        ts = alignment_example(20)
         self.verify(ts, reference_sequence="A" * 20)
 
+    @pytest.mark.skip("Missing data in alignments: #1896")
     def test_missing_data(self):
         self.verify(missing_data_example())
 
 
-class TestDendropyRoundTrip:
+class TestFastaDendropyRoundTrip:
     def parse(self, fasta):
         d = dendropy.DnaCharacterMatrix.get(data=fasta, schema="fasta")
         return {str(k.label): str(v) for k, v in d.items()}
 
     def test_wrapped(self):
-        ts = create_data(300)
-        ref = "-" * int(ts.sequence_length)
+        ts = alignment_example(300)
+        ref = "N" * int(ts.sequence_length)
         text = ts.as_fasta(reference_sequence=ref)
         alignment_map = self.parse(text)
         assert get_alignment_map(ts, ref) == alignment_map
 
     def test_unwrapped(self):
-        ts = create_data(300)
-        ref = "-" * int(ts.sequence_length)
+        ts = alignment_example(300)
+        ref = "N" * int(ts.sequence_length)
         text = ts.as_fasta(reference_sequence=ref, wrap_width=0)
         alignment_map = self.parse(text)
         assert get_alignment_map(ts, ref) == alignment_map
 
+    @pytest.mark.skip("Missing data in alignments: #1896")
     def test_missing_data(self):
         ts = missing_data_example()
         ref = "A" * int(ts.sequence_length)
@@ -1240,6 +1359,7 @@ class TestDendropyRoundTrip:
         assert get_alignment_map(ts, ref) == alignment_map
 
 
+@pytest.mark.skip("Missing data in alignments: #1896")
 class TestDendropyMissingData:
     """
     Test that we detect missing data correctly in dendropy under
@@ -1266,17 +1386,36 @@ class TestDendropyMissingData:
         tables.mutations.add_row(site=1, node=3, derived_state="C")
         return tables.tree_sequence()
 
-    def test_defaults_A_ref(self):
+    def assert_missing_data_encoded_A_ref(self, d):
+        assert d.sequence_size == 10
+        assert str(d["n0"]) == "AAGAAAAAAT"
+        assert str(d["n1"]) == "AAAAAAAAAC"
+        assert str(d["n2"]) == "AAAAAAAAAC"
+        for a in [d["n0"], d["n1"], d["n2"]]:
+            assert all(
+                a[j].state_denomination == dendropy.StateAlphabet.FUNDAMENTAL_STATE
+                for j in range(10)
+            )
+        # Do we detect that we have an ambiguous state for the missing sample?
+
+        a5 = d["n5"]
+        # a5 is missing along the full length of the genome, so all sites are
+        # missing.
+        assert all(
+            a5.state_denomination == dendropy.StateAlphabet.AMBIGUOUS_STATE
+            for j in range(10)
+        )
+
+    def test_fasta_defaults_A_ref(self):
         ts = self.ts()
         ref = "A" * int(ts.sequence_length)
-        text = ts.as_fasta(reference_sequence=ref, missing_data_character="N")
-        # print(text)
+        text = ts.as_fasta(reference_sequence=ref)
         d = dendropy.DnaCharacterMatrix.get(data=text, schema="fasta")
-        assert d.sequence_size == 10
-        # for k, v in d.items():
-        #     print(k, v)
-        # FINISH ME
-        # a0 = d["n0"]
-        # a5 = d["n5"]
-        # print(a0.character_type_at(0))
-        # print(a5)
+        self.assert_missing_data_encoded_A_ref(d)
+
+    def test_nexus_defaults_A_ref(self):
+        ts = self.ts()
+        ref = "A" * int(ts.sequence_length)
+        text = ts.as_nexus(reference_sequence=ref, include_trees=False)
+        d = dendropy.DnaCharacterMatrix.get(data=text, schema="nexus")
+        self.assert_missing_data_encoded_A_ref(d)
