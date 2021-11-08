@@ -315,13 +315,33 @@ tsk_treeseq_init_migrations(tsk_treeseq_t *self)
     tsk_size_t num_migrations = self->tables->migrations.num_rows;
     const double *restrict left = self->tables->migrations.left;
     const double *restrict right = self->tables->migrations.right;
+    const double *restrict time = self->tables->migrations.time;
     bool discrete_breakpoints = true;
+    bool discrete_times = true;
 
     for (j = 0; j < num_migrations; j++) {
         discrete_breakpoints
             = discrete_breakpoints && is_discrete(left[j]) && is_discrete(right[j]);
+        discrete_times
+            = discrete_times && (is_discrete(time[j]) || tsk_is_unknown_time(time[j]));
     }
     self->discrete_genome = self->discrete_genome && discrete_breakpoints;
+    self->discrete_time = self->discrete_time && discrete_times;
+}
+
+static void
+tsk_treeseq_init_mutations(tsk_treeseq_t *self)
+{
+    tsk_size_t j;
+    tsk_size_t num_mutations = self->tables->mutations.num_rows;
+    const double *restrict time = self->tables->mutations.time;
+    bool discrete_times = true;
+
+    for (j = 0; j < num_mutations; j++) {
+        discrete_times
+            = discrete_times && (is_discrete(time[j]) || tsk_is_unknown_time(time[j]));
+    }
+    self->discrete_time = self->discrete_time && discrete_times;
 }
 
 static int
@@ -330,7 +350,9 @@ tsk_treeseq_init_nodes(tsk_treeseq_t *self)
     tsk_size_t j, k;
     tsk_size_t num_nodes = self->tables->nodes.num_rows;
     const tsk_flags_t *restrict node_flags = self->tables->nodes.flags;
+    const double *restrict time = self->tables->nodes.time;
     int ret = 0;
+    bool discrete_times = true;
 
     /* Determine the sample size */
     self->num_samples = 0;
@@ -356,6 +378,12 @@ tsk_treeseq_init_nodes(tsk_treeseq_t *self)
         }
     }
     tsk_bug_assert(k == self->num_samples);
+
+    for (j = 0; j < num_nodes; j++) {
+        discrete_times
+            = discrete_times && (is_discrete(time[j]) || tsk_is_unknown_time(time[j]));
+    }
+    self->discrete_time = self->discrete_time && discrete_times;
 out:
     return ret;
 }
@@ -426,11 +454,12 @@ tsk_treeseq_init(
         tsk_memcpy(self->tables->file_uuid, tables->file_uuid, TSK_UUID_SIZE + 1);
     }
 
+    self->discrete_genome = true;
+    self->discrete_time = true;
     ret = tsk_treeseq_init_nodes(self);
     if (ret != 0) {
         goto out;
     }
-    self->discrete_genome = true;
     ret = tsk_treeseq_init_sites(self);
     if (ret != 0) {
         goto out;
@@ -444,6 +473,7 @@ tsk_treeseq_init(
         goto out;
     }
     tsk_treeseq_init_migrations(self);
+    tsk_treeseq_init_mutations(self);
 
     if (tsk_treeseq_get_time_units_length(self) == strlen(TSK_TIME_UNITS_UNCALIBRATED)
         && !strncmp(tsk_treeseq_get_time_units(self), TSK_TIME_UNITS_UNCALIBRATED,
@@ -667,6 +697,12 @@ bool
 tsk_treeseq_get_discrete_genome(const tsk_treeseq_t *self)
 {
     return self->discrete_genome;
+}
+
+bool
+tsk_treeseq_get_discrete_time(const tsk_treeseq_t *self)
+{
+    return self->discrete_time;
 }
 
 /* Stats functions */

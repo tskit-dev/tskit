@@ -3951,6 +3951,23 @@ class TreeSequence:
         return bool(self._ll_tree_sequence.get_discrete_genome())
 
     @property
+    def discrete_time(self):
+        """
+        Returns True if all time coordinates in this TreeSequence are
+        discrete integer values. This is true iff all the following are true:
+
+        - All node times are discrete
+        - All mutation times are discrete
+        - All migration times are discrete
+
+        Note that ``tskit.UNKNOWN_TIME`` counts as discrete.
+
+        :return: True if this TreeSequence uses discrete time coordinates.
+        :rtype: bool
+        """
+        return bool(self._ll_tree_sequence.get_discrete_time())
+
+    @property
     def sequence_length(self):
         """
         Returns the sequence length in this tree sequence. This defines the

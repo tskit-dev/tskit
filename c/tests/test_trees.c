@@ -1023,6 +1023,81 @@ test_simplest_discrete_genome(void)
 }
 
 static void
+test_simplest_discrete_time(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    const char *nodes = "1  0   0\n"
+                        "1  0   0\n"
+                        "0  1   0\n"
+                        "0  0   0\n"
+                        "0  0   0";
+    const char *edges = "0  1   2   0,1,3,4\n";
+    const char *sites = "0.1  0\n"
+                        "0.2  0\n"
+                        "0.3  0\n"
+                        "0.4  0\n";
+    const char *mutations = "0    0     1\n"
+                            "1    1     1\n"
+                            "2    3     1\n"
+                            "3    4     1";
+    const char *migrations = "0  1  0  0  1  1";
+
+    tsk_treeseq_from_text(
+        &ts, 1, nodes, edges, migrations, sites, mutations, NULL, NULL, 0);
+    CU_ASSERT_TRUE(tsk_treeseq_get_discrete_time(&ts));
+
+    ret = tsk_table_collection_copy(ts.tables, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_treeseq_get_discrete_time(&ts));
+    tsk_treeseq_free(&ts);
+
+    tables.nodes.time[0] = 0.0001;
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_treeseq_get_discrete_time(&ts));
+    tsk_treeseq_free(&ts);
+    tables.nodes.time[0] = 0;
+
+    tables.mutations.time[0] = 0.001;
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_treeseq_get_discrete_time(&ts));
+    tsk_treeseq_free(&ts);
+    tables.mutations.time[0] = 0;
+
+    tables.migrations.time[0] = 0.001;
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_treeseq_get_discrete_time(&ts));
+    tsk_treeseq_free(&ts);
+    tables.migrations.time[0] = 0;
+
+    tables.mutations.time[0] = TSK_UNKNOWN_TIME;
+    tables.mutations.time[1] = TSK_UNKNOWN_TIME;
+    tables.mutations.time[2] = TSK_UNKNOWN_TIME;
+    tables.mutations.time[3] = TSK_UNKNOWN_TIME;
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_treeseq_get_discrete_time(&ts));
+    tsk_treeseq_free(&ts);
+
+    /* An empty tree sequence is has a discrete time. */
+    tsk_table_collection_clear(&tables, 0);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_treeseq_get_discrete_time(&ts));
+    tsk_treeseq_free(&ts);
+
+    tsk_table_collection_free(&tables);
+}
+
+static void
 test_simplest_records(void)
 {
     const char *nodes = "1  0   0\n"
@@ -6746,6 +6821,7 @@ main(int argc, char **argv)
     CU_TestInfo tests[] = {
         /* simplest example tests */
         { "test_simplest_discrete_genome", test_simplest_discrete_genome },
+        { "test_simplest_discrete_time", test_simplest_discrete_time },
         { "test_simplest_records", test_simplest_records },
         { "test_simplest_nonbinary_records", test_simplest_nonbinary_records },
         { "test_simplest_unary_records", test_simplest_unary_records },
