@@ -157,9 +157,10 @@ tree sequences.
 
 ### The `TableCollection` class
 
-Many of the `TreeSequence` methods that return a modified tree sequence
-are in fact wrappers around a corresponding `TableCollection` method
-that modifies a copy of the origin tree sequence's table collection.
+Note that several `TableCollection` methods have identical names to methods of a
+`TreeSequence`. These tree sequence methods are often a simple wrapper around the
+equivalent table collection method, acting on a copy of the tree sequence's table
+collection.
 
 ```{eval-rst}
 .. autoclass:: TableCollection(sequence_length=0)
@@ -182,7 +183,7 @@ import tskit
 t = tskit.EdgeTable()
 t.add_row(left=0, right=1, parent=10, child=11)
 t.add_row(left=1, right=2, parent=9, child=11)
-print("Now there are", len(t), "rows in the table")
+print("The table contains", len(t), "rows")
 print(t)
 ```
 
@@ -204,23 +205,27 @@ To access the data in a *row*, say row number `j` in table `t`, simply use `t[j]
 t[0]
 ```
 
+This also works as expected with negative `j`, counting rows from the end of the table
+
 ```{code-cell} ipython3
 t[-1]
 ```
 
 The returned row has attributes allowing contents to be accessed by name, e.g.
-`site_table[0].position`, `sites_table[0].ancestral_state`, `sites_table[0].metadata`
+`site_table[0].position`, `site_table[0].ancestral_state`, `site_table[0].metadata`
 etc.:
 
 ```{code-cell} ipython3
 t[-1].right
 ```
 
-Note that row contents cannot be changed. To create a new row with changed content,
-row objects have a `replace` method. For example:
+Row attributes cannot be modified directly. Instead, the `replace` method of a row
+object can be used to create a new row with one or more changed column
+values, which can then be used to replace the original. For example:
 
 ```{code-cell} ipython3
-t[-1].replace(child=4, metadata="A new edge")  # Note this won't change the original row
+t[-1] = t[-1].replace(child=4, right=3)
+print(t)
 ```
 
 Tables also support the {mod}`pickle` protocol, and so can be easily serialised and
@@ -255,7 +260,7 @@ t == t2
 
 (sec_tables_api_text_columns)=
 
-### Text columns
+#### Text columns
 
 As described in the {ref}`sec_encoding_ragged_columns`, working with
 variable length columns is somewhat more involved. Columns
@@ -324,7 +329,7 @@ print("ancestral state offsets", t_s.ancestral_state_offset)
 ```
 
 
-In the mutations table, the derived state of each mutation can be handled similarly:
+In the mutation table, the derived state of each mutation can be handled similarly:
 
 ```{code-cell} ipython3
 t_m = tskit.MutationTable()
@@ -337,7 +342,7 @@ print(t_m)
 
 (sec_tables_api_binary_columns)=
 
-## Binary columns
+#### Binary columns
 
 Columns storing binary data take the same approach as
 {ref}`sec_tables_api_text_columns` to encoding
@@ -357,7 +362,7 @@ byte string, and the second contains a Python dictionary serialised using
 t = tskit.NodeTable()
 t.add_row(metadata=b"these are raw bytes")
 t.add_row(metadata=pickle.dumps({"x": 1.1}))
-t
+print(t)
 ```
 
 Note that the pickled dictionary is encoded in 24 bytes containing unprintable
@@ -375,10 +380,19 @@ print(t[0].metadata)
 print(t[1].metadata)
 ```
 
-To get the original dictionary back, we simply unpickle it using {func}`pickle.loads`:
+The metadata containing the pickled dictionary can be unpickled using
+{func}`pickle.loads`:
 
 ```{code-cell} ipython3
 print(pickle.loads(t[1].metadata))
+```
+
+As previously, the `replace` method can be used to change the metadata,
+by overwriting an existing row with an updated one:
+
+```{code-cell} ipython3
+t[0] = t[0].replace(metadata=b"different raw bytes")
+print(t)
 ```
 
 Finally, when we print the `metadata` column, we see the raw byte values
