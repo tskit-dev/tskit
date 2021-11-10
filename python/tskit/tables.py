@@ -2397,7 +2397,7 @@ class ProvenanceTable(BaseTable):
 
 # We define segment ordering by (left, right, node) tuples
 @dataclasses.dataclass(eq=True, order=True)
-class IbdSegment:
+class IdentitySegment:
     left: float
     right: float
     node: int
@@ -2407,25 +2407,28 @@ class IbdSegment:
         return self.right - self.left
 
 
-class IbdSegmentList(collections.abc.Iterable, collections.abc.Sized):
+class IdentitySegmentList(collections.abc.Iterable, collections.abc.Sized):
     def __init__(self, ll_segment_list):
         self._ll_segment_list = ll_segment_list
 
     def __iter__(self):
         for left, right, node in zip(self.left, self.right, self.node):
-            yield IbdSegment(float(left), float(right), int(node))
+            yield IdentitySegment(float(left), float(right), int(node))
 
     def __len__(self):
         return self._ll_segment_list.num_segments
 
     def __str__(self):
-        return f"IbdSegmentList(num_segments={len(self)}, total_span={self.total_span})"
+        return (
+            f"IdentitySegmentList(num_segments={len(self)}, "
+            f"total_span={self.total_span})"
+        )
 
     def __repr__(self):
-        return f"IbdSegmentList({repr(list(self))})"
+        return f"IdentitySegmentList({repr(list(self))})"
 
     def __eq__(self, other):
-        if not isinstance(other, IbdSegmentList):
+        if not isinstance(other, IdentitySegmentList):
             return False
         return list(self) == list(other)
 
@@ -2446,7 +2449,7 @@ class IbdSegmentList(collections.abc.Iterable, collections.abc.Sized):
         return self._ll_segment_list.node
 
 
-class IbdSegments(collections.abc.Mapping):
+class IdentitySegments(collections.abc.Mapping):
     """
     TODO document
 
@@ -2487,10 +2490,10 @@ class IbdSegments(collections.abc.Mapping):
     # We have two different versions of repr - one where we list out the segments
     # for debugging, and the other that just shows the standard representation.
     # We could have repr fail if store_segments isn't true, but then printing,
-    # e.g., a list of IbdSegments objects would fail unexpectedly.
+    # e.g., a list of IdentitySegments objects would fail unexpectedly.
     def __repr__(self):
         if self.store_segments:
-            return f"IbdSegments({dict(self)})"
+            return f"IdentitySegments({dict(self)})"
         return super().__repr__()
 
     def __str__(self):
@@ -2504,11 +2507,11 @@ class IbdSegments(collections.abc.Mapping):
         ]
         if self.store_pairs:
             rows.append(["num_pairs", str(len(self))])
-        return util.unicode_table(rows, title="IbdSegments", row_separator=False)
+        return util.unicode_table(rows, title="IdentitySegments", row_separator=False)
 
     def __getitem__(self, key):
         sample_a, sample_b = key
-        return IbdSegmentList(self._ll_ibd_segments.get(sample_a, sample_b))
+        return IdentitySegmentList(self._ll_ibd_segments.get(sample_a, sample_b))
 
     def __iter__(self):
         return map(tuple, self._ll_ibd_segments.get_keys())
@@ -3747,7 +3750,7 @@ class TableCollection:
                 store_pairs=store_pairs,
                 store_segments=store_segments,
             )
-        return IbdSegments(
+        return IdentitySegments(
             ll_result,
             max_time=max_time,
             min_length=min_length,

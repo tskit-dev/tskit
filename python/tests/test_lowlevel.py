@@ -407,7 +407,7 @@ class TestTableCollection(LowLevelTestCase):
 
 class TestIbd:
     def test_uninitialised(self):
-        result = _tskit.IbdSegments.__new__(_tskit.IbdSegments)
+        result = _tskit.IdentitySegments.__new__(_tskit.IdentitySegments)
         with pytest.raises(SystemError):
             result.get(0, 1)
         with pytest.raises(SystemError):
@@ -431,11 +431,11 @@ class TestIbd:
         tc = ts.tables._ll_tables
         # By default we can't get any information about pairs.
         result = tc.ibd_segments_within()
-        with pytest.raises(_tskit.IbdPairsNotStoredError):
+        with pytest.raises(_tskit.IdentityPairsNotStoredError):
             result.get_keys()
-        with pytest.raises(_tskit.IbdPairsNotStoredError):
+        with pytest.raises(_tskit.IdentityPairsNotStoredError):
             result.num_pairs
-        with pytest.raises(_tskit.IbdPairsNotStoredError):
+        with pytest.raises(_tskit.IdentityPairsNotStoredError):
             result.get(0, 1)
 
         num_pairs = 45
@@ -446,11 +446,11 @@ class TestIbd:
         seglist = result.get(0, 1)
         assert seglist.num_segments == 1
         assert seglist.total_span == 1
-        with pytest.raises(_tskit.IbdSegmentsNotStoredError):
+        with pytest.raises(_tskit.IdentitySegmentsNotStoredError):
             seglist.node
-        with pytest.raises(_tskit.IbdSegmentsNotStoredError):
+        with pytest.raises(_tskit.IdentitySegmentsNotStoredError):
             seglist.left
-        with pytest.raises(_tskit.IbdSegmentsNotStoredError):
+        with pytest.raises(_tskit.IdentitySegmentsNotStoredError):
             seglist.right
 
     def test_within_all_pairs(self):
@@ -522,10 +522,10 @@ class TestIbd:
         tc = ts.tables._ll_tables
         pairs = [(0, 1), (2, 3)]
         result = tc.ibd_segments_within([0, 1, 2, 3], store_segments=True)
-        assert isinstance(result, _tskit.IbdSegments)
+        assert isinstance(result, _tskit.IdentitySegments)
         for pair in pairs:
             value = result.get(*pair)
-            assert isinstance(value, _tskit.IbdSegmentList)
+            assert isinstance(value, _tskit.IdentitySegmentList)
             assert value.num_segments == 1
             assert isinstance(value.left, np.ndarray)
             assert isinstance(value.right, np.ndarray)
@@ -569,7 +569,7 @@ class TestIbd:
 
     def test_direct_instantiation(self):
         # Nobody should do this, but just in case
-        result = _tskit.IbdSegments()
+        result = _tskit.IdentitySegments()
         assert result.num_segments == 0
         assert result.total_span == 0
         with tempfile.TemporaryFile("w+") as f:
@@ -580,10 +580,10 @@ class TestIbd:
         assert "IBD" in output
 
 
-class TestIbdSegmentList:
+class TestIdentitySegmentList:
     def test_direct_instantiation(self):
         # Nobody should do this, but just in case
-        seglist = _tskit.IbdSegmentList()
+        seglist = _tskit.IdentitySegmentList()
         attrs = ["num_segments", "total_span", "left", "right", "node"]
         for attr in attrs:
             with pytest.raises(SystemError, match="not initialised"):

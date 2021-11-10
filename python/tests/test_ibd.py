@@ -88,12 +88,12 @@ def naive_ibd(ts, a, b):
         mrca = tree.mrca(a, b)
         paths = [path(tree, a, mrca), path(tree, b, mrca)]
         if paths != last_paths:
-            segs.append(tskit.IbdSegment(left, tree.interval.left, last_mrca))
+            segs.append(tskit.IdentitySegment(left, tree.interval.left, last_mrca))
             last_paths = paths
             left = tree.interval.left
             last_mrca = mrca
 
-    segs.append(tskit.IbdSegment(left, ts.sequence_length, last_mrca))
+    segs.append(tskit.IdentitySegment(left, ts.sequence_length, last_mrca))
     # Filter out segments with no mrca
     return [seg for seg in segs if seg.node != -1]
 
@@ -183,47 +183,47 @@ class TestIbdSingleBinaryTree:
     # Basic test
     def test_defaults(self):
         true_segs = {
-            (0, 1): [tskit.IbdSegment(0.0, 1.0, 3)],
-            (0, 2): [tskit.IbdSegment(0.0, 1.0, 4)],
-            (1, 2): [tskit.IbdSegment(0.0, 1.0, 4)],
+            (0, 1): [tskit.IdentitySegment(0.0, 1.0, 3)],
+            (0, 2): [tskit.IdentitySegment(0.0, 1.0, 4)],
+            (1, 2): [tskit.IdentitySegment(0.0, 1.0, 4)],
         }
         ibd_segs = ibd_segments(self.ts(), within=[0, 1, 2])
         assert_ibd_equal(ibd_segs, true_segs)
 
     def test_within(self):
         true_segs = {
-            (0, 1): [tskit.IbdSegment(0.0, 1.0, 3)],
+            (0, 1): [tskit.IdentitySegment(0.0, 1.0, 3)],
         }
         ibd_segs = ibd_segments(self.ts(), within=[0, 1])
         assert_ibd_equal(ibd_segs, true_segs)
 
     def test_between_0_1(self):
         true_segs = {
-            (0, 1): [tskit.IbdSegment(0.0, 1.0, 3)],
+            (0, 1): [tskit.IdentitySegment(0.0, 1.0, 3)],
         }
         ibd_segs = ibd_segments(self.ts(), between=[[0], [1]])
         assert_ibd_equal(ibd_segs, true_segs)
 
     def test_between_0_2(self):
         true_segs = {
-            (0, 2): [tskit.IbdSegment(0.0, 1.0, 4)],
+            (0, 2): [tskit.IdentitySegment(0.0, 1.0, 4)],
         }
         ibd_segs = ibd_segments(self.ts(), between=[[0], [2]])
         assert_ibd_equal(ibd_segs, true_segs)
 
     def test_between_0_1_2(self):
         true_segs = {
-            (0, 1): [tskit.IbdSegment(0.0, 1.0, 3)],
-            (0, 2): [tskit.IbdSegment(0.0, 1.0, 4)],
-            (1, 2): [tskit.IbdSegment(0.0, 1.0, 4)],
+            (0, 1): [tskit.IdentitySegment(0.0, 1.0, 3)],
+            (0, 2): [tskit.IdentitySegment(0.0, 1.0, 4)],
+            (1, 2): [tskit.IdentitySegment(0.0, 1.0, 4)],
         }
         ibd_segs = ibd_segments(self.ts(), between=[[0], [1], [2]])
         assert_ibd_equal(ibd_segs, true_segs)
 
     def test_between_0_12(self):
         true_segs = {
-            (0, 1): [tskit.IbdSegment(0.0, 1.0, 3)],
-            (0, 2): [tskit.IbdSegment(0.0, 1.0, 4)],
+            (0, 1): [tskit.IdentitySegment(0.0, 1.0, 3)],
+            (0, 2): [tskit.IdentitySegment(0.0, 1.0, 4)],
         }
         ibd_segs = ibd_segments(self.ts(), between=[[0], [1, 2]])
         assert_ibd_equal(ibd_segs, true_segs)
@@ -234,7 +234,7 @@ class TestIbdSingleBinaryTree:
             max_time=1.5,
             compare_lib=True,
         )
-        true_segs = {(0, 1): [tskit.IbdSegment(0.0, 1.0, 3)]}
+        true_segs = {(0, 1): [tskit.IdentitySegment(0.0, 1.0, 3)]}
         assert_ibd_equal(ibd_segs, true_segs)
 
     def test_length(self):
@@ -318,20 +318,23 @@ class TestIbdTwoSamplesTwoTrees:
     def test_basic(self):
         ibd_segs = ibd_segments(self.ts())
         true_segs = {
-            (0, 1): [tskit.IbdSegment(0.0, 0.4, 2), tskit.IbdSegment(0.4, 1.0, 3)]
+            (0, 1): [
+                tskit.IdentitySegment(0.0, 0.4, 2),
+                tskit.IdentitySegment(0.4, 1.0, 3),
+            ]
         }
         assert_ibd_equal(ibd_segs, true_segs)
 
     # Max time = 1.2
     def test_time(self):
         ibd_segs = ibd_segments(self.ts(), max_time=1.2, compare_lib=True)
-        true_segs = {(0, 1): [tskit.IbdSegment(0.0, 0.4, 2)]}
+        true_segs = {(0, 1): [tskit.IdentitySegment(0.0, 0.4, 2)]}
         assert_ibd_equal(ibd_segs, true_segs)
 
     # Min length = 0.5
     def test_length(self):
         ibd_segs = ibd_segments(self.ts(), min_length=0.5, compare_lib=True)
-        true_segs = {(0, 1): [tskit.IbdSegment(0.4, 1.0, 3)]}
+        true_segs = {(0, 1): [tskit.IdentitySegment(0.4, 1.0, 3)]}
         assert_ibd_equal(ibd_segs, true_segs)
 
 
@@ -412,7 +415,7 @@ class TestIbdNoSamples:
         ibd_segs = ibd_segments(self.ts(), within=[0, 1])
         true_segs = {
             (0, 1): [
-                tskit.IbdSegment(0.0, 1, 2),
+                tskit.IdentitySegment(0.0, 1, 2),
             ]
         }
         assert_ibd_equal(ibd_segs, true_segs)
@@ -453,8 +456,8 @@ class TestIbdSamplesAreDescendants:
     def test_basic(self):
         ibd_segs = ibd_segments(self.ts())
         true_segs = {
-            (0, 2): [tskit.IbdSegment(0.0, 1.0, 2)],
-            (1, 3): [tskit.IbdSegment(0.0, 1.0, 3)],
+            (0, 2): [tskit.IdentitySegment(0.0, 1.0, 2)],
+            (1, 3): [tskit.IdentitySegment(0.0, 1.0, 3)],
         }
 
         assert_ibd_equal(ibd_segs, true_segs)
@@ -462,8 +465,8 @@ class TestIbdSamplesAreDescendants:
     def test_input_within(self):
         ibd_segs = ibd_segments(self.ts(), within=[0, 2, 3, 5])
         true_segs = {
-            (0, 2): [tskit.IbdSegment(0.0, 1.0, 2)],
-            (3, 5): [tskit.IbdSegment(0.0, 1.0, 5)],
+            (0, 2): [tskit.IdentitySegment(0.0, 1.0, 2)],
+            (3, 5): [tskit.IdentitySegment(0.0, 1.0, 5)],
         }
         assert_ibd_equal(ibd_segs, true_segs)
 
@@ -471,12 +474,12 @@ class TestIbdSamplesAreDescendants:
         # FIXME
         ibd_segs = ibd_segments(self.ts(), within=range(6), compare_lib=False)
         true_segs = {
-            (0, 2): [tskit.IbdSegment(0.0, 1.0, 2)],
-            (0, 4): [tskit.IbdSegment(0.0, 1.0, 4)],
-            (2, 4): [tskit.IbdSegment(0.0, 1.0, 4)],
-            (1, 3): [tskit.IbdSegment(0.0, 1.0, 3)],
-            (1, 5): [tskit.IbdSegment(0.0, 1.0, 5)],
-            (3, 5): [tskit.IbdSegment(0.0, 1.0, 5)],
+            (0, 2): [tskit.IdentitySegment(0.0, 1.0, 2)],
+            (0, 4): [tskit.IdentitySegment(0.0, 1.0, 4)],
+            (2, 4): [tskit.IdentitySegment(0.0, 1.0, 4)],
+            (1, 3): [tskit.IdentitySegment(0.0, 1.0, 3)],
+            (1, 5): [tskit.IdentitySegment(0.0, 1.0, 5)],
+            (3, 5): [tskit.IdentitySegment(0.0, 1.0, 5)],
         }
         assert_ibd_equal(ibd_segs, true_segs)
 
@@ -512,9 +515,9 @@ class TestIbdSimpleInternalSampleChain:
         # FIXME
         ibd_segs = ibd_segments(self.ts(), compare_lib=False)
         true_segs = {
-            (0, 1): [tskit.IbdSegment(0.0, 1.0, 1)],
-            (0, 2): [tskit.IbdSegment(0.0, 1.0, 2)],
-            (1, 2): [tskit.IbdSegment(0.0, 1.0, 2)],
+            (0, 1): [tskit.IdentitySegment(0.0, 1.0, 1)],
+            (0, 2): [tskit.IdentitySegment(0.0, 1.0, 2)],
+            (1, 2): [tskit.IdentitySegment(0.0, 1.0, 2)],
         }
 
         assert_ibd_equal(ibd_segs, true_segs)
@@ -562,9 +565,9 @@ class TestIbdDifferentPaths:
         ibd_segs = ibd_segments(self.ts())
         true_segs = {
             (0, 1): [
-                tskit.IbdSegment(0.0, 0.2, 4),
-                tskit.IbdSegment(0.7, 1.0, 4),
-                tskit.IbdSegment(0.2, 0.7, 4),
+                tskit.IdentitySegment(0.0, 0.2, 4),
+                tskit.IdentitySegment(0.7, 1.0, 4),
+                tskit.IdentitySegment(0.2, 0.7, 4),
             ]
         }
         assert_ibd_equal(ibd_segs, true_segs)
@@ -575,7 +578,7 @@ class TestIbdDifferentPaths:
 
     def test_length(self):
         ibd_segs = ibd_segments(self.ts(), min_length=0.4)
-        true_segs = {(0, 1): [tskit.IbdSegment(0.2, 0.7, 4)]}
+        true_segs = {(0, 1): [tskit.IdentitySegment(0.2, 0.7, 4)]}
         assert_ibd_equal(ibd_segs, true_segs)
 
 
@@ -622,7 +625,10 @@ class TestIbdDifferentPaths2:
     def test_defaults(self):
         ibd_segs = ibd_segments(self.ts(), within=[1, 2])
         true_segs = {
-            (1, 2): [tskit.IbdSegment(0.0, 0.2, 4), tskit.IbdSegment(0.2, 1.0, 4)],
+            (1, 2): [
+                tskit.IdentitySegment(0.0, 0.2, 4),
+                tskit.IdentitySegment(0.2, 1.0, 4),
+            ],
         }
         assert_ibd_equal(ibd_segs, true_segs)
 
@@ -653,7 +659,7 @@ class TestIbdDifferentPaths3:
     def test_defaults(self):
         ibd_segs = ibd_segments(self.ts())
         true_segs = {
-            (0, 1): [tskit.IbdSegment(0, 5, 4), tskit.IbdSegment(5, 10, 4)],
+            (0, 1): [tskit.IdentitySegment(0, 5, 4), tskit.IdentitySegment(5, 10, 4)],
         }
         assert_ibd_equal(ibd_segs, true_segs)
 
@@ -701,44 +707,65 @@ class TestIbdPolytomies:
     def test_defaults(self):
         ibd_segs = ibd_segments(self.ts())
         true_segs = {
-            (0, 1): [tskit.IbdSegment(0, 1, 4)],
-            (0, 2): [tskit.IbdSegment(0, 0.3, 4), tskit.IbdSegment(0.3, 1, 5)],
-            (0, 3): [tskit.IbdSegment(0, 0.3, 5), tskit.IbdSegment(0.3, 1, 4)],
-            (1, 2): [tskit.IbdSegment(0, 0.3, 4), tskit.IbdSegment(0.3, 1, 5)],
-            (1, 3): [tskit.IbdSegment(0, 0.3, 5), tskit.IbdSegment(0.3, 1, 4)],
-            (2, 3): [tskit.IbdSegment(0.3, 1, 5), tskit.IbdSegment(0, 0.3, 5)],
+            (0, 1): [tskit.IdentitySegment(0, 1, 4)],
+            (0, 2): [
+                tskit.IdentitySegment(0, 0.3, 4),
+                tskit.IdentitySegment(0.3, 1, 5),
+            ],
+            (0, 3): [
+                tskit.IdentitySegment(0, 0.3, 5),
+                tskit.IdentitySegment(0.3, 1, 4),
+            ],
+            (1, 2): [
+                tskit.IdentitySegment(0, 0.3, 4),
+                tskit.IdentitySegment(0.3, 1, 5),
+            ],
+            (1, 3): [
+                tskit.IdentitySegment(0, 0.3, 5),
+                tskit.IdentitySegment(0.3, 1, 4),
+            ],
+            (2, 3): [
+                tskit.IdentitySegment(0.3, 1, 5),
+                tskit.IdentitySegment(0, 0.3, 5),
+            ],
         }
         assert_ibd_equal(ibd_segs, true_segs)
 
     def test_time(self):
         ibd_segs = ibd_segments(self.ts(), max_time=3)
         true_segs = {
-            (0, 1): [tskit.IbdSegment(0, 1, 4)],
-            (0, 2): [tskit.IbdSegment(0, 0.3, 4)],
-            (0, 3): [tskit.IbdSegment(0.3, 1, 4)],
-            (1, 2): [tskit.IbdSegment(0, 0.3, 4)],
-            (1, 3): [tskit.IbdSegment(0.3, 1, 4)],
+            (0, 1): [tskit.IdentitySegment(0, 1, 4)],
+            (0, 2): [tskit.IdentitySegment(0, 0.3, 4)],
+            (0, 3): [tskit.IdentitySegment(0.3, 1, 4)],
+            (1, 2): [tskit.IdentitySegment(0, 0.3, 4)],
+            (1, 3): [tskit.IdentitySegment(0.3, 1, 4)],
         }
         assert_ibd_equal(ibd_segs, true_segs)
 
     def test_length(self):
         ibd_segs = ibd_segments(self.ts(), min_length=0.5)
         true_segs = {
-            (0, 1): [tskit.IbdSegment(0, 1, 4)],
-            (0, 2): [tskit.IbdSegment(0.3, 1, 5)],
-            (0, 3): [tskit.IbdSegment(0.3, 1, 4)],
-            (1, 2): [tskit.IbdSegment(0.3, 1, 5)],
-            (1, 3): [tskit.IbdSegment(0.3, 1, 4)],
-            (2, 3): [tskit.IbdSegment(0.3, 1, 5)],
+            (0, 1): [tskit.IdentitySegment(0, 1, 4)],
+            (0, 2): [tskit.IdentitySegment(0.3, 1, 5)],
+            (0, 3): [tskit.IdentitySegment(0.3, 1, 4)],
+            (1, 2): [tskit.IdentitySegment(0.3, 1, 5)],
+            (1, 3): [tskit.IdentitySegment(0.3, 1, 4)],
+            (2, 3): [tskit.IdentitySegment(0.3, 1, 5)],
         }
         (ibd_segs, true_segs)
 
     def test_input_within(self):
         ibd_segs = ibd_segments(self.ts(), within=[0, 1, 2])
         true_segs = {
-            (0, 1): [tskit.IbdSegment(0, 1, 4)],
-            (0, 2): [tskit.IbdSegment(0, 0.3, 4), tskit.IbdSegment(0.3, 1, 5)],
-            (1, 2): [tskit.IbdSegment(0, 0.3, 4), tskit.IbdSegment(0.3, 1, 5)],
+            (0, 1): [tskit.IdentitySegment(0, 1, 4)],
+            (0, 2): [
+                tskit.IdentitySegment(0, 0.3, 4),
+                tskit.IdentitySegment(0.3, 1, 5),
+            ],
+            (1, 2): [
+                tskit.IdentitySegment(0, 0.3, 4),
+                tskit.IdentitySegment(0.3, 1, 5),
+            ],
         }
         assert_ibd_equal(ibd_segs, true_segs)
 
@@ -776,7 +803,7 @@ class TestIbdInternalSamples:
     def test_defaults(self):
         ibd_segs = ibd_segments(self.ts())
         true_segs = {
-            (0, 2): [tskit.IbdSegment(0, 1, 3)],
+            (0, 2): [tskit.IdentitySegment(0, 1, 3)],
         }
         assert_ibd_equal(ibd_segs, true_segs)
 
@@ -824,7 +851,7 @@ class TestIbdLengthThreshold:
 
     def test_equal_to_length(self):
         ibd_segs = ibd_segments(self.ts(), min_length=0.4)
-        true_segs = {(0, 1): [tskit.IbdSegment(0.4, 1.0, 3)]}
+        true_segs = {(0, 1): [tskit.IdentitySegment(0.4, 1.0, 3)]}
         assert_ibd_equal(ibd_segs, true_segs)
 
 
@@ -888,9 +915,9 @@ class TestIbdProperties:
         assert_ibd_equal(between_segs, filtered_segs)
 
 
-class TestIbdSegments:
+class TestIdentitySegments:
     """
-    Test the IbdSegments class interface.
+    Test the IdentitySegments class interface.
     """
 
     def verify_segments(self, ts, ibd_segments):
@@ -906,7 +933,7 @@ class TestIbdSegments:
             num_segments = 0
             total_span = 0
             for j, seg in enumerate(segment_list):
-                assert isinstance(seg, tskit.IbdSegment)
+                assert isinstance(seg, tskit.IdentitySegment)
                 total_span += seg.span
                 num_segments += 1
                 assert seg.span == seg.right - seg.left
@@ -928,7 +955,7 @@ class TestIbdSegments:
         ts = msprime.sim_ancestry(2, random_seed=2)
         result = ts.ibd_segments(store_segments=store_segments, store_pairs=store_pairs)
         s = str(result)
-        assert "IbdSegments" in s
+        assert "IdentitySegments" in s
         assert "max_time" in s
         assert "min_length" in s
 
@@ -936,19 +963,19 @@ class TestIbdSegments:
         ts = msprime.sim_ancestry(2, random_seed=2)
         result = ts.ibd_segments(store_segments=True)
         s = repr(result)
-        assert s.startswith("IbdSegments({")
+        assert s.startswith("IdentitySegments({")
         for lst in result.values():
             s = repr(lst)
-            assert s.startswith("IbdSegmentList([")
+            assert s.startswith("IdentitySegmentList([")
 
     def test_repr_without_store_segments(self):
         ts = msprime.sim_ancestry(2, random_seed=2)
         result = ts.ibd_segments(store_pairs=True)
         s = repr(result)
-        assert s.startswith("<tskit.tables.IbdSegments")
+        assert s.startswith("<tskit.tables.IdentitySegments")
         result = ts.ibd_segments()
         s = repr(result)
-        assert s.startswith("<tskit.tables.IbdSegments")
+        assert s.startswith("<tskit.tables.IdentitySegments")
 
     def test_store_segs_implies_store_pairs(self):
         ts = msprime.sim_ancestry(2, random_seed=2)
@@ -962,17 +989,17 @@ class TestIbdSegments:
         result = ts.ibd_segments()
         assert result.num_segments == 6
         assert result.total_span == 6
-        with pytest.raises(tskit.IbdPairsNotStoredError):
+        with pytest.raises(tskit.IdentityPairsNotStoredError):
             _ = result.num_pairs
-        with pytest.raises(tskit.IbdPairsNotStoredError):
+        with pytest.raises(tskit.IdentityPairsNotStoredError):
             _ = len(result)
-        with pytest.raises(tskit.IbdPairsNotStoredError):
+        with pytest.raises(tskit.IdentityPairsNotStoredError):
             _ = result.pairs
-        with pytest.raises(tskit.IbdPairsNotStoredError):
+        with pytest.raises(tskit.IdentityPairsNotStoredError):
             _ = result[0, 1]
-        with pytest.raises(tskit.IbdPairsNotStoredError):
+        with pytest.raises(tskit.IdentityPairsNotStoredError):
             _ = list(result)
-        with pytest.raises(tskit.IbdPairsNotStoredError):
+        with pytest.raises(tskit.IdentityPairsNotStoredError):
             _ = result == result
         # It's OK to when we compare with another type
         assert result != []
@@ -988,15 +1015,15 @@ class TestIbdSegments:
         seglist = result[0, 1]
         assert seglist.total_span == 1
         assert len(seglist) == 1
-        with pytest.raises(tskit.IbdSegmentsNotStoredError):
+        with pytest.raises(tskit.IdentitySegmentsNotStoredError):
             _ = list(seglist)
-        with pytest.raises(tskit.IbdSegmentsNotStoredError):
+        with pytest.raises(tskit.IdentitySegmentsNotStoredError):
             _ = seglist.left
-        with pytest.raises(tskit.IbdSegmentsNotStoredError):
+        with pytest.raises(tskit.IdentitySegmentsNotStoredError):
             _ = seglist.right
-        with pytest.raises(tskit.IbdSegmentsNotStoredError):
+        with pytest.raises(tskit.IdentitySegmentsNotStoredError):
             _ = seglist.node
-        with pytest.raises(tskit.IbdSegmentsNotStoredError):
+        with pytest.raises(tskit.IdentitySegmentsNotStoredError):
             _ = seglist == seglist
 
     @pytest.mark.parametrize("n", [1, 2, 3])
@@ -1075,12 +1102,12 @@ class TestIbdSegments:
             assert result[pair] is not None
         for k, v in result.items():
             assert k in pairs
-            assert isinstance(v, tskit.IbdSegmentList)
+            assert isinstance(v, tskit.IdentitySegmentList)
 
 
-class TestIbdSegmentsList:
+class TestIdentitySegmentsList:
     """
-    Tests for the IbdSegmentList class.
+    Tests for the IdentitySegmentList class.
     """
 
     example_ts = msprime.sim_ancestry(
@@ -1094,6 +1121,16 @@ class TestIbdSegmentsList:
             lst = list(seglist)
             assert len(lst) == len(seglist)
             assert lst == list(seglist)
+
+    def test_str(self):
+        result = self.example_ts.ibd_segments(store_segments=True)
+        seglist = list(result.values())[0]
+        assert str(seglist).startswith("IdentitySegmentList")
+
+    def test_repr(self):
+        result = self.example_ts.ibd_segments(store_segments=True)
+        seglist = list(result.values())[0]
+        assert repr(seglist).startswith("IdentitySegmentList([IdentitySegment")
 
     def test_eq_semantics(self):
         result = self.example_ts.ibd_segments(store_segments=True)
@@ -1112,7 +1149,7 @@ class TestIbdSegmentsList:
     def test_eq_fails_without_store_segments(self):
         result = self.example_ts.ibd_segments(store_pairs=True)
         for seglist in result.values():
-            with pytest.raises(tskit.IbdSegmentsNotStoredError):
+            with pytest.raises(tskit.IdentitySegmentsNotStoredError):
                 _ = seglist == seglist
             # But it's OK when comparing to another type, since we know
             # it'll be False regardless
@@ -1123,4 +1160,4 @@ class TestIbdSegmentsList:
         assert len(result) > 0
         for seglist in result.values():
             for seg in seglist:
-                assert isinstance(seg, tskit.IbdSegment)
+                assert isinstance(seg, tskit.IdentitySegment)
