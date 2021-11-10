@@ -176,15 +176,6 @@ with and interchanging {ref}`tree sequence data <sec_data_model>`. Each table cl
 (e.g, {class}`NodeTable`, {class}`EdgeTable`, {class}`SiteTable`) has a specific set
 of columns with fixed types, and a set of methods for setting and getting the data
 in these columns. The number of rows in the table `t` is given by `len(t)`.
-Each table supports accessing the data either by row or column.
-
-To access the data in a *column*, we can use standard attribute access which will
-return a copy of the column data as a numpy array. To access the data in a *row*, say
-row number `j` in table `t`, simply use `t[j]`. The returned row has attributes
-allowing contents to be accessed by name, e.g. `site_table[0].position`,
-`sites_table[0].ancestral_state`, `sites_table[0].metadata` etc. Note that row
-contents cannot be changed. To create a new row with changed content,
-row objects have a `replace` method. For example:
 
 ```{code-cell} ipython3
 import tskit
@@ -195,6 +186,10 @@ print("Now there are", len(t), "rows in the table")
 print(t)
 ```
 
+Each table supports accessing the data either by row or column. To access the data in
+a *column*, we can use standard attribute access which will
+return a copy of the column data as a numpy array:
+
 ```{code-cell} ipython3
 t.left
 ```
@@ -202,16 +197,36 @@ t.left
 ```{code-cell} ipython3
 t.parent
 ```
+
+To access the data in a *row*, say row number `j` in table `t`, simply use `t[j]`:
+
 ```{code-cell} ipython3
 t[0]
-t[-1]
-t[-1].right
-t[-1].replace(child=4, metadata="A new edge")
 ```
 
-Tables also support the {mod}`pickle` protocol, and so can be easily
-serialised and deserialised (for example, when performing parallel
-computations using the {mod}`multiprocessing` module).
+```{code-cell} ipython3
+t[-1]
+```
+
+The returned row has attributes allowing contents to be accessed by name, e.g.
+`site_table[0].position`, `sites_table[0].ancestral_state`, `sites_table[0].metadata`
+etc.:
+
+```{code-cell} ipython3
+t[-1].right
+```
+
+Note that row contents cannot be changed. To create a new row with changed content,
+row objects have a `replace` method. For example:
+
+```{code-cell} ipython3
+t[-1].replace(child=4, metadata="A new edge")  # Note this won't change the original row
+```
+
+Tables also support the {mod}`pickle` protocol, and so can be easily serialised and
+deserialised. This can be useful, for example, when performing parallel computations
+using the {mod}`multiprocessing` module (however, pickling will not be as efficient
+as storing tables in the native {ref}`format <sec_tree_sequence_file_format>`).
 
 ```{code-cell} ipython3
 import pickle
@@ -219,9 +234,6 @@ serialised = pickle.dumps(t)
 t2 = pickle.loads(serialised)
 print(t2)
 ```
-
-However, pickling will not be as efficient as storing tables
-in the native {ref}`format <sec_tree_sequence_file_format>`.
 
 Tables support the equality operator `==` based on the data
 held in the columns:
@@ -268,7 +280,7 @@ print(t[3])
 
 Here we create a {class}`SiteTable` and add four rows, each with a different
 `ancestral_state`. We can then access this information from each
-row in a straightforward manner. Working with the data in the columns
+row in a straightforward manner. Working with columns of text data
 is a little trickier, however:
 
 ```{code-cell} ipython3
@@ -312,7 +324,7 @@ print("ancestral state offsets", t_s.ancestral_state_offset)
 ```
 
 
-Mutations can be handled similarly:
+In the mutations table, the derived state of each mutation can be handled similarly:
 
 ```{code-cell} ipython3
 t_m = tskit.MutationTable()
@@ -336,40 +348,37 @@ where a table has no `metadata_schema` such that arbitrary bytes can be stored a
 no automatic encoding or decoding of objects is performed by the Python API and we can
 store and retrieve raw `bytes`. (See {ref}`sec_metadata` for details):
 
+Below, we add two rows to a {class}`NodeTable`, with different
+{ref}`metadata <sec_metadata_definition>`. The first row contains a simple
+byte string, and the second contains a Python dictionary serialised using
+{mod}`pickle`. 
+
 ```{code-cell} ipython3
 t = tskit.NodeTable()
 t.add_row(metadata=b"these are raw bytes")
 t.add_row(metadata=pickle.dumps({"x": 1.1}))
+t
 ```
 
-Here we add two rows to a {class}`NodeTable`, with different
-{ref}`metadata <sec_metadata_definition>`. The first row contains a simple
-byte string, and the second contains a Python dictionary serialised using
-{mod}`pickle`. When we access the data in a row (e.g., `t[0].metadata`)
-we are returned a Python bytes object containing precisely the bytes that were inserted.
+Note that the pickled dictionary is encoded in 24 bytes containing unprintable
+characters. It appears to be unrelated to the original contents, because the binary
+data is [base64 encoded](https://en.wikipedia.org/wiki/Base64) to ensure that it is
+print-safe (and doesn't break your terminal). (See the
+{ref}`sec_metadata_definition` section for more information on the
+use of base64 encoding.).
+
+We can access the metadata in a row (e.g., `t[0].metadata`) which returns a Python
+bytes object containing precisely the bytes that were inserted.
 
 ```{code-cell} ipython3
 print(t[0].metadata)
 print(t[1].metadata)
 ```
 
-The pickled dictionary is encoded in 24 bytes containing unprintable
-characters, and when we unpickle it using {func}`pickle.loads`, we obtain
-the original dictionary.
+To get the original dictionary back, we simply unpickle it using {func}`pickle.loads`:
 
 ```{code-cell} ipython3
 print(pickle.loads(t[1].metadata))
-```
-
-When we print the table, however, we see some data which is seemingly
-unrelated to the original contents. This is because the binary data is
-`base64 encoded <https://en.wikipedia.org/wiki/Base64>`_ to ensure
-that it is print-safe (and doesn't break your terminal). (See the
-{ref}`sec_metadata_definition` section for more information on the
-use of base64 encoding.).
-
-```{code-cell} ipython3
-print(t)
 ```
 
 Finally, when we print the `metadata` column, we see the raw byte values
