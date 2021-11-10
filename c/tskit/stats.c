@@ -71,11 +71,20 @@ static int
 tsk_ld_calc_check_site(tsk_ld_calc_t *TSK_UNUSED(self), const tsk_site_t *site)
 {
     int ret = 0;
+
+    /* These are both limitations in the current implementation, there's no
+     * fundamental reason why we can't support them */
     if (site->mutations_length != 1) {
         ret = TSK_ERR_ONLY_INFINITE_SITES;
         goto out;
     }
-    /* TODO check for silent mutations */
+    if (site->ancestral_state_length == site->mutations[0].derived_state_length
+        && tsk_memcmp(site->ancestral_state, site->mutations[0].derived_state,
+               site->ancestral_state_length)
+               == 0) {
+        ret = TSK_ERR_SILENT_MUTATIONS_NOT_SUPPORTED;
+        goto out;
+    }
 out:
     return ret;
 }

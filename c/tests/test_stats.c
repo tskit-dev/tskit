@@ -1681,6 +1681,51 @@ test_caterpillar_tree_ld(void)
     free(ts);
 }
 
+static void
+test_ld_multi_mutations(void)
+{
+    tsk_treeseq_t *ts = caterpillar_tree(4, 2, 2);
+    tsk_ld_calc_t ld_calc;
+    double r2;
+    int ret = tsk_ld_calc_init(&ld_calc, ts);
+
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_ld_calc_get_r2(&ld_calc, 0, 1, &r2);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_ONLY_INFINITE_SITES);
+
+    tsk_ld_calc_free(&ld_calc);
+    tsk_treeseq_free(ts);
+    free(ts);
+}
+
+static void
+test_ld_silent_mutations(void)
+{
+    tsk_treeseq_t *base_ts = caterpillar_tree(4, 2, 1);
+    tsk_table_collection_t tables;
+    tsk_treeseq_t ts;
+    tsk_ld_calc_t ld_calc;
+    double r2;
+    int ret = tsk_table_collection_copy(base_ts->tables, &tables, 0);
+
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.mutations.derived_state[1] = '0';
+
+    ret = tsk_treeseq_init(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_ld_calc_init(&ld_calc, &ts);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_ld_calc_get_r2(&ld_calc, 0, 1, &r2);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SILENT_MUTATIONS_NOT_SUPPORTED);
+    tsk_ld_calc_free(&ld_calc);
+    tsk_treeseq_free(&ts);
+
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(base_ts);
+    free(base_ts);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1750,6 +1795,8 @@ main(int argc, char **argv)
             test_nonbinary_ex_general_stat_errors },
 
         { "test_caterpillar_tree_ld", test_caterpillar_tree_ld },
+        { "test_ld_multi_mutations", test_ld_multi_mutations },
+        { "test_ld_silent_mutations", test_ld_silent_mutations },
 
         { NULL, NULL },
     };

@@ -319,6 +319,7 @@ An unsupported type was provided for a column in the file.
 #define TSK_ERR_NONBINARY_MUTATIONS_UNSUPPORTED                     -804
 #define TSK_ERR_MIGRATIONS_NOT_SUPPORTED                            -805
 #define TSK_ERR_CANNOT_EXTEND_FROM_SELF                             -806
+#define TSK_ERR_SILENT_MUTATIONS_NOT_SUPPORTED                      -807
 
 /* Stats errors */
 #define TSK_ERR_BAD_NUM_WINDOWS                                     -900

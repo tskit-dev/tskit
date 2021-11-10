@@ -371,6 +371,9 @@ tsk_strerror_internal(int err)
         case TSK_ERR_CANNOT_EXTEND_FROM_SELF:
             ret = "Tables can only be extended using rows from a different table";
             break;
+        case TSK_ERR_SILENT_MUTATIONS_NOT_SUPPORTED:
+            ret = "Silent mutations not supported by this operation";
+            break;
 
         /* Stats errors */
         case TSK_ERR_BAD_NUM_WINDOWS:

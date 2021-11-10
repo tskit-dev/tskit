@@ -428,6 +428,38 @@ class TestLdSitesEveryOtherTree(BaseTestLd):
         return ts, get_r2_matrix(ts)
 
 
+class TestLdErrors:
+    def test_multi_mutations(self):
+        tables = tskit.TableCollection(2)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.sites.add_row(position=0, ancestral_state="A")
+        tables.sites.add_row(position=1, ancestral_state="A")
+        tables.mutations.add_row(site=0, node=0, derived_state="C")
+        tables.mutations.add_row(site=0, node=0, derived_state="T", parent=0)
+        tables.mutations.add_row(site=1, node=0, derived_state="C")
+        ts = tables.tree_sequence()
+        ldc = tskit.LdCalculator(ts)
+        with pytest.raises(tskit.LibraryError, match="Only infinite sites mutations"):
+            ldc.r2(0, 1)
+        with pytest.raises(tskit.LibraryError, match="Only infinite sites mutations"):
+            ldc.r2(1, 0)
+
+    @pytest.mark.parametrize("state", ["", "A", "AAAA", "💩"])
+    def test_silent_mutations(self, state):
+        tables = tskit.TableCollection(2)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.sites.add_row(position=0, ancestral_state=state)
+        tables.sites.add_row(position=1, ancestral_state="A")
+        tables.mutations.add_row(site=0, node=0, derived_state=state)
+        tables.mutations.add_row(site=1, node=0, derived_state="C")
+        ts = tables.tree_sequence()
+        ldc = tskit.LdCalculator(ts)
+        with pytest.raises(tskit.LibraryError, match="Silent mutations not supported"):
+            ldc.r2(0, 1)
+        with pytest.raises(tskit.LibraryError, match="Silent mutations not supported"):
+            ldc.r2(1, 0)
+
+
 class TestLdCalculator:
     """
     Tests for the LdCalculator class.

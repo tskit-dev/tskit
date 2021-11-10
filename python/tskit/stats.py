@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2019 Tskit Developers
+# Copyright (c) 2018-2021 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -35,19 +35,20 @@ class LdCalculator:
     """
     Class for calculating `linkage disequilibrium
     <https://en.wikipedia.org/wiki/Linkage_disequilibrium>`_ coefficients
-    between pairs of mutations in a :class:`TreeSequence`. This class requires
-    the `numpy <http://www.numpy.org/>`_ library.
+    between pairs of sites in a :class:`TreeSequence`.
 
-    This class supports multithreaded access using the Python :mod:`threading`
-    module. Separate instances of :class:`LdCalculator` referencing the
-    same tree sequence can operate in parallel in multiple threads.
+    .. note:: This interface is deprecated and a replacement is planned.
+        Please see https://github.com/tskit-dev/tskit/issues/1900 for
+        more information. Note also that the current implementation is
+        quite limited (see warning below).
 
-    .. note:: This class does not currently support sites that have more than one
+    .. warning:: This class does not currently support sites that have more than one
         mutation. Using it on such a tree sequence will raise a LibraryError with
-        an "Unsupported operation" message.
+        an "Only infinite sites mutations supported" message.
 
-    :param TreeSequence tree_sequence: The tree sequence containing the
-        mutations we are interested in.
+        Silent mutations are also not supported and will result in a LibraryError.
+
+    :param TreeSequence tree_sequence: The tree sequence of interest.
     """
 
     def __init__(self, tree_sequence):
@@ -66,13 +67,13 @@ class LdCalculator:
     def r2(self, a, b):
         """
         Returns the value of the :math:`r^2` statistic between the pair of
-        mutations at the specified indexes. This method is *not* an efficient
-        method for computing large numbers of pairwise; please use either
+        sites at the specified indexes. This method is *not* an efficient
+        method for computing large numbers of pairwise LD values; please use either
         :meth:`.r2_array` or :meth:`.r2_matrix` for this purpose.
 
-        :param int a: The index of the first mutation.
-        :param int b: The index of the second mutation.
-        :return: The value of :math:`r^2` between the mutations at indexes
+        :param int a: The index of the first site.
+        :param int b: The index of the second site.
+        :return: The value of :math:`r^2` between the sites at indexes
             ``a`` and ``b``.
         :rtype: float
         """
@@ -93,13 +94,13 @@ class LdCalculator:
     ):
         """
         Returns the value of the :math:`r^2` statistic between the focal
-        mutation at index :math:`a` and a set of other mutations. The method
-        operates by starting at the focal mutation and iterating over adjacent
-        mutations (in either the forward or backwards direction) until either a
-        maximum number of other mutations have been considered (using the
-        ``max_mutations`` parameter), a maximum distance in sequence
+        site at index :math:`a` and a set of other sites. The method
+        operates by starting at the focal site and iterating over adjacent
+        sites (in either the forward or backwards direction) until either a
+        maximum number of other sites have been considered (using the
+        ``max_sites`` parameter), a maximum distance in sequence
         coordinates has been reached (using the ``max_distance`` parameter) or
-        the start/end of the sequence has been reached. For every mutation
+        the start/end of the sequence has been reached. For every site
         :math:`b` considered, we then insert the value of :math:`r^2` between
         :math:`a` and :math:`b` at the corresponding index in an array, and
         return the entire array. If the returned array is :math:`x` and
@@ -110,19 +111,20 @@ class LdCalculator:
         value of the statistic for :math:`a` and :math:`a - 1`, :math:`x[1]`
         the value for :math:`a` and :math:`a - 2`, etc.
 
-        :param int a: The index of the focal mutation.
+        :param int a: The index of the focal sites.
         :param int direction: The direction in which to travel when
-            examining other mutations. Must be either
+            examining other sites. Must be either
             :data:`tskit.FORWARD` or :data:`tskit.REVERSE`. Defaults
             to :data:`tskit.FORWARD`.
-        :param int max_mutations: The maximum number of mutations to return
-            :math:`r^2` values for. Defaults to as many mutations as
+        :param int max_sites: The maximum number of sites to return
+            :math:`r^2` values for. Defaults to as many sites as
             possible.
+        :param int max_mutations: Deprecated synonym for max_sites.
         :param float max_distance: The maximum absolute distance between
-            the focal mutation and those for which :math:`r^2` values
+            the focal sites and those for which :math:`r^2` values
             are returned.
         :return: An array of double precision floating point values
-            representing the :math:`r^2` values for mutations in the
+            representing the :math:`r^2` values for sites in the
             specified direction.
         :rtype: numpy.ndarray
         :warning: For efficiency reasons, the underlying memory used to
@@ -158,14 +160,14 @@ class LdCalculator:
     def r2_matrix(self):
         """
         Returns the complete :math:`m \\times m` matrix of pairwise
-        :math:`r^2` values in a tree sequence with :math:`m` mutations.
+        :math:`r^2` values in a tree sequence with :math:`m` sites.
 
         :return: An 2 dimensional square array of double precision
             floating point values representing the :math:`r^2` values for
-            all pairs of mutations.
+            all pairs of sites.
         :rtype: numpy.ndarray
         """
-        m = self._tree_sequence.get_num_mutations()
+        m = self._tree_sequence.num_sites
         A = np.ones((m, m), dtype=float)
         for j in range(m - 1):
             a = self.get_r2_array(j)
