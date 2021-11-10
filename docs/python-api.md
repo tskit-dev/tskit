@@ -220,6 +220,20 @@ which perform the same actions but modify the {class}`TableCollection` in place.
   TreeSequence.trim
 ```
 
+(sec_python_api_tree_sequences_ibd)=
+
+#### Identity by descent
+
+The {meth}`.TreeSequence.ibd_segments` method allows us to compute
+identity relationships between pairs of samples. See the
+{ref}`sec_identity` section for more details and examples
+and the {ref}`sec_python_api_reference_identity` section for
+API documentation on the associated classes.
+
+```{eval-rst}
+.. autosummary::
+  TreeSequence.ibd_segments
+```
 
 (sec_python_api_tree_sequences_tables)=
 
@@ -471,7 +485,7 @@ high performance interface which can be used in conjunction with the equivalent
 
 Moving around within a tree usually involves visiting the tree nodes in some sort of
 order. Often, given a particular order, it is convenient to iterate over each node
-using the :meth:`Tree.nodes` method. However, for high performance algorithms, it
+using the {meth}`Tree.nodes` method. However, for high performance algorithms, it
 may be more convenient to access the node indices for a particular order as
 an array, and use this, for example, to index into one of the node arrays (see
 {ref}`sec_topological_analysis_traversal`).
@@ -646,7 +660,7 @@ Other properties
 These methods act in-place to transform the contents of a {class}`TableCollection`,
 either by modifying the underlying tables (removing, editing, or adding to them) or
 by adjusting the table collection so that it meets the
-{ref}`sec_valid_tree_sequence_requirements.
+{ref}`sec_valid_tree_sequence_requirements`.
 
 
 (sec_tables_api_modification)=
@@ -707,14 +721,12 @@ Indexing
       TableCollection.drop_index
 ```
 
-
 #### Miscellaneous methods
 
 ```{eval-rst}
 .. autosummary::
   TableCollection.copy
   TableCollection.equals
-  TableCollection.ibd_segments
   TableCollection.link_ancestors
 ```
 
@@ -1413,6 +1425,34 @@ basic class, where each attribute matches an identically named attribute in the
     :inherited-members:
 ```
 
+(sec_python_api_reference_identity)=
+
+### Identity classes
+
+The classes documented in this section are associated with summarising
+identity relationships between pairs of samples. See the {ref}`sec_identity`
+section for more details and examples.
+
+#### The {class}`IdentitySegments` class
+
+```{eval-rst}
+.. autoclass:: IdentitySegments()
+    :members:
+```
+
+#### The {class}`IdentitySegmentList` class
+
+```{eval-rst}
+.. autoclass:: IdentitySegmentList()
+    :members:
+```
+
+#### The {class}`IdentitySegment` class
+
+```{eval-rst}
+.. autoclass:: IdentitySegment()
+    :members:
+```
 
 ### Miscellaneous classes
 

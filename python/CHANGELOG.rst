@@ -55,6 +55,10 @@
 
 **Features**
 
+- Add the ``ibd_segments`` method and associated classes to compute, summarise
+  and store segments of identity by descent from a tree sequence
+  (:user:`gtsambos`, :user:`jeromekelleher`).
+
 - Allow skipping of site and mutation tables in ``TableCollection.sort``
   (:user:`benjeffery`, :issue:`1475`, :pr:`1826`).
 
@@ -113,6 +117,7 @@
   :pr:`2019`, :issue:`1971`).
 
 - tskit now supports python 3.10 (:user:`benjeffery`, :issue:`1895`, :pr:`1949`)
+
 
 **Fixes**
 
