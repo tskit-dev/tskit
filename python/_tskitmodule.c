@@ -8192,13 +8192,23 @@ general_stat_func(tsk_size_t K, const double *X, tsk_size_t M, double *Y, void *
         goto out;
     }
     Y_array = (PyArrayObject *) PyArray_FromAny(
-        result, PyArray_DescrFromType(NPY_FLOAT64), 1, 1, NPY_ARRAY_IN_ARRAY, NULL);
+        result, PyArray_DescrFromType(NPY_FLOAT64), 0, 0, NPY_ARRAY_IN_ARRAY, NULL);
     if (Y_array == NULL) {
+        goto out;
+    }
+    if (PyArray_NDIM(Y_array) != 1) {
+        PyErr_Format(PyExc_ValueError,
+            "Array returned by general_stat callback is %d dimensional; "
+            "must be 1D",
+            (int) PyArray_NDIM(Y_array));
         goto out;
     }
     Y_dims = PyArray_DIMS(Y_array);
     if (Y_dims[0] != (npy_intp) M) {
-        PyErr_SetString(PyExc_ValueError, "Incorrect callback output dimensions");
+        PyErr_Format(PyExc_ValueError,
+            "Array returned by general_stat callback is of length %d; "
+            "must be %d",
+            Y_dims[0], M);
         goto out;
     }
     /* Copy the contents of the return Y array into Y */

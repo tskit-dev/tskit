@@ -6150,3 +6150,38 @@ class TestTimeUncalibratedErrors:
                 W.shape[1],
                 mode="branch",
             )
+
+
+class TestGeneralStatCallbackErrors:
+    def test_zero_d(self, ts_fixture):
+        def f_0d(_):
+            return 0
+
+        msg = "Array returned by general_stat callback is 0 dimensional; must be 1D"
+        with pytest.raises(ValueError, match=msg):
+            ts_fixture.sample_count_stat(
+                sample_sets=[ts_fixture.samples()], f=f_0d, output_dim=1, strict=False
+            )
+
+    def test_two_d(self, ts_fixture):
+        def f_2d(x):
+            return np.array([x])
+
+        msg = "Array returned by general_stat callback is 2 dimensional; must be 1D"
+        with pytest.raises(ValueError, match=msg):
+            ts_fixture.sample_count_stat(
+                sample_sets=[ts_fixture.samples()], f=f_2d, output_dim=1, strict=False
+            )
+
+    def test_wrong_length(self, ts_fixture):
+        def f_too_long(_):
+            return np.array([0, 0])
+
+        msg = "Array returned by general_stat callback is of length 2; must be 1"
+        with pytest.raises(ValueError, match=msg):
+            ts_fixture.sample_count_stat(
+                sample_sets=[ts_fixture.samples()],
+                f=f_too_long,
+                output_dim=1,
+                strict=False,
+            )
