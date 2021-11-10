@@ -3360,6 +3360,8 @@ tsk_tree_set_tracked_samples(
     tsk_tree_t *self, tsk_size_t num_tracked_samples, const tsk_id_t *tracked_samples)
 {
     int ret = TSK_ERR_GENERIC;
+    tsk_size_t *tree_num_tracked_samples = self->num_tracked_samples;
+    const tsk_id_t *parent = self->parent;
     tsk_size_t j;
     tsk_id_t u;
 
@@ -3387,14 +3389,60 @@ tsk_tree_set_tracked_samples(
         }
         /* Propagate this upwards */
         while (u != TSK_NULL) {
-            self->num_tracked_samples[u] += 1;
-            u = self->parent[u];
+            tree_num_tracked_samples[u]++;
+            u = parent[u];
         }
     }
 out:
     return ret;
 }
 
+int TSK_WARN_UNUSED
+tsk_tree_track_descendant_samples(tsk_tree_t *self, tsk_id_t node)
+{
+    int ret = 0;
+    tsk_id_t *nodes = tsk_malloc(tsk_tree_get_size_bound(self) * sizeof(*nodes));
+    const tsk_id_t *restrict parent = self->parent;
+    const tsk_id_t *restrict left_child = self->left_child;
+    const tsk_id_t *restrict right_sib = self->right_sib;
+    const tsk_flags_t *restrict flags = self->tree_sequence->tables->nodes.flags;
+    tsk_size_t *num_tracked_samples = self->num_tracked_samples;
+    tsk_size_t n, j, num_nodes;
+    tsk_id_t u, v;
+
+    if (nodes == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    ret = tsk_tree_postorder(self, node, nodes, &num_nodes);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_tree_reset_tracked_samples(self);
+    if (ret != 0) {
+        goto out;
+    }
+    u = 0; /* keep the compiler happy */
+    for (j = 0; j < num_nodes; j++) {
+        u = nodes[j];
+        for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
+            num_tracked_samples[u] += num_tracked_samples[v];
+        }
+        num_tracked_samples[u] += flags[u] & TSK_NODE_IS_SAMPLE ? 1 : 0;
+    }
+    n = num_tracked_samples[u];
+    u = parent[u];
+    while (u != TSK_NULL) {
+        num_tracked_samples[u] = n;
+        u = parent[u];
+    }
+    num_tracked_samples[self->virtual_root] = n;
+out:
+    tsk_safe_free(nodes);
+    return ret;
+}
+
+/* TODO REMOVE ME */
 int TSK_WARN_UNUSED
 tsk_tree_set_tracked_samples_from_sample_list(
     tsk_tree_t *self, tsk_tree_t *other, tsk_id_t node)
@@ -4316,6 +4364,57 @@ tsk_tree_prev(tsk_tree_t *self)
     return ret;
 }
 
+static inline bool
+tsk_tree_position_in_interval(const tsk_tree_t *self, double x)
+{
+    return self->left <= x && x < self->right;
+}
+
+int TSK_WARN_UNUSED
+tsk_tree_seek(tsk_tree_t *self, double x, tsk_flags_t TSK_UNUSED(options))
+{
+    int ret = 0;
+    const double L = tsk_treeseq_get_sequence_length(self->tree_sequence);
+    const double t_l = self->left;
+    const double t_r = self->right;
+    double distance_left, distance_right;
+
+    if (x < 0 || x >= L) {
+        ret = TSK_ERR_SEEK_OUT_OF_BOUNDS;
+        goto out;
+    }
+
+    if (x < t_l) {
+        /* |-----|-----|========|---------| */
+        /* 0     x    t_l      t_r        L */
+        distance_left = t_l - x;
+        distance_right = L - t_r + x;
+    } else {
+        /* |------|========|------|-------| */
+        /* 0     t_l      t_r     x       L */
+        distance_right = x - t_r;
+        distance_left = t_l + L - x;
+    }
+    if (distance_right <= distance_left) {
+        while (!tsk_tree_position_in_interval(self, x)) {
+            ret = tsk_tree_next(self);
+            if (ret < 0) {
+                goto out;
+            }
+        }
+    } else {
+        while (!tsk_tree_position_in_interval(self, x)) {
+            ret = tsk_tree_prev(self);
+            if (ret < 0) {
+                goto out;
+            }
+        }
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
 int TSK_WARN_UNUSED
 tsk_tree_clear(tsk_tree_t *self)
 {
@@ -4326,6 +4425,7 @@ tsk_tree_clear(tsk_tree_t *self)
     const tsk_size_t num_samples = self->tree_sequence->num_samples;
     const bool sample_counts = !(self->options & TSK_NO_SAMPLE_COUNTS);
     const bool sample_lists = !!(self->options & TSK_SAMPLE_LISTS);
+    const tsk_flags_t *flags = self->tree_sequence->tables->nodes.flags;
 
     self->left = 0;
     self->right = 0;
@@ -4347,7 +4447,7 @@ tsk_tree_clear(tsk_tree_t *self)
          * know where the tracked samples are.
          */
         for (j = 0; j < self->num_nodes; j++) {
-            if (!tsk_treeseq_is_sample(self->tree_sequence, (tsk_id_t) j)) {
+            if (!(flags[j] & TSK_NODE_IS_SAMPLE)) {
                 self->num_tracked_samples[j] = 0;
             }
         }
@@ -4409,7 +4509,6 @@ tsk_tree_get_size_bound(const tsk_tree_t *self)
 }
 
 /* Traversal orders */
-
 static tsk_id_t *
 tsk_tree_alloc_node_stack(const tsk_tree_t *self)
 {
@@ -4423,7 +4522,7 @@ tsk_tree_preorder(
     int ret = 0;
     const tsk_id_t *restrict right_child = self->right_child;
     const tsk_id_t *restrict left_sib = self->left_sib;
-    tsk_id_t *restrict stack = tsk_tree_alloc_node_stack(self);
+    tsk_id_t *stack = tsk_tree_alloc_node_stack(self);
     tsk_size_t num_nodes = 0;
     tsk_id_t u, v;
     int stack_top;
@@ -4460,10 +4559,66 @@ tsk_tree_preorder(
     }
     *num_nodes_ret = num_nodes;
 out:
-    /* can't use tsk_safe_free because this is a restrict pointer */
-    if (stack != NULL) {
-        free(stack);
+    tsk_safe_free(stack);
+    return ret;
+}
+
+/* We could implement this using the preorder function, but since it's
+ * going to be performance critical we want to avoid the overhead
+ * of mallocing the intermediate node list (which will be bigger than
+ * the number of samples). */
+int
+tsk_tree_preorder_samples(
+    const tsk_tree_t *self, tsk_id_t root, tsk_id_t *nodes, tsk_size_t *num_nodes_ret)
+{
+    int ret = 0;
+    const tsk_id_t *restrict right_child = self->right_child;
+    const tsk_id_t *restrict left_sib = self->left_sib;
+    const tsk_flags_t *restrict flags = self->tree_sequence->tables->nodes.flags;
+    tsk_id_t *stack = tsk_tree_alloc_node_stack(self);
+    tsk_size_t num_nodes = 0;
+    tsk_id_t u, v;
+    int stack_top;
+
+    if (stack == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
     }
+
+    /* We could push the virtual_root onto the stack directly to simplify
+     * the code a little, but then we'd have to check put an extra check
+     * when looking up the flags array (which isn't defined for virtual_root).
+     */
+    if (root == -1 || root == self->virtual_root) {
+        stack_top = -1;
+        for (u = right_child[self->virtual_root]; u != TSK_NULL; u = left_sib[u]) {
+            stack_top++;
+            stack[stack_top] = u;
+        }
+    } else {
+        ret = tsk_tree_check_node(self, root);
+        if (ret != 0) {
+            goto out;
+        }
+        stack_top = 0;
+        stack[stack_top] = root;
+    }
+
+    while (stack_top >= 0) {
+        u = stack[stack_top];
+        stack_top--;
+        if (flags[u] & TSK_NODE_IS_SAMPLE) {
+            nodes[num_nodes] = u;
+            num_nodes++;
+        }
+        for (v = right_child[u]; v != TSK_NULL; v = left_sib[v]) {
+            stack_top++;
+            stack[stack_top] = v;
+        }
+    }
+    *num_nodes_ret = num_nodes;
+out:
+    tsk_safe_free(stack);
     return ret;
 }
 
@@ -4475,7 +4630,7 @@ tsk_tree_postorder(
     const tsk_id_t *restrict right_child = self->right_child;
     const tsk_id_t *restrict left_sib = self->left_sib;
     const tsk_id_t *restrict parent = self->parent;
-    tsk_id_t *restrict stack = tsk_tree_alloc_node_stack(self);
+    tsk_id_t *stack = tsk_tree_alloc_node_stack(self);
     tsk_size_t num_nodes = 0;
     tsk_id_t u, v, postorder_parent;
     int stack_top;
@@ -4522,10 +4677,7 @@ tsk_tree_postorder(
     }
     *num_nodes_ret = num_nodes;
 out:
-    /* can't use tsk_safe_free because this is a restrict pointer */
-    if (stack != NULL) {
-        free(stack);
-    }
+    tsk_safe_free(stack);
     return ret;
 }
 

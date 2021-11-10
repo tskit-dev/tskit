@@ -9399,6 +9399,29 @@ out:
 }
 
 static PyObject *
+Tree_seek(Tree *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    double position;
+    int err;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTuple(args, "d", &position)) {
+        goto out;
+    }
+    err = tsk_tree_seek(self->tree, position, 0);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
+static PyObject *
 Tree_clear(Tree *self)
 {
     PyObject *ret = NULL;
@@ -10410,6 +10433,10 @@ static PyMethodDef Tree_methods[] = {
         .ml_meth = (PyCFunction) Tree_next,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Sets this tree to the next one in the sequence." },
+    { .ml_name = "seek",
+        .ml_meth = (PyCFunction) Tree_seek,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Seeks to the tree at the specified position" },
     { .ml_name = "clear",
         .ml_meth = (PyCFunction) Tree_clear,
         .ml_flags = METH_NOARGS,
@@ -10961,10 +10988,8 @@ LdCalculator_get_r2(LdCalculator *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "nn", &a, &b)) {
         goto out;
     }
-    Py_BEGIN_ALLOW_THREADS err
-        = tsk_ld_calc_get_r2(self->ld_calc, (tsk_id_t) a, (tsk_id_t) b, &r2);
-    Py_END_ALLOW_THREADS if (err != 0)
-    {
+    err = tsk_ld_calc_get_r2(self->ld_calc, (tsk_id_t) a, (tsk_id_t) b, &r2);
+    if (err != 0) {
         handle_library_error(err);
         goto out;
     }
@@ -10973,30 +10998,27 @@ out:
     return ret;
 }
 
-/* TODO this implementation is brittle and cumbersome. Replace with something that
- * returns a numpy array directly. Passing in the memory is a premature optimisation.
- */
 static PyObject *
 LdCalculator_get_r2_array(LdCalculator *self, PyObject *args, PyObject *kwds)
 {
     int err;
     PyObject *ret = NULL;
+    PyArrayObject *array = NULL;
     static char *kwlist[]
-        = { "dest", "source_index", "direction", "max_mutations", "max_distance", NULL };
-    PyObject *dest = NULL;
-    Py_buffer buffer;
+        = { "source_index", "direction", "max_sites", "max_distance", NULL };
     Py_ssize_t source_index;
-    Py_ssize_t max_mutations = -1;
+    Py_ssize_t max_sites = -1;
     double max_distance = DBL_MAX;
     int direction = TSK_DIR_FORWARD;
+    double *data = NULL;
     tsk_size_t num_r2_values = 0;
-    int buffer_acquired = 0;
+    npy_intp dims;
 
     if (LdCalculator_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "On|ind", kwlist, &dest, &source_index,
-            &direction, &max_mutations, &max_distance)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "n|ind", kwlist, &source_index,
+            &direction, &max_sites, &max_distance)) {
         goto out;
     }
     if (direction != TSK_DIR_FORWARD && direction != TSK_DIR_REVERSE) {
@@ -11007,35 +11029,44 @@ LdCalculator_get_r2_array(LdCalculator *self, PyObject *args, PyObject *kwds)
         PyErr_SetString(PyExc_ValueError, "max_distance must be >= 0");
         goto out;
     }
-    if (!PyObject_CheckBuffer(dest)) {
-        PyErr_SetString(
-            PyExc_TypeError, "dest buffer must support the Python buffer protocol.");
-        goto out;
-    }
-    if (PyObject_GetBuffer(dest, &buffer, PyBUF_SIMPLE | PyBUF_WRITABLE) != 0) {
-        goto out;
-    }
-    buffer_acquired = 1;
-    if (max_mutations == -1) {
-        max_mutations = buffer.len / sizeof(double);
-    } else if (max_mutations * sizeof(double) > (size_t) buffer.len) {
-        PyErr_SetString(PyExc_BufferError, "dest buffer is too small for the results");
+    if (max_sites == -1) {
+        max_sites = tsk_treeseq_get_num_sites(self->ld_calc->tree_sequence);
+    } else if (max_sites < 0) {
+        PyErr_SetString(PyExc_ValueError, "max_sites cannot be negative");
         goto out;
     }
 
-    Py_BEGIN_ALLOW_THREADS err = tsk_ld_calc_get_r2_array(self->ld_calc,
-        (tsk_id_t) source_index, direction, (tsk_size_t) max_mutations, max_distance,
-        (double *) buffer.buf, &num_r2_values);
-    Py_END_ALLOW_THREADS if (err != 0)
-    {
+    data = PyDataMem_NEW(max_sites * sizeof(*data));
+    if (data == NULL) {
+        ret = PyErr_NoMemory();
+        goto out;
+    }
+    err = tsk_ld_calc_get_r2_array(self->ld_calc, (tsk_id_t) source_index, direction,
+        (tsk_size_t) max_sites, max_distance, data, &num_r2_values);
+    if (err != 0) {
         handle_library_error(err);
         goto out;
     }
-    ret = Py_BuildValue("n", (Py_ssize_t) num_r2_values);
-out:
-    if (buffer_acquired) {
-        PyBuffer_Release(&buffer);
+    dims = (npy_intp) num_r2_values;
+    array = (PyArrayObject *) PyArray_SimpleNewFromData(1, &dims, NPY_FLOAT64, data);
+    if (array == NULL) {
+        goto out;
     }
+    /* Set the OWNDATA flag on that the data will be freed with the array */
+    PyArray_ENABLEFLAGS(array, NPY_ARRAY_OWNDATA);
+    /* Not strictly necessary since we're creating a new array, but let's
+     * keep the door open to future optimisations. */
+    PyArray_CLEARFLAGS(array, NPY_ARRAY_WRITEABLE);
+
+    ret = (PyObject *) array;
+    data = NULL;
+    array = NULL;
+out:
+    Py_XDECREF(array);
+    if (data != NULL) {
+        PyDataMem_FREE(data);
+    }
+
     return ret;
 }
 

@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2019 Tskit Developers
+# Copyright (c) 2018-2021 Tskit Developers
 # Copyright (C) 2016 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,50 +23,444 @@
 """
 Test cases for stats calculations in tskit.
 """
+import contextlib
 import io
-import sys
-import unittest
 
 import msprime
 import numpy as np
 import pytest
 
 import _tskit
+import tests
 import tests.test_wright_fisher as wf
 import tests.tsutil as tsutil
 import tskit
 
 
+@contextlib.contextmanager
+def suppress_division_by_zero_warning():
+    with np.errstate(invalid="ignore", divide="ignore"):
+        yield
+
+
 def get_r2_matrix(ts):
     """
-    Returns the matrix for the specified tree sequence. This is computed
-    via a straightforward Python algorithm.
+    Simple site-based version assuming biallic sites.
     """
-    n = ts.get_sample_size()
-    m = ts.get_num_mutations()
-    A = np.zeros((m, m), dtype=float)
-    for t1 in ts.trees():
-        for sA in t1.sites():
-            assert len(sA.mutations) == 1
-            mA = sA.mutations[0]
-            A[sA.id, sA.id] = 1
-            fA = t1.get_num_samples(mA.node) / n
-            samples = list(t1.samples(mA.node))
-            for t2 in ts.trees(tracked_samples=samples):
-                for sB in t2.sites():
-                    assert len(sB.mutations) == 1
-                    mB = sB.mutations[0]
-                    if sB.position > sA.position:
-                        fB = t2.get_num_samples(mB.node) / n
-                        fAB = t2.get_num_tracked_samples(mB.node) / n
-                        D = fAB - fA * fB
-                        r2 = D * D / (fA * fB * (1 - fA) * (1 - fB))
-                        A[sA.id, sB.id] = r2
-                        A[sB.id, sA.id] = r2
+    A = np.zeros((ts.num_sites, ts.num_sites))
+    G = ts.genotype_matrix()
+    n = ts.num_samples
+    for a in range(ts.num_sites):
+        A[a, a] = 1
+        fA = np.sum(G[a] != 0) / n
+        for b in range(a + 1, ts.num_sites):
+            fB = np.sum(G[b] != 0) / n
+            nAB = np.sum(np.logical_and(G[a] != 0, G[b] != 0))
+            fAB = nAB / n
+            D = fAB - fA * fB
+            denom = fA * fB * (1 - fA) * (1 - fB)
+            A[a, b] = D * D
+            with suppress_division_by_zero_warning():
+                A[a, b] /= denom
+            A[b, a] = A[a, b]
     return A
 
 
-class TestLdCalculator(unittest.TestCase):
+def _compute_r2(tree, n, f_a, site_b):
+    assert len(site_b.mutations) == 1
+    assert site_b.ancestral_state != site_b.mutations[0].derived_state
+    f_b = tree.num_samples(site_b.mutations[0].node) / n
+    f_ab = tree.num_tracked_samples(site_b.mutations[0].node) / n
+    D2 = (f_ab - f_a * f_b) ** 2
+    denom = f_a * f_b * (1 - f_a) * (1 - f_b)
+    if denom == 0:
+        return np.nan
+    return D2 / denom
+
+
+def ts_r2(ts, a, b):
+    """
+    Returns the r2 value between sites a and b in the specified tree sequence.
+    """
+    a, b = (a, b) if a < b else (b, a)
+    site_a = ts.site(a)
+    site_b = ts.site(b)
+    assert len(site_a.mutations) == 1
+    assert len(site_b.mutations) == 1
+    n = ts.num_samples
+    tree = ts.at(site_a.position)
+    a_samples = list(tree.samples(site_a.mutations[0].node))
+    f_a = len(a_samples) / n
+    tree = ts.at(site_b.position, tracked_samples=a_samples)
+    return _compute_r2(tree, n, f_a, site_b)
+
+
+class LdArrayCalculator:
+    """
+    Utility class to help organise the state required when tracking all
+    the different termination conditions.
+    """
+
+    def __init__(self, ts, focal_site_id, direction, max_sites, max_distance):
+        self.ts = ts
+        self.focal_site = ts.site(focal_site_id)
+        self.direction = direction
+        self.max_sites = max_sites
+        self.max_distance = max_distance
+        self.result = []
+        self.tree = None
+
+    def _check_site(self, site):
+        assert len(site.mutations) == 1
+        assert site.ancestral_state != site.mutations[0].derived_state
+
+    def _compute_and_append(self, target_site):
+        self._check_site(target_site)
+
+        distance = abs(target_site.position - self.focal_site.position)
+        if distance > self.max_distance or len(self.result) >= self.max_sites:
+            return True
+        r2 = _compute_r2(
+            self.tree, self.ts.num_samples, self.focal_frequency, target_site
+        )
+        self.result.append(r2)
+        return False
+
+    def _compute_forward(self):
+        done = False
+        for site in self.tree.sites():
+            if site.id > self.focal_site.id:
+                done = self._compute_and_append(site)
+                if done:
+                    break
+        while self.tree.next() and not done:
+            for site in self.tree.sites():
+                done = self._compute_and_append(site)
+                if done:
+                    break
+
+    def _compute_backward(self):
+        done = False
+        for site in reversed(list(self.tree.sites())):
+            if site.id < self.focal_site.id:
+                done = self._compute_and_append(site)
+                if done:
+                    break
+        while self.tree.prev() and not done:
+            for site in reversed(list(self.tree.sites())):
+                done = self._compute_and_append(site)
+                if done:
+                    break
+
+    def run(self):
+        self._check_site(self.focal_site)
+        self.tree = self.ts.at(self.focal_site.position)
+        a_samples = list(self.tree.samples(self.focal_site.mutations[0].node))
+        self.focal_frequency = len(a_samples) / self.ts.num_samples
+
+        # Now set the tracked samples on the tree. We don't have a python
+        # API for doing this, so we just create a new tree.
+        self.tree = self.ts.at(self.focal_site.position, tracked_samples=a_samples)
+        if self.direction == 1:
+            self._compute_forward()
+        else:
+            self._compute_backward()
+        return np.array(self.result)
+
+
+def ts_r2_array(ts, a, *, direction=1, max_sites=None, max_distance=None):
+    max_sites = ts.num_sites if max_sites is None else max_sites
+    max_distance = np.inf if max_distance is None else max_distance
+    calc = LdArrayCalculator(ts, a, direction, max_sites, max_distance)
+    return calc.run()
+
+
+class TestLdSingleTree:
+    # 2.00┊   4   ┊
+    #     ┊ ┏━┻┓  ┊
+    # 1.00┊ ┃  3  ┊
+    #     ┊ ┃ ┏┻┓ ┊
+    # 0.00┊ 0 1 2 ┊
+    #     0      10
+    #      | |  |
+    #  pos 2 4  9
+    # node 0 1  0
+    @tests.cached_example
+    def ts(self):
+        ts = tskit.Tree.generate_balanced(3, span=10).tree_sequence
+        tables = ts.dump_tables()
+        tables.sites.add_row(2, ancestral_state="A")
+        tables.sites.add_row(4, ancestral_state="A")
+        tables.sites.add_row(9, ancestral_state="T")
+        tables.mutations.add_row(site=0, node=0, derived_state="G")
+        tables.mutations.add_row(site=1, node=3, derived_state="C")
+        tables.mutations.add_row(site=2, node=0, derived_state="G")
+        return tables.tree_sequence()
+
+    @pytest.mark.parametrize(["a", "b", "expected"], [(0, 0, 1), (0, 1, 1), (0, 2, 1)])
+    def test_r2(self, a, b, expected):
+        ts = self.ts()
+        A = get_r2_matrix(ts)
+        ldc = tskit.LdCalculator(ts)
+        assert ldc.r2(a, b) == pytest.approx(expected)
+        assert ts_r2(ts, a, b) == pytest.approx(expected)
+        assert A[a, b] == pytest.approx(expected)
+        assert ldc.r2(b, a) == pytest.approx(expected)
+        assert ts_r2(ts, b, a) == pytest.approx(expected)
+        assert A[b, a] == pytest.approx(expected)
+
+    @pytest.mark.parametrize("a", [0, 1, 2])
+    @pytest.mark.parametrize("direction", [1, -1])
+    def test_r2_array(self, a, direction):
+        ts = self.ts()
+        ldc = tskit.LdCalculator(ts)
+        lib_a = ldc.r2_array(a, direction=direction)
+        py_a = ts_r2_array(ts, a, direction=direction)
+        np.testing.assert_array_almost_equal(lib_a, py_a)
+
+
+class TestLdFixedSites:
+    # 2.00┊   4   ┊
+    #     ┊ ┏━┻┓  ┊
+    # 1.00┊ ┃  3  ┊
+    #     ┊ ┃ ┏┻┓ ┊
+    # 0.00┊ 0 1 2 ┊
+    #     0      10
+    #      | |  |
+    #  pos 2 4  9
+    # node 0 1  0
+    @tests.cached_example
+    def ts(self):
+        ts = tskit.Tree.generate_balanced(3, span=10).tree_sequence
+        tables = ts.dump_tables()
+        # First and last mutations are over the root
+        tables.sites.add_row(2, ancestral_state="A")
+        tables.sites.add_row(4, ancestral_state="A")
+        tables.sites.add_row(9, ancestral_state="T")
+        tables.mutations.add_row(site=0, node=4, derived_state="G")
+        tables.mutations.add_row(site=1, node=3, derived_state="C")
+        tables.mutations.add_row(site=2, node=4, derived_state="G")
+        return tables.tree_sequence()
+
+    def test_r2_fixed_fixed(self):
+        ts = self.ts()
+        A = get_r2_matrix(ts)
+        ldc = tskit.LdCalculator(ts)
+        assert np.isnan(ldc.r2(0, 2))
+        assert np.isnan(ts_r2(ts, 0, 2))
+        assert np.isnan(A[0, 2])
+
+    def test_r2_fixed_non_fixed(self):
+        ts = self.ts()
+        A = get_r2_matrix(ts)
+        ldc = tskit.LdCalculator(ts)
+        assert np.isnan(ldc.r2(0, 1))
+        assert np.isnan(ts_r2(ts, 0, 1))
+        assert np.isnan(A[0, 1])
+
+    def test_r2_non_fixed_fixed(self):
+        ts = self.ts()
+        A = get_r2_matrix(ts)
+        ldc = tskit.LdCalculator(ts)
+        assert np.isnan(ldc.r2(1, 0))
+        assert np.isnan(ts_r2(ts, 1, 0))
+        assert np.isnan(A[1, 0])
+
+
+class BaseTestLd:
+    """
+    Define a set of tests for LD calculations. Subclasses should be
+    concrete examples with at least two sites which implement a
+    method ts() which returns the tree sequence and the full LD
+    matrix.
+    """
+
+    def test_r2_all_pairs(self):
+        ts, A = self.ts()
+        ldc = tskit.LdCalculator(ts)
+        for j in range(ts.num_sites):
+            for k in range(ts.num_sites):
+                r2 = A[j, k]
+                assert ldc.r2(j, k) == pytest.approx(r2)
+                assert ts_r2(ts, j, k) == pytest.approx(r2)
+
+    def test_r2_array_first_site_forward(self):
+        ts, A = self.ts()
+        ldc = tskit.LdCalculator(ts)
+        A1 = ldc.r2_array(0, direction=1)
+        A2 = ts_r2_array(ts, 0, direction=1)
+        np.testing.assert_array_almost_equal(A2, A[0, 1:])
+        np.testing.assert_array_almost_equal(A1, A2)
+
+    def test_r2_array_mid_forward(self):
+        ts, A = self.ts()
+        ldc = tskit.LdCalculator(ts)
+        site = ts.num_sites // 2
+        A1 = ldc.r2_array(site, direction=1)
+        A2 = ts_r2_array(ts, site, direction=1)
+        np.testing.assert_array_almost_equal(A2, A[site, site + 1 :])
+        np.testing.assert_array_almost_equal(A1, A2)
+
+    def test_r2_array_first_site_forward_max_sites(self):
+        ts, A = self.ts()
+        ldc = tskit.LdCalculator(ts)
+        A1 = ldc.r2_array(0, direction=1, max_sites=2)
+        A2 = ts_r2_array(ts, 0, direction=1, max_sites=2)
+        np.testing.assert_array_almost_equal(A2, A[0, 1:3])
+        np.testing.assert_array_almost_equal(A1, A2)
+
+    def test_r2_array_first_site_forward_max_distance(self):
+        ts, _ = self.ts()
+        ldc = tskit.LdCalculator(ts)
+        A1 = ldc.r2_array(0, direction=1, max_distance=3)
+        A2 = ts_r2_array(ts, 0, direction=1, max_distance=3)
+        np.testing.assert_array_almost_equal(A1, A2)
+
+    def test_r2_array_last_site_backward(self):
+        ts, A = self.ts()
+        ldc = tskit.LdCalculator(ts)
+        a = ts.num_sites - 1
+        A1 = ldc.r2_array(a, direction=-1)
+        A2 = ts_r2_array(ts, a, direction=-1)
+        np.testing.assert_array_almost_equal(A2, A[-1, :-1][::-1])
+        np.testing.assert_array_almost_equal(A1, A2)
+
+    def test_r2_array_mid_backward(self):
+        ts, A = self.ts()
+        ldc = tskit.LdCalculator(ts)
+        site = ts.num_sites // 2
+        A1 = ldc.r2_array(site, direction=-1)
+        A2 = ts_r2_array(ts, site, direction=-1)
+        np.testing.assert_array_almost_equal(A2, A[site, :site][::-1])
+        np.testing.assert_array_almost_equal(A1, A2)
+
+    def test_r2_array_last_site_backward_max_sites(self):
+        ts, A = self.ts()
+        ldc = tskit.LdCalculator(ts)
+        a = ts.num_sites - 1
+        A1 = ldc.r2_array(a, direction=-1, max_sites=2)
+        A2 = ts_r2_array(ts, a, direction=-1, max_sites=2)
+        np.testing.assert_array_almost_equal(A2, A[-1, -3:-1][::-1])
+        np.testing.assert_array_almost_equal(A1, A2)
+
+    def test_r2_array_last_site_backward_max_distance(self):
+        ts, _ = self.ts()
+        ldc = tskit.LdCalculator(ts)
+        a = ts.num_sites - 1
+        A1 = ldc.r2_array(a, direction=-1, max_distance=3)
+        A2 = ts_r2_array(ts, a, direction=-1, max_distance=3)
+        np.testing.assert_array_almost_equal(A1, A2)
+
+    @pytest.mark.parametrize("max_sites", [0, 1, 2])
+    def test_r2_array_forward_max_sites_zero(self, max_sites):
+        ts, A = self.ts()
+        ldc = tskit.LdCalculator(ts)
+        site = ts.num_sites // 2
+        A1 = ldc.r2_array(site, direction=1, max_sites=max_sites)
+        assert A1.shape[0] == max_sites
+        A2 = ts_r2_array(ts, site, direction=1, max_sites=max_sites)
+        assert A2.shape[0] == max_sites
+
+    @pytest.mark.parametrize("max_sites", [0, 1, 2])
+    def test_r2_array_backward_max_sites_zero(self, max_sites):
+        ts, A = self.ts()
+        ldc = tskit.LdCalculator(ts)
+        site = ts.num_sites // 2
+        A1 = ldc.r2_array(site, direction=-1, max_sites=max_sites)
+        assert A1.shape[0] == max_sites
+        A2 = ts_r2_array(ts, site, direction=-1, max_sites=max_sites)
+        assert A2.shape[0] == max_sites
+
+
+class TestLdOneSitePerTree(BaseTestLd):
+    @tests.cached_example
+    def ts(self):
+        ts = msprime.sim_ancestry(
+            5, sequence_length=10, recombination_rate=0.1, random_seed=1234
+        )
+        assert ts.num_trees > 3
+
+        tables = ts.dump_tables()
+        for tree in ts.trees():
+            site = tables.sites.add_row(tree.interval[0], ancestral_state="A")
+            # Put the mutation somewhere deep in the tree
+            node = tree.preorder()[2]
+            tables.mutations.add_row(site=site, node=node, derived_state="B")
+        ts = tables.tree_sequence()
+        # Return the full f2 matrix also
+        return ts, get_r2_matrix(ts)
+
+
+class TestLdAllSitesOneTree(BaseTestLd):
+    @tests.cached_example
+    def ts(self):
+        ts = msprime.sim_ancestry(
+            5, sequence_length=10, recombination_rate=0.1, random_seed=1234
+        )
+        assert ts.num_trees > 3
+
+        tables = ts.dump_tables()
+        tree = ts.at(5)
+        pos = np.linspace(tree.interval[0], tree.interval[1], num=10, endpoint=False)
+        for x, node in zip(pos, tree.preorder()[1:]):
+            site = tables.sites.add_row(x, ancestral_state="A")
+            tables.mutations.add_row(site=site, node=node, derived_state="B")
+        ts = tables.tree_sequence()
+        return ts, get_r2_matrix(ts)
+
+
+class TestLdSitesEveryOtherTree(BaseTestLd):
+    @tests.cached_example
+    def ts(self):
+        ts = msprime.sim_ancestry(
+            5, sequence_length=20, recombination_rate=0.1, random_seed=1234
+        )
+        assert ts.num_trees > 5
+
+        tables = ts.dump_tables()
+        for tree in ts.trees():
+            if tree.index % 2 == 0:
+                pos = np.linspace(*tree.interval, num=2, endpoint=False)
+                for x, node in zip(pos, tree.preorder()[1:]):
+                    site = tables.sites.add_row(x, ancestral_state="A")
+                    tables.mutations.add_row(site=site, node=node, derived_state="B")
+        ts = tables.tree_sequence()
+        return ts, get_r2_matrix(ts)
+
+
+class TestLdErrors:
+    def test_multi_mutations(self):
+        tables = tskit.TableCollection(2)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.sites.add_row(position=0, ancestral_state="A")
+        tables.sites.add_row(position=1, ancestral_state="A")
+        tables.mutations.add_row(site=0, node=0, derived_state="C")
+        tables.mutations.add_row(site=0, node=0, derived_state="T", parent=0)
+        tables.mutations.add_row(site=1, node=0, derived_state="C")
+        ts = tables.tree_sequence()
+        ldc = tskit.LdCalculator(ts)
+        with pytest.raises(tskit.LibraryError, match="Only infinite sites mutations"):
+            ldc.r2(0, 1)
+        with pytest.raises(tskit.LibraryError, match="Only infinite sites mutations"):
+            ldc.r2(1, 0)
+
+    @pytest.mark.parametrize("state", ["", "A", "AAAA", "💩"])
+    def test_silent_mutations(self, state):
+        tables = tskit.TableCollection(2)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.sites.add_row(position=0, ancestral_state=state)
+        tables.sites.add_row(position=1, ancestral_state="A")
+        tables.mutations.add_row(site=0, node=0, derived_state=state)
+        tables.mutations.add_row(site=1, node=0, derived_state="C")
+        ts = tables.tree_sequence()
+        ldc = tskit.LdCalculator(ts)
+        with pytest.raises(tskit.LibraryError, match="Silent mutations not supported"):
+            ldc.r2(0, 1)
+        with pytest.raises(tskit.LibraryError, match="Silent mutations not supported"):
+            ldc.r2(1, 0)
+
+
+class TestLdCalculator:
     """
     Tests for the LdCalculator class.
     """
@@ -98,7 +492,7 @@ class TestLdCalculator(unittest.TestCase):
         # Now check every cell in the matrix in turn.
         for j in range(m):
             for k in range(m):
-                self.assertAlmostEqual(ldc.get_r2(j, k), A[j, k])
+                assert ldc.get_r2(j, k) == pytest.approx(A[j, k])
 
     def verify_max_distance(self, ts):
         """
@@ -154,7 +548,7 @@ class TestLdCalculator(unittest.TestCase):
         self.verify_matrix(ts)
         self.verify_max_distance(ts)
 
-    def test_deprecated_aliases(self):
+    def test_deprecated_get_aliases(self):
         ts = msprime.simulate(20, mutation_rate=10, random_seed=15)
         ts = tsutil.subsample_sites(ts, self.num_test_sites)
         ldc = tskit.LdCalculator(ts)
@@ -165,6 +559,12 @@ class TestLdCalculator(unittest.TestCase):
         b = ldc.r2_array(0)
         assert np.array_equal(a, b)
         assert ldc.get_r2(0, 1) == ldc.r2(0, 1)
+
+    def test_deprecated_max_mutations_alias(self):
+        ts = msprime.simulate(2, mutation_rate=0.1, random_seed=15)
+        ldc = tskit.LdCalculator(ts)
+        with pytest.raises(ValueError, match="deprecated synonym"):
+            ldc.r2_array(0, max_sites=1, max_mutations=1)
 
     def test_single_tree_regular_mutations(self):
         ts = msprime.simulate(self.num_test_sites, length=self.num_test_sites)
@@ -191,8 +591,6 @@ class TestLdCalculator(unittest.TestCase):
         self.verify_matrix(ts)
         self.verify_max_distance(ts)
 
-    # https://github.com/tskit-dev/tskit/issues/1591
-    @pytest.mark.skipif(sys.maxsize <= 2 ** 32, reason="Skipping on 32 bit")
     def test_tree_sequence_simulated_mutations(self):
         ts = msprime.simulate(20, mutation_rate=10, recombination_rate=10)
         assert ts.get_num_trees() > 10

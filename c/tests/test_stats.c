@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019 Tskit Developers
+ * Copyright (c) 2019-2021 Tskit Developers
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -112,7 +112,6 @@ verify_ld(tsk_treeseq_t *ts)
         } else {
             CU_ASSERT_EQUAL_FATAL(ret, 0);
             CU_ASSERT_EQUAL_FATAL(num_r2_values, num_sites - 1);
-            tsk_ld_calc_print_state(&ld_calc, _devnull);
             for (j = 0; j < (tsk_id_t) num_r2_values; j++) {
                 CU_ASSERT_EQUAL_FATAL(r2[j], r2_prime[j]);
                 ret = tsk_ld_calc_get_r2(&ld_calc, 0, j + 1, &x);
@@ -140,7 +139,6 @@ verify_ld(tsk_treeseq_t *ts)
             CU_ASSERT_EQUAL_FATAL(ret, 0);
             CU_ASSERT_EQUAL_FATAL(num_r2_values, 1);
         }
-        tsk_ld_calc_print_state(&ld_calc, _devnull);
 
         ret = tsk_ld_calc_get_r2_array(&ld_calc, (tsk_id_t) num_sites - 1,
             TSK_DIR_REVERSE, num_sites, DBL_MAX, r2_prime, &num_r2_values);
@@ -166,39 +164,15 @@ verify_ld(tsk_treeseq_t *ts)
         CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     }
 
-    if (num_sites > 3) {
-        /* Check for some basic distance calculations */
-        j = (tsk_id_t) num_sites / 2;
-        x = sites[j + 1].position - sites[j].position;
-        ret = tsk_ld_calc_get_r2_array(
-            &ld_calc, j, TSK_DIR_FORWARD, num_sites, x, r2, &num_r2_values);
-        if (multi_mutations_exist(ts, j, (tsk_id_t) num_sites)) {
-            CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_ONLY_INFINITE_SITES);
-        } else {
-            CU_ASSERT_EQUAL_FATAL(ret, 0);
-            CU_ASSERT_EQUAL_FATAL(num_r2_values, 1);
-        }
-
-        x = sites[j].position - sites[j - 1].position;
-        ret = tsk_ld_calc_get_r2_array(
-            &ld_calc, j, TSK_DIR_REVERSE, num_sites, x, r2, &num_r2_values);
-        if (multi_mutations_exist(ts, 0, j + 1)) {
-            CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_ONLY_INFINITE_SITES);
-        } else {
-            CU_ASSERT_EQUAL_FATAL(ret, 0);
-            CU_ASSERT_EQUAL_FATAL(num_r2_values, 1);
-        }
-    }
-
     /* Check some error conditions */
     for (j = (tsk_id_t) num_sites; j < (tsk_id_t) num_sites + 2; j++) {
         ret = tsk_ld_calc_get_r2_array(
             &ld_calc, j, TSK_DIR_FORWARD, num_sites, DBL_MAX, r2, &num_r2_values);
-        CU_ASSERT_EQUAL(ret, TSK_ERR_OUT_OF_BOUNDS);
+        CU_ASSERT_EQUAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
         ret = tsk_ld_calc_get_r2(&ld_calc, j, 0, r2);
-        CU_ASSERT_EQUAL(ret, TSK_ERR_OUT_OF_BOUNDS);
+        CU_ASSERT_EQUAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
         ret = tsk_ld_calc_get_r2(&ld_calc, 0, j, r2);
-        CU_ASSERT_EQUAL(ret, TSK_ERR_OUT_OF_BOUNDS);
+        CU_ASSERT_EQUAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
     }
 
     tsk_ld_calc_free(&ld_calc);
@@ -1003,10 +977,30 @@ static void
 test_paper_ex_ld(void)
 {
     tsk_treeseq_t ts;
+    tsk_ld_calc_t ld_calc;
+    double r2[3];
+    tsk_size_t num_r2_values;
+    int ret;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_ld(&ts);
+
+    /* Check early exit corner cases */
+    ret = tsk_ld_calc_init(&ld_calc, &ts);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_ld_calc_get_r2_array(
+        &ld_calc, 0, TSK_DIR_FORWARD, 1, DBL_MAX, r2, &num_r2_values);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(num_r2_values, 1);
+
+    ret = tsk_ld_calc_get_r2_array(
+        &ld_calc, 2, TSK_DIR_REVERSE, 1, DBL_MAX, r2, &num_r2_values);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(num_r2_values, 1);
+
+    tsk_ld_calc_free(&ld_calc);
     tsk_treeseq_free(&ts);
 }
 
@@ -1659,6 +1653,79 @@ test_nonbinary_ex_general_stat_errors(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_caterpillar_tree_ld(void)
+{
+    tsk_treeseq_t *ts = caterpillar_tree(50, 20, 1);
+    tsk_ld_calc_t ld_calc;
+    double r2[20];
+    tsk_size_t num_r2_values;
+    int ret = tsk_ld_calc_init(&ld_calc, ts);
+
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    verify_ld(ts);
+
+    ret = tsk_ld_calc_get_r2_array(
+        &ld_calc, 0, TSK_DIR_FORWARD, 5, DBL_MAX, r2, &num_r2_values);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(num_r2_values, 5);
+
+    ret = tsk_ld_calc_get_r2_array(
+        &ld_calc, 10, TSK_DIR_REVERSE, 5, DBL_MAX, r2, &num_r2_values);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(num_r2_values, 5);
+
+    tsk_ld_calc_free(&ld_calc);
+    tsk_treeseq_free(ts);
+    free(ts);
+}
+
+static void
+test_ld_multi_mutations(void)
+{
+    tsk_treeseq_t *ts = caterpillar_tree(4, 2, 2);
+    tsk_ld_calc_t ld_calc;
+    double r2;
+    int ret = tsk_ld_calc_init(&ld_calc, ts);
+
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_ld_calc_get_r2(&ld_calc, 0, 1, &r2);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_ONLY_INFINITE_SITES);
+
+    tsk_ld_calc_free(&ld_calc);
+    tsk_treeseq_free(ts);
+    free(ts);
+}
+
+static void
+test_ld_silent_mutations(void)
+{
+    tsk_treeseq_t *base_ts = caterpillar_tree(4, 2, 1);
+    tsk_table_collection_t tables;
+    tsk_treeseq_t ts;
+    tsk_ld_calc_t ld_calc;
+    double r2;
+    int ret = tsk_table_collection_copy(base_ts->tables, &tables, 0);
+
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.mutations.derived_state[1] = '0';
+
+    ret = tsk_treeseq_init(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_ld_calc_init(&ld_calc, &ts);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_ld_calc_get_r2(&ld_calc, 0, 1, &r2);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SILENT_MUTATIONS_NOT_SUPPORTED);
+    tsk_ld_calc_free(&ld_calc);
+    tsk_treeseq_free(&ts);
+
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(base_ts);
+    free(base_ts);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1726,6 +1793,10 @@ main(int argc, char **argv)
         { "test_nonbinary_ex_general_stat", test_nonbinary_ex_general_stat },
         { "test_nonbinary_ex_general_stat_errors",
             test_nonbinary_ex_general_stat_errors },
+
+        { "test_caterpillar_tree_ld", test_caterpillar_tree_ld },
+        { "test_ld_multi_mutations", test_ld_multi_mutations },
+        { "test_ld_silent_mutations", test_ld_silent_mutations },
 
         { NULL, NULL },
     };

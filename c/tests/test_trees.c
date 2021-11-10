@@ -5404,6 +5404,7 @@ test_single_tree_traversal(void)
     tsk_size_t num_nodes = 7;
     tsk_id_t preorder[] = { 6, 4, 0, 1, 5, 2, 3 };
     tsk_id_t preorder_vr[] = { 7, 6, 4, 0, 1, 5, 2, 3 };
+    tsk_id_t preorder_samples[] = { 0, 1, 2, 3 };
     tsk_id_t postorder[] = { 0, 1, 4, 2, 3, 5, 6 };
     tsk_id_t postorder_vr[] = { 0, 1, 4, 2, 3, 5, 6, 7 };
     tsk_id_t nodes[num_nodes + 1];
@@ -5427,10 +5428,25 @@ test_single_tree_traversal(void)
     CU_ASSERT_EQUAL_FATAL(n, num_nodes + 1);
     verify_node_lists(n, nodes, preorder_vr);
 
+    ret = tsk_tree_preorder_samples(&t, -1, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 4);
+    verify_node_lists(n, nodes, preorder_samples);
+
+    ret = tsk_tree_preorder_samples(&t, t.virtual_root, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 4);
+    verify_node_lists(n, nodes, preorder_samples);
+
     ret = tsk_tree_preorder(&t, 5, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 3);
     verify_node_lists(n, nodes, preorder + 4);
+
+    ret = tsk_tree_preorder_samples(&t, 5, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 2);
+    verify_node_lists(n, nodes, preorder_samples + 2);
 
     ret = tsk_tree_postorder(&t, -1, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -5451,6 +5467,11 @@ test_single_tree_traversal(void)
     ret = tsk_tree_preorder(&t, -2, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
     ret = tsk_tree_preorder(&t, 8, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    ret = tsk_tree_preorder_samples(&t, -2, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    ret = tsk_tree_preorder_samples(&t, 8, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
     ret = tsk_tree_postorder(&t, -2, nodes, &n);
@@ -5488,6 +5509,7 @@ test_multiroot_tree_traversal(void)
     tsk_tree_t t;
     tsk_id_t preorder[] = { 5, 9, 2, 7, 3, 4, 10, 0, 1 };
     tsk_id_t preorder_vr[] = { 12, 5, 9, 2, 7, 3, 4, 10, 0, 1 };
+    tsk_id_t preorder_samples[] = { 5, 2, 3, 4, 0, 1 };
     tsk_id_t postorder[] = { 5, 2, 3, 4, 7, 9, 0, 1, 10 };
     tsk_id_t postorder_vr[] = { 5, 2, 3, 4, 7, 9, 0, 1, 10, 12 };
     tsk_id_t nodes[13];
@@ -5516,6 +5538,26 @@ test_multiroot_tree_traversal(void)
     CU_ASSERT_EQUAL_FATAL(n, 3);
     verify_node_lists(n, nodes, preorder + 6);
 
+    ret = tsk_tree_preorder_samples(&t, -1, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 6);
+    verify_node_lists(n, nodes, preorder_samples);
+
+    ret = tsk_tree_preorder_samples(&t, t.virtual_root, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 6);
+    verify_node_lists(n, nodes, preorder_samples);
+
+    ret = tsk_tree_preorder_samples(&t, 5, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 1);
+    verify_node_lists(n, nodes, preorder_samples);
+
+    ret = tsk_tree_preorder_samples(&t, 10, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 2);
+    verify_node_lists(n, nodes, preorder_samples + 4);
+
     ret = tsk_tree_postorder(&t, -1, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 9);
@@ -5531,7 +5573,8 @@ test_multiroot_tree_traversal(void)
     CU_ASSERT_EQUAL_FATAL(n, 3);
     verify_node_lists(n, nodes, postorder + 6);
 
-    /* Nodes that aren't "in" the tree have singleton traversal lists */
+    /* Nodes that aren't "in" the tree have singleton traversal lists and
+     * connect to no samples */
 
     ret = tsk_tree_preorder(&t, 11, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -5542,6 +5585,100 @@ test_multiroot_tree_traversal(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 1);
     CU_ASSERT_EQUAL_FATAL(nodes[0], 11);
+
+    ret = tsk_tree_preorder_samples(&t, 11, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 0);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_seek_multi_tree(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    double breakpoints[] = { 0, 2, 7, 10 };
+    tsk_id_t num_trees = 3;
+    tsk_id_t j, k;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, NULL, NULL,
+        paper_ex_individuals, NULL, 0);
+
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    for (j = 0; j < num_trees; j++) {
+        ret = tsk_tree_seek(&t, breakpoints[j], 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL_FATAL(t.index, j);
+        for (k = 0; k < num_trees; k++) {
+            ret = tsk_tree_seek(&t, breakpoints[k], 0);
+            CU_ASSERT_EQUAL_FATAL(ret, 0);
+            CU_ASSERT_EQUAL_FATAL(t.index, k);
+        }
+    }
+
+    ret = tsk_tree_seek(&t, 1.99999, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t.index, 0);
+    ret = tsk_tree_seek(&t, 6.99999, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t.index, 1);
+    ret = tsk_tree_seek(&t, 9.99999, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t.index, 2);
+
+    tsk_tree_free(&t);
+
+    /* Seek to all positions from a new tree. */
+    for (j = 0; j < num_trees; j++) {
+        ret = tsk_tree_init(&t, &ts, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_tree_seek(&t, breakpoints[j], 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL_FATAL(t.index, j);
+        tsk_tree_free(&t);
+    }
+
+    /* Seek to all positions from a non-new tree in the null state*/
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (j = 0; j < num_trees; j++) {
+        ret = tsk_tree_seek(&t, 0, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_tree_prev(&t);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL_FATAL(t.index, -1);
+        ret = tsk_tree_seek(&t, breakpoints[j], 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL_FATAL(t.index, j);
+    }
+    tsk_tree_free(&t);
+
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_seek_errors(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, NULL, NULL,
+        paper_ex_individuals, NULL, 0);
+
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_seek(&t, -1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SEEK_OUT_OF_BOUNDS);
+    ret = tsk_tree_seek(&t, 10, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SEEK_OUT_OF_BOUNDS);
+    ret = tsk_tree_seek(&t, 11, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SEEK_OUT_OF_BOUNDS);
 
     tsk_tree_free(&t);
     tsk_treeseq_free(&ts);
@@ -6948,6 +7085,10 @@ main(int argc, char **argv)
         /* tree traversal orders */
         { "test_single_tree_traversal", test_single_tree_traversal },
         { "test_multiroot_tree_traversal", test_multiroot_tree_traversal },
+
+        /* Seek */
+        { "test_seek_multi_tree", test_seek_multi_tree },
+        { "test_seek_errors", test_seek_errors },
 
         /* KC distance tests */
         { "test_single_tree_kc", test_single_tree_kc },

@@ -261,6 +261,7 @@ An unsupported type was provided for a column in the file.
 #define TSK_ERR_PROVENANCE_OUT_OF_BOUNDS                            -209
 #define TSK_ERR_TIME_NONFINITE                                      -210
 #define TSK_ERR_GENOME_COORDS_NONFINITE                             -211
+#define TSK_ERR_SEEK_OUT_OF_BOUNDS                                  -212
 
 /* Edge errors */
 #define TSK_ERR_NULL_PARENT                                         -300
@@ -318,6 +319,7 @@ An unsupported type was provided for a column in the file.
 #define TSK_ERR_NONBINARY_MUTATIONS_UNSUPPORTED                     -804
 #define TSK_ERR_MIGRATIONS_NOT_SUPPORTED                            -805
 #define TSK_ERR_CANNOT_EXTEND_FROM_SELF                             -806
+#define TSK_ERR_SILENT_MUTATIONS_NOT_SUPPORTED                      -807
 
 /* Stats errors */
 #define TSK_ERR_BAD_NUM_WINDOWS                                     -900
