@@ -2256,33 +2256,52 @@ class TestLdCalculator(LowLevelTestCase):
         ts = self.get_example_tree_sequence()
         calc = _tskit.LdCalculator(ts)
 
-        with pytest.raises(TypeError):
-            calc.get_r2_array()
-        with pytest.raises(TypeError):
-            calc.get_r2_array(None)
-        # Doesn't support buffer protocol, so raises typeerror
-        with pytest.raises(TypeError):
-            calc.get_r2_array(None, 0)
-
         n = ts.get_num_sites()
         assert n > 2
-        with pytest.raises(BufferError):
-            calc.get_r2_array(bytes(100), 0)
 
-        buff = bytearray(1024)
         with pytest.raises(ValueError):
-            calc.get_r2_array(buff, 0, max_distance=-1)
+            calc.get_r2_array(0, max_distance=-1)
         with pytest.raises(ValueError):
-            calc.get_r2_array(buff, 0, direction=1000)
+            calc.get_r2_array(0, direction=1000)
 
-        # TODO this API is poor, we should explicitly catch these negative
-        # size errors.
-        for bad_max_mutations in [-2, -3]:
-            with pytest.raises(BufferError):
-                calc.get_r2_array(buff, 0, max_mutations=bad_max_mutations)
+        for bad_max_sites in [-2, -3]:
+            with pytest.raises(ValueError, match="cannot be negative"):
+                calc.get_r2_array(0, max_sites=bad_max_sites)
         for bad_start_pos in [-1, n, n + 1]:
             with pytest.raises(_tskit.LibraryError):
-                calc.get_r2_array(buff, bad_start_pos)
+                calc.get_r2_array(bad_start_pos)
+
+    def test_r2_array_properties(self):
+        ts = self.get_example_tree_sequence()
+        calc = _tskit.LdCalculator(ts)
+        n = ts.get_num_sites()
+        a = calc.get_r2_array(0)
+        assert a.shape == (n - 1,)
+        assert a.dtype == np.float64
+        assert not a.flags.writeable
+        assert a.flags.aligned
+        assert a.flags.c_contiguous
+        assert a.flags.owndata
+
+    def test_r2_array_lifetime(self):
+        ts = self.get_example_tree_sequence()
+        calc = _tskit.LdCalculator(ts)
+        n = ts.get_num_sites()
+
+        a1 = calc.get_r2_array(0)
+        assert a1.shape[0] == n - 1
+        a2 = a1.copy()
+        assert a1 is not a2
+        del calc
+        # Do some memory operations
+        a3 = np.ones(10 ** 6)
+        assert np.all(a1 == a2)
+        del ts
+        assert np.all(a1 == a2)
+        del a1
+        # Just do something to touch memory
+        a2[:] = 0
+        assert a3 is not a2
 
 
 class TestLsHmm(LowLevelTestCase):

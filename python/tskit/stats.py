@@ -22,7 +22,6 @@
 """
 Module responsible for computing various statistics on tree sequences.
 """
-import struct
 import sys
 import threading
 
@@ -127,31 +126,21 @@ class LdCalculator:
             representing the :math:`r^2` values for sites in the
             specified direction.
         :rtype: numpy.ndarray
-        :warning: For efficiency reasons, the underlying memory used to
-            store the returned array is shared between calls. Therefore,
-            if you wish to store the results of a single call to
-            ``get_r2_array()`` for later processing you **must** take a
-            copy of the array!
         """
         if max_mutations is not None and max_sites is not None:
             raise ValueError("max_mutations is a deprecated synonym for max_sites")
-        if max_sites is not None:
-            max_mutations = max_sites
-        if max_mutations is None:
-            max_mutations = -1
+        if max_mutations is not None:
+            max_sites = max_mutations
+        max_sites = -1 if max_sites is None else max_sites
         if max_distance is None:
             max_distance = sys.float_info.max
-        item_size = struct.calcsize("d")
-        buffer = bytearray(self._tree_sequence.get_num_mutations() * item_size)
         with self._instance_lock:
-            num_values = self._ll_ld_calculator.get_r2_array(
-                buffer,
+            return self._ll_ld_calculator.get_r2_array(
                 a,
                 direction=direction,
-                max_mutations=max_mutations,
+                max_sites=max_sites,
                 max_distance=max_distance,
             )
-        return np.frombuffer(buffer, "d", num_values)
 
     def get_r2_matrix(self):
         # Deprecated alias for r2_matrix
