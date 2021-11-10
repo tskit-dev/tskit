@@ -13,6 +13,7 @@ parts:
   chapters:
   - file: stats
   - file: topological-analysis
+  - file: ibd
 - caption: Interfaces
   chapters:
   - file: python-api

@@ -2507,16 +2507,46 @@ class ProvenanceTable(BaseTable):
 # We define segment ordering by (left, right, node) tuples
 @dataclasses.dataclass(eq=True, order=True)
 class IdentitySegment:
+    """
+    A single segment of identity spanning a genomic interval for a
+    a specific ancestor node.
+    """
+
     left: float
+    """The left genomic coordinate (inclusive)."""
     right: float
+    """The right genomic coordinate (exclusive)."""
     node: int
+    """The ID of the most recent common ancestor node."""
 
     @property
     def span(self) -> float:
+        """
+        The length of the genomic region spanned by this identity segment.
+        """
         return self.right - self.left
 
 
 class IdentitySegmentList(collections.abc.Iterable, collections.abc.Sized):
+    """
+    A summary of identity segments for some pair of samples in a
+    :class:`.IdentitySegments` result. If the ``store_segments`` argument
+    has been specified to :meth:`.TreeSequence.ibd_segments`, this class
+    can be treated as a sequence of :class:`.IdentitySegment` objects.
+
+    Access to the segment data via numpy arrays is also available via
+    the :attr:`.IdentitySegmentList.left`, :attr:`.IdentitySegmentList.right`
+    and :attr:`.IdentitySegmentList.node` attributes.
+
+    If ``store_segments`` is False, only the overall summary values
+    such as :attr:`.IdentitySegmentList.total_span` and ``len()`` are
+    available.
+
+    .. warning:: The order of segments within an IdentitySegmentList is
+        arbitrary and may change in the future
+
+    """
+
     def __init__(self, ll_segment_list):
         self._ll_segment_list = ll_segment_list
 
@@ -2543,38 +2573,58 @@ class IdentitySegmentList(collections.abc.Iterable, collections.abc.Sized):
 
     @property
     def total_span(self):
+        """
+        The total genomic span covered by segments in this list. Equal to
+        ``sum(seg.span for seg in seglst)``.
+        """
         return self._ll_segment_list.total_span
 
     @property
     def left(self):
+        """
+        A numpy array (dtype=np.float64) of the ``left`` coordinates of segments.
+        """
         return self._ll_segment_list.left
 
     @property
     def right(self):
+        """
+        A numpy array (dtype=np.float64) of the ``right`` coordinates of segments.
+        """
         return self._ll_segment_list.right
 
     @property
     def node(self):
+        """
+        A numpy array (dtype=np.int32) of the MRCA node IDs in segments.
+        """
         return self._ll_segment_list.node
 
 
 class IdentitySegments(collections.abc.Mapping):
     """
-    TODO document
+    A class summarising and optionally storing the segments of identity
+    by state returned by :meth:`.TreeSequence.ibd_segments`. See the
+    :ref:`sec_identity` for more information and examples.
 
-    Not to be instantiated directly.
+    Along with the documented methods and attributes, the class supports
+    the Python mapping protocol, and can be regarded as a dictionary
+    mapping sample node pair tuples to the corresponding
+    :class:`.IdentitySegmentList`.
 
-    The implementation here is the minimum we need to get tests passing. There's a
-    bunch of other functionality we'll want to implement here as well, so we
-    can obtain statistics about the IBD segments without having to decode them
-    all.
+    .. note:: It is important to note that the facilities available
+       for a given instance of this class are determined by the
+       ``store_pairs`` and ``store_segments`` arguments provided to
+       :meth:`.TreeSequence.ibd_segments`. For example, attempting
+       to access per-sample pair information if ``store_pairs``
+       is False will result in a (hopefully informative) error being
+       raised.
 
-    The details of the mapping - whether we should explicitly specify the
-    pairs are not clear yet, so not fixing on the details for now.
+    .. warning:: This class should not be instantiated directly.
     """
 
     def __init__(self, ll_result, *, max_time, min_length, store_segments, store_pairs):
-        self._ll_ibd_segments = ll_result
+        self._ll_identity_segments = ll_result
         self.max_time = max_time
         self.min_length = min_length
         self.store_segments = store_segments
@@ -2582,19 +2632,35 @@ class IdentitySegments(collections.abc.Mapping):
 
     @property
     def num_segments(self):
-        return self._ll_ibd_segments.num_segments
+        """
+        The total number of identity segments found.
+        """
+        return self._ll_identity_segments.num_segments
 
     @property
     def num_pairs(self):
-        return self._ll_ibd_segments.num_pairs
+        """
+        The total number of distinct sample pairs for which identity
+        segments were found. (Only available when ``store_pairs`` or
+        ``store_segments`` is specified).
+        """
+        return self._ll_identity_segments.num_pairs
 
     @property
     def total_span(self):
-        return self._ll_ibd_segments.total_span
+        """
+        The total genomic sequence length spanned by all identity
+        segments that were found.
+        """
+        return self._ll_identity_segments.total_span
 
     @property
     def pairs(self):
-        return self._ll_ibd_segments.get_keys()
+        """
+        A numpy array with shape ``(segs.num_pairs, 2)`` and dtype=np.int32
+        containing the sample pairs for which IBD segments were found.
+        """
+        return self._ll_identity_segments.get_keys()
 
     # We have two different versions of repr - one where we list out the segments
     # for debugging, and the other that just shows the standard representation.
@@ -2620,10 +2686,10 @@ class IdentitySegments(collections.abc.Mapping):
 
     def __getitem__(self, key):
         sample_a, sample_b = key
-        return IdentitySegmentList(self._ll_ibd_segments.get(sample_a, sample_b))
+        return IdentitySegmentList(self._ll_identity_segments.get(sample_a, sample_b))
 
     def __iter__(self):
-        return map(tuple, self._ll_ibd_segments.get_keys())
+        return map(tuple, self._ll_identity_segments.get_keys())
 
     def __len__(self):
         return self.num_pairs
@@ -3926,21 +3992,15 @@ class TableCollection(metadata.MetadataProvider):
         underneath the edges will also be split across the breakpoint(s). To prevent this
         behaviour in this situation, use :meth:`EdgeTable.squash` beforehand.
 
-        :param list within: A list of node IDs from *within* which we are to find
-            IBD relationships.
-        :param float max_time: Only segments inherited from common
-            ancestors whose node times are more recent than the specified time
-            will be returned. Specifying a maximum time is strongly recommended when
-            working with large tree sequences.
-        :param float min_length: Only segments longer than the specified length
-            will be returned.
-        :return: A dictionary object indexed by the specified pairs in ``samples``.
-            The value of each item is itself a dictionary indexed by the following keys:
-            ``left``, ``right`` and ``node``. The values held by these three keys are
-            numpy.ndarray objects, each of the same length, with datatypes np.float64,
-            np.float64 and np.int32 respectively.
-        :rtype: dict
-
+        :param list within: As for the :meth:`TreeSequence.ibd_segments` method.
+        :param list[list] between: As for the :meth:`TreeSequence.ibd_segments` method.
+        :param float max_time: As for the :meth:`TreeSequence.ibd_segments` method.
+        :param float min_length: As for the :meth:`TreeSequence.ibd_segments` method.
+        :param bool store_pairs: As for the :meth:`TreeSequence.ibd_segments` method.
+        :param bool store_segments: As for the :meth:`TreeSequence.ibd_segments` method.
+        :return: An :class:`.IdentitySegments` object containing the recorded
+            IBD information.
+        :rtype: IdentitySegments
         """
         max_time = np.inf if max_time is None else max_time
         min_length = 0 if min_length is None else min_length

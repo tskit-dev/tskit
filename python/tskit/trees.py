@@ -7772,60 +7772,57 @@ class TreeSequence:
         store_segments=None,
     ):
         """
-        Finds pairs of samples that are identical by descent (IBD). If ``within``
-        is specified, only IBD segments for pairs of nodes within that set
-        will be reported.
+        Finds pairs of samples that are identical by descent (IBD) and returns
+        the result as an :class:`.IdentitySegments` instance. The information
+        stored in this object is controlled by the ``store_pairs`` and
+        ``store_segments`` parameters. By default only total counts and other
+        statistics of the IBD segments are stored (i.e.,
+        ``store_pairs=False``), since storing pairs and segments has a
+        substantial CPU and memory overhead. Please see the
+        :ref:`sec_identity` section for more details on how to access the
+        information stored in the :class:`.IdentitySegments`.
 
-        A pair of nodes ``(u, v)`` has an IBD segment with a left and right coordinate
-        ``[left, right)`` and ancestral node ``a`` iff the most recent common ancestor
-        of the segment ``[left, right)`` in nodes ``u`` and ``v`` is ``a``, and the
-        segment has been inherited along the same genealogical path (ie. it has not
-        been broken by recombination). The segments returned are the longest possible
-        ones.
+        If ``within`` is specified, only IBD segments for pairs of nodes within
+        that set will be recorded. If ``between`` is specified, only IBD
+        segments from pairs that are in one or other of the specified sample
+        sets will be reported. Note that ``within`` and ``between`` are
+        mutually exclusive.
 
-        Note that this definition is purely genealogical -- allelic states
+        A pair of nodes ``(u, v)`` has an IBD segment with a left and right
+        coordinate ``[left, right)`` and ancestral node ``a`` iff the most
+        recent common ancestor of the segment ``[left, right)`` in nodes ``u``
+        and ``v`` is ``a``, and the segment has been inherited along the same
+        genealogical path (ie. it has not been broken by recombination). The
+        segments returned are the longest possible ones.
+
+        Note that this definition is purely genealogical --- allelic states
         *are not* considered here. If used without time or length thresholds, the
         segments returned for a given pair will partition the span of the contig
         represented by the tree sequence.
 
-        Each item in the outputted dictionary object contains the IBD segments for a
-        particular sample pair. Suppose the output is
-
-        .. code-block:: python
-
-            {
-                (0, 1): {
-                    "left": array([0.0]),
-                    "right": array([1.0]),
-                    "node": array([4]),
-                },
-                (0, 2): {
-                    "left": array([0.5, 0.0]),
-                    "right": array([1.0, 0.5]),
-                    "node": array([3, 5]),
-                },
-            }
-
-        This indicates that samples 0 and 1 share a single IBD segment on the interval
-        `[0.0, 1.0)` inherited from the ancestor with node ID 4. Samples 0 and 2 share
-        one IBD segment on the interval `[0.5, 1.0)` inherited from node 3, and another
-        segment on the interval `[0.0, 0.5)` inherited from node 5.
-
-        :param list within: A list of node IDs specifying the set of nodes that
+        :param list within: A list of node IDs defining set of nodes that
             we finding IBD segments for. If not specified, this defaults to
             all samples in the tree sequence.
+        :param list[list] between: A list of lists of sample node IDs. Given
+            two sample sets A and B, only IBD segments will be returned such
+            that one of the samples is an element of A and the other is
+            an element of B. Cannot be specified with ``within``.
         :param float max_time: Only segments inherited from common
             ancestors whose node times are more recent than the specified time
             will be returned. Specifying a maximum time is strongly recommended when
             working with large tree sequences.
         :param float min_length: Only segments longer than the specified length
             will be returned.
-        :return: A dictionary object indexed by the specified pairs in ``samples``.
-            The value of each item is itself a dictionary indexed by the following keys:
-            ``left``, ``right`` and ``node``. The values held by these three keys are
-            numpy.ndarray objects, each of the same length, with datatypes np.float64,
-            np.float64 and np.int32 respectively.
-        :rtype: dict
+        :param bool store_pairs: If True store information separately for each
+            pair of samples ``(a, b)`` that are found to be IBD. Otherwise
+            store summary information about all sample apirs. (Default=False)
+        :param bool store_segments: If True store each IBD segment
+            ``(left, right, c)`` and associate it with the corresponding
+            sample pair ``(a, b)``. If True, implies ``store_pairs``.
+            (Default=False).
+        :return: An :class:`.IdentitySegments` object containing the recorded
+            IBD information.
+        :rtype: IdentitySegments
         """
         return self.tables.ibd_segments(
             within=within,
