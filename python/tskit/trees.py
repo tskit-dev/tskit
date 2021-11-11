@@ -31,7 +31,6 @@ import functools
 import io
 import itertools
 import math
-import textwrap
 import warnings
 from dataclasses import dataclass
 from typing import Any
@@ -699,6 +698,17 @@ class Tree:
         copy._ll_tree = self._ll_tree.copy()
         copy._make_arrays()
         return copy
+
+    # TODO make this method public and document it.
+    # Note that this probably does not cover all corner cases correctly
+    # https://github.com/tskit-dev/tskit/issues/1908
+    def _has_isolated_samples(self):
+        # TODO Is this definition correct for a single-node tree sequence?
+        for root in self.roots:
+            # If the root has no children then it must be a sample
+            if self.left_child(root) == NULL:
+                return True
+        return False
 
     def _make_arrays(self):
         # Store the low-level arrays for efficiency. There's no real overhead
@@ -2421,16 +2431,10 @@ class Tree:
             root = self.root
 
         if precision is None:
-            # Quick hack to get sensible default behaviour. We can use the
-            # ``discrete_time`` check when it's implemented.
-            # https://github.com/tskit-dev/tskit/issues/1839
-            time = self.tree_sequence.tables.nodes.time
-            if np.all(time == np.floor(time)):
-                precision = 0
-            else:
-                # 17 decimal digits provides the full precision of an IEEE double,
-                # as defined by DBL_DECIMAL_DIG macro
-                precision = 17
+            # 17 decimal digits provides the full precision of an IEEE double,
+            # as defined by DBL_DECIMAL_DIG macro. If we have discrete time
+            # then write out integer branch lengths.
+            precision = 0 if self.tree_sequence.discrete_time else 17
         include_branch_lengths = (
             True if include_branch_lengths is None else include_branch_lengths
         )
@@ -4512,7 +4516,15 @@ class TreeSequence:
             if tree2.interval.right == right:
                 tree2 = next(trees2, None)
 
-    def _haplotypes_array(self, *, isolated_as_missing, missing_data_character):
+    def _haplotypes_array(
+        self,
+        *,
+        isolated_as_missing=None,
+        missing_data_character=None,
+    ):
+        missing_data_character = (
+            "N" if missing_data_character is None else missing_data_character
+        )
         H = np.empty((self.num_samples, self.num_sites), dtype=np.int8)
         missing_int8 = ord(missing_data_character.encode("ascii"))
         for var in self.variants(isolated_as_missing=isolated_as_missing):
@@ -4549,7 +4561,7 @@ class TreeSequence:
         self,
         *,
         isolated_as_missing=None,
-        missing_data_character="-",
+        missing_data_character=None,
         impute_missing_data=None,
     ):
         """
@@ -4600,7 +4612,7 @@ class TreeSequence:
         :param str missing_data_character: A single ascii character that will
             be used to represent missing data.
             If any normal allele contains this character, an error is raised.
-            Default: '-'.
+            Default: 'N'.
         :param bool impute_missing_data:
             *Deprecated in 0.3.0. Use ``isolated_as_missing``, but inverting value.
             Will be removed in a future version*
@@ -4684,10 +4696,10 @@ class TreeSequence:
             as a Python bytes object. Legacy use only.
         :param array_like samples: An array of node IDs for which to generate
             genotypes, or None for all sample nodes. Default: None.
-        :param bool isolated_as_missing: If True, the allele assigned to
+        :param bool isolated_as_missing: If True, the genotype value assigned to
             missing samples (i.e., isolated samples without mutations) is
-            the ``missing_data_character``. If False, missing samples will be
-            assigned the ancestral state.
+            :data:`.MISSING_DATA` (-1). If False, missing samples will be
+            assigned the allele index for the ancestral state.
             Default: True.
         :param tuple alleles: A tuple of strings defining the encoding of
             alleles as integer genotype values. At least one allele must be provided.
@@ -4757,10 +4769,10 @@ class TreeSequence:
             all genotypes are not needed at once, it is usually better to
             access them sequentially using the :meth:`.variants` iterator.
 
-        :param bool isolated_as_missing: If True, the allele assigned to
+        :param bool isolated_as_missing: If True, the genotype value assigned to
             missing samples (i.e., isolated samples without mutations) is
-            the ``missing_data_character``. If False, missing samples will be
-            assigned the ancestral state.
+            :data:`.MISSING_DATA` (-1). If False, missing samples will be
+            assigned the allele index for the ancestral state.
             Default: True.
         :param tuple alleles: A tuple of strings describing the encoding of
             alleles to genotype values. At least one allele must be provided.
@@ -4790,13 +4802,7 @@ class TreeSequence:
             isolated_as_missing=isolated_as_missing, alleles=alleles
         )
 
-    def alignments(
-        self,
-        *,
-        reference_sequence=None,
-        isolated_as_missing=None,
-        missing_data_character=None,
-    ):
+    def alignments(self, *, reference_sequence=None):
         """
         Returns an iterator over the full sequence alignments for the samples in this
         tree sequence. Each alignment ``a`` is a string of length ``L`` where ``L``
@@ -4823,7 +4829,7 @@ class TreeSequence:
         sequence are:
 
         1. Mark them as missing data, by setting
-           ``reference_sequence="-" * int(ts.sequence_length)``
+           ``reference_sequence="N" * int(ts.sequence_length)``
         2. Fill the gaps with random nucleotides, by setting
            ``reference_sequence=tskit.random_nucleotides(ts.sequence_length)``.
            See the :func:`.random_nucleotides` function for more information.
@@ -4837,13 +4843,11 @@ class TreeSequence:
         single byte characters, (i.e., variants must be single nucleotide
         polymorphisms, or SNPs).
 
-        If ``isolated_as_missing`` is True (the default), isolated samples without
-        mutations directly above them will be treated as
-        :ref:`missing data<sec_data_model_missing_data>` and will be
-        represented in the string by the ``missing_data_character``. If
-        instead it is set to False, missing data will be assigned the ancestral state
-        (unless they have mutations directly above them, in which case they will take
-        the most recent derived mutational state for that node).
+        .. note:: :ref:`Missing data<sec_data_model_missing_data>` is not
+            currently supported by this method and it will raise a ValueError
+            if called on tree sequences containing isolated samples.
+            See https://github.com/tskit-dev/tskit/issues/1896 for more
+            information.
 
         See also the :meth:`.variants` iterator for site-centric access
         to sample genotypes and :meth:`.haplotypes` for access to sample sequences
@@ -4851,29 +4855,18 @@ class TreeSequence:
 
         :return: An iterator over the alignment strings for the samples in
             this tree sequence.
-        :param bool isolated_as_missing: If True, the allele assigned to
-            missing samples (i.e., isolated samples without mutations) is
-            the ``missing_data_character``. If False,
-            missing samples will be assigned the ancestral state.
-            Default: True.
-        :param str missing_data_character: A single ascii character that will
-            be used to represent missing data.
-            If any normal allele contains this character, an error is raised.
-            Default: '-'.
+        :param str reference_sequence: The reference sequence to fill in
+            gaps between sites in the alignments.
         :rtype: collections.abc.Iterable
         :raises: ValueError
-            if all coordinates in this tree sequence are not discrete, or
-            if the ``missing_data_character`` exists in one of the alleles,
+            if any genome coordinate in this tree sequence is not discrete,
             or if the ``reference_sequence`` is not of the correct length.
-        :raises: TypeError if the ``missing_data_character`` or any of the alleles
-            at a site are not a single ascii character.
+        :raises: TypeError if any of the alleles at a site are not a
+            single ascii character.
         """
         if not self.discrete_genome:
             raise ValueError("sequence alignments only defined for discrete genomes")
 
-        missing_data_character = (
-            "-" if missing_data_character is None else missing_data_character
-        )
         L = int(self.sequence_length)
         a = np.empty(L, dtype=np.int8)
         if reference_sequence is None:
@@ -4896,10 +4889,24 @@ class TreeSequence:
                 )
             ref_bytes = reference_sequence.encode("ascii")
             a[:] = np.frombuffer(ref_bytes, dtype=np.int8)
-        H = self._haplotypes_array(
-            isolated_as_missing=isolated_as_missing,
-            missing_data_character=missing_data_character,
-        )
+
+        # To do this properly we'll have to detect the missing data as
+        # part of a full implementation of alignments in C. The current
+        # definition might not be calling some degenerate cases correctly;
+        # see https://github.com/tskit-dev/tskit/issues/1908
+        #
+        # Note also that this will call the presence of missing data
+        # incorrectly if have a sample isolated over the region (a, b],
+        # and if we have sites at each position from a to b, and at
+        # each site there is a mutation over the isolated sample.
+        if any(tree._has_isolated_samples() for tree in self.trees()):
+            raise ValueError(
+                "Missing data not currently supported in alignments; see "
+                "https://github.com/tskit-dev/tskit/issues/1896 for details."
+                "The current implementation may also incorrectly identify an "
+                "input tree sequence has having missing data."
+            )
+        H = self._haplotypes_array()
         site_pos = self.tables.sites.position.astype(np.int64)
         for h in H:
             a[site_pos] = h
@@ -5128,74 +5135,6 @@ class TreeSequence:
                 )
         return samples[keep]
 
-    def write_fasta(self, output, sequence_ids=None, wrap_width=60):
-        ""
-        # suppress fasta visibility pending https://github.com/tskit-dev/tskit/issues/353
-        """
-        Writes haplotype data for samples in FASTA format to the
-        specified file-like object.
-
-        Default `sequence_ids` (i.e., the text immediately following ">") are
-        "tsk_{sample_number}" e.g. "tsk_0", "tsk_1" etc. They can be set by providing
-        a list of strings to the `sequence_ids` argument, which must equal the length
-        of the number of samples. Please ensure that these are unique and compatible with
-        fasta standards, since we do not check this.
-        Default `wrap_width` for sequences is 60 characters in accordance with fasta
-        standard outputs, but this can be specified. In order to avoid any line-wrapping
-        of sequences, set `wrap_width = 0`.
-
-        Example usage:
-
-        .. code-block:: python
-
-            with open("output.fasta", "w") as fasta_file:
-                ts.write_fasta(fasta_file)
-
-        This can also be achieved on the command line use the ``tskit fasta`` command,
-        e.g.:
-
-        .. code-block:: bash
-
-            $ tskit fasta example.trees > example.fasta
-
-        :param io.IOBase output: The file-like object to write the fasta output.
-        :param list(str) sequence_ids: A list of string names to uniquely identify
-            each of the sequences in the fasta file. If specified, this must be a
-            list of strings of length equal to the number of samples which are output.
-            Note that we do not check the form of these strings in any way, so that it
-            is possible to output bad fasta IDs (for example, by including spaces
-            before the unique identifying part of the string).
-            The default is to output ``tsk_j`` for the jth individual.
-        :param int wrap_width: This parameter specifies the number of sequence
-            characters to include on each line in the fasta file, before wrapping
-            to the next line for each sequence. Defaults to 60 characters in
-            accordance with fasta standard outputs. To avoid any line-wrapping of
-            sequences, set `wrap_width = 0`. Otherwise, supply any positive integer.
-        """
-        # if not specified, IDs default to sample index
-        if sequence_ids is None:
-            sequence_ids = [f"tsk_{j}" for j in self.samples()]
-        if len(sequence_ids) != self.num_samples:
-            raise ValueError(
-                "sequence_ids must have length equal to the number of samples."
-            )
-
-        wrap_width = int(wrap_width)
-        if wrap_width < 0:
-            raise ValueError(
-                "wrap_width must be a non-negative integer. "
-                "You may specify `wrap_width=0` "
-                "if you do not want any wrapping."
-            )
-
-        for j, hap in enumerate(self.haplotypes()):
-            print(">", sequence_ids[j], sep="", file=output)
-            if wrap_width == 0:
-                print(hap, file=output)
-            else:
-                for hap_wrap in textwrap.wrap(hap, wrap_width):
-                    print(hap_wrap, file=output)
-
     def write_vcf(
         self,
         output,
@@ -5354,10 +5293,97 @@ class TreeSequence:
         )
         writer.write(output)
 
-    def as_nexus(self, *, precision=None):
+    def write_fasta(
+        self,
+        file_or_path,
+        *,
+        wrap_width=60,
+        reference_sequence=None,
+    ):
+        """
+        Writes the :meth:`.alignments` for this tree sequence to file in
+        `FASTA <https://en.wikipedia.org/wiki/FASTA_format>`__ format. The
+        ``reference_sequence`` argument is passed directly to the
+        :meth:`.alignments` method; please its documentation for more details.
+
+        .. warning:: The ``reference_sequence`` is currently a mandatory
+            argument to ensure compatibility with future versions
+            of tskit, which will allow reference sequences to be associated
+            with a tree sequence. In this case, the associated reference
+            will be used by default, if present. See
+            https://github.com/tskit-dev/tskit/issues/1888
+            and
+            https://github.com/tskit-dev/tskit/issues/146 for more details.
+
+        Alignments are returned for the
+        :ref:`sample nodes<sec_data_model_definitions>` in this tree
+        sequence, and a sample with node id ``u`` is given the label
+        ``f"n{u}"``, following the same convention as the
+        :meth:`.write_nexus` and :meth:`Tree.as_newick` methods.
+
+        The ``wrap_width`` parameter controls the maximum width of lines
+        of sequence data in the output. By default this is 60
+        characters in accordance with fasta standard outputs. To turn off
+        line-wrapping of sequences, set ``wrap_width`` = 0.
+
+        Example usage:
+
+        .. code-block:: python
+
+            ref = "N" * int(ts.sequence_length)
+            ts.write_fasta("output.fa", reference_sequence=ref)
+
+        .. note:: :ref:`Missing data<sec_data_model_missing_data>` is not
+            currently supported by this method and it will raise a ValueError
+            if called on tree sequences containing isolated samples.
+            See https://github.com/tskit-dev/tskit/issues/1896 for more
+            information.
+
+        :param file_or_path: The file object or path to write the output.
+            Paths can be either strings or :class:`python:pathlib.Path` objects.
+        :param int wrap_width: The number of sequence
+            characters to include on each line in the fasta file, before wrapping
+            to the next line for each sequence, or 0 to turn off line wrapping.
+            (Default=60).
+        :param str reference_sequence: As for the :meth:`.alignments` method.
+        """
+        text_formats.write_fasta(
+            self,
+            file_or_path,
+            wrap_width=wrap_width,
+            reference_sequence=reference_sequence,
+        )
+
+    def as_fasta(self, **kwargs):
+        """
+        Return the result of :meth:`.write_fasta` as a string.
+        Keyword parameters are as defined in :meth:`.write_fasta`.
+
+        :return: A FASTA encoding of the alignments in this tree sequence as a string.
+        :rtype: str
+        """
+        buff = io.StringIO()
+        self.write_fasta(buff, **kwargs)
+        return buff.getvalue()
+
+    def write_nexus(
+        self,
+        file_or_path,
+        *,
+        precision=None,
+        include_trees=None,
+        include_alignments=None,
+        reference_sequence=None,
+    ):
         """
         Returns a `nexus encoding <https://en.wikipedia.org/wiki/Nexus_file>`_
-        of this tree sequence. Tree topologies and branch lengths are listed
+        of this tree sequence. By default, tree topologies are included
+        in the output, and sequence data alignments are included by default
+        if this tree sequence has discrete genome coordinates and one or
+        more sites. Inclusion of these sections can be controlled manually
+        using the ``include_trees`` and ``include_alignments`` parameters.
+
+        Tree topologies and branch lengths are listed
         sequentially in the TREES block and the spatial location of each tree
         encoded within the tree name labels. Specifically, a tree spanning
         the interval :math:`[x, y)`` is given the name ``f"t{x}^{y}"``
@@ -5393,34 +5419,85 @@ class TreeSequence:
               TREE t2^10 = [&R] (n1:2,(n0:1,n2:1):1);
             END;
 
-        .. seealso: See also the :meth:`.write_nexus` method which will
-            write this nexus representation directly to file.
+        If sequence data :meth:`.alignments` are defined for this tree sequence
+        and there is at least one site present, sequence alignment data will also
+        be included by default (this can be suppressed by setting
+        ``include_alignments=False``). For example, this tree sequence has
+        a sequence length of 10 and two variable sites (with a reference
+        genome consisting of "N"s)::
+
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=3;
+              TAXLABELS n0 n1 n2;
+            END;
+            BEGIN DATA;
+              DIMENSIONS NCHAR=10;
+              FORMAT DATATYPE=DNA;
+              MATRIX
+                n0 NNGNNNNNNT
+                n1 NNANNNNNNC
+                n2 NNANNNNNNC
+              ;
+            END;
+            BEGIN TREES;
+              TREE t0^10 = [&R] (n0:2,(n1:1,n2:1):1);
+            END;
+
+        .. warning:: The ``reference_sequence`` is currently a mandatory
+            argument if alignment output is required
+            to ensure compatibility with future versions
+            of tskit, which will allow reference sequences to be associated
+            with a tree sequence. In this case, the associated reference
+            will be used by default, if present. See
+            https://github.com/tskit-dev/tskit/issues/1888
+            and
+            https://github.com/tskit-dev/tskit/issues/146 for more details.
+
+        .. note:: :ref:`Missing data<sec_data_model_missing_data>`
+            is not supported for encoding tree topology information
+            as our convention of using trees with multiple roots
+            is not often supported by newick parsers. Thus, the method
+            will raise a ValueError if we try to output trees with
+            multiple roots. Additionally, missing data
+            is not currently supported for alignment data.
+            See https://github.com/tskit-dev/tskit/issues/1896 for more
+            information.
+
+        .. seealso: See also the :meth:`.as_nexus` method which will
+            return this nexus representation as a string.
 
         :param int precision: The numerical precision with which branch lengths
             and tree positions are printed.
+        :param bool include_trees: True if the tree topology information should
+            be included; False otherwise (default=True).
+        :param bool include_alignments: True if the sequence data alignment information
+            should be included; False otherwise (default=True if sequence alignments
+            are well-defined and the tree sequence contains at least one site).
+        :param str reference_sequence: As for the :meth:`.alignments` method.
         :return: A nexus representation of this :class:`TreeSequence`
         :rtype: str
         """
-        # NOTE: it would be straightforward to support node_labels here
-        # but we'll leave it out for the moment until we know whether
-        # we want to output the alignments or not. This would raise
-        # some extra questions about whether we want to output alignments
-        # for all the labelled nodes, etc.
-        # https://github.com/tskit-dev/tskit/issues/1840
-        # https://github.com/tskit-dev/tskit/issues/1812
+        text_formats.write_nexus(
+            self,
+            file_or_path,
+            precision=precision,
+            include_trees=include_trees,
+            include_alignments=include_alignments,
+            reference_sequence=reference_sequence,
+        )
+
+    def as_nexus(self, **kwargs):
+        """
+        Return the result of :meth:`.write_nexus` as a string.
+        Keyword parameters are as defined in :meth:`.write_nexus`.
+
+        :return: A nexus encoding of the alignments in this tree sequence as a string.
+        :rtype: str
+        """
         buff = io.StringIO()
-        text_formats.write_nexus(self, buff, precision=precision)
+        self.write_nexus(buff, **kwargs)
         return buff.getvalue()
-
-    def write_nexus(self, output, **kwargs):
-        """
-        Write the result of :meth:`.as_nexus` directly to file. Keyword
-        parameters are passed to :meth:`.as_nexus`.
-
-        :param io.IOBase output: The file-like object to write the output.
-        """
-        # TODO nice if we supported pathlike-objects here also
-        text_formats.write_nexus(self, output, **kwargs)
 
     # TODO
     # (1) Move the definition to text_formats.py

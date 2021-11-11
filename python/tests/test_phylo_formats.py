@@ -1,7 +1,7 @@
 # MIT License
 #
 # Copyright (c) 2018-2021 Tskit Developers
-# Copyright (c) 2017 University of Oxford
+# Copyright (c) 2016-2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -21,16 +21,20 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """
-Tests for the newick output feature.
+Tests for phylogenetics export functions, newick, nexus, FASTA etc.
 """
+import functools
 import io
 import textwrap
 
 import dendropy
+import msprime
 import newick
 import numpy as np
 import pytest
+from Bio import SeqIO
 
+import tests
 import tskit
 from tests.test_highlevel import get_example_tree_sequences
 
@@ -41,20 +45,40 @@ from tests.test_highlevel import get_example_tree_sequences
 # or something.
 
 
-def cached_example(ts_func):
-    """
-    Utility decorator to cache the result of a single function call
-    returning a tree sequence example.
-    """
-    cache = None
+@functools.lru_cache(maxsize=100)
+def alignment_example(sequence_length):
+    ts = msprime.sim_ancestry(
+        samples=5, sequence_length=sequence_length, random_seed=123
+    )
+    ts = msprime.sim_mutations(ts, rate=0.1, random_seed=1234)
+    assert ts.num_sites > 5
+    return ts
 
-    def f(*args):
-        nonlocal cache
-        if cache is None:
-            cache = ts_func(*args)
-        return cache
 
-    return f
+@tests.cached_example
+def missing_data_example():
+    # 2.00┊   4     ┊
+    #     ┊ ┏━┻┓    ┊
+    # 1.00┊ ┃  3    ┊
+    #     ┊ ┃ ┏┻┓   ┊
+    # 0.00┊ 0 1 2 5 ┊
+    #     0        10
+    #      |      |
+    #  pos 2      9
+    #  anc A      T
+    ts = tskit.Tree.generate_balanced(3, span=10).tree_sequence
+    tables = ts.dump_tables()
+    tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+    tables.sites.add_row(2, ancestral_state="A")
+    tables.sites.add_row(9, ancestral_state="T")
+    tables.mutations.add_row(site=0, node=0, derived_state="G")
+    tables.mutations.add_row(site=1, node=3, derived_state="C")
+    return tables.tree_sequence()
+
+
+def alignment_map(ts, **kwargs):
+    alignments = ts.alignments(**kwargs)
+    return {f"n{u}": alignment for u, alignment in zip(ts.samples(), alignments)}
 
 
 def assert_fully_labelled_trees_equal(tree, root, node_labels, dpy_tree):
@@ -98,6 +122,22 @@ def assert_sample_labelled_trees_equal(tree, dpy_tree):
             dpy_node = dpy_node.parent_node
         assert len(p1) == len(p2)
         np.testing.assert_array_almost_equal(p1, p2)
+
+
+def assert_dpy_tree_list_equal(ts, tree_list):
+    """
+    Check that the nexus-encoded tree list output from tskit is
+    parsed correctly by dendropy.
+    """
+    assert ts.num_trees == len(tree_list)
+    for tsk_tree, dpy_tree in zip(ts.trees(), tree_list):
+        # We're specifying that the tree is rooted.
+        assert dpy_tree.is_rooted
+        assert dpy_tree.label.startswith("t")
+        left, right = map(float, dpy_tree.label[1:].split("^"))
+        assert tsk_tree.interval.left == pytest.approx(left)
+        assert tsk_tree.interval.right == pytest.approx(right)
+        assert_sample_labelled_trees_equal(tsk_tree, dpy_tree)
 
 
 class TestBackendsGiveIdenticalOutput:
@@ -162,9 +202,9 @@ class TestNewickRoundTrip:
                 assert_fully_labelled_trees_equal(tree, root, node_labels, dpy_tree)
 
 
-class TestNexusRoundTrip:
+class TestNexusTreeRoundTrip:
     """
-    Test that the nexus formats can round-trip the data under various
+    Test that the nexus format can round-trip tree data under various
     assumptions.
     """
 
@@ -172,24 +212,119 @@ class TestNexusRoundTrip:
     def test_dendropy_defaults(self, ts):
         if any(tree.num_roots != 1 for tree in ts.trees()):
             with pytest.raises(ValueError, match="single root"):
-                ts.as_nexus()
+                ts.as_nexus(include_alignments=False)
         else:
-            nexus = ts.as_nexus()
+            nexus = ts.as_nexus(include_alignments=False)
             tree_list = dendropy.TreeList()
             tree_list.read(
                 data=nexus,
                 schema="nexus",
                 suppress_internal_node_taxa=False,
             )
-            assert ts.num_trees == len(tree_list)
-            for tsk_tree, dpy_tree in zip(ts.trees(), tree_list):
-                # We're specifying that the tree is rooted.
-                assert dpy_tree.is_rooted
-                assert dpy_tree.label.startswith("t")
-                left, right = map(float, dpy_tree.label[1:].split("^"))
-                assert tsk_tree.interval.left == pytest.approx(left)
-                assert tsk_tree.interval.right == pytest.approx(right)
-                assert_sample_labelled_trees_equal(tsk_tree, dpy_tree)
+            assert_dpy_tree_list_equal(ts, tree_list)
+
+
+class TestNexusIncludeSections:
+    """
+    Test if we include the sections as expected.
+    """
+
+    @tests.cached_example
+    def ts(self):
+        # 2.00┊   4   ┊
+        #     ┊ ┏━┻┓  ┊
+        # 1.00┊ ┃  3  ┊
+        #     ┊ ┃ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0      10
+        #      |    |
+        #  pos 2    9
+        #  anc A    T
+        ts = tskit.Tree.generate_balanced(3, span=10).tree_sequence
+        tables = ts.dump_tables()
+        tables.sites.add_row(2, ancestral_state="A")
+        tables.sites.add_row(9, ancestral_state="T")
+        tables.mutations.add_row(site=0, node=0, derived_state="G")
+        tables.mutations.add_row(site=1, node=3, derived_state="C")
+        return tables.tree_sequence()
+
+    def test_nexus_default(self):
+        ref = "ACTGACTGAC"
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=3;
+              TAXLABELS n0 n1 n2;
+            END;
+            BEGIN DATA;
+              DIMENSIONS NCHAR=10;
+              FORMAT DATATYPE=DNA;
+              MATRIX
+                n0 ACGGACTGAT
+                n1 ACAGACTGAC
+                n2 ACAGACTGAC
+              ;
+            END;
+            BEGIN TREES;
+              TREE t0^10 = [&R] (n0:2,(n1:1,n2:1):1);
+            END;
+            """
+        )
+        assert expected == self.ts().as_nexus(reference_sequence=ref)
+
+    def test_nexus_no_trees(self):
+        ref = "ACTGACTGAC"
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=3;
+              TAXLABELS n0 n1 n2;
+            END;
+            BEGIN DATA;
+              DIMENSIONS NCHAR=10;
+              FORMAT DATATYPE=DNA;
+              MATRIX
+                n0 ACGGACTGAT
+                n1 ACAGACTGAC
+                n2 ACAGACTGAC
+              ;
+            END;
+            """
+        )
+        assert expected == self.ts().as_nexus(
+            reference_sequence=ref, include_trees=False
+        )
+
+    def test_nexus_no_alignments(self):
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=3;
+              TAXLABELS n0 n1 n2;
+            END;
+            BEGIN TREES;
+              TREE t0^10 = [&R] (n0:2,(n1:1,n2:1):1);
+            END;
+            """
+        )
+        assert expected == self.ts().as_nexus(include_alignments=False)
+
+    def test_nexus_no_trees_or_alignments(self):
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=3;
+              TAXLABELS n0 n1 n2;
+            END;
+            """
+        )
+        assert expected == self.ts().as_nexus(
+            include_trees=False, include_alignments=False
+        )
 
 
 class TestNewickCodePaths:
@@ -226,7 +361,7 @@ class TestBalancedBinaryExample:
     # ┃  3
     # ┃ ┏┻┓
     # 0 1 2
-    @cached_example
+    @tests.cached_example
     def tree(self):
         return tskit.Tree.generate_balanced(3)
 
@@ -316,6 +451,22 @@ class TestBalancedBinaryExample:
         )
         assert ts.as_nexus() == expected
 
+    def test_as_nexus_precision_1(self):
+        ts = self.tree().tree_sequence
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=3;
+              TAXLABELS n0 n1 n2;
+            END;
+            BEGIN TREES;
+              TREE t0.0^1.0 = [&R] (n0:2.0,(n1:1.0,n2:1.0):1.0);
+            END;
+        """
+        )
+        assert ts.as_nexus(precision=1) == expected
+
 
 class TestFractionalBranchLengths:
     # 0.67┊   4   ┊
@@ -324,7 +475,7 @@ class TestFractionalBranchLengths:
     #     ┊ ┃ ┏┻┓ ┊
     # 0.00┊ 0 1 2 ┊
     #     0       1
-    @cached_example
+    @tests.cached_example
     def tree(self):
         return tskit.Tree.generate_balanced(3, branch_length=1 / 3)
 
@@ -369,7 +520,7 @@ class TestLargeBranchLengths:
     #              ┊ ┃ ┏┻┓ ┊
     # 0.00         ┊ 0 1 2 ┊
     #              0       1
-    @cached_example
+    @tests.cached_example
     def tree(self):
         return tskit.Tree.generate_balanced(3, branch_length=1e9)
 
@@ -400,7 +551,7 @@ class TestInternalSampleExample:
     # ┃ ┏┻┓
     # 0 1 2
     # Leaves are samples but 3 is also a sample.
-    @cached_example
+    @tests.cached_example
     def tree(self):
         tables = tskit.Tree.generate_balanced(3).tree_sequence.dump_tables()
         flags = tables.nodes.flags
@@ -445,7 +596,7 @@ class TestAncientSampleExample:
     # 0 1 ┃  6
     #     ┃ ┏┻┓
     #     2 3 4
-    @cached_example
+    @tests.cached_example
     def tree(self):
         tables = tskit.Tree.generate_balanced(5).tree_sequence.dump_tables()
         time = tables.nodes.time
@@ -472,7 +623,7 @@ class TestNonSampleLeafExample:
     # ┃ ┏┻┓
     # |0|1 2
     # Leaf 0 is *not* a sample
-    @cached_example
+    @tests.cached_example
     def tree(self):
         tables = tskit.Tree.generate_balanced(3).tree_sequence.dump_tables()
         flags = tables.nodes.flags
@@ -526,7 +677,7 @@ class TestNonBinaryExample:
     #     ┊ ┏━╋━┓ ┏━╋━┓ ┏━╋━┓ ┊
     # 0.00┊ 0 1 2 3 4 5 6 7 8 ┊
     #     0                   1
-    @cached_example
+    @tests.cached_example
     def tree(self):
         return tskit.Tree.generate_balanced(9, arity=3)
 
@@ -545,7 +696,7 @@ class TestMultiRootExample:
     #     ┊ ┏━╋━┓ ┏━╋━┓ ┏━╋━┓ ┊
     # 0.00┊ 0 1 2 3 4 5 6 7 8 ┊
     #     0                   1
-    @cached_example
+    @tests.cached_example
     def tree(self):
         tables = tskit.Tree.generate_balanced(9, arity=3).tree_sequence.dump_tables()
         edges = tables.edges.copy()
@@ -586,7 +737,7 @@ class TestLineTree:
     # 0.00┊ 0 ┊
     #     0   1
 
-    @cached_example
+    @tests.cached_example
     def tree(self):
         tables = tskit.TableCollection(1.0)
         tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
@@ -663,7 +814,7 @@ class TestIntegerTreeSequence:
     #     ┊ ┃ ┃ ┃ ┊ ┏┻┓ ┃ ┊
     # 0.00┊ 0 1 2 ┊ 0 2 1 ┊
     #     0       2      10
-    @cached_example
+    @tests.cached_example
     def ts(self):
         nodes = io.StringIO(
             """\
@@ -741,7 +892,7 @@ class TestFloatTimeTreeSequence:
     #     ┊ ┃ ┃ ┃ ┊ ┏┻┓ ┃ ┊
     # 0.00┊ 0 1 2 ┊ 0 2 1 ┊
     #     0       2      10
-    @cached_example
+    @tests.cached_example
     def ts(self):
         nodes = io.StringIO(
             """\
@@ -812,7 +963,7 @@ class TestFloatPositionTreeSequence:
     #     ┊ ┃ ┃ ┃ ┊ ┏┻┓ ┃ ┊
     # 0.00┊ 0 1 2 ┊ 0 2 1 ┊
     #     0      2.5      10
-    @cached_example
+    @tests.cached_example
     def ts(self):
         nodes = io.StringIO(
             """\
@@ -905,3 +1056,366 @@ def test_newick_buffer_too_small_bug():
         node_labels = {u: str(u + 1) for u in ts.samples()}
         newick_py = tree.newick(precision=precision, node_labels=node_labels)
         assert newick_c == newick_py
+
+
+class TestWrapText:
+    def test_even_split(self):
+        example = "ABCDEFGH"
+        result = list(tskit.text_formats.wrap_text(example, 4))
+        assert result == ["ABCD", "EFGH"]
+
+    def test_non_even_split(self):
+        example = "ABCDEFGH"
+        result = list(tskit.text_formats.wrap_text(example, 3))
+        assert result == ["ABC", "DEF", "GH"]
+
+    def test_width_one(self):
+        example = "ABCDEFGH"
+        result = list(tskit.text_formats.wrap_text(example, 1))
+        assert result == ["A", "B", "C", "D", "E", "F", "G", "H"]
+
+    def test_width_full_length(self):
+        example = "ABCDEFGH"
+        result = list(tskit.text_formats.wrap_text(example, 8))
+        assert result == ["ABCDEFGH"]
+
+    def test_width_more_than_length(self):
+        example = "ABCDEFGH"
+        result = list(tskit.text_formats.wrap_text(example, 100))
+        assert result == ["ABCDEFGH"]
+
+    def test_width_0(self):
+        example = "ABCDEFGH"
+        result = list(tskit.text_formats.wrap_text(example, 0))
+        assert result == ["ABCDEFGH"]
+
+    @pytest.mark.parametrize("width", [-1, -2, -8, -100])
+    def test_width_negative(self, width):
+        # Just documenting that the current implementation works for negative
+        # values fine.
+        example = "ABCDEFGH"
+        result = list(tskit.text_formats.wrap_text(example, width))
+        assert result == ["ABCDEFGH"]
+
+
+class TestFastaLineLength:
+    """
+    Tests if the fasta file produced has the correct line lengths for
+    default, custom, and no-wrapping options.
+    """
+
+    def verify_line_length(self, length, wrap_width=60):
+        # set up data
+        ts = alignment_example(length)
+        output = io.StringIO()
+        ref = "A" * length
+        ts.write_fasta(output, wrap_width=wrap_width, reference_sequence=ref)
+        output.seek(0)
+
+        # check if length perfectly divisible by wrap_width or not and thus
+        # expected line lengths
+        no_hanging_line = True
+        if wrap_width == 0:
+            lines_expect = 1
+            # for easier code in testing function, redefine wrap_width as
+            # full length, ok as called write already
+            wrap_width = length
+        elif length % wrap_width == 0:
+            lines_expect = length // wrap_width
+        else:
+            lines_expect = length // wrap_width + 1
+            extra_line_length = length % wrap_width
+            no_hanging_line = False
+
+        seq_line_counter = 0
+        id_lines = 0
+        for line in output:
+            # testing correct characters per sequence line
+            if line[0] != ">":
+                seq_line_counter += 1
+                line_chars = len(line.strip("\n"))
+                # test full default width lines
+                if seq_line_counter < lines_expect:
+                    assert wrap_width == line_chars
+                elif no_hanging_line:
+                    assert wrap_width == line_chars
+                # test extra line if not perfectly divided by wrap_width
+                else:
+                    assert extra_line_length == line_chars
+            # testing correct number of lines per sequence and correct num sequences
+            else:
+                id_lines += 1
+                if seq_line_counter > 0:
+                    assert lines_expect == seq_line_counter
+                    seq_line_counter = 0
+        assert id_lines == ts.num_samples
+
+    def test_wrap_length_default_easy(self):
+        # default wrap width (60) perfectly divides sequence length
+        self.verify_line_length(length=300)
+
+    def test_wrap_length_default_harder(self):
+        # default wrap_width imperfectly divides sequence length
+        self.verify_line_length(length=280)
+
+    def test_wrap_length_custom_easy(self):
+        # custom wrap_width, perfectly divides
+        self.verify_line_length(length=100, wrap_width=20)
+
+    def test_wrap_length_custom_harder(self):
+        # custom wrap_width, imperfectly divides
+        self.verify_line_length(length=100, wrap_width=30)
+
+    def test_wrap_length_no_wrap(self):
+        # no wrapping set by wrap_width = 0
+        self.verify_line_length(length=100, wrap_width=0)
+
+    def test_negative_wrap(self):
+        ts = alignment_example(10)
+        ref = "-" * 10
+        with pytest.raises(ValueError, match="non-negative integer"):
+            ts.as_fasta(reference_sequence=ref, wrap_width=-1)
+
+    def test_floating_wrap(self):
+        ts = alignment_example(10)
+        ref = "-" * 10
+        with pytest.raises(ValueError):
+            ts.as_fasta(reference_sequence=ref, wrap_width=1.1)
+
+    def test_numpy_wrap(self):
+        ts = alignment_example(10)
+        ref = "-" * 10
+        x1 = ts.as_fasta(reference_sequence=ref, wrap_width=4)
+        x2 = ts.as_fasta(reference_sequence=ref, wrap_width=np.array([4.0])[0])
+        assert x1 == x2
+
+
+class TestFileTextOutputEqual:
+    @tests.cached_example
+    def ts(self):
+        return alignment_example(20)
+
+    def test_fasta_defaults(self):
+        ts = self.ts()
+        buff = io.StringIO()
+        ref = "_" * int(ts.sequence_length)
+        ts.write_fasta(buff, reference_sequence=ref)
+        assert buff.getvalue() == ts.as_fasta(reference_sequence=ref)
+
+    def test_fasta_wrap_width(self):
+        ts = self.ts()
+        buff = io.StringIO()
+        ref = "X" * int(ts.sequence_length)
+        ts.write_fasta(buff, reference_sequence=ref, wrap_width=4)
+        assert buff.getvalue() == ts.as_fasta(reference_sequence=ref, wrap_width=4)
+
+    def test_nexus_defaults(self):
+        ts = self.ts()
+        buff = io.StringIO()
+        ref = "N" * int(ts.sequence_length)
+        ts.write_nexus(buff, reference_sequence=ref)
+        assert buff.getvalue() == ts.as_nexus(reference_sequence=ref)
+
+    def test_nexus_precision(self):
+        ts = self.ts()
+        buff = io.StringIO()
+        ref = "N" * int(ts.sequence_length)
+        ts.write_nexus(buff, reference_sequence=ref, precision=2)
+        assert buff.getvalue() == ts.as_nexus(reference_sequence=ref, precision=2)
+
+
+class TestFlexibleFileArgFasta:
+    @tests.cached_example
+    def ts(self):
+        return alignment_example(20)
+
+    def test_pathlib(self, tmp_path):
+        path = tmp_path / "file.fa"
+        ts = self.ts()
+        ref = "-" * int(ts.sequence_length)
+        ts.write_fasta(path, reference_sequence=ref)
+        with open(path) as f:
+            assert f.read() == ts.as_fasta(reference_sequence=ref)
+
+    def test_path_str(self, tmp_path):
+        path = str(tmp_path / "file.fa")
+        ts = self.ts()
+        ref = "-" * int(ts.sequence_length)
+        ts.write_fasta(path, reference_sequence=ref)
+        with open(path) as f:
+            assert f.read() == ts.as_fasta(reference_sequence=ref)
+
+    def test_fileobj(self, tmp_path):
+        path = tmp_path / "file.fa"
+        ts = self.ts()
+        ref = "-" * int(ts.sequence_length)
+        with open(path, "w") as f:
+            ts.write_fasta(f, reference_sequence=ref)
+        with open(path) as f:
+            assert f.read() == ts.as_fasta(reference_sequence=ref)
+
+
+class TestFlexibleFileArgNexus:
+    @tests.cached_example
+    def ts(self):
+        return alignment_example(20)
+
+    def test_pathlib(self, tmp_path):
+        path = tmp_path / "file.nex"
+        ts = self.ts()
+        ref = "-" * int(ts.sequence_length)
+        ts.write_nexus(path, reference_sequence=ref)
+        with open(path) as f:
+            assert f.read() == ts.as_nexus(reference_sequence=ref)
+
+    def test_path_str(self, tmp_path):
+        path = str(tmp_path / "file.nex")
+        ts = self.ts()
+        ref = "-" * int(ts.sequence_length)
+        ts.write_nexus(path, reference_sequence=ref)
+        with open(path) as f:
+            assert f.read() == ts.as_nexus(reference_sequence=ref)
+
+    def test_fileobj(self, tmp_path):
+        path = tmp_path / "file.nex"
+        ts = self.ts()
+        ref = "-" * int(ts.sequence_length)
+        with open(path, "w") as f:
+            ts.write_nexus(f, reference_sequence=ref)
+        with open(path) as f:
+            assert f.read() == ts.as_nexus(reference_sequence=ref)
+
+
+def get_alignment_map(ts, reference_sequence):
+    alignments = ts.alignments(reference_sequence=reference_sequence)
+    return {f"n{u}": alignment for u, alignment in zip(ts.samples(), alignments)}
+
+
+class TestFastaBioPythonRoundTrip:
+    """
+    Tests that output from our code is read in by available software packages
+    Here test for compatability with biopython processing - Bio.SeqIO
+    """
+
+    def verify(self, ts, wrap_width=60, reference_sequence=None):
+        if reference_sequence is None:
+            reference_sequence = "N" * int(ts.sequence_length)
+        text = ts.as_fasta(wrap_width=wrap_width, reference_sequence=reference_sequence)
+        bio_map = {
+            k: v.seq
+            for k, v in SeqIO.to_dict(SeqIO.parse(io.StringIO(text), "fasta")).items()
+        }
+        assert bio_map == get_alignment_map(ts, reference_sequence)
+
+    def test_equal_lines(self):
+        # sequence length perfectly divisible by wrap_width
+        ts = alignment_example(300)
+        self.verify(ts)
+
+    def test_unequal_lines(self):
+        # sequence length not perfectly divisible by wrap_width
+        ts = alignment_example(280)
+        self.verify(ts)
+
+    def test_unwrapped(self):
+        # sequences not wrapped
+        ts = alignment_example(300)
+        self.verify(ts, wrap_width=0)
+
+    def test_A_reference(self):
+        ts = alignment_example(20)
+        self.verify(ts, reference_sequence="A" * 20)
+
+    @pytest.mark.skip("Missing data in alignments: #1896")
+    def test_missing_data(self):
+        self.verify(missing_data_example())
+
+
+class TestFastaDendropyRoundTrip:
+    def parse(self, fasta):
+        d = dendropy.DnaCharacterMatrix.get(data=fasta, schema="fasta")
+        return {str(k.label): str(v) for k, v in d.items()}
+
+    def test_wrapped(self):
+        ts = alignment_example(300)
+        ref = "N" * int(ts.sequence_length)
+        text = ts.as_fasta(reference_sequence=ref)
+        alignment_map = self.parse(text)
+        assert get_alignment_map(ts, ref) == alignment_map
+
+    def test_unwrapped(self):
+        ts = alignment_example(300)
+        ref = "N" * int(ts.sequence_length)
+        text = ts.as_fasta(reference_sequence=ref, wrap_width=0)
+        alignment_map = self.parse(text)
+        assert get_alignment_map(ts, ref) == alignment_map
+
+    @pytest.mark.skip("Missing data in alignments: #1896")
+    def test_missing_data(self):
+        ts = missing_data_example()
+        ref = "A" * int(ts.sequence_length)
+        text = ts.as_fasta(reference_sequence=ref)
+        alignment_map = self.parse(text)
+        assert get_alignment_map(ts, ref) == alignment_map
+
+
+@pytest.mark.skip("Missing data in alignments: #1896")
+class TestDendropyMissingData:
+    """
+    Test that we detect missing data correctly in dendropy under
+    various combinations of options.
+    """
+
+    # 2.00┊   4     ┊
+    #     ┊ ┏━┻┓    ┊
+    # 1.00┊ ┃  3    ┊
+    #     ┊ ┃ ┏┻┓   ┊
+    # 0.00┊ 0 1 2 5 ┊
+    #     0        10
+    #      |      |
+    #  pos 2      9
+    #  anc A      T
+
+    def ts(self):
+        ts = tskit.Tree.generate_balanced(3, span=10).tree_sequence
+        tables = ts.dump_tables()
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.sites.add_row(2, ancestral_state="A")
+        tables.sites.add_row(9, ancestral_state="T")
+        tables.mutations.add_row(site=0, node=0, derived_state="G")
+        tables.mutations.add_row(site=1, node=3, derived_state="C")
+        return tables.tree_sequence()
+
+    def assert_missing_data_encoded_A_ref(self, d):
+        assert d.sequence_size == 10
+        assert str(d["n0"]) == "AAGAAAAAAT"
+        assert str(d["n1"]) == "AAAAAAAAAC"
+        assert str(d["n2"]) == "AAAAAAAAAC"
+        for a in [d["n0"], d["n1"], d["n2"]]:
+            assert all(
+                a[j].state_denomination == dendropy.StateAlphabet.FUNDAMENTAL_STATE
+                for j in range(10)
+            )
+        # Do we detect that we have an ambiguous state for the missing sample?
+
+        a5 = d["n5"]
+        # a5 is missing along the full length of the genome, so all sites are
+        # missing.
+        assert all(
+            a5.state_denomination == dendropy.StateAlphabet.AMBIGUOUS_STATE
+            for j in range(10)
+        )
+
+    def test_fasta_defaults_A_ref(self):
+        ts = self.ts()
+        ref = "A" * int(ts.sequence_length)
+        text = ts.as_fasta(reference_sequence=ref)
+        d = dendropy.DnaCharacterMatrix.get(data=text, schema="fasta")
+        self.assert_missing_data_encoded_A_ref(d)
+
+    def test_nexus_defaults_A_ref(self):
+        ts = self.ts()
+        ref = "A" * int(ts.sequence_length)
+        text = ts.as_nexus(reference_sequence=ref, include_trees=False)
+        d = dendropy.DnaCharacterMatrix.get(data=text, schema="nexus")
+        self.assert_missing_data_encoded_A_ref(d)

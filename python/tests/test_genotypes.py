@@ -24,6 +24,7 @@ Test cases for generating genotypes/haplotypes.
 """
 import itertools
 import random
+import textwrap
 
 import msprime
 import numpy as np
@@ -831,24 +832,24 @@ class TestHaplotypeGenerator:
             h = list(ts.haplotypes(missing_data_character=c))
             assert h == [c, c]
         h = list(ts.haplotypes(isolated_as_missing=True))
-        assert h == ["-", "-"]
+        assert h == ["N", "N"]
         h = list(ts.haplotypes(isolated_as_missing=False))
         assert h == ["A", "A"]
         h = list(ts.haplotypes())
-        assert h == ["-", "-"]
+        assert h == ["N", "N"]
         # Test deprecated method
         with pytest.warns(FutureWarning):
             h = list(ts.haplotypes(impute_missing_data=True))
         assert h == ["A", "A"]
         with pytest.warns(FutureWarning):
             h = list(ts.haplotypes(impute_missing_data=False))
-        assert h == ["-", "-"]
+        assert h == ["N", "N"]
         with pytest.warns(FutureWarning):
             h = list(ts.haplotypes(isolated_as_missing=True, impute_missing_data=True))
-        assert h == ["-", "-"]
+        assert h == ["N", "N"]
         with pytest.warns(FutureWarning):
             h = list(ts.haplotypes(isolated_as_missing=True, impute_missing_data=False))
-        assert h == ["-", "-"]
+        assert h == ["N", "N"]
         with pytest.warns(FutureWarning):
             h = list(ts.haplotypes(isolated_as_missing=False, impute_missing_data=True))
         assert h == ["A", "A"]
@@ -1116,9 +1117,9 @@ class TestBinaryTreeExample:
     @pytest.mark.skip("Reference sequence not implemented #1888")
     def test_alignments_default(self):
         A = list(self.ts().alignments())
-        assert A[0] == "--G------T"
-        assert A[1] == "--A------C"
-        assert A[2] == "--A------C"
+        assert A[0] == "NNGNNNNNNT"
+        assert A[1] == "NNANNNNNNC"
+        assert A[2] == "NNANNNNNNC"
 
     @pytest.mark.skip("Reference sequence not implemented #1888")
     def test_alignments_missing_char(self):
@@ -1142,6 +1143,45 @@ class TestBinaryTreeExample:
         assert A[0] == "01G3\x005678T"
         assert A[1] == "01A3\x005678C"
         assert A[2] == "01A3\x005678C"
+
+    def test_fasta_reference_sequence(self):
+        ref = "0123456789"
+        expected = textwrap.dedent(
+            """\
+            >n0
+            01G345678T
+            >n1
+            01A345678C
+            >n2
+            01A345678C
+            """
+        )
+        assert expected == self.ts().as_fasta(reference_sequence=ref)
+
+    def test_nexus_reference_sequence(self):
+        ref = "0123456789"
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=3;
+              TAXLABELS n0 n1 n2;
+            END;
+            BEGIN DATA;
+              DIMENSIONS NCHAR=10;
+              FORMAT DATATYPE=DNA;
+              MATRIX
+                n0 01G345678T
+                n1 01A345678C
+                n2 01A345678C
+              ;
+            END;
+            BEGIN TREES;
+              TREE t0^10 = [&R] (n0:2,(n1:1,n2:1):1);
+            END;
+            """
+        )
+        assert expected == self.ts().as_nexus(reference_sequence=ref)
 
 
 class TestMissingDataExample:
@@ -1170,14 +1210,14 @@ class TestMissingDataExample:
         assert H[0] == "GT"
         assert H[1] == "AC"
         assert H[2] == "AC"
-        assert H[3] == "--"
+        assert H[3] == "NN"
 
     def test_haplotypes_missing_data_char(self):
-        H = list(self.ts().haplotypes(missing_data_character="|"))
+        H = list(self.ts().haplotypes(missing_data_character="?"))
         assert H[0] == "GT"
         assert H[1] == "AC"
         assert H[2] == "AC"
-        assert H[3] == "||"
+        assert H[3] == "??"
 
     def test_genotypes(self):
         G = self.ts().genotype_matrix()
@@ -1187,20 +1227,27 @@ class TestMissingDataExample:
     @pytest.mark.skip("Reference sequence not implemented #1888")
     def test_alignments_default(self):
         A = list(self.ts().alignments())
-        assert A[0] == "--G------T"
-        assert A[1] == "--A------C"
-        assert A[2] == "--A------C"
-        assert A[3] == "----------"
+        assert A[0] == "NNGNNNNNNT"
+        assert A[1] == "NNANNNNNNC"
+        assert A[2] == "NNANNNNNNC"
+        assert A[3] == "NNNNNNNNNN"
 
+    def test_alignments_fails(self):
+        # https://github.com/tskit-dev/tskit/issues/1896
+        ref = "N" * 10
+        with pytest.raises(ValueError, match="1896"):
+            next(self.ts().alignments(reference_sequence=ref))
+
+    @pytest.mark.skip("Missing data in alignments: #1896")
     def test_alignments_impute_missing(self):
-        ref = "-" * 10
+        ref = "N" * 10
         A = list(
             self.ts().alignments(reference_sequence=ref, isolated_as_missing=False)
         )
-        assert A[0] == "--G------T"
-        assert A[1] == "--A------C"
-        assert A[2] == "--A------C"
-        assert A[3] == "--A------T"
+        assert A[0] == "NNGNNNNNNT"
+        assert A[1] == "NNANNNNNNC"
+        assert A[2] == "NNANNNNNNC"
+        assert A[3] == "NNANNNNNNT"
 
     @pytest.mark.skip("Reference sequence not implemented #1888")
     def test_alignments_missing_char(self):
@@ -1213,19 +1260,21 @@ class TestMissingDataExample:
     @pytest.mark.skip("Reference sequence not implemented #1888")
     def test_alignments_missing_char_ref(self):
         A = list(self.ts().alignments(missing_data_character="z"))
-        assert A[0] == "--G------T"
-        assert A[1] == "--A------C"
-        assert A[2] == "--A------C"
-        assert A[3] == "--z------z"
+        assert A[0] == "NNGNNNNNNT"
+        assert A[1] == "NNANNNNNNC"
+        assert A[2] == "NNANNNNNNC"
+        assert A[3] == "zzzzzzzzzz"
 
+    @pytest.mark.skip("Missing data in alignments: #1896")
     def test_alignments_reference_sequence(self):
         ref = "0123456789"
         A = list(self.ts().alignments(reference_sequence=ref))
         assert A[0] == "01G345678T"
         assert A[1] == "01A345678C"
         assert A[2] == "01A345678C"
-        assert A[3] == "01-345678-"
+        assert A[3] == "NNNNNNNNNN"
 
+    @pytest.mark.skip("Missing data in alignments: #1896")
     def test_alignments_reference_sequence_missing_data_char(self):
         ref = "0123456789"
         A = list(
@@ -1234,7 +1283,214 @@ class TestMissingDataExample:
         assert A[0] == "01G345678T"
         assert A[1] == "01A345678C"
         assert A[2] == "01A345678C"
-        assert A[3] == "01Q345678Q"
+        assert A[3] == "QQQQQQQQQQ"
+
+    @pytest.mark.skip("Missing data in alignments: #1896")
+    def test_fasta_reference_sequence(self):
+        ref = "0123456789"
+        expected = textwrap.dedent(
+            """\
+            >n0
+            01G345678T
+            >n1
+            01A345678C
+            >n2
+            01A345678C
+            >n5
+            NNNNNNNNNN
+            """
+        )
+        assert expected == self.ts().as_fasta(reference_sequence=ref)
+
+    @pytest.mark.skip("Missing data in alignments: #1896")
+    def test_fasta_reference_sequence_missing_data_char(self):
+        ref = "0123456789"
+        expected = textwrap.dedent(
+            """\
+            >n0
+            01G345678T
+            >n1
+            01A345678C
+            >n2
+            01A345678C
+            >n5
+            QQQQQQQQQQ
+            """
+        )
+        assert expected == self.ts().as_fasta(
+            reference_sequence=ref, missing_data_character="Q"
+        )
+
+    @pytest.mark.skip("Missing data in alignments: #1896")
+    def test_fasta_impute_missing(self):
+        ref = "N" * 10
+        expected = textwrap.dedent(
+            """\
+            >n0
+            NNGNNNNNNT
+            >n1
+            NNANNNNNNC
+            >n2
+            NNANNNNNNC
+            >n5
+            NNANNNNNNT
+            """
+        )
+        assert expected == self.ts().as_fasta(
+            reference_sequence=ref, isolated_as_missing=False
+        )
+
+    # Note: the nexus tree output isn't compatible with our representation of
+    # missing data as trees with isolated roots (newick parsers won't accept
+    # this as valid input), so we set include_trees=False for these examples.
+    @pytest.mark.skip("Missing data in alignments: #1896")
+    def test_nexus_reference_sequence(self):
+        ref = "0123456789"
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=4;
+              TAXLABELS n0 n1 n2 n5;
+            END;
+            BEGIN DATA;
+              DIMENSIONS NCHAR=10;
+              FORMAT DATATYPE=DNA MISSING=?;
+              MATRIX
+                n0 01G345678T
+                n1 01A345678C
+                n2 01A345678C
+                n5 ??????????
+              ;
+            END;
+            """
+        )
+        assert expected == self.ts().as_nexus(
+            reference_sequence=ref, include_trees=False
+        )
+
+    @pytest.mark.skip("Missing data in alignments: #1896")
+    def test_nexus_reference_sequence_missing_data_char(self):
+        ref = "0123456789"
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=4;
+              TAXLABELS n0 n1 n2 n5;
+            END;
+            BEGIN DATA;
+              DIMENSIONS NCHAR=10;
+              FORMAT DATATYPE=DNA MISSING=Q;
+              MATRIX
+                n0 01G345678T
+                n1 01A345678C
+                n2 01A345678C
+                n5 QQQQQQQQQQ
+              ;
+            END;
+            """
+        )
+        assert expected == self.ts().as_nexus(
+            reference_sequence=ref,
+            missing_data_character="Q",
+            include_trees=False,
+        )
+
+    @pytest.mark.skip("Missing data in alignments: #1896")
+    def test_nexus_impute_missing(self):
+        ref = "0123456789"
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=4;
+              TAXLABELS n0 n1 n2 n5;
+            END;
+            BEGIN DATA;
+              DIMENSIONS NCHAR=10;
+              FORMAT DATATYPE=DNA MISSING=?;
+              MATRIX
+                n0 01G345678T
+                n1 01A345678C
+                n2 01A345678C
+                n5 01A345678T
+              ;
+            END;
+            """
+        )
+        assert expected == self.ts().as_nexus(
+            reference_sequence=ref,
+            isolated_as_missing=False,
+            include_trees=False,
+        )
+
+
+class TestMultiRootExample:
+    # 1.00┊  4   5  ┊
+    #     ┊ ┏┻┓ ┏┻┓ ┊
+    # 0.00┊ 0 1 2 3 ┊
+    #     0        10
+    #       |     |
+    #  pos  2     8
+    #  anc  G     C
+    @tests.cached_example
+    def ts(self):
+        tree = tskit.Tree.generate_balanced(4, arity=2, span=10)
+        tables = tree.tree_sequence.dump_tables()
+        edges = tables.edges.copy()
+        tables.edges.clear()
+        for edge in edges:
+            if edge.parent != 6:
+                tables.edges.append(edge)
+        tables.sites.add_row(2, ancestral_state="G")
+        tables.sites.add_row(8, ancestral_state="C")
+        tables.mutations.add_row(site=0, node=0, derived_state="T")
+        tables.mutations.add_row(site=1, node=5, derived_state="A")
+        return tables.tree_sequence()
+
+    def test_haplotypes(self):
+        H = list(self.ts().haplotypes())
+        assert H[0] == "TC"
+        assert H[1] == "GC"
+        assert H[2] == "GA"
+        assert H[3] == "GA"
+
+    def test_genotypes(self):
+        G = self.ts().genotype_matrix()
+        Gp = [[1, 0, 0, 0], [0, 0, 1, 1]]
+        np.testing.assert_array_equal(G, Gp)
+
+    @pytest.mark.skip("Reference sequence not implemented #1888")
+    def test_alignments_default(self):
+        A = list(self.ts().alignments())
+        assert A[0] == "NNTNNNNNCN"
+        assert A[1] == "NNGNNNNNCN"
+        assert A[2] == "NNGNNNNNAN"
+        assert A[3] == "NNGNNNNNAN"
+
+    def test_alignments_N_ref(self):
+        A = list(self.ts().alignments(reference_sequence="N" * 10))
+        assert A[0] == "NNTNNNNNCN"
+        assert A[1] == "NNGNNNNNCN"
+        assert A[2] == "NNGNNNNNAN"
+        assert A[3] == "NNGNNNNNAN"
+
+    def test_fasta_reference_sequence(self):
+        ref = "0123456789"
+        expected = textwrap.dedent(
+            """\
+            >n0
+            01T34567C9
+            >n1
+            01G34567C9
+            >n2
+            01G34567A9
+            >n3
+            01G34567A9
+            """
+        )
+        assert expected == self.ts().as_fasta(reference_sequence=ref)
 
 
 class TestAlignmentsErrors:
@@ -1267,6 +1523,7 @@ class TestAlignmentsErrors:
         with pytest.raises(UnicodeEncodeError):
             list(ts.alignments(reference_sequence=ref))
 
+    @pytest.mark.skip("Missing data in alignments: #1896")
     @pytest.mark.parametrize("missing_data_char", ["À", "┃", "α"])
     def test_non_ascii_missing_data_char(self, missing_data_char):
         ts = self.simplest_ts()
@@ -1296,14 +1553,18 @@ class TestAlignmentExamples:
     @pytest.mark.parametrize("ts", get_example_discrete_genome_tree_sequences())
     def test_reference_sequence(self, ts):
         ref = tskit.random_nucleotides(ts.sequence_length, seed=1234)
-        A = list(ts.alignments(reference_sequence=ref))
-        assert len(A) == ts.num_samples
-        H = list(ts.haplotypes())
-        pos = ts.tables.sites.position.astype(int)
-        for a, h in map(np.array, zip(A, H)):
-            last = 0
-            for j, x in enumerate(pos):
-                assert a[last:x] == ref[last:x]
-                assert a[x] == h[j]
-                last = x + 1
-            assert a[last:] == ref[last:]
+        if any(tree.num_roots > 1 for tree in ts.trees()):
+            with pytest.raises(ValueError, match="1896"):
+                list(ts.alignments(reference_sequence=ref))
+        else:
+            A = list(ts.alignments(reference_sequence=ref))
+            assert len(A) == ts.num_samples
+            H = list(ts.haplotypes())
+            pos = ts.tables.sites.position.astype(int)
+            for a, h in map(np.array, zip(A, H)):
+                last = 0
+                for j, x in enumerate(pos):
+                    assert a[last:x] == ref[last:x]
+                    assert a[x] == h[j]
+                    last = x + 1
+                assert a[last:] == ref[last:]

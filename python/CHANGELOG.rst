@@ -43,6 +43,10 @@
   NotImplementedError, informing users of the change. See below for details on
   ``as_nexus``.
 
+- Change default value for ``missing_data_char`` in the ``TreeSequence.haplotypes``
+  method from "-" to "N". This is a more idiomatic usage to indicate
+  missing data rather than a gap in an alignment. (:user:`jeromekelleher`,
+  :issue:`1893`, :pr:`1894`)
 
 **Features**
 
@@ -85,6 +89,10 @@
 - Add a ``random_nucleotides`` function. (user:`jeromekelleher`, :pr:`1825`)
 
 - Add the ``TreeSequence.alignments`` method. (user:`jeromekelleher`, :pr:`1825`)
+
+- Add alignment export in the FASTA and nexus formats using the
+  ``TreeSequence.write_nexus`` and ``TreeSequence.write_fasta`` methods.
+  (:user:`jeromekelleher`, :user:`hyanwong`, :pr:`1894`)
 
 - Add the ``discrete_time`` property to the TreeSequence class which is true if
   all time coordinates are discrete or unknown (:user:`benjeffery`, :issue:`1839`, :pr:`1890`)
