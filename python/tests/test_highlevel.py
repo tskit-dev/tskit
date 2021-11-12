@@ -2736,6 +2736,7 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
         assert ts1.num_edges == ts2.num_edges
         assert ts1.num_sites == ts2.num_sites
         assert ts1.num_mutations == ts2.num_mutations
+        assert ts1.num_populations == ts2.num_populations
 
         checked = 0
         for n1, n2 in zip(ts1.nodes(), ts2.nodes()):
@@ -2847,6 +2848,28 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
         assert ts.num_edges == 0
         assert ts.num_sites == 0
         assert ts.num_edges == 0
+
+    def test_load_text_no_populations(self):
+        nodes_file = io.StringIO("is_sample\ttime\tpopulation\n1\t0\t2\n")
+        edges_file = io.StringIO("left\tright\tparent\tchild\n")
+        ts = tskit.load_text(nodes_file, edges_file, sequence_length=100)
+        assert ts.num_nodes == 1
+        assert ts.num_populations == 3
+
+    def test_load_text_populations(self):
+        nodes_file = io.StringIO("is_sample\ttime\tpopulation\n")
+        edges_file = io.StringIO("left\tright\tparent\tchild\n")
+        populations_file = io.StringIO("metadata\nmetadata_1\nmetadata_2\n")
+        ts = tskit.load_text(
+            nodes_file,
+            edges_file,
+            populations=populations_file,
+            sequence_length=100,
+            base64_metadata=False,
+        )
+        assert ts.num_populations == 2
+        assert ts.tables.populations[0].metadata == b"metadata_1"
+        assert ts.tables.populations[1].metadata == b"metadata_2"
 
 
 class TestTree(HighLevelTestCase):
