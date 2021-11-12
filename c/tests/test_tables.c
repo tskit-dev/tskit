@@ -325,6 +325,125 @@ test_table_collection_simplify_errors(void)
 }
 
 static void
+test_table_collection_reference_sequence(void)
+{
+    int ret;
+    tsk_table_collection_t tc1, tc2;
+
+    char example_data[100] = "An example string with unicode 🎄🌳🌴🌲🎋";
+    tsk_size_t example_data_length = (tsk_size_t) strlen(example_data);
+    char example_url[100] = "An example url with unicode 🎄🌳🌴🌲🎋";
+    tsk_size_t example_url_length = (tsk_size_t) strlen(example_url);
+    char example_metadata[100] = "An example metadata with unicode 🎄🌳🌴🌲🎋";
+    tsk_size_t example_metadata_length = (tsk_size_t) strlen(example_metadata);
+    char example_schema[100] = "An example schema with unicode 🎄🌳🌴🌲🎋";
+    tsk_size_t example_schema_length = (tsk_size_t) strlen(example_schema);
+
+    // Test equality
+    ret = tsk_table_collection_init(&tc1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_init(&tc2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
+
+    ret = tsk_reference_sequence_set_data(
+        &tc1.reference_sequence, example_data, example_data_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_table_collection_equals(&tc1, &tc2, 0));
+    ret = tsk_reference_sequence_set_data(
+        &tc2.reference_sequence, example_data, example_data_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
+
+    ret = tsk_reference_sequence_set_url(
+        &tc1.reference_sequence, example_url, example_url_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_table_collection_equals(&tc1, &tc2, 0));
+    ret = tsk_reference_sequence_set_url(
+        &tc2.reference_sequence, example_url, example_url_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
+
+    ret = tsk_reference_sequence_set_metadata(
+        &tc1.reference_sequence, example_metadata, example_metadata_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_table_collection_equals(&tc1, &tc2, 0));
+    ret = tsk_reference_sequence_set_metadata(
+        &tc2.reference_sequence, example_metadata, example_metadata_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
+
+    ret = tsk_reference_sequence_set_metadata_schema(
+        &tc1.reference_sequence, example_schema, example_schema_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_table_collection_equals(&tc1, &tc2, 0));
+    ret = tsk_reference_sequence_set_metadata_schema(
+        &tc2.reference_sequence, example_schema, example_schema_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
+
+    // Test copy
+    tsk_table_collection_free(&tc1);
+    tsk_table_collection_free(&tc2);
+    ret = tsk_table_collection_init(&tc1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_reference_sequence_set_data(
+        &tc1.reference_sequence, example_data, example_data_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_copy(&tc1, &tc2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
+
+    ret = tsk_reference_sequence_set_url(
+        &tc1.reference_sequence, example_url, example_url_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_copy(&tc1, &tc2, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
+
+    ret = tsk_reference_sequence_set_metadata(
+        &tc1.reference_sequence, example_metadata, example_metadata_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_copy(&tc1, &tc2, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
+
+    ret = tsk_reference_sequence_set_metadata_schema(
+        &tc1.reference_sequence, example_schema, example_schema_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_copy(&tc1, &tc2, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
+
+    // Test dump and load
+    tsk_table_collection_free(&tc1);
+    tsk_table_collection_free(&tc2);
+    ret = tsk_table_collection_init(&tc1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tc1.sequence_length = 1.0;
+    ret = tsk_reference_sequence_set_data(
+        &tc1.reference_sequence, example_data, example_data_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_reference_sequence_set_url(
+        &tc1.reference_sequence, example_url, example_url_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_reference_sequence_set_metadata(
+        &tc1.reference_sequence, example_metadata, example_metadata_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_reference_sequence_set_metadata_schema(
+        &tc1.reference_sequence, example_schema, example_schema_length);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_dump(&tc1, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_load(&tc2, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
+    tsk_table_collection_free(&tc1);
+    tsk_table_collection_free(&tc2);
+}
+
+static void
 test_table_collection_metadata(void)
 {
     int ret;
@@ -8794,6 +8913,8 @@ main(int argc, char **argv)
         { "test_table_collection_simplify_errors",
             test_table_collection_simplify_errors },
         { "test_table_collection_time_units", test_table_collection_time_units },
+        { "test_table_collection_reference_sequence",
+            test_table_collection_reference_sequence },
         { "test_table_collection_metadata", test_table_collection_metadata },
         { "test_simplify_tables_drops_indexes", test_simplify_tables_drops_indexes },
         { "test_simplify_empty_tables", test_simplify_empty_tables },
