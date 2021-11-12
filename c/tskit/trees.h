@@ -534,6 +534,7 @@ void tsk_diff_iter_print_state(const tsk_diff_iter_t *self, FILE *out);
 
 typedef struct {
     const tsk_treeseq_t *tree_sequence;
+    tsk_site_t site;
     tsk_size_t num_samples;
     tsk_id_t *genotypes;
     tsk_flags_t options;
@@ -549,11 +550,8 @@ typedef struct {
 int tsk_variant2_init(
     tsk_variant2_t *self, const tsk_treeseq_t *ts, tsk_flags_t options);
 int tsk_variant2_free(tsk_variant2_t *self);
-
-/* do we want an options here? We're already setting lots of options on
- * the variant object, so not much point in doing here also? */
-int tsk_tree_decode_variant(
-    const tsk_tree_t *self, const tsk_site_t *site, tsk_variant2_t *variant);
+int tsk_variant2_decode(
+    tsk_variant2_t *self, const tsk_tree_t *tree, tsk_id_t site_index);
 
 #ifdef __cplusplus
 }

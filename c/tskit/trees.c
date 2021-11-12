@@ -5628,45 +5628,45 @@ tsk_variant2_get_allele_index(
 }
 
 int
-tsk_tree_decode_variant(
-    const tsk_tree_t *self, const tsk_site_t *site, tsk_variant2_t *variant)
+tsk_variant2_decode(tsk_variant2_t *self, const tsk_tree_t *tree, tsk_id_t site_index)
 {
     int ret = 0;
     tsk_size_t j, k, num_nodes;
-    tsk_id_t *nodes = variant->node_buffer;
-    tsk_id_t *genotypes = variant->genotypes;
-    const tsk_id_t *sample_index_map = variant->sample_index_map;
+    tsk_id_t *nodes = self->node_buffer;
+    tsk_id_t *genotypes = self->genotypes;
+    const tsk_id_t *sample_index_map = self->sample_index_map;
     tsk_id_t allele_index, index;
     tsk_mutation_t mutation;
 
-    memset(genotypes, 0, variant->num_samples * sizeof(*genotypes));
+    memset(genotypes, 0, self->num_samples * sizeof(*genotypes));
 
+    self->site = tree->sites[site_index];
     /* Ancestral state is always allele 0 */
-    variant->alleles[0] = site->ancestral_state;
-    variant->allele_lengths[0] = site->ancestral_state_length;
-    variant->num_alleles = 1;
+    self->alleles[0] = self->site.ancestral_state;
+    self->allele_lengths[0] = self->site.ancestral_state_length;
+    self->num_alleles = 1;
     allele_index = 0;
-    variant->has_missing_data = false;
+    self->has_missing_data = false;
 
     // TODO check if site is on this tree
-    for (j = 0; j < site->mutations_length; j++) {
-        mutation = site->mutations[j];
+    for (j = 0; j < self->site.mutations_length; j++) {
+        mutation = self->site.mutations[j];
         /* Compute the allele index for this derived state value. */
         allele_index = tsk_variant2_get_allele_index(
-            variant, mutation.derived_state, mutation.derived_state_length);
+            self, mutation.derived_state, mutation.derived_state_length);
         if (allele_index == -1) {
-            if (variant->num_alleles == variant->max_alleles) {
-                ret = tsk_variant2_expand_alleles(variant);
+            if (self->num_alleles == self->max_alleles) {
+                ret = tsk_variant2_expand_alleles(self);
                 if (ret != 0) {
                     goto out;
                 }
             }
-            allele_index = (tsk_id_t) variant->num_alleles;
-            variant->alleles[allele_index] = mutation.derived_state;
-            variant->allele_lengths[allele_index] = mutation.derived_state_length;
-            variant->num_alleles++;
+            allele_index = (tsk_id_t) self->num_alleles;
+            self->alleles[allele_index] = mutation.derived_state;
+            self->allele_lengths[allele_index] = mutation.derived_state_length;
+            self->num_alleles++;
         }
-        ret = tsk_tree_preorder(self, mutation.node, nodes, &num_nodes);
+        ret = tsk_tree_preorder(tree, mutation.node, nodes, &num_nodes);
         if (ret != 0) {
             goto out;
         }

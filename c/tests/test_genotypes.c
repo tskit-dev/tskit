@@ -452,8 +452,9 @@ test_single_tree_char_alphabet2(void)
     ret = tsk_variant2_init(&var, &ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_tree_decode_variant(&t, &t.sites[0], &var);
+    ret = tsk_variant2_decode(&var, &t, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(var.site.position, 0);
     CU_ASSERT_EQUAL(var.num_alleles, 2);
     CU_ASSERT_EQUAL(var.allele_lengths[0], 1);
     CU_ASSERT_EQUAL(var.allele_lengths[1], 1);
@@ -465,9 +466,9 @@ test_single_tree_char_alphabet2(void)
     CU_ASSERT_EQUAL(var.genotypes[2], 0);
     CU_ASSERT_EQUAL(var.genotypes[3], 0);
 
-    ret = tsk_tree_decode_variant(&t, &t.sites[1], &var);
+    ret = tsk_variant2_decode(&var, &t, 1);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_EQUAL(t.sites[1].position, 0.125);
+    CU_ASSERT_EQUAL(var.site.position, 0.125);
     CU_ASSERT_EQUAL(var.num_alleles, 2);
     CU_ASSERT_EQUAL(var.allele_lengths[0], 1);
     CU_ASSERT_EQUAL(var.allele_lengths[1], 8);
@@ -479,9 +480,9 @@ test_single_tree_char_alphabet2(void)
     CU_ASSERT_EQUAL(var.genotypes[2], 0);
     CU_ASSERT_EQUAL(var.genotypes[3], 0);
 
-    ret = tsk_tree_decode_variant(&t, &t.sites[2], &var);
+    ret = tsk_variant2_decode(&var, &t, 2);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_EQUAL(t.sites[2].position, 0.25);
+    CU_ASSERT_EQUAL(var.site.position, 0.25);
     CU_ASSERT_EQUAL(var.num_alleles, 4);
     CU_ASSERT_EQUAL(var.allele_lengths[0], 1);
     CU_ASSERT_EQUAL(var.allele_lengths[1], 1);
@@ -497,9 +498,9 @@ test_single_tree_char_alphabet2(void)
     CU_ASSERT_EQUAL(var.genotypes[2], 3);
     CU_ASSERT_EQUAL(var.genotypes[3], 0);
 
-    ret = tsk_tree_decode_variant(&t, &t.sites[3], &var);
+    ret = tsk_variant2_decode(&var, &t, 3);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_EQUAL(t.sites[3].position, 0.5);
+    CU_ASSERT_EQUAL(var.site.position, 0.5);
     CU_ASSERT_EQUAL(var.num_alleles, 2);
     CU_ASSERT_EQUAL(var.allele_lengths[0], 1);
     CU_ASSERT_EQUAL(var.allele_lengths[1], 1);
