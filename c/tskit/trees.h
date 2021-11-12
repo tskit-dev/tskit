@@ -530,6 +530,31 @@ int tsk_diff_iter_next(tsk_diff_iter_t *self, double *left, double *right,
     tsk_edge_list_t *edges_out, tsk_edge_list_t *edges_in);
 void tsk_diff_iter_print_state(const tsk_diff_iter_t *self, FILE *out);
 
+/* experiment - move to where ever it should go */
+
+typedef struct {
+    const tsk_treeseq_t *tree_sequence;
+    tsk_size_t num_samples;
+    tsk_id_t *genotypes;
+    tsk_flags_t options;
+    const tsk_id_t *sample_index_map;
+    tsk_id_t *node_buffer;
+    const char **alleles;
+    tsk_size_t *allele_lengths;
+    tsk_size_t num_alleles;
+    tsk_size_t max_alleles;
+    bool has_missing_data;
+} tsk_variant2_t;
+
+int tsk_variant2_init(
+    tsk_variant2_t *self, const tsk_treeseq_t *ts, tsk_flags_t options);
+int tsk_variant2_free(tsk_variant2_t *self);
+
+/* do we want an options here? We're already setting lots of options on
+ * the variant object, so not much point in doing here also? */
+int tsk_tree_decode_variant(
+    const tsk_tree_t *self, const tsk_site_t *site, tsk_variant2_t *variant);
+
 #ifdef __cplusplus
 }
 #endif

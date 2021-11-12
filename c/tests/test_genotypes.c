@@ -423,6 +423,100 @@ test_single_tree_user_alleles(void)
 }
 
 static void
+test_single_tree_char_alphabet2(void)
+{
+    int ret = 0;
+    const char *sites = "0.0    A\n"
+                        "0.125  A\n"
+                        "0.25   C\n"
+                        "0.5    A\n";
+    const char *mutations
+        = "0    0     T   -1\n"
+          "1    1     TTTAAGGG   -1\n"
+          "2    0     G   -1\n"
+          "2    1     AT  -1\n"
+          "2    2     T   -1\n" // A bunch of different sample mutations
+          "3    4     T   -1\n"
+          "3    0     A   5\n"; // A back mutation from T -> A
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    tsk_variant2_t var;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
+        sites, mutations, NULL, NULL, 0);
+
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    ret = tsk_variant2_init(&var, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_tree_decode_variant(&t, &t.sites[0], &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(var.num_alleles, 2);
+    CU_ASSERT_EQUAL(var.allele_lengths[0], 1);
+    CU_ASSERT_EQUAL(var.allele_lengths[1], 1);
+    CU_ASSERT_NSTRING_EQUAL(var.alleles[0], "A", 1);
+    CU_ASSERT_NSTRING_EQUAL(var.alleles[1], "T", 1);
+    CU_ASSERT_FALSE(var.has_missing_data);
+    CU_ASSERT_EQUAL(var.genotypes[0], 1);
+    CU_ASSERT_EQUAL(var.genotypes[1], 0);
+    CU_ASSERT_EQUAL(var.genotypes[2], 0);
+    CU_ASSERT_EQUAL(var.genotypes[3], 0);
+
+    ret = tsk_tree_decode_variant(&t, &t.sites[1], &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(t.sites[1].position, 0.125);
+    CU_ASSERT_EQUAL(var.num_alleles, 2);
+    CU_ASSERT_EQUAL(var.allele_lengths[0], 1);
+    CU_ASSERT_EQUAL(var.allele_lengths[1], 8);
+    CU_ASSERT_NSTRING_EQUAL(var.alleles[0], "A", 1);
+    CU_ASSERT_NSTRING_EQUAL(var.alleles[1], "TTTAAGGG", 8);
+    CU_ASSERT_FALSE(var.has_missing_data);
+    CU_ASSERT_EQUAL(var.genotypes[0], 0);
+    CU_ASSERT_EQUAL(var.genotypes[1], 1);
+    CU_ASSERT_EQUAL(var.genotypes[2], 0);
+    CU_ASSERT_EQUAL(var.genotypes[3], 0);
+
+    ret = tsk_tree_decode_variant(&t, &t.sites[2], &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(t.sites[2].position, 0.25);
+    CU_ASSERT_EQUAL(var.num_alleles, 4);
+    CU_ASSERT_EQUAL(var.allele_lengths[0], 1);
+    CU_ASSERT_EQUAL(var.allele_lengths[1], 1);
+    CU_ASSERT_EQUAL(var.allele_lengths[2], 2);
+    CU_ASSERT_EQUAL(var.allele_lengths[3], 1);
+    CU_ASSERT_NSTRING_EQUAL(var.alleles[0], "C", 1);
+    CU_ASSERT_NSTRING_EQUAL(var.alleles[1], "G", 1);
+    CU_ASSERT_NSTRING_EQUAL(var.alleles[2], "AT", 1);
+    CU_ASSERT_NSTRING_EQUAL(var.alleles[3], "T", 1);
+    CU_ASSERT_FALSE(var.has_missing_data);
+    CU_ASSERT_EQUAL(var.genotypes[0], 1);
+    CU_ASSERT_EQUAL(var.genotypes[1], 2);
+    CU_ASSERT_EQUAL(var.genotypes[2], 3);
+    CU_ASSERT_EQUAL(var.genotypes[3], 0);
+
+    ret = tsk_tree_decode_variant(&t, &t.sites[3], &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(t.sites[3].position, 0.5);
+    CU_ASSERT_EQUAL(var.num_alleles, 2);
+    CU_ASSERT_EQUAL(var.allele_lengths[0], 1);
+    CU_ASSERT_EQUAL(var.allele_lengths[1], 1);
+    CU_ASSERT_NSTRING_EQUAL(var.alleles[0], "A", 1);
+    CU_ASSERT_NSTRING_EQUAL(var.alleles[1], "T", 1);
+    CU_ASSERT_FALSE(var.has_missing_data);
+    CU_ASSERT_EQUAL(var.genotypes[0], 0);
+    CU_ASSERT_EQUAL(var.genotypes[1], 1);
+    CU_ASSERT_EQUAL(var.genotypes[2], 0);
+    CU_ASSERT_EQUAL(var.genotypes[3], 0);
+
+    tsk_variant2_free(&var);
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_single_tree_char_alphabet(void)
 {
     int ret = 0;
@@ -1006,6 +1100,7 @@ main(int argc, char **argv)
             test_simplest_missing_data_mutations_all_samples },
         { "test_single_tree_user_alleles", test_single_tree_user_alleles },
         { "test_single_tree_char_alphabet", test_single_tree_char_alphabet },
+        { "test_single_tree_char_alphabet2", test_single_tree_char_alphabet2 },
         { "test_single_tree_binary_alphabet", test_single_tree_binary_alphabet },
         { "test_single_tree_non_samples", test_single_tree_non_samples },
         { "test_single_tree_errors", test_single_tree_errors },

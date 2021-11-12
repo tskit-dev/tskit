@@ -5547,3 +5547,136 @@ out:
     }
     return ret;
 }
+
+int
+tsk_variant2_init(tsk_variant2_t *self, const tsk_treeseq_t *ts, tsk_flags_t options)
+{
+    int ret = 0;
+    tsk_size_t max_alleles = 4;
+    self->tree_sequence = ts;
+    self->options = options;
+    self->num_samples = tsk_treeseq_get_num_samples(self->tree_sequence);
+    self->node_buffer
+        = tsk_malloc(tsk_treeseq_get_num_nodes(ts) * sizeof(*self->node_buffer));
+    self->genotypes = tsk_malloc(self->num_samples * sizeof(*self->genotypes));
+    self->max_alleles = max_alleles;
+    self->alleles = tsk_calloc(max_alleles, sizeof(*self->alleles));
+    self->allele_lengths = tsk_malloc(max_alleles * sizeof(*self->allele_lengths));
+    if (self->node_buffer == NULL || self->genotypes == NULL || self->alleles == NULL
+        || self->allele_lengths == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    self->sample_index_map = tsk_treeseq_get_sample_index_map(self->tree_sequence);
+out:
+    return ret;
+}
+
+int
+tsk_variant2_free(tsk_variant2_t *self)
+{
+    tsk_safe_free(self->node_buffer);
+    tsk_safe_free(self->genotypes);
+    tsk_safe_free(self->alleles);
+    tsk_safe_free(self->allele_lengths);
+    return 0;
+}
+
+static int
+tsk_variant2_expand_alleles(tsk_variant2_t *self)
+{
+    int ret = 0;
+    void *p;
+
+    if (self->max_alleles == INT32_MAX) {
+        ret = TSK_ERR_TOO_MANY_ALLELES;
+        goto out;
+    }
+    self->max_alleles = TSK_MIN(INT32_MAX, self->max_alleles * 2);
+    p = tsk_realloc(self->alleles, self->max_alleles * sizeof(*self->alleles));
+    if (p == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    self->alleles = p;
+    p = tsk_realloc(
+        self->allele_lengths, self->max_alleles * sizeof(*self->allele_lengths));
+    if (p == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    self->allele_lengths = p;
+out:
+    return ret;
+}
+
+static tsk_id_t
+tsk_variant2_get_allele_index(
+    tsk_variant2_t *self, const char *allele, tsk_size_t length)
+{
+    tsk_id_t ret = -1;
+    tsk_size_t j;
+
+    for (j = 0; j < self->num_alleles; j++) {
+        if (length == self->allele_lengths[j]
+            && tsk_memcmp(allele, self->alleles[j], length) == 0) {
+            ret = (tsk_id_t) j;
+            break;
+        }
+    }
+    return ret;
+}
+
+int
+tsk_tree_decode_variant(
+    const tsk_tree_t *self, const tsk_site_t *site, tsk_variant2_t *variant)
+{
+    int ret = 0;
+    tsk_size_t j, k, num_nodes;
+    tsk_id_t *nodes = variant->node_buffer;
+    tsk_id_t *genotypes = variant->genotypes;
+    const tsk_id_t *sample_index_map = variant->sample_index_map;
+    tsk_id_t allele_index, index;
+    tsk_mutation_t mutation;
+
+    memset(genotypes, 0, variant->num_samples * sizeof(*genotypes));
+
+    /* Ancestral state is always allele 0 */
+    variant->alleles[0] = site->ancestral_state;
+    variant->allele_lengths[0] = site->ancestral_state_length;
+    variant->num_alleles = 1;
+    allele_index = 0;
+    variant->has_missing_data = false;
+
+    // TODO check if site is on this tree
+    for (j = 0; j < site->mutations_length; j++) {
+        mutation = site->mutations[j];
+        /* Compute the allele index for this derived state value. */
+        allele_index = tsk_variant2_get_allele_index(
+            variant, mutation.derived_state, mutation.derived_state_length);
+        if (allele_index == -1) {
+            if (variant->num_alleles == variant->max_alleles) {
+                ret = tsk_variant2_expand_alleles(variant);
+                if (ret != 0) {
+                    goto out;
+                }
+            }
+            allele_index = (tsk_id_t) variant->num_alleles;
+            variant->alleles[allele_index] = mutation.derived_state;
+            variant->allele_lengths[allele_index] = mutation.derived_state_length;
+            variant->num_alleles++;
+        }
+        ret = tsk_tree_preorder(self, mutation.node, nodes, &num_nodes);
+        if (ret != 0) {
+            goto out;
+        }
+        for (k = 0; k < num_nodes; k++) {
+            index = sample_index_map[nodes[k]];
+            if (index != TSK_NULL) {
+                genotypes[index] = allele_index;
+            }
+        }
+    }
+out:
+    return ret;
+}
