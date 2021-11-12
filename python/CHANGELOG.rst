@@ -112,6 +112,9 @@
   (:user:`jeetsukumaran`, :user:`jeromekelleher`, :issue:`1785`, :pr:`1835`,
   :pr:`1836`, :pr:`1838`)
 
+- `load_text` created additional populations even if the population table was specified,
+  and didn't strip newlines from input text (:user:`hyanwong`, :issue:`1909`, :pr:`1910`)
+
 
 --------------------
 [0.3.7] - 2021-07-08
