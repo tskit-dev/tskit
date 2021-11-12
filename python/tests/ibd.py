@@ -136,7 +136,7 @@ class IbdResult:
 
     def add_segment(self, a, b, seg):
         key = (a, b) if a < b else (b, a)
-        self.segments[key].append(tskit.IbdSegment(seg.left, seg.right, seg.node))
+        self.segments[key].append(tskit.IdentitySegment(seg.left, seg.right, seg.node))
 
 
 class IbdFinder:

@@ -622,24 +622,24 @@ typedef struct _tsk_table_sorter_t {
  * */
 
 /* Note for tskit developers: it's perhaps a bit confusing/pointless to
- * have the tsk_ibd_segment_t struct as well as the internal tsk_segment_t
+ * have the tsk_identity_segment_t struct as well as the internal tsk_segment_t
  * struct (which is identical). However, we may want to implement either
- * segment type differently in future, and since the tsk_ibd_segment_t
+ * segment type differently in future, and since the tsk_identity_segment_t
  * is part of the public API we want to allow the freedom for the different
  * structures to evolve over time */
-typedef struct _tsk_ibd_segment_t {
+typedef struct _tsk_identity_segment_t {
     double left;
     double right;
-    struct _tsk_ibd_segment_t *next;
+    struct _tsk_identity_segment_t *next;
     tsk_id_t node;
-} tsk_ibd_segment_t;
+} tsk_identity_segment_t;
 
 typedef struct {
     tsk_size_t num_segments;
     double total_span;
-    tsk_ibd_segment_t *head;
-    tsk_ibd_segment_t *tail;
-} tsk_ibd_segment_list_t;
+    tsk_identity_segment_t *head;
+    tsk_identity_segment_t *tail;
+} tsk_identity_segment_list_t;
 
 typedef struct {
     tsk_size_t num_nodes;
@@ -649,7 +649,7 @@ typedef struct {
     tsk_blkalloc_t heap;
     bool store_segments;
     bool store_pairs;
-} tsk_ibd_segments_t;
+} tsk_identity_segments_t;
 
 /****************************************************************************/
 /* Common function options */
@@ -4086,11 +4086,11 @@ tsk_id_t tsk_table_collection_check_integrity(
 /* FIXME the order of num_samples and samples needs to be reversed in within.
  * This should be done as part of documenting, I guess. */
 int tsk_table_collection_ibd_within(const tsk_table_collection_t *self,
-    tsk_ibd_segments_t *result, const tsk_id_t *samples, tsk_size_t num_samples,
+    tsk_identity_segments_t *result, const tsk_id_t *samples, tsk_size_t num_samples,
     double min_length, double max_time, tsk_flags_t options);
 
 int tsk_table_collection_ibd_between(const tsk_table_collection_t *self,
-    tsk_ibd_segments_t *result, tsk_size_t num_sample_sets,
+    tsk_identity_segments_t *result, tsk_size_t num_sample_sets,
     const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets, double min_length,
     double max_time, tsk_flags_t options);
 
@@ -4185,16 +4185,17 @@ int tsk_squash_edges(
 
 /* IBD segments API. This is experimental and the interface may change. */
 
-tsk_size_t tsk_ibd_segments_get_num_segments(const tsk_ibd_segments_t *self);
-double tsk_ibd_segments_get_total_span(const tsk_ibd_segments_t *self);
-tsk_size_t tsk_ibd_segments_get_num_pairs(const tsk_ibd_segments_t *self);
-int tsk_ibd_segments_get_keys(const tsk_ibd_segments_t *result, tsk_id_t *pairs);
-int tsk_ibd_segments_get_items(
-    const tsk_ibd_segments_t *self, tsk_id_t *pairs, tsk_ibd_segment_list_t **lists);
-int tsk_ibd_segments_get(const tsk_ibd_segments_t *self, tsk_id_t a, tsk_id_t b,
-    tsk_ibd_segment_list_t **ret_list);
-void tsk_ibd_segments_print_state(tsk_ibd_segments_t *self, FILE *out);
-int tsk_ibd_segments_free(tsk_ibd_segments_t *self);
+tsk_size_t tsk_identity_segments_get_num_segments(const tsk_identity_segments_t *self);
+double tsk_identity_segments_get_total_span(const tsk_identity_segments_t *self);
+tsk_size_t tsk_identity_segments_get_num_pairs(const tsk_identity_segments_t *self);
+int tsk_identity_segments_get_keys(
+    const tsk_identity_segments_t *result, tsk_id_t *pairs);
+int tsk_identity_segments_get_items(const tsk_identity_segments_t *self, tsk_id_t *pairs,
+    tsk_identity_segment_list_t **lists);
+int tsk_identity_segments_get(const tsk_identity_segments_t *self, tsk_id_t a,
+    tsk_id_t b, tsk_identity_segment_list_t **ret_list);
+void tsk_identity_segments_print_state(tsk_identity_segments_t *self, FILE *out);
+int tsk_identity_segments_free(tsk_identity_segments_t *self);
 
 #ifdef __cplusplus
 }

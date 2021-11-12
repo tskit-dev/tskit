@@ -50,8 +50,8 @@ static PyObject *TskitLibraryError;
 static PyObject *TskitFileFormatError;
 static PyObject *TskitVersionTooOldError;
 static PyObject *TskitVersionTooNewError;
-static PyObject *TskitIbdPairsNotStoredError;
-static PyObject *TskitIbdSegmentsNotStoredError;
+static PyObject *TskitIdentityPairsNotStoredError;
+static PyObject *TskitIdentitySegmentsNotStoredError;
 
 #include "tskit_lwt_interface.h"
 
@@ -186,16 +186,16 @@ typedef struct {
 
 typedef struct {
     PyObject_HEAD
-    tsk_ibd_segments_t *ibd_segments;
-} IbdSegments;
+    tsk_identity_segments_t *identity_segments;
+} IdentitySegments;
 
 typedef struct {
     PyObject_HEAD
     /* Keep a reference to the parent object to ensure that the memory
      * behind the segment list is always valid */
-    IbdSegments *ibd_segments;
-    tsk_ibd_segment_list_t *segment_list;
-} IbdSegmentList;
+    IdentitySegments *identity_segments;
+    tsk_identity_segment_list_t *segment_list;
+} IdentitySegmentList;
 
 /* A named tuple of metadata schemas for a tree sequence */
 static PyTypeObject MetadataSchemas;
@@ -225,13 +225,13 @@ handle_library_error(int err)
 {
     const char *ibd_pairs_not_stored_msg
         = "Sample pairs are not stored by default "
-          "in the IbdSegments object returned by ibd_segments(), and you have "
+          "in the IdentitySegments object returned by ibd_segments(), and you have "
           "attempted to access functionality that requires them. Please use the "
-          "store_pairs=True option to ibd_segments (but beware this will need more "
+          "store_pairs=True option to identity_segments (but beware this will need more "
           "time and memory).";
-    const char *ibd_segments_not_stored_msg
+    const char *identity_segments_not_stored_msg
         = "The individual IBD segments are not "
-          "stored by default in the IbdSegments object returned by ibd_segments(), "
+          "stored by default in the IdentitySegments object returned by ibd_segments(), "
           "and you have attempted to access functionality that requires them. "
           "Please use the store_segments=True option to ibd_segments "
           "(but beware this will need more time and memory).";
@@ -252,11 +252,12 @@ handle_library_error(int err)
                 PyErr_SetString(TskitFileFormatError, tsk_strerror(err));
                 break;
             case TSK_ERR_IBD_PAIRS_NOT_STORED:
-                PyErr_SetString(TskitIbdPairsNotStoredError, ibd_pairs_not_stored_msg);
+                PyErr_SetString(
+                    TskitIdentityPairsNotStoredError, ibd_pairs_not_stored_msg);
                 break;
             case TSK_ERR_IBD_SEGMENTS_NOT_STORED:
-                PyErr_SetString(
-                    TskitIbdSegmentsNotStoredError, ibd_segments_not_stored_msg);
+                PyErr_SetString(TskitIdentitySegmentsNotStoredError,
+                    identity_segments_not_stored_msg);
                 break;
             case TSK_ERR_IO:
                 /* Note this case isn't covered by tests because it's actually
@@ -5371,16 +5372,16 @@ static PyTypeObject ProvenanceTableType = {
 };
 
 /*===================================================================
- * IbdSegmentList
+ * IdentitySegmentList
  *===================================================================
  */
 
 static int
-IbdSegmentList_check_state(IbdSegmentList *self)
+IdentitySegmentList_check_state(IdentitySegmentList *self)
 {
     int ret = -1;
     if (self->segment_list == NULL) {
-        PyErr_SetString(PyExc_SystemError, "IbdSegmentList not initialised");
+        PyErr_SetString(PyExc_SystemError, "IdentitySegmentList not initialised");
         goto out;
     }
     ret = 0;
@@ -5389,10 +5390,10 @@ out:
 }
 
 static int
-IbdSegmentList_check_segments_stored(IbdSegmentList *self)
+IdentitySegmentList_check_segments_stored(IdentitySegmentList *self)
 {
     int ret = -1;
-    tsk_ibd_segments_t *ibd_segs = self->ibd_segments->ibd_segments;
+    tsk_identity_segments_t *ibd_segs = self->identity_segments->identity_segments;
     if (!ibd_segs->store_segments) {
         handle_library_error(TSK_ERR_IBD_SEGMENTS_NOT_STORED);
         goto out;
@@ -5403,31 +5404,31 @@ out:
 }
 
 static void
-IbdSegmentList_dealloc(IbdSegmentList *self)
+IdentitySegmentList_dealloc(IdentitySegmentList *self)
 {
-    /* The segment list memory is handled by the parent IbdSegments object */
-    Py_XDECREF(self->ibd_segments);
+    /* The segment list memory is handled by the parent IdentitySegments object */
+    Py_XDECREF(self->identity_segments);
     self->segment_list = NULL;
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
 static int
-IbdSegmentList_init(IbdSegmentList *self, PyObject *args, PyObject *kwds)
+IdentitySegmentList_init(IdentitySegmentList *self, PyObject *args, PyObject *kwds)
 {
     /* This object cannot be initialised from client code, and can only
-     * be created from the IbdSegments_get method below, which sets up the
+     * be created from the IdentitySegments_get method below, which sets up the
      * correct pointers and handles the refcounting */
     self->segment_list = NULL;
-    self->ibd_segments = NULL;
+    self->identity_segments = NULL;
     return 0;
 }
 
 static PyObject *
-IbdSegmentList_get_num_segments(IbdSegmentList *self, void *closure)
+IdentitySegmentList_get_num_segments(IdentitySegmentList *self, void *closure)
 {
     PyObject *ret = NULL;
 
-    if (IbdSegmentList_check_state(self) != 0) {
+    if (IdentitySegmentList_check_state(self) != 0) {
         goto out;
     }
 
@@ -5437,11 +5438,11 @@ out:
 }
 
 static PyObject *
-IbdSegmentList_get_total_span(IbdSegmentList *self, void *closure)
+IdentitySegmentList_get_total_span(IdentitySegmentList *self, void *closure)
 {
     PyObject *ret = NULL;
 
-    if (IbdSegmentList_check_state(self) != 0) {
+    if (IdentitySegmentList_check_state(self) != 0) {
         goto out;
     }
 
@@ -5451,19 +5452,19 @@ out:
 }
 
 static PyObject *
-IbdSegmentList_get_left(IbdSegmentList *self, void *closure)
+IdentitySegmentList_get_left(IdentitySegmentList *self, void *closure)
 {
     PyObject *ret = NULL;
     PyArrayObject *left_array = NULL;
     double *left;
     tsk_size_t seg_index;
-    tsk_ibd_segment_t *u;
+    tsk_identity_segment_t *u;
     npy_intp num_segments;
 
-    if (IbdSegmentList_check_state(self) != 0) {
+    if (IdentitySegmentList_check_state(self) != 0) {
         goto out;
     }
-    if (IbdSegmentList_check_segments_stored(self) != 0) {
+    if (IdentitySegmentList_check_segments_stored(self) != 0) {
         goto out;
     }
 
@@ -5484,19 +5485,19 @@ out:
 }
 
 static PyObject *
-IbdSegmentList_get_right(IbdSegmentList *self, void *closure)
+IdentitySegmentList_get_right(IdentitySegmentList *self, void *closure)
 {
     PyObject *ret = NULL;
     PyArrayObject *right_array = NULL;
     double *right;
     tsk_size_t seg_index;
-    tsk_ibd_segment_t *u;
+    tsk_identity_segment_t *u;
     npy_intp num_segments;
 
-    if (IbdSegmentList_check_state(self) != 0) {
+    if (IdentitySegmentList_check_state(self) != 0) {
         goto out;
     }
-    if (IbdSegmentList_check_segments_stored(self) != 0) {
+    if (IdentitySegmentList_check_segments_stored(self) != 0) {
         goto out;
     }
 
@@ -5517,19 +5518,19 @@ out:
 }
 
 static PyObject *
-IbdSegmentList_get_node(IbdSegmentList *self, void *closure)
+IdentitySegmentList_get_node(IdentitySegmentList *self, void *closure)
 {
     PyObject *ret = NULL;
     PyArrayObject *node_array = NULL;
     int32_t *node;
     tsk_size_t seg_index;
-    tsk_ibd_segment_t *u;
+    tsk_identity_segment_t *u;
     npy_intp num_segments;
 
-    if (IbdSegmentList_check_state(self) != 0) {
+    if (IdentitySegmentList_check_state(self) != 0) {
         goto out;
     }
-    if (IbdSegmentList_check_segments_stored(self) != 0) {
+    if (IdentitySegmentList_check_segments_stored(self) != 0) {
         goto out;
     }
 
@@ -5549,55 +5550,55 @@ out:
     return ret;
 }
 
-static PyMethodDef IbdSegmentList_methods[] = {
+static PyMethodDef IdentitySegmentList_methods[] = {
     { NULL } /* Sentinel */
 };
 
-static PyGetSetDef IbdSegmentList_getsetters[] = {
+static PyGetSetDef IdentitySegmentList_getsetters[] = {
     { .name = "num_segments",
-        .get = (getter) IbdSegmentList_get_num_segments,
+        .get = (getter) IdentitySegmentList_get_num_segments,
         .doc = "The number of segments in this list" },
     { .name = "total_span",
-        .get = (getter) IbdSegmentList_get_total_span,
+        .get = (getter) IdentitySegmentList_get_total_span,
         .doc = "The sequence length spanned by all segments" },
     { .name = "left",
-        .get = (getter) IbdSegmentList_get_left,
+        .get = (getter) IdentitySegmentList_get_left,
         .doc = "A numpy array of the left coordinates of each segment." },
     { .name = "right",
-        .get = (getter) IbdSegmentList_get_right,
+        .get = (getter) IdentitySegmentList_get_right,
         .doc = "A numpy array of the right coordinates of each segment." },
     { .name = "node",
-        .get = (getter) IbdSegmentList_get_node,
+        .get = (getter) IdentitySegmentList_get_node,
         .doc = "A numpy array of the node of each segment." },
     { NULL } /* Sentinel */
 };
 
-static PyTypeObject IbdSegmentListType = {
+static PyTypeObject IdentitySegmentListType = {
     // clang-format off
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "_tskit.IbdSegmentList",
-    .tp_basicsize = sizeof(IbdSegmentList),
-    .tp_dealloc = (destructor) IbdSegmentList_dealloc,
+    .tp_name = "_tskit.IdentitySegmentList",
+    .tp_basicsize = sizeof(IdentitySegmentList),
+    .tp_dealloc = (destructor) IdentitySegmentList_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_doc = "A thin Python translation layer over the C tsk_segment_list_t struct",
-    .tp_methods = IbdSegmentList_methods,
-    .tp_getset = IbdSegmentList_getsetters,
-    .tp_init = (initproc) IbdSegmentList_init,
+    .tp_methods = IdentitySegmentList_methods,
+    .tp_getset = IdentitySegmentList_getsetters,
+    .tp_init = (initproc) IdentitySegmentList_init,
     .tp_new = PyType_GenericNew,
     // clang-format on
 };
 
 /*===================================================================
- * IbdSegments
+ * IdentitySegments
  *===================================================================
  */
 
 static int
-IbdSegments_check_state(IbdSegments *self)
+IdentitySegments_check_state(IdentitySegments *self)
 {
     int ret = -1;
-    if (self->ibd_segments == NULL) {
-        PyErr_SetString(PyExc_SystemError, "IbdSegments not initialised");
+    if (self->identity_segments == NULL) {
+        PyErr_SetString(PyExc_SystemError, "IdentitySegments not initialised");
         goto out;
     }
     ret = 0;
@@ -5606,24 +5607,24 @@ out:
 }
 
 static void
-IbdSegments_dealloc(IbdSegments *self)
+IdentitySegments_dealloc(IdentitySegments *self)
 {
-    if (self->ibd_segments != NULL) {
-        tsk_ibd_segments_free(self->ibd_segments);
-        PyMem_Free(self->ibd_segments);
-        self->ibd_segments = NULL;
+    if (self->identity_segments != NULL) {
+        tsk_identity_segments_free(self->identity_segments);
+        PyMem_Free(self->identity_segments);
+        self->identity_segments = NULL;
     }
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
 static int
-IbdSegments_init(IbdSegments *self, PyObject *args, PyObject *kwds)
+IdentitySegments_init(IdentitySegments *self, PyObject *args, PyObject *kwds)
 {
     int ret = -1;
 
-    self->ibd_segments = NULL;
-    self->ibd_segments = PyMem_Calloc(1, sizeof(*self->ibd_segments));
-    if (self->ibd_segments == NULL) {
+    self->identity_segments = NULL;
+    self->identity_segments = PyMem_Calloc(1, sizeof(*self->identity_segments));
+    if (self->identity_segments == NULL) {
         PyErr_NoMemory();
         goto out;
     }
@@ -5633,22 +5634,22 @@ out:
 }
 
 static PyObject *
-IbdSegments_get(IbdSegments *self, PyObject *args)
+IdentitySegments_get(IdentitySegments *self, PyObject *args)
 {
     PyObject *ret = NULL;
-    IbdSegmentList *py_seglist = NULL;
+    IdentitySegmentList *py_seglist = NULL;
     int sample_a, sample_b;
-    tsk_ibd_segment_list_t *seglist;
+    tsk_identity_segment_list_t *seglist;
     int err;
 
-    if (IbdSegments_check_state(self) != 0) {
+    if (IdentitySegments_check_state(self) != 0) {
         goto out;
     }
     if (!PyArg_ParseTuple(args, "ii", &sample_a, &sample_b)) {
         goto out;
     }
-    err = tsk_ibd_segments_get(
-        self->ibd_segments, (tsk_id_t) sample_a, (tsk_id_t) sample_b, &seglist);
+    err = tsk_identity_segments_get(
+        self->identity_segments, (tsk_id_t) sample_a, (tsk_id_t) sample_b, &seglist);
     if (err < 0) {
         handle_library_error(err);
         goto out;
@@ -5657,14 +5658,14 @@ IbdSegments_get(IbdSegments *self, PyObject *args)
         PyErr_SetString(PyExc_KeyError, "Sample pair not found");
         goto out;
     }
-    py_seglist
-        = (IbdSegmentList *) PyObject_CallObject((PyObject *) &IbdSegmentListType, NULL);
+    py_seglist = (IdentitySegmentList *) PyObject_CallObject(
+        (PyObject *) &IdentitySegmentListType, NULL);
     if (py_seglist == NULL) {
         goto out;
     }
     py_seglist->segment_list = seglist;
-    py_seglist->ibd_segments = self;
-    /* The segment list uses a reference to this IbdSegments to ensure its
+    py_seglist->identity_segments = self;
+    /* The segment list uses a reference to this IdentitySegments to ensure its
      * memory is valid, so increment our refcount here */
     Py_INCREF(self);
 
@@ -5676,24 +5677,24 @@ out:
 }
 
 static PyObject *
-IbdSegments_get_keys(IbdSegments *self)
+IdentitySegments_get_keys(IdentitySegments *self)
 {
     PyObject *ret = NULL;
     PyArrayObject *pairs_array = NULL;
     npy_intp dims[2];
     int err;
 
-    if (IbdSegments_check_state(self) != 0) {
+    if (IdentitySegments_check_state(self) != 0) {
         goto out;
     }
-    dims[0] = tsk_ibd_segments_get_num_pairs(self->ibd_segments);
+    dims[0] = tsk_identity_segments_get_num_pairs(self->identity_segments);
     dims[1] = 2;
     pairs_array = (PyArrayObject *) PyArray_SimpleNew(2, dims, NPY_INT32);
     if (pairs_array == NULL) {
         goto out;
     }
-    err = tsk_ibd_segments_get_keys(
-        self->ibd_segments, (int32_t *) PyArray_DATA(pairs_array));
+    err = tsk_identity_segments_get_keys(
+        self->identity_segments, (int32_t *) PyArray_DATA(pairs_array));
     if (err < 0) {
         handle_library_error(err);
         goto out;
@@ -5706,13 +5707,13 @@ out:
 }
 
 static PyObject *
-IbdSegments_print_state(IbdSegments *self, PyObject *args)
+IdentitySegments_print_state(IdentitySegments *self, PyObject *args)
 {
     PyObject *ret = NULL;
     PyObject *fileobj;
     FILE *file = NULL;
 
-    if (IbdSegments_check_state(self) != 0) {
+    if (IdentitySegments_check_state(self) != 0) {
         goto out;
     }
     if (!PyArg_ParseTuple(args, "O", &fileobj)) {
@@ -5722,7 +5723,7 @@ IbdSegments_print_state(IbdSegments *self, PyObject *args)
     if (file == NULL) {
         goto out;
     }
-    tsk_ibd_segments_print_state(self->ibd_segments, file);
+    tsk_identity_segments_print_state(self->identity_segments, file);
     ret = Py_BuildValue("");
 out:
     if (file != NULL) {
@@ -5732,90 +5733,91 @@ out:
 }
 
 static PyObject *
-IbdSegments_get_num_segments(IbdSegments *self, void *closure)
+IdentitySegments_get_num_segments(IdentitySegments *self, void *closure)
 {
     PyObject *ret = NULL;
 
-    if (IbdSegments_check_state(self) != 0) {
+    if (IdentitySegments_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue("K", (unsigned long long) tsk_identity_segments_get_num_segments(
+                                 self->identity_segments));
+out:
+    return ret;
+}
+
+static PyObject *
+IdentitySegments_get_total_span(IdentitySegments *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (IdentitySegments_check_state(self) != 0) {
         goto out;
     }
     ret = Py_BuildValue(
-        "K", (unsigned long long) tsk_ibd_segments_get_num_segments(self->ibd_segments));
+        "d", tsk_identity_segments_get_total_span(self->identity_segments));
 out:
     return ret;
 }
 
 static PyObject *
-IbdSegments_get_total_span(IbdSegments *self, void *closure)
+IdentitySegments_get_num_pairs(IdentitySegments *self, void *closure)
 {
     PyObject *ret = NULL;
 
-    if (IbdSegments_check_state(self) != 0) {
+    if (IdentitySegments_check_state(self) != 0) {
         goto out;
     }
-    ret = Py_BuildValue("d", tsk_ibd_segments_get_total_span(self->ibd_segments));
-out:
-    return ret;
-}
-
-static PyObject *
-IbdSegments_get_num_pairs(IbdSegments *self, void *closure)
-{
-    PyObject *ret = NULL;
-
-    if (IbdSegments_check_state(self) != 0) {
-        goto out;
-    }
-    if (!self->ibd_segments->store_pairs) {
+    if (!self->identity_segments->store_pairs) {
         handle_library_error(TSK_ERR_IBD_PAIRS_NOT_STORED);
         goto out;
     }
-    ret = Py_BuildValue(
-        "K", (unsigned long long) tsk_ibd_segments_get_num_pairs(self->ibd_segments));
+    ret = Py_BuildValue("K", (unsigned long long) tsk_identity_segments_get_num_pairs(
+                                 self->identity_segments));
 out:
     return ret;
 }
 
-static PyMethodDef IbdSegments_methods[] = {
+static PyMethodDef IdentitySegments_methods[] = {
     { .ml_name = "print_state",
-        .ml_meth = (PyCFunction) IbdSegments_print_state,
+        .ml_meth = (PyCFunction) IdentitySegments_print_state,
         .ml_flags = METH_VARARGS,
         .ml_doc = "Debug method to print out the low-level state" },
     { .ml_name = "get",
-        .ml_meth = (PyCFunction) IbdSegments_get,
+        .ml_meth = (PyCFunction) IdentitySegments_get,
         .ml_flags = METH_VARARGS,
         .ml_doc = "Return a dictionary representing the IBD segments for a given pair" },
     { .ml_name = "get_keys",
-        .ml_meth = (PyCFunction) IbdSegments_get_keys,
+        .ml_meth = (PyCFunction) IdentitySegments_get_keys,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Return a (n, 2) dim numpy array of all the sample pairs." },
     { NULL } /* Sentinel */
 };
 
-static PyGetSetDef IbdSegments_getsetters[] = {
+static PyGetSetDef IdentitySegments_getsetters[] = {
     { .name = "num_segments",
-        .get = (getter) IbdSegments_get_num_segments,
+        .get = (getter) IdentitySegments_get_num_segments,
         .doc = "The total number of segments in this IBD Result" },
     { .name = "total_span",
-        .get = (getter) IbdSegments_get_total_span,
+        .get = (getter) IdentitySegments_get_total_span,
         .doc = "The sum of (right - left) across all segments" },
     { .name = "num_pairs",
-        .get = (getter) IbdSegments_get_num_pairs,
+        .get = (getter) IdentitySegments_get_num_pairs,
         .doc = "The number of node pairs stored in the result" },
     { NULL } /* Sentinel */
 };
 
-static PyTypeObject IbdSegmentsType = {
+static PyTypeObject IdentitySegmentsType = {
     // clang-format off
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "_tskit.IbdSegments",
-    .tp_basicsize = sizeof(IbdSegments),
-    .tp_dealloc = (destructor) IbdSegments_dealloc,
+    .tp_name = "_tskit.IdentitySegments",
+    .tp_basicsize = sizeof(IdentitySegments),
+    .tp_dealloc = (destructor) IdentitySegments_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_doc = "IbdSegments objects",
-    .tp_methods = IbdSegments_methods,
-    .tp_getset = IbdSegments_getsetters,
-    .tp_init = (initproc) IbdSegments_init,
+    .tp_doc = "IdentitySegments objects",
+    .tp_methods = IdentitySegments_methods,
+    .tp_getset = IdentitySegments_getsetters,
+    .tp_init = (initproc) IdentitySegments_init,
     .tp_new = PyType_GenericNew,
     // clang-format on
 };
@@ -6489,7 +6491,7 @@ TableCollection_ibd_segments_within(
     int err;
     PyObject *ret = NULL;
     PyObject *py_samples = Py_None;
-    IbdSegments *result = NULL;
+    IdentitySegments *result = NULL;
     PyArrayObject *samples_array = NULL;
     int32_t *samples = NULL;
     tsk_size_t num_samples = 0;
@@ -6519,7 +6521,8 @@ TableCollection_ibd_segments_within(
         samples = PyArray_DATA(samples_array);
         num_samples = (tsk_size_t) shape[0];
     }
-    result = (IbdSegments *) PyObject_CallObject((PyObject *) &IbdSegmentsType, NULL);
+    result = (IdentitySegments *) PyObject_CallObject(
+        (PyObject *) &IdentitySegmentsType, NULL);
     if (result == NULL) {
         goto out;
     }
@@ -6531,8 +6534,8 @@ TableCollection_ibd_segments_within(
         options |= TSK_IBD_STORE_SEGMENTS;
     }
 
-    err = tsk_table_collection_ibd_within(self->tables, result->ibd_segments, samples,
-        num_samples, min_length, max_time, options);
+    err = tsk_table_collection_ibd_within(self->tables, result->identity_segments,
+        samples, num_samples, min_length, max_time, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -6555,7 +6558,7 @@ TableCollection_ibd_segments_between(
     PyObject *sample_set_sizes = NULL;
     PyArrayObject *sample_sets_array = NULL;
     PyArrayObject *sample_set_sizes_array = NULL;
-    IbdSegments *result = NULL;
+    IdentitySegments *result = NULL;
     tsk_size_t num_sample_sets;
     double min_length = 0;
     double max_time = DBL_MAX;
@@ -6577,7 +6580,8 @@ TableCollection_ibd_segments_between(
         != 0) {
         goto out;
     }
-    result = (IbdSegments *) PyObject_CallObject((PyObject *) &IbdSegmentsType, NULL);
+    result = (IdentitySegments *) PyObject_CallObject(
+        (PyObject *) &IdentitySegmentsType, NULL);
     if (result == NULL) {
         goto out;
     }
@@ -6589,7 +6593,7 @@ TableCollection_ibd_segments_between(
         options |= TSK_IBD_STORE_SEGMENTS;
     }
 
-    err = tsk_table_collection_ibd_between(self->tables, result->ibd_segments,
+    err = tsk_table_collection_ibd_between(self->tables, result->identity_segments,
         num_sample_sets, (tsk_size_t *) PyArray_DATA(sample_set_sizes_array),
         (tsk_id_t *) PyArray_DATA(sample_sets_array), min_length, max_time, options);
     if (err != 0) {
@@ -11920,19 +11924,20 @@ PyInit__tskit(void)
     Py_INCREF(&LsHmmType);
     PyModule_AddObject(module, "LsHmm", (PyObject *) &LsHmmType);
 
-    /* IbdSegments type */
-    if (PyType_Ready(&IbdSegmentsType) < 0) {
+    /* IdentitySegments type */
+    if (PyType_Ready(&IdentitySegmentsType) < 0) {
         return NULL;
     }
-    Py_INCREF(&IbdSegmentsType);
-    PyModule_AddObject(module, "IbdSegments", (PyObject *) &IbdSegmentsType);
+    Py_INCREF(&IdentitySegmentsType);
+    PyModule_AddObject(module, "IdentitySegments", (PyObject *) &IdentitySegmentsType);
 
-    /* IbdSegmentList type */
-    if (PyType_Ready(&IbdSegmentListType) < 0) {
+    /* IdentitySegmentList type */
+    if (PyType_Ready(&IdentitySegmentListType) < 0) {
         return NULL;
     }
-    Py_INCREF(&IbdSegmentListType);
-    PyModule_AddObject(module, "IbdSegmentList", (PyObject *) &IbdSegmentListType);
+    Py_INCREF(&IdentitySegmentListType);
+    PyModule_AddObject(
+        module, "IdentitySegmentList", (PyObject *) &IdentitySegmentListType);
 
     /* Metadata schemas namedtuple type*/
     if (PyStructSequence_InitType2(&MetadataSchemas, &metadata_schemas_desc) < 0) {
@@ -11959,15 +11964,15 @@ PyInit__tskit(void)
         = PyErr_NewException("_tskit.VersionTooOldError", TskitException, NULL);
     Py_INCREF(TskitVersionTooOldError);
     PyModule_AddObject(module, "VersionTooOldError", TskitVersionTooOldError);
-    TskitIbdPairsNotStoredError
-        = PyErr_NewException("_tskit.IbdPairsNotStoredError", TskitException, NULL);
-    Py_INCREF(TskitIbdPairsNotStoredError);
-    PyModule_AddObject(module, "IbdPairsNotStoredError", TskitIbdPairsNotStoredError);
-    TskitIbdSegmentsNotStoredError
-        = PyErr_NewException("_tskit.IbdSegmentsNotStoredError", TskitException, NULL);
-    Py_INCREF(TskitIbdSegmentsNotStoredError);
+    TskitIdentityPairsNotStoredError
+        = PyErr_NewException("_tskit.IdentityPairsNotStoredError", TskitException, NULL);
     PyModule_AddObject(
-        module, "IbdSegmentsNotStoredError", TskitIbdSegmentsNotStoredError);
+        module, "IdentityPairsNotStoredError", TskitIdentityPairsNotStoredError);
+    TskitIdentitySegmentsNotStoredError = PyErr_NewException(
+        "_tskit.IdentitySegmentsNotStoredError", TskitException, NULL);
+    Py_INCREF(TskitIdentitySegmentsNotStoredError);
+    PyModule_AddObject(
+        module, "IdentitySegmentsNotStoredError", TskitIdentitySegmentsNotStoredError);
 
     PyModule_AddIntConstant(module, "NULL", TSK_NULL);
     PyModule_AddIntConstant(module, "MISSING_DATA", TSK_MISSING_DATA);
