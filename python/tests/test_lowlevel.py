@@ -2167,6 +2167,27 @@ class TestTreeDiffIterator(LowLevelTestCase):
         self.verify_iterator(_tskit.TreeDiffIterator(ts))
 
 
+class TestVariant(LowLevelTestCase):
+    """
+    Tests for the VariantGenerator class.
+    """
+
+    def test_uninitialised_tree_sequence(self):
+        ts = _tskit.TreeSequence()
+        with pytest.raises(ValueError):
+            _tskit.Variant(ts)
+
+    def test_simple(self):
+        ts = self.get_example_tree_sequence()
+        tree = _tskit.Tree(ts)
+        variant = _tskit.Variant(ts)
+        while tree.next():
+            for j in range(tree.get_num_sites()):
+                print(tree, j)
+                variant.decode(tree, j)
+                print(variant.genotypes)
+
+
 class TestVariantGenerator(LowLevelTestCase):
     """
     Tests for the VariantGenerator class.

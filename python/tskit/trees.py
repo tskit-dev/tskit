@@ -4639,6 +4639,15 @@ class TreeSequence:
         for h in H:
             yield h.tobytes().decode("ascii")
 
+    def variants2(self):
+        ll_var = _tskit.Variant(self._ll_tree_sequence)
+        for tree in self.trees():
+            for j, site in enumerate(tree.sites()):
+                ll_var.decode(tree._ll_tree, j)
+                yield Variant(
+                    site, ll_var.alleles, np.array(ll_var.genotypes, dtype=np.int8)
+                )
+
     def variants(
         self,
         *,
