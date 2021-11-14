@@ -26,6 +26,10 @@
   member (which may lead to more concise code). (:user:`jeromekelleher`, :issue:`1796`,
   :pr:`1862`)
 
+- Rename ``tsk_tree_t.left`` and ``tsk_tree_t.right`` members to
+  ``tsk_tree_t.interval.left`` and ``tsk_tree_t.interval.right`` respectively.
+  (:user:`jeromekelleher`, :issue:`1686`, :pr:`1913`)
+
 
 **Features**
 

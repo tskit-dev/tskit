@@ -160,15 +160,19 @@ typedef struct {
      the tree's genomic interval.
      */
     tsk_size_t num_edges;
-
+    /**
+     @brief Left and right coordinates of the genomic interval that this
+     tree covers. The left coordinate is inclusive and the right coordinate
+     exclusive.
+     */
+    struct {
+        double left;
+        double right;
+    } interval;
     tsk_size_t num_nodes;
     tsk_flags_t options;
     tsk_size_t root_threshold;
     const tsk_id_t *samples;
-    /* TODO before documenting this should be change to interval. */
-    /* Left and right physical coordinates of the tree */
-    double left;
-    double right;
     tsk_id_t index;
     /* These are involved in the optional sample tracking; num_samples counts
      * all samples below a give node, and num_tracked_samples counts those

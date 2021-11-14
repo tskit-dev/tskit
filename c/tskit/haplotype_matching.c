@@ -1570,14 +1570,14 @@ tsk_viterbi_matrix_traceback(
         if (ret != 0) {
             goto out;
         }
-        while (tree.left > site.position) {
+        while (tree.interval.left > site.position) {
             ret = tsk_tree_prev(&tree);
             if (ret < 0) {
                 goto out;
             }
         }
-        tsk_bug_assert(tree.left <= site.position);
-        tsk_bug_assert(site.position < tree.right);
+        tsk_bug_assert(tree.interval.left <= site.position);
+        tsk_bug_assert(site.position < tree.interval.right);
 
         /* Fill in the recombination tree */
         rr_record_tmp = rr_record;

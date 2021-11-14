@@ -3504,8 +3504,7 @@ tsk_tree_copy(const tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options)
         ret = TSK_ERR_BAD_PARAM_VALUE;
         goto out;
     }
-    dest->left = self->left;
-    dest->right = self->right;
+    dest->interval = self->interval;
     dest->left_index = self->left_index;
     dest->right_index = self->right_index;
     dest->direction = self->direction;
@@ -3927,8 +3926,8 @@ tsk_tree_check_state(const tsk_tree_t *self)
     }
     for (j = 0; j < self->sites_length; j++) {
         site = self->sites[j];
-        tsk_bug_assert(self->left <= site.position);
-        tsk_bug_assert(site.position < self->right);
+        tsk_bug_assert(self->interval.left <= site.position);
+        tsk_bug_assert(site.position < self->interval.right);
     }
 
     if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
@@ -3966,8 +3965,8 @@ tsk_tree_print_state(const tsk_tree_t *self, FILE *out)
     fprintf(out, "Tree state:\n");
     fprintf(out, "options = %d\n", self->options);
     fprintf(out, "root_threshold = %lld\n", (long long) self->root_threshold);
-    fprintf(out, "left = %f\n", self->left);
-    fprintf(out, "right = %f\n", self->right);
+    fprintf(out, "left = %f\n", self->interval.left);
+    fprintf(out, "right = %f\n", self->interval.right);
     fprintf(out, "index = %lld\n", (long long) self->index);
     fprintf(out, "node\tparent\tlchild\trchild\tlsib\trsib");
     if (self->options & TSK_SAMPLE_LISTS) {
@@ -4205,9 +4204,9 @@ tsk_tree_advance(tsk_tree_t *self, int direction, const double *restrict out_bre
     double x;
 
     if (direction == TSK_DIR_FORWARD) {
-        x = self->right;
+        x = self->interval.right;
     } else {
-        x = self->left;
+        x = self->interval.left;
     }
     while (out >= 0 && out < num_edges && out_breakpoints[out_order[out]] == x) {
         tsk_bug_assert(out < num_edges);
@@ -4225,25 +4224,29 @@ tsk_tree_advance(tsk_tree_t *self, int direction, const double *restrict out_bre
     self->direction = direction;
     self->index = self->index + direction;
     if (direction == TSK_DIR_FORWARD) {
-        self->left = x;
-        self->right = sequence_length;
+        self->interval.left = x;
+        self->interval.right = sequence_length;
         if (out >= 0 && out < num_edges) {
-            self->right = TSK_MIN(self->right, out_breakpoints[out_order[out]]);
+            self->interval.right
+                = TSK_MIN(self->interval.right, out_breakpoints[out_order[out]]);
         }
         if (in >= 0 && in < num_edges) {
-            self->right = TSK_MIN(self->right, in_breakpoints[in_order[in]]);
+            self->interval.right
+                = TSK_MIN(self->interval.right, in_breakpoints[in_order[in]]);
         }
     } else {
-        self->right = x;
-        self->left = 0;
+        self->interval.right = x;
+        self->interval.left = 0;
         if (out >= 0 && out < num_edges) {
-            self->left = TSK_MAX(self->left, out_breakpoints[out_order[out]]);
+            self->interval.left
+                = TSK_MAX(self->interval.left, out_breakpoints[out_order[out]]);
         }
         if (in >= 0 && in < num_edges) {
-            self->left = TSK_MAX(self->left, in_breakpoints[in_order[in]]);
+            self->interval.left
+                = TSK_MAX(self->interval.left, in_breakpoints[in_order[in]]);
         }
     }
-    tsk_bug_assert(self->left < self->right);
+    tsk_bug_assert(self->interval.left < self->interval.right);
     *out_index = out;
     *in_index = in;
     if (tables->sites.num_rows > 0) {
@@ -4260,9 +4263,9 @@ tsk_tree_first(tsk_tree_t *self)
     int ret = 1;
     tsk_table_collection_t *tables = self->tree_sequence->tables;
 
-    self->left = 0;
+    self->interval.left = 0;
     self->index = 0;
-    self->right = tables->sequence_length;
+    self->interval.right = tables->sequence_length;
     self->sites = self->tree_sequence->tree_sites[0];
     self->sites_length = self->tree_sequence->tree_sites_length[0];
 
@@ -4279,7 +4282,7 @@ tsk_tree_first(tsk_tree_t *self)
         self->left_index = 0;
         self->right_index = 0;
         self->direction = TSK_DIR_FORWARD;
-        self->right = 0;
+        self->interval.right = 0;
 
         ret = tsk_tree_advance(self, TSK_DIR_FORWARD, tables->edges.right,
             tables->indexes.edge_removal_order, &self->right_index, tables->edges.left,
@@ -4296,8 +4299,8 @@ tsk_tree_last(tsk_tree_t *self)
     const tsk_treeseq_t *ts = self->tree_sequence;
     const tsk_table_collection_t *tables = ts->tables;
 
-    self->left = 0;
-    self->right = tables->sequence_length;
+    self->interval.left = 0;
+    self->interval.right = tables->sequence_length;
     self->index = 0;
     self->sites = ts->tree_sites[0];
     self->sites_length = ts->tree_sites_length[0];
@@ -4315,8 +4318,8 @@ tsk_tree_last(tsk_tree_t *self)
         self->left_index = (tsk_id_t) tables->edges.num_rows - 1;
         self->right_index = (tsk_id_t) tables->edges.num_rows - 1;
         self->direction = TSK_DIR_REVERSE;
-        self->left = tables->sequence_length;
-        self->right = 0;
+        self->interval.left = tables->sequence_length;
+        self->interval.right = 0;
 
         ret = tsk_tree_advance(self, TSK_DIR_REVERSE, tables->edges.left,
             tables->indexes.edge_insertion_order, &self->left_index, tables->edges.right,
@@ -4367,7 +4370,7 @@ tsk_tree_prev(tsk_tree_t *self)
 static inline bool
 tsk_tree_position_in_interval(const tsk_tree_t *self, double x)
 {
-    return self->left <= x && x < self->right;
+    return self->interval.left <= x && x < self->interval.right;
 }
 
 int TSK_WARN_UNUSED
@@ -4375,8 +4378,8 @@ tsk_tree_seek(tsk_tree_t *self, double x, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
     const double L = tsk_treeseq_get_sequence_length(self->tree_sequence);
-    const double t_l = self->left;
-    const double t_r = self->right;
+    const double t_l = self->interval.left;
+    const double t_r = self->interval.right;
     double distance_left, distance_right;
 
     if (x < 0 || x >= L) {
@@ -4427,8 +4430,8 @@ tsk_tree_clear(tsk_tree_t *self)
     const bool sample_lists = !!(self->options & TSK_SAMPLE_LISTS);
     const tsk_flags_t *flags = self->tree_sequence->tables->nodes.flags;
 
-    self->left = 0;
-    self->right = 0;
+    self->interval.left = 0;
+    self->interval.right = 0;
     self->num_edges = 0;
     self->index = -1;
     /* TODO we should profile this method to see if just doing a single loop over

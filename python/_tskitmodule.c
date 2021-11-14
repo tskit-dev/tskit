@@ -9550,7 +9550,7 @@ Tree_get_left(Tree *self)
     if (Tree_check_state(self) != 0) {
         goto out;
     }
-    ret = Py_BuildValue("d", self->tree->left);
+    ret = Py_BuildValue("d", self->tree->interval.left);
 out:
     return ret;
 }
@@ -9563,7 +9563,7 @@ Tree_get_right(Tree *self)
     if (Tree_check_state(self) != 0) {
         goto out;
     }
-    ret = Py_BuildValue("d", self->tree->right);
+    ret = Py_BuildValue("d", self->tree->interval.right);
 out:
     return ret;
 }
