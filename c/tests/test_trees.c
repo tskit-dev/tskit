@@ -42,8 +42,8 @@ check_trees_equal(tsk_tree_t *self, tsk_tree_t *other)
 
     CU_ASSERT_FATAL(self->tree_sequence == other->tree_sequence);
     CU_ASSERT_FATAL(self->index == other->index);
-    CU_ASSERT_FATAL(self->left == other->left);
-    CU_ASSERT_FATAL(self->right == other->right);
+    CU_ASSERT_FATAL(self->interval.left == other->interval.left);
+    CU_ASSERT_FATAL(self->interval.right == other->interval.right);
     CU_ASSERT_FATAL(self->sites_length == other->sites_length);
     CU_ASSERT_FATAL(self->sites == other->sites);
     CU_ASSERT_FATAL(self->samples == other->samples);
@@ -202,7 +202,7 @@ verify_trees(tsk_treeseq_t *ts, tsk_size_t num_trees, tsk_id_t *parents)
         CU_ASSERT_EQUAL(j, (tsk_id_t) tree.index);
         tsk_tree_print_state(&tree, _devnull);
         /* tsk_tree_print_state(&tree, stdout); */
-        CU_ASSERT_EQUAL(tree.left, breakpoints[j]);
+        CU_ASSERT_EQUAL(tree.interval.left, breakpoints[j]);
         num_edges = 0;
         for (u = 0; u < (tsk_id_t) num_nodes; u++) {
             ret = tsk_tree_get_parent(&tree, u, &v);
@@ -253,8 +253,8 @@ get_tree_list(tsk_treeseq_t *ts)
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         check_trees_equal(&trees[t.index], &t);
         /* Make sure the left and right coordinates are also OK */
-        CU_ASSERT_EQUAL(trees[t.index].left, t.left);
-        CU_ASSERT_EQUAL(trees[t.index].right, t.right);
+        CU_ASSERT_EQUAL(trees[t.index].interval.left, t.interval.left);
+        CU_ASSERT_EQUAL(trees[t.index].interval.right, t.interval.right);
     }
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_tree_free(&t);
@@ -445,8 +445,8 @@ verify_tree_diffs(tsk_treeseq_t *ts, tsk_flags_t options)
             for (j = 0; j < num_nodes; j++) {
                 CU_ASSERT_EQUAL(parent[j], tree.parent[j]);
             }
-            CU_ASSERT_EQUAL(tree.left, lft);
-            CU_ASSERT_EQUAL(tree.right, rgt);
+            CU_ASSERT_EQUAL(tree.interval.left, lft);
+            CU_ASSERT_EQUAL(tree.interval.right, rgt);
             valid_tree = tsk_tree_next(&tree);
             if (num_trees < tsk_treeseq_get_num_trees(ts)) {
                 CU_ASSERT_EQUAL(valid_tree, 1);
@@ -600,7 +600,7 @@ verify_simplify_properties(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
 
     total_sites = 0;
     while (1) {
-        while (full_tree.right <= subset_tree.right) {
+        while (full_tree.interval.right <= subset_tree.interval.right) {
             for (j = 0; j < num_samples; j++) {
                 for (k = j + 1; k < num_samples; k++) {
                     ret = tsk_tree_get_mrca(&full_tree, samples[j], samples[k], &mrca1);
@@ -626,8 +626,8 @@ verify_simplify_properties(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
         CU_ASSERT_EQUAL_FATAL(ret, 0);
 
         for (j = 0; j < tree_sites_length; j++) {
-            CU_ASSERT(subset_tree.left <= tree_sites[j].position);
-            CU_ASSERT(tree_sites[j].position < subset_tree.right);
+            CU_ASSERT(subset_tree.interval.left <= tree_sites[j].position);
+            CU_ASSERT(tree_sites[j].position < subset_tree.interval.right);
             for (k = 0; k < tree_sites[j].mutations_length; k++) {
                 ret = tsk_tree_get_parent(
                     &subset_tree, tree_sites[j].mutations[k].node, &u);
@@ -5851,8 +5851,8 @@ test_empty_tree_kc(void)
     ret = tsk_tree_first(&t);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
     CU_ASSERT_EQUAL_FATAL(tsk_tree_get_left_root(&t), TSK_NULL);
-    CU_ASSERT_EQUAL_FATAL(t.left, 0);
-    CU_ASSERT_EQUAL_FATAL(t.right, 1);
+    CU_ASSERT_EQUAL_FATAL(t.interval.left, 0);
+    CU_ASSERT_EQUAL_FATAL(t.interval.right, 1);
     CU_ASSERT_EQUAL_FATAL(t.parent[0], TSK_NULL);
     CU_ASSERT_EQUAL_FATAL(t.left_child[0], TSK_NULL);
     CU_ASSERT_EQUAL_FATAL(t.right_child[0], TSK_NULL);
@@ -6717,8 +6717,8 @@ test_empty_tree_sequence(void)
     ret = tsk_tree_first(&t);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
     CU_ASSERT_EQUAL_FATAL(tsk_tree_get_left_root(&t), TSK_NULL);
-    CU_ASSERT_EQUAL_FATAL(t.left, 0);
-    CU_ASSERT_EQUAL_FATAL(t.right, 1);
+    CU_ASSERT_EQUAL_FATAL(t.interval.left, 0);
+    CU_ASSERT_EQUAL_FATAL(t.interval.right, 1);
     CU_ASSERT_EQUAL_FATAL(t.num_edges, 0);
     CU_ASSERT_EQUAL_FATAL(tsk_tree_get_parent(&t, 0, &v), 0);
     CU_ASSERT_EQUAL_FATAL(v, TSK_NULL);
@@ -6730,8 +6730,8 @@ test_empty_tree_sequence(void)
     ret = tsk_tree_last(&t);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
     CU_ASSERT_EQUAL_FATAL(tsk_tree_get_left_root(&t), TSK_NULL);
-    CU_ASSERT_EQUAL_FATAL(t.left, 0);
-    CU_ASSERT_EQUAL_FATAL(t.right, 1);
+    CU_ASSERT_EQUAL_FATAL(t.interval.left, 0);
+    CU_ASSERT_EQUAL_FATAL(t.interval.right, 1);
     CU_ASSERT_EQUAL_FATAL(tsk_tree_get_parent(&t, 1, &v), TSK_ERR_NODE_OUT_OF_BOUNDS);
     tsk_tree_free(&t);
 
@@ -6774,8 +6774,8 @@ test_zero_edges(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_tree_first(&t);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(t.left, 0);
-    CU_ASSERT_EQUAL(t.right, 2);
+    CU_ASSERT_EQUAL(t.interval.left, 0);
+    CU_ASSERT_EQUAL(t.interval.right, 2);
     CU_ASSERT_EQUAL(t.num_edges, 0);
     CU_ASSERT_EQUAL(t.parent[0], TSK_NULL);
     CU_ASSERT_EQUAL(t.parent[1], TSK_NULL);
@@ -6789,8 +6789,8 @@ test_zero_edges(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_tree_last(&t);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(t.left, 0);
-    CU_ASSERT_EQUAL(t.right, 2);
+    CU_ASSERT_EQUAL(t.interval.left, 0);
+    CU_ASSERT_EQUAL(t.interval.right, 2);
     CU_ASSERT_EQUAL(t.parent[0], TSK_NULL);
     CU_ASSERT_EQUAL(t.parent[1], TSK_NULL);
     CU_ASSERT_EQUAL(tsk_tree_get_left_root(&t), 0);
