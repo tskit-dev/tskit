@@ -565,7 +565,7 @@ typedef struct {
     /** @brief The metadata schema */
     char *metadata_schema;
     tsk_size_t metadata_schema_length;
-    tsk_reference_sequence_t reference_sequence;
+    tsk_reference_sequence_t *reference_sequence;
     /** @brief The individual table */
     tsk_individual_table_t individuals;
     /** @brief The node table */
@@ -4116,6 +4116,7 @@ int tsk_table_collection_compute_mutation_parents(
 int tsk_table_collection_compute_mutation_times(
     tsk_table_collection_t *self, double *random, tsk_flags_t TSK_UNUSED(options));
 
+int tsk_reference_sequence_free(tsk_reference_sequence_t *self);
 int tsk_reference_sequence_set_data(tsk_reference_sequence_t *self,
     const char *reference_sequence, tsk_size_t reference_sequence_length);
 int tsk_reference_sequence_set_url(tsk_reference_sequence_t *self,

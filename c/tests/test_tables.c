@@ -346,39 +346,48 @@ test_table_collection_reference_sequence(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
 
+    tc1.reference_sequence = tsk_malloc(sizeof(tsk_reference_sequence_t));
+    CU_ASSERT_NOT_EQUAL_FATAL(tc1.reference_sequence, NULL);
+    tsk_memset(tc1.reference_sequence, 0, sizeof(tsk_reference_sequence_t));
+
     ret = tsk_reference_sequence_set_data(
-        &tc1.reference_sequence, example_data, example_data_length);
+        tc1.reference_sequence, example_data, example_data_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_table_collection_equals(&tc1, &tc2, 0));
+
+    tc2.reference_sequence = tsk_malloc(sizeof(tsk_reference_sequence_t));
+    CU_ASSERT_NOT_EQUAL_FATAL(tc2.reference_sequence, NULL);
+    tsk_memset(tc2.reference_sequence, 0, sizeof(tsk_reference_sequence_t));
+
     ret = tsk_reference_sequence_set_data(
-        &tc2.reference_sequence, example_data, example_data_length);
+        tc2.reference_sequence, example_data, example_data_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
 
     ret = tsk_reference_sequence_set_url(
-        &tc1.reference_sequence, example_url, example_url_length);
+        tc1.reference_sequence, example_url, example_url_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_table_collection_equals(&tc1, &tc2, 0));
     ret = tsk_reference_sequence_set_url(
-        &tc2.reference_sequence, example_url, example_url_length);
+        tc2.reference_sequence, example_url, example_url_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
 
     ret = tsk_reference_sequence_set_metadata(
-        &tc1.reference_sequence, example_metadata, example_metadata_length);
+        tc1.reference_sequence, example_metadata, example_metadata_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_table_collection_equals(&tc1, &tc2, 0));
     ret = tsk_reference_sequence_set_metadata(
-        &tc2.reference_sequence, example_metadata, example_metadata_length);
+        tc2.reference_sequence, example_metadata, example_metadata_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
 
     ret = tsk_reference_sequence_set_metadata_schema(
-        &tc1.reference_sequence, example_schema, example_schema_length);
+        tc1.reference_sequence, example_schema, example_schema_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_table_collection_equals(&tc1, &tc2, 0));
     ret = tsk_reference_sequence_set_metadata_schema(
-        &tc2.reference_sequence, example_schema, example_schema_length);
+        tc2.reference_sequence, example_schema, example_schema_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
 
@@ -388,29 +397,33 @@ test_table_collection_reference_sequence(void)
     ret = tsk_table_collection_init(&tc1, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
+    tc1.reference_sequence = tsk_malloc(sizeof(tsk_reference_sequence_t));
+    CU_ASSERT_NOT_EQUAL_FATAL(tc1.reference_sequence, NULL);
+    tsk_memset(tc1.reference_sequence, 0, sizeof(tsk_reference_sequence_t));
+
     ret = tsk_reference_sequence_set_data(
-        &tc1.reference_sequence, example_data, example_data_length);
+        tc1.reference_sequence, example_data, example_data_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_copy(&tc1, &tc2, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
 
     ret = tsk_reference_sequence_set_url(
-        &tc1.reference_sequence, example_url, example_url_length);
+        tc1.reference_sequence, example_url, example_url_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_copy(&tc1, &tc2, TSK_NO_INIT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
 
     ret = tsk_reference_sequence_set_metadata(
-        &tc1.reference_sequence, example_metadata, example_metadata_length);
+        tc1.reference_sequence, example_metadata, example_metadata_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_copy(&tc1, &tc2, TSK_NO_INIT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
 
     ret = tsk_reference_sequence_set_metadata_schema(
-        &tc1.reference_sequence, example_schema, example_schema_length);
+        tc1.reference_sequence, example_schema, example_schema_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_copy(&tc1, &tc2, TSK_NO_INIT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -422,17 +435,22 @@ test_table_collection_reference_sequence(void)
     ret = tsk_table_collection_init(&tc1, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tc1.sequence_length = 1.0;
+
+    tc1.reference_sequence = tsk_malloc(sizeof(tsk_reference_sequence_t));
+    CU_ASSERT_NOT_EQUAL_FATAL(tc1.reference_sequence, NULL);
+    tsk_memset(tc1.reference_sequence, 0, sizeof(tsk_reference_sequence_t));
+
     ret = tsk_reference_sequence_set_data(
-        &tc1.reference_sequence, example_data, example_data_length);
+        tc1.reference_sequence, example_data, example_data_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_reference_sequence_set_url(
-        &tc1.reference_sequence, example_url, example_url_length);
+        tc1.reference_sequence, example_url, example_url_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_reference_sequence_set_metadata(
-        &tc1.reference_sequence, example_metadata, example_metadata_length);
+        tc1.reference_sequence, example_metadata, example_metadata_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_reference_sequence_set_metadata_schema(
-        &tc1.reference_sequence, example_schema, example_schema_length);
+        tc1.reference_sequence, example_schema, example_schema_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_dump(&tc1, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
