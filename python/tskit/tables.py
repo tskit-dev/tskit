@@ -3228,10 +3228,6 @@ class TableCollection:
         The ``parent`` of a given mutation is the ID of the next mutation
         encountered traversing the tree upwards from that mutation, or
         ``NULL`` if there is no such mutation.
-
-        .. note:: note: This method does not check that all mutations result
-            in a change of state, as required; see :ref:`sec_mutation_requirements`.
-
         """
         self._ll_tables.compute_mutation_parents()
         # TODO add provenance
