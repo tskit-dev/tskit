@@ -2557,6 +2557,7 @@ class TableCollection:
 
     def __init__(self, sequence_length=0):
         self._ll_tables = _tskit.TableCollection(sequence_length)
+        self.reference_sequence = None
 
     @property
     def individuals(self):

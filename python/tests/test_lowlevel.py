@@ -3247,6 +3247,38 @@ class TestMetadataSchemaNamedTuple(MetadataTestMixin):
         assert metadata_schemas != metadata_schemas3
 
 
+class TestReferenceSequence:
+    def test_ref_seq(self):
+        tc = tskit.TableCollection(1)
+        ll_tc = tc._ll_tables
+        assert ll_tc.reference_sequence is None
+
+        ref_dict = {
+            "data": "An example data string 🎄🌳🌴🌲🎋",
+            "url": "An example url string🎄🌳🌴🌲🎋",
+            "metadata": "An example metadata string 🎄🌳🌴🌲🎋",
+            "metadata_schema": "An example metadata_schema string 🎄🌳🌴🌲🎋",
+        }
+        ll_tc.reference_sequence = ref_dict
+        assert ll_tc.reference_sequence == ref_dict
+
+        del ll_tc.reference_sequence
+        assert ll_tc.reference_sequence is None
+
+        ref_dict["data"] = 5
+        with pytest.raises(TypeError):
+            ll_tc.reference_sequence = ref_dict
+        ref_dict["data"] = {}
+        with pytest.raises(TypeError):
+            ll_tc.reference_sequence = ref_dict
+        ref_dict["data"] = []
+        with pytest.raises(TypeError):
+            ll_tc.reference_sequence = ref_dict
+        del ref_dict["data"]
+        with pytest.raises(TypeError):
+            ll_tc.reference_sequence = ref_dict
+
+
 class TestModuleFunctions:
     """
     Tests for the module level functions.

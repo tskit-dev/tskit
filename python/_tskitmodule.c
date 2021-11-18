@@ -6861,6 +6861,187 @@ out:
 }
 
 static PyObject *
+TableCollection_get_reference_sequence(TableCollection *self, void *closure)
+{
+    PyObject *ret = NULL;
+    PyObject *ref_dict = NULL;
+    PyObject *data = NULL;
+    PyObject *url = NULL;
+    PyObject *metadata = NULL;
+    PyObject *metadata_schema = NULL;
+
+    if (TableCollection_check_state(self) != 0) {
+        goto out;
+    }
+
+    if (self->tables->reference_sequence != NULL) {
+        ref_dict = PyDict_New();
+        if (ref_dict == NULL) {
+            goto out;
+        }
+
+        data
+            = make_Py_Unicode_FromStringAndLength(self->tables->reference_sequence->data,
+                self->tables->reference_sequence->data_length);
+        if (data == NULL) {
+            goto out;
+        }
+        url = make_Py_Unicode_FromStringAndLength(self->tables->reference_sequence->url,
+            self->tables->reference_sequence->url_length);
+        if (url == NULL) {
+            goto out;
+        }
+        metadata = make_Py_Unicode_FromStringAndLength(
+            self->tables->reference_sequence->metadata,
+            self->tables->reference_sequence->metadata_length);
+        if (metadata == NULL) {
+            goto out;
+        }
+        metadata_schema = make_Py_Unicode_FromStringAndLength(
+            self->tables->reference_sequence->metadata_schema,
+            self->tables->reference_sequence->metadata_schema_length);
+        if (metadata_schema == NULL) {
+            goto out;
+        }
+
+        if (PyDict_SetItemString(ref_dict, "data", data) != 0) {
+            goto out;
+        }
+        if (PyDict_SetItemString(ref_dict, "url", url) != 0) {
+            goto out;
+        }
+        if (PyDict_SetItemString(ref_dict, "metadata", metadata) != 0) {
+            goto out;
+        }
+        if (PyDict_SetItemString(ref_dict, "metadata_schema", metadata_schema) != 0) {
+            goto out;
+        }
+        ret = ref_dict;
+        ref_dict = NULL;
+
+    } else {
+        ret = Py_BuildValue("");
+    }
+
+out:
+    Py_XDECREF(ref_dict);
+    Py_XDECREF(data);
+    Py_XDECREF(url);
+    Py_XDECREF(metadata);
+    Py_XDECREF(metadata_schema);
+    return ret;
+}
+
+static int
+TableCollection_set_reference_sequence(
+    TableCollection *self, PyObject *dict, void *closure)
+{
+    int err;
+    int ret = -1;
+    Py_ssize_t data_length, url_length, metadata_length, metadata_schema_length;
+    PyObject *data_input = NULL;
+    const char *data = NULL;
+    PyObject *url_input = NULL;
+    const char *url = NULL;
+    PyObject *metadata_input = NULL;
+    const char *metadata = NULL;
+    PyObject *metadata_schema_input = NULL;
+    const char *metadata_schema = NULL;
+
+    if (TableCollection_check_state(self) != 0) {
+        goto out;
+    }
+
+    tsk_reference_sequence_free(self->tables->reference_sequence);
+    self->tables->reference_sequence = NULL;
+    if (dict != NULL) {
+        self->tables->reference_sequence = tsk_malloc(sizeof(tsk_reference_sequence_t));
+        if (self->tables->reference_sequence == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+        tsk_memset(
+            self->tables->reference_sequence, 0, sizeof(tsk_reference_sequence_t));
+
+        /* Get the input values */
+        data_input = get_table_dict_value(dict, "data", true);
+        if (data_input == NULL) {
+            goto out;
+        }
+
+        if (data_input != Py_None) {
+            data = parse_unicode_arg(data_input, &data_length);
+            if (data == NULL) {
+                goto out;
+            }
+            err = tsk_reference_sequence_set_data(
+                self->tables->reference_sequence, data, data_length);
+            if (err != 0) {
+                handle_tskit_error(err);
+                goto out;
+            }
+        }
+        url_input = get_table_dict_value(dict, "url", true);
+        if (url_input == NULL) {
+            goto out;
+        }
+
+        if (url_input != Py_None) {
+            url = parse_unicode_arg(url_input, &url_length);
+            if (url == NULL) {
+                goto out;
+            }
+            err = tsk_reference_sequence_set_url(
+                self->tables->reference_sequence, url, url_length);
+            if (err != 0) {
+                handle_tskit_error(err);
+                goto out;
+            }
+        }
+        metadata_input = get_table_dict_value(dict, "metadata", true);
+        if (metadata_input == NULL) {
+            goto out;
+        }
+
+        if (metadata_input != Py_None) {
+            metadata = parse_unicode_arg(metadata_input, &metadata_length);
+            if (metadata == NULL) {
+                goto out;
+            }
+            err = tsk_reference_sequence_set_metadata(
+                self->tables->reference_sequence, metadata, metadata_length);
+            if (err != 0) {
+                handle_tskit_error(err);
+                goto out;
+            }
+        }
+        metadata_schema_input = get_table_dict_value(dict, "metadata_schema", true);
+        if (metadata_schema_input == NULL) {
+            goto out;
+        }
+
+        if (metadata_schema_input != Py_None) {
+            metadata_schema
+                = parse_unicode_arg(metadata_schema_input, &metadata_schema_length);
+            if (metadata_schema == NULL) {
+                goto out;
+            }
+            err = tsk_reference_sequence_set_metadata_schema(
+                self->tables->reference_sequence, metadata_schema,
+                metadata_schema_length);
+            if (err != 0) {
+                handle_tskit_error(err);
+                goto out;
+            }
+        }
+    }
+
+    ret = 0;
+out:
+    return ret;
+}
+
+static PyObject *
 TableCollection_equals(TableCollection *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
@@ -7105,6 +7286,11 @@ static PyGetSetDef TableCollection_getsetters[] = {
         .get = (getter) TableCollection_get_metadata_schema,
         .set = (setter) TableCollection_set_metadata_schema,
         .doc = "The metadata schema." },
+    { .name = "reference_sequence",
+        .get = (getter) TableCollection_get_reference_sequence,
+        .set = (setter) TableCollection_set_reference_sequence,
+        .doc = "The reference sequence." },
+
     { NULL } /* Sentinel */
 };
 
