@@ -621,7 +621,7 @@ class MetadataSchema:
             # does not.
             schema = codec_cls.modify_schema(schema)
             codec_instance = codec_cls(schema)
-            self._string = tskit.canonical_json(schema)
+            self._string = tskit.util.canonical_json(schema)
             self._validate_row = TSKITMetadataSchemaValidator(schema).validate
             self.encode_row = codec_instance.encode
             self.decode_row = codec_instance.decode

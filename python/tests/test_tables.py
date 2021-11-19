@@ -4942,3 +4942,13 @@ class TestTableSetitemMetadata:
             assert table[0].metadata != table[1].metadata
             table[0] = table[1]
             assert table[0] == table[1]
+
+
+class TestReferenceSequence:
+    def test_reference_sequence(self):
+        tc = tskit.TableCollection(1)
+        assert tc.reference_sequence is None
+        tc.reference_sequence = tskit.ReferenceSequence(
+            data="An example data string 🎄🌳🌴🌲🎋"
+        )
+        assert tc.reference_sequence.data == "An example data string 🎄🌳🌴🌲🎋"

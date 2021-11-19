@@ -61,6 +61,20 @@ class NOTSET(metaclass=NotSetMeta):
     pass
 
 
+class ReferenceSequence:
+    def __init__(
+        self,
+        data="",
+        url="",
+        metadata=None,
+        metadata_schema=None,
+    ):
+        self.data = data
+        self.url = url
+        self.metadata = metadata
+        self.metadata_schema = metadata_schema
+
+
 @metadata.lazy_decode
 @dataclass(**dataclass_options)
 class IndividualTableRow(util.Dataclass):
@@ -2557,7 +2571,6 @@ class TableCollection:
 
     def __init__(self, sequence_length=0):
         self._ll_tables = _tskit.TableCollection(sequence_length)
-        self.reference_sequence = None
 
     @property
     def individuals(self):
@@ -2637,6 +2650,36 @@ class TableCollection:
         self._ll_tables.metadata = self.metadata_schema.validate_and_encode_row(
             metadata
         )
+
+    @property
+    def reference_sequence(self):
+        ref_dict = self._ll_tables.reference_sequence
+        if ref_dict is not None:
+            schema = metadata.parse_metadata_schema(ref_dict["metadata_schema"])
+            md = schema.decode_row(ref_dict["metadata"])
+            return ReferenceSequence(
+                data=ref_dict["data"], url=ref_dict["url"], metadata=md, schema=schema
+            )
+        else:
+            return None
+
+    @reference_sequence.setter
+    def reference_sequence(self, reference_sequence: ReferenceSequence):
+        ref_dict = {}
+        ref_dict["data"] = reference_sequence.data
+        ref_dict["url"] = reference_sequence.url
+        ref_dict["metadata_schema"] = repr(reference_sequence.metadata_schema)
+        ref_dict[
+            "metadata"
+        ] = reference_sequence.metadata_schema.validate_and_encode_row(
+            reference_sequence.metadata
+        )
+
+        self._ll_tables.reference_sequence = ref_dict
+
+    @reference_sequence.deleter
+    def reference_sequence(self):
+        del self._ll_tables.reference_sequence
 
     @property
     def metadata_bytes(self) -> Any:
