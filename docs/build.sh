@@ -6,7 +6,7 @@
 
 REPORTDIR=${BUILDDIR}/html/reports
 
-jupyter-book build -W --keep-going .
+jupyter-book build -Wn --keep-going .
 RETVAL=$?
 if [ $RETVAL -ne 0 ]; then
     if [ -e $REPORTDIR ]; then

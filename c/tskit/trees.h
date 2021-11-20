@@ -160,7 +160,8 @@ typedef struct {
      the tree's genomic interval.
      */
     tsk_size_t num_edges;
-    /**
+    /* FIXME Undocumenting this for now to resolve some sphinx/doxygen issues */
+    /*
      @brief Left and right coordinates of the genomic interval that this
      tree covers. The left coordinate is inclusive and the right coordinate
      exclusive.

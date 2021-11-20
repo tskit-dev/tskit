@@ -1,14 +1,13 @@
 breathe==4.31.0
 autodocsumm==0.2.7
-jupyter-book==0.12.0
+jupyter-book==0.12.1
 jupyter-sphinx==0.3.2
 h5py==3.5.0
 jsonschema==3.2.0
 msprime==1.0.0
 numpy==1.21.3
 PyGithub==1.55
-sphinx==4.0.1
+sphinx==4.3.0
 sphinx-argparse==0.3.1
 sphinx-issues==1.2.0
-sphinx_rtd_theme==1.0.0
 svgwrite==1.4.1
