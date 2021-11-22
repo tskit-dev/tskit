@@ -38,7 +38,6 @@ sequences, for example using {func}`tskit.load`.
 ```{eval-rst}
 .. autoclass:: TreeSequence()
     :members:
-    :autosummary:
 ```
 
 
@@ -54,7 +53,6 @@ about particular nodes in the tree.
 ```{eval-rst}
 .. autoclass:: Tree()
     :members:
-    :autosummary:
 ```
 
 ### Simple container classes
@@ -163,9 +161,8 @@ equivalent table collection method, acting on a copy of the tree sequence's tabl
 collection.
 
 ```{eval-rst}
-.. autoclass:: TableCollection(sequence_length=0)
+.. autoclass:: tskit.TableCollection(sequence_length=0)
     :members:
-    :autosummary:
 ```
 
 (sec_tables_api_tables)=
@@ -356,7 +353,7 @@ store and retrieve raw `bytes`. (See {ref}`sec_metadata` for details):
 Below, we add two rows to a {class}`NodeTable`, with different
 {ref}`metadata <sec_metadata_definition>`. The first row contains a simple
 byte string, and the second contains a Python dictionary serialised using
-{mod}`pickle`. 
+{mod}`pickle`.
 
 ```{code-cell} ipython3
 t = tskit.NodeTable()
