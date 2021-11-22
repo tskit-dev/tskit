@@ -179,8 +179,6 @@ read_table_ragged_cols(kastore_t *store, tsk_size_t *num_rows,
     tsk_size_t *offset_array;
 
     for (col = cols; col->name != NULL; col++) {
-        data_col_present = false;
-        offset_col_present = false;
         ret = kastore_containss(store, col->name);
         if (ret < 0) {
             ret = tsk_set_kas_error(ret);
