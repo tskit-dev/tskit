@@ -9588,7 +9588,6 @@ tsk_table_collection_check_tree_integrity(const tsk_table_collection_t *self)
     tsk_memset(parent, 0xff, self->nodes.num_rows * sizeof(*parent));
 
     tree_left = 0;
-    tree_right = sequence_length;
     num_trees = 0;
     j = 0;
     k = 0;
