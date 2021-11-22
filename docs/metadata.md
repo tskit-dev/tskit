@@ -18,43 +18,46 @@ kernelspec:
 
 # Metadata
 
-The tree-sequence and every entity within it (nodes, mutations, edges,  etc.) can have
-metadata associated with them. This is intended for storing and passing on information
-that tskit itself does not use or interpret. For example information derived from a VCF
-INFO field, or administrative information (such as unique identifiers) relating to
-samples and populations. Note that provenance information about how a tree sequence
-was created should not be stored in metadata, instead the provenance mechanisms in
-tskit should be used (see {ref}`sec_provenance`).
+The tree-sequence and all the entities within it (nodes, mutations, edges,  etc.) can
+have metadata associated with them. This is intended for storing and passing on
+information that tskit itself does not use or interpret, for example information derived
+from a VCF INFO field, or administrative information (such as unique identifiers)
+relating to samples and populations. Note that provenance information about how a tree
+sequence was created should not be stored in metadata, instead the provenance mechanisms
+in tskit should be used (see {ref}`sec_provenance`).
 
-The metadata for each entity (i.e. row in a table) is described by a schema for each
-entity type (i.e. table). The purpose of the schema is to say what information is stored
-in each metadata record, and how it is to be encoded.
-In this way every node's metadata follows the node schema,
-every mutation the mutation schema etc. Typically these schemas are defined by the software
-which created the tree-sequence file, as the exact metadata
-stored will vary depending on the use case. Subsequent processes can add or modify the schemas
-if they wish to add or modify to the types (or encoding) of the metadata. Most users of tree-sequence
-files will not need to modify the schemas.
+The metadata for each entity (e.g. row in a table) is described by a schema for each
+entity type (e.g. table). The schemas allow the tskit Python API to encode and decode
+metadata automatically and, most importantly, tells downstream users and tools how to
+decode and interpret the metadata. For example, the `msprime` schema for populations
+requires both a `name` and a `description` for each defined population: these names and
+descriptions can assist downstream users in understanding and using `msprime` tree
+sequences. It is best practice to populate such metadata fields if your files will be
+used by any third party, or if you wish to remember what the rows refer to some time
+after making the file!
 
-The schemas allow the tskit Python API to encode and decode metadata automatically and, most importantly,
-tells downstream users and tools how to decode and interpret the metadata. The schemas
-are in the form of a
-[JSON Schema](http://json-schema.org/). A good guide to JSON Schema is at
-[Understanding JSON Schema](https://json-schema.org/understanding-json-schema/).
+Technically, schemas describe what information is stored in each metadata record, and
+how it is to be encoded, plus some optional rules about the types and ranges of data
+that can be stored. Every node's metadata follows the node schema, every mutation's
+metadata the mutation schema, and so on. Most users of tree-sequence files will not
+need to modify the schemas: typically, as in the example of `msprime` above, schemas are
+defined by the software which created the tree-sequence file. The exact metadata stored
+depends on the use case; it is also possible for subsequent processes to add or modify
+the schemas, if they wish to add to or modify the types (or encoding) of the metadata.
 
-The metadata schema must specify an object with properties,
+The metadata schemas are in the form of a
+[JSON Schema](http://json-schema.org/) (a good guide to JSON Schema is at
+[Understanding JSON Schema](https://json-schema.org/understanding-json-schema/)). The
+schema must specify an object with properties,
 the keys and types of those properties are specified along with optional
 long-form names, descriptions and validations such as min/max or regex matching for
-strings. See {ref}`sec_metadata_example` below. Names and descriptions can assist
-downstream users in understanding and using the metadata. It is best practise to
-populate these fields if your files will be used by any third party, or if you wish to
-remember what they were some time after making the file!
+strings, see the {ref}`sec_metadata_example` below. 
 
 The {ref}`sec_tutorial_metadata` Tutorial shows how to use schemas and access metadata
 in the tskit Python API.
 
-Note that the C API simply provides byte-array binary access to the metadata and
-leaves encoding and decoding to the user. The same can be achieved with the Python
+Note that the C API simply provides byte-array binary access to the metadata,
+leaving the encoding and decoding to the user. The same can be achieved with the Python
 API, see {ref}`sec_tutorial_metadata_binary`.
 
 (sec_metadata_codecs)=
