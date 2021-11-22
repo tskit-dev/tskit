@@ -8737,7 +8737,7 @@ simplifier_output_sites(simplifier_t *self)
     tsk_id_t input_mutation, mapped_parent, site_start, site_end;
     tsk_id_t num_input_sites = (tsk_id_t) self->input_tables.sites.num_rows;
     tsk_id_t num_input_mutations = (tsk_id_t) self->input_tables.mutations.num_rows;
-    tsk_id_t input_parent, num_output_mutations, num_output_site_mutations;
+    tsk_id_t num_output_mutations, num_output_site_mutations;
     tsk_id_t mapped_node;
     bool keep_site;
     bool filter_sites = !!(self->options & TSK_FILTER_SITES);
@@ -8755,11 +8755,6 @@ simplifier_output_sites(simplifier_t *self)
                && self->input_tables.mutations.site[input_mutation] == site.id) {
             mapped_node = self->mutation_node_map[input_mutation];
             if (mapped_node != TSK_NULL) {
-                input_parent = self->input_tables.mutations.parent[input_mutation];
-                mapped_parent = TSK_NULL;
-                if (input_parent != TSK_NULL) {
-                    mapped_parent = self->mutation_id_map[input_parent];
-                }
                 self->mutation_id_map[input_mutation] = num_output_mutations;
                 num_output_mutations++;
                 num_output_site_mutations++;
