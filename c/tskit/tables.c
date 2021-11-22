@@ -279,6 +279,7 @@ read_table_properties(
             ret = kastore_gets(store, property->name, property->array_dest, &len, &type);
             if (ret != 0) {
                 ret = tsk_set_kas_error(ret);
+                assert(ret != 0); /* Tell static analysers that we're handling errors */
                 goto out;
             }
             if (type != property->type) {
