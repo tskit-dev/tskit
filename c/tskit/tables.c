@@ -179,8 +179,6 @@ read_table_ragged_cols(kastore_t *store, tsk_size_t *num_rows,
     tsk_size_t *offset_array;
 
     for (col = cols; col->name != NULL; col++) {
-        data_col_present = false;
-        offset_col_present = false;
         ret = kastore_containss(store, col->name);
         if (ret < 0) {
             ret = tsk_set_kas_error(ret);
@@ -281,6 +279,7 @@ read_table_properties(
             ret = kastore_gets(store, property->name, property->array_dest, &len, &type);
             if (ret != 0) {
                 ret = tsk_set_kas_error(ret);
+                assert(ret != 0); /* Tell static analysers that we're handling errors */
                 goto out;
             }
             if (type != property->type) {
@@ -8739,7 +8738,7 @@ simplifier_output_sites(simplifier_t *self)
     tsk_id_t input_mutation, mapped_parent, site_start, site_end;
     tsk_id_t num_input_sites = (tsk_id_t) self->input_tables.sites.num_rows;
     tsk_id_t num_input_mutations = (tsk_id_t) self->input_tables.mutations.num_rows;
-    tsk_id_t input_parent, num_output_mutations, num_output_site_mutations;
+    tsk_id_t num_output_mutations, num_output_site_mutations;
     tsk_id_t mapped_node;
     bool keep_site;
     bool filter_sites = !!(self->options & TSK_FILTER_SITES);
@@ -8757,11 +8756,6 @@ simplifier_output_sites(simplifier_t *self)
                && self->input_tables.mutations.site[input_mutation] == site.id) {
             mapped_node = self->mutation_node_map[input_mutation];
             if (mapped_node != TSK_NULL) {
-                input_parent = self->input_tables.mutations.parent[input_mutation];
-                mapped_parent = TSK_NULL;
-                if (input_parent != TSK_NULL) {
-                    mapped_parent = self->mutation_id_map[input_parent];
-                }
                 self->mutation_id_map[input_mutation] = num_output_mutations;
                 num_output_mutations++;
                 num_output_site_mutations++;
@@ -9595,7 +9589,6 @@ tsk_table_collection_check_tree_integrity(const tsk_table_collection_t *self)
     tsk_memset(parent, 0xff, self->nodes.num_rows * sizeof(*parent));
 
     tree_left = 0;
-    tree_right = sequence_length;
     num_trees = 0;
     j = 0;
     k = 0;
