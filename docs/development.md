@@ -673,7 +673,6 @@ Vim users may find the
 [vim-clang-format](https://github.com/rhysd/vim-clang-format)
 plugin useful for automatically formatting code.
 
-
 ### Building
 
 We use [meson](https://mesonbuild.com) and [ninja-build](https://ninja-build.org) to
@@ -705,6 +704,32 @@ For vim users, the [mesonic](https://www.vim.org/scripts/script.php?script_id=53
 simplifies this process and allows code to be compiled seamlessly within the
 editor.
 
+(sec_development_c_static_analysis)=
+
+### Static analysis
+
+After running ``ninja -C build``, we can easily run some static analysis tools
+which are useful for detecting bugs (although there is usually a lot of
+false-positive noise also).
+
+We can run [clang-tidy](https://clang.llvm.org/extra/clang-tidy/) like this:
+
+```bash
+$ clang-tidy -p build/compile_commands.json tskit/*.c
+```
+
+We can run [scan-build](https://github.com/rizsotto/scan-build) which also
+generates some HTML reports. First, install from ``pypi``:
+
+```bash
+$ python -m pip install scan-build
+```
+
+Then run
+
+```bash
+$ analyze-build --cdb build/compile_commands.json --exclude tests --exclude subprojects
+```
 
 ### Unit Tests
 
