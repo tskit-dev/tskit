@@ -3721,7 +3721,7 @@ tsk_tree_get_num_roots(const tsk_tree_t *self)
     const tsk_id_t *restrict right_sib = self->right_sib;
     const tsk_id_t *restrict left_child = self->left_child;
     tsk_size_t num_roots = 0;
-    tsk_id_t u = self->left_child[self->virtual_root];
+    tsk_id_t u;
 
     for (u = left_child[self->virtual_root]; u != TSK_NULL; u = right_sib[u]) {
         num_roots++;

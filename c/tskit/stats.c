@@ -132,7 +132,7 @@ out:
 static int
 tsk_ld_calc_compute_r2(tsk_ld_calc_t *self, const tsk_site_t *target_site, double *r2)
 {
-    double n = (double) self->total_samples;
+    const double n = (double) self->total_samples;
     double f_a, f_b, f_ab, D, denom;
     tsk_id_t node;
     int ret = tsk_ld_calc_check_site(self, target_site);
@@ -141,7 +141,6 @@ tsk_ld_calc_compute_r2(tsk_ld_calc_t *self, const tsk_site_t *target_site, doubl
         goto out;
     }
     node = target_site->mutations[0].node;
-    n = (double) self->total_samples;
     f_a = ((double) self->focal_samples) / n;
     f_b = ((double) self->tree.num_samples[node]) / n;
     f_ab = ((double) self->tree.num_tracked_samples[node]) / n;
