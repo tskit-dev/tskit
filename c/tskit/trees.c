@@ -3263,9 +3263,7 @@ tsk_tree_init(tsk_tree_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t 
     if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
         self->num_samples = tsk_calloc(N, sizeof(*self->num_samples));
         self->num_tracked_samples = tsk_calloc(N, sizeof(*self->num_tracked_samples));
-        self->marked = tsk_calloc(N, sizeof(*self->marked));
-        if (self->num_samples == NULL || self->num_tracked_samples == NULL
-            || self->marked == NULL) {
+        if (self->num_samples == NULL || self->num_tracked_samples == NULL) {
             goto out;
         }
     }
@@ -3321,7 +3319,6 @@ tsk_tree_free(tsk_tree_t *self)
     tsk_safe_free(self->right_sib);
     tsk_safe_free(self->num_samples);
     tsk_safe_free(self->num_tracked_samples);
-    tsk_safe_free(self->marked);
     tsk_safe_free(self->left_sample);
     tsk_safe_free(self->right_sample);
     tsk_safe_free(self->next_sample);
@@ -3442,52 +3439,6 @@ out:
     return ret;
 }
 
-/* TODO REMOVE ME */
-int TSK_WARN_UNUSED
-tsk_tree_set_tracked_samples_from_sample_list(
-    tsk_tree_t *self, tsk_tree_t *other, tsk_id_t node)
-{
-    int ret = TSK_ERR_GENERIC;
-    tsk_id_t u, stop, index;
-    const tsk_id_t *next = other->next_sample;
-    const tsk_id_t *samples = other->tree_sequence->samples;
-    tsk_size_t num_tracked_samples = 0;
-
-    if (!tsk_tree_has_sample_lists(other)) {
-        ret = TSK_ERR_UNSUPPORTED_OPERATION;
-        goto out;
-    }
-    /* TODO This is not needed when the tree is new. We should use the
-     * state machine to check and only reset the tracked samples when needed.
-     */
-    ret = tsk_tree_reset_tracked_samples(self);
-    if (ret != 0) {
-        goto out;
-    }
-
-    index = other->left_sample[node];
-    if (index != TSK_NULL) {
-        stop = other->right_sample[node];
-        while (true) {
-            u = samples[index];
-            num_tracked_samples++;
-            tsk_bug_assert(self->num_tracked_samples[u] == 0);
-            /* Propagate this upwards */
-            while (u != TSK_NULL) {
-                self->num_tracked_samples[u] += 1;
-                u = self->parent[u];
-            }
-            if (index == stop) {
-                break;
-            }
-            index = next[index];
-        }
-    }
-    self->num_tracked_samples[self->virtual_root] = num_tracked_samples;
-out:
-    return ret;
-}
-
 int TSK_WARN_UNUSED
 tsk_tree_copy(const tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options)
 {
@@ -3527,7 +3478,6 @@ tsk_tree_copy(const tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options)
         tsk_memcpy(dest->num_samples, self->num_samples, N * sizeof(*self->num_samples));
         tsk_memcpy(dest->num_tracked_samples, self->num_tracked_samples,
             N * sizeof(*self->num_tracked_samples));
-        tsk_memcpy(dest->marked, self->marked, N * sizeof(*self->marked));
     }
     if (dest->options & TSK_SAMPLE_LISTS) {
         if (!(self->options & TSK_SAMPLE_LISTS)) {
@@ -3984,8 +3934,8 @@ tsk_tree_print_state(const tsk_tree_t *self, FILE *out)
                 (long long) self->right_sample[j]);
         }
         if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
-            fprintf(out, "\t%lld\t%lld\t%lld", (long long) self->num_samples[j],
-                (long long) self->num_tracked_samples[j], (long long) self->marked[j]);
+            fprintf(out, "\t%lld\t%lld", (long long) self->num_samples[j],
+                (long long) self->num_tracked_samples[j]);
         }
         fprintf(out, "\n");
     }
@@ -4107,8 +4057,6 @@ tsk_tree_remove_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
     tsk_id_t *restrict parent = self->parent;
     tsk_size_t *restrict num_samples = self->num_samples;
     tsk_size_t *restrict num_tracked_samples = self->num_tracked_samples;
-    uint8_t *restrict marked = self->marked;
-    const uint8_t mark = self->mark;
     const tsk_size_t root_threshold = self->root_threshold;
     tsk_id_t u;
     tsk_id_t path_end = TSK_NULL;
@@ -4126,7 +4074,6 @@ tsk_tree_remove_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
             path_end_was_root = POTENTIAL_ROOT(u);
             num_samples[u] -= num_samples[c];
             num_tracked_samples[u] -= num_tracked_samples[c];
-            marked[u] = mark;
             u = parent[u];
         }
 
@@ -4149,8 +4096,6 @@ tsk_tree_insert_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
     tsk_id_t *restrict parent = self->parent;
     tsk_size_t *restrict num_samples = self->num_samples;
     tsk_size_t *restrict num_tracked_samples = self->num_tracked_samples;
-    uint8_t *restrict marked = self->marked;
-    const uint8_t mark = self->mark;
     const tsk_size_t root_threshold = self->root_threshold;
     tsk_id_t u;
     tsk_id_t path_end = TSK_NULL;
@@ -4165,7 +4110,6 @@ tsk_tree_insert_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
             path_end_was_root = POTENTIAL_ROOT(u);
             num_samples[u] += num_samples[c];
             num_tracked_samples[u] += num_tracked_samples[c];
-            marked[u] = mark;
             u = parent[u];
         }
 
@@ -4445,7 +4389,6 @@ tsk_tree_clear(tsk_tree_t *self)
 
     if (sample_counts) {
         tsk_memset(self->num_samples, 0, N * sizeof(*self->num_samples));
-        tsk_memset(self->marked, 0, N * sizeof(*self->marked));
         /* We can't reset the tracked samples via memset because we don't
          * know where the tracked samples are.
          */

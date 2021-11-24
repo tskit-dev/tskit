@@ -74,7 +74,6 @@ check_trees_identical(tsk_tree_t *self, tsk_tree_t *other)
     CU_ASSERT_EQUAL_FATAL(self->num_samples == NULL, other->num_samples == NULL)
     CU_ASSERT_EQUAL_FATAL(
         self->num_tracked_samples == NULL, other->num_tracked_samples == NULL)
-    CU_ASSERT_EQUAL_FATAL(self->marked == NULL, other->marked == NULL)
     if (self->num_samples != NULL) {
         CU_ASSERT_FATAL(tsk_memcmp(self->num_samples, other->num_samples,
                             N * sizeof(*self->num_samples))
@@ -82,8 +81,6 @@ check_trees_identical(tsk_tree_t *self, tsk_tree_t *other)
         CU_ASSERT_FATAL(tsk_memcmp(self->num_tracked_samples, other->num_tracked_samples,
                             N * sizeof(*self->num_tracked_samples))
                         == 0);
-        CU_ASSERT_FATAL(
-            tsk_memcmp(self->marked, other->marked, N * sizeof(*self->marked)) == 0);
     }
 
     CU_ASSERT_EQUAL_FATAL(self->left_sample == NULL, other->left_sample == NULL)

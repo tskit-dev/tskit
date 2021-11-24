@@ -182,13 +182,6 @@ typedef struct {
      * counts or roots are available. */
     tsk_size_t *num_samples;
     tsk_size_t *num_tracked_samples;
-    /* TODO the only place this feature seems to be used is in the ld_calculator.
-     * when this is being replaced we should come up with a better way of doing
-     * whatever this is being used for. */
-    /* All nodes that are marked during a particular transition are marked
-     * with a given value. */
-    uint8_t *marked;
-    uint8_t mark;
     /* These are for the optional sample list tracking. */
     tsk_id_t *left_sample;
     tsk_id_t *right_sample;
@@ -488,8 +481,6 @@ int tsk_tree_copy(const tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options)
 int tsk_tree_track_descendant_samples(tsk_tree_t *self, tsk_id_t node);
 int tsk_tree_set_tracked_samples(
     tsk_tree_t *self, tsk_size_t num_tracked_samples, const tsk_id_t *tracked_samples);
-int tsk_tree_set_tracked_samples_from_sample_list(
-    tsk_tree_t *self, tsk_tree_t *other, tsk_id_t node);
 
 int tsk_tree_get_branch_length(
     const tsk_tree_t *self, tsk_id_t u, double *branch_length);
