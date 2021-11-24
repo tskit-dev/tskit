@@ -1132,6 +1132,7 @@ update_state(double *X, tsk_size_t state_dim, tsk_id_t dest, tsk_id_t source, in
     }
 }
 
+/*
 static inline int
 update_node_summary(tsk_id_t u, tsk_size_t result_dim, double *node_summary, double *X,
     tsk_size_t state_dim, general_stat_func_t *f, void *f_params)
@@ -1140,13 +1141,37 @@ update_node_summary(tsk_id_t u, tsk_size_t result_dim, double *node_summary, dou
     double *summary_u = GET_2D_ROW(node_summary, result_dim, u);
 
     return f(state_dim, X_u, result_dim, summary_u, f_params);
-}
+} 
+*/
 
-static inline void
+static inline int
+update_node_summary(tsk_id_t u, tsk_size_t result_dim, double *summary_u, double *X,
+    tsk_size_t state_dim, general_stat_func_t *f, void *f_params)
+{
+    double *X_u = GET_2D_ROW(X, state_dim, u);
+    /* double *summary_u = GET_2D_ROW(node_summary, result_dim, u); */
+
+    return f(state_dim, X_u, result_dim, summary_u, f_params);
+} 
+
+/* static inline void
 update_running_sum(tsk_id_t u, double sign, const double *restrict branch_length,
     const double *summary, tsk_size_t result_dim, double *running_sum)
 {
     const double *summary_u = GET_2D_ROW(summary, result_dim, u);
+    const double x = sign * branch_length[u];
+    tsk_size_t m;
+
+    for (m = 0; m < result_dim; m++) {
+        running_sum[m] += x * summary_u[m];
+    }
+}
+*/
+
+static inline void
+update_running_sum(tsk_id_t u, double sign, const double *restrict branch_length, const double *summary_u, tsk_size_t result_dim, double *running_sum)
+{
+    /* const double *summary_u = GET_2D_ROW(summary, result_dim, u); */
     const double x = sign * branch_length[u];
     tsk_size_t m;
 
@@ -1179,9 +1204,11 @@ tsk_treeseq_branch_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
     tsk_id_t tj, tk, h;
     double t_left, t_right, w_left, w_right, left, right, scale;
     const double *weight_u;
-    double *state_u, *result_row, *summary_u;
+    /* double *state_u, *result_row, *summary_u; */
+    double *state_u, *result_row;
     double *state = tsk_calloc(num_nodes * state_dim, sizeof(*state));
-    double *summary = tsk_calloc(num_nodes * result_dim, sizeof(*summary));
+    /* double *summary = tsk_calloc(num_nodes * result_dim, sizeof(*summary)); */
+    double *summary_u = tsk_calloc(result_dim, sizeof(*summary_u));
     double *running_sum = tsk_calloc(result_dim, sizeof(*running_sum));
 
     if (self->time_uncalibrated && !(options & TSK_STAT_ALLOW_TIME_UNCALIBRATED)) {
@@ -1190,7 +1217,7 @@ tsk_treeseq_branch_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
     }
 
     if (parent == NULL || branch_length == NULL || state == NULL || running_sum == NULL
-        || summary == NULL) {
+        || summary_u == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
@@ -1202,7 +1229,7 @@ tsk_treeseq_branch_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
         state_u = GET_2D_ROW(state, state_dim, u);
         weight_u = GET_2D_ROW(sample_weights, state_dim, j);
         tsk_memcpy(state_u, weight_u, state_dim * sizeof(*state_u));
-        summary_u = GET_2D_ROW(summary, result_dim, u);
+        /* summary_u = GET_2D_ROW(summary, result_dim, u); */
         ret = f(state_dim, state_u, result_dim, summary_u, f_params);
         if (ret != 0) {
             goto out;
@@ -1222,22 +1249,34 @@ tsk_treeseq_branch_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
             tk++;
 
             u = edge_child[h];
-            update_running_sum(u, -1, branch_length, summary, result_dim, running_sum);
+            ret = update_node_summary(
+                    u, result_dim, summary_u, state, state_dim, f, f_params);
+            if (ret != 0) {
+                goto out;
+            }
+            update_running_sum(u, -1, branch_length, summary_u, result_dim, running_sum);
             parent[u] = TSK_NULL;
             branch_length[u] = 0;
 
             u = edge_parent[h];
             while (u != TSK_NULL) {
-                update_running_sum(
-                    u, -1, branch_length, summary, result_dim, running_sum);
-                update_state(state, state_dim, u, edge_child[h], -1);
                 ret = update_node_summary(
-                    u, result_dim, summary, state, state_dim, f, f_params);
+                    u, result_dim, summary_u, state, state_dim, f, f_params); 
                 if (ret != 0) {
                     goto out;
                 }
                 update_running_sum(
-                    u, +1, branch_length, summary, result_dim, running_sum);
+                    u, -1, branch_length, summary_u, result_dim, running_sum);
+                update_state(state, state_dim, u, edge_child[h], -1);
+                /* ret = update_node_summary(
+                    u, result_dim, summary, state, state_dim, f, f_params); */
+                ret = update_node_summary(
+                    u, result_dim, summary_u, state, state_dim, f, f_params); 
+                if (ret != 0) {
+                    goto out;
+                }
+                update_running_sum(
+                    u, +1, branch_length, summary_u, result_dim, running_sum);
                 u = parent[u];
             }
         }
@@ -1250,20 +1289,30 @@ tsk_treeseq_branch_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
             v = edge_parent[h];
             parent[u] = v;
             branch_length[u] = time[v] - time[u];
-            update_running_sum(u, +1, branch_length, summary, result_dim, running_sum);
+            ret = update_node_summary(
+                u, result_dim, summary_u, state, state_dim, f, f_params);
+            if (ret != 0) {
+                goto out;
+            }
+            update_running_sum(u, +1, branch_length, summary_u, result_dim, running_sum);
 
             u = v;
             while (u != TSK_NULL) {
-                update_running_sum(
-                    u, -1, branch_length, summary, result_dim, running_sum);
-                update_state(state, state_dim, u, edge_child[h], +1);
                 ret = update_node_summary(
-                    u, result_dim, summary, state, state_dim, f, f_params);
+                    u, result_dim, summary_u, state, state_dim, f, f_params);
                 if (ret != 0) {
                     goto out;
                 }
                 update_running_sum(
-                    u, +1, branch_length, summary, result_dim, running_sum);
+                    u, -1, branch_length, summary_u, result_dim, running_sum);
+                update_state(state, state_dim, u, edge_child[h], +1);
+                ret = update_node_summary(
+                    u, result_dim, summary_u, state, state_dim, f, f_params);
+                if (ret != 0) {
+                    goto out;
+                }
+                update_running_sum(
+                    u, +1, branch_length, summary_u, result_dim, running_sum);
                 u = parent[u];
             }
         }
@@ -1311,7 +1360,7 @@ out:
         free(branch_length);
     }
     tsk_safe_free(state);
-    tsk_safe_free(summary);
+    tsk_safe_free(summary_u);
     tsk_safe_free(running_sum);
     return ret;
 }
