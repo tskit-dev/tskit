@@ -268,6 +268,13 @@ def raise_hdf5_format_error(filename, original_exception):
     Tries to open the specified file as a legacy HDF5 file. If it looks like
     an msprime format HDF5 file, raise an error advising to run tskit upgrade.
     """
+
+    def raise_original_exception():
+        # We want to keep a useful error message here as well as the chaining history.
+        raise exceptions.FileFormatError(
+            str(original_exception)
+        ) from original_exception
+
     hdf_magic = b"\211HDF\r\n\032\n"
     try:
         with open(filename, "rb") as f:
@@ -278,14 +285,13 @@ def raise_hdf5_format_error(filename, original_exception):
                     "to upgrade this file to the latest version"
                 )
             else:
-                raise exceptions.FileFormatError(
-                    str(original_exception)
-                ) from original_exception
+                raise_original_exception()
     except OSError:
-        # We want to keep a useful error message here as well as the chaining history.
-        raise exceptions.FileFormatError(
-            str(original_exception)
-        ) from original_exception
+        # FileFormatError could be triggered e.g. by not being able to open `filename`
+        raise_original_exception()
+    except TypeError:
+        # `filename` could be an open stream (e.g. `BufferedReader`)
+        raise_original_exception()
 
 
 def _dump_legacy_hdf5_v2(tree_sequence, root):
