@@ -264,8 +264,7 @@ class TestLoadLegacyExamples(TestFileFormat):
             path = os.path.join(test_data_dir, "hdf5-formats", filename)
             with pytest.raises(
                 exceptions.FileFormatError,
-                match="This HDF File cannot be read. Either format is"
-                " too old, or the file corrupt.",
+                match="uses the old HDF5-based format which can no longer",
             ):
                 tskit.load(path)
 
@@ -1076,3 +1075,15 @@ class TestFileFormatErrors(TestFileFormat):
             f.write(os.urandom(8192))
         with pytest.raises(exceptions.FileFormatError):
             tskit.load(self.temp_file)
+
+    def test_load_bad_formats_fileobj(self):
+        def load():
+            with open(self.temp_file, "rb") as f:
+                tskit.load(f)
+
+        with pytest.raises(EOFError):
+            load()
+        with open(self.temp_file, "wb") as f:
+            f.write(b"Some ASCII text")
+        with pytest.raises(exceptions.FileFormatError):
+            load()

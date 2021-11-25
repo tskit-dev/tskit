@@ -263,31 +263,6 @@ def load_legacy(filename, remove_duplicate_positions=False):
     return ts
 
 
-def raise_hdf5_format_error(filename, original_exception):
-    """
-    Tries to open the specified file as a legacy HDF5 file. If it looks like
-    an msprime format HDF5 file, raise an error advising to run tskit upgrade.
-    """
-    hdf_magic = b"\211HDF\r\n\032\n"
-    try:
-        with open(filename, "rb") as f:
-            if f.read(len(hdf_magic)) == hdf_magic:
-                raise exceptions.FileFormatError(
-                    "This HDF File cannot be read. Either format is too old, or the file"
-                    " corrupt. Try the ``tskit upgrade`` command "
-                    "to upgrade this file to the latest version"
-                )
-            else:
-                raise exceptions.FileFormatError(
-                    str(original_exception)
-                ) from original_exception
-    except OSError:
-        # We want to keep a useful error message here as well as the chaining history.
-        raise exceptions.FileFormatError(
-            str(original_exception)
-        ) from original_exception
-
-
 def _dump_legacy_hdf5_v2(tree_sequence, root):
     root.attrs["format_version"] = (2, 999)
     root.attrs["sample_size"] = tree_sequence.get_sample_size()
