@@ -10,7 +10,13 @@
 Succinct tree sequences are a highly efficient way of storing a set of related DNA
 sequences by encoding their ancestral history as a set of correlated trees along the
 genome. The tree sequence format is output by a number of software libraries and programs
-(such as [msprime](https://github.com/tskit-dev/msprime), [SLiM](https://github.com/MesserLab/SLiM), [fwdpp](http://molpopgen.github.io/fwdpp/), and [tsinfer](https://tsinfer.readthedocs.io/en/latest/)) that either simulate or infer the evolutionary history of genetic sequences.
+(such as [msprime](https://github.com/tskit-dev/msprime),
+[SLiM](https://github.com/MesserLab/SLiM),
+[fwdpp](http://molpopgen.github.io/fwdpp/), and
+[tsinfer](https://tsinfer.readthedocs.io/en/latest/)) that either simulate or infer
+the evolutionary history of genetic sequences. Technically, the ancestral history that
+can be encapsulated in a tree sequence is sometimes referred to as an "ancestral
+recombination graph" or ARG.
 
 The `tskit` library provides the underlying functionality used to load, examine, and
 manipulate tree sequences, including efficient methods for calculating genetic
@@ -19,7 +25,8 @@ those listed above. Please see the
 [documentation](https://tskit.readthedocs.io/en/latest/) for further details, which
 includes
 [installation instructions](https://tskit.readthedocs.io/en/latest/installation.html).
-See the [road map](https://github.com/tskit-dev/tskit/blob/main/ROADMAP.md) for planned improvements and additions to the library.
+Also see the [road map](https://github.com/tskit-dev/tskit/blob/main/ROADMAP.md) for
+planned improvements and additions to the library.
 
 To get started with tskit, tutorials and other content are at http://tskit.dev. For help
 and support from the community you can use
