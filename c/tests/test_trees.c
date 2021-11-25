@@ -6949,6 +6949,32 @@ test_time_uncalibrated(void)
     tsk_table_collection_free(&tables);
 }
 
+static void
+test_reference_sequence(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_treeseq_t ts;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_treeseq_has_reference_sequence(&ts));
+    tsk_treeseq_free(&ts);
+
+    ret = tsk_reference_sequence_set_data(&tables.reference_sequence, "abc", 3);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_treeseq_has_reference_sequence(&ts));
+    tsk_treeseq_free(&ts);
+
+    tsk_table_collection_free(&tables);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -7117,6 +7143,7 @@ main(int argc, char **argv)
         { "test_zero_edges", test_zero_edges },
         { "test_tree_sequence_metadata", test_tree_sequence_metadata },
         { "test_time_uncalibrated", test_time_uncalibrated },
+        { "test_reference_sequence", test_reference_sequence },
         { NULL, NULL },
     };
 

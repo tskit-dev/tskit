@@ -34,7 +34,6 @@ import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import reduce
-from typing import Any
 from typing import Dict
 from typing import Optional
 from typing import Union
@@ -547,11 +546,17 @@ class BaseTable:
         """
 
 
-class MetadataMixin:
+class MetadataColumnMixin:
     """
     Mixin class for tables that have a metadata column.
     """
 
+    # TODO this class has some overlap with the MetadataProvider base class
+    # and also the TreeSequence class. These all have methods to deal with
+    # schemas and essentially do the same thing (provide a facade for the
+    # low-level get/set metadata schemas functionality). We should refactor
+    # this so we're only doing it in one place.
+    # https://github.com/tskit-dev/tskit/issues/1957
     def __init__(self):
         base_row_class = self.row_class
 
@@ -647,7 +652,7 @@ class MetadataMixin:
         return out
 
 
-class IndividualTable(BaseTable, MetadataMixin):
+class IndividualTable(BaseTable, MetadataColumnMixin):
     """
     A table defining the individuals in a tree sequence. Note that although
     each Individual has associated nodes, reference to these is not stored in
@@ -905,7 +910,7 @@ class IndividualTable(BaseTable, MetadataMixin):
         self.set_columns(**d)
 
 
-class NodeTable(BaseTable, MetadataMixin):
+class NodeTable(BaseTable, MetadataColumnMixin):
     """
     A table defining the nodes in a tree sequence. See the
     :ref:`definitions <sec_node_table_definition>` for details on the columns
@@ -1103,7 +1108,7 @@ class NodeTable(BaseTable, MetadataMixin):
         )
 
 
-class EdgeTable(BaseTable, MetadataMixin):
+class EdgeTable(BaseTable, MetadataColumnMixin):
     """
     A table defining the edges in a tree sequence. See the
     :ref:`definitions <sec_edge_table_definition>` for details on the columns
@@ -1308,7 +1313,7 @@ class EdgeTable(BaseTable, MetadataMixin):
         self.ll_table.squash()
 
 
-class MigrationTable(BaseTable, MetadataMixin):
+class MigrationTable(BaseTable, MetadataColumnMixin):
     """
     A table defining the migrations in a tree sequence. See the
     :ref:`definitions <sec_migration_table_definition>` for details on the columns
@@ -1530,7 +1535,7 @@ class MigrationTable(BaseTable, MetadataMixin):
         )
 
 
-class SiteTable(BaseTable, MetadataMixin):
+class SiteTable(BaseTable, MetadataColumnMixin):
     """
     A table defining the sites in a tree sequence. See the
     :ref:`definitions <sec_site_table_definition>` for details on the columns
@@ -1742,7 +1747,7 @@ class SiteTable(BaseTable, MetadataMixin):
         self.set_columns(**d)
 
 
-class MutationTable(BaseTable, MetadataMixin):
+class MutationTable(BaseTable, MetadataColumnMixin):
     """
     A table defining the mutations in a tree sequence. See the
     :ref:`definitions <sec_mutation_table_definition>` for details on the columns
@@ -2004,7 +2009,7 @@ class MutationTable(BaseTable, MetadataMixin):
         self.set_columns(**d)
 
 
-class PopulationTable(BaseTable, MetadataMixin):
+class PopulationTable(BaseTable, MetadataColumnMixin):
     """
     A table defining the populations referred to in a tree sequence.
     The PopulationTable stores metadata for populations that may be referred to
@@ -2493,7 +2498,75 @@ class IdentitySegments(collections.abc.Mapping):
         return self.num_pairs
 
 
-class TableCollection:
+# TODO move to reference_sequence.py when we start adding more functionality.
+class ReferenceSequence(metadata.MetadataProvider):
+    def __init__(self, ll_reference_sequence):
+        super().__init__(ll_reference_sequence)
+        self._ll_reference_sequence = ll_reference_sequence
+
+    def is_null(self) -> bool:
+        return bool(self._ll_reference_sequence.is_null())
+
+    def clear(self):
+        self.data = ""
+        self.url = ""
+        self.metadata_schema = tskit.MetadataSchema(None)
+        self.metadata = b""
+
+    # https://github.com/tskit-dev/tskit/issues/1984
+    # TODO add a __str__ method
+    # TODO add a _repr_html_
+    # FIXME This is a shortcut, we want to put the values in explicitly
+    # here to get more control over how they are displayed.
+    def __repr__(self):
+        return f"ReferenceSequence({repr(self.asdict())})"
+
+    @property
+    def data(self) -> str:
+        return self._ll_reference_sequence.data
+
+    @data.setter
+    def data(self, value):
+        self._ll_reference_sequence.data = value
+
+    @property
+    def url(self) -> str:
+        return self._ll_reference_sequence.url
+
+    @url.setter
+    def url(self, value):
+        self._ll_reference_sequence.url = value
+
+    def asdict(self) -> dict:
+        return {
+            "metadata_schema": repr(self.metadata_schema),
+            "metadata": self.metadata_bytes,
+            "data": self.data,
+            "url": self.url,
+        }
+
+    def assert_equals(self, other, ignore_metadata=False):
+        if not ignore_metadata:
+            super().assert_equals(other)
+
+        if self.data != other.data:
+            raise AssertionError(
+                f"Reference sequence data differs: self={self.data} "
+                f"other={other.data}"
+            )
+        if self.url != other.url:
+            raise AssertionError(
+                f"Reference sequence url differs: self={self.url} " f"other={other.url}"
+            )
+
+    @property
+    def nbytes(self):
+        # TODO this will be inefficient when we work with large references.
+        # Make a dedicated low-level method for getting the length of data.
+        return super().nbytes + len(self.url) + len(self.data)
+
+
+class TableCollection(metadata.MetadataProvider):
     """
     A collection of mutable tables defining a tree sequence. See the
     :ref:`sec_data_model` section for definition on the various tables
@@ -2509,6 +2582,7 @@ class TableCollection:
 
     def __init__(self, sequence_length=0):
         self._ll_tables = _tskit.TableCollection(sequence_length)
+        super().__init__(self._ll_tables)
 
     @property
     def individuals(self) -> IndividualTable:
@@ -2598,39 +2672,6 @@ class TableCollection:
         return self._ll_tables.file_uuid
 
     @property
-    def metadata_schema(self) -> metadata.MetadataSchema:
-        """
-        The :class:`tskit.MetadataSchema` for this TableCollection.
-        """
-        return metadata.parse_metadata_schema(self._ll_tables.metadata_schema)
-
-    @metadata_schema.setter
-    def metadata_schema(self, schema: metadata.MetadataSchema) -> None:
-        # Check the schema is a valid schema instance by roundtripping it.
-        metadata.parse_metadata_schema(repr(schema))
-        self._ll_tables.metadata_schema = repr(schema)
-
-    @property
-    def metadata(self) -> Any:
-        """
-        The decoded metadata for this TableCollection.
-        """
-        return self.metadata_schema.decode_row(self._ll_tables.metadata)
-
-    @metadata.setter
-    def metadata(self, metadata: Optional[Union[bytes, dict]]) -> None:
-        self._ll_tables.metadata = self.metadata_schema.validate_and_encode_row(
-            metadata
-        )
-
-    @property
-    def metadata_bytes(self) -> Any:
-        """
-        The raw bytes of metadata for this TableCollection
-        """
-        return self._ll_tables.metadata
-
-    @property
     def time_units(self) -> str:
         """
         The units used for the time dimension of this TableCollection
@@ -2640,6 +2681,28 @@ class TableCollection:
     @time_units.setter
     def time_units(self, time_units: str) -> None:
         self._ll_tables.time_units = time_units
+
+    def has_reference_sequence(self):
+        """
+        Returns True if this TableCollection has an associated reference
+        sequence.
+        """
+        return bool(self._ll_tables.has_reference_sequence())
+
+    @property
+    def reference_sequence(self):
+        # NOTE: arguably we should cache the reference to this object
+        # during init, rather than creating a new instance each time.
+        # However, following the pattern of the Table classes for now
+        # for consistency.
+        return ReferenceSequence(self._ll_tables.reference_sequence)
+
+    @reference_sequence.setter
+    def reference_sequence(self, value: ReferenceSequence):
+        self.reference_sequence.metadata_schema = value.metadata_schema
+        self.reference_sequence.metadata = value.metadata
+        self.reference_sequence.data = value.data
+        self.reference_sequence.url = value.url
 
     def asdict(self, force_offset_64=False):
         """
@@ -2658,6 +2721,9 @@ class TableCollection:
         """
         return self._ll_tables.asdict(force_offset_64)
 
+    # TODO rename this to "table_name_map" to resolve the issue with whether
+    # we should regard ReferenceSequence as being in it or not.
+    # https://github.com/tskit-dev/tskit/issues/1981
     @property
     def name_map(self) -> Dict:
         """
@@ -2686,10 +2752,10 @@ class TableCollection:
         return sum(
             (
                 8,  # sequence_length takes 8 bytes
-                len(self.metadata_bytes),
+                super().nbytes,  # metadata
                 len(self.time_units.encode()),
-                len(repr(self.metadata_schema).encode()),
                 self.indexes.nbytes,
+                self.reference_sequence.nbytes,
                 sum(table.nbytes for table in self.name_map.values()),
             )
         )
@@ -2824,22 +2890,18 @@ class TableCollection:
         ):
             return
 
+        if not ignore_metadata or ignore_ts_metadata:
+            super().assert_equals(other)
+
+        self.reference_sequence.assert_equals(
+            other.reference_sequence, ignore_metadata=ignore_metadata
+        )
+
         if self.time_units != other.time_units:
             raise AssertionError(
                 f"Time units differs: self={self.time_units} "
                 f"other={other.time_units}"
             )
-
-        if not ignore_metadata or ignore_ts_metadata:
-            if self.metadata_schema != other.metadata_schema:
-                raise AssertionError(
-                    f"Metadata schemas differ: self={self.metadata_schema} "
-                    f"other={other.metadata_schema}"
-                )
-            if self.metadata != other.metadata:
-                raise AssertionError(
-                    f"Metadata differs: self={self.metadata} " f"other={other.metadata}"
-                )
 
         if self.sequence_length != other.sequence_length:
             raise AssertionError(

@@ -3346,7 +3346,7 @@ class TestTableCollection:
     def test_asdict(self, ts_fixture):
         t = ts_fixture.dump_tables()
         d1 = {
-            "encoding_version": (1, 5),
+            "encoding_version": (1, 6),
             "sequence_length": t.sequence_length,
             "metadata_schema": repr(t.metadata_schema),
             "metadata": t.metadata_schema.encode_row(t.metadata),
@@ -3360,6 +3360,7 @@ class TestTableCollection:
             "migrations": t.migrations.asdict(),
             "provenances": t.provenances.asdict(),
             "indexes": t.indexes.asdict(),
+            "reference_sequence": t.reference_sequence.asdict(),
         }
         d2 = t.asdict()
         assert set(d1.keys()) == set(d2.keys())
@@ -3414,6 +3415,7 @@ class TestTableCollection:
             "migrations": t1.migrations.asdict(),
             "provenances": t1.provenances.asdict(),
             "indexes": t1.indexes.asdict(),
+            "reference_sequence": t1.reference_sequence.asdict(),
         }
         t2 = tskit.TableCollection.fromdict(d)
         t1.assert_equals(t2)

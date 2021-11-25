@@ -150,7 +150,7 @@ def ts_fixture():
     # Add metadata
     for name, table in tables.name_map.items():
         if name != "provenances":
-            table.metadata_schema = tskit.MetadataSchema({"codec": "json"})
+            table.metadata_schema = tskit.MetadataSchema.permissive_json()
             metadatas = [f'{{"foo":"n_{name}_{u}"}}' for u in range(len(table))]
             metadata, metadata_offset = tskit.pack_strings(metadatas)
             table.set_columns(
@@ -160,9 +160,16 @@ def ts_fixture():
                     "metadata_offset": metadata_offset,
                 }
             )
-    tables.metadata_schema = tskit.MetadataSchema({"codec": "json"})
+    tables.metadata_schema = tskit.MetadataSchema.permissive_json()
     tables.metadata = "Test metadata"
     tables.time_units = "Test time units"
+
+    tables.reference_sequence.metadata_schema = tskit.MetadataSchema.permissive_json()
+    tables.reference_sequence.metadata = "Test reference metadata"
+    tables.reference_sequence.data = "A" * int(ts.sequence_length)
+    # NOTE: it's unclear whether we'll want to have this set at the same time as
+    # 'data', but it's useful to have something in all columns for now.
+    tables.reference_sequence.url = "http://example.com/a_reference"
 
     # Add some more rows to provenance to have enough for testing.
     for _ in range(3):

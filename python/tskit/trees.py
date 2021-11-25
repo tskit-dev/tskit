@@ -3691,6 +3691,17 @@ class TreeSequence:
                 file.close()
 
     @property
+    def reference_sequence(self):
+        return tables.ReferenceSequence(self._ll_tree_sequence.reference_sequence)
+
+    def has_reference_sequence(self):
+        """
+        Returns True if this TreeSequence has an associated reference
+        sequence.
+        """
+        return bool(self._ll_tree_sequence.has_reference_sequence())
+
+    @property
     def tables_dict(self):
         """
         Returns a dictionary mapping names to tables in the

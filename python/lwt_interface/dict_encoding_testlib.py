@@ -26,6 +26,7 @@ but should be imported into another test module that imports a
 compiled module exporting the LightweightTableCollection class.
 See the test_example_c_module file for an example.
 """
+import copy
 import json
 
 import kastore
@@ -44,35 +45,31 @@ NON_UTF8_STRING = "\ud861\udd37"
 @pytest.fixture(scope="session")
 def full_ts():
     """
-    Return a tree sequence that has data in all fields.
-    """
-    """
-    A tree sequence with data in all fields - duplcated from tskit's conftest.py
+    A tree sequence with data in all fields - duplicated from tskit's conftest.py
     as other test suites using this file will not have that fixture defined.
     """
-    n = 10
-    t = 1
-    population_configurations = [
-        msprime.PopulationConfiguration(n // 2),
-        msprime.PopulationConfiguration(n // 2),
-        msprime.PopulationConfiguration(0),
-    ]
-    demographic_events = [
-        msprime.MassMigration(time=t, source=0, destination=2),
-        msprime.MassMigration(time=t, source=1, destination=2),
-    ]
-    ts = msprime.simulate(
-        population_configurations=population_configurations,
-        demographic_events=demographic_events,
+    demography = msprime.Demography()
+    demography.add_population(initial_size=100, name="A")
+    demography.add_population(initial_size=100, name="B")
+    demography.add_population(initial_size=100, name="C")
+    demography.add_population_split(time=10, ancestral="C", derived=["A", "B"])
+
+    ts = msprime.sim_ancestry(
+        {"A": 5, "B": 5},
+        demography=demography,
         random_seed=1,
-        mutation_rate=1,
+        sequence_length=10,
         record_migrations=True,
     )
+    assert ts.num_migrations > 0
+    assert ts.num_individuals > 0
+    ts = msprime.sim_mutations(ts, rate=0.1, random_seed=2)
+    assert ts.num_mutations > 0
     tables = ts.dump_tables()
-    # TODO replace this with properly linked up individuals using sim_ancestry
-    # once 1.0 is released.
-    for j in range(n):
-        tables.individuals.add_row(flags=j, location=(j, j), parents=(j - 1, j - 1))
+    tables.individuals.clear()
+
+    for ind in ts.individuals():
+        tables.individuals.add_row(flags=0, location=[ind.id, ind.id], parents=[-1, -1])
 
     for name, table in tables.name_map.items():
         if name != "provenances":
@@ -87,7 +84,12 @@ def full_ts():
                 }
             )
     tables.metadata_schema = tskit.MetadataSchema({"codec": "json"})
-    tables.metadata = "Test metadata"
+    tables.metadata = {"A": "Test metadata"}
+
+    tables.reference_sequence.data = "A" * int(tables.sequence_length)
+    tables.reference_sequence.url = "https://example.com/sequence"
+    tables.reference_sequence.metadata_schema = tskit.MetadataSchema.permissive_json()
+    tables.reference_sequence.metadata = {"A": "Test metadata"}
 
     # Add some more provenance so we have enough rows for the offset deletion test.
     for j in range(10):
@@ -109,14 +111,13 @@ def test_check_ts_full(tmp_path, full_ts):
     full_ts.dump(tmp_path / "tables")
     store = kastore.load(tmp_path / "tables")
     for v in store.values():
-        # Check we really have data in every field
         assert v.nbytes > 0
 
 
 class TestEncodingVersion:
     def test_version(self):
         lwt = lwt_module.LightweightTableCollection()
-        assert lwt.asdict()["encoding_version"] == (1, 5)
+        assert lwt.asdict()["encoding_version"] == (1, 6)
 
 
 class TestRoundTrip:
@@ -128,7 +129,7 @@ class TestRoundTrip:
         lwt = lwt_module.LightweightTableCollection()
         lwt.fromdict(tables.asdict())
         other_tables = tskit.TableCollection.fromdict(lwt.asdict())
-        assert tables == other_tables
+        tables.assert_equals(other_tables)
 
     def test_simple(self):
         ts = msprime.simulate(10, mutation_rate=1, random_seed=2)
@@ -242,6 +243,7 @@ class TestMissingData:
             "metadata_schema",
             "encoding_version",
             "indexes",
+            "reference_sequence",
         }
         for table_name in table_names:
             d = tables.asdict()
@@ -265,15 +267,16 @@ class TestBadTypes:
             "metadata_schema",
             "encoding_version",
             "indexes",
+            "reference_sequence",
         }
         for table_name in table_names:
             table_dict = d[table_name]
             for colname in set(table_dict.keys()) - {"metadata_schema"}:
-                copy = dict(table_dict)
-                copy[colname] = value
+                d_copy = dict(table_dict)
+                d_copy[colname] = value
                 lwt = lwt_module.LightweightTableCollection()
                 d = tables.asdict()
-                d[table_name] = copy
+                d[table_name] = d_copy
                 with pytest.raises(ValueError):
                     lwt.fromdict(d)
 
@@ -308,15 +311,16 @@ class TestBadLengths:
             "metadata_schema",
             "encoding_version",
             "indexes",
+            "reference_sequence",
         }
         for table_name in sorted(table_names):
             table_dict = d[table_name]
             for colname in set(table_dict.keys()) - {"metadata_schema"}:
-                copy = dict(table_dict)
-                copy[colname] = table_dict[colname][:num_rows].copy()
+                d_copy = dict(table_dict)
+                d_copy[colname] = table_dict[colname][:num_rows].copy()
                 lwt = lwt_module.LightweightTableCollection()
                 d = tables.asdict()
-                d[table_name] = copy
+                d[table_name] = d_copy
                 with pytest.raises(ValueError):
                     lwt.fromdict(d)
 
@@ -350,6 +354,64 @@ class TestBadLengths:
             lwt.fromdict(d)
 
 
+class TestParsingUtilities:
+    def test_missing_required(self, tables):
+        d = tables.asdict()
+        del d["sequence_length"]
+        lwt = lwt_module.LightweightTableCollection()
+        with pytest.raises(TypeError, match="'sequence_length' is required"):
+            lwt.fromdict(d)
+
+    def test_string_bad_type(self, tables):
+        d = tables.asdict()
+        d["time_units"] = b"sdf"
+        lwt = lwt_module.LightweightTableCollection()
+        with pytest.raises(TypeError, match="'time_units' is not a string"):
+            lwt.fromdict(d)
+
+    def test_bytes_bad_type(self, tables):
+        d = tables.asdict()
+        d["metadata"] = 1234
+        lwt = lwt_module.LightweightTableCollection()
+        with pytest.raises(TypeError, match="'metadata' is not bytes"):
+            lwt.fromdict(d)
+
+    def test_dict_bad_type(self, tables):
+        d = tables.asdict()
+        d["nodes"] = b"sdf"
+        lwt = lwt_module.LightweightTableCollection()
+        with pytest.raises(TypeError, match="'nodes' is not a dict"):
+            lwt.fromdict(d)
+
+    def test_bad_strings(self, tables):
+        def verify_unicode_error(d):
+            lwt = lwt_module.LightweightTableCollection()
+            with pytest.raises(UnicodeEncodeError):
+                lwt.fromdict(d)
+
+        def verify_bad_string_type(d):
+            lwt = lwt_module.LightweightTableCollection()
+            with pytest.raises(TypeError):
+                lwt.fromdict(d)
+
+        d = tables.asdict()
+        for k, v in d.items():
+            if isinstance(v, str):
+                d_copy = copy.deepcopy(d)
+                d_copy[k] = NON_UTF8_STRING
+                verify_unicode_error(d_copy)
+                d_copy[k] = 12345
+                verify_bad_string_type(d_copy)
+            if isinstance(v, dict):
+                for kp, vp in v.items():
+                    if isinstance(vp, str):
+                        d_copy = copy.deepcopy(d)
+                        d_copy[k][kp] = NON_UTF8_STRING
+                        verify_unicode_error(d_copy)
+                        d_copy[k][kp] = 12345
+                        verify_bad_string_type(d_copy)
+
+
 class TestRequiredAndOptionalColumns:
     """
     Tests that specifying None for some columns will give the intended
@@ -371,9 +433,9 @@ class TestRequiredAndOptionalColumns:
         # Any one of these required columns as None gives an error.
         for col in required_cols:
             d = tables.asdict()
-            copy = dict(table_dict)
-            copy[col] = None
-            d[table_name] = copy
+            d_copy = copy.deepcopy(table_dict)
+            d_copy[col] = None
+            d[table_name] = d_copy
             lwt = lwt_module.LightweightTableCollection()
             with pytest.raises(TypeError):
                 lwt.fromdict(d)
@@ -381,9 +443,9 @@ class TestRequiredAndOptionalColumns:
         # Removing any one of these required columns gives an error.
         for col in required_cols:
             d = tables.asdict()
-            copy = dict(table_dict)
-            del copy[col]
-            d[table_name] = copy
+            d_copy = copy.deepcopy(table_dict)
+            del d_copy[col]
+            d[table_name] = d_copy
             lwt = lwt_module.LightweightTableCollection()
             with pytest.raises(TypeError):
                 lwt.fromdict(d)
@@ -595,6 +657,37 @@ class TestRequiredAndOptionalColumns:
             ):
                 lwt.fromdict(d)
 
+    def test_index_bad_type(self, tables):
+        d = tables.asdict()
+        lwt = lwt_module.LightweightTableCollection()
+        d["indexes"] = "asdf"
+        with pytest.raises(TypeError):
+            lwt.fromdict(d)
+
+    def test_reference_sequence(self, tables):
+        self.verify_metadata_schema(tables, "reference_sequence")
+
+        def get_refseq(d):
+            tables = tskit.TableCollection.fromdict(d)
+            return tables.reference_sequence
+
+        d = tables.asdict()
+        refseq_dict = d.pop("reference_sequence")
+        assert get_refseq(d).is_null()
+
+        # All empty strings is the same thing
+        d["reference_sequence"] = dict(
+            data="", url="", metadata_schema="", metadata=b""
+        )
+        assert get_refseq(d).is_null()
+
+        del refseq_dict["metadata_schema"]  # handled above
+        for key, value in refseq_dict.items():
+            d["reference_sequence"] = {key: value}
+            refseq = get_refseq(d)
+            assert not refseq.is_null()
+            assert getattr(refseq, key) == value
+
     def test_top_level_time_units(self, tables):
         d = tables.asdict()
         # None should give default value
@@ -606,7 +699,6 @@ class TestRequiredAndOptionalColumns:
         assert tables.time_units == tskit.TIME_UNITS_UNKNOWN
         # Missing is tested in TestMissingData above
         d = tables.asdict()
-        # None should give default value
         d["time_units"] = NON_UTF8_STRING
         lwt = lwt_module.LightweightTableCollection()
         with pytest.raises(UnicodeEncodeError):
@@ -713,3 +805,10 @@ class TestForceOffset64:
             col_64 = offsets_64[col_name]
             assert col_64.shape == col_32.shape
             assert np.all(col_64 == col_32)
+
+
+@pytest.mark.parametrize("bad_type", [None, "", []])
+def test_fromdict_bad_type(bad_type):
+    lwt = lwt_module.LightweightTableCollection()
+    with pytest.raises(TypeError):
+        lwt.fromdict(bad_type)

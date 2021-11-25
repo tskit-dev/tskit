@@ -360,11 +360,75 @@ test_table_collection_simplify_errors(void)
 }
 
 static void
+test_reference_sequence_state_machine(void)
+{
+
+    tsk_reference_sequence_t r1;
+
+    tsk_reference_sequence_init(&r1, 0);
+    CU_ASSERT_EQUAL(r1.data, NULL);
+    CU_ASSERT_EQUAL(r1.url, NULL);
+    CU_ASSERT_EQUAL(r1.metadata, NULL);
+    CU_ASSERT_EQUAL(r1.metadata_schema, NULL);
+    CU_ASSERT_TRUE(tsk_reference_sequence_is_null(&r1));
+
+    CU_ASSERT_EQUAL(tsk_reference_sequence_set_data(&r1, "x", 1), 0);
+    CU_ASSERT_FALSE(tsk_reference_sequence_is_null(&r1));
+    /* Setting the value back to NULL makes the reference whole object NULL */
+    CU_ASSERT_EQUAL(tsk_reference_sequence_set_data(&r1, NULL, 0), 0);
+    CU_ASSERT_TRUE(tsk_reference_sequence_is_null(&r1));
+    tsk_reference_sequence_free(&r1);
+    CU_ASSERT_TRUE(tsk_reference_sequence_is_null(&r1));
+
+    /* Any empty string is the same thing. */
+    tsk_reference_sequence_init(&r1, 0);
+    CU_ASSERT_EQUAL(tsk_reference_sequence_set_data(&r1, "", 0), 0);
+    CU_ASSERT_TRUE(tsk_reference_sequence_is_null(&r1));
+    tsk_reference_sequence_free(&r1);
+
+    tsk_reference_sequence_init(&r1, 0);
+    CU_ASSERT_EQUAL(tsk_reference_sequence_set_url(&r1, "x", 1), 0);
+    CU_ASSERT_FALSE(tsk_reference_sequence_is_null(&r1));
+    tsk_reference_sequence_free(&r1);
+
+    tsk_reference_sequence_init(&r1, 0);
+    CU_ASSERT_EQUAL(tsk_reference_sequence_set_metadata(&r1, "x", 1), 0);
+    CU_ASSERT_FALSE(tsk_reference_sequence_is_null(&r1));
+    tsk_reference_sequence_free(&r1);
+
+    tsk_reference_sequence_init(&r1, 0);
+    CU_ASSERT_EQUAL(tsk_reference_sequence_set_metadata_schema(&r1, "x", 1), 0);
+    CU_ASSERT_FALSE(tsk_reference_sequence_is_null(&r1));
+    tsk_reference_sequence_free(&r1);
+
+    tsk_reference_sequence_init(&r1, 0);
+    CU_ASSERT_EQUAL(tsk_reference_sequence_set_metadata(&r1, "x", 1), 0);
+    CU_ASSERT_FALSE(tsk_reference_sequence_is_null(&r1));
+    CU_ASSERT_EQUAL(tsk_reference_sequence_set_metadata_schema(&r1, "x", 1), 0);
+    CU_ASSERT_FALSE(tsk_reference_sequence_is_null(&r1));
+    CU_ASSERT_EQUAL(tsk_reference_sequence_set_url(&r1, "x", 1), 0);
+    CU_ASSERT_FALSE(tsk_reference_sequence_is_null(&r1));
+    CU_ASSERT_EQUAL(tsk_reference_sequence_set_data(&r1, "x", 1), 0);
+    CU_ASSERT_FALSE(tsk_reference_sequence_is_null(&r1));
+
+    CU_ASSERT_EQUAL(tsk_reference_sequence_set_metadata(&r1, "", 0), 0);
+    CU_ASSERT_FALSE(tsk_reference_sequence_is_null(&r1));
+    CU_ASSERT_EQUAL(tsk_reference_sequence_set_metadata_schema(&r1, "", 0), 0);
+    CU_ASSERT_FALSE(tsk_reference_sequence_is_null(&r1));
+    CU_ASSERT_EQUAL(tsk_reference_sequence_set_url(&r1, "", 0), 0);
+    CU_ASSERT_FALSE(tsk_reference_sequence_is_null(&r1));
+    CU_ASSERT_EQUAL(tsk_reference_sequence_set_data(&r1, "", 0), 0);
+    CU_ASSERT_TRUE(tsk_reference_sequence_is_null(&r1));
+
+    tsk_reference_sequence_free(&r1);
+}
+
+static void
 test_reference_sequence(void)
 {
     int ret;
-    tsk_reference_sequence_t *r1 = NULL;
-    tsk_reference_sequence_t *r2 = NULL;
+    tsk_reference_sequence_t r1;
+    tsk_reference_sequence_t r2;
 
     char example_data[100] = "An example string with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_data_length = (tsk_size_t) strlen(example_data);
@@ -375,99 +439,94 @@ test_reference_sequence(void)
     char example_schema[100] = "An example schema with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_schema_length = (tsk_size_t) strlen(example_schema);
 
-    // Test equality
-    CU_ASSERT_TRUE(tsk_reference_sequence_equals(r1, r2, 0));
+    tsk_reference_sequence_init(&r1, 0);
+    tsk_reference_sequence_init(&r2, 0);
 
-    r1 = tsk_malloc(sizeof(tsk_reference_sequence_t));
-    CU_ASSERT_NOT_EQUAL_FATAL(r1, NULL);
-    tsk_reference_sequence_init(r1);
+    /* NULL sequences are initially equal */
+    CU_ASSERT_TRUE(tsk_reference_sequence_equals(&r1, &r2, 0));
 
-    ret = tsk_reference_sequence_set_data(r1, example_data, example_data_length);
+    ret = tsk_reference_sequence_set_data(&r1, example_data, example_data_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_FALSE(tsk_reference_sequence_equals(r1, r2, 0));
+    CU_ASSERT_FALSE(tsk_reference_sequence_equals(&r1, &r2, 0));
 
-    r2 = tsk_malloc(sizeof(tsk_reference_sequence_t));
-    CU_ASSERT_NOT_EQUAL_FATAL(r2, NULL);
-    tsk_reference_sequence_init(r2);
+    ret = tsk_reference_sequence_set_data(&r1, "", 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_reference_sequence_equals(&r1, &r2, 0));
 
-    ret = tsk_reference_sequence_set_data(r1, "", 0);
+    ret = tsk_reference_sequence_set_data(&r2, "", 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_reference_sequence_equals(r1, r2, 0));
+    CU_ASSERT_TRUE(tsk_reference_sequence_equals(&r1, &r2, 0));
 
-    ret = tsk_reference_sequence_set_data(r1, example_data, example_data_length);
+    ret = tsk_reference_sequence_set_data(&r1, example_data, example_data_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_FALSE(tsk_reference_sequence_equals(r1, r2, 0));
+    CU_ASSERT_FALSE(tsk_reference_sequence_equals(&r1, &r2, 0));
 
-    ret = tsk_reference_sequence_set_data(r2, example_data, example_data_length);
+    ret = tsk_reference_sequence_set_data(&r2, example_data, example_data_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_reference_sequence_equals(r1, r2, 0));
+    CU_ASSERT_TRUE(tsk_reference_sequence_equals(&r1, &r2, 0));
 
-    ret = tsk_reference_sequence_set_url(r1, example_url, example_url_length);
+    ret = tsk_reference_sequence_set_url(&r1, example_url, example_url_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_FALSE(tsk_reference_sequence_equals(r1, r2, 0));
-    ret = tsk_reference_sequence_set_url(r2, example_url, example_url_length);
+    CU_ASSERT_FALSE(tsk_reference_sequence_equals(&r1, &r2, 0));
+    ret = tsk_reference_sequence_set_url(&r2, example_url, example_url_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_reference_sequence_equals(r1, r2, 0));
+    CU_ASSERT_TRUE(tsk_reference_sequence_equals(&r1, &r2, 0));
 
     ret = tsk_reference_sequence_set_metadata(
-        r1, example_metadata, example_metadata_length);
+        &r1, example_metadata, example_metadata_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_FALSE(tsk_reference_sequence_equals(r1, r2, 0));
+    CU_ASSERT_FALSE(tsk_reference_sequence_equals(&r1, &r2, 0));
+    CU_ASSERT_TRUE(tsk_reference_sequence_equals(&r1, &r2, TSK_CMP_IGNORE_METADATA));
     ret = tsk_reference_sequence_set_metadata(
-        r2, example_metadata, example_metadata_length);
+        &r2, example_metadata, example_metadata_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_reference_sequence_equals(r1, r2, 0));
+    CU_ASSERT_TRUE(tsk_reference_sequence_equals(&r1, &r2, 0));
+    CU_ASSERT_TRUE(tsk_reference_sequence_equals(&r1, &r2, TSK_CMP_IGNORE_METADATA));
 
     ret = tsk_reference_sequence_set_metadata_schema(
-        r1, example_schema, example_schema_length);
+        &r1, example_schema, example_schema_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_FALSE(tsk_reference_sequence_equals(r1, r2, 0));
+    CU_ASSERT_FALSE(tsk_reference_sequence_equals(&r1, &r2, 0));
+    CU_ASSERT_TRUE(tsk_reference_sequence_equals(&r1, &r2, TSK_CMP_IGNORE_METADATA));
     ret = tsk_reference_sequence_set_metadata_schema(
-        r2, example_schema, example_schema_length);
+        &r2, example_schema, example_schema_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_reference_sequence_equals(r1, r2, 0));
+    CU_ASSERT_TRUE(tsk_reference_sequence_equals(&r1, &r2, 0));
+    CU_ASSERT_TRUE(tsk_reference_sequence_equals(&r1, &r2, TSK_CMP_IGNORE_METADATA));
 
     // Test copy
-    tsk_reference_sequence_free(r1);
-    tsk_safe_free(r1);
-    r1 = NULL;
-    tsk_reference_sequence_free(r2);
-    tsk_safe_free(r2);
-    r2 = NULL;
+    tsk_reference_sequence_free(&r1);
+    tsk_reference_sequence_free(&r2);
 
-    r1 = tsk_malloc(sizeof(tsk_reference_sequence_t));
-    CU_ASSERT_NOT_EQUAL_FATAL(r1, NULL);
-    tsk_reference_sequence_init(r1);
-    ret = tsk_reference_sequence_set_data(r1, example_data, example_data_length);
+    tsk_reference_sequence_init(&r1, 0);
+    ret = tsk_reference_sequence_set_data(&r1, example_data, example_data_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_reference_sequence_copy(r1, &r2, 0);
+    ret = tsk_reference_sequence_copy(&r1, &r2, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_reference_sequence_equals(r1, r2, 0));
+    CU_ASSERT_TRUE(tsk_reference_sequence_equals(&r1, &r2, 0));
 
-    ret = tsk_reference_sequence_set_url(r1, example_url, example_url_length);
+    ret = tsk_reference_sequence_set_url(&r1, example_url, example_url_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_reference_sequence_copy(r1, &r2, 0);
+    ret = tsk_reference_sequence_copy(&r1, &r2, TSK_NO_INIT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_reference_sequence_equals(r1, r2, 0));
+    CU_ASSERT_TRUE(tsk_reference_sequence_equals(&r1, &r2, 0));
 
     ret = tsk_reference_sequence_set_metadata(
-        r1, example_metadata, example_metadata_length);
+        &r1, example_metadata, example_metadata_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_reference_sequence_copy(r1, &r2, 0);
+    ret = tsk_reference_sequence_copy(&r1, &r2, TSK_NO_INIT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_reference_sequence_equals(r1, r2, 0));
+    CU_ASSERT_TRUE(tsk_reference_sequence_equals(&r1, &r2, 0));
 
     ret = tsk_reference_sequence_set_metadata_schema(
-        r1, example_schema, example_schema_length);
+        &r1, example_schema, example_schema_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_reference_sequence_copy(r1, &r2, 0);
+    ret = tsk_reference_sequence_copy(&r1, &r2, TSK_NO_INIT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_reference_sequence_equals(r1, r2, 0));
+    CU_ASSERT_TRUE(tsk_reference_sequence_equals(&r1, &r2, 0));
 
-    tsk_reference_sequence_free(r1);
-    tsk_safe_free(r1);
-    tsk_reference_sequence_free(r2);
-    tsk_safe_free(r2);
+    tsk_reference_sequence_free(&r1);
+    tsk_reference_sequence_free(&r2);
 }
 
 static void
@@ -492,48 +551,40 @@ test_table_collection_reference_sequence(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
 
-    tc1.reference_sequence = tsk_malloc(sizeof(tsk_reference_sequence_t));
-    CU_ASSERT_NOT_EQUAL_FATAL(tc1.reference_sequence, NULL);
-    tsk_reference_sequence_init(tc1.reference_sequence);
-
     ret = tsk_reference_sequence_set_data(
-        tc1.reference_sequence, example_data, example_data_length);
+        &tc1.reference_sequence, example_data, example_data_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_table_collection_equals(&tc1, &tc2, 0));
 
-    tc2.reference_sequence = tsk_malloc(sizeof(tsk_reference_sequence_t));
-    CU_ASSERT_NOT_EQUAL_FATAL(tc2.reference_sequence, NULL);
-    tsk_reference_sequence_init(tc2.reference_sequence);
-
     ret = tsk_reference_sequence_set_data(
-        tc2.reference_sequence, example_data, example_data_length);
+        &tc2.reference_sequence, example_data, example_data_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
 
     ret = tsk_reference_sequence_set_url(
-        tc1.reference_sequence, example_url, example_url_length);
+        &tc1.reference_sequence, example_url, example_url_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_table_collection_equals(&tc1, &tc2, 0));
     ret = tsk_reference_sequence_set_url(
-        tc2.reference_sequence, example_url, example_url_length);
+        &tc2.reference_sequence, example_url, example_url_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
 
     ret = tsk_reference_sequence_set_metadata(
-        tc1.reference_sequence, example_metadata, example_metadata_length);
+        &tc1.reference_sequence, example_metadata, example_metadata_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_table_collection_equals(&tc1, &tc2, 0));
     ret = tsk_reference_sequence_set_metadata(
-        tc2.reference_sequence, example_metadata, example_metadata_length);
+        &tc2.reference_sequence, example_metadata, example_metadata_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
 
     ret = tsk_reference_sequence_set_metadata_schema(
-        tc1.reference_sequence, example_schema, example_schema_length);
+        &tc1.reference_sequence, example_schema, example_schema_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_table_collection_equals(&tc1, &tc2, 0));
     ret = tsk_reference_sequence_set_metadata_schema(
-        tc2.reference_sequence, example_schema, example_schema_length);
+        &tc2.reference_sequence, example_schema, example_schema_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
 
@@ -543,60 +594,51 @@ test_table_collection_reference_sequence(void)
     ret = tsk_table_collection_init(&tc1, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    tc1.reference_sequence = tsk_malloc(sizeof(tsk_reference_sequence_t));
-    CU_ASSERT_NOT_EQUAL_FATAL(tc1.reference_sequence, NULL);
-    tsk_reference_sequence_init(tc1.reference_sequence);
-
     ret = tsk_reference_sequence_set_data(
-        tc1.reference_sequence, example_data, example_data_length);
+        &tc1.reference_sequence, example_data, example_data_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_copy(&tc1, &tc2, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
 
     ret = tsk_reference_sequence_set_url(
-        tc1.reference_sequence, example_url, example_url_length);
+        &tc1.reference_sequence, example_url, example_url_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_copy(&tc1, &tc2, TSK_NO_INIT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
 
     ret = tsk_reference_sequence_set_metadata(
-        tc1.reference_sequence, example_metadata, example_metadata_length);
+        &tc1.reference_sequence, example_metadata, example_metadata_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_copy(&tc1, &tc2, TSK_NO_INIT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
 
     ret = tsk_reference_sequence_set_metadata_schema(
-        tc1.reference_sequence, example_schema, example_schema_length);
+        &tc1.reference_sequence, example_schema, example_schema_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_copy(&tc1, &tc2, TSK_NO_INIT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
-
-    // Test dump and load
     tsk_table_collection_free(&tc1);
     tsk_table_collection_free(&tc2);
+
+    // Test dump and load
     ret = tsk_table_collection_init(&tc1, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tc1.sequence_length = 1.0;
-
-    tc1.reference_sequence = tsk_malloc(sizeof(tsk_reference_sequence_t));
-    CU_ASSERT_NOT_EQUAL_FATAL(tc1.reference_sequence, NULL);
-    tsk_reference_sequence_init(tc1.reference_sequence);
-
     ret = tsk_reference_sequence_set_data(
-        tc1.reference_sequence, example_data, example_data_length);
+        &tc1.reference_sequence, example_data, example_data_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_reference_sequence_set_url(
-        tc1.reference_sequence, example_url, example_url_length);
+        &tc1.reference_sequence, example_url, example_url_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_reference_sequence_set_metadata(
-        tc1.reference_sequence, example_metadata, example_metadata_length);
+        &tc1.reference_sequence, example_metadata, example_metadata_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_reference_sequence_set_metadata_schema(
-        tc1.reference_sequence, example_schema, example_schema_length);
+        &tc1.reference_sequence, example_schema, example_schema_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_dump(&tc1, _tmp_file_name, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -605,6 +647,29 @@ test_table_collection_reference_sequence(void)
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
     tsk_table_collection_free(&tc1);
     tsk_table_collection_free(&tc2);
+}
+
+static void
+test_table_collection_has_reference_sequence(void)
+{
+    int ret;
+    tsk_table_collection_t tc;
+
+    ret = tsk_table_collection_init(&tc, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tc.sequence_length = 1.0;
+
+    CU_ASSERT_FALSE(tsk_table_collection_has_reference_sequence(&tc));
+    ret = tsk_reference_sequence_set_data(&tc.reference_sequence, "A", 1);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_has_reference_sequence(&tc));
+    /* Goes back to NULL by setting a empty string. See
+     * test_reference_sequence_state_machine for detailed tests. */
+    ret = tsk_reference_sequence_set_data(&tc.reference_sequence, "", 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_table_collection_has_reference_sequence(&tc));
+
+    tsk_table_collection_free(&tc);
 }
 
 static void
@@ -9079,7 +9144,11 @@ main(int argc, char **argv)
         { "test_table_collection_time_units", test_table_collection_time_units },
         { "test_table_collection_reference_sequence",
             test_table_collection_reference_sequence },
+        { "test_table_collection_has_reference_sequence",
+            test_table_collection_has_reference_sequence },
         { "test_table_collection_metadata", test_table_collection_metadata },
+        { "test_reference_sequence_state_machine",
+            test_reference_sequence_state_machine },
         { "test_reference_sequence", test_reference_sequence },
 
         { "test_simplify_tables_drops_indexes", test_simplify_tables_drops_indexes },

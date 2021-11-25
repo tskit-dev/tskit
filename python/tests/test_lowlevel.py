@@ -39,6 +39,9 @@ import _tskit
 import tskit
 
 
+NON_UTF8_STRING = "\ud861\udd37"
+
+
 def get_tracked_sample_counts(ts, st, tracked_samples):
     """
     Returns a list giving the number of samples in the specified list
@@ -3306,6 +3309,189 @@ class TestMetadataSchemaNamedTuple(MetadataTestMixin):
             f"{table}_test_schema_diff" for table in self.metadata_tables
         )
         assert metadata_schemas != metadata_schemas3
+
+
+class TestReferenceSequenceInputErrors:
+    @pytest.mark.parametrize("bad_type", [1234, b"bytes", None, {}])
+    @pytest.mark.parametrize("attr", ["data", "url", "metadata_schema"])
+    def test_string_bad_type(self, attr, bad_type):
+        refseq = _tskit.TableCollection().reference_sequence
+        with pytest.raises(TypeError, match=f"{attr} must be a string"):
+            setattr(refseq, attr, bad_type)
+
+    @pytest.mark.parametrize("bad_type", [1234, "unicode", None, {}])
+    def test_metadata_bad_type(self, bad_type):
+        refseq = _tskit.TableCollection().reference_sequence
+        with pytest.raises(TypeError):
+            refseq.metadata = bad_type
+
+    @pytest.mark.parametrize("attr", ["data", "url", "metadata_schema"])
+    def test_unicode_error(self, attr):
+        refseq = _tskit.TableCollection().reference_sequence
+        with pytest.raises(UnicodeEncodeError):
+            setattr(refseq, attr, NON_UTF8_STRING)
+
+    @pytest.mark.parametrize("attr", ["data", "url", "metadata", "metadata_schema"])
+    def test_del_attr(self, attr):
+        refseq = _tskit.TableCollection().reference_sequence
+        with pytest.raises(AttributeError, match=f"Cannot del {attr}"):
+            delattr(refseq, attr)
+
+
+class TestReferenceSequenceUpdates:
+    @pytest.mark.parametrize("value", ["abc", "🎄🌳🌴🌲🎋"])
+    @pytest.mark.parametrize("attr", ["data", "url", "metadata_schema"])
+    def test_set_string(self, attr, value):
+        refseq = _tskit.TableCollection().reference_sequence
+        assert refseq.is_null()
+        setattr(refseq, attr, value)
+        assert getattr(refseq, attr) == value
+        assert not refseq.is_null()
+
+    @pytest.mark.parametrize("attr", ["data", "url", "metadata_schema"])
+    def test_set_string_null_none(self, attr):
+        refseq = _tskit.TableCollection().reference_sequence
+        assert refseq.is_null()
+        setattr(refseq, attr, "a")
+        assert not refseq.is_null()
+        setattr(refseq, attr, "")
+        assert refseq.is_null()
+
+    @pytest.mark.parametrize("value", [b"x", b"{}", b"abc\0defg"])
+    def test_set_metadata(self, value):
+        refseq = _tskit.TableCollection().reference_sequence
+        assert refseq.is_null()
+        refseq.metadata = value
+        assert not refseq.is_null()
+        refseq.metadata = b""
+        assert refseq.is_null()
+
+
+class TestReferenceSequenceTableCollection:
+    def test_references(self):
+        tables = _tskit.TableCollection()
+        refseq = tables.reference_sequence
+        assert refseq is not tables.reference_sequence
+
+    def test_state(self):
+        tables = _tskit.TableCollection()
+        refseq = tables.reference_sequence
+        assert refseq.is_null()
+        assert not tables.has_reference_sequence()
+        # Setting any non empty string changes the state to "non-null"
+        refseq.data = "x"
+        assert tables.has_reference_sequence()
+        assert not refseq.is_null()
+
+    @pytest.mark.parametrize("ref_data", ["abc", "A" * 10, "🎄🌳🌴🌲🎋"])
+    def test_data(self, ref_data):
+        tables = _tskit.TableCollection()
+        refseq = tables.reference_sequence
+        assert refseq.data == ""
+        refseq.data = ref_data
+        assert refseq.data == ref_data
+        assert tables.reference_sequence.data == ref_data
+
+    @pytest.mark.parametrize("url", ["", "abc", "A" * 10, "🎄🌳🌴🌲🎋"])
+    def test_url(self, url):
+        tables = _tskit.TableCollection()
+        refseq = tables.reference_sequence
+        assert refseq.url == ""
+        refseq.url = url
+        assert refseq.url == url
+        assert tables.reference_sequence.url == url
+
+    def test_metadata_default_none(self):
+        tables = _tskit.TableCollection()
+        assert tables.reference_sequence.metadata_schema == ""
+        assert tables.reference_sequence.metadata == b""
+
+    # we don't actually check the form here, just pass in and out strings
+    @pytest.mark.parametrize("schema", ["", "{}", "abcdefg"])
+    def test_metadata_schema(self, schema):
+        tables = _tskit.TableCollection()
+        tables.reference_sequence.metadata_schema = schema
+        assert tables.has_reference_sequence
+        assert tables.reference_sequence.metadata_schema == schema
+
+    @pytest.mark.parametrize("metadata", [b"", b"{}", b"abcdefg"])
+    def test_metadata(self, metadata):
+        tables = _tskit.TableCollection()
+        tables.reference_sequence.metadata = metadata
+        assert tables.has_reference_sequence
+        assert tables.reference_sequence.metadata == metadata
+
+
+class TestReferenceSequenceTreeSequence:
+    def test_references(self):
+        tc = _tskit.TableCollection()
+        tc.sequence_length = 1
+        ts = _tskit.TreeSequence()
+        ts.load_tables(tc, build_indexes=True)
+        refseq = ts.reference_sequence
+        assert refseq is not ts.reference_sequence
+        assert refseq is not tc
+
+    def test_state(self):
+        tc = _tskit.TableCollection()
+        tc.sequence_length = 1
+        ts = _tskit.TreeSequence()
+        ts.load_tables(tc, build_indexes=True)
+        assert not ts.has_reference_sequence()
+
+    def test_write(self):
+        tc = _tskit.TableCollection()
+        tc.sequence_length = 1
+        ts = _tskit.TreeSequence()
+        ts.load_tables(tc, build_indexes=True)
+        refseq = ts.reference_sequence
+        with pytest.raises(AttributeError, match="read-only"):
+            refseq.data = "asdf"
+        with pytest.raises(AttributeError, match="read-only"):
+            refseq.url = "asdf"
+        with pytest.raises(AttributeError, match="read-only"):
+            refseq.metadata_schema = "asdf"
+        with pytest.raises(AttributeError, match="read-only"):
+            refseq.metadata = "asdf"
+
+    @pytest.mark.parametrize("ref_data", ["", "ACTG" * 10, "🎄🌳🌴🌲🎋"])
+    def test_data(self, ref_data):
+        tc = _tskit.TableCollection()
+        tc.sequence_length = 1
+        tc.reference_sequence.data = ref_data
+        ts = _tskit.TreeSequence()
+        ts.load_tables(tc, build_indexes=True)
+        assert ts.reference_sequence.data == ref_data
+
+    @pytest.mark.parametrize("url", ["", "ACTG" * 10, "🎄🌳🌴🌲🎋"])
+    def test_url(self, url):
+        tc = _tskit.TableCollection()
+        tc.sequence_length = 1
+        tc.reference_sequence.url = url
+        ts = _tskit.TreeSequence()
+        ts.load_tables(tc, build_indexes=True)
+        assert ts.reference_sequence.url == url
+
+    # we don't actually check the form here, just pass in and out strings
+    @pytest.mark.parametrize("schema", ["", "{}", "abcdefg"])
+    def test_metadata_schema(self, schema):
+        tc = _tskit.TableCollection()
+        tc.sequence_length = 1
+        tc.reference_sequence.metadata_schema = schema
+        ts = _tskit.TreeSequence()
+        ts.load_tables(tc, build_indexes=True)
+        assert ts.has_reference_sequence
+        assert ts.reference_sequence.metadata_schema == schema
+
+    @pytest.mark.parametrize("metadata", [b"", b"{}", b"abcdefg"])
+    def test_metadata(self, metadata):
+        tc = _tskit.TableCollection()
+        tc.sequence_length = 1
+        tc.reference_sequence.metadata = metadata
+        ts = _tskit.TreeSequence()
+        ts.load_tables(tc, build_indexes=True)
+        assert ts.has_reference_sequence
+        assert ts.reference_sequence.metadata == metadata
 
 
 class TestModuleFunctions:
