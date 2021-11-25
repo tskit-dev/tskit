@@ -1048,33 +1048,38 @@ position 100 to 200, has a single root. Finally the third tree, from position
 
 #### The virtual root
 
-To aid keeping track of multiple roots within a single tree, tskit uses a
-special additional node called the **virtual root**. All roots in all the
-trees in a tree sequence are children of the virtual root node. In the
-quintuply linked tree encoding this is an extra element at the end of
-each of the tree arrays, as shown here:
+To access all the roots in a tree, tskit uses a special additional node
+called the **virtual root**. This is primarily a bookkeeping device, and
+can normally be ignored: it is not plotted in any visualizations and
+does not exist as an independent node in the node table.
+However, the virtual root can be useful in certain algorithms because its
+children are defined as all the "real" roots in a tree. Hence by
+descending downwards from the virtual root, it is possible
+to access the entire genealogy at a given site, even in a multi-root
+tree. In the quintuply linked tree encoding, the virtual root appears as an
+extra element at the end of each of the tree arrays. Here's the same table
+as before but with the virtual root also shown, using red italics to
+emphasise that it is not a "real" node:
 
 ```{code-cell} ipython3
 :tags: ["hide-input"]
 HTML(html_quintuple_table(ts_multiroot, show_virtual_root=True))
 ```
 
-In this example, node 8 is the virtual root; its left child is 6
-and its right child is 7. Importantly, though, this is an asymmetric
+You can see that the virtual root (node 8) has 6 as its left child and 7
+as its right child. Importantly, though, this is an asymmetric
 relationship: the parent of the "real" roots 6 and 7 is null
-(-1) and *not* the virtual root. To emphasise that this is not a "real"
-node, we've shown the values for the virtual root here in red italics.
+(-1) and *not* the virtual root. Hence when we ascend up the tree from the
+sample nodes to their parents, we stop at the "real" roots, and never
+encounter the virtual root.
 
-The main function of the virtual root is to efficiently keep track of
-tree roots in the internal library algorithms, and is usually not
-something we need to think about unless working directly with
-the quintuply linked tree structure. However, the virtual root can be
-useful in some algorithms and so it can optionally be returned in traversal
-orders (see {meth}`.Tree.nodes`). The virtual root has the following
-properties:
+Because the virtual root can be useful in some algorithms, it can
+optionally be returned in traversal orders (see {meth}`.Tree.nodes`).
+The following properties apply:
 
-- Its ID is always equal to the number of nodes in the tree sequence (i.e.,
-  the length of the node table). However, there is **no corresponding row**
+- All trees in a tree sequence share the same virtual root.
+- The virtual root's ID is always equal to the number of nodes in the tree sequence
+  (i.e. the length of the node table). However, there is **no corresponding row**
   in the node table, and any attempts to access information about the
   virtual root via either the tree sequence or tables APIs will fail with
   an out-of-bounds error.
