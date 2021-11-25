@@ -627,6 +627,133 @@ write_metadata_schema_header(
 }
 
 /*************************
+ * reference sequence
+ *************************/
+
+int
+tsk_reference_sequence_init(tsk_reference_sequence_t *self)
+{
+    tsk_memset(self, 0, sizeof(*self));
+    return 0;
+}
+
+int
+tsk_reference_sequence_free(tsk_reference_sequence_t *self)
+{
+    tsk_safe_free(self->data);
+    tsk_safe_free(self->url);
+    tsk_safe_free(self->metadata);
+    tsk_safe_free(self->metadata_schema);
+    return 0;
+}
+
+bool
+tsk_reference_sequence_equals(const tsk_reference_sequence_t *self,
+    const tsk_reference_sequence_t *other, tsk_flags_t options)
+{
+    if (self == NULL && other == NULL) {
+        return true;
+    }
+    /* If one or the other is NULL they are not equal */
+    if ((self == NULL) != (other == NULL)) {
+        return false;
+    }
+    return (
+        (self->data_length == other->data_length && self->url_length == other->url_length
+            && ((options & TSK_CMP_IGNORE_TS_METADATA)
+                   || self->metadata_length == other->metadata_length)
+            && ((options & TSK_CMP_IGNORE_TS_METADATA)
+                   || self->metadata_schema_length == other->metadata_schema_length)
+            && tsk_memcmp(self->data, other->data, self->data_length * sizeof(char)) == 0
+            && tsk_memcmp(self->url, other->url, self->url_length * sizeof(char)) == 0
+            && ((options & TSK_CMP_IGNORE_TS_METADATA)
+                   || tsk_memcmp(self->metadata, other->metadata,
+                          self->metadata_length * sizeof(char))
+                          == 0)
+            && ((options & TSK_CMP_IGNORE_TS_METADATA)
+                   || tsk_memcmp(self->metadata_schema, other->metadata_schema,
+                          self->metadata_schema_length * sizeof(char))
+                          == 0)));
+}
+
+int
+tsk_reference_sequence_copy(const tsk_reference_sequence_t *self,
+    tsk_reference_sequence_t **dest, tsk_flags_t TSK_UNUSED(options))
+{
+    int ret = 0;
+
+    if (*dest != NULL) {
+        tsk_reference_sequence_free(*dest);
+        tsk_safe_free(*dest);
+        *dest = NULL;
+    }
+
+    if (self != NULL) {
+        *dest = tsk_malloc(sizeof(tsk_reference_sequence_t));
+        if (*dest == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+        tsk_reference_sequence_init(*dest);
+
+        ret = tsk_reference_sequence_set_data(*dest, self->data, self->data_length);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_reference_sequence_set_url(*dest, self->url, self->url_length);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_reference_sequence_set_metadata(
+            *dest, self->metadata, self->metadata_length);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_reference_sequence_set_metadata_schema(
+            *dest, self->metadata_schema, self->metadata_schema_length);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+out:
+    return ret;
+}
+
+int
+tsk_reference_sequence_set_data(tsk_reference_sequence_t *self,
+    const char *reference_sequence, tsk_size_t reference_sequence_length)
+{
+    return replace_string(
+        &self->data, &self->data_length, reference_sequence, reference_sequence_length);
+}
+
+int
+tsk_reference_sequence_set_url(tsk_reference_sequence_t *self,
+    const char *reference_sequence_url, tsk_size_t reference_sequence_url_length)
+{
+    return replace_string(&self->url, &self->url_length, reference_sequence_url,
+        reference_sequence_url_length);
+}
+
+int
+tsk_reference_sequence_set_metadata(tsk_reference_sequence_t *self,
+    const char *reference_sequence_metadata,
+    tsk_size_t reference_sequence_metadata_length)
+{
+    return replace_string(&self->metadata, &self->metadata_length,
+        reference_sequence_metadata, reference_sequence_metadata_length);
+}
+
+int
+tsk_reference_sequence_set_metadata_schema(tsk_reference_sequence_t *self,
+    const char *reference_sequence_metadata_schema,
+    tsk_size_t reference_sequence_metadata_schema_length)
+{
+    return replace_string(&self->metadata_schema, &self->metadata_schema_length,
+        reference_sequence_metadata_schema, reference_sequence_metadata_schema_length);
+}
+
+/*************************
  * individual table
  *************************/
 
@@ -9827,6 +9954,10 @@ tsk_table_collection_free(tsk_table_collection_t *self)
     tsk_mutation_table_free(&self->mutations);
     tsk_population_table_free(&self->populations);
     tsk_provenance_table_free(&self->provenances);
+    if (self->reference_sequence != NULL) {
+        tsk_reference_sequence_free(self->reference_sequence);
+    }
+    tsk_safe_free(self->reference_sequence);
     tsk_safe_free(self->indexes.edge_insertion_order);
     tsk_safe_free(self->indexes.edge_removal_order);
     tsk_safe_free(self->file_uuid);
@@ -9876,6 +10007,10 @@ tsk_table_collection_equals(const tsk_table_collection_t *self,
               && tsk_provenance_table_equals(
                      &self->provenances, &other->provenances, options);
     }
+
+    ret = ret
+          && tsk_reference_sequence_equals(
+                 self->reference_sequence, other->reference_sequence, options);
     return ret;
 }
 
@@ -10077,6 +10212,11 @@ tsk_table_collection_copy(const tsk_table_collection_t *self,
     }
     ret = tsk_table_collection_set_metadata_schema(
         dest, self->metadata_schema, self->metadata_schema_length);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_reference_sequence_copy(
+        self->reference_sequence, &dest->reference_sequence, options);
     if (ret != 0) {
         goto out;
     }
@@ -10295,6 +10435,82 @@ out:
     return ret;
 }
 
+static int
+tsk_table_collection_load_reference_sequence(
+    tsk_table_collection_t *self, kastore_t *store)
+{
+    int ret = 0;
+    char *data = NULL;
+    char *url = NULL;
+    char *metadata = NULL;
+    char *metadata_schema = NULL;
+    tsk_size_t data_length = 0, url_length, metadata_length, metadata_schema_length;
+    bool reference_sequence_loaded;
+
+    read_table_property_t properties[] = {
+        { "reference_sequence/data", (void **) &data, &data_length, KAS_UINT8,
+            TSK_COL_OPTIONAL },
+        { "reference_sequence/url", (void **) &url, &url_length, KAS_UINT8,
+            TSK_COL_OPTIONAL },
+        { "reference_sequence/metadata", (void **) &metadata, &metadata_length,
+            KAS_UINT8, TSK_COL_OPTIONAL },
+        { "reference_sequence/metadata_schema", (void **) &metadata_schema,
+            &metadata_schema_length, KAS_UINT8, TSK_COL_OPTIONAL },
+        { .name = NULL },
+    };
+
+    ret = read_table_properties(store, properties, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    reference_sequence_loaded
+        = data != NULL || url != NULL || metadata != NULL || metadata_schema != NULL;
+    if (self->reference_sequence != NULL) {
+        tsk_reference_sequence_free(self->reference_sequence);
+        tsk_safe_free(self->reference_sequence);
+    }
+    if (reference_sequence_loaded) {
+        self->reference_sequence = tsk_malloc(sizeof(tsk_reference_sequence_t));
+        if (self->reference_sequence == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+        tsk_reference_sequence_init(self->reference_sequence);
+    }
+    if (data != NULL) {
+        ret = tsk_reference_sequence_set_data(
+            self->reference_sequence, data, (tsk_size_t) data_length);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    if (metadata != NULL) {
+        ret = tsk_reference_sequence_set_metadata(
+            self->reference_sequence, metadata, (tsk_size_t) metadata_length);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    if (metadata_schema != NULL) {
+        ret = tsk_reference_sequence_set_metadata_schema(self->reference_sequence,
+            metadata_schema, (tsk_size_t) metadata_schema_length);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    if (url != NULL) {
+        ret = tsk_reference_sequence_set_url(
+            self->reference_sequence, url, (tsk_size_t) url_length);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+
+out:
+
+    return ret;
+}
+
 static int TSK_WARN_UNUSED
 tsk_table_collection_loadf_inited(tsk_table_collection_t *self, FILE *file)
 {
@@ -10351,6 +10567,10 @@ tsk_table_collection_loadf_inited(tsk_table_collection_t *self, FILE *file)
         goto out;
     }
     ret = tsk_table_collection_load_indexes(self, &store);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_table_collection_load_reference_sequence(self, &store);
     if (ret != 0) {
         goto out;
     }
@@ -10454,6 +10674,23 @@ out:
     return ret;
 }
 
+static int TSK_WARN_UNUSED
+tsk_table_collection_reference_sequence_dump(const tsk_table_collection_t *self,
+    kastore_t *store, tsk_flags_t TSK_UNUSED(options))
+{
+    const tsk_reference_sequence_t *ref = self->reference_sequence;
+    write_table_col_t write_cols[] = {
+        { "reference_sequence/data", (void *) ref->data, ref->data_length, KAS_UINT8 },
+        { "reference_sequence/url", (void *) ref->url, ref->url_length, KAS_UINT8 },
+        { "reference_sequence/metadata", (void *) ref->metadata, ref->metadata_length,
+            KAS_UINT8 },
+        { "reference_sequence/metadata_schema", (void *) ref->metadata_schema,
+            ref->metadata_schema_length, KAS_UINT8 },
+        { .name = NULL },
+    };
+    return write_table_cols(store, write_cols, 0);
+}
+
 int TSK_WARN_UNUSED
 tsk_table_collection_dump(
     const tsk_table_collection_t *self, const char *filename, tsk_flags_t options)
@@ -10541,6 +10778,12 @@ tsk_table_collection_dumpf(
     ret = tsk_table_collection_dump_indexes(self, &store, options);
     if (ret != 0) {
         goto out;
+    }
+    if (self->reference_sequence != NULL) {
+        ret = tsk_table_collection_reference_sequence_dump(self, &store, options);
+        if (ret != 0) {
+            goto out;
+        }
     }
 
     ret = kastore_close(&store);

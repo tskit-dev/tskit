@@ -53,8 +53,10 @@
   :pr:`1742`).
 
 - Add ``time_units`` to ``tsk_table_collection_t`` to describe the units of the time dimension of the
-  tree sequence. This is then used to generate an error if ``time_units`` is ``uncalibrated`` when
+  tree sequence. This is then used to geerate an error if ``time_units`` is ``uncalibrated`` when
   using the branch lengths in statistics. (:user:`benjeffery`, :issue:`1644`, :pr:`1760`)
+
+- Add reference sequence to table collection (:user:`benjeffery`, :issue:`146`, :pr:`1911`)
 
 - FIXME add features for virtual root, num_edges, stack allocation size etc
 
