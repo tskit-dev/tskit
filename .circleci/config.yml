@@ -133,7 +133,7 @@ commands:
           name: Run Python tests
           command: |
             cd python
-            python -m pytest --cov=tskit  --cov-report=xml --cov-branch -n2 tests/test_lowlevel.py tests/test_tables.py
+            python -m pytest --cov=tskit  --cov-report=xml --cov-branch -n2 tests/test_lowlevel.py tests/test_tables.py tests/test_file_format.py
 
       - run:
           name: Upload Python coverage

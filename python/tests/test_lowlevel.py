@@ -179,6 +179,25 @@ class TestTableCollection(LowLevelTestCase):
                 with pytest.raises(TypeError):
                     func(bad_type)
 
+    def test_file_format_eof_error(self, tmp_path):
+        with open(tmp_path / "tmp.trees", "wb") as f:
+            f.write(b"")
+        with open(tmp_path / "tmp.trees", "rb") as f:
+            tc2 = _tskit.TableCollection()
+            with pytest.raises(EOFError):
+                tc2.load(f)
+
+    def test_file_format_kas_error(self, tmp_path):
+        tc1 = _tskit.TableCollection(1)
+        self.get_example_tree_sequence().dump_tables(tc1)
+        with open(tmp_path / "tmp.trees", "wb") as f:
+            tc1.dump(f)
+        with open(tmp_path / "tmp.trees", "rb") as f:
+            f.seek(1)
+            tc2 = _tskit.TableCollection()
+            with pytest.raises(_tskit.FileFormatError):
+                tc2.load(f)
+
     def test_dump_equality(self, tmp_path):
         for ts in self.get_example_tree_sequences():
             tc = _tskit.TableCollection(sequence_length=ts.get_sequence_length())

@@ -44,8 +44,6 @@ import _tskit
 import tskit
 import tskit.combinatorics as combinatorics
 import tskit.drawing as drawing
-import tskit.exceptions as exceptions
-import tskit.formats as formats
 import tskit.metadata as metadata_module
 import tskit.tables as tables
 import tskit.text_formats as text_formats
@@ -3601,9 +3599,6 @@ class TreeSequence:
             ts = _tskit.TreeSequence()
             ts.load(file)
             return TreeSequence(ts)
-        except exceptions.FileFormatError as e:
-            # TODO Fix this for new file semantics
-            formats.raise_hdf5_format_error(file_or_path, e)
         finally:
             if local_file:
                 file.close()

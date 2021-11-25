@@ -539,12 +539,17 @@ tsk_is_kas_error(int err)
     return !(err & (1 << TSK_KAS_ERR_BIT));
 }
 
+int
+tsk_get_kas_error(int err)
+{
+    return err ^ (1 << TSK_KAS_ERR_BIT);
+}
+
 const char *
 tsk_strerror(int err)
 {
     if (err != 0 && tsk_is_kas_error(err)) {
-        err ^= (1 << TSK_KAS_ERR_BIT);
-        return kas_strerror(err);
+        return kas_strerror(tsk_get_kas_error(err));
     } else {
         return tsk_strerror_internal(err);
     }

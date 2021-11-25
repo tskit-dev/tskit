@@ -384,6 +384,7 @@ An unsupported type was provided for a column in the file.
 
 int tsk_set_kas_error(int err);
 bool tsk_is_kas_error(int err);
+int tsk_get_kas_error(int err);
 
 /**
 @brief Return a description of the specified error.

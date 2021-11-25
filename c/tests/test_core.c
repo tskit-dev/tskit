@@ -47,13 +47,15 @@ test_strerror(void)
 static void
 test_strerror_kastore(void)
 {
-    int kastore_errors[] = { KAS_ERR_NO_MEMORY, KAS_ERR_KEY_NOT_FOUND };
+    int kastore_errors[]
+        = { KAS_ERR_NO_MEMORY, KAS_ERR_KEY_NOT_FOUND, KAS_ERR_BAD_FILE_FORMAT };
     size_t j;
     int err;
 
     for (j = 0; j < sizeof(kastore_errors) / sizeof(*kastore_errors); j++) {
         err = tsk_set_kas_error(kastore_errors[j]);
         CU_ASSERT_TRUE(tsk_is_kas_error(err));
+        CU_ASSERT_EQUAL_FATAL(tsk_get_kas_error(err), kastore_errors[j]);
         CU_ASSERT_STRING_EQUAL(tsk_strerror(err), kas_strerror(kastore_errors[j]));
     }
 }
