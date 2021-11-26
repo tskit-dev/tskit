@@ -75,7 +75,7 @@ metadata in an efficient schema-defined binary format using {func}`python:struct
 ### JSON
 
 When `json` is specified as the `codec` in the schema the metadata is encoded in
-the human readable `JSON <https://www.json.org/json-en.html>`_ format. As this format
+the human readable [JSON](https://www.json.org/json-en.html) format. As this format
 is human readable and encodes numbers as text it uses more bytes than the `struct`
 format. However it is simpler to configure as it doesn't require any format specifier
 for each type in the schema. Default values for properties can be specified for only
@@ -355,9 +355,8 @@ schema = metadata.MetadataSchema(
 This schema states that the metadata for each row of the table
 is an object consisting of two properties. Property `accession_number` is a number
 (stored as a 4-byte int).
-Property `collection_date` is a string which must satisfy a regex,
-which checks it is a valid [ISO8601](https://www.iso.org/iso-8601-date-and-time-format
-.html) date.
+Property `collection_date` is a string which must satisfy a regex, which checks it is 
+a valid [ISO8601](https://www.iso.org/iso-8601-date-and-time-format.html) date.
 Both properties are required to be specified (this must always be done for the struct codec,
 for the JSON codec properties can be optional).
 Any other properties are not allowed (`additionalProperties` is false), this is also needed
