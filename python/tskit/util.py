@@ -461,7 +461,7 @@ def tree_sequence_html(ts):
                       <tr>
                         <th style="padding:0;line-height:21px;">
                           <img style="height: 32px;display: inline-block;padding: 3px 5px 3px 0;" src="https://raw.githubusercontent.com/tskit-dev/administrative/main/tskit_logo.svg"/>
-                          <a target="_blank" href="https://tskit.readthedocs.io/en/latest/python-api.html#the-treesequence-class"> Tree Sequence </a>
+                          <a target="_blank" href="https://tskit.dev/tskit/docs/latest/python-api.html#the-treesequence-class"> Tree Sequence </a>
                         </th>
                       </tr>
                     </thead>
@@ -516,7 +516,7 @@ def tree_html(tree):
                       <tr>
                         <th style="padding:0;line-height:21px;">
                           <img style="height: 32px;display: inline-block;padding: 3px 5px 3px 0;" src="https://raw.githubusercontent.com/tskit-dev/administrative/main/tskit_logo.svg"/>
-                          <a target="_blank" href="https://tskit.readthedocs.io/en/latest/python-api.html#the-tree-class"> Tree </a>
+                          <a target="_blank" href="https://tskit.dev/tskit/docs/latest/python-api.html#the-tree-class"> Tree </a>
                         </th>
                       </tr>
                     </thead>

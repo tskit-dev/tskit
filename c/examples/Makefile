@@ -11,7 +11,7 @@
 #
 # $ git clone git@github.com:tskit-dev/tskit.git --recurse-submodules
 #
-# See the documentation (https://tskit.readthedocs.io/en/stable/c-api.html)
+# See the documentation (https://tskit.dev/tskit/docs/stable/c-api.html)
 # for more details on how to use the C API, and the tskit build examples
 # repo (https://github.com/tskit-dev/tskit-build-examples) for examples
 # of how to set up a production-ready build with tskit.

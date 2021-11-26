@@ -1,7 +1,7 @@
 # Contributing
 
 Tskit is a free and open-source project that welcomes contributions from everyone.
-The [Developer documentation](https://tskit.readthedocs.io/en/latest/development.html)
+The [Developer documentation](https://tskit.dev/tskit/docs/latest/development.html)
 will help you get started. 
 
 We have an active slack group where tskit and associated projects are discussed.
