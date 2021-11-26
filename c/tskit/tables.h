@@ -724,6 +724,11 @@ typedef struct {
 /* Flags for table collection init */
 #define TSK_NO_EDGE_METADATA (1 << 0)
 
+/* Flags for table collection load */
+/* This shares an interface with table collection init.
+   TODO: review as part of #1720 */
+#define TSK_LOAD_SKIP_TABLES (1 << 1)
+
 /* Flags for table init. */
 #define TSK_NO_METADATA (1 << 0)
 
@@ -736,6 +741,7 @@ typedef struct {
 #define TSK_CMP_IGNORE_PROVENANCE (1 << 1)
 #define TSK_CMP_IGNORE_METADATA (1 << 2)
 #define TSK_CMP_IGNORE_TIMESTAMPS (1 << 3)
+#define TSK_CMP_IGNORE_TABLES (1 << 4)
 
 /* Flags for table collection clear */
 #define TSK_CLEAR_METADATA_SCHEMAS (1 << 0)
@@ -3412,6 +3418,9 @@ TSK_CMP_IGNORE_TS_METADATA
 TSK_CMP_IGNORE_TIMESTAMPS
     Do not include the timestamp information when comparing the provenance
     tables. This has no effect if TSK_CMP_IGNORE_PROVENANCE is specified.
+TSK_CMP_IGNORE_TABLES
+    Do not include any tables in the comparison, thus comparing only the
+    top-level information of the table collections being compared.
 @endrst
 
 @param self A pointer to a tsk_table_collection_t object.
@@ -3470,6 +3479,9 @@ If the file contains multiple table collections, this function will load
 the first. Please see the :c:func:`tsk_table_collection_loadf` for details
 on how to sequentially load table collections from a stream.
 
+If the TSK_LOAD_SKIP_TABLES option is set, only the top-level
+information of the table collection will be read, leaving all tables empty.
+
 **Options**
 
 Options can be specified by providing one or more of the following bitwise
@@ -3477,6 +3489,8 @@ flags:
 
 TSK_NO_INIT
     Do not initialise this :c:type:`tsk_table_collection_t` before loading.
+TSK_LOAD_SKIP_TABLES
+    Skip reading tables, and only load top-level information.
 
 **Examples**
 
@@ -3524,6 +3538,14 @@ different error conditions. Please see the
 :ref:`sec_c_api_examples_file_streaming` section for an example of how to
 sequentially load tree sequences from a stream.
 
+Please note that this streaming behaviour is not supported if the
+TSK_LOAD_SKIP_TABLES option is set. With this option, only the top-level
+information of the table collection will be read, leaving all tables empty. When
+attempting to read from a stream with multiple table collection definitions and
+the TSK_LOAD_SKIP_TABLES option set, only the top-level information of the first
+table collection will be read on the first call to
+:c:func:`tsk_table_collection_loadf`, with subsequent calls leading to errors.
+
 **Options**
 
 Options can be specified by providing one or more of the following bitwise
@@ -3531,6 +3553,8 @@ flags:
 
 TSK_NO_INIT
     Do not initialise this :c:type:`tsk_table_collection_t` before loading.
+TSK_LOAD_SKIP_TABLES
+    Skip reading tables, and only load top-level information.
 
 @endrst
 

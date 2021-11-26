@@ -9971,22 +9971,30 @@ bool
 tsk_table_collection_equals(const tsk_table_collection_t *self,
     const tsk_table_collection_t *other, tsk_flags_t options)
 {
-    bool ret
-        = self->sequence_length == other->sequence_length
-          && tsk_individual_table_equals(
-                 &self->individuals, &other->individuals, options)
-          && tsk_node_table_equals(&self->nodes, &other->nodes, options)
-          && tsk_edge_table_equals(&self->edges, &other->edges, options)
-          && tsk_migration_table_equals(&self->migrations, &other->migrations, options)
-          && tsk_site_table_equals(&self->sites, &other->sites, options)
-          && tsk_mutation_table_equals(&self->mutations, &other->mutations, options)
-          && tsk_population_table_equals(
-                 &self->populations, &other->populations, options)
-          && (self->time_units_length == other->time_units_length
-                 && tsk_memcmp(self->time_units, other->time_units,
-                        self->time_units_length * sizeof(char))
-                        == 0);
-
+    bool ret = self->sequence_length == other->sequence_length
+               && self->time_units_length == other->time_units_length
+               && tsk_memcmp(self->time_units, other->time_units,
+                      self->time_units_length * sizeof(char))
+                      == 0;
+    if (!(options & TSK_CMP_IGNORE_TABLES)) {
+        ret = ret
+              && tsk_individual_table_equals(
+                     &self->individuals, &other->individuals, options)
+              && tsk_node_table_equals(&self->nodes, &other->nodes, options)
+              && tsk_edge_table_equals(&self->edges, &other->edges, options)
+              && tsk_migration_table_equals(
+                     &self->migrations, &other->migrations, options)
+              && tsk_site_table_equals(&self->sites, &other->sites, options)
+              && tsk_mutation_table_equals(&self->mutations, &other->mutations, options)
+              && tsk_population_table_equals(
+                     &self->populations, &other->populations, options);
+        /* TSK_CMP_IGNORE_TABLES implies TSK_CMP_IGNORE_PROVENANCE */
+        if (!(options & TSK_CMP_IGNORE_PROVENANCE)) {
+            ret = ret
+                  && tsk_provenance_table_equals(
+                         &self->provenances, &other->provenances, options);
+        }
+    }
     /* TSK_CMP_IGNORE_TS_METADATA is implied by TSK_CMP_IGNORE_METADATA */
     if (options & TSK_CMP_IGNORE_METADATA) {
         options |= TSK_CMP_IGNORE_TS_METADATA;
@@ -10002,12 +10010,6 @@ tsk_table_collection_equals(const tsk_table_collection_t *self,
                             self->metadata_schema_length * sizeof(char))
                             == 0);
     }
-    if (!(options & TSK_CMP_IGNORE_PROVENANCE)) {
-        ret = ret
-              && tsk_provenance_table_equals(
-                     &self->provenances, &other->provenances, options);
-    }
-
     ret = ret
           && tsk_reference_sequence_equals(
                  self->reference_sequence, other->reference_sequence, options);
@@ -10512,12 +10514,15 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-tsk_table_collection_loadf_inited(tsk_table_collection_t *self, FILE *file)
+tsk_table_collection_loadf_inited(
+    tsk_table_collection_t *self, FILE *file, tsk_flags_t options)
 {
     int ret = 0;
     kastore_t store;
 
-    ret = kastore_openf(&store, file, "r", KAS_READ_ALL);
+    int kas_flags = options & TSK_LOAD_SKIP_TABLES ? 0 : KAS_READ_ALL;
+    ret = kastore_openf(&store, file, "r", kas_flags);
+
     if (ret != 0) {
         if (ret == KAS_ERR_EOF) {
             /* KAS_ERR_EOF means that we tried to read a store from the stream
@@ -10534,41 +10539,48 @@ tsk_table_collection_loadf_inited(tsk_table_collection_t *self, FILE *file)
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_node_table_load(&self->nodes, &store);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_edge_table_load(&self->edges, &store);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_site_table_load(&self->sites, &store);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_mutation_table_load(&self->mutations, &store);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_migration_table_load(&self->migrations, &store);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_individual_table_load(&self->individuals, &store);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_population_table_load(&self->populations, &store);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_provenance_table_load(&self->provenances, &store);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_table_collection_load_indexes(self, &store);
-    if (ret != 0) {
-        goto out;
+    if (!(options & TSK_LOAD_SKIP_TABLES)) {
+        ret = tsk_node_table_load(&self->nodes, &store);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_edge_table_load(&self->edges, &store);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_site_table_load(&self->sites, &store);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_mutation_table_load(&self->mutations, &store);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_migration_table_load(&self->migrations, &store);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_individual_table_load(&self->individuals, &store);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_population_table_load(&self->populations, &store);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_provenance_table_load(&self->provenances, &store);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_table_collection_load_indexes(self, &store);
+        if (ret != 0) {
+            goto out;
+        }
+    } else {
+        ret = tsk_table_collection_build_index(self, 0);
+        if (ret != 0) {
+            goto out;
+        }
     }
     ret = tsk_table_collection_load_reference_sequence(self, &store);
     if (ret != 0) {
@@ -10597,7 +10609,7 @@ tsk_table_collection_loadf(tsk_table_collection_t *self, FILE *file, tsk_flags_t
             goto out;
         }
     }
-    ret = tsk_table_collection_loadf_inited(self, file);
+    ret = tsk_table_collection_loadf_inited(self, file, options);
     if (ret != 0) {
         goto out;
     }
@@ -10623,7 +10635,7 @@ tsk_table_collection_load(
         ret = TSK_ERR_IO;
         goto out;
     }
-    ret = tsk_table_collection_loadf_inited(self, file);
+    ret = tsk_table_collection_loadf_inited(self, file, options);
     if (ret != 0) {
         goto out;
     }

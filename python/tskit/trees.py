@@ -2931,7 +2931,7 @@ class Tree:
         )
 
 
-def load(file):
+def load(file, *, skip_tables=False):
     """
     Loads a tree sequence from the specified file object or path. The file must be in the
     :ref:`tree sequence file format <sec_tree_sequence_file_format>` produced by the
@@ -2939,11 +2939,16 @@ def load(file):
 
     :param str file: The file object or path of the ``.trees`` file containing the
         tree sequence we wish to load.
+    :param bool skip_tables: If True, no tables are read from the ``.trees``
+        file and only the top-level information is populated in the tree sequence object.
+        Please note that with this option set, it is not possible to load data from
+        a stream of multiple tree sequences using consecutive calls to
+        :meth:`tskit.load`.
     :return: The tree sequence object containing the information
         stored in the specified file path.
     :rtype: :class:`tskit.TreeSequence`
     """
-    return TreeSequence.load(file)
+    return TreeSequence.load(file, skip_tables=skip_tables)
 
 
 def parse_individuals(
@@ -3555,6 +3560,7 @@ class TreeSequence:
         ignore_ts_metadata=False,
         ignore_provenance=False,
         ignore_timestamps=False,
+        ignore_tables=False,
     ):
         """
         Returns True if  `self` and `other` are equal. Uses the underlying table
@@ -3566,6 +3572,7 @@ class TreeSequence:
             ignore_ts_metadata=ignore_ts_metadata,
             ignore_provenance=ignore_provenance,
             ignore_timestamps=ignore_timestamps,
+            ignore_tables=ignore_tables,
         )
 
     @property
@@ -3593,11 +3600,11 @@ class TreeSequence:
         return [tree.copy() for tree in self.trees(**kwargs)]
 
     @classmethod
-    def load(cls, file_or_path):
+    def load(cls, file_or_path, *, skip_tables=False):
         file, local_file = util.convert_file_like_to_open_file(file_or_path, "rb")
         try:
             ts = _tskit.TreeSequence()
-            ts.load(file)
+            ts.load(file, skip_tables=skip_tables)
             return TreeSequence(ts)
         finally:
             if local_file:

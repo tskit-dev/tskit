@@ -1087,3 +1087,75 @@ class TestFileFormatErrors(TestFileFormat):
             f.write(b"Some ASCII text")
         with pytest.raises(exceptions.FileFormatError):
             load()
+
+
+def assert_tables_empty(tables):
+    for table in tables.name_map.values():
+        assert len(table) == 0
+
+
+class TestSkipTables:
+    """
+    Test `skip_tables` flag to TreeSequence.load() and TableCollection.load().
+    """
+
+    def test_ts_read_path_interface(self, tmp_path, ts_fixture):
+        # Check the fixture has metadata and a schema
+        assert ts_fixture.metadata_schema is not None
+        assert len(ts_fixture.metadata) > 0
+        save_path = tmp_path / "tmp.trees"
+        ts_fixture.dump(save_path)
+        ts_no_tables = tskit.load(save_path, skip_tables=True)
+        assert not ts_no_tables.equals(ts_fixture)
+        assert ts_no_tables.equals(ts_fixture, ignore_tables=True)
+        assert_tables_empty(ts_no_tables.tables)
+
+    def test_ts_read_one_stream(self, tmp_path, ts_fixture):
+        save_path = tmp_path / "tmp.trees"
+        ts_fixture.dump(save_path)
+        with open(save_path, "rb") as f:
+            ts_no_tables = tskit.load(f, skip_tables=True)
+        assert not ts_no_tables.equals(ts_fixture)
+        assert ts_no_tables.equals(ts_fixture, ignore_tables=True)
+        assert_tables_empty(ts_no_tables.tables)
+
+    def test_ts_twofile_stream_noskip(self, tmp_path, ts_fixture):
+        save_path = tmp_path / "tmp.trees"
+        with open(save_path, "wb") as f:
+            ts_fixture.dump(f)
+            ts_fixture.dump(f)
+        with open(save_path, "rb") as f:
+            ts1 = tskit.load(f)
+            ts2 = tskit.load(f)
+        assert ts_fixture.equals(ts1)
+        assert ts_fixture.equals(ts2)
+
+    def test_ts_twofile_stream_fails(self, tmp_path, ts_fixture):
+        # We can't skip_tables while reading from a stream
+        save_path = tmp_path / "tmp.trees"
+        with open(save_path, "wb") as f:
+            ts_fixture.dump(f)
+            ts_fixture.dump(f)
+        with open(save_path, "rb") as f:
+            tskit.load(f, skip_tables=True)
+            with pytest.raises(exceptions.FileFormatError):
+                tskit.load(f)
+
+    def test_table_collection_load_path(self, tmp_path, ts_fixture):
+        save_path = tmp_path / "tmp.trees"
+        ts_fixture.dump(save_path)
+        tables_skipped = tskit.TableCollection.load(save_path, skip_tables=True)
+        tables = ts_fixture.tables
+        assert not tables_skipped.equals(tables)
+        assert tables_skipped.equals(tables, ignore_tables=True)
+        assert_tables_empty(tables_skipped)
+
+    def test_table_collection_load_stream(self, tmp_path, ts_fixture):
+        save_path = tmp_path / "tmp.trees"
+        ts_fixture.dump(save_path)
+        with open(save_path, "rb") as f:
+            tables_skipped = tskit.TableCollection.load(f, skip_tables=True)
+        tables = ts_fixture.tables
+        assert not tables_skipped.equals(tables)
+        assert tables_skipped.equals(tables, ignore_tables=True)
+        assert_tables_empty(tables_skipped)

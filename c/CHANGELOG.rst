@@ -56,6 +56,10 @@
   tree sequence. This is then used to geerate an error if ``time_units`` is ``uncalibrated`` when
   using the branch lengths in statistics. (:user:`benjeffery`, :issue:`1644`, :pr:`1760`)
 
+- Add the TSK_LOAD_SKIP_TABLES option to load just the top-level information from a
+  file. Also add the TSK_CMP_IGNORE_TABLES option to compare only the top-level
+  information in two table collections. (:user:`clwgg`, :pr:`1882`, :issue:`1854`).
+
 - Add reference sequence to table collection (:user:`benjeffery`, :issue:`146`, :pr:`1911`)
 
 - FIXME add features for virtual root, num_edges, stack allocation size etc
