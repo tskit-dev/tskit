@@ -21,7 +21,7 @@ kernelspec:
 
 The correlated genealogical trees that describe the shared ancestry of a set of
 samples are stored concisely in `tskit` as a collection of
-easy-to-understand tables. These are output by coalescent simulation in
+easy-to-understand tables. These are output directly by software such as
 `msprime` or can be read in from another source. This page documents
 the structure of the tables, and the different methods of interchanging
 genealogical data to and from the tskit API. We begin by defining
