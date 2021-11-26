@@ -32,6 +32,7 @@ import pprint
 import struct
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import msgpack
 import msprime
@@ -541,6 +542,35 @@ class TestJSONCodec:
             match="Could not encode metadata of type TableCollection",
         ):
             ms.validate_and_encode_row(tskit.TableCollection(1))
+
+    def test_skip_validation(self):
+        ms = tskit.MetadataSchema({"codec": "json"})
+        assert ms._bypass_validation
+        with patch.object(ms, "_validate_row", return_value=True) as mocked_validate:
+            ms.validate_and_encode_row({})
+            assert mocked_validate.call_count == 0
+
+    def test_dont_skip_validation(self):
+        ms = tskit.MetadataSchema({"codec": "json", "properties": {"foo": {}}})
+        assert not ms._bypass_validation
+        with patch.object(ms, "_validate_row", return_value=True) as mocked_validate:
+            ms.validate_and_encode_row({})
+            assert mocked_validate.call_count == 1
+
+    def test_dont_skip_validation_other_codecs(self):
+        ms = tskit.MetadataSchema(
+            {
+                "codec": "struct",
+                "type": "object",
+                "properties": {
+                    "int": {"type": "number", "binaryFormat": "i"},
+                },
+            }
+        )
+        assert not ms._bypass_validation
+        with patch.object(ms, "_validate_row", return_value=True) as mocked_validate:
+            ms.validate_and_encode_row({"int": 1})
+            assert mocked_validate.call_count == 1
 
 
 class TestStructCodec:

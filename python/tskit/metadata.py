@@ -88,6 +88,10 @@ class AbstractMetadataCodec(metaclass=abc.ABCMeta):
     def modify_schema(self, schema: Mapping) -> Mapping:
         return schema
 
+    @classmethod
+    def is_schema_trivial(self, schema: Mapping) -> bool:
+        return False
+
     @abc.abstractmethod
     def encode(self, obj: Any) -> bytes:
         raise NotImplementedError  # pragma: no cover
@@ -129,6 +133,10 @@ class JSONCodec(AbstractMetadataCodec):
     schema_validator = jsonschema.validators.extend(
         TSKITMetadataSchemaValidator, {"default": default_validator}
     )
+
+    @classmethod
+    def is_schema_trivial(self, schema: Mapping) -> bool:
+        return len(schema.get("properties", {})) == 0
 
     def __init__(self, schema: Mapping[str, Any]) -> None:
         try:
@@ -598,6 +606,7 @@ class MetadataSchema:
 
     def __init__(self, schema: Optional[Mapping[str, Any]]) -> None:
         self._schema = schema
+        self._bypass_validation = False
 
         if schema is None:
             self._string = ""
@@ -623,8 +632,10 @@ class MetadataSchema:
             codec_instance = codec_cls(schema)
             self._string = tskit.canonical_json(schema)
             self._validate_row = TSKITMetadataSchemaValidator(schema).validate
+            self._bypass_validation = codec_cls.is_schema_trivial(schema)
             self.encode_row = codec_instance.encode
             self.decode_row = codec_instance.decode
+
             # If None is allowed by the schema as the top-level type, it gets used even
             # in the presence of default and required values.
             if "type" in schema and "null" in schema["type"]:
@@ -659,10 +670,12 @@ class MetadataSchema:
         Validate a row (dict) of metadata against this schema and return the encoded
         representation (bytes) using the codec specified in the schema.
         """
-        try:
-            self._validate_row(row)
-        except jsonschema.exceptions.ValidationError as ve:
-            raise exceptions.MetadataValidationError(str(ve)) from ve
+        # If the schema is permissive then validation can't fail
+        if not self._bypass_validation:
+            try:
+                self._validate_row(row)
+            except jsonschema.exceptions.ValidationError as ve:
+                raise exceptions.MetadataValidationError(str(ve)) from ve
         return self.encode_row(row)
 
     def decode_row(self, row: bytes) -> Any:
