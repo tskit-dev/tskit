@@ -4,17 +4,21 @@ parts:
 - caption: Getting started
   chapters:
   - file: installation
-- caption: APIs
+- caption: Concepts
+  chapters:
+  - file: data-model
+  - file: metadata
+  - file: provenance
+- caption: Analysis
+  chapters:
+  - file: stats
+  - file: combinatorics
+- caption: Interfaces
   chapters:
   - file: python-api
   - file: c-api
-  - file: stats
-- caption: Miscellaneous
-  chapters:
   - file: cli
-  - file: data-model
-  - file: metadata
-  - file: combinatorics
-  - file: provenance
+- caption: For developers
+  chapters:
   - file: development
   - file: changelogs
