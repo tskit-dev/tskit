@@ -908,7 +908,7 @@ used by Knuth and others. Nodes are represented by their integer
 IDs, and their relationships to other nodes are recorded in the
 `parent`, `left_child`, `right_child`, `left_sib` and
 `right_sib` arrays. For example, consider the following tree
-and associated arrays:
+and its associated arrays:
 
 ```{code-cell} ipython3
 :tags: ["hide-input"]
@@ -930,13 +930,19 @@ id      is_sample   time
 """
 edges = """\
 left    right   parent  child
-0       1       5       0,1,2
-0       1       6       3,4
-0       1       7       5,6
+0       300     5       4,3
+0       200     6       2
+0       300     6       1,0
+100     200     6       5
+0       100     7       5
+200     300     7       5
+0       300     7       6
+200     300     7       2
 """
 ts = tskit.load_text(
     nodes=io.StringIO(nodes), edges=io.StringIO(edges), strict=False
 )
+
 SVG(ts.first().draw_svg(time_scale="rank"))
 ```
 
@@ -945,11 +951,10 @@ SVG(ts.first().draw_svg(time_scale="rank"))
 from IPython.display import HTML
 
 def html_quintuple_table(ts, show_virtual_root=False):
-    assert ts.num_trees == 1
     tree = ts.first()
     columns = ["node", "parent", "left_child", "right_child", "left_sib", "right_sib"]
     data = {k:[] for k in columns}
-    for u in range(ts.num_nodes + int(show_virtual_root)):
+    for u in sorted(tree.nodes(tree.virtual_root if show_virtual_root else None)):
         for colname in columns:
             data[colname].append(u if colname == "node" else getattr(tree, colname)(u))
     html = "<tr>"
@@ -957,7 +962,7 @@ def html_quintuple_table(ts, show_virtual_root=False):
         html += f"<th>{colname}</th>"
     html += "</tr>"
     for u in range(len(data["node"])):
-        html += "<tr>" if u < ts.num_nodes else "<tr style='font-weight: bold'>"
+        html += "<tr>" if u < ts.num_nodes else "<tr style='font-style: italic; color:red'>"
         for colname in columns:
             html += f"<td>{data[colname][u]}</td>"
         html += "</tr>"
@@ -966,11 +971,11 @@ def html_quintuple_table(ts, show_virtual_root=False):
 HTML(html_quintuple_table(ts))
 ```
 
-Each node in the tree sequence corresponds to a row in this table, and
+Each node in the tree corresponds to a row in this table, and
 the columns are the individual arrays recording the quintuply linked
-structure. Thus, we can see that the parent of nodes `0`, `1` and `2`
-is `5`. Similarly, the left child of `5` is `0` and the
-right child of `5` is `2`. The `left_sib` and `right_sib` arrays
+structure. Thus, we can see that the parent of nodes `0`, `1`, and `2`
+is `6`. Similarly, the left child of `6` is `0` and the
+right child of `6` is `2`. The `left_sib` and `right_sib` arrays
 then record each nodes sibling on its left or right, respectively;
 hence the right sib of `0` is `1`, and the right sib of `1` is `2`.
 Thus, sibling information allows us to efficiently support trees
@@ -1017,37 +1022,68 @@ ts_multiroot = tables.tree_sequence()
 SVG(ts_multiroot.first().draw_svg(time_scale="rank"))
 ```
 
-We keep track of roots in tskit by using a special additional node
-called the **virtual root**, whose children are the roots. In the
-quintuply linked tree encoding this is an extra element at the end
-of each of the tree arrays, as shown here:
+Note that in tree sequence terminology, this should *not* be thought
+of as two separate trees, but as a single multi-root "tree", comprising
+two unlinked topologies. This fits with the definition of a tree
+in a tree sequence: a tree describes the ancestry of the same
+fixed set of sample nodes at a single position in the genome. In the
+picture above, *both* the left and right hand topologies are required
+describe the genealogy of samples 0..4 at this position.
+
+Here's what it looks like for an entire tree sequence:
+
+```{code-cell} ipython3
+:tags: ["hide-input"]
+SVG(ts_multiroot.draw_svg(time_scale="rank"))
+```
+
+This tree sequence consists of three trees. The first tree, which applies from
+position 0 to 100, is the one used in our example. As we saw, removing the edge
+connecting node 6 to node 7 has created a tree with 2 roots (and thus 2
+unconnected topologies in a single tree). In contrast, the second tree, from
+position 100 to 200, has a single root. Finally the third tree, from position
+200 to 300 again has two roots.
+
+(sec_data_model_tree_virtual_root)=
+
+#### The virtual root
+
+To access all the roots in a tree, tskit uses a special additional node
+called the **virtual root**. This is primarily a bookkeeping device, and
+can normally be ignored: it is not plotted in any visualizations and
+does not exist as an independent node in the node table.
+However, the virtual root can be useful in certain algorithms because its
+children are defined as all the "real" roots in a tree. Hence by
+descending downwards from the virtual root, it is possible
+to access the entire genealogy at a given site, even in a multi-root
+tree. In the quintuply linked tree encoding, the virtual root appears as an
+extra element at the end of each of the tree arrays. Here's the same table
+as before but with the virtual root also shown, using red italics to
+emphasise that it is not a "real" node:
 
 ```{code-cell} ipython3
 :tags: ["hide-input"]
 HTML(html_quintuple_table(ts_multiroot, show_virtual_root=True))
 ```
 
-In this example, node 8 is the virtual root; its left child is 6
-and its right child is 7.
-Importantly, though, this is an asymmetric
-relationship, since the parent of the "real" roots 6 and 7 is null
-(-1) and *not* the virtual root. To emphasise that this is not a "real"
-node, we've shown the values for the virtual root here in bold.
+You can see that the virtual root (node 8) has 6 as its left child and 7
+as its right child. Importantly, though, this is an asymmetric
+relationship: the parent of the "real" roots 6 and 7 is null
+(-1) and *not* the virtual root. Hence when we ascend up the tree from the
+sample nodes to their parents, we stop at the "real" roots, and never
+encounter the virtual root.
 
-The main function of the virtual root is to efficiently keep track of
-tree roots in the internal library algorithms, and is usually not
-something we need to think about unless working directly with
-the quintuply linked tree structure. However, the virtual root can be
-useful in some algorithms and so it can optionally be returned in traversal
-orders (see {meth}`.Tree.nodes`). The virtual root has the following
-properties:
+Because the virtual root can be useful in some algorithms, it can
+optionally be returned in traversal orders (see {meth}`.Tree.nodes`).
+The following properties apply:
 
-- Its ID is always equal to the number of nodes in the tree sequence (i.e.,
-  the length of the node table). However, there is **no corresponding row**
+- All trees in a tree sequence share the same virtual root.
+- The virtual root's ID is always equal to the number of nodes in the tree sequence
+  (i.e. the length of the node table). However, there is **no corresponding row**
   in the node table, and any attempts to access information about the
   virtual root via either the tree sequence or tables APIs will fail with
   an out-of-bounds error.
-- The parent  and siblings of the virtual root are null.
+- The parent and siblings of the virtual root are null.
 - The time of the virtual root is defined as positive infinity (if
   accessed via {meth}`.Tree.time`). This is useful in defining the
   time-based node traversal orderings.
@@ -1094,8 +1130,11 @@ on this tree, the state that it is assigned is a special value
 the node at that site. Note that, although isolated, because node 4
 is a sample node it is still considered as being present in the
 tree, meaning it will still returned by the {meth}`Tree.nodes` and
-{meth}`Tree.samples` methods. The {meth}`Tree.is_isolated` method can be used to
-identify nodes which are isolated samples:
+{meth}`Tree.samples` methods: in fact, because it is unconnected to the
+rest of the tree, is is also, by definition, one of the tree
+{ref}`roots<sec_data_model_tree_roots>` (the other root is node 7).
+The {meth}`Tree.is_isolated` method can be used to identify nodes which
+are isolated samples:
 
 
 ```{code-cell} ipython3
