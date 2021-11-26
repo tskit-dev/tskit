@@ -2250,7 +2250,7 @@ class Tree:
             Unlike the :meth:`TreeSequence.nodes` method, this iterator produces
             integer node IDs, not :class:`Node` objects.
 
-        If the ``root`` parameter is not provided or none, iterate over all
+        If the ``root`` parameter is not provided or ``None``, iterate over all
         nodes reachable from the roots (see :meth:`Tree.roots` for details
         on which nodes are considered roots). If the ``root`` parameter
         is provided, only the nodes in the subtree rooted at this node
@@ -2258,11 +2258,12 @@ class Tree:
         :attr:`.virtual_root` is specified as the traversal root, it will
         be included in the traversed nodes in the appropriate position
         for the given ordering. (See the
-        :ref:`tree roots <sec_data_model_tree_roots>` section for more
+        :ref:`tree roots <sec_data_model_tree_virtual_root>` section for more
         information on the virtual root.)
 
-        The ``order`` parameter defines the order in which tree nodes
-        are visited in the iteration. The available orders are:
+        The ``order`` parameter defines the order in which tree nodes are visited
+        in the iteration (also see the :ref:`sec_analysing_trees_traversals` section
+        in the `tutorials <https://tskit.dev/tutorials>`__). The available orders are:
 
         - 'preorder': starting at root, yield the current node, then recurse
           and do a preorder on each child of the current node. See also `Wikipedia
