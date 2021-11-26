@@ -102,6 +102,8 @@
   to the ``TableCollection.equals`` and ``TableCollection.assert_equals`` to
   compare only top-level information. (:user:`clwgg`, :pr:`1882`, :issue:`1854`).
 
+- tskit now supports python 3.10 (:user:`benjeffery`, :issue:`1895`, :pr:`1949`)
+
 **Fixes**
 
 - `dump_tables` omitted individual parents. (:user:`benjeffery`, :issue:`1828`, :pr:`1884`)
