@@ -321,16 +321,22 @@ To bypass the checks (to save or get feedback on work-in-progress) use
 
 The documentation for tskit is written using
 [Sphinx](http://www.sphinx-doc.org/en/stable/)
-and contained in the `docs` directory. It is written in the
-[reStructuredText](http://docutils.sourceforge.net/rst.html) format and
-deployed automatically to [readthedocs](https://readthedocs.org/).
+and contained in the `docs` directory. The files in this directory are
+markdown files that serve as an input to [jupyterbook](https://jupyterbook.org/),
+which allows jupyter notebook code, primarily in Python, to be automatically
+executed and the output inserted before deployment. The docs are then
+deployed automatically to the [tskit.dev website](https://tskit.dev/).
 API documentation for both Python and C are generated automatically from
-source.
+source: documentation embedded in the source code makes use of sphinx and
+the [reStructuredText](http://docutils.sourceforge.net/rst.html) format to
+alloow formating and cross referencing.
 For the C code, a combination of [Doxygen](http://www.doxygen.nl/)
 and [breathe](https://breathe.readthedocs.io/en/latest/) is used to
 generate API documentation.
 
-Please help us to improve the documentation!
+Please help us to improve the documentation! You can check on the list of
+[documentation issues](https://github.com/tskit-dev/tskit/issues?q=is%3Aissue+is%3Aopen+label%3Adocumentation)
+on GitHub, and help us fix any, or add issues for anything that's wrong or missing.
 
 
 ### Small edits
@@ -673,6 +679,7 @@ Vim users may find the
 [vim-clang-format](https://github.com/rhysd/vim-clang-format)
 plugin useful for automatically formatting code.
 
+
 ### Building
 
 We use [meson](https://mesonbuild.com) and [ninja-build](https://ninja-build.org) to
@@ -704,32 +711,6 @@ For vim users, the [mesonic](https://www.vim.org/scripts/script.php?script_id=53
 simplifies this process and allows code to be compiled seamlessly within the
 editor.
 
-(sec_development_c_static_analysis)=
-
-### Static analysis
-
-After running ``ninja -C build``, we can easily run some static analysis tools
-which are useful for detecting bugs (although there is usually a lot of
-false-positive noise also).
-
-We can run [clang-tidy](https://clang.llvm.org/extra/clang-tidy/) like this:
-
-```bash
-$ clang-tidy -p build/compile_commands.json tskit/*.c
-```
-
-We can run [scan-build](https://github.com/rizsotto/scan-build) which also
-generates some HTML reports. First, install from ``pypi``:
-
-```bash
-$ python -m pip install scan-build
-```
-
-Then run
-
-```bash
-$ analyze-build --cdb build/compile_commands.json --exclude tests --exclude subprojects
-```
 
 ### Unit Tests
 
