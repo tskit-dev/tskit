@@ -1028,7 +1028,7 @@ two unlinked topologies. This fits with the definition of a tree
 in a tree sequence: a tree describes the ancestry of the same
 fixed set of sample nodes at a single position in the genome. In the
 picture above, *both* the left and right hand topologies are required
-describe the genealogy of samples 0..4 at this position.
+to describe the genealogy of samples 0..4 at this position.
 
 Here's what it looks like for an entire tree sequence:
 
@@ -1042,7 +1042,7 @@ position 0 to 100, is the one used in our example. As we saw, removing the edge
 connecting node 6 to node 7 has created a tree with 2 roots (and thus 2
 unconnected topologies in a single tree). In contrast, the second tree, from
 position 100 to 200, has a single root. Finally the third tree, from position
-200 to 300 again has two roots.
+200 to 300, again has two roots.
 
 (sec_data_model_tree_virtual_root)=
 
