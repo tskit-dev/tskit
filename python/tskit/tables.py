@@ -2927,8 +2927,8 @@ class TableCollection:
 
     def tree_sequence(self):
         """
-        Returns a :class:`TreeSequence` instance with the structure defined by the
-        tables in this :class:`TableCollection`. If the table collection is not
+        Returns a :class:`TreeSequence` instance from the tables defined in
+        this :class:`TableCollection`. If the table collection is not
         in canonical form (i.e., does not meet sorting requirements) or cannot be
         interpreted as a tree sequence an exception is raised. The
         :meth:`.sort` method may be used to ensure that input sorting requirements

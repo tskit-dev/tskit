@@ -479,9 +479,9 @@ class Population(util.Dataclass):
 @dataclass
 class Variant(util.Dataclass):
     """
-    A variant represents the observed variation among samples
-    for a given site. A variant consists (a) of a reference to the
-    :class:`Site` instance in question; (b) the **alleles** that may be
+    A variant in a tree sequence, describing the observed genetic variation
+    among samples for a given site. A variant consists (a) of a reference to
+    the :class:`Site` instance in question; (b) the **alleles** that may be
     observed at the samples for this site; and (c) the **genotypes**
     mapping sample IDs to the observed alleles.
 
@@ -2062,7 +2062,7 @@ class Tree:
 
     def num_samples(self, u=None):
         """
-        Returns the number of samples in this tree underneath the specified
+        Returns the number of sample nodes in this tree underneath the specified
         node (including the node itself). If u is not specified return
         the total number of samples in the tree.
 
@@ -2577,6 +2577,9 @@ class Tree:
         return pi
 
     def __str__(self):
+        """
+        Return a plain text summary of a tree in a tree sequence
+        """
         tree_rows = [
             ["Index", str(self.index)],
             [
@@ -2593,7 +2596,8 @@ class Tree:
 
     def _repr_html_(self):
         """
-        Called by jupyter notebooks to render tables
+        Return an html summary of a tree in a tree sequence. Called by jupyter
+        notebooks to render trees
         """
         return util.tree_html(self)
 
@@ -2968,9 +2972,10 @@ class Tree:
 
 def load(file, *, skip_tables=False):
     """
-    Loads a tree sequence from the specified file object or path. The file must be in the
-    :ref:`tree sequence file format <sec_tree_sequence_file_format>` produced by the
-    :meth:`TreeSequence.dump` method.
+    Return a :class:`TreeSequence` instance loaded from the specified file object or
+    path. The file must be in the
+    :ref:`tree sequence file format <sec_tree_sequence_file_format>`
+    produced by the :meth:`TreeSequence.dump` method.
 
     :param str file: The file object or path of the ``.trees`` file containing the
         tree sequence we wish to load.
@@ -3352,8 +3357,8 @@ def load_text(
     base64_metadata=True,
 ):
     """
-    Parses the tree sequence data from the specified file-like objects, and
-    returns the resulting :class:`TreeSequence` object. The format
+    Return a :class:`TreeSequence` instance parsed from tabulated text data
+    contained in the specified file-like objects. The format
     for these files is documented in the :ref:`sec_text_file_format` section,
     and is produced by the :meth:`TreeSequence.dump_text` method. Further
     properties required for an input tree sequence are described in the
@@ -3910,9 +3915,19 @@ class TreeSequence:
                 print(row, file=provenances)
 
     def __str__(self):
+        """
+        Return a plain text summary of the contents of a tree sequence
+        """
         ts_rows = [
             ["Trees", str(self.num_trees)],
-            ["Sequence Length", str(self.sequence_length)],
+            [
+                "Sequence Length",
+                str(
+                    int(self.sequence_length)
+                    if self.discrete_genome
+                    else self.sequence_length
+                ),
+            ],
             ["Time Units", self.time_units],
             ["Sample Nodes", str(self.num_samples)],
             ["Total Size", util.naturalsize(self.nbytes)],
@@ -3939,7 +3954,8 @@ class TreeSequence:
 
     def _repr_html_(self):
         """
-        Called by jupyter notebooks to render a TreeSequence
+        Return an html summary of a tree sequence. Called by jupyter notebooks
+        to render a TreeSequence.
         """
         return util.tree_sequence_html(self)
 
@@ -3948,8 +3964,8 @@ class TreeSequence:
     @property
     def num_samples(self):
         """
-        Returns the number of samples in this tree sequence. This is the number
-        of sample nodes in each tree.
+        Returns the number of sample nodes in this tree sequence. This is also the
+        number of sample nodes in each tree.
 
         :return: The number of sample nodes in this tree sequence.
         :rtype: int
@@ -4277,9 +4293,9 @@ class TreeSequence:
 
     def edge_diffs(self, include_terminal=False):
         """
-        Returns an iterator over all the edges that are inserted and removed to
-        build the trees as we move from left-to-right along the tree sequence.
-        Each iteration yields a named tuple consisting of 3 values,
+        Returns an iterator over all the :ref:`edges <sec_edge_table_definition>` that
+        are inserted and removed to build the trees as we move from left-to-right along
+        the tree sequence. Each iteration yields a named tuple consisting of 3 values,
         ``(interval, edges_out, edges_in)``. The first value, ``interval``, is the
         genomic interval ``(left, right)`` covered by the incoming tree
         (see :attr:`Tree.interval`). The second, ``edges_out`` is a list of the edges
@@ -4372,8 +4388,8 @@ class TreeSequence:
 
     def breakpoints(self, as_array=False):
         """
-        Returns the breakpoints along the chromosome, including the two extreme points
-        0 and L. This is equivalent to
+        Returns the breakpoints that separate trees along the chromosome, including the
+        two extreme points 0 and L. This is equivalent to
 
         >>> iter([0] + [t.interval.right for t in self.trees()])
 
@@ -4692,7 +4708,8 @@ class TreeSequence:
         impute_missing_data=None,
     ):
         """
-        Returns an iterator over the variants in this tree sequence. See the
+        Returns an iterator over the variants (each site with its genotypes
+        and alleles) in this tree sequence. See the
         :class:`Variant` class for details on the fields of each returned
         object. The ``genotypes`` for the variants are numpy arrays,
         corresponding to indexes into the ``alleles`` attribute in the
@@ -4753,7 +4770,7 @@ class TreeSequence:
         :param bool impute_missing_data:
             *Deprecated in 0.3.0. Use ``isolated_as_missing``, but inverting value.
             Will be removed in a future version*
-        :return: An iterator of all variants this tree sequence.
+        :return: An iterator over all variants in this tree sequence.
         :rtype: iter(:class:`Variant`)
         """
         if impute_missing_data is not None:
@@ -5123,6 +5140,10 @@ class TreeSequence:
         )
 
     def provenance(self, id_):
+        """
+        Returns the :ref:`provenance <sec_provenance_table_definition>`
+        in this tree sequence with the specified ID.
+        """
         timestamp, record = self._ll_tree_sequence.get_provenance(id_)
         return Provenance(id=id_, timestamp=timestamp, record=record)
 
