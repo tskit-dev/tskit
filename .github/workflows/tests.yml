@@ -71,11 +71,10 @@ jobs:
         working-directory: python
         if: matrix.os == 'windows-latest'
         run: |
-          rm -r lib
-          mkdir lib
-          cp -r --dereference ../c/subprojects lib/.
-          cp -r --dereference ../c/tskit lib/.
-          cp ../c/tskit.h lib/.
+          rm -r c-library
+          mkdir c-library
+          cp -r --dereference ../c/tskit c-library/
+          cp ../c/tskit.h c-library/
 
       - name: Fix windows .profile
         if: steps.cache.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
@@ -164,12 +163,6 @@ jobs:
           mingw-w64-${{matrix.env}}-ninja
           mingw-w64-${{matrix.env}}-meson
           mingw-w64-${{matrix.env}}-cunit
-
-    - name: Fix windows symlinks
-      working-directory: c
-      run: |
-        rm -f subprojects/kastore
-        cp -r --dereference subprojects/full-projects/kastore/c subprojects/kastore
 
     - name: Build
       working-directory: c

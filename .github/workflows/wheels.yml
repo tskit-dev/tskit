@@ -84,12 +84,11 @@ jobs:
           git reset --hard
           cd python
           ${PYTHON} -VV
-          # For some reason I can't work out the C compiler is not following symlinks
-          rm -r lib
-          mkdir lib
-          cp -r --dereference ../c/subprojects lib/.
-          cp -r --dereference ../c/tskit lib/.
-          cp ../c/tskit.h lib/.
+          # Fix symlinks for windows
+          rm -r c-library
+          mkdir c-library
+          cp -r --dereference ../c/tskit c-library/
+          cp ../c/tskit.h c-library/
           ${PYTHON} setup.py build_ext --inplace
       - name: Build Wheel
         env:

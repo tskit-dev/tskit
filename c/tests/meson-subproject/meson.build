@@ -1,5 +1,9 @@
 project('example', 'c')
 
+# TODO update this once we have the tskit wrap setup and can
+# test whether we can automatically pull in kastore or not.
+# https://github.com/tskit-dev/tskit/issues/1961
+
 kastore_proj = subproject('kastore')
 kastore_dep = kastore_proj.get_variable('kastore_dep')
 tskit_proj = subproject('tskit')
