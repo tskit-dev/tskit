@@ -765,10 +765,10 @@ class Tree:
     def next(self):  # noqa A002
         """
         Seeks to the next tree in the sequence. If the tree is in the initial
-        null state we seek to the first tree (equivalent to calling :meth:`.first`).
+        null state we seek to the first tree (equivalent to calling :meth:`~Tree.first`).
         Calling ``next`` on the last tree in the sequence results in the tree
         being cleared back into the null initial state (equivalent to calling
-        :meth:`clear`). The return value of the function indicates whether the
+        :meth:`~Tree.clear`). The return value of the function indicates whether the
         tree is in a non-null state, and can be used to loop over the trees::
 
             # Iterate over the trees from left-to-right
@@ -788,10 +788,10 @@ class Tree:
     def prev(self):
         """
         Seeks to the previous tree in the sequence. If the tree is in the initial
-        null state we seek to the last tree (equivalent to calling :meth:`.last`).
+        null state we seek to the last tree (equivalent to calling :meth:`~Tree.last`).
         Calling ``prev`` on the first tree in the sequence results in the tree
         being cleared back into the null initial state (equivalent to calling
-        :meth:`clear`). The return value of the function indicates whether the
+        :meth:`~Tree.clear`). The return value of the function indicates whether the
         tree is in a non-null state, and can be used to loop over the trees::
 
             # Iterate over the trees from right-to-left
