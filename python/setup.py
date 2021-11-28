@@ -23,8 +23,8 @@ class local_build_ext(build_ext):
         self.include_dirs.append(numpy.get_include())
 
 
-libdir = "lib"
-kastore_dir = os.path.join(libdir, "subprojects", "kastore")
+libdir = "c-library"
+kastore_dir = os.path.join("c-dependencies", "kastore", "c")
 tsk_source_files = [
     "core.c",
     "tables.c",
