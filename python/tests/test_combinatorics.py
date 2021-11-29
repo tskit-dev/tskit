@@ -421,7 +421,7 @@ class TestRankTree:
         span = 8
         # Create a start tree, with a single root
         tsk_tree = tskit.Tree.unrank(n, (0, 0), span=span)
-        assert tsk_tree.num_nodes == n + 1
+        assert tsk_tree.tree_sequence.num_nodes == n + 1
         assert tsk_tree.interval.left == 0
         assert tsk_tree.interval.right == span
         assert tsk_tree.tree_sequence.sequence_length == span

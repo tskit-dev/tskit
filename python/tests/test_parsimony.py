@@ -82,7 +82,7 @@ def sankoff_score(tree, genotypes, cost_matrix):
     the cost of transitioning from each allele to every other allele.
     """
     num_alleles = cost_matrix.shape[0]
-    S = np.zeros((tree.num_nodes, num_alleles))
+    S = np.zeros((tree.tree_sequence.num_nodes, num_alleles))
     for allele, u in zip(genotypes, tree.tree_sequence.samples()):
         S[u, :] = INF
         S[u, allele] = 0
@@ -126,7 +126,7 @@ def fitch_map_mutations(tree, genotypes, alleles):
     if np.sum(not_missing) == 0:
         raise ValueError("Must have at least one non-missing genotype")
     num_alleles = np.max(genotypes[not_missing]) + 1
-    A = np.zeros((tree.num_nodes, num_alleles), dtype=np.int8)
+    A = np.zeros((tree.tree_sequence.num_nodes, num_alleles), dtype=np.int8)
     for allele, u in zip(genotypes, tree.tree_sequence.samples()):
         if allele != -1:
             A[u, allele] = 1

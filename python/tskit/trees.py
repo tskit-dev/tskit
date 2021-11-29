@@ -1403,12 +1403,23 @@ class Tree:
     def num_nodes(self):
         """
         Returns the number of nodes in the :class:`TreeSequence` this tree is in.
-        Equivalent to ``tree.tree_sequence.num_nodes``. To find the number of
-        nodes that are reachable from all roots use ``len(list(tree.nodes()))``.
+        Equivalent to ``tree.tree_sequence.num_nodes``.
+
+        .. deprecated:: 0.4
+            Use :attr:`Tree.tree_sequence.num_nodes<TreeSequence.num_nodes>` if you want
+            the number of nodes in the entire tree sequence, or
+            ``len(tree.preorder())`` to find the number of nodes that are
+            reachable from all roots in this tree.
 
         :rtype: int
+
         """
-        return self._ll_tree.get_num_nodes()
+        warnings.warn(
+            "This property is a deprecated alias for Tree.tree_sequence.num_nodes "
+            "and will be removed in the future",
+            FutureWarning,
+        )
+        return self.tree_sequence.num_nodes
 
     @property
     def num_roots(self):
@@ -2378,7 +2389,7 @@ class Tree:
         single_node_size = (
             5 + max_label_size + math.ceil(math.log10(root_time)) + precision
         )
-        buffer_size = 1 + single_node_size * self.num_nodes
+        buffer_size = 1 + single_node_size * self.tree_sequence.num_nodes
         return self._ll_tree.get_newick(
             precision=precision,
             root=root,
@@ -2572,7 +2583,9 @@ class Tree:
 
     def get_parent_dict(self):
         pi = {
-            u: self.parent(u) for u in range(self.num_nodes) if self.parent(u) != NULL
+            u: self.parent(u)
+            for u in range(self.tree_sequence.num_nodes)
+            if self.parent(u) != NULL
         }
         return pi
 
@@ -2587,7 +2600,7 @@ class Tree:
                 f"{self.interval.left:.8g}-{self.interval.right:.8g} ({self.span:.8g})",
             ],
             ["Roots", str(self.num_roots)],
-            ["Nodes", str(self.num_nodes)],
+            ["Nodes", str(len(self.preorder()))],
             ["Sites", str(self.num_sites)],
             ["Mutations", str(self.num_mutations)],
             ["Total Branch Length", f"{self.total_branch_length:.8g}"],
