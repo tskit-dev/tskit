@@ -1554,28 +1554,14 @@ class Tree:
         """
         return self.interval.span
 
-    # The sample_size (or num_samples) is really a property of the tree sequence,
-    # and so we should provide access to this via a tree.tree_sequence.num_samples
-    # property access. However, we can't just remove the method as a lot of code
-    # may depend on it. To complicate things a bit more, sample_size has been
-    # changed to num_samples elsewhere for consistency. We can't do this here
-    # because there is already a num_samples method which returns the number of
-    # samples below a particular node. The best thing to do is probably to
-    # undocument the sample_size property, but keep it around for ever.
-
     def get_sample_size(self):
         # Deprecated alias for self.sample_size
         return self.sample_size
 
     @property
     def sample_size(self):
-        """
-        Returns the sample size for this tree. This is the number of sample
-        nodes in the tree.
-
-        :return: The number of sample nodes in the tree.
-        :rtype: int
-        """
+        # Deliberately undocumented but kept for backwards compatibility.
+        # The proper way to access this is via tree.tree_sequence.num_samples
         return self._ll_tree.get_sample_size()
 
     def draw_text(
