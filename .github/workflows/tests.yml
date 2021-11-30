@@ -42,8 +42,6 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v2
-        with:
-          submodules: true
 
       - name: Cache conda and dependancies
         id: cache
@@ -150,8 +148,6 @@ jobs:
 
     - name: 'Checkout'
       uses: actions/checkout@v2
-      with:
-        submodules: true
 
     - name: Setup MSYS2 ${{matrix.sys}}
       uses: msys2/setup-msys2@v2
@@ -164,12 +160,6 @@ jobs:
           mingw-w64-${{matrix.env}}-ninja
           mingw-w64-${{matrix.env}}-meson
           mingw-w64-${{matrix.env}}-cunit
-
-    - name: Fix windows symlinks
-      working-directory: c
-      run: |
-        rm -f subprojects/kastore
-        cp -r --dereference subprojects/full-projects/kastore/c subprojects/kastore
 
     - name: Build
       working-directory: c
