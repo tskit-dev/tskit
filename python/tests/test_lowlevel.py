@@ -3316,7 +3316,7 @@ class TestModuleFunctions:
 
     def test_kastore_version(self):
         version = _tskit.get_kastore_version()
-        assert version == (2, 0, 0)
+        assert version == (2, 0, 2)
 
     def test_tskit_version(self):
         version = _tskit.get_tskit_version()

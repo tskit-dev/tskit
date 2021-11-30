@@ -4,16 +4,12 @@ commands:
   setup:
     steps:
       - run:
-          name: Checkout submodules
-          command: |
-            git submodule update --init --recursive
-      - run:
           name: Install dependencies and set path
           command: |
             sudo apt-get update
             sudo apt-get install -y ninja-build libcunit1-dev valgrind clang doxygen python3-pip
             # Install meson to the system packages so we can run it as root
-            sudo pip install meson==0.55
+            sudo pip install meson
             pip install numpy==1.18.5
             pip install --user -r python/requirements/CI-complete/requirements.txt
             pip install twine --user

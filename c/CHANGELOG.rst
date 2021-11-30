@@ -30,6 +30,9 @@
   ``tsk_tree_t.interval.left`` and ``tsk_tree_t.interval.right`` respectively.
   (:user:`jeromekelleher`, :issue:`1686`, :pr:`1913`)
 
+- ``kastore`` is now vendored into this repo instead of being a git submodule. Developers need to run
+  ``git submodule update``. (:user:`jeromekelleher`, :issue:`1687`, :pr:`1973`)
+
 
 **Features**
 

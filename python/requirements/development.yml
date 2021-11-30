@@ -16,7 +16,7 @@ dependencies:
   - h5py>=2.6.0
   - jsonschema>=3.0.0
   - kastore
-  - meson<=0.56 # More recent meson is too strict. See #1515.
+  - meson
   - msprime>=1.0.0
   - networkx
   - ninja
