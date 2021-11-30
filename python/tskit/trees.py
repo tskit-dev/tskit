@@ -3636,8 +3636,9 @@ class TreeSequence:
     @property
     def tables(self):
         """
-        A copy of the tables underlying this tree sequence. See also
-        :meth:`.dump_tables`.
+        Returns the :class:`tables<TableCollection>` underlying this tree
+        sequence, intended for read-only access. See :meth:`.dump_tables` if you wish
+        to modify the tables.
 
         .. warning:: This property currently returns a copy of the tables
             underlying a tree sequence but it may return a read-only
@@ -3662,7 +3663,8 @@ class TreeSequence:
 
     def dump_tables(self):
         """
-        A copy of the tables defining this tree sequence.
+        Returns a modifiable copy of the :class:`tables<TableCollection>` defining
+        this tree sequence.
 
         :return: A :class:`TableCollection` containing all tables underlying
             the tree sequence.
