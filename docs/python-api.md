@@ -647,16 +647,17 @@ tree sequences (see the {ref}`sec_tables` tutorial).
 ```
 
 ```{eval-rst}
+.. autosummary::
   TableCollection.clear
   TableCollection.copy
   TableCollection.equals
   TableCollection.ibd_segments
-  TableCollection.indexes
   TableCollection.link_ancestors
 ```
 
 #### Export
 ```{eval-rst}
+.. autosummary::
   TableCollection.tree_sequence
   TableCollection.dump
 ```
