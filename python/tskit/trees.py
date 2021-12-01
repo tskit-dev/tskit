@@ -2102,15 +2102,51 @@ class Tree:
         u = self.virtual_root if u is None else u
         return self._ll_tree.get_num_tracked_samples(u)
 
-    # TODO document these traversal arrays
-    # https://github.com/tskit-dev/tskit/issues/1788
     def preorder(self, u=NULL):
+        """
+        Returns a numpy array of node ids in preorder
+        <https://en.wikipedia.org/wiki/Tree_traversal#Pre-order_(NLR)>. If the node u
+        is specified the traversal is rooted at this node (and it will be the first
+        element in the returned array). Otherwise, all nodes reachable from the tree
+        roots will be returned. See :ref:`tutorials:sec_analysing_trees_traversals` for
+        examples.
+
+        :param int u: If specified, return all nodes in the subtree rooted at u
+            (including u) in traversal order.
+        :return: Array of node ids
+        :rtype: numpy.ndarray (dtype=np.int32)
+        """
         return self._ll_tree.get_preorder(u)
 
     def postorder(self, u=NULL):
+        """
+        Returns a numpy array of node ids in postorder
+        <https://en.wikipedia.org/wiki/Tree_traversal##Post-order_(LRN)>. If the node u
+        is specified the traversal is rooted at this node (and it will be the last
+        element in the returned array). Otherwise, all nodes reachable from the tree
+        roots will be returned. See :ref:`tutorials:sec_analysing_trees_traversals` for
+        examples.
+
+        :param int u: If specified, return all nodes in the subtree rooted at u
+            (including u) in traversal order.
+        :return: Array of node ids
+        :rtype: numpy.ndarray (dtype=np.int32)
+        """
         return self._ll_tree.get_postorder(u)
 
     def timeasc(self, u=NULL):
+        """
+        Returns a numpy array of node ids. Starting at `u`, returns the reachable
+        descendant nodes in order of increasing time (most recent first), falling back
+        to increasing ID if times are equal. Also see
+        :ref:`tutorials:sec_analysing_trees_traversals` for examples of how to use
+        traversals.
+
+        :param int u: If specified, return all nodes in the subtree rooted at u
+            (including u) in traversal order.
+        :return: Array of node ids
+        :rtype: numpy.ndarray (dtype=np.int32)
+        """
         nodes = self.preorder(u)
         is_virtual_root = u == self.virtual_root
         time = self.tree_sequence.tables.nodes.time
@@ -2124,6 +2160,18 @@ class Tree:
         return nodes[order]
 
     def timedesc(self, u=NULL):
+        """
+        Returns a numpy array of node ids. Starting at `u`, returns the reachable
+        descendant nodes in order of decreasing time (least recent first), falling back
+        to decreasing ID if times are equal. Also see
+        :ref:`tutorials:sec_analysing_trees_traversals` for examples of how to use
+        traversals.
+
+        :param int u: If specified, return all nodes in the subtree rooted at u
+            (including u) in traversal order.
+        :return: Array of node ids
+        :rtype: numpy.ndarray (dtype=np.int32)
+        """
         return self.timeasc(u)[::-1]
 
     def _preorder_traversal(self, root):
