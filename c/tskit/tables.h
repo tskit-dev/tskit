@@ -975,10 +975,11 @@ Copies the metadata schema string to this table, replacing any existing.
 @param self A pointer to a tsk_individual_table_t object.
 @param metadata_schema A pointer to a char array
 @param metadata_schema_length The size of the metadata schema in bytes.
+@param options Bitwise option flags.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_individual_table_set_metadata_schema(tsk_individual_table_t *self,
-    const char *metadata_schema, tsk_size_t metadata_schema_length);
+    const char *metadata_schema, tsk_size_t metadata_schema_length, tsk_flags_t options);
 
 /**
 @brief Print out the state of this table to the specified stream.
@@ -1003,7 +1004,7 @@ The metadata schema is not affected.
 
 @param self A pointer to a tsk_individual_table_t object.
 @param num_rows The number of rows to copy from the specifed arrays.
-@param flags The array of tsk_flag_t flag values to be copied.
+@param flags The array of tsk_flags_t flag values to be copied.
 @param location The array of double location values to be copied.
 @param location_offset The array of tsk_size_t location offset values to be copied.
 @param parents The array of tsk_id_t parent values to be copied.
@@ -1028,7 +1029,7 @@ metadata schema is not affected.
 
 @param self A pointer to a tsk_individual_table_t object.
 @param num_rows The number of rows to copy from the specifed arrays
-@param flags The array of tsk_flag_t flag values to be copied.
+@param flags The array of tsk_flags_t flag values to be copied.
 @param location The array of double location values to be copied.
 @param location_offset The array of tsk_size_t location offset values to be copied.
 @param parents The array of tsk_id_t parent values to be copied.
@@ -1319,10 +1320,11 @@ Copies the metadata schema string to this table, replacing any existing.
 @param self A pointer to a tsk_node_table_t object.
 @param metadata_schema A pointer to a char array
 @param metadata_schema_length The size of the metadata schema in bytes.
+@param options Bitwise option flags.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_node_table_set_metadata_schema(tsk_node_table_t *self,
-    const char *metadata_schema, tsk_size_t metadata_schema_length);
+    const char *metadata_schema, tsk_size_t metadata_schema_length, tsk_flags_t options);
 
 /**
 @brief Print out the state of this table to the specified stream.
@@ -1347,7 +1349,7 @@ The metadata schema is not affected.
 
 @param self A pointer to a tsk_node_table_t object.
 @param num_rows The number of rows to copy from the specifed arrays.
-@param flags The array of tsk_flag_t values to be copied.
+@param flags The array of tsk_flags_t values to be copied.
 @param time The array of double time values to be copied.
 @param population The array of tsk_id_t population values to be copied.
 @param individual The array of tsk_id_t individual values to be copied.
@@ -1370,7 +1372,7 @@ metadata schema is not affected.
 
 @param self A pointer to a tsk_node_table_t object.
 @param num_rows The number of rows to copy from the specifed arrays
-@param flags The array of tsk_flag_t values to be copied.
+@param flags The array of tsk_flags_t values to be copied.
 @param time The array of double time values to be copied.
 @param population The array of tsk_id_t population values to be copied.
 @param individual The array of tsk_id_t individual values to be copied.
@@ -1635,10 +1637,11 @@ Copies the metadata schema string to this table, replacing any existing.
 @param self A pointer to a tsk_edge_table_t object.
 @param metadata_schema A pointer to a char array
 @param metadata_schema_length The size of the metadata schema in bytes.
+@param options Bitwise option flags.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_edge_table_set_metadata_schema(tsk_edge_table_t *self,
-    const char *metadata_schema, tsk_size_t metadata_schema_length);
+    const char *metadata_schema, tsk_size_t metadata_schema_length, tsk_flags_t options);
 
 /**
 @brief Print out the state of this table to the specified stream.
@@ -1949,10 +1952,11 @@ Copies the metadata schema string to this table, replacing any existing.
 @param self A pointer to a tsk_migration_table_t object.
 @param metadata_schema A pointer to a char array
 @param metadata_schema_length The size of the metadata schema in bytes.
+@param options Bitwise option flags.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_migration_table_set_metadata_schema(tsk_migration_table_t *self,
-    const char *metadata_schema, tsk_size_t metadata_schema_length);
+    const char *metadata_schema, tsk_size_t metadata_schema_length, tsk_flags_t options);
 
 /**
 @brief Print out the state of this table to the specified stream.
@@ -2259,10 +2263,11 @@ Copies the metadata schema string to this table, replacing any existing.
 @param self A pointer to a tsk_site_table_t object.
 @param metadata_schema A pointer to a char array
 @param metadata_schema_length The size of the metadata schema in bytes.
+@param options Bitwise option flags.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_site_table_set_metadata_schema(tsk_site_table_t *self,
-    const char *metadata_schema, tsk_size_t metadata_schema_length);
+    const char *metadata_schema, tsk_size_t metadata_schema_length, tsk_flags_t options);
 
 /**
 @brief Print out the state of this table to the specified stream.
@@ -2591,10 +2596,11 @@ Copies the metadata schema string to this table, replacing any existing.
 @param self A pointer to a tsk_mutation_table_t object.
 @param metadata_schema A pointer to a char array
 @param metadata_schema_length The size of the metadata schema in bytes.
+@param options Bitwise option flags.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_mutation_table_set_metadata_schema(tsk_mutation_table_t *self,
-    const char *metadata_schema, tsk_size_t metadata_schema_length);
+    const char *metadata_schema, tsk_size_t metadata_schema_length, tsk_flags_t options);
 
 /**
 @brief Print out the state of this table to the specified stream.
@@ -2916,10 +2922,11 @@ Copies the metadata schema string to this table, replacing any existing.
 @param self A pointer to a tsk_population_table_t object.
 @param metadata_schema A pointer to a char array
 @param metadata_schema_length The size of the metadata schema in bytes.
+@param options Bitwise option flags.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_population_table_set_metadata_schema(tsk_population_table_t *self,
-    const char *metadata_schema, tsk_size_t metadata_schema_length);
+    const char *metadata_schema, tsk_size_t metadata_schema_length, tsk_flags_t options);
 
 /**
 @brief Print out the state of this table to the specified stream.
@@ -3950,10 +3957,11 @@ Copies the time_units string to this table collection, replacing any existing.
 @param self A pointer to a tsk_table_collection_t object.
 @param time_units A pointer to a char array
 @param time_units_length The size of the time units string in bytes.
+@param options Bitwise option flags.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_table_collection_set_time_units(
-    tsk_table_collection_t *self, const char *time_units, tsk_size_t time_units_length);
+int tsk_table_collection_set_time_units(tsk_table_collection_t *self,
+    const char *time_units, tsk_size_t time_units_length, tsk_flags_t options);
 
 /**
 @brief Set the metadata
@@ -3963,10 +3971,11 @@ Copies the metadata string to this table collection, replacing any existing.
 @param self A pointer to a tsk_table_collection_t object.
 @param metadata A pointer to a char array
 @param metadata_length The size of the metadata in bytes.
+@param options Bitwise option flags.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_table_collection_set_metadata(
-    tsk_table_collection_t *self, const char *metadata, tsk_size_t metadata_length);
+int tsk_table_collection_set_metadata(tsk_table_collection_t *self, const char *metadata,
+    tsk_size_t metadata_length, tsk_flags_t options);
 
 /**
 @brief Set the metadata schema
@@ -3976,10 +3985,11 @@ Copies the metadata schema string to this table collection, replacing any existi
 @param self A pointer to a tsk_table_collection_t object.
 @param metadata_schema A pointer to a char array
 @param metadata_schema_length The size of the metadata schema in bytes.
+@param options Bitwise option flags.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_table_collection_set_metadata_schema(tsk_table_collection_t *self,
-    const char *metadata_schema, tsk_size_t metadata_schema_length);
+    const char *metadata_schema, tsk_size_t metadata_schema_length, tsk_flags_t options);
 
 /**
 @brief Returns true if this table collection is indexed.
@@ -4148,14 +4158,14 @@ bool tsk_reference_sequence_equals(const tsk_reference_sequence_t *self,
     const tsk_reference_sequence_t *other, tsk_flags_t options);
 int tsk_reference_sequence_copy(const tsk_reference_sequence_t *self,
     tsk_reference_sequence_t *dest, tsk_flags_t options);
-int tsk_reference_sequence_set_data(
-    tsk_reference_sequence_t *self, const char *data, tsk_size_t data_length);
-int tsk_reference_sequence_set_url(
-    tsk_reference_sequence_t *self, const char *url, tsk_size_t url_length);
-int tsk_reference_sequence_set_metadata(
-    tsk_reference_sequence_t *self, const char *metadata, tsk_size_t metadata_length);
+int tsk_reference_sequence_set_data(tsk_reference_sequence_t *self, const char *data,
+    tsk_size_t data_length, tsk_flags_t options);
+int tsk_reference_sequence_set_url(tsk_reference_sequence_t *self, const char *url,
+    tsk_size_t url_length, tsk_flags_t options);
+int tsk_reference_sequence_set_metadata(tsk_reference_sequence_t *self,
+    const char *metadata, tsk_size_t metadata_length, tsk_flags_t options);
 int tsk_reference_sequence_set_metadata_schema(tsk_reference_sequence_t *self,
-    const char *metadata_schema, tsk_size_t metadata_schema_length);
+    const char *metadata_schema, tsk_size_t metadata_schema_length, tsk_flags_t options);
 
 /**
 @defgroup TABLE_SORTER_API_GROUP Low-level table sorter API.

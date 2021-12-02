@@ -1474,7 +1474,7 @@ IndividualTable_set_metadata_schema(IndividualTable *self, PyObject *arg, void *
         goto out;
     }
     err = tsk_individual_table_set_metadata_schema(
-        self->table, metadata_schema, metadata_schema_length);
+        self->table, metadata_schema, metadata_schema_length, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -2041,7 +2041,7 @@ NodeTable_set_metadata_schema(NodeTable *self, PyObject *arg, void *closure)
         goto out;
     }
     err = tsk_node_table_set_metadata_schema(
-        self->table, metadata_schema, metadata_schema_length);
+        self->table, metadata_schema, metadata_schema_length, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -2612,7 +2612,7 @@ EdgeTable_set_metadata_schema(EdgeTable *self, PyObject *arg, void *closure)
         goto out;
     }
     err = tsk_edge_table_set_metadata_schema(
-        self->table, metadata_schema, metadata_schema_length);
+        self->table, metadata_schema, metadata_schema_length, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -3197,7 +3197,7 @@ MigrationTable_set_metadata_schema(MigrationTable *self, PyObject *arg, void *cl
         goto out;
     }
     err = tsk_migration_table_set_metadata_schema(
-        self->table, metadata_schema, metadata_schema_length);
+        self->table, metadata_schema, metadata_schema_length, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -3739,7 +3739,7 @@ SiteTable_set_metadata_schema(SiteTable *self, PyObject *arg, void *closure)
         goto out;
     }
     err = tsk_site_table_set_metadata_schema(
-        self->table, metadata_schema, metadata_schema_length);
+        self->table, metadata_schema, metadata_schema_length, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -4331,7 +4331,7 @@ MutationTable_set_metadata_schema(MutationTable *self, PyObject *arg, void *clos
         goto out;
     }
     err = tsk_mutation_table_set_metadata_schema(
-        self->table, metadata_schema, metadata_schema_length);
+        self->table, metadata_schema, metadata_schema_length, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -4828,7 +4828,7 @@ PopulationTable_set_metadata_schema(PopulationTable *self, PyObject *arg, void *
         goto out;
     }
     err = tsk_population_table_set_metadata_schema(
-        self->table, metadata_schema, metadata_schema_length);
+        self->table, metadata_schema, metadata_schema_length, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -5908,7 +5908,7 @@ out:
 }
 
 typedef int(refseq_string_setter_func)(
-    tsk_reference_sequence_t *obj, const char *str, tsk_size_t len);
+    tsk_reference_sequence_t *obj, const char *str, tsk_size_t len, tsk_flags_t options);
 
 static int
 ReferenceSequence_set_string_attr(ReferenceSequence *self, PyObject *arg,
@@ -5935,7 +5935,7 @@ ReferenceSequence_set_string_attr(ReferenceSequence *self, PyObject *arg,
     if (str == NULL) {
         goto out;
     }
-    err = setter_func(self->reference_sequence, str, (tsk_size_t) length);
+    err = setter_func(self->reference_sequence, str, (tsk_size_t) length, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -6031,7 +6031,7 @@ ReferenceSequence_set_metadata(ReferenceSequence *self, PyObject *arg, void *clo
         goto out;
     }
     err = tsk_reference_sequence_set_metadata(
-        self->reference_sequence, metadata, metadata_length);
+        self->reference_sequence, metadata, metadata_length, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -6447,7 +6447,7 @@ TableCollection_set_time_units(TableCollection *self, PyObject *arg, void *closu
         goto out;
     }
     err = tsk_table_collection_set_time_units(
-        self->tables, time_units, time_units_length);
+        self->tables, time_units, time_units_length, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -6491,7 +6491,7 @@ TableCollection_set_metadata(TableCollection *self, PyObject *arg, void *closure
     if (err != 0) {
         goto out;
     }
-    err = tsk_table_collection_set_metadata(self->tables, metadata, metadata_length);
+    err = tsk_table_collection_set_metadata(self->tables, metadata, metadata_length, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -6531,7 +6531,7 @@ TableCollection_set_metadata_schema(TableCollection *self, PyObject *arg, void *
         goto out;
     }
     err = tsk_table_collection_set_metadata_schema(
-        self->tables, metadata_schema, metadata_schema_length);
+        self->tables, metadata_schema, metadata_schema_length, 0);
     if (err != 0) {
         handle_library_error(err);
         goto out;

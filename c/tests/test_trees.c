@@ -6832,13 +6832,13 @@ test_tree_sequence_metadata(void)
     ret = tsk_table_collection_build_index(&tc, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_set_metadata(
-        &tc, example_metadata, example_metadata_length);
+        &tc, example_metadata, example_metadata_length, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_set_metadata_schema(
-        &tc, example_metadata_schema, example_metadata_schema_length);
+        &tc, example_metadata_schema, example_metadata_schema_length, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_table_collection_set_time_units(
-        &tc, example_time_units, example_time_units_length);
+        &tc, example_time_units, example_time_units_length, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_treeseq_init(&ts, &tc, 0);
@@ -6900,7 +6900,7 @@ test_time_uncalibrated(void)
     tsk_treeseq_free(&ts);
 
     ret = tsk_table_collection_set_time_units(
-        &tables, TSK_TIME_UNITS_UNCALIBRATED, strlen(TSK_TIME_UNITS_UNCALIBRATED));
+        &tables, TSK_TIME_UNITS_UNCALIBRATED, strlen(TSK_TIME_UNITS_UNCALIBRATED), 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -6910,7 +6910,7 @@ test_time_uncalibrated(void)
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
     ret = tsk_table_collection_set_time_units(
-        ts.tables, TSK_TIME_UNITS_UNCALIBRATED, strlen(TSK_TIME_UNITS_UNCALIBRATED));
+        ts.tables, TSK_TIME_UNITS_UNCALIBRATED, strlen(TSK_TIME_UNITS_UNCALIBRATED), 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_treeseq_init(&ts2, ts.tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -6965,7 +6965,7 @@ test_reference_sequence(void)
     CU_ASSERT_FALSE(tsk_treeseq_has_reference_sequence(&ts));
     tsk_treeseq_free(&ts);
 
-    ret = tsk_reference_sequence_set_data(&tables.reference_sequence, "abc", 3);
+    ret = tsk_reference_sequence_set_data(&tables.reference_sequence, "abc", 3, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);

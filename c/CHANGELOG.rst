@@ -33,6 +33,10 @@
 - ``kastore`` is now vendored into this repo instead of being a git submodule. Developers need to run
   ``git submodule update``. (:user:`jeromekelleher`, :issue:`1687`, :pr:`1973`)
 
+- All string setting methods (e.g. `tsk_table_collection_set_metadata`) now take an extra
+  "options" argument (:user:`jeromekelleher`, :pr:`1990`, :issue:`1979`). To
+  retain the current behaviour set options=0 for all calls.
+
 
 **Features**
 

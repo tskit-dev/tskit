@@ -820,30 +820,30 @@ caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
 
     tables.sequence_length = 1.0;
 
-    tsk_table_collection_set_metadata(&tables, ts_metadata, strlen(ts_metadata));
+    tsk_table_collection_set_metadata(&tables, ts_metadata, strlen(ts_metadata), 0);
     tsk_table_collection_set_metadata_schema(
-        &tables, ts_metadata_schema, strlen(ts_metadata_schema));
+        &tables, ts_metadata_schema, strlen(ts_metadata_schema), 0);
     tsk_reference_sequence_set_metadata_schema(
-        &tables.reference_sequence, ts_metadata_schema, strlen(ts_metadata_schema));
+        &tables.reference_sequence, ts_metadata_schema, strlen(ts_metadata_schema), 0);
     tsk_reference_sequence_set_metadata(
-        &tables.reference_sequence, ts_metadata, strlen(ts_metadata));
-    tsk_reference_sequence_set_data(&tables.reference_sequence, "A", 1);
-    tsk_reference_sequence_set_url(&tables.reference_sequence, "B", 1);
+        &tables.reference_sequence, ts_metadata, strlen(ts_metadata), 0);
+    tsk_reference_sequence_set_data(&tables.reference_sequence, "A", 1, 0);
+    tsk_reference_sequence_set_url(&tables.reference_sequence, "B", 1, 0);
 
     tsk_population_table_set_metadata_schema(
-        &tables.populations, metadata_schema, strlen(metadata_schema));
+        &tables.populations, metadata_schema, strlen(metadata_schema), 0);
     tsk_individual_table_set_metadata_schema(
-        &tables.individuals, metadata_schema, strlen(metadata_schema));
+        &tables.individuals, metadata_schema, strlen(metadata_schema), 0);
     tsk_node_table_set_metadata_schema(
-        &tables.nodes, metadata_schema, strlen(metadata_schema));
+        &tables.nodes, metadata_schema, strlen(metadata_schema), 0);
     tsk_edge_table_set_metadata_schema(
-        &tables.edges, metadata_schema, strlen(metadata_schema));
+        &tables.edges, metadata_schema, strlen(metadata_schema), 0);
     tsk_site_table_set_metadata_schema(
-        &tables.sites, metadata_schema, strlen(metadata_schema));
+        &tables.sites, metadata_schema, strlen(metadata_schema), 0);
     tsk_mutation_table_set_metadata_schema(
-        &tables.mutations, metadata_schema, strlen(metadata_schema));
+        &tables.mutations, metadata_schema, strlen(metadata_schema), 0);
     tsk_migration_table_set_metadata_schema(
-        &tables.migrations, metadata_schema, strlen(metadata_schema));
+        &tables.migrations, metadata_schema, strlen(metadata_schema), 0);
 
     for (j = 0; j < (tsk_id_t) n; j++) {
         position[0] = j;

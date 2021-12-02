@@ -358,7 +358,7 @@ parse_individual_table_dict(
             goto out;
         }
         err = tsk_individual_table_set_metadata_schema(
-            table, metadata_schema, metadata_schema_length);
+            table, metadata_schema, metadata_schema_length, 0);
         if (err != 0) {
             handle_tskit_error(err);
             goto out;
@@ -498,7 +498,7 @@ parse_node_table_dict(tsk_node_table_t *table, PyObject *dict, bool clear_table)
             goto out;
         }
         err = tsk_node_table_set_metadata_schema(
-            table, metadata_schema, metadata_schema_length);
+            table, metadata_schema, metadata_schema_length, 0);
         if (err != 0) {
             handle_tskit_error(err);
             goto out;
@@ -628,7 +628,7 @@ parse_edge_table_dict(tsk_edge_table_t *table, PyObject *dict, bool clear_table)
             goto out;
         }
         err = tsk_edge_table_set_metadata_schema(
-            table, metadata_schema, metadata_schema_length);
+            table, metadata_schema, metadata_schema_length, 0);
         if (err != 0) {
             handle_tskit_error(err);
             goto out;
@@ -779,7 +779,7 @@ parse_migration_table_dict(
             goto out;
         }
         err = tsk_migration_table_set_metadata_schema(
-            table, metadata_schema, metadata_schema_length);
+            table, metadata_schema, metadata_schema_length, 0);
         if (err != 0) {
             handle_tskit_error(err);
             goto out;
@@ -908,7 +908,7 @@ parse_site_table_dict(tsk_site_table_t *table, PyObject *dict, bool clear_table)
             goto out;
         }
         err = tsk_site_table_set_metadata_schema(
-            table, metadata_schema, metadata_schema_length);
+            table, metadata_schema, metadata_schema_length, 0);
         if (err != 0) {
             handle_tskit_error(err);
             goto out;
@@ -1075,7 +1075,7 @@ parse_mutation_table_dict(tsk_mutation_table_t *table, PyObject *dict, bool clea
             goto out;
         }
         err = tsk_mutation_table_set_metadata_schema(
-            table, metadata_schema, metadata_schema_length);
+            table, metadata_schema, metadata_schema_length, 0);
         if (err != 0) {
             handle_tskit_error(err);
             goto out;
@@ -1157,7 +1157,7 @@ parse_population_table_dict(
             goto out;
         }
         err = tsk_population_table_set_metadata_schema(
-            table, metadata_schema, metadata_schema_length);
+            table, metadata_schema, metadata_schema_length, 0);
         if (err != 0) {
             handle_tskit_error(err);
             goto out;
@@ -1346,7 +1346,7 @@ parse_reference_sequence_dict(tsk_reference_sequence_t *ref, PyObject *dict)
             goto out;
         }
         err = tsk_reference_sequence_set_metadata_schema(
-            ref, metadata_schema, (tsk_size_t) metadata_schema_length);
+            ref, metadata_schema, (tsk_size_t) metadata_schema_length, 0);
         if (err != 0) {
             handle_tskit_error(err);
             goto out;
@@ -1363,7 +1363,7 @@ parse_reference_sequence_dict(tsk_reference_sequence_t *ref, PyObject *dict)
         if (err != 0) {
             goto out;
         }
-        err = tsk_reference_sequence_set_metadata(ref, metadata, metadata_length);
+        err = tsk_reference_sequence_set_metadata(ref, metadata, metadata_length, 0);
         if (err != 0) {
             handle_tskit_error(err);
             goto out;
@@ -1380,7 +1380,7 @@ parse_reference_sequence_dict(tsk_reference_sequence_t *ref, PyObject *dict)
         if (data == NULL) {
             goto out;
         }
-        err = tsk_reference_sequence_set_data(ref, data, (tsk_size_t) data_length);
+        err = tsk_reference_sequence_set_data(ref, data, (tsk_size_t) data_length, 0);
         if (err != 0) {
             handle_tskit_error(err);
             goto out;
@@ -1397,7 +1397,7 @@ parse_reference_sequence_dict(tsk_reference_sequence_t *ref, PyObject *dict)
         if (url == NULL) {
             goto out;
         }
-        err = tsk_reference_sequence_set_url(ref, url, (tsk_size_t) url_length);
+        err = tsk_reference_sequence_set_url(ref, url, (tsk_size_t) url_length, 0);
         if (err != 0) {
             handle_tskit_error(err);
             goto out;
@@ -1440,7 +1440,7 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
             goto out;
         }
         err = tsk_table_collection_set_metadata_schema(
-            tables, metadata_schema, metadata_schema_length);
+            tables, metadata_schema, metadata_schema_length, 0);
         if (err != 0) {
             handle_tskit_error(err);
             goto out;
@@ -1457,7 +1457,7 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
         if (err != 0) {
             goto out;
         }
-        err = tsk_table_collection_set_metadata(tables, metadata, metadata_length);
+        err = tsk_table_collection_set_metadata(tables, metadata, metadata_length, 0);
         if (err != 0) {
             handle_tskit_error(err);
             goto out;
@@ -1474,7 +1474,8 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
         if (time_units == NULL) {
             goto out;
         }
-        err = tsk_table_collection_set_time_units(tables, time_units, time_units_length);
+        err = tsk_table_collection_set_time_units(
+            tables, time_units, time_units_length, 0);
         if (err != 0) {
             handle_tskit_error(err);
             goto out;
