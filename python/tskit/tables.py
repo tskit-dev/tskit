@@ -654,11 +654,7 @@ class IndividualTable(BaseTable, MetadataMixin):
     each node in the :class:`NodeTable`.  This is similar to the way in which
     the relationship between sites and mutations is modelled.
 
-    :warning: The numpy arrays returned by table attribute accesses are **copies**
-        of the underlying data. In particular, this means that you cannot edit
-        the values in the columns by updating the attribute arrays.
-
-        **NOTE:** this behaviour may change in future.
+    .. include:: substitutions/table_edit_warning.rst
 
     :ivar flags: The array of flags values.
     :vartype flags: numpy.ndarray, dtype=np.uint32
@@ -916,11 +912,7 @@ class NodeTable(BaseTable, MetadataMixin):
     :ref:`tree sequence requirements <sec_valid_tree_sequence_requirements>` section
     for the properties needed for a node table to be a part of a valid tree sequence.
 
-    :warning: The numpy arrays returned by table attribute accesses are **copies**
-        of the underlying data. In particular, this means that you cannot edit
-        the values in the columns by updating the attribute arrays.
-
-        **NOTE:** this behaviour may change in future.
+    .. include:: substitutions/table_edit_warning.rst
 
     :ivar time: The array of time values.
     :vartype time: numpy.ndarray, dtype=np.float64
@@ -1118,11 +1110,7 @@ class EdgeTable(BaseTable, MetadataMixin):
     :ref:`tree sequence requirements <sec_valid_tree_sequence_requirements>` section
     for the properties needed for an edge table to be a part of a valid tree sequence.
 
-    :warning: The numpy arrays returned by table attribute accesses are **copies**
-        of the underlying data. In particular, this means that you cannot edit
-        the values in the columns by updating the attribute arrays.
-
-        **NOTE:** this behaviour may change in future.
+    .. include:: substitutions/table_edit_warning.rst
 
     :ivar left: The array of left coordinates.
     :vartype left: numpy.ndarray, dtype=np.float64
@@ -1328,11 +1316,7 @@ class MigrationTable(BaseTable, MetadataMixin):
     for the properties needed for a migration table to be a part of a valid tree
     sequence.
 
-    :warning: The numpy arrays returned by table attribute accesses are **copies**
-        of the underlying data. In particular, this means that you cannot edit
-        the values in the columns by updating the attribute arrays.
-
-        **NOTE:** this behaviour may change in future.
+    .. include:: substitutions/table_edit_warning.rst
 
     :ivar left: The array of left coordinates.
     :vartype left: numpy.ndarray, dtype=np.float64
@@ -1554,11 +1538,7 @@ class SiteTable(BaseTable, MetadataMixin):
     for the properties needed for a site table to be a part of a valid tree
     sequence.
 
-    :warning: The numpy arrays returned by table attribute accesses are **copies**
-        of the underlying data. In particular, this means that you cannot edit
-        the values in the columns by updating the attribute arrays.
-
-        **NOTE:** this behaviour may change in future.
+    .. include:: substitutions/table_edit_warning.rst
 
     :ivar position: The array of site position coordinates.
     :vartype position: numpy.ndarray, dtype=np.float64
@@ -1770,11 +1750,7 @@ class MutationTable(BaseTable, MetadataMixin):
     for the properties needed for a mutation table to be a part of a valid tree
     sequence.
 
-    :warning: The numpy arrays returned by table attribute accesses are **copies**
-        of the underlying data. In particular, this means that you cannot edit
-        the values in the columns by updating the attribute arrays.
-
-        **NOTE:** this behaviour may change in future.
+    .. include:: substitutions/table_edit_warning.rst
 
     :ivar site: The array of site IDs.
     :vartype site: numpy.ndarray, dtype=np.int32
@@ -2036,11 +2012,7 @@ class PopulationTable(BaseTable, MetadataMixin):
     the :class:`NodeTable`: only metadata on each population is stored
     in the population table.
 
-    :warning: The numpy arrays returned by table attribute accesses are **copies**
-        of the underlying data. In particular, this means that you cannot edit
-        the values in the columns by updating the attribute arrays.
-
-        **NOTE:** this behaviour may change in future.
+    .. include:: substitutions/table_edit_warning.rst
 
     :ivar metadata: The flattened array of binary metadata values. See
         :ref:`sec_tables_api_binary_columns` for more details.
