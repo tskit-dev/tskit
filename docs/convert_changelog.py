@@ -1,15 +1,10 @@
 import re
-from pathlib import Path
+import sys
 
 SUBS = [
     (r":user:`([A-Za-z0-9-]*)`", r"[@\1](https://github.com/\1)"),
     (r":pr:`([0-9]*)`", r"[#\1](https://github.com/tskit-dev/tskit/issues/\1)"),
     (r":issue:`([0-9]*)`", r"[#\1](https://github.com/tskit-dev/tskit/issues/\1)"),
-]
-
-FILES = [
-    Path(__file__).parent.parent / "c" / "CHANGELOG.rst",
-    Path(__file__).parent.parent / "python" / "CHANGELOG.rst",
 ]
 
 
@@ -27,9 +22,5 @@ def process_log(log):
             yield line
 
 
-for file in FILES:
-    with open(file) as f:
-        print("-------------")
-        print(file)
-        print("-------------")
-        print("".join(process_log(f.readlines())))
+with open(sys.argv[1]) as f:
+    print("".join(process_log(f.readlines())))
