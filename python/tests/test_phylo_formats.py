@@ -51,6 +51,11 @@ def alignment_example(sequence_length):
         samples=5, sequence_length=sequence_length, random_seed=123
     )
     ts = msprime.sim_mutations(ts, rate=0.1, random_seed=1234)
+    tables = ts.dump_tables()
+    tables.reference_sequence.data = tskit.random_nucleotides(
+        ts.sequence_length, seed=1234
+    )
+    ts = tables.tree_sequence()
     assert ts.num_sites > 5
     return ts
 
@@ -1108,8 +1113,7 @@ class TestFastaLineLength:
         # set up data
         ts = alignment_example(length)
         output = io.StringIO()
-        ref = "A" * length
-        ts.write_fasta(output, wrap_width=wrap_width, reference_sequence=ref)
+        ts.write_fasta(output, wrap_width=wrap_width)
         output.seek(0)
 
         # check if length perfectly divisible by wrap_width or not and thus
@@ -1172,21 +1176,18 @@ class TestFastaLineLength:
 
     def test_negative_wrap(self):
         ts = alignment_example(10)
-        ref = "-" * 10
         with pytest.raises(ValueError, match="non-negative integer"):
-            ts.as_fasta(reference_sequence=ref, wrap_width=-1)
+            ts.as_fasta(wrap_width=-1)
 
     def test_floating_wrap(self):
         ts = alignment_example(10)
-        ref = "-" * 10
         with pytest.raises(ValueError):
-            ts.as_fasta(reference_sequence=ref, wrap_width=1.1)
+            ts.as_fasta(wrap_width=1.1)
 
     def test_numpy_wrap(self):
         ts = alignment_example(10)
-        ref = "-" * 10
-        x1 = ts.as_fasta(reference_sequence=ref, wrap_width=4)
-        x2 = ts.as_fasta(reference_sequence=ref, wrap_width=np.array([4.0])[0])
+        x1 = ts.as_fasta(wrap_width=4)
+        x2 = ts.as_fasta(wrap_width=np.array([4.0])[0])
         assert x1 == x2
 
 
@@ -1198,30 +1199,26 @@ class TestFileTextOutputEqual:
     def test_fasta_defaults(self):
         ts = self.ts()
         buff = io.StringIO()
-        ref = "_" * int(ts.sequence_length)
-        ts.write_fasta(buff, reference_sequence=ref)
-        assert buff.getvalue() == ts.as_fasta(reference_sequence=ref)
+        ts.write_fasta(buff)
+        assert buff.getvalue() == ts.as_fasta()
 
     def test_fasta_wrap_width(self):
         ts = self.ts()
         buff = io.StringIO()
-        ref = "X" * int(ts.sequence_length)
-        ts.write_fasta(buff, reference_sequence=ref, wrap_width=4)
-        assert buff.getvalue() == ts.as_fasta(reference_sequence=ref, wrap_width=4)
+        ts.write_fasta(buff, wrap_width=4)
+        assert buff.getvalue() == ts.as_fasta(wrap_width=4)
 
     def test_nexus_defaults(self):
         ts = self.ts()
         buff = io.StringIO()
-        ref = "N" * int(ts.sequence_length)
-        ts.write_nexus(buff, reference_sequence=ref)
-        assert buff.getvalue() == ts.as_nexus(reference_sequence=ref)
+        ts.write_nexus(buff)
+        assert buff.getvalue() == ts.as_nexus()
 
     def test_nexus_precision(self):
         ts = self.ts()
         buff = io.StringIO()
-        ref = "N" * int(ts.sequence_length)
-        ts.write_nexus(buff, reference_sequence=ref, precision=2)
-        assert buff.getvalue() == ts.as_nexus(reference_sequence=ref, precision=2)
+        ts.write_nexus(buff, precision=2)
+        assert buff.getvalue() == ts.as_nexus(precision=2)
 
 
 class TestFlexibleFileArgFasta:
@@ -1232,27 +1229,24 @@ class TestFlexibleFileArgFasta:
     def test_pathlib(self, tmp_path):
         path = tmp_path / "file.fa"
         ts = self.ts()
-        ref = "-" * int(ts.sequence_length)
-        ts.write_fasta(path, reference_sequence=ref)
+        ts.write_fasta(path)
         with open(path) as f:
-            assert f.read() == ts.as_fasta(reference_sequence=ref)
+            assert f.read() == ts.as_fasta()
 
     def test_path_str(self, tmp_path):
         path = str(tmp_path / "file.fa")
         ts = self.ts()
-        ref = "-" * int(ts.sequence_length)
-        ts.write_fasta(path, reference_sequence=ref)
+        ts.write_fasta(path)
         with open(path) as f:
-            assert f.read() == ts.as_fasta(reference_sequence=ref)
+            assert f.read() == ts.as_fasta()
 
     def test_fileobj(self, tmp_path):
         path = tmp_path / "file.fa"
         ts = self.ts()
-        ref = "-" * int(ts.sequence_length)
         with open(path, "w") as f:
-            ts.write_fasta(f, reference_sequence=ref)
+            ts.write_fasta(f)
         with open(path) as f:
-            assert f.read() == ts.as_fasta(reference_sequence=ref)
+            assert f.read() == ts.as_fasta()
 
 
 class TestFlexibleFileArgNexus:
@@ -1263,30 +1257,27 @@ class TestFlexibleFileArgNexus:
     def test_pathlib(self, tmp_path):
         path = tmp_path / "file.nex"
         ts = self.ts()
-        ref = "-" * int(ts.sequence_length)
-        ts.write_nexus(path, reference_sequence=ref)
+        ts.write_nexus(path)
         with open(path) as f:
-            assert f.read() == ts.as_nexus(reference_sequence=ref)
+            assert f.read() == ts.as_nexus()
 
     def test_path_str(self, tmp_path):
         path = str(tmp_path / "file.nex")
         ts = self.ts()
-        ref = "-" * int(ts.sequence_length)
-        ts.write_nexus(path, reference_sequence=ref)
+        ts.write_nexus(path)
         with open(path) as f:
-            assert f.read() == ts.as_nexus(reference_sequence=ref)
+            assert f.read() == ts.as_nexus()
 
     def test_fileobj(self, tmp_path):
         path = tmp_path / "file.nex"
         ts = self.ts()
-        ref = "-" * int(ts.sequence_length)
         with open(path, "w") as f:
-            ts.write_nexus(f, reference_sequence=ref)
+            ts.write_nexus(f)
         with open(path) as f:
-            assert f.read() == ts.as_nexus(reference_sequence=ref)
+            assert f.read() == ts.as_nexus()
 
 
-def get_alignment_map(ts, reference_sequence):
+def get_alignment_map(ts, reference_sequence=None):
     alignments = ts.alignments(reference_sequence=reference_sequence)
     return {f"n{u}": alignment for u, alignment in zip(ts.samples(), alignments)}
 
@@ -1298,8 +1289,6 @@ class TestFastaBioPythonRoundTrip:
     """
 
     def verify(self, ts, wrap_width=60, reference_sequence=None):
-        if reference_sequence is None:
-            reference_sequence = "N" * int(ts.sequence_length)
         text = ts.as_fasta(wrap_width=wrap_width, reference_sequence=reference_sequence)
         bio_map = {
             k: v.seq
@@ -1338,25 +1327,22 @@ class TestFastaDendropyRoundTrip:
 
     def test_wrapped(self):
         ts = alignment_example(300)
-        ref = "N" * int(ts.sequence_length)
-        text = ts.as_fasta(reference_sequence=ref)
+        text = ts.as_fasta()
         alignment_map = self.parse(text)
-        assert get_alignment_map(ts, ref) == alignment_map
+        assert get_alignment_map(ts) == alignment_map
 
     def test_unwrapped(self):
         ts = alignment_example(300)
-        ref = "N" * int(ts.sequence_length)
-        text = ts.as_fasta(reference_sequence=ref, wrap_width=0)
+        text = ts.as_fasta(wrap_width=0)
         alignment_map = self.parse(text)
-        assert get_alignment_map(ts, ref) == alignment_map
+        assert get_alignment_map(ts) == alignment_map
 
     @pytest.mark.skip("Missing data in alignments: #1896")
     def test_missing_data(self):
         ts = missing_data_example()
-        ref = "A" * int(ts.sequence_length)
-        text = ts.as_fasta(reference_sequence=ref)
+        text = ts.as_fasta()
         alignment_map = self.parse(text)
-        assert get_alignment_map(ts, ref) == alignment_map
+        assert get_alignment_map(ts) == alignment_map
 
 
 @pytest.mark.skip("Missing data in alignments: #1896")

@@ -4898,7 +4898,7 @@ class TreeSequence:
             isolated_as_missing=isolated_as_missing, alleles=alleles
         )
 
-    def alignments(self, *, reference_sequence=None):
+    def alignments(self, *, reference_sequence=None, missing_data_character=None):
         """
         Returns an iterator over the full sequence alignments for the samples in this
         tree sequence. Each alignment ``a`` is a string of length ``L`` where ``L``
@@ -4963,28 +4963,31 @@ class TreeSequence:
         if not self.discrete_genome:
             raise ValueError("sequence alignments only defined for discrete genomes")
 
+        missing_data_character = (
+            "N" if missing_data_character is None else missing_data_character
+        )
+
         L = int(self.sequence_length)
         a = np.empty(L, dtype=np.int8)
         if reference_sequence is None:
+            if self.has_reference_sequence():
+                # This may be inefficient - see #1989. However, since we're
+                # n copies of the reference sequence anyway, this is a relatively
+                # minor tweak.
+                reference_sequence = self.reference_sequence.data
+            else:
+                reference_sequence = missing_data_character * L
+
+        # Note: we might want to relax this to a warning if the reference
+        # is longer than L at some point, but let's not complicate things
+        # until we have a good reason.
+        if len(reference_sequence) != L:
             raise ValueError(
-                "A ``reference_sequence`` must be supplied to this function. "
-                "This is to ensure forward compatibility with future versions "
-                "of tskit which will allow reference sequences to be associated "
-                "with a tree sequence. In this case, the associated reference "
-                "will be used by default, if present. See "
-                "https://github.com/tskit-dev/tskit/issues/1888"
+                "The reference sequence must have the same length as "
+                f"this tree sequence: {len(reference_sequence)} != {L}"
             )
-        else:
-            # Note: we might want to relax this to a warning if the reference
-            # is longer than L at some point, but let's not complicate things
-            # until we have a good reason.
-            if len(reference_sequence) != L:
-                raise ValueError(
-                    "The reference sequence must have the same length as "
-                    f"this tree sequence: {len(reference_sequence)} != {L}"
-                )
-            ref_bytes = reference_sequence.encode("ascii")
-            a[:] = np.frombuffer(ref_bytes, dtype=np.int8)
+        ref_bytes = reference_sequence.encode("ascii")
+        a[:] = np.frombuffer(ref_bytes, dtype=np.int8)
 
         # To do this properly we'll have to detect the missing data as
         # part of a full implementation of alignments in C. The current
@@ -5002,7 +5005,7 @@ class TreeSequence:
                 "The current implementation may also incorrectly identify an "
                 "input tree sequence has having missing data."
             )
-        H = self._haplotypes_array()
+        H = self._haplotypes_array(missing_data_character=missing_data_character)
         site_pos = self.tables.sites.position.astype(np.int64)
         for h in H:
             a[site_pos] = h
