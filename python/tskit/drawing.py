@@ -1656,7 +1656,7 @@ def get_left_neighbour(tree, traversal_order):
     for u in tree.nodes(order=traversal_order):
         children[tree.parent(u)].append(u)
 
-    left_neighbour = np.full(tree.num_nodes + 1, NULL, dtype=int)
+    left_neighbour = np.full(tree.tree_sequence.num_nodes + 1, NULL, dtype=int)
 
     def find_neighbours(u, neighbour):
         left_neighbour[u] = neighbour
@@ -1677,7 +1677,7 @@ def get_left_child(tree, traversal_order):
     specified traversal order. If a node has no children or NULL is passed
     in, return NULL.
     """
-    left_child = np.full(tree.num_nodes + 1, NULL, dtype=int)
+    left_child = np.full(tree.tree_sequence.num_nodes + 1, NULL, dtype=int)
     for u in tree.nodes(order=traversal_order):
         parent = tree.parent(u)
         if parent != NULL and left_child[parent] == NULL:

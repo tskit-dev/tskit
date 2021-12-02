@@ -250,7 +250,7 @@ def get_left_neighbour(tree, traversal_order):
         parent = tree.parent(u)
         children[parent].append(u)
 
-    left_neighbour = np.full(tree.num_nodes, tskit.NULL, dtype=int)
+    left_neighbour = np.full(tree.tree_sequence.num_nodes, tskit.NULL, dtype=int)
     for u in tree.nodes():
         next_left = tskit.NULL
         child = u
@@ -1613,10 +1613,10 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         labels = {u: "XXX" for u in t.nodes()}
         svg = t.draw(format="svg", node_labels=labels)
         self.verify_basic_svg(svg)
-        assert svg.count("XXX") == t.num_nodes
+        assert svg.count("XXX") == t.tree_sequence.num_nodes
         svg = t.draw_svg(node_label_attrs={u: {"text": labels[u]} for u in t.nodes()})
         self.verify_basic_svg(svg)
-        assert svg.count("XXX") == t.num_nodes
+        assert svg.count("XXX") == t.tree_sequence.num_nodes
 
     def test_one_node_label(self):
         t = self.get_binary_tree()

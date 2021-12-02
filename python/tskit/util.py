@@ -524,7 +524,7 @@ def tree_html(tree):
                       <tr><td>Index</td><td>{tree.index}</td></tr>
                       <tr><td>Interval</td><td>{tree.interval.left:.8g}-{tree.interval.right:.8g} ({tree.span:.8g})</td></tr>
                       <tr><td>Roots</td><td>{tree.num_roots}</td></tr>
-                      <tr><td>Nodes</td><td>{tree.num_nodes}</td></tr>
+                      <tr><td>Nodes</td><td>{len(tree.preorder())}</td></tr>
                       <tr><td>Sites</td><td>{tree.num_sites}</td></tr>
                       <tr><td>Mutations</td><td>{tree.num_mutations}</td></tr>
                       <tr><td>Total Branch Length</td><td>{tree.total_branch_length:.8g}</td></tr>

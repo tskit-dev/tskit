@@ -880,11 +880,11 @@ class HighLevelTestCase:
 
     def verify_tree_mrcas(self, st):
         # Check the mrcas
-        oriented_forest = [st.get_parent(j) for j in range(st.num_nodes)]
+        oriented_forest = [st.get_parent(j) for j in range(st.tree_sequence.num_nodes)]
         mrca_calc = tests.MRCACalculator(oriented_forest)
         # We've done exhaustive tests elsewhere, no need to go
         # through the combinations.
-        for j in range(st.num_nodes):
+        for j in range(st.tree_sequence.num_nodes):
             mrca = st.get_mrca(0, j)
             assert mrca == mrca_calc.get_mrca(0, j)
             if mrca != tskit.NULL:
@@ -3050,7 +3050,7 @@ class TestTree(HighLevelTestCase):
             ) | {root}
 
             # test MRCA
-            if tree.num_nodes < 20:
+            if tree.tree_sequence.num_nodes < 20:
                 for u, v in itertools.combinations(tree.nodes(), 2):
                     mrca = nx.lowest_common_ancestor(g, u, v)
                     if mrca is None:
@@ -3165,12 +3165,12 @@ class TestTree(HighLevelTestCase):
             return v in path
 
         tree = self.get_tree()
-        for u, v in itertools.product(range(tree.num_nodes), repeat=2):
+        for u, v in itertools.product(range(tree.tree_sequence.num_nodes), repeat=2):
             assert is_descendant(tree, u, v) == tree.is_descendant(u, v)
         # All nodes are descendents of themselves
-        for u in range(tree.num_nodes + 1):
+        for u in range(tree.tree_sequence.num_nodes + 1):
             assert tree.is_descendant(u, u)
-        for bad_node in [-1, -2, tree.num_nodes + 1]:
+        for bad_node in [-1, -2, tree.tree_sequence.num_nodes + 1]:
             with pytest.raises(ValueError):
                 tree.is_descendant(0, bad_node)
             with pytest.raises(ValueError):
@@ -3206,10 +3206,18 @@ class TestTree(HighLevelTestCase):
             assert t1.get_mrca(*pair) == t1.mrca(*pair)
             assert t1.get_tmrca(*pair) == t1.tmrca(*pair)
 
+    @pytest.mark.filterwarnings("ignore::FutureWarning")
     def test_deprecated_apis(self):
         t1 = self.get_tree()
         assert t1.get_length() == t1.span
         assert t1.length == t1.span
+        assert t1.num_nodes == t1.tree_sequence.num_nodes
+
+    def test_deprecated_api_warnings(self):
+        # Deprecated and will be removed
+        t1 = self.get_tree()
+        with pytest.warns(FutureWarning, match="Tree.tree_sequence.num_nodes"):
+            t1.num_nodes
 
     def test_seek_index(self):
         ts = msprime.simulate(10, recombination_rate=3, length=5, random_seed=42)
@@ -3389,7 +3397,6 @@ class TestTree(HighLevelTestCase):
 
     def verify_trees_identical(self, t1, t2):
         assert t1.tree_sequence is t2.tree_sequence
-        assert t1.num_nodes is t2.num_nodes
         assert np.all(t1.parent_array == t2.parent_array)
         assert np.all(t1.left_child_array == t2.left_child_array)
         assert np.all(t1.right_child_array == t2.right_child_array)

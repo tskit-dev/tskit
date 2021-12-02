@@ -4,6 +4,11 @@
 
 **Breaking changes**
 
+- The ``Tree.num_nodes`` method is now deprecated with a warning, because it confusingly
+  returns the number of nodes in the entire tree sequence, rather than in the tree. Text
+  summaries of trees (e.g. ``str(tree)``) now return the number of nodes in the tree,
+  not in the entire tree sequence (:user:`hyanwong`, :issue:`1966` :pr:`1968`)
+
 - The CLI ``info`` command now gives more detailed information on the tree sequence
   (:user:`benjeffery`, :pr:`1611`)
 

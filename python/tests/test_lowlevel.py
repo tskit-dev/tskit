@@ -39,12 +39,12 @@ import _tskit
 import tskit
 
 
-def get_tracked_sample_counts(st, tracked_samples):
+def get_tracked_sample_counts(ts, st, tracked_samples):
     """
     Returns a list giving the number of samples in the specified list
     that are in the subtree rooted at each node.
     """
-    nu = [0 for j in range(st.get_num_nodes())]
+    nu = [0 for j in range(ts.get_num_nodes())]
     for j in tracked_samples:
         # Duplicates not permitted.
         assert nu[j] == 0
@@ -59,7 +59,7 @@ def get_sample_counts(tree_sequence, st):
     """
     Returns a list of the sample node counts for the specified tree.
     """
-    nu = [0 for j in range(st.get_num_nodes())]
+    nu = [0 for j in range(tree_sequence.get_num_nodes())]
     for j in range(tree_sequence.get_num_samples()):
         u = j
         while u != _tskit.NULL:
@@ -2669,7 +2669,6 @@ class TestTree(LowLevelTestCase):
                 _tskit.Tree(ts, options=bad_type)
         for ts in self.get_example_tree_sequences():
             st = _tskit.Tree(ts)
-            assert st.get_num_nodes() == ts.get_num_nodes()
             # An uninitialised tree should always be zero.
             samples = ts.get_samples()
             assert st.get_left_child(st.get_virtual_root()) == samples[0]
@@ -2741,16 +2740,16 @@ class TestTree(LowLevelTestCase):
             st = _tskit.Tree(ts)
             # Without initialisation we should be 0 samples for every node
             # that is not a sample.
-            for j in range(st.get_num_nodes()):
+            for j in range(ts.get_num_nodes()):
                 count = 1 if j < ts.get_num_samples() else 0
                 assert st.get_num_samples(j) == count
                 assert st.get_num_tracked_samples(j) == 0
             while st.next():
                 nu = get_sample_counts(ts, st)
-                nu_prime = [st.get_num_samples(j) for j in range(st.get_num_nodes())]
+                nu_prime = [st.get_num_samples(j) for j in range(ts.get_num_nodes())]
                 assert nu == nu_prime
                 # For tracked samples, this should be all zeros.
-                nu = [st.get_num_tracked_samples(j) for j in range(st.get_num_nodes())]
+                nu = [st.get_num_tracked_samples(j) for j in range(ts.get_num_nodes())]
                 assert nu == list([0 for _ in nu])
 
     def test_count_tracked_samples(self):
@@ -2772,9 +2771,9 @@ class TestTree(LowLevelTestCase):
                 random.shuffle(subset)
                 st = _tskit.Tree(ts, tracked_samples=subset)
                 while st.next():
-                    nu = get_tracked_sample_counts(st, subset)
+                    nu = get_tracked_sample_counts(ts, st, subset)
                     nu_prime = [
-                        st.get_num_tracked_samples(j) for j in range(st.get_num_nodes())
+                        st.get_num_tracked_samples(j) for j in range(ts.get_num_nodes())
                     ]
                     assert nu == nu_prime
             # Passing duplicated values should raise an error
@@ -2977,7 +2976,7 @@ class TestTree(LowLevelTestCase):
                     assert t.get_right_sample(j) == j
 
                 # All non-tree nodes should have 0
-                for j in range(t.get_num_nodes()):
+                for j in range(ts.get_num_nodes()):
                     if (
                         t.get_parent(j) == _tskit.NULL
                         and t.get_left_child(j) == _tskit.NULL
