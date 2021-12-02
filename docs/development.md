@@ -1098,8 +1098,9 @@ git tag -a C_MAJOR.MINOR.PATCH -m "C API version C_MAJOR.MINOR.PATCH"
 git push upstream --tags
 ```
 
-Then prepare a release for the tag on GitHub, copying across the changelog.
-Running `python docs/convert_changelog.py` will format the changelog for GitHub.
+After a couple of minutes a github action will make a draft release with the changelog
+at the [releases page](https://github.com/tskit-dev/tskit/releases). Check it looks
+right and publish the release (Click on the little pencil).
 After release, start a section in the changelog for new developments and close the
 GitHub issue milestone of the release.
 
@@ -1123,9 +1124,9 @@ git push upstream --tags
 This will trigger a build of the distribution artifacts for Python
 on [Github Actions](https://github.com/tskit-dev/tskit/actions). and deploy
 them to the [test PyPI](https://test.pypi.org/project/tskit/). Check
-the release looks good there, then create a release on Github based on the tag you
-pushed. Copy the changelog into the release. Running `python docs/convert_changelog.py`
-will format the changelog for GitHub. Publishing this release will cause the github
+the release looks good there, then publish the draft release on the
+[releases page](https://github.com/tskit-dev/tskit/releases) (Click on the little pencil).
+Publishing this release will cause the github
 action to deploy to the [production PyPI](https://pypi.org/project/tskit/).
 After release, start a section in the changelog for new developments and close the
 GitHub issue milestone of the release.
