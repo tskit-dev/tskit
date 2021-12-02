@@ -526,6 +526,17 @@ test_avl_random(void)
     validate_avl(sizeof(keys) / sizeof(*keys), keys);
 }
 
+static void
+test_meson_version(void)
+{
+    char version[100];
+
+    sprintf(
+        version, "%d.%d.%d", TSK_VERSION_MAJOR, TSK_VERSION_MINOR, TSK_VERSION_PATCH);
+    /* the MESON_PROJECT_VERSION define is passed in by meson when compiling */
+    CU_ASSERT_STRING_EQUAL(version, MESON_PROJECT_VERSION);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -543,6 +554,7 @@ main(int argc, char **argv)
         { "test_avl_sequential", test_avl_sequential },
         { "test_avl_interleaved", test_avl_interleaved },
         { "test_avl_random", test_avl_random },
+        { "test_meson_version", test_meson_version },
         { NULL, NULL },
     };
 
