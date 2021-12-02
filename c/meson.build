@@ -2,6 +2,7 @@ project('tskit', ['c', 'cpp'], default_options: ['c_std=c99', 'cpp_std=c++11'])
 
 kastore_proj = subproject('kastore')
 kastore_dep = kastore_proj.get_variable('kastore_dep')
+kastore_inc = kastore_proj.get_variable('kastore_inc')
 
 cc = meson.get_compiler('c')
 m_dep = cc.find_library('m', required: false)
@@ -22,10 +23,10 @@ lib_headers = [
     'tskit/genotypes.h', 'tskit/stats.h', 'tskit/convert.h', 'tskit/haplotype_matching.h']
 
 # Subprojects use the static library for simplicity.
-inc = include_directories(['.', 'tskit'])
+tskit_inc = [kastore_inc, include_directories(['.'])]
 tskit_lib = static_library('tskit',
     sources: lib_sources, dependencies: lib_deps)
-tskit_dep = declare_dependency(include_directories:inc, link_with: tskit_lib)
+tskit_dep = declare_dependency(include_directories:tskit_inc, link_with: tskit_lib)
 
 if not meson.is_subproject()
 
