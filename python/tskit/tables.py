@@ -2549,7 +2549,7 @@ class TableCollection:
     :vartype populations: PopulationTable
     :ivar provenances: The provenance table.
     :vartype provenances: ProvenanceTable
-    :ivar index: The edge insertion and removal index.
+    :ivar indexes: The edge insertion and removal indexes.
     :ivar sequence_length: The sequence length defining the coordinate
         space.
     :vartype sequence_length: float
