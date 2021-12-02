@@ -4511,7 +4511,7 @@ class TreeSequence:
         to the :class:`Tree` constructor, and control
         the options that are set in the returned tree instance.
 
-        :warning: Do not store the results of this iterator in a list!
+        .. warning:: Do not store the results of this iterator in a list!
            For performance reasons, the same underlying object is used
            for every tree returned which will most likely lead to unexpected
            behaviour. If you wish to obtain a list of trees in a tree sequence
