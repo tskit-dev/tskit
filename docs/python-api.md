@@ -19,8 +19,8 @@ kernelspec:
 # Python API
 
 This page documents the full tskit Python API. Brief thematic summaries of common
-classes and methods are presented first. The {ref}`sec_reference_api` at the end
-then contains full details which aim to be concise, precise and exhaustive.
+classes and methods are presented first. The {ref}`sec_python_api_reference` section
+at the end then contains full details which aim to be concise, precise and exhaustive.
 Note that this may not therefore be the best place to start if you are new
 to a particular piece of functionality.
 
@@ -191,7 +191,7 @@ Individuals
       TreeSequence.individual
 
 
-Provenance entries (also see :ref:`sec_provenance_api`)
+Provenance entries (also see :ref:`sec_python_api_provenance`)
     .. autosummary::
       Provenance
       TreeSequence.num_provenances
@@ -999,9 +999,9 @@ Move some or all of these examples into a suitable alternative chapter.
 ```
 
 
-(sec_metadata_api)=
+(sec_python_api_metadata)=
 
-## Metadata API
+## Metadata classes
 
 The `metadata` module provides validation, encoding and decoding of metadata
 using a schema. See {ref}`sec_metadata`, {ref}`sec_metadata_api_overview` and
@@ -1022,7 +1022,7 @@ the {class}`TreeSequence` API.
 :::
 
 
-(sec_provenance_api)=
+(sec_python_api_provenance)=
 
 ## Provenance
 
@@ -1049,11 +1049,11 @@ Miscellaneous top-level utility functions.
 ```
 
 
-(sec_reference_api)=
+(sec_python_api_reference)=
 
-## Reference documentation
+## API reference
 
-(sec_constants_api)=
+(sec_python_api_constants_api)=
 
 ### Constants
 
@@ -1064,6 +1064,8 @@ The following constants are used throughout the `tskit` API.
    :members:
 ```
 
+(sec_python_api_exceptions_api)=
+
 ### Exceptions
 
 ```{eval-rst}
@@ -1073,6 +1075,8 @@ The following constants are used throughout the `tskit` API.
 .. autoexception:: MetadataValidationError
 .. autoexception:: ProvenanceValidationError
 ```
+
+(sec_python_api_functions_api)=
 
 ### Top-level functions
 
@@ -1099,56 +1103,108 @@ The following constants are used throughout the `tskit` API.
 
 ```
 
-### Tree and tree sequence classes
+### Tree and tree sequence APIs
+
+#### {class}`Tree` API
+
+Also see the {ref}`sec_python_api_trees` summary.
 
 ```{eval-rst}
 .. autoclass:: Tree()
     :members:
     :special-members: __str__
     :private-members: _repr_html_
+```
 
+#### {class}`TreeSequence` API
+
+Also see the {ref}`sec_python_api_tree_sequences` summary.
+
+```{eval-rst}
 .. autoclass:: TreeSequence()
     :members:
     :special-members: __str__
     :private-members: _repr_html_
 ```
 
-### Simple container classes
+### Simple container class APIs
+
+#### {class}`Individual` API
 
 ```{eval-rst}
 .. autoclass:: Individual()
     :members:
+```
 
+#### {class}`Node` API
+
+```{eval-rst}
 .. autoclass:: Node()
     :members:
+```
 
+#### {class}`Edge` API
+
+```{eval-rst}
 .. autoclass:: Edge()
     :members:
+```
 
+#### {class}`Site` API
+
+```{eval-rst}
 .. autoclass:: Site()
     :members:
+```
 
+#### {class}`Mutation` API
+
+```{eval-rst}
 .. autoclass:: Mutation()
     :members:
+```
 
+#### {class}`Variant` API
+
+```{eval-rst}
 .. autoclass:: Variant()
     :members:
+```
 
+#### {class}`Migration` API
+
+```{eval-rst}
 .. autoclass:: Migration()
     :members:
+```
 
+#### {class}`Population` API
+
+```{eval-rst}
 .. autoclass:: Population()
     :members:
+```
 
+#### {class}`Provenance` API
+
+```{eval-rst}
 .. autoclass:: Provenance()
     :members:
+```
 
+#### {class}`Interval` API
+
+```{eval-rst}
 .. autoclass:: Interval()
     :members:
 
 ```
 
-### TableCollection and Table classes
+### TableCollection and Table APIs
+
+#### {class}`TableCollection` API
+
+Also see the {ref}`sec_tables_api_table_collection` summary.
 
 ```{eval-rst}
 .. autoclass:: TableCollection
@@ -1159,57 +1215,100 @@ The following constants are used throughout the `tskit` API.
 % Overriding the default signatures for the tables here as they will be
 % confusing to most users.
 
+#### {class}`IndividualTable` API
+
 ```{eval-rst}
 .. autoclass:: IndividualTable()
     :members:
     :inherited-members:
     :special-members: __getitem__
+```
 
+#### {class}`NodeTable` API
+
+```{eval-rst}
 .. autoclass:: NodeTable()
     :members:
     :inherited-members:
     :special-members: __getitem__
+```
 
+#### {class}`EdgeTable` API
+
+```{eval-rst}
 .. autoclass:: EdgeTable()
     :members:
     :inherited-members:
     :special-members: __getitem__
+```
 
+#### {class}`MigrationTable` API
+
+```{eval-rst}
 .. autoclass:: MigrationTable()
     :members:
     :inherited-members:
     :special-members: __getitem__
+```
 
+#### {class}`SiteTable` API
+
+```{eval-rst}
 .. autoclass:: SiteTable()
     :members:
     :inherited-members:
     :special-members: __getitem__
+```
 
+#### {class}`MutationTable` API
+
+```{eval-rst}
 .. autoclass:: MutationTable()
     :members:
     :inherited-members:
     :special-members: __getitem__
+```
 
+#### {class}`PopulationTable` API
+
+```{eval-rst}
 .. autoclass:: PopulationTable()
     :members:
     :inherited-members:
     :special-members: __getitem__
+```
 
+#### {class}`ProvenanceTable` API
+
+Also see the {ref}`sec_python_api_provenance` summary.
+
+```{eval-rst}
 .. autoclass:: ProvenanceTable()
     :members:
     :inherited-members:
 ```
 
-### Miscellaneous classes
+### Miscellaneous class APIs
+
+#### {class}`MetadataSchema` API
+
+Also see the {ref}`sec_python_api_metadata` summary.
 
 ```{eval-rst}
-
 .. autoclass:: MetadataSchema
     :members:
     :inherited-members:
+```
 
+#### {class}`TopologyCounter` API
+
+```{eval-rst}
 .. autoclass:: TopologyCounter
+```
 
+#### {class}`LdCalculator` API
+
+```{eval-rst}
 .. autoclass:: LdCalculator
     :members:
 ```
