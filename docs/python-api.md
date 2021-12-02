@@ -621,25 +621,36 @@ tree sequences (see the {ref}`sec_tables` tutorial).
 
 
 #### General properties
+
+Specific {ref}`tables<sec_tables_api_table>` in the {class}`TableCollection`
+are be accessed using the plural version of their name, so that, for instance, the
+individual table can be accessed using `table_collection.individuals`. A table
+collection also has other properties containing, for example, number of bytes taken
+to store it and the top-level metadata associated with the tree sequence as a whole.
+
 ```{eval-rst}
-.. autosummary::
-  TableCollection.individuals
-  TableCollection.nodes
-  TableCollection.edges
-  TableCollection.migrations
-  TableCollection.sites
-  TableCollection.mutations
-  TableCollection.populations
-  TableCollection.provenances
-  TableCollection.file_uuid
-  TableCollection.indexes
-  TableCollection.nbytes
-  TableCollection.name_map
-  TableCollection.metadata
-  TableCollection.metadata_bytes
-  TableCollection.metadata_schema
-  TableCollection.sequence_length
-  TableCollection.time_units
+Table access
+    .. autosummary::
+      TableCollection.individuals
+      TableCollection.nodes
+      TableCollection.edges
+      TableCollection.migrations
+      TableCollection.sites
+      TableCollection.mutations
+      TableCollection.populations
+      TableCollection.provenances
+
+Other properties
+    .. autosummary::
+      TableCollection.file_uuid
+      TableCollection.indexes
+      TableCollection.nbytes
+      TableCollection.name_map
+      TableCollection.metadata
+      TableCollection.metadata_bytes
+      TableCollection.metadata_schema
+      TableCollection.sequence_length
+      TableCollection.time_units
 ```
 
 #### Sorting and indexing
