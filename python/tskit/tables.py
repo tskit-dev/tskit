@@ -2513,63 +2513,63 @@ class TableCollection:
     @property
     def individuals(self) -> IndividualTable:
         """
-        The individual table
+        The :ref:`sec_individual_table_definition` in this collection.
         """
         return IndividualTable(ll_table=self._ll_tables.individuals)
 
     @property
     def nodes(self) -> NodeTable:
         """
-        The node table
+        The :ref:`sec_node_table_definition` in this collection.
         """
         return NodeTable(ll_table=self._ll_tables.nodes)
 
     @property
     def edges(self) -> EdgeTable:
         """
-        The edge table
+        The :ref:`sec_edge_table_definition` in this collection.
         """
         return EdgeTable(ll_table=self._ll_tables.edges)
 
     @property
     def migrations(self) -> MigrationTable:
         """
-        The migration table
+        The :ref:`sec_migration_table_definition` in this collection
         """
         return MigrationTable(ll_table=self._ll_tables.migrations)
 
     @property
     def sites(self) -> SiteTable:
         """
-        The site table
+        The :ref:`sec_site_table_definition` in this collection.
         """
         return SiteTable(ll_table=self._ll_tables.sites)
 
     @property
     def mutations(self) -> MutationTable:
         """
-        The mutation table
+        The :ref:`sec_mutation_table_definition` in this collection.
         """
         return MutationTable(ll_table=self._ll_tables.mutations)
 
     @property
     def populations(self) -> PopulationTable:
         """
-        The population table
+        The :ref:`sec_population_table_definition` in this collection.
         """
         return PopulationTable(ll_table=self._ll_tables.populations)
 
     @property
     def provenances(self) -> ProvenanceTable:
         """
-        The provenance table
+        The :ref:`sec_provenance_table_definition` in this collection.
         """
         return ProvenanceTable(ll_table=self._ll_tables.provenances)
 
     @property
     def indexes(self) -> TableCollectionIndexes:
         """
-        The edge insertion and removal indexes
+        The edge insertion and removal indexes.
         """
         indexes = self._ll_tables.indexes
         return TableCollectionIndexes(**indexes)
