@@ -1,4 +1,7 @@
-project('tskit', ['c', 'cpp'], default_options: ['c_std=c99', 'cpp_std=c++11'])
+project('tskit', ['c', 'cpp'],
+    version: files('VERSION'),    
+    default_options: ['c_std=c99', 'cpp_std=c++11']
+)
 
 kastore_proj = subproject('kastore')
 kastore_dep = kastore_proj.get_variable('kastore_dep')
