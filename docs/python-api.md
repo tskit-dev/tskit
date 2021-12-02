@@ -22,7 +22,7 @@ This page documents the full tskit Python API. Brief thematic summaries of commo
 classes and methods are presented first. The {ref}`sec_reference_api` at the end
 then contains full details which aim to be concise, precise and exhaustive.
 Note that this may not therefore be the best place to start if you are new
-to a particular piece of functionality. 
+to a particular piece of functionality.
 
 (sec_python_api_trees_and_tree_sequences)=
 
@@ -224,7 +224,7 @@ which perform the same actions but modify the {class}`TableCollection` in place.
 
 #### Tables
 
-The underlying data in a tree sequence is stored in a 
+The underlying data in a tree sequence is stored in a
 {ref}`collection of tables<sec_tables_api>`. The following methods give access
 to tables and associated functionality. Since tables can be modified, this
 allows tree sequences to be edited: see the {ref}`sec_tables` tutorial for
@@ -285,7 +285,7 @@ efficient methods sometimes exist for entire tree sequences:
 ```{eval-rst}
 .. autosummary::
   TreeSequence.count_topologies
-  
+
 ```
 
 (sec_python_api_tree_sequences_display)=
@@ -365,7 +365,7 @@ It is sometimes useful to create an entirely new tree sequence consisting
 of just a single tree (a "one-tree sequence"). The follow methods create such an
 object and return a {class}`Tree` instance corresponding to that tree.
 The new tree sequence to which the tree belongs is available through the
-{attr}`~Tree.tree_sequence` property. 
+{attr}`~Tree.tree_sequence` property.
 
 ```{eval-rst}
 Creating a new tree
@@ -406,7 +406,7 @@ available via simple and high performance {class}`Tree` methods
 ##### Simple measures
 
 These return a simple number, or (usually) short list of numbers relevant to a specific
-node or limited set of nodes. 
+node or limited set of nodes.
 
 ```{eval-rst}
 Node information
@@ -434,7 +434,7 @@ Descendant nodes
       Tree.samples
       Tree.num_samples
       Tree.num_tracked_samples
-     
+
 Multiple nodes
     .. autosummary::
       Tree.is_descendant
@@ -1152,6 +1152,7 @@ The following constants are used throughout the `tskit` API.
 
 ```{eval-rst}
 .. autoclass:: TableCollection
+    :inherited-members:
     :members:
 ```
 

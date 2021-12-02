@@ -565,7 +565,7 @@ typedef struct {
     /** @brief The metadata schema */
     char *metadata_schema;
     tsk_size_t metadata_schema_length;
-    tsk_reference_sequence_t *reference_sequence;
+    tsk_reference_sequence_t reference_sequence;
     /** @brief The individual table */
     tsk_individual_table_t individuals;
     /** @brief The node table */
@@ -4004,6 +4004,8 @@ life-cycle.
 bool tsk_table_collection_has_index(
     const tsk_table_collection_t *self, tsk_flags_t options);
 
+bool tsk_table_collection_has_reference_sequence(const tsk_table_collection_t *self);
+
 /**
 @brief Deletes the indexes for this table collection.
 
@@ -4140,22 +4142,21 @@ int tsk_table_collection_compute_mutation_parents(
 int tsk_table_collection_compute_mutation_times(
     tsk_table_collection_t *self, double *random, tsk_flags_t TSK_UNUSED(options));
 
-int tsk_reference_sequence_init(tsk_reference_sequence_t *self);
+int tsk_reference_sequence_init(tsk_reference_sequence_t *self, tsk_flags_t options);
 int tsk_reference_sequence_free(tsk_reference_sequence_t *self);
+bool tsk_reference_sequence_is_null(const tsk_reference_sequence_t *self);
 bool tsk_reference_sequence_equals(const tsk_reference_sequence_t *self,
     const tsk_reference_sequence_t *other, tsk_flags_t options);
 int tsk_reference_sequence_copy(const tsk_reference_sequence_t *self,
-    tsk_reference_sequence_t **dest, tsk_flags_t options);
-int tsk_reference_sequence_set_data(tsk_reference_sequence_t *self,
-    const char *reference_sequence, tsk_size_t reference_sequence_length);
-int tsk_reference_sequence_set_url(tsk_reference_sequence_t *self,
-    const char *reference_sequence_url, tsk_size_t reference_sequence_url_length);
-int tsk_reference_sequence_set_metadata(tsk_reference_sequence_t *self,
-    const char *reference_sequence_metadata,
-    tsk_size_t reference_sequence_metadata_length);
+    tsk_reference_sequence_t *dest, tsk_flags_t options);
+int tsk_reference_sequence_set_data(
+    tsk_reference_sequence_t *self, const char *data, tsk_size_t data_length);
+int tsk_reference_sequence_set_url(
+    tsk_reference_sequence_t *self, const char *url, tsk_size_t url_length);
+int tsk_reference_sequence_set_metadata(
+    tsk_reference_sequence_t *self, const char *metadata, tsk_size_t metadata_length);
 int tsk_reference_sequence_set_metadata_schema(tsk_reference_sequence_t *self,
-    const char *reference_sequence_metadata_schema,
-    tsk_size_t reference_sequence_metadata_schema_length);
+    const char *metadata_schema, tsk_size_t metadata_schema_length);
 
 /**
 @defgroup TABLE_SORTER_API_GROUP Low-level table sorter API.

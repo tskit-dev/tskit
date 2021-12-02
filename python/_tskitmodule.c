@@ -144,12 +144,6 @@ typedef struct {
 
 typedef struct {
     PyObject_HEAD
-    Tree *tree;
-    int first;
-} TreeIterator;
-
-typedef struct {
-    PyObject_HEAD
     TreeSequence *tree_sequence;
     tsk_diff_iter_t *tree_diff_iterator;
 } TreeDiffIterator;
@@ -183,6 +177,13 @@ typedef struct {
     TreeSequence *tree_sequence;
     tsk_viterbi_matrix_t *viterbi_matrix;
 } ViterbiMatrix;
+
+typedef struct {
+    PyObject_HEAD
+    PyObject *owner;
+    bool read_only;
+    tsk_reference_sequence_t *reference_sequence;
+} ReferenceSequence;
 
 typedef struct {
     PyObject_HEAD
@@ -5836,6 +5837,294 @@ static PyTypeObject IdentitySegmentsType = {
 };
 
 /*===================================================================
+ * ReferenceSequence
+ *===================================================================
+ */
+
+static int
+ReferenceSequence_check_read(ReferenceSequence *self)
+{
+    int ret = -1;
+    if (self->reference_sequence == NULL) {
+        PyErr_SetString(PyExc_SystemError, "ReferenceSequence not initialised");
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+static int
+ReferenceSequence_check_write(ReferenceSequence *self)
+{
+    int ret = ReferenceSequence_check_read(self);
+
+    if (ret != 0) {
+        goto out;
+    }
+    if (self->read_only) {
+        PyErr_SetString(PyExc_AttributeError,
+            "ReferenceSequence is read-only and can only be modified "
+            "in a TableCollection");
+        ret = -1;
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+static void
+ReferenceSequence_dealloc(ReferenceSequence *self)
+{
+    self->reference_sequence = NULL;
+    Py_XDECREF(self->owner);
+    Py_TYPE(self)->tp_free((PyObject *) self);
+}
+
+static int
+ReferenceSequence_init(ReferenceSequence *self, PyObject *args, PyObject *kwds)
+{
+    self->reference_sequence = NULL;
+    self->owner = NULL;
+    self->read_only = true;
+    return 0;
+}
+
+static PyObject *
+ReferenceSequence_get_data(ReferenceSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (ReferenceSequence_check_read(self) != 0) {
+        goto out;
+    }
+    /* This isn't zero-copy, so we'll possible want to return a
+     * numpy array wrapping this at some point */
+    ret = make_Py_Unicode_FromStringAndLength(
+        self->reference_sequence->data, self->reference_sequence->data_length);
+out:
+    return ret;
+}
+
+typedef int(refseq_string_setter_func)(
+    tsk_reference_sequence_t *obj, const char *str, tsk_size_t len);
+
+static int
+ReferenceSequence_set_string_attr(ReferenceSequence *self, PyObject *arg,
+    const char *attr_name, refseq_string_setter_func setter_func)
+{
+    int ret = -1;
+    int err;
+    const char *str;
+    Py_ssize_t length;
+
+    if (ReferenceSequence_check_write(self) != 0) {
+        goto out;
+    }
+    if (arg == NULL) {
+        PyErr_Format(
+            PyExc_AttributeError, "Cannot del %s, set to None to clear.", attr_name);
+        goto out;
+    }
+    if (!PyUnicode_Check(arg)) {
+        PyErr_Format(PyExc_TypeError, "%s must be a string", attr_name);
+        goto out;
+    }
+    str = PyUnicode_AsUTF8AndSize(arg, &length);
+    if (str == NULL) {
+        goto out;
+    }
+    err = setter_func(self->reference_sequence, str, (tsk_size_t) length);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+static int
+ReferenceSequence_set_data(ReferenceSequence *self, PyObject *arg, void *closure)
+{
+    return ReferenceSequence_set_string_attr(
+        self, arg, "data", tsk_reference_sequence_set_data);
+}
+
+static PyObject *
+ReferenceSequence_get_url(ReferenceSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (ReferenceSequence_check_read(self) != 0) {
+        goto out;
+    }
+    ret = make_Py_Unicode_FromStringAndLength(
+        self->reference_sequence->url, self->reference_sequence->url_length);
+out:
+    return ret;
+}
+
+static int
+ReferenceSequence_set_url(ReferenceSequence *self, PyObject *arg, void *closure)
+{
+    return ReferenceSequence_set_string_attr(
+        self, arg, "url", tsk_reference_sequence_set_url);
+}
+
+static PyObject *
+ReferenceSequence_get_metadata_schema(ReferenceSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (ReferenceSequence_check_read(self) != 0) {
+        goto out;
+    }
+    ret = make_Py_Unicode_FromStringAndLength(self->reference_sequence->metadata_schema,
+        self->reference_sequence->metadata_schema_length);
+out:
+    return ret;
+}
+
+static int
+ReferenceSequence_set_metadata_schema(
+    ReferenceSequence *self, PyObject *arg, void *closure)
+{
+    return ReferenceSequence_set_string_attr(
+        self, arg, "metadata_schema", tsk_reference_sequence_set_metadata_schema);
+}
+
+static PyObject *
+ReferenceSequence_get_metadata(ReferenceSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (ReferenceSequence_check_read(self) != 0) {
+        goto out;
+    }
+
+    ret = PyBytes_FromStringAndSize(
+        self->reference_sequence->metadata, self->reference_sequence->metadata_length);
+out:
+    return ret;
+}
+
+static int
+ReferenceSequence_set_metadata(ReferenceSequence *self, PyObject *arg, void *closure)
+{
+    int ret = -1;
+    int err;
+    char *metadata;
+    Py_ssize_t metadata_length;
+
+    if (ReferenceSequence_check_write(self) != 0) {
+        goto out;
+    }
+    if (arg == NULL) {
+        PyErr_Format(PyExc_AttributeError,
+            "Cannot del metadata, set to empty string (b\"\") to clear.");
+        goto out;
+    }
+    err = PyBytes_AsStringAndSize(arg, &metadata, &metadata_length);
+    if (err != 0) {
+        goto out;
+    }
+    err = tsk_reference_sequence_set_metadata(
+        self->reference_sequence, metadata, metadata_length);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+static PyObject *
+ReferenceSequence_is_null(ReferenceSequence *self)
+{
+    PyObject *ret = NULL;
+
+    if (ReferenceSequence_check_read(self) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue(
+        "i", (int) tsk_reference_sequence_is_null(self->reference_sequence));
+out:
+    return ret;
+}
+
+static PyMethodDef ReferenceSequence_methods[] = {
+    { .ml_name = "is_null",
+        .ml_meth = (PyCFunction) ReferenceSequence_is_null,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns True if this is the null reference sequence ." },
+    { NULL } /* Sentinel */
+};
+
+static PyGetSetDef ReferenceSequence_getsetters[] = {
+    { .name = "data",
+        .set = (setter) ReferenceSequence_set_data,
+        .get = (getter) ReferenceSequence_get_data,
+        .doc = "The data string for this reference sequence. " },
+    { .name = "url",
+        .set = (setter) ReferenceSequence_set_url,
+        .get = (getter) ReferenceSequence_get_url,
+        .doc = "The url string for this reference sequence. " },
+    { .name = "metadata_schema",
+        .set = (setter) ReferenceSequence_set_metadata_schema,
+        .get = (getter) ReferenceSequence_get_metadata_schema,
+        .doc = "The metadata_schema string for this reference sequence. " },
+    { .name = "metadata",
+        .set = (setter) ReferenceSequence_set_metadata,
+        .get = (getter) ReferenceSequence_get_metadata,
+        .doc = "The metadata string for this reference sequence. " },
+    { NULL } /* Sentinel */
+};
+
+static PyTypeObject ReferenceSequenceType = {
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.ReferenceSequence",
+    .tp_basicsize = sizeof(ReferenceSequence),
+    .tp_dealloc = (destructor) ReferenceSequence_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = "A thin Python translation layer over the C tsk_reference_sequence_t struct",
+    .tp_methods = ReferenceSequence_methods,
+    .tp_getset = ReferenceSequence_getsetters,
+    .tp_init = (initproc) ReferenceSequence_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
+};
+
+static PyObject *
+ReferenceSequence_get_new(
+    tsk_reference_sequence_t *refseq, PyObject *owner, bool read_only)
+{
+
+    PyObject *ret = NULL;
+    ReferenceSequence *py_refseq = NULL;
+
+    py_refseq = (ReferenceSequence *) PyObject_CallObject(
+        (PyObject *) &ReferenceSequenceType, NULL);
+    if (py_refseq == NULL) {
+        goto out;
+    }
+    py_refseq->reference_sequence = refseq;
+    py_refseq->owner = owner;
+    py_refseq->read_only = read_only;
+    /* We increment the reference on the owner */
+    Py_INCREF(owner);
+
+    ret = (PyObject *) py_refseq;
+    py_refseq = NULL;
+out:
+    Py_XDECREF(py_refseq);
+    return ret;
+}
+
+/*===================================================================
  * TableCollection
  *===================================================================
  */
@@ -6248,6 +6537,20 @@ TableCollection_set_metadata_schema(TableCollection *self, PyObject *arg, void *
         goto out;
     }
     ret = 0;
+out:
+    return ret;
+}
+
+static PyObject *
+TableCollection_get_reference_sequence(TableCollection *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (TableCollection_check_state(self) != 0) {
+        goto out;
+    }
+    ret = ReferenceSequence_get_new(
+        &self->tables->reference_sequence, (PyObject *) self, false);
 out:
     return ret;
 }
@@ -6864,6 +7167,20 @@ out:
 }
 
 static PyObject *
+TableCollection_has_reference_sequence(TableCollection *self)
+{
+    PyObject *ret = NULL;
+
+    if (TableCollection_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue(
+        "i", (int) tsk_table_collection_has_reference_sequence(self->tables));
+out:
+    return ret;
+}
+
+static PyObject *
 TableCollection_has_index(TableCollection *self)
 {
     PyObject *ret = NULL;
@@ -7132,6 +7449,9 @@ static PyGetSetDef TableCollection_getsetters[] = {
         .get = (getter) TableCollection_get_metadata_schema,
         .set = (setter) TableCollection_set_metadata_schema,
         .doc = "The metadata schema." },
+    { .name = "reference_sequence",
+        .get = (getter) TableCollection_get_reference_sequence,
+        .doc = "The reference sequence." },
     { NULL } /* Sentinel */
 };
 
@@ -7200,6 +7520,10 @@ static PyMethodDef TableCollection_methods[] = {
         .ml_meth = (PyCFunction) TableCollection_drop_index,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Drops indexes." },
+    { .ml_name = "has_reference_sequence",
+        .ml_meth = (PyCFunction) TableCollection_has_reference_sequence,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns True if the TableCollection has a reference sequence." },
     { .ml_name = "has_index",
         .ml_meth = (PyCFunction) TableCollection_has_index,
         .ml_flags = METH_NOARGS,
@@ -9018,6 +9342,34 @@ out:
     return ret;
 }
 
+static PyObject *
+TreeSequence_has_reference_sequence(TreeSequence *self)
+{
+    PyObject *ret = NULL;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue(
+        "i", (int) tsk_treeseq_has_reference_sequence(self->tree_sequence));
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_reference_sequence(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    ret = ReferenceSequence_get_new(
+        &self->tree_sequence->tables->reference_sequence, (PyObject *) self, true);
+out:
+    return ret;
+}
+
 static PyMethodDef TreeSequence_methods[] = {
     { .ml_name = "dump",
         .ml_meth = (PyCFunction) TreeSequence_dump,
@@ -9223,6 +9575,17 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_get_genotype_matrix,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Returns the genotypes matrix." },
+    { .ml_name = "has_reference_sequence",
+        .ml_meth = (PyCFunction) TreeSequence_has_reference_sequence,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns True if the TreeSequence has a reference sequence." },
+    { NULL } /* Sentinel */
+};
+
+static PyGetSetDef TreeSequence_getsetters[] = {
+    { .name = "reference_sequence",
+        .get = (getter) TreeSequence_get_reference_sequence,
+        .doc = "The reference sequence." },
     { NULL } /* Sentinel */
 };
 
@@ -9235,6 +9598,7 @@ static PyTypeObject TreeSequenceType = {
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_doc = "TreeSequence objects",
     .tp_methods = TreeSequence_methods,
+    .tp_getset = TreeSequence_getsetters,
     .tp_init = (initproc) TreeSequence_init,
     .tp_new = PyType_GenericNew,
     // clang-format on
@@ -11950,6 +12314,13 @@ PyInit__tskit(void)
     Py_INCREF(&IdentitySegmentListType);
     PyModule_AddObject(
         module, "IdentitySegmentList", (PyObject *) &IdentitySegmentListType);
+
+    /* ReferenceSequence type */
+    if (PyType_Ready(&ReferenceSequenceType) < 0) {
+        return NULL;
+    }
+    Py_INCREF(&ReferenceSequenceType);
+    PyModule_AddObject(module, "ReferenceSequence", (PyObject *) &ReferenceSequenceType);
 
     /* Metadata schemas namedtuple type*/
     if (PyStructSequence_InitType2(&MetadataSchemas, &metadata_schemas_desc) < 0) {

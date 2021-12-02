@@ -66,7 +66,7 @@ make_Py_Unicode_FromStringAndLength(const char *str, size_t length)
  * NB This returns a *borrowed reference*, so don't DECREF it!
  */
 static PyObject *
-get_table_dict_value(PyObject *dict, const char *key_str, bool required)
+get_dict_value(PyObject *dict, const char *key_str, bool required)
 {
     PyObject *ret = NULL;
 
@@ -78,6 +78,62 @@ get_table_dict_value(PyObject *dict, const char *key_str, bool required)
         PyErr_Format(PyExc_TypeError, "'%s' is required", key_str);
         ret = NULL;
     }
+    return ret;
+}
+
+/* Specialised version of get_dict_value that checks if the
+ * value is a dictionary. */
+static PyObject *
+get_dict_value_dict(PyObject *dict, const char *key_str, bool required)
+{
+    PyObject *ret = NULL;
+    PyObject *value = get_dict_value(dict, key_str, required);
+
+    if (value == NULL) {
+        goto out;
+    }
+    if (value != Py_None && !PyDict_Check(value)) {
+        PyErr_Format(PyExc_TypeError, "'%s' is not a dict", key_str);
+        goto out;
+    }
+    ret = value;
+out:
+    return ret;
+}
+
+static PyObject *
+get_dict_value_string(PyObject *dict, const char *key_str, bool required)
+{
+    PyObject *ret = NULL;
+    PyObject *value = get_dict_value(dict, key_str, required);
+
+    if (value == NULL) {
+        goto out;
+    }
+    if (value != Py_None && !PyUnicode_Check(value)) {
+        PyErr_Format(PyExc_TypeError, "'%s' is not a string", key_str);
+        goto out;
+    }
+    ret = value;
+out:
+    return ret;
+}
+
+static PyObject *
+get_dict_value_bytes(PyObject *dict, const char *key_str, bool required)
+{
+    PyObject *ret = NULL;
+    PyObject *value = get_dict_value(dict, key_str, required);
+
+    if (value == NULL) {
+        goto out;
+    }
+    if (value != Py_None && !PyBytes_Check(value)) {
+        PyErr_Format(PyExc_TypeError, "'%s' is not bytes", key_str);
+        goto out;
+    }
+    ret = value;
+out:
     return ret;
 }
 
@@ -199,35 +255,35 @@ parse_individual_table_dict(
     Py_ssize_t metadata_schema_length = 0;
 
     /* Get the input values */
-    flags_input = get_table_dict_value(dict, "flags", true);
+    flags_input = get_dict_value(dict, "flags", true);
     if (flags_input == NULL) {
         goto out;
     }
-    location_input = get_table_dict_value(dict, "location", false);
+    location_input = get_dict_value(dict, "location", false);
     if (location_input == NULL) {
         goto out;
     }
-    location_offset_input = get_table_dict_value(dict, "location_offset", false);
+    location_offset_input = get_dict_value(dict, "location_offset", false);
     if (location_offset_input == NULL) {
         goto out;
     }
-    parents_input = get_table_dict_value(dict, "parents", false);
+    parents_input = get_dict_value(dict, "parents", false);
     if (parents_input == NULL) {
         goto out;
     }
-    parents_offset_input = get_table_dict_value(dict, "parents_offset", false);
+    parents_offset_input = get_dict_value(dict, "parents_offset", false);
     if (parents_offset_input == NULL) {
         goto out;
     }
-    metadata_input = get_table_dict_value(dict, "metadata", false);
+    metadata_input = get_dict_value(dict, "metadata", false);
     if (metadata_input == NULL) {
         goto out;
     }
-    metadata_offset_input = get_table_dict_value(dict, "metadata_offset", false);
+    metadata_offset_input = get_dict_value(dict, "metadata_offset", false);
     if (metadata_offset_input == NULL) {
         goto out;
     }
-    metadata_schema_input = get_table_dict_value(dict, "metadata_schema", false);
+    metadata_schema_input = get_dict_value(dict, "metadata_schema", false);
     if (metadata_schema_input == NULL) {
         goto out;
     }
@@ -362,31 +418,31 @@ parse_node_table_dict(tsk_node_table_t *table, PyObject *dict, bool clear_table)
     Py_ssize_t metadata_schema_length = 0;
 
     /* Get the input values */
-    flags_input = get_table_dict_value(dict, "flags", true);
+    flags_input = get_dict_value(dict, "flags", true);
     if (flags_input == NULL) {
         goto out;
     }
-    time_input = get_table_dict_value(dict, "time", true);
+    time_input = get_dict_value(dict, "time", true);
     if (time_input == NULL) {
         goto out;
     }
-    population_input = get_table_dict_value(dict, "population", false);
+    population_input = get_dict_value(dict, "population", false);
     if (population_input == NULL) {
         goto out;
     }
-    individual_input = get_table_dict_value(dict, "individual", false);
+    individual_input = get_dict_value(dict, "individual", false);
     if (individual_input == NULL) {
         goto out;
     }
-    metadata_input = get_table_dict_value(dict, "metadata", false);
+    metadata_input = get_dict_value(dict, "metadata", false);
     if (metadata_input == NULL) {
         goto out;
     }
-    metadata_offset_input = get_table_dict_value(dict, "metadata_offset", false);
+    metadata_offset_input = get_dict_value(dict, "metadata_offset", false);
     if (metadata_offset_input == NULL) {
         goto out;
     }
-    metadata_schema_input = get_table_dict_value(dict, "metadata_schema", false);
+    metadata_schema_input = get_dict_value(dict, "metadata_schema", false);
     if (metadata_schema_input == NULL) {
         goto out;
     }
@@ -500,31 +556,31 @@ parse_edge_table_dict(tsk_edge_table_t *table, PyObject *dict, bool clear_table)
     Py_ssize_t metadata_schema_length = 0;
 
     /* Get the input values */
-    left_input = get_table_dict_value(dict, "left", true);
+    left_input = get_dict_value(dict, "left", true);
     if (left_input == NULL) {
         goto out;
     }
-    right_input = get_table_dict_value(dict, "right", true);
+    right_input = get_dict_value(dict, "right", true);
     if (right_input == NULL) {
         goto out;
     }
-    parent_input = get_table_dict_value(dict, "parent", true);
+    parent_input = get_dict_value(dict, "parent", true);
     if (parent_input == NULL) {
         goto out;
     }
-    child_input = get_table_dict_value(dict, "child", true);
+    child_input = get_dict_value(dict, "child", true);
     if (child_input == NULL) {
         goto out;
     }
-    metadata_input = get_table_dict_value(dict, "metadata", false);
+    metadata_input = get_dict_value(dict, "metadata", false);
     if (metadata_input == NULL) {
         goto out;
     }
-    metadata_offset_input = get_table_dict_value(dict, "metadata_offset", false);
+    metadata_offset_input = get_dict_value(dict, "metadata_offset", false);
     if (metadata_offset_input == NULL) {
         goto out;
     }
-    metadata_schema_input = get_table_dict_value(dict, "metadata_schema", false);
+    metadata_schema_input = get_dict_value(dict, "metadata_schema", false);
     if (metadata_schema_input == NULL) {
         goto out;
     }
@@ -635,39 +691,39 @@ parse_migration_table_dict(
     Py_ssize_t metadata_schema_length = 0;
 
     /* Get the input values */
-    left_input = get_table_dict_value(dict, "left", true);
+    left_input = get_dict_value(dict, "left", true);
     if (left_input == NULL) {
         goto out;
     }
-    right_input = get_table_dict_value(dict, "right", true);
+    right_input = get_dict_value(dict, "right", true);
     if (right_input == NULL) {
         goto out;
     }
-    node_input = get_table_dict_value(dict, "node", true);
+    node_input = get_dict_value(dict, "node", true);
     if (node_input == NULL) {
         goto out;
     }
-    source_input = get_table_dict_value(dict, "source", true);
+    source_input = get_dict_value(dict, "source", true);
     if (source_input == NULL) {
         goto out;
     }
-    dest_input = get_table_dict_value(dict, "dest", true);
+    dest_input = get_dict_value(dict, "dest", true);
     if (dest_input == NULL) {
         goto out;
     }
-    time_input = get_table_dict_value(dict, "time", true);
+    time_input = get_dict_value(dict, "time", true);
     if (time_input == NULL) {
         goto out;
     }
-    metadata_input = get_table_dict_value(dict, "metadata", false);
+    metadata_input = get_dict_value(dict, "metadata", false);
     if (metadata_input == NULL) {
         goto out;
     }
-    metadata_offset_input = get_table_dict_value(dict, "metadata_offset", false);
+    metadata_offset_input = get_dict_value(dict, "metadata_offset", false);
     if (metadata_offset_input == NULL) {
         goto out;
     }
-    metadata_schema_input = get_table_dict_value(dict, "metadata_schema", false);
+    metadata_schema_input = get_dict_value(dict, "metadata_schema", false);
     if (metadata_schema_input == NULL) {
         goto out;
     }
@@ -782,28 +838,27 @@ parse_site_table_dict(tsk_site_table_t *table, PyObject *dict, bool clear_table)
     Py_ssize_t metadata_schema_length = 0;
 
     /* Get the input values */
-    position_input = get_table_dict_value(dict, "position", true);
+    position_input = get_dict_value(dict, "position", true);
     if (position_input == NULL) {
         goto out;
     }
-    ancestral_state_input = get_table_dict_value(dict, "ancestral_state", true);
+    ancestral_state_input = get_dict_value(dict, "ancestral_state", true);
     if (ancestral_state_input == NULL) {
         goto out;
     }
-    ancestral_state_offset_input
-        = get_table_dict_value(dict, "ancestral_state_offset", true);
+    ancestral_state_offset_input = get_dict_value(dict, "ancestral_state_offset", true);
     if (ancestral_state_offset_input == NULL) {
         goto out;
     }
-    metadata_input = get_table_dict_value(dict, "metadata", false);
+    metadata_input = get_dict_value(dict, "metadata", false);
     if (metadata_input == NULL) {
         goto out;
     }
-    metadata_offset_input = get_table_dict_value(dict, "metadata_offset", false);
+    metadata_offset_input = get_dict_value(dict, "metadata_offset", false);
     if (metadata_offset_input == NULL) {
         goto out;
     }
-    metadata_schema_input = get_table_dict_value(dict, "metadata_schema", false);
+    metadata_schema_input = get_dict_value(dict, "metadata_schema", false);
     if (metadata_schema_input == NULL) {
         goto out;
     }
@@ -917,40 +972,39 @@ parse_mutation_table_dict(tsk_mutation_table_t *table, PyObject *dict, bool clea
     Py_ssize_t metadata_schema_length = 0;
 
     /* Get the input values */
-    site_input = get_table_dict_value(dict, "site", true);
+    site_input = get_dict_value(dict, "site", true);
     if (site_input == NULL) {
         goto out;
     }
-    node_input = get_table_dict_value(dict, "node", true);
+    node_input = get_dict_value(dict, "node", true);
     if (node_input == NULL) {
         goto out;
     }
-    parent_input = get_table_dict_value(dict, "parent", false);
+    parent_input = get_dict_value(dict, "parent", false);
     if (parent_input == NULL) {
         goto out;
     }
-    time_input = get_table_dict_value(dict, "time", false);
+    time_input = get_dict_value(dict, "time", false);
     if (time_input == NULL) {
         goto out;
     }
-    derived_state_input = get_table_dict_value(dict, "derived_state", true);
+    derived_state_input = get_dict_value(dict, "derived_state", true);
     if (derived_state_input == NULL) {
         goto out;
     }
-    derived_state_offset_input
-        = get_table_dict_value(dict, "derived_state_offset", true);
+    derived_state_offset_input = get_dict_value(dict, "derived_state_offset", true);
     if (derived_state_offset_input == NULL) {
         goto out;
     }
-    metadata_input = get_table_dict_value(dict, "metadata", false);
+    metadata_input = get_dict_value(dict, "metadata", false);
     if (metadata_input == NULL) {
         goto out;
     }
-    metadata_offset_input = get_table_dict_value(dict, "metadata_offset", false);
+    metadata_offset_input = get_dict_value(dict, "metadata_offset", false);
     if (metadata_offset_input == NULL) {
         goto out;
     }
-    metadata_schema_input = get_table_dict_value(dict, "metadata_schema", false);
+    metadata_schema_input = get_dict_value(dict, "metadata_schema", false);
     if (metadata_schema_input == NULL) {
         goto out;
     }
@@ -1072,15 +1126,15 @@ parse_population_table_dict(
     Py_ssize_t metadata_schema_length = 0;
 
     /* Get the inputs */
-    metadata_input = get_table_dict_value(dict, "metadata", true);
+    metadata_input = get_dict_value(dict, "metadata", true);
     if (metadata_input == NULL) {
         goto out;
     }
-    metadata_offset_input = get_table_dict_value(dict, "metadata_offset", true);
+    metadata_offset_input = get_dict_value(dict, "metadata_offset", true);
     if (metadata_offset_input == NULL) {
         goto out;
     }
-    metadata_schema_input = get_table_dict_value(dict, "metadata_schema", false);
+    metadata_schema_input = get_dict_value(dict, "metadata_schema", false);
     if (metadata_schema_input == NULL) {
         goto out;
     }
@@ -1147,19 +1201,19 @@ parse_provenance_table_dict(
     PyArrayObject *record_offset_array = NULL;
 
     /* Get the inputs */
-    timestamp_input = get_table_dict_value(dict, "timestamp", true);
+    timestamp_input = get_dict_value(dict, "timestamp", true);
     if (timestamp_input == NULL) {
         goto out;
     }
-    timestamp_offset_input = get_table_dict_value(dict, "timestamp_offset", true);
+    timestamp_offset_input = get_dict_value(dict, "timestamp_offset", true);
     if (timestamp_offset_input == NULL) {
         goto out;
     }
-    record_input = get_table_dict_value(dict, "record", true);
+    record_input = get_dict_value(dict, "record", true);
     if (record_input == NULL) {
         goto out;
     }
-    record_offset_input = get_table_dict_value(dict, "record_offset", true);
+    record_offset_input = get_dict_value(dict, "record_offset", true);
     if (record_offset_input == NULL) {
         goto out;
     }
@@ -1220,11 +1274,11 @@ parse_indexes_dict(tsk_table_collection_t *tables, PyObject *dict)
     PyArrayObject *removal_array = NULL;
 
     /* Get the inputs */
-    insertion_input = get_table_dict_value(dict, "edge_insertion_order", false);
+    insertion_input = get_dict_value(dict, "edge_insertion_order", false);
     if (insertion_input == NULL) {
         goto out;
     }
-    removal_input = get_table_dict_value(dict, "edge_removal_order", false);
+    removal_input = get_dict_value(dict, "edge_removal_order", false);
     if (removal_input == NULL) {
         goto out;
     }
@@ -1272,6 +1326,89 @@ out:
 }
 
 static int
+parse_reference_sequence_dict(tsk_reference_sequence_t *ref, PyObject *dict)
+{
+    int err;
+    int ret = -1;
+    PyObject *value = NULL;
+    const char *metadata_schema, *data, *url;
+    char *metadata;
+    Py_ssize_t metadata_schema_length, metadata_length, data_length, url_length;
+
+    /* metadata_schema */
+    value = get_dict_value_string(dict, "metadata_schema", false);
+    if (value == NULL) {
+        goto out;
+    }
+    if (value != Py_None) {
+        metadata_schema = parse_unicode_arg(value, &metadata_schema_length);
+        if (metadata_schema == NULL) {
+            goto out;
+        }
+        err = tsk_reference_sequence_set_metadata_schema(
+            ref, metadata_schema, (tsk_size_t) metadata_schema_length);
+        if (err != 0) {
+            handle_tskit_error(err);
+            goto out;
+        }
+    }
+
+    /* metadata */
+    value = get_dict_value_bytes(dict, "metadata", false);
+    if (value == NULL) {
+        goto out;
+    }
+    if (value != Py_None) {
+        err = PyBytes_AsStringAndSize(value, &metadata, &metadata_length);
+        if (err != 0) {
+            goto out;
+        }
+        err = tsk_reference_sequence_set_metadata(ref, metadata, metadata_length);
+        if (err != 0) {
+            handle_tskit_error(err);
+            goto out;
+        }
+    }
+
+    /* data */
+    value = get_dict_value_string(dict, "data", false);
+    if (value == NULL) {
+        goto out;
+    }
+    if (value != Py_None) {
+        data = parse_unicode_arg(value, &data_length);
+        if (data == NULL) {
+            goto out;
+        }
+        err = tsk_reference_sequence_set_data(ref, data, (tsk_size_t) data_length);
+        if (err != 0) {
+            handle_tskit_error(err);
+            goto out;
+        }
+    }
+
+    /* url */
+    value = get_dict_value_string(dict, "url", false);
+    if (value == NULL) {
+        goto out;
+    }
+    if (value != Py_None) {
+        url = parse_unicode_arg(value, &url_length);
+        if (url == NULL) {
+            goto out;
+        }
+        err = tsk_reference_sequence_set_url(ref, url, (tsk_size_t) url_length);
+        if (err != 0) {
+            handle_tskit_error(err);
+            goto out;
+        }
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+static int
 parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dict)
 {
     int ret = -1;
@@ -1282,7 +1419,7 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
     const char *metadata_schema = NULL;
     Py_ssize_t time_units_length, metadata_length, metadata_schema_length;
 
-    value = get_table_dict_value(tables_dict, "sequence_length", true);
+    value = get_dict_value(tables_dict, "sequence_length", true);
     if (value == NULL) {
         goto out;
     }
@@ -1293,15 +1430,11 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
     tables->sequence_length = PyFloat_AsDouble(value);
 
     /* metadata_schema */
-    value = get_table_dict_value(tables_dict, "metadata_schema", false);
+    value = get_dict_value_string(tables_dict, "metadata_schema", false);
     if (value == NULL) {
         goto out;
     }
     if (value != Py_None) {
-        if (!PyUnicode_Check(value)) {
-            PyErr_Format(PyExc_TypeError, "'metadata_schema' is not a string");
-            goto out;
-        }
         metadata_schema = parse_unicode_arg(value, &metadata_schema_length);
         if (metadata_schema == NULL) {
             goto out;
@@ -1315,15 +1448,11 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
     }
 
     /* metadata */
-    value = get_table_dict_value(tables_dict, "metadata", false);
+    value = get_dict_value_bytes(tables_dict, "metadata", false);
     if (value == NULL) {
         goto out;
     }
     if (value != Py_None) {
-        if (!PyBytes_Check(value)) {
-            PyErr_Format(PyExc_TypeError, "'metadata' is not bytes");
-            goto out;
-        }
         err = PyBytes_AsStringAndSize(value, &metadata, &metadata_length);
         if (err != 0) {
             goto out;
@@ -1336,15 +1465,11 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
     }
 
     /* time_units */
-    value = get_table_dict_value(tables_dict, "time_units", false);
+    value = get_dict_value_string(tables_dict, "time_units", false);
     if (value == NULL) {
         goto out;
     }
     if (value != Py_None) {
-        if (!PyUnicode_Check(value)) {
-            PyErr_Format(PyExc_TypeError, "'time_units' is not a string");
-            goto out;
-        }
         time_units = parse_unicode_arg(value, &time_units_length);
         if (time_units == NULL) {
             goto out;
@@ -1357,12 +1482,8 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
     }
 
     /* individuals */
-    value = get_table_dict_value(tables_dict, "individuals", true);
+    value = get_dict_value_dict(tables_dict, "individuals", true);
     if (value == NULL) {
-        goto out;
-    }
-    if (!PyDict_Check(value)) {
-        PyErr_SetString(PyExc_TypeError, "not a dictionary");
         goto out;
     }
     if (parse_individual_table_dict(&tables->individuals, value, true) != 0) {
@@ -1370,12 +1491,8 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
     }
 
     /* nodes */
-    value = get_table_dict_value(tables_dict, "nodes", true);
+    value = get_dict_value_dict(tables_dict, "nodes", true);
     if (value == NULL) {
-        goto out;
-    }
-    if (!PyDict_Check(value)) {
-        PyErr_SetString(PyExc_TypeError, "not a dictionary");
         goto out;
     }
     if (parse_node_table_dict(&tables->nodes, value, true) != 0) {
@@ -1383,12 +1500,8 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
     }
 
     /* edges */
-    value = get_table_dict_value(tables_dict, "edges", true);
+    value = get_dict_value_dict(tables_dict, "edges", true);
     if (value == NULL) {
-        goto out;
-    }
-    if (!PyDict_Check(value)) {
-        PyErr_SetString(PyExc_TypeError, "not a dictionary");
         goto out;
     }
     if (parse_edge_table_dict(&tables->edges, value, true) != 0) {
@@ -1396,12 +1509,8 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
     }
 
     /* migrations */
-    value = get_table_dict_value(tables_dict, "migrations", true);
+    value = get_dict_value_dict(tables_dict, "migrations", true);
     if (value == NULL) {
-        goto out;
-    }
-    if (!PyDict_Check(value)) {
-        PyErr_SetString(PyExc_TypeError, "not a dictionary");
         goto out;
     }
     if (parse_migration_table_dict(&tables->migrations, value, true) != 0) {
@@ -1409,12 +1518,8 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
     }
 
     /* sites */
-    value = get_table_dict_value(tables_dict, "sites", true);
+    value = get_dict_value_dict(tables_dict, "sites", true);
     if (value == NULL) {
-        goto out;
-    }
-    if (!PyDict_Check(value)) {
-        PyErr_SetString(PyExc_TypeError, "not a dictionary");
         goto out;
     }
     if (parse_site_table_dict(&tables->sites, value, true) != 0) {
@@ -1422,12 +1527,8 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
     }
 
     /* mutations */
-    value = get_table_dict_value(tables_dict, "mutations", true);
+    value = get_dict_value_dict(tables_dict, "mutations", true);
     if (value == NULL) {
-        goto out;
-    }
-    if (!PyDict_Check(value)) {
-        PyErr_SetString(PyExc_TypeError, "not a dictionary");
         goto out;
     }
     if (parse_mutation_table_dict(&tables->mutations, value, true) != 0) {
@@ -1435,12 +1536,8 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
     }
 
     /* populations */
-    value = get_table_dict_value(tables_dict, "populations", true);
+    value = get_dict_value_dict(tables_dict, "populations", true);
     if (value == NULL) {
-        goto out;
-    }
-    if (!PyDict_Check(value)) {
-        PyErr_SetString(PyExc_TypeError, "not a dictionary");
         goto out;
     }
     if (parse_population_table_dict(&tables->populations, value, true) != 0) {
@@ -1448,12 +1545,8 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
     }
 
     /* provenances */
-    value = get_table_dict_value(tables_dict, "provenances", true);
+    value = get_dict_value_dict(tables_dict, "provenances", true);
     if (value == NULL) {
-        goto out;
-    }
-    if (!PyDict_Check(value)) {
-        PyErr_SetString(PyExc_TypeError, "not a dictionary");
         goto out;
     }
     if (parse_provenance_table_dict(&tables->provenances, value, true) != 0) {
@@ -1461,20 +1554,26 @@ parse_table_collection_dict(tsk_table_collection_t *tables, PyObject *tables_dic
     }
 
     /* indexes */
-    value = get_table_dict_value(tables_dict, "indexes", false);
+    value = get_dict_value_dict(tables_dict, "indexes", false);
     if (value == NULL) {
         goto out;
     }
     if (value != Py_None) {
-        if (!PyDict_Check(value)) {
-            PyErr_SetString(PyExc_TypeError, "not a dictionary");
-            goto out;
-        }
         if (parse_indexes_dict(tables, value) != 0) {
             goto out;
         }
     }
 
+    /* reference_sequence */
+    value = get_dict_value_dict(tables_dict, "reference_sequence", false);
+    if (value == NULL) {
+        goto out;
+    }
+    if (value != Py_None) {
+        if (parse_reference_sequence_dict(&tables->reference_sequence, value) != 0) {
+            goto out;
+        }
+    }
     ret = 0;
 out:
     return ret;
@@ -1573,11 +1672,47 @@ out:
     return ret;
 }
 
+static int
+write_string_to_dict(PyObject *dict, const char *key, const char *str, tsk_size_t length)
+{
+    int ret = -1;
+    PyObject *val = make_Py_Unicode_FromStringAndLength(str, length);
+
+    if (val == NULL) {
+        goto out;
+    }
+    if (PyDict_SetItemString(dict, key, val) != 0) {
+        goto out;
+    }
+    ret = 0;
+out:
+    Py_XDECREF(val);
+    return ret;
+}
+
+static int
+write_bytes_to_dict(
+    PyObject *dict, const char *key, const char *bytes, tsk_size_t length)
+{
+    int ret = -1;
+    PyObject *val = PyBytes_FromStringAndSize(bytes, length);
+
+    if (val == NULL) {
+        goto out;
+    }
+    if (PyDict_SetItemString(dict, key, val) != 0) {
+        goto out;
+    }
+    ret = 0;
+out:
+    Py_XDECREF(val);
+    return ret;
+}
+
 static PyObject *
 write_table_dict(const tsklwt_table_desc_t *table_desc, bool force_offset_64)
 {
     PyObject *ret = NULL;
-    PyObject *str = NULL;
     PyObject *table_dict = NULL;
     tsklwt_table_col_t *col;
     tsklwt_ragged_col_t *ragged_col;
@@ -1602,19 +1737,15 @@ write_table_dict(const tsklwt_table_desc_t *table_desc, bool force_offset_64)
         }
     }
     if (table_desc->metadata_schema_length > 0) {
-        str = make_Py_Unicode_FromStringAndLength(
-            table_desc->metadata_schema, table_desc->metadata_schema_length);
-        if (str == NULL) {
-            goto out;
-        }
-        if (PyDict_SetItemString(table_dict, "metadata_schema", str) != 0) {
+        if (write_string_to_dict(table_dict, "metadata_schema",
+                table_desc->metadata_schema, table_desc->metadata_schema_length)
+            != 0) {
             goto out;
         }
     }
     ret = table_dict;
     table_dict = NULL;
 out:
-    Py_XDECREF(str);
     Py_XDECREF(table_dict);
     return ret;
 }
@@ -1808,22 +1939,15 @@ out:
     return ret;
 }
 
-/* Returns a dictionary encoding of the specified table collection */
-static PyObject *
-dump_tables_dict(tsk_table_collection_t *tables, bool force_offset_64)
+static int
+write_top_level_data(
+    const tsk_table_collection_t *tables, PyObject *dict, bool force_offset_64)
 {
-    PyObject *ret = NULL;
-    PyObject *dict = NULL;
+    int ret = -1;
     PyObject *val = NULL;
-    int err;
-
-    dict = PyDict_New();
-    if (dict == NULL) {
-        goto out;
-    }
 
     /* Dict representation version */
-    val = Py_BuildValue("ll", 1, 5);
+    val = Py_BuildValue("ll", 1, 6);
     if (val == NULL) {
         goto out;
     }
@@ -1843,42 +1967,100 @@ dump_tables_dict(tsk_table_collection_t *tables, bool force_offset_64)
     Py_DECREF(val);
     val = NULL;
 
+    if (write_string_to_dict(
+            dict, "time_units", tables->time_units, tables->time_units_length)
+        != 0) {
+        goto out;
+    }
     if (tables->metadata_schema_length > 0) {
-        val = make_Py_Unicode_FromStringAndLength(
-            tables->metadata_schema, tables->metadata_schema_length);
-        if (val == NULL) {
+        if (write_string_to_dict(dict, "metadata_schema", tables->metadata_schema,
+                tables->metadata_schema_length)
+            != 0) {
             goto out;
         }
-        if (PyDict_SetItemString(dict, "metadata_schema", val) != 0) {
-            goto out;
-        }
-        Py_DECREF(val);
-        val = NULL;
     }
-
     if (tables->metadata_length > 0) {
-        val = PyBytes_FromStringAndSize(tables->metadata, tables->metadata_length);
-        if (val == NULL) {
+        if (write_bytes_to_dict(
+                dict, "metadata", tables->metadata, tables->metadata_length)
+            != 0) {
             goto out;
         }
-        if (PyDict_SetItemString(dict, "metadata", val) != 0) {
+    }
+
+    ret = 0;
+out:
+    Py_XDECREF(val);
+    return ret;
+}
+
+static PyObject *
+write_reference_sequence_dict(const tsk_reference_sequence_t *ref, bool force_offset_64)
+{
+    PyObject *ret = NULL;
+    PyObject *dict = NULL;
+
+    dict = PyDict_New();
+    if (dict == NULL) {
+        goto out;
+    }
+
+    if (ref->metadata_schema_length > 0) {
+        if (write_string_to_dict(dict, "metadata_schema", ref->metadata_schema,
+                ref->metadata_schema_length)
+            != 0) {
             goto out;
         }
-        Py_DECREF(val);
-        val = NULL;
     }
-
-    val = make_Py_Unicode_FromStringAndLength(
-        tables->time_units, tables->time_units_length);
-    if (val == NULL) {
+    if (ref->metadata_length > 0) {
+        if (write_bytes_to_dict(dict, "metadata", ref->metadata, ref->metadata_length)
+            != 0) {
+            goto out;
+        }
+    }
+    if (write_string_to_dict(dict, "data", ref->data, ref->data_length) != 0) {
         goto out;
     }
-    if (PyDict_SetItemString(dict, "time_units", val) != 0) {
+    if (write_string_to_dict(dict, "url", ref->url, ref->url_length) != 0) {
         goto out;
     }
-    Py_DECREF(val);
-    val = NULL;
 
+    ret = dict;
+    dict = NULL;
+out:
+    Py_XDECREF(dict);
+    return ret;
+}
+
+/* Returns a dictionary encoding of the specified table collection */
+static PyObject *
+dump_tables_dict(tsk_table_collection_t *tables, bool force_offset_64)
+{
+    PyObject *ret = NULL;
+    PyObject *dict = NULL;
+    PyObject *ref_dict = NULL;
+    int err;
+
+    dict = PyDict_New();
+    if (dict == NULL) {
+        goto out;
+    }
+
+    err = write_top_level_data(tables, dict, force_offset_64);
+    if (err != 0) {
+        goto out;
+    }
+    if (tsk_table_collection_has_reference_sequence(tables)) {
+        ref_dict = write_reference_sequence_dict(
+            &tables->reference_sequence, force_offset_64);
+        if (ref_dict == NULL) {
+            goto out;
+        }
+        if (PyDict_SetItemString(dict, "reference_sequence", ref_dict) != 0) {
+            goto out;
+        }
+        Py_DECREF(ref_dict);
+        ref_dict = NULL;
+    }
     err = write_table_arrays(tables, dict, force_offset_64);
     if (err != 0) {
         goto out;
@@ -1887,7 +2069,7 @@ dump_tables_dict(tsk_table_collection_t *tables, bool force_offset_64)
     dict = NULL;
 out:
     Py_XDECREF(dict);
-    Py_XDECREF(val);
+    Py_XDECREF(ref_dict);
     return ret;
 }
 

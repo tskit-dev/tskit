@@ -823,6 +823,13 @@ caterpillar_tree(tsk_size_t n, tsk_size_t num_sites, tsk_size_t num_mutations)
     tsk_table_collection_set_metadata(&tables, ts_metadata, strlen(ts_metadata));
     tsk_table_collection_set_metadata_schema(
         &tables, ts_metadata_schema, strlen(ts_metadata_schema));
+    tsk_reference_sequence_set_metadata_schema(
+        &tables.reference_sequence, ts_metadata_schema, strlen(ts_metadata_schema));
+    tsk_reference_sequence_set_metadata(
+        &tables.reference_sequence, ts_metadata, strlen(ts_metadata));
+    tsk_reference_sequence_set_data(&tables.reference_sequence, "A", 1);
+    tsk_reference_sequence_set_url(&tables.reference_sequence, "B", 1);
+
     tsk_population_table_set_metadata_schema(
         &tables.populations, metadata_schema, strlen(metadata_schema));
     tsk_individual_table_set_metadata_schema(

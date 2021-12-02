@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2020 Tskit Developers
+# Copyright (c) 2018-2021 Tskit Developers
 # Copyright (c) 2016-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -43,7 +43,7 @@ import tskit.exceptions as exceptions
 
 
 CURRENT_FILE_MAJOR = 12
-CURRENT_FILE_MINOR = 6
+CURRENT_FILE_MINOR = 7
 
 test_data_dir = os.path.join(os.path.dirname(__file__), "data")
 
@@ -885,6 +885,74 @@ class TestOptionalColumns(TestFileFormat):
             * tables.individuals.num_rows
         )
         tables.assert_equals(ts3.tables)
+
+
+class TestReferenceSequence:
+    def test_fixture_has_reference_sequence(self, ts_fixture):
+        assert ts_fixture.has_reference_sequence()
+
+    def test_round_trip(self, ts_fixture, tmp_path):
+        ts1 = ts_fixture
+        temp_file = tmp_path / "tmp.trees"
+        ts1.dump(temp_file)
+        ts2 = tskit.load(temp_file)
+        ts1.tables.assert_equals(ts2.tables)
+
+    def test_no_reference_sequence(self, ts_fixture, tmp_path):
+        ts1 = ts_fixture
+        temp_file = tmp_path / "tmp.trees"
+        ts1.dump(temp_file)
+        with kastore.load(temp_file) as store:
+            all_data = dict(store)
+        del all_data["reference_sequence/metadata_schema"]
+        del all_data["reference_sequence/metadata"]
+        del all_data["reference_sequence/data"]
+        del all_data["reference_sequence/url"]
+        for key in all_data.keys():
+            assert not key.startswith("reference_sequence")
+        kastore.dump(all_data, temp_file)
+        ts2 = tskit.load(temp_file)
+        assert not ts2.has_reference_sequence()
+        tables = ts2.dump_tables()
+        tables.reference_sequence = ts1.reference_sequence
+        tables.assert_equals(ts1.tables)
+
+    @pytest.mark.parametrize("attr", ["data", "url"])
+    def test_missing_attr(self, ts_fixture, tmp_path, attr):
+        ts1 = ts_fixture
+        temp_file = tmp_path / "tmp.trees"
+        ts1.dump(temp_file)
+        with kastore.load(temp_file) as store:
+            all_data = dict(store)
+        del all_data[f"reference_sequence/{attr}"]
+        kastore.dump(all_data, temp_file)
+        ts2 = tskit.load(temp_file)
+        assert ts2.has_reference_sequence
+        assert getattr(ts2.reference_sequence, attr) == ""
+
+    def test_missing_metadata(self, ts_fixture, tmp_path):
+        ts1 = ts_fixture
+        temp_file = tmp_path / "tmp.trees"
+        ts1.dump(temp_file)
+        with kastore.load(temp_file) as store:
+            all_data = dict(store)
+        del all_data["reference_sequence/metadata"]
+        kastore.dump(all_data, temp_file)
+        ts2 = tskit.load(temp_file)
+        assert ts2.has_reference_sequence
+        assert ts2.reference_sequence.metadata_bytes == b""
+
+    def test_missing_metadata_schema(self, ts_fixture, tmp_path):
+        ts1 = ts_fixture
+        temp_file = tmp_path / "tmp.trees"
+        ts1.dump(temp_file)
+        with kastore.load(temp_file) as store:
+            all_data = dict(store)
+        del all_data["reference_sequence/metadata_schema"]
+        kastore.dump(all_data, temp_file)
+        ts2 = tskit.load(temp_file)
+        assert ts2.has_reference_sequence
+        assert repr(ts2.reference_sequence.metadata_schema) == ""
 
 
 class TestFileFormatErrors(TestFileFormat):

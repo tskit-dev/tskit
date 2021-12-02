@@ -30,6 +30,7 @@ sphinx>=4.3
 sphinx-argparse
 sphinx-issues
 sphinx-jupyterbook-latex
+sphinxcontrib-prettyspecialmethods
 pydata_sphinx_theme>=0.7.2
 svgwrite>=1.1.10
 xmlunittest

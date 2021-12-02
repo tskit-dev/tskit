@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2020 Tskit Developers
+# Copyright (c) 2020-2021 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,8 @@
 """
 Classes for metadata decoding, encoding and validation
 """
+from __future__ import annotations
+
 import abc
 import builtins
 import collections
@@ -36,6 +38,7 @@ from typing import Any
 from typing import Mapping
 from typing import Optional
 from typing import Type
+from typing import Union
 
 import jsonschema
 
@@ -697,6 +700,14 @@ class MetadataSchema:
         # Set by __init__
         pass  # pragma: no cover
 
+    # Utility to make a simple permission JSON schema. Probably should be
+    # part of the documented API. See
+    # https://github.com/tskit-dev/tskit/issues/1956 for more details.
+
+    @staticmethod
+    def permissive_json():
+        return MetadataSchema({"codec": "json"})
+
 
 # Often many replicate tree sequences are processed with identical schemas, so cache them
 @functools.lru_cache(maxsize=128)
@@ -771,3 +782,60 @@ def lazy_decode(cls):
     for k, v in sloted_members.items():
         setattr(new_cls, k, v)
     return new_cls
+
+
+class MetadataProvider:
+    """
+    Abstract superclass of container objects that provide metadata.
+    """
+
+    def __init__(self, ll_object):
+        self._ll_object = ll_object
+
+    @property
+    def metadata_schema(self) -> MetadataSchema:
+        """
+        The :class:`tskit.MetadataSchema` for this object.
+        """
+        return parse_metadata_schema(self._ll_object.metadata_schema)
+
+    @metadata_schema.setter
+    def metadata_schema(self, schema: MetadataSchema) -> None:
+        # Check the schema is a valid schema instance by roundtripping it.
+        text_version = repr(schema)
+        parse_metadata_schema(text_version)
+        self._ll_object.metadata_schema = text_version
+
+    @property
+    def metadata(self) -> Any:
+        """
+        The decoded metadata for this object.
+        """
+        return self.metadata_schema.decode_row(self.metadata_bytes)
+
+    @metadata.setter
+    def metadata(self, metadata: Optional[Union[bytes, dict]]) -> None:
+        encoded = self.metadata_schema.validate_and_encode_row(metadata)
+        self._ll_object.metadata = encoded
+
+    @property
+    def metadata_bytes(self) -> Any:
+        """
+        The raw bytes of metadata for this TableCollection
+        """
+        return self._ll_object.metadata
+
+    @property
+    def nbytes(self) -> int:
+        return len(self._ll_object.metadata) + len(self._ll_object.metadata_schema)
+
+    def assert_equals(self, other: MetadataProvider):
+        if self.metadata_schema != other.metadata_schema:
+            raise AssertionError(
+                f"Metadata schemas differ: self={self.metadata_schema} "
+                f"other={other.metadata_schema}"
+            )
+        if self.metadata != other.metadata:
+            raise AssertionError(
+                f"Metadata differs: self={self.metadata} " f"other={other.metadata}"
+            )

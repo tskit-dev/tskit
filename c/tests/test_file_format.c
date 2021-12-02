@@ -637,6 +637,47 @@ test_malformed_indexes(void)
 }
 
 static void
+test_missing_reference_sequence(void)
+{
+    int ret;
+    tsk_treeseq_t *ts = caterpillar_tree(5, 3, 3);
+    tsk_table_collection_t t1, t2;
+    const char *cols[] = { "reference_sequence/data", "reference_sequence/url",
+        "reference_sequence/metadata_schema", "reference_sequence/metadata" };
+
+    CU_ASSERT_TRUE(tsk_treeseq_has_reference_sequence(ts));
+
+    ret = tsk_treeseq_copy_tables(ts, &t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    copy_store_drop_columns(ts, 1, cols, _tmp_file_name);
+    ret = tsk_table_collection_load(&t2, _tmp_file_name, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_has_reference_sequence(&t2));
+    tsk_table_collection_free(&t2);
+
+    copy_store_drop_columns(ts, 2, cols, _tmp_file_name);
+    ret = tsk_table_collection_load(&t2, _tmp_file_name, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_has_reference_sequence(&t2));
+    tsk_table_collection_free(&t2);
+
+    copy_store_drop_columns(ts, 3, cols, _tmp_file_name);
+    ret = tsk_table_collection_load(&t2, _tmp_file_name, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_has_reference_sequence(&t2));
+    tsk_table_collection_free(&t2);
+
+    /* Dropping all the columns gives us a NULL reference_sequence, though */
+    copy_store_drop_columns(ts, 4, cols, _tmp_file_name);
+    ret = tsk_table_collection_load(&t2, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_table_collection_has_reference_sequence(&t2));
+    tsk_table_collection_free(&t2);
+
+    tsk_table_collection_free(&t1);
+    tsk_treeseq_free(ts);
+    free(ts);
+}
+
+static void
 test_bad_column_types(void)
 {
     int ret;
@@ -688,6 +729,18 @@ test_bad_column_types(void)
     tsk_table_collection_free(&tables);
 
     cols[0] = "edges/metadata_schema";
+    copy_store_drop_columns(ts, 1, cols, _tmp_file_name);
+    ret = kastore_open(&store, _tmp_file_name, "a", 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = kastore_puts(&store, cols[0], NULL, 0, KAS_FLOAT32, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = kastore_close(&store);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_load(&tables, _tmp_file_name, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_COLUMN_TYPE);
+    tsk_table_collection_free(&tables);
+
+    cols[0] = "reference_sequence/metadata";
     copy_store_drop_columns(ts, 1, cols, _tmp_file_name);
     ret = kastore_open(&store, _tmp_file_name, "a", 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -760,6 +813,8 @@ test_metadata_schemas_optional(void)
     const char *cols[] = {
         "metadata",
         "metadata_schema",
+        "reference_sequence/metadata",
+        "reference_sequence/metadata_schema",
         "individuals/metadata_schema",
         "populations/metadata_schema",
         "nodes/metadata_schema",
@@ -1290,6 +1345,7 @@ main(int argc, char **argv)
         { "test_format_data_load_errors", test_format_data_load_errors },
         { "test_missing_indexes", test_missing_indexes },
         { "test_malformed_indexes", test_malformed_indexes },
+        { "test_missing_reference_sequence", test_missing_reference_sequence },
         { "test_bad_column_types", test_bad_column_types },
         { "test_missing_required_columns", test_missing_required_columns },
         { "test_missing_optional_column_pairs", test_missing_optional_column_pairs },
