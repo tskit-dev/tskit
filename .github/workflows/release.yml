@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+      - test
+    tags:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install dependencies and set path
+        run: |
+            sudo apt-get update
+            sudo apt-get install -y ninja-build libcunit1-dev python3-pip
+            # Install meson as root so we can install to the system below.
+            sudo pip install meson
+      - name: Build tarball and changelogs
+        run: |
+          rm -rf c/tests/meson-subproject
+          meson c build-gcc
+          meson dist -C build-gcc
+          python docs/convert_changelog.py c/CHANGELOG.rst > C-CHANGELOG.txt
+          python docs/convert_changelog.py python/CHANGELOG.rst > PYTHON-CHANGELOG.txt
+      - name: C Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/') && contains(github.event.ref, 'C_')
+        with:
+          name: C API ${GITHUB_REF##*/}
+          body_path: C-CHANGELOG.txt
+          draft: True
+          fail_on_unmatched_files: True
+          files: build-gcc/meson-dist/*
+      - name: Python Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/') && !contains(github.event.ref, 'C_')
+        with:
+          name: Python ${GITHUB_REF##*/}
+          body_path: PYTHON-CHANGELOG.txt
+          draft: True
+          fail_on_unmatched_files: True
