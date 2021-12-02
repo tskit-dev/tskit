@@ -623,11 +623,22 @@ tree sequences (see the {ref}`sec_tables` tutorial).
 #### General properties
 ```{eval-rst}
 .. autosummary::
+  TableCollection.individuals
+  TableCollection.nodes
+  TableCollection.edges
+  TableCollection.migrations
+  TableCollection.sites
+  TableCollection.mutations
+  TableCollection.populations
+  TableCollection.provenances
+  TableCollection.file_uuid
+  TableCollection.indexes
   TableCollection.nbytes
   TableCollection.name_map
   TableCollection.metadata
   TableCollection.metadata_bytes
   TableCollection.metadata_schema
+  TableCollection.sequence_length
   TableCollection.time_units
 ```
 

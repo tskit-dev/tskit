@@ -35,6 +35,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import reduce
 from typing import Any
+from typing import Dict
 from typing import Optional
 from typing import Union
 
@@ -217,15 +218,15 @@ class BaseTable:
                 raise TypeError(f"{k} is required")
 
     @property
-    def num_rows(self):
+    def num_rows(self) -> int:
         return self.ll_table.num_rows
 
     @property
-    def max_rows(self):
+    def max_rows(self) -> int:
         return self.ll_table.max_rows
 
     @property
-    def max_rows_increment(self):
+    def max_rows_increment(self) -> int:
         return self.ll_table.max_rows_increment
 
     @property
@@ -2504,69 +2505,72 @@ class TableCollection:
     To obtain an immutable :class:`TreeSequence` instance corresponding to the
     current state of a ``TableCollection``, please use the :meth:`.tree_sequence`
     method.
-
-    :ivar individuals: The individual table.
-    :vartype individuals: IndividualTable
-    :ivar nodes: The node table.
-    :vartype nodes: NodeTable
-    :ivar edges: The edge table.
-    :vartype edges: EdgeTable
-    :ivar migrations: The migration table.
-    :vartype migrations: MigrationTable
-    :ivar sites: The site table.
-    :vartype sites: SiteTable
-    :ivar mutations: The mutation table.
-    :vartype mutations: MutationTable
-    :ivar populations: The population table.
-    :vartype populations: PopulationTable
-    :ivar provenances: The provenance table.
-    :vartype provenances: ProvenanceTable
-    :ivar indexes: The edge insertion and removal indexes.
-    :ivar sequence_length: The sequence length defining the coordinate
-        space.
-    :vartype sequence_length: float
-    :ivar file_uuid: The UUID for the file this TableCollection is derived
-        from, or None if not derived from a file.
-    :vartype file_uuid: str
     """
 
     def __init__(self, sequence_length=0):
         self._ll_tables = _tskit.TableCollection(sequence_length)
 
     @property
-    def individuals(self):
+    def individuals(self) -> IndividualTable:
+        """
+        The individual table
+        """
         return IndividualTable(ll_table=self._ll_tables.individuals)
 
     @property
-    def nodes(self):
+    def nodes(self) -> NodeTable:
+        """
+        The node table
+        """
         return NodeTable(ll_table=self._ll_tables.nodes)
 
     @property
-    def edges(self):
+    def edges(self) -> EdgeTable:
+        """
+        The edge table
+        """
         return EdgeTable(ll_table=self._ll_tables.edges)
 
     @property
-    def migrations(self):
+    def migrations(self) -> MigrationTable:
+        """
+        The migration table
+        """
         return MigrationTable(ll_table=self._ll_tables.migrations)
 
     @property
-    def sites(self):
+    def sites(self) -> SiteTable:
+        """
+        The site table
+        """
         return SiteTable(ll_table=self._ll_tables.sites)
 
     @property
-    def mutations(self):
+    def mutations(self) -> MutationTable:
+        """
+        The mutation table
+        """
         return MutationTable(ll_table=self._ll_tables.mutations)
 
     @property
-    def populations(self):
+    def populations(self) -> PopulationTable:
+        """
+        The population table
+        """
         return PopulationTable(ll_table=self._ll_tables.populations)
 
     @property
-    def provenances(self):
+    def provenances(self) -> ProvenanceTable:
+        """
+        The provenance table
+        """
         return ProvenanceTable(ll_table=self._ll_tables.provenances)
 
     @property
-    def indexes(self):
+    def indexes(self) -> TableCollectionIndexes:
+        """
+        The edge insertion and removal indexes
+        """
         indexes = self._ll_tables.indexes
         return TableCollectionIndexes(**indexes)
 
@@ -2575,7 +2579,10 @@ class TableCollection:
         self._ll_tables.indexes = indexes.asdict()
 
     @property
-    def sequence_length(self):
+    def sequence_length(self) -> float:
+        """
+        The sequence length defining the coordinate space.
+        """
         return self._ll_tables.sequence_length
 
     @sequence_length.setter
@@ -2583,7 +2590,11 @@ class TableCollection:
         self._ll_tables.sequence_length = sequence_length
 
     @property
-    def file_uuid(self):
+    def file_uuid(self) -> str:
+        """
+        The UUID for the file this TableCollection is derived
+        from, or None if not derived from a file.
+        """
         return self._ll_tables.file_uuid
 
     @property
@@ -2648,7 +2659,7 @@ class TableCollection:
         return self._ll_tables.asdict(force_offset_64)
 
     @property
-    def name_map(self):
+    def name_map(self) -> Dict:
         """
         Returns a dictionary mapping table names to the corresponding
         table instances. For example, the returned dictionary will contain the
@@ -2684,6 +2695,9 @@ class TableCollection:
         )
 
     def __str__(self):
+        """
+        Return a plain text summary of this TableCollection
+        """
         return "\n".join(
             [
                 "TableCollection",
