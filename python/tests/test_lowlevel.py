@@ -3322,6 +3322,11 @@ class TestModuleFunctions:
         version = _tskit.get_tskit_version()
         assert version == (0, 99, 15)
 
+    def test_tskit_version_file(self):
+        maj, min_, patch = _tskit.get_tskit_version()
+        with open(f"{tskit.__path__[0]}/../../c/VERSION") as f:
+            assert f.read() == f"{maj}.{min_}.{patch}"
+
 
 def test_uninitialised():
     # These methods work from an instance that has a NULL ref so don't check
