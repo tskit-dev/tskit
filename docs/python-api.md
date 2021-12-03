@@ -730,7 +730,7 @@ and use, see {ref}`the table definitions <sec_table_definitions>`.
 
 #### Accessing table data
 
-The {ref}`tables API <sec_binary_interchange>` provides an efficient way of working
+The tables API provides an efficient way of working
 with and interchanging {ref}`tree sequence data <sec_data_model>`. Each table class
 (e.g, {class}`NodeTable`, {class}`EdgeTable`, {class}`SiteTable`) has a specific set
 of columns with fixed types, and a set of methods for setting and getting the data

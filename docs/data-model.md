@@ -23,15 +23,16 @@ The correlated genealogical trees that describe the shared ancestry of a set of
 samples are stored concisely in `tskit` as a collection of
 easy-to-understand tables. These are output directly by software such as
 `msprime` or can be read in from another source. This page documents
-the structure of the tables, and the different methods of interchanging
-genealogical data to and from the tskit API. We begin by defining
-the basic concepts that we need and the structure of the tables in the
-{ref}`sec_data_model` section. We then describe the tabular text formats that can
-be used as simple interchange mechanism for small amounts of data in the
-{ref}`sec_text_file_format` section. The {ref}`sec_binary_interchange` section then
-describes the efficient Python API for table interchange using numpy arrays. Finally,
-we describe the binary format used by tskit to efficiently
-store tree sequences on disk in the {ref}`sec_tree_sequence_file_format` section.
+the structure of the tables and encoding of table data, as well as the
+encoding of the trees that arise from them.
+
+We begin by defining the basic concepts that we need and the structure of the tables
+in the {ref}`sec_data_model` section. The {ref}`sec_data_model_data_encoding` section
+then describe how data is stored in the tables (also see the {ref}`sec_file_formats`
+chapter). The {ref}`sec_data_model_tree_structure` section then
+describes the encoding of the trees that are generated from the {class}`NodeTable`
+and {class}`EdgeTable`. Finally, we describe how genotype data arises from tree
+structure, especially how we can incorporate the idea of missing data.
 
 
 (sec_data_model_definitions)=
@@ -896,6 +897,89 @@ they occur, because these operations have the following properties:
    property (1).
 
 
+(sec_data_model_data_encoding)=
+
+## Data encoding
+
+In this section we describe the high-level details of how data is encoded in
+tables. Tables store data in a **columnar** manner. In memory, each
+table is organised as a number of blocks of contiguous storage, one for
+each column. There are many advantages to this approach, but the key
+property for us is that allows for very efficient transfer of data
+in and out of tables. Rather than inserting data into tables row-by-row
+(which can be done in Python
+{ref}`using the add_row methods<sec_tables_api_accessing_table_data>`), it is much
+more efficient to add many rows at the same time by providing pointers to blocks of
+contiguous memory. By taking this approach, we can work with tables containing
+gigabytes of data very efficiently.
+
+For instance, in the {ref}`sec_python_api` we can use the
+[numpy Array API](https://docs.scipy.org/doc/numpy-1.13.0/reference/arrays.html)
+to allow us to define and work with numeric arrays of the required types.
+Node IDs, for example, are defined using 32 bit integers. Thus, the
+`parent` column of an {ref}`sec_edge_table_definition`'s with `n` rows
+is a block `4n` bytes.
+
+This approach is very straightforward for columns in which each row contains
+a fixed number of values. However, dealing with columns containing a
+**variable** number of values is more problematic.
+
+
+(sec_encoding_ragged_columns)=
+
+### Encoding ragged columns
+
+A **ragged** column is a column in which the rows are not of a fixed length.
+For example, {ref}`sec_metadata_definition` columns contain binary of data of arbitrary
+length. To encode such columns in the tables API, we store **two** columns:
+one contains the flattened array of data and another stores the **offsets**
+of each row into this flattened array. Consider an example:
+
+```{code-cell} ipython3
+import tskit
+
+s = tskit.SiteTable()
+s.add_row(0, "A")
+s.add_row(0, "")
+s.add_row(0, "TTT")
+s.add_row(0, "G")
+s
+```
+
+In this example we create a {ref}`sec_site_table_definition` with four rows,
+and then display this table. We can see that the second row has the
+empty string as its `ancestral_state`, and the third row's
+`ancestral_state` is `TTT`. Now let's print out the columns:
+
+```{code-cell} ipython3
+print("Ancestral state (numerical): ", s.ancestral_state)
+print("Ancestral state (as bytes): ", s.ancestral_state.tobytes())
+print("Ancestral state offsets: ", s.ancestral_state_offset)
+```
+
+When we print out the tables `ancestral_state`
+column, we see that its a numpy array of length 5: this is the
+flattened array of [ASCII encoded](https://en.wikipedia.org/wiki/ASCII)
+values for these rows. When we decode these bytes using the
+numpy {meth}`tobytes<numpy:numpy.ndarray.tobytes>` method, we get the string 'ATTTG'.
+This flattened array can now be transferred efficiently in memory like any other column
+We then use the `ancestral_state_offset` column to allow us find the individual rows.
+For a row `j`:
+
+    ancestral_state[ancestral_state_offset[j]: ancestral_state_offset[j + 1]]
+
+gives us the array of bytes for the ancestral state in that row. For example, here is
+row 2:
+
+```{code-cell} ipython3
+s.ancestral_state[s.ancestral_state_offset[2]: s.ancestral_state_offset[3]].tobytes()
+```
+
+For a table with `n` rows, any offset column must have `n + 1`
+values, the first of which is always `0`. The values in this column must be
+nondecreasing, and cannot exceed the length of the ragged column in question.
+
+
 (sec_data_model_tree_structure)=
 
 ## Tree structure
@@ -1150,88 +1234,5 @@ print(
 
 See the {meth}`TreeSequence.variants` method and {class}`Variant` class for
 more information on how missing data is represented in variant data.
-
-
-(sec_binary_interchange)=
-
-## Binary interchange
-
-In this section we describe the high-level details of the API for interchanging
-table data via numpy arrays. Please see the {ref}`sec_tables_api` for detailed
-description of the functions and methods.
-
-The tables API is based on **columnar** storage of the data. In memory, each
-table is organised as a number of blocks of contiguous storage, one for
-each column. There are many advantages to this approach, but the key
-property for us is that allows for very efficient transfer of data
-in and out of tables. Rather than inserting data into tables row-by-row
-(which can be done using the `add_row` methods), it is much more
-efficient to add many rows at the same time by providing pointers to blocks of
-contiguous memory. By taking
-this approach, we can work with tables containing gigabytes of data very
-efficiently.
-
-We use the [numpy Array API](https://docs.scipy.org/doc/numpy-1.13.0/reference/arrays.html)
-to allow us to define and work with numeric arrays of the required types.
-Node IDs, for example, are defined using 32 bit integers. Thus, the
-`parent` column of an {ref}`sec_edge_table_definition`'s with `n` rows
-is a block `4n` bytes.
-
-This approach is very straightforward for columns in which each row contains
-a fixed number of values. However, dealing with columns containing a
-**variable** number of values is more problematic.
-
-
-(sec_encoding_ragged_columns)=
-
-### Encoding ragged columns
-
-A **ragged** column is a column in which the rows are not of a fixed length.
-For example, {ref}`sec_metadata_definition` columns contain binary of data of arbitrary
-length. To encode such columns in the tables API, we store **two** columns:
-one contains the flattened array of data and another stores the **offsets**
-of each row into this flattened array. Consider an example:
-
-```{code-cell} ipython3
-s = tskit.SiteTable()
-s.add_row(0, "A")
-s.add_row(0, "")
-s.add_row(0, "TTT")
-s.add_row(0, "G")
-s
-```
-
-In this example we create a {ref}`sec_site_table_definition` with four rows,
-and then display this table. We can see that the second row has the
-empty string as its `ancestral_state`, and the third row's
-`ancestral_state` is `TTT`. Now let's print out the columns:
-
-```{code-cell} ipython3
-print("Ancestral state (numerical): ", s.ancestral_state)
-print("Ancestral state (as bytes): ", s.ancestral_state.tobytes())
-print("Ancestral state offsets: ", s.ancestral_state_offset)
-```
-
-When we print out the tables `ancestral_state`
-column, we see that its a numpy array of length 5: this is the
-flattened array of [ASCII encoded](https://en.wikipedia.org/wiki/ASCII)
-values for these rows. When we decode these bytes using the
-numpy {meth}`tobytes<numpy:numpy.ndarray.tobytes>` method, we get the string 'ATTTG'.
-This flattened array can now be transferred efficiently in memory like any other column
-We then use the `ancestral_state_offset` column to allow us find the individual rows.
-For a row `j`:
-
-    ancestral_state[ancestral_state_offset[j]: ancestral_state_offset[j + 1]]
-
-gives us the array of bytes for the ancestral state in that row. For example, here is
-row 2:
-
-```{code-cell} ipython3
-s.ancestral_state[s.ancestral_state_offset[2]: s.ancestral_state_offset[3]].tobytes()
-```
-
-For a table with `n` rows, any offset column must have `n + 1`
-values, the first of which is always `0`. The values in this column must be
-nondecreasing, and cannot exceed the length of the ragged column in question.
 
 
