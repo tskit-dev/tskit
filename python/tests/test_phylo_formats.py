@@ -46,15 +46,16 @@ from tests.test_highlevel import get_example_tree_sequences
 
 
 @functools.lru_cache(maxsize=100)
-def alignment_example(sequence_length):
+def alignment_example(sequence_length, include_reference=True):
     ts = msprime.sim_ancestry(
         samples=5, sequence_length=sequence_length, random_seed=123
     )
     ts = msprime.sim_mutations(ts, rate=0.1, random_seed=1234)
     tables = ts.dump_tables()
-    tables.reference_sequence.data = tskit.random_nucleotides(
-        ts.sequence_length, seed=1234
-    )
+    if include_reference:
+        tables.reference_sequence.data = tskit.random_nucleotides(
+            ts.sequence_length, seed=1234
+        )
     ts = tables.tree_sequence()
     assert ts.num_sites > 5
     return ts
@@ -264,7 +265,7 @@ class TestNexusIncludeSections:
             END;
             BEGIN DATA;
               DIMENSIONS NCHAR=10;
-              FORMAT DATATYPE=DNA;
+              FORMAT DATATYPE=DNA MISSING=?;
               MATRIX
                 n0 ACGGACTGAT
                 n1 ACAGACTGAC
@@ -289,7 +290,7 @@ class TestNexusIncludeSections:
             END;
             BEGIN DATA;
               DIMENSIONS NCHAR=10;
-              FORMAT DATATYPE=DNA;
+              FORMAT DATATYPE=DNA MISSING=?;
               MATRIX
                 n0 ACGGACTGAT
                 n1 ACAGACTGAC
@@ -1337,12 +1338,88 @@ class TestFastaDendropyRoundTrip:
         alignment_map = self.parse(text)
         assert get_alignment_map(ts) == alignment_map
 
+    def test_no_reference(self):
+        ts = alignment_example(100, include_reference=False)
+        text = ts.as_fasta()
+        alignment_map = self.parse(text)
+        assert get_alignment_map(ts) == alignment_map
+
     @pytest.mark.skip("Missing data in alignments: #1896")
     def test_missing_data(self):
         ts = missing_data_example()
         text = ts.as_fasta()
         alignment_map = self.parse(text)
         assert get_alignment_map(ts) == alignment_map
+
+
+class TestDendropyMissingReference:
+    # 2.00┊   4   ┊
+    #     ┊ ┏━┻┓  ┊
+    # 1.00┊ ┃  3  ┊
+    #     ┊ ┃ ┏┻┓ ┊
+    # 0.00┊ 0 1 2 ┊
+    #     0       10
+    #      |     |
+    #  pos 2     9
+    #  anc A     T
+
+    def ts(self):
+        ts = tskit.Tree.generate_balanced(3, span=10).tree_sequence
+        tables = ts.dump_tables()
+        tables.sites.add_row(2, ancestral_state="A")
+        tables.sites.add_row(9, ancestral_state="T")
+        tables.mutations.add_row(site=0, node=0, derived_state="G")
+        tables.mutations.add_row(site=1, node=3, derived_state="C")
+        return tables.tree_sequence()
+
+    def assert_missing_data_encoded(self, d):
+        assert d.sequence_size == 10
+        assert str(d["n0"][2]) == "G"
+        assert str(d["n0"][9]) == "T"
+        assert str(d["n1"][2]) == "A"
+        assert str(d["n1"][9]) == "C"
+        assert str(d["n2"][2]) == "A"
+        assert str(d["n2"][9]) == "C"
+        for a in d.values():
+            for j in range(d.sequence_size):
+                if j in [2, 9]:
+                    assert (
+                        a[j].state_denomination
+                        == dendropy.StateAlphabet.FUNDAMENTAL_STATE
+                    )
+                else:
+                    assert (
+                        a[j].state_denomination
+                        == dendropy.StateAlphabet.AMBIGUOUS_STATE
+                    )
+
+    def test_fasta(self):
+        ts = self.ts()
+        text = ts.as_fasta()
+        d = dendropy.DnaCharacterMatrix.get(data=text, schema="fasta")
+        self.assert_missing_data_encoded(d)
+        assert str(d["n0"][0]) == "N"
+
+    def test_fasta_missing_question(self):
+        ts = self.ts()
+        text = ts.as_fasta(missing_data_character="?")
+        d = dendropy.DnaCharacterMatrix.get(data=text, schema="fasta")
+        self.assert_missing_data_encoded(d)
+        assert str(d["n0"][0]) == "?"
+
+    def test_nexus(self):
+        ts = self.ts()
+        text = ts.as_nexus()
+        d = dendropy.DnaCharacterMatrix.get(data=text, schema="nexus")
+        self.assert_missing_data_encoded(d)
+        assert str(d["n0"][0]) == "?"
+
+    def test_nexus_missing_N(self):
+        ts = self.ts()
+        text = ts.as_nexus(missing_data_character="N")
+        d = dendropy.DnaCharacterMatrix.get(data=text, schema="nexus")
+        self.assert_missing_data_encoded(d)
+        assert str(d["n0"][0]) == "N"
 
 
 @pytest.mark.skip("Missing data in alignments: #1896")

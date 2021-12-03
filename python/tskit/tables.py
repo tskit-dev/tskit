@@ -2643,7 +2643,7 @@ class ReferenceSequence(metadata.MetadataProvider):
     .. warning:: This API is preliminary and currently only supports accessing
        reference sequence information via the ``.data`` attribute. Future versions
        will also enable transparent fetching of known reference sequences
-       from a URL.
+       from a URL (see https://github.com/tskit-dev/tskit/issues/2022).
     """
 
     def __init__(self, ll_reference_sequence):
@@ -2653,8 +2653,7 @@ class ReferenceSequence(metadata.MetadataProvider):
     def is_null(self) -> bool:
         """
         Returns True if this :class:`.ReferenceSequence` is null, i.e.,
-        corresponding to a :class:`.TableCollection` in which no reference sequence
-        has been specified.
+        all fields are empty.
         """
         return bool(self._ll_reference_sequence.is_null())
 
