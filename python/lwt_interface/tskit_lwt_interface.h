@@ -374,7 +374,7 @@ parse_individual_table_dict(
     }
     err = tsk_individual_table_append_columns(table, num_rows, PyArray_DATA(flags_array),
         location_data, location_offset_data, parents_data, parents_offset_data,
-        metadata_data, metadata_offset_data);
+        metadata_data, metadata_offset_data, 0);
     if (err != 0) {
         handle_tskit_error(err);
         goto out;
@@ -514,7 +514,7 @@ parse_node_table_dict(tsk_node_table_t *table, PyObject *dict, bool clear_table)
     }
     err = tsk_node_table_append_columns(table, num_rows, PyArray_DATA(flags_array),
         PyArray_DATA(time_array), population_data, individual_data, metadata_data,
-        metadata_offset_data);
+        metadata_offset_data, 0);
     if (err != 0) {
         handle_tskit_error(err);
         goto out;
@@ -644,7 +644,7 @@ parse_edge_table_dict(tsk_edge_table_t *table, PyObject *dict, bool clear_table)
     }
     err = tsk_edge_table_append_columns(table, num_rows, PyArray_DATA(left_array),
         PyArray_DATA(right_array), PyArray_DATA(parent_array), PyArray_DATA(child_array),
-        metadata_data, metadata_offset_data);
+        metadata_data, metadata_offset_data, 0);
     if (err != 0) {
         handle_tskit_error(err);
         goto out;
@@ -796,7 +796,7 @@ parse_migration_table_dict(
     err = tsk_migration_table_append_columns(table, num_rows, PyArray_DATA(left_array),
         PyArray_DATA(right_array), PyArray_DATA(node_array), PyArray_DATA(source_array),
         PyArray_DATA(dest_array), PyArray_DATA(time_array), metadata_data,
-        metadata_offset_data);
+        metadata_offset_data, 0);
     if (err != 0) {
         handle_tskit_error(err);
         goto out;
@@ -924,7 +924,7 @@ parse_site_table_dict(tsk_site_table_t *table, PyObject *dict, bool clear_table)
     }
     err = tsk_site_table_append_columns(table, num_rows, PyArray_DATA(position_array),
         PyArray_DATA(ancestral_state_array), PyArray_DATA(ancestral_state_offset_array),
-        metadata_data, metadata_offset_data);
+        metadata_data, metadata_offset_data, 0);
     if (err != 0) {
         handle_tskit_error(err);
         goto out;
@@ -1092,7 +1092,7 @@ parse_mutation_table_dict(tsk_mutation_table_t *table, PyObject *dict, bool clea
     err = tsk_mutation_table_append_columns(table, num_rows, PyArray_DATA(site_array),
         PyArray_DATA(node_array), parent_data, time_data,
         PyArray_DATA(derived_state_array), PyArray_DATA(derived_state_offset_array),
-        metadata_data, metadata_offset_data);
+        metadata_data, metadata_offset_data, 0);
     if (err != 0) {
         handle_tskit_error(err);
         goto out;
@@ -1172,7 +1172,7 @@ parse_population_table_dict(
         }
     }
     err = tsk_population_table_append_columns(table, num_rows,
-        PyArray_DATA(metadata_array), PyArray_DATA(metadata_offset_array));
+        PyArray_DATA(metadata_array), PyArray_DATA(metadata_offset_array), 0);
     if (err != 0) {
         handle_tskit_error(err);
         goto out;
@@ -1248,7 +1248,7 @@ parse_provenance_table_dict(
     }
     err = tsk_provenance_table_append_columns(table, num_rows,
         PyArray_DATA(timestamp_array), PyArray_DATA(timestamp_offset_array),
-        PyArray_DATA(record_array), PyArray_DATA(record_offset_array));
+        PyArray_DATA(record_array), PyArray_DATA(record_offset_array), 0);
     if (err != 0) {
         handle_tskit_error(err);
         goto out;

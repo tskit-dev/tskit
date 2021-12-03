@@ -1011,12 +1011,13 @@ The metadata schema is not affected.
 @param parents_offset The array of tsk_size_t parent offset values to be copied.
 @param metadata The array of char metadata values to be copied.
 @param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@param options Bitwise options.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_individual_table_set_columns(tsk_individual_table_t *self, tsk_size_t num_rows,
     const tsk_flags_t *flags, const double *location, const tsk_size_t *location_offset,
     const tsk_id_t *parents, const tsk_size_t *parents_offset, const char *metadata,
-    const tsk_size_t *metadata_offset);
+    const tsk_size_t *metadata_offset, tsk_flags_t options);
 
 /**
 @brief Extends this table by copying from a set of column arrays
@@ -1036,13 +1037,14 @@ metadata schema is not affected.
 @param parents_offset The array of tsk_size_t parent offset values to be copied.
 @param metadata The array of char metadata values to be copied.
 @param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@param options Bitwise options.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_individual_table_append_columns(tsk_individual_table_t *self,
     tsk_size_t num_rows, const tsk_flags_t *flags, const double *location,
     const tsk_size_t *location_offset, const tsk_id_t *parents,
     const tsk_size_t *parents_offset, const char *metadata,
-    const tsk_size_t *metadata_offset);
+    const tsk_size_t *metadata_offset, tsk_flags_t options);
 
 /**
 @brief Controls the pre-allocation strategy for this table
@@ -1355,11 +1357,13 @@ The metadata schema is not affected.
 @param individual The array of tsk_id_t individual values to be copied.
 @param metadata The array of char metadata values to be copied.
 @param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@param options Bitwise options.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_node_table_set_columns(tsk_node_table_t *self, tsk_size_t num_rows,
     const tsk_flags_t *flags, const double *time, const tsk_id_t *population,
-    const tsk_id_t *individual, const char *metadata, const tsk_size_t *metadata_offset);
+    const tsk_id_t *individual, const char *metadata, const tsk_size_t *metadata_offset,
+    tsk_flags_t options);
 
 /**
 @brief Extends this table by copying from a set of column arrays
@@ -1378,11 +1382,13 @@ metadata schema is not affected.
 @param individual The array of tsk_id_t individual values to be copied.
 @param metadata The array of char metadata values to be copied.
 @param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@param options Bitwise options.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_node_table_append_columns(tsk_node_table_t *self, tsk_size_t num_rows,
     const tsk_flags_t *flags, const double *time, const tsk_id_t *population,
-    const tsk_id_t *individual, const char *metadata, const tsk_size_t *metadata_offset);
+    const tsk_id_t *individual, const char *metadata, const tsk_size_t *metadata_offset,
+    tsk_flags_t options);
 
 /**
 @brief Controls the pre-allocation strategy for this table
@@ -1672,11 +1678,13 @@ The metadata schema is not affected.
 @param child The array of tsk_id_t child values to be copied.
 @param metadata The array of char metadata values to be copied.
 @param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@param options Bitwise options.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_edge_table_set_columns(tsk_edge_table_t *self, tsk_size_t num_rows,
     const double *left, const double *right, const tsk_id_t *parent,
-    const tsk_id_t *child, const char *metadata, const tsk_size_t *metadata_offset);
+    const tsk_id_t *child, const char *metadata, const tsk_size_t *metadata_offset,
+    tsk_flags_t options);
 
 /**
 @brief Extends this table by copying from a set of column arrays
@@ -1695,10 +1703,13 @@ metadata schema is not affected.
 @param child The array of tsk_id_t child values to be copied.
 @param metadata The array of char metadata values to be copied.
 @param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@param options Bitwise options.
+@return Return 0 on success or a negative value on failure.
 */
 int tsk_edge_table_append_columns(tsk_edge_table_t *self, tsk_size_t num_rows,
     const double *left, const double *right, const tsk_id_t *parent,
-    const tsk_id_t *child, const char *metadata, const tsk_size_t *metadata_offset);
+    const tsk_id_t *child, const char *metadata, const tsk_size_t *metadata_offset,
+    tsk_flags_t options);
 
 /**
 @brief Controls the pre-allocation strategy for this table
@@ -1989,12 +2000,13 @@ The metadata schema is not affected.
 @param time The array of double time values to be copied.
 @param metadata The array of char metadata values to be copied.
 @param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@param options Bitwise options.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_migration_table_set_columns(tsk_migration_table_t *self, tsk_size_t num_rows,
     const double *left, const double *right, const tsk_id_t *node,
     const tsk_id_t *source, const tsk_id_t *dest, const double *time,
-    const char *metadata, const tsk_size_t *metadata_offset);
+    const char *metadata, const tsk_size_t *metadata_offset, tsk_flags_t options);
 
 /**
 @brief Extends this table by copying from a set of column arrays
@@ -2015,12 +2027,13 @@ metadata schema is not affected.
 @param time The array of double time values to be copied.
 @param metadata The array of char metadata values to be copied.
 @param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@param options Bitwise options.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_migration_table_append_columns(tsk_migration_table_t *self, tsk_size_t num_rows,
     const double *left, const double *right, const tsk_id_t *node,
     const tsk_id_t *source, const tsk_id_t *dest, const double *time,
-    const char *metadata, const tsk_size_t *metadata_offset);
+    const char *metadata, const tsk_size_t *metadata_offset, tsk_flags_t options);
 
 /**
 @brief Controls the pre-allocation strategy for this table
@@ -2298,12 +2311,13 @@ The metadata schema is not affected.
         copied.
 @param metadata The array of char metadata values to be copied.
 @param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@param options Bitwise options.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_site_table_set_columns(tsk_site_table_t *self, tsk_size_t num_rows,
     const double *position, const char *ancestral_state,
     const tsk_size_t *ancestral_state_offset, const char *metadata,
-    const tsk_size_t *metadata_offset);
+    const tsk_size_t *metadata_offset, tsk_flags_t options);
 
 /**
 @brief Extends this table by copying from a set of column arrays
@@ -2322,12 +2336,13 @@ metadata schema is not affected.
     copied.
 @param metadata The array of char metadata values to be copied.
 @param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@param options Bitwise options.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_site_table_append_columns(tsk_site_table_t *self, tsk_size_t num_rows,
     const double *position, const char *ancestral_state,
     const tsk_size_t *ancestral_state_offset, const char *metadata,
-    const tsk_size_t *metadata_offset);
+    const tsk_size_t *metadata_offset, tsk_flags_t options);
 
 /**
 @brief Controls the pre-allocation strategy for this table
@@ -2634,13 +2649,14 @@ The metadata schema is not affected.
 copied.
 @param metadata The array of char metadata values to be copied.
 @param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@param options Bitwise options.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_mutation_table_set_columns(tsk_mutation_table_t *self, tsk_size_t num_rows,
     const tsk_id_t *site, const tsk_id_t *node, const tsk_id_t *parent,
     const double *time, const char *derived_state,
     const tsk_size_t *derived_state_offset, const char *metadata,
-    const tsk_size_t *metadata_offset);
+    const tsk_size_t *metadata_offset, tsk_flags_t options);
 
 /**
 @brief Extends this table by copying from a set of column arrays
@@ -2662,13 +2678,14 @@ metadata schema is not affected.
     copied.
 @param metadata The array of char metadata values to be copied.
 @param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@param options Bitwise options.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_mutation_table_append_columns(tsk_mutation_table_t *self, tsk_size_t num_rows,
     const tsk_id_t *site, const tsk_id_t *node, const tsk_id_t *parent,
     const double *time, const char *derived_state,
     const tsk_size_t *derived_state_offset, const char *metadata,
-    const tsk_size_t *metadata_offset);
+    const tsk_size_t *metadata_offset, tsk_flags_t options);
 
 /**
 @brief Controls the pre-allocation strategy for this table
@@ -2953,10 +2970,11 @@ The metadata schema is not affected.
 @param num_rows The number of rows to copy from the specifed arrays.
 @param metadata The array of char metadata values to be copied.
 @param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@param options Bitwise options.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_population_table_set_columns(tsk_population_table_t *self, tsk_size_t num_rows,
-    const char *metadata, const tsk_size_t *metadata_offset);
+    const char *metadata, const tsk_size_t *metadata_offset, tsk_flags_t options);
 
 /**
 @brief Extends this table by copying from a set of column arrays
@@ -2971,10 +2989,12 @@ metadata schema is not affected.
 @param num_rows The number of rows to copy from the specifed arrays.
 @param metadata The array of char metadata values to be copied.
 @param metadata_offset The array of tsk_size_t metadata offset values to be copied.
+@param options Bitwise options.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_population_table_append_columns(tsk_population_table_t *self,
-    tsk_size_t num_rows, const char *metadata, const tsk_size_t *metadata_offset);
+    tsk_size_t num_rows, const char *metadata, const tsk_size_t *metadata_offset,
+    tsk_flags_t options);
 
 /**
 @brief Controls the pre-allocation strategy for this table
@@ -3235,11 +3255,12 @@ The metadata schema is not affected.
 @param timestamp_offset The array of tsk_size_t timestamp offset values to be copied.
 @param record The array of char record values to be copied.
 @param record_offset The array of tsk_size_t record offset values to be copied.
+@param options Bitwise options.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_provenance_table_set_columns(tsk_provenance_table_t *self, tsk_size_t num_rows,
     const char *timestamp, const tsk_size_t *timestamp_offset, const char *record,
-    const tsk_size_t *record_offset);
+    const tsk_size_t *record_offset, tsk_flags_t options);
 
 /**
 @brief Extends this table by copying from a set of column arrays
@@ -3256,11 +3277,12 @@ metadata schema is not affected.
 @param timestamp_offset The array of tsk_size_t timestamp offset values to be copied.
 @param record The array of char record values to be copied.
 @param record_offset The array of tsk_size_t record offset values to be copied.
+@param options Bitwise options.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_provenance_table_append_columns(tsk_provenance_table_t *self,
     tsk_size_t num_rows, const char *timestamp, const tsk_size_t *timestamp_offset,
-    const char *record, const tsk_size_t *record_offset);
+    const char *record, const tsk_size_t *record_offset, tsk_flags_t options);
 
 /**
 @brief Controls the pre-allocation strategy for this table

@@ -37,6 +37,10 @@
   "options" argument (:user:`jeromekelleher`, :pr:`1990`, :issue:`1979`). To
   retain the current behaviour set options=0 for all calls.
 
+- All x_table_set_columns and x_table_append_columns methods now take an extra
+  "options" argument (:user:`jeromekelleher`, :pr:`2008`, :issue:`2004`). To
+  retain the current behaviour set options=0 for all calls.
+
 
 **Features**
 

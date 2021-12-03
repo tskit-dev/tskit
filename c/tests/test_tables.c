@@ -937,7 +937,7 @@ test_node_table(void)
         metadata_offset[j] = (tsk_size_t) j;
     }
     ret = tsk_node_table_set_columns(&table, num_rows, flags, time, population,
-        individual, metadata, metadata_offset);
+        individual, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.flags, flags, num_rows * sizeof(tsk_flags_t)), 0);
     CU_ASSERT_EQUAL(
@@ -957,7 +957,7 @@ test_node_table(void)
 
     /* Append another num_rows onto the end */
     ret = tsk_node_table_append_columns(&table, num_rows, flags, time, population,
-        individual, metadata, metadata_offset);
+        individual, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.flags, flags, num_rows * sizeof(tsk_flags_t)), 0);
     CU_ASSERT_EQUAL(
@@ -1010,7 +1010,7 @@ test_node_table(void)
     tsk_memset(population, 0xff, num_rows * sizeof(tsk_id_t));
     tsk_memset(individual, 0xff, num_rows * sizeof(tsk_id_t));
     ret = tsk_node_table_set_columns(
-        &table, num_rows, flags, time, NULL, NULL, metadata, metadata_offset);
+        &table, num_rows, flags, time, NULL, NULL, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.flags, flags, num_rows * sizeof(tsk_flags_t)), 0);
     CU_ASSERT_EQUAL(
@@ -1026,24 +1026,24 @@ test_node_table(void)
     CU_ASSERT_EQUAL(table.metadata_length, num_rows);
 
     /* flags and time cannot be NULL */
-    ret = tsk_node_table_set_columns(
-        &table, num_rows, NULL, time, population, individual, metadata, metadata_offset);
+    ret = tsk_node_table_set_columns(&table, num_rows, NULL, time, population,
+        individual, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_node_table_set_columns(&table, num_rows, flags, NULL, population,
-        individual, metadata, metadata_offset);
+        individual, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_node_table_set_columns(
-        &table, num_rows, flags, time, population, individual, NULL, metadata_offset);
+        &table, num_rows, flags, time, population, individual, NULL, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_node_table_set_columns(
-        &table, num_rows, flags, time, population, individual, metadata, NULL);
+        &table, num_rows, flags, time, population, individual, metadata, NULL, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
     /* if metadata and metadata_offset are both null, all metadatas are zero length */
     num_rows = 10;
     tsk_memset(metadata_offset, 0, (num_rows + 1) * sizeof(tsk_size_t));
     ret = tsk_node_table_set_columns(
-        &table, num_rows, flags, time, NULL, NULL, NULL, NULL);
+        &table, num_rows, flags, time, NULL, NULL, NULL, NULL, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.flags, flags, num_rows * sizeof(tsk_flags_t)), 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.time, time, num_rows * sizeof(double)), 0);
@@ -1053,7 +1053,7 @@ test_node_table(void)
     CU_ASSERT_EQUAL(table.num_rows, num_rows);
     CU_ASSERT_EQUAL(table.metadata_length, 0);
     ret = tsk_node_table_append_columns(
-        &table, num_rows, flags, time, NULL, NULL, NULL, NULL);
+        &table, num_rows, flags, time, NULL, NULL, NULL, NULL, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.flags, flags, num_rows * sizeof(tsk_flags_t)), 0);
     CU_ASSERT_EQUAL(
@@ -1099,7 +1099,7 @@ test_node_table(void)
 
     /* Copy rows in order if index NULL */
     ret = tsk_node_table_set_columns(&table2, num_rows, flags, time, population,
-        individual, metadata, metadata_offset);
+        individual, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_node_table_equals(&table, &table2, 0));
     ret = tsk_node_table_extend(&table, &table2, table2.num_rows, NULL, 0);
@@ -1120,7 +1120,7 @@ test_node_table(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_node_table_equals(&table, &table2, 0));
     ret = tsk_node_table_set_columns(&table2, num_rows, flags, time, population,
-        individual, metadata, metadata_offset);
+        individual, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     /* Copy a subset */
     ret = tsk_node_table_truncate(&table, 0);
@@ -1366,13 +1366,13 @@ test_edge_table_with_options(tsk_flags_t options)
     }
     if (options & TSK_NO_METADATA) {
         ret = tsk_edge_table_set_columns(
-            &table, num_rows, left, right, parent, child, metadata, metadata_offset);
+            &table, num_rows, left, right, parent, child, metadata, metadata_offset, 0);
         CU_ASSERT_EQUAL(ret, TSK_ERR_METADATA_DISABLED);
         ret = tsk_edge_table_set_columns(
-            &table, num_rows, left, right, parent, child, NULL, NULL);
+            &table, num_rows, left, right, parent, child, NULL, NULL, 0);
     } else {
         ret = tsk_edge_table_set_columns(
-            &table, num_rows, left, right, parent, child, metadata, metadata_offset);
+            &table, num_rows, left, right, parent, child, metadata, metadata_offset, 0);
     }
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.left, left, num_rows * sizeof(double)), 0);
@@ -1397,13 +1397,13 @@ test_edge_table_with_options(tsk_flags_t options)
     /* Append another num_rows to the end. */
     if (options & TSK_NO_METADATA) {
         ret = tsk_edge_table_append_columns(
-            &table, num_rows, left, right, parent, child, metadata, metadata_offset);
+            &table, num_rows, left, right, parent, child, metadata, metadata_offset, 0);
         CU_ASSERT_EQUAL(ret, TSK_ERR_METADATA_DISABLED);
         ret = tsk_edge_table_append_columns(
-            &table, num_rows, left, right, parent, child, NULL, NULL);
+            &table, num_rows, left, right, parent, child, NULL, NULL, 0);
     } else {
         ret = tsk_edge_table_append_columns(
-            &table, num_rows, left, right, parent, child, metadata, metadata_offset);
+            &table, num_rows, left, right, parent, child, metadata, metadata_offset, 0);
     }
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.left, left, num_rows * sizeof(double)), 0);
@@ -1480,29 +1480,29 @@ test_edge_table_with_options(tsk_flags_t options)
 
     /* Inputs cannot be NULL */
     ret = tsk_edge_table_set_columns(
-        &table, num_rows, NULL, right, parent, child, metadata, metadata_offset);
+        &table, num_rows, NULL, right, parent, child, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_edge_table_set_columns(
-        &table, num_rows, left, NULL, parent, child, metadata, metadata_offset);
+        &table, num_rows, left, NULL, parent, child, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_edge_table_set_columns(
-        &table, num_rows, left, right, NULL, child, metadata, metadata_offset);
+        &table, num_rows, left, right, NULL, child, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_edge_table_set_columns(
-        &table, num_rows, left, right, parent, NULL, metadata, metadata_offset);
+        &table, num_rows, left, right, parent, NULL, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_edge_table_set_columns(
-        &table, num_rows, left, right, parent, child, NULL, metadata_offset);
+        &table, num_rows, left, right, parent, child, NULL, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_edge_table_set_columns(
-        &table, num_rows, left, right, parent, child, metadata, NULL);
+        &table, num_rows, left, right, parent, child, metadata, NULL, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
     /* if metadata and metadata_offset are both null, all metadatas are zero length */
     num_rows = 10;
     tsk_memset(metadata_offset, 0, (num_rows + 1) * sizeof(tsk_size_t));
     ret = tsk_edge_table_set_columns(
-        &table, num_rows, left, right, parent, child, NULL, NULL);
+        &table, num_rows, left, right, parent, child, NULL, NULL, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.left, left, num_rows * sizeof(double)), 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.right, right, num_rows * sizeof(double)), 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.parent, parent, num_rows * sizeof(tsk_id_t)), 0);
@@ -1518,7 +1518,7 @@ test_edge_table_with_options(tsk_flags_t options)
     CU_ASSERT_EQUAL(table.metadata_length, 0);
     CU_ASSERT_EQUAL(table.num_rows, num_rows);
     ret = tsk_edge_table_append_columns(
-        &table, num_rows, left, right, parent, child, NULL, NULL);
+        &table, num_rows, left, right, parent, child, NULL, NULL, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.left, left, num_rows * sizeof(double)), 0);
     CU_ASSERT_EQUAL(
@@ -1576,10 +1576,10 @@ test_edge_table_with_options(tsk_flags_t options)
     /* Copy rows in order if index NULL */
     if (options & TSK_NO_METADATA) {
         ret = tsk_edge_table_set_columns(
-            &table2, num_rows, left, right, parent, child, NULL, NULL);
+            &table2, num_rows, left, right, parent, child, NULL, NULL, 0);
     } else {
         ret = tsk_edge_table_set_columns(
-            &table2, num_rows, left, right, parent, child, metadata, metadata_offset);
+            &table2, num_rows, left, right, parent, child, metadata, metadata_offset, 0);
     }
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_edge_table_equals(&table, &table2, 0));
@@ -1602,10 +1602,10 @@ test_edge_table_with_options(tsk_flags_t options)
     CU_ASSERT_TRUE(tsk_edge_table_equals(&table, &table2, 0));
     if (options & TSK_NO_METADATA) {
         ret = tsk_edge_table_set_columns(
-            &table2, num_rows, left, right, parent, child, NULL, NULL);
+            &table2, num_rows, left, right, parent, child, NULL, NULL, 0);
     } else {
         ret = tsk_edge_table_set_columns(
-            &table2, num_rows, left, right, parent, child, metadata, metadata_offset);
+            &table2, num_rows, left, right, parent, child, metadata, metadata_offset, 0);
     }
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     /* Copy a subset */
@@ -2154,7 +2154,7 @@ test_site_table(void)
     metadata_offset[num_rows] = num_rows;
 
     ret = tsk_site_table_set_columns(&table, num_rows, position, ancestral_state,
-        ancestral_state_offset, metadata, metadata_offset);
+        ancestral_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.position, position, num_rows * sizeof(double)), 0);
     CU_ASSERT_EQUAL(
@@ -2166,7 +2166,7 @@ test_site_table(void)
 
     /* Append another num rows */
     ret = tsk_site_table_append_columns(&table, num_rows, position, ancestral_state,
-        ancestral_state_offset, metadata, metadata_offset);
+        ancestral_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.position, position, num_rows * sizeof(double)), 0);
     CU_ASSERT_EQUAL(
@@ -2218,24 +2218,24 @@ test_site_table(void)
 
     /* Inputs cannot be NULL */
     ret = tsk_site_table_set_columns(&table, num_rows, NULL, ancestral_state,
-        ancestral_state_offset, metadata, metadata_offset);
+        ancestral_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_site_table_set_columns(&table, num_rows, position, NULL,
-        ancestral_state_offset, metadata, metadata_offset);
+        ancestral_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_site_table_set_columns(
-        &table, num_rows, position, ancestral_state, NULL, metadata, metadata_offset);
+        &table, num_rows, position, ancestral_state, NULL, metadata, metadata_offset, 0);
     /* Metadata and metadata_offset must both be null */
     ret = tsk_site_table_set_columns(&table, num_rows, position, ancestral_state,
-        ancestral_state_offset, NULL, metadata_offset);
+        ancestral_state_offset, NULL, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_site_table_set_columns(&table, num_rows, position, ancestral_state,
-        ancestral_state_offset, metadata, NULL);
+        ancestral_state_offset, metadata, NULL, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
     /* Set metadata to NULL */
-    ret = tsk_site_table_set_columns(
-        &table, num_rows, position, ancestral_state, ancestral_state_offset, NULL, NULL);
+    ret = tsk_site_table_set_columns(&table, num_rows, position, ancestral_state,
+        ancestral_state_offset, NULL, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tsk_memset(metadata_offset, 0, (num_rows + 1) * sizeof(tsk_size_t));
@@ -2275,7 +2275,7 @@ test_site_table(void)
 
     /* Copy rows in order if index NULL */
     ret = tsk_site_table_set_columns(&table2, num_rows, position, ancestral_state,
-        ancestral_state_offset, metadata, metadata_offset);
+        ancestral_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_site_table_equals(&table, &table2, 0));
     ret = tsk_site_table_extend(&table, &table2, table2.num_rows, NULL, 0);
@@ -2296,7 +2296,7 @@ test_site_table(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_site_table_equals(&table, &table2, 0));
     ret = tsk_site_table_set_columns(&table2, num_rows, position, ancestral_state,
-        ancestral_state_offset, metadata, metadata_offset);
+        ancestral_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Copy a subset */
@@ -2324,23 +2324,23 @@ test_site_table(void)
     /* Test for bad offsets */
     ancestral_state_offset[0] = 1;
     ret = tsk_site_table_set_columns(&table, num_rows, position, ancestral_state,
-        ancestral_state_offset, metadata, metadata_offset);
+        ancestral_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_OFFSET);
     ancestral_state_offset[0] = 0;
     ancestral_state_offset[num_rows] = 0;
     ret = tsk_site_table_set_columns(&table, num_rows, position, ancestral_state,
-        ancestral_state_offset, metadata, metadata_offset);
+        ancestral_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_OFFSET);
     ancestral_state_offset[0] = 0;
 
     metadata_offset[0] = 0;
     ret = tsk_site_table_set_columns(&table, num_rows, position, ancestral_state,
-        ancestral_state_offset, metadata, metadata_offset);
+        ancestral_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_OFFSET);
     metadata_offset[0] = 0;
     metadata_offset[num_rows] = 0;
     ret = tsk_site_table_set_columns(&table, num_rows, position, ancestral_state,
-        ancestral_state_offset, metadata, metadata_offset);
+        ancestral_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_OFFSET);
     ret = tsk_site_table_truncate(&table, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -2587,7 +2587,7 @@ test_mutation_table(void)
     derived_state_offset[num_rows] = num_rows;
     metadata_offset[num_rows] = num_rows;
     ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent, time,
-        derived_state, derived_state_offset, metadata, metadata_offset);
+        derived_state, derived_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.site, site, num_rows * sizeof(tsk_id_t)), 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.node, node, num_rows * sizeof(tsk_id_t)), 0);
@@ -2602,7 +2602,7 @@ test_mutation_table(void)
 
     /* Append another num_rows */
     ret = tsk_mutation_table_append_columns(&table, num_rows, site, node, parent, time,
-        derived_state, derived_state_offset, metadata, metadata_offset);
+        derived_state, derived_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.site, site, num_rows * sizeof(tsk_id_t)), 0);
     CU_ASSERT_EQUAL(
@@ -2671,7 +2671,7 @@ test_mutation_table(void)
     }
     tsk_memset(metadata_offset, 0, (num_rows + 1) * sizeof(tsk_size_t));
     ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, NULL, NULL,
-        derived_state, derived_state_offset, NULL, NULL);
+        derived_state, derived_state_offset, NULL, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.site, site, num_rows * sizeof(tsk_id_t)), 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.node, node, num_rows * sizeof(tsk_id_t)), 0);
@@ -2691,7 +2691,7 @@ test_mutation_table(void)
 
     /* Append another num_rows */
     ret = tsk_mutation_table_append_columns(&table, num_rows, site, node, NULL, NULL,
-        derived_state, derived_state_offset, NULL, NULL);
+        derived_state, derived_state_offset, NULL, NULL, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.site, site, num_rows * sizeof(tsk_id_t)), 0);
     CU_ASSERT_EQUAL(
@@ -2716,42 +2716,42 @@ test_mutation_table(void)
 
     /* Inputs except parent, time, metadata and metadata_offset cannot be NULL*/
     ret = tsk_mutation_table_set_columns(&table, num_rows, NULL, node, parent, time,
-        derived_state, derived_state_offset, metadata, metadata_offset);
+        derived_state, derived_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_mutation_table_set_columns(&table, num_rows, site, NULL, parent, time,
-        derived_state, derived_state_offset, metadata, metadata_offset);
+        derived_state, derived_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent, time,
-        NULL, derived_state_offset, metadata, metadata_offset);
+        NULL, derived_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent, time,
-        derived_state, NULL, metadata, metadata_offset);
+        derived_state, NULL, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent, time,
-        derived_state, derived_state_offset, NULL, metadata_offset);
+        derived_state, derived_state_offset, NULL, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent, time,
-        derived_state, derived_state_offset, metadata, NULL);
+        derived_state, derived_state_offset, metadata, NULL, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
     /* Inputs except parent, time, metadata and metadata_offset cannot be NULL*/
     ret = tsk_mutation_table_append_columns(&table, num_rows, NULL, node, parent, time,
-        derived_state, derived_state_offset, metadata, metadata_offset);
+        derived_state, derived_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_mutation_table_append_columns(&table, num_rows, site, NULL, parent, time,
-        derived_state, derived_state_offset, metadata, metadata_offset);
+        derived_state, derived_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_mutation_table_append_columns(&table, num_rows, site, node, parent, time,
-        NULL, derived_state_offset, metadata, metadata_offset);
+        NULL, derived_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_mutation_table_append_columns(&table, num_rows, site, node, parent, time,
-        derived_state, NULL, metadata, metadata_offset);
+        derived_state, NULL, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_mutation_table_append_columns(&table, num_rows, site, node, parent, time,
-        derived_state, derived_state_offset, NULL, metadata_offset);
+        derived_state, derived_state_offset, NULL, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_mutation_table_append_columns(&table, num_rows, site, node, parent, time,
-        derived_state, derived_state_offset, metadata, NULL);
+        derived_state, derived_state_offset, metadata, NULL, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
     /* Test extend method */
@@ -2787,7 +2787,7 @@ test_mutation_table(void)
 
     /* Copy rows in order if index NULL */
     ret = tsk_mutation_table_set_columns(&table2, num_rows, site, node, parent, time,
-        derived_state, derived_state_offset, metadata, metadata_offset);
+        derived_state, derived_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_mutation_table_equals(&table, &table2, 0));
     ret = tsk_mutation_table_extend(&table, &table2, table2.num_rows, NULL, 0);
@@ -2808,7 +2808,7 @@ test_mutation_table(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_mutation_table_equals(&table, &table2, 0));
     ret = tsk_mutation_table_set_columns(&table2, num_rows, site, node, parent, time,
-        derived_state, derived_state_offset, metadata, metadata_offset);
+        derived_state, derived_state_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Copy a subset */
@@ -2840,12 +2840,12 @@ test_mutation_table(void)
     /* Test for bad offsets */
     derived_state_offset[0] = 1;
     ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent, time,
-        derived_state, derived_state_offset, NULL, NULL);
+        derived_state, derived_state_offset, NULL, NULL, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_OFFSET);
     derived_state_offset[0] = 0;
     derived_state_offset[num_rows] = 0;
     ret = tsk_mutation_table_set_columns(&table, num_rows, site, node, parent, time,
-        derived_state, derived_state_offset, NULL, NULL);
+        derived_state, derived_state_offset, NULL, NULL, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_OFFSET);
 
     ret = tsk_mutation_table_truncate(&table, 0);
@@ -3114,7 +3114,7 @@ test_migration_table(void)
     }
 
     ret = tsk_migration_table_set_columns(&table, num_rows, left, right, node, source,
-        dest, time, metadata, metadata_offset);
+        dest, time, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.left, left, num_rows * sizeof(double)), 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.right, right, num_rows * sizeof(double)), 0);
@@ -3131,7 +3131,7 @@ test_migration_table(void)
 
     /* Append another num_rows */
     ret = tsk_migration_table_append_columns(&table, num_rows, left, right, node, source,
-        dest, time, metadata, metadata_offset);
+        dest, time, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.left, left, num_rows * sizeof(double)), 0);
     CU_ASSERT_EQUAL(
@@ -3198,28 +3198,28 @@ test_migration_table(void)
 
     /* inputs cannot be NULL */
     ret = tsk_migration_table_set_columns(&table, num_rows, NULL, right, node, source,
-        dest, time, metadata, metadata_offset);
+        dest, time, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_migration_table_set_columns(&table, num_rows, left, NULL, node, source,
-        dest, time, metadata, metadata_offset);
+        dest, time, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_migration_table_set_columns(&table, num_rows, left, right, NULL, source,
-        dest, time, metadata, metadata_offset);
+        dest, time, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_migration_table_set_columns(&table, num_rows, left, right, node, NULL,
-        dest, time, metadata, metadata_offset);
+        dest, time, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_migration_table_set_columns(&table, num_rows, left, right, node, source,
-        NULL, time, metadata, metadata_offset);
+        NULL, time, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_migration_table_set_columns(&table, num_rows, left, right, node, source,
-        dest, NULL, metadata, metadata_offset);
+        dest, NULL, metadata, metadata_offset, 0);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_migration_table_set_columns(&table, num_rows, left, right, node, source,
+        dest, time, NULL, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_migration_table_set_columns(
-        &table, num_rows, left, right, node, source, dest, time, NULL, metadata_offset);
-    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_migration_table_set_columns(
-        &table, num_rows, left, right, node, source, dest, time, metadata, NULL);
+        &table, num_rows, left, right, node, source, dest, time, metadata, NULL, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
     tsk_migration_table_clear(&table);
@@ -3229,7 +3229,7 @@ test_migration_table(void)
     num_rows = 10;
     tsk_memset(metadata_offset, 0, (num_rows + 1) * sizeof(tsk_size_t));
     ret = tsk_migration_table_set_columns(
-        &table, num_rows, left, right, node, source, dest, time, NULL, NULL);
+        &table, num_rows, left, right, node, source, dest, time, NULL, NULL, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.left, left, num_rows * sizeof(double)), 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.right, right, num_rows * sizeof(double)), 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.time, time, num_rows * sizeof(double)), 0);
@@ -3242,7 +3242,7 @@ test_migration_table(void)
     CU_ASSERT_EQUAL(table.num_rows, num_rows);
     CU_ASSERT_EQUAL(table.metadata_length, 0);
     ret = tsk_migration_table_append_columns(
-        &table, num_rows, left, right, node, source, dest, time, NULL, NULL);
+        &table, num_rows, left, right, node, source, dest, time, NULL, NULL, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.left, left, num_rows * sizeof(double)), 0);
     CU_ASSERT_EQUAL(
@@ -3300,7 +3300,7 @@ test_migration_table(void)
 
     /* Copy rows in order if index NULL */
     ret = tsk_migration_table_set_columns(&table2, num_rows, left, right, node, source,
-        dest, time, metadata, metadata_offset);
+        dest, time, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_migration_table_equals(&table, &table2, 0));
     ret = tsk_migration_table_extend(&table, &table2, table2.num_rows, NULL, 0);
@@ -3321,7 +3321,7 @@ test_migration_table(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_migration_table_equals(&table, &table2, 0));
     ret = tsk_migration_table_set_columns(&table2, num_rows, left, right, node, source,
-        dest, time, metadata, metadata_offset);
+        dest, time, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Copy a subset */
@@ -3627,7 +3627,10 @@ test_individual_table(void)
         metadata_offset[j] = (tsk_size_t) j;
     }
     ret = tsk_individual_table_set_columns(&table, num_rows, flags, location,
-        location_offset, parents, parents_offset, metadata, metadata_offset);
+        /* To keep the semantics as close as possible to DTWF we simulate until
+         * the *end* of generation max_time. So, we stop just before processing
+         * the first individual in generation max_time + 1. */
+        location_offset, parents, parents_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.flags, flags, num_rows * sizeof(tsk_flags_t)), 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.location, location,
@@ -3654,7 +3657,7 @@ test_individual_table(void)
 
     /* Append another num_rows onto the end */
     ret = tsk_individual_table_append_columns(&table, num_rows, flags, location,
-        location_offset, parents, parents_offset, metadata, metadata_offset);
+        location_offset, parents, parents_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.flags, flags, num_rows * sizeof(tsk_flags_t)), 0);
     CU_ASSERT_EQUAL(
@@ -3713,34 +3716,34 @@ test_individual_table(void)
 
     /* flags can't be NULL */
     ret = tsk_individual_table_set_columns(&table, num_rows, NULL, location,
-        location_offset, parents, parents_offset, metadata, metadata_offset);
+        location_offset, parents, parents_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     /* location and location offset must be simultaneously NULL or not */
     ret = tsk_individual_table_set_columns(&table, num_rows, flags, location, NULL,
-        parents, parents_offset, metadata, metadata_offset);
+        parents, parents_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_individual_table_set_columns(&table, num_rows, flags, NULL,
-        location_offset, NULL, NULL, metadata, metadata_offset);
+        location_offset, NULL, NULL, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     /* parents and parents offset must be simultaneously NULL or not */
     ret = tsk_individual_table_set_columns(&table, num_rows, flags, location,
-        location_offset, parents, NULL, metadata, metadata_offset);
+        location_offset, parents, NULL, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_individual_table_set_columns(&table, num_rows, flags, location,
-        location_offset, NULL, parents_offset, metadata, metadata_offset);
+        location_offset, NULL, parents_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     /* metadata and metadata offset must be simultaneously NULL or not */
     ret = tsk_individual_table_set_columns(&table, num_rows, flags, location,
-        location_offset, parents, parents_offset, NULL, metadata_offset);
+        location_offset, parents, parents_offset, NULL, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_individual_table_set_columns(&table, num_rows, flags, location,
-        location_offset, parents, parents_offset, metadata, NULL);
+        location_offset, parents, parents_offset, metadata, NULL, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
     /* if location and location_offset are both null, all locations are zero length */
     num_rows = 10;
     ret = tsk_individual_table_set_columns(
-        &table, num_rows, flags, NULL, NULL, NULL, NULL, NULL, NULL);
+        &table, num_rows, flags, NULL, NULL, NULL, NULL, NULL, NULL, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(
         tsk_memcmp(table.location_offset, zeros, (num_rows + 1) * sizeof(tsk_size_t)),
@@ -3748,7 +3751,7 @@ test_individual_table(void)
     CU_ASSERT_EQUAL(table.num_rows, num_rows);
     CU_ASSERT_EQUAL(table.location_length, 0);
     ret = tsk_individual_table_append_columns(
-        &table, num_rows, flags, NULL, NULL, NULL, NULL, NULL, NULL);
+        &table, num_rows, flags, NULL, NULL, NULL, NULL, NULL, NULL, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(
         tsk_memcmp(table.location_offset, zeros, (num_rows + 1) * sizeof(tsk_size_t)),
@@ -3765,14 +3768,14 @@ test_individual_table(void)
     /* if parents and parents_offset are both null, all parents are zero length */
     num_rows = 10;
     ret = tsk_individual_table_set_columns(
-        &table, num_rows, flags, NULL, NULL, NULL, NULL, NULL, NULL);
+        &table, num_rows, flags, NULL, NULL, NULL, NULL, NULL, NULL, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(
         tsk_memcmp(table.parents_offset, zeros, (num_rows + 1) * sizeof(tsk_size_t)), 0);
     CU_ASSERT_EQUAL(table.num_rows, num_rows);
     CU_ASSERT_EQUAL(table.parents_length, 0);
     ret = tsk_individual_table_append_columns(
-        &table, num_rows, flags, NULL, NULL, NULL, NULL, NULL, NULL);
+        &table, num_rows, flags, NULL, NULL, NULL, NULL, NULL, NULL, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(
         tsk_memcmp(table.parents_offset, zeros, (num_rows + 1) * sizeof(tsk_size_t)), 0);
@@ -3788,7 +3791,7 @@ test_individual_table(void)
     /* if metadata and metadata_offset are both null, all metadatas are zero length */
     num_rows = 10;
     ret = tsk_individual_table_set_columns(&table, num_rows, flags, location,
-        location_offset, parents, parents_offset, NULL, NULL);
+        location_offset, parents, parents_offset, NULL, NULL, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.flags, flags, num_rows * sizeof(tsk_flags_t)), 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.location, location,
@@ -3802,7 +3805,7 @@ test_individual_table(void)
     CU_ASSERT_EQUAL(table.num_rows, num_rows);
     CU_ASSERT_EQUAL(table.metadata_length, 0);
     ret = tsk_individual_table_append_columns(&table, num_rows, flags, location,
-        location_offset, parents, parents_offset, NULL, NULL);
+        location_offset, parents, parents_offset, NULL, NULL, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.location, location,
                         spatial_dimension * num_rows * sizeof(double)),
@@ -3853,7 +3856,7 @@ test_individual_table(void)
 
     /* Copy rows in order if index NULL */
     ret = tsk_individual_table_set_columns(&table2, num_rows, flags, location,
-        location_offset, parents, parents_offset, metadata, metadata_offset);
+        location_offset, parents, parents_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_individual_table_equals(&table, &table2, 0));
     ret = tsk_individual_table_extend(&table, &table2, table2.num_rows, NULL, 0);
@@ -3874,7 +3877,7 @@ test_individual_table(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_individual_table_equals(&table, &table2, 0));
     ret = tsk_individual_table_set_columns(&table2, num_rows, flags, location,
-        location_offset, parents, parents_offset, metadata, metadata_offset);
+        location_offset, parents, parents_offset, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Copy a subset */
@@ -4170,7 +4173,8 @@ test_population_table(void)
     }
 
     metadata_offset[num_rows] = num_rows;
-    ret = tsk_population_table_set_columns(&table, num_rows, metadata, metadata_offset);
+    ret = tsk_population_table_set_columns(
+        &table, num_rows, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.metadata, metadata, num_rows * sizeof(char)), 0);
     CU_ASSERT_EQUAL(table.num_rows, num_rows);
@@ -4178,7 +4182,7 @@ test_population_table(void)
 
     /* Append another num_rows */
     ret = tsk_population_table_append_columns(
-        &table, num_rows, metadata, metadata_offset);
+        &table, num_rows, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.metadata, metadata, num_rows * sizeof(char)), 0);
     CU_ASSERT_EQUAL(
@@ -4197,11 +4201,11 @@ test_population_table(void)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_TABLE_POSITION);
 
     /* Metadata = NULL gives an error */
-    ret = tsk_population_table_set_columns(&table, num_rows, NULL, NULL);
+    ret = tsk_population_table_set_columns(&table, num_rows, NULL, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_population_table_set_columns(&table, num_rows, metadata, NULL);
+    ret = tsk_population_table_set_columns(&table, num_rows, metadata, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    ret = tsk_population_table_set_columns(&table, num_rows, NULL, metadata_offset);
+    ret = tsk_population_table_set_columns(&table, num_rows, NULL, metadata_offset, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
     /* Test extend method */
@@ -4229,7 +4233,8 @@ test_population_table(void)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
 
     /* Copy rows in order if index NULL */
-    ret = tsk_population_table_set_columns(&table2, num_rows, metadata, metadata_offset);
+    ret = tsk_population_table_set_columns(
+        &table2, num_rows, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_population_table_equals(&table, &table2, 0));
     ret = tsk_population_table_extend(&table, &table2, table2.num_rows, NULL, 0);
@@ -4249,7 +4254,8 @@ test_population_table(void)
     ret = tsk_population_table_truncate(&table2, num_rows / 2);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_population_table_equals(&table, &table2, 0));
-    ret = tsk_population_table_set_columns(&table2, num_rows, metadata, metadata_offset);
+    ret = tsk_population_table_set_columns(
+        &table2, num_rows, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Copy a subset */
@@ -4271,11 +4277,13 @@ test_population_table(void)
 
     /* Test for bad offsets */
     metadata_offset[0] = 1;
-    ret = tsk_population_table_set_columns(&table, num_rows, metadata, metadata_offset);
+    ret = tsk_population_table_set_columns(
+        &table, num_rows, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_OFFSET);
     metadata_offset[0] = 0;
     metadata_offset[num_rows] = 0;
-    ret = tsk_population_table_set_columns(&table, num_rows, metadata, metadata_offset);
+    ret = tsk_population_table_set_columns(
+        &table, num_rows, metadata, metadata_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_OFFSET);
 
     ret = tsk_population_table_truncate(&table, 0);
@@ -4461,7 +4469,7 @@ test_provenance_table(void)
         record_offset[j] = j;
     }
     ret = tsk_provenance_table_set_columns(
-        &table, num_rows, timestamp, timestamp_offset, record, record_offset);
+        &table, num_rows, timestamp, timestamp_offset, record, record_offset, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.timestamp, timestamp, num_rows * sizeof(char)), 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.timestamp_offset, timestamp_offset,
@@ -4478,7 +4486,7 @@ test_provenance_table(void)
 
     /* Append another num_rows onto the end */
     ret = tsk_provenance_table_append_columns(
-        &table, num_rows, timestamp, timestamp_offset, record, record_offset);
+        &table, num_rows, timestamp, timestamp_offset, record, record_offset, 0);
     CU_ASSERT_EQUAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.timestamp, timestamp, num_rows * sizeof(char)), 0);
     CU_ASSERT_EQUAL(
@@ -4542,16 +4550,16 @@ test_provenance_table(void)
 
     /* No arguments can be null */
     ret = tsk_provenance_table_set_columns(
-        &table, num_rows, NULL, timestamp_offset, record, record_offset);
+        &table, num_rows, NULL, timestamp_offset, record, record_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_provenance_table_set_columns(
-        &table, num_rows, timestamp, NULL, record, record_offset);
+        &table, num_rows, timestamp, NULL, record, record_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_provenance_table_set_columns(
-        &table, num_rows, timestamp, timestamp_offset, NULL, record_offset);
+        &table, num_rows, timestamp, timestamp_offset, NULL, record_offset, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
     ret = tsk_provenance_table_set_columns(
-        &table, num_rows, timestamp, timestamp_offset, record, NULL);
+        &table, num_rows, timestamp, timestamp_offset, record, NULL, 0);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
 
     /* Test extend method */
@@ -4580,7 +4588,7 @@ test_provenance_table(void)
 
     /* Copy rows in order if index NULL */
     ret = tsk_provenance_table_set_columns(
-        &table2, num_rows, timestamp, timestamp_offset, record, record_offset);
+        &table2, num_rows, timestamp, timestamp_offset, record, record_offset, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_provenance_table_equals(&table, &table2, 0));
     ret = tsk_provenance_table_extend(&table, &table2, table2.num_rows, NULL, 0);
@@ -4601,7 +4609,7 @@ test_provenance_table(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_provenance_table_equals(&table, &table2, 0));
     ret = tsk_provenance_table_set_columns(
-        &table2, num_rows, timestamp, timestamp_offset, record, record_offset);
+        &table2, num_rows, timestamp, timestamp_offset, record, record_offset, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Copy a subset */
