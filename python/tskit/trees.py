@@ -4909,12 +4909,14 @@ class TreeSequence:
         """
         Returns an iterator over the full sequence alignments for the samples in this
         tree sequence. Each alignment ``a`` is a string of length ``L`` where ``L``
-        is the sequence length of this tree sequence, and ``a[j]`` is the nucleotide
+        is the :attr:`.sequence_length` of this tree sequence (which must have
+        :attr:`.discrete_genome` equal to True), and ``a[j]`` is the nucleotide
         value for position ``j`` on the sequence.
 
         .. note:: This is inherently a **zero-based** representation of the sequence
             coordinate space. Care will be needed when interacting with other
             libraries and upstream coordinate spaces.
+
 
         The :ref:`sites<sec_data_model_definitions_site>` in a tree sequence will
         usually only define the variation for a subset of the ``L`` nucleotide
@@ -4955,16 +4957,16 @@ class TreeSequence:
               ``reference_sequence=tskit.random_nucleotides(ts.sequence_length)``.
               See the :func:`.random_nucleotides` function for more information.
 
-        This method is only defined for tree sequences with discrete genome
-        coordinates and the alleles at each site must be represented by
-        single byte characters, (i.e., variants must be single nucleotide
-        polymorphisms, or SNPs).
+        .. warning:: Insertions and deletions are not currently supported and
+           the alleles at each site must be represented by
+           single byte characters, (i.e., variants must be single nucleotide
+           polymorphisms, or SNPs).
 
         .. warning:: :ref:`Missing data<sec_data_model_missing_data>` is not
-            currently supported by this method and it will raise a ValueError
-            if called on tree sequences containing isolated samples.
-            See https://github.com/tskit-dev/tskit/issues/1896 for more
-            information.
+           currently supported by this method and it will raise a ValueError
+           if called on tree sequences containing isolated samples.
+           See https://github.com/tskit-dev/tskit/issues/1896 for more
+           information.
 
         See also the :meth:`.variants` iterator for site-centric access
         to sample genotypes and :meth:`.haplotypes` for access to sample sequences
@@ -5427,6 +5429,7 @@ class TreeSequence:
         *,
         wrap_width=60,
         reference_sequence=None,
+        missing_data_character=None,
     ):
         """
         Writes the :meth:`.alignments` for this tree sequence to file in
@@ -5464,12 +5467,14 @@ class TreeSequence:
             to the next line for each sequence, or 0 to turn off line wrapping.
             (Default=60).
         :param str reference_sequence: As for the :meth:`.alignments` method.
+        :param str missing_data_character: As for the :meth:`.alignments` method.
         """
         text_formats.write_fasta(
             self,
             file_or_path,
             wrap_width=wrap_width,
             reference_sequence=reference_sequence,
+            missing_data_character=missing_data_character,
         )
 
     def as_fasta(self, **kwargs):
@@ -5492,6 +5497,7 @@ class TreeSequence:
         include_trees=None,
         include_alignments=None,
         reference_sequence=None,
+        missing_data_character=None,
     ):
         """
         Returns a `nexus encoding <https://en.wikipedia.org/wiki/Nexus_file>`_
@@ -5541,8 +5547,8 @@ class TreeSequence:
         and there is at least one site present, sequence alignment data will also
         be included by default (this can be suppressed by setting
         ``include_alignments=False``). For example, this tree sequence has
-        a sequence length of 10 and two variable sites (with a reference
-        genome consisting of "N"s)::
+        a sequence length of 10, two variable sites and no
+        :ref:`reference sequence<sec_data_model_reference_sequence>`::
 
             #NEXUS
             BEGIN TAXA;
@@ -5551,11 +5557,11 @@ class TreeSequence:
             END;
             BEGIN DATA;
               DIMENSIONS NCHAR=10;
-              FORMAT DATATYPE=DNA;
+              FORMAT DATATYPE=DNA MISSING=?;
               MATRIX
-                n0 NNGNNNNNNT
-                n1 NNANNNNNNC
-                n2 NNANNNNNNC
+                n0 ??G??????T
+                n1 ??A??????C
+                n2 ??A??????C
               ;
             END;
             BEGIN TREES;
@@ -5564,6 +5570,11 @@ class TreeSequence:
 
         Please see the :meth:`.alignments` method for details on how
         reference sequences are handled.
+
+        .. note:: Note the default ``missing_data_character`` for this method
+            is "?" rather then "N", in keeping with common conventions for
+            nexus data. This can be changed using the ``missing_data_character``
+            parameter.
 
         .. warning:: :ref:`Missing data<sec_data_model_missing_data>`
             is not supported for encoding tree topology information
@@ -5586,6 +5597,8 @@ class TreeSequence:
             should be included; False otherwise (default=True if sequence alignments
             are well-defined and the tree sequence contains at least one site).
         :param str reference_sequence: As for the :meth:`.alignments` method.
+        :param str missing_data_character: As for the :meth:`.alignments` method,
+            but defaults to "?".
         :return: A nexus representation of this :class:`TreeSequence`
         :rtype: str
         """
@@ -5596,6 +5609,7 @@ class TreeSequence:
             include_trees=include_trees,
             include_alignments=include_alignments,
             reference_sequence=reference_sequence,
+            missing_data_character=missing_data_character,
         )
 
     def as_nexus(self, **kwargs):

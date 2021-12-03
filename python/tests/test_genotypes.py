@@ -1155,6 +1155,19 @@ class TestBinaryTreeExample:
         )
         assert expected == self.ts().as_fasta()
 
+    def test_fasta_missing_Q(self):
+        expected = textwrap.dedent(
+            """\
+            >n0
+            QQGQQQQQQT
+            >n1
+            QQAQQQQQQC
+            >n2
+            QQAQQQQQQC
+            """
+        )
+        assert expected == self.ts().as_fasta(missing_data_character="Q")
+
     def test_fasta_reference_sequence(self):
         ref = "0123456789"
         expected = textwrap.dedent(
@@ -1179,7 +1192,31 @@ class TestBinaryTreeExample:
             END;
             BEGIN DATA;
               DIMENSIONS NCHAR=10;
-              FORMAT DATATYPE=DNA;
+              FORMAT DATATYPE=DNA MISSING=?;
+              MATRIX
+                n0 ??G??????T
+                n1 ??A??????C
+                n2 ??A??????C
+              ;
+            END;
+            BEGIN TREES;
+              TREE t0^10 = [&R] (n0:2,(n1:1,n2:1):1);
+            END;
+            """
+        )
+        assert expected == self.ts().as_nexus()
+
+    def test_nexus_missing_N(self):
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=3;
+              TAXLABELS n0 n1 n2;
+            END;
+            BEGIN DATA;
+              DIMENSIONS NCHAR=10;
+              FORMAT DATATYPE=DNA MISSING=N;
               MATRIX
                 n0 NNGNNNNNNT
                 n1 NNANNNNNNC
@@ -1191,7 +1228,7 @@ class TestBinaryTreeExample:
             END;
             """
         )
-        assert expected == self.ts().as_nexus()
+        assert expected == self.ts().as_nexus(missing_data_character="N")
 
     def test_nexus_reference_sequence(self):
         ref = "0123456789"
@@ -1204,7 +1241,7 @@ class TestBinaryTreeExample:
             END;
             BEGIN DATA;
               DIMENSIONS NCHAR=10;
-              FORMAT DATATYPE=DNA;
+              FORMAT DATATYPE=DNA MISSING=?;
               MATRIX
                 n0 01G345678T
                 n1 01A345678C
@@ -1296,7 +1333,7 @@ class TestBinaryTreeWithReferenceExample:
             END;
             BEGIN DATA;
               DIMENSIONS NCHAR=10;
-              FORMAT DATATYPE=DNA;
+              FORMAT DATATYPE=DNA MISSING=?;
               MATRIX
                 n0 ACGTACGTAT
                 n1 ACATACGTAC
@@ -1321,7 +1358,7 @@ class TestBinaryTreeWithReferenceExample:
             END;
             BEGIN DATA;
               DIMENSIONS NCHAR=10;
-              FORMAT DATATYPE=DNA;
+              FORMAT DATATYPE=DNA MISSING=?;
               MATRIX
                 n0 01G345678T
                 n1 01A345678C
