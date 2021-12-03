@@ -733,7 +733,7 @@ Schema section (TODO).
 
 (sec_table_indexes)=
 
-## Table indexes
+### Table indexes
 
 To efficiently iterate over the trees in a tree sequence, `tskit` uses
 indexes built on the edges. To create a tree sequence from a table collection
@@ -861,14 +861,14 @@ id      is_sample   time
 """
 edges = """\
 left    right   parent  child
-0       300     5       4,3
-0       200     6       2
-0       300     6       1,0
-100     200     6       5
-0       100     7       5
-200     300     7       5
-0       300     7       6
-200     300     7       2
+0       60      5       4,3
+0       40      6       2
+0       60      6       1,0
+20      40      6       5
+0       20      7       5
+40      60      7       5
+0       60      7       6
+40      60      7       2
 """
 ts = tskit.load_text(
     nodes=io.StringIO(nodes), edges=io.StringIO(edges), strict=False
@@ -939,8 +939,8 @@ ordering of the children of a node should therefore not be depended on.
 ### Roots
 
 The roots of a tree are defined as the unique endpoints of upward paths
-starting from sample nodes (if no path leads upward from a sample node,
-that node is also a root). Thus, trees can have multiple roots in `tskit`.
+starting from sample nodes ({ref}`isolated<sec_data_model_tree_isolated_nodes>`
+sample nodes also count as roots). Thus, trees can have multiple roots in `tskit`.
 For example, if we delete the edge joining `6` and `7` in the previous
 example, we get a tree with two roots:
 
@@ -969,11 +969,11 @@ SVG(ts_multiroot.draw_svg(time_scale="rank"))
 ```
 
 This tree sequence consists of three trees. The first tree, which applies from
-position 0 to 100, is the one used in our example. As we saw, removing the edge
+position 0 to 20, is the one used in our example. As we saw, removing the edge
 connecting node 6 to node 7 has created a tree with 2 roots (and thus 2
 unconnected topologies in a single tree). In contrast, the second tree, from
-position 100 to 200, has a single root. Finally the third tree, from position
-200 to 300, again has two roots.
+position 20 to 40, has a single root. Finally the third tree, from position
+40 to 60, again has two roots.
 
 (sec_data_model_tree_virtual_root)=
 
@@ -1022,61 +1022,124 @@ The following properties apply:
   have parent pointers to the virtual root.
 
 
-(sec_data_model_missing_data)=
+(sec_data_model_tree_isolated_nodes)=
 
-## Missing data
+### Isolated nodes
 
-Missing data is encoded in tskit using the idea of *isolated samples*.
-A sample's genotype is missing at a position if it is *isolated* and if it has
-no mutations directly above it at that position. An isolated sample is a sample
-node (see {ref}`sec_data_model_definitions`) that has no children and no
-parent, in a particular tree. This encodes the idea that we don't know anything
-about that sample's relationships over a specific interval. This definition
-covers the standard idea of missing data in genomics (where we do not know the
-sequence of a given contemporary sample at some site, for whatever reason), but
-also more generally the idea that we may not know anything about large sections
-of the genomes of ancestral samples. However, a mutation above an isolated node
-can be thought of as saying directly what the genotype is, and so renders the
-genotype at that position not missing.
+In a tree, it is possible for a node to have no children and no parent. Such a node is
+said to be *isolated*, meaning that we don't know anything about its relationships
+over a specific genomic interval. This is commonly true for ancestral genomes, which
+often have large regions that have
+not been inherited by any of the {ref}`sample nodes<sec_data_model_definitions_sample>`
+in the tree sequence, and therefore regions about which we know nothing. This is true,
+for example, of node 7 in the middle tree of our previous example, which is why it is
+not plotted in that tree:
 
-Consider the following example:
+```{code-cell} ipython3
+display(SVG(ts_multiroot.draw_svg(time_scale="rank")))
+for tree in ts_multiroot.trees():
+    print(
+        "Node 7",
+        "is" if tree.is_isolated(7) else "is not",
+        "isolated from position",
+        tree.interval.left,
+        "to",
+        tree.interval.right,
+    )
+```
+
+However, it is also possible for a {ref}`sample node<sec_data_model_definitions_sample>`
+to be isolated. Unlike other nodes, isolated *sample* nodes are still considered as
+being present in the tree (meaning they will still returned by the {meth}`Tree.nodes`
+and {meth}`Tree.samples` methods): they are therefore plotted, but unconnected to any
+other nodes. To illustrate, we can remove the edge from node 2 to node 7.
 
 ```{code-cell} ipython3
 :tags: ["hide-input"]
+tables = ts_multiroot.dump_tables()
+tables.edges.set_columns(
+    **tables.edges[(tables.edges.parent != 7) | (tables.edges.child != 2)].asdict())
+ts_isolated = tables.tree_sequence()
+SVG(ts_isolated.draw_svg(time_scale="rank"))
+```
+
+The rightmost tree now contains an isolated sample node (node 2). Isolated
+sample nodes count as one of the {ref}`sec_data_model_tree_roots` of the tree,
+so that tree has three roots, one of which is node 2:
+
+```{code-cell} ipython3
+rightmost_tree = ts_isolated.at_index(-1)
+print(rightmost_tree.num_roots, "roots in the rightmost tree, with IDs", rightmost_tree.roots)
+print(
+    "IDs of isolated samples in this tree:",
+    [u for u in rightmost_tree.samples() if rightmost_tree.is_isolated(u)],
+)
+```
+
+In `tskit`, isolated sample nodes are closely associated with the encoding of
+{ref}`sec_data_model_missing_data`.
+
+(sec_data_model_genetic_data)=
+
+## Encoding genetic variation
+
+Genetic variation is incorporated into a tree sequence by placing
+{ref}`mutations<sec_mutation_table_definition>` at
+{ref}`sites<sec_mutation_table_definition>` along the genome.
+The genotypes of the different samples at each site
+can be found by using the tree to calculate which mutations are inherited by
+the different samples. This is the fundamental basis of how tree sequences
+efficiently encode DNA sequences, and is explained in depth elsewhere
+(e.g. {ref}`in the tutorials<sec_what_is_dna_data>`).
+
+Below, we discuss some implications of this encoding in more detail, in particular
+the way in which it can be used to model missing data.
+
+(sec_data_model_missing_data)=
+
+### Missing data
+
+If, at a particular genomic position, a node is
+{ref}`isolated<sec_data_model_tree_isolated_nodes>` *and* additionally has
+no mutations directly above it, its genotype at that position is considered to be
+unknown (however, if there is a mutation above an isolated node, it
+can be thought of as saying directly what the genotype is, and so renders the
+genotype at that position not missing).
+
+By way of illustration, we'll use the {meth}`~TableCollection.delete_intervals` method
+to remove all knowledge of the ancestry in the
+middle portion of the previous example (say from position 15 to 45) sprinkle
+on some mutations, and make sure there are sites at every position:
+
+```{code-cell} ipython3
+:tags: ["hide-input"]
+
+import numpy as np
 import msprime
 
-ts = msprime.simulate(4, random_seed=2)
-tables = ts.dump_tables()
-tables.nodes.add_row(time=0, flags=1)
-tables.simplify()
-ts = tables.tree_sequence()
-tree = ts.first()
-SVG(tree.draw_svg())
+tables = msprime.sim_mutations(ts_isolated, rate=0.1, random_seed=123).dump_tables()
+tables.delete_intervals([[15, 45]], simplify=False)
+missing_sites = np.setdiff1d(np.arange(tables.sequence_length), tables.sites.position)
+for pos in missing_sites:
+    tables.sites.add_row(position=pos, ancestral_state="A")  # Add sites at every pos
+tables.sort()
+missing_ts = tables.tree_sequence()
+SVG(missing_ts.draw_svg())
 ```
 
 
-In this tree, node 4 is isolated, and therefore for any sites that are
-on this tree, the state that it is assigned is a special value
-`tskit.MISSING_DATA`, or `-1`, as long as there are no mutations above
-the node at that site. Note that, although isolated, because node 4
-is a sample node it is still considered as being present in the
-tree, meaning it will still returned by the {meth}`Tree.nodes` and
-{meth}`Tree.samples` methods: in fact, because it is unconnected to the
-rest of the tree, is is also, by definition, one of the tree
-{ref}`roots<sec_data_model_tree_roots>` (the other root is node 7).
-The {meth}`Tree.is_isolated` method can be used to identify nodes which
-are isolated samples:
-
+The middle section of the genome now has no ancestry at all, and therefore for any site
+that is in this region, the genotypic state that it is assigned is a special value
+`tskit.MISSING_DATA`, or `-1`. The {meth}`~TreeSequence.haplotypes()` method, which
+outputs the actual allelic state for each sample, defaults to outputting an `N` at
+these sites. Therefore where any sample node is isolated, the haplotype will show
+an `N`, indicating the DNA sequence is unknown. This will be so not only in the
+middle of all of the sample genomes, but also at the right hand end of the genome of
+sample 2, as it is the only isolated sample node in the rightmost tree:
 
 ```{code-cell} ipython3
-print(
-    "Isolated samples in this tree:",
-    [u for u in tree.samples() if tree.is_isolated(u)],
-)
-print(
-    "Topologically connected nodes:",
-    [u for u in tree.nodes() if not tree.is_isolated(u)]
-)
+for i, h in enumerate(missing_ts.haplotypes()):
+    print(f"Sample {i}: {h}")
 ```
 
 See the {meth}`TreeSequence.variants` method and {class}`Variant` class for
