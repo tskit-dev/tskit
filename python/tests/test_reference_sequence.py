@@ -207,21 +207,25 @@ class TestTreeSequenceProperties:
         tables = tskit.TableCollection(1)
         ts = tables.tree_sequence()
         assert not ts.has_reference_sequence()
+        assert ts.reference_sequence is None
 
     def test_write_data_fails(self):
         tables = tskit.TableCollection(1)
+        tables.reference_sequence.data = "abc"
         ts = tables.tree_sequence()
         with pytest.raises(AttributeError, match="read-only"):
             ts.reference_sequence.data = "xyz"
 
     def test_write_url_fails(self):
         tables = tskit.TableCollection(1)
+        tables.reference_sequence.data = "abc"
         ts = tables.tree_sequence()
         with pytest.raises(AttributeError, match="read-only"):
             ts.reference_sequence.url = "xyz"
 
     def test_write_metadata_fails(self):
         tables = tskit.TableCollection(1)
+        tables.reference_sequence.data = "abc"
         ts = tables.tree_sequence()
         with pytest.raises(AttributeError, match="read-only"):
             # NOTE: it can be slightly confusing here because we try to encode
@@ -230,6 +234,7 @@ class TestTreeSequenceProperties:
 
     def test_write_metadata_schema_fails(self):
         tables = tskit.TableCollection(1)
+        tables.reference_sequence.data = "abc"
         ts = tables.tree_sequence()
         with pytest.raises(AttributeError, match="read-only"):
             ts.reference_sequence.metadata_schema = (

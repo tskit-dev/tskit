@@ -55,6 +55,7 @@ sequences.
   TreeSequence.discrete_time
   TreeSequence.metadata
   TreeSequence.metadata_schema
+  TreeSequence.reference_sequence
 ```
 
 
@@ -1414,6 +1415,19 @@ basic class, where each attribute matches an identically named attribute in the
 
 
 ### Miscellaneous classes
+
+#### The {class}`ReferenceSequence` class
+
+
+```{eval-rst}
+.. todo:: Add a top-level summary section that we can link to from here.
+```
+
+```{eval-rst}
+.. autoclass:: ReferenceSequence()
+    :members:
+    :inherited-members:
+```
 
 #### The {class}`MetadataSchema` class
 

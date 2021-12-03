@@ -2631,11 +2631,31 @@ class IdentitySegments(collections.abc.Mapping):
 
 # TODO move to reference_sequence.py when we start adding more functionality.
 class ReferenceSequence(metadata.MetadataProvider):
+    """
+    The :ref:`reference sequence<sec_data_model_reference_sequence>` associated
+    with a given :class:`.TableCollection` or :class:`.TreeSequence`.
+
+    Metadata concerning reference sequences can be described using the
+    :attr:`.metadata_schema` and stored in the :attr:`.metadata` attribute.
+    See the :ref:`examples<sec_metadata_examples_reference_sequence>` for
+    idiomatic usage.
+
+    .. warning:: This API is preliminary and currently only supports accessing
+       reference sequence information via the ``.data`` attribute. Future versions
+       will also enable transparent fetching of known reference sequences
+       from a URL.
+    """
+
     def __init__(self, ll_reference_sequence):
         super().__init__(ll_reference_sequence)
         self._ll_reference_sequence = ll_reference_sequence
 
     def is_null(self) -> bool:
+        """
+        Returns True if this :class:`.ReferenceSequence` is null, i.e.,
+        corresponding to a :class:`.TableCollection` in which no reference sequence
+        has been specified.
+        """
         return bool(self._ll_reference_sequence.is_null())
 
     def clear(self):
@@ -2654,6 +2674,12 @@ class ReferenceSequence(metadata.MetadataProvider):
 
     @property
     def data(self) -> str:
+        """
+        The string encoding of the reference sequence such that ``data[j]``
+        represents the reference nucleotide at base ``j``. If this reference
+        sequence is writable, the value can be assigned, e.g.
+        ``tables.reference_sequence.data = "ACGT"``
+        """
         return self._ll_reference_sequence.data
 
     @data.setter
@@ -2815,13 +2841,22 @@ class TableCollection(metadata.MetadataProvider):
 
     def has_reference_sequence(self):
         """
-        Returns True if this TableCollection has an associated reference
-        sequence.
+        Returns True if this :class:`.TableCollection` has an associated
+        :ref:`reference sequence<sec_data_model_reference_sequence>`.
         """
         return bool(self._ll_tables.has_reference_sequence())
 
     @property
     def reference_sequence(self):
+        """
+        The :class:`.ReferenceSequence` associated with this :class:`.TableCollection`.
+
+        .. note:: Note that the behaviour of this attribute differs from
+            :attr:`.TreeSequence.reference_sequence` in that we return a valid
+            instance of :class:`.ReferenceSequence` even when
+            :attr:`.TableCollection.has_reference_sequence` is False. This is
+            to allow us to update the state of the reference sequence.
+        """
         # NOTE: arguably we should cache the reference to this object
         # during init, rather than creating a new instance each time.
         # However, following the pattern of the Table classes for now

@@ -3704,12 +3704,19 @@ class TreeSequence:
 
     @property
     def reference_sequence(self):
-        return tables.ReferenceSequence(self._ll_tree_sequence.reference_sequence)
+        """
+        The :class:`.ReferenceSequence` associated with this :class:`.TreeSequence`
+        if one is defined (see :meth:`.TreeSequence.has_reference_sequence`),
+        or None otherwise.
+        """
+        if self.has_reference_sequence():
+            return tables.ReferenceSequence(self._ll_tree_sequence.reference_sequence)
+        return None
 
     def has_reference_sequence(self):
         """
-        Returns True if this TreeSequence has an associated reference
-        sequence.
+        Returns True if this :class:`.TreeSequence` has an associated
+        :ref:`reference sequence<sec_data_model_reference_sequence>`.
         """
         return bool(self._ll_tree_sequence.has_reference_sequence())
 
@@ -4909,37 +4916,51 @@ class TreeSequence:
             coordinate space. Care will be needed when interacting with other
             libraries and upstream coordinate spaces.
 
-        If a ``reference_sequence`` is supplied this will be used to fill
-        in the nucleotide positions between the sites in the tree sequence.
-
-        .. warning:: The ``reference_sequence`` is currently a mandatory
-            argument to ensure compatibility with future versions
-            of tskit, which will allow reference sequences to be associated
-            with a tree sequence. In this case, the associated reference
-            will be used by default, if present. See
-            https://github.com/tskit-dev/tskit/issues/1888
-            and
-            https://github.com/tskit-dev/tskit/issues/146 for more details.
-
-        Two common approaches to filling in the gaps between sites in the tree
-        sequence are:
-
-        1. Mark them as missing data, by setting
-           ``reference_sequence="N" * int(ts.sequence_length)``
-        2. Fill the gaps with random nucleotides, by setting
-           ``reference_sequence=tskit.random_nucleotides(ts.sequence_length)``.
-           See the :func:`.random_nucleotides` function for more information.
+        The :ref:`sites<sec_data_model_definitions_site>` in a tree sequence will
+        usually only define the variation for a subset of the ``L`` nucleotide
+        positions along the genome, and the remaining positions are filled using
+        a :ref:`reference sequence <sec_data_model_reference_sequence>`.
+        The reference sequence data is defined either via the
+        ``reference_sequence`` parameter to this method, or embedded within
+        with the tree sequence itself via the :attr:`.TreeSequence.reference_sequence`.
 
         Site information from the tree sequence takes precedence over the reference
         sequence so that, for example, at a site with no mutations all samples
         will have the site's ancestral state.
+
+        The reference sequence bases are determined in the following way:
+
+        - If the ``reference_sequence`` parameter is supplied this will be
+          used, regardless of whether the tree sequence has an embedded
+          reference sequence.
+        - Otherwise, if the tree sequence has an embedded reference sequence,
+          this will be used.
+        - If the ``reference_sequence`` parameter is not specified and
+          there is no embedded reference sequence, ``L`` copies of the
+          ``missing_data_character`` (which defaults to 'N') are used
+          instead.
+
+        .. warning:: The :class:`.ReferenceSequence` API is preliminary and
+           some behaviours may change in the future. In particular, a
+           tree sequence is currently regarded as having an embedded reference
+           sequence even if it only has some metadata defined. In this case
+           the ``reference_sequence`` parameter will need to be explicitly set.
+
+        .. note::
+            Two common options for setting a reference sequence are:
+
+            - Mark them as missing data, by setting
+              ``reference_sequence="N" * int(ts.sequence_length)``
+            - Fill the gaps with random nucleotides, by setting
+              ``reference_sequence=tskit.random_nucleotides(ts.sequence_length)``.
+              See the :func:`.random_nucleotides` function for more information.
 
         This method is only defined for tree sequences with discrete genome
         coordinates and the alleles at each site must be represented by
         single byte characters, (i.e., variants must be single nucleotide
         polymorphisms, or SNPs).
 
-        .. note:: :ref:`Missing data<sec_data_model_missing_data>` is not
+        .. warning:: :ref:`Missing data<sec_data_model_missing_data>` is not
             currently supported by this method and it will raise a ValueError
             if called on tree sequences containing isolated samples.
             See https://github.com/tskit-dev/tskit/issues/1896 for more
@@ -4953,6 +4974,10 @@ class TreeSequence:
             this tree sequence.
         :param str reference_sequence: The reference sequence to fill in
             gaps between sites in the alignments.
+        :param str missing_data_character: A single ascii character that will
+            be used to represent missing data.
+            If any normal allele contains this character, an error is raised.
+            Default: 'N'.
         :rtype: collections.abc.Iterable
         :raises: ValueError
             if any genome coordinate in this tree sequence is not discrete,
@@ -5405,18 +5430,9 @@ class TreeSequence:
     ):
         """
         Writes the :meth:`.alignments` for this tree sequence to file in
-        `FASTA <https://en.wikipedia.org/wiki/FASTA_format>`__ format. The
-        ``reference_sequence`` argument is passed directly to the
-        :meth:`.alignments` method; please its documentation for more details.
-
-        .. warning:: The ``reference_sequence`` is currently a mandatory
-            argument to ensure compatibility with future versions
-            of tskit, which will allow reference sequences to be associated
-            with a tree sequence. In this case, the associated reference
-            will be used by default, if present. See
-            https://github.com/tskit-dev/tskit/issues/1888
-            and
-            https://github.com/tskit-dev/tskit/issues/146 for more details.
+        `FASTA <https://en.wikipedia.org/wiki/FASTA_format>`__ format.
+        Please see the :meth:`.alignments` method for details on how
+        reference sequences are handled.
 
         Alignments are returned for the
         :ref:`sample nodes<sec_data_model_definitions>` in this tree
@@ -5433,10 +5449,9 @@ class TreeSequence:
 
         .. code-block:: python
 
-            ref = "N" * int(ts.sequence_length)
-            ts.write_fasta("output.fa", reference_sequence=ref)
+            ts.write_fasta("output.fa")
 
-        .. note:: :ref:`Missing data<sec_data_model_missing_data>` is not
+        .. warning:: :ref:`Missing data<sec_data_model_missing_data>` is not
             currently supported by this method and it will raise a ValueError
             if called on tree sequences containing isolated samples.
             See https://github.com/tskit-dev/tskit/issues/1896 for more
@@ -5547,17 +5562,10 @@ class TreeSequence:
               TREE t0^10 = [&R] (n0:2,(n1:1,n2:1):1);
             END;
 
-        .. warning:: The ``reference_sequence`` is currently a mandatory
-            argument if alignment output is required
-            to ensure compatibility with future versions
-            of tskit, which will allow reference sequences to be associated
-            with a tree sequence. In this case, the associated reference
-            will be used by default, if present. See
-            https://github.com/tskit-dev/tskit/issues/1888
-            and
-            https://github.com/tskit-dev/tskit/issues/146 for more details.
+        Please see the :meth:`.alignments` method for details on how
+        reference sequences are handled.
 
-        .. note:: :ref:`Missing data<sec_data_model_missing_data>`
+        .. warning:: :ref:`Missing data<sec_data_model_missing_data>`
             is not supported for encoding tree topology information
             as our convention of using trees with multiple roots
             is not often supported by newick parsers. Thus, the method

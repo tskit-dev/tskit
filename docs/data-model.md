@@ -827,6 +827,24 @@ values, the first of which is always `0`. The values in this column must be
 nondecreasing, and cannot exceed the length of the ragged column in question.
 
 
+(sec_data_model_reference_sequence)=
+
+## Reference sequence
+
+Along with the topology and site information stored in the tskit tree
+sequence, we can also optionally store an associated reference sequence.
+Reference sequences are flexible, and can consist simply of some
+metadata recording which assembly build a tree sequence uses, or
+storing the entire sequence itself.
+
+:::{warning}
+Reference sequence support in tskit is preliminary. Reference sequence
+data can be stored and accessed via the C API. Support in the Python
+API is limited to usage in {meth}`.TreeSequence.alignments` and
+related methods, where it provides the default values for nucleotide
+positions between {ref}`sites<sec_data_model_definitions_site>`.
+:::
+
 (sec_data_model_tree_structure)=
 
 ## Tree structure
