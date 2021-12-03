@@ -37,7 +37,7 @@ sphinx:
     - sphinx.ext.intersphinx
     - sphinx_issues
     - sphinxarg.ext
-    - sphinxcontrib.prettyspecialmethods
+    #- sphinxcontrib.prettyspecialmethods
 
     config:
       myst_enable_extensions:

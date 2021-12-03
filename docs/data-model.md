@@ -23,15 +23,16 @@ The correlated genealogical trees that describe the shared ancestry of a set of
 samples are stored concisely in `tskit` as a collection of
 easy-to-understand tables. These are output directly by software such as
 `msprime` or can be read in from another source. This page documents
-the structure of the tables, and the different methods of interchanging
-genealogical data to and from the tskit API. We begin by defining
-the basic concepts that we need and the structure of the tables in the
-{ref}`sec_data_model` section. We then describe the tabular text formats that can
-be used as simple interchange mechanism for small amounts of data in the
-{ref}`sec_text_file_format` section. The {ref}`sec_binary_interchange` section then
-describes the efficient Python API for table interchange using numpy arrays. Finally,
-we describe the binary format used by tskit to efficiently
-store tree sequences on disk in the {ref}`sec_tree_sequence_file_format` section.
+the structure of the tables and encoding of table data, as well as the
+encoding of the trees that arise from them.
+
+We begin by defining the basic concepts that we need and the structure of the tables
+in the {ref}`sec_data_model` section. The {ref}`sec_data_model_data_encoding` section
+then describe how data is stored in the tables (also see the {ref}`sec_file_formats`
+chapter). The {ref}`sec_data_model_tree_structure` section then
+describes the encoding of the trees that are generated from the {class}`NodeTable`
+and {class}`EdgeTable`. Finally, we describe how genotype data arises from tree
+structure, especially how we can incorporate the idea of missing data.
 
 
 (sec_data_model_definitions)=
@@ -543,9 +544,10 @@ user attempts to load a tree sequence via {func}`tskit.load` or
 error message. Some more complex requirements may not be detectable at load-time,
 and errors may not occur until certain operations are attempted.
 These are documented below.
-We also provide tools that can transform a collection of tables into a valid
-collection of tables, so long as they are logically consistent,
-as described in {ref}`sec_table_transformations`.
+
+The Python API also provides tools that can transform a collection of
+tables into a valid collection of tables, so long as they are logically
+consistent, see {ref}`sec_tables_api_creating_valid_tree_sequence`.
 
 
 (sec_individual_requirements)=
@@ -729,79 +731,9 @@ The `record` should be valid JSON with structure defined in the Provenance
 Schema section (TODO).
 
 
-(sec_table_transformations)=
-
-### Table transformation methods
-
-In several cases it may be necessary to transform the data stored in a
-{class}`TableCollection`. For example, an application may produce tables
-which, while logically consistent, do not meet all the
-{ref}`requirements <sec_valid_tree_sequence_requirements>` for a valid tree
-sequence, which exist for algorithmic and efficiency reasons; table
-transformation methods can make such a set of tables valid, and thus ready
-to be loaded into a tree sequence.
-
-In general, table methods operate *in place* on a {class}`TableCollection`,
-directly altering the data stored within its constituent tables.
-Some of the methods described in this section also have an equivalant
-{class}`TreeSequence` version: unlike the methods described below,
-{class}`TreeSequence` methods do *not* operate in place, but rather act in
-a functional way, returning a new tree sequence while leaving the original
-unchanged.
-
-This section is best skipped unless you are writing a program that records
-tables directly.
-
-
-(sec_table_simplification)=
-
-#### Simplification
-
-Simplifying a tree sequence is an operation commonly used to remove
-redundant information and only retain the minimal tree sequence necessary
-to describe the genealogical history of the `samples` provided. In fact all
-that the {meth}`TreeSequence.simplify` method does is to call the equivalent
-table transformation method, {meth}`TableCollection.simplify`, on the
-underlying tables and load them in a new tree sequence.
-
-Removing information via {meth}`TableCollection.simplify` is done by
-discarding rows from the underlying tables. Nevertheless, simplification is
-guaranteed to preserve relative ordering of any retained rows in the Site
-and Mutation tables.
-
-The {meth}`TableCollection.simplify` method can be applied to a collection of
-tables that does not have the `mutations.parent` entries filled in, as long
-as all other validity requirements are satisfied.
-
-
-(sec_table_sorting)=
-
-#### Sorting
-
-The validity requirements for a set of tables to be loaded into a tree sequence
-listed in {ref}`sec_table_definitions` are of two sorts: logical consistency,
-and sortedness. The {meth}`TableCollection.sort` method can be used to make
-completely valid a set of tables that satisfies all requirements other than
-sortedness.
-
-This method can also be used on slightly more general collections of tables:
-it is not required that `site` positions be unique in the table collection to
-be sorted. The method has two additional properties:
-
-- it preserves relative ordering between sites at the same position, and
-- it preserves relative ordering between mutations at the same site.
-
-{meth}`TableCollection.sort` does not check the validity of the `parent`
-property of the mutation table. However, because the method preserves mutation
-order among mutations at the same site, if mutations are already sorted so that
-each mutation comes after its parent (e.g., if they are ordered by time of
-appearance), then this property is preserved, even if the `parent` properties
-are not specified.
-
-
 (sec_table_indexes)=
 
-#### Table indexes
+## Table indexes
 
 To efficiently iterate over the trees in a tree sequence, `tskit` uses
 indexes built on the edges. To create a tree sequence from a table collection
@@ -812,88 +744,87 @@ can be used to create an index on a table collection if necessary.
 Add more details on what the indexes actually are.
 :::
 
+(sec_data_model_data_encoding)=
 
-#### Removing duplicate sites
+## Data encoding
 
-The {meth}`TableCollection.deduplicate_sites` method can be used to save a tree
-sequence recording method the bother of checking to see if a given site already
-exists in the site table. If there is more than one site with the same
-position, all but the first is removed, and all mutations referring to the
-removed sites are edited to refer to the first (and remaining) site. Order is
-preserved.
+In this section we describe the high-level details of how data is encoded in
+tables. Tables store data in a **columnar** manner. In memory, each
+table is organised as a number of blocks of contiguous storage, one for
+each column. There are many advantages to this approach, but the key
+property for us is that allows for very efficient transfer of data
+in and out of tables. Rather than inserting data into tables row-by-row
+(which can be done in Python
+{ref}`using the add_row methods<sec_tables_api_accessing_table_data>`), it is much
+more efficient to add many rows at the same time by providing pointers to blocks of
+contiguous memory. By taking this approach, we can work with tables containing
+gigabytes of data very efficiently.
 
+For instance, in the {ref}`sec_python_api` we can use the
+[numpy Array API](https://docs.scipy.org/doc/numpy-1.13.0/reference/arrays.html)
+to allow us to define and work with numeric arrays of the required types.
+Node IDs, for example, are defined using 32 bit integers. Thus, the
+`parent` column of an {ref}`sec_edge_table_definition`'s with `n` rows
+is a block `4n` bytes.
 
-#### Computing mutation parents
-
-If each edge had at most only a single mutation, then the `parent` property
-of the mutation table would be easily inferred from the tree at that mutation's
-site. If mutations are entered into the mutation table ordered by time of
-appearance, then this sortedness allows us to infer the parent of each mutation
-even for mutations occurring on the same branch. The
-{meth}`TableCollection.compute_mutation_parents` method will take advantage
-of this fact to compute the `parent` column of a mutation table, if all
-other information is valid.
-
-
-#### Computing mutation times
-
-In the case where the method generating a tree sequence does not generate mutation
-times, valid times can be provided by {meth}`TableCollection.compute_mutation_parents`.
-If all other information is valid this method will assign times to the mutations by
-placing them at evenly spaced intervals along their edge (for instance, a single
-mutation on an edge between a node at time 1.0 and a node at time 4.0 would be given
-time 2.5; while two mutations on that edge would be given times 2.0 and 3.0).
+This approach is very straightforward for columns in which each row contains
+a fixed number of values. However, dealing with columns containing a
+**variable** number of values is more problematic.
 
 
-#### Recording tables in forwards time
+(sec_encoding_ragged_columns)=
 
-The above methods enable the following scheme for recording site and mutation
-tables during a forwards-time simulation. Whenever a new mutation is
-encountered:
+### Encoding ragged columns
 
-1. Add a new `site` to the site table at this position.
-2. Add a new `mutation` to the mutation table at the newly created site.
+A **ragged** column is a column in which the rows are not of a fixed length.
+For example, {ref}`sec_metadata_definition` columns contain binary of data of arbitrary
+length. To encode such columns in the tables API, we store **two** columns:
+one contains the flattened array of data and another stores the **offsets**
+of each row into this flattened array. Consider an example:
 
-This is lazy and wrong, because:
+```{code-cell} ipython3
+import tskit
 
-a. There might have already been sites in the site table with the same position,
-b. and/or a mutation (at the same position) that this mutation should record as
-   its `parent`.
+s = tskit.SiteTable()
+s.add_row(0, "A")
+s.add_row(0, "")
+s.add_row(0, "TTT")
+s.add_row(0, "G")
+s
+```
 
-But, it's all OK because here's what we do:
+In this example we create a {ref}`sec_site_table_definition` with four rows,
+and then display this table. We can see that the second row has the
+empty string as its `ancestral_state`, and the third row's
+`ancestral_state` is `TTT`. Now let's print out the columns:
 
-1. Add rows to the mutation and site tables as described above.
-2. Periodically, `sort`, `deduplicate_sites`,  and `simplify`, then
-   return to (1.), except that
-3. Sometimes, to output the tables, `sort`, `compute_mutation_parents`,
-   (optionally `simplify`), and dump these out to a file.
+```{code-cell} ipython3
+print("Ancestral state (numerical): ", s.ancestral_state)
+print("Ancestral state (as bytes): ", s.ancestral_state.tobytes())
+print("Ancestral state offsets: ", s.ancestral_state_offset)
+```
 
-*Note:* as things are going along we do *not* have to
-`compute_mutation_parents`, which is nice, because this is a nontrivial step
-that requires construction all the trees along the sequence. Computing mutation
-parents only has to happen before the final (output) step.
+When we print out the tables `ancestral_state`
+column, we see that its a numpy array of length 5: this is the
+flattened array of [ASCII encoded](https://en.wikipedia.org/wiki/ASCII)
+values for these rows. When we decode these bytes using the
+numpy {meth}`tobytes<numpy:numpy.ndarray.tobytes>` method, we get the string 'ATTTG'.
+This flattened array can now be transferred efficiently in memory like any other column
+We then use the `ancestral_state_offset` column to allow us find the individual rows.
+For a row `j`:
 
-This is OK as long as the forwards-time simulation outputs things in order by when
-they occur, because these operations have the following properties:
+    ancestral_state[ancestral_state_offset[j]: ancestral_state_offset[j + 1]]
 
-1. Mutations appear in the mutation table ordered by time of appearance, so
-   that a mutation will always appear after the one that it replaced (i.e.,
-   its parent).
-2. Furthermore, if mutation B appears after mutation A, but at the same site,
-   then mutation B's site will appear after mutation A's site in the site
-   table.
-3. `sort` sorts sites by position, and then by ID, so that the relative
-   ordering of sites at the same position is maintained, thus preserving
-   property (2).
-4. `sort` sorts mutations by site, and then by ID, thus preserving property
-   (1); if the mutations are at separate sites (but the same position), this
-   fact is thanks to property (2).
-5. `simplify` also preserves ordering of any rows in the site and mutation
-   tables that do not get discarded.
-6. `deduplicate_sites` goes through and collapses all sites at the same
-   position to only one site, maintaining order otherwise.
-7. `compute_mutation_parents` fills in the `parent` information by using
-   property (1).
+gives us the array of bytes for the ancestral state in that row. For example, here is
+row 2:
+
+```{code-cell} ipython3
+s.ancestral_state[s.ancestral_state_offset[2]: s.ancestral_state_offset[3]].tobytes()
+```
+
+For a table with `n` rows, any offset column must have `n + 1`
+values, the first of which is always `0`. The values in this column must be
+nondecreasing, and cannot exceed the length of the ragged column in question.
 
 
 (sec_data_model_tree_structure)=
@@ -1152,461 +1083,3 @@ See the {meth}`TreeSequence.variants` method and {class}`Variant` class for
 more information on how missing data is represented in variant data.
 
 
-(sec_text_file_format)=
-
-## Text file formats
-
-The tree sequence text file format is based on a simple whitespace
-delimited approach. Each table corresponds to a single file, and is
-composed of a number of whitespace delimited columns. The first
-line of each file must be a **header** giving the names of each column.
-Subsequent rows must contain data for each of these columns, following
-the usual conventions. Each table has a set of mandatory and optional columns which are
-described below. The columns can be provided in any order, and extra columns
-can be included in the file. Note, in particular, that this means that
-an `id` column may be present in any of these files, but it will be
-ignored (IDs are always determined by the position of the row in a table).
-
-The {meth}`load_text` method can be used to read tables in text format. This has been
-used to create the following very simple tree sequence, with four nodes, two trees,
-and three mutations at two sites, both on the first tree:
-
-
-```{code-cell} ipython3
-:tags: ["hide-input"]
-# TODO once https://github.com/tskit-dev/tskit/issues/1824 is solved
-# change the individual table to include some with blank parents / locations
-individuals = """\
-flags       location     parents
-0           0.5,1.2      -1,-1
-0           1.0,3.4      0,-1
-0           3.5,6.3      0,1
-0           0.5          -1,-1
-0           0.5,0.5      2,3
-"""
-
-nodes = """\
-is_sample   individual   time
-1           0            0.0
-1           0            0.0
-0           -1           2.0
-0           -1           3.0
-"""
-edges = """\
-left   right   parent  child
-0.0    7.0     2       0
-0.0    7.0     2       1
-7.0    10.0    3       0
-7.0    10.0    3       1
-"""
-
-sites = """\
-position      ancestral_state
-2.0           AT
-4.0           A
-"""
-
-mutations = """\
-site   node    derived_state    time    parent
-0      0       A                0.5     -1
-1      0       T                1.5     -1
-1      1       A                1.0     1
-"""
-
-migrations = """\
-left   right   node   source   dest   time
-0.0    0.7     5      2        3      1.0
-0.8    0.9     8      3        4      3.0
-"""
-
-populations = """\
-id   metadata
-0    cG9wMQ==
-1    cG9wMg==
-"""
-
-ts = tskit.load_text(
-    individuals=io.StringIO(individuals),
-    nodes=io.StringIO(nodes),
-    edges=io.StringIO(edges),
-    sites=io.StringIO(sites),
-    mutations=io.StringIO(mutations),
-    # migrations=io.StringIO(migrations),  # uncomment when https://github.com/tskit-dev/tskit/issues/19 fixed
-    populations=io.StringIO(populations),
-    strict=False
-)
-SVG(ts.draw_svg(y_axis=True))
-
-```
-
-A deletion from AT to A has occurred at position 2 on the branch leading to
-node 0, and two mutations have occurred at position 4 on the branch leading to
-node 1, first from A to T, then a back mutation to A. The genotypes of our two
-samples, nodes 0 and 1, are therefore AA and ATA. Note that this tree sequence
-also contains entries in the individual, population,
-and migration tables, but this is not shown plot above.
-
-
-(sec_individual_text_format)=
-
-### Individual text format
-
-The individual text format must contain a `flags` column.
-Optionally, there may also be `location`, `parents` and
-`metadata` columns. See the
-{ref}`individual table definitions<sec_individual_table_definition>`
-for details on these columns.
-
-Note that there are currently no globally defined `flags`, but the column
-is still required; a value of `0` means that there are no flags set.
-
-The `location` and `parents` columns should be a sequence of comma-separated numeric
-values. They do not all have to be the same length.
-
-```{code-cell} python
-:tags: ["hide-input", "output-wide-tabs"]
-import sys
-from IPython.display import display, HTML
-
-display(HTML("An example individual table:"))
-ts.dump_text(individuals=sys.stdout)
-```
-
-(sec_node_text_format)=
-
-### Node text format
-
-The node text format must contain the columns `is_sample` and
-`time`. Optionally, there may also be `population`, `individual`, and
-`metadata` columns. See the
-{ref}`node table definitions<sec_node_table_definition>` for details on these columns.
-
-Note that we do not have a `flags` column in the text file format, but
-instead use `is_sample` (which may be 0 or 1). Currently, `NODE_IS_SAMPLE` is
-the only flag value defined for nodes, and as more flags are defined we will
-allow for extra columns in the text format.
-
-```{code-cell} ipython3
-:tags: ["hide-input", "output-wide-tabs"]
-display(HTML("An example node table:"))
-ts.dump_text(nodes=sys.stdout)
-```
-
-
-(sec_edge_text_format)=
-
-### Edge text format
-
-The edge text format must contain the columns `left`,
-`right`, `parent` and `child`. Optionally, there may also be
-a `metadata` column.
-See the {ref}`edge table definitions <sec_edge_table_definition>`
-for details on these columns.
-
-```{code-cell} ipython3
-:tags: ["hide-input", "output-wide-tabs"]
-display(HTML("An example edge table:"))
-ts.dump_text(edges=sys.stdout)
-```
-
-(sec_site_text_format)=
-
-### Site text format
-
-The site text format must contain the columns `position` and
-`ancestral_state`. The `metadata` column may also be optionally
-present. See the
-{ref}`site table definitions <sec_site_table_definition>`
-for details on these columns.
-
-```{code-cell} ipython3
-:tags: ["hide-input", "output-wide-tabs"]
-display(HTML("An example site table:"))
-ts.dump_text(sites=sys.stdout)
-```
-
-
-(sec_mutation_text_format)=
-
-### Mutation text format
-
-The mutation text format must contain the columns `site`,
-`node` and `derived_state`. The `time`, `parent` and `metadata` columns
-may also be optionally present (but `parent` must be specified if
-more than one mutation occurs at the same site). If `time` is absent
-`UNKNOWN_TIME` will be used to fill the column. See the
-{ref}`mutation table definitions <sec_mutation_table_definition>`
-for details on these columns.
-
-```{code-cell} ipython3
-:tags: ["hide-input", "output-wide-tabs"]
-display(HTML("An example mutation table:"))
-ts.dump_text(mutations=sys.stdout)
-```
-
-
-(sec_migration_text_format)=
-
-### Migration text format
-
-The migration text format must contain the columns `left`,
-`right`, `node`, `source`, `dest` and `time`. The `metadata` column
-may also be optionally present. See the
-{ref}`migration table definitions <sec_migration_table_definition>`
-for details on these columns.
-
-```{code-cell} ipython3
-:tags: ["hide-input", "output-wide-tabs"]
-display(HTML("An example migration table:"))
-print(migrations)  # fixme
-# ts.dump_text(migrations=sys.stdout)
-```
-
-
-(sec_population_text_format)=
-
-### Population text format
-
-Population tables only have a `metadata` column, so the text format for
-a population table requires there to be a `metadata` column. See the
-{ref}`population table definitions <sec_population_table_definition>` for
-details.
-
-```{code-cell} ipython3
-:tags: ["hide-input", "output-wide-tabs"]
-display(HTML("An example population table:"))
-ts.dump_text(populations=sys.stdout)
-```
-
-The `metadata` contains base64-encoded data (in this case, the strings
-`pop1` and `pop1`).
-
-
-(sec_binary_interchange)=
-
-## Binary interchange
-
-In this section we describe the high-level details of the API for interchanging
-table data via numpy arrays. Please see the {ref}`sec_tables_api` for detailed
-description of the functions and methods.
-
-The tables API is based on **columnar** storage of the data. In memory, each
-table is organised as a number of blocks of contiguous storage, one for
-each column. There are many advantages to this approach, but the key
-property for us is that allows for very efficient transfer of data
-in and out of tables. Rather than inserting data into tables row-by-row
-(which can be done using the `add_row` methods), it is much more
-efficient to add many rows at the same time by providing pointers to blocks of
-contiguous memory. By taking
-this approach, we can work with tables containing gigabytes of data very
-efficiently.
-
-We use the [numpy Array API](https://docs.scipy.org/doc/numpy-1.13.0/reference/arrays.html)
-to allow us to define and work with numeric arrays of the required types.
-Node IDs, for example, are defined using 32 bit integers. Thus, the
-`parent` column of an {ref}`sec_edge_table_definition`'s with `n` rows
-is a block `4n` bytes.
-
-This approach is very straightforward for columns in which each row contains
-a fixed number of values. However, dealing with columns containing a
-**variable** number of values is more problematic.
-
-
-(sec_encoding_ragged_columns)=
-
-### Encoding ragged columns
-
-A **ragged** column is a column in which the rows are not of a fixed length.
-For example, {ref}`sec_metadata_definition` columns contain binary of data of arbitrary
-length. To encode such columns in the tables API, we store **two** columns:
-one contains the flattened array of data and another stores the **offsets**
-of each row into this flattened array. Consider an example:
-
-```{code-cell} ipython3
-s = tskit.SiteTable()
-s.add_row(0, "A")
-s.add_row(0, "")
-s.add_row(0, "TTT")
-s.add_row(0, "G")
-s
-```
-
-In this example we create a {ref}`sec_site_table_definition` with four rows,
-and then display this table. We can see that the second row has the
-empty string as its `ancestral_state`, and the third row's
-`ancestral_state` is `TTT`. Now let's print out the columns:
-
-```{code-cell} ipython3
-print("Ancestral state (numerical): ", s.ancestral_state)
-print("Ancestral state (as bytes): ", s.ancestral_state.tobytes())
-print("Ancestral state offsets: ", s.ancestral_state_offset)
-```
-
-When we print out the tables `ancestral_state`
-column, we see that its a numpy array of length 5: this is the
-flattened array of [ASCII encoded](https://en.wikipedia.org/wiki/ASCII)
-values for these rows. When we decode these bytes using the
-numpy {meth}`tobytes<numpy:numpy.ndarray.tobytes>` method, we get the string 'ATTTG'.
-This flattened array can now be transferred efficiently in memory like any other column
-We then use the `ancestral_state_offset` column to allow us find the individual rows.
-For a row `j`:
-
-    ancestral_state[ancestral_state_offset[j]: ancestral_state_offset[j + 1]]
-
-gives us the array of bytes for the ancestral state in that row. For example, here is
-row 2:
-
-```{code-cell} ipython3
-s.ancestral_state[s.ancestral_state_offset[2]: s.ancestral_state_offset[3]].tobytes()
-```
-
-For a table with `n` rows, any offset column must have `n + 1`
-values, the first of which is always `0`. The values in this column must be
-nondecreasing, and cannot exceed the length of the ragged column in question.
-
-
-(sec_tree_sequence_file_format)=
-
-## Tree sequence file format
-
-To make tree sequence data as efficient and easy as possible to use, we store the
-data on file in a columnar, binary format. The format is based on the
-[kastore](https://pypi.org/project/kastore/) package, which is a simple
-key-value store for numerical data. There is a one-to-one correspondence
-between the tables described above and the arrays stored in these files.
-
-By convention, these files are given the `.trees` suffix (although this
-is not enforced in any way), and we will sometimes refer to them as ".trees"
-files. We also refer to them as "tree sequence files".
-
-:::{todo}
-Link to the documentation for kastore, and describe the arrays that are
-stored as well as the top-level metadata.
-:::
-
-% The root group contains two attributes, `format_version` and `sequence_length`.
-% The `format_version` is a pair `(major, minor)` describing the file format version.
-% This document describes version 10.0. The `sequence_length` attribute defines the
-% coordinate space over which edges and sites are defined. This must be present
-% and be greater than or equal to the largest coordinate present.
-
-% ================    ==============      ======      ===========
-% Path                Type                Dim         Description
-% ================    ==============      ======      ===========
-% /format_version     H5T_STD_U32LE       2           The (major, minor) file format version.
-% /sequence_length    H5T_IEEE_F64LE      1           The maximum value of a sequence coordinate.
-% ================    ==============      ======      ===========
-
-% Nodes group
-% ===========
-
-% The `/nodes` group stores the {ref}`sec_node_table_definition`.
-
-% =======================     ==============
-% Path                        Type
-% =======================     ==============
-% /nodes/flags                H5T_STD_U32LE
-% /nodes/population           H5T_STD_I32LE
-% /nodes/time                 H5T_IEEE_F64LE
-% /nodes/metadata             H5T_STD_I8LE
-% /nodes/metadata_offset      H5T_STD_U32LE
-% =======================     ==============
-
-% Edges group
-% ===========
-
-% The `/edges` group stores the {ref}`sec_edge_table_definition`.
-
-% ===================       ==============
-% Path                      Type
-% ===================       ==============
-% /edges/left               H5T_IEEE_F64LE
-% /edges/right              H5T_IEEE_F64LE
-% /edges/parent             H5T_STD_I32LE
-% /edges/child              H5T_STD_I32LE
-% ===================       ==============
-
-% Indexes group
-% -------------
-
-% The `/edges/indexes` group records information required to efficiently
-% reconstruct the individual trees from the tree sequence. The
-% `insertion_order` dataset contains the order in which records must be applied
-% and the `removal_order` dataset the order in which records must be
-% removed for a left-to-right traversal of the trees.
-
-% ==============================     ==============
-% Path                               Type
-% ==============================     ==============
-% /edges/indexes/insertion_order     H5T_STD_I32LE
-% /edges/indexes/removal_order       H5T_STD_I32LE
-% ==============================     ==============
-
-% Sites group
-% ===========
-
-% The sites group stores the {ref}`sec_site_table_definition`.
-
-% =============================   ==============
-% Path                            Type
-% =============================   ==============
-% /sites/position                 H5T_IEEE_F64LE
-% /sites/ancestral_state          H5T_STD_I8LE
-% /sites/ancestral_state_offset   H5T_STD_U32LE
-% /sites/metadata                 H5T_STD_I8LE
-% /sites/metadata_offset          H5T_STD_U32LE
-% =============================   ==============
-
-% Mutations group
-% ===============
-
-% The mutations group stores the {ref}`sec_mutation_table_definition`.
-
-% ===============================  ==============
-% Path                             Type
-% ===============================  ==============
-% /mutations/site                  H5T_STD_I32LE
-% /mutations/node                  H5T_STD_I32LE
-% /mutations/parent                H5T_STD_I32LE
-% /mutations/derived_state         H5T_STD_I8LE
-% /mutations/derived_state_offset  H5T_STD_U32LE
-% /mutations/metadata              H5T_STD_I8LE
-% /mutations/metadata_offset       H5T_STD_U32LE
-% ===============================  ==============
-
-% Migrations group
-% ================
-
-% The `/migrations` group stores the {ref}`sec_migration_table_definition`.
-
-% ===================       ==============
-% Path                      Type
-% ===================       ==============
-% /migrations/left          H5T_IEEE_F64LE
-% /migrations/right         H5T_IEEE_F64LE
-% /migrations/node          H5T_STD_I32LE
-% /migrations/source        H5T_STD_I32LE
-% /migrations/dest          H5T_STD_I32LE
-% /migrations/time          H5T_IEEE_F64LE
-% ===================       ==============
-
-% Provenances group
-% =================
-
-% The provenances group stores the {ref}`sec_provenance_table_definition`.
-
-% ===============================  ==============
-% Path                             Type
-% ===============================  ==============
-% /provenances/timestamp           H5T_STD_I8LE
-% /provenances/timestamp_offset    H5T_STD_U32LE
-% /provenances/record              H5T_STD_I8LE
-% /provenances/record_offset       H5T_STD_U32LE
-% ===============================  ==============
-
-
-### Legacy Versions
-
-Tree sequence files written by older versions of tskit are not readable by
-newer versions of tskit. For major releases of tskit, `tskit upgrade`
-will convert older tree sequence files to the latest version.
