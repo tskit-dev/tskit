@@ -544,9 +544,10 @@ user attempts to load a tree sequence via {func}`tskit.load` or
 error message. Some more complex requirements may not be detectable at load-time,
 and errors may not occur until certain operations are attempted.
 These are documented below.
-We also provide tools that can transform a collection of tables into a valid
-collection of tables, so long as they are logically consistent,
-as described in {ref}`sec_table_transformations`.
+
+The Python API also provides tools that can transform a collection of
+tables into a valid collection of tables, so long as they are logically
+consistent, see {ref}`sec_table_transformations`.
 
 
 (sec_individual_requirements)=
@@ -730,79 +731,9 @@ The `record` should be valid JSON with structure defined in the Provenance
 Schema section (TODO).
 
 
-(sec_table_transformations)=
-
-### Table transformation methods
-
-In several cases it may be necessary to transform the data stored in a
-{class}`TableCollection`. For example, an application may produce tables
-which, while logically consistent, do not meet all the
-{ref}`requirements <sec_valid_tree_sequence_requirements>` for a valid tree
-sequence, which exist for algorithmic and efficiency reasons; table
-transformation methods can make such a set of tables valid, and thus ready
-to be loaded into a tree sequence.
-
-In general, table methods operate *in place* on a {class}`TableCollection`,
-directly altering the data stored within its constituent tables.
-Some of the methods described in this section also have an equivalant
-{class}`TreeSequence` version: unlike the methods described below,
-{class}`TreeSequence` methods do *not* operate in place, but rather act in
-a functional way, returning a new tree sequence while leaving the original
-unchanged.
-
-This section is best skipped unless you are writing a program that records
-tables directly.
-
-
-(sec_table_simplification)=
-
-#### Simplification
-
-Simplifying a tree sequence is an operation commonly used to remove
-redundant information and only retain the minimal tree sequence necessary
-to describe the genealogical history of the `samples` provided. In fact all
-that the {meth}`TreeSequence.simplify` method does is to call the equivalent
-table transformation method, {meth}`TableCollection.simplify`, on the
-underlying tables and load them in a new tree sequence.
-
-Removing information via {meth}`TableCollection.simplify` is done by
-discarding rows from the underlying tables. Nevertheless, simplification is
-guaranteed to preserve relative ordering of any retained rows in the Site
-and Mutation tables.
-
-The {meth}`TableCollection.simplify` method can be applied to a collection of
-tables that does not have the `mutations.parent` entries filled in, as long
-as all other validity requirements are satisfied.
-
-
-(sec_table_sorting)=
-
-#### Sorting
-
-The validity requirements for a set of tables to be loaded into a tree sequence
-listed in {ref}`sec_table_definitions` are of two sorts: logical consistency,
-and sortedness. The {meth}`TableCollection.sort` method can be used to make
-completely valid a set of tables that satisfies all requirements other than
-sortedness.
-
-This method can also be used on slightly more general collections of tables:
-it is not required that `site` positions be unique in the table collection to
-be sorted. The method has two additional properties:
-
-- it preserves relative ordering between sites at the same position, and
-- it preserves relative ordering between mutations at the same site.
-
-{meth}`TableCollection.sort` does not check the validity of the `parent`
-property of the mutation table. However, because the method preserves mutation
-order among mutations at the same site, if mutations are already sorted so that
-each mutation comes after its parent (e.g., if they are ordered by time of
-appearance), then this property is preserved, even if the `parent` properties
-are not specified.
-
-
 (sec_table_indexes)=
 
-#### Table indexes
+## Table indexes
 
 To efficiently iterate over the trees in a tree sequence, `tskit` uses
 indexes built on the edges. To create a tree sequence from a table collection
@@ -812,90 +743,6 @@ can be used to create an index on a table collection if necessary.
 :::{todo}
 Add more details on what the indexes actually are.
 :::
-
-
-#### Removing duplicate sites
-
-The {meth}`TableCollection.deduplicate_sites` method can be used to save a tree
-sequence recording method the bother of checking to see if a given site already
-exists in the site table. If there is more than one site with the same
-position, all but the first is removed, and all mutations referring to the
-removed sites are edited to refer to the first (and remaining) site. Order is
-preserved.
-
-
-#### Computing mutation parents
-
-If each edge had at most only a single mutation, then the `parent` property
-of the mutation table would be easily inferred from the tree at that mutation's
-site. If mutations are entered into the mutation table ordered by time of
-appearance, then this sortedness allows us to infer the parent of each mutation
-even for mutations occurring on the same branch. The
-{meth}`TableCollection.compute_mutation_parents` method will take advantage
-of this fact to compute the `parent` column of a mutation table, if all
-other information is valid.
-
-
-#### Computing mutation times
-
-In the case where the method generating a tree sequence does not generate mutation
-times, valid times can be provided by {meth}`TableCollection.compute_mutation_parents`.
-If all other information is valid this method will assign times to the mutations by
-placing them at evenly spaced intervals along their edge (for instance, a single
-mutation on an edge between a node at time 1.0 and a node at time 4.0 would be given
-time 2.5; while two mutations on that edge would be given times 2.0 and 3.0).
-
-
-#### Recording tables in forwards time
-
-The above methods enable the following scheme for recording site and mutation
-tables during a forwards-time simulation. Whenever a new mutation is
-encountered:
-
-1. Add a new `site` to the site table at this position.
-2. Add a new `mutation` to the mutation table at the newly created site.
-
-This is lazy and wrong, because:
-
-a. There might have already been sites in the site table with the same position,
-b. and/or a mutation (at the same position) that this mutation should record as
-   its `parent`.
-
-But, it's all OK because here's what we do:
-
-1. Add rows to the mutation and site tables as described above.
-2. Periodically, `sort`, `deduplicate_sites`,  and `simplify`, then
-   return to (1.), except that
-3. Sometimes, to output the tables, `sort`, `compute_mutation_parents`,
-   (optionally `simplify`), and dump these out to a file.
-
-*Note:* as things are going along we do *not* have to
-`compute_mutation_parents`, which is nice, because this is a nontrivial step
-that requires construction all the trees along the sequence. Computing mutation
-parents only has to happen before the final (output) step.
-
-This is OK as long as the forwards-time simulation outputs things in order by when
-they occur, because these operations have the following properties:
-
-1. Mutations appear in the mutation table ordered by time of appearance, so
-   that a mutation will always appear after the one that it replaced (i.e.,
-   its parent).
-2. Furthermore, if mutation B appears after mutation A, but at the same site,
-   then mutation B's site will appear after mutation A's site in the site
-   table.
-3. `sort` sorts sites by position, and then by ID, so that the relative
-   ordering of sites at the same position is maintained, thus preserving
-   property (2).
-4. `sort` sorts mutations by site, and then by ID, thus preserving property
-   (1); if the mutations are at separate sites (but the same position), this
-   fact is thanks to property (2).
-5. `simplify` also preserves ordering of any rows in the site and mutation
-   tables that do not get discarded.
-6. `deduplicate_sites` goes through and collapses all sites at the same
-   position to only one site, maintaining order otherwise.
-7. `compute_mutation_parents` fills in the `parent` information by using
-   property (1).
-
 
 (sec_data_model_data_encoding)=
 
