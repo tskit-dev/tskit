@@ -3688,9 +3688,8 @@ and ``provenance``) are ignored and can be set to arbitrary values.
 
 The table collection will always be unindexed after sort successfully completes.
 
-See the :ref:`table sorting <sec_table_sorting>` section for more details.
-For more control over the sorting process, see the
-:ref:`sec_c_api_low_level_sorting` section.
+For more control over the sorting process, see the :ref:`sec_c_api_low_level_sorting`
+section.
 
 **Options**
 
@@ -3766,7 +3765,7 @@ int tsk_table_collection_canonicalise(tsk_table_collection_t *self, tsk_flags_t 
 
 @rst
 Simplification transforms the tables to remove redundancy and canonicalise
-tree sequence data. See the :ref:`simplification <sec_table_simplification>` section for
+tree sequence data. See the :ref:`simplification <sec_simplification>` tutorial for
 more details.
 
 A mapping from the node IDs in the table before simplification to their equivalent

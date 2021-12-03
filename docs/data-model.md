@@ -547,7 +547,7 @@ These are documented below.
 
 The Python API also provides tools that can transform a collection of
 tables into a valid collection of tables, so long as they are logically
-consistent, see {ref}`sec_table_transformations`.
+consistent, see {ref}`sec_tables_api_creating_valid_tree_sequence`.
 
 
 (sec_individual_requirements)=

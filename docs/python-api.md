@@ -653,24 +653,80 @@ Other properties
       TableCollection.time_units
 ```
 
-#### Sorting and indexing
 
-```{eval-rst}
-.. autosummary::
-  TableCollection.sort
-  TableCollection.sort_individuals
-  TableCollection.canonicalise
-  TableCollection.compute_mutation_parents
-  TableCollection.compute_mutation_times
-  TableCollection.deduplicate_sites
-  TableCollection.has_index
-  TableCollection.build_index
-  TableCollection.drop_index
-```
+(sec_tables_api_transformation)=
+
+#### Transformation
+
+These methods act in-place to transform the contents of a {class}`TableCollection`,
+either by modifying the underlying tables (removing, editing, or adding to them) or
+by adjusting the table collection so that it meets the
+{ref}`sec_valid_tree_sequence_requirements.
+
+
+(sec_tables_api_modification)=
+
+##### Modification
+
+These methods modify the data stored in a {class}`TableCollection`. They also have
+{ref}`equivalant TreeSequence versions<sec_python_api_tree_sequences_modification>`
+(unlike the methods described below those do *not* operate in place, but rather act in
+a functional way, returning a new tree sequence while leaving the original unchanged).
 
 ```{eval-rst}
 .. autosummary::
   TableCollection.clear
+  TableCollection.simplify
+  TableCollection.subset
+  TableCollection.delete_intervals
+  TableCollection.keep_intervals
+  TableCollection.delete_sites
+  TableCollection.trim
+  TableCollection.union
+```
+
+(sec_tables_api_creating_valid_tree_sequence)=
+
+##### Creating a valid tree sequence
+
+These methods can be used to help reorganise or rationalise the
+{class}`TableCollection` so that it is in the form
+{ref}`required<sec_valid_tree_sequence_requirements>` for
+it to be {meth}`converted<TableCollection.tree_sequence>`
+into a {class}`TreeSequence`. This may require sorting the tables,
+ensuring they are logically consistent, and adding {ref}`sec_table_indexes`.
+
+:::{note}
+These methods are not guaranteed to make valid a {class}`TableCollection` which is
+logically inconsistent, for example if multiple edges have the same child at a
+given position on the genome or if non-existent node IDs are referenced.
+:::
+
+```{eval-rst}
+Sorting
+    .. autosummary::
+      TableCollection.sort
+      TableCollection.sort_individuals
+      TableCollection.canonicalise
+
+Logical consistency
+    .. autosummary::
+      TableCollection.compute_mutation_parents
+      TableCollection.compute_mutation_times
+      TableCollection.deduplicate_sites
+
+Indexing
+    .. autosummary::
+      TableCollection.has_index
+      TableCollection.build_index
+      TableCollection.drop_index
+```
+
+
+#### Miscellaneous methods
+
+```{eval-rst}
+.. autosummary::
   TableCollection.copy
   TableCollection.equals
   TableCollection.ibd_segments
@@ -683,27 +739,6 @@ Other properties
   TableCollection.tree_sequence
   TableCollection.dump
 ```
-
-(sec_tables_api_modification)=
-
-#### Modification
-
-These methods act in-place to modify the contents of a {class}`TableCollection`
-(also see the
-{ref}`equivalent methods of a tree sequence<sec_python_api_tree_sequences_modification>`,
-which are simple wrappers for the methods below)
-
-```{eval-rst}
-.. autosummary::
-  TableCollection.simplify
-  TableCollection.subset
-  TableCollection.delete_intervals
-  TableCollection.keep_intervals
-  TableCollection.delete_sites
-  TableCollection.trim
-  TableCollection.union
-```
-
 
 (sec_tables_api_table)=
 
