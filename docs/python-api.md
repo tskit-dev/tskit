@@ -38,7 +38,7 @@ sequences.
 
 (sec_python_api_tree_sequences)=
 
-### The {class}`TreeSequence` class
+### {class}`TreeSequence` API
 
 
 (sec_python_api_tree_sequences_properties)=
@@ -318,7 +318,7 @@ efficient methods sometimes exist for entire tree sequences:
 
 (sec_python_api_trees)=
 
-### The {class}`Tree<Tree>` class
+### {class}`Tree<Tree>` API
 
 A tree is an instance of the {class}`Tree` class. These trees cannot exist
 independently of the {class}`TreeSequence` from which they are generated.
@@ -609,7 +609,7 @@ on the entire collection of tables, known as a *table collection*.
 
 (sec_tables_api_table_collection)=
 
-### The `TableCollection` class
+### `TableCollection` API
 
 The {class}`TableCollection` and {class}`TreeSequence` classes are
 deeply related. A `TreeSequence` instance is based on the information
@@ -742,7 +742,7 @@ Indexing
 
 (sec_tables_api_table)=
 
-### Table classes
+### Table APIs
 
 Here we outline the table classes and the common methods and variables available for
 each. For description and definition of each table's meaning
@@ -1036,7 +1036,7 @@ Move some or all of these examples into a suitable alternative chapter.
 
 (sec_python_api_metadata)=
 
-## Metadata classes
+## Metadata API
 
 The `metadata` module provides validation, encoding and decoding of metadata
 using a schema. See {ref}`sec_metadata`, {ref}`sec_metadata_api_overview` and
@@ -1086,9 +1086,9 @@ Miscellaneous top-level utility functions.
 
 (sec_python_api_reference)=
 
-## API reference
+## Reference documentation
 
-(sec_python_api_constants_api)=
+(sec_python_api_constants)=
 
 ### Constants
 
@@ -1099,7 +1099,7 @@ The following constants are used throughout the `tskit` API.
    :members:
 ```
 
-(sec_python_api_exceptions_api)=
+(sec_python_api_exceptions)=
 
 ### Exceptions
 
@@ -1111,7 +1111,7 @@ The following constants are used throughout the `tskit` API.
 .. autoexception:: ProvenanceValidationError
 ```
 
-(sec_python_api_functions_api)=
+(sec_python_api_functions)=
 
 ### Top-level functions
 
@@ -1138,9 +1138,9 @@ The following constants are used throughout the `tskit` API.
 
 ```
 
-### Tree and tree sequence APIs
+### Tree and tree sequence classes
 
-#### {class}`Tree` API
+#### The {class}`Tree` class
 
 Also see the {ref}`sec_python_api_trees` summary.
 
@@ -1151,7 +1151,7 @@ Also see the {ref}`sec_python_api_trees` summary.
     :private-members: _repr_html_
 ```
 
-#### {class}`TreeSequence` API
+#### The {class}`TreeSequence` class
 
 Also see the {ref}`sec_python_api_tree_sequences` summary.
 
@@ -1162,72 +1162,72 @@ Also see the {ref}`sec_python_api_tree_sequences` summary.
     :private-members: _repr_html_
 ```
 
-### Simple container class APIs
+### Simple container classes
 
-#### {class}`Individual` API
+#### The {class}`Individual` class
 
 ```{eval-rst}
 .. autoclass:: Individual()
     :members:
 ```
 
-#### {class}`Node` API
+#### The {class}`Node` class
 
 ```{eval-rst}
 .. autoclass:: Node()
     :members:
 ```
 
-#### {class}`Edge` API
+#### The {class}`Edge` class
 
 ```{eval-rst}
 .. autoclass:: Edge()
     :members:
 ```
 
-#### {class}`Site` API
+#### The {class}`Site` class
 
 ```{eval-rst}
 .. autoclass:: Site()
     :members:
 ```
 
-#### {class}`Mutation` API
+#### The {class}`Mutation` class
 
 ```{eval-rst}
 .. autoclass:: Mutation()
     :members:
 ```
 
-#### {class}`Variant` API
+#### The {class}`Variant` class
 
 ```{eval-rst}
 .. autoclass:: Variant()
     :members:
 ```
 
-#### {class}`Migration` API
+#### The {class}`Migration` class
 
 ```{eval-rst}
 .. autoclass:: Migration()
     :members:
 ```
 
-#### {class}`Population` API
+#### The {class}`Population` class
 
 ```{eval-rst}
 .. autoclass:: Population()
     :members:
 ```
 
-#### {class}`Provenance` API
+#### The {class}`Provenance` class
 
 ```{eval-rst}
 .. autoclass:: Provenance()
     :members:
 ```
 
-#### {class}`Interval` API
+#### The {class}`Interval` class
 
 ```{eval-rst}
 .. autoclass:: Interval()
@@ -1235,9 +1235,9 @@ Also see the {ref}`sec_python_api_tree_sequences` summary.
 
 ```
 
-### TableCollection and Table APIs
+### TableCollection and Table classes
 
-#### {class}`TableCollection` API
+#### The {class}`TableCollection` class
 
 Also see the {ref}`sec_tables_api_table_collection` summary.
 
@@ -1250,7 +1250,7 @@ Also see the {ref}`sec_tables_api_table_collection` summary.
 % Overriding the default signatures for the tables here as they will be
 % confusing to most users.
 
-#### {class}`IndividualTable` API
+#### The {class}`IndividualTable` class
 
 ```{eval-rst}
 .. autoclass:: IndividualTable()
@@ -1259,7 +1259,7 @@ Also see the {ref}`sec_tables_api_table_collection` summary.
     :special-members: __getitem__
 ```
 
-#### {class}`NodeTable` API
+#### The {class}`NodeTable` class
 
 ```{eval-rst}
 .. autoclass:: NodeTable()
@@ -1268,7 +1268,7 @@ Also see the {ref}`sec_tables_api_table_collection` summary.
     :special-members: __getitem__
 ```
 
-#### {class}`EdgeTable` API
+#### The {class}`EdgeTable` class
 
 ```{eval-rst}
 .. autoclass:: EdgeTable()
@@ -1277,7 +1277,7 @@ Also see the {ref}`sec_tables_api_table_collection` summary.
     :special-members: __getitem__
 ```
 
-#### {class}`MigrationTable` API
+#### The {class}`MigrationTable` class
 
 ```{eval-rst}
 .. autoclass:: MigrationTable()
@@ -1286,7 +1286,7 @@ Also see the {ref}`sec_tables_api_table_collection` summary.
     :special-members: __getitem__
 ```
 
-#### {class}`SiteTable` API
+#### The {class}`SiteTable` class
 
 ```{eval-rst}
 .. autoclass:: SiteTable()
@@ -1295,7 +1295,7 @@ Also see the {ref}`sec_tables_api_table_collection` summary.
     :special-members: __getitem__
 ```
 
-#### {class}`MutationTable` API
+#### The {class}`MutationTable` class
 
 ```{eval-rst}
 .. autoclass:: MutationTable()
@@ -1304,7 +1304,7 @@ Also see the {ref}`sec_tables_api_table_collection` summary.
     :special-members: __getitem__
 ```
 
-#### {class}`PopulationTable` API
+#### The {class}`PopulationTable` class
 
 ```{eval-rst}
 .. autoclass:: PopulationTable()
@@ -1313,7 +1313,7 @@ Also see the {ref}`sec_tables_api_table_collection` summary.
     :special-members: __getitem__
 ```
 
-#### {class}`ProvenanceTable` API
+#### The {class}`ProvenanceTable` class
 
 Also see the {ref}`sec_python_api_provenance` summary.
 
@@ -1323,9 +1323,9 @@ Also see the {ref}`sec_python_api_provenance` summary.
     :inherited-members:
 ```
 
-### Miscellaneous class APIs
+### Miscellaneous classes
 
-#### {class}`MetadataSchema` API
+#### The {class}`MetadataSchema` class
 
 Also see the {ref}`sec_python_api_metadata` summary.
 
@@ -1335,13 +1335,13 @@ Also see the {ref}`sec_python_api_metadata` summary.
     :inherited-members:
 ```
 
-#### {class}`TopologyCounter` API
+#### The {class}`TopologyCounter` class
 
 ```{eval-rst}
 .. autoclass:: TopologyCounter
 ```
 
-#### {class}`LdCalculator` API
+#### The {class}`LdCalculator` class
 
 ```{eval-rst}
 .. autoclass:: LdCalculator
