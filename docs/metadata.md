@@ -51,7 +51,7 @@ The metadata schemas are in the form of a
 schema must specify an object with properties,
 the keys and types of those properties are specified along with optional
 long-form names, descriptions and validations such as min/max or regex matching for
-strings, see the {ref}`sec_metadata_example` below. 
+strings, see the {ref}`sec_metadata_schema_examples` below.
 
 The {ref}`sec_tutorial_metadata` Tutorial shows how to use schemas and access metadata
 in the tskit Python API.
@@ -60,8 +60,45 @@ Note that the C API simply provides byte-array binary access to the metadata,
 leaving the encoding and decoding to the user. The same can be achieved with the Python
 API, see {ref}`sec_tutorial_metadata_binary`.
 
-(sec_metadata_codecs)=
 
+(sec_metadata_examples)=
+
+## Examples
+
+In this section we give some examples of how to define metadata
+schemas and how to add metadata to various parts of a tree sequence
+using the Python API.
+
+(sec_metadata_examples_top_level)=
+
+### Top level
+
+```{eval-rst}
+.. todo:: Add examples of top-level metadata. One with the ``permissive_json``
+  schema first to to show the simplest possible way of doing it. Then
+  followed with an example where we describe the metadata also.
+```
+
+(sec_metadata_examples_reference_sequence)=
+
+### Reference sequence
+
+```{eval-rst}
+.. todo:: Add examples of reference sequence metadata. This should
+  include an example where we declare (or better, use on we define
+  in the library) a standard metadata schema for a species, which
+  defines and documents accession numbers, genome builds, etc.
+```
+
+(sec_metadata_examples_tables)=
+
+### Tables
+
+```{eval-rst}
+.. todo:: Add examples of adding table-level metadata schemas.
+```
+
+(sec_metadata_codecs)=
 
 ## Codecs
 
@@ -328,9 +365,11 @@ As a special case under the `struct` codec, the top-level type of metadata can b
 union of `object` and `null`. Set `"type": ["object", "null"]`. Properties should
 be defined as normal, and will be ignored if the metadata is `None`.
 
-(sec_metadata_example)=
+(sec_metadata_schema_examples)=
 
-## Examples
+## Schema examples
+
+### Struct codec
 
 As an example here is a schema using the `struct` codec which could apply, for example,
 to the individuals in a tree sequence:
@@ -358,7 +397,7 @@ schema = metadata.MetadataSchema(
 This schema states that the metadata for each row of the table
 is an object consisting of two properties. Property `accession_number` is a number
 (stored as a 4-byte int).
-Property `collection_date` is a string which must satisfy a regex, which checks it is 
+Property `collection_date` is a string which must satisfy a regex, which checks it is
 a valid [ISO8601](https://www.iso.org/iso-8601-date-and-time-format.html) date.
 Both properties are required to be specified (this must always be done for the struct codec,
 for the JSON codec properties can be optional).
