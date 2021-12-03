@@ -18,6 +18,7 @@ parts:
   - file: python-api
   - file: c-api
   - file: cli
+  - file: file-formats
 - caption: For developers
   chapters:
   - file: development
