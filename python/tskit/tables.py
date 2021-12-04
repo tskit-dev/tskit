@@ -3612,21 +3612,23 @@ class TableCollection(metadata.MetadataProvider):
 
     def has_index(self):
         """
-        Returns True if this TableCollection is indexed.
+        Returns True if this TableCollection is indexed. See :ref:`sec_table_indexes`
+        for information on indexes.
         """
         return bool(self._ll_tables.has_index())
 
     def build_index(self):
         """
         Builds an index on this TableCollection. Any existing indexes are automatically
-        dropped.
+        dropped.  See :ref:`sec_table_indexes` for information on indexes.
         """
         self._ll_tables.build_index()
 
     def drop_index(self):
         """
         Drops any indexes present on this table collection. If the tables are not
-        currently indexed this method has no effect.
+        currently indexed this method has no effect.  See :ref:`sec_table_indexes`
+        for information on indexes.
         """
         self._ll_tables.drop_index()
 
