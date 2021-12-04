@@ -596,6 +596,7 @@ out:
     return ret;
 }
 
+/* TODO rename to copy_string or replace_and_copy_string */
 static int
 replace_string(
     char **str, tsk_size_t *len, const char *new_str, const tsk_size_t new_len)
@@ -614,6 +615,15 @@ replace_string(
     }
 out:
     return ret;
+}
+
+static int
+takeset_string(char **str, tsk_size_t *len, char *new_str, const tsk_size_t new_len)
+{
+    tsk_safe_free(*str);
+    *str = new_str;
+    *len = new_len;
+    return 0;
 }
 
 static int
@@ -659,18 +669,8 @@ bool
 tsk_reference_sequence_equals(const tsk_reference_sequence_t *self,
     const tsk_reference_sequence_t *other, tsk_flags_t options)
 {
-    int ret;
-    bool self_null = tsk_reference_sequence_is_null(self);
-    bool other_null = tsk_reference_sequence_is_null(other);
-
-    if (self_null && other_null) {
-        return true;
-    }
-    /* If one or the other is NULL they are not equal */
-    if (self_null != other_null) {
-        return false;
-    }
-    ret = self->data_length == other->data_length
+    int ret
+        = self->data_length == other->data_length
           && self->url_length == other->url_length
           && tsk_memcmp(self->data, other->data, self->data_length * sizeof(char)) == 0
           && tsk_memcmp(self->url, other->url, self->url_length * sizeof(char)) == 0;
@@ -755,6 +755,36 @@ tsk_reference_sequence_set_metadata_schema(tsk_reference_sequence_t *self,
     const char *metadata_schema, tsk_size_t metadata_schema_length)
 {
     return replace_string(&self->metadata_schema, &self->metadata_schema_length,
+        metadata_schema, metadata_schema_length);
+}
+
+int
+tsk_reference_sequence_takeset_data(
+    tsk_reference_sequence_t *self, char *data, tsk_size_t data_length)
+{
+    return takeset_string(&self->data, &self->data_length, data, data_length);
+}
+
+int
+tsk_reference_sequence_takeset_url(
+    tsk_reference_sequence_t *self, char *url, tsk_size_t url_length)
+{
+    return takeset_string(&self->url, &self->url_length, url, url_length);
+}
+
+int
+tsk_reference_sequence_takeset_metadata(
+    tsk_reference_sequence_t *self, char *metadata, tsk_size_t metadata_length)
+{
+    return takeset_string(
+        &self->metadata, &self->metadata_length, metadata, metadata_length);
+}
+
+int
+tsk_reference_sequence_takeset_metadata_schema(tsk_reference_sequence_t *self,
+    char *metadata_schema, tsk_size_t metadata_schema_length)
+{
+    return takeset_string(&self->metadata_schema, &self->metadata_schema_length,
         metadata_schema, metadata_schema_length);
 }
 

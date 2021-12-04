@@ -424,19 +424,103 @@ test_reference_sequence_state_machine(void)
 }
 
 static void
+test_reference_sequence_take(void)
+{
+    int ret;
+    tsk_reference_sequence_t r1;
+    tsk_reference_sequence_t r2;
+    const char *const_data = "data";
+    const char *const_url = "url";
+    const char *const_metadata_schema = "metadata_schema";
+    const char *const_metadata = "metadata";
+    char *takeset_data = strdup(const_data);
+    char *takeset_url = strdup(const_url);
+    char *takeset_metadata_schema = strdup(const_metadata_schema);
+    char *takeset_metadata = strdup(const_metadata);
+
+    ret = tsk_reference_sequence_init(&r1, 0);
+
+    ret = tsk_reference_sequence_set_data(&r1, const_data, strlen(const_data));
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_reference_sequence_set_url(&r1, const_url, strlen(const_url));
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_reference_sequence_set_metadata_schema(
+        &r1, const_metadata_schema, strlen(const_metadata_schema));
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_reference_sequence_set_metadata(
+        &r1, const_metadata, strlen(const_metadata));
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_reference_sequence_init(&r2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_reference_sequence_equals(&r1, &r2, 0));
+    ret = tsk_reference_sequence_takeset_data(&r2, takeset_data, strlen(takeset_data));
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_reference_sequence_equals(&r1, &r2, 0));
+    ret = tsk_reference_sequence_takeset_url(&r2, takeset_url, strlen(takeset_url));
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_reference_sequence_equals(&r1, &r2, 0));
+    ret = tsk_reference_sequence_takeset_metadata_schema(
+        &r2, takeset_metadata_schema, strlen(takeset_metadata_schema));
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_reference_sequence_equals(&r1, &r2, 0));
+    ret = tsk_reference_sequence_takeset_metadata(
+        &r2, takeset_metadata, strlen(takeset_metadata));
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_reference_sequence_equals(&r1, &r2, 0));
+
+    /* Writing over these with copies doesn't lose memory */
+    ret = tsk_reference_sequence_set_data(&r2, const_data, strlen(const_data));
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_reference_sequence_set_url(&r2, const_url, strlen(const_url));
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_reference_sequence_set_metadata_schema(
+        &r2, const_metadata_schema, strlen(const_metadata_schema));
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_reference_sequence_set_metadata(
+        &r2, const_metadata, strlen(const_metadata));
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_TRUE(tsk_reference_sequence_equals(&r1, &r2, 0));
+
+    /* The original copies are gone, make some new ones */
+    takeset_data = strdup(const_data);
+    takeset_url = strdup(const_url);
+    takeset_metadata_schema = strdup(const_metadata_schema);
+    takeset_metadata = strdup(const_metadata);
+
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_reference_sequence_takeset_data(&r1, takeset_data, strlen(takeset_data));
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_reference_sequence_takeset_url(&r1, takeset_url, strlen(takeset_url));
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_reference_sequence_takeset_metadata_schema(
+        &r1, takeset_metadata_schema, strlen(takeset_metadata_schema));
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_reference_sequence_takeset_metadata(
+        &r1, takeset_metadata, strlen(takeset_metadata));
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_TRUE(tsk_reference_sequence_equals(&r1, &r2, 0));
+
+    tsk_reference_sequence_free(&r1);
+    tsk_reference_sequence_free(&r2);
+}
+
+static void
 test_reference_sequence(void)
 {
     int ret;
     tsk_reference_sequence_t r1;
     tsk_reference_sequence_t r2;
 
-    char example_data[100] = "An example string with unicode 🎄🌳🌴🌲🎋";
+    const char example_data[100] = "An example string with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_data_length = (tsk_size_t) strlen(example_data);
-    char example_url[100] = "An example url with unicode 🎄🌳🌴🌲🎋";
+    const char example_url[100] = "An example url with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_url_length = (tsk_size_t) strlen(example_url);
-    char example_metadata[100] = "An example metadata with unicode 🎄🌳🌴🌲🎋";
+    const char example_metadata[100] = "An example metadata with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_metadata_length = (tsk_size_t) strlen(example_metadata);
-    char example_schema[100] = "An example schema with unicode 🎄🌳🌴🌲🎋";
+    const char example_schema[100] = "An example schema with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_schema_length = (tsk_size_t) strlen(example_schema);
 
     tsk_reference_sequence_init(&r1, 0);
@@ -9149,6 +9233,7 @@ main(int argc, char **argv)
         { "test_table_collection_metadata", test_table_collection_metadata },
         { "test_reference_sequence_state_machine",
             test_reference_sequence_state_machine },
+        { "test_reference_sequence_take", test_reference_sequence_take },
         { "test_reference_sequence", test_reference_sequence },
 
         { "test_simplify_tables_drops_indexes", test_simplify_tables_drops_indexes },

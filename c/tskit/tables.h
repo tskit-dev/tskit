@@ -4156,6 +4156,14 @@ int tsk_reference_sequence_set_metadata(
     tsk_reference_sequence_t *self, const char *metadata, tsk_size_t metadata_length);
 int tsk_reference_sequence_set_metadata_schema(tsk_reference_sequence_t *self,
     const char *metadata_schema, tsk_size_t metadata_schema_length);
+int tsk_reference_sequence_takeset_data(
+    tsk_reference_sequence_t *self, char *data, tsk_size_t data_length);
+int tsk_reference_sequence_takeset_url(
+    tsk_reference_sequence_t *self, char *url, tsk_size_t url_length);
+int tsk_reference_sequence_takeset_metadata(
+    tsk_reference_sequence_t *self, char *metadata, tsk_size_t metadata_length);
+int tsk_reference_sequence_takeset_metadata_schema(tsk_reference_sequence_t *self,
+    char *metadata_schema, tsk_size_t metadata_schema_length);
 
 /**
 @defgroup TABLE_SORTER_API_GROUP Low-level table sorter API.
