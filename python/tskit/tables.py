@@ -2965,6 +2965,7 @@ class TableCollection(metadata.MetadataProvider):
         ignore_provenance=False,
         ignore_timestamps=False,
         ignore_tables=False,
+        ignore_reference_sequence=False,
     ):
         """
         Returns True if  `self` and `other` are equal. By default, two table
@@ -2995,6 +2996,8 @@ class TableCollection(metadata.MetadataProvider):
             parameter has no effect.
         :param bool ignore_tables: If True no tables are included in the
             comparison, thus comparing only the top-level information.
+        :param bool ignore_reference_sequence: If True the reference sequence
+            is not included in the comparison.
         :return: True if other is equal to this table collection; False otherwise.
         :rtype: bool
         """
@@ -3008,6 +3011,7 @@ class TableCollection(metadata.MetadataProvider):
                     ignore_provenance=bool(ignore_provenance),
                     ignore_timestamps=bool(ignore_timestamps),
                     ignore_tables=bool(ignore_tables),
+                    ignore_reference_sequence=bool(ignore_reference_sequence),
                 )
             )
         return ret
@@ -3021,6 +3025,7 @@ class TableCollection(metadata.MetadataProvider):
         ignore_provenance=False,
         ignore_timestamps=False,
         ignore_tables=False,
+        ignore_reference_sequence=False,
     ):
         """
         Raise an AssertionError for the first found difference between
@@ -3040,6 +3045,8 @@ class TableCollection(metadata.MetadataProvider):
             parameter has no effect.
         :param bool ignore_tables: If True no tables are included in the
             comparison, thus comparing only the top-level information.
+        :param bool ignore_reference_sequence: If True the reference sequence
+            is not included in the comparison.
         """
         if type(other) is not type(self):
             raise AssertionError(f"Types differ: self={type(self)} other={type(other)}")
@@ -3052,15 +3059,17 @@ class TableCollection(metadata.MetadataProvider):
             ignore_provenance=ignore_provenance,
             ignore_timestamps=ignore_timestamps,
             ignore_tables=ignore_tables,
+            ignore_reference_sequence=ignore_reference_sequence,
         ):
             return
 
         if not ignore_metadata or ignore_ts_metadata:
             super().assert_equals(other)
 
-        self.reference_sequence.assert_equals(
-            other.reference_sequence, ignore_metadata=ignore_metadata
-        )
+        if not ignore_reference_sequence:
+            self.reference_sequence.assert_equals(
+                other.reference_sequence, ignore_metadata=ignore_metadata
+            )
 
         if self.time_units != other.time_units:
             raise AssertionError(
@@ -3097,10 +3106,14 @@ class TableCollection(metadata.MetadataProvider):
         return self.asdict()
 
     @classmethod
-    def load(cls, file_or_path, *, skip_tables=False):
+    def load(cls, file_or_path, *, skip_tables=False, skip_reference_sequence=False):
         file, local_file = util.convert_file_like_to_open_file(file_or_path, "rb")
         ll_tc = _tskit.TableCollection(1)
-        ll_tc.load(file, skip_tables=skip_tables)
+        ll_tc.load(
+            file,
+            skip_tables=skip_tables,
+            skip_reference_sequence=skip_reference_sequence,
+        )
         tc = TableCollection(1)
         tc._ll_tables = ll_tc
         return tc

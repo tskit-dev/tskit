@@ -104,8 +104,13 @@
 
 - Add the ``skip_tables`` option to ``load`` to support only loading
   top-level information from a file. Also add the ``ignore_tables`` option to
-  to the ``TableCollection.equals`` and ``TableCollection.assert_equals`` to
+  ``TableCollection.equals`` and ``TableCollection.assert_equals`` to
   compare only top-level information. (:user:`clwgg`, :pr:`1882`, :issue:`1854`).
+
+- Add the ``skip_reference_sequence`` option to ``load``. Also add the
+  ``ignore_reference_sequence`` option ``equals`` to compare two table
+  collections without comparing their reference sequence. (:user:`clwgg`,
+  :pr:`2019`, :issue:`1971`).
 
 - tskit now supports python 3.10 (:user:`benjeffery`, :issue:`1895`, :pr:`1949`)
 

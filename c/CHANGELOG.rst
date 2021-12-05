@@ -65,6 +65,11 @@
 
 - Add reference sequence to table collection (:user:`benjeffery`, :issue:`146`, :pr:`1911`)
 
+- Add the TSK_LOAD_SKIP_REFERENCE_SEQUENCE option to load a table collection
+  without the reference sequence. Also add the TSK_CMP_IGNORE_REFERENCE_SEQUENCE
+  option to compare two table collections without comparing their reference
+  sequence. (:user:`clwgg`, :pr:`2019`, :issue:`1971`).
+
 - FIXME add features for virtual root, num_edges, stack allocation size etc
 
 **Fixes**

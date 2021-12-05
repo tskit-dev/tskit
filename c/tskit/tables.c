@@ -10046,9 +10046,12 @@ tsk_table_collection_equals(const tsk_table_collection_t *self,
                             self->metadata_schema_length * sizeof(char))
                             == 0);
     }
-    ret = ret
-          && tsk_reference_sequence_equals(
-                 &self->reference_sequence, &other->reference_sequence, options);
+
+    if (!(options & TSK_CMP_IGNORE_REFERENCE_SEQUENCE)) {
+        ret = ret
+              && tsk_reference_sequence_equals(
+                     &self->reference_sequence, &other->reference_sequence, options);
+    }
     return ret;
 }
 
@@ -10548,7 +10551,11 @@ tsk_table_collection_loadf_inited(
     int ret = 0;
     kastore_t store;
 
-    int kas_flags = options & TSK_LOAD_SKIP_TABLES ? 0 : KAS_READ_ALL;
+    int kas_flags = KAS_READ_ALL;
+    if ((options & TSK_LOAD_SKIP_TABLES)
+        || (options & TSK_LOAD_SKIP_REFERENCE_SEQUENCE)) {
+        kas_flags = 0;
+    }
     ret = kastore_openf(&store, file, "r", kas_flags);
 
     if (ret != 0) {
@@ -10610,9 +10617,11 @@ tsk_table_collection_loadf_inited(
             goto out;
         }
     }
-    ret = tsk_table_collection_load_reference_sequence(self, &store);
-    if (ret != 0) {
-        goto out;
+    if (!(options & TSK_LOAD_SKIP_REFERENCE_SEQUENCE)) {
+        ret = tsk_table_collection_load_reference_sequence(self, &store);
+        if (ret != 0) {
+            goto out;
+        }
     }
     ret = kastore_close(&store);
     if (ret != 0) {

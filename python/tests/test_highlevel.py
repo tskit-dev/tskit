@@ -2313,6 +2313,12 @@ class TestTreeSequence(HighLevelTestCase):
         t2 = tc.tree_sequence()
         assert not t1.equals(t2)
         assert t1.equals(t2, ignore_tables=True)
+        # Empty out reference to test ignore_reference_sequence flag
+        tc = t1.dump_tables()
+        tc.reference_sequence.clear()
+        t2 = tc.tree_sequence()
+        assert not t1.equals(t2)
+        assert t1.equals(t2, ignore_reference_sequence=True)
         # Make t1 and t2 equal again
         t2 = t1.dump_tables().tree_sequence()
         assert t1.equals(t2)

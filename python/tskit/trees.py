@@ -2995,25 +2995,32 @@ class Tree:
         )
 
 
-def load(file, *, skip_tables=False):
+def load(file, *, skip_tables=False, skip_reference_sequence=False):
     """
     Return a :class:`TreeSequence` instance loaded from the specified file object or
     path. The file must be in the
     :ref:`tree sequence file format <sec_tree_sequence_file_format>`
     produced by the :meth:`TreeSequence.dump` method.
 
+    .. warning:: With any of the ``skip_tables`` or ``skip_reference_sequence``
+        options set, it is not possible to load data from a non-seekable stream
+        (e.g. a socket or STDIN) of multiple tree sequences using consecutive
+        calls to :meth:`tskit.load`.
+
     :param str file: The file object or path of the ``.trees`` file containing the
         tree sequence we wish to load.
     :param bool skip_tables: If True, no tables are read from the ``.trees``
-        file and only the top-level information is populated in the tree sequence object.
-        Please note that with this option set, it is not possible to load data from
-        a stream of multiple tree sequences using consecutive calls to
-        :meth:`tskit.load`.
+        file and only the top-level information is populated in the tree
+        sequence object.
+    :param bool skip_reference_sequence: If True, the tree sequence is read
+        without loading its reference sequence.
     :return: The tree sequence object containing the information
         stored in the specified file path.
     :rtype: :class:`tskit.TreeSequence`
     """
-    return TreeSequence.load(file, skip_tables=skip_tables)
+    return TreeSequence.load(
+        file, skip_tables=skip_tables, skip_reference_sequence=skip_reference_sequence
+    )
 
 
 def parse_individuals(
@@ -3626,6 +3633,7 @@ class TreeSequence:
         ignore_provenance=False,
         ignore_timestamps=False,
         ignore_tables=False,
+        ignore_reference_sequence=False,
     ):
         """
         Returns True if  `self` and `other` are equal. Uses the underlying table
@@ -3638,6 +3646,7 @@ class TreeSequence:
             ignore_provenance=ignore_provenance,
             ignore_timestamps=ignore_timestamps,
             ignore_tables=ignore_tables,
+            ignore_reference_sequence=ignore_reference_sequence,
         )
 
     @property
@@ -3665,11 +3674,15 @@ class TreeSequence:
         return [tree.copy() for tree in self.trees(**kwargs)]
 
     @classmethod
-    def load(cls, file_or_path, *, skip_tables=False):
+    def load(cls, file_or_path, *, skip_tables=False, skip_reference_sequence=False):
         file, local_file = util.convert_file_like_to_open_file(file_or_path, "rb")
         try:
             ts = _tskit.TreeSequence()
-            ts.load(file, skip_tables=skip_tables)
+            ts.load(
+                file,
+                skip_tables=skip_tables,
+                skip_reference_sequence=skip_reference_sequence,
+            )
             return TreeSequence(ts)
         finally:
             if local_file:
