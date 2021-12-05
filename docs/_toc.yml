@@ -12,7 +12,7 @@ parts:
 - caption: Analysis
   chapters:
   - file: stats
-  - file: combinatorics
+  - file: topological-analysis
 - caption: Interfaces
   chapters:
   - file: python-api

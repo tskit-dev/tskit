@@ -278,14 +278,13 @@ Comparative
 
 The topology of a tree in a tree sequence refers to the relationship among
 samples ignoring branch lengths. Functionality as described in
-{ref}`sec_combinatorics` is mainly provided via
+{ref}`sec_topological_analysis` is mainly provided via
 {ref}`methods on trees<sec_python_api_trees_topological_analysis>`, but more
 efficient methods sometimes exist for entire tree sequences:
 
 ```{eval-rst}
 .. autosummary::
   TreeSequence.count_topologies
-
 ```
 
 (sec_python_api_tree_sequences_display)=
@@ -403,6 +402,9 @@ the encoding of the tree via `parent`, `left_child`, etc.
 or the most recent common ancestor (MRCA) of two nodes. This sort of information is
 available via simple and high performance {class}`Tree` methods
 
+
+(sec_python_api_trees_node_measures_simple)=
+
 ##### Simple measures
 
 These return a simple number, or (usually) short list of numbers relevant to a specific
@@ -425,7 +427,6 @@ Node information
       Tree.left_sib
       Tree.right_child
       Tree.left_child
-
       Tree.children
 
 Descendant nodes
@@ -441,6 +442,9 @@ Multiple nodes
       Tree.mrca
       Tree.tmrca
 ```
+
+
+(sec_python_api_trees_node_measures_array)=
 
 ##### Array access
 
@@ -468,15 +472,16 @@ Moving around within a tree usually involves visiting the tree nodes in some sor
 order. Often, given a particular order, it is convenient to iterate over each node
 using the :meth:`Tree.nodes` method. However, for high performance algorithms, it
 may be more convenient to access the node indices for a particular order as
-an array, and use this, for example, to index into one of the node arrays.
+an array, and use this, for example, to index into one of the node arrays (see
+{ref}`sec_topological_analysis_traversal`).
 
 ```{eval-rst}
-General
+Iterator access
     .. autosummary::
 
       Tree.nodes
 
-High performance
+Array access
     .. autosummary::
 
       Tree.postorder
@@ -484,27 +489,6 @@ High performance
       Tree.timeasc
       Tree.timedesc
 ```
-
-Here's an example which calculates the average number of descendants (the "arity)
-over all the nodes in a tree:
-
-```{code-cell} ipython3
-import msprime
-import numpy as np
-import tskit
-
-# Use a multiple merger process to make a tree where some nodes have >2 children
-ts = msprime.sim_ancestry(10, random_seed=1, model=msprime.BetaCoalescent(alpha=1.001))
-tree = ts.first()
-# Order doesn't matter in this example, so use tree.preorder, which is fastest
-parent_id, count = np.unique(tree.parent_array[tree.preorder()], return_counts=True)
-print(f"Average arity is {count[parent_id != tskit.NULL].mean()}")
-```
-
-:::{todo}
-Move this example into the "combinatorics" chapter, renaming the chapter
-"topological analysis"
-:::
 
 
 (sec_python_api_trees_topological_analysis)=
