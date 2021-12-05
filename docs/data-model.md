@@ -62,7 +62,7 @@ tree sequence
 
 node
 : Each branching point in each tree is associated with a particular genome
-  in a particular ancestor, called "nodes".  Since each node represents a
+  in a particular ancestor, called a "node".  Since each node represents a
   specific genome it has a unique `time`, thought of as its birth time,
   which determines the height of any branching points it is associated with.
   See {ref}`sec_nodes_or_individuals` for discussion of what a "node" is.
