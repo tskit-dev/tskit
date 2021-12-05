@@ -20,7 +20,10 @@ kernelspec:
 
 This is the documentation for `tskit`, the tree sequence toolkit. Succinct tree sequences
 provide a highly efficient way of storing a set of related DNA sequences by encoding
-their ancestral history as a set of correlated trees along the genome.
+their ancestral history as a set of correlated trees along the genome.  The evolutionary
+history of genetic sequences is often technically referred to as an Ancestral
+Recombination Graph (ARG); succinct tree sequences are fully compatible with this
+formulation, and tskit is a therefore a powerful platform for processing ARGs.
 
 The tree sequence format is output by a number of external software libraries
 and programs (such as [msprime](https://github.com/tskit-dev/msprime), 
