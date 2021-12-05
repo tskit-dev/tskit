@@ -80,8 +80,8 @@ individual
 (sec_data_model_definitions_sample)=
 
 sample
-: The focal nodes of a tree sequence, usually thought of as those that we
-  have obtained data from. The specification of these affects various
+: The focal nodes of a tree sequence, usually thought of as those from which
+  we have obtained data. The specification of these affects various
   methods: (1) {meth}`TreeSequence.variants` and
   {meth}`TreeSequence.haplotypes` will output the genotypes of the samples,
   and {attr}`Tree.roots` only return roots ancestral to at least one
