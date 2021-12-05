@@ -4018,6 +4018,18 @@ class TestTableCollectionAssertEquals:
             t1.assert_equals(t2)
         t1.assert_equals(t2, ignore_tables=True)
 
+    def test_ignore_reference_sequence(self, t1, t2):
+        t2.reference_sequence.clear()
+        with pytest.raises(
+            AssertionError,
+            match=re.escape(
+                "Metadata schemas differ: "
+                "self=OrderedDict([('codec', 'json')]) other=None"
+            ),
+        ):
+            t1.assert_equals(t2)
+        t1.assert_equals(t2, ignore_reference_sequence=True)
+
 
 class TestTableCollectionMethodSignatures:
     tc = msprime.simulate(10, random_seed=1234).dump_tables()

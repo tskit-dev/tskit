@@ -314,6 +314,27 @@ test_table_collection_equals_options(void)
 
     tsk_table_collection_free(&tc1);
     tsk_table_collection_free(&tc2);
+
+    // Ignore reference sequence
+    ret = tsk_table_collection_init(&tc1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_init(&tc2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_set_metadata(
+        &tc1, example_metadata, example_metadata_length);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_table_collection_set_metadata(
+        &tc2, example_metadata, example_metadata_length);
+    CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
+    ret = tsk_reference_sequence_set_data(&tc1.reference_sequence, "A", 1);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FALSE(tsk_table_collection_equals(&tc1, &tc2, 0));
+    CU_ASSERT_TRUE(
+        tsk_table_collection_equals(&tc1, &tc2, TSK_CMP_IGNORE_REFERENCE_SEQUENCE));
+
+    tsk_table_collection_free(&tc1);
+    tsk_table_collection_free(&tc2);
 }
 
 static void

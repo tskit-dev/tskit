@@ -186,6 +186,26 @@ class TestTableCollection(LowLevelTestCase):
                 with pytest.raises(TypeError):
                     tc_skip.load(f, skip_tables=bad_bool)
 
+    def test_skip_reference_sequence(self, tmp_path):
+        tc = _tskit.TableCollection(1)
+        self.get_example_tree_sequence().dump_tables(tc)
+        tc.reference_sequence.data = "ACGT"
+        with open(tmp_path / "tmp.trees", "wb") as f:
+            tc.dump(f)
+
+        for good_bool in [1, True]:
+            with open(tmp_path / "tmp.trees", "rb") as f:
+                tc_skip = _tskit.TableCollection()
+                tc_skip.load(f, skip_reference_sequence=good_bool)
+            assert not tc.equals(tc_skip)
+            assert tc.equals(tc_skip, ignore_reference_sequence=True)
+
+        for bad_bool in ["x", 0.5, {}]:
+            with open(tmp_path / "tmp.trees", "rb") as f:
+                tc_skip = _tskit.TableCollection()
+                with pytest.raises(TypeError):
+                    tc_skip.load(f, skip_reference_sequence=bad_bool)
+
     def test_file_errors(self):
         tc1 = _tskit.TableCollection(1)
         self.get_example_tree_sequence().dump_tables(tc1)
@@ -411,6 +431,8 @@ class TestTableCollection(LowLevelTestCase):
             tc.equals(tc, ignore_timestamps=bad_bool)
         with pytest.raises(TypeError):
             tc.equals(tc, ignore_tables=bad_bool)
+        with pytest.raises(TypeError):
+            tc.equals(tc, ignore_reference_sequence=bad_bool)
 
     def test_asdict(self):
         for ts in self.get_example_tree_sequences():
@@ -1104,6 +1126,30 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
                 ts_skip = _tskit.TreeSequence()
                 with pytest.raises(TypeError):
                     ts_skip.load(f, skip_tables=bad_bool)
+
+    def test_skip_reference_sequence(self, tmp_path):
+        tc = _tskit.TableCollection(1)
+        self.get_example_tree_sequence().dump_tables(tc)
+        tc.reference_sequence.data = "ACGT"
+        ts = _tskit.TreeSequence()
+        ts.load_tables(tc, build_indexes=True)
+        with open(tmp_path / "tmp.trees", "wb") as f:
+            ts.dump(f)
+
+        for good_bool in [1, True]:
+            with open(tmp_path / "tmp.trees", "rb") as f:
+                ts_skip = _tskit.TreeSequence()
+                ts_skip.load(f, skip_reference_sequence=good_bool)
+            tc_skip = _tskit.TableCollection()
+            ts_skip.dump_tables(tc_skip)
+            assert not tc.equals(tc_skip)
+            assert tc.equals(tc_skip, ignore_reference_sequence=True)
+
+        for bad_bool in ["x", 0.5, {}]:
+            with open(tmp_path / "tmp.trees", "rb") as f:
+                ts_skip = _tskit.TreeSequence()
+                with pytest.raises(TypeError):
+                    ts_skip.load(f, skip_reference_sequence=bad_bool)
 
     def test_file_errors(self):
         ts1 = self.get_example_tree_sequence()

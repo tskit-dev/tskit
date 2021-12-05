@@ -1227,3 +1227,62 @@ class TestSkipTables:
         assert not tables_skipped.equals(tables)
         assert tables_skipped.equals(tables, ignore_tables=True)
         assert_tables_empty(tables_skipped)
+
+
+class TestSkipReferenceSequence:
+    """
+    Test `skip_reference_sequence` flag to TreeSequence.load() and
+    TableCollection.load().
+    """
+
+    def test_ts_load_path(self, tmp_path, ts_fixture):
+        assert ts_fixture.has_reference_sequence()
+        save_path = tmp_path / "tmp.trees"
+        ts_fixture.dump(save_path)
+        ts_no_refseq = tskit.load(save_path, skip_reference_sequence=True)
+        assert not ts_no_refseq.equals(ts_fixture)
+        assert ts_no_refseq.equals(ts_fixture, ignore_reference_sequence=True)
+        assert not ts_no_refseq.has_reference_sequence()
+
+    def test_ts_load_stream(self, tmp_path, ts_fixture):
+        save_path = tmp_path / "tmp.trees"
+        ts_fixture.dump(save_path)
+        with open(save_path, "rb") as f:
+            ts_no_refseq = tskit.load(f, skip_reference_sequence=True)
+        assert not ts_no_refseq.equals(ts_fixture)
+        assert ts_no_refseq.equals(ts_fixture, ignore_reference_sequence=True)
+        assert not ts_no_refseq.has_reference_sequence()
+
+    def test_ts_twofile_stream_fails(self, tmp_path, ts_fixture):
+        # We can't skip_reference_sequence while reading from a stream
+        save_path = tmp_path / "tmp.trees"
+        with open(save_path, "wb") as f:
+            ts_fixture.dump(f)
+            ts_fixture.dump(f)
+        with open(save_path, "rb") as f:
+            tskit.load(f, skip_reference_sequence=True)
+            with pytest.raises(exceptions.FileFormatError):
+                tskit.load(f)
+
+    def test_table_collection_load_path(self, tmp_path, ts_fixture):
+        save_path = tmp_path / "tmp.trees"
+        ts_fixture.dump(save_path)
+        tables_no_refseq = tskit.TableCollection.load(
+            save_path, skip_reference_sequence=True
+        )
+        tables = ts_fixture.tables
+        assert not tables_no_refseq.equals(tables)
+        assert tables_no_refseq.equals(tables, ignore_reference_sequence=True)
+        assert not tables_no_refseq.has_reference_sequence()
+
+    def test_table_collection_load_stream(self, tmp_path, ts_fixture):
+        save_path = tmp_path / "tmp.trees"
+        ts_fixture.dump(save_path)
+        with open(save_path, "rb") as f:
+            tables_no_refseq = tskit.TableCollection.load(
+                f, skip_reference_sequence=True
+            )
+        tables = ts_fixture.tables
+        assert not tables_no_refseq.equals(tables)
+        assert tables_no_refseq.equals(tables, ignore_reference_sequence=True)
+        assert not tables_no_refseq.has_reference_sequence()
