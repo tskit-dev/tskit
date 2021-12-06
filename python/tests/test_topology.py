@@ -2415,10 +2415,8 @@ class TestUnaryNodes(TopologyTestCase):
             py_ts, py_node_map = s.simplify()
             lib_ts, lib_node_map = ts_new.simplify(map_nodes=True, **params)
             py_tables = py_ts.dump_tables()
-            py_tables.provenances.clear()
             lib_tables = lib_ts.dump_tables()
-            lib_tables.provenances.clear()
-            assert lib_tables == py_tables
+            lib_tables.assert_equals(py_tables, ignore_provenance=True)
             assert np.all(lib_node_map == py_node_map)
 
     def test_binary_tree_sequence_unary_nodes(self):
@@ -2564,34 +2562,9 @@ class TestGeneralSamples(TopologyTestCase):
         # form, and identical to the original.
         simplified, s_node_map = permuted.simplify(map_nodes=True)
 
-        original_tables = ts.dump_tables()
-        simplified_tables = simplified.dump_tables()
-        original_tables.provenances.clear()
-        simplified_tables.provenances.clear()
-
-        assert original_tables.sequence_length == simplified_tables.sequence_length
-        assert original_tables.nodes == simplified_tables.nodes
-        assert original_tables.edges == simplified_tables.edges
-        assert original_tables.sites == simplified_tables.sites
-        assert original_tables.mutations == simplified_tables.mutations
-        assert original_tables.individuals == simplified_tables.individuals
-        assert original_tables.populations == simplified_tables.populations
-
-        assert original_tables == simplified_tables
-        assert ts.sequence_length == simplified.sequence_length
-        for _ in simplified.trees():
-            pass
-
         for u, v in enumerate(node_map):
             assert s_node_map[v] == u
-        assert np.array_equal(simplified.samples(), ts.samples())
-        assert list(simplified.nodes()) == list(ts.nodes())
-        assert list(simplified.edges()) == list(ts.edges())
-        assert list(simplified.sites()) == list(ts.sites())
-        assert list(simplified.haplotypes()) == list(ts.haplotypes())
-        assert list(simplified.variants(as_bytes=True)) == list(
-            ts.variants(as_bytes=True)
-        )
+        ts.tables.assert_equals(simplified.tables, ignore_provenance=True)
 
     def test_single_tree_permuted_nodes(self):
         ts = msprime.simulate(10, mutation_rate=5, random_seed=self.random_seed)

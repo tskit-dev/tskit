@@ -579,9 +579,7 @@ class TestSimplify:
         node_map = tables.simplify(samples=sub_samples)
         small_ts = tables.tree_sequence()
         other_tables = small_ts.dump_tables()
-        tables.provenances.clear()
-        other_tables.provenances.clear()
-        tables.assert_equals(other_tables)
+        tables.assert_equals(other_tables, ignore_provenance=True)
         self.verify_simplify(ts, small_ts, sub_samples, node_map)
 
     @pytest.mark.parametrize("ts", wf_sims)

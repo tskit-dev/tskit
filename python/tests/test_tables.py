@@ -2968,9 +2968,7 @@ class TestSimplifyTables:
                 t1.simplify([0, 1], filter_zero_mutation_sites=filter_sites)
             t2 = ts.dump_tables()
             t2.simplify([0, 1], filter_sites=filter_sites)
-            t1.provenances.clear()
-            t2.provenances.clear()
-            t1.assert_equals(t2)
+            t1.assert_equals(t2, ignore_provenance=True)
             if filter_sites:
                 assert ts.num_sites > len(t1.sites)
 
@@ -3515,7 +3513,7 @@ class TestTableCollection:
         t1.provenances.clear()
         t2.provenances.clear()
         assert t1 == t2
-        assert t1 == t2
+        assert t2 == t1
         assert not (t1 != t2)
 
         t1.nodes.clear()
@@ -4253,9 +4251,7 @@ class TestDeduplicateSites:
         t2 = msprime.simulate(10, mutation_rate=1, random_seed=1).dump_tables()
         assert len(t1.sites) > 0
         t1.deduplicate_sites()
-        t1.provenances.clear()
-        t2.provenances.clear()
-        t1.assert_equals(t2)
+        t1.assert_equals(t2, ignore_provenance=True)
 
     def test_same_sites(self):
         t1 = msprime.simulate(10, mutation_rate=1, random_seed=1).dump_tables()
@@ -4269,9 +4265,7 @@ class TestDeduplicateSites:
         assert len(t1.sites) == 2 * len(t2.sites)
         t1.sort()
         t1.deduplicate_sites()
-        t1.provenances.clear()
-        t2.provenances.clear()
-        t1.assert_equals(t2)
+        t1.assert_equals(t2, ignore_provenance=True)
 
     def test_order_maintained(self):
         t1 = tskit.TableCollection(1)
