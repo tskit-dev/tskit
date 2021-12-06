@@ -10747,6 +10747,28 @@ out:
     return ret;
 }
 
+static int TSK_WARN_UNUSED
+tsk_table_collection_set_file_uuid(tsk_table_collection_t *self, const char *uuid)
+{
+    int ret = 0;
+
+    tsk_safe_free(self->file_uuid);
+    self->file_uuid = NULL;
+
+    if (uuid != NULL) {
+        /* Allow space for \0 so we can print it as a string */
+        self->file_uuid = tsk_malloc(TSK_UUID_SIZE + 1);
+        if (self->file_uuid == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+        tsk_memcpy(self->file_uuid, uuid, TSK_UUID_SIZE);
+        self->file_uuid[TSK_UUID_SIZE] = '\0';
+    }
+out:
+    return ret;
+}
+
 int TSK_WARN_UNUSED
 tsk_table_collection_copy(const tsk_table_collection_t *self,
     tsk_table_collection_t *dest, tsk_flags_t options)
@@ -10818,7 +10840,20 @@ tsk_table_collection_copy(const tsk_table_collection_t *self,
     if (ret != 0) {
         goto out;
     }
-
+    if (options & TSK_COPY_FILE_UUID) {
+        /* The UUID should only be generated on writing to a file (see the call
+         * to generate_uuid in tsk_table_collection_write_format_data) and
+         * no other writing access is supported. We only read the value from
+         * the file, and raise an error if it's the wrong length there. Thus,
+         * finding a UUID value of any other length here is undefined behaviour.
+         */
+        tsk_bug_assert(
+            self->file_uuid == NULL || strlen(self->file_uuid) == TSK_UUID_SIZE);
+        ret = tsk_table_collection_set_file_uuid(dest, self->file_uuid);
+        if (ret != 0) {
+            goto out;
+        }
+    }
 out:
     return ret;
 }
@@ -10897,18 +10932,10 @@ tsk_table_collection_read_format_data(tsk_table_collection_t *self, kastore_t *s
         ret = TSK_ERR_FILE_FORMAT;
         goto out;
     }
-    /* This is safe because either we are in a case where TSK_NO_INIT has been set
-     * and there is a valid pointer, or this is a fresh table collection where all
-     * all pointers have been set to zero */
-    tsk_safe_free(self->file_uuid);
-    /* Allow space for \0 so we can print it as a string */
-    self->file_uuid = tsk_malloc(TSK_UUID_SIZE + 1);
-    if (self->file_uuid == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
+    ret = tsk_table_collection_set_file_uuid(self, (const char *) uuid);
+    if (ret != 0) {
         goto out;
     }
-    tsk_memcpy(self->file_uuid, uuid, TSK_UUID_SIZE);
-    self->file_uuid[TSK_UUID_SIZE] = '\0';
 
     ret = kastore_containss(store, "time_units");
     if (ret < 0) {
