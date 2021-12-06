@@ -2292,11 +2292,6 @@ test_simplest_bad_edges(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_treeseq_free(&ts);
 
-    /* NULL for tables should be an error */
-    ret = tsk_treeseq_init(&ts, NULL, load_flags);
-    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    tsk_treeseq_free(&ts);
-
     /* Bad population ID */
     tables.nodes.population[0] = -2;
     ret = tsk_treeseq_init(&ts, &tables, load_flags);
@@ -5831,11 +5826,11 @@ test_empty_tree_kc(void)
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES | TSK_SAMPLE_LISTS);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SEQUENCE_LENGTH);
     tsk_treeseq_free(&ts);
     tables.sequence_length = 1.0;
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES | TSK_SAMPLE_LISTS);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     verify_empty_tree_sequence(&ts, 1.0);

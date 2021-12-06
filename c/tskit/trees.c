@@ -405,27 +405,26 @@ tsk_treeseq_init(
     tsk_id_t num_trees;
 
     tsk_memset(self, 0, sizeof(*self));
-    if (tables == NULL) {
-        ret = TSK_ERR_BAD_PARAM_VALUE;
-        goto out;
-    }
-    self->tables = tsk_malloc(sizeof(*self->tables));
-    if (self->tables == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
-        goto out;
-    }
+    if (options & TSK_TAKE_TABLES) {
+        self->tables = tables;
+    } else {
+        self->tables = tsk_malloc(sizeof(*self->tables));
+        if (self->tables == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
 
-    /* Note that this copy reinstates metadata for a table collection with
-     * TSK_NO_EDGE_METADATA. Otherwise a table without metadata would
-     * crash tsk_diff_iter_next. This is something we will need to
-     * watch out for when we take a read-only view of the input table
-     * rather than a copy. */
-    ret = tsk_table_collection_copy(tables, self->tables, 0);
-
-    if (ret != 0) {
-        goto out;
+        /* Note that this copy reinstates metadata for a table collection with
+         * TSK_NO_EDGE_METADATA. Otherwise a table without metadata would
+         * crash tsk_diff_iter_next. This is something we will need to
+         * watch out for when we take a read-only view of the input table
+         * rather than a copy. */
+        ret = tsk_table_collection_copy(tables, self->tables, TSK_COPY_FILE_UUID);
+        if (ret != 0) {
+            goto out;
+        }
     }
-    if (!!(options & TSK_BUILD_INDEXES)) {
+    if (options & TSK_BUILD_INDEXES) {
         ret = tsk_table_collection_build_index(self->tables, 0);
         if (ret != 0) {
             goto out;
@@ -437,23 +436,6 @@ tsk_treeseq_init(
         goto out;
     }
     self->num_trees = (tsk_size_t) num_trees;
-
-    /* This is a hack to workaround the fact we're copying the tables here.
-     * In general, we don't want the file_uuid to be copied, as this should
-     * only be present if the tables are genuinely backed by a file and in
-     * read-only mode (which we also need to do). So, we copy the file_uuid
-     * into the local copy of the table for now until we have proper read-only
-     * access to the tables set up, where any attempts to modify the tables
-     * will fail. */
-    if (tables->file_uuid != NULL) {
-        self->tables->file_uuid = tsk_malloc(TSK_UUID_SIZE + 1);
-        if (self->tables->file_uuid == NULL) {
-            ret = TSK_ERR_NO_MEMORY;
-            goto out;
-        }
-        tsk_memcpy(self->tables->file_uuid, tables->file_uuid, TSK_UUID_SIZE + 1);
-    }
-
     self->discrete_genome = true;
     self->discrete_time = true;
     ret = tsk_treeseq_init_nodes(self);
@@ -495,24 +477,29 @@ int TSK_WARN_UNUSED
 tsk_treeseq_load(tsk_treeseq_t *self, const char *filename, tsk_flags_t options)
 {
     int ret = 0;
-    tsk_table_collection_t tables;
+    tsk_table_collection_t *tables = malloc(sizeof(*tables));
 
     /* Need to make sure that we're zero'd out in case of error */
     tsk_memset(self, 0, sizeof(*self));
-    ret = tsk_table_collection_load(&tables, filename, options);
-    if (ret != 0) {
+
+    if (tables == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    /* TODO the implementation is wasteful here, as we don't need to allocate
-     * a new table here but could load directly into the main table instead.
-     * See notes on the owned reference for treeseq_alloc above.
-     */
-    ret = tsk_treeseq_init(self, &tables, 0);
+
+    ret = tsk_table_collection_load(tables, filename, options);
+    if (ret != 0) {
+        tsk_table_collection_free(tables);
+        tsk_safe_free(tables);
+        goto out;
+    }
+    /* TSK_TAKE_TABLES takes immediate ownership of the tables, regardless
+     * of error conditions. */
+    ret = tsk_treeseq_init(self, tables, TSK_TAKE_TABLES);
     if (ret != 0) {
         goto out;
     }
 out:
-    tsk_table_collection_free(&tables);
     return ret;
 }
 
@@ -520,24 +507,29 @@ int TSK_WARN_UNUSED
 tsk_treeseq_loadf(tsk_treeseq_t *self, FILE *file, tsk_flags_t options)
 {
     int ret = 0;
-    tsk_table_collection_t tables;
+    tsk_table_collection_t *tables = malloc(sizeof(*tables));
 
     /* Need to make sure that we're zero'd out in case of error */
     tsk_memset(self, 0, sizeof(*self));
-    ret = tsk_table_collection_loadf(&tables, file, options);
-    if (ret != 0) {
+
+    if (tables == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    /* TODO the implementation is wasteful here, as we don't need to allocate
-     * a new table here but could load directly into the main table instead.
-     * See notes on the owned reference for treeseq_alloc above.
-     */
-    ret = tsk_treeseq_init(self, &tables, 0);
+
+    ret = tsk_table_collection_loadf(tables, file, options);
+    if (ret != 0) {
+        tsk_table_collection_free(tables);
+        tsk_safe_free(tables);
+        goto out;
+    }
+    /* TSK_TAKE_TABLES takes immediate ownership of the tables, regardless
+     * of error conditions. */
+    ret = tsk_treeseq_init(self, tables, TSK_TAKE_TABLES);
     if (ret != 0) {
         goto out;
     }
 out:
-    tsk_table_collection_free(&tables);
     return ret;
 }
 
