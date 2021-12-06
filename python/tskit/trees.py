@@ -603,10 +603,22 @@ class Edgeset(util.Dataclass):
 
 @dataclass
 class Provenance(util.Dataclass):
+    """
+    A provenance entry in a tree sequence, detailing what how this tree
+    sequence was generated, or what has been done to it (see :ref:`sec_provenance`).
+    """
+
     __slots__ = ["id", "timestamp", "record"]
     id: int  # noqa A003
     timestamp: str
+    """
+    The time that this entry was made
+    """
     record: str
+    """
+    A JSON string giving details of the provenance (see :ref:`sec_provenance_example`
+    for an example JSON string)
+    """
 
 
 class Tree:

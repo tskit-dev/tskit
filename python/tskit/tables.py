@@ -64,11 +64,27 @@ class NOTSET(metaclass=NotSetMeta):
 @metadata.lazy_decode
 @dataclass(**dataclass_options)
 class IndividualTableRow(util.Dataclass):
+    """
+    A row in an :class:`IndividualTable`.
+    """
+
     __slots__ = ["flags", "location", "parents", "metadata"]
     flags: int
+    """
+    See :attr:`Individual.flags`
+    """
     location: np.ndarray
+    """
+    See :attr:`Individual.location`
+    """
     parents: np.ndarray
+    """
+    See :attr:`Individual.parents`
+    """
     metadata: Optional[Union[bytes, dict]]
+    """
+    See :attr:`Individual.metadata`
+    """
 
     # We need a custom eq for the numpy arrays
     def __eq__(self, other):
@@ -84,57 +100,155 @@ class IndividualTableRow(util.Dataclass):
 @metadata.lazy_decode
 @dataclass(**dataclass_options)
 class NodeTableRow(util.Dataclass):
+    """
+    A row in a :class:`NodeTable`.
+    """
+
     __slots__ = ["flags", "time", "population", "individual", "metadata"]
     flags: int
+    """
+    See :attr:`Node.flags`
+    """
     time: float
+    """
+    See :attr:`Node.time`
+    """
     population: int
+    """
+    See :attr:`Node.population`
+    """
     individual: int
+    """
+    See :attr:`Node.individual`
+    """
     metadata: Optional[Union[bytes, dict]]
+    """
+    See :attr:`Node.metadata`
+    """
 
 
 @metadata.lazy_decode
 @dataclass(**dataclass_options)
 class EdgeTableRow(util.Dataclass):
+    """
+    A row in an :class:`EdgeTable`.
+    """
+
     __slots__ = ["left", "right", "parent", "child", "metadata"]
     left: float
+    """
+    See :attr:`Edge.left`
+    """
     right: float
+    """
+    See :attr:`Edge.right`
+    """
     parent: int
+    """
+    See :attr:`Edge.parent`
+    """
     child: int
+    """
+    See :attr:`Edge.child`
+    """
     metadata: Optional[Union[bytes, dict]]
+    """
+    See :attr:`Edge.metadata`
+    """
 
 
 @metadata.lazy_decode
 @dataclass(**dataclass_options)
 class MigrationTableRow(util.Dataclass):
+    """
+    A row in a :class:`MigrationTable`.
+    """
+
     __slots__ = ["left", "right", "node", "source", "dest", "time", "metadata"]
     left: float
+    """
+    See :attr:`Migration.left`
+    """
     right: float
+    """
+    See :attr:`Migration.right`
+    """
     node: int
+    """
+    See :attr:`Migration.node`
+    """
     source: int
+    """
+    See :attr:`Migration.source`
+    """
     dest: int
+    """
+    See :attr:`Migration.dest`
+    """
     time: float
+    """
+    See :attr:`Migration.time`
+    """
     metadata: Optional[Union[bytes, dict]]
+    """
+    See :attr:`Migration.metadata`
+    """
 
 
 @metadata.lazy_decode
 @dataclass(**dataclass_options)
 class SiteTableRow(util.Dataclass):
+    """
+    A row in a :class:`SiteTable`.
+    """
+
     __slots__ = ["position", "ancestral_state", "metadata"]
     position: float
+    """
+    See :attr:`Site.position`
+    """
     ancestral_state: str
+    """
+    See :attr:`Site.ancestral_state`
+    """
     metadata: Optional[Union[bytes, dict]]
+    """
+    See :attr:`Site.metadata`
+    """
 
 
 @metadata.lazy_decode
 @dataclass(**dataclass_options)
 class MutationTableRow(util.Dataclass):
+    """
+    A row in a :class:`MutationTable`.
+    """
+
     __slots__ = ["site", "node", "derived_state", "parent", "metadata", "time"]
     site: int
+    """
+    See :attr:`Mutation.site`
+    """
     node: int
+    """
+    See :attr:`Mutation.node`
+    """
     derived_state: str
+    """
+    See :attr:`Mutation.derived_state`
+    """
     parent: int
+    """
+    See :attr:`Mutation.parent`
+    """
     metadata: Optional[Union[bytes, dict]]
+    """
+    See :attr:`Mutation.metadata`
+    """
     time: float
+    """
+    See :attr:`Mutation.time`
+    """
 
     # We need a custom eq here as we have unknown times (nans) to check
     def __eq__(self, other):
@@ -157,15 +271,32 @@ class MutationTableRow(util.Dataclass):
 @metadata.lazy_decode
 @dataclass(**dataclass_options)
 class PopulationTableRow(util.Dataclass):
+    """
+    A row in a :class:`PopulationTable`.
+    """
+
     __slots__ = ["metadata"]
     metadata: Optional[Union[bytes, dict]]
+    """
+    See :attr:`Population.metadata`
+    """
 
 
 @dataclass(**dataclass_options)
 class ProvenanceTableRow(util.Dataclass):
+    """
+    A row in a :class:`ProvenanceTable`.
+    """
+
     __slots__ = ["timestamp", "record"]
     timestamp: str
+    """
+    See :attr:`Provenance.timestamp`
+    """
     record: str
+    """
+    See :attr:`Provenance.record`
+    """
 
 
 @dataclass(**dataclass_options)

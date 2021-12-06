@@ -1234,7 +1234,8 @@ Also see the {ref}`sec_tables_api_table_collection` summary.
 % Overriding the default signatures for the tables here as they will be
 % confusing to most users.
 
-#### The {class}`IndividualTable` class
+
+#### {class}`IndividualTable` classes
 
 ```{eval-rst}
 .. autoclass:: IndividualTable()
@@ -1243,7 +1244,20 @@ Also see the {ref}`sec_tables_api_table_collection` summary.
     :special-members: __getitem__
 ```
 
-#### The {class}`NodeTable` class
+##### Associated row class
+
+A row returned from an {class}`IndividualTable` is an instance of the following
+basic class, where each attribute matches an identically named attribute in the
+{class}`Individual` class.
+
+```{eval-rst}
+.. autoclass:: IndividualTableRow()
+    :members:
+    :inherited-members:
+```
+
+
+#### {class}`NodeTable` classes
 
 ```{eval-rst}
 .. autoclass:: NodeTable()
@@ -1252,7 +1266,20 @@ Also see the {ref}`sec_tables_api_table_collection` summary.
     :special-members: __getitem__
 ```
 
-#### The {class}`EdgeTable` class
+##### Associated row class
+
+A row returned from a {class}`NodeTable` is an instance of the following
+basic class, where each attribute matches an identically named attribute in the
+{class}`Node` class.
+
+```{eval-rst}
+.. autoclass:: NodeTableRow()
+    :members:
+    :inherited-members:
+```
+
+
+#### {class}`EdgeTable` classes
 
 ```{eval-rst}
 .. autoclass:: EdgeTable()
@@ -1261,7 +1288,20 @@ Also see the {ref}`sec_tables_api_table_collection` summary.
     :special-members: __getitem__
 ```
 
-#### The {class}`MigrationTable` class
+##### Associated row class
+
+A row returned from an {class}`EdgeTable` is an instance of the following
+basic class, where each attribute matches an identically named attribute in the
+{class}`Edge` class.
+
+```{eval-rst}
+.. autoclass:: EdgeTableRow()
+    :members:
+    :inherited-members:
+```
+
+
+#### {class}`MigrationTable` classes
 
 ```{eval-rst}
 .. autoclass:: MigrationTable()
@@ -1270,7 +1310,20 @@ Also see the {ref}`sec_tables_api_table_collection` summary.
     :special-members: __getitem__
 ```
 
-#### The {class}`SiteTable` class
+##### Associated row class
+
+A row returned from a {class}`MigrationTable` is an instance of the following
+basic class, where each attribute matches an identically named attribute in the
+{class}`Migration` class.
+
+```{eval-rst}
+.. autoclass:: MigrationTableRow()
+    :members:
+    :inherited-members:
+```
+
+
+#### {class}`SiteTable` classes
 
 ```{eval-rst}
 .. autoclass:: SiteTable()
@@ -1279,7 +1332,20 @@ Also see the {ref}`sec_tables_api_table_collection` summary.
     :special-members: __getitem__
 ```
 
-#### The {class}`MutationTable` class
+##### Associated row class
+
+A row returned from a {class}`SiteTable` is an instance of the following
+basic class, where each attribute matches an identically named attribute in the
+{class}`Site` class.
+
+```{eval-rst}
+.. autoclass:: SiteTableRow()
+    :members:
+    :inherited-members:
+```
+
+
+#### {class}`MutationTable` classes
 
 ```{eval-rst}
 .. autoclass:: MutationTable()
@@ -1288,7 +1354,20 @@ Also see the {ref}`sec_tables_api_table_collection` summary.
     :special-members: __getitem__
 ```
 
-#### The {class}`PopulationTable` class
+##### Associated row class
+
+A row returned from a {class}`MutationTable` is an instance of the following
+basic class, where each attribute matches an identically named attribute in the
+{class}`Mutation` class.
+
+```{eval-rst}
+.. autoclass:: MutationTableRow()
+    :members:
+    :inherited-members:
+```
+
+
+#### {class}`PopulationTable` classes
 
 ```{eval-rst}
 .. autoclass:: PopulationTable()
@@ -1297,15 +1376,42 @@ Also see the {ref}`sec_tables_api_table_collection` summary.
     :special-members: __getitem__
 ```
 
-#### The {class}`ProvenanceTable` class
+##### Associated row class
 
-Also see the {ref}`sec_python_api_provenance` summary.
+A row returned from a {class}`PopulationTable` is an instance of the following
+basic class, where each attribute matches an identically named attribute in the
+{class}`Population` class.
+
+```{eval-rst}
+.. autoclass:: PopulationTableRow()
+    :members:
+    :inherited-members:
+```
+
+
+#### {class}`ProvenanceTable` classes
+
+Also see the {ref}`sec_provenance` and
+{ref}`provenance API methods<sec_python_api_provenance>`.
 
 ```{eval-rst}
 .. autoclass:: ProvenanceTable()
     :members:
     :inherited-members:
 ```
+
+##### Associated row class
+
+A row returned from a {class}`ProvenanceTable` is an instance of the following
+basic class, where each attribute matches an identically named attribute in the
+{class}`Provenance` class.
+
+```{eval-rst}
+.. autoclass:: ProvenanceTableRow()
+    :members:
+    :inherited-members:
+```
+
 
 ### Miscellaneous classes
 
