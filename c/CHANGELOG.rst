@@ -17,8 +17,6 @@
   ``tsk_table_collection_sort`` no longer sorts individuals.
   (:user:`benjeffery`, :issue:`1774`, :pr:`1789`)
 
-- FIXME breaking changes for tree API and virtual root.
-
 - The ``tsk_tree_t.left_root`` member has been removed. Client code can be updated
   most easily by using the equivalent ``tsk_tree_get_left_root`` function. However,
   it may be worth considering updating code to use either the standard traversal
@@ -33,6 +31,11 @@
 - ``kastore`` is now vendored into this repo instead of being a git submodule. Developers need to run
   ``git submodule update``. (:user:`jeromekelleher`, :issue:`1687`, :pr:`1973`)
 
+- ``Tree`` arrays such as ``left_sib``, ``right_child`` etc. now have an additional
+  "virtual root" node at the end. (:user:`jeromekelleher`, :issue:`1691`, :pr:`1704`)
+
+- ``num_samples``, ``num_tracked_samples``, ``marked`` and ``mark`` have been removed from
+  ``tsk_tree_t``. (:user:`jeromekelleher`, :pr:`1936`)
 
 **Features**
 
@@ -59,20 +62,29 @@
   tree sequence. This is then used to geerate an error if ``time_units`` is ``uncalibrated`` when
   using the branch lengths in statistics. (:user:`benjeffery`, :issue:`1644`, :pr:`1760`)
 
-- Add the TSK_LOAD_SKIP_TABLES option to load just the top-level information from a
-  file. Also add the TSK_CMP_IGNORE_TABLES option to compare only the top-level
+- Add the ``TSK_LOAD_SKIP_TABLES`` option to load just the top-level information from a
+  file. Also add the ``TSK_CMP_IGNORE_TABLES`` option to compare only the top-level
   information in two table collections. (:user:`clwgg`, :pr:`1882`, :issue:`1854`).
 
-- Add reference sequence to table collection (:user:`benjeffery`, :issue:`146`, :pr:`1911`)
+- Add reference sequence.
+  (:user:`jeromekelleher`, :user:`benjeffery`, :issue:`146`, :pr:`1911`, :pr:`1944`, :pr:`1911`)
 
-- Add the TSK_LOAD_SKIP_REFERENCE_SEQUENCE option to load a table collection
+- Add the ``TSK_LOAD_SKIP_REFERENCE_SEQUENCE`` option to load a table collection
   without the reference sequence. Also add the TSK_CMP_IGNORE_REFERENCE_SEQUENCE
   option to compare two table collections without comparing their reference
   sequence. (:user:`clwgg`, :pr:`2019`, :issue:`1971`).
 
-- FIXME add features for virtual root, num_edges, stack allocation size etc
+- Add a "virtual root" to ``Tree`` arrays such as ``left_sib``, ``right_child`` etc.
+  The virtual root is appended to each array, has all real roots as its children,
+  but is not the parent of any node. Simplifies traversal algorithms.
+  (:user:`jeromekelleher`, :issue:`1691`, :pr:`1704`)
 
-**Fixes**
+- Add ``num_edges`` to ``tsk_tree_t`` to count the edges that define the topology of
+  the tree. (:user:`jeromekelleher`, :pr:`1704`)
+
+- Add the ``tsk_tree_get_size_bound`` function which returns an upper bound on the number of nodes reachable from
+  the roots of a tree. Useful for tree stack allocations (:user:`jeromekelleher`, :pr:`1704`).
+
 
 ----------------------
 [0.99.14] - 2021-09-03
