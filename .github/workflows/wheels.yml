@@ -154,7 +154,7 @@ jobs:
         run: |
           python -VV
           # Install the local wheel
-          pip install tskit --only-binary tskit -f .
+          pip install dist/tskit-*.whl
           python -c "import tskit"
 
   windows-test:
@@ -177,7 +177,7 @@ jobs:
         run: |
           python -VV
           # Install the local wheel
-          pip install tskit --only-binary tskit -f .
+          pip install dist/tskit-*.whl
           python -c "import tskit"
 
   manylinux-test:
@@ -199,7 +199,7 @@ jobs:
         run: |
           python -VV
           # Install the local wheel
-          pip install tskit --only-binary tskit -f .
+          pip install dist/tskit-*.whl
           python -c "import tskit"
 
 
