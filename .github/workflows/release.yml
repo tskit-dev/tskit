@@ -1,12 +1,6 @@
 name: Release
 
-on:
-  push:
-    branches:
-      - main
-      - test
-    tags:
-      - '*'
+on: push
 
 jobs:
   build:
