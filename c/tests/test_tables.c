@@ -451,22 +451,13 @@ test_reference_sequence_take(void)
     tsk_reference_sequence_t r1;
     tsk_reference_sequence_t r2;
     const char *const_data = "data";
-    const char *const_url = "url";
-    const char *const_metadata_schema = "metadata_schema";
     const char *const_metadata = "metadata";
     char *takeset_data = strdup(const_data);
-    char *takeset_url = strdup(const_url);
-    char *takeset_metadata_schema = strdup(const_metadata_schema);
     char *takeset_metadata = strdup(const_metadata);
 
     ret = tsk_reference_sequence_init(&r1, 0);
 
     ret = tsk_reference_sequence_set_data(&r1, const_data, strlen(const_data));
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_reference_sequence_set_url(&r1, const_url, strlen(const_url));
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_reference_sequence_set_metadata_schema(
-        &r1, const_metadata_schema, strlen(const_metadata_schema));
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_reference_sequence_set_metadata(
         &r1, const_metadata, strlen(const_metadata));
@@ -478,13 +469,6 @@ test_reference_sequence_take(void)
     ret = tsk_reference_sequence_takeset_data(&r2, takeset_data, strlen(takeset_data));
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_reference_sequence_equals(&r1, &r2, 0));
-    ret = tsk_reference_sequence_takeset_url(&r2, takeset_url, strlen(takeset_url));
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_FALSE(tsk_reference_sequence_equals(&r1, &r2, 0));
-    ret = tsk_reference_sequence_takeset_metadata_schema(
-        &r2, takeset_metadata_schema, strlen(takeset_metadata_schema));
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_FALSE(tsk_reference_sequence_equals(&r1, &r2, 0));
     ret = tsk_reference_sequence_takeset_metadata(
         &r2, takeset_metadata, strlen(takeset_metadata));
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -492,11 +476,6 @@ test_reference_sequence_take(void)
 
     /* Writing over these with copies doesn't lose memory */
     ret = tsk_reference_sequence_set_data(&r2, const_data, strlen(const_data));
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_reference_sequence_set_url(&r2, const_url, strlen(const_url));
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_reference_sequence_set_metadata_schema(
-        &r2, const_metadata_schema, strlen(const_metadata_schema));
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_reference_sequence_set_metadata(
         &r2, const_metadata, strlen(const_metadata));
@@ -506,17 +485,10 @@ test_reference_sequence_take(void)
 
     /* The original copies are gone, make some new ones */
     takeset_data = strdup(const_data);
-    takeset_url = strdup(const_url);
-    takeset_metadata_schema = strdup(const_metadata_schema);
     takeset_metadata = strdup(const_metadata);
 
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_reference_sequence_takeset_data(&r1, takeset_data, strlen(takeset_data));
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_reference_sequence_takeset_url(&r1, takeset_url, strlen(takeset_url));
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_reference_sequence_takeset_metadata_schema(
-        &r1, takeset_metadata_schema, strlen(takeset_metadata_schema));
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_reference_sequence_takeset_metadata(
         &r1, takeset_metadata, strlen(takeset_metadata));
@@ -784,6 +756,7 @@ test_table_collection_metadata(void)
     tsk_table_collection_t tc1, tc2;
 
     char example_metadata[100] = "An example of metadata with unicode 🎄🌳🌴🌲🎋";
+    char *takeset_metadata;
     char example_metadata_schema[100]
         = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_metadata_length = (tsk_size_t) strlen(example_metadata);
@@ -864,6 +837,19 @@ test_table_collection_metadata(void)
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tc1, &tc2, 0));
     tsk_table_collection_free(&tc1);
     tsk_table_collection_free(&tc2);
+
+    takeset_metadata = tsk_malloc(example_metadata_length * sizeof(char));
+    CU_ASSERT_FATAL(takeset_metadata != NULL);
+    memcpy(takeset_metadata, &example_metadata,
+        (size_t)(example_metadata_length * sizeof(char)));
+
+    ret = tsk_table_collection_init(&tc1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_takeset_metadata(
+        &tc1, takeset_metadata, example_metadata_length);
+    CU_ASSERT_EQUAL(
+        tsk_memcmp(tc1.metadata, &example_metadata, example_metadata_length), 0);
+    tsk_table_collection_free(&tc1);
 }
 
 static void
@@ -1285,6 +1271,119 @@ test_node_table(void)
     free(metadata);
     free(metadata_offset);
     free(individual);
+}
+
+static void
+test_node_table_takeset(void)
+{
+    int ret = 0;
+    tsk_id_t ret_id;
+    tsk_node_table_t source_table, table;
+    tsk_size_t num_rows = 100;
+    tsk_id_t j;
+    tsk_flags_t *flags;
+    double *time;
+    tsk_id_t *population;
+    tsk_id_t *individual;
+    char *metadata;
+    tsk_size_t *metadata_offset;
+    const char *test_metadata = "test";
+    tsk_size_t test_metadata_length = 4;
+    tsk_size_t zeros[num_rows + 1];
+    tsk_id_t neg_ones[num_rows];
+
+    tsk_memset(zeros, 0, (num_rows + 1) * sizeof(tsk_size_t));
+    tsk_memset(neg_ones, 0xff, num_rows * sizeof(tsk_id_t));
+    /* Make a table to copy from */
+    ret = tsk_node_table_init(&source_table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (j = 0; j < (tsk_id_t) num_rows; j++) {
+        ret_id = tsk_node_table_add_row(&source_table, (tsk_flags_t) j, (double) j + 1,
+            j + 2, j + 3, test_metadata, test_metadata_length);
+        CU_ASSERT_EQUAL_FATAL(ret_id, j);
+    }
+
+    /* Prepare arrays to be taken */
+    flags = tsk_malloc(num_rows * sizeof(tsk_flags_t));
+    CU_ASSERT_FATAL(flags != NULL);
+    tsk_memcpy(flags, source_table.flags, num_rows * sizeof(tsk_flags_t));
+    time = tsk_malloc(num_rows * sizeof(double));
+    CU_ASSERT_FATAL(time != NULL);
+    tsk_memcpy(time, source_table.time, num_rows * sizeof(double));
+    population = tsk_malloc(num_rows * sizeof(tsk_id_t));
+    CU_ASSERT_FATAL(population != NULL);
+    tsk_memcpy(population, source_table.population, num_rows * sizeof(tsk_id_t));
+    individual = tsk_malloc(num_rows * sizeof(tsk_id_t));
+    CU_ASSERT_FATAL(individual != NULL);
+    tsk_memcpy(individual, source_table.individual, num_rows * sizeof(tsk_id_t));
+    metadata = tsk_malloc(num_rows * test_metadata_length * sizeof(char));
+    CU_ASSERT_FATAL(metadata != NULL);
+    tsk_memcpy(
+        metadata, source_table.metadata, num_rows * test_metadata_length * sizeof(char));
+    metadata_offset = tsk_malloc((num_rows + 1) * sizeof(tsk_size_t));
+    CU_ASSERT_FATAL(metadata_offset != NULL);
+    tsk_memcpy(metadata_offset, source_table.metadata_offset,
+        (num_rows + 1) * sizeof(tsk_size_t));
+
+    ret = tsk_node_table_init(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Add one row so that we can check takeset frees it */
+    ret_id = tsk_node_table_add_row(
+        &table, (tsk_flags_t) 1, 2, 3, 4, test_metadata, test_metadata_length);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    ret = tsk_node_table_takeset_columns(&table, num_rows, flags, time, population,
+        individual, metadata, metadata_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_node_table_equals(&source_table, &table, 0));
+
+    /* Test error states, all of these must not take the array, or free existing */
+    /* metadata and metadata offset must be simultaneously NULL or not */
+    ret = tsk_node_table_takeset_columns(
+        &table, num_rows, NULL, time, population, individual, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_node_table_takeset_columns(&table, num_rows, flags, NULL, population,
+        individual, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_node_table_takeset_columns(
+        &table, num_rows, flags, time, population, individual, NULL, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_node_table_takeset_columns(
+        &table, num_rows, flags, time, population, individual, metadata, NULL);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+
+    /* Truncation after takeset keeps memory and max_rows */
+    ret = tsk_node_table_clear(&table);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(table.max_rows, num_rows);
+
+    flags = tsk_malloc(num_rows * sizeof(tsk_flags_t));
+    CU_ASSERT_FATAL(flags != NULL);
+    tsk_memcpy(flags, source_table.flags, num_rows * sizeof(tsk_flags_t));
+    time = tsk_malloc(num_rows * sizeof(double));
+    CU_ASSERT_FATAL(time != NULL);
+    tsk_memcpy(time, source_table.time, num_rows * sizeof(double));
+    /* if metadata and offset are both null, all entries are zero length,
+       individual and population default to -1 */
+    num_rows = 10;
+    ret = tsk_node_table_takeset_columns(
+        &table, num_rows, flags, time, NULL, NULL, NULL, NULL);
+    CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_EQUAL(table.num_rows, num_rows);
+    CU_ASSERT_EQUAL(
+        tsk_memcmp(table.population, neg_ones, num_rows * sizeof(tsk_id_t)), 0);
+    CU_ASSERT_EQUAL(
+        tsk_memcmp(table.individual, neg_ones, num_rows * sizeof(tsk_id_t)), 0);
+    CU_ASSERT_EQUAL(
+        tsk_memcmp(table.metadata_offset, zeros, (num_rows + 1) * sizeof(tsk_size_t)),
+        0);
+    CU_ASSERT_EQUAL(table.metadata_length, 0);
+
+    ret = tsk_node_table_free(&table);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_node_table_free(&source_table);
+    CU_ASSERT_EQUAL(ret, 0);
 }
 
 static void
@@ -1913,6 +2012,131 @@ test_edge_table_update_row_no_metadata(void)
 }
 
 static void
+test_edge_table_takeset_with_options(tsk_flags_t table_options)
+{
+    int ret = 0;
+    tsk_id_t ret_id;
+    tsk_edge_table_t source_table, table;
+    tsk_size_t num_rows = 100;
+    tsk_id_t j;
+    double *left;
+    double *right;
+    tsk_id_t *parent;
+    tsk_id_t *child;
+    char *metadata;
+    tsk_size_t *metadata_offset;
+    const char *test_metadata = "test";
+    tsk_size_t test_metadata_length = 4;
+    tsk_size_t zeros[num_rows + 1];
+    tsk_id_t neg_ones[num_rows];
+
+    tsk_memset(zeros, 0, (num_rows + 1) * sizeof(tsk_size_t));
+    tsk_memset(neg_ones, 0xff, num_rows * sizeof(tsk_id_t));
+    /* Make a table to copy from */
+    ret = tsk_edge_table_init(&source_table, table_options);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (j = 0; j < (tsk_id_t) num_rows; j++) {
+        if (table_options & TSK_NO_METADATA) {
+            ret_id = tsk_edge_table_add_row(
+                &source_table, (double) j, (double) j + 1, j + 2, j + 3, NULL, 0);
+
+        } else {
+            ret_id = tsk_edge_table_add_row(&source_table, (double) j, (double) j + 1,
+                j + 2, j + 3, test_metadata, test_metadata_length);
+        }
+        CU_ASSERT_EQUAL_FATAL(ret_id, j);
+    }
+
+    /* Prepare arrays to be taken */
+    left = tsk_malloc(num_rows * sizeof(double));
+    CU_ASSERT_FATAL(left != NULL);
+    tsk_memcpy(left, source_table.left, num_rows * sizeof(double));
+    right = tsk_malloc(num_rows * sizeof(double));
+    CU_ASSERT_FATAL(right != NULL);
+    tsk_memcpy(right, source_table.right, num_rows * sizeof(double));
+    parent = tsk_malloc(num_rows * sizeof(tsk_id_t));
+    CU_ASSERT_FATAL(parent != NULL);
+    tsk_memcpy(parent, source_table.parent, num_rows * sizeof(tsk_id_t));
+    child = tsk_malloc(num_rows * sizeof(tsk_id_t));
+    CU_ASSERT_FATAL(child != NULL);
+    tsk_memcpy(child, source_table.child, num_rows * sizeof(tsk_id_t));
+    if (table_options & TSK_NO_METADATA) {
+        metadata = NULL;
+        metadata_offset = NULL;
+        test_metadata = NULL;
+        test_metadata_length = 0;
+    } else {
+        metadata = tsk_malloc(num_rows * test_metadata_length * sizeof(char));
+        CU_ASSERT_FATAL(metadata != NULL);
+        tsk_memcpy(metadata, source_table.metadata,
+            num_rows * test_metadata_length * sizeof(char));
+        metadata_offset = tsk_malloc((num_rows + 1) * sizeof(tsk_size_t));
+        CU_ASSERT_FATAL(metadata_offset != NULL);
+        tsk_memcpy(metadata_offset, source_table.metadata_offset,
+            (num_rows + 1) * sizeof(tsk_size_t));
+    }
+
+    ret = tsk_edge_table_init(&table, table_options);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Add one row so that we can check takeset frees it */
+    ret_id = tsk_edge_table_add_row(
+        &table, 1, 2, 3, 4, test_metadata, test_metadata_length);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    ret = tsk_edge_table_takeset_columns(
+        &table, num_rows, left, right, parent, child, metadata, metadata_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_edge_table_equals(&source_table, &table, 0));
+
+    /* Test error states, all of these must not take the array, or free existing */
+    /* metadata and metadata offset must be simultaneously NULL or not */
+    ret = tsk_edge_table_takeset_columns(
+        &table, num_rows, NULL, right, parent, child, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_edge_table_takeset_columns(
+        &table, num_rows, left, NULL, parent, child, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_edge_table_takeset_columns(
+        &table, num_rows, left, right, NULL, child, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_edge_table_takeset_columns(
+        &table, num_rows, left, right, parent, NULL, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    if (table_options & TSK_NO_METADATA) {
+        /* It isn't used, so any pointer does for testing that presence of metadata
+            fails */
+        ret = tsk_edge_table_takeset_columns(
+            &table, num_rows, left, right, parent, child, (char *) child, NULL);
+        CU_ASSERT_EQUAL(ret, TSK_ERR_METADATA_DISABLED);
+    } else {
+        ret = tsk_edge_table_takeset_columns(
+            &table, num_rows, left, right, parent, child, NULL, metadata_offset);
+        CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+        ret = tsk_edge_table_takeset_columns(
+            &table, num_rows, left, right, parent, child, metadata, NULL);
+        CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    }
+
+    /* Truncation after takeset keeps memory and max_rows */
+    ret = tsk_edge_table_clear(&table);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(table.max_rows, num_rows);
+
+    ret = tsk_edge_table_free(&table);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_edge_table_free(&source_table);
+    CU_ASSERT_EQUAL(ret, 0);
+}
+
+static void
+test_edge_table_takeset(void)
+{
+    test_edge_table_takeset_with_options(TSK_NO_METADATA);
+    test_edge_table_takeset_with_options(0);
+}
+
+static void
 test_edge_table_copy_semantics(void)
 {
     int ret;
@@ -2488,6 +2712,127 @@ test_site_table(void)
 }
 
 static void
+test_site_table_takeset(void)
+{
+    int ret = 0;
+    tsk_id_t ret_id;
+    tsk_site_table_t source_table, table;
+    tsk_size_t num_rows = 100;
+    tsk_id_t j;
+    double *position;
+    char *ancestral_state;
+    tsk_size_t *ancestral_state_offset;
+    char *metadata;
+    tsk_size_t *metadata_offset;
+    const char *test_ancestral_state = "red";
+    tsk_size_t test_ancestral_state_length = 3;
+    const char *test_metadata = "test";
+    tsk_size_t test_metadata_length = 4;
+    tsk_size_t zeros[num_rows + 1];
+    tsk_id_t neg_ones[num_rows];
+
+    tsk_memset(zeros, 0, (num_rows + 1) * sizeof(tsk_size_t));
+    tsk_memset(neg_ones, 0xff, num_rows * sizeof(tsk_id_t));
+    /* Make a table to copy from */
+    ret = tsk_site_table_init(&source_table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (j = 0; j < (tsk_id_t) num_rows; j++) {
+        ret_id = tsk_site_table_add_row(&source_table, (double) j, test_ancestral_state,
+            test_ancestral_state_length, test_metadata, test_metadata_length);
+        CU_ASSERT_EQUAL_FATAL(ret_id, j);
+    }
+
+    /* Prepare arrays to be taken */
+    position = tsk_malloc(num_rows * sizeof(double));
+    CU_ASSERT_FATAL(position != NULL);
+    tsk_memcpy(position, source_table.position, num_rows * sizeof(double));
+    ancestral_state = tsk_malloc(num_rows * test_ancestral_state_length * sizeof(char));
+    CU_ASSERT_FATAL(ancestral_state != NULL);
+    tsk_memcpy(ancestral_state, source_table.ancestral_state,
+        num_rows * test_ancestral_state_length * sizeof(char));
+    ancestral_state_offset = tsk_malloc((num_rows + 1) * sizeof(tsk_size_t));
+    CU_ASSERT_FATAL(ancestral_state_offset != NULL);
+    tsk_memcpy(ancestral_state_offset, source_table.ancestral_state_offset,
+        (num_rows + 1) * sizeof(tsk_size_t));
+    metadata = tsk_malloc(num_rows * test_metadata_length * sizeof(char));
+    CU_ASSERT_FATAL(metadata != NULL);
+    tsk_memcpy(
+        metadata, source_table.metadata, num_rows * test_metadata_length * sizeof(char));
+    metadata_offset = tsk_malloc((num_rows + 1) * sizeof(tsk_size_t));
+    CU_ASSERT_FATAL(metadata_offset != NULL);
+    tsk_memcpy(metadata_offset, source_table.metadata_offset,
+        (num_rows + 1) * sizeof(tsk_size_t));
+
+    ret = tsk_site_table_init(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Add one row so that we can check takeset frees it */
+    ret_id = tsk_site_table_add_row(&table, 1, test_ancestral_state,
+        test_ancestral_state_length, test_metadata, test_metadata_length);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    ret = tsk_site_table_takeset_columns(&table, num_rows, position, ancestral_state,
+        ancestral_state_offset, metadata, metadata_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_site_table_equals(&source_table, &table, 0));
+
+    /* Test error states, all of these must not take the array, or free existing */
+    /* metadata and metadata offset must be simultaneously NULL or not */
+    ret = tsk_site_table_takeset_columns(&table, num_rows, NULL, ancestral_state,
+        ancestral_state_offset, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_site_table_takeset_columns(&table, num_rows, position, NULL,
+        ancestral_state_offset, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_site_table_takeset_columns(
+        &table, num_rows, position, ancestral_state, NULL, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_site_table_takeset_columns(&table, num_rows, position, ancestral_state,
+        ancestral_state_offset, NULL, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_site_table_takeset_columns(&table, num_rows, position, ancestral_state,
+        ancestral_state_offset, metadata, NULL);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    /* Check bad offset in ancestral_state */
+    ancestral_state_offset[0] = 1;
+    ret = tsk_site_table_takeset_columns(&table, num_rows, position, ancestral_state,
+        ancestral_state_offset, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_OFFSET);
+
+    /* Truncation after takeset keeps memory and max_rows */
+    ret = tsk_site_table_clear(&table);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(table.max_rows, num_rows);
+
+    position = tsk_malloc(num_rows * sizeof(double));
+    CU_ASSERT_FATAL(position != NULL);
+    tsk_memcpy(position, source_table.position, num_rows * sizeof(double));
+    ancestral_state = tsk_malloc(num_rows * test_ancestral_state_length * sizeof(char));
+    CU_ASSERT_FATAL(ancestral_state != NULL);
+    tsk_memcpy(ancestral_state, source_table.ancestral_state,
+        num_rows * test_ancestral_state_length * sizeof(char));
+    ancestral_state_offset = tsk_malloc((num_rows + 1) * sizeof(tsk_size_t));
+    CU_ASSERT_FATAL(ancestral_state_offset != NULL);
+    tsk_memcpy(ancestral_state_offset, source_table.ancestral_state_offset,
+        (num_rows + 1) * sizeof(tsk_size_t));
+    /* if metadata and offset are both null, all entries are zero length*/
+    num_rows = 10;
+    ret = tsk_site_table_takeset_columns(
+        &table, num_rows, position, ancestral_state, ancestral_state_offset, NULL, NULL);
+    CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_EQUAL(table.num_rows, num_rows);
+    CU_ASSERT_EQUAL(
+        tsk_memcmp(table.metadata_offset, zeros, (num_rows + 1) * sizeof(tsk_size_t)),
+        0);
+    CU_ASSERT_EQUAL(table.metadata_length, 0);
+
+    ret = tsk_site_table_free(&table);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_site_table_free(&source_table);
+    CU_ASSERT_EQUAL(ret, 0);
+}
+
+static void
 test_site_table_update_row(void)
 {
     int ret;
@@ -2996,6 +3341,156 @@ test_mutation_table(void)
 }
 
 static void
+test_mutation_table_takeset(void)
+{
+    int ret = 0;
+    tsk_id_t ret_id;
+    tsk_mutation_table_t source_table, table;
+    tsk_size_t num_rows = 100;
+    tsk_id_t j;
+    tsk_id_t *site;
+    tsk_id_t *node;
+    tsk_id_t *parent;
+    double *time;
+    char *derived_state;
+    tsk_size_t *derived_state_offset;
+    char *metadata;
+    tsk_size_t *metadata_offset;
+    const char *test_derived_state = "red";
+    tsk_size_t test_derived_state_length = 3;
+    const char *test_metadata = "test";
+    tsk_size_t test_metadata_length = 4;
+    tsk_size_t zeros[num_rows + 1];
+    tsk_id_t neg_ones[num_rows];
+    double unknown_times[num_rows];
+
+    tsk_memset(zeros, 0, (num_rows + 1) * sizeof(tsk_size_t));
+    tsk_memset(neg_ones, 0xff, num_rows * sizeof(tsk_id_t));
+    /* Make a table to copy from */
+    ret = tsk_mutation_table_init(&source_table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (j = 0; j < (tsk_id_t) num_rows; j++) {
+        unknown_times[j] = TSK_UNKNOWN_TIME;
+        ret_id = tsk_mutation_table_add_row(&source_table, j, j + 1, j + 2,
+            (double) j + 3, test_derived_state, test_derived_state_length, test_metadata,
+            test_metadata_length);
+        CU_ASSERT_EQUAL_FATAL(ret_id, j);
+    }
+
+    /* Prepare arrays to be taken */
+    site = tsk_malloc(num_rows * sizeof(tsk_id_t));
+    CU_ASSERT_FATAL(site != NULL);
+    tsk_memcpy(site, source_table.site, num_rows * sizeof(tsk_id_t));
+    node = tsk_malloc(num_rows * sizeof(tsk_id_t));
+    CU_ASSERT_FATAL(node != NULL);
+    tsk_memcpy(node, source_table.node, num_rows * sizeof(tsk_id_t));
+    parent = tsk_malloc(num_rows * sizeof(tsk_id_t));
+    CU_ASSERT_FATAL(parent != NULL);
+    tsk_memcpy(parent, source_table.parent, num_rows * sizeof(tsk_id_t));
+    time = tsk_malloc(num_rows * sizeof(double));
+    CU_ASSERT_FATAL(time != NULL);
+    tsk_memcpy(time, source_table.time, num_rows * sizeof(double));
+    derived_state = tsk_malloc(num_rows * test_derived_state_length * sizeof(char));
+    CU_ASSERT_FATAL(derived_state != NULL);
+    tsk_memcpy(derived_state, source_table.derived_state,
+        num_rows * test_derived_state_length * sizeof(char));
+    derived_state_offset = tsk_malloc((num_rows + 1) * sizeof(tsk_size_t));
+    CU_ASSERT_FATAL(derived_state_offset != NULL);
+    tsk_memcpy(derived_state_offset, source_table.derived_state_offset,
+        (num_rows + 1) * sizeof(tsk_size_t));
+    metadata = tsk_malloc(num_rows * test_metadata_length * sizeof(char));
+    CU_ASSERT_FATAL(metadata != NULL);
+    tsk_memcpy(
+        metadata, source_table.metadata, num_rows * test_metadata_length * sizeof(char));
+    metadata_offset = tsk_malloc((num_rows + 1) * sizeof(tsk_size_t));
+    CU_ASSERT_FATAL(metadata_offset != NULL);
+    tsk_memcpy(metadata_offset, source_table.metadata_offset,
+        (num_rows + 1) * sizeof(tsk_size_t));
+
+    ret = tsk_mutation_table_init(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Add one row so that we can check takeset frees it */
+    ret_id = tsk_mutation_table_add_row(&table, 1, 1, 1, 1, test_derived_state,
+        test_derived_state_length, test_metadata, test_metadata_length);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    ret = tsk_mutation_table_takeset_columns(&table, num_rows, site, node, parent, time,
+        derived_state, derived_state_offset, metadata, metadata_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_mutation_table_equals(&source_table, &table, 0));
+
+    /* Test error states, all of these must not take the array, or free existing */
+    /* metadata and metadata offset must be simultaneously NULL or not */
+    ret = tsk_mutation_table_takeset_columns(&table, num_rows, NULL, node, parent, time,
+        derived_state, derived_state_offset, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_mutation_table_takeset_columns(&table, num_rows, site, NULL, parent, time,
+        derived_state, derived_state_offset, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    // Parent and time not tested as they have deafults
+    ret = tsk_mutation_table_takeset_columns(&table, num_rows, site, node, parent, time,
+        NULL, derived_state_offset, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_mutation_table_takeset_columns(&table, num_rows, site, node, parent, time,
+        derived_state, NULL, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_mutation_table_takeset_columns(&table, num_rows, site, node, parent, time,
+        derived_state, derived_state_offset, NULL, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_mutation_table_takeset_columns(&table, num_rows, site, node, parent, time,
+        derived_state, derived_state_offset, metadata, NULL);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+
+    /* Check error on bad derived_state offset */
+    derived_state_offset[0] = 1;
+    ret = tsk_mutation_table_takeset_columns(&table, num_rows, site, node, parent, time,
+        derived_state, derived_state_offset, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_OFFSET);
+
+    /* Truncation after takeset keeps memory and max_rows */
+    ret = tsk_mutation_table_clear(&table);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(table.max_rows, num_rows);
+
+    // Re init non-optional arrays
+    site = tsk_malloc(num_rows * sizeof(tsk_id_t));
+    CU_ASSERT_FATAL(site != NULL);
+    tsk_memcpy(site, source_table.site, num_rows * sizeof(tsk_id_t));
+    node = tsk_malloc(num_rows * sizeof(tsk_id_t));
+    CU_ASSERT_FATAL(node != NULL);
+    tsk_memcpy(node, source_table.node, num_rows * sizeof(tsk_id_t));
+    derived_state = tsk_malloc(num_rows * test_derived_state_length * sizeof(char));
+    CU_ASSERT_FATAL(derived_state != NULL);
+    tsk_memcpy(derived_state, source_table.derived_state,
+        num_rows * test_derived_state_length * sizeof(char));
+    derived_state_offset = tsk_malloc((num_rows + 1) * sizeof(tsk_size_t));
+    CU_ASSERT_FATAL(derived_state_offset != NULL);
+    tsk_memcpy(derived_state_offset, source_table.derived_state_offset,
+        (num_rows + 1) * sizeof(tsk_size_t));
+    /* if metadata and offset are both null, all entries are zero length, if parent or
+     * time are NULL they default to null values*/
+    num_rows = 10;
+    ret = tsk_mutation_table_takeset_columns(&table, num_rows, site, node, NULL, NULL,
+        derived_state, derived_state_offset, NULL, NULL);
+    CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_EQUAL(table.num_rows, num_rows);
+    CU_ASSERT_EQUAL(tsk_memcmp(table.parent, neg_ones, num_rows * sizeof(tsk_id_t)), 0);
+    CU_ASSERT_EQUAL(
+        tsk_memcmp(table.time, unknown_times, num_rows * sizeof(tsk_id_t)), 0);
+
+    CU_ASSERT_EQUAL(
+        tsk_memcmp(table.metadata_offset, zeros, (num_rows + 1) * sizeof(tsk_size_t)),
+        0);
+    CU_ASSERT_EQUAL(table.metadata_length, 0);
+
+    ret = tsk_mutation_table_free(&table);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_mutation_table_free(&source_table);
+    CU_ASSERT_EQUAL(ret, 0);
+}
+
+static void
 test_mutation_table_update_row(void)
 {
     int ret;
@@ -3492,6 +3987,145 @@ test_migration_table(void)
     free(dest);
     free(metadata);
     free(metadata_offset);
+}
+
+static void
+test_migration_table_takeset(void)
+{
+    int ret = 0;
+    tsk_id_t ret_id;
+    tsk_migration_table_t source_table, table;
+    tsk_size_t num_rows = 100;
+    tsk_id_t j;
+    double *left;
+    double *right;
+    tsk_id_t *node;
+    tsk_id_t *source;
+    tsk_id_t *dest;
+    double *time;
+    char *metadata;
+    tsk_size_t *metadata_offset;
+    const char *test_metadata = "test";
+    tsk_size_t test_metadata_length = 4;
+    tsk_size_t zeros[num_rows + 1];
+
+    tsk_memset(zeros, 0, (num_rows + 1) * sizeof(tsk_size_t));
+    /* Make a table to copy from */
+    ret = tsk_migration_table_init(&source_table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (j = 0; j < (tsk_id_t) num_rows; j++) {
+        ret_id = tsk_migration_table_add_row(&source_table, (double) j, (double) j + 1,
+            j + 2, j + 3, j + 4, (double) j + 5, test_metadata, test_metadata_length);
+        CU_ASSERT_EQUAL_FATAL(ret_id, j);
+    }
+
+    /* Prepare arrays to be taken */
+    left = tsk_malloc(num_rows * sizeof(double));
+    CU_ASSERT_FATAL(left != NULL);
+    tsk_memcpy(left, source_table.left, num_rows * sizeof(double));
+    right = tsk_malloc(num_rows * sizeof(double));
+    CU_ASSERT_FATAL(right != NULL);
+    tsk_memcpy(right, source_table.right, num_rows * sizeof(double));
+    node = tsk_malloc(num_rows * sizeof(tsk_id_t));
+    CU_ASSERT_FATAL(node != NULL);
+    tsk_memcpy(node, source_table.node, num_rows * sizeof(tsk_id_t));
+    source = tsk_malloc(num_rows * sizeof(tsk_id_t));
+    CU_ASSERT_FATAL(source != NULL);
+    tsk_memcpy(source, source_table.source, num_rows * sizeof(tsk_id_t));
+    dest = tsk_malloc(num_rows * sizeof(tsk_id_t));
+    CU_ASSERT_FATAL(dest != NULL);
+    tsk_memcpy(dest, source_table.dest, num_rows * sizeof(tsk_id_t));
+    time = tsk_malloc(num_rows * sizeof(double));
+    CU_ASSERT_FATAL(time != NULL);
+    tsk_memcpy(time, source_table.time, num_rows * sizeof(double));
+    metadata = tsk_malloc(num_rows * test_metadata_length * sizeof(char));
+    CU_ASSERT_FATAL(metadata != NULL);
+    tsk_memcpy(
+        metadata, source_table.metadata, num_rows * test_metadata_length * sizeof(char));
+    metadata_offset = tsk_malloc((num_rows + 1) * sizeof(tsk_size_t));
+    CU_ASSERT_FATAL(metadata_offset != NULL);
+    tsk_memcpy(metadata_offset, source_table.metadata_offset,
+        (num_rows + 1) * sizeof(tsk_size_t));
+
+    ret = tsk_migration_table_init(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Add one row so that we can check takeset frees it */
+    ret_id = tsk_migration_table_add_row(
+        &table, 1, 1, 1, 1, 1, 1, test_metadata, test_metadata_length);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    ret = tsk_migration_table_takeset_columns(&table, num_rows, left, right, node,
+        source, dest, time, metadata, metadata_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_migration_table_equals(&source_table, &table, 0));
+
+    /* Test error states, all of these must not take the array, or free existing */
+    /* metadata and metadata offset must be simultaneously NULL or not */
+    ret = tsk_migration_table_takeset_columns(&table, num_rows, NULL, right, node,
+        source, dest, time, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_migration_table_takeset_columns(&table, num_rows, left, NULL, node, source,
+        dest, time, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_migration_table_takeset_columns(&table, num_rows, left, right, NULL,
+        source, dest, time, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_migration_table_takeset_columns(&table, num_rows, left, right, node, NULL,
+        dest, time, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_migration_table_takeset_columns(&table, num_rows, left, right, node,
+        source, NULL, time, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_migration_table_takeset_columns(&table, num_rows, left, right, node,
+        source, dest, NULL, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_migration_table_takeset_columns(
+        &table, num_rows, left, right, node, source, dest, time, NULL, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_migration_table_takeset_columns(
+        &table, num_rows, left, right, node, source, dest, time, metadata, NULL);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+
+    /* Truncation after takeset keeps memory and max_rows */
+    ret = tsk_migration_table_clear(&table);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(table.max_rows, num_rows);
+
+    // Re init non-optional arrays
+    left = tsk_malloc(num_rows * sizeof(double));
+    CU_ASSERT_FATAL(left != NULL);
+    tsk_memcpy(left, source_table.left, num_rows * sizeof(double));
+    right = tsk_malloc(num_rows * sizeof(double));
+    CU_ASSERT_FATAL(right != NULL);
+    tsk_memcpy(right, source_table.right, num_rows * sizeof(double));
+    node = tsk_malloc(num_rows * sizeof(tsk_id_t));
+    CU_ASSERT_FATAL(node != NULL);
+    tsk_memcpy(node, source_table.node, num_rows * sizeof(tsk_id_t));
+    source = tsk_malloc(num_rows * sizeof(tsk_id_t));
+    CU_ASSERT_FATAL(source != NULL);
+    tsk_memcpy(source, source_table.source, num_rows * sizeof(tsk_id_t));
+    dest = tsk_malloc(num_rows * sizeof(tsk_id_t));
+    CU_ASSERT_FATAL(dest != NULL);
+    tsk_memcpy(dest, source_table.dest, num_rows * sizeof(tsk_id_t));
+    time = tsk_malloc(num_rows * sizeof(double));
+    CU_ASSERT_FATAL(time != NULL);
+    tsk_memcpy(time, source_table.time, num_rows * sizeof(double));
+    /* if metadata and offset are both null, all entries are zero length */
+    num_rows = 10;
+    ret = tsk_migration_table_takeset_columns(
+        &table, num_rows, left, right, node, source, dest, time, NULL, NULL);
+    CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_EQUAL(table.num_rows, num_rows);
+    CU_ASSERT_EQUAL(
+        tsk_memcmp(table.metadata_offset, zeros, (num_rows + 1) * sizeof(tsk_size_t)),
+        0);
+    CU_ASSERT_EQUAL(table.metadata_length, 0);
+
+    ret = tsk_migration_table_free(&table);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_migration_table_free(&source_table);
+    CU_ASSERT_EQUAL(ret, 0);
 }
 
 static void
@@ -4050,6 +4684,143 @@ test_individual_table(void)
 }
 
 static void
+test_individual_table_takeset(void)
+{
+    int ret = 0;
+    tsk_id_t ret_id;
+    tsk_individual_table_t source_table, table;
+    tsk_size_t num_rows = 100;
+    tsk_id_t j;
+    tsk_size_t k;
+    tsk_flags_t *flags;
+    double *location;
+    tsk_id_t *parents;
+    char *metadata;
+    tsk_size_t *metadata_offset;
+    tsk_size_t *parents_offset;
+    tsk_size_t *location_offset;
+    tsk_size_t spatial_dimension = 2;
+    tsk_size_t num_parents = 3;
+    const char *test_metadata = "test";
+    tsk_size_t test_metadata_length = 4;
+    double test_location[spatial_dimension];
+    tsk_id_t test_parents[num_parents];
+    tsk_size_t zeros[num_rows + 1];
+
+    tsk_memset(zeros, 0, (num_rows + 1) * sizeof(tsk_size_t));
+    /* Make a table to copy from */
+    ret = tsk_individual_table_init(&source_table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (k = 0; k < spatial_dimension; k++) {
+        test_location[k] = (double) k;
+    }
+    for (k = 0; k < num_parents; k++) {
+        test_parents[k] = (tsk_id_t) k + 42;
+    }
+    for (j = 0; j < (tsk_id_t) num_rows; j++) {
+        ret_id = tsk_individual_table_add_row(&source_table, (tsk_flags_t) j,
+            test_location, spatial_dimension, test_parents, num_parents, test_metadata,
+            test_metadata_length);
+        CU_ASSERT_EQUAL_FATAL(ret_id, j);
+    }
+
+    /* Prepare arrays to be taken */
+    flags = tsk_malloc(num_rows * sizeof(tsk_flags_t));
+    CU_ASSERT_FATAL(flags != NULL);
+    tsk_memcpy(flags, source_table.flags, num_rows * sizeof(tsk_flags_t));
+    location = tsk_malloc(spatial_dimension * num_rows * sizeof(double));
+    CU_ASSERT_FATAL(location != NULL);
+    tsk_memcpy(
+        location, source_table.location, spatial_dimension * num_rows * sizeof(double));
+    location_offset = tsk_malloc((num_rows + 1) * sizeof(tsk_size_t));
+    CU_ASSERT_FATAL(location_offset != NULL);
+    tsk_memcpy(location_offset, source_table.location_offset,
+        (num_rows + 1) * sizeof(tsk_size_t));
+    parents = tsk_malloc(num_parents * num_rows * sizeof(tsk_id_t));
+    CU_ASSERT_FATAL(parents != NULL);
+    tsk_memcpy(parents, source_table.parents, num_parents * num_rows * sizeof(tsk_id_t));
+    parents_offset = tsk_malloc((num_rows + 1) * sizeof(tsk_size_t));
+    CU_ASSERT_FATAL(parents_offset != NULL);
+    tsk_memcpy(parents_offset, source_table.parents_offset,
+        (num_rows + 1) * sizeof(tsk_size_t));
+    metadata = tsk_malloc(num_rows * test_metadata_length * sizeof(char));
+    CU_ASSERT_FATAL(metadata != NULL);
+    tsk_memcpy(
+        metadata, source_table.metadata, num_rows * test_metadata_length * sizeof(char));
+    metadata_offset = tsk_malloc((num_rows + 1) * sizeof(tsk_size_t));
+    CU_ASSERT_FATAL(metadata_offset != NULL);
+    tsk_memcpy(metadata_offset, source_table.metadata_offset,
+        (num_rows + 1) * sizeof(tsk_size_t));
+
+    ret = tsk_individual_table_init(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Add one row so that we can check takeset frees it */
+    ret_id = tsk_individual_table_add_row(&table, (tsk_flags_t) 1, test_location,
+        spatial_dimension, test_parents, num_parents, test_metadata,
+        test_metadata_length);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    ret = tsk_individual_table_takeset_columns(&table, num_rows, flags, location,
+        location_offset, parents, parents_offset, metadata, metadata_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_individual_table_equals(&source_table, &table, 0));
+
+    /* Test error states, all of these must not take the array, or free existing */
+    /* location and location offset must be simultaneously NULL or not */
+    ret = tsk_individual_table_takeset_columns(&table, num_rows, flags, location, NULL,
+        parents, parents_offset, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_individual_table_takeset_columns(&table, num_rows, flags, NULL,
+        location_offset, NULL, NULL, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    /* parents and parents offset must be simultaneously NULL or not */
+    ret = tsk_individual_table_takeset_columns(&table, num_rows, flags, location,
+        location_offset, parents, NULL, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_individual_table_takeset_columns(&table, num_rows, flags, location,
+        location_offset, NULL, parents_offset, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    /* metadata and metadata offset must be simultaneously NULL or not */
+    ret = tsk_individual_table_takeset_columns(&table, num_rows, flags, location,
+        location_offset, parents, parents_offset, NULL, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_individual_table_takeset_columns(&table, num_rows, flags, location,
+        location_offset, parents, parents_offset, metadata, NULL);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+
+    /* Truncation after takeset keeps memory and max_rows */
+    ret = tsk_individual_table_clear(&table);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(table.max_rows, num_rows);
+
+    /* if ragged array and offset are both null, all entries are zero length,
+       NULL flags mean all zero entries */
+    num_rows = 10;
+    ret = tsk_individual_table_takeset_columns(
+        &table, num_rows, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    CU_ASSERT_EQUAL(tsk_memcmp(table.flags, zeros, num_rows * sizeof(tsk_flags_t)), 0);
+    CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_EQUAL(table.num_rows, num_rows);
+    CU_ASSERT_EQUAL(
+        tsk_memcmp(table.location_offset, zeros, (num_rows + 1) * sizeof(tsk_size_t)),
+        0);
+    CU_ASSERT_EQUAL(table.location_length, 0);
+    CU_ASSERT_EQUAL(
+        tsk_memcmp(table.parents_offset, zeros, (num_rows + 1) * sizeof(tsk_size_t)), 0);
+    CU_ASSERT_EQUAL(table.parents_length, 0);
+    CU_ASSERT_EQUAL(
+        tsk_memcmp(table.metadata_offset, zeros, (num_rows + 1) * sizeof(tsk_size_t)),
+        0);
+    CU_ASSERT_EQUAL(table.metadata_length, 0);
+
+    ret = tsk_individual_table_free(&table);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_individual_table_free(&source_table);
+    CU_ASSERT_EQUAL(ret, 0);
+}
+
+static void
 test_individual_table_update_row(void)
 {
     int ret;
@@ -4421,6 +5192,77 @@ test_population_table(void)
 }
 
 static void
+test_population_table_takeset(void)
+{
+    int ret = 0;
+    tsk_id_t ret_id;
+    tsk_population_table_t source_table, table;
+    tsk_size_t num_rows = 100;
+    tsk_id_t j;
+    char *metadata;
+    tsk_size_t *metadata_offset;
+    const char *test_metadata = "test";
+    tsk_size_t test_metadata_length = 4;
+    tsk_size_t zeros[num_rows + 1];
+
+    tsk_memset(zeros, 0, (num_rows + 1) * sizeof(tsk_size_t));
+    /* Make a table to copy from */
+    ret = tsk_population_table_init(&source_table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (j = 0; j < (tsk_id_t) num_rows; j++) {
+        ret_id = tsk_population_table_add_row(
+            &source_table, test_metadata, test_metadata_length);
+        CU_ASSERT_EQUAL_FATAL(ret_id, j);
+    }
+
+    /* Prepare arrays to be taken */
+    metadata = tsk_malloc(num_rows * test_metadata_length * sizeof(char));
+    CU_ASSERT_FATAL(metadata != NULL);
+    tsk_memcpy(
+        metadata, source_table.metadata, num_rows * test_metadata_length * sizeof(char));
+    metadata_offset = tsk_malloc((num_rows + 1) * sizeof(tsk_size_t));
+    CU_ASSERT_FATAL(metadata_offset != NULL);
+    tsk_memcpy(metadata_offset, source_table.metadata_offset,
+        (num_rows + 1) * sizeof(tsk_size_t));
+
+    ret = tsk_population_table_init(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Add one row so that we can check takeset frees it */
+    ret_id = tsk_population_table_add_row(&table, test_metadata, test_metadata_length);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    ret = tsk_population_table_takeset_columns(
+        &table, num_rows, metadata, metadata_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_population_table_equals(&source_table, &table, 0));
+
+    /* Test error states, all of these must not take the array, or free existing */
+    ret = tsk_population_table_takeset_columns(&table, num_rows, NULL, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_population_table_takeset_columns(&table, num_rows, metadata, NULL);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_population_table_takeset_columns(&table, num_rows, NULL, NULL);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+
+    /* Test bad offset */
+    metadata_offset[0] = 1;
+    ret = tsk_population_table_takeset_columns(
+        &table, num_rows, metadata, metadata_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_OFFSET);
+
+    /* Truncation after takeset keeps memory and max_rows */
+    ret = tsk_population_table_clear(&table);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(table.max_rows, num_rows);
+
+    ret = tsk_population_table_free(&table);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_population_table_free(&source_table);
+    CU_ASSERT_EQUAL(ret, 0);
+}
+
+static void
 test_population_table_update_row(void)
 {
     int ret;
@@ -4736,6 +5578,103 @@ test_provenance_table(void)
     free(timestamp_offset);
     free(record);
     free(record_offset);
+}
+
+static void
+test_provenance_table_takeset(void)
+{
+    int ret = 0;
+    tsk_id_t ret_id;
+    tsk_provenance_table_t source_table, table;
+    tsk_size_t num_rows = 100;
+    tsk_id_t j;
+    char *timestamp;
+    tsk_size_t *timestamp_offset;
+    char *record;
+    tsk_size_t *record_offset;
+    const char *test_timestamp = "red";
+    tsk_size_t test_timestamp_length = 3;
+    const char *test_record = "test";
+    tsk_size_t test_record_length = 4;
+    tsk_size_t zeros[num_rows + 1];
+    tsk_id_t neg_ones[num_rows];
+
+    tsk_memset(zeros, 0, (num_rows + 1) * sizeof(tsk_size_t));
+    tsk_memset(neg_ones, 0xff, num_rows * sizeof(tsk_id_t));
+    /* Make a table to copy from */
+    ret = tsk_provenance_table_init(&source_table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (j = 0; j < (tsk_id_t) num_rows; j++) {
+        ret_id = tsk_provenance_table_add_row(&source_table, test_timestamp,
+            test_timestamp_length, test_record, test_record_length);
+        CU_ASSERT_EQUAL_FATAL(ret_id, j);
+    }
+
+    /* Prepare arrays to be taken */
+    timestamp = tsk_malloc(num_rows * test_timestamp_length * sizeof(char));
+    CU_ASSERT_FATAL(timestamp != NULL);
+    tsk_memcpy(timestamp, source_table.timestamp,
+        num_rows * test_timestamp_length * sizeof(char));
+    timestamp_offset = tsk_malloc((num_rows + 1) * sizeof(tsk_size_t));
+    CU_ASSERT_FATAL(timestamp_offset != NULL);
+    tsk_memcpy(timestamp_offset, source_table.timestamp_offset,
+        (num_rows + 1) * sizeof(tsk_size_t));
+    record = tsk_malloc(num_rows * test_record_length * sizeof(char));
+    CU_ASSERT_FATAL(record != NULL);
+    tsk_memcpy(
+        record, source_table.record, num_rows * test_record_length * sizeof(char));
+    record_offset = tsk_malloc((num_rows + 1) * sizeof(tsk_size_t));
+    CU_ASSERT_FATAL(record_offset != NULL);
+    tsk_memcpy(
+        record_offset, source_table.record_offset, (num_rows + 1) * sizeof(tsk_size_t));
+
+    ret = tsk_provenance_table_init(&table, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* Add one row so that we can check takeset frees it */
+    ret_id = tsk_provenance_table_add_row(
+        &table, test_timestamp, test_timestamp_length, test_record, test_record_length);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    ret = tsk_provenance_table_takeset_columns(
+        &table, num_rows, timestamp, timestamp_offset, record, record_offset);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_provenance_table_equals(&source_table, &table, 0));
+
+    /* Test error states, all of these must not take the array, or free existing */
+    ret = tsk_provenance_table_takeset_columns(
+        &table, num_rows, NULL, timestamp_offset, record, record_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_provenance_table_takeset_columns(
+        &table, num_rows, timestamp, NULL, record, record_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_provenance_table_takeset_columns(
+        &table, num_rows, timestamp, timestamp_offset, NULL, record_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_provenance_table_takeset_columns(
+        &table, num_rows, timestamp, timestamp_offset, record, NULL);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+
+    /* Bad offsets */
+    timestamp_offset[0] = 1;
+    ret = tsk_provenance_table_takeset_columns(
+        &table, num_rows, timestamp, timestamp_offset, record, record_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_OFFSET);
+    timestamp_offset[0] = 0;
+    record_offset[0] = 1;
+    ret = tsk_provenance_table_takeset_columns(
+        &table, num_rows, timestamp, timestamp_offset, record, record_offset);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_OFFSET);
+
+    /* Truncation after takeset keeps memory and max_rows */
+    ret = tsk_provenance_table_clear(&table);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(table.max_rows, num_rows);
+
+    ret = tsk_provenance_table_free(&table);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_provenance_table_free(&source_table);
+    CU_ASSERT_EQUAL(ret, 0);
 }
 
 static void
@@ -9210,16 +10149,65 @@ test_table_collection_clear(void)
                                              | TSK_CLEAR_TS_METADATA_AND_SCHEMA);
 }
 
+static void
+test_table_collection_takeset_indexes(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t t1, t2;
+    tsk_id_t *ins;
+    tsk_id_t *rem;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ins = tsk_malloc(t1.edges.num_rows * sizeof(*ins));
+    CU_ASSERT_FATAL(ins != NULL);
+    rem = tsk_malloc(t1.edges.num_rows * sizeof(*rem));
+    CU_ASSERT_FATAL(rem != NULL);
+    memcpy(ins, t1.indexes.edge_insertion_order,
+        (size_t)(t1.edges.num_rows * sizeof(*ins)));
+    memcpy(
+        rem, t1.indexes.edge_removal_order, (size_t)(t1.edges.num_rows * sizeof(*rem)));
+
+    ret = tsk_table_collection_copy(&t1, &t2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_drop_index(&t2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_takeset_indexes(&t2, ins, rem);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(
+        tsk_memcmp(t1.indexes.edge_insertion_order, t2.indexes.edge_insertion_order,
+            t1.edges.num_rows * sizeof(*ins)),
+        0);
+    CU_ASSERT_EQUAL(tsk_memcmp(t1.indexes.edge_removal_order,
+                        t2.indexes.edge_removal_order, t1.edges.num_rows * sizeof(*rem)),
+        0);
+
+    ret = tsk_table_collection_takeset_indexes(&t2, ins, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_table_collection_takeset_indexes(&t2, NULL, rem);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+
+    tsk_table_collection_free(&t1);
+    tsk_table_collection_free(&t2);
+    tsk_treeseq_free(&ts);
+}
+
 int
 main(int argc, char **argv)
 {
     CU_TestInfo tests[] = {
         { "test_node_table", test_node_table },
         { "test_node_table_update_row", test_node_table_update_row },
+        { "test_node_table_takeset", test_node_table_takeset },
         { "test_edge_table", test_edge_table },
         { "test_edge_table_update_row", test_edge_table_update_row },
         { "test_edge_table_update_row_no_metadata",
             test_edge_table_update_row_no_metadata },
+        { "test_edge_table_takeset", test_edge_table_takeset },
         { "test_edge_table_copy_semantics", test_edge_table_copy_semantics },
         { "test_edge_table_squash", test_edge_table_squash },
         { "test_edge_table_squash_multiple_parents",
@@ -9230,16 +10218,22 @@ main(int argc, char **argv)
         { "test_edge_table_squash_metadata", test_edge_table_squash_metadata },
         { "test_site_table", test_site_table },
         { "test_site_table_update_row", test_site_table_update_row },
+        { "test_site_table_takeset", test_site_table_takeset },
         { "test_mutation_table", test_mutation_table },
         { "test_mutation_table_update_row", test_mutation_table_update_row },
+        { "test_mutation_table_takeset", test_mutation_table_takeset },
         { "test_migration_table", test_migration_table },
         { "test_migration_table_update_row", test_migration_table_update_row },
+        { "test_migration_table_takeset", test_migration_table_takeset },
         { "test_individual_table", test_individual_table },
+        { "test_individual_table_takeset", test_individual_table_takeset },
         { "test_individual_table_update_row", test_individual_table_update_row },
         { "test_population_table", test_population_table },
         { "test_population_table_update_row", test_population_table_update_row },
+        { "test_population_table_takeset", test_population_table_takeset },
         { "test_provenance_table", test_provenance_table },
         { "test_provenance_table_update_row", test_provenance_table_update_row },
+        { "test_provenance_table_takeset", test_provenance_table_takeset },
         { "test_table_size_increments", test_table_size_increments },
         { "test_table_expansion", test_table_expansion },
         { "test_ragged_expansion", test_ragged_expansion },
@@ -9317,6 +10311,8 @@ main(int argc, char **argv)
             test_table_collection_union_middle_merge },
         { "test_table_collection_union_errors", test_table_collection_union_errors },
         { "test_table_collection_clear", test_table_collection_clear },
+        { "test_table_collection_takeset_indexes",
+            test_table_collection_takeset_indexes },
         { NULL, NULL },
     };
 

@@ -630,6 +630,81 @@ takeset_string(char **str, tsk_size_t *len, char *new_str, const tsk_size_t new_
 }
 
 static int
+alloc_empty_ragged_column(tsk_size_t num_rows, void **data_col, tsk_size_t **offset_col)
+{
+    int ret = 0;
+
+    *data_col = tsk_malloc(1);
+    *offset_col = tsk_calloc(num_rows + 1, sizeof(tsk_size_t));
+    if (*data_col == NULL || *offset_col == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+out:
+    return ret;
+}
+
+static int
+check_ragged_column(tsk_size_t num_rows, void *data, tsk_size_t *offset)
+{
+    int ret = 0;
+    if ((data == NULL) != (offset == NULL)) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+    if (data != NULL) {
+        ret = check_offsets(num_rows, offset, 0, false);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+out:
+    return ret;
+}
+
+static int
+takeset_ragged_column(tsk_size_t num_rows, void *data, tsk_size_t *offset,
+    void **data_dest, tsk_size_t **offset_dest, tsk_size_t *length_dest)
+{
+    int ret = 0;
+    if (data == NULL) {
+        ret = alloc_empty_ragged_column(num_rows, (void *) data_dest, offset_dest);
+        if (ret != 0) {
+            goto out;
+        }
+    } else {
+        *data_dest = data;
+        *offset_dest = offset;
+    }
+    *length_dest = (*offset_dest)[num_rows];
+out:
+    return ret;
+}
+
+static int
+takeset_optional_id_column(tsk_size_t num_rows, tsk_id_t *input, tsk_id_t **dest)
+{
+    int ret = 0;
+    tsk_size_t buffsize;
+    tsk_id_t *buff;
+
+    if (input == NULL) {
+        buffsize = num_rows * sizeof(*buff);
+        buff = tsk_malloc(buffsize);
+        if (buff == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+        *dest = buff;
+        tsk_memset(buff, 0xff, buffsize);
+    } else {
+        *dest = input;
+    }
+out:
+    return ret;
+}
+
+static int
 write_metadata_schema_header(
     FILE *out, const char *metadata_schema, tsk_size_t metadata_schema_length)
 {
@@ -769,13 +844,6 @@ tsk_reference_sequence_takeset_data(
 }
 
 int
-tsk_reference_sequence_takeset_url(
-    tsk_reference_sequence_t *self, char *url, tsk_size_t url_length)
-{
-    return takeset_string(&self->url, &self->url_length, url, url_length);
-}
-
-int
 tsk_reference_sequence_takeset_metadata(
     tsk_reference_sequence_t *self, char *metadata, tsk_size_t metadata_length)
 {
@@ -783,17 +851,29 @@ tsk_reference_sequence_takeset_metadata(
         &self->metadata, &self->metadata_length, metadata, metadata_length);
 }
 
-int
-tsk_reference_sequence_takeset_metadata_schema(tsk_reference_sequence_t *self,
-    char *metadata_schema, tsk_size_t metadata_schema_length)
-{
-    return takeset_string(&self->metadata_schema, &self->metadata_schema_length,
-        metadata_schema, metadata_schema_length);
-}
-
 /*************************
  * individual table
  *************************/
+
+static void
+tsk_individual_table_free_columns(tsk_individual_table_t *self)
+{
+    tsk_safe_free(self->flags);
+    tsk_safe_free(self->location);
+    tsk_safe_free(self->location_offset);
+    tsk_safe_free(self->parents);
+    tsk_safe_free(self->parents_offset);
+    tsk_safe_free(self->metadata);
+    tsk_safe_free(self->metadata_offset);
+}
+
+int
+tsk_individual_table_free(tsk_individual_table_t *self)
+{
+    tsk_individual_table_free_columns(self);
+    tsk_safe_free(self->metadata_schema);
+    return 0;
+}
 
 static int
 tsk_individual_table_expand_main_columns(
@@ -970,6 +1050,62 @@ tsk_individual_table_set_columns(tsk_individual_table_t *self, tsk_size_t num_ro
     }
     ret = tsk_individual_table_append_columns(self, num_rows, flags, location,
         location_offset, parents, parents_offset, metadata, metadata_offset);
+out:
+    return ret;
+}
+
+int TSK_WARN_UNUSED
+tsk_individual_table_takeset_columns(tsk_individual_table_t *self, tsk_size_t num_rows,
+    tsk_flags_t *flags, double *location, tsk_size_t *location_offset, tsk_id_t *parents,
+    tsk_size_t *parents_offset, char *metadata, tsk_size_t *metadata_offset)
+{
+    int ret = 0;
+
+    /* We need to check all the inputs before we start freeing or taking memory */
+    ret = check_ragged_column(num_rows, location, location_offset);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = check_ragged_column(num_rows, parents, parents_offset);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = check_ragged_column(num_rows, metadata, metadata_offset);
+    if (ret != 0) {
+        goto out;
+    }
+
+    tsk_individual_table_free_columns(self);
+    self->num_rows = num_rows;
+    self->max_rows = num_rows;
+
+    if (flags == NULL) {
+        /* Flags defaults to all zeros if not specified. The column is often
+         * unused so this is a worthwhile optimisation. */
+        self->flags = tsk_calloc(num_rows, sizeof(*self->flags));
+        if (self->flags == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+    } else {
+        self->flags = flags;
+    }
+
+    ret = takeset_ragged_column(num_rows, location, location_offset,
+        (void *) &self->location, &self->location_offset, &self->location_length);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = takeset_ragged_column(num_rows, parents, parents_offset,
+        (void *) &self->parents, &self->parents_offset, &self->parents_length);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = takeset_ragged_column(num_rows, metadata, metadata_offset,
+        (void *) &self->metadata, &self->metadata_offset, &self->metadata_length);
+    if (ret != 0) {
+        goto out;
+    }
 out:
     return ret;
 }
@@ -1279,20 +1415,6 @@ out:
     return ret;
 }
 
-int
-tsk_individual_table_free(tsk_individual_table_t *self)
-{
-    tsk_safe_free(self->flags);
-    tsk_safe_free(self->location);
-    tsk_safe_free(self->location_offset);
-    tsk_safe_free(self->parents);
-    tsk_safe_free(self->parents_offset);
-    tsk_safe_free(self->metadata);
-    tsk_safe_free(self->metadata_offset);
-    tsk_safe_free(self->metadata_schema);
-    return 0;
-}
-
 void
 tsk_individual_table_print_state(const tsk_individual_table_t *self, FILE *out)
 {
@@ -1561,6 +1683,25 @@ out:
  * node table
  *************************/
 
+static void
+tsk_node_table_free_columns(tsk_node_table_t *self)
+{
+    tsk_safe_free(self->flags);
+    tsk_safe_free(self->time);
+    tsk_safe_free(self->population);
+    tsk_safe_free(self->individual);
+    tsk_safe_free(self->metadata);
+    tsk_safe_free(self->metadata_offset);
+}
+
+int
+tsk_node_table_free(tsk_node_table_t *self)
+{
+    tsk_node_table_free_columns(self);
+    tsk_safe_free(self->metadata_schema);
+    return 0;
+}
+
 static int
 tsk_node_table_expand_main_columns(tsk_node_table_t *self, tsk_size_t additional_rows)
 {
@@ -1687,6 +1828,47 @@ tsk_node_table_set_columns(tsk_node_table_t *self, tsk_size_t num_rows,
     }
     ret = tsk_node_table_append_columns(
         self, num_rows, flags, time, population, individual, metadata, metadata_offset);
+out:
+    return ret;
+}
+
+int TSK_WARN_UNUSED
+tsk_node_table_takeset_columns(tsk_node_table_t *self, tsk_size_t num_rows,
+    tsk_flags_t *flags, double *time, tsk_id_t *population, tsk_id_t *individual,
+    char *metadata, tsk_size_t *metadata_offset)
+{
+    int ret = 0;
+
+    /* We need to check all the inputs before we start freeing or taking memory */
+    if (flags == NULL || time == NULL) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+    ret = check_ragged_column(num_rows, metadata, metadata_offset);
+    if (ret != 0) {
+        goto out;
+    }
+
+    tsk_node_table_free_columns(self);
+    self->num_rows = num_rows;
+    self->max_rows = num_rows;
+    self->flags = flags;
+    self->time = time;
+
+    ret = takeset_optional_id_column(num_rows, population, &self->population);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = takeset_optional_id_column(num_rows, individual, &self->individual);
+    if (ret != 0) {
+        goto out;
+    }
+
+    ret = takeset_ragged_column(num_rows, metadata, metadata_offset,
+        (void *) &self->metadata, &self->metadata_offset, &self->metadata_length);
+    if (ret != 0) {
+        goto out;
+    }
 out:
     return ret;
 }
@@ -1928,19 +2110,6 @@ out:
     return ret;
 }
 
-int
-tsk_node_table_free(tsk_node_table_t *self)
-{
-    tsk_safe_free(self->flags);
-    tsk_safe_free(self->time);
-    tsk_safe_free(self->population);
-    tsk_safe_free(self->individual);
-    tsk_safe_free(self->metadata);
-    tsk_safe_free(self->metadata_offset);
-    tsk_safe_free(self->metadata_schema);
-    return 0;
-}
-
 void
 tsk_node_table_print_state(const tsk_node_table_t *self, FILE *out)
 {
@@ -2149,6 +2318,25 @@ out:
 /*************************
  * edge table
  *************************/
+
+static void
+tsk_edge_table_free_columns(tsk_edge_table_t *self)
+{
+    tsk_safe_free(self->left);
+    tsk_safe_free(self->right);
+    tsk_safe_free(self->parent);
+    tsk_safe_free(self->child);
+    tsk_safe_free(self->metadata);
+    tsk_safe_free(self->metadata_offset);
+}
+
+int
+tsk_edge_table_free(tsk_edge_table_t *self)
+{
+    tsk_edge_table_free_columns(self);
+    tsk_safe_free(self->metadata_schema);
+    return 0;
+}
 
 static int
 tsk_edge_table_has_metadata(const tsk_edge_table_t *self)
@@ -2423,6 +2611,44 @@ out:
     return ret;
 }
 
+int TSK_WARN_UNUSED
+tsk_edge_table_takeset_columns(tsk_edge_table_t *self, tsk_size_t num_rows, double *left,
+    double *right, tsk_id_t *parent, tsk_id_t *child, char *metadata,
+    tsk_size_t *metadata_offset)
+{
+    int ret = 0;
+
+    /* We need to check all the inputs before we start freeing or taking memory */
+    if (left == NULL || right == NULL || parent == NULL || child == NULL) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+    if (metadata != NULL && !tsk_edge_table_has_metadata(self)) {
+        ret = TSK_ERR_METADATA_DISABLED;
+        goto out;
+    }
+    ret = check_ragged_column(num_rows, metadata, metadata_offset);
+    if (ret != 0) {
+        goto out;
+    }
+
+    tsk_edge_table_free_columns(self);
+    self->num_rows = num_rows;
+    self->max_rows = num_rows;
+    self->left = left;
+    self->right = right;
+    self->parent = parent;
+    self->child = child;
+
+    ret = takeset_ragged_column(num_rows, metadata, metadata_offset,
+        (void *) &self->metadata, &self->metadata_offset, &self->metadata_length);
+    if (ret != 0) {
+        goto out;
+    }
+out:
+    return ret;
+}
+
 int
 tsk_edge_table_append_columns(tsk_edge_table_t *self, tsk_size_t num_rows,
     const double *left, const double *right, const tsk_id_t *parent,
@@ -2542,19 +2768,6 @@ tsk_edge_table_extend(tsk_edge_table_t *self, const tsk_edge_table_t *other,
     ret = 0;
 out:
     return ret;
-}
-
-int
-tsk_edge_table_free(tsk_edge_table_t *self)
-{
-    tsk_safe_free(self->left);
-    tsk_safe_free(self->right);
-    tsk_safe_free(self->parent);
-    tsk_safe_free(self->child);
-    tsk_safe_free(self->metadata);
-    tsk_safe_free(self->metadata_offset);
-    tsk_safe_free(self->metadata_schema);
-    return 0;
 }
 
 static inline void
@@ -2827,6 +3040,24 @@ out:
 /*************************
  * site table
  *************************/
+
+static void
+tsk_site_table_free_columns(tsk_site_table_t *self)
+{
+    tsk_safe_free(self->position);
+    tsk_safe_free(self->ancestral_state);
+    tsk_safe_free(self->ancestral_state_offset);
+    tsk_safe_free(self->metadata);
+    tsk_safe_free(self->metadata_offset);
+}
+
+int
+tsk_site_table_free(tsk_site_table_t *self)
+{
+    tsk_site_table_free_columns(self);
+    tsk_safe_free(self->metadata_schema);
+    return 0;
+}
 
 static int
 tsk_site_table_expand_main_columns(tsk_site_table_t *self, tsk_size_t additional_rows)
@@ -3169,6 +3400,47 @@ out:
     return ret;
 }
 
+int
+tsk_site_table_takeset_columns(tsk_site_table_t *self, tsk_size_t num_rows,
+    double *position, char *ancestral_state, tsk_size_t *ancestral_state_offset,
+    char *metadata, tsk_size_t *metadata_offset)
+{
+    int ret = 0;
+
+    /* We need to check all the inputs before we start freeing or taking memory */
+    if (position == NULL || ancestral_state == NULL || ancestral_state_offset == NULL) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+    ret = check_ragged_column(num_rows, ancestral_state, ancestral_state_offset);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = check_ragged_column(num_rows, metadata, metadata_offset);
+    if (ret != 0) {
+        goto out;
+    }
+
+    tsk_site_table_free_columns(self);
+    self->num_rows = num_rows;
+    self->max_rows = num_rows;
+    self->position = position;
+
+    ret = takeset_ragged_column(num_rows, ancestral_state, ancestral_state_offset,
+        (void *) &self->ancestral_state, &self->ancestral_state_offset,
+        &self->ancestral_state_length);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = takeset_ragged_column(num_rows, metadata, metadata_offset,
+        (void *) &self->metadata, &self->metadata_offset, &self->metadata_length);
+    if (ret != 0) {
+        goto out;
+    }
+out:
+    return ret;
+}
+
 bool
 tsk_site_table_equals(
     const tsk_site_table_t *self, const tsk_site_table_t *other, tsk_flags_t options)
@@ -3257,18 +3529,6 @@ tsk_site_table_extend(tsk_site_table_t *self, const tsk_site_table_t *other,
     ret = 0;
 out:
     return ret;
-}
-
-int
-tsk_site_table_free(tsk_site_table_t *self)
-{
-    tsk_safe_free(self->position);
-    tsk_safe_free(self->ancestral_state);
-    tsk_safe_free(self->ancestral_state_offset);
-    tsk_safe_free(self->metadata);
-    tsk_safe_free(self->metadata_offset);
-    tsk_safe_free(self->metadata_schema);
-    return 0;
 }
 
 void
@@ -3447,6 +3707,27 @@ out:
 /*************************
  * mutation table
  *************************/
+
+static void
+tsk_mutation_table_free_columns(tsk_mutation_table_t *self)
+{
+    tsk_safe_free(self->node);
+    tsk_safe_free(self->site);
+    tsk_safe_free(self->parent);
+    tsk_safe_free(self->time);
+    tsk_safe_free(self->derived_state);
+    tsk_safe_free(self->derived_state_offset);
+    tsk_safe_free(self->metadata);
+    tsk_safe_free(self->metadata_offset);
+}
+
+int
+tsk_mutation_table_free(tsk_mutation_table_t *self)
+{
+    tsk_mutation_table_free_columns(self);
+    tsk_safe_free(self->metadata_schema);
+    return 0;
+}
 
 static int
 tsk_mutation_table_expand_main_columns(
@@ -3785,6 +4066,69 @@ out:
 }
 
 int TSK_WARN_UNUSED
+tsk_mutation_table_takeset_columns(tsk_mutation_table_t *self, tsk_size_t num_rows,
+    tsk_id_t *site, tsk_id_t *node, tsk_id_t *parent, double *time, char *derived_state,
+    tsk_size_t *derived_state_offset, char *metadata, tsk_size_t *metadata_offset)
+{
+    tsk_size_t j;
+    int ret = 0;
+
+    if (site == NULL || node == NULL || derived_state == NULL
+        || derived_state_offset == NULL) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+    /* We need to check all the inputs before we start freeing or taking memory */
+    ret = check_ragged_column(num_rows, derived_state, derived_state_offset);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = check_ragged_column(num_rows, metadata, metadata_offset);
+    if (ret != 0) {
+        goto out;
+    }
+
+    tsk_mutation_table_free_columns(self);
+    self->num_rows = num_rows;
+    self->max_rows = num_rows;
+    self->site = site;
+    self->node = node;
+
+    ret = takeset_optional_id_column(num_rows, parent, &self->parent);
+    if (ret != 0) {
+        goto out;
+    }
+    if (time == NULL) {
+        /* Time defaults to unknown time if not specified. */
+        self->time = tsk_malloc(num_rows * sizeof(*self->time));
+        if (self->time == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+        for (j = 0; j < num_rows; j++) {
+            self->time[j] = TSK_UNKNOWN_TIME;
+        }
+
+    } else {
+        self->time = time;
+    }
+
+    ret = takeset_ragged_column(num_rows, derived_state, derived_state_offset,
+        (void *) &self->derived_state, &self->derived_state_offset,
+        &self->derived_state_length);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = takeset_ragged_column(num_rows, metadata, metadata_offset,
+        (void *) &self->metadata, &self->metadata_offset, &self->metadata_length);
+    if (ret != 0) {
+        goto out;
+    }
+out:
+    return ret;
+}
+
+int TSK_WARN_UNUSED
 tsk_mutation_table_copy(
     const tsk_mutation_table_t *self, tsk_mutation_table_t *dest, tsk_flags_t options)
 {
@@ -3922,21 +4266,6 @@ tsk_mutation_table_extend(tsk_mutation_table_t *self, const tsk_mutation_table_t
     ret = 0;
 out:
     return ret;
-}
-
-int
-tsk_mutation_table_free(tsk_mutation_table_t *self)
-{
-    tsk_safe_free(self->node);
-    tsk_safe_free(self->site);
-    tsk_safe_free(self->parent);
-    tsk_safe_free(self->time);
-    tsk_safe_free(self->derived_state);
-    tsk_safe_free(self->derived_state_offset);
-    tsk_safe_free(self->metadata);
-    tsk_safe_free(self->metadata_offset);
-    tsk_safe_free(self->metadata_schema);
-    return 0;
 }
 
 void
@@ -4126,6 +4455,27 @@ out:
  * migration table
  *************************/
 
+static void
+tsk_migration_table_free_columns(tsk_migration_table_t *self)
+{
+    tsk_safe_free(self->left);
+    tsk_safe_free(self->right);
+    tsk_safe_free(self->node);
+    tsk_safe_free(self->source);
+    tsk_safe_free(self->dest);
+    tsk_safe_free(self->time);
+    tsk_safe_free(self->metadata);
+    tsk_safe_free(self->metadata_offset);
+}
+
+int
+tsk_migration_table_free(tsk_migration_table_t *self)
+{
+    tsk_migration_table_free_columns(self);
+    tsk_safe_free(self->metadata_schema);
+    return 0;
+}
+
 static int
 tsk_migration_table_expand_main_columns(
     tsk_migration_table_t *self, tsk_size_t additional_rows)
@@ -4281,6 +4631,44 @@ tsk_migration_table_append_columns(tsk_migration_table_t *self, tsk_size_t num_r
 
     self->num_rows += num_rows;
     self->metadata_offset[self->num_rows] = self->metadata_length;
+out:
+    return ret;
+}
+
+int TSK_WARN_UNUSED
+tsk_migration_table_takeset_columns(tsk_migration_table_t *self, tsk_size_t num_rows,
+    double *left, double *right, tsk_id_t *node, tsk_id_t *source, tsk_id_t *dest,
+    double *time, char *metadata, tsk_size_t *metadata_offset)
+{
+    int ret = 0;
+
+    if (left == NULL || right == NULL || node == NULL || source == NULL || dest == NULL
+        || time == NULL) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+
+    /* We need to check all the inputs before we start freeing or taking memory */
+    ret = check_ragged_column(num_rows, metadata, metadata_offset);
+    if (ret != 0) {
+        goto out;
+    }
+
+    tsk_migration_table_free_columns(self);
+    self->num_rows = num_rows;
+    self->max_rows = num_rows;
+    self->left = left;
+    self->right = right;
+    self->node = node;
+    self->source = source;
+    self->dest = dest;
+    self->time = time;
+
+    ret = takeset_ragged_column(num_rows, metadata, metadata_offset,
+        (void *) &self->metadata, &self->metadata_offset, &self->metadata_length);
+    if (ret != 0) {
+        goto out;
+    }
 out:
     return ret;
 }
@@ -4499,21 +4887,6 @@ out:
     return ret;
 }
 
-int
-tsk_migration_table_free(tsk_migration_table_t *self)
-{
-    tsk_safe_free(self->left);
-    tsk_safe_free(self->right);
-    tsk_safe_free(self->node);
-    tsk_safe_free(self->source);
-    tsk_safe_free(self->dest);
-    tsk_safe_free(self->time);
-    tsk_safe_free(self->metadata);
-    tsk_safe_free(self->metadata_offset);
-    tsk_safe_free(self->metadata_schema);
-    return 0;
-}
-
 void
 tsk_migration_table_print_state(const tsk_migration_table_t *self, FILE *out)
 {
@@ -4717,6 +5090,21 @@ out:
  * population table
  *************************/
 
+static void
+tsk_population_table_free_columns(tsk_population_table_t *self)
+{
+    tsk_safe_free(self->metadata);
+    tsk_safe_free(self->metadata_offset);
+}
+
+int
+tsk_population_table_free(tsk_population_table_t *self)
+{
+    tsk_population_table_free_columns(self);
+    tsk_safe_free(self->metadata_schema);
+    return 0;
+}
+
 static int
 tsk_population_table_expand_main_columns(
     tsk_population_table_t *self, tsk_size_t additional_rows)
@@ -4865,6 +5253,35 @@ tsk_population_table_append_columns(tsk_population_table_t *self, tsk_size_t num
 
     self->num_rows += num_rows;
     self->metadata_offset[self->num_rows] = self->metadata_length;
+out:
+    return ret;
+}
+
+int
+tsk_population_table_takeset_columns(tsk_population_table_t *self, tsk_size_t num_rows,
+    char *metadata, tsk_size_t *metadata_offset)
+{
+    int ret = 0;
+
+    /* We need to check all the inputs before we start freeing or taking memory */
+    if (metadata == NULL || metadata_offset == NULL) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+    ret = check_ragged_column(num_rows, metadata, metadata_offset);
+    if (ret != 0) {
+        goto out;
+    }
+
+    tsk_population_table_free_columns(self);
+    self->num_rows = num_rows;
+    self->max_rows = num_rows;
+
+    ret = takeset_ragged_column(num_rows, metadata, metadata_offset,
+        (void *) &self->metadata, &self->metadata_offset, &self->metadata_length);
+    if (ret != 0) {
+        goto out;
+    }
 out:
     return ret;
 }
@@ -5030,15 +5447,6 @@ tsk_population_table_extend(tsk_population_table_t *self,
     ret = 0;
 out:
     return ret;
-}
-
-int
-tsk_population_table_free(tsk_population_table_t *self)
-{
-    tsk_safe_free(self->metadata);
-    tsk_safe_free(self->metadata_offset);
-    tsk_safe_free(self->metadata_schema);
-    return 0;
 }
 
 void
@@ -5218,6 +5626,22 @@ out:
 /*************************
  * provenance table
  *************************/
+
+static void
+tsk_provenance_table_free_columns(tsk_provenance_table_t *self)
+{
+    tsk_safe_free(self->timestamp);
+    tsk_safe_free(self->timestamp_offset);
+    tsk_safe_free(self->record);
+    tsk_safe_free(self->record_offset);
+}
+
+int
+tsk_provenance_table_free(tsk_provenance_table_t *self)
+{
+    tsk_provenance_table_free_columns(self);
+    return 0;
+}
 
 static int
 tsk_provenance_table_expand_main_columns(
@@ -5414,6 +5838,46 @@ out:
     return ret;
 }
 
+int
+tsk_provenance_table_takeset_columns(tsk_provenance_table_t *self, tsk_size_t num_rows,
+    char *timestamp, tsk_size_t *timestamp_offset, char *record,
+    tsk_size_t *record_offset)
+{
+    int ret = 0;
+
+    /* We need to check all the inputs before we start freeing or taking memory */
+    if (timestamp == NULL || timestamp_offset == NULL || record == NULL
+        || record_offset == NULL) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+    ret = check_ragged_column(num_rows, timestamp, timestamp_offset);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = check_ragged_column(num_rows, record, record_offset);
+    if (ret != 0) {
+        goto out;
+    }
+
+    tsk_provenance_table_free_columns(self);
+    self->num_rows = num_rows;
+    self->max_rows = num_rows;
+
+    ret = takeset_ragged_column(num_rows, timestamp, timestamp_offset,
+        (void *) &self->timestamp, &self->timestamp_offset, &self->timestamp_length);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = takeset_ragged_column(num_rows, record, record_offset, (void *) &self->record,
+        &self->record_offset, &self->record_length);
+    if (ret != 0) {
+        goto out;
+    }
+out:
+    return ret;
+}
+
 static tsk_id_t
 tsk_provenance_table_add_row_internal(tsk_provenance_table_t *self,
     const char *timestamp, tsk_size_t timestamp_length, const char *record,
@@ -5594,16 +6058,6 @@ tsk_provenance_table_extend(tsk_provenance_table_t *self,
     ret = 0;
 out:
     return ret;
-}
-
-int
-tsk_provenance_table_free(tsk_provenance_table_t *self)
-{
-    tsk_safe_free(self->timestamp);
-    tsk_safe_free(self->timestamp_offset);
-    tsk_safe_free(self->record);
-    tsk_safe_free(self->record_offset);
-    return 0;
 }
 
 void
@@ -10075,6 +10529,14 @@ tsk_table_collection_set_metadata(
 }
 
 int
+tsk_table_collection_takeset_metadata(
+    tsk_table_collection_t *self, char *metadata, tsk_size_t metadata_length)
+{
+    return takeset_string(
+        &self->metadata, &self->metadata_length, metadata, metadata_length);
+}
+
+int
 tsk_table_collection_set_metadata_schema(tsk_table_collection_t *self,
     const char *metadata_schema, tsk_size_t metadata_schema_length)
 {
@@ -10099,6 +10561,24 @@ tsk_table_collection_set_indexes(tsk_table_collection_t *self,
     }
     tsk_memcpy(self->indexes.edge_insertion_order, edge_insertion_order, index_size);
     tsk_memcpy(self->indexes.edge_removal_order, edge_removal_order, index_size);
+    self->indexes.num_edges = self->edges.num_rows;
+out:
+    return ret;
+}
+
+int
+tsk_table_collection_takeset_indexes(tsk_table_collection_t *self,
+    tsk_id_t *edge_insertion_order, tsk_id_t *edge_removal_order)
+{
+    int ret = 0;
+
+    if (edge_insertion_order == NULL || edge_removal_order == NULL) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+    tsk_table_collection_drop_index(self, 0);
+    self->indexes.edge_insertion_order = edge_insertion_order;
+    self->indexes.edge_removal_order = edge_removal_order;
     self->indexes.num_edges = self->edges.num_rows;
 out:
     return ret;
