@@ -1019,6 +1019,11 @@ int tsk_individual_table_set_columns(tsk_individual_table_t *self, tsk_size_t nu
     const tsk_id_t *parents, const tsk_size_t *parents_offset, const char *metadata,
     const tsk_size_t *metadata_offset);
 
+int tsk_individual_table_takeset_columns(tsk_individual_table_t *self,
+    tsk_size_t num_rows, tsk_flags_t *flags, double *location,
+    tsk_size_t *location_offset, tsk_id_t *parents, tsk_size_t *parents_offset,
+    char *metadata, tsk_size_t *metadata_offset);
+
 /**
 @brief Extends this table by copying from a set of column arrays
 
@@ -1361,6 +1366,10 @@ int tsk_node_table_set_columns(tsk_node_table_t *self, tsk_size_t num_rows,
     const tsk_flags_t *flags, const double *time, const tsk_id_t *population,
     const tsk_id_t *individual, const char *metadata, const tsk_size_t *metadata_offset);
 
+int tsk_node_table_takeset_columns(tsk_node_table_t *self, tsk_size_t num_rows,
+    tsk_flags_t *flags, double *time, tsk_id_t *population, tsk_id_t *individual,
+    char *metadata, tsk_size_t *metadata_offset);
+
 /**
 @brief Extends this table by copying from a set of column arrays
 
@@ -1699,6 +1708,10 @@ int tsk_edge_table_append_columns(tsk_edge_table_t *self, tsk_size_t num_rows,
     const double *left, const double *right, const tsk_id_t *parent,
     const tsk_id_t *child, const char *metadata, const tsk_size_t *metadata_offset);
 
+int tsk_edge_table_takeset_columns(tsk_edge_table_t *self, tsk_size_t num_rows,
+    double *left, double *right, tsk_id_t *parent, tsk_id_t *child, char *metadata,
+    tsk_size_t *metadata_offset);
+
 /**
 @brief Controls the pre-allocation strategy for this table
 
@@ -2020,6 +2033,10 @@ int tsk_migration_table_append_columns(tsk_migration_table_t *self, tsk_size_t n
     const tsk_id_t *source, const tsk_id_t *dest, const double *time,
     const char *metadata, const tsk_size_t *metadata_offset);
 
+int tsk_migration_table_takeset_columns(tsk_migration_table_t *self, tsk_size_t num_rows,
+    double *left, double *right, tsk_id_t *node, tsk_id_t *source, tsk_id_t *dest,
+    double *time, char *metadata, tsk_size_t *metadata_offset);
+
 /**
 @brief Controls the pre-allocation strategy for this table
 
@@ -2325,6 +2342,10 @@ int tsk_site_table_append_columns(tsk_site_table_t *self, tsk_size_t num_rows,
     const double *position, const char *ancestral_state,
     const tsk_size_t *ancestral_state_offset, const char *metadata,
     const tsk_size_t *metadata_offset);
+
+int tsk_site_table_takeset_columns(tsk_site_table_t *self, tsk_size_t num_rows,
+    double *position, char *ancestral_state, tsk_size_t *ancestral_state_offset,
+    char *metadata, tsk_size_t *metadata_offset);
 
 /**
 @brief Controls the pre-allocation strategy for this table
@@ -2666,6 +2687,10 @@ int tsk_mutation_table_append_columns(tsk_mutation_table_t *self, tsk_size_t num
     const tsk_size_t *derived_state_offset, const char *metadata,
     const tsk_size_t *metadata_offset);
 
+int tsk_mutation_table_takeset_columns(tsk_mutation_table_t *self, tsk_size_t num_rows,
+    tsk_id_t *site, tsk_id_t *node, tsk_id_t *parent, double *time, char *derived_state,
+    tsk_size_t *derived_state_offset, char *metadata, tsk_size_t *metadata_offset);
+
 /**
 @brief Controls the pre-allocation strategy for this table
 
@@ -2971,6 +2996,9 @@ metadata schema is not affected.
 int tsk_population_table_append_columns(tsk_population_table_t *self,
     tsk_size_t num_rows, const char *metadata, const tsk_size_t *metadata_offset);
 
+int tsk_population_table_takeset_columns(tsk_population_table_t *self,
+    tsk_size_t num_rows, char *metadata, tsk_size_t *metadata_offset);
+
 /**
 @brief Controls the pre-allocation strategy for this table
 
@@ -3256,6 +3284,10 @@ metadata schema is not affected.
 int tsk_provenance_table_append_columns(tsk_provenance_table_t *self,
     tsk_size_t num_rows, const char *timestamp, const tsk_size_t *timestamp_offset,
     const char *record, const tsk_size_t *record_offset);
+
+int tsk_provenance_table_takeset_columns(tsk_provenance_table_t *self,
+    tsk_size_t num_rows, char *timestamp, tsk_size_t *timestamp_offset, char *record,
+    tsk_size_t *record_offset);
 
 /**
 @brief Controls the pre-allocation strategy for this table
@@ -3983,6 +4015,9 @@ Copies the metadata string to this table collection, replacing any existing.
 int tsk_table_collection_set_metadata(
     tsk_table_collection_t *self, const char *metadata, tsk_size_t metadata_length);
 
+int tsk_table_collection_takeset_metadata(
+    tsk_table_collection_t *self, char *metadata, tsk_size_t metadata_length);
+
 /**
 @brief Set the metadata schema
 @rst
@@ -4055,6 +4090,9 @@ collection. Any existing index is first dropped using
 int tsk_table_collection_build_index(tsk_table_collection_t *self, tsk_flags_t options);
 
 int tsk_table_collection_set_indexes(tsk_table_collection_t *self,
+    tsk_id_t *edge_insertion_order, tsk_id_t *edge_removal_order);
+
+int tsk_table_collection_takeset_indexes(tsk_table_collection_t *self,
     tsk_id_t *edge_insertion_order, tsk_id_t *edge_removal_order);
 
 /**
@@ -4173,12 +4211,8 @@ int tsk_reference_sequence_set_metadata_schema(tsk_reference_sequence_t *self,
     const char *metadata_schema, tsk_size_t metadata_schema_length);
 int tsk_reference_sequence_takeset_data(
     tsk_reference_sequence_t *self, char *data, tsk_size_t data_length);
-int tsk_reference_sequence_takeset_url(
-    tsk_reference_sequence_t *self, char *url, tsk_size_t url_length);
 int tsk_reference_sequence_takeset_metadata(
     tsk_reference_sequence_t *self, char *metadata, tsk_size_t metadata_length);
-int tsk_reference_sequence_takeset_metadata_schema(tsk_reference_sequence_t *self,
-    char *metadata_schema, tsk_size_t metadata_schema_length);
 
 /**
 @defgroup TABLE_SORTER_API_GROUP Low-level table sorter API.
