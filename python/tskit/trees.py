@@ -6589,28 +6589,32 @@ class TreeSequence:
         What is computed depends on ``mode``:
 
         "site"
-            Mean pairwise genetic diversity: the average across distinct,
-            randomly chosen pairs of chromosomes, of the density of sites at
+            Mean pairwise genetic diversity: the average over all n choose 2 pairs of
+            sample nodes, of the density of sites at
             which the two carry different alleles, per unit of chromosome length.
 
         "branch"
-            Mean distance in the tree: the average across distinct, randomly chosen pairs
-            of chromosomes and locations in the window, of the mean distance in the tree
-            between the two samples (in units of time).
+            Mean distance in the tree: the average across over all n choose 2 pairs of
+            sample nodes and locations in the window, of the mean distance in
+            the tree between the two samples (in units of time).
 
         "node"
             For each node, the proportion of genome on which the node is an ancestor to
-            only one of a random pair from the sample set, averaged over choices of pair.
+            only one of a pair of sample nodes from the sample set, averaged
+            over over all n choose 2 pairs of sample nodes.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of nodes to compute the statistic with.
+            groups of nodes for which the statistic is computed. If any of the
+            sample sets contain only a single node, the returned diversity will be
+            NaN. If ``None`` (default), average over all n choose 2 pairs of distinct
+            sample nodes in the tree sequence.
         :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
         :param bool span_normalise: Whether to divide the result by the span of the
             window (defaults to True).
-        :return: A numpy array.
+        :return: A numpy array whose length is equal to the number of sample sets.
         """
         return self.__one_way_sample_set_stat(
             self._ll_tree_sequence.diversity,
@@ -6628,9 +6632,9 @@ class TreeSequence:
         sets of nodes from ``sample_sets``.
         This is the "average number of differences", usually referred to as "dxy";
         a common citation for this definition is Nei and Li (1979), who called it
-        :math:`\pi_{XY}`. Note that computing the divergence of a population to itself
-        gives the mean pairwise nucleotide diversity within that population,
-        which is :meth:`diversity <.TreeSequence.diversity>`.
+        :math:`\pi_{XY}`. Note that the mean pairwise nucleotide diversity of a
+        sample set to itself (computed by passing an index of the form (j,j))
+        is its :meth:`diversity <.TreeSequence.diversity>` (see the note below).
 
         Operates on ``k = 2`` sample sets at a time; please see the
         :ref:`multi-way statistics <sec_stats_sample_sets_multi_way>`
@@ -6642,27 +6646,30 @@ class TreeSequence:
         :ref:`span normalise <sec_stats_span_normalise>`,
         and :ref:`return value <sec_stats_output_format>`.
 
-        As a special case, an index ``(j, j)`` will compute the
-        :meth:`diversity <.TreeSequence.diversity>` of ``sample_set[j]``.
+        ..note ::
+            To avoid unexpected results, sample sets should be nonoverlapping,
+            since comparisons of individuals to themselves are not removed when computing
+            divergence between distinct sample sets. (However, specifying an index
+            ``(j, j)`` computes the :meth:`diversity <.TreeSequence.diversity>`
+            of ``sample_set[j]``, which removes self comparisons to provide
+            an unbiased estimate.)
 
         What is computed depends on ``mode``:
 
         "site"
-            Mean pairwise genetic divergence: the average across distinct,
-            randomly chosen pairs of chromosomes (one from each sample set), of
-            the density of sites at which the two carry different alleles, per
-            unit of chromosome length.
+            Mean pairwise genetic divergence: the average across every possible pair of
+            chromosomes (one from each sample set), of the density of sites at which
+            the two carry different alleles, per unit of chromosome length.
 
         "branch"
-            Mean distance in the tree: the average across distinct, randomly
-            chosen pairs of chromosomes (one from each sample set) and locations
-            in the window, of the mean distance in the tree between the two
-            samples (in units of time).
+            Mean distance in the tree: the average across every possible pair of
+            chromosomes (one from each sample set) and locations in the window, of
+            the mean distance in the tree between the two samples (in units of time).
 
         "node"
             For each node, the proportion of genome on which the node is an ancestor to
-            only one of a random pair (one from each sample set), averaged over
-            choices of pair.
+            only one of a pair of chromosomes from the sample set, averaged
+            over all possible pairs.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of nodes to compute the statistic with.
@@ -7373,8 +7380,8 @@ class TreeSequence:
         :ref:`span normalise <sec_stats_span_normalise>`,
         and :ref:`return value <sec_stats_output_format>`.
 
-        What is computed depends on ``mode``. Each is an average across
-        randomly chosen trios of samples ``(a, b, c)``, one from each sample set:
+        What is computed depends on ``mode``. Each is an average across every
+        combination of trios of samples ``(a, b, c)``, one chosen from each sample set:
 
         "site"
             The average density of sites at which ``a`` differs from ``b`` and
@@ -7425,7 +7432,7 @@ class TreeSequence:
         and :ref:`return value <sec_stats_output_format>`.
 
         What is computed depends on ``mode``. Each is computed exactly as
-        ``Y3``, except that the average across randomly chosen trios of samples
+        ``Y3``, except that the average is across every possible trio of samples
         ``(a, b1, b2)``, where ``a`` is chosen from the first sample set, and
         ``b1, b2`` are chosen (without replacement) from the second sample set.
         See :meth:`Y3 <.TreeSequence.Y3>` for more details.
@@ -7465,7 +7472,7 @@ class TreeSequence:
         Operates on ``k = 1`` sample set at a time.
 
         What is computed depends on ``mode``. Each is computed exactly as
-        ``Y3``, except that the average is across a randomly chosen trio of
+        ``Y3``, except that the average is across every possible trio of samples
         samples ``(a1, a2, a3)`` all chosen without replacement from the same
         sample set. See :meth:`Y3 <.TreeSequence.Y3>` for more details.
 
@@ -7503,8 +7510,8 @@ class TreeSequence:
         :ref:`span normalise <sec_stats_span_normalise>`,
         and :ref:`return value <sec_stats_output_format>`.
 
-        What is computed depends on ``mode``. Each is an average across
-        randomly chosen set of four samples ``(a, b; c, d)``, one from each sample set:
+        What is computed depends on ``mode``. Each is an average across every possible
+        combination of four samples ``(a, b; c, d)``, one chosen from each sample set:
 
         "site"
             The average density of sites at which ``a`` and ``c`` agree but
@@ -7571,9 +7578,9 @@ class TreeSequence:
         and :ref:`return value <sec_stats_output_format>`.
 
         What is computed depends on ``mode``. Each works exactly as
-        :meth:`f4 <.TreeSequence.f4>`, except the average is across randomly
-        chosen set of four samples ``(a1, b; a2, c)``, with `a1` and `a2` both
-        chosen (without replacement) from the first sample set. See
+        :meth:`f4 <.TreeSequence.f4>`, except the average is across every possible
+        combination of four samples ``(a1, b; a2, c)`` where `a1` and `a2` have both
+        been chosen (without replacement) from the first sample set. See
         :meth:`f4 <.TreeSequence.f4>` for more details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
@@ -7614,11 +7621,11 @@ class TreeSequence:
         and :ref:`return value <sec_stats_output_format>`.
 
         What is computed depends on ``mode``. Each works exactly as
-        :meth:`f4 <.TreeSequence.f4>`, except the average is across randomly
-        chosen set of four samples ``(a1, b1; a2, b2)``, with `a1` and `a2`
-        both chosen (without replacement) from the first sample set and ``b1``
-        and ``b2`` chosen randomly without replacement from the second sample
-        set. See :meth:`f4 <.TreeSequence.f4>` for more details.
+        :meth:`f4 <.TreeSequence.f4>`, except the average is across every possible
+        combination of four samples ``(a1, b1; a2, b2)`` where `a1` and `a2` have
+        both been chosen (without replacement) from the first sample set, and ``b1``
+        and ``b2`` have both been chosen (without replacement) from the second
+        sample set. See :meth:`f4 <.TreeSequence.f4>` for more details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of nodes to compute the statistic with.
@@ -7848,7 +7855,7 @@ class TreeSequence:
     def pairwise_diversity(self, samples=None):
         """
         Returns the pairwise nucleotide site diversity, the average number of sites
-        that differ between a randomly chosen pair of samples.  If `samples` is
+        that differ between a every possible pair of distinct samples.  If `samples` is
         specified, calculate the diversity within this set.
 
          .. deprecated:: 0.2.0
