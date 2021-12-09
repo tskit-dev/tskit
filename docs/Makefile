@@ -17,6 +17,7 @@ dev:
 
 dist:
 	@echo Building distribution for tskit version ${TSK_VERSION}
+	cd doxygen && doxygen
 	sed -i -e s/__TSKIT_VERSION__/${TSK_VERSION}/g _config.yml
 	PYTHONPATH=${PYPATH} ./build.sh
 
