@@ -1002,10 +1002,11 @@ class Tree:
 
         As this is defined by a traversal of the tree, technically we
         return the sum of all branch lengths that are reachable from
-        roots. Thus, this is the sum of all branches that are ancestral
+        roots. Thus, this is the total length of all branches that are connected
         to at least one sample. This distinction is only important
         in tree sequences that contain 'dead branches', i.e., those
-        that define topology not ancestral to any samples.
+        that define topology that is not connected to a tree root
+        (see :ref:`sec_data_model_tree_dead_leaves_and_branches`)
 
         :return: The sum of lengths of branches in this tree.
         :rtype: float
@@ -1374,6 +1375,16 @@ class Tree:
         Returns True if the specified node is a leaf. A node :math:`u` is a
         leaf if it has zero children.
 
+        .. note::
+            :math:`u` can be any node in the entire tree sequence, including ones
+            which are not connected via branches to a root node of the tree (and which
+            are therefore not conventionally considered part of the tree). Indeed, if
+            there are many trees in the tree sequence, it is common for the majority of
+            non-sample nodes to be :meth:`isolated<is_isolated>` in any one
+            tree. By the definition above, this method will return ``True`` for such
+            a tree when a node of this sort is specified. Such nodes can be thought of
+            as "dead leaves", see :ref:`sec_data_model_tree_dead_leaves_and_branches`.
+
         :param int u: The node of interest.
         :return: True if u is a leaf node.
         :rtype: bool
@@ -1383,7 +1394,8 @@ class Tree:
     def is_isolated(self, u):
         """
         Returns True if the specified node is isolated in this tree: that is
-        it has no parents and no children. Sample nodes that are isolated
+        it has no parents and no children (note that all isolated nodes in the tree
+        are therefore also :meth:`leaves<Tree.is_leaf>`). Sample nodes that are isolated
         and have no mutations above them are used to represent
         :ref:`missing data<sec_data_model_missing_data>`.
 
@@ -2004,9 +2016,17 @@ class Tree:
 
     def leaves(self, u=None):
         """
-        Returns an iterator over all the leaves in this tree that are
-        underneath the specified node. If u is not specified, return all leaves
-        in the tree.
+        Returns an iterator over all the leaves in this tree that descend from
+        the specified node. If :math:`u`  is not specified, return all leaves on
+        the tree (i.e. all leaves reachable from the tree root(s), see note below).
+
+        .. note::
+            :math:`u` can be any node in the entire tree sequence, including ones
+            which are not connected via branches to a root node of the tree. If
+            called on such a node, the iterator will return "dead" leaves
+            (see :ref:`sec_data_model_tree_dead_leaves_and_branches`) which cannot
+            be reached from a root of this tree. However, dead leaves will never be
+            returned if :math:`u` is left unspecified.
 
         :param int u: The node of interest.
         :return: An iterator over all leaves in the subtree rooted at u.
@@ -2309,7 +2329,7 @@ class Tree:
 
     def nodes(self, root=None, order="preorder"):
         """
-        Returns an iterator over the node IDs reachable from the root(s) in this
+        Returns an iterator over the node IDs reachable from the specified node in this
         tree in the specified traversal order.
 
         .. note::
@@ -2317,7 +2337,7 @@ class Tree:
             integer node IDs, not :class:`Node` objects.
 
         If the ``root`` parameter is not provided or ``None``, iterate over all
-        nodes reachable from the roots (see :meth:`Tree.roots` for details
+        nodes reachable from the roots (see :attr:`Tree.roots` for details
         on which nodes are considered roots). If the ``root`` parameter
         is provided, only the nodes in the subtree rooted at this node
         (including the specified node) will be iterated over. If the
