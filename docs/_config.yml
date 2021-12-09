@@ -24,8 +24,8 @@ html:
   use_edit_page_button: true
   # Do not edit this - the version placeholder is replaced by the
   # current version during a distribution build in the Makefile
-  extra_navbar: tskit __TSKIT_VERSION__
-  extra_footer: tskit __TSKIT_VERSION__
+  extra_navbar: tskit 0.4.0b1
+  extra_footer: tskit 0.4.0b1
 
 sphinx:
     extra_extensions:
