@@ -997,7 +997,7 @@ position 20 to 40, has a single root. Finally the third tree, from position
 
 #### The virtual root
 
-To access all the roots in a tree, tskit uses a special additional node
+To access all the :attr:`~Tree.roots` in a tree, tskit uses a special additional node
 called the **virtual root**. This is primarily a bookkeeping device, and
 can normally be ignored: it is not plotted in any visualizations and
 does not exist as an independent node in the node table.
@@ -1097,6 +1097,39 @@ print(
 In `tskit`, isolated sample nodes are closely associated with the encoding of
 {ref}`sec_data_model_missing_data`.
 
+
+(sec_data_model_tree_dead_leaves_and_branches)=
+
+### Dead leaves and branches
+
+In a `tskit` tree, a *leaf node* is defined as a node without any children. The
+implications of this turn out to be slighly unintuitive, and so are worth briefly
+documenting here. Firstly, the same node can be a leaf in one tree, and not a leaf
+in the next tree along the tree sequence. Secondly all isolated nodes must be leaves
+(as by definition they have no children). Thirdly sample nodes need not be leaves
+(they could be "internal samples"); likewise leaf nodes need not be samples.
+
+Node 7 in the example above provides a good case study. Note that it is a root node with
+at least one child (i.e. not a leaf) in trees 0 and 2; in contrast in tree 1 it is
+isolated. Strictly, because it is isolated in tree 1, it is also a leaf node there,
+although it is not attached to a root, not a sample, and is therefore not plotted. In
+this case, in that tree we can think of node 7 as a "dead leaf" (and we don't normally
+plot dead leaves). In fact, in a large tree sequence of many trees, most ancestral nodes
+will be isolated in any given tree, and therefore most nodes in such a tree will be of
+this sort. However, these dead leaves are excluded from most calculations on trees,
+because algorithms usually traverse the tree by starting at a root and working down,
+or by starting at a sample and working up. Hence when we refer to the leaves of a tree,
+it is usually shorthand for the leaves **on** the tree (that is, attached via branches,
+to one of the the tree roots). Dead leaves are excluded from this definition.
+
+Note that it is also possible to have trees in which there are "dead branches": that is
+sections of topology which are not accessible from a root, and whose tips are all
+dead leaves. Although valid, this is a relatively unusual state of affairs, and such
+branches are not plotted by the standard {ref}`sec_tskit_viz` methods. The
+{meth}`Tree.nodes` method will not, by default, traverse through dead branches, although
+it can be made to do so by specifying the ID of a dead node as the root for traversal.
+
+
 (sec_data_model_genetic_data)=
 
 ## Encoding genetic variation
@@ -1153,7 +1186,7 @@ outputs the actual allelic state for each sample, defaults to outputting an `N` 
 these sites. Therefore where any sample node is isolated, the haplotype will show
 an `N`, indicating the DNA sequence is unknown. This will be so not only in the
 middle of all of the sample genomes, but also at the right hand end of the genome of
-sample 2, as it is the only isolated sample node in the rightmost tree:
+sample 2, as it is an isolated sample node in the rightmost tree:
 
 ```{code-cell} ipython3
 for i, h in enumerate(missing_ts.haplotypes()):
