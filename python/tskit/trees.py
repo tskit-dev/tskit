@@ -1038,6 +1038,15 @@ class Tree:
 
         >>> tree.time(tree.mrca(u, v))
 
+        .. note::
+            If you are using this method to calculate average tmrca values along the
+            genome between pairs of sample nodes, for efficiency reasons you should
+            instead consider the ``mode="branch"`` option of the
+            :meth:`TreeSequence.divergence` or :meth:`TreeSequence.diversity` methods.
+            Since these calculate the average branch length between pairs of sample
+            nodes, for samples at time 0 the resulting statistics will be exactly
+            twice the tmrca value.
+
         :param int u: The first node.
         :param int v: The second node.
         :return: The time of the most recent common ancestor of u and v.
