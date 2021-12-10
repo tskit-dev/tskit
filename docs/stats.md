@@ -54,17 +54,20 @@ dimensions are determined by the parameters (see {ref}`sec_stats_output_dimensio
 {ref}`sec_stats_sample_sets_one_way` are defined over a single sample set, 
 whereas {ref}`sec_stats_sample_sets_multi_way` compare 2 or more sets of samples.
 
+Some of the methods below benefit from a little extra discussion, provided in the
+{ref}`sec_stats_notes` section at the end of this chapter: if so, a link to the note
+appears beside the listed method.
 
 * Single site
     * One-way
-        * {meth}`~TreeSequence.allele_frequency_spectrum` (see {ref}`sec_stats_notes_afs`)
+        * {meth}`~TreeSequence.allele_frequency_spectrum` (see {ref}`notes<sec_stats_notes_afs>`)
         * {meth}`~TreeSequence.diversity`
         * {meth}`~TreeSequence.segregating_sites`
         * {meth}`~TreeSequence.trait_covariance`
           {meth}`~TreeSequence.trait_correlation`
           {meth}`~TreeSequence.trait_linear_model`
           (see {ref}`sec_stats_notes_trait`)
-        * {meth}`~TreeSequence.Tajimas_D` (see {ref}`sec_stats_notes_derived`)
+        * {meth}`~TreeSequence.Tajimas_D` (see {ref}`notes<sec_stats_notes_derived>`)
     * Multi-way
         * {meth}`~TreeSequence.divergence`
         * {meth}`~TreeSequence.genetic_relatedness`
@@ -80,10 +83,6 @@ whereas {ref}`sec_stats_sample_sets_multi_way` compare 2 or more sets of samples
 * Multi site
     * {meth}`~LdCalculator` (note this is soon to be deprecated)
 
-:::{todo}
-Add information about the new IBD stats.
-:::
-
 :::{note}
 There is a general framework provided for calculating additional single site
 statistics (see the {ref}`sec_stats_general_api` section). However, the
@@ -92,121 +91,73 @@ them using the general framework directly, so the versions above should be prefe
 :::
 
 
-### Notes
+(sec_stats_examples)=
 
+### Quick examples
 
-(sec_stats_notes_afs)=
+```{code-cell} ipython3
+:"tags": ["hide-input"]
+from IPython.display import Markdown
+import msprime
+import numpy as np
 
-#### Allele frequency spectrum
+demography = msprime.Demography()
+demography.add_population(name="A", initial_size=10_000)
+demography.add_population(name="B", initial_size=10_000)
+demography.set_symmetric_migration_rate(["A", "B"], 0.001)
+ts = msprime.sim_ancestry(
+    samples={"A": 2, "B": 2},
+    sequence_length=1000,
+    demography=demography,
+    recombination_rate=2e-8,
+    random_seed=12)
+ts = msprime.sim_mutations(ts, rate=2e-8, random_seed=12)
+Markdown(
+    f"These examples use a tree sequence of {ts.num_samples} samples "
+    f"in {ts.num_populations} populations, "
+    f"with a sequence length of {int(ts.sequence_length)}. "
+    f"There are {ts.num_trees} trees and "
+    f"{ts.num_sites} variable sites in the tree sequence."
+)
+```
 
-Most single site statistics are based on the summaries of the allele frequency spectra
-(AFS). The `tskit` AFS interface includes windowed and joint spectra,
-using the same general pattern as other statistics,
-but some of the details about how it is defined,
-especially in the presence of multiple alleles per site, need to be explained.
-If all sites are biallelic, then the result is just as you'd expect:
-see the method documentation at {meth}`TreeSequence.allele_frequency_spectrum` 
-for the description.
-Note that with `mode="site"`, we really do tabulate *allele* counts:
-if more than one mutation on different parts of the tree produce the same allele,
-it is the total number with this allele (i.e., inheriting *either* mutation)
-that goes into the AFS.
-The AFS with `mode="branch"` is the expected value for the Site AFS
-with infinite-sites, biallelic mutation, so there is nothing surprising there,
-either.
+#### Basic calling convention
 
-But, how do we deal with sites at which there are more than two alleles?
-At each site, we iterate over the distinct alleles at that site,
-and for each allele, count how many samples in each sample set
-have inherited that allele.
-For a concrete example, suppose that we are computing the AFS of a single
-sample set with 10 samples, and are considering a site with three alleles:
-*a*, *b*, and *c*,
-which have been inherited by 6, 3, and 1 samples, respectively,
-and that allele *a* is ancestral.
-What we do at this site depends on if the AFS is polarised or not.
+```{code-cell} ipython3
+afs = ts.allele_frequency_spectrum()
+print(afs) # afs[1] gives number of singletons, afs[2] doubletons, etc
+```
 
-If we are computing the *polarised* AFS,
-we add 1 to each entry of the output corresponding to each allele count
-*except* the ancestral allele.
-In our example, we'd add 1 to both `AFS[3]` and `AFS[1]`.
-This means that the sum of all entries of a polarised, site AFS
-should equal the total number of non-ancestral alleles in the tree sequence
-that are ancestral to at least one of the samples in the tree sequence
-but not ancestral to all of them.
-The reason for this last caveat is that like with most statistics,
-mutations that are not ancestral to *any* samples (not just those in the sample sets)
-are not counted (and so don't even enter into `AFS[0]`),
-and similarly for those alleles inherited by *all* samples.
+#### Restrict to {ref}`sample sets<sec_stats_sample_sets>`
 
-Now, if we are computing the *unpolarised* AFS,
-we add *one half* to each entry of the *folded* output
-corresponding to each allele count *including* the ancestral allele.
-What does this mean?
-Well, `polarised=False` means that we cannot distinguish between an
-allele count of 6 and an allele count of 4.
-So, *folding* means that we would add our allele that is seen in 6 samples
-to `AFS[4]` instead of `AFS[6]`.
-So, in total, we will add 0.5 to each of `AFS[4]`, `AFS[3]`, and `AFS[1]`.
-This means that the sum of an unpolarised AFS
-will be equal to the total number of alleles that are inherited
-by any of the samples in the tree sequence, divided by two.
-Why one-half? Well, notice that if in fact the mutation that produced the *b*
-allele had instead produced an *a* allele,
-so that the site had only two alleles, with frequencies 7 and 3.
-Then, we would have added 0.5 to `AFS[3]` *twice*.
+```{code-cell} ipython3
+pi = ts.diversity(sample_sets=ts.samples(population=0))
+print(pi)  # Genetic diversity within population 0
+```
 
+#### Summarise in genomic {ref}`windows<sec_stats_windows>`
 
-(sec_stats_notes_trait)=
+```{code-cell} ipython3
+pi = ts.diversity(sample_sets=ts.samples(population=1), windows=[0, 400,  600, 1000])
+print(pi)  # Genetic diversity within population 1 in three windows along the genome
+```
 
-#### Trait correlations
+#### Compare {ref}`between<sec_stats_sample_sets_multi_way>` sample sets
 
-{meth}`~TreeSequence.trait_covariance`, {meth}`~TreeSequence.trait_correlation`, and
-{meth}`~TreeSequence.trait_linear_model` compute correlations and covariances of traits
-(i.e., an arbitrary vector) with allelic state, possibly in the context of a multivariate
-linear model with other covariates (as in GWAS).
+```{code-cell} ipython3
+dxy = ts.divergence(sample_sets=[ts.samples(population=0), ts.samples(population=1)])
+print(dxy)  # Av number of differences per bp between samples in population 0 and 1
+```
 
+#### Change the {ref}`mode<sec_stats_mode>`
 
-(sec_stats_notes_f)=
-
-#### Patterson's f statistics
-
-{meth}`~TreeSequence.f4`, {meth}`~TreeSequence.f3`, and {meth}`~TreeSequence.f2`
-are the `f` statistics (also called `F` statistics) introduced in
-[Reich et al (2009)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2842210/).
-See the documentation (link below) for the definition,
-and [Peter (2016)](https://www.genetics.org/content/202/4/1485) for readable
-discussion of their use.
-
-
-(sec_stats_notes_y)=
-
-#### Y statistics
-
-{meth}`~TreeSequence.Y3` and {meth}`~TreeSequence.Y2` are the `Y` statistics introduced
-by [Ashander et al (2018)](https://www.biorxiv.org/content/10.1101/354530v1)
-as a three-sample intermediate between diversity/divergence (which are
-pairwise) and Patterson's f statistics (which are four-way).
-
-
-(sec_stats_notes_derived)=
-
-#### Derived statistics
-
-Most statistics have the property that `mode="branch"` and
-`mode="site"` are "dual" in the sense that they are equal, on average, under
-a high neutral mutation rate. {meth}`~TreeSequence.Fst` and {meth}`~TreeSequence.Tajimas_D`
-do not have this property (since both are ratios of statistics that do have this property).
-
-
-(sec_stats_notes_gnn)=
-
-#### Genealogical nearest neighbours
-
-The genealogical nearest neighbours statistic is not based on branch lengths, but on
-topologies. therefore it currently has a slightly different interface to the other
-single site statistics. This may be revised in the future.
-
+```{code-cell} ipython3
+bl = ts.divergence(
+    mode="branch",  # Use branch lengths rather than genetic differences
+    sample_sets=[ts.samples(population=0), ts.samples(population=1)],
+)
+print(bl)  # Av branch length separating samples in population 0 and 1
+```
 
 (sec_stats_single_site)=
 
@@ -224,14 +175,14 @@ lot of options. However, we provide sensible defaults for these options and
 shared by many statistics, which we describe in detail in the following subsections:
 
 {ref}`sec_stats_mode`
-    What are we summarising information about?
+: What are we summarising information about?
 
 {ref}`sec_stats_windows`
-    What section(s) of the genome are we interested in?
+: What section(s) of the genome are we interested in?
 
 {ref}`sec_stats_span_normalise`
-    Should the statistic calculated for each window be normalised by the span
-    (i.e. the sequence length) of that window?
+: Should the statistic calculated for each window be normalised by the span
+  (i.e. the sequence length) of that window?
 
 The statistics functions are highly efficient and are based where possible
 on numpy arrays. Each of these statistics will return the results as a numpy
@@ -255,13 +206,13 @@ that each summarize aspects of the tree sequence in different but related ways.
 Roughly speaking, these answer the following sorts of question:
 
 site
-   How many mutations differentiate these two genomes?
+: How many mutations differentiate these two genomes?
 
 branch
-   How long since these genomes' common ancestor?
+: How long since these genomes' common ancestor?
 
 node
-   On how much of the genome is each node an ancestor of only one of these genomes, but not both?
+: On how much of the genome is each node an ancestor of only one of these genomes, but not both?
 
 These three examples can all be answered in the same way with the tree sequence:
 first, draw all the paths from one genome to the other through the tree sequence
@@ -273,6 +224,13 @@ Then,
 There is more discussion of this correspondence in the paper describing these statistics,
 and precise definitions are given in each statistic.
 
+Here's an example of using the {meth}`~TreeSequence.diversity` statistic to return the
+average branch length between all pairs of samples:
+
+```{code-cell} ipython3
+ts.diversity(mode="branch")
+```
+
 One important thing to know is that `node` statistics have somewhat different output.
 While `site` and `branch` statistics naturally return one number
 for each portion of the genome (and thus incorporates information about many nodes: see below),
@@ -280,8 +238,8 @@ the `node` statistics return one number **for each node** in the tree sequence (
 There can be a lot of nodes in the tree sequence, so beware.
 
 Also remember that in a tree sequence the "sites" are usually just the **variant** sites,
-e.g., the sites of the SNPs.
-(Although tree sequence may in principle have monomorphic sites, those produced by simulation usually don't.)
+e.g., the sites of the SNPs. Although tree sequence may in principle have monomorphic
+sites, those produced by simulation usually don't.
 
 
 (sec_stats_sample_sets)=
@@ -302,6 +260,14 @@ you'd specify these as your `sample_sets`.
 Then, if `p[i]` is the derived allele frequency in sample set `i`,
 under the hood we (essentially) compute the divergence between sample sets `i` and `j`
 by averaging `p[i] * (1 - p[j]) + (1 - p[i]) * p[j]` across the genome.
+
+Here's an example of calculating the average
+{meth}`genetic diversity<TreeSequence.diversity>` within a specific population:
+
+```{code-cell} ipython3
+ts.diversity(sample_sets=ts.samples(population=0))
+```
+
 
 So, what if you
 have samples from each of 10 populations,
@@ -348,10 +314,20 @@ sample set. For these methods, `sample_sets` is interpreted in the following way
 ##### Multi-way methods
 
 Multi-way statistics such as {meth}`TreeSequence.divergence` are defined over a
-`k` sample sets.
+`k` sample sets. In this case, `sample_sets` must be a list of lists of sample IDs,
+and there is no default. For example, this finds the average
+{meth}`genetic divergence<TreeSequence.divergence>` between samples in populations
+0 and 1
 
-In this case, `sample_sets` must be a list of lists of sample IDs, and there
-is no default.
+```{code-cell} ipython3
+ts.divergence(
+    sample_sets=[
+        ts.samples(population=0),
+        ts.samples(population=1),
+    ]
+)
+```
+
 
 The `indexes` parameter is interpreted in the following way:
 
@@ -378,7 +354,15 @@ which defines a collection of contiguous windows spanning the genome.
 and ending with the `sequence_length`.
 The statistic will be computed separately in each of the `n` windows,
 and the `k`-th row of the output will report the values of the statistic
-in the `k`-th window, i.e., from (and including) `windows[k]` to (but not including) `windows[k+1]`.
+in the `k`-th window, i.e., from (and including) `windows[k]` to
+(but not including) `windows[k+1]`. For example, this calculates
+{meth}`Tajima's D<TreeSequence.Tajimas_D>` in four evenly spaced windows along the
+genome:
+
+```{code-cell} ipython3
+num_windows = 4
+ts.Tajimas_D(windows=np.linspace(0, ts.sequence_length, num_windows + 1))
+```
 
 Most windowed statistics by default return **averages** within each of the windows,
 so the values are comparable between windows, even of different spans.
@@ -395,9 +379,9 @@ There are some shortcuts to other useful options:
 `windows = None`
    This is the default and computes statistics in single window over the whole
    sequence. As the first returned array contains only a single
-   value, we drop this dimension as described in the {ref}`output dimensions
-   <sec_stats_output_dimensions>` section. **Note:** if you really do
-   want to have an array with a single value as the result, please use
+   value, we drop this dimension as described in the
+   {ref}`output dimensions <sec_stats_output_dimensions>` section. **Note:** if you
+   really do want to have an array with a single value as the result, please use
    `windows = [0.0, ts.sequence_length]`.
 
 `windows = "trees"`
@@ -654,8 +638,127 @@ and boolean expressions (e.g., {math}`(x > 0)`) are interpreted as 0/1.
 ## Multi site statistics
 
 :::{todo}
-Document statistics that use informnation about correlation between sites, such as
-LdCalculator and the IBD interface. Note that if we have a general
+Document statistics that use information about correlation between sites, such as
+LdCalculator (and perhaps reference {ref}`sec_identity`). Note that if we have a general
 framework which has the same calling conventions as the single site stats,
 we can rework the sections above.
-:::    
+:::
+
+
+(sec_stats_notes)=
+
+## Notes
+
+
+(sec_stats_notes_afs)=
+
+### Allele frequency spectrum
+
+Most single site statistics are based on the summaries of the allele frequency spectra
+(AFS). The `tskit` AFS interface includes windowed and joint spectra,
+using the same general pattern as other statistics,
+but some of the details about how it is defined,
+especially in the presence of multiple alleles per site, need to be explained.
+If all sites are biallelic, then the result is just as you'd expect:
+see the method documentation at {meth}`TreeSequence.allele_frequency_spectrum` 
+for the description.
+Note that with `mode="site"`, we really do tabulate *allele* counts:
+if more than one mutation on different parts of the tree produce the same allele,
+it is the total number with this allele (i.e., inheriting *either* mutation)
+that goes into the AFS.
+The AFS with `mode="branch"` is the expected value for the Site AFS
+with infinite-sites, biallelic mutation, so there is nothing surprising there,
+either.
+
+But, how do we deal with sites at which there are more than two alleles?
+At each site, we iterate over the distinct alleles at that site,
+and for each allele, count how many samples in each sample set
+have inherited that allele.
+For a concrete example, suppose that we are computing the AFS of a single
+sample set with 10 samples, and are considering a site with three alleles:
+*a*, *b*, and *c*,
+which have been inherited by 6, 3, and 1 samples, respectively,
+and that allele *a* is ancestral.
+What we do at this site depends on if the AFS is polarised or not.
+
+If we are computing the *polarised* AFS,
+we add 1 to each entry of the output corresponding to each allele count
+*except* the ancestral allele.
+In our example, we'd add 1 to both `AFS[3]` and `AFS[1]`.
+This means that the sum of all entries of a polarised, site AFS
+should equal the total number of non-ancestral alleles in the tree sequence
+that are ancestral to at least one of the samples in the tree sequence
+but not ancestral to all of them.
+The reason for this last caveat is that like with most statistics,
+mutations that are not ancestral to *any* samples (not just those in the sample sets)
+are not counted (and so don't even enter into `AFS[0]`),
+and similarly for those alleles inherited by *all* samples.
+
+Now, if we are computing the *unpolarised* AFS,
+we add *one half* to each entry of the *folded* output
+corresponding to each allele count *including* the ancestral allele.
+What does this mean?
+Well, `polarised=False` means that we cannot distinguish between an
+allele count of 6 and an allele count of 4.
+So, *folding* means that we would add our allele that is seen in 6 samples
+to `AFS[4]` instead of `AFS[6]`.
+So, in total, we will add 0.5 to each of `AFS[4]`, `AFS[3]`, and `AFS[1]`.
+This means that the sum of an unpolarised AFS
+will be equal to the total number of alleles that are inherited
+by any of the samples in the tree sequence, divided by two.
+Why one-half? Well, notice that if in fact the mutation that produced the *b*
+allele had instead produced an *a* allele,
+so that the site had only two alleles, with frequencies 7 and 3.
+Then, we would have added 0.5 to `AFS[3]` *twice*.
+
+
+(sec_stats_notes_trait)=
+
+### Trait correlations
+
+{meth}`~TreeSequence.trait_covariance`, {meth}`~TreeSequence.trait_correlation`, and
+{meth}`~TreeSequence.trait_linear_model` compute correlations and covariances of traits
+(i.e., an arbitrary vector) with allelic state, possibly in the context of a multivariate
+linear model with other covariates (as in GWAS).
+
+
+(sec_stats_notes_f)=
+
+### Patterson's f statistics
+
+{meth}`~TreeSequence.f4`, {meth}`~TreeSequence.f3`, and {meth}`~TreeSequence.f2`
+are the `f` statistics (also called `F` statistics) introduced in
+[Reich et al (2009)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2842210/).
+See the documentation (link below) for the definition,
+and [Peter (2016)](https://www.genetics.org/content/202/4/1485) for readable
+discussion of their use.
+
+
+(sec_stats_notes_y)=
+
+### Y statistics
+
+{meth}`~TreeSequence.Y3` and {meth}`~TreeSequence.Y2` are the `Y` statistics introduced
+by [Ashander et al (2018)](https://www.biorxiv.org/content/10.1101/354530v1)
+as a three-sample intermediate between diversity/divergence (which are
+pairwise) and Patterson's f statistics (which are four-way).
+
+
+(sec_stats_notes_derived)=
+
+### Derived statistics
+
+Most statistics have the property that `mode="branch"` and
+`mode="site"` are "dual" in the sense that they are equal, on average, under
+a high neutral mutation rate. {meth}`~TreeSequence.Fst` and {meth}`~TreeSequence.Tajimas_D`
+do not have this property (since both are ratios of statistics that do have this property).
+
+
+(sec_stats_notes_gnn)=
+
+### Genealogical nearest neighbours
+
+The genealogical nearest neighbours statistic is not based on branch lengths, but on
+topologies. therefore it currently has a slightly different interface to the other
+single site statistics. This may be revised in the future.
+
