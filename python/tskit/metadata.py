@@ -700,12 +700,12 @@ class MetadataSchema:
         # Set by __init__
         pass  # pragma: no cover
 
-    # Utility to make a simple permission JSON schema. Probably should be
-    # part of the documented API. See
-    # https://github.com/tskit-dev/tskit/issues/1956 for more details.
-
     @staticmethod
     def permissive_json():
+        """
+        The simplest, permissive JSON schema. Only specifies the JSON codec and has
+        no constraints on the properties.
+        """
         return MetadataSchema({"codec": "json"})
 
 

@@ -85,6 +85,8 @@
 - Add the ``tsk_tree_get_size_bound`` function which returns an upper bound on the number of nodes reachable from
   the roots of a tree. Useful for tree stack allocations (:user:`jeromekelleher`, :pr:`1704`).
 
+- Add ``MetadataSchema.permissive_json`` for an easy way to get the simplest schema.
+
 
 ----------------------
 [0.99.14] - 2021-09-03

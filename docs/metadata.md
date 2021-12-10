@@ -53,6 +53,9 @@ the keys and types of those properties are specified along with optional
 long-form names, descriptions and validations such as min/max or regex matching for
 strings, see the {ref}`sec_metadata_schema_examples` below.
 
+As a convenience the simplest, permissive JSON schema is available as
+{meth}`MetadataSchema.permissive_json()`.
+
 The {ref}`sec_tutorial_metadata` Tutorial shows how to use schemas and access metadata
 in the tskit Python API.
 
