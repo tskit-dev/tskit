@@ -546,13 +546,13 @@ class TestIbd:
             tc.ibd_segments_within([[[1], [1]]])
         for bad_float in ["sdf", None, {}]:
             with pytest.raises(TypeError):
-                tc.ibd_segments_within(min_length=bad_float)
+                tc.ibd_segments_within(min_span=bad_float)
             with pytest.raises(TypeError):
                 tc.ibd_segments_within(max_time=bad_float)
         with pytest.raises(_tskit.LibraryError):
             tc.ibd_segments_within(max_time=-1)
         with pytest.raises(_tskit.LibraryError):
-            tc.ibd_segments_within(min_length=-1)
+            tc.ibd_segments_within(min_span=-1)
 
     def test_between_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
@@ -572,11 +572,11 @@ class TestIbd:
             tc.ibd_segments_between([1, 1], [1])
         for bad_float in ["sdf", None, {}]:
             with pytest.raises(TypeError):
-                tc.ibd_segments_between([1, 1], [0, 1], min_length=bad_float)
+                tc.ibd_segments_between([1, 1], [0, 1], min_span=bad_float)
             with pytest.raises(TypeError):
                 tc.ibd_segments_between([1, 1], [0, 1], max_time=bad_float)
         with pytest.raises(_tskit.LibraryError):
-            tc.ibd_segments_between([1, 1], [0, 1], min_length=-1)
+            tc.ibd_segments_between([1, 1], [0, 1], min_span=-1)
         with pytest.raises(_tskit.LibraryError):
             tc.ibd_segments_between([1, 1], [0, 1], max_time=-1)
         with pytest.raises(_tskit.LibraryError, match="Duplicate sample"):

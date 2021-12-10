@@ -7634,7 +7634,7 @@ out:
 
 typedef struct {
     tsk_identity_segments_t *result;
-    double min_length;
+    double min_span;
     double max_time;
     const tsk_table_collection_t *tables;
     /* Maps nodes to their sample set IDs. Input samples map to set 0
@@ -7755,14 +7755,14 @@ out:
 
 static int TSK_WARN_UNUSED
 tsk_ibd_finder_init(tsk_ibd_finder_t *self, const tsk_table_collection_t *tables,
-    tsk_identity_segments_t *result, double min_length, double max_time)
+    tsk_identity_segments_t *result, double min_span, double max_time)
 {
     int ret = 0;
     tsk_size_t num_nodes;
 
     tsk_memset(self, 0, sizeof(tsk_ibd_finder_t));
 
-    if (min_length < 0) {
+    if (min_span < 0) {
         ret = TSK_ERR_BAD_PARAM_VALUE;
         goto out;
     }
@@ -7774,7 +7774,7 @@ tsk_ibd_finder_init(tsk_ibd_finder_t *self, const tsk_table_collection_t *tables
     self->tables = tables;
     self->result = result;
     self->max_time = max_time;
-    self->min_length = min_length;
+    self->min_span = min_span;
 
     ret = tsk_blkalloc_init(&self->segment_heap, 8192);
     if (ret != 0) {
@@ -7807,7 +7807,7 @@ tsk_ibd_finder_enqueue_segment(
     tsk_segment_t *seg;
     void *p;
 
-    if ((right - left) > self->min_length) {
+    if ((right - left) > self->min_span) {
         /* Make sure we always have room for one more segment in the queue so we
          * can put a tail sentinel on it */
         if (self->segment_queue_size == self->max_segment_queue_size - 1) {
@@ -7837,7 +7837,7 @@ tsk_ibd_finder_passes_filters(
     if (a == b) {
         return false;
     }
-    if ((right - left) <= self->min_length) {
+    if ((right - left) <= self->min_span) {
         return false;
     }
     if (self->finding_between) {
@@ -7901,7 +7901,7 @@ tsk_ibd_finder_print_state(tsk_ibd_finder_t *self, FILE *out)
 
     fprintf(out, "--ibd-finder stats--\n");
     fprintf(out, "max_time = %f\n", self->max_time);
-    fprintf(out, "min_length = %f\n", self->min_length);
+    fprintf(out, "min_span = %f\n", self->min_span);
     fprintf(out, "finding_between = %d\n", self->finding_between);
     fprintf(out, "===\nEdges\n===\n");
     for (j = 0; j < self->tables->edges.num_rows; j++) {
@@ -10941,7 +10941,7 @@ out:
 int TSK_WARN_UNUSED
 tsk_table_collection_ibd_within(const tsk_table_collection_t *self,
     tsk_identity_segments_t *result, const tsk_id_t *samples, tsk_size_t num_samples,
-    double min_length, double max_time, tsk_flags_t options)
+    double min_span, double max_time, tsk_flags_t options)
 {
     int ret = 0;
     tsk_ibd_finder_t ibd_finder;
@@ -10950,7 +10950,7 @@ tsk_table_collection_ibd_within(const tsk_table_collection_t *self,
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_ibd_finder_init(&ibd_finder, self, result, min_length, max_time);
+    ret = tsk_ibd_finder_init(&ibd_finder, self, result, min_span, max_time);
     if (ret != 0) {
         goto out;
     }
@@ -10973,7 +10973,7 @@ out:
 int TSK_WARN_UNUSED
 tsk_table_collection_ibd_between(const tsk_table_collection_t *self,
     tsk_identity_segments_t *result, tsk_size_t num_sample_sets,
-    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets, double min_length,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets, double min_span,
     double max_time, tsk_flags_t options)
 {
     int ret = 0;
@@ -10983,7 +10983,7 @@ tsk_table_collection_ibd_between(const tsk_table_collection_t *self,
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_ibd_finder_init(&ibd_finder, self, result, min_length, max_time);
+    ret = tsk_ibd_finder_init(&ibd_finder, self, result, min_span, max_time);
     if (ret != 0) {
         goto out;
     }

@@ -6292,7 +6292,7 @@ test_ibd_segments_empty_result(void)
 }
 
 static void
-test_ibd_segments_min_length_max_time(void)
+test_ibd_segments_min_span_max_time(void)
 {
     int ret;
     tsk_treeseq_t ts;
@@ -9275,8 +9275,7 @@ main(int argc, char **argv)
             test_ibd_segments_single_tree_options },
         { "test_ibd_segments_multiple_trees", test_ibd_segments_multiple_trees },
         { "test_ibd_segments_empty_result", test_ibd_segments_empty_result },
-        { "test_ibd_segments_min_length_max_time",
-            test_ibd_segments_min_length_max_time },
+        { "test_ibd_segments_min_span_max_time", test_ibd_segments_min_span_max_time },
         { "test_ibd_segments_single_tree_between",
             test_ibd_segments_single_tree_between },
         { "test_ibd_segments_samples_are_descendants",
