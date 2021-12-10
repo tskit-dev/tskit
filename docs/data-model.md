@@ -1051,7 +1051,7 @@ often have large regions that have
 not been inherited by any of the {ref}`sample nodes<sec_data_model_definitions_sample>`
 in the tree sequence, and therefore regions about which we know nothing. This is true,
 for example, of node 7 in the middle tree of our previous example, which is why it is
-not plotted in that tree:
+not plotted on that tree:
 
 ```{code-cell} ipython3
 display(SVG(ts_multiroot.draw_svg(time_scale="rank")))
@@ -1068,7 +1068,7 @@ for tree in ts_multiroot.trees():
 
 However, it is also possible for a {ref}`sample node<sec_data_model_definitions_sample>`
 to be isolated. Unlike other nodes, isolated *sample* nodes are still considered as
-being present in the tree (meaning they will still returned by the {meth}`Tree.nodes`
+being present on the tree (meaning they will still returned by the {meth}`Tree.nodes`
 and {meth}`Tree.samples` methods): they are therefore plotted, but unconnected to any
 other nodes. To illustrate, we can remove the edge from node 2 to node 7.
 
