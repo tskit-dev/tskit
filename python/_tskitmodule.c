@@ -66,9 +66,13 @@ static PyObject *TskitNoSampleListsError;
  * Because C code executed here represents atomic Python operations
  * (while the GIL is held), this should be safe */
 
+/* NOTE:2021-12-10: the "lock" attribute doesn't seem to do anything -
+ * where do we set it? */
+
 typedef struct _TableCollection {
     PyObject_HEAD
     tsk_table_collection_t *tables;
+    PyObject *ts;
 } TableCollection;
 
  /* The table pointer in each of the Table classes either points to locally
@@ -847,6 +851,41 @@ out:
 }
 
 static PyObject *
+table_get_read_only_column_array(
+    tsk_size_t num_rows, void *data, int npy_type, size_t element_size, PyObject *owner)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *array;
+    npy_intp dims = (npy_intp) num_rows;
+
+    array = (PyArrayObject *) PyArray_SimpleNewFromData(1, &dims, npy_type, data);
+    if (array == NULL) {
+        goto out;
+    }
+    PyArray_CLEARFLAGS(array, NPY_ARRAY_WRITEABLE);
+    if (PyArray_SetBaseObject(array, (PyObject *) owner) != 0) {
+        goto out;
+    }
+    /* PyArray_SetBaseObject steals a reference, so we have to incref the tree
+     * object. This makes sure that the Tree instance will stay alive if there
+     * are any arrays that refer to its memory. */
+    Py_INCREF(owner);
+    ret = (PyObject *) array;
+    array = NULL;
+out:
+    Py_XDECREF(array);
+
+    /*     array = (PyArrayObject *) PyArray_EMPTY(1, &dims, npy_type, 0); */
+    /*     if (array == NULL) { */
+    /*         goto out; */
+    /*     } */
+    /*     memcpy(PyArray_DATA(array), data, num_rows * element_size); */
+    /*     ret = (PyObject *) array; */
+    /* out: */
+    return ret;
+}
+
+static PyObject *
 table_get_offset_array(tsk_size_t num_rows, tsk_size_t *data)
 {
     PyObject *ret = NULL;
@@ -1602,7 +1641,7 @@ static PyTypeObject IndividualTableType = {
  */
 
 static int
-NodeTable_check_state(NodeTable *self)
+NodeTable_check_read(NodeTable *self)
 {
     int ret = -1;
     if (self->table == NULL) {
@@ -1614,6 +1653,29 @@ NodeTable_check_state(NodeTable *self)
         goto out;
     }
     ret = 0;
+out:
+    return ret;
+}
+
+static bool
+NodeTable_is_read_only(NodeTable *self)
+{
+    /* TODO: make this less ugly */
+    return self->tables != NULL && self->tables->ts != NULL;
+}
+
+static int
+NodeTable_check_write(NodeTable *self)
+{
+    int ret = NodeTable_check_read(self);
+
+    if (ret != 0) {
+        goto out;
+    }
+    if (NodeTable_is_read_only(self)) {
+        PyErr_SetString(PyExc_AttributeError, "NodeTable is in read-only state");
+        ret = -1;
+    }
 out:
     return ret;
 }
@@ -1680,7 +1742,7 @@ NodeTable_add_row(NodeTable *self, PyObject *args, PyObject *kwds)
     static char *kwlist[]
         = { "flags", "time", "population", "individual", "metadata", NULL };
 
-    if (NodeTable_check_state(self) != 0) {
+    if (NodeTable_check_write(self) != 0) {
         goto out;
     }
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O&dO&O&O", kwlist, &uint32_converter,
@@ -1720,7 +1782,7 @@ NodeTable_update_row(NodeTable *self, PyObject *args, PyObject *kwds)
     static char *kwlist[]
         = { "row_index", "flags", "time", "population", "individual", "metadata", NULL };
 
-    if (NodeTable_check_state(self) != 0) {
+    if (NodeTable_check_write(self) != 0) {
         goto out;
     }
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O&|O&dO&O&O", kwlist,
@@ -1757,14 +1819,14 @@ NodeTable_equals(NodeTable *self, PyObject *args, PyObject *kwds)
     int ignore_metadata = false;
     static char *kwlist[] = { "other", "ignore_metadata", NULL };
 
-    if (NodeTable_check_state(self) != 0) {
+    if (NodeTable_check_read(self) != 0) {
         goto out;
     }
     if (!PyArg_ParseTupleAndKeywords(
             args, kwds, "O!|i", kwlist, &NodeTableType, &other, &ignore_metadata)) {
         goto out;
     }
-    if (NodeTable_check_state(other) != 0) {
+    if (NodeTable_check_read(other) != 0) {
         goto out;
     }
     if (ignore_metadata) {
@@ -1783,7 +1845,7 @@ NodeTable_get_row(NodeTable *self, PyObject *args)
     Py_ssize_t row_id;
     tsk_node_t node;
 
-    if (NodeTable_check_state(self) != 0) {
+    if (NodeTable_check_read(self) != 0) {
         goto out;
     }
     if (!PyArg_ParseTuple(args, "n", &row_id)) {
@@ -1806,7 +1868,7 @@ NodeTable_parse_dict_arg(NodeTable *self, PyObject *args, bool clear_table)
     PyObject *ret = NULL;
     PyObject *dict = NULL;
 
-    if (NodeTable_check_state(self) != 0) {
+    if (NodeTable_check_write(self) != 0) {
         goto out;
     }
     if (!PyArg_ParseTuple(args, "O!", &PyDict_Type, &dict)) {
@@ -1839,7 +1901,7 @@ NodeTable_clear(NodeTable *self)
     PyObject *ret = NULL;
     int err;
 
-    if (NodeTable_check_state(self) != 0) {
+    if (NodeTable_check_write(self) != 0) {
         goto out;
     }
     err = tsk_node_table_clear(self->table);
@@ -1859,7 +1921,7 @@ NodeTable_truncate(NodeTable *self, PyObject *args)
     Py_ssize_t num_rows;
     int err;
 
-    if (NodeTable_check_state(self) != 0) {
+    if (NodeTable_check_write(self) != 0) {
         goto out;
     }
     if (!PyArg_ParseTuple(args, "n", &num_rows)) {
@@ -1888,17 +1950,13 @@ NodeTable_extend(NodeTable *self, PyObject *args, PyObject *kwds)
     int err;
     static char *kwlist[] = { "other", "row_indexes", NULL };
 
-    if (NodeTable_check_state(self) != 0) {
+    if (NodeTable_check_write(self) != 0) {
         goto out;
     }
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!O&", kwlist, &NodeTableType, &other,
             &int32_array_converter, &row_indexes)) {
         goto out;
     }
-    if (NodeTable_check_state(other) != 0) {
-        goto out;
-    }
-
     err = tsk_node_table_extend(self->table, other->table, PyArray_DIMS(row_indexes)[0],
         PyArray_DATA(row_indexes), 0);
     if (err != 0) {
@@ -1915,7 +1973,7 @@ static PyObject *
 NodeTable_get_max_rows_increment(NodeTable *self, void *closure)
 {
     PyObject *ret = NULL;
-    if (NodeTable_check_state(self) != 0) {
+    if (NodeTable_check_read(self) != 0) {
         goto out;
     }
     ret = Py_BuildValue("n", (Py_ssize_t) self->table->max_rows_increment);
@@ -1927,7 +1985,7 @@ static PyObject *
 NodeTable_get_num_rows(NodeTable *self, void *closure)
 {
     PyObject *ret = NULL;
-    if (NodeTable_check_state(self) != 0) {
+    if (NodeTable_check_read(self) != 0) {
         goto out;
     }
     ret = Py_BuildValue("n", (Py_ssize_t) self->table->num_rows);
@@ -1939,7 +1997,7 @@ static PyObject *
 NodeTable_get_max_rows(NodeTable *self, void *closure)
 {
     PyObject *ret = NULL;
-    if (NodeTable_check_state(self) != 0) {
+    if (NodeTable_check_read(self) != 0) {
         goto out;
     }
     ret = Py_BuildValue("n", (Py_ssize_t) self->table->max_rows);
@@ -1952,11 +2010,16 @@ NodeTable_get_time(NodeTable *self, void *closure)
 {
     PyObject *ret = NULL;
 
-    if (NodeTable_check_state(self) != 0) {
+    if (NodeTable_check_read(self) != 0) {
         goto out;
     }
-    ret = table_get_column_array(
-        self->table->num_rows, self->table->time, NPY_FLOAT64, sizeof(double));
+    if (NodeTable_is_read_only(self)) {
+        ret = table_get_read_only_column_array(self->table->num_rows, self->table->time,
+            NPY_FLOAT64, sizeof(double), (PyObject *) self);
+    } else {
+        ret = table_get_column_array(
+            self->table->num_rows, self->table->time, NPY_FLOAT64, sizeof(double));
+    }
 out:
     return ret;
 }
@@ -1966,7 +2029,7 @@ NodeTable_get_flags(NodeTable *self, void *closure)
 {
     PyObject *ret = NULL;
 
-    if (NodeTable_check_state(self) != 0) {
+    if (NodeTable_check_read(self) != 0) {
         goto out;
     }
     ret = table_get_column_array(
@@ -1980,7 +2043,7 @@ NodeTable_get_population(NodeTable *self, void *closure)
 {
     PyObject *ret = NULL;
 
-    if (NodeTable_check_state(self) != 0) {
+    if (NodeTable_check_read(self) != 0) {
         goto out;
     }
     ret = table_get_column_array(
@@ -1994,7 +2057,7 @@ NodeTable_get_individual(NodeTable *self, void *closure)
 {
     PyObject *ret = NULL;
 
-    if (NodeTable_check_state(self) != 0) {
+    if (NodeTable_check_read(self) != 0) {
         goto out;
     }
     ret = table_get_column_array(
@@ -2008,7 +2071,7 @@ NodeTable_get_metadata(NodeTable *self, void *closure)
 {
     PyObject *ret = NULL;
 
-    if (NodeTable_check_state(self) != 0) {
+    if (NodeTable_check_read(self) != 0) {
         goto out;
     }
     ret = table_get_column_array(
@@ -2022,7 +2085,7 @@ NodeTable_get_metadata_offset(NodeTable *self, void *closure)
 {
     PyObject *ret = NULL;
 
-    if (NodeTable_check_state(self) != 0) {
+    if (NodeTable_check_read(self) != 0) {
         goto out;
     }
     ret = table_get_offset_array(self->table->num_rows, self->table->metadata_offset);
@@ -2035,7 +2098,7 @@ NodeTable_get_metadata_schema(NodeTable *self, void *closure)
 {
     PyObject *ret = NULL;
 
-    if (NodeTable_check_state(self) != 0) {
+    if (NodeTable_check_read(self) != 0) {
         goto out;
     }
     ret = make_Py_Unicode_FromStringAndLength(
@@ -2052,7 +2115,7 @@ NodeTable_set_metadata_schema(NodeTable *self, PyObject *arg, void *closure)
     const char *metadata_schema;
     Py_ssize_t metadata_schema_length;
 
-    if (NodeTable_check_state(self) != 0) {
+    if (NodeTable_check_write(self) != 0) {
         goto out;
     }
     metadata_schema = parse_unicode_arg(arg, &metadata_schema_length);
@@ -6182,11 +6245,13 @@ out:
 static void
 TableCollection_dealloc(TableCollection *self)
 {
-    if (self->tables != NULL) {
+    if (self->ts != NULL) {
+        Py_DECREF(self->ts);
+    } else if (self->tables != NULL) {
         tsk_table_collection_free(self->tables);
         PyMem_Free(self->tables);
-        self->tables = NULL;
     }
+    self->tables = NULL;
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
@@ -9898,7 +9963,28 @@ TreeSequence_get_indexes_edge_removal_order(TreeSequence *self, void *closure)
     tables = self->tree_sequence->tables;
     ret = TreeSequence_make_array(
         self, tables->edges.num_rows, NPY_INT32, tables->indexes.edge_removal_order);
+
 out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_tables(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    TableCollection *py_tables = NULL;
+
+    py_tables = PyObject_New(TableCollection, &TableCollectionType);
+    if (py_tables == NULL) {
+        goto out;
+    }
+    py_tables->ts = (PyObject *) self;
+    py_tables->tables = self->tree_sequence->tables;
+    Py_INCREF(self);
+    ret = (PyObject *) py_tables;
+    py_tables = NULL;
+out:
+    Py_XDECREF(py_tables);
     return ret;
 }
 
@@ -10196,6 +10282,9 @@ static PyGetSetDef TreeSequence_getsetters[] = {
     { .name = "indexes_edge_removal_order",
         .get = (getter) TreeSequence_get_indexes_edge_removal_order,
         .doc = "The edge removal order array" },
+    { .name = "tables",
+        .get = (getter) TreeSequence_get_tables,
+        .doc = "The TableCollection." },
     { NULL } /* Sentinel */
 };
 
