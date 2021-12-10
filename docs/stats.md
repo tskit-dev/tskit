@@ -124,22 +124,22 @@ Markdown(
 #### Basic calling convention
 
 ```{code-cell} ipython3
-afs = ts.allele_frequency_spectrum()
-print(afs) # afs[1] gives number of singletons, afs[2] doubletons, etc
+pi = ts.diversity()
+print(pi) # Genetic diversity within the sample set
 ```
 
 #### Restrict to {ref}`sample sets<sec_stats_sample_sets>`
 
 ```{code-cell} ipython3
-pi = ts.diversity(sample_sets=ts.samples(population=0))
-print(pi)  # Genetic diversity within population 0
+pi_0 = ts.diversity(sample_sets=ts.samples(population=0))
+print(pi_0)  # Genetic diversity within population 0
 ```
 
 #### Summarise in genomic {ref}`windows<sec_stats_windows>`
 
 ```{code-cell} ipython3
-pi = ts.diversity(sample_sets=ts.samples(population=1), windows=[0, 400,  600, 1000])
-print(pi)  # Genetic diversity within population 1 in three windows along the genome
+pi_window = ts.diversity(sample_sets=ts.samples(population=1), windows=[0, 400,  600, 1000])
+print(pi_window)  # Genetic diversity within population 1 in three windows along the genome
 ```
 
 #### Compare {ref}`between<sec_stats_sample_sets_multi_way>` sample sets
@@ -238,7 +238,7 @@ the `node` statistics return one number **for each node** in the tree sequence (
 There can be a lot of nodes in the tree sequence, so beware.
 
 Also remember that in a tree sequence the "sites" are usually just the **variant** sites,
-e.g., the sites of the SNPs. Although tree sequence may in principle have monomorphic
+e.g., the sites of the SNPs. Although the tree sequence may in principle have monomorphic
 sites, those produced by simulation usually don't.
 
 
