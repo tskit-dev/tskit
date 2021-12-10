@@ -22,9 +22,11 @@
 """
 Python implementation of the IBD-finding algorithms.
 """
-import argparse
+from __future__ import annotations
+
 import collections
 
+import intervaltree
 import numpy as np
 
 import tskit
@@ -139,7 +141,102 @@ class IbdResult:
         self.segments[key].append(tskit.IdentitySegment(seg.left, seg.right, seg.node))
 
 
-class IbdFinder:
+class IbdFinderIntervalTrees:
+    def __init__(self, ts, *, within=None, between=None, min_length=0, max_time=None):
+        self.ts = ts
+
+        if within is not None and between is not None:
+            raise ValueError("within and between are mutually exclusive")
+
+        self.sample_set_id = np.zeros(ts.num_nodes, dtype=int) - 1
+        self.finding_between = False
+        if between is not None:
+            self.finding_between = True
+            for set_id, samples in enumerate(between):
+                self.sample_set_id[samples] = set_id
+        else:
+            if within is None:
+                within = ts.samples()
+            self.sample_set_id[within] = 0
+        self.min_length = min_length
+        self.max_time = np.inf if max_time is None else max_time
+        self.tables = self.ts.tables
+        self.A = [intervaltree.IntervalTree() for _ in range(ts.num_nodes)]
+
+        for u in range(ts.num_nodes):
+            if self.sample_set_id[u] != -1:
+                self.A[u][0 : ts.sequence_length] = u
+
+    def print_state(self):
+        print("IBD Finder")
+        print("min_length = ", self.min_length)
+        print("max_time   = ", self.max_time)
+        print("finding_between = ", self.finding_between)
+        print("u\tset_id\tI = ")
+        for u, i in enumerate(self.A):
+            print(u, self.sample_set_id[u], len(i), i, sep="\t")
+
+    def keep_pair(self, a, b):
+        if self.finding_between:
+            return self.sample_set_id[a] != self.sample_set_id[b]
+        return True
+
+    def run(self):
+        result = collections.defaultdict(list)
+        node_times = self.tables.nodes.time
+        child_count = np.zeros(self.ts.num_nodes, dtype=int)
+        for e in self.ts.edges():
+            child_count[e.child] += 1
+
+        L = self.ts.sequence_length
+        for e in self.ts.edges():
+            if node_times[e.parent] > self.max_time:
+                # Stop looking for IBD segments once the
+                # processed nodes are older than the max time.
+                break
+
+            # Any intervals resulting from going through this
+            # edge are at-most as long as it, so it suffices to
+            # skip processing this edge to filter out short IBD
+            # segments for the edge.
+            if e.right - e.left > self.min_length:
+                # Get the intervals intersecting with this edge in the
+                # parent and child sets. Each interval tree operation is
+                # roughly O(m + log n) where m is the number of intervals
+                # returned and n is the total number of intervals in the tree.
+
+                t_child = self.A[e.child].copy()
+                # # There's no operation to "snip" an interval :(
+                t_child.chop(0, e.left)
+                t_child.chop(e.right, L)
+
+                # This is the inevitable quadratic bit: for every interval
+                # in the child's list that intersects with this edge, we must
+                # register an IBD segment with each of the intervals in the parent's
+                # list that intersect with this edge.
+                for int1 in t_child:
+                    for int2 in self.A[e.parent].overlap(int1):
+                        key = tuple(sorted([int1.data, int2.data]))
+                        left = max(int1.begin, int2.begin, e.left)
+                        right = min(int1.end, int2.end, e.right)
+                        # This is just for the "within" semantics - not interesting
+                        # from an algorithm perspective, but simpler to implement
+                        # it to keep tests working
+                        if self.keep_pair(*key):
+                            result[key].append(tskit.IbdSegment(left, right, e.parent))
+
+                # Update parent's intervals
+                self.A[e.parent] |= t_child
+
+            # If there are no more edges referring to this child we don't need
+            # its intervals any more.
+            child_count[e.child] -= 1
+            if child_count[e.child] == 0:
+                self.A[e.child].clear()
+        return result
+
+
+class IbdFinderOld:
     """
     Finds all IBD relationships between specified sample pairs in a tree sequence.
     """
@@ -175,7 +272,12 @@ class IbdFinder:
         print("finding_between = ", self.finding_between)
         print("u\tset_id\tA = ")
         for u, a in enumerate(self.A):
-            print(u, self.sample_set_id[u], a, sep="\t")
+            n = 0
+            x = self.A[u].head
+            while x is not None:
+                n += 1
+                x = x.next
+            print(u, self.sample_set_id[u], n, a, sep="\t")
 
     def run(self):
         node_times = self.tables.nodes.time
@@ -233,71 +335,3 @@ class IbdFinder:
             return self.sample_set_id[a] != self.sample_set_id[b]
         else:
             return True
-
-
-if __name__ == "__main__":
-    """
-    A simple CLI for running IBDFinder on a command line from the `python`
-    subdirectory. Basic usage:
-    > python3 ./tests/ibd.py --infile test.trees
-    """
-
-    parser = argparse.ArgumentParser(
-        description="Command line interface for the IBDFinder."
-    )
-
-    parser.add_argument(
-        "--infile",
-        type=str,
-        dest="infile",
-        nargs=1,
-        metavar="IN_FILE",
-        help="The tree sequence to be analysed.",
-    )
-
-    parser.add_argument(
-        "--min-length",
-        type=float,
-        dest="min_length",
-        nargs=1,
-        metavar="MIN_LENGTH",
-        help="Only segments longer than this cutoff will be returned.",
-    )
-
-    parser.add_argument(
-        "--max-time",
-        type=float,
-        dest="max_time",
-        nargs=1,
-        metavar="MAX_TIME",
-        help="Only segments younger this time will be returned.",
-    )
-
-    parser.add_argument(
-        "--samples",
-        type=int,
-        dest="samples",
-        nargs=2,
-        metavar="SAMPLES",
-        help="If provided, only this pair's IBD info is returned.",
-    )
-
-    args = parser.parse_args()
-    ts = tskit.load(args.infile[0])
-    if args.min_length is None:
-        min_length = 0
-    else:
-        min_length = args.min_length[0]
-    if args.max_time is None:
-        max_time = None
-    else:
-        max_time = args.max_time[0]
-
-    s = IbdFinder(ts, samples=ts.samples(), min_length=min_length, max_time=max_time)
-    all_segs = s.find_ibd_segments()
-
-    if args.samples is None:
-        print(all_segs)
-    else:
-        samples = args.samples
-        print(all_segs[(samples[0], samples[1])])
