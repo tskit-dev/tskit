@@ -997,7 +997,7 @@ position 20 to 40, has a single root. Finally the third tree, from position
 
 #### The virtual root
 
-To access all the :attr:`~Tree.roots` in a tree, tskit uses a special additional node
+To access all the {attr}`~Tree.roots` in a tree, tskit uses a special additional node
 called the **virtual root**. This is primarily a bookkeeping device, and
 can normally be ignored: it is not plotted in any visualizations and
 does not exist as an independent node in the node table.
