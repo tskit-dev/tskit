@@ -154,7 +154,7 @@ jobs:
         run: |
           python -VV
           # Install the local wheel
-          pip install dist/tskit-*.whl
+          pip install ./tskit-*.whl
           python -c "import tskit"
 
   windows-test:
@@ -174,10 +174,11 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: Install wheel and test
+        shell: bash
         run: |
           python -VV
           # Install the local wheel
-          pip install dist/tskit-*.whl
+          python -m pip install *.whl
           python -c "import tskit"
 
   manylinux-test:
@@ -186,6 +187,15 @@ jobs:
     strategy:
       matrix:
         python: [3.7, 3.8, 3.9, "3.10"]
+        include:
+          - python: 3.7
+            wheel: cp37
+          - python: 3.8
+            wheel: cp38
+          - python: 3.9
+            wheel: cp39
+          - python: "3.10"
+            wheel: cp310
     steps:
       - name: Download wheels
         uses: actions/download-artifact@v2
@@ -199,7 +209,7 @@ jobs:
         run: |
           python -VV
           # Install the local wheel
-          pip install dist/tskit-*.whl
+          pip install ./tskit-*-${{ matrix.wheel }}-*.whl
           python -c "import tskit"
 
 
