@@ -6811,20 +6811,20 @@ TableCollection_ibd_segments_within(
     PyArrayObject *samples_array = NULL;
     int32_t *samples = NULL;
     tsk_size_t num_samples = 0;
-    double min_length = 0;
+    double min_span = 0;
     double max_time = DBL_MAX;
     int store_pairs = 0;
     int store_segments = 0;
     npy_intp *shape;
     static char *kwlist[]
-        = { "samples", "min_length", "max_time", "store_pairs", "store_segments", NULL };
+        = { "samples", "min_span", "max_time", "store_pairs", "store_segments", NULL };
     tsk_flags_t options = 0;
 
     if (TableCollection_check_state(self) != 0) {
         goto out;
     }
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|Oddii", kwlist, &py_samples,
-            &min_length, &max_time, &store_pairs, &store_segments)) {
+            &min_span, &max_time, &store_pairs, &store_segments)) {
         goto out;
     }
     if (py_samples != Py_None) {
@@ -6851,7 +6851,7 @@ TableCollection_ibd_segments_within(
     }
 
     err = tsk_table_collection_ibd_within(self->tables, result->identity_segments,
-        samples, num_samples, min_length, max_time, options);
+        samples, num_samples, min_span, max_time, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -6876,19 +6876,19 @@ TableCollection_ibd_segments_between(
     PyArrayObject *sample_set_sizes_array = NULL;
     IdentitySegments *result = NULL;
     tsk_size_t num_sample_sets;
-    double min_length = 0;
+    double min_span = 0;
     double max_time = DBL_MAX;
     int store_pairs = 0;
     int store_segments = 0;
-    static char *kwlist[] = { "sample_set_sizes", "sample_sets", "min_length",
-        "max_time", "store_pairs", "store_segments", NULL };
+    static char *kwlist[] = { "sample_set_sizes", "sample_sets", "min_span", "max_time",
+        "store_pairs", "store_segments", NULL };
     tsk_flags_t options = 0;
 
     if (TableCollection_check_state(self) != 0) {
         goto out;
     }
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|ddii", kwlist, &sample_set_sizes,
-            &sample_sets, &min_length, &max_time, &store_pairs, &store_segments)) {
+            &sample_sets, &min_span, &max_time, &store_pairs, &store_segments)) {
         goto out;
     }
     if (parse_sample_sets(sample_set_sizes, &sample_set_sizes_array, sample_sets,
@@ -6911,7 +6911,7 @@ TableCollection_ibd_segments_between(
 
     err = tsk_table_collection_ibd_between(self->tables, result->identity_segments,
         num_sample_sets, (tsk_size_t *) PyArray_DATA(sample_set_sizes_array),
-        (tsk_id_t *) PyArray_DATA(sample_sets_array), min_length, max_time, options);
+        (tsk_id_t *) PyArray_DATA(sample_sets_array), min_span, max_time, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;

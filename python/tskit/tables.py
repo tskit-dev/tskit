@@ -2623,10 +2623,10 @@ class IdentitySegments(collections.abc.Mapping):
     .. warning:: This class should not be instantiated directly.
     """
 
-    def __init__(self, ll_result, *, max_time, min_length, store_segments, store_pairs):
+    def __init__(self, ll_result, *, max_time, min_span, store_segments, store_pairs):
         self._ll_identity_segments = ll_result
         self.max_time = max_time
-        self.min_length = min_length
+        self.min_span = min_span
         self.store_segments = store_segments
         self.store_pairs = store_pairs
 
@@ -2672,11 +2672,17 @@ class IdentitySegments(collections.abc.Mapping):
         return super().__repr__()
 
     def __str__(self):
+        # TODO it would be nice to add horizontal lines as
+        # table separators to distinguish the two parts of the
+        # table like suggested here:
+        # https://github.com/tskit-dev/tskit/pull/1902#issuecomment-989943424
         rows = [
+            ["Parameters:", ""],
             ["max_time", str(self.max_time)],
-            ["min_length", str(self.min_length)],
+            ["min_span", str(self.min_span)],
             ["store_pairs", str(self.store_pairs)],
             ["store_segments", str(self.store_segments)],
+            ["Results:", ""],
             ["num_segments", str(self.num_segments)],
             ["total_span", str(self.total_span)],
         ]
@@ -3975,7 +3981,7 @@ class TableCollection(metadata.MetadataProvider):
         within=None,
         between=None,
         max_time=None,
-        min_length=None,
+        min_span=None,
         store_pairs=None,
         store_segments=None,
     ):
@@ -3995,7 +4001,7 @@ class TableCollection(metadata.MetadataProvider):
         :param list within: As for the :meth:`TreeSequence.ibd_segments` method.
         :param list[list] between: As for the :meth:`TreeSequence.ibd_segments` method.
         :param float max_time: As for the :meth:`TreeSequence.ibd_segments` method.
-        :param float min_length: As for the :meth:`TreeSequence.ibd_segments` method.
+        :param float min_span: As for the :meth:`TreeSequence.ibd_segments` method.
         :param bool store_pairs: As for the :meth:`TreeSequence.ibd_segments` method.
         :param bool store_segments: As for the :meth:`TreeSequence.ibd_segments` method.
         :return: An :class:`.IdentitySegments` object containing the recorded
@@ -4003,7 +4009,7 @@ class TableCollection(metadata.MetadataProvider):
         :rtype: IdentitySegments
         """
         max_time = np.inf if max_time is None else max_time
-        min_length = 0 if min_length is None else min_length
+        min_span = 0 if min_span is None else min_span
         store_pairs = False if store_pairs is None else store_pairs
         store_segments = False if store_segments is None else store_segments
         if within is not None and between is not None:
@@ -4028,7 +4034,7 @@ class TableCollection(metadata.MetadataProvider):
                 sample_set_sizes=sample_set_sizes,
                 sample_sets=flattened,
                 max_time=max_time,
-                min_length=min_length,
+                min_span=min_span,
                 store_pairs=store_pairs,
                 store_segments=store_segments,
             )
@@ -4038,14 +4044,14 @@ class TableCollection(metadata.MetadataProvider):
             ll_result = self._ll_tables.ibd_segments_within(
                 samples=within,
                 max_time=max_time,
-                min_length=min_length,
+                min_span=min_span,
                 store_pairs=store_pairs,
                 store_segments=store_segments,
             )
         return IdentitySegments(
             ll_result,
             max_time=max_time,
-            min_length=min_length,
+            min_span=min_span,
             store_pairs=store_pairs,
             store_segments=store_segments,
         )

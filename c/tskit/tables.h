@@ -4139,11 +4139,11 @@ tsk_id_t tsk_table_collection_check_integrity(
  * This should be done as part of documenting, I guess. */
 int tsk_table_collection_ibd_within(const tsk_table_collection_t *self,
     tsk_identity_segments_t *result, const tsk_id_t *samples, tsk_size_t num_samples,
-    double min_length, double max_time, tsk_flags_t options);
+    double min_span, double max_time, tsk_flags_t options);
 
 int tsk_table_collection_ibd_between(const tsk_table_collection_t *self,
     tsk_identity_segments_t *result, tsk_size_t num_sample_sets,
-    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets, double min_length,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets, double min_span,
     double max_time, tsk_flags_t options);
 
 int tsk_table_collection_link_ancestors(tsk_table_collection_t *self, tsk_id_t *samples,

@@ -19,11 +19,15 @@ kernelspec:
 
 # Identity by descent
 
-The {meth}`.TreeSequence.ibd_segments` allows us to compute
+The {meth}`.TreeSequence.ibd_segments` method allows us to compute
 segments of identity by descent.
 
 :::{note}
 This documentation page is preliminary
+:::
+
+:::{todo}
+Relate the concept of identity by descent to the MRCA spans in the tree sequence.
 :::
 
 ## Examples
@@ -78,8 +82,8 @@ segments returned are the longest possible ones.
 Consider the IBD segments that we get from our example tree sequence:
 
 ```{code-cell}
-segs = ts.ibd_segments(store_segments=True)
-for pair, segment_list in segs.items():
+segments = ts.ibd_segments(store_segments=True)
+for pair, segment_list in segments.items():
     print(pair, list(segment_list))
 ```
 
@@ -97,8 +101,8 @@ The result of calling {meth}`.TreeSequence.ibd_segments` is an
 {class}`.IdentitySegments` class:
 
 ```{code-cell}
-segs = ts.ibd_segments()
-print(segs)
+segments = ts.ibd_segments()
+print(segments)
 ```
 
 By default this class only stores the high-level summaries of the
@@ -121,18 +125,18 @@ needing to store the actual lists.
 
 
 ```{code-cell}
-segs = ts.ibd_segments(store_pairs=True)
-for pair, value in segs.items():
+segments = ts.ibd_segments(store_pairs=True)
+for pair, value in segments.items():
     print(pair, "::", value)
 ```
 
 Now we can see the more detailed breakdown of how the identity segments
 are distributed among the sample pairs. The {class}`.IdentitySegments`
-class behaves like a dictionary, such that ``segs[(a, b)]`` will return
+class behaves like a dictionary, such that ``segments[(a, b)]`` will return
 the {class}`.IdentitySegmentList` instance for that pair of samples:
 
 ```{code-cell}
-seglist = segs[(0, 1)]
+seglist = segments[(0, 1)]
 print(seglist)
 ```
 
@@ -140,8 +144,8 @@ If we want to access the detailed information about the actual
 identity segments, we must use the ``store_segments`` argument:
 
 ```{code-cell}
-segs = ts.ibd_segments(store_pairs=True, store_segments=True)
-segs[(0, 1)]
+segments = ts.ibd_segments(store_pairs=True, store_segments=True)
+segments[(0, 1)]
 ```
 
 The {class}`.IdentitySegmentList` behaves like a Python list,
@@ -161,11 +165,11 @@ is arbitrary, and may change in future versions.
 ### Controlling the sample sets
 
 By default we get the IBD segments between all pairs of
-:ref:`sample<sec_data_model_definitions_samples>` nodes.
+{ref}`sample<sec_data_model_definitions_sample>` nodes.
 
 #### IBD within a sample set
 We can reduce this to pairs within a specific set using the
-``within`` argument::
+``within`` argument:
 
 
 ```{eval-rst}
@@ -173,8 +177,8 @@ We can reduce this to pairs within a specific set using the
 ```
 
 ```{code-cell}
-segs = ts.ibd_segments(within=[0, 2], store_pairs=True)
-print(list(segs.keys()))
+segments = ts.ibd_segments(within=[0, 2], store_pairs=True)
+print(list(segments.keys()))
 ```
 
 #### IBD between sample sets
@@ -182,8 +186,8 @@ print(list(segs.keys()))
 We can also compute IBD **between** sample sets:
 
 ```{code-cell}
-segs = ts.ibd_segments(between=[[0,1], [2]], store_pairs=True)
-print(list(segs.keys()))
+segments = ts.ibd_segments(between=[[0,1], [2]], store_pairs=True)
+print(list(segments.keys()))
 ```
 
 :::{seealso}
@@ -193,7 +197,7 @@ more details.
 
 ### Constraints on the segments
 
-The ``max_time`` and ``min_length`` arguments allow us to constrain the
+The ``max_time`` and ``min_span`` arguments allow us to constrain the
 segments that we consider.
 
 ```{eval-rst}

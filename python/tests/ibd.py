@@ -144,7 +144,7 @@ class IbdFinder:
     Finds all IBD relationships between specified sample pairs in a tree sequence.
     """
 
-    def __init__(self, ts, *, within=None, between=None, min_length=0, max_time=None):
+    def __init__(self, ts, *, within=None, between=None, min_span=0, max_time=None):
         self.ts = ts
         self.result = IbdResult()
         if within is not None and between is not None:
@@ -160,7 +160,7 @@ class IbdFinder:
             if within is None:
                 within = ts.samples()
             self.sample_set_id[within] = 0
-        self.min_length = min_length
+        self.min_span = min_span
         self.max_time = np.inf if max_time is None else max_time
         self.A = [SegmentList() for _ in range(ts.num_nodes)]  # Descendant segments
         for u in range(ts.num_nodes):
@@ -170,7 +170,7 @@ class IbdFinder:
 
     def print_state(self):
         print("IBD Finder")
-        print("min_length = ", self.min_length)
+        print("min_span = ", self.min_span)
         print("max_time   = ", self.max_time)
         print("finding_between = ", self.finding_between)
         print("u\tset_id\tA = ")
@@ -192,7 +192,7 @@ class IbdFinder:
                     max(e.left, s.left),
                     min(e.right, s.right),
                 )
-                if intvl[1] - intvl[0] > self.min_length:
+                if intvl[1] - intvl[0] > self.min_span:
                     child_segs.append(Segment(intvl[0], intvl[1], s.node))
                 s = s.next
             self.record_ibd(e.parent, child_segs)
@@ -227,7 +227,7 @@ class IbdFinder:
     def passes_filters(self, a, b, left, right):
         if a == b:
             return False
-        if right - left <= self.min_length:
+        if right - left <= self.min_span:
             return False
         if self.finding_between:
             return self.sample_set_id[a] != self.sample_set_id[b]
@@ -258,7 +258,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--min-length",
         type=float,
-        dest="min_length",
+        dest="min_span",
         nargs=1,
         metavar="MIN_LENGTH",
         help="Only segments longer than this cutoff will be returned.",
@@ -284,16 +284,16 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     ts = tskit.load(args.infile[0])
-    if args.min_length is None:
-        min_length = 0
+    if args.min_span is None:
+        min_span = 0
     else:
-        min_length = args.min_length[0]
+        min_span = args.min_span[0]
     if args.max_time is None:
         max_time = None
     else:
         max_time = args.max_time[0]
 
-    s = IbdFinder(ts, samples=ts.samples(), min_length=min_length, max_time=max_time)
+    s = IbdFinder(ts, samples=ts.samples(), min_span=min_span, max_time=max_time)
     all_segs = s.find_ibd_segments()
 
     if args.samples is None:

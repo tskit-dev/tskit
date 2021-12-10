@@ -33,7 +33,7 @@ def ibd_segments(
     *,
     within=None,
     between=None,
-    min_length=0,
+    min_span=0,
     max_time=None,
     compare_lib=True,
     print_c=False,
@@ -44,7 +44,7 @@ def ibd_segments(
     Also compares result with C library.
     """
     ibd_f = ibd.IbdFinder(
-        ts, within=within, between=between, max_time=max_time, min_length=min_length
+        ts, within=within, between=between, max_time=max_time, min_span=min_span
     )
     ibd_segs = ibd_f.run()
     if print_py:
@@ -56,7 +56,7 @@ def ibd_segments(
             within=within,
             between=between,
             max_time=max_time,
-            min_length=min_length,
+            min_span=min_span,
             store_segments=True,
         )
         if print_c:
@@ -238,7 +238,7 @@ class TestIbdSingleBinaryTree:
         assert_ibd_equal(ibd_segs, true_segs)
 
     def test_length(self):
-        ibd_segs = ibd_segments(self.ts(), min_length=2)
+        ibd_segs = ibd_segments(self.ts(), min_span=2)
         assert_ibd_equal(ibd_segs, {})
 
 
@@ -333,7 +333,7 @@ class TestIbdTwoSamplesTwoTrees:
 
     # Min length = 0.5
     def test_length(self):
-        ibd_segs = ibd_segments(self.ts(), min_length=0.5, compare_lib=True)
+        ibd_segs = ibd_segments(self.ts(), min_span=0.5, compare_lib=True)
         true_segs = {(0, 1): [tskit.IdentitySegment(0.4, 1.0, 3)]}
         assert_ibd_equal(ibd_segs, true_segs)
 
@@ -376,7 +376,7 @@ class TestIbdUnrelatedSamples:
         assert len(ibd_segs) == 0
 
     def test_length(self):
-        ibd_segs = ibd_segments(self.ts(), min_length=0.2)
+        ibd_segs = ibd_segments(self.ts(), min_span=0.2)
         assert len(ibd_segs) == 0
 
 
@@ -577,7 +577,7 @@ class TestIbdDifferentPaths:
         assert len(ibd_segs) == 0
 
     def test_length(self):
-        ibd_segs = ibd_segments(self.ts(), min_length=0.4)
+        ibd_segs = ibd_segments(self.ts(), min_span=0.4)
         true_segs = {(0, 1): [tskit.IdentitySegment(0.2, 0.7, 4)]}
         assert_ibd_equal(ibd_segs, true_segs)
 
@@ -743,7 +743,7 @@ class TestIbdPolytomies:
         assert_ibd_equal(ibd_segs, true_segs)
 
     def test_length(self):
-        ibd_segs = ibd_segments(self.ts(), min_length=0.5)
+        ibd_segs = ibd_segments(self.ts(), min_span=0.5)
         true_segs = {
             (0, 1): [tskit.IdentitySegment(0, 1, 4)],
             (0, 2): [tskit.IdentitySegment(0.3, 1, 5)],
@@ -810,7 +810,7 @@ class TestIbdInternalSamples:
 
 class TestIbdLengthThreshold:
     """
-    Tests the behaviour of the min_length argument in niche cases.
+    Tests the behaviour of the min_span argument in niche cases.
     """
 
     # 2
@@ -842,15 +842,15 @@ class TestIbdLengthThreshold:
         return tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def test_length_exceeds_segment(self):
-        ibd_segs = ibd_segments(self.ts(), min_length=1.1)
+        ibd_segs = ibd_segments(self.ts(), min_span=1.1)
         assert_ibd_equal(ibd_segs, {})
 
     def test_length_is_negative(self):
         with pytest.raises(tskit.LibraryError):
-            ibd_segments(self.ts(), min_length=-0.1)
+            ibd_segments(self.ts(), min_span=-0.1)
 
     def test_equal_to_length(self):
-        ibd_segs = ibd_segments(self.ts(), min_length=0.4)
+        ibd_segs = ibd_segments(self.ts(), min_span=0.4)
         true_segs = {(0, 1): [tskit.IdentitySegment(0.4, 1.0, 3)]}
         assert_ibd_equal(ibd_segs, true_segs)
 
@@ -957,7 +957,7 @@ class TestIdentitySegments:
         s = str(result)
         assert "IdentitySegments" in s
         assert "max_time" in s
-        assert "min_length" in s
+        assert "min_span" in s
 
     def test_repr_store_segments(self):
         ts = msprime.sim_ancestry(2, random_seed=2)
@@ -1055,20 +1055,20 @@ class TestIdentitySegments:
         assert np.isinf(result.max_time)
         self.verify_segments(ts, result)
 
-    @pytest.mark.parametrize("min_length", [0, 1, 10])
-    def test_min_length(self, min_length):
+    @pytest.mark.parametrize("min_span", [0, 1, 10])
+    def test_min_span(self, min_span):
         ts = msprime.sim_ancestry(2, random_seed=2)
-        result = ts.ibd_segments(min_length=min_length, store_segments=True)
-        assert result.min_length == min_length
+        result = ts.ibd_segments(min_span=min_span, store_segments=True)
+        assert result.min_span == min_span
         self.verify_segments(ts, result)
 
-    @pytest.mark.parametrize("min_length", [100, 101, 100000])
-    def test_min_length_longer_than_seq_length(self, min_length):
+    @pytest.mark.parametrize("min_span", [100, 101, 100000])
+    def test_min_span_longer_than_seq_length(self, min_span):
         ts = msprime.sim_ancestry(
             100, recombination_rate=0.1, sequence_length=100, random_seed=2
         )
-        result = ts.ibd_segments(min_length=min_length, store_segments=True)
-        assert result.min_length == min_length
+        result = ts.ibd_segments(min_span=min_span, store_segments=True)
+        assert result.min_span == min_span
         assert result.num_segments == 0
         self.verify_segments(ts, result)
 

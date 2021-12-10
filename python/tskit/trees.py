@@ -7767,7 +7767,7 @@ class TreeSequence:
         within=None,
         between=None,
         max_time=None,
-        min_length=None,
+        min_span=None,
         store_pairs=None,
         store_segments=None,
     ):
@@ -7811,8 +7811,9 @@ class TreeSequence:
             ancestors whose node times are more recent than the specified time
             will be returned. Specifying a maximum time is strongly recommended when
             working with large tree sequences.
-        :param float min_length: Only segments longer than the specified length
-            will be returned.
+        :param float min_span: Only segments in which the difference between
+            the right and left genome coordinates (i.e., the span of the
+            segment) is greater than this value will be included. (Default=0)
         :param bool store_pairs: If True store information separately for each
             pair of samples ``(a, b)`` that are found to be IBD. Otherwise
             store summary information about all sample apirs. (Default=False)
@@ -7828,7 +7829,7 @@ class TreeSequence:
             within=within,
             between=between,
             max_time=max_time,
-            min_length=min_length,
+            min_span=min_span,
             store_segments=store_segments,
             store_pairs=store_pairs,
         )
