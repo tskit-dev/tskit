@@ -566,7 +566,7 @@ class BaseTable:
             properties of the new row. Both the objects returned from ``table[i]`` and
             e.g. ``ts.individual(i)`` work for this purpose, along with any other
             object with the correct attributes.
-        :return: The ID of the newly added node.
+        :return: The index of the newly added row.
         :rtype: int
         """
         return self.add_row(
@@ -877,7 +877,7 @@ class IndividualTable(BaseTable, MetadataColumnMixin):
         :param object metadata: Any object that is valid metadata for the table's schema.
             Defaults to the default metadata value for the table's schema. This is
             typically ``{}``. For no schema, ``None``.
-        :return: The ID of the newly added node.
+        :return: The ID of the newly added individual.
         :rtype: int
         """
         if metadata is None:
