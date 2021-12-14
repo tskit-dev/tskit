@@ -429,15 +429,13 @@ this case, computes a statistic with the pattern of genotypes at each site,
 and normalising would divide these statistics by the distance to the previous variant site
 (probably not what you want to do).
 
-And, a final note about "span": in tree sequences produced by `msprime`
-coordinates along the sequence are **continuous**,
-so the "spans" used here may not correspond to distance along the genome in (say) base pairs.
-For instance, pairwise sequence divergence is usually a number between 0 and 1
-because it is the proportion of bases that differ;
-this will only be true if the `sequence_length`, and hence the "spans" are measured in base pairs
-(which you ensure in `msprime` by setting recombination and mutation rates equal to the values
-in units of crossovers and mutations per base pair, respectively).
-
+:::{note}
+The resulting values are scaled "per unit of sequence length" - for instance, pairwise
+sequence divergence is measured in "differences per unit of sequence length". Functions
+such as {func}`msprime:msprime.sim_mutations` will by default add mutations in discrete
+coordinates, usually interpreted as base pairs, in which
+case span normalised statistics are in units of "per base pair".
+:::
 
 (sec_stats_output_format)=
 

@@ -52,6 +52,7 @@ sphinx:
         tutorials: ["https://tskit.dev/tutorials/", null]
         stdpopsim: ["https://stdpopsim.readthedocs.io/en/stable", null]
         pyslim: ["https://tskit.dev/pyslim/docs/latest/", null]
+        msprime: ["https://tskit.dev/msprime/docs/stable/", null]
         numpy: ["https://numpy.org/doc/stable/", null]
 
       breathe_projects: {"tskit": "doxygen/xml"}
