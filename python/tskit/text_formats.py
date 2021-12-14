@@ -22,6 +22,8 @@
 """
 Module responsible for working with text format data.
 """
+import base64
+
 import numpy as np
 
 import tskit
@@ -248,3 +250,164 @@ def build_newick(tree, *, root, precision, node_labels, include_branch_lengths):
         include_branch_lengths=include_branch_lengths,
     )
     return s + ";"
+
+
+def dump_text(
+    ts,
+    nodes,
+    edges,
+    sites,
+    mutations,
+    individuals,
+    populations,
+    provenances,
+    precision,
+    encoding,
+    base64_metadata,
+):
+    if nodes is not None:
+        print(
+            "id",
+            "is_sample",
+            "time",
+            "population",
+            "individual",
+            "metadata",
+            sep="\t",
+            file=nodes,
+        )
+        for node in ts.nodes():
+            metadata = node.metadata
+            if base64_metadata:
+                metadata = base64.b64encode(metadata).decode(encoding)
+            row = (
+                "{id:d}\t"
+                "{is_sample:d}\t"
+                "{time:.{precision}f}\t"
+                "{population:d}\t"
+                "{individual:d}\t"
+                "{metadata}"
+            ).format(
+                precision=precision,
+                id=node.id,
+                is_sample=node.is_sample(),
+                time=node.time,
+                population=node.population,
+                individual=node.individual,
+                metadata=metadata,
+            )
+            print(row, file=nodes)
+
+    if edges is not None:
+        print("left", "right", "parent", "child", sep="\t", file=edges)
+        for edge in ts.edges():
+            row = (
+                "{left:.{precision}f}\t"
+                "{right:.{precision}f}\t"
+                "{parent:d}\t"
+                "{child:d}"
+            ).format(
+                precision=precision,
+                left=edge.left,
+                right=edge.right,
+                parent=edge.parent,
+                child=edge.child,
+            )
+            print(row, file=edges)
+
+    if sites is not None:
+        print("position", "ancestral_state", "metadata", sep="\t", file=sites)
+        for site in ts.sites():
+            metadata = site.metadata
+            if base64_metadata:
+                metadata = base64.b64encode(metadata).decode(encoding)
+            row = (
+                "{position:.{precision}f}\t" "{ancestral_state}\t" "{metadata}"
+            ).format(
+                precision=precision,
+                position=site.position,
+                ancestral_state=site.ancestral_state,
+                metadata=metadata,
+            )
+            print(row, file=sites)
+
+    if mutations is not None:
+        print(
+            "site",
+            "node",
+            "time",
+            "derived_state",
+            "parent",
+            "metadata",
+            sep="\t",
+            file=mutations,
+        )
+        for site in ts.sites():
+            for mutation in site.mutations:
+                metadata = mutation.metadata
+                if base64_metadata:
+                    metadata = base64.b64encode(metadata).decode(encoding)
+                row = (
+                    "{site}\t"
+                    "{node}\t"
+                    "{time}\t"
+                    "{derived_state}\t"
+                    "{parent}\t"
+                    "{metadata}"
+                ).format(
+                    site=mutation.site,
+                    node=mutation.node,
+                    time="unknown"
+                    if util.is_unknown_time(mutation.time)
+                    else mutation.time,
+                    derived_state=mutation.derived_state,
+                    parent=mutation.parent,
+                    metadata=metadata,
+                )
+                print(row, file=mutations)
+
+    if individuals is not None:
+        print(
+            "id",
+            "flags",
+            "location",
+            "parents",
+            "metadata",
+            sep="\t",
+            file=individuals,
+        )
+        for individual in ts.individuals():
+            metadata = individual.metadata
+            if base64_metadata:
+                metadata = base64.b64encode(metadata).decode(encoding)
+            location = ",".join(map(str, individual.location))
+            parents = ",".join(map(str, individual.parents))
+            row = (
+                "{id}\t" "{flags}\t" "{location}\t" "{parents}\t" "{metadata}"
+            ).format(
+                id=individual.id,
+                flags=individual.flags,
+                location=location,
+                parents=parents,
+                metadata=metadata,
+            )
+            print(row, file=individuals)
+
+    if populations is not None:
+        print("id", "metadata", sep="\t", file=populations)
+        for population in ts.populations():
+            metadata = population.metadata
+            if base64_metadata:
+                metadata = base64.b64encode(metadata).decode(encoding)
+            row = ("{id}\t" "{metadata}").format(id=population.id, metadata=metadata)
+            print(row, file=populations)
+
+    if provenances is not None:
+        print("id", "timestamp", "record", sep="\t", file=provenances)
+        for provenance in ts.provenances():
+            row = ("{id}\t" "{timestamp}\t" "{record}\t").format(
+                id=provenance.id,
+                timestamp=provenance.timestamp,
+                record=provenance.record,
+            )
+            print(row, file=provenances)
