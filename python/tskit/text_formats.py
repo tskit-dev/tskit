@@ -254,6 +254,7 @@ def build_newick(tree, *, root, precision, node_labels, include_branch_lengths):
 
 def dump_text(
     ts,
+    *,
     nodes,
     edges,
     sites,
@@ -277,9 +278,7 @@ def dump_text(
             file=nodes,
         )
         for node in ts.nodes():
-            metadata = node.metadata
-            if base64_metadata:
-                metadata = base64.b64encode(metadata).decode(encoding)
+            metadata = text_metadata(base64_metadata, encoding, node)
             row = (
                 "{id:d}\t"
                 "{is_sample:d}\t"
@@ -299,28 +298,29 @@ def dump_text(
             print(row, file=nodes)
 
     if edges is not None:
-        print("left", "right", "parent", "child", sep="\t", file=edges)
+        print("left", "right", "parent", "child", "metadata", sep="\t", file=edges)
         for edge in ts.edges():
+            metadata = text_metadata(base64_metadata, encoding, edge)
             row = (
                 "{left:.{precision}f}\t"
                 "{right:.{precision}f}\t"
                 "{parent:d}\t"
-                "{child:d}"
+                "{child:d}\t"
+                "{metadata}"
             ).format(
                 precision=precision,
                 left=edge.left,
                 right=edge.right,
                 parent=edge.parent,
                 child=edge.child,
+                metadata=metadata,
             )
             print(row, file=edges)
 
     if sites is not None:
         print("position", "ancestral_state", "metadata", sep="\t", file=sites)
         for site in ts.sites():
-            metadata = site.metadata
-            if base64_metadata:
-                metadata = base64.b64encode(metadata).decode(encoding)
+            metadata = text_metadata(base64_metadata, encoding, site)
             row = (
                 "{position:.{precision}f}\t" "{ancestral_state}\t" "{metadata}"
             ).format(
@@ -344,9 +344,7 @@ def dump_text(
         )
         for site in ts.sites():
             for mutation in site.mutations:
-                metadata = mutation.metadata
-                if base64_metadata:
-                    metadata = base64.b64encode(metadata).decode(encoding)
+                metadata = text_metadata(base64_metadata, encoding, mutation)
                 row = (
                     "{site}\t"
                     "{node}\t"
@@ -377,9 +375,7 @@ def dump_text(
             file=individuals,
         )
         for individual in ts.individuals():
-            metadata = individual.metadata
-            if base64_metadata:
-                metadata = base64.b64encode(metadata).decode(encoding)
+            metadata = text_metadata(base64_metadata, encoding, individual)
             location = ",".join(map(str, individual.location))
             parents = ",".join(map(str, individual.parents))
             row = (
@@ -396,9 +392,7 @@ def dump_text(
     if populations is not None:
         print("id", "metadata", sep="\t", file=populations)
         for population in ts.populations():
-            metadata = population.metadata
-            if base64_metadata:
-                metadata = base64.b64encode(metadata).decode(encoding)
+            metadata = text_metadata(base64_metadata, encoding, population)
             row = ("{id}\t" "{metadata}").format(id=population.id, metadata=metadata)
             print(row, file=populations)
 
@@ -411,3 +405,12 @@ def dump_text(
                 record=provenance.record,
             )
             print(row, file=provenances)
+
+
+def text_metadata(base64_metadata, encoding, node):
+    metadata = node.metadata
+    if isinstance(metadata, bytes) and base64_metadata:
+        metadata = base64.b64encode(metadata).decode(encoding)
+    else:
+        metadata = repr(metadata)
+    return metadata

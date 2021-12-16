@@ -30,6 +30,7 @@ import random
 import string
 import struct
 
+import msprime
 import numpy as np
 
 import tskit
@@ -1893,4 +1894,78 @@ def all_trees_ts(n):
     tables.sequence_length = L
     tables.sort()
     tables.simplify()
+    return tables.tree_sequence()
+
+
+def all_fields_ts():
+    """
+    A tree sequence with data in all fields
+    """
+    demography = msprime.Demography()
+    demography.add_population(name="A", initial_size=10_000)
+    demography.add_population(name="B", initial_size=5_000)
+    demography.add_population(name="C", initial_size=1_000)
+    demography.add_population(name="D", initial_size=500)
+    demography.add_population(name="E", initial_size=100)
+    demography.add_population_split(time=1000, derived=["A", "B"], ancestral="C")
+    ts = msprime.sim_ancestry(
+        samples={"A": 10, "B": 10},
+        demography=demography,
+        sequence_length=5,
+        random_seed=42,
+        recombination_rate=1,
+        record_migrations=True,
+        record_provenance=True,
+    )
+    ts = msprime.sim_mutations(ts, rate=0.001, random_seed=42)
+    tables = ts.dump_tables()
+    # Add locations to individuals
+    individuals_copy = tables.individuals.copy()
+    tables.individuals.clear()
+    for i, individual in enumerate(individuals_copy):
+        tables.individuals.append(
+            individual.replace(flags=i, location=[i, i + 1], parents=[i - 1, i - 1])
+        )
+    # Ensure all columns have unique values
+    nodes_copy = tables.nodes.copy()
+    tables.nodes.clear()
+    for i, node in enumerate(nodes_copy):
+        tables.nodes.append(
+            node.replace(
+                flags=i,
+                time=node.time + 0.00001 * i,
+                individual=i % len(tables.individuals),
+                population=i % len(tables.populations),
+            )
+        )
+    tables.migrations.add_row(left=0, right=1, node=21, source=1, dest=3, time=1001)
+
+    # Add metadata
+    for name, table in tables.name_map.items():
+        if name != "provenances":
+            table.metadata_schema = tskit.MetadataSchema.permissive_json()
+            metadatas = [f'{{"foo":"n_{name}_{u}"}}' for u in range(len(table))]
+            metadata, metadata_offset = tskit.pack_strings(metadatas)
+            table.set_columns(
+                **{
+                    **table.asdict(),
+                    "metadata": metadata,
+                    "metadata_offset": metadata_offset,
+                }
+            )
+    tables.metadata_schema = tskit.MetadataSchema.permissive_json()
+    tables.metadata = "Test metadata"
+    tables.time_units = "Test time units"
+
+    tables.reference_sequence.metadata_schema = tskit.MetadataSchema.permissive_json()
+    tables.reference_sequence.metadata = "Test reference metadata"
+    tables.reference_sequence.data = "A" * int(ts.sequence_length)
+    # NOTE: it's unclear whether we'll want to have this set at the same time as
+    # 'data', but it's useful to have something in all columns for now.
+    tables.reference_sequence.url = "http://example.com/a_reference"
+
+    # Add some more rows to provenance to have enough for testing.
+    for _ in range(3):
+        tables.provenances.add_row(record="A")
+
     return tables.tree_sequence()
