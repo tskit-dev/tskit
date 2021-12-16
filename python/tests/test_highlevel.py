@@ -307,9 +307,6 @@ def get_example_tree_sequences(back_mutations=True, gaps=True, internal_samples=
     ts = msprime.sim_ancestry(
         8, sequence_length=40, recombination_rate=0.1, random_seed=seed
     )
-    # FIXME various tests in this file assume bytes as metadata. Also
-    # see this bug in the text file format:
-    # https://github.com/tskit-dev/tskit/issues/1860
     tables = ts.dump_tables()
     tables.populations.metadata_schema = tskit.MetadataSchema(None)
     ts = tables.tree_sequence()
@@ -326,6 +323,7 @@ def get_example_tree_sequences(back_mutations=True, gaps=True, internal_samples=
     tables.edges.clear()
     yield tables.tree_sequence()  # empty tree
     yield tskit.TableCollection(sequence_length=1).tree_sequence()  # empty tree seq
+    yield tsutil.all_fields_ts()
 
 
 def get_bottleneck_examples():
@@ -1429,8 +1427,13 @@ class TestTreeSequence(HighLevelTestCase):
                 assert edge.span == edge.right - edge.left
 
     def test_edgesets(self):
+        tested = False
         for ts in get_example_tree_sequences():
-            self.verify_edgesets(ts)
+            # Can't get edgesets with metadata
+            if ts.tables.edges.metadata_schema == tskit.MetadataSchema(None):
+                self.verify_edgesets(ts)
+                tested = True
+        assert tested
 
     def test_breakpoints(self):
         for ts in get_example_tree_sequences():
@@ -1480,7 +1483,7 @@ class TestTreeSequence(HighLevelTestCase):
             python_time = tsutil.compute_mutation_times(ts)
             tables.compute_mutation_times()
             assert np.allclose(
-                python_time, tables.mutations.time, rtol=1e-15, atol=1e-15
+                python_time, tables.mutations.time, rtol=1e-10, atol=1e-10
             )
             # Check we have valid times
             tables.tree_sequence()
@@ -1634,7 +1637,6 @@ class TestTreeSequence(HighLevelTestCase):
             for j in range(N):
                 assert pops[j] == ts.population(j)
                 assert pops[j].id == j
-                assert isinstance(pops[j].metadata, bytes)
         assert more_than_zero
 
     def test_individuals(self):
@@ -1655,7 +1657,6 @@ class TestTreeSequence(HighLevelTestCase):
             for j in range(N):
                 assert inds[j] == ts.individual(j)
                 assert inds[j].id == j
-                assert isinstance(inds[j].metadata, bytes)
                 assert isinstance(inds[j].parents, np.ndarray)
                 assert isinstance(inds[j].location, np.ndarray)
                 assert isinstance(inds[j].nodes, np.ndarray)
@@ -1834,20 +1835,22 @@ class TestTreeSequence(HighLevelTestCase):
     def test_simplify(self):
         num_mutations = 0
         for ts in get_example_tree_sequences():
-            self.verify_tables_api_equality(ts)
-            self.verify_simplify_provenance(ts)
-            n = ts.num_samples
-            num_mutations += ts.num_mutations
-            sample_sizes = {0}
-            if n > 1:
-                sample_sizes |= {1}
-            if n > 2:
-                sample_sizes |= {2, max(2, n // 2), n - 1}
-            for k in sample_sizes:
-                subset = random.sample(list(ts.samples()), k)
-                self.verify_simplify_topology(ts, subset)
-                self.verify_simplify_equality(ts, subset)
-                self.verify_simplify_variants(ts, subset)
+            # Can't simplify edges with metadata
+            if ts.tables.edges.metadata_schema == tskit.MetadataSchema(schema=None):
+                self.verify_tables_api_equality(ts)
+                self.verify_simplify_provenance(ts)
+                n = ts.num_samples
+                num_mutations += ts.num_mutations
+                sample_sizes = {0}
+                if n > 1:
+                    sample_sizes |= {1}
+                if n > 2:
+                    sample_sizes |= {2, max(2, n // 2), n - 1}
+                for k in sample_sizes:
+                    subset = random.sample(list(ts.samples()), k)
+                    self.verify_simplify_topology(ts, subset)
+                    self.verify_simplify_equality(ts, subset)
+                    self.verify_simplify_variants(ts, subset)
         assert num_mutations > 0
 
     def test_simplify_bugs(self):
@@ -2600,7 +2603,7 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
     Tests for the tree sequence text IO.
     """
 
-    def verify_nodes_format(self, ts, nodes_file, precision):
+    def verify_nodes_format(self, ts, nodes_file, precision, base64_metadata):
         """
         Verifies that the nodes we output have the correct form.
         """
@@ -2625,9 +2628,12 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
             assert convert(node.time) == splits[2]
             assert str(node.population) == splits[3]
             assert str(node.individual) == splits[4]
-            assert tests.base64_encode(node.metadata) == splits[5]
+            if isinstance(node.metadata, bytes) and base64_metadata:
+                assert tests.base64_encode(node.metadata) == splits[5]
+            else:
+                assert repr(node.metadata) == splits[5]
 
-    def verify_edges_format(self, ts, edges_file, precision):
+    def verify_edges_format(self, ts, edges_file, precision, base64_metadata):
         """
         Verifies that the edges we output have the correct form.
         """
@@ -2637,15 +2643,25 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
 
         output_edges = edges_file.read().splitlines()
         assert len(output_edges) - 1 == ts.num_edges
-        assert list(output_edges[0].split()) == ["left", "right", "parent", "child"]
+        assert list(output_edges[0].split()) == [
+            "left",
+            "right",
+            "parent",
+            "child",
+            "metadata",
+        ]
         for edge, line in zip(ts.edges(), output_edges[1:]):
             splits = line.split("\t")
             assert convert(edge.left) == splits[0]
             assert convert(edge.right) == splits[1]
             assert str(edge.parent) == splits[2]
             assert str(edge.child) == splits[3]
+            if isinstance(edge.metadata, bytes) and base64_metadata:
+                assert tests.base64_encode(edge.metadata) == splits[4]
+            else:
+                assert repr(edge.metadata) == splits[4]
 
-    def verify_sites_format(self, ts, sites_file, precision):
+    def verify_sites_format(self, ts, sites_file, precision, base64_metadata):
         """
         Verifies that the sites we output have the correct form.
         """
@@ -2664,9 +2680,12 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
             splits = line.split("\t")
             assert convert(site.position) == splits[0]
             assert site.ancestral_state == splits[1]
-            assert tests.base64_encode(site.metadata) == splits[2]
+            if isinstance(site.metadata, bytes) and base64_metadata:
+                assert tests.base64_encode(site.metadata) == splits[2]
+            else:
+                assert repr(site.metadata) == splits[2]
 
-    def verify_mutations_format(self, ts, mutations_file, precision):
+    def verify_mutations_format(self, ts, mutations_file, precision, base64_metadata):
         """
         Verifies that the mutations we output have the correct form.
         """
@@ -2694,9 +2713,14 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
             ) == splits[2]
             assert str(mutation.derived_state) == splits[3]
             assert str(mutation.parent) == splits[4]
-            assert tests.base64_encode(mutation.metadata) == splits[5]
+            if isinstance(mutation.metadata, bytes) and base64_metadata:
+                assert tests.base64_encode(mutation.metadata) == splits[5]
+            else:
+                assert repr(mutation.metadata) == splits[5]
 
-    def verify_individuals_format(self, ts, individuals_file, precision):
+    def verify_individuals_format(
+        self, ts, individuals_file, precision, base64_metadata
+    ):
         """
         Verifies that the individuals we output have the correct form.
         """
@@ -2719,34 +2743,72 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
             assert str(individual.flags) == splits[1]
             assert ",".join(map(str, individual.location)) == splits[2]
             assert ",".join(map(str, individual.parents)) == splits[3]
-            assert tests.base64_encode(individual.metadata) == splits[4]
+            if isinstance(individual.metadata, bytes) and base64_metadata:
+                assert tests.base64_encode(individual.metadata) == splits[4]
+            else:
+                assert repr(individual.metadata) == splits[4]
 
-    def test_output_format(self):
+    def verify_populations_format(
+        self, ts, populations_file, precision, base64_metadata
+    ):
+        """
+        Verifies that the populations we output have the correct form.
+        """
+
+        def convert(v):
+            return "{:.{}f}".format(v, precision)
+
+        output_populations = populations_file.read().splitlines()
+        assert len(output_populations) - 1 == ts.num_populations
+        assert list(output_populations[0].split()) == [
+            "id",
+            "metadata",
+        ]
+        for population, line in zip(ts.populations(), output_populations[1:]):
+            splits = line.split("\t")
+            assert str(population.id) == splits[0]
+            if isinstance(population.metadata, bytes) and base64_metadata:
+                assert tests.base64_encode(population.metadata) == splits[1]
+            else:
+                assert repr(population.metadata) == splits[1]
+
+    @pytest.mark.parametrize(("precision", "base64_metadata"), [(2, True), (7, False)])
+    def test_output_format(self, precision, base64_metadata):
         for ts in get_example_tree_sequences():
-            for precision in [2, 7]:
-                nodes_file = io.StringIO()
-                edges_file = io.StringIO()
-                sites_file = io.StringIO()
-                mutations_file = io.StringIO()
-                individuals_file = io.StringIO()
-                ts.dump_text(
-                    nodes=nodes_file,
-                    edges=edges_file,
-                    sites=sites_file,
-                    mutations=mutations_file,
-                    individuals=individuals_file,
-                    precision=precision,
-                )
-                nodes_file.seek(0)
-                edges_file.seek(0)
-                sites_file.seek(0)
-                mutations_file.seek(0)
-                individuals_file.seek(0)
-                self.verify_nodes_format(ts, nodes_file, precision)
-                self.verify_edges_format(ts, edges_file, precision)
-                self.verify_sites_format(ts, sites_file, precision)
-                self.verify_mutations_format(ts, mutations_file, precision)
-                self.verify_individuals_format(ts, individuals_file, precision)
+            nodes_file = io.StringIO()
+            edges_file = io.StringIO()
+            sites_file = io.StringIO()
+            mutations_file = io.StringIO()
+            individuals_file = io.StringIO()
+            populations_file = io.StringIO()
+            provenances_file = io.StringIO()
+            ts.dump_text(
+                nodes=nodes_file,
+                edges=edges_file,
+                sites=sites_file,
+                mutations=mutations_file,
+                individuals=individuals_file,
+                populations=populations_file,
+                provenances=provenances_file,
+                precision=precision,
+                base64_metadata=base64_metadata,
+            )
+            nodes_file.seek(0)
+            edges_file.seek(0)
+            sites_file.seek(0)
+            mutations_file.seek(0)
+            individuals_file.seek(0)
+            populations_file.seek(0)
+            self.verify_nodes_format(ts, nodes_file, precision, base64_metadata)
+            self.verify_edges_format(ts, edges_file, precision, base64_metadata)
+            self.verify_sites_format(ts, sites_file, precision, base64_metadata)
+            self.verify_mutations_format(ts, mutations_file, precision, base64_metadata)
+            self.verify_individuals_format(
+                ts, individuals_file, precision, base64_metadata
+            )
+            self.verify_populations_format(
+                ts, populations_file, precision, base64_metadata
+            )
 
     def verify_approximate_equality(self, ts1, ts2):
         """
@@ -2808,38 +2870,40 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
 
     def test_text_record_round_trip(self):
         for ts1 in get_example_tree_sequences():
-            nodes_file = io.StringIO()
-            edges_file = io.StringIO()
-            sites_file = io.StringIO()
-            mutations_file = io.StringIO()
-            individuals_file = io.StringIO()
-            populations_file = io.StringIO()
-            ts1.dump_text(
-                nodes=nodes_file,
-                edges=edges_file,
-                sites=sites_file,
-                mutations=mutations_file,
-                individuals=individuals_file,
-                populations=populations_file,
-                precision=16,
-            )
-            nodes_file.seek(0)
-            edges_file.seek(0)
-            sites_file.seek(0)
-            mutations_file.seek(0)
-            individuals_file.seek(0)
-            populations_file.seek(0)
-            ts2 = tskit.load_text(
-                nodes=nodes_file,
-                edges=edges_file,
-                sites=sites_file,
-                mutations=mutations_file,
-                individuals=individuals_file,
-                populations=populations_file,
-                sequence_length=ts1.sequence_length,
-                strict=True,
-            )
-            self.verify_approximate_equality(ts1, ts2)
+            # Can't round trip without the schema
+            if ts1.tables.nodes.metadata_schema == tskit.MetadataSchema(None):
+                nodes_file = io.StringIO()
+                edges_file = io.StringIO()
+                sites_file = io.StringIO()
+                mutations_file = io.StringIO()
+                individuals_file = io.StringIO()
+                populations_file = io.StringIO()
+                ts1.dump_text(
+                    nodes=nodes_file,
+                    edges=edges_file,
+                    sites=sites_file,
+                    mutations=mutations_file,
+                    individuals=individuals_file,
+                    populations=populations_file,
+                    precision=16,
+                )
+                nodes_file.seek(0)
+                edges_file.seek(0)
+                sites_file.seek(0)
+                mutations_file.seek(0)
+                individuals_file.seek(0)
+                populations_file.seek(0)
+                ts2 = tskit.load_text(
+                    nodes=nodes_file,
+                    edges=edges_file,
+                    sites=sites_file,
+                    mutations=mutations_file,
+                    individuals=individuals_file,
+                    populations=populations_file,
+                    sequence_length=ts1.sequence_length,
+                    strict=True,
+                )
+                self.verify_approximate_equality(ts1, ts2)
 
     def test_empty_files(self):
         nodes_file = io.StringIO("is_sample\ttime\n")

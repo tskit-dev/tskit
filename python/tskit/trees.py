@@ -3846,21 +3846,22 @@ class TreeSequence:
             ProvenanceTable to.
         :param int precision: The number of digits of precision.
         :param str encoding: Encoding used for text representation.
-        :param bool base64_metadata: If True, metadata is encoded using Base64
+        :param bool base64_metadata: Only used if a schema is not present on each table
+            being dumped. If True, metadata is encoded using Base64
             encoding; otherwise, as plain text.
         """
         text_formats.dump_text(
             self,
-            nodes,
-            edges,
-            sites,
-            mutations,
-            individuals,
-            populations,
-            provenances,
-            precision,
-            encoding,
-            base64_metadata,
+            nodes=nodes,
+            edges=edges,
+            sites=sites,
+            mutations=mutations,
+            individuals=individuals,
+            populations=populations,
+            provenances=provenances,
+            precision=precision,
+            encoding=encoding,
+            base64_metadata=base64_metadata,
         )
 
     def __str__(self):
