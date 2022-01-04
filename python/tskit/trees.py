@@ -6646,7 +6646,7 @@ class TreeSequence:
         :ref:`span normalise <sec_stats_span_normalise>`,
         and :ref:`return value <sec_stats_output_format>`.
 
-        ..note ::
+        .. note::
             To avoid unexpected results, sample sets should be nonoverlapping,
             since comparisons of individuals to themselves are not removed when computing
             divergence between distinct sample sets. (However, specifying an index
