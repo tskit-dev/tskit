@@ -644,7 +644,7 @@ Other properties
       TableCollection.file_uuid
       TableCollection.indexes
       TableCollection.nbytes
-      TableCollection.name_map
+      TableCollection.table_name_map
       TableCollection.metadata
       TableCollection.metadata_bytes
       TableCollection.metadata_schema

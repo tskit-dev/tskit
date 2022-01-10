@@ -3767,9 +3767,9 @@ class TreeSequence:
         """
         Returns a dictionary mapping names to tables in the
         underlying :class:`.TableCollection`. Equivalent to calling
-        ``ts.tables.name_map``.
+        ``ts.tables.table_name_map``.
         """
-        return self.tables.name_map
+        return self.tables.table_name_map
 
     @property
     def tables(self):
@@ -3884,7 +3884,7 @@ class TreeSequence:
         ]
         header = ["Table", "Rows", "Size", "Has Metadata"]
         table_rows = []
-        for name, table in self.tables.name_map.items():
+        for name, table in self.tables.table_name_map.items():
             table_rows.append(
                 [
                     str(s)

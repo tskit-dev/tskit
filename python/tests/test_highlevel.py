@@ -2189,7 +2189,7 @@ class TestTreeSequence(HighLevelTestCase):
             assert len(html) > 4300
             assert f"<tr><td>Trees</td><td>{ts.num_trees}</td></tr>" in html
             assert f"<tr><td>Time Units</td><td>{ts.time_units}</td></tr>" in html
-            for table in ts.tables.name_map:
+            for table in ts.tables.table_name_map:
                 assert f"<td>{table.capitalize()}</td>" in html
 
     def test_str(self):
@@ -2198,7 +2198,7 @@ class TestTreeSequence(HighLevelTestCase):
             assert len(s) > 999
             assert re.search(rf"║Trees *│ *{ts.num_trees}║", s)
             assert re.search(rf"║Time Units *│ *{ts.time_units}║", s)
-            for table in ts.tables.name_map:
+            for table in ts.tables.table_name_map:
                 assert re.search(rf"║{table.capitalize()} *│", s)
 
     @pytest.mark.skip("FIXME nbytes")

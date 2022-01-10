@@ -1158,7 +1158,7 @@ class TestFileFormatErrors(TestFileFormat):
 
 
 def assert_tables_empty(tables):
-    for table in tables.name_map.values():
+    for table in tables.table_name_map.values():
         assert len(table) == 0
 
 

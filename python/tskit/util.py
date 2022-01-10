@@ -440,7 +440,7 @@ def tree_sequence_html(ts):
                       </td>
                     </tr>
                 """
-        for name, table in ts.tables.name_map.items()
+        for name, table in ts.tables.table_name_map.items()
     )
     return f"""
             <div>
