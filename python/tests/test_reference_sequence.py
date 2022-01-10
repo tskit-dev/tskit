@@ -148,42 +148,80 @@ class TestSummaries:
         assert repr(refseq).startswith("ReferenceSequence")
 
 
-class TestAssertEquals:
-    def test_success_self(self, ts_fixture):
+class TestEquals:
+    def test_equal_self(self, ts_fixture):
         ts_fixture.reference_sequence.assert_equals(ts_fixture.reference_sequence)
+        assert ts_fixture.reference_sequence == ts_fixture.reference_sequence
+        assert not ts_fixture.reference_sequence != ts_fixture.reference_sequence
+        assert ts_fixture.reference_sequence.equals(ts_fixture.reference_sequence)
 
-    def test_success_empty(self):
+    def test_equal_empty(self):
         tables = tskit.TableCollection(1)
         tables.reference_sequence.assert_equals(tables.reference_sequence)
+        assert tables.reference_sequence == tables.reference_sequence
+        assert tables.reference_sequence.equals(tables.reference_sequence)
 
     @pytest.mark.parametrize("attr", ["url", "data"])
-    def test_fails_attr_missing(self, ts_fixture, attr):
+    def test_unequal_attr_missing(self, ts_fixture, attr):
         t1 = ts_fixture.tables
         d = t1.asdict()
         del d["reference_sequence"][attr]
         t2 = tskit.TableCollection.fromdict(d)
         with pytest.raises(AssertionError, match=attr):
             t1.reference_sequence.assert_equals(t2.reference_sequence)
+        assert t1.reference_sequence != t2.reference_sequence
+        assert not t1.reference_sequence.equals(t2.reference_sequence)
         with pytest.raises(AssertionError, match=attr):
             t2.reference_sequence.assert_equals(t1.reference_sequence)
+        assert t2.reference_sequence != t1.reference_sequence
+        assert not t2.reference_sequence.equals(t1.reference_sequence)
 
-    def test_fails_metadata_different(self, ts_fixture):
+    @pytest.mark.parametrize(
+        ("attr", "val"),
+        [
+            ("url", "foo"),
+            ("data", "bar"),
+            ("metadata", {"json": "runs the world"}),
+            ("metadata_schema", tskit.MetadataSchema(None)),
+        ],
+    )
+    def test_different_not_equal(self, ts_fixture, attr, val):
         t1 = ts_fixture.dump_tables()
         t2 = t1.copy()
-        t1.reference_sequence.metadata = {"different": "metadata"}
-        with pytest.raises(AssertionError, match="metadata"):
-            t1.reference_sequence.assert_equals(t2.reference_sequence)
-        with pytest.raises(AssertionError, match="metadata"):
-            t2.reference_sequence.assert_equals(t1.reference_sequence)
+        setattr(t1.reference_sequence, attr, val)
 
-    def test_fails_metadata_schema_different(self, ts_fixture):
+        with pytest.raises(AssertionError):
+            t1.reference_sequence.assert_equals(t2.reference_sequence)
+        assert t1.reference_sequence != t2.reference_sequence
+        assert not t1.reference_sequence.equals(t2.reference_sequence)
+        with pytest.raises(AssertionError):
+            t2.reference_sequence.assert_equals(t1.reference_sequence)
+        assert t2.reference_sequence != t1.reference_sequence
+        assert not t2.reference_sequence.equals(t1.reference_sequence)
+
+    @pytest.mark.parametrize(
+        ("attr", "val"),
+        [
+            ("metadata", {"json": "runs the world"}),
+            ("metadata_schema", tskit.MetadataSchema(None)),
+        ],
+    )
+    def test_different_but_ignore(self, ts_fixture, attr, val):
         t1 = ts_fixture.dump_tables()
         t2 = t1.copy()
-        t1.reference_sequence.metadata_schema = tskit.MetadataSchema(None)
-        with pytest.raises(AssertionError, match="schemas"):
+        setattr(t1.reference_sequence, attr, val)
+
+        with pytest.raises(AssertionError):
             t1.reference_sequence.assert_equals(t2.reference_sequence)
-        with pytest.raises(AssertionError, match="schemas"):
+        assert t1.reference_sequence != t2.reference_sequence
+        assert not t1.reference_sequence.equals(t2.reference_sequence)
+        with pytest.raises(AssertionError):
             t2.reference_sequence.assert_equals(t1.reference_sequence)
+        assert t2.reference_sequence != t1.reference_sequence
+        assert not t2.reference_sequence.equals(t1.reference_sequence)
+
+        t2.reference_sequence.assert_equals(t1.reference_sequence, ignore_metadata=True)
+        assert t2.reference_sequence.equals(t1.reference_sequence, ignore_metadata=True)
 
 
 class TestTreeSequenceProperties:
