@@ -2773,6 +2773,16 @@ class ReferenceSequence(metadata.MetadataProvider):
             "url": self.url,
         }
 
+    def __eq__(self, other):
+        return self.equals(other)
+
+    def equals(self, other, ignore_metadata=False):
+        try:
+            self.assert_equals(other, ignore_metadata)
+            return True
+        except AssertionError:
+            return False
+
     def assert_equals(self, other, ignore_metadata=False):
         if not ignore_metadata:
             super().assert_equals(other)

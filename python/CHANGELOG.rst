@@ -11,7 +11,10 @@
 **Fixes**
 
 - ``TreeSequence.dump_text`` now prints decoded metadata if there is a schema.
-  (:user:`bejeffery`, :issue:`1860`, :issue:`1527`,
+  (:user:`benjeffery`, :issue:`1860`, :issue:`1527`)
+
+- Add missing ``ReferenceSequence.__eq__`` method.
+  (:user:`benjeffery`, :issue:`2063`, :pr:`2085`)
 
 
 ----------------------
