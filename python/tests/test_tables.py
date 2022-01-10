@@ -3372,7 +3372,7 @@ class TestTableCollection:
     def test_asdict_force_offset_64(self, ts_fixture, force_offset_64):
         tables = ts_fixture.dump_tables()
         d = tables.asdict(force_offset_64=force_offset_64)
-        for table in tables.name_map:
+        for table in tables.table_name_map:
             for name, column in d[table].items():
                 if name.endswith("_offset"):
                     if force_offset_64:
@@ -3383,7 +3383,7 @@ class TestTableCollection:
     def test_asdict_force_offset_64_default(self, ts_fixture):
         tables = ts_fixture.dump_tables()
         d = tables.asdict()
-        for table in tables.name_map:
+        for table in tables.table_name_map:
             for name, column in d[table].items():
                 if name.endswith("_offset"):
                     assert column.dtype == np.uint32
@@ -3423,7 +3423,7 @@ class TestTableCollection:
         t2 = tskit.TableCollection.fromdict(t1.asdict())
         t1.assert_equals(t2)
 
-    def test_name_map(self, ts_fixture):
+    def test_table_name_map(self, ts_fixture):
         tables = ts_fixture.tables
         td1 = {
             "individuals": tables.individuals,
@@ -3435,12 +3435,17 @@ class TestTableCollection:
             "migrations": tables.migrations,
             "provenances": tables.provenances,
         }
-        td2 = tables.name_map
+        td2 = tables.table_name_map
         assert isinstance(td2, dict)
         assert set(td1.keys()) == set(td2.keys())
         for name in td2.keys():
             assert td1[name] == td2[name]
         assert td1 == td2
+
+        # Deprecated in 0.4.1
+        with pytest.warns(FutureWarning):
+            td1 = tables.name_map
+        td1 == td2
 
     def test_equals_empty(self):
         assert tskit.TableCollection() == tskit.TableCollection()
@@ -3943,7 +3948,7 @@ class TestTableCollectionAssertEquals:
         ):
             t1.assert_equals(t2)
 
-    @pytest.mark.parametrize("table_name", tskit.TableCollection(1).name_map)
+    @pytest.mark.parametrize("table_name", tskit.TableCollection(1).table_name_map)
     def test_tables(self, t1, t2, table_name):
         table = getattr(t2, table_name)
         table.truncate(0)
@@ -3954,7 +3959,7 @@ class TestTableCollectionAssertEquals:
         ):
             t1.assert_equals(t2)
 
-    @pytest.mark.parametrize("table_name", tskit.TableCollection(1).name_map)
+    @pytest.mark.parametrize("table_name", tskit.TableCollection(1).table_name_map)
     def test_ignore_metadata(self, t1, t2, table_name):
         table = getattr(t2, table_name)
         if hasattr(table, "metadata_schema"):

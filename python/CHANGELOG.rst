@@ -2,6 +2,12 @@
 [0.4.0] - 2022-0X-XX
 ----------------------
 
+**Changes**
+
+- ``TableCollection.name_map`` has been deprecated in favour of ``table_name_map``.
+  (:user:`benjeffery`, :issue:`1981`, :pr:`2086`)
+
+
 **Fixes**
 
 - ``TreeSequence.dump_text`` now prints decoded metadata if there is a schema.

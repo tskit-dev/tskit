@@ -2958,11 +2958,8 @@ class TableCollection(metadata.MetadataProvider):
         """
         return self._ll_tables.asdict(force_offset_64)
 
-    # TODO rename this to "table_name_map" to resolve the issue with whether
-    # we should regard ReferenceSequence as being in it or not.
-    # https://github.com/tskit-dev/tskit/issues/1981
     @property
-    def name_map(self) -> Dict:
+    def table_name_map(self) -> Dict:
         """
         Returns a dictionary mapping table names to the corresponding
         table instances. For example, the returned dictionary will contain the
@@ -2980,6 +2977,15 @@ class TableCollection(metadata.MetadataProvider):
         }
 
     @property
+    def name_map(self) -> Dict:
+        # Deprecated in 0.4.1
+        warnings.warn(
+            "name_map is deprecated; use table_name_map instead",
+            FutureWarning,
+        )
+        return self.table_name_map
+
+    @property
     def nbytes(self) -> int:
         """
         Returns the total number of bytes required to store the data
@@ -2993,7 +2999,7 @@ class TableCollection(metadata.MetadataProvider):
                 len(self.time_units.encode()),
                 self.indexes.nbytes,
                 self.reference_sequence.nbytes,
-                sum(table.nbytes for table in self.name_map.values()),
+                sum(table.nbytes for table in self.table_name_map.values()),
             )
         )
 
@@ -3155,7 +3161,7 @@ class TableCollection(metadata.MetadataProvider):
                 f" differs: self={self.sequence_length} other={other.sequence_length}"
             )
 
-        for table_name, table in self.name_map.items():
+        for table_name, table in self.table_name_map.items():
             if table_name != "provenances":
                 table.assert_equals(
                     getattr(other, table_name), ignore_metadata=ignore_metadata

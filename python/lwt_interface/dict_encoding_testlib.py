@@ -71,7 +71,7 @@ def full_ts():
     for ind in ts.individuals():
         tables.individuals.add_row(flags=0, location=[ind.id, ind.id], parents=[-1, -1])
 
-    for name, table in tables.name_map.items():
+    for name, table in tables.table_name_map.items():
         if name != "provenances":
             table.metadata_schema = tskit.MetadataSchema({"codec": "json"})
             metadatas = [f"n_{name}_{u}" for u in range(len(table))]

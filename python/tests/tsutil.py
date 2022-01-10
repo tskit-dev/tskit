@@ -1941,7 +1941,7 @@ def all_fields_ts():
     tables.migrations.add_row(left=0, right=1, node=21, source=1, dest=3, time=1001)
 
     # Add metadata
-    for name, table in tables.name_map.items():
+    for name, table in tables.table_name_map.items():
         if name != "provenances":
             table.metadata_schema = tskit.MetadataSchema.permissive_json()
             metadatas = [f'{{"foo":"n_{name}_{u}"}}' for u in range(len(table))]

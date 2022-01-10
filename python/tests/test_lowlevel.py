@@ -906,7 +906,7 @@ class TestTableMethodsErrors:
     """
 
     def yield_tables(self, ts):
-        for table in ts.tables.name_map.values():
+        for table in ts.tables.table_name_map.values():
             yield table.ll_table
 
     @pytest.mark.parametrize(
