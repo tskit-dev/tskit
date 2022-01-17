@@ -37,6 +37,7 @@ extern "C" {
 
 typedef struct {
     const tsk_site_t *site;
+    tsk_tree_t *tree;
     const char **alleles;
     tsk_size_t *allele_lengths;
     tsk_size_t num_alleles;
@@ -46,26 +47,36 @@ typedef struct {
         int8_t *i8;
         int16_t *i16;
     } genotypes;
-} tsk_variant_t;
 
-typedef struct {
     tsk_size_t num_samples;
     tsk_size_t num_sites;
-    const tsk_treeseq_t *tree_sequence;
-    const tsk_id_t *samples;          /* samples being used */
+    tsk_id_t *samples;                /* samples being used */
     const tsk_id_t *sample_index_map; /* reverse index map being used */
     bool user_alleles;
     char *user_alleles_mem;
-    tsk_size_t tree_site_index;
-    int finished;
     tsk_id_t *traversal_stack;
-    tsk_tree_t tree;
     tsk_flags_t options;
-    tsk_variant_t variant;
     // private: the following data members are not intended to be used externally
     tsk_id_t *alt_samples; /* alternative subset of samples to use */
     tsk_id_t *alt_sample_index_map;
+
+} tsk_variant_t;
+
+typedef struct {
+    const tsk_treeseq_t *tree_sequence;
+    tsk_size_t tree_site_index;
+    int finished;
+    tsk_tree_t tree;
+    tsk_variant_t variant;
 } tsk_vargen_t;
+
+int tsk_variant_init(tsk_variant_t *self, const tsk_treeseq_t *tree_sequence,
+    const tsk_id_t *samples, tsk_size_t num_samples, const char **alleles,
+    tsk_flags_t options);
+int tsk_tree_get_variant(tsk_tree_t *self, const tsk_site_t *site,
+    tsk_variant_t *variant, tsk_flags_t options);
+int tsk_variant_free(tsk_variant_t *self);
+void tsk_variant_print_state(const tsk_variant_t *self, FILE *out);
 
 int tsk_vargen_init(tsk_vargen_t *self, const tsk_treeseq_t *tree_sequence,
     const tsk_id_t *samples, tsk_size_t num_samples, const char **alleles,
