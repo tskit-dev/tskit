@@ -11284,7 +11284,7 @@ VariantGenerator_next(VariantGenerator *self)
         goto out;
     }
     if (err == 1) {
-        ret = make_variant(var, self->variant_generator->num_samples);
+        ret = make_variant(var, var->num_samples);
     }
 out:
     return ret;
