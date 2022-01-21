@@ -19,7 +19,7 @@ kernelspec:
 
 # Development
 
-If you would like to add somef features to `tskit`, this
+If you would like to add some features to `tskit`, this
 documentation should help you get set up and contributing.
 Please help us to improve the documentation by either
 opening an [issue](http://github.com/tskit-dev/tskit/issues) or
