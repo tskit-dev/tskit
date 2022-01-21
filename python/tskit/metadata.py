@@ -163,7 +163,11 @@ class JSONCodec(AbstractMetadataCodec):
             )
 
     def decode(self, encoded: bytes) -> Any:
-        result = json.loads(encoded.decode())
+        if len(encoded) == 0:
+            result = {}
+        else:
+            result = json.loads(encoded.decode())
+
         # Assign default values
         if isinstance(result, dict):
             return dict(self.defaults, **result)

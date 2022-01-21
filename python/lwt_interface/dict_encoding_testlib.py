@@ -27,7 +27,6 @@ compiled module exporting the LightweightTableCollection class.
 See the test_example_c_module file for an example.
 """
 import copy
-import json
 
 import kastore
 import msprime
@@ -222,8 +221,7 @@ class TestMissingData:
         lwt.fromdict(d)
         tables = tskit.TableCollection.fromdict(lwt.asdict())
         # Empty byte field still gets interpreted by schema
-        with pytest.raises(json.decoder.JSONDecodeError):
-            tables.metadata
+        assert tables.metadata == {}
 
     def test_missing_metadata_schema(self, tables):
         assert repr(tables.metadata_schema) != ""
@@ -713,8 +711,7 @@ class TestRequiredAndOptionalColumns:
         out = lwt.asdict()
         assert "metadata" not in out
         tables = tskit.TableCollection.fromdict(out)
-        with pytest.raises(json.decoder.JSONDecodeError):
-            tables.metadata
+        assert tables.metadata == {}
         # Missing is tested in TestMissingData above
 
     def test_top_level_metadata_schema(self, tables):

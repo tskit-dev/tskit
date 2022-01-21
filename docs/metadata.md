@@ -122,7 +122,9 @@ the human readable [JSON](https://www.json.org/json-en.html) format. As this for
 is human readable and encodes numbers as text it uses more bytes than the `struct`
 format. However it is simpler to configure as it doesn't require any format specifier
 for each type in the schema. Default values for properties can be specified for only
-the shallowest level of the metadata object.
+the shallowest level of the metadata object. Tskit deviates from standard JSON in that
+empty metadata is interpreted as an empty object. This is to allow setting of a schema
+to a table with out the need to modify all existing empty rows.
 
 
 ### struct

@@ -7,6 +7,12 @@
 - ``VcfWriter.write`` now prints the site ID of variants in the ID field of the output VCF files.
   (:user:`roohy`, :issue:`2103`, :pr:`2107`)
 
+**Breaking Changes**
+
+- The JSON metadata codec now interprets the empty string as an empty object. This means
+  that applying a schema to an existing table will no longer necessitate modifying the
+  existing rows. (:user:`benjeffery`, :issue:`2064`, :pr:`2104`)
+
 
 ----------------------
 [0.4.1] - 2022-01-11
