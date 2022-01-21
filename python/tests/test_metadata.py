@@ -503,6 +503,7 @@ class TestJSONCodec:
             "properties": {"number": {"type": "number", "default": 5}},
         }
         ms = tskit.MetadataSchema(schema)
+        assert ms.decode_row(b"") == {"number": 5}
         assert ms.decode_row(ms.validate_and_encode_row({})) == {"number": 5}
         assert ms.decode_row(ms.validate_and_encode_row({"number": 42})) == {
             "number": 42
@@ -571,6 +572,10 @@ class TestJSONCodec:
         with patch.object(ms, "_validate_row", return_value=True) as mocked_validate:
             ms.validate_and_encode_row({"int": 1})
             assert mocked_validate.call_count == 1
+
+    def test_zero_length(self):
+        ms = tskit.MetadataSchema({"codec": "json"})
+        assert ms.decode_row(b"") == {}
 
 
 class TestStructCodec:
