@@ -127,11 +127,12 @@ def legacy_write_vcf(tree_sequence, output, ploidy, contig_id):
     print(file=output)
     for variant in tree_sequence.variants():
         pos = positions[variant.index]
+        site_id = variant.site.id
         assert variant.num_alleles == 2
         print(
             contig_id,
             pos,
-            ".",
+            site_id,
             variant.alleles[0],
             variant.alleles[1],
             ".",
@@ -472,6 +473,13 @@ class TestInterface:
             ts.write_vcf(io.StringIO(), individuals=[0, -1])
         with pytest.raises(ValueError):
             ts.write_vcf(io.StringIO(), individuals=[1, 2, ts.num_individuals])
+
+    def test_vcf_ids(self):
+        ts = msprime.simulate(2, mutation_rate=2, random_seed=1)
+        assert ts.num_sites > 0
+        with ts_to_pyvcf(ts) as vcf_reader:
+            for vcf_record, site in zip(vcf_reader, ts.sites()):
+                assert int(vcf_record.ID) == site.id
 
 
 class TestRoundTripIndividuals(ExamplesMixin):
