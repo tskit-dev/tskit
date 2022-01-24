@@ -187,12 +187,13 @@ class VcfWriter:
                     "on GitHub if this limitation affects you."
                 )
             pos = self.transformed_positions[variant.index]
+            site_id = variant.site.id
             ref = variant.alleles[0]
             alt = ",".join(variant.alleles[1:]) if len(variant.alleles) > 1 else "."
             print(
                 self.contig_id,
                 pos,
-                ".",
+                site_id,
                 ref,
                 alt,
                 ".",

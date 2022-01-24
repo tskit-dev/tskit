@@ -1,4 +1,14 @@
 ----------------------
+[0.4.2] - 2022-0X-XX
+----------------------
+
+**Changes**
+
+- ``VcfWriter.write`` now prints the site ID of variants in the ID field of the output VCF files.
+  (:user:`roohy`, :issue:`2103`, :pr:`2107`)
+
+
+----------------------
 [0.4.1] - 2022-01-11
 ----------------------
 
