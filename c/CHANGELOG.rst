@@ -2,7 +2,14 @@
 [0.99.16] - 2022-0X-XX
 ----------------------
 
-- Make dumping of tables and tree seqences to disk a zero-copy operation.
+**Breaking changes**
+
+- Change the type of genotypes to ``int32_t``, removing the TSK_16_BIT_GENOTYPES flag option.
+  (:user:`benjeffery`, :issue:`463`, :pr:`2108`)
+
+**Features**
+
+- Make dumping of tables and tree sequences to disk a zero-copy operation.
   (:user:`benjeffery`, :issue:`2111`, :pr:`2124`)
 
 ----------------------

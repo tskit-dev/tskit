@@ -217,7 +217,7 @@ class TestVariantGenerator:
     def test_dtype(self):
         ts = self.get_tree_sequence()
         for var in ts.variants():
-            assert var.genotypes.dtype == np.int8
+            assert var.genotypes.dtype == np.int32
 
     def test_dtype_conversion(self):
         # Check if we hit any issues if we assume the variants are uint8
@@ -256,19 +256,15 @@ class TestVariantGenerator:
         num_alleles = 1
         for allele in alleles[1:]:
             ts = tables.tree_sequence()
-            if num_alleles > 127:
-                with pytest.raises(exceptions.LibraryError):
-                    next(ts.variants())
-            else:
-                var = next(ts.variants())
-                assert not var.has_missing_data
-                assert var.num_alleles == num_alleles
-                assert len(var.alleles) == num_alleles
-                assert list(var.alleles) == alleles[:num_alleles]
-                assert var.alleles[var.genotypes[0]] == alleles[num_alleles - 1]
-                for u in ts.samples():
-                    if u != 0:
-                        assert var.alleles[var.genotypes[u]] == alleles[0]
+            var = next(ts.variants())
+            assert not var.has_missing_data
+            assert var.num_alleles == num_alleles
+            assert len(var.alleles) == num_alleles
+            assert list(var.alleles) == alleles[:num_alleles]
+            assert var.alleles[var.genotypes[0]] == alleles[num_alleles - 1]
+            for u in ts.samples():
+                if u != 0:
+                    assert var.alleles[var.genotypes[u]] == alleles[0]
             tables.mutations.add_row(0, 0, allele, parent=parent)
             parent += 1
             num_alleles += 1
@@ -288,22 +284,19 @@ class TestVariantGenerator:
         num_alleles = 1
         for allele in alleles[1:]:
             ts = tables.tree_sequence()
-            if num_alleles > 127:
-                with pytest.raises(exceptions.LibraryError):
-                    next(ts.variants())
-            else:
-                var = next(ts.variants())
-                assert var.has_missing_data
-                assert var.num_alleles == num_alleles
-                assert len(var.alleles) == num_alleles + 1
-                assert list(var.alleles)[:-1] == alleles[:num_alleles]
-                assert var.alleles[-1] is None
-                assert var.alleles[var.genotypes[0]] == alleles[num_alleles - 1]
-                assert var.genotypes[-1] == -1
-                samples = ts.samples()
-                for u in samples[:-1]:
-                    if u != 0:
-                        assert var.alleles[var.genotypes[u]] == alleles[0]
+
+            var = next(ts.variants())
+            assert var.has_missing_data
+            assert var.num_alleles == num_alleles
+            assert len(var.alleles) == num_alleles + 1
+            assert list(var.alleles)[:-1] == alleles[:num_alleles]
+            assert var.alleles[-1] is None
+            assert var.alleles[var.genotypes[0]] == alleles[num_alleles - 1]
+            assert var.genotypes[-1] == -1
+            samples = ts.samples()
+            for u in samples[:-1]:
+                if u != 0:
+                    assert var.alleles[var.genotypes[u]] == alleles[0]
             tables.mutations.add_row(0, 0, allele, parent=parent)
             parent += 1
             num_alleles += 1
@@ -322,12 +315,12 @@ class TestVariantGenerator:
 
     def test_genotype_matrix(self):
         ts = self.get_tree_sequence()
-        G = np.empty((ts.num_sites, ts.num_samples), dtype=np.int8)
+        G = np.empty((ts.num_sites, ts.num_samples), dtype=np.int32)
         for v in ts.variants():
             G[v.index, :] = v.genotypes
         G2 = ts.genotype_matrix()
         assert np.array_equal(G, G2)
-        assert G2.dtype == np.int8
+        assert G2.dtype == np.int32
 
     def test_recurrent_mutations_over_samples(self):
         ts = self.get_tree_sequence()
