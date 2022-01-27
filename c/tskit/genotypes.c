@@ -171,11 +171,7 @@ tsk_variant_init(tsk_variant_t *self, const tsk_treeseq_t *tree_sequence,
 
     self->options = options;
 
-    if (self->options & TSK_16_BIT_GENOTYPES) {
-        max_alleles_limit = INT16_MAX;
-    } else {
-        max_alleles_limit = INT8_MAX;
-    }
+    max_alleles_limit = INT32_MAX;
 
     if (alleles == NULL) {
         self->user_alleles = false;
@@ -241,14 +237,10 @@ tsk_variant_init(tsk_variant_t *self, const tsk_treeseq_t *tree_sequence,
         }
     }
 
-    if (options & TSK_16_BIT_GENOTYPES) {
-        self->genotypes.i16
-            = tsk_malloc(num_samples_alloc * sizeof(*self->genotypes.i16));
-    } else {
-        self->genotypes.i8 = tsk_malloc(num_samples_alloc * sizeof(*self->genotypes.i8));
-    }
+    self->genotypes = tsk_malloc(num_samples_alloc * sizeof(*self->genotypes));
+
     /* Because genotypes is a union we can check the pointer */
-    if (self->genotypes.i8 == NULL || self->alleles == NULL
+    if (self->genotypes == NULL || self->alleles == NULL
         || self->allele_lengths == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -293,7 +285,7 @@ out:
 int
 tsk_variant_free(tsk_variant_t *self)
 {
-    tsk_safe_free(self->genotypes.i8);
+    tsk_safe_free(self->genotypes);
     tsk_safe_free(self->alleles);
     tsk_safe_free(self->allele_lengths);
     tsk_safe_free(self->user_alleles_mem);
@@ -317,11 +309,8 @@ tsk_variant_expand_alleles(tsk_variant_t *self)
 {
     int ret = 0;
     void *p;
-    tsk_size_t hard_limit = INT8_MAX;
+    tsk_size_t hard_limit = INT32_MAX;
 
-    if (self->options & TSK_16_BIT_GENOTYPES) {
-        hard_limit = INT16_MAX;
-    }
     if (self->max_alleles == hard_limit) {
         ret = TSK_ERR_TOO_MANY_ALLELES;
         goto out;
@@ -351,17 +340,17 @@ out:
  * same reason.
  */
 static int TSK_WARN_UNUSED
-tsk_variant_update_genotypes_i8_sample_list(
+tsk_variant_update_genotypes_sample_list(
     tsk_variant_t *self, tsk_id_t node, tsk_id_t derived)
 {
-    int8_t *restrict genotypes = self->genotypes.i8;
+    int32_t *restrict genotypes = self->genotypes;
     const tsk_id_t *restrict list_left = self->tree->left_sample;
     const tsk_id_t *restrict list_right = self->tree->right_sample;
     const tsk_id_t *restrict list_next = self->tree->next_sample;
     tsk_id_t index, stop;
     int ret = 0;
 
-    tsk_bug_assert(derived < INT8_MAX);
+    tsk_bug_assert(derived < INT32_MAX);
 
     index = list_left[node];
     if (index != TSK_NULL) {
@@ -369,37 +358,7 @@ tsk_variant_update_genotypes_i8_sample_list(
         while (true) {
 
             ret += genotypes[index] == TSK_MISSING_DATA;
-            genotypes[index] = (int8_t) derived;
-            if (index == stop) {
-                break;
-            }
-            index = list_next[index];
-        }
-    }
-
-    return ret;
-}
-
-static int TSK_WARN_UNUSED
-tsk_variant_update_genotypes_i16_sample_list(
-    tsk_variant_t *self, tsk_id_t node, tsk_id_t derived)
-{
-    int16_t *restrict genotypes = self->genotypes.i16;
-    const tsk_id_t *restrict list_left = self->tree->left_sample;
-    const tsk_id_t *restrict list_right = self->tree->right_sample;
-    const tsk_id_t *restrict list_next = self->tree->next_sample;
-    tsk_id_t index, stop;
-    int ret = 0;
-
-    tsk_bug_assert(derived < INT16_MAX);
-
-    index = list_left[node];
-    if (index != TSK_NULL) {
-        stop = list_right[node];
-        while (true) {
-
-            ret += genotypes[index] == TSK_MISSING_DATA;
-            genotypes[index] = (int16_t) derived;
+            genotypes[index] = (int32_t) derived;
             if (index == stop) {
                 break;
             }
@@ -455,81 +414,36 @@ out:
 }
 
 static int
-tsk_variant_visit_i8(tsk_variant_t *self, tsk_id_t sample_index, tsk_id_t derived)
+tsk_variant_visit(tsk_variant_t *self, tsk_id_t sample_index, tsk_id_t derived)
 {
     int ret = 0;
-    int8_t *restrict genotypes = self->genotypes.i8;
+    int32_t *restrict genotypes = self->genotypes;
 
-    tsk_bug_assert(derived < INT8_MAX);
+    tsk_bug_assert(derived < INT32_MAX);
     tsk_bug_assert(sample_index != -1);
 
     ret = genotypes[sample_index] == TSK_MISSING_DATA;
-    genotypes[sample_index] = (int8_t) derived;
-
-    return ret;
-}
-
-static int
-tsk_variant_visit_i16(tsk_variant_t *self, tsk_id_t sample_index, tsk_id_t derived)
-{
-    int ret = 0;
-    int16_t *restrict genotypes = self->genotypes.i16;
-
-    tsk_bug_assert(derived < INT16_MAX);
-    tsk_bug_assert(sample_index != -1);
-
-    ret = genotypes[sample_index] == TSK_MISSING_DATA;
-    genotypes[sample_index] = (int16_t) derived;
+    genotypes[sample_index] = (int32_t) derived;
 
     return ret;
 }
 
 static int TSK_WARN_UNUSED
-tsk_variant_update_genotypes_i8_traversal(
+tsk_variant_update_genotypes_traversal(
     tsk_variant_t *self, tsk_id_t node, tsk_id_t derived)
 {
-    return tsk_variant_traverse(self, node, derived, tsk_variant_visit_i8);
-}
-
-static int TSK_WARN_UNUSED
-tsk_variant_update_genotypes_i16_traversal(
-    tsk_variant_t *self, tsk_id_t node, tsk_id_t derived)
-{
-    return tsk_variant_traverse(self, node, derived, tsk_variant_visit_i16);
+    return tsk_variant_traverse(self, node, derived, tsk_variant_visit);
 }
 
 static tsk_size_t
-tsk_variant_mark_missing_i16(tsk_variant_t *self)
+tsk_variant_mark_missing(tsk_variant_t *self)
 {
     tsk_size_t num_missing = 0;
     const tsk_id_t *restrict left_child = self->tree->left_child;
     const tsk_id_t *restrict right_sib = self->tree->right_sib;
     const tsk_id_t *restrict sample_index_map = self->sample_index_map;
     const tsk_id_t N = self->tree->virtual_root;
-    int16_t *restrict genotypes = self->genotypes.i16;
-    tsk_id_t root, sample_index;
-
-    for (root = left_child[N]; root != TSK_NULL; root = right_sib[root]) {
-        if (left_child[root] == TSK_NULL) {
-            sample_index = sample_index_map[root];
-            if (sample_index != TSK_NULL) {
-                genotypes[sample_index] = TSK_MISSING_DATA;
-                num_missing++;
-            }
-        }
-    }
-    return num_missing;
-}
-
-static tsk_size_t
-tsk_variant_mark_missing_i8(tsk_variant_t *self)
-{
-    tsk_size_t num_missing = 0;
-    const tsk_id_t *restrict left_child = self->tree->left_child;
-    const tsk_id_t *restrict right_sib = self->tree->right_sib;
-    const tsk_id_t *restrict sample_index_map = self->sample_index_map;
-    const tsk_id_t N = self->tree->virtual_root;
-    int8_t *restrict genotypes = self->genotypes.i8;
+    int32_t *restrict genotypes = self->genotypes;
     tsk_id_t root, sample_index;
 
     for (root = left_child[N]; root != TSK_NULL; root = right_sib[root]) {
@@ -569,7 +483,6 @@ tsk_variant_update_site(tsk_variant_t *self)
     int no_longer_missing;
     const tsk_site_t *site = self->site;
     tsk_mutation_t mutation;
-    bool genotypes16 = !!(self->options & TSK_16_BIT_GENOTYPES);
     bool impute_missing = !!(self->options & TSK_ISOLATED_NOT_MISSING);
     bool by_traversal = self->alt_samples != NULL;
     int (*update_genotypes)(tsk_variant_t *, tsk_id_t, tsk_id_t);
@@ -581,19 +494,13 @@ tsk_variant_update_site(tsk_variant_t *self)
      * we only have a small number of samples, it's probably better to
      * do it by traversal. For large sets of samples though, it may be
      * better to use the sample list infrastructure. */
-    if (genotypes16) {
-        mark_missing = tsk_variant_mark_missing_i16;
-        update_genotypes = tsk_variant_update_genotypes_i16_sample_list;
-        if (by_traversal) {
-            update_genotypes = tsk_variant_update_genotypes_i16_traversal;
-        }
-    } else {
-        mark_missing = tsk_variant_mark_missing_i8;
-        update_genotypes = tsk_variant_update_genotypes_i8_sample_list;
-        if (by_traversal) {
-            update_genotypes = tsk_variant_update_genotypes_i8_traversal;
-        }
+
+    mark_missing = tsk_variant_mark_missing;
+    update_genotypes = tsk_variant_update_genotypes_sample_list;
+    if (by_traversal) {
+        update_genotypes = tsk_variant_update_genotypes_traversal;
     }
+
     if (self->user_alleles) {
         allele_index = tsk_variant_get_allele_index(
             self, site->ancestral_state, site->ancestral_state_length);
@@ -618,15 +525,10 @@ tsk_variant_update_site(tsk_variant_t *self)
      * field, where we require that a mutation's parent must appear before it
      * in the list of mutations. This guarantees the correctness of this algorithm.
      */
-    if (genotypes16) {
-        for (j = 0; j < self->num_samples; j++) {
-            self->genotypes.i16[j] = (int16_t) allele_index;
-        }
-    } else {
-        for (j = 0; j < self->num_samples; j++) {
-            self->genotypes.i8[j] = (int8_t) allele_index;
-        }
+    for (j = 0; j < self->num_samples; j++) {
+        self->genotypes[j] = (int32_t) allele_index;
     }
+
     /* We mark missing data *before* updating the genotypes because
      * mutations directly over samples should not be missing */
     num_missing = 0;

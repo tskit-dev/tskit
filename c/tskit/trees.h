@@ -507,11 +507,11 @@ int tsk_tree_preorder_samples(
 typedef struct {
     tsk_id_t node;
     tsk_id_t parent;
-    int8_t state;
+    int32_t state;
 } tsk_state_transition_t;
 
-int tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes, double *cost_matrix,
-    tsk_flags_t options, int8_t *ancestral_state, tsk_size_t *num_transitions,
+int tsk_tree_map_mutations(tsk_tree_t *self, int32_t *genotypes, double *cost_matrix,
+    tsk_flags_t options, int32_t *ancestral_state, tsk_size_t *num_transitions,
     tsk_state_transition_t **transitions);
 
 int tsk_tree_kc_distance(

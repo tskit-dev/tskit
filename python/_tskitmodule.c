@@ -584,14 +584,14 @@ make_variant(tsk_variant_t *variant, tsk_size_t num_samples)
     PyObject *ret = NULL;
     npy_intp dims = num_samples;
     PyObject *alleles = make_alleles(variant);
-    PyArrayObject *genotypes = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT8);
+    PyArrayObject *genotypes = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT32);
 
     /* TODO update this to account for 16 bit variants when we provide the
      * high-level interface. */
     if (genotypes == NULL || alleles == NULL) {
         goto out;
     }
-    memcpy(PyArray_DATA(genotypes), variant->genotypes.i8, num_samples * sizeof(int8_t));
+    memcpy(PyArray_DATA(genotypes), variant->genotypes, num_samples * sizeof(int32_t));
     ret = Py_BuildValue("iOO", variant->site->id, genotypes, alleles);
 out:
     Py_XDECREF(genotypes);
@@ -9287,7 +9287,7 @@ TreeSequence_get_genotype_matrix(TreeSequence *self, PyObject *args, PyObject *k
     PyObject *py_alleles = Py_None;
     PyArrayObject *genotype_matrix = NULL;
     tsk_vargen_t *vg = NULL;
-    char *V;
+    int32_t *V;
     tsk_variant_t *variant;
     tsk_size_t j;
     int isolated_as_missing = 1;
@@ -9319,11 +9319,11 @@ TreeSequence_get_genotype_matrix(TreeSequence *self, PyObject *args, PyObject *k
     dims[0] = num_sites;
     dims[1] = num_samples;
 
-    genotype_matrix = (PyArrayObject *) PyArray_SimpleNew(2, dims, NPY_INT8);
+    genotype_matrix = (PyArrayObject *) PyArray_SimpleNew(2, dims, NPY_INT32);
     if (genotype_matrix == NULL) {
         goto out;
     }
-    V = (char *) PyArray_DATA(genotype_matrix);
+    V = (int32_t *) PyArray_DATA(genotype_matrix);
     vg = PyMem_Malloc(sizeof(tsk_vargen_t));
     if (vg == NULL) {
         PyErr_NoMemory();
@@ -9336,8 +9336,7 @@ TreeSequence_get_genotype_matrix(TreeSequence *self, PyObject *args, PyObject *k
     }
     j = 0;
     while ((err = tsk_vargen_next(vg, &variant)) == 1) {
-        memcpy(
-            V + (j * num_samples), variant->genotypes.i8, num_samples * sizeof(int8_t));
+        memcpy(V + (j * num_samples), variant->genotypes, num_samples * sizeof(int32_t));
         j++;
     }
     if (err != 0) {
@@ -10459,7 +10458,7 @@ Tree_map_mutations(Tree *self, PyObject *args, PyObject *kwds)
     PyObject *py_ancestral_state = Py_None;
     PyArrayObject *genotypes_array = NULL;
     static char *kwlist[] = { "genotypes", "ancestral_state", NULL };
-    int8_t ancestral_state;
+    int32_t ancestral_state;
     tsk_state_transition_t *transitions = NULL;
     tsk_size_t num_transitions;
     npy_intp *shape;
@@ -10474,7 +10473,7 @@ Tree_map_mutations(Tree *self, PyObject *args, PyObject *kwds)
         goto out;
     }
     genotypes_array = (PyArrayObject *) PyArray_FROMANY(
-        genotypes, NPY_INT8, 1, 1, NPY_ARRAY_IN_ARRAY);
+        genotypes, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
     if (genotypes_array == NULL) {
         goto out;
     }
@@ -10493,10 +10492,10 @@ Tree_map_mutations(Tree *self, PyObject *args, PyObject *kwds)
         }
         /* Note this does allow large numbers to overflow, but higher levels
          * should be checking for these error anyway. */
-        ancestral_state = (int8_t) PyLong_AsLong(py_ancestral_state);
+        ancestral_state = (int32_t) PyLong_AsLong(py_ancestral_state);
     }
 
-    err = tsk_tree_map_mutations(self->tree, (int8_t *) PyArray_DATA(genotypes_array),
+    err = tsk_tree_map_mutations(self->tree, (int32_t *) PyArray_DATA(genotypes_array),
         NULL, options, &ancestral_state, &num_transitions, &transitions);
     if (err != 0) {
         handle_library_error(err);
@@ -12056,7 +12055,7 @@ LsHmm_forward_matrix(LsHmm *self, PyObject *args)
     }
     num_sites = (npy_intp) tsk_treeseq_get_num_sites(self->tree_sequence->tree_sequence);
     haplotype_array = (PyArrayObject *) PyArray_FROMANY(
-        haplotype, NPY_INT8, 1, 1, NPY_ARRAY_IN_ARRAY);
+        haplotype, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
     if (haplotype_array == NULL) {
         goto out;
     }
@@ -12097,7 +12096,7 @@ LsHmm_viterbi_matrix(LsHmm *self, PyObject *args)
     }
     num_sites = (npy_intp) tsk_treeseq_get_num_sites(self->tree_sequence->tree_sequence);
     haplotype_array = (PyArrayObject *) PyArray_FROMANY(
-        haplotype, NPY_INT8, 1, 1, NPY_ARRAY_IN_ARRAY);
+        haplotype, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
     if (haplotype_array == NULL) {
         goto out;
     }

@@ -486,7 +486,7 @@ verify_simplify_genotypes(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
     tsk_vargen_t vargen, subset_vargen;
     tsk_variant_t *variant, *subset_variant;
     tsk_size_t j, k;
-    int8_t a1, a2;
+    int32_t a1, a2;
     const tsk_id_t *sample_index_map;
 
     sample_index_map = tsk_treeseq_get_sample_index_map(ts);
@@ -511,8 +511,8 @@ verify_simplify_genotypes(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
         CU_ASSERT_EQUAL(variant->site->position, subset_variant->site->position);
         for (k = 0; k < num_samples; k++) {
             CU_ASSERT_FATAL(sample_index_map[samples[k]] < (tsk_id_t) ts->num_samples);
-            a1 = variant->genotypes.i8[sample_index_map[samples[k]]];
-            a2 = subset_variant->genotypes.i8[k];
+            a1 = variant->genotypes[sample_index_map[samples[k]]];
+            a2 = subset_variant->genotypes[k];
             /* printf("a1 = %d, a2 = %d\n", a1, a2); */
             /* printf("k = %d original node = %d " */
             /*         "original_index = %d a1=%.*s a2=%.*s\n", */
@@ -1330,29 +1330,29 @@ test_simplest_non_sample_leaf_records(void)
     CU_ASSERT_EQUAL_FATAL(ret, 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->genotypes.i8[0], 1);
-    CU_ASSERT_EQUAL(var->genotypes.i8[1], 0);
+    CU_ASSERT_EQUAL(var->genotypes[0], 1);
+    CU_ASSERT_EQUAL(var->genotypes[1], 0);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
-    CU_ASSERT_EQUAL(var->genotypes.i8[1], 1);
+    CU_ASSERT_EQUAL(var->genotypes[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes[1], 1);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
-    CU_ASSERT_EQUAL(var->genotypes.i8[1], 0);
+    CU_ASSERT_EQUAL(var->genotypes[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes[1], 0);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
-    CU_ASSERT_EQUAL(var->genotypes.i8[1], 0);
+    CU_ASSERT_EQUAL(var->genotypes[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes[1], 0);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -1659,9 +1659,9 @@ test_simplest_back_mutations(void)
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->genotypes.i8[0], 0);
-    CU_ASSERT_EQUAL(var->genotypes.i8[1], 1);
-    CU_ASSERT_EQUAL(var->genotypes.i8[2], 0);
+    CU_ASSERT_EQUAL(var->genotypes[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes[1], 1);
+    CU_ASSERT_EQUAL(var->genotypes[2], 0);
     CU_ASSERT_EQUAL(var->site->id, 0);
     CU_ASSERT_EQUAL(var->site->mutations_length, 2);
     tsk_vargen_free(&vargen);
@@ -3069,10 +3069,10 @@ test_simplest_map_mutations(void)
     const char *edges = "0  1   2   0,1\n";
     tsk_treeseq_t ts;
     tsk_tree_t t;
-    int8_t genotypes[] = { 0, 0 };
+    int32_t genotypes[] = { 0, 0 };
     tsk_size_t num_transitions;
     tsk_state_transition_t *transitions;
-    int8_t ancestral_state;
+    int32_t ancestral_state;
     int ret;
 
     tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
@@ -3151,10 +3151,10 @@ test_simplest_nonbinary_map_mutations(void)
     const char *edges = "0  1   4   0,1,2,3\n";
     tsk_treeseq_t ts;
     tsk_tree_t t;
-    int8_t genotypes[] = { 0, 0, 0, 0 };
+    int32_t genotypes[] = { 0, 0, 0, 0 };
     tsk_size_t num_transitions;
     tsk_state_transition_t *transitions;
-    int8_t ancestral_state;
+    int32_t ancestral_state;
     int ret;
 
     tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
@@ -3197,10 +3197,10 @@ test_simplest_unary_map_mutations(void)
                         "0  1   4   2,3\n";
     tsk_treeseq_t ts;
     tsk_tree_t t;
-    int8_t genotypes[] = { 0, 0 };
+    int32_t genotypes[] = { 0, 0 };
     tsk_size_t num_transitions;
     tsk_state_transition_t *transitions;
-    int8_t ancestral_state;
+    int32_t ancestral_state;
     int ret;
 
     tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
@@ -3241,10 +3241,10 @@ test_simplest_non_sample_leaf_map_mutations(void)
     const char *edges = "0  1   2   0,1,3,4\n";
     tsk_treeseq_t ts;
     tsk_tree_t t;
-    int8_t genotypes[] = { 0, 0 };
+    int32_t genotypes[] = { 0, 0 };
     tsk_size_t num_transitions;
     tsk_state_transition_t *transitions;
-    int8_t ancestral_state;
+    int32_t ancestral_state;
     int ret;
 
     tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
@@ -3283,10 +3283,10 @@ test_simplest_internal_sample_map_mutations(void)
     const char *edges = "0  1   2   0,1\n";
     tsk_treeseq_t ts;
     tsk_tree_t t;
-    int8_t genotypes[] = { 0, 0, 0 };
+    int32_t genotypes[] = { 0, 0, 0 };
     tsk_size_t num_transitions;
     tsk_state_transition_t *transitions;
-    int8_t ancestral_state;
+    int32_t ancestral_state;
     int ret;
 
     tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
@@ -3340,10 +3340,10 @@ test_simplest_multiple_root_map_mutations(void)
                         "0  1   5   2,3\n";
     tsk_treeseq_t ts;
     tsk_tree_t t;
-    int8_t genotypes[] = { 0, 0, 0, 0 };
+    int32_t genotypes[] = { 0, 0, 0, 0 };
     tsk_size_t num_transitions;
     tsk_state_transition_t *transitions;
-    int8_t ancestral_state;
+    int32_t ancestral_state;
     int ret;
 
     tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
@@ -3397,10 +3397,10 @@ test_simplest_chained_map_mutations(void)
                         "0  1   4   2,3\n";
     tsk_treeseq_t ts;
     tsk_tree_t t;
-    int8_t genotypes[] = { 0, 0, 0, 0 };
+    int32_t genotypes[] = { 0, 0, 0, 0 };
     tsk_size_t num_transitions;
     tsk_state_transition_t *transitions;
-    int8_t ancestral_state;
+    int32_t ancestral_state;
     int ret;
 
     tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
@@ -4543,11 +4543,11 @@ test_single_tree_map_mutations(void)
 {
     tsk_treeseq_t ts;
     tsk_tree_t t;
-    int8_t genotypes[] = { 0, 1, 1, 1 };
+    int32_t genotypes[] = { 0, 1, 1, 1 };
     int ret = 0;
     tsk_size_t num_transitions;
     tsk_state_transition_t *transitions;
-    int8_t ancestral_state, j;
+    int32_t ancestral_state, j;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
         NULL, NULL, NULL, 0);
@@ -4689,11 +4689,11 @@ test_single_tree_map_mutations_internal_samples(void)
                         "0.00000000      1.00000000      8       7\n";
     tsk_treeseq_t ts;
     tsk_tree_t t;
-    int8_t genotypes[] = { 0, 2, 2, 1, 0 };
+    int32_t genotypes[] = { 0, 2, 2, 1, 0 };
     int ret = 0;
     tsk_size_t num_transitions;
     tsk_state_transition_t *transitions;
-    int8_t ancestral_state;
+    int32_t ancestral_state;
 
     tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 5);

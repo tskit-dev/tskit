@@ -32,7 +32,6 @@ extern "C" {
 
 #include <tskit/trees.h>
 
-#define TSK_16_BIT_GENOTYPES (1 << 0)
 #define TSK_ISOLATED_NOT_MISSING (1 << 1)
 
 typedef struct {
@@ -43,10 +42,7 @@ typedef struct {
     tsk_size_t num_alleles;
     tsk_size_t max_alleles;
     bool has_missing_data;
-    union {
-        int8_t *i8;
-        int16_t *i16;
-    } genotypes;
+    int32_t *genotypes;
 
     tsk_size_t num_samples;
     tsk_size_t num_sites;

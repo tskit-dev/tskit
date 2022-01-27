@@ -11849,7 +11849,8 @@ tsk_check_subset_equality(tsk_table_collection_t *self,
         goto out;
     }
     if (!tsk_table_collection_equals(&self_copy, &other_copy,
-            TSK_CMP_IGNORE_TS_METADATA | TSK_CMP_IGNORE_PROVENANCE)) {
+            TSK_CMP_IGNORE_TS_METADATA | TSK_CMP_IGNORE_PROVENANCE
+                | TSK_CMP_IGNORE_REFERENCE_SEQUENCE)) {
         ret = TSK_ERR_UNION_DIFF_HISTORIES;
         goto out;
     }

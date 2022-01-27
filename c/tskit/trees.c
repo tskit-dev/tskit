@@ -4635,13 +4635,13 @@ out:
 /* Parsimony methods */
 
 static inline uint64_t
-set_bit(uint64_t value, int8_t bit)
+set_bit(uint64_t value, int32_t bit)
 {
     return value | (1ULL << bit);
 }
 
 static inline bool
-bit_is_set(uint64_t value, int8_t bit)
+bit_is_set(uint64_t value, int32_t bit)
 {
     return (value & (1ULL << bit)) != 0;
 }
@@ -4677,15 +4677,15 @@ get_smallest_set_bit(uint64_t v)
  * Given Tree", Biometrics 1973.
  */
 int TSK_WARN_UNUSED
-tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
-    double *TSK_UNUSED(cost_matrix), tsk_flags_t options, int8_t *r_ancestral_state,
+tsk_tree_map_mutations(tsk_tree_t *self, int32_t *genotypes,
+    double *TSK_UNUSED(cost_matrix), tsk_flags_t options, int32_t *r_ancestral_state,
     tsk_size_t *r_num_transitions, tsk_state_transition_t **r_transitions)
 {
     int ret = 0;
     struct stack_elem {
         tsk_id_t node;
         tsk_id_t transition_parent;
-        int8_t state;
+        int32_t state;
     };
     const tsk_size_t num_samples = self->tree_sequence->num_samples;
     const tsk_id_t *restrict left_child = self->left_child;
@@ -4706,13 +4706,13 @@ tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
     tsk_id_t u, v;
     /* The largest possible number of transitions is one over every sample */
     tsk_state_transition_t *transitions = tsk_malloc(num_samples * sizeof(*transitions));
-    int8_t allele, ancestral_state;
+    int32_t allele, ancestral_state;
     int stack_top;
     struct stack_elem s;
     tsk_size_t j, num_transitions, max_allele_count, num_nodes;
     tsk_size_t allele_count[HARTIGAN_MAX_ALLELES];
     tsk_size_t non_missing = 0;
-    int8_t num_alleles = 0;
+    int32_t num_alleles = 0;
 
     if (optimal_set == NULL || preorder_stack == NULL || transitions == NULL
         || nodes == NULL) {
@@ -4748,7 +4748,7 @@ tsk_tree_map_mutations(tsk_tree_t *self, int8_t *genotypes,
             ret = TSK_ERR_BAD_ANCESTRAL_STATE;
             goto out;
         } else if (ancestral_state >= num_alleles) {
-            num_alleles = (int8_t)(ancestral_state + 1);
+            num_alleles = (int32_t)(ancestral_state + 1);
         }
     }
 

@@ -49,7 +49,7 @@ tsk_ls_hmm_next_probability_test(tsk_ls_hmm_t *TSK_UNUSED(self),
 }
 
 static int
-run_test_hmm(tsk_ls_hmm_t *hmm, int8_t *haplotype, tsk_compressed_matrix_t *output)
+run_test_hmm(tsk_ls_hmm_t *hmm, int32_t *haplotype, tsk_compressed_matrix_t *output)
 {
     int ret = 0;
 
@@ -79,7 +79,7 @@ test_single_tree_missing_alleles(void)
 
     double rho[] = { 0, 0.25, 0.25 };
     double mu[] = { 0.125, 0.125, 0.125 };
-    int8_t h[] = { 0, 0, 0, 0 };
+    int32_t h[] = { 0, 0, 0, 0 };
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
         single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
@@ -108,7 +108,7 @@ test_single_tree_exact_match(void)
 
     double rho[] = { 0.0, 0.25, 0.25 };
     double mu[] = { 0, 0, 0 };
-    int8_t h[] = { 1, 1, 1 };
+    int32_t h[] = { 1, 1, 1 };
     tsk_id_t path[3];
     double decoded_compressed_matrix[12];
     unsigned int precision;
@@ -167,7 +167,7 @@ test_single_tree_missing_haplotype_data(void)
 
     double rho[] = { 0.0, 0.25, 0.25 };
     double mu[] = { 0, 0, 0 };
-    int8_t h[] = { 1, TSK_MISSING_DATA, 1 };
+    int32_t h[] = { 1, TSK_MISSING_DATA, 1 };
     tsk_id_t path[3];
     double decoded_compressed_matrix[12];
 
@@ -211,7 +211,7 @@ test_single_tree_match_impossible(void)
     double rho[] = { 0.0, 0.25, 0.25 };
     double mu[] = { 0, 0, 0 };
     /* This haplotype can't happen with a mutation rate of 0 */
-    int8_t h[] = { 0, 0, 0 };
+    int32_t h[] = { 0, 0, 0 };
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
         single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
@@ -247,7 +247,7 @@ test_single_tree_errors(void)
 
     double rho[] = { 0.0, 0.25, 0.25 };
     double mu[] = { 0, 0, 0 };
-    int8_t h[] = { 0, 0, 0 };
+    int32_t h[] = { 0, 0, 0 };
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
         single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
@@ -309,7 +309,7 @@ test_single_tree_compressed_matrix(void)
 
     double rho[] = { 0.0, 0.25, 0.25 };
     double mu[] = { 0.1, 0.1, 0.1 };
-    int8_t h[] = { 0, 0, 0 };
+    int32_t h[] = { 0, 0, 0 };
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
         single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
@@ -374,7 +374,7 @@ test_single_tree_viterbi_matrix(void)
     tsk_ls_hmm_t ls_hmm;
     double rho[] = { 0.0, 0.25, 0.25 };
     double mu[] = { 0, 0, 0 };
-    int8_t h[] = { 1, 1, 1 };
+    int32_t h[] = { 1, 1, 1 };
     tsk_id_t path[3];
     tsk_value_transition_t T[2];
     int j;
@@ -448,7 +448,7 @@ test_multi_tree_exact_match(void)
 
     double rho[] = { 0.0, 0.25, 0.25 };
     double mu[] = { 0, 0, 0 };
-    int8_t h[] = { 1, 1, 1 };
+    int32_t h[] = { 1, 1, 1 };
     tsk_id_t path[3];
     double decoded_compressed_matrix[12];
     unsigned int precision;
@@ -530,7 +530,7 @@ test_caterpillar_tree_many_values(void)
     tsk_ls_hmm_t ls_hmm;
     tsk_compressed_matrix_t matrix;
     double unused[] = { 0, 0, 0, 0, 0 };
-    int8_t h[] = { 0, 0, 0, 0, 0 };
+    int32_t h[] = { 0, 0, 0, 0, 0 };
     tsk_size_t n[] = {
         8,
         16,

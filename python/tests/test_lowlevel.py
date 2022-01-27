@@ -2315,10 +2315,6 @@ class TestVariantGenerator(LowLevelTestCase):
             with pytest.raises(TypeError):
                 _tskit.VariantGenerator(ts, samples=[1, 2], alleles=(bad_allele_type,))
 
-        too_many_alleles = tuple(str(j) for j in range(128))
-        with pytest.raises(_tskit.LibraryError):
-            _tskit.VariantGenerator(ts, samples=[1, 2], alleles=too_many_alleles)
-
     def test_iterator(self):
         ts = self.get_example_tree_sequence()
         self.verify_iterator(_tskit.VariantGenerator(ts))
@@ -3182,7 +3178,6 @@ class TestTree(LowLevelTestCase):
         ts = self.get_example_tree_sequence()
         tree = _tskit.Tree(ts)
         n = ts.get_num_samples()
-        genotypes = np.zeros(n, dtype=np.int8)
         with pytest.raises(TypeError):
             tree.map_mutations()
         for bad_size in [0, 1, n - 1, n + 1]:
@@ -3191,9 +3186,9 @@ class TestTree(LowLevelTestCase):
         for bad_type in [None, {}, set()]:
             with pytest.raises(TypeError):
                 tree.map_mutations([bad_type] * n)
-        for bad_type in [np.uint8, np.uint64, np.float32]:
+        for bad_type in [np.uint32, np.uint64, np.float32]:
             with pytest.raises(TypeError):
-                tree.map_mutations(np.zeros(bad_size, dtype=bad_type))
+                tree.map_mutations(np.zeros(n, dtype=bad_type))
         genotypes = np.zeros(n, dtype=np.int8)
         tree.map_mutations(genotypes)
         for bad_value in [64, 65, 127, -2]:
