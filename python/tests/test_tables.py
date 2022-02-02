@@ -4816,7 +4816,9 @@ class TestUnionTables(unittest.TestCase):
     def test_union_empty(self):
         tables = self.get_msprime_example(sample_size=3, T=2, seed=9328).dump_tables()
         tables.sort()
-        empty_tables = tskit.TableCollection(sequence_length=tables.sequence_length)
+        empty_tables = tables.copy()
+        for table in empty_tables.table_name_map.keys():
+            getattr(empty_tables, table).clear()
         uni = tables.copy()
         uni.union(empty_tables, [])
         tables.assert_equals(uni, ignore_provenance=True)
