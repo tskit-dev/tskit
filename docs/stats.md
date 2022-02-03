@@ -658,7 +658,7 @@ using the same general pattern as other statistics,
 but some of the details about how it is defined,
 especially in the presence of multiple alleles per site, need to be explained.
 If all sites are biallelic, then the result is just as you'd expect:
-see the method documentation at {meth}`TreeSequence.allele_frequency_spectrum` 
+see the method documentation at {meth}`~TreeSequence.allele_frequency_spectrum` 
 for the description.
 Note that with `mode="site"`, we really do tabulate *allele* counts:
 if more than one mutation on different parts of the tree produce the same allele,
@@ -756,7 +756,7 @@ do not have this property (since both are ratios of statistics that do have this
 
 ### Genealogical nearest neighbours
 
-The genealogical nearest neighbours statistic is not based on branch lengths, but on
-topologies. therefore it currently has a slightly different interface to the other
-single site statistics. This may be revised in the future.
+The {meth}`~TreeSequence.genealogical_nearest_neighbours` statistic is not based on branch
+lengths, but on topologies. therefore it currently has a slightly different interface to
+the other single site statistics. This may be revised in the future.
 
