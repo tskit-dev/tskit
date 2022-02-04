@@ -1017,16 +1017,17 @@ class Tree:
         # Deprecated alias for mrca
         return self.mrca(u, v)
 
-    def mrca(self, u, v):
+    def mrca(self, *args):
         """
         Returns the most recent common ancestor of the specified nodes.
 
-        :param int u: The first node.
-        :param int v: The second node.
-        :return: The most recent common ancestor of u and v.
+        :param int `*args`: input node IDs, must be at least 2.
+        :return: The most recent common ancestor of input nodes.
         :rtype: int
         """
-        return self._ll_tree.get_mrca(u, v)
+        if len(args) < 2:
+            raise ValueError("Must supply at least two arguments")
+        return functools.reduce(self._ll_tree.get_mrca, args)
 
     def get_tmrca(self, u, v):
         # Deprecated alias for tmrca

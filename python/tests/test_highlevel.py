@@ -851,6 +851,40 @@ class TestTreeTraversals:
         assert tree_orders == expected_result
 
 
+class TestMRCA:
+    t = tskit.Tree.generate_balanced(3)
+    #  4
+    # ┏━┻┓
+    # ┃  3
+    # ┃ ┏┻┓
+    # 0 1 2
+
+    def test_two_or_more_args(self):
+        assert self.t.mrca(2, 1) == 3
+        assert self.t.mrca(0, 1, 2) == 4
+
+    def test_less_than_two_args(self):
+        with pytest.raises(ValueError):
+            self.t.mrca(1)
+
+    def test_no_args(self):
+        with pytest.raises(ValueError):
+            self.t.mrca()
+
+    def test_same_args(self):
+        assert self.t.mrca(0, 0, 0, 0) == 0
+
+    def test_different_tree_levels(self):
+        assert self.t.mrca(0, 3) == 4
+
+    def test_out_of_bounds_args(self):
+        with pytest.raises(ValueError):
+            self.t.mrca(0, 6)
+
+    def test_virtual_root_arg(self):
+        assert self.t.mrca(0, 5) == 5
+
+
 class TestMRCACalculator:
     """
     Class to test the Schieber-Vishkin algorithm.
