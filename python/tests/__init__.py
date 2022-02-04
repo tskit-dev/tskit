@@ -178,41 +178,6 @@ class PythonTreeSequence:
                 )
             )
 
-    def edge_diffs(self):
-        M = self._tree_sequence.num_edges
-        sequence_length = self._tree_sequence.sequence_length
-        edges = list(self._tree_sequence.edges())
-        time = [self._tree_sequence.node(edge.parent).time for edge in edges]
-        in_order = sorted(
-            range(M),
-            key=lambda j: (edges[j].left, time[j], edges[j].parent, edges[j].child),
-        )
-        out_order = sorted(
-            range(M),
-            key=lambda j: (edges[j].right, -time[j], -edges[j].parent, -edges[j].child),
-        )
-        j = 0
-        k = 0
-        left = 0.0
-        while j < M or left < sequence_length:
-            e_out = []
-            e_in = []
-            while k < M and edges[out_order[k]].right == left:
-                h = out_order[k]
-                e_out.append(edges[h])
-                k += 1
-            while j < M and edges[in_order[j]].left == left:
-                h = in_order[j]
-                e_in.append(edges[h])
-                j += 1
-            right = sequence_length
-            if j < M:
-                right = min(right, edges[in_order[j]].left)
-            if k < M:
-                right = min(right, edges[out_order[k]].right)
-            yield (left, right), e_out, e_in
-            left = right
-
     def trees(self):
         pt = PythonTree(self._tree_sequence.get_num_nodes())
         pt.index = 0

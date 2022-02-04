@@ -1411,71 +1411,6 @@ class TestTreeSequence(HighLevelTestCase):
         for ts in get_example_tree_sequences():
             self.verify_pairwise_diversity(ts)
 
-    def verify_edge_diffs(self, ts):
-        pts = tests.PythonTreeSequence(ts)
-        d1 = list(ts.edge_diffs())
-        d2 = list(pts.edge_diffs())
-        assert d1 == d2
-
-        # check that we have the correct set of children at all nodes.
-        children = collections.defaultdict(set)
-        trees = iter(ts.trees())
-        tree = next(trees)
-        edge_ids = []
-        last_right = 0
-        for (left, right), edges_out, edges_in in ts.edge_diffs():
-            assert left == last_right
-            last_right = right
-            for edge in edges_out:
-                assert edge == ts.edge(edge.id)
-                children[edge.parent].remove(edge.child)
-            for edge in edges_in:
-                edge_ids.append(edge.id)
-                assert edge == ts.edge(edge.id)
-                children[edge.parent].add(edge.child)
-            while tree.interval.right <= left:
-                tree = next(trees)
-            assert left >= tree.interval.left
-            assert right <= tree.interval.right
-            for u in tree.nodes():
-                if tree.is_internal(u):
-                    assert u in children
-                    assert children[u] == set(tree.children(u))
-        # check that we have seen all the edge ids
-        assert np.array_equal(np.unique(edge_ids), np.arange(0, ts.num_edges))
-
-    def test_edge_diffs(self):
-        for ts in get_example_tree_sequences():
-            self.verify_edge_diffs(ts)
-
-    def test_edge_diffs_names(self, simple_degree2_ts_fixture):
-        for val in simple_degree2_ts_fixture.edge_diffs():
-            assert len(val) == 3
-            assert val[0] == val.interval
-            assert val[1] == val.edges_out
-            assert val[2] == val.edges_in
-
-    def test_edge_diffs_include_terminal(self):
-        for ts in get_example_tree_sequences():
-            edges = set()
-            i = 0
-            breakpoints = list(ts.breakpoints())
-            for (left, right), e_out, e_in in ts.edge_diffs(include_terminal=True):
-                assert left == breakpoints[i]
-                if i == ts.num_trees:
-                    # Last iteration, right==left==sequence_length
-                    assert left == ts.sequence_length
-                    assert right == ts.sequence_length
-                else:
-                    assert right == breakpoints[i + 1]
-                for e in e_out:
-                    edges.remove(e.id)
-                for e in e_in:
-                    edges.add(e.id)
-                i += 1
-            assert i == ts.num_trees + 1
-            assert len(edges) == 0
-
     def verify_edgesets(self, ts):
         """
         Verifies that the edgesets we return are equivalent to the original edges.
@@ -2654,6 +2589,85 @@ class TestTreeSequence(HighLevelTestCase):
         ts = tsutil.insert_random_ploidy_individuals(ts, seed=100 + n)
         assert ts.num_individuals > 10
         self.verify_individual_properties(ts)
+
+
+class TestEdgeDiffs:
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_correct_trees_forward(self, ts):
+        parent = np.full(ts.num_nodes + 1, tskit.NULL, dtype=np.int32)
+        for edge_diff, tree in itertools.zip_longest(ts.edge_diffs(), ts.trees()):
+            assert edge_diff.interval == tree.interval
+            for edge in edge_diff.edges_out:
+                parent[edge.child] = tskit.NULL
+            for edge in edge_diff.edges_in:
+                parent[edge.child] = edge.parent
+            np.testing.assert_array_equal(parent, tree.parent_array)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_correct_trees_reverse(self, ts):
+        parent = np.full(ts.num_nodes + 1, tskit.NULL, dtype=np.int32)
+        iterator = itertools.zip_longest(
+            ts.edge_diffs(direction=tskit.REVERSE), reversed(ts.trees())
+        )
+        for edge_diff, tree in iterator:
+            assert edge_diff.interval == tree.interval
+            for edge in edge_diff.edges_out:
+                parent[edge.child] = tskit.NULL
+            for edge in edge_diff.edges_in:
+                parent[edge.child] = edge.parent
+            np.testing.assert_array_equal(parent, tree.parent_array)
+
+    def test_elements_are_like_named_tuple(self, simple_degree2_ts_fixture):
+        for val in simple_degree2_ts_fixture.edge_diffs():
+            assert len(val) == 3
+            assert val[0] == val.interval
+            assert val[1] == val.edges_out
+            assert val[2] == val.edges_in
+
+    @pytest.mark.parametrize("direction", [-6, "forward", None])
+    def test_bad_direction(self, direction, simple_degree2_ts_fixture):
+        ts = simple_degree2_ts_fixture
+        with pytest.raises(ValueError, match="direction must be"):
+            ts.edge_diffs(direction=direction)
+
+    @pytest.mark.parametrize("direction", [tskit.FORWARD, tskit.REVERSE])
+    def test_edge_properties(self, direction, simple_degree2_ts_fixture):
+        ts = simple_degree2_ts_fixture
+        edge_ids = set()
+        for _, e_out, e_in in ts.edge_diffs(direction=direction):
+            for edge in e_in:
+                assert edge.id not in edge_ids
+                edge_ids.add(edge.id)
+                assert ts.edge(edge.id) == edge
+            for edge in e_out:
+                assert ts.edge(edge.id) == edge
+        assert edge_ids == set(range(ts.num_edges))
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    @pytest.mark.parametrize("direction", [tskit.FORWARD, tskit.REVERSE])
+    def test_include_terminal(self, ts, direction):
+        edges = set()
+        i = 0
+        diffs = ts.edge_diffs(include_terminal=True, direction=direction)
+        parent = np.full(ts.num_nodes + 1, tskit.NULL, dtype=np.int32)
+        for (left, right), e_out, e_in in diffs:  # noqa: B007
+            for e in e_out:
+                edges.remove(e.id)
+                parent[e.child] = tskit.NULL
+            for e in e_in:
+                edges.add(e.id)
+                parent[e.child] = e.parent
+            i += 1
+        assert np.all(parent == tskit.NULL)
+        assert i == ts.num_trees + 1
+        assert len(edges) == 0
+        # On last iteration, interval is empty
+        if direction == tskit.FORWARD:
+            assert left == ts.sequence_length
+            assert right == ts.sequence_length
+        else:
+            assert left == 0
+            assert right == 0
 
 
 class TestTreeSequenceMethodSignatures:
