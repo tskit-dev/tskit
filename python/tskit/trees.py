@@ -46,6 +46,7 @@ import tskit
 import tskit.combinatorics as combinatorics
 import tskit.drawing as drawing
 import tskit.metadata as metadata_module
+import tskit.stats as stats
 import tskit.tables as tables
 import tskit.text_formats as text_formats
 import tskit.util as util
@@ -8718,6 +8719,26 @@ class TreeSequence:
             min_span=min_span,
             store_segments=store_segments,
             store_pairs=store_pairs,
+        )
+
+    def coalescence_time_distribution(
+        self,
+        *,
+        sample_sets=None,
+        weight_func=None,
+        window_breaks=None,
+        blocks_per_window=None,
+        span_normalise=False,
+    ):
+        # TODO docstring, not yet in API
+
+        return stats.CoalescenceTimeDistribution(
+            self,
+            sample_sets=sample_sets,
+            weight_func=weight_func,
+            window_breaks=window_breaks,
+            blocks_per_window=blocks_per_window,
+            span_normalise=span_normalise,
         )
 
     ############################################
