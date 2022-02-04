@@ -224,7 +224,7 @@ skip to {ref}`sec_development_workflow_anothers_commit`.
    This usually takes at least two rounds of review.
 
 10. Once the review process is complete, squash the commits to the minimal set of changes -
-    usually one or  commits. Please follow
+    usually one or two commits. Please follow
     [this guide](https://stdpopsim.readthedocs.io/en/stable/development.html#rebasing) for
     step-by-step instructions on rebasing and squashing commits.
 
@@ -556,7 +556,7 @@ $ python3 -m pytest -n0 -vs
 
 All new code must have high test coverage, which will be checked as part of the
 {ref}`sec_development_continuous_integration`
-tests by [CodeCov](https://codecov.io/gh/tskit-dev/tskit/)_.
+tests by [CodeCov](https://codecov.io/gh/tskit-dev/tskit/).
 All tests must pass for a PR to be accepted.
 
 
@@ -736,7 +736,7 @@ $ ./build/test_tables test_node_table
 While 100% test coverage is not feasible for C code, we aim to cover all code
 that can be reached. (Some classes of error such as malloc failures
 and IO errors are difficult to simulate in C.) Code coverage statistics are
-automatically tracked using [CodeCov](https://codecov.io/gh/tskit-dev/tskit/)_.
+automatically tracked using [CodeCov](https://codecov.io/gh/tskit-dev/tskit/).
 
 
 ### Coding conventions
