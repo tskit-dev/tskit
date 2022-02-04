@@ -1,4 +1,3 @@
-#
 # MIT License
 #
 # Copyright (c) 2018-2022 Tskit Developers
@@ -4304,7 +4303,105 @@ class TreeSequence:
             edgeset.children = sorted(children[edgeset.parent])
             yield edgeset
 
-    def edge_diffs(self, include_terminal=False):
+    def _edge_diffs_forward(self, include_terminal=False):
+        # Use the C based code to run this
+        iterator = _tskit.TreeDiffIterator(self._ll_tree_sequence, include_terminal)
+        metadata_decoder = self.table_metadata_schemas.edge.decode_row
+        for interval, edge_tuples_out, edge_tuples_in in iterator:
+            edges_out = [
+                Edge(*e, metadata_decoder=metadata_decoder) for e in edge_tuples_out
+            ]
+            edges_in = [
+                Edge(*e, metadata_decoder=metadata_decoder) for e in edge_tuples_in
+            ]
+            yield EdgeDiff(Interval(*interval), edges_out, edges_in)
+
+    def _edge_diffs_forward_py(self, include_terminal=False):
+        metadata_decoder = self.table_metadata_schemas.edge.decode_row
+        tables = self.tables
+        edges = tables.edges
+        edge_left = edges.left
+        edge_right = edges.right
+        sequence_length = self.sequence_length
+        in_order = tables.indexes.edge_insertion_order
+        out_order = tables.indexes.edge_removal_order
+        M = len(edges)
+        j = 0
+        k = 0
+        left = 0.0
+        while j < M or left < sequence_length:
+            edges_out = []
+            edges_in = []
+            while k < M and edge_right[out_order[k]] == left:
+                # edges_out.append(self.edge(out_order[k]))
+                # edges_out.append(self._ll_tree_sequence.get_edge(out_order[k]))
+                e_tuple = self._ll_tree_sequence.get_edge(out_order[k])
+                edges_out.append(Edge(*e_tuple, metadata_decoder=metadata_decoder))
+                k += 1
+            while j < M and edge_left[in_order[j]] == left:
+                # edges_in.append(self.edge(in_order[j]))
+                # edges_in.append(self._ll_tree_sequence.get_edge(in_order[j]))
+                e_tuple = self._ll_tree_sequence.get_edge(in_order[j])
+                edges_in.append(Edge(*e_tuple, metadata_decoder=metadata_decoder))
+                j += 1
+            right = sequence_length
+            if j < M:
+                right = min(right, edge_left[in_order[j]])
+            if k < M:
+                right = min(right, edge_right[out_order[k]])
+            yield EdgeDiff(Interval(left, right), edges_out, edges_in)
+            left = right
+
+        if include_terminal:
+            edges_out = []
+            while k < M:
+                edges_out.append(self.edge(out_order[k]))
+                k += 1
+            yield EdgeDiff(Interval(left, right), edges_out, [])
+
+    def _edge_diffs_reverse(self, include_terminal=False):
+        # metadata_decoder = self.table_metadata_schemas.edge.decode_row
+        tables = self.tables
+        edges = tables.edges
+        edge_left = edges.left
+        edge_right = edges.right
+        sequence_length = self.sequence_length
+        in_order = tables.indexes.edge_removal_order
+        out_order = tables.indexes.edge_insertion_order
+        M = len(edges)
+        j = M - 1
+        k = M - 1
+        right = sequence_length
+        while j >= 0 or right > 0:
+            edges_out = []
+            edges_in = []
+            while k >= 0 and edge_left[out_order[k]] == right:
+                # e_tuple = self._ll_tree_sequence.get_edge(out_order[k])
+                # edges_out.append(Edge(*e_tuple, metadata_decoder=metadata_decoder))
+                edges_out.append(self.edge(out_order[k]))
+                k -= 1
+            while j >= 0 and edge_right[in_order[j]] == right:
+                # e_tuple = self._ll_tree_sequence.get_edge(in_order[j])
+                # edges_in.append(Edge(*e_tuple, metadata_decoder=metadata_decoder))
+                edges_in.append(self.edge(in_order[j]))
+                j -= 1
+
+            left = 0
+            if j >= 0:
+                left = max(left, edge_right[in_order[j]])
+            if k >= 0:
+                left = max(left, edge_left[out_order[k]])
+            yield EdgeDiff(Interval(left, right), edges_out, edges_in)
+            right = left
+
+        if include_terminal:
+            edges_out = []
+            while k >= 0:
+                edges_out.append(self.edge(out_order[k]))
+                k -= 1
+            yield EdgeDiff(Interval(left, right), edges_out, [])
+
+    def edge_diffs(self, include_terminal=False, *, direction=_tskit.FORWARD):
         """
         Returns an iterator over all the :ref:`edges <sec_edge_table_definition>` that
         are inserted and removed to build the trees as we move from left-to-right along
@@ -4330,21 +4427,18 @@ class TreeSequence:
             sequence. If True, an additional iteration takes place, with the last
             ``edges_out`` value reporting all the edges contained in the final
             tree (with both ``left`` and ``right`` equal to the sequence length).
+        :param int direction: FINISH ME
         :return: An iterator over the (interval, edges_out, edges_in) tuples. This
             is a named tuple, so the 3 values can be accessed by position
             (e.g. ``returned_tuple[0]``) or name (e.g. ``returned_tuple.interval``).
         :rtype: :class:`collections.abc.Iterable`
         """
-        iterator = _tskit.TreeDiffIterator(self._ll_tree_sequence, include_terminal)
-        metadata_decoder = self.table_metadata_schemas.edge.decode_row
-        for interval, edge_tuples_out, edge_tuples_in in iterator:
-            edges_out = [
-                Edge(*e, metadata_decoder=metadata_decoder) for e in edge_tuples_out
-            ]
-            edges_in = [
-                Edge(*e, metadata_decoder=metadata_decoder) for e in edge_tuples_in
-            ]
-            yield EdgeDiff(Interval(*interval), edges_out, edges_in)
+        if direction == _tskit.FORWARD:
+            return self._edge_diffs_forward(include_terminal=include_terminal)
+        elif direction == _tskit.REVERSE:
+            return self._edge_diffs_reverse(include_terminal=include_terminal)
+        else:
+            raise ValueError("direction must be either tskit.FORWARD or tskit.REVERSE")
 
     def sites(self):
         """
