@@ -350,6 +350,7 @@ write_offset_col(
     uint32_t *offset32 = NULL;
     tsk_size_t len = col->num_rows + 1;
     tsk_size_t j;
+    int32_t put_flags = 0;
     int type;
     const void *data;
     bool needs_64 = col->offset_array[col->num_rows] > UINT32_MAX;
@@ -361,6 +362,7 @@ write_offset_col(
     if (options & TSK_DUMP_FORCE_OFFSET_64 || needs_64) {
         type = KAS_UINT64;
         data = col->offset_array;
+        put_flags = KAS_BORROWS_ARRAY;
     } else {
         offset32 = tsk_malloc(len * sizeof(*offset32));
         if (offset32 == NULL) {
@@ -372,8 +374,9 @@ write_offset_col(
         }
         type = KAS_UINT32;
         data = offset32;
+        /* We've just allocated a temp buffer, so kas can't borrow so leave put_flags=0*/
     }
-    ret = kastore_puts(store, offset_col_name, data, (size_t) len, type, 0);
+    ret = kastore_puts(store, offset_col_name, data, (size_t) len, type, put_flags);
     if (ret != 0) {
         ret = tsk_set_kas_error(ret);
         goto out;
@@ -392,7 +395,7 @@ write_table_ragged_cols(
 
     for (col = write_cols; col->name != NULL; col++) {
         ret = kastore_puts(store, col->name, col->data_array, (size_t) col->data_len,
-            col->data_type, 0);
+            col->data_type, KAS_BORROWS_ARRAY);
         if (ret != 0) {
             ret = tsk_set_kas_error(ret);
             goto out;
@@ -414,8 +417,8 @@ write_table_cols(kastore_t *store, const write_table_col_t *write_cols,
     const write_table_col_t *col;
 
     for (col = write_cols; col->name != NULL; col++) {
-        ret = kastore_puts(
-            store, col->name, col->array, (size_t) col->len, col->type, 0);
+        ret = kastore_puts(store, col->name, col->array, (size_t) col->len, col->type,
+            KAS_BORROWS_ARRAY);
         if (ret != 0) {
             ret = tsk_set_kas_error(ret);
             goto out;
@@ -10691,39 +10694,6 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-tsk_table_collection_write_format_data(const tsk_table_collection_t *self,
-    kastore_t *store, tsk_flags_t TSK_UNUSED(options))
-{
-    int ret = 0;
-    char format_name[TSK_FILE_FORMAT_NAME_LENGTH];
-    char uuid[TSK_UUID_SIZE + 1]; // Must include space for trailing null.
-    uint32_t version[2]
-        = { TSK_FILE_FORMAT_VERSION_MAJOR, TSK_FILE_FORMAT_VERSION_MINOR };
-    write_table_col_t write_cols[] = {
-        { "format/name", (void *) format_name, sizeof(format_name), KAS_INT8 },
-        { "format/version", (void *) version, 2, KAS_UINT32 },
-        { "sequence_length", (const void *) &self->sequence_length, 1, KAS_FLOAT64 },
-        { "uuid", (void *) uuid, TSK_UUID_SIZE, KAS_INT8 },
-        { "time_units", (void *) self->time_units, self->time_units_length, KAS_INT8 },
-        { "metadata", (void *) self->metadata, self->metadata_length, KAS_INT8 },
-        { "metadata_schema", (void *) self->metadata_schema,
-            self->metadata_schema_length, KAS_INT8 },
-        { .name = NULL },
-    };
-
-    ret = tsk_generate_uuid(uuid, 0);
-    if (ret != 0) {
-        goto out;
-    }
-    /* This stupid dance is to workaround the fact that compilers won't allow
-     * casts to discard the 'const' qualifier. */
-    tsk_memcpy(format_name, TSK_FILE_FORMAT_NAME, sizeof(format_name));
-    ret = write_table_cols(store, write_cols, 0);
-out:
-    return ret;
-}
-
-static int TSK_WARN_UNUSED
 tsk_table_collection_dump_reference_sequence(const tsk_table_collection_t *self,
     kastore_t *store, tsk_flags_t TSK_UNUSED(options))
 {
@@ -10781,6 +10751,22 @@ tsk_table_collection_dumpf(
 {
     int ret = 0;
     kastore_t store;
+    char uuid[TSK_UUID_SIZE + 1]; // Must include space for trailing null.
+    write_table_col_t format_columns[] = {
+        { "format/name", (const void *) &TSK_FILE_FORMAT_NAME,
+            TSK_FILE_FORMAT_NAME_LENGTH, KAS_INT8 },
+        { "format/version",
+            (const void *) &(uint32_t[]){
+                TSK_FILE_FORMAT_VERSION_MAJOR, TSK_FILE_FORMAT_VERSION_MINOR },
+            2, KAS_UINT32 },
+        { "sequence_length", (const void *) &self->sequence_length, 1, KAS_FLOAT64 },
+        { "uuid", (void *) uuid, TSK_UUID_SIZE, KAS_INT8 },
+        { "time_units", (void *) self->time_units, self->time_units_length, KAS_INT8 },
+        { "metadata", (void *) self->metadata, self->metadata_length, KAS_INT8 },
+        { "metadata_schema", (void *) self->metadata_schema,
+            self->metadata_schema_length, KAS_INT8 },
+        { .name = NULL },
+    };
 
     tsk_memset(&store, 0, sizeof(store));
 
@@ -10790,12 +10776,19 @@ tsk_table_collection_dumpf(
         goto out;
     }
 
-    /* All of these functions will set the kas_error internally, so we don't have
-     * to modify the return value. */
-    ret = tsk_table_collection_write_format_data(self, &store, options);
+    /* Write format data */
+    ret = tsk_generate_uuid(uuid, 0);
     if (ret != 0) {
         goto out;
     }
+
+    ret = write_table_cols(&store, format_columns, options);
+    if (ret != 0) {
+        goto out;
+    }
+
+    /* All of these functions will set the kas_error internally, so we don't have
+     * to modify the return value. */
     ret = tsk_node_table_dump(&self->nodes, &store, options);
     if (ret != 0) {
         goto out;

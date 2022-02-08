@@ -908,7 +908,13 @@ kastore_bput(kastore_t *self, const char *key, size_t key_len, const void *array
     if (ret != 0) {
         goto out;
     }
-    item->borrowed_array = array;
+    /* TEMP FIX UNTIL NEXT KASTORE RELEASE WITH
+     * https://github.com/tskit-dev/kastore/pull/185 */
+    if (array == NULL) {
+        item->array = malloc(1);
+    } else {
+        item->borrowed_array = array;
+    }
     item->array_len = array_len;
 out:
     return ret;
@@ -1148,10 +1154,10 @@ kastore_print_state(kastore_t *self, FILE *out)
         item = self->items + j;
         fprintf(out,
             "%.*s: type=%d, key_start=%zu, key_len=%zu, key=%p, "
-            "array_start=%zu, array_len=%zu, array=%p\n",
+            "array_start=%zu, array_len=%zu, array=%p, borrowed_array=%p\n",
             (int) item->key_len, item->key, item->type, item->key_start, item->key_len,
-            (void *) item->key, item->array_start, item->array_len,
-            (void *) item->array);
+            (void *) item->key, item->array_start, item->array_len, (void *) item->array,
+            (void *) item->borrowed_array);
     }
     fprintf(out, "============================\n");
 }

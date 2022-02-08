@@ -1,4 +1,11 @@
 ----------------------
+[0.99.16] - 2022-0X-XX
+----------------------
+
+- Make dumping of tables and tree seqences to disk a zero-copy operation.
+  (:user:`benjeffery`, :issue:`2111`, :pr:`2124`)
+
+----------------------
 [0.99.15] - 2021-12-07
 ----------------------
 
