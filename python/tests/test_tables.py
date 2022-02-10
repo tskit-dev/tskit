@@ -3326,6 +3326,10 @@ class TestTableCollection:
         s = str(tables)
         assert len(s) > 0
 
+    def test_nbytes_empty_tables(self):
+        tables = tskit.TableCollection(1)
+        assert tables.nbytes == 119
+
     def test_nbytes(self, tmp_path, ts_fixture):
         tables = ts_fixture.dump_tables()
         tables.dump(tmp_path / "tables")

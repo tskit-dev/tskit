@@ -309,7 +309,12 @@ class TableCollectionIndexes(util.Dataclass):
 
     @property
     def nbytes(self):
-        return self.edge_insertion_order.nbytes + self.edge_removal_order.nbytes
+        total = 0
+        if self.edge_removal_order is not None:
+            total += self.edge_removal_order.nbytes
+        if self.edge_insertion_order is not None:
+            total += self.edge_insertion_order.nbytes
+        return total
 
 
 def keep_with_offset(keep, data, offset):
