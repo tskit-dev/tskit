@@ -3550,7 +3550,7 @@ class TestModuleFunctions:
 
     def test_tskit_version_file(self):
         maj, min_, patch = _tskit.get_tskit_version()
-        with open(f"{tskit.__path__[0]}/../../c/VERSION") as f:
+        with open(f"{tskit.__path__[0]}/../../c/VERSION.txt") as f:
             assert f.read() == f"{maj}.{min_}.{patch}"
 
 
