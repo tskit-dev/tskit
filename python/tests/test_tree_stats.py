@@ -180,7 +180,13 @@ def naive_branch_general_stat(
 
 
 def branch_general_stat(
-    ts, sample_weights, summary_func, windows=None, polarised=False, span_normalise=True
+    ts,
+    sample_weights,
+    summary_func,
+    windows=None,
+    polarised=False,
+    span_normalise=True,
+    cache_summary=True,
 ):
     """
     Efficient implementation of the algorithm used as the basis for the
@@ -200,8 +206,6 @@ def branch_general_stat(
     time = ts.tables.nodes.time
     parent = np.zeros(ts.num_nodes, dtype=np.int32) - 1
     branch_length = np.zeros(ts.num_nodes)
-    # The value of summary_func(u) for every node.
-    summary = np.zeros((ts.num_nodes, result_dim))
     # The result for the current tree *not* weighted by span.
     running_sum = np.zeros(result_dim)
 
@@ -211,20 +215,26 @@ def branch_general_stat(
             s += summary_func(total_weight - state[u])
         return s
 
-    for u in ts.samples():
-        summary[u] = polarised_summary(u)
+    # TODO Make this optional and figure out how to cache inline
+    # The value of summary_func(u) for every node.
+    # summary = np.zeros((ts.num_nodes, result_dim))
+    # for u in ts.samples():
+    #     summary[u] = polarised_summary(u)
+
+    def summary(u):
+        return polarised_summary(u)
 
     window_index = 0
     for (t_left, t_right), edges_out, edges_in in ts.edge_diffs():
         for edge in edges_out:
             u = edge.child
-            running_sum -= branch_length[u] * summary[u]
+            running_sum -= branch_length[u] * summary(u)
             u = edge.parent
             while u != -1:
-                running_sum -= branch_length[u] * summary[u]
+                running_sum -= branch_length[u] * summary(u)
                 state[u] -= state[edge.child]
-                summary[u] = polarised_summary(u)
-                running_sum += branch_length[u] * summary[u]
+                # summary(u) = polarised_summary(u)
+                running_sum += branch_length[u] * summary(u)
                 u = parent[u]
             parent[edge.child] = -1
             branch_length[edge.child] = 0
@@ -233,13 +243,13 @@ def branch_general_stat(
             parent[edge.child] = edge.parent
             branch_length[edge.child] = time[edge.parent] - time[edge.child]
             u = edge.child
-            running_sum += branch_length[u] * summary[u]
+            running_sum += branch_length[u] * summary(u)
             u = edge.parent
             while u != -1:
-                running_sum -= branch_length[u] * summary[u]
+                running_sum -= branch_length[u] * summary(u)
                 state[u] += state[edge.child]
-                summary[u] = polarised_summary(u)
-                running_sum += branch_length[u] * summary[u]
+                # summary(u) = polarised_summary(u)
+                running_sum += branch_length[u] * summary(u)
                 u = parent[u]
 
         # Update the windows
