@@ -139,7 +139,7 @@ This codec places extra restrictions on the schema:
     This sets the binary encoding used for the property.
 
 2. All metadata objects must have fixed properties.
-    This means that they can no additional properties not listed in the schema. Any
+    This means that additional properties not listed in the schema are disallowed. Any
     property that does not have a `default` specified in the schema must be present.
     Default values will be encoded.
 
