@@ -52,7 +52,6 @@ typedef struct {
     int data_type;
     tsk_size_t **offset_array_dest;
     tsk_flags_t options;
-    tsk_size_t *offset_array_mem;
 } read_table_ragged_col_t;
 
 typedef struct {
@@ -155,7 +154,6 @@ cast_offset_array(read_table_ragged_col_t *col, uint32_t *source, tsk_size_t num
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    col->offset_array_mem = dest;
     *col->offset_array_dest = dest;
     for (j = 0; j < len; j++) {
         dest[j] = source[j];
@@ -175,7 +173,7 @@ read_table_ragged_cols(kastore_t *store, tsk_size_t *num_rows,
     read_table_ragged_col_t *col;
     char offset_col_name[TSK_MAX_COL_NAME_LEN];
     bool data_col_present, offset_col_present;
-    void *store_offset_array;
+    void *store_offset_array = NULL;
     tsk_size_t *offset_array;
 
     for (col = cols; col->name != NULL; col++) {
@@ -240,11 +238,14 @@ read_table_ragged_cols(kastore_t *store, tsk_size_t *num_rows,
             }
             if (type == KAS_UINT64) {
                 *col->offset_array_dest = (uint64_t *) store_offset_array;
+                store_offset_array = NULL;
             } else if (type == KAS_UINT32) {
                 ret = cast_offset_array(col, (uint32_t *) store_offset_array, *num_rows);
                 if (ret != 0) {
                     goto out;
                 }
+                tsk_safe_free(store_offset_array);
+                store_offset_array = NULL;
             } else {
                 ret = TSK_ERR_BAD_COLUMN_TYPE;
                 goto out;
@@ -257,6 +258,7 @@ read_table_ragged_cols(kastore_t *store, tsk_size_t *num_rows,
         }
     }
 out:
+    tsk_safe_free(store_offset_array);
     return ret;
 }
 
@@ -329,14 +331,27 @@ out:
 }
 
 static void
-free_read_table_mem(read_table_col_t *TSK_UNUSED(cols),
-    read_table_ragged_col_t *ragged_cols, read_table_property_t *TSK_UNUSED(properties))
+free_read_table_mem(read_table_col_t *cols, read_table_ragged_col_t *ragged_cols,
+    read_table_property_t *properties)
 {
+    read_table_col_t *col;
     read_table_ragged_col_t *ragged_col;
+    read_table_property_t *property;
 
+    if (cols != NULL) {
+        for (col = cols; col->name != NULL; col++) {
+            tsk_safe_free(*(col->array_dest));
+        }
+    }
     if (ragged_cols != NULL) {
         for (ragged_col = ragged_cols; ragged_col->name != NULL; ragged_col++) {
-            tsk_safe_free(ragged_col->offset_array_mem);
+            tsk_safe_free(*(ragged_col->data_array_dest));
+            tsk_safe_free(*(ragged_col->offset_array_dest));
+        }
+    }
+    if (properties != NULL) {
+        for (property = properties; property->name != NULL; property++) {
+            tsk_safe_free(*(property->array_dest));
         }
     }
 }
@@ -1645,11 +1660,11 @@ tsk_individual_table_load(tsk_individual_table_t *self, kastore_t *store)
     };
     read_table_ragged_col_t ragged_cols[] = {
         { "individuals/location", (void **) &location, &location_length, KAS_FLOAT64,
-            &location_offset, 0, NULL },
+            &location_offset, 0 },
         { "individuals/parents", (void **) &parents, &parents_length,
-            TSK_ID_STORAGE_TYPE, &parents_offset, TSK_COL_OPTIONAL, NULL },
+            TSK_ID_STORAGE_TYPE, &parents_offset, TSK_COL_OPTIONAL },
         { "individuals/metadata", (void **) &metadata, &metadata_length, KAS_UINT8,
-            &metadata_offset, 0, NULL },
+            &metadata_offset, 0 },
         { .name = NULL },
     };
     read_table_property_t properties[] = {
@@ -1662,11 +1677,6 @@ tsk_individual_table_load(tsk_individual_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_individual_table_set_columns(self, num_rows, flags, location,
-        location_offset, parents, parents_offset, metadata, metadata_offset);
-    if (ret != 0) {
-        goto out;
-    }
     if (metadata_schema != NULL) {
         ret = tsk_individual_table_set_metadata_schema(
             self, metadata_schema, metadata_schema_length);
@@ -1674,6 +1684,19 @@ tsk_individual_table_load(tsk_individual_table_t *self, kastore_t *store)
             goto out;
         }
     }
+    ret = tsk_individual_table_takeset_columns(self, num_rows, flags, location,
+        location_offset, parents, parents_offset, metadata, metadata_offset);
+    if (ret != 0) {
+        goto out;
+    }
+    flags = NULL;
+    location = NULL;
+    location_offset = NULL;
+    parents = NULL;
+    parents_offset = NULL;
+    metadata = NULL;
+    metadata_offset = NULL;
+
 out:
     free_read_table_mem(cols, ragged_cols, properties);
     return ret;
@@ -2285,7 +2308,7 @@ tsk_node_table_load(tsk_node_table_t *self, kastore_t *store)
     };
     read_table_ragged_col_t ragged_cols[] = {
         { "nodes/metadata", (void **) &metadata, &metadata_length, KAS_UINT8,
-            &metadata_offset, 0, NULL },
+            &metadata_offset, 0 },
         { .name = NULL },
     };
     read_table_property_t properties[] = {
@@ -2298,11 +2321,6 @@ tsk_node_table_load(tsk_node_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_node_table_set_columns(
-        self, num_rows, flags, time, population, individual, metadata, metadata_offset);
-    if (ret != 0) {
-        goto out;
-    }
     if (metadata_schema != NULL) {
         ret = tsk_node_table_set_metadata_schema(
             self, metadata_schema, metadata_schema_length);
@@ -2310,6 +2328,17 @@ tsk_node_table_load(tsk_node_table_t *self, kastore_t *store)
             goto out;
         }
     }
+    ret = tsk_node_table_takeset_columns(
+        self, num_rows, flags, time, population, individual, metadata, metadata_offset);
+    if (ret != 0) {
+        goto out;
+    }
+    flags = NULL;
+    time = NULL;
+    population = NULL;
+    individual = NULL;
+    metadata = NULL;
+    metadata_offset = NULL;
 out:
     free_read_table_mem(cols, ragged_cols, properties);
     return ret;
@@ -2962,7 +2991,7 @@ tsk_edge_table_load(tsk_edge_table_t *self, kastore_t *store)
     };
     read_table_ragged_col_t ragged_cols[] = {
         { "edges/metadata", (void **) &metadata, &metadata_length, KAS_UINT8,
-            &metadata_offset, TSK_COL_OPTIONAL, NULL },
+            &metadata_offset, TSK_COL_OPTIONAL },
         { .name = NULL },
     };
     read_table_property_t properties[] = {
@@ -2975,11 +3004,6 @@ tsk_edge_table_load(tsk_edge_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_edge_table_set_columns(
-        self, num_rows, left, right, parent, child, metadata, metadata_offset);
-    if (ret != 0) {
-        goto out;
-    }
     if (metadata_schema != NULL) {
         ret = tsk_edge_table_set_metadata_schema(
             self, metadata_schema, metadata_schema_length);
@@ -2987,6 +3011,17 @@ tsk_edge_table_load(tsk_edge_table_t *self, kastore_t *store)
             goto out;
         }
     }
+    ret = tsk_edge_table_takeset_columns(
+        self, num_rows, left, right, parent, child, metadata, metadata_offset);
+    if (ret != 0) {
+        goto out;
+    }
+    left = NULL;
+    right = NULL;
+    parent = NULL;
+    child = NULL;
+    metadata = NULL;
+    metadata_offset = NULL;
 out:
     free_read_table_mem(cols, ragged_cols, properties);
     return ret;
@@ -3672,9 +3707,9 @@ tsk_site_table_load(tsk_site_table_t *self, kastore_t *store)
     };
     read_table_ragged_col_t ragged_cols[] = {
         { "sites/ancestral_state", (void **) &ancestral_state, &ancestral_state_length,
-            KAS_UINT8, &ancestral_state_offset, 0, NULL },
+            KAS_UINT8, &ancestral_state_offset, 0 },
         { "sites/metadata", (void **) &metadata, &metadata_length, KAS_UINT8,
-            &metadata_offset, 0, NULL },
+            &metadata_offset, 0 },
         { .name = NULL },
     };
     read_table_property_t properties[] = {
@@ -3687,11 +3722,6 @@ tsk_site_table_load(tsk_site_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_site_table_set_columns(self, num_rows, position, ancestral_state,
-        ancestral_state_offset, metadata, metadata_offset);
-    if (ret != 0) {
-        goto out;
-    }
     if (metadata_schema != NULL) {
         ret = tsk_site_table_set_metadata_schema(
             self, metadata_schema, metadata_schema_length);
@@ -3699,6 +3729,17 @@ tsk_site_table_load(tsk_site_table_t *self, kastore_t *store)
             goto out;
         }
     }
+    ret = tsk_site_table_takeset_columns(self, num_rows, position, ancestral_state,
+        ancestral_state_offset, metadata, metadata_offset);
+    if (ret != 0) {
+        goto out;
+    }
+    position = NULL;
+    ancestral_state = NULL;
+    ancestral_state_offset = NULL;
+    metadata = NULL;
+    metadata_offset = NULL;
+
 out:
     free_read_table_mem(cols, ragged_cols, properties);
     return ret;
@@ -4419,9 +4460,9 @@ tsk_mutation_table_load(tsk_mutation_table_t *self, kastore_t *store)
     };
     read_table_ragged_col_t ragged_cols[] = {
         { "mutations/derived_state", (void **) &derived_state, &derived_state_length,
-            KAS_UINT8, &derived_state_offset, 0, NULL },
+            KAS_UINT8, &derived_state_offset, 0 },
         { "mutations/metadata", (void **) &metadata, &metadata_length, KAS_UINT8,
-            &metadata_offset, 0, NULL },
+            &metadata_offset, 0 },
         { .name = NULL },
     };
     read_table_property_t properties[] = {
@@ -4434,11 +4475,6 @@ tsk_mutation_table_load(tsk_mutation_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_mutation_table_set_columns(self, num_rows, site, node, parent, time,
-        derived_state, derived_state_offset, metadata, metadata_offset);
-    if (ret != 0) {
-        goto out;
-    }
     if (metadata_schema != NULL) {
         ret = tsk_mutation_table_set_metadata_schema(
             self, metadata_schema, metadata_schema_length);
@@ -4446,6 +4482,20 @@ tsk_mutation_table_load(tsk_mutation_table_t *self, kastore_t *store)
             goto out;
         }
     }
+    ret = tsk_mutation_table_takeset_columns(self, num_rows, site, node, parent, time,
+        derived_state, derived_state_offset, metadata, metadata_offset);
+    if (ret != 0) {
+        goto out;
+    }
+    site = NULL;
+    node = NULL;
+    parent = NULL;
+    time = NULL;
+    derived_state = NULL;
+    derived_state_offset = NULL;
+    metadata = NULL;
+    metadata_offset = NULL;
+
 out:
     free_read_table_mem(cols, ragged_cols, properties);
     return ret;
@@ -5056,7 +5106,7 @@ tsk_migration_table_load(tsk_migration_table_t *self, kastore_t *store)
     };
     read_table_ragged_col_t ragged_cols[] = {
         { "migrations/metadata", (void **) &metadata, &metadata_length, KAS_UINT8,
-            &metadata_offset, TSK_COL_OPTIONAL, NULL },
+            &metadata_offset, TSK_COL_OPTIONAL },
         { .name = NULL },
     };
     read_table_property_t properties[] = {
@@ -5069,11 +5119,6 @@ tsk_migration_table_load(tsk_migration_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_migration_table_set_columns(self, num_rows, left, right, node, source,
-        dest, time, metadata, metadata_offset);
-    if (ret != 0) {
-        goto out;
-    }
     if (metadata_schema != NULL) {
         ret = tsk_migration_table_set_metadata_schema(
             self, metadata_schema, metadata_schema_length);
@@ -5081,6 +5126,20 @@ tsk_migration_table_load(tsk_migration_table_t *self, kastore_t *store)
             goto out;
         }
     }
+    ret = tsk_migration_table_takeset_columns(self, num_rows, left, right, node, source,
+        dest, time, metadata, metadata_offset);
+    if (ret != 0) {
+        goto out;
+    }
+    left = NULL;
+    right = NULL;
+    node = NULL;
+    source = NULL;
+    dest = NULL;
+    time = NULL;
+    metadata = NULL;
+    metadata_offset = NULL;
+
 out:
     free_read_table_mem(cols, ragged_cols, properties);
     return ret;
@@ -5594,7 +5653,7 @@ tsk_population_table_load(tsk_population_table_t *self, kastore_t *store)
 
     read_table_ragged_col_t ragged_cols[] = {
         { "populations/metadata", (void **) &metadata, &metadata_length, KAS_UINT8,
-            &metadata_offset, 0, NULL },
+            &metadata_offset, 0 },
         { .name = NULL },
     };
     read_table_property_t properties[] = {
@@ -5607,10 +5666,6 @@ tsk_population_table_load(tsk_population_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_population_table_set_columns(self, num_rows, metadata, metadata_offset);
-    if (ret != 0) {
-        goto out;
-    }
     if (metadata_schema != NULL) {
         ret = tsk_population_table_set_metadata_schema(
             self, metadata_schema, metadata_schema_length);
@@ -5618,6 +5673,14 @@ tsk_population_table_load(tsk_population_table_t *self, kastore_t *store)
             goto out;
         }
     }
+    ret = tsk_population_table_takeset_columns(
+        self, num_rows, metadata, metadata_offset);
+    if (ret != 0) {
+        goto out;
+    }
+    metadata = NULL;
+    metadata_offset = NULL;
+
 out:
     free_read_table_mem(NULL, ragged_cols, properties);
     return ret;
@@ -6200,9 +6263,9 @@ tsk_provenance_table_load(tsk_provenance_table_t *self, kastore_t *store)
 
     read_table_ragged_col_t ragged_cols[] = {
         { "provenances/timestamp", (void **) &timestamp, &timestamp_length, KAS_UINT8,
-            &timestamp_offset, 0, NULL },
+            &timestamp_offset, 0 },
         { "provenances/record", (void **) &record, &record_length, KAS_UINT8,
-            &record_offset, 0, NULL },
+            &record_offset, 0 },
         { .name = NULL },
     };
 
@@ -6210,11 +6273,16 @@ tsk_provenance_table_load(tsk_provenance_table_t *self, kastore_t *store)
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_provenance_table_set_columns(
+    ret = tsk_provenance_table_takeset_columns(
         self, num_rows, timestamp, timestamp_offset, record, record_offset);
     if (ret != 0) {
         goto out;
     }
+    timestamp = NULL;
+    timestamp_offset = NULL;
+    record = NULL;
+    record_offset = NULL;
+
 out:
     free_read_table_mem(NULL, ragged_cols, NULL);
     return ret;
@@ -10760,9 +10828,10 @@ tsk_table_collection_read_format_data(tsk_table_collection_t *self, kastore_t *s
 {
     int ret = 0;
     size_t len;
-    uint32_t *version;
-    int8_t *format_name, *uuid;
-    double *L;
+    uint32_t *version = NULL;
+    int8_t *format_name = NULL;
+    int8_t *uuid = NULL;
+    double *L = NULL;
     char *time_units = NULL;
     char *metadata = NULL;
     char *metadata_schema = NULL;
@@ -10859,7 +10928,6 @@ tsk_table_collection_read_format_data(tsk_table_collection_t *self, kastore_t *s
             goto out;
         }
     }
-
     ret = kastore_containss(store, "metadata");
     if (ret < 0) {
         ret = tsk_set_kas_error(ret);
@@ -10872,11 +10940,12 @@ tsk_table_collection_read_format_data(tsk_table_collection_t *self, kastore_t *s
             ret = tsk_set_kas_error(ret);
             goto out;
         }
-        ret = tsk_table_collection_set_metadata(
+        ret = tsk_table_collection_takeset_metadata(
             self, metadata, (tsk_size_t) metadata_length);
         if (ret != 0) {
             goto out;
         }
+        metadata = NULL;
     }
 
     ret = kastore_containss(store, "metadata_schema");
@@ -10902,6 +10971,13 @@ out:
     if ((ret ^ (1 << TSK_KAS_ERR_BIT)) == KAS_ERR_KEY_NOT_FOUND) {
         ret = TSK_ERR_REQUIRED_COL_NOT_FOUND;
     }
+    tsk_safe_free(version);
+    tsk_safe_free(format_name);
+    tsk_safe_free(uuid);
+    tsk_safe_free(L);
+    tsk_safe_free(time_units);
+    tsk_safe_free(metadata_schema);
+    tsk_safe_free(metadata);
     return ret;
 }
 
@@ -10957,13 +11033,17 @@ tsk_table_collection_load_indexes(tsk_table_collection_t *self, kastore_t *store
             ret = TSK_ERR_FILE_FORMAT;
             goto out;
         }
-        ret = tsk_table_collection_set_indexes(
+        ret = tsk_table_collection_takeset_indexes(
             self, edge_insertion_order, edge_removal_order);
         if (ret != 0) {
             goto out;
         }
     }
+    edge_insertion_order = NULL;
+    edge_removal_order = NULL;
 out:
+    tsk_safe_free(edge_insertion_order);
+    tsk_safe_free(edge_removal_order);
     return ret;
 }
 
@@ -10995,18 +11075,20 @@ tsk_table_collection_load_reference_sequence(
         goto out;
     }
     if (data != NULL) {
-        ret = tsk_reference_sequence_set_data(
+        ret = tsk_reference_sequence_takeset_data(
             &self->reference_sequence, data, (tsk_size_t) data_length);
         if (ret != 0) {
             goto out;
         }
+        data = NULL;
     }
     if (metadata != NULL) {
-        ret = tsk_reference_sequence_set_metadata(
+        ret = tsk_reference_sequence_takeset_metadata(
             &self->reference_sequence, metadata, (tsk_size_t) metadata_length);
         if (ret != 0) {
             goto out;
         }
+        metadata = NULL;
     }
     if (metadata_schema != NULL) {
         ret = tsk_reference_sequence_set_metadata_schema(&self->reference_sequence,
@@ -11024,6 +11106,7 @@ tsk_table_collection_load_reference_sequence(
     }
 
 out:
+    free_read_table_mem(NULL, NULL, properties);
     return ret;
 }
 
@@ -11039,6 +11122,7 @@ tsk_table_collection_loadf_inited(
         || (options & TSK_LOAD_SKIP_REFERENCE_SEQUENCE)) {
         kas_flags = 0;
     }
+    kas_flags = kas_flags | KAS_GET_TAKES_OWNERSHIP;
     ret = kastore_openf(&store, file, "r", kas_flags);
 
     if (ret != 0) {
