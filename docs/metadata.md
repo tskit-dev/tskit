@@ -70,43 +70,216 @@ API, see {ref}`sec_tutorial_metadata_binary`.
 
 In this section we give some examples of how to define metadata
 schemas and how to add metadata to various parts of a tree sequence
-using the Python API.
+using the Python API. For simplicity, these initial examples use the JSON codec
+(see {ref}`sec_metadata_codecs`).
 
 (sec_metadata_examples_top_level)=
 
 ### Top level
 
-```{eval-rst}
-.. todo:: Add examples of top-level metadata. One with the ``permissive_json``
-  schema first to to show the simplest possible way of doing it. Then
-  followed with an example where we describe the metadata also.
+Top level metadata is associated with the tree sequence as a whole, rather than
+any specific table. This is used, for example, by programs such as
+[SLiM](https://github.com/MesserLab/SLiM) to store information about the sort of
+model that was used to generate the tree sequence (but note that detailed information
+used to recreate the tree sequence is better stored in {ref}`sec_provenance`).
+
+Here's an example of adding your own top-level metadata to a tree sequence:
+
+```{code-cell}
+import tskit
+# Define some top-level metadata you might want to add to a tree sequence
+top_level_metadata = {
+    "taxonomy": {"species": "Arabidopsis lyrata", "subspecies": "petraea"},
+    "generation_time": 2,
+}
+
+# Generate a simple tree sequence of one random tree.
+ts = tskit.Tree.generate_random_binary(8, branch_length=10, random_seed=9).tree_sequence
+
+# To edit a tree sequence, first dump it to tables.
+tables = ts.dump_tables()
+
+# Set the metadata schema for the top-level metadata
+tables.metadata_schema = tskit.MetadataSchema.permissive_json()  # simplest schema
+# Set the metadata itself
+tables.metadata = top_level_metadata
+
+ts = tables.tree_sequence()
+print(
+    "The tree sequence is of",
+    ts.metadata["taxonomy"]["species"],
+    "subsp.",
+    ts.metadata["taxonomy"]["subspecies"],
+)
 ```
+
+In this case, the species and subspecies name are self-explanatory, but
+the interpretation of the `generation_time` field is less clear. Setting
+a more precise schema will help other users of your tree sequence:
+
+```{code-cell}
+schema = {
+    "codec": "json",
+    "type": "object",
+    "properties": {
+        "generation_time": {"type": "number", "description": "Generation time in years"},
+    },
+    "additionalProperties": True,  # optional: True by default anyway
+}
+tables.metadata_schema = tskit.MetadataSchema(schema)
+tables.metadata = top_level_metadata  # put the metadata back in
+ts = tables.tree_sequence()
+print(ts.metadata)
+```
+
+Note that the schema here only describes the `generation_time` field. The
+metadata also contains additional fields (such as the species) that are
+not in the schema; this is allowed because `additionalProperties` is `True`
+(assumed by default in the {ref}`sec_metadata_codecs_json` codec, but shown
+above for clarity). 
+
+Explicitly specified fields are *validated* on input, helping to avoid errors.
+For example, setting the generation time to a string will now raise an error:
+
+```{code-cell}
+:tags: ["raises-exception", "output_scroll"]
+tables.metadata = {"generation_time": "two of your earth years"}
+```
+
+:::{note}
+Although we have stored the generation time in metadata, the
+time *units* of a tree sequence should be stored in the 
+{attr}`~TreeSequence.time_units` attribute, not in
+metadata. For example, we could set `tables.time_units = "generations"`.
+:::
 
 (sec_metadata_examples_reference_sequence)=
 
 ### Reference sequence
 
-```{eval-rst}
-.. todo:: Add examples of reference sequence metadata. This should
-  include an example where we declare (or better, use on we define
-  in the library) a standard metadata schema for a species, which
-  defines and documents accession numbers, genome builds, etc.
+Often a genome will be associated with a
+reference sequence for that species. In this case, we might want to
+store not just the species name, but also e.g. the build version of
+the reference sequence, and possibly the reference sequence itself.
+There is built-in support for this in tskit, via the
+{attr}`~tskit.ReferenceSequence.metadata` and
+{attr}`~tskit.ReferenceSequence.metadata_schema` properties
+of the {attr}`TreeSequence.reference_sequence` attribute
+(see the {ref}`sec_data_model_reference_sequence` documentation).
+
+:::{todo}
+Add examples of reference sequence metadata when the API becomes less
+preliminary. This should
+include an example where we declare (or better, use on we define
+in the library) a standard metadata schema for a species, which
+defines and documents accession numbers, genome builds, etc. e.g.
+
+```python
+tables.reference_sequence.metadata_schema = standard_schema
+tables.reference_sequence.metadata = {...}
+ts = tables.tree_sequence()
 ```
+:::
 
 (sec_metadata_examples_tables)=
 
 ### Tables
 
-```{eval-rst}
-.. todo:: Add examples of adding table-level metadata schemas.
+Each table in a tree sequence (apart from the provenance table)
+can have its own metadata, and associated metadata schema.
+
+```{code-cell}
+tables.individuals.metadata_schema = tskit.MetadataSchema.permissive_json()
+tables.individuals.add_row(metadata={"Accession ID": "ABC123"})
+ts = tables.tree_sequence()
+print(",\n           ".join(str(ts.individual(0)).split(", ")))
+
 ```
+
+However, we might want something more descriptive than the default
+{meth}`~MetadataSchema.permissive_json()`. schema. We could create
+a new schema, or modify the existing one. Modification is useful
+if a nontrivial schema has been set already, for example in the
+{ref}`case of populations <msprime:sec_demography_populations_metadata>`
+when the tree sequence has been generated by
+{func}`msprime:msprime.sim_ancestry`.
+
+```{code-cell}
+# Modify an existing schema
+schema_as_python_dict = tables.individuals.metadata_schema.schema
+if "properties" not in schema_as_python_dict:
+    schema_as_python_dict["properties"] = {}
+schema_as_python_dict["properties"]["Accession ID"] = {
+    "type": "string", "description": "An accession ID for this individual"}
+
+# Optional: require an accession id to be specified for all individuals
+if "required" not in schema_as_python_dict:
+    schema_as_python_dict["required"] = []
+schema_as_python_dict["required"].append("Accession ID")
+
+# Set the schema back on the table
+tables.individuals.metadata_schema = tskit.MetadataSchema(schema_as_python_dict)
+
+# Put all the metadata back in, using validate_and_encode_row to validate it
+tables.individuals.packset_metadata([
+    tables.individuals.metadata_schema.validate_and_encode_row(ind.metadata)
+    for ind in tables.individuals
+])
+print("New schema:", tables.individuals.metadata_schema)
+```
+
+
+### Defaults
+
+Since we specified that the `accession_id` property was required in the
+example above, the user *always* has to provide it, otherwise it will
+fail to validate:
+
+```{code-cell}
+:tags: ["raises-exception", "output_scroll"]
+tables.individuals.add_row(metadata={"Comment": "This has no accession ID"})
+```
+
+However, rather than require a user-specified value, we can provide a
+default, which will be returned if the field is absent. In this case the property
+should not be marked as `required`.
+
+```{code-cell}
+new_schema = {
+    "codec": "json",
+    "type": "object",
+    "properties": {
+        "Accession ID": {
+            "type": "string",
+            "description": "An accession ID for this individual",
+            "default": "N/A",  # Default if this property is absent
+        },
+    },
+    "default": {"Accession ID": "N/A"},  # Default if no metadata in this row
+}
+tables.individuals.metadata_schema = tskit.MetadataSchema(new_schema)
+tables.individuals.packset_metadata([
+    tables.individuals.metadata_schema.validate_and_encode_row(ind.metadata)
+    for ind in tables.individuals
+])
+tables.individuals.add_row(metadata={"Comment": "This has no accession ID"})
+ts = tables.tree_sequence()
+
+print("Newly added individual:")
+print(",\n           ".join(str(ts.individual(-1)).split(", ")))
+```
+
+:::{note}
+In the {ref}`sec_metadata_codecs_json` codec, defaults can only
+be set for the shallowest level of the metadata object.
+:::
 
 (sec_metadata_codecs)=
 
 ## Codecs
 
-As the underlying metadata is in raw binary (see
-{ref}`data model <sec_metadata_definition>`) it
+The underlying metadata is in raw binary (see
+{ref}`data model <sec_metadata_definition>`) and so it
 must be encoded and decoded. The C API does not do this, but the Python API will
 use the schema to decode the metadata to Python objects.
 The encoding for doing this is specified in the top-level schema property `codec`.
@@ -114,20 +287,21 @@ Currently the Python API supports the `json` codec which encodes metadata as
 [JSON](https://www.json.org/json-en.html), and the `struct` codec which encodes
 metadata in an efficient schema-defined binary format using {func}`python:struct.pack` .
 
+(sec_metadata_codecs_json)=
 
-### JSON
+### `json`
 
 When `json` is specified as the `codec` in the schema the metadata is encoded in
 the human readable [JSON](https://www.json.org/json-en.html) format. As this format
 is human readable and encodes numbers as text it uses more bytes than the `struct`
 format. However it is simpler to configure as it doesn't require any format specifier
-for each type in the schema. Default values for properties can be specified for only
-the shallowest level of the metadata object. Tskit deviates from standard JSON in that
+for each type in the schema. Tskit deviates from standard JSON in that
 empty metadata is interpreted as an empty object. This is to allow setting of a schema
 to a table with out the need to modify all existing empty rows.
 
+(sec_metadata_codecs_struct)=
 
-### struct
+### `struct`
 
 When `struct` is specifed as the `codec` in the schema the metadata is encoded
 using {func}`python:struct.pack` which results in a compact binary representation which
@@ -380,34 +554,62 @@ As an example here is a schema using the `struct` codec which could apply, for e
 to the individuals in a tree sequence:
 
 ```python
-schema = tskit.MetadataSchema(
-    {
-        "codec": "struct",
-        "type": "object",
-        "properties": {
-            "accession_number": {"type": "integer", "binaryFormat": "i"},
-            "collection_date": {
-                "description": "Date of sample collection in ISO format",
-                "type": "string",
-                "binaryFormat": "10p",
-                "pattern": "^([1-9][0-9]{3})-(1[0-2]|0[1-9])-(3[01]|0[1-9]|[12][0-9])?$",
-            },
+complex_struct_schema = {
+    "codec": "struct",
+    "type": "object",
+    "properties": {
+        "accession_number": {"type": "integer", "binaryFormat": "i"},
+        "collection_date": {
+            "description": "Date of sample collection in ISO format",
+            "type": "string",
+            "binaryFormat": "10p",
+            "pattern": "^([1-9][0-9]{3})-(1[0-2]|0[1-9])-(3[01]|0[1-9]|[12][0-9])?$",
         },
-        "required": ["accession_number", "collection_date"],
-        "additionalProperties": False,
-    }
+        "phenotype": {
+            "description": "Phenotypic measurements on this individual",
+            "type": "object",
+            "properties": {
+                "height": {
+                    "description": "Height in metres, or NaN if unknown",
+                    "type": "number",
+                    "binaryFormat": "f",
+                    "default": float("NaN"),
+                },
+                "age": {
+                    "description": "Age in years at time of sampling, or -1 if unknown",
+                    "type": "number",
+                    "binaryFormat": "h",
+                    "default": -1,
+                },
+            },
+            "default": {},
+        },
+    },
+    "required": ["accession_number", "collection_date"],
+    "additionalProperties": False,
+}
+
+# Demonstrate use
+tables.individuals.clear()
+tables.individuals.metadata_schema = tskit.MetadataSchema(complex_struct_schema)
+tables.individuals.add_row(
+    metadata={"accession_number": 123, "collection_date": "2011-02-11"}
 )
+ts = tables.tree_sequence()
+print(ts.individual(0).metadata)
 ```
 
-This schema states that the metadata for each row of the table
-is an object consisting of two properties. Property `accession_number` is a number
-(stored as a 4-byte int).
+This schema states that the metadata for each row of the table is an object consisting
+of three properties. Property `accession_number` is a number (stored as a 4-byte int).
 Property `collection_date` is a string which must satisfy a regex, which checks it is
-a valid [ISO8601](https://www.iso.org/iso-8601-date-and-time-format.html) date.
-Both properties are required to be specified (this must always be done for the struct codec,
-for the JSON codec properties can be optional).
-Any other properties are not allowed (`additionalProperties` is false), this is also needed
-when using struct.
+a valid [ISO8601](https://www.iso.org/iso-8601-date-and-time-format.html) date. Property
+`phenotype` is itself an object consisting of the properties `height` (a single precision
+floating point number) and age (a 2 byte signed integer).
+Because this is a struct codec, and neither of the the first two properties have a
+default set, they must be marked as "required" (in the JSON codec if no default is given,
+unspecified properties will simply be missing in the returned metadata dictionary).
+Also because this is a struct codec, `additionalProperties` must be set to False. This
+is assumed by default in the struct codec, but has been shown above for clarity.
 
 (sec_metadata_api_overview)=
 
