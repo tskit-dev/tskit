@@ -34,8 +34,8 @@ kas_strerror(int err)
             ret = "Bad open mode; must be \"r\", \"w\", or \"a\"";
             break;
         case KAS_ERR_BAD_FLAGS:
-            ret = "Unknown flags specified. Only (KAS_GET_TAKES_OWNERSHIP, "
-                  "KAS_READ_ALL or ) or 0 can be specified "
+            ret = "Unknown flags specified. Only (KAS_GET_TAKES_OWNERSHIP and/or"
+                  "KAS_READ_ALL) or 0 can be specified "
                   "for open, and KAS_BORROWS_ARRAY or 0 for put";
             break;
         case KAS_ERR_NO_MEMORY:
@@ -683,14 +683,39 @@ kastore_close(kastore_t *self)
     return ret;
 }
 
+static int
+kastore_find_item(kastore_t *self, const char *key, size_t key_len, kaitem_t **item)
+{
+    int ret = KAS_ERR_KEY_NOT_FOUND;
+    kaitem_t search;
+    search.key = (char *) malloc(key_len);
+    search.key_len = key_len;
+
+    if (self->mode != KAS_READ) {
+        ret = KAS_ERR_ILLEGAL_OPERATION;
+        goto out;
+    }
+    if (search.key == NULL) {
+        ret = KAS_ERR_NO_MEMORY;
+        goto out;
+    }
+    memcpy(search.key, key, key_len);
+    *item = bsearch(
+        &search, self->items, self->num_items, sizeof(kaitem_t), compare_items);
+    if (*item == NULL) {
+        goto out;
+    }
+    ret = 0;
+out:
+    kas_safe_free(search.key);
+    return ret;
+}
+
 int KAS_WARN_UNUSED
 kastore_contains(kastore_t *self, const char *key, size_t key_len)
 {
-    void *array;
-    size_t array_len;
-    int type;
-    int ret = kastore_get(self, key, key_len, &array, &array_len, &type);
-
+    kaitem_t *item;
+    int ret = kastore_find_item(self, key, key_len, &item);
     if (ret == 0) {
         ret = 1;
     } else if (ret == KAS_ERR_KEY_NOT_FOUND) {
@@ -709,24 +734,9 @@ int KAS_WARN_UNUSED
 kastore_get(kastore_t *self, const char *key, size_t key_len, void **array,
     size_t *array_len, int *type)
 {
-    int ret = KAS_ERR_KEY_NOT_FOUND;
-    kaitem_t search;
     kaitem_t *item;
-    search.key = (char *) malloc(key_len);
-    search.key_len = key_len;
-
-    if (self->mode != KAS_READ) {
-        ret = KAS_ERR_ILLEGAL_OPERATION;
-        goto out;
-    }
-    if (search.key == NULL) {
-        ret = KAS_ERR_NO_MEMORY;
-        goto out;
-    }
-    memcpy(search.key, key, key_len);
-    item = bsearch(
-        &search, self->items, self->num_items, sizeof(kaitem_t), compare_items);
-    if (item == NULL) {
+    int ret = kastore_find_item(self, key, key_len, &item);
+    if (ret != 0) {
         goto out;
     }
     if (item->array == NULL) {
@@ -743,7 +753,6 @@ kastore_get(kastore_t *self, const char *key, size_t key_len, void **array,
     }
     ret = 0;
 out:
-    kas_safe_free(search.key);
     return ret;
 }
 
@@ -908,13 +917,13 @@ kastore_bput(kastore_t *self, const char *key, size_t key_len, const void *array
     if (ret != 0) {
         goto out;
     }
-    /* TEMP FIX UNTIL NEXT KASTORE RELEASE WITH
-     * https://github.com/tskit-dev/kastore/pull/185 */
     if (array == NULL) {
+        /* Both can't be null, so assign a dummy array */
         item->array = malloc(1);
     } else {
         item->borrowed_array = array;
     }
+    item->borrowed_array = array;
     item->array_len = array_len;
 out:
     return ret;
@@ -1154,10 +1163,10 @@ kastore_print_state(kastore_t *self, FILE *out)
         item = self->items + j;
         fprintf(out,
             "%.*s: type=%d, key_start=%zu, key_len=%zu, key=%p, "
-            "array_start=%zu, array_len=%zu, array=%p, borrowed_array=%p\n",
+            "array_start=%zu, array_len=%zu, array=%p\n",
             (int) item->key_len, item->key, item->type, item->key_start, item->key_len,
-            (void *) item->key, item->array_start, item->array_len, (void *) item->array,
-            (void *) item->borrowed_array);
+            (void *) item->key, item->array_start, item->array_len,
+            (void *) item->array);
     }
     fprintf(out, "============================\n");
 }

@@ -157,7 +157,7 @@ to the API or ABI are introduced, i.e., the addition of a new function.
 The library patch version. Incremented when any changes not relevant to the
 to the API or ABI are introduced, i.e., internal refactors of bugfixes.
 */
-#define KAS_VERSION_PATCH   0
+#define KAS_VERSION_PATCH   1
 /** @} */
 
 #define KAS_HEADER_SIZE             64
@@ -465,7 +465,7 @@ As for :c:func:`kastore_put` except the key must be NULL-terminated C string.
 @param array The array.
 @param array_len The number of elements in the array.
 @param type The type of the array.
-@param flags The insertion flags. Currently unused.
+@param flags The insertion flags, only KAS_BORROWS_ARRAY or 0 is a valid.
 @return Return 0 on success or a negative value on failure.
 */
 int kastore_puts(kastore_t *self, const char *key, const void *array, size_t array_len,
