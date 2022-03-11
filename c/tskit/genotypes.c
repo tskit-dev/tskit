@@ -225,10 +225,8 @@ tsk_variant_init(tsk_variant_t *self, const tsk_treeseq_t *tree_sequence,
         self->sample_index_map = self->alt_sample_index_map;
     }
     /* When a list of samples is given, we use the traversal based algorithm
-     * and turn off the sample list tracking in the tree */
-    if (self->alt_samples == NULL) {
-        /* TODO ERROR OUT IF TSK_SAMPLE_LISTS NOT IN EFFECT */
-    } else {
+     * which doesn't use sample list tracking in the tree */
+    if (self->alt_samples != NULL) {
         self->traversal_stack = tsk_malloc(
             tsk_treeseq_get_num_nodes(tree_sequence) * sizeof(*self->traversal_stack));
         if (self->traversal_stack == NULL) {
@@ -238,8 +236,6 @@ tsk_variant_init(tsk_variant_t *self, const tsk_treeseq_t *tree_sequence,
     }
 
     self->genotypes = tsk_malloc(num_samples_alloc * sizeof(*self->genotypes));
-
-    /* Because genotypes is a union we can check the pointer */
     if (self->genotypes == NULL || self->alleles == NULL
         || self->allele_lengths == NULL) {
         ret = TSK_ERR_NO_MEMORY;
@@ -475,18 +471,29 @@ tsk_variant_get_allele_index(tsk_variant_t *self, const char *allele, tsk_size_t
 }
 
 static int
-tsk_variant_update_site(tsk_variant_t *self)
+tsk_variant_update_site(tsk_variant_t *self, tsk_tree_t *tree, const tsk_site_t *site,
+    tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
     tsk_id_t allele_index;
     tsk_size_t j, num_missing;
     int no_longer_missing;
-    const tsk_site_t *site = self->site;
+
     tsk_mutation_t mutation;
     bool impute_missing = !!(self->options & TSK_ISOLATED_NOT_MISSING);
     bool by_traversal = self->alt_samples != NULL;
     int (*update_genotypes)(tsk_variant_t *, tsk_id_t, tsk_id_t);
     tsk_size_t (*mark_missing)(tsk_variant_t *);
+
+    self->tree = tree;
+    self->site = site;
+
+    /* When we have a no specified samples we need sample lists to be active
+     * on the tree, as indicated by the presence of left_sample */
+    if (!by_traversal && tree->left_sample == NULL) {
+        ret = TSK_ERR_NO_SAMPLE_LISTS;
+        goto out;
+    }
 
     /* For now we use a traversal method to find genotypes when we have a
      * specified set of samples, but we should provide the option to do it
@@ -577,7 +584,6 @@ tsk_vargen_next(tsk_vargen_t *self, tsk_variant_t **variant)
     int ret = 0;
 
     bool not_done = true;
-    const tsk_site_t *site = NULL;
 
     if (!self->finished) {
         while (not_done && self->tree_site_index == self->tree.sites_length) {
@@ -588,14 +594,11 @@ tsk_vargen_next(tsk_vargen_t *self, tsk_variant_t **variant)
             not_done = ret == 1;
         }
         if (not_done) {
-            site = &self->tree.sites[self->tree_site_index];
-            self->variant.tree = &self->tree;
-            self->variant.site = site;
-            ret = tsk_variant_update_site(&self->variant);
+            ret = tsk_tree_get_variant(&self->tree,
+                &self->tree.sites[self->tree_site_index], &self->variant, 0);
             if (ret != 0) {
                 goto out;
             }
-
             self->tree_site_index++;
             *variant = &self->variant;
             ret = 1;
@@ -603,4 +606,11 @@ tsk_vargen_next(tsk_vargen_t *self, tsk_variant_t **variant)
     }
 out:
     return ret;
+}
+
+int
+tsk_tree_get_variant(tsk_tree_t *self, const tsk_site_t *site, tsk_variant_t *variant,
+    tsk_flags_t options)
+{
+    return tsk_variant_update_site(variant, self, site, options);
 }
