@@ -454,7 +454,8 @@ tsk_strerror_internal(int err)
             ret = "Sequence lengths must be identical to compare.";
             break;
         case TSK_ERR_NO_SAMPLE_LISTS:
-            ret = "The sample_lists option must be enabled to perform this operation.";
+            ret = "The sample_lists option must be enabled on the tree to perform this "
+                  "operation.";
             break;
 
         /* Haplotype matching errors */

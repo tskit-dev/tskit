@@ -873,6 +873,136 @@ test_single_tree_silent_mutations(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_multiple_tree_get_variant(void)
+{
+    int ret = 0;
+    int t_ret;
+    tsk_size_t j, k;
+    tsk_size_t s = 0;
+    tsk_treeseq_t ts;
+    tsk_tree_t tree;
+    tsk_variant_t var;
+    tsk_variant_t var_subset;
+    tsk_id_t samples[] = { 0, 1, 3 };
+    int32_t genos[12];
+    int32_t genos_expected[] = { 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1 };
+    int32_t genos_subset[9];
+    int32_t genos_expected_subset[] = { 0, 0, 0, 1, 0, 0, 0, 1, 1 };
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
+
+    /* Sample subset, no sample lists */
+    ret = tsk_variant_init(&var_subset, &ts, samples, 3, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_init(&tree, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    for (t_ret = tsk_tree_first(&tree); t_ret == 1; t_ret = tsk_tree_next(&tree)) {
+        for (j = 0; j < tree.sites_length; j++) {
+            ret = tsk_tree_get_variant(&tree, &tree.sites[j], &var_subset, 0);
+            CU_ASSERT_EQUAL_FATAL(ret, 0);
+            for (k = 0; k < 3; ++k) {
+                genos_subset[k + (s * 3)] = var_subset.genotypes[k];
+            }
+            ++s;
+        }
+    }
+    CU_ASSERT_EQUAL(
+        0, memcmp(genos_subset, genos_expected_subset, sizeof(genos_expected_subset)));
+    tsk_tree_free(&tree);
+    memset(genos_subset, 0, sizeof(genos_subset));
+
+    /* All samples with TSK_SAMPLE_LISTS, at the same time as a subset */
+    s = 0;
+    ret = tsk_variant_init(&var, &ts, NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_init(&tree, &ts, TSK_SAMPLE_LISTS);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    for (t_ret = tsk_tree_first(&tree); t_ret == 1; t_ret = tsk_tree_next(&tree)) {
+        for (j = 0; j < tree.sites_length; j++) {
+            ret = tsk_tree_get_variant(&tree, &tree.sites[j], &var, 0);
+            CU_ASSERT_EQUAL_FATAL(ret, 0);
+            for (k = 0; k < 4; ++k) {
+                genos[k + (s * 4)] = var.genotypes[k];
+            }
+            ret = tsk_tree_get_variant(&tree, &tree.sites[j], &var_subset, 0);
+            CU_ASSERT_EQUAL_FATAL(ret, 0);
+            for (k = 0; k < 3; ++k) {
+                genos_subset[k + (s * 3)] = var_subset.genotypes[k];
+            }
+            s++;
+        }
+    }
+    CU_ASSERT_EQUAL(0, memcmp(genos, genos_expected, sizeof(genos_expected)));
+    tsk_variant_free(&var);
+    tsk_variant_free(&var_subset);
+    tsk_tree_free(&tree);
+
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_tree_get_variant_errors(void)
+{
+    int ret = 0;
+    tsk_treeseq_t ts;
+    tsk_tree_t tree;
+    tsk_variant_t var;
+    tsk_id_t samples[] = { 0, 1, 3 };
+    tsk_id_t bad_samples[] = { 0, 1, 32 };
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
+
+    /* If no samples are specified then TSK_SAMPLE_LISTS should be on the tree*/
+    ret = tsk_variant_init(&var, &ts, NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_init(&tree, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&tree);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    ret = tsk_tree_get_variant(&tree, &tree.sites[0], &var, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NO_SAMPLE_LISTS);
+    tsk_tree_free(&tree);
+    tsk_variant_free(&var);
+
+    /* If samples are specified then and TSK_SAMPLE_LISTS is redundantly specified
+       it still works.
+    */
+    ret = tsk_variant_init(&var, &ts, samples, 3, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_init(&tree, &ts, TSK_SAMPLE_LISTS);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&tree);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    ret = tsk_tree_get_variant(&tree, &tree.sites[0], &var, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_tree_free(&tree);
+    tsk_variant_free(&var);
+
+    /* Check other tree flags don't effect variant
+     */
+    ret = tsk_variant_init(&var, &ts, NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_init(&tree, &ts, TSK_SAMPLE_LISTS | TSK_NO_SAMPLE_COUNTS);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&tree);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    ret = tsk_tree_get_variant(&tree, &tree.sites[0], &var, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_tree_free(&tree);
+    tsk_variant_free(&var);
+
+    ret = tsk_variant_init(&var, &ts, bad_samples, 3, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_OUT_OF_BOUNDS);
+    tsk_variant_free(&var);
+
+    tsk_treeseq_free(&ts);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -892,6 +1022,8 @@ main(int argc, char **argv)
         { "test_single_tree_subsample", test_single_tree_subsample },
         { "test_single_tree_many_alleles", test_single_tree_many_alleles },
         { "test_single_tree_silent_mutations", test_single_tree_silent_mutations },
+        { "test_multiple_tree_get_variant", test_multiple_tree_get_variant },
+        { "test_tree_get_variant_errors", test_tree_get_variant_errors },
         { NULL, NULL },
     };
 
