@@ -151,7 +151,10 @@ typedef struct {
 typedef struct {
     PyObject_HEAD
     TreeSequence *tree_sequence;
-    tsk_vargen_t *variant_generator;
+    tsk_variant_t *variant;
+    tsk_tree_t *tree;
+    bool finished;
+    tsk_size_t tree_site_index;
 } VariantGenerator;
 
 typedef struct {
@@ -586,8 +589,6 @@ make_variant(tsk_variant_t *variant, tsk_size_t num_samples)
     PyObject *alleles = make_alleles(variant);
     PyArrayObject *genotypes = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT32);
 
-    /* TODO update this to account for 16 bit variants when we provide the
-     * high-level interface. */
     if (genotypes == NULL || alleles == NULL) {
         goto out;
     }
@@ -11178,7 +11179,7 @@ static int
 VariantGenerator_check_state(VariantGenerator *self)
 {
     int ret = 0;
-    if (self->variant_generator == NULL) {
+    if (self->variant == NULL || self->tree == NULL) {
         PyErr_SetString(PyExc_SystemError, "converter not initialised");
         ret = -1;
     }
@@ -11188,10 +11189,15 @@ VariantGenerator_check_state(VariantGenerator *self)
 static void
 VariantGenerator_dealloc(VariantGenerator *self)
 {
-    if (self->variant_generator != NULL) {
-        tsk_vargen_free(self->variant_generator);
-        PyMem_Free(self->variant_generator);
-        self->variant_generator = NULL;
+    if (self->variant != NULL) {
+        tsk_variant_free(self->variant);
+        PyMem_Free(self->variant);
+        self->variant = NULL;
+    }
+    if (self->tree != NULL) {
+        tsk_tree_free(self->tree);
+        PyMem_Free(self->tree);
+        self->tree = NULL;
     }
     Py_XDECREF(self->tree_sequence);
     Py_TYPE(self)->tp_free((PyObject *) self);
@@ -11215,8 +11221,10 @@ VariantGenerator_init(VariantGenerator *self, PyObject *args, PyObject *kwds)
     npy_intp *shape;
     tsk_flags_t options = 0;
 
-    /* TODO add option for 16 bit genotypes */
-    self->variant_generator = NULL;
+    self->finished = false;
+    self->tree_site_index = 0;
+    self->variant = NULL;
+    self->tree = NULL;
     self->tree_sequence = NULL;
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|OiO", kwlist, &TreeSequenceType,
             &tree_sequence, &samples_input, &isolated_as_missing, &py_alleles)) {
@@ -11246,17 +11254,33 @@ VariantGenerator_init(VariantGenerator *self, PyObject *args, PyObject *kwds)
             goto out;
         }
     }
-    self->variant_generator = PyMem_Malloc(sizeof(tsk_vargen_t));
-    if (self->variant_generator == NULL) {
+    self->variant = PyMem_Malloc(sizeof(tsk_variant_t));
+    if (self->variant == NULL) {
         PyErr_NoMemory();
         goto out;
     }
-    /* Note: the vargen currently takes a copy of the samples list. If we wanted
+    self->tree = PyMem_Malloc(sizeof(tsk_tree_t));
+    if (self->tree == NULL) {
+        PyErr_NoMemory();
+        goto out;
+    }
+    /* Note: the variant currently takes a copy of the samples list. If we wanted
      * to avoid this we would INCREF the samples array above and keep a reference
      * to in the object struct */
-    err = tsk_vargen_init(self->variant_generator, self->tree_sequence->tree_sequence,
-        samples, num_samples, alleles, options);
+    err = tsk_variant_init(self->variant, self->tree_sequence->tree_sequence, samples,
+        num_samples, alleles, options);
     if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    err = tsk_tree_init(self->tree, self->tree_sequence->tree_sequence,
+        samples == NULL ? TSK_SAMPLE_LISTS : 0);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    err = tsk_tree_first(self->tree);
+    if (err < 0) {
         handle_library_error(err);
         goto out;
     }
@@ -11271,19 +11295,40 @@ static PyObject *
 VariantGenerator_next(VariantGenerator *self)
 {
     PyObject *ret = NULL;
-    tsk_variant_t *var;
-    int err;
+    int err = 0;
+    bool not_done = true;
 
     if (VariantGenerator_check_state(self) != 0) {
         goto out;
     }
-    err = tsk_vargen_next(self->variant_generator, &var);
-    if (err < 0) {
-        handle_library_error(err);
-        goto out;
+
+    if (!self->finished) {
+        while (not_done && self->tree_site_index == self->tree->sites_length) {
+            err = tsk_tree_next(self->tree);
+            if (err == 0) {
+                self->finished = 1;
+            }
+
+            if (err < 0) {
+                handle_library_error(err);
+                goto out;
+            }
+            self->tree_site_index = 0;
+            not_done = err == 1;
+        }
+        if (not_done) {
+            err = tsk_tree_get_variant(
+                self->tree, &self->tree->sites[self->tree_site_index], self->variant, 0);
+            if (err != 0) {
+                goto out;
+            }
+            self->tree_site_index++;
+            err = 1;
+        }
     }
+
     if (err == 1) {
-        ret = make_variant(var, var->num_samples);
+        ret = make_variant(self->variant, self->variant->num_samples);
     }
 out:
     return ret;
