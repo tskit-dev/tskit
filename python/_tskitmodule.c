@@ -9280,19 +9280,22 @@ TreeSequence_get_genotype_matrix(TreeSequence *self, PyObject *args, PyObject *k
 {
     PyObject *ret = NULL;
     static char *kwlist[] = { "isolated_as_missing", "alleles", NULL };
-    int err;
+    int err, t_ret;
     tsk_size_t num_sites;
     tsk_size_t num_samples;
     npy_intp dims[2];
     PyObject *py_alleles = Py_None;
     PyArrayObject *genotype_matrix = NULL;
-    tsk_vargen_t *vg = NULL;
+    tsk_variant_t variant;
+    tsk_tree_t tree;
     int32_t *V;
-    tsk_variant_t *variant;
-    tsk_size_t j;
+    tsk_size_t j, site;
     int isolated_as_missing = 1;
     const char **alleles = NULL;
     tsk_flags_t options = 0;
+
+    memset(&tree, 0, sizeof(tree));
+    memset(&variant, 0, sizeof(variant));
 
     if (TreeSequence_check_state(self) != 0) {
         goto out;
@@ -9324,32 +9327,36 @@ TreeSequence_get_genotype_matrix(TreeSequence *self, PyObject *args, PyObject *k
         goto out;
     }
     V = (int32_t *) PyArray_DATA(genotype_matrix);
-    vg = PyMem_Malloc(sizeof(tsk_vargen_t));
-    if (vg == NULL) {
-        PyErr_NoMemory();
-        goto out;
-    }
-    err = tsk_vargen_init(vg, self->tree_sequence, NULL, 0, alleles, options);
+    err = tsk_variant_init(&variant, self->tree_sequence, NULL, 0, alleles, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
     }
-    j = 0;
-    while ((err = tsk_vargen_next(vg, &variant)) == 1) {
-        memcpy(V + (j * num_samples), variant->genotypes, num_samples * sizeof(int32_t));
-        j++;
-    }
+    err = tsk_tree_init(&tree, self->tree_sequence, TSK_SAMPLE_LISTS);
     if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    site = 0;
+    for (t_ret = tsk_tree_first(&tree); t_ret == 1; t_ret = tsk_tree_next(&tree)) {
+        for (j = 0; j < tree.sites_length; j++) {
+            err = tsk_tree_get_variant(&tree, &tree.sites[j], &variant, 0);
+            if (err != 0) {
+                handle_library_error(err);
+                goto out;
+            }
+            memcpy(V + (site * num_samples), variant.genotypes,
+                num_samples * sizeof(int32_t));
+            site++;
+        }
+    }
+    if (t_ret < 0) {
         handle_library_error(err);
         goto out;
     }
     ret = (PyObject *) genotype_matrix;
     genotype_matrix = NULL;
 out:
-    if (vg != NULL) {
-        tsk_vargen_free(vg);
-        PyMem_Free(vg);
-    }
     Py_XDECREF(genotype_matrix);
     PyMem_Free(alleles);
     return ret;
