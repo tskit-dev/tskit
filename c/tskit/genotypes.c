@@ -142,6 +142,9 @@ tsk_variant_init(tsk_variant_t *self, const tsk_treeseq_t *tree_sequence,
 
     tsk_memset(self, 0, sizeof(tsk_variant_t));
 
+    /* Set site id to NULL to indicate the variant is not decoded */
+    self->site.id = TSK_NULL;
+
     self->tree_sequence = tree_sequence;
     ret = tsk_tree_init(
         &self->tree, tree_sequence, samples == NULL ? TSK_SAMPLE_LISTS : 0);

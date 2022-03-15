@@ -157,6 +157,12 @@ typedef struct {
 typedef struct {
     PyObject_HEAD
     TreeSequence *tree_sequence;
+    tsk_variant_t *variant;
+} Variant;
+
+typedef struct {
+    PyObject_HEAD
+    TreeSequence *tree_sequence;
     tsk_ld_calc_t *ld_calc;
 } LdCalculator;
 
@@ -11296,6 +11302,221 @@ static PyTypeObject VariantGeneratorType = {
 };
 
 /*===================================================================
+ * Variant
+ *===================================================================
+ */
+
+static int
+Variant_check_state(Variant *self)
+{
+    int ret = 0;
+    if (self->variant == NULL) {
+        PyErr_SetString(PyExc_SystemError, "variant not initialised");
+        ret = -1;
+    }
+    return ret;
+}
+
+static void
+Variant_dealloc(Variant *self)
+{
+    if (self->variant != NULL) {
+        tsk_variant_free(self->variant);
+        PyMem_Free(self->variant);
+        self->variant = NULL;
+    }
+    Py_XDECREF(self->tree_sequence);
+    Py_TYPE(self)->tp_free((PyObject *) self);
+}
+
+static int
+Variant_init(Variant *self, PyObject *args, PyObject *kwds)
+{
+    int ret = -1;
+    int err;
+    static char *kwlist[]
+        = { "tree_sequence", "samples", "isolated_as_missing", "alleles", NULL };
+    TreeSequence *tree_sequence = NULL;
+    PyObject *samples_input = Py_None;
+    PyObject *py_alleles = Py_None;
+    PyArrayObject *samples_array = NULL;
+    tsk_id_t *samples = NULL;
+    tsk_size_t num_samples = 0;
+    int isolated_as_missing = 1;
+    const char **alleles = NULL;
+    npy_intp *shape;
+    tsk_flags_t options = 0;
+
+    self->variant = NULL;
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|OiO", kwlist, &TreeSequenceType,
+            &tree_sequence, &samples_input, &isolated_as_missing, &py_alleles)) {
+        goto out;
+    }
+    if (!isolated_as_missing) {
+        options |= TSK_ISOLATED_NOT_MISSING;
+    }
+    /* tsk_variant_t holds a reference to the tree sequence so we must too*/
+    self->tree_sequence = tree_sequence;
+    Py_INCREF(self->tree_sequence);
+    if (TreeSequence_check_state(self->tree_sequence) != 0) {
+        goto out;
+    }
+    if (samples_input != Py_None) {
+        samples_array = (PyArrayObject *) PyArray_FROMANY(
+            samples_input, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
+        if (samples_array == NULL) {
+            goto out;
+        }
+        shape = PyArray_DIMS(samples_array);
+        num_samples = (tsk_size_t) shape[0];
+        samples = PyArray_DATA(samples_array);
+    }
+    if (py_alleles != Py_None) {
+        alleles = parse_allele_list(py_alleles);
+        if (alleles == NULL) {
+            goto out;
+        }
+    }
+    self->variant = PyMem_Malloc(sizeof(tsk_vargen_t));
+    if (self->variant == NULL) {
+        PyErr_NoMemory();
+        goto out;
+    }
+    /* Note: the variant currently takes a copy of the samples list. If we wanted
+     * to avoid this we would INCREF the samples array above and keep a reference
+     * to in the object struct */
+    err = tsk_variant_init(self->variant, self->tree_sequence->tree_sequence, samples,
+        num_samples, alleles, options);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = 0;
+out:
+    PyMem_Free(alleles);
+    Py_XDECREF(samples_array);
+    return ret;
+}
+
+static PyObject *
+Variant_decode(Variant *self, PyObject *args, PyObject *kwds)
+{
+    int err;
+    PyObject *ret = NULL;
+    tsk_id_t site_id;
+    static char *kwlist[] = { "site", NULL };
+
+    if (Variant_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(
+            args, kwds, "O&", kwlist, &tsk_id_converter, &site_id)) {
+        goto out;
+    }
+    err = tsk_variant_decode(self->variant, site_id, 0);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
+static PyObject *
+Variant_get_site_id(Variant *self, void *closure)
+{
+    PyObject *ret = NULL;
+    if (Variant_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue("n", (Py_ssize_t) self->variant->site.id);
+out:
+    return ret;
+}
+
+static PyObject *
+Variant_get_alleles(Variant *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (Variant_check_state(self) != 0) {
+        goto out;
+    }
+    ret = make_alleles(self->variant);
+out:
+    return ret;
+}
+
+static PyObject *
+Variant_get_genotypes(Variant *self, void *closure)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *array = NULL;
+    npy_intp dims;
+
+    if (Variant_check_state(self) != 0) {
+        goto out;
+    }
+
+    dims = self->variant->num_samples;
+    array = (PyArrayObject *) PyArray_SimpleNewFromData(
+        1, &dims, NPY_INT32, self->variant->genotypes);
+    if (array == NULL) {
+        goto out;
+    }
+    PyArray_CLEARFLAGS(array, NPY_ARRAY_WRITEABLE);
+    if (PyArray_SetBaseObject(array, (PyObject *) self) != 0) {
+        goto out;
+    }
+    /* PyArray_SetBaseObject steals a reference, so we have to incref the variant
+     * object. This makes sure that the Variant instance will stay alive if there
+     * are any arrays that refer to its memory. */
+    Py_INCREF(self);
+    ret = (PyObject *) array;
+    array = NULL;
+out:
+    Py_XDECREF(array);
+    return ret;
+}
+
+static PyGetSetDef Variant_getsetters[]
+    = { { .name = "site_id",
+            .get = (getter) Variant_get_site_id,
+            .doc = "The site id that the Variant is decoded at" },
+          { .name = "alleles",
+              .get = (getter) Variant_get_alleles,
+              .doc = "The alleles of the Variant" },
+          { .name = "genotypes",
+              .get = (getter) Variant_get_genotypes,
+              .doc = "The genotypes of the Variant" },
+          { NULL } };
+
+static PyMethodDef Variant_methods[] = {
+    { .ml_name = "decode",
+        .ml_meth = (PyCFunction) Variant_decode,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Sets the variant's genotypes to those of a given tree and site" },
+    { NULL } /* Sentinel */
+};
+
+static PyTypeObject VariantType = {
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.Variant",
+    .tp_basicsize = sizeof(Variant),
+    .tp_dealloc = (destructor) Variant_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = "Variant objects",
+    .tp_methods = Variant_methods,
+    .tp_getset = Variant_getsetters,
+    .tp_init = (initproc) Variant_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
+};
+
+/*===================================================================
  * LdCalculator
  *===================================================================
  */
@@ -12275,6 +12496,13 @@ PyInit__tskit(void)
     }
     Py_INCREF(&VariantGeneratorType);
     PyModule_AddObject(module, "VariantGenerator", (PyObject *) &VariantGeneratorType);
+
+    /* Variant type */
+    if (PyType_Ready(&VariantType) < 0) {
+        return NULL;
+    }
+    Py_INCREF(&VariantType);
+    PyModule_AddObject(module, "Variant", (PyObject *) &VariantType);
 
     /* LdCalculator type */
     if (PyType_Ready(&LdCalculatorType) < 0) {
