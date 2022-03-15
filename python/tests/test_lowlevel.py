@@ -2333,6 +2333,105 @@ class TestVariantGenerator(LowLevelTestCase):
         assert alleles == ("A", None)
 
 
+class TestVariant(LowLevelTestCase):
+    """
+    Tests for the Variant class.
+    """
+
+    def test_uninitialised_tree_sequence(self):
+        ts = _tskit.TreeSequence()
+        with pytest.raises(ValueError):
+            _tskit.Variant(ts)
+
+    def test_constructor(self):
+        with pytest.raises(TypeError):
+            _tskit.Variant()
+        with pytest.raises(TypeError):
+            _tskit.Variant(None)
+        ts = self.get_example_tree_sequence()
+        with pytest.raises(ValueError):
+            _tskit.Variant(ts, samples={})
+        with pytest.raises(TypeError):
+            _tskit.Variant(ts, isolated_as_missing=None)
+        with pytest.raises(_tskit.LibraryError):
+            _tskit.Variant(ts, samples=[-1, 2])
+        with pytest.raises(TypeError):
+            _tskit.Variant(ts, alleles=1234)
+
+    def test_bad_decode(self):
+        ts = self.get_example_tree_sequence()
+        variant = _tskit.Variant(ts)
+        with pytest.raises(tskit.LibraryError, match="Site out of bounds"):
+            variant.decode(-1)
+        with pytest.raises(TypeError):
+            variant.decode("42")
+        with pytest.raises(TypeError):
+            variant.decode({})
+        with pytest.raises(TypeError):
+            variant.decode()
+
+    def test_alleles(self):
+        ts = self.get_example_tree_sequence()
+        for bad_type in [["a", "b"], "sdf", 234]:
+            with pytest.raises(TypeError):
+                _tskit.Variant(ts, samples=[1, 2], alleles=bad_type)
+        with pytest.raises(ValueError):
+            _tskit.Variant(ts, samples=[1, 2], alleles=tuple())
+
+        for bad_allele_type in [None, 0, b"x", []]:
+            with pytest.raises(TypeError):
+                _tskit.Variant(ts, samples=[1, 2], alleles=(bad_allele_type,))
+
+    def test_undecoded(self):
+        tables = _tskit.TableCollection(1)
+        tables.build_index()
+        ts = _tskit.TreeSequence(0)
+        ts.load_tables(tables)
+        variant = _tskit.Variant(ts)
+        assert variant.site_id == tskit.NULL
+        assert np.array_equal(variant.genotypes, [])
+        assert variant.alleles == ()
+
+    def test_properties_unwritable(self):
+        ts = self.get_example_tree_sequence()
+        variant = _tskit.Variant(ts)
+        with pytest.raises(AttributeError):
+            variant.site_id = 1
+        with pytest.raises(AttributeError):
+            variant.genotypes = [1]
+        with pytest.raises(AttributeError):
+            variant.alleles = "A"
+
+    def test_missing_data(self):
+        tables = _tskit.TableCollection(1)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.nodes.add_row(flags=1, time=0)
+        tables.sites.add_row(0.1, "A")
+        tables.build_index()
+        ts = _tskit.TreeSequence(0)
+        ts.load_tables(tables)
+        variant = _tskit.Variant(ts)
+        variant.decode(0)
+        assert variant.site_id == 0
+        assert np.array_equal(variant.genotypes, [-1, -1])
+        assert variant.alleles == ("A", None)
+
+    def test_variants_lifecycle(self):
+        ts = self.get_example_tree_sequence(random_seed=42)
+        variant = _tskit.Variant(ts)
+        variant.decode(0)
+        genotypes = variant.genotypes
+        expected = [1, 0, 0, 1, 0, 0, 0, 0, 1, 1]
+        assert np.array_equal(genotypes, expected)
+        del variant
+        assert np.array_equal(genotypes, expected)
+        variant = _tskit.Variant(ts)
+        del ts
+        variant.decode(0)
+        del variant
+        assert np.array_equal(genotypes, expected)
+
+
 class TestLdCalculator(LowLevelTestCase):
     """
     Tests for the LdCalculator class.
