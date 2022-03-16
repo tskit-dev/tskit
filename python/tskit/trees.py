@@ -6673,10 +6673,10 @@ class TreeSequence:
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
         :param bool span_normalise: Whether to divide the result by the span of the
-            window (defaults to True).
-        :param bool proportion: Whether to divide the result by
-            :meth:`.segregating_sites`, called with the same ``windows`` and
-            ``mode`` (defaults to True). Note that this counts sites
+            window (defaults to True). Has no effect if ``proportion`` is True.
+        :param bool proportion: Defaults to True.  Whether to divide the result by
+            :meth:`.segregating_sites`, called with the same ``windows``,
+            ``mode``, and ``span_normalise``. Note that this counts sites
             that are segregating between *any* of the samples of *any* of the
             sample sets (rather than segregating between all of the samples of
             the tree sequence).
