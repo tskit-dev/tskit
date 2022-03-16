@@ -36,7 +36,7 @@ extern "C" {
 
 typedef struct {
     const tsk_site_t *site;
-    tsk_tree_t *tree;
+    tsk_tree_t tree;
     const char **alleles;
     tsk_size_t *allele_lengths;
     tsk_size_t num_alleles;
@@ -60,17 +60,15 @@ typedef struct {
 
 typedef struct {
     const tsk_treeseq_t *tree_sequence;
-    tsk_size_t tree_site_index;
-    int finished;
-    tsk_tree_t tree;
+    tsk_id_t site_index;
     tsk_variant_t variant;
 } tsk_vargen_t;
 
 int tsk_variant_init(tsk_variant_t *self, const tsk_treeseq_t *tree_sequence,
     const tsk_id_t *samples, tsk_size_t num_samples, const char **alleles,
     tsk_flags_t options);
-int tsk_tree_get_variant(tsk_tree_t *self, const tsk_site_t *site,
-    tsk_variant_t *variant, tsk_flags_t options);
+int tsk_variant_decode(
+    tsk_variant_t *self, const tsk_site_t *site, tsk_flags_t TSK_UNUSED(options));
 int tsk_variant_free(tsk_variant_t *self);
 void tsk_variant_print_state(const tsk_variant_t *self, FILE *out);
 

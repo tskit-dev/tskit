@@ -9280,21 +9280,20 @@ TreeSequence_get_genotype_matrix(TreeSequence *self, PyObject *args, PyObject *k
 {
     PyObject *ret = NULL;
     static char *kwlist[] = { "isolated_as_missing", "alleles", NULL };
-    int err, t_ret;
+    int err;
     tsk_size_t num_sites;
     tsk_size_t num_samples;
     npy_intp dims[2];
     PyObject *py_alleles = Py_None;
     PyArrayObject *genotype_matrix = NULL;
     tsk_variant_t variant;
-    tsk_tree_t tree;
+    tsk_site_t site;
     int32_t *V;
-    tsk_size_t j, site;
+    tsk_size_t j;
     int isolated_as_missing = 1;
     const char **alleles = NULL;
     tsk_flags_t options = 0;
 
-    memset(&tree, 0, sizeof(tree));
     memset(&variant, 0, sizeof(variant));
 
     if (TreeSequence_check_state(self) != 0) {
@@ -9332,27 +9331,19 @@ TreeSequence_get_genotype_matrix(TreeSequence *self, PyObject *args, PyObject *k
         handle_library_error(err);
         goto out;
     }
-    err = tsk_tree_init(&tree, self->tree_sequence, TSK_SAMPLE_LISTS);
-    if (err != 0) {
-        handle_library_error(err);
-        goto out;
-    }
-    site = 0;
-    for (t_ret = tsk_tree_first(&tree); t_ret == 1; t_ret = tsk_tree_next(&tree)) {
-        for (j = 0; j < tree.sites_length; j++) {
-            err = tsk_tree_get_variant(&tree, &tree.sites[j], &variant, 0);
-            if (err != 0) {
-                handle_library_error(err);
-                goto out;
-            }
-            memcpy(V + (site * num_samples), variant.genotypes,
-                num_samples * sizeof(int32_t));
-            site++;
+    num_sites = tsk_treeseq_get_num_sites(self->tree_sequence);
+    for (j = 0; j < num_sites; j++) {
+        err = tsk_treeseq_get_site(self->tree_sequence, j, &site);
+        if (err != 0) {
+            handle_library_error(err);
+            goto out;
         }
-    }
-    if (t_ret < 0) {
-        handle_library_error(err);
-        goto out;
+        err = tsk_variant_decode(&variant, &site, 0);
+        if (err != 0) {
+            handle_library_error(err);
+            goto out;
+        }
+        memcpy(V + (j * num_samples), variant.genotypes, num_samples * sizeof(int32_t));
     }
     ret = (PyObject *) genotype_matrix;
     genotype_matrix = NULL;
@@ -11222,7 +11213,6 @@ VariantGenerator_init(VariantGenerator *self, PyObject *args, PyObject *kwds)
     npy_intp *shape;
     tsk_flags_t options = 0;
 
-    /* TODO add option for 16 bit genotypes */
     self->variant_generator = NULL;
     self->tree_sequence = NULL;
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|OiO", kwlist, &TreeSequenceType,
