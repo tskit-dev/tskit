@@ -7,6 +7,10 @@
 - Change the type of genotypes to ``int32_t``, removing the TSK_16_BIT_GENOTYPES flag option.
   (:user:`benjeffery`, :issue:`463`, :pr:`2108`)
 
+- ``tsk_variant_t`` now includes its ``tsk_site_t`` rather than pointing to it. 
+  (:user:`benjeffery`, :issue:`2161`, :pr:`2162`)
+
+
 **Features**
 
 - Make dumping of tables and tree sequences to disk a zero-copy operation.

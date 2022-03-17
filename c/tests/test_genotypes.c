@@ -47,7 +47,7 @@ test_simplest_missing_data(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_EQUAL(var->site.position, 0.0);
     CU_ASSERT_TRUE(var->has_missing_data);
     CU_ASSERT_EQUAL(var->genotypes[0], TSK_MISSING_DATA);
     CU_ASSERT_EQUAL(var->genotypes[1], TSK_MISSING_DATA);
@@ -59,7 +59,7 @@ test_simplest_missing_data(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_EQUAL(var->site.position, 0.0);
     CU_ASSERT_FALSE(var->has_missing_data);
     CU_ASSERT_EQUAL(var->genotypes[0], 0);
     CU_ASSERT_EQUAL(var->genotypes[1], 0);
@@ -91,7 +91,7 @@ test_simplest_missing_data_user_alleles(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_EQUAL(var->site.position, 0.0);
     CU_ASSERT_TRUE(var->has_missing_data);
     CU_ASSERT_EQUAL(var->genotypes[0], TSK_MISSING_DATA);
     CU_ASSERT_EQUAL(var->genotypes[1], TSK_MISSING_DATA);
@@ -103,7 +103,7 @@ test_simplest_missing_data_user_alleles(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_EQUAL(var->site.position, 0.0);
     CU_ASSERT_TRUE(var->has_missing_data);
     CU_ASSERT_EQUAL(var->genotypes[0], TSK_MISSING_DATA);
     ret = tsk_vargen_next(&vargen, &var);
@@ -114,7 +114,7 @@ test_simplest_missing_data_user_alleles(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_EQUAL(var->site.position, 0.0);
     CU_ASSERT_FALSE(var->has_missing_data);
     CU_ASSERT_EQUAL(var->genotypes[0], 0);
     CU_ASSERT_EQUAL(var->genotypes[1], 0);
@@ -148,7 +148,7 @@ test_simplest_missing_data_mutations(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_EQUAL(var->site.position, 0.0);
     CU_ASSERT_TRUE(var->has_missing_data);
     CU_ASSERT_EQUAL(var->genotypes[0], 1);
     CU_ASSERT_EQUAL(var->genotypes[1], TSK_MISSING_DATA);
@@ -161,7 +161,7 @@ test_simplest_missing_data_mutations(void)
     tsk_vargen_print_state(&vargen, _devnull);
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_EQUAL(var->site.position, 0.0);
     CU_ASSERT_FALSE(var->has_missing_data);
     CU_ASSERT_EQUAL(var->genotypes[0], 1);
     ret = tsk_vargen_next(&vargen, &var);
@@ -172,7 +172,7 @@ test_simplest_missing_data_mutations(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_EQUAL(var->site.position, 0.0);
     CU_ASSERT_FALSE(var->has_missing_data);
     CU_ASSERT_EQUAL(var->genotypes[0], 1);
     CU_ASSERT_EQUAL(var->genotypes[1], 0);
@@ -207,7 +207,7 @@ test_simplest_missing_data_mutations_all_samples(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_EQUAL(var->site.position, 0.0);
     CU_ASSERT_FALSE(var->has_missing_data);
     CU_ASSERT_EQUAL(var->genotypes[0], 1);
     CU_ASSERT_EQUAL(var->genotypes[1], 1);
@@ -220,7 +220,7 @@ test_simplest_missing_data_mutations_all_samples(void)
     tsk_vargen_print_state(&vargen, _devnull);
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_EQUAL(var->site.position, 0.0);
     CU_ASSERT_FALSE(var->has_missing_data);
     CU_ASSERT_EQUAL(var->genotypes[0], 1);
     CU_ASSERT_EQUAL(var->genotypes[1], 1);
@@ -232,7 +232,7 @@ test_simplest_missing_data_mutations_all_samples(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_EQUAL(var->site.position, 0.0);
     CU_ASSERT_FALSE(var->has_missing_data);
     CU_ASSERT_EQUAL(var->genotypes[0], 1);
     CU_ASSERT_EQUAL(var->genotypes[1], 1);
@@ -273,7 +273,7 @@ test_single_tree_user_alleles(void)
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_EQUAL(var->site.position, 0.0);
     CU_ASSERT_EQUAL_FATAL(var->num_alleles, 4);
     CU_ASSERT_EQUAL(var->allele_lengths[0], 1);
     CU_ASSERT_EQUAL(var->allele_lengths[1], 1);
@@ -291,7 +291,7 @@ test_single_tree_user_alleles(void)
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.125);
+    CU_ASSERT_EQUAL(var->site.position, 0.125);
     CU_ASSERT_EQUAL(var->num_alleles, 4);
     CU_ASSERT_EQUAL(var->allele_lengths[0], 1);
     CU_ASSERT_EQUAL(var->allele_lengths[1], 1);
@@ -309,7 +309,7 @@ test_single_tree_user_alleles(void)
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.25);
+    CU_ASSERT_EQUAL(var->site.position, 0.25);
     CU_ASSERT_EQUAL(var->num_alleles, 4);
     CU_ASSERT_EQUAL(var->allele_lengths[0], 1);
     CU_ASSERT_EQUAL(var->allele_lengths[1], 1);
@@ -327,7 +327,7 @@ test_single_tree_user_alleles(void)
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.5);
+    CU_ASSERT_EQUAL(var->site.position, 0.5);
     CU_ASSERT_EQUAL(var->num_alleles, 4);
     CU_ASSERT_EQUAL(var->allele_lengths[0], 1);
     CU_ASSERT_EQUAL(var->allele_lengths[1], 1);
@@ -377,7 +377,7 @@ test_single_tree_char_alphabet(void)
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.0);
+    CU_ASSERT_EQUAL(var->site.position, 0.0);
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_EQUAL(var->allele_lengths[0], 1);
     CU_ASSERT_EQUAL(var->allele_lengths[1], 1);
@@ -391,7 +391,7 @@ test_single_tree_char_alphabet(void)
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.125);
+    CU_ASSERT_EQUAL(var->site.position, 0.125);
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_EQUAL(var->allele_lengths[0], 1);
     CU_ASSERT_EQUAL(var->allele_lengths[1], 8);
@@ -405,7 +405,7 @@ test_single_tree_char_alphabet(void)
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.25);
+    CU_ASSERT_EQUAL(var->site.position, 0.25);
     CU_ASSERT_EQUAL(var->num_alleles, 4);
     CU_ASSERT_EQUAL(var->allele_lengths[0], 1);
     CU_ASSERT_EQUAL(var->allele_lengths[1], 1);
@@ -423,7 +423,7 @@ test_single_tree_char_alphabet(void)
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL(var->site->position, 0.5);
+    CU_ASSERT_EQUAL(var->site.position, 0.5);
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_EQUAL(var->allele_lengths[0], 1);
     CU_ASSERT_EQUAL(var->allele_lengths[1], 1);
@@ -465,8 +465,8 @@ test_single_tree_binary_alphabet(void)
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->site->id, 0);
-    CU_ASSERT_EQUAL(var->site->mutations_length, 1);
+    CU_ASSERT_EQUAL(var->site.id, 0);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 1);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
@@ -477,8 +477,8 @@ test_single_tree_binary_alphabet(void)
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->site->id, 1);
-    CU_ASSERT_EQUAL(var->site->mutations_length, 2);
+    CU_ASSERT_EQUAL(var->site.id, 1);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 2);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
@@ -489,8 +489,8 @@ test_single_tree_binary_alphabet(void)
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->site->id, 2);
-    CU_ASSERT_EQUAL(var->site->mutations_length, 4);
+    CU_ASSERT_EQUAL(var->site.id, 2);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 4);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -528,8 +528,8 @@ test_single_tree_non_samples(void)
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->site->id, 0);
-    CU_ASSERT_EQUAL(var->site->mutations_length, 1);
+    CU_ASSERT_EQUAL(var->site.id, 0);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 1);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
@@ -538,8 +538,8 @@ test_single_tree_non_samples(void)
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->site->id, 1);
-    CU_ASSERT_EQUAL(var->site->mutations_length, 2);
+    CU_ASSERT_EQUAL(var->site.id, 1);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 2);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
@@ -548,8 +548,8 @@ test_single_tree_non_samples(void)
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->site->id, 2);
-    CU_ASSERT_EQUAL(var->site->mutations_length, 4);
+    CU_ASSERT_EQUAL(var->site.id, 2);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 4);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -661,8 +661,8 @@ test_single_tree_subsample(void)
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->site->id, 0);
-    CU_ASSERT_EQUAL(var->site->mutations_length, 1);
+    CU_ASSERT_EQUAL(var->site.id, 0);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 1);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
@@ -671,8 +671,8 @@ test_single_tree_subsample(void)
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->site->id, 1);
-    CU_ASSERT_EQUAL(var->site->mutations_length, 2);
+    CU_ASSERT_EQUAL(var->site.id, 1);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 2);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
@@ -681,8 +681,8 @@ test_single_tree_subsample(void)
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->site->id, 2);
-    CU_ASSERT_EQUAL(var->site->mutations_length, 4);
+    CU_ASSERT_EQUAL(var->site.id, 2);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 4);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -700,24 +700,24 @@ test_single_tree_subsample(void)
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->site->id, 0);
-    CU_ASSERT_EQUAL(var->site->mutations_length, 1);
+    CU_ASSERT_EQUAL(var->site.id, 0);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 1);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->site->id, 1);
-    CU_ASSERT_EQUAL(var->site->mutations_length, 2);
+    CU_ASSERT_EQUAL(var->site.id, 1);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 2);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->site->id, 2);
-    CU_ASSERT_EQUAL(var->site->mutations_length, 4);
+    CU_ASSERT_EQUAL(var->site.id, 2);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 4);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -827,8 +827,8 @@ test_single_tree_silent_mutations(void)
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->site->id, 0);
-    CU_ASSERT_EQUAL(var->site->mutations_length, 2);
+    CU_ASSERT_EQUAL(var->site.id, 0);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 2);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
@@ -839,8 +839,8 @@ test_single_tree_silent_mutations(void)
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->site->id, 1);
-    CU_ASSERT_EQUAL(var->site->mutations_length, 3);
+    CU_ASSERT_EQUAL(var->site.id, 1);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 3);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
@@ -851,8 +851,8 @@ test_single_tree_silent_mutations(void)
     CU_ASSERT_EQUAL(var->num_alleles, 2);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->site->id, 2);
-    CU_ASSERT_EQUAL(var->site->mutations_length, 4);
+    CU_ASSERT_EQUAL(var->site.id, 2);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 4);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 1);
@@ -863,8 +863,8 @@ test_single_tree_silent_mutations(void)
     CU_ASSERT_EQUAL(var->num_alleles, 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
-    CU_ASSERT_EQUAL(var->site->id, 3);
-    CU_ASSERT_EQUAL(var->site->mutations_length, 1);
+    CU_ASSERT_EQUAL(var->site.id, 3);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 1);
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 

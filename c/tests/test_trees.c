@@ -506,9 +506,9 @@ verify_simplify_genotypes(tsk_treeseq_t *ts, tsk_treeseq_t *subset,
         CU_ASSERT_EQUAL_FATAL(ret, 1);
         ret = tsk_vargen_next(&subset_vargen, &subset_variant);
         CU_ASSERT_EQUAL_FATAL(ret, 1);
-        CU_ASSERT_EQUAL(variant->site->id, (tsk_id_t) j)
-        CU_ASSERT_EQUAL(subset_variant->site->id, (tsk_id_t) j)
-        CU_ASSERT_EQUAL(variant->site->position, subset_variant->site->position);
+        CU_ASSERT_EQUAL(variant->site.id, (tsk_id_t) j)
+        CU_ASSERT_EQUAL(subset_variant->site.id, (tsk_id_t) j)
+        CU_ASSERT_EQUAL(variant->site.position, subset_variant->site.position);
         for (k = 0; k < num_samples; k++) {
             CU_ASSERT_FATAL(sample_index_map[samples[k]] < (tsk_id_t) ts->num_samples);
             a1 = variant->genotypes[sample_index_map[samples[k]]];
@@ -1662,8 +1662,8 @@ test_simplest_back_mutations(void)
     CU_ASSERT_EQUAL(var->genotypes[0], 0);
     CU_ASSERT_EQUAL(var->genotypes[1], 1);
     CU_ASSERT_EQUAL(var->genotypes[2], 0);
-    CU_ASSERT_EQUAL(var->site->id, 0);
-    CU_ASSERT_EQUAL(var->site->mutations_length, 2);
+    CU_ASSERT_EQUAL(var->site.id, 0);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 2);
     tsk_vargen_free(&vargen);
 
     tsk_treeseq_free(&ts);
