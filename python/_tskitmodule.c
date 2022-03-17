@@ -592,7 +592,7 @@ make_variant(tsk_variant_t *variant, tsk_size_t num_samples)
         goto out;
     }
     memcpy(PyArray_DATA(genotypes), variant->genotypes, num_samples * sizeof(int32_t));
-    ret = Py_BuildValue("iOO", variant->site->id, genotypes, alleles);
+    ret = Py_BuildValue("iOO", variant->site.id, genotypes, alleles);
 out:
     Py_XDECREF(genotypes);
     Py_XDECREF(alleles);

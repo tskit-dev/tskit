@@ -36,7 +36,7 @@ extern "C" {
 
 typedef struct {
     const tsk_treeseq_t *tree_sequence;
-    tsk_site_t *site;
+    tsk_site_t site;
     tsk_tree_t tree;
     const char **alleles;
     tsk_size_t *allele_lengths;
