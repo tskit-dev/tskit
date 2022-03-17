@@ -35,7 +35,8 @@ extern "C" {
 #define TSK_ISOLATED_NOT_MISSING (1 << 1)
 
 typedef struct {
-    const tsk_site_t *site;
+    const tsk_treeseq_t *tree_sequence;
+    tsk_site_t *site;
     tsk_tree_t tree;
     const char **alleles;
     tsk_size_t *allele_lengths;
@@ -68,7 +69,7 @@ int tsk_variant_init(tsk_variant_t *self, const tsk_treeseq_t *tree_sequence,
     const tsk_id_t *samples, tsk_size_t num_samples, const char **alleles,
     tsk_flags_t options);
 int tsk_variant_decode(
-    tsk_variant_t *self, const tsk_site_t *site, tsk_flags_t TSK_UNUSED(options));
+    tsk_variant_t *self, tsk_id_t site_id, tsk_flags_t TSK_UNUSED(options));
 int tsk_variant_free(tsk_variant_t *self);
 void tsk_variant_print_state(const tsk_variant_t *self, FILE *out);
 

@@ -141,7 +141,12 @@ tsk_variant_init(tsk_variant_t *self, const tsk_treeseq_t *tree_sequence,
     tsk_size_t num_samples_alloc;
 
     tsk_memset(self, 0, sizeof(tsk_variant_t));
-
+    self->site = malloc(sizeof(*self->site));
+    if (self->site == NULL) {
+        ret = TSK_ERR_BAD_PARAM_VALUE;
+        goto out;
+    }
+    self->tree_sequence = tree_sequence;
     ret = tsk_tree_init(
         &self->tree, tree_sequence, samples == NULL ? TSK_SAMPLE_LISTS : 0);
     if (ret != 0) {
@@ -269,6 +274,7 @@ tsk_variant_free(tsk_variant_t *self)
     tsk_safe_free(self->alt_samples);
     tsk_safe_free(self->alt_sample_index_map);
     tsk_safe_free(self->traversal_stack);
+    tsk_safe_free(self->site);
     return 0;
 }
 
@@ -451,7 +457,7 @@ tsk_variant_get_allele_index(tsk_variant_t *self, const char *allele, tsk_size_t
 
 int
 tsk_variant_decode(
-    tsk_variant_t *self, const tsk_site_t *site, tsk_flags_t TSK_UNUSED(options))
+    tsk_variant_t *self, tsk_id_t site_id, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
     tsk_id_t allele_index;
@@ -464,9 +470,12 @@ tsk_variant_decode(
     int (*update_genotypes)(tsk_variant_t *, tsk_id_t, tsk_id_t);
     tsk_size_t (*mark_missing)(tsk_variant_t *);
 
-    self->site = site;
+    ret = tsk_treeseq_get_site(self->tree_sequence, site_id, self->site);
+    if (ret != 0) {
+        goto out;
+    }
 
-    ret = tsk_tree_seek(&self->tree, site->position, 0);
+    ret = tsk_tree_seek(&self->tree, self->site->position, 0);
     if (ret != 0) {
         goto out;
     }
@@ -493,15 +502,15 @@ tsk_variant_decode(
 
     if (self->user_alleles) {
         allele_index = tsk_variant_get_allele_index(
-            self, site->ancestral_state, site->ancestral_state_length);
+            self, self->site->ancestral_state, self->site->ancestral_state_length);
         if (allele_index == -1) {
             ret = TSK_ERR_ALLELE_NOT_FOUND;
             goto out;
         }
     } else {
         /* Ancestral state is always allele 0 */
-        self->alleles[0] = site->ancestral_state;
-        self->allele_lengths[0] = site->ancestral_state_length;
+        self->alleles[0] = self->site->ancestral_state;
+        self->allele_lengths[0] = self->site->ancestral_state_length;
         self->num_alleles = 1;
         allele_index = 0;
     }
@@ -525,8 +534,8 @@ tsk_variant_decode(
     if (!impute_missing) {
         num_missing = mark_missing(self);
     }
-    for (j = 0; j < site->mutations_length; j++) {
-        mutation = site->mutations[j];
+    for (j = 0; j < self->site->mutations_length; j++) {
+        mutation = self->site->mutations[j];
         /* Compute the allele index for this derived state value. */
         allele_index = tsk_variant_get_allele_index(
             self, mutation.derived_state, mutation.derived_state_length);
@@ -565,14 +574,9 @@ int
 tsk_vargen_next(tsk_vargen_t *self, tsk_variant_t **variant)
 {
     int ret = 0;
-    tsk_site_t site;
 
     if ((tsk_size_t) self->site_index < tsk_treeseq_get_num_sites(self->tree_sequence)) {
-        ret = tsk_treeseq_get_site(self->tree_sequence, self->site_index, &site);
-        if (ret != 0) {
-            goto out;
-        }
-        ret = tsk_variant_decode(&self->variant, &site, 0);
+        ret = tsk_variant_decode(&self->variant, self->site_index, 0);
         if (ret != 0) {
             goto out;
         }

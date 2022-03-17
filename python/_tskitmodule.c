@@ -9287,7 +9287,6 @@ TreeSequence_get_genotype_matrix(TreeSequence *self, PyObject *args, PyObject *k
     PyObject *py_alleles = Py_None;
     PyArrayObject *genotype_matrix = NULL;
     tsk_variant_t variant;
-    tsk_site_t site;
     int32_t *V;
     tsk_size_t j;
     int isolated_as_missing = 1;
@@ -9333,12 +9332,7 @@ TreeSequence_get_genotype_matrix(TreeSequence *self, PyObject *args, PyObject *k
     }
     num_sites = tsk_treeseq_get_num_sites(self->tree_sequence);
     for (j = 0; j < num_sites; j++) {
-        err = tsk_treeseq_get_site(self->tree_sequence, j, &site);
-        if (err != 0) {
-            handle_library_error(err);
-            goto out;
-        }
-        err = tsk_variant_decode(&variant, &site, 0);
+        err = tsk_variant_decode(&variant, j, 0);
         if (err != 0) {
             handle_library_error(err);
             goto out;
