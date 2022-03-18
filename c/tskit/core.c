@@ -374,6 +374,9 @@ tsk_strerror_internal(int err)
         case TSK_ERR_SILENT_MUTATIONS_NOT_SUPPORTED:
             ret = "Silent mutations not supported by this operation";
             break;
+        case TSK_ERR_VARIANT_CANT_DECODE_COPY:
+            ret = "Can't decode a copy of a variant";
+            break;
 
         /* Stats errors */
         case TSK_ERR_BAD_NUM_WINDOWS:

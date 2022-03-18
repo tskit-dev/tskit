@@ -68,6 +68,7 @@ typedef struct {
 int tsk_variant_init(tsk_variant_t *self, const tsk_treeseq_t *tree_sequence,
     const tsk_id_t *samples, tsk_size_t num_samples, const char **alleles,
     tsk_flags_t options);
+int tsk_variant_restricted_copy(tsk_variant_t *self, tsk_variant_t *other);
 int tsk_variant_decode(
     tsk_variant_t *self, tsk_id_t site_id, tsk_flags_t TSK_UNUSED(options));
 int tsk_variant_free(tsk_variant_t *self);
