@@ -958,6 +958,41 @@ test_variant_decode_errors(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_variant_copy(void)
+{
+    int ret = 0;
+    tsk_size_t j;
+    tsk_treeseq_t ts;
+    tsk_variant_t var;
+    tsk_variant_t var_copy;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
+
+    ret = tsk_variant_init(&var, &ts, NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_variant_decode(&var, 0, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_variant_restricted_copy(&var, &var_copy);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_variant_decode(&var_copy, 0, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_VARIANT_CANT_DECODE_COPY);
+
+    CU_ASSERT_EQUAL(0, memcmp(&var.site, &var_copy.site, sizeof(tsk_site_t)));
+    CU_ASSERT_EQUAL(0, memcmp(var.genotypes, var_copy.genotypes, sizeof(int32_t)));
+    CU_ASSERT_EQUAL(
+        0, memcmp(var.allele_lengths, var_copy.allele_lengths, sizeof(tsk_size_t)));
+    for (j = 0; j < var.num_alleles; j++) {
+        CU_ASSERT_EQUAL(0,
+            memcmp(var.alleles[j], var_copy.alleles[j], (size_t) var.allele_lengths[j]));
+    }
+
+    tsk_variant_free(&var);
+    tsk_variant_free(&var_copy);
+    tsk_treeseq_free(&ts);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -979,6 +1014,7 @@ main(int argc, char **argv)
         { "test_single_tree_silent_mutations", test_single_tree_silent_mutations },
         { "test_multiple_variant_decode", test_multiple_variant_decode },
         { "test_variant_decode_errors", test_variant_decode_errors },
+        { "test_variant_copy", test_variant_copy },
         { NULL, NULL },
     };
 

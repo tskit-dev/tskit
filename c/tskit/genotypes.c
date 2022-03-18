@@ -261,7 +261,9 @@ out:
 int
 tsk_variant_free(tsk_variant_t *self)
 {
-    tsk_tree_free(&self->tree);
+    if (self->tree_sequence != NULL) {
+        tsk_tree_free(&self->tree);
+    }
     tsk_safe_free(self->genotypes);
     tsk_safe_free(self->alleles);
     tsk_safe_free(self->allele_lengths);
@@ -465,6 +467,11 @@ tsk_variant_decode(
     int (*update_genotypes)(tsk_variant_t *, tsk_id_t, tsk_id_t);
     tsk_size_t (*mark_missing)(tsk_variant_t *);
 
+    if (self->tree_sequence == NULL) {
+        ret = TSK_ERR_VARIANT_CANT_DECODE_COPY;
+        goto out;
+    }
+
     ret = tsk_treeseq_get_site(self->tree_sequence, site_id, &self->site);
     if (ret != 0) {
         goto out;
@@ -561,6 +568,54 @@ tsk_variant_decode(
         num_missing -= (tsk_size_t) no_longer_missing;
     }
     self->has_missing_data = num_missing > 0;
+out:
+    return ret;
+}
+
+int
+tsk_variant_restricted_copy(tsk_variant_t *self, tsk_variant_t *other)
+{
+    int ret = 0;
+    tsk_size_t total_len, offset, j;
+
+    /* Copy everything */
+    tsk_memcpy(other, self, sizeof(tsk_variant_t));
+    /* Tree sequence left as NULL and zero'd tree is a way of indicating this variant is
+     * fixed and cannot be further decoded. */
+    other->tree_sequence = NULL;
+    tsk_memset(&other->tree, sizeof(tsk_tree_t), 0);
+    other->traversal_stack = NULL;
+    other->samples = NULL;
+    other->sample_index_map = NULL;
+    other->alt_samples = NULL;
+    other->alt_sample_index_map = NULL;
+    other->user_alleles_mem = NULL;
+
+    total_len = 0;
+    for (j = 0; j < self->num_alleles; j++) {
+        total_len += self->allele_lengths[j];
+    }
+    other->genotypes = tsk_malloc(other->num_samples * sizeof(int32_t));
+    other->user_alleles_mem = tsk_malloc(total_len * sizeof(char *));
+    other->allele_lengths
+        = tsk_malloc(other->num_alleles * sizeof(*other->allele_lengths));
+    other->alleles = tsk_malloc(other->num_alleles * sizeof(*other->alleles));
+    if (other->genotypes == NULL || other->user_alleles_mem == NULL
+        || other->allele_lengths == NULL || other->alleles == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    tsk_memcpy(other->genotypes, self->genotypes, other->num_samples * sizeof(int32_t));
+    tsk_memcpy(other->allele_lengths, self->allele_lengths,
+        other->num_alleles * sizeof(*other->allele_lengths));
+    offset = 0;
+    for (j = 0; j < other->num_alleles; j++) {
+        tsk_memcpy(other->user_alleles_mem + offset, self->alleles[j],
+            other->allele_lengths[j] * sizeof(char *));
+        other->alleles[j] = other->user_alleles_mem + offset;
+        offset += other->allele_lengths[j];
+    }
 out:
     return ret;
 }
