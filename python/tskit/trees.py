@@ -7479,7 +7479,7 @@ class TreeSequence:
         self, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True
     ):
         """
-        Computes Patterson's f3 statistic between two groups of nodes from
+        Computes Patterson's f2 statistic between two groups of nodes from
         ``sample_sets``.
         Operates on ``k = 2`` sample sets at a time; please see the
         :ref:`multi-way statistics <sec_stats_sample_sets_multi_way>`
