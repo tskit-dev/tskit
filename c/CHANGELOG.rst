@@ -52,8 +52,7 @@
 - ``Tree`` arrays such as ``left_sib``, ``right_child`` etc. now have an additional
   "virtual root" node at the end. (:user:`jeromekelleher`, :issue:`1691`, :pr:`1704`)
 
-- ``num_samples``, ``num_tracked_samples``, ``marked`` and ``mark`` have been removed from
-  ``tsk_tree_t``. (:user:`jeromekelleher`, :pr:`1936`)
+- ``marked`` and ``mark`` have been removed from ``tsk_tree_t``. (:user:`jeromekelleher`, :pr:`1936`)
 
 **Features**
 
