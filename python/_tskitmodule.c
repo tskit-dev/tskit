@@ -11306,6 +11306,9 @@ static PyTypeObject VariantGeneratorType = {
  *===================================================================
  */
 
+/* Forward declaration */
+static PyTypeObject VariantType;
+
 static int
 Variant_check_state(Variant *self)
 {
@@ -11377,7 +11380,7 @@ Variant_init(Variant *self, PyObject *args, PyObject *kwds)
             goto out;
         }
     }
-    self->variant = PyMem_Malloc(sizeof(tsk_vargen_t));
+    self->variant = PyMem_Malloc(sizeof(tsk_variant_t));
     if (self->variant == NULL) {
         PyErr_NoMemory();
         goto out;
@@ -11421,6 +11424,41 @@ Variant_decode(Variant *self, PyObject *args, PyObject *kwds)
 
     ret = Py_BuildValue("");
 out:
+    return ret;
+}
+
+static PyObject *
+Variant_restricted_copy(Variant *self)
+{
+    int err;
+    PyObject *ret = NULL;
+    Variant *copy = NULL;
+
+    if (Variant_check_state(self) != 0) {
+        goto out;
+    }
+    copy = (Variant *) _PyObject_New((PyTypeObject *) &VariantType);
+    if (copy == NULL) {
+        goto out;
+    }
+    copy->variant = PyMem_Malloc(sizeof(tsk_variant_t));
+    if (copy->variant == NULL) {
+        PyErr_NoMemory();
+        goto out;
+    }
+    /* Copies have no ts as a way of indicating they shouldn't be decoded
+       This is safe as the copy has no reference to the mutation state strings */
+    copy->tree_sequence = NULL;
+    err = tsk_variant_restricted_copy(self->variant, copy->variant);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+
+    ret = (PyObject *) copy;
+    copy = NULL;
+out:
+    Py_XDECREF(copy);
     return ret;
 }
 
@@ -11498,6 +11536,10 @@ static PyMethodDef Variant_methods[] = {
         .ml_meth = (PyCFunction) Variant_decode,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Sets the variant's genotypes to those of a given tree and site" },
+    { .ml_name = "restricted_copy",
+        .ml_meth = (PyCFunction) Variant_restricted_copy,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Copies the variant" },
     { NULL } /* Sentinel */
 };
 
