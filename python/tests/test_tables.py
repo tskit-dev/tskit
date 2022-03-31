@@ -141,7 +141,7 @@ class CommonTestsMixin:
         return table_5row
 
     def test_max_rows_increment(self):
-        for bad_value in [-1, -(2 ** 10)]:
+        for bad_value in [-1, -(2**10)]:
             with pytest.raises(ValueError):
                 self.table_class(max_rows_increment=bad_value)
         for v in [1, 100, 256]:
@@ -183,7 +183,7 @@ class CommonTestsMixin:
     def test_input_parameters_errors(self):
         assert len(self.input_parameters) > 0
         for param, _ in self.input_parameters:
-            for bad_value in [-1, -(2 ** 10)]:
+            for bad_value in [-1, -(2**10)]:
                 with pytest.raises(ValueError):
                     self.table_class(**{param: bad_value})
             for bad_type in [None, ValueError, "ser"]:
@@ -580,7 +580,7 @@ class CommonTestsMixin:
         for bad_type in [None, 0.001, {}]:
             with pytest.raises(TypeError):
                 table.truncate(bad_type)
-        for bad_num_rows in [-1, num_rows + 1, 10 ** 6]:
+        for bad_num_rows in [-1, num_rows + 1, 10**6]:
             with pytest.raises(ValueError):
                 table.truncate(bad_num_rows)
 
@@ -772,7 +772,7 @@ class CommonTestsMixin:
                     t.set_columns(**input_data)
                 input_data[offset_col.name] = np.copy(original_offset)
                 t.set_columns(**input_data)
-                input_data[offset_col.name][num_rows // 2] = 2 ** 31
+                input_data[offset_col.name][num_rows // 2] = 2**31
                 with pytest.raises(ValueError):
                     t.set_columns(**input_data)
                 input_data[offset_col.name] = np.copy(original_offset)
@@ -787,7 +787,7 @@ class CommonTestsMixin:
                     t.append_columns(**input_data)
                 input_data[offset_col.name] = np.copy(original_offset)
                 t.append_columns(**input_data)
-                input_data[offset_col.name][num_rows // 2] = 2 ** 31
+                input_data[offset_col.name][num_rows // 2] = 2**31
                 with pytest.raises(ValueError):
                     t.append_columns(**input_data)
                 input_data[offset_col.name] = np.copy(original_offset)
@@ -2994,7 +2994,7 @@ class TestSimplifyTables:
         n = 10
         ts = msprime.simulate(n, random_seed=self.random_seed)
         tables = ts.dump_tables()
-        for bad_node in [-1, n, n + 1, ts.num_nodes - 1, ts.num_nodes, 2 ** 31 - 1]:
+        for bad_node in [-1, n, n + 1, ts.num_nodes - 1, ts.num_nodes, 2**31 - 1]:
             with pytest.raises(_tskit.LibraryError):
                 tables.simplify(samples=[0, bad_node])
 
@@ -3014,7 +3014,7 @@ class TestSimplifyTables:
 
     def test_bad_edges(self):
         ts = msprime.simulate(10, random_seed=self.random_seed)
-        for bad_node in [-1, ts.num_nodes, ts.num_nodes + 1, 2 ** 31 - 1]:
+        for bad_node in [-1, ts.num_nodes, ts.num_nodes + 1, 2**31 - 1]:
             # Bad parent node
             tables = ts.dump_tables()
             edges = tables.edges
@@ -3069,7 +3069,7 @@ class TestSimplifyTables:
     def test_bad_mutation_nodes(self):
         ts = msprime.simulate(10, random_seed=self.random_seed, mutation_rate=1)
         assert ts.num_mutations > 0
-        for bad_node in [-1, ts.num_nodes, 2 ** 31 - 1]:
+        for bad_node in [-1, ts.num_nodes, 2**31 - 1]:
             tables = ts.dump_tables()
             mutations = tables.mutations
             node = mutations.node
@@ -3086,7 +3086,7 @@ class TestSimplifyTables:
     def test_bad_mutation_sites(self):
         ts = msprime.simulate(10, random_seed=self.random_seed, mutation_rate=1)
         assert ts.num_mutations > 0
-        for bad_site in [-1, ts.num_sites, 2 ** 31 - 1]:
+        for bad_site in [-1, ts.num_sites, 2**31 - 1]:
             tables = ts.dump_tables()
             mutations = tables.mutations
             site = mutations.site
@@ -3449,7 +3449,7 @@ class TestTableCollection:
         # Deprecated in 0.4.1
         with pytest.warns(FutureWarning):
             td1 = tables.name_map
-        td1 == td2
+        assert td1 == td2
 
     def test_equals_empty(self):
         assert tskit.TableCollection() == tskit.TableCollection()
@@ -3658,7 +3658,7 @@ class TestTableCollection:
 
     def test_set_sequence_length(self):
         tables = tskit.TableCollection(1)
-        for value in [-1, 100, 2 ** 32, 1e-6]:
+        for value in [-1, 100, 2**32, 1e-6]:
             tables.sequence_length = value
             assert tables.sequence_length == value
 

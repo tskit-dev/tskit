@@ -2344,12 +2344,12 @@ class TestUnaryNodes(TopologyTestCase):
             0    1     2      0
         """
         for j in range(num_unary_nodes + 2):
-            nodes += "0 {}\n".format(j + 2)
+            nodes += f"0 {j + 2}\n"
         for j in range(num_unary_nodes):
-            edges += "0 1 {} {}\n".format(n + j + 1, n + j)
+            edges += f"0 1 {n + j + 1} {n + j}\n"
         root = num_unary_nodes + 3
         root_time = num_unary_nodes + 3
-        edges += "0    1     {}      1,{}\n".format(root, num_unary_nodes + 2)
+        edges += f"0    1     {root}      1,{num_unary_nodes + 2}\n"
         ts = tskit.load_text(io.StringIO(nodes), io.StringIO(edges), strict=False)
         t = ts.first()
         assert t.mrca(0, 1) == root
@@ -2552,7 +2552,7 @@ class TestGeneralSamples(TopologyTestCase):
             assert t1_dict == t2.parent_dict
             for u1 in t1.nodes():
                 u2 = node_map[u1]
-                assert sorted([node_map[v] for v in t1.samples(u1)]) == sorted(
+                assert sorted(node_map[v] for v in t1.samples(u1)) == sorted(
                     list(t2.samples(u2))
                 )
             j += 1

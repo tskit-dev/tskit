@@ -1233,7 +1233,7 @@ def group_rank(g):
         for j in range(curr_trees - 1):
             num_rest_combs *= Combination.comb(remaining_leaves - j * k - 1, k - 1)
 
-        preceding_combs = comb_rank * num_rest_combs * (y ** curr_trees)
+        preceding_combs = comb_rank * num_rest_combs * (y**curr_trees)
         curr_comb = t.label_rank() * num_rest_combs * (y ** (curr_trees - 1))
         rank += preceding_combs + curr_comb
         all_labels = set_minus(all_labels, u_labels)

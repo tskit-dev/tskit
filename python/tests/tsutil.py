@@ -144,7 +144,7 @@ def insert_discrete_time_mutations(ts, num_times=4, num_sites=10):
     tables = ts.tables
     tables.sites.clear()
     tables.mutations.clear()
-    height = max([t.time(t.roots[0]) for t in ts.trees()])
+    height = max(t.time(t.roots[0]) for t in ts.trees())
     for j, pos in enumerate(np.linspace(0, tables.sequence_length, num_sites + 1)[:-1]):
         anc = "X" * j
         tables.sites.add_row(position=pos, ancestral_state=anc)

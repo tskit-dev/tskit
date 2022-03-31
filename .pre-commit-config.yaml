@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.4.0
+    rev: v4.1.0
     hooks:
       - id: check-merge-conflict
       - id: debug-statements
@@ -14,34 +14,31 @@ repos:
       exclude: dev-tools|examples
       verbose: true
   - repo: https://github.com/asottile/reorder_python_imports
-    rev: v2.3.6
+    rev: v3.0.1
     hooks:
       - id: reorder-python-imports
         args: [--application-directories=python,
                --unclassifiable-application-module=_tskit]
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.7.4
+    rev: v2.31.1
     hooks:
       - id: pyupgrade
         args: [--py3-plus, --py37-plus]
   - repo: https://github.com/psf/black
-    rev: 20.8b1
+    rev: 22.3.0
     hooks:
       - id: black
         language_version: python3
-        # We have to be specific here as python/lib contains a symlink
-        # loop that throws an error before black excludes it
-        args: [python/tskit, python/setup.py, python/stress_lowlevel.py]
   - repo: https://gitlab.com/pycqa/flake8
-    rev: 3.8.4
+    rev: 3.9.2
     hooks:
       - id: flake8
         args: [--config=python/.flake8]
-        additional_dependencies: ["flake8-bugbear==20.1.4", "flake8-builtins==1.5.2"]
+        additional_dependencies: ["flake8-bugbear==22.3.23", "flake8-builtins==1.5.3"]
   - repo: https://github.com/asottile/blacken-docs
-    rev: v1.9.1
+    rev: v1.12.1
     hooks:
       - id: blacken-docs
         args: [--skip-errors]
-        additional_dependencies: [black==20.8b1]
+        additional_dependencies: [black==22.3.0]
         language_version: python3

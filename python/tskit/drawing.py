@@ -475,7 +475,7 @@ class Plotbox:
 
 
 class SvgPlot:
-    """ The base class for plotting either a tree or a tree sequence as an SVG file"""
+    """The base class for plotting either a tree or a tree sequence as an SVG file"""
 
     standard_style = (
         ".background path {fill: #808080; fill-opacity: 0}"
@@ -1153,8 +1153,8 @@ class SvgTree(SvgPlot):
                     self.right_extent, self.right_extent + 1
                 )
         # attributes for symbols
-        half_symbol_size = "{:g}".format(rnd(symbol_size / 2))
-        symbol_size = "{:g}".format(rnd(symbol_size))
+        half_symbol_size = f"{rnd(symbol_size / 2):g}"
+        symbol_size = f"{rnd(symbol_size):g}"
         for u in tree.nodes():
             self.edge_attrs[u] = {}
             if edge_attrs is not None and u in edge_attrs:

@@ -281,7 +281,7 @@ class TestTableCollection(LowLevelTestCase):
     def test_set_sequence_length(self):
         tables = _tskit.TableCollection(1)
         assert tables.sequence_length == 1
-        for value in [-1, 1e6, 1e-22, 1000, 2 ** 32, -10000]:
+        for value in [-1, 1e6, 1e-22, 1000, 2**32, -10000]:
             tables.sequence_length = value
             assert tables.sequence_length == value
 
@@ -961,7 +961,7 @@ class TestTableMethodsErrors:
         with pytest.raises(_tskit.LibraryError, match="out of bounds"):
             ll_table.update_row(10000, *row_data)
         with pytest.raises(OverflowError, match="Value too large for tskit id type"):
-            ll_table.update_row(2 ** 62, *row_data)
+            ll_table.update_row(2**62, *row_data)
 
     def test_equals_bad_args(self, ts_fixture):
         for ll_table in self.yield_tables(ts_fixture):
@@ -1085,8 +1085,8 @@ class TestTableMethodsErrors:
         ):
             ts.load_tables(tc, build_indexes=False)
 
-        modify_indexes["edge_insertion_order"] = np.full(shape, 2 ** 30, dtype=np.int32)
-        modify_indexes["edge_removal_order"] = np.full(shape, 2 ** 30, dtype=np.int32)
+        modify_indexes["edge_insertion_order"] = np.full(shape, 2**30, dtype=np.int32)
+        modify_indexes["edge_removal_order"] = np.full(shape, 2**30, dtype=np.int32)
         tc.indexes = modify_indexes
         ts = _tskit.TreeSequence()
         with pytest.raises(_tskit.LibraryError, match="^Edge out of bounds$"):
@@ -1238,7 +1238,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             # We don't accept Python negative indexes here.
             with pytest.raises(IndexError):
                 ts.get_edge(-1)
-            for j in [0, 10, 10 ** 6]:
+            for j in [0, 10, 10**6]:
                 with pytest.raises(IndexError):
                     ts.get_edge(num_edges + j)
             for x in [None, "", {}, []]:
@@ -1251,7 +1251,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             # We don't accept Python negative indexes here.
             with pytest.raises(IndexError):
                 ts.get_node(-1)
-            for j in [0, 10, 10 ** 6]:
+            for j in [0, 10, 10**6]:
                 with pytest.raises(IndexError):
                     ts.get_node(num_nodes + j)
             for x in [None, "", {}, []]:
@@ -1297,7 +1297,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         # We don't accept Python negative indexes here.
         with pytest.raises(IndexError):
             ts.get_migration(-1)
-        for j in [0, 10, 10 ** 6]:
+        for j in [0, 10, 10**6]:
             with pytest.raises(IndexError):
                 ts.get_migration(num_records + j)
 
@@ -2401,7 +2401,7 @@ class TestLdCalculator(LowLevelTestCase):
         assert a1 is not a2
         del calc
         # Do some memory operations
-        a3 = np.ones(10 ** 6)
+        a3 = np.ones(10**6)
         assert np.all(a1 == a2)
         del ts
         assert np.all(a1 == a2)
@@ -2737,7 +2737,7 @@ class TestTree(LowLevelTestCase):
                     options=options,
                     tracked_samples=[1, bad_type],
                 )
-        for bad_sample in [10 ** 6, -1e6]:
+        for bad_sample in [10**6, -1e6]:
             with pytest.raises(ValueError):
                 # Implicit conversion to integers using __int__ is deprecated
                 with pytest.deprecated_call():
@@ -2795,7 +2795,7 @@ class TestTree(LowLevelTestCase):
                 assert nu == nu_prime
                 # For tracked samples, this should be all zeros.
                 nu = [st.get_num_tracked_samples(j) for j in range(ts.get_num_nodes())]
-                assert nu == list([0 for _ in nu])
+                assert nu == list(0 for _ in nu)
 
     def test_count_tracked_samples(self):
         # Ensure that there are some non-binary nodes.
@@ -2862,7 +2862,7 @@ class TestTree(LowLevelTestCase):
         for ts in self.get_example_tree_sequences():
             num_nodes = ts.get_num_nodes()
             st = _tskit.Tree(ts)
-            for v in [num_nodes + 1, 10 ** 6, _tskit.NULL]:
+            for v in [num_nodes + 1, 10**6, _tskit.NULL]:
                 with pytest.raises(ValueError):
                     st.get_mrca(v, v)
                 with pytest.raises(ValueError):
@@ -3264,7 +3264,7 @@ class TestTree(LowLevelTestCase):
         assert a1 is not a2
         del t1
         # Do some memory operations
-        a3 = np.ones(10 ** 6)
+        a3 = np.ones(10**6)
         assert np.all(a1 == a2)
         del ts1
         assert np.all(a1 == a2)
@@ -3282,7 +3282,7 @@ class TestTree(LowLevelTestCase):
         for bad_type in [None, {}]:
             with pytest.raises(TypeError):
                 method(bad_type)
-        for bad_node in [-2, 10 ** 6]:
+        for bad_node in [-2, 10**6]:
             with pytest.raises(_tskit.LibraryError, match="out of bounds"):
                 method(bad_node)
         a = method(tree.get_virtual_root())

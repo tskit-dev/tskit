@@ -361,7 +361,7 @@ class TestArrayPacking:
         (300, "300 Bytes"),
         (3000, "2.9 KiB"),
         (3000000, "2.9 MiB"),
-        (10 ** 26 * 30, "2481.5 YiB"),
+        (10**26 * 30, "2481.5 YiB"),
     ],
 )
 def test_naturalsize(value, expected):

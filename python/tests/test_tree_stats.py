@@ -1446,11 +1446,11 @@ def site_tajimas_d(ts, sample_sets, windows=None):
                 a1 = np.sum(1 / np.arange(1, nn))  # this is h in the main version
                 a2 = np.sum(1 / np.arange(1, nn) ** 2)  # this is g
                 b1 = (nn + 1) / (3 * (nn - 1))
-                b2 = 2 * (nn ** 2 + nn + 3) / (9 * nn * (nn - 1))
+                b2 = 2 * (nn**2 + nn + 3) / (9 * nn * (nn - 1))
                 c1 = b1 - 1 / a1
-                c2 = b2 - (nn + 2) / (a1 * nn) + a2 / a1 ** 2
+                c2 = b2 - (nn + 2) / (a1 * nn) + a2 / a1**2
                 e1 = c1 / a1  # this is a
-                e2 = c2 / (a1 ** 2 + a2)  # this is b
+                e2 = c2 / (a1**2 + a2)  # this is b
                 out[j][i] = (T - S / a1) / np.sqrt(e1 * S + e2 * S * (S - 1))
     return out
 
@@ -4348,7 +4348,7 @@ class TestTraitCovariance(StatsTestCase, WeightStatsMixin):
         n = W.shape[0]
 
         def f(x):
-            return (x ** 2) / (2 * (n - 1) * (n - 1))
+            return (x**2) / (2 * (n - 1) * (n - 1))
 
         self.verify_definition(ts, W, windows, f, ts.trait_covariance, trait_covariance)
 
