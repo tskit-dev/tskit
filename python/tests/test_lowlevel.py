@@ -2431,6 +2431,43 @@ class TestVariant(LowLevelTestCase):
         del variant
         assert np.array_equal(genotypes, expected)
 
+    def test_copy(self):
+        ts = self.get_example_tree_sequence(random_seed=42)
+        variant = _tskit.Variant(ts)
+        variant.decode(0)
+        # Everything below should work even if the Python ts is free'd
+        del ts
+        variant2 = variant.restricted_copy()
+        # Take a copy for comparison, then move the variant to check the copy
+        # doesn't move too
+        genotypes = variant.genotypes
+        genotypes_copy = np.array(variant.genotypes)
+        alleles = variant.alleles
+        site_id = variant.site_id
+        variant.decode(1)
+        with pytest.raises(
+            tskit.LibraryError, match="Can't decode a copy of a variant"
+        ):
+            variant2.decode(1)
+        assert site_id == variant2.site_id
+        assert alleles == variant2.alleles
+
+        # Variant should be equal to the copy we took earlier
+        assert np.array_equal(genotypes_copy, variant2.genotypes)
+        # But not equal to the un-copies genotypes anymore as they
+        # have decoded a new site as a side effect of reusing the
+        # array when decoding
+        assert not np.array_equal(genotypes, variant2.genotypes)
+
+        # Check the lifecycle of copies and copies of copies
+        del variant
+        variant3 = variant2.restricted_copy()
+        del variant2
+        assert np.array_equal(genotypes_copy, variant3.genotypes)
+        genotypes3 = variant3.genotypes
+        del variant3
+        assert np.array_equal(genotypes_copy, genotypes3)
+
 
 class TestLdCalculator(LowLevelTestCase):
     """
