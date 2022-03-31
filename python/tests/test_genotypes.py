@@ -958,7 +958,7 @@ class TestUserAlleles:
     def test_too_many_alleles(self):
         ts = msprime.simulate(10, mutation_rate=5, random_seed=2)
         for n in range(128, 138):
-            bad_alleles = tuple(["0" for _ in range(n)])
+            bad_alleles = tuple("0" for _ in range(n))
             with pytest.raises(exceptions.LibraryError):
                 ts.genotype_matrix(alleles=bad_alleles)
             with pytest.raises(exceptions.LibraryError):
@@ -1016,7 +1016,7 @@ class TestUserAllelesRoundTrip:
             tskit.ALLELES_01,
             ("0", "1", "xry"),
             ("xry", "0", "1", "xry"),
-            tuple([str(j) for j in range(127)]),
+            tuple(str(j) for j in range(127)),
             tuple(["0" for j in range(126)] + ["1"]),
         ]
         for alleles in valid_alleles:
@@ -1069,7 +1069,7 @@ class TestUserAllelesRoundTrip:
             tskit.ALLELES_01,
             ("0", "1", "xry"),
             ("xry", "0", "1", "xry"),
-            tuple([str(j) for j in range(127)]),
+            tuple(str(j) for j in range(127)),
             tuple(["0" for j in range(126)] + ["1"]),
         ]
         for alleles in valid_alleles:

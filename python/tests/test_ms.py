@@ -296,7 +296,7 @@ class TestPositions(unittest.TestCase):
         positions = []
         for i in range(tree_seq.num_sites):
             positions.append(
-                "{:.4f}".format(tree_seq.site(i).position / tree_seq.sequence_length)
+                f"{tree_seq.site(i).position / tree_seq.sequence_length:.4f}"
             )
         positions = " ".join(positions)
         return positions

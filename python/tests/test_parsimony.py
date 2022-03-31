@@ -540,8 +540,8 @@ class TestParsimonyBase:
             )
             assert ancestral_state1 == ancestral_state2
             assert len(transitions1) == len(transitions2)
-            sorted_t1 = sorted([(m.node, m.derived_state) for m in transitions1])
-            sorted_t2 = sorted([(m.node, m.derived_state) for m in transitions2])
+            sorted_t1 = sorted((m.node, m.derived_state) for m in transitions1)
+            sorted_t2 = sorted((m.node, m.derived_state) for m in transitions2)
             assert sorted_t1 == sorted_t2
             assert transitions1 == transitions2
         return ancestral_state1, transitions1
@@ -559,7 +559,7 @@ class TestParsimonyBadAlleles(TestParsimonyBase):
 
     def test_ancestral_state_too_big(self):
         genotypes = [0, 0, 1]
-        alleles = [str(x) for x in range(2 ** 8)]  # exceeds HARTIGAN_MAX_ALLELES
+        alleles = [str(x) for x in range(2**8)]  # exceeds HARTIGAN_MAX_ALLELES
         with pytest.raises(ValueError, match="maximum of 64"):
             # Only a limitation in the C version of map_mutations
             self.tree.map_mutations(
@@ -1439,7 +1439,7 @@ class TestReconstructAllTuples:
         assert ts.num_trees == 1
         tree = ts.first()
         n = ts.num_samples
-        m = k ** n
+        m = k**n
         tables.sequence_length = m + 1
         tables.edges.set_columns(
             left=tables.edges.left,

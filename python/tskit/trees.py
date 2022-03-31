@@ -7114,10 +7114,10 @@ class TreeSequence:
 
             D = (T - S / h) / sqrt(a * S + (b / c) * S * (S - 1))
             h = 1 + 1 / 2 + ... + 1 / (n - 1)
-            g = 1 + 1 / 2 ** 2 + ... + 1 / (n - 1) ** 2
-            a = (n + 1) / (3 * (n - 1) * h) - 1 / h ** 2
-            b = 2 * (n ** 2 + n + 3) / (9 * n * (n - 1)) - (n + 2) / (h * n) + g / h ** 2
-            c = h ** 2 + g
+            g = 1 + 1 / 2**2 + ... + 1 / (n - 1) ** 2
+            a = (n + 1) / (3 * (n - 1) * h) - 1 / h**2
+            b = 2 * (n**2 + n + 3) / (9 * n * (n - 1)) - (n + 2) / (h * n) + g / h**2
+            c = h**2 + g
 
         What is computed for diversity and divergence depends on ``mode``;
         see those functions for more details.
@@ -7139,13 +7139,13 @@ class TreeSequence:
             h = np.array([np.sum(1 / np.arange(1, nn)) for nn in n])
             g = np.array([np.sum(1 / np.arange(1, nn) ** 2) for nn in n])
             with np.errstate(invalid="ignore", divide="ignore"):
-                a = (n + 1) / (3 * (n - 1) * h) - 1 / h ** 2
+                a = (n + 1) / (3 * (n - 1) * h) - 1 / h**2
                 b = (
-                    2 * (n ** 2 + n + 3) / (9 * n * (n - 1))
+                    2 * (n**2 + n + 3) / (9 * n * (n - 1))
                     - (n + 2) / (h * n)
-                    + g / h ** 2
+                    + g / h**2
                 )
-                D = (T - S / h) / np.sqrt(a * S + (b / (h ** 2 + g)) * S * (S - 1))
+                D = (T - S / h) / np.sqrt(a * S + (b / (h**2 + g)) * S * (S - 1))
             return D
 
         return self.__one_way_sample_set_stat(

@@ -36,9 +36,6 @@ import types
 from itertools import islice
 from typing import Any
 from typing import Mapping
-from typing import Optional
-from typing import Type
-from typing import Union
 
 import jsonschema
 
@@ -108,7 +105,7 @@ codec_registry = {}
 
 
 def register_metadata_codec(
-    codec_cls: Type[AbstractMetadataCodec], codec_id: str
+    codec_cls: type[AbstractMetadataCodec], codec_id: str
 ) -> None:
     """
     Register a metadata codec class.
@@ -597,7 +594,7 @@ class StructCodec(AbstractMetadataCodec):
 register_metadata_codec(StructCodec, "struct")
 
 
-def validate_bytes(data: Optional[bytes]) -> None:
+def validate_bytes(data: bytes | None) -> None:
     if data is not None and not isinstance(data, bytes):
         raise TypeError(
             f"If no encoding is set metadata should be bytes, found {type(data)}"
@@ -611,7 +608,7 @@ class MetadataSchema:
     :param dict schema: A dict containing a valid JSONSchema object.
     """
 
-    def __init__(self, schema: Optional[Mapping[str, Any]]) -> None:
+    def __init__(self, schema: Mapping[str, Any] | None) -> None:
         self._schema = schema
         self._bypass_validation = False
 
@@ -660,11 +657,11 @@ class MetadataSchema:
         return self._string == other._string
 
     @property
-    def schema(self) -> Optional[Mapping[str, Any]]:
+    def schema(self) -> Mapping[str, Any] | None:
         # Return a copy to avoid unintentional mutation
         return copy.deepcopy(self._schema)
 
-    def asdict(self) -> Optional[Mapping[str, Any]]:
+    def asdict(self) -> Mapping[str, Any] | None:
         """
         Returns a dict representation of this schema. One possible use of this is to
         modify this dict and then pass it to the ``MetadataSchema`` constructor to create
@@ -818,7 +815,7 @@ class MetadataProvider:
         return self.metadata_schema.decode_row(self.metadata_bytes)
 
     @metadata.setter
-    def metadata(self, metadata: Optional[Union[bytes, dict]]) -> None:
+    def metadata(self, metadata: bytes | dict | None) -> None:
         encoded = self.metadata_schema.validate_and_encode_row(metadata)
         self._ll_object.metadata = encoded
 
