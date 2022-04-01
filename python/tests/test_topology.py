@@ -1686,9 +1686,12 @@ class TopologyTestCase:
         assert h1 == h2
 
     def assert_variants_equal(self, ts1, ts2):
-        v1 = list(ts1.variants(as_bytes=True))
-        v2 = list(ts2.variants(as_bytes=True))
-        assert v1 == v2
+        for v1, v2 in zip(
+            ts1.variants(copy=False),
+            ts2.variants(copy=False),
+        ):
+            assert v1.alleles == v2.alleles
+            assert np.array_equal(v1.genotypes, v2.genotypes)
 
     def check_num_samples(self, ts, x):
         """
@@ -2541,9 +2544,12 @@ class TestGeneralSamples(TopologyTestCase):
         assert ts.sequence_length == permuted.sequence_length
         assert list(permuted.samples()) == samples
         assert list(permuted.haplotypes()) == list(ts.haplotypes())
-        assert [v.genotypes for v in permuted.variants(as_bytes=True)] == [
-            v.genotypes for v in ts.variants(as_bytes=True)
-        ]
+        for v1, v2 in zip(
+            permuted.variants(copy=False),
+            ts.variants(copy=False),
+        ):
+            assert np.array_equal(v1.genotypes, v2.genotypes)
+
         assert ts.num_trees == permuted.num_trees
         j = 0
         for t1, t2 in zip(ts.trees(), permuted.trees()):
@@ -3355,9 +3361,10 @@ class TestMultipleRoots(TopologyTestCase):
         assert t.parent_dict == {}
         assert sorted(t.roots) == [0, 1]
         assert list(ts.haplotypes(isolated_as_missing=False)) == ["10", "01"]
-        assert [
-            v.genotypes for v in ts.variants(as_bytes=True, isolated_as_missing=False)
-        ] == [b"10", b"01"]
+        assert np.array_equal(
+            np.stack([v.genotypes for v in ts.variants(isolated_as_missing=False)]),
+            [[1, 0], [0, 1]],
+        )
         simplified = ts.simplify()
         t1 = ts.dump_tables()
         t2 = simplified.dump_tables()
@@ -3412,12 +3419,10 @@ class TestMultipleRoots(TopologyTestCase):
         t = next(ts.trees())
         assert t.parent_dict == {0: 4, 1: 4, 2: 5, 3: 5}
         assert list(ts.haplotypes()) == ["1000", "0100", "0010", "0001"]
-        assert [v.genotypes for v in ts.variants(as_bytes=True)] == [
-            b"1000",
-            b"0100",
-            b"0010",
-            b"0001",
-        ]
+        assert np.array_equal(
+            np.stack([v.genotypes for v in ts.variants()]),
+            [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
+        )
         assert t.mrca(0, 1) == 4
         assert t.mrca(0, 4) == 4
         assert t.mrca(2, 3) == 5
@@ -3489,13 +3494,10 @@ class TestMultipleRoots(TopologyTestCase):
         t = next(ts.trees())
         assert t.parent_dict == {0: 4, 1: 5, 2: 7, 3: 7, 4: 6, 5: 6, 8: 7}
         assert list(ts.haplotypes()) == ["10000", "01000", "00100", "00010"]
-        assert [v.genotypes for v in ts.variants(as_bytes=True)] == [
-            b"1000",
-            b"0100",
-            b"0010",
-            b"0001",
-            b"0000",
-        ]
+        assert np.array_equal(
+            np.stack([v.genotypes for v in ts.variants()]),
+            [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1], [0, 0, 0, 0]],
+        )
         assert t.mrca(0, 1) == 6
         assert t.mrca(2, 3) == 7
         assert t.mrca(2, 8) == 7
@@ -3508,14 +3510,11 @@ class TestMultipleRoots(TopologyTestCase):
         assert ts_simplified.num_nodes == 6
         assert ts_simplified.num_trees == 1
         t = next(ts_simplified.trees())
-        # print(ts_simplified.tables)
         assert list(ts_simplified.haplotypes()) == ["1000", "0100", "0010", "0001"]
-        assert [v.genotypes for v in ts_simplified.variants(as_bytes=True)] == [
-            b"1000",
-            b"0100",
-            b"0010",
-            b"0001",
-        ]
+        assert np.array_equal(
+            np.stack([v.genotypes for v in ts_simplified.variants()]),
+            [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
+        )
         # The site over the non-sample external node should have been discarded.
         sites = list(t.sites())
         assert sites[-1].position == 0.4
@@ -3618,15 +3617,17 @@ class TestMultipleRoots(TopologyTestCase):
         t = next(ts.trees())
         assert len(list(t.sites())) == 6
         haplotypes = ["101100", "011100", "000011"]
-        variants = [b"100", b"010", b"110", b"110", b"001", b"001"]
+        variants = [[1, 0, 0], [0, 1, 0], [1, 1, 0], [1, 1, 0], [0, 0, 1], [0, 0, 1]]
         assert list(ts.haplotypes()) == haplotypes
-        assert [v.genotypes for v in ts.variants(as_bytes=True)] == variants
+        assert np.array_equal(np.stack([v.genotypes for v in ts.variants()]), variants)
         ts_simplified = ts.simplify(filter_sites=False)
         assert list(ts_simplified.haplotypes(isolated_as_missing=False)) == haplotypes
-        assert variants == [
-            v.genotypes
-            for v in ts_simplified.variants(as_bytes=True, isolated_as_missing=False)
-        ]
+        assert np.array_equal(
+            np.stack(
+                [v.genotypes for v in ts_simplified.variants(isolated_as_missing=False)]
+            ),
+            variants,
+        )
 
     def test_break_single_tree(self):
         # Take a single largish tree from tskit, and remove the oldest record.

@@ -191,29 +191,6 @@ class TestVariantGenerator:
         assert ts.get_num_mutations() > 10
         return ts
 
-    def test_as_bytes(self):
-        ts = self.get_tree_sequence()
-        n = ts.get_sample_size()
-        m = ts.get_num_mutations()
-        A = np.zeros((m, n), dtype="u1")
-        B = np.zeros((m, n), dtype="u1")
-        for variant in ts.variants():
-            A[variant.index] = variant.genotypes
-        for variant in ts.variants(as_bytes=True):
-            assert isinstance(variant.genotypes, bytes)
-            B[variant.index] = np.frombuffer(variant.genotypes, np.uint8) - ord("0")
-        assert np.all(A == B)
-        bytes_variants = list(ts.variants(as_bytes=True))
-        for j, variant in enumerate(bytes_variants):
-            assert j == variant.index
-            row = np.frombuffer(variant.genotypes, np.uint8) - ord("0")
-            assert np.all(A[j] == row)
-
-    def test_as_bytes_fails(self):
-        ts = tsutil.insert_multichar_mutations(self.get_tree_sequence())
-        with pytest.raises(ValueError):
-            list(ts.variants(as_bytes=True))
-
     def test_dtype(self):
         ts = self.get_tree_sequence()
         for var in ts.variants():
@@ -913,7 +890,7 @@ class TestUserAlleles:
         ):
             assert v2.alleles == alleles
             assert v1.site == v2.site
-            g = v1.genotypes
+            g = np.array(v1.genotypes)
             index = np.where(g == 1)
             g[index] = 2
             assert np.array_equal(g, v2.genotypes)

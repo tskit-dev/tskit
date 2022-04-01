@@ -4196,18 +4196,6 @@ class TestEdgesetContainer(SimpleContainersMixin):
         return [tskit.Edgeset(left=j, right=j, parent=j, children=j) for j in range(n)]
 
 
-class TestVariantContainer(SimpleContainersMixin):
-    def get_instances(self, n):
-        return [
-            tskit.Variant(
-                site=TestSiteContainer().get_instances(1)[0],
-                alleles=["A" * j, "T"],
-                genotypes=np.zeros(j, dtype=np.int8),
-            )
-            for j in range(n)
-        ]
-
-
 class TestContainersAppend:
     def test_containers_append(self, ts_fixture):
         """
@@ -4262,3 +4250,14 @@ class TestTskitConversionOutput(unittest.TestCase):
             assert len(col) == n
             for j in range(n):
                 assert col[j] == haplotypes[j][site_id]
+
+    def test_macs_error(self):
+        tables = tskit.TableCollection(1)
+        tables.sites.add_row(position=0.5, ancestral_state="A")
+        tables.nodes.add_row(time=1, flags=tskit.NODE_IS_SAMPLE)
+        tables.mutations.add_row(node=0, site=0, derived_state="FOO")
+        ts = tables.tree_sequence()
+        with pytest.raises(
+            ValueError, match="macs output only supports single letter alleles"
+        ):
+            ts.to_macs()

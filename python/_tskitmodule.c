@@ -11402,18 +11402,16 @@ out:
 }
 
 static PyObject *
-Variant_decode(Variant *self, PyObject *args, PyObject *kwds)
+Variant_decode(Variant *self, PyObject *args)
 {
     int err;
     PyObject *ret = NULL;
     tsk_id_t site_id;
-    static char *kwlist[] = { "site", NULL };
 
     if (Variant_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(
-            args, kwds, "O&", kwlist, &tsk_id_converter, &site_id)) {
+    if (!PyArg_ParseTuple(args, "O&", &tsk_id_converter, &site_id)) {
         goto out;
     }
     err = tsk_variant_decode(self->variant, site_id, 0);
@@ -11534,7 +11532,7 @@ static PyGetSetDef Variant_getsetters[]
 static PyMethodDef Variant_methods[] = {
     { .ml_name = "decode",
         .ml_meth = (PyCFunction) Variant_decode,
-        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_flags = METH_VARARGS,
         .ml_doc = "Sets the variant's genotypes to those of a given tree and site" },
     { .ml_name = "restricted_copy",
         .ml_meth = (PyCFunction) Variant_restricted_copy,

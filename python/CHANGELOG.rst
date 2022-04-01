@@ -1,5 +1,5 @@
 ----------------------
-[0.4.2] - 2022-0X-XX
+[0.5.0] - 2022-0X-XX
 ----------------------
 
 **Changes**
@@ -10,14 +10,25 @@
 - Make dumping of tables and tree seqences to disk a zero-copy operation.
   (:user:`benjeffery`, :issue:`2111`, :pr:`2124`)
 
+- Add ``return_variant_copies`` argument to ``TreeSequence.variants`` which if False reuses the
+  returned ``Variant`` object for improved performance. Defaults to True.
+  (:user:`benjeffery`, :issue:`605`, :pr:`2172`)
+
+- ``tree.mrca`` now takes 2 or more arguments and gives the common ancestor of them all.
+  (:user:`savitakartik`, :issue:`1340`, :pr:`2121`)
+
 **Breaking Changes**
 
 - The JSON metadata codec now interprets the empty string as an empty object. This means
   that applying a schema to an existing table will no longer necessitate modifying the
   existing rows. (:user:`benjeffery`, :issue:`2064`, :pr:`2104`)
-- ``tree.mrca`` now takes 2 or more arguments.
-  (:user:`savitakartik`, :issue:`1340`, :pr:`2121`)
 
+- Remove the previously deprecated ``as_bytes`` argument to ``TreeSequence.variants``.
+  If you need genotypes in byte form this can be done following the code in the
+  ``to_macs`` method on line ``5573`` of ``trees.py``.
+  This argument was initially deprecated more than 3 years ago when the code was part of
+  ``msprime``.
+  (:user:`benjeffery`, :issue:`605`, :pr:`2172`)
 
 ----------------------
 [0.4.1] - 2022-01-11
