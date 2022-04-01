@@ -24,6 +24,8 @@
 """
 Module responsible for managing trees and tree sequences.
 """
+from __future__ import annotations
+
 import base64
 import collections
 import concurrent.futures
@@ -35,8 +37,6 @@ import warnings
 from dataclasses import dataclass
 from typing import Any
 from typing import NamedTuple
-from typing import Optional
-from typing import Union
 
 import numpy as np
 
@@ -131,7 +131,7 @@ class Individual(util.Dataclass):
     a numpy array (dtype=np.int32). If no nodes are associated with the
     individual this array will be empty.
     """
-    metadata: Optional[Union[bytes, dict]]
+    metadata: bytes | dict | None
     """
     The :ref:`metadata <sec_metadata_definition>`
     for this individual, decoded if a schema applies.
@@ -183,7 +183,7 @@ class Node(util.Dataclass):
     """
     The integer ID of the individual that this node was a part of.
     """
-    metadata: Optional[Union[bytes, dict]]
+    metadata: bytes | dict | None
     """
     The :ref:`metadata <sec_metadata_definition>` for this node, decoded if a schema
     applies.
@@ -230,7 +230,7 @@ class Edge(util.Dataclass):
     To obtain further information about a node with a given ID, use
     :meth:`TreeSequence.node`.
     """
-    metadata: Optional[Union[bytes, dict]]
+    metadata: bytes | dict | None
     """
     The :ref:`metadata <sec_metadata_definition>` for this edge, decoded if a schema
     applies.
@@ -291,7 +291,7 @@ class Site(util.Dataclass):
     The list of mutations at this site. Mutations within a site are returned in the
     order they are specified in the underlying :class:`MutationTable`.
     """
-    metadata: Optional[Union[bytes, dict]]
+    metadata: bytes | dict | None
     """
     The :ref:`metadata <sec_metadata_definition>` for this site, decoded if a schema
     applies.
@@ -354,7 +354,7 @@ class Mutation(util.Dataclass):
     To obtain further information about a mutation with a given ID, use
     :meth:`TreeSequence.mutation`.
     """
-    metadata: Optional[Union[bytes, dict]]
+    metadata: bytes | dict | None
     """
     The :ref:`metadata <sec_metadata_definition>` for this mutation, decoded if a schema
     applies.
@@ -441,7 +441,7 @@ class Migration(util.Dataclass):
     """
     The time at which this migration occurred at.
     """
-    metadata: Optional[Union[bytes, dict]]
+    metadata: bytes | dict | None
     """
     The :ref:`metadata <sec_metadata_definition>` for this migration, decoded if a schema
     applies.
@@ -469,15 +469,14 @@ class Population(util.Dataclass):
     The integer ID of this population. Varies from 0 to
     :attr:`TreeSequence.num_populations` - 1.
     """
-    metadata: Optional[Union[bytes, dict]]
+    metadata: bytes | dict | None
     """
     The :ref:`metadata <sec_metadata_definition>` for this population, decoded if a
     schema applies.
     """
 
 
-@dataclass
-class Variant(util.Dataclass):
+class Variant:
     """
     A variant in a tree sequence, describing the observed genetic variation
     among samples for a given site. A variant consists (a) of a reference to
@@ -523,38 +522,51 @@ class Variant(util.Dataclass):
     As ``tskit.MISSING_DATA`` is equal to -1, code that decodes genotypes into
     allelic values without taking missing data into account would otherwise
     incorrectly output the last allele in the list.
-
-    Modifying the attributes in this class will have **no effect** on the
-    underlying tree sequence data.
     """
 
-    __slots__ = ["site", "alleles", "genotypes"]
-    site: Site
-    """
-    The site object for this variant.
-    """
-    alleles: tuple
-    """
-    A tuple of the allelic values that may be observed at the
-    samples at the current site. The first element of this tuple is always
-    the site's ancestral state.
-    """
-    genotypes: np.ndarray
-    """
-    An array of indexes into the list ``alleles``, giving the
-    state of each sample at the current site.
-    """
+    def __init__(self, tree_sequence, samples, isolated_as_missing, alleles):
+        self.tree_sequence = tree_sequence
+        self._ll_variant = _tskit.Variant(
+            tree_sequence._ll_tree_sequence,
+            samples=samples,
+            isolated_as_missing=isolated_as_missing,
+            alleles=alleles,
+        )
 
     @property
-    def has_missing_data(self):
+    def site(self) -> Site:
+        """
+        The site object for this variant.
+        """
+        return self.tree_sequence.site(self._ll_variant.site_id)
+
+    @property
+    def alleles(self) -> tuple:
+        """
+        A tuple of the allelic values that may be observed at the
+        samples at the current site. The first element of this tuple is always
+        the site's ancestral state.
+        """
+        return self._ll_variant.alleles
+
+    @property
+    def genotypes(self) -> np.ndarray:
+        """
+        An array of indexes into the list ``alleles``, giving the
+        state of each sample at the current site.
+        """
+        return self._ll_variant.genotypes
+
+    @property
+    def has_missing_data(self) -> bool:
         """
         True if there is missing data for any of the
         samples at the current site.
         """
-        return self.alleles[-1] is None
+        return self._ll_variant.alleles[-1] is None
 
     @property
-    def num_alleles(self):
+    def num_alleles(self) -> int:
         """
         The number of distinct alleles at this site. Note that
         this may be greater than the number of distinct values in the genotypes
@@ -564,22 +576,32 @@ class Variant(util.Dataclass):
 
     # Deprecated alias to avoid breaking existing code.
     @property
-    def position(self):
+    def position(self) -> float:
         return self.site.position
 
     # Deprecated alias to avoid breaking existing code.
     @property
-    def index(self):
-        return self.site.id
+    def index(self) -> int:
+        return self._ll_variant.site_id
 
     # We need a custom eq for the numpy array
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return (
             isinstance(other, Variant)
-            and self.site == other.site
-            and self.alleles == other.alleles
-            and np.array_equal(self.genotypes, other.genotypes)
+            and self.tree_sequence == other.tree_sequence
+            and self._ll_variant.site_id == other._ll_variant.site_id
+            and self._ll_variant.alleles == other._ll_variant.alleles
+            and np.array_equal(self._ll_variant.genotypes, other._ll_variant.genotypes)
         )
+
+    def decode(self, site_id) -> None:
+        self._ll_variant.decode(site_id)
+
+    def copy(self) -> Variant:
+        variant_copy = Variant.__new__(Variant)
+        variant_copy.tree_sequence = self.tree_sequence
+        variant_copy._ll_variant = self._ll_variant.restricted_copy()
+        return variant_copy
 
 
 @dataclass
@@ -3924,7 +3946,7 @@ class TreeSequence:
         return self._ll_tree_sequence.get_num_samples()
 
     @property
-    def table_metadata_schemas(self) -> "_TableMetadataSchemas":
+    def table_metadata_schemas(self) -> _TableMetadataSchemas:
         """
         The set of metadata schemas for the tables in this tree sequence.
         """
@@ -4652,11 +4674,11 @@ class TreeSequence:
     def variants(
         self,
         *,
-        as_bytes=False,
         samples=None,
         isolated_as_missing=None,
         alleles=None,
         impute_missing_data=None,
+        copy=None,
     ):
         """
         Returns an iterator over the variants (each site with its genotypes
@@ -4697,14 +4719,6 @@ class TreeSequence:
         state (this was the default behaviour in versions prior to 0.2.0). Prior to
         0.3.0 the `impute_missing_data` argument controlled this behaviour.
 
-        .. note::
-            The ``as_bytes`` parameter is kept as a compatibility
-            option for older code. It is not the recommended way of
-            accessing variant data, and will be deprecated in a later
-            release.
-
-        :param bool as_bytes: If True, the genotype values will be returned
-            as a Python bytes object. Legacy use only.
         :param array_like samples: An array of node IDs for which to generate
             genotypes, or None for all sample nodes. Default: None.
         :param bool isolated_as_missing: If True, the genotype value assigned to
@@ -4721,6 +4735,10 @@ class TreeSequence:
         :param bool impute_missing_data:
             *Deprecated in 0.3.0. Use ``isolated_as_missing``, but inverting value.
             Will be removed in a future version*
+        :param bool copy:
+            If False re-use the same Variant object for each site such that any
+            references held to it are overwritten when the next site is visited.
+            If True return a fresh :class:`Variant` for each site. Default: True.
         :return: An iterator over all variants in this tree sequence.
         :rtype: iter(:class:`Variant`)
         """
@@ -4734,26 +4752,26 @@ class TreeSequence:
         # Only use impute_missing_data if isolated_as_missing has the default value
         if isolated_as_missing is None:
             isolated_as_missing = not impute_missing_data
+        if copy is None:
+            copy = True
+
         # See comments for the Variant type for discussion on why the
         # present form was chosen.
-        iterator = _tskit.VariantGenerator(
-            self._ll_tree_sequence,
+        variant = tskit.Variant(
+            self,
             samples=samples,
             isolated_as_missing=isolated_as_missing,
             alleles=alleles,
         )
-        for site_id, genotypes, alleles in iterator:
-            site = self.site(site_id)
-            if as_bytes:
-                if any(len(allele) > 1 for allele in alleles):
-                    raise ValueError(
-                        "as_bytes only supported for single-letter alleles"
-                    )
-                bytes_genotypes = np.empty(self.num_samples, dtype=np.uint8)
-                lookup = np.array([ord(a[0]) for a in alleles], dtype=np.uint8)
-                bytes_genotypes[:] = lookup[genotypes]
-                genotypes = bytes_genotypes.tobytes()
-            yield Variant(site, alleles, genotypes)
+        sites = range(self.num_sites)
+        if copy:
+            for site_id in sites:
+                variant.decode(site_id)
+                yield variant.copy()
+        else:
+            for site_id in sites:
+                variant.decode(site_id)
+                yield variant
 
     def genotype_matrix(
         self, *, isolated_as_missing=None, alleles=None, impute_missing_data=None
@@ -5552,10 +5570,15 @@ class TreeSequence:
         m = self.get_sequence_length()
         output = [f"COMMAND:\tnot_macs {n} {m}"]
         output.append("SEED:\tASEED")
-        for variant in self.variants(as_bytes=True):
+        for variant in self.variants(copy=False):
+            if any(len(allele) > 1 for allele in variant.alleles):
+                raise ValueError("macs output only supports single letter alleles")
+            bytes_genotypes = np.empty(self.num_samples, dtype=np.uint8)
+            lookup = np.array([ord(a[0]) for a in variant.alleles], dtype=np.uint8)
+            bytes_genotypes[:] = lookup[variant.genotypes]
+            genotypes = bytes_genotypes.tobytes().decode()
             output.append(
-                f"SITE:\t{variant.index}\t{variant.position / m}\t0.0\t"
-                f"{variant.genotypes.decode()}"
+                f"SITE:\t{variant.index}\t{variant.position / m}\t0.0\t" f"{genotypes}"
             )
         return "\n".join(output) + "\n"
 
