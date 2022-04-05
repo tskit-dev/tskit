@@ -89,6 +89,8 @@ heap or the stack:
     free(edges);
 
 
+.. _sec_c_api_error_handling:
+
 --------------
 Error handling
 --------------
@@ -334,9 +336,9 @@ Provenances
 
 .. _sec_c_api_table_indexes:
 
-*************
+-------------
 Table indexes
-*************
+-------------
 
 Along with the tree sequence :ref:`ordering requirements
 <sec_valid_tree_sequence_requirements>`, the :ref:`sec_table_indexes`
@@ -382,6 +384,8 @@ Tree sequences
 .. doxygengroup:: TREESEQ_API_GROUP
     :content-only:
 
+.. _sec_c_api_trees:
+
 *****
 Trees
 *****
@@ -389,7 +393,150 @@ Trees
 .. doxygenstruct:: tsk_tree_t
     :members:
 
-.. doxygengroup:: TREE_API_GROUP
+---------
+Lifecycle
+---------
+
+.. doxygengroup:: TREE_API_LIFECYCLE_GROUP
+    :content-only:
+
+.. _sec_c_api_trees_null:
+
+----------
+Null state
+----------
+
+Trees are initially in a "null state" where each sample is a
+root and there are no branches. The ``index`` of a tree in the
+null state is ``-1``.
+
+We must call one of the
+:ref:`seeking<sec_c_api_trees_seeking>` methods
+to make the state of the tree object correspond to a particular tree
+in the sequence.
+
+.. _sec_c_api_trees_seeking:
+
+-------
+Seeking
+-------
+
+When we are examining many trees along a tree sequence,
+we usually allocate a single :c:struct:`tsk_tree_t` object
+and update its state. This allows us to efficiently transform
+the state of a tree into nearby trees, using the underlying succinct tree
+sequence data structure.
+
+The simplest example to visit trees left-to-right along the genome:
+
+.. code-block:: c
+    :linenos:
+
+    int
+    visit_trees(const tsk_treeseq_t *ts)
+    {
+        tsk_tree_t tree;
+        int ret;
+
+        ret = tsk_tree_init(&tree, &ts, 0);
+        if (ret != 0) {
+            goto out;
+        }
+        for (ret = tsk_tree_first(&tree); ret == TSK_TREE_OK; ret = tsk_tree_next(&tree)) {
+            printf("\ttree %lld covers interval left=%f right=%f\n",
+                (long long) tree.index, tree.interval.left, tree.interval.right);
+        }
+        if (ret != 0) {
+            goto out;
+        }
+        // Do other things in the function...
+    out:
+        tsk_tree_free(&tree);
+        return ret;
+    }
+
+
+In this example we first initialise a :c:struct:`tsk_tree_t` object,
+associating it with the input tree sequence. We then iterate over the
+trees along the sequence using a ``for`` loop, with the ``ret`` variable
+controlling iteration. The usage of ``ret`` here follows a slightly
+different pattern to other functions in the tskit C API
+(see the :ref:`sec_c_api_error_handling` section).
+The interaction between error handling and states
+of the ``tree`` object here is somewhat subtle, and is worth explaining
+in detail.
+
+After successful initialisation (after line 10), the tree is in the
+:ref:`null state<sec_c_api_trees_null>` where all samples are roots.
+The ``for`` loop begins by calling :c:func:`tsk_tree_first` which
+transforms the state of the tree into the first (leftmost) tree in
+the sequence. If this operation is successful, :c:func:`tsk_tree_first`
+returns :c:data:`TSK_TREE_OK`. We then check the value of ``ret``
+in the loop condition to see if it is equal
+to :c:data:`TSK_TREE_OK` and execute the loop body for the
+first tree in the sequence.
+
+On completing the loop body for the first tree in the sequence,
+we then execute the ``for`` loop increment operation, which
+calls :c:func:`tsk_tree_next` and assigns the returned value to
+``ret``. This function efficiently transforms the current state
+of ``tree`` so that it represents the next tree along the genome,
+and returns :c:data:`TSK_TREE_OK` if the operation succeeds.
+When :c:func:`tsk_tree_next` is called on the last tree in the
+sequence, the state of ``tree`` is set back to the
+:ref:`null state<sec_c_api_trees_null>` and the return value is 0.
+
+Thus, the loop on lines 11-14 can exit in two ways:
+
+1. Either we successfully iterate over all trees in the sequence and
+   ``ret`` has the value ``0`` at line 15; or
+2. An error occurs during :c:func:`tsk_tree_first` or
+   :c:func:`tsk_tree_next`, and ret contains a negative value.
+
+.. warning::
+    It is **vital** that you check the value of ``ret`` immediately
+    after the loop exits like we do here at line 15, or errors can be silently
+    lost. (Although it's redundant here, as we don't do anything else in the
+    function.)
+
+.. seealso::
+    See the :ref:`examples<sec_c_api_examples_tree_iteration>` section for
+    more examples of sequential seeking, including
+    an example of using
+    use :c:func:`tsk_tree_last` and :c:func:`tsk_tree_prev`
+    to iterate from right-to-left.
+
+.. note::
+    Seeking functions
+    :c:func:`tsk_tree_first`,
+    :c:func:`tsk_tree_last`,
+    :c:func:`tsk_tree_next`
+    :c:func:`tsk_tree_prev`,
+    and :c:func:`tsk_tree_seek`
+    can be called in any order and from any non-error state
+
+.. doxygengroup:: TREE_API_SEEKING_GROUP
+    :content-only:
+
+------------
+Tree queries
+------------
+
+.. doxygengroup:: TREE_API_TREE_QUERY_GROUP
+    :content-only:
+
+------------
+Node queries
+------------
+
+.. doxygengroup:: TREE_API_NODE_QUERY_GROUP
+    :content-only:
+
+----------------
+Traversal orders
+----------------
+
+.. doxygengroup:: TREE_API_TRAVERSAL_GROUP
     :content-only:
 
 

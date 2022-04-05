@@ -12,7 +12,7 @@
 int
 main(int argc, char **argv)
 {
-    int ret, iter;
+    int ret;
     tsk_treeseq_t ts;
     tsk_tree_t tree;
 
@@ -25,20 +25,20 @@ main(int argc, char **argv)
     check_tsk_error(ret);
 
     printf("Iterate forwards\n");
-    for (iter = tsk_tree_first(&tree); iter == 1; iter = tsk_tree_next(&tree)) {
+    for (ret = tsk_tree_first(&tree); ret == TSK_TREE_OK; ret = tsk_tree_next(&tree)) {
         printf("\ttree %lld has %lld roots\n",
-            (long long) tsk_tree_get_index(&tree),
+            (long long) tree.index,
             (long long) tsk_tree_get_num_roots(&tree));
     }
-    check_tsk_error(iter);
+    check_tsk_error(ret);
 
     printf("Iterate backwards\n");
-    for (iter = tsk_tree_last(&tree); iter == 1; iter = tsk_tree_prev(&tree)) {
+    for (ret = tsk_tree_last(&tree); ret == TSK_TREE_OK; ret = tsk_tree_prev(&tree)) {
         printf("\ttree %lld has %lld roots\n",
-            (long long) tsk_tree_get_index(&tree),
+            (long long) tree.index,
             (long long) tsk_tree_get_num_roots(&tree));
     }
-    check_tsk_error(iter);
+    check_tsk_error(ret);
 
     tsk_tree_free(&tree);
     tsk_treeseq_free(&ts);

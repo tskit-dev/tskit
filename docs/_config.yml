@@ -3,7 +3,7 @@
 
 title: Tskit manual
 author: Tskit Developers
-copyright: "2021"
+copyright: "2022"
 only_build_toc_files: true
 logo: logo.svg
 
@@ -67,6 +67,8 @@ sphinx:
           ["c:identifier", "uint32_t"],
           ["c:identifier", "uint64_t"],
           ["c:identifier", "FILE"],
+          # This is for the anonymous interval struct embedded in the tsk_tree_t.
+          ["c:identifier", "tsk_tree_t.@1"],
           ["c:type", "int32_t"],
           ["c:type", "uint32_t"],
           ["c:type", "uint64_t"],
