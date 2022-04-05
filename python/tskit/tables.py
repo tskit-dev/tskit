@@ -3240,7 +3240,7 @@ class TableCollection(metadata.MetadataProvider):
         Returns a deep copy of this TableCollection.
 
         :return: A deep copy of this TableCollection.
-        :rtype: .TableCollection
+        :rtype: tskit.TableCollection
         """
         return TableCollection.fromdict(self.asdict())
 
@@ -3256,7 +3256,7 @@ class TableCollection(metadata.MetadataProvider):
 
         :return: A :class:`TreeSequence` instance reflecting the structures
             defined in this set of tables.
-        :rtype: .TreeSequence
+        :rtype: tskit.TreeSequence
         """
         if not self.has_index():
             self.build_index()
