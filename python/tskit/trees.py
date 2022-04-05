@@ -5654,7 +5654,7 @@ class TreeSequence:
             a tuple consisting of the simplified tree sequence and a numpy array
             mapping source node IDs to their corresponding IDs in the new tree
             sequence.
-        :rtype: .TreeSequence or (.TreeSequence, numpy.ndarray)
+        :rtype: tskit.TreeSequence or (tskit.TreeSequence, numpy.ndarray)
         """
         tables = self.dump_tables()
         assert tables.sequence_length == self.sequence_length
@@ -5718,7 +5718,7 @@ class TreeSequence:
             no longer used are discarded. (Default: True).
         :param bool record_provenance: If ``True``, add details of this operation to the
             provenance information of the returned tree sequence. (Default: ``True``).
-        :rtype: .TreeSequence
+        :rtype: tskit.TreeSequence
         """
         tables = self.dump_tables()
         tables.delete_intervals(intervals, simplify, record_provenance)
@@ -5750,7 +5750,7 @@ class TreeSequence:
         :param bool record_provenance: If True, add details of this operation to the
             provenance information of the returned tree sequence.
             (Default: True).
-        :rtype: .TreeSequence
+        :rtype: tskit.TreeSequence
         """
         tables = self.dump_tables()
         tables.keep_intervals(intervals, simplify, record_provenance)
@@ -5848,7 +5848,7 @@ class TreeSequence:
         :param bool remove_unreferenced: Whether sites, individuals, and populations
             that are not referred to by any retained entries in the tables should
             be removed (default: True). See the description for details.
-        :rtype: .TreeSequence
+        :rtype: tskit.TreeSequence
         """
         tables = self.dump_tables()
         tables.subset(

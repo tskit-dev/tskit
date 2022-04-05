@@ -31,7 +31,7 @@ dependencies:
   - pytest-cov
   - pytest-xdist
   - PyVCF
-  - sphinx<=3.3.1
+  - sphinx==4.5.0
   - sphinx-argparse
   - sphinx-issues
   - sphinx_rtd_theme
