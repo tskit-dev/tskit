@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2021 Tskit Developers
+ * Copyright (c) 2019-2022 Tskit Developers
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -43,7 +43,7 @@ test_single_tree_newick(void)
     ret = tsk_tree_init(&t, &ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0)
     ret = tsk_tree_first(&t);
-    CU_ASSERT_EQUAL_FATAL(ret, 1)
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_TREE_OK)
 
     ret = tsk_convert_newick(&t, 0, 0, TSK_NEWICK_LEGACY_MS_LABELS, buffer_size, newick);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -90,7 +90,7 @@ test_single_tree_newick_errors(void)
     ret = tsk_tree_init(&t, &ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0)
     ret = tsk_tree_first(&t);
-    CU_ASSERT_EQUAL_FATAL(ret, 1)
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_TREE_OK)
 
     ret = tsk_convert_newick(&t, -1, 1, 0, buffer_size, newick);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2021 Tskit Developers
+ * Copyright (c) 2019-2022 Tskit Developers
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -631,7 +631,7 @@ verify_branch_general_stat_identity(tsk_treeseq_t *ts)
     ret = tsk_tree_init(&tree, ts, 0);
     CU_ASSERT_EQUAL(ret, 0);
 
-    for (ret = tsk_tree_first(&tree); ret == 1; ret = tsk_tree_next(&tree)) {
+    for (ret = tsk_tree_first(&tree); ret == TSK_TREE_OK; ret = tsk_tree_next(&tree)) {
         ret = tsk_tree_preorder(&tree, -1, nodes, &num_nodes);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
 

@@ -3676,12 +3676,6 @@ tsk_tree_get_num_roots(const tsk_tree_t *self)
     return num_roots;
 }
 
-tsk_id_t
-tsk_tree_get_index(const tsk_tree_t *self)
-{
-    return self->index;
-}
-
 int TSK_WARN_UNUSED
 tsk_tree_get_parent(const tsk_tree_t *self, tsk_id_t u, tsk_id_t *parent)
 {
@@ -4194,14 +4188,14 @@ tsk_tree_advance(tsk_tree_t *self, int direction, const double *restrict out_bre
         self->sites = self->tree_sequence->tree_sites[self->index];
         self->sites_length = self->tree_sequence->tree_sites_length[self->index];
     }
-    ret = 1;
+    ret = TSK_TREE_OK;
     return ret;
 }
 
 int TSK_WARN_UNUSED
 tsk_tree_first(tsk_tree_t *self)
 {
-    int ret = 1;
+    int ret = TSK_TREE_OK;
     tsk_table_collection_t *tables = self->tree_sequence->tables;
 
     self->interval.left = 0;
@@ -4236,7 +4230,7 @@ out:
 int TSK_WARN_UNUSED
 tsk_tree_last(tsk_tree_t *self)
 {
-    int ret = 1;
+    int ret = TSK_TREE_OK;
     const tsk_treeseq_t *ts = self->tree_sequence;
     const tsk_table_collection_t *tables = ts->tables;
 
@@ -4475,6 +4469,11 @@ tsk_tree_preorder(
         goto out;
     }
 
+    if ((root == -1 || root == self->virtual_root)
+        && !tsk_tree_has_sample_counts(self)) {
+        ret = TSK_ERR_UNSUPPORTED_OPERATION;
+        goto out;
+    }
     if (root == -1) {
         stack_top = -1;
         for (u = right_child[self->virtual_root]; u != TSK_NULL; u = left_sib[u]) {
@@ -4533,6 +4532,10 @@ tsk_tree_preorder_samples(
      * when looking up the flags array (which isn't defined for virtual_root).
      */
     if (root == -1 || root == self->virtual_root) {
+        if (!tsk_tree_has_sample_counts(self)) {
+            ret = TSK_ERR_UNSUPPORTED_OPERATION;
+            goto out;
+        }
         stack_top = -1;
         for (u = right_child[self->virtual_root]; u != TSK_NULL; u = left_sib[u]) {
             stack_top++;
@@ -4585,6 +4588,10 @@ tsk_tree_postorder(
     }
 
     if (root == -1 || is_virtual_root) {
+        if (!tsk_tree_has_sample_counts(self)) {
+            ret = TSK_ERR_UNSUPPORTED_OPERATION;
+            goto out;
+        }
         stack_top = -1;
         for (u = right_child[self->virtual_root]; u != TSK_NULL; u = left_sib[u]) {
             stack_top++;
@@ -4964,7 +4971,7 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
             right = TSK_MIN(right, edges->right[removal_order[self->removal_index]]);
         }
         self->tree_index++;
-        ret = 1;
+        ret = TSK_TREE_OK;
     }
     *edges_out_ret = edges_out;
     *edges_in_ret = edges_in;
@@ -5423,7 +5430,7 @@ tsk_treeseq_kc_distance(const tsk_treeseq_t *self, const tsk_treeseq_t *other,
     left = 0;
 
     ret = tsk_tree_first(&trees[0]);
-    if (ret != 1) {
+    if (ret != TSK_TREE_OK) {
         goto out;
     }
     ret = check_kc_distance_tree_inputs(&trees[0]);
@@ -5432,20 +5439,20 @@ tsk_treeseq_kc_distance(const tsk_treeseq_t *self, const tsk_treeseq_t *other,
     }
     ret = tsk_diff_iter_next(
         &diff_iters[0], &t0_left, &t0_right, &edges_out[0], &edges_in[0]);
-    tsk_bug_assert(ret == 1);
+    tsk_bug_assert(ret == TSK_TREE_OK);
     ret = update_kc_incremental(
         &trees[0], &kcs[0], &edges_out[0], &edges_in[0], depths[0]);
     if (ret != 0) {
         goto out;
     }
-    while ((ret = tsk_tree_next(&trees[1])) == 1) {
+    while ((ret = tsk_tree_next(&trees[1])) == TSK_TREE_OK) {
         ret = check_kc_distance_tree_inputs(&trees[1]);
         if (ret != 0) {
             goto out;
         }
         ret = tsk_diff_iter_next(
             &diff_iters[1], &t1_left, &t1_right, &edges_out[1], &edges_in[1]);
-        tsk_bug_assert(ret == 1);
+        tsk_bug_assert(ret == TSK_TREE_OK);
 
         ret = update_kc_incremental(
             &trees[1], &kcs[1], &edges_out[1], &edges_in[1], depths[1]);
@@ -5458,14 +5465,14 @@ tsk_treeseq_kc_distance(const tsk_treeseq_t *self, const tsk_treeseq_t *other,
 
             left = t0_right;
             ret = tsk_tree_next(&trees[0]);
-            tsk_bug_assert(ret == 1);
+            tsk_bug_assert(ret == TSK_TREE_OK);
             ret = check_kc_distance_tree_inputs(&trees[0]);
             if (ret != 0) {
                 goto out;
             }
             ret = tsk_diff_iter_next(
                 &diff_iters[0], &t0_left, &t0_right, &edges_out[0], &edges_in[0]);
-            tsk_bug_assert(ret == 1);
+            tsk_bug_assert(ret == TSK_TREE_OK);
             ret = update_kc_incremental(
                 &trees[0], &kcs[0], &edges_out[0], &edges_in[0], depths[0]);
             if (ret != 0) {

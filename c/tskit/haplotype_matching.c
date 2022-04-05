@@ -979,7 +979,7 @@ tsk_ls_hmm_run(tsk_ls_hmm_t *self, int32_t *haplotype,
         goto out;
     }
 
-    for (t_ret = tsk_tree_first(&self->tree); t_ret == 1;
+    for (t_ret = tsk_tree_first(&self->tree); t_ret == TSK_TREE_OK;
          t_ret = tsk_tree_next(&self->tree)) {
         ret = tsk_ls_hmm_update_tree(self);
         if (ret != 0) {
@@ -1342,7 +1342,8 @@ tsk_compressed_matrix_decode(tsk_compressed_matrix_t *self, double *values)
         goto out;
     }
 
-    for (t_ret = tsk_tree_first(&tree); t_ret == 1; t_ret = tsk_tree_next(&tree)) {
+    for (t_ret = tsk_tree_first(&tree); t_ret == TSK_TREE_OK;
+         t_ret = tsk_tree_next(&tree)) {
         ret = tsk_tree_get_sites(&tree, &sites, &num_tree_sites);
         if (ret != 0) {
             goto out;
