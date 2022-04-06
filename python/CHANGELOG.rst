@@ -7,10 +7,10 @@
 - ``VcfWriter.write`` now prints the site ID of variants in the ID field of the output VCF files.
   (:user:`roohy`, :issue:`2103`, :pr:`2107`)
 
-- Make dumping of tables and tree seqences to disk a zero-copy operation.
+- Make dumping of tables and tree sequences to disk a zero-copy operation.
   (:user:`benjeffery`, :issue:`2111`, :pr:`2124`)
 
-- Add ``return_variant_copies`` argument to ``TreeSequence.variants`` which if False reuses the
+- Add ``copy`` argument to ``TreeSequence.variants`` which if False reuses the
   returned ``Variant`` object for improved performance. Defaults to True.
   (:user:`benjeffery`, :issue:`605`, :pr:`2172`)
 
