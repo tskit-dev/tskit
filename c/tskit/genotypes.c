@@ -576,7 +576,7 @@ out:
 }
 
 int
-tsk_variant_restricted_copy(tsk_variant_t *self, tsk_variant_t *other)
+tsk_variant_restricted_copy(const tsk_variant_t *self, tsk_variant_t *other)
 {
     int ret = 0;
     tsk_size_t total_len, offset, j;
