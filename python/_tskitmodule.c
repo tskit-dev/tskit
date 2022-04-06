@@ -151,12 +151,6 @@ typedef struct {
 typedef struct {
     PyObject_HEAD
     TreeSequence *tree_sequence;
-    tsk_vargen_t *variant_generator;
-} VariantGenerator;
-
-typedef struct {
-    PyObject_HEAD
-    TreeSequence *tree_sequence;
     tsk_variant_t *variant;
 } Variant;
 
@@ -581,27 +575,6 @@ make_alleles(tsk_variant_t *variant)
     }
     ret = t;
 out:
-    return ret;
-}
-
-static PyObject *
-make_variant(tsk_variant_t *variant, tsk_size_t num_samples)
-{
-    PyObject *ret = NULL;
-    npy_intp dims = num_samples;
-    PyObject *alleles = make_alleles(variant);
-    PyArrayObject *genotypes = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT32);
-
-    /* TODO update this to account for 16 bit variants when we provide the
-     * high-level interface. */
-    if (genotypes == NULL || alleles == NULL) {
-        goto out;
-    }
-    memcpy(PyArray_DATA(genotypes), variant->genotypes, num_samples * sizeof(int32_t));
-    ret = Py_BuildValue("iOO", variant->site.id, genotypes, alleles);
-out:
-    Py_XDECREF(genotypes);
-    Py_XDECREF(alleles);
     return ret;
 }
 
@@ -11168,140 +11141,6 @@ static PyTypeObject TreeDiffIteratorType = {
 };
 
 /*===================================================================
- * VariantGenerator
- *===================================================================
- */
-
-static int
-VariantGenerator_check_state(VariantGenerator *self)
-{
-    int ret = 0;
-    if (self->variant_generator == NULL) {
-        PyErr_SetString(PyExc_SystemError, "converter not initialised");
-        ret = -1;
-    }
-    return ret;
-}
-
-static void
-VariantGenerator_dealloc(VariantGenerator *self)
-{
-    if (self->variant_generator != NULL) {
-        tsk_vargen_free(self->variant_generator);
-        PyMem_Free(self->variant_generator);
-        self->variant_generator = NULL;
-    }
-    Py_XDECREF(self->tree_sequence);
-    Py_TYPE(self)->tp_free((PyObject *) self);
-}
-
-static int
-VariantGenerator_init(VariantGenerator *self, PyObject *args, PyObject *kwds)
-{
-    int ret = -1;
-    int err;
-    static char *kwlist[]
-        = { "tree_sequence", "samples", "isolated_as_missing", "alleles", NULL };
-    TreeSequence *tree_sequence = NULL;
-    PyObject *samples_input = Py_None;
-    PyObject *py_alleles = Py_None;
-    PyArrayObject *samples_array = NULL;
-    tsk_id_t *samples = NULL;
-    tsk_size_t num_samples = 0;
-    int isolated_as_missing = 1;
-    const char **alleles = NULL;
-    npy_intp *shape;
-    tsk_flags_t options = 0;
-
-    self->variant_generator = NULL;
-    self->tree_sequence = NULL;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|OiO", kwlist, &TreeSequenceType,
-            &tree_sequence, &samples_input, &isolated_as_missing, &py_alleles)) {
-        goto out;
-    }
-    if (!isolated_as_missing) {
-        options |= TSK_ISOLATED_NOT_MISSING;
-    }
-    self->tree_sequence = tree_sequence;
-    Py_INCREF(self->tree_sequence);
-    if (TreeSequence_check_state(self->tree_sequence) != 0) {
-        goto out;
-    }
-    if (samples_input != Py_None) {
-        samples_array = (PyArrayObject *) PyArray_FROMANY(
-            samples_input, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
-        if (samples_array == NULL) {
-            goto out;
-        }
-        shape = PyArray_DIMS(samples_array);
-        num_samples = (tsk_size_t) shape[0];
-        samples = PyArray_DATA(samples_array);
-    }
-    if (py_alleles != Py_None) {
-        alleles = parse_allele_list(py_alleles);
-        if (alleles == NULL) {
-            goto out;
-        }
-    }
-    self->variant_generator = PyMem_Malloc(sizeof(tsk_vargen_t));
-    if (self->variant_generator == NULL) {
-        PyErr_NoMemory();
-        goto out;
-    }
-    /* Note: the vargen currently takes a copy of the samples list. If we wanted
-     * to avoid this we would INCREF the samples array above and keep a reference
-     * to in the object struct */
-    err = tsk_vargen_init(self->variant_generator, self->tree_sequence->tree_sequence,
-        samples, num_samples, alleles, options);
-    if (err != 0) {
-        handle_library_error(err);
-        goto out;
-    }
-    ret = 0;
-out:
-    PyMem_Free(alleles);
-    Py_XDECREF(samples_array);
-    return ret;
-}
-
-static PyObject *
-VariantGenerator_next(VariantGenerator *self)
-{
-    PyObject *ret = NULL;
-    tsk_variant_t *var;
-    int err;
-
-    if (VariantGenerator_check_state(self) != 0) {
-        goto out;
-    }
-    err = tsk_vargen_next(self->variant_generator, &var);
-    if (err < 0) {
-        handle_library_error(err);
-        goto out;
-    }
-    if (err == 1) {
-        ret = make_variant(var, var->num_samples);
-    }
-out:
-    return ret;
-}
-
-static PyTypeObject VariantGeneratorType = {
-    // clang-format off
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "_tskit.VariantGenerator",
-    .tp_basicsize = sizeof(VariantGenerator),
-    .tp_dealloc = (destructor) VariantGenerator_dealloc,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_doc = "VariantGenerator objects",
-    .tp_iter = PyObject_SelfIter,
-    .tp_iternext = (iternextfunc) VariantGenerator_next,
-    .tp_init = (initproc) VariantGenerator_init,
-    .tp_new = PyType_GenericNew,
-    // clang-format on
-};
-
-/*===================================================================
  * Variant
  *===================================================================
  */
@@ -12529,13 +12368,6 @@ PyInit__tskit(void)
     }
     Py_INCREF(&TreeDiffIteratorType);
     PyModule_AddObject(module, "TreeDiffIterator", (PyObject *) &TreeDiffIteratorType);
-
-    /* VariantGenerator type */
-    if (PyType_Ready(&VariantGeneratorType) < 0) {
-        return NULL;
-    }
-    Py_INCREF(&VariantGeneratorType);
-    PyModule_AddObject(module, "VariantGenerator", (PyObject *) &VariantGeneratorType);
 
     /* Variant type */
     if (PyType_Ready(&VariantType) < 0) {

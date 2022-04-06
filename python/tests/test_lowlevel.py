@@ -2278,61 +2278,6 @@ class TestTreeDiffIterator(LowLevelTestCase):
         self.verify_iterator(_tskit.TreeDiffIterator(ts))
 
 
-class TestVariantGenerator(LowLevelTestCase):
-    """
-    Tests for the VariantGenerator class.
-    """
-
-    def test_uninitialised_tree_sequence(self):
-        ts = _tskit.TreeSequence()
-        with pytest.raises(ValueError):
-            _tskit.VariantGenerator(ts)
-
-    def test_constructor(self):
-        with pytest.raises(TypeError):
-            _tskit.VariantGenerator()
-        with pytest.raises(TypeError):
-            _tskit.VariantGenerator(None)
-        ts = self.get_example_tree_sequence()
-        with pytest.raises(ValueError):
-            _tskit.VariantGenerator(ts, samples={})
-        with pytest.raises(TypeError):
-            _tskit.VariantGenerator(ts, impute_missing_data=None)
-        with pytest.raises(_tskit.LibraryError):
-            _tskit.VariantGenerator(ts, samples=[-1, 2])
-        with pytest.raises(TypeError):
-            _tskit.VariantGenerator(ts, alleles=1234)
-
-    def test_alleles(self):
-        ts = self.get_example_tree_sequence()
-        for bad_type in [["a", "b"], "sdf", 234]:
-            with pytest.raises(TypeError):
-                _tskit.VariantGenerator(ts, samples=[1, 2], alleles=bad_type)
-        with pytest.raises(ValueError):
-            _tskit.VariantGenerator(ts, samples=[1, 2], alleles=tuple())
-
-        for bad_allele_type in [None, 0, b"x", []]:
-            with pytest.raises(TypeError):
-                _tskit.VariantGenerator(ts, samples=[1, 2], alleles=(bad_allele_type,))
-
-    def test_iterator(self):
-        ts = self.get_example_tree_sequence()
-        self.verify_iterator(_tskit.VariantGenerator(ts))
-
-    def test_missing_data(self):
-        tables = _tskit.TableCollection(1)
-        tables.nodes.add_row(flags=1, time=0)
-        tables.nodes.add_row(flags=1, time=0)
-        tables.sites.add_row(0.1, "A")
-        tables.build_index()
-        ts = _tskit.TreeSequence(0)
-        ts.load_tables(tables)
-        variant = list(_tskit.VariantGenerator(ts))[0]
-        _, genotypes, alleles = variant
-        assert np.all(genotypes == -1)
-        assert alleles == ("A", None)
-
-
 class TestVariant(LowLevelTestCase):
     """
     Tests for the Variant class.
