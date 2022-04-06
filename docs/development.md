@@ -1128,8 +1128,8 @@ the release looks good there, then publish the draft release on the
 [releases page](https://github.com/tskit-dev/tskit/releases) (Click on the little pencil).
 Publishing this release will cause the github
 action to deploy to the [production PyPI](https://pypi.org/project/tskit/).
-After release, start a section in the changelog for new developments and close the
-GitHub issue milestone of the release.
+After release, start a section in the changelog for new developments, close the
+GitHub issue milestone of the release and update ROADMAP.md.
 
 
 
