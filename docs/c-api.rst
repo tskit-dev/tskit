@@ -423,6 +423,19 @@ edge sorting requirements are fulfilled by this function.
 .. doxygengroup:: TABLE_SORTER_API_GROUP
     :content-only:
 
+******************
+Decoding genotypes
+******************
+
+Obtaining genotypes for samples at specific sites is achieved via
+:c:struct:`tsk_variant_t` and its methods.
+
+.. doxygenstruct:: tsk_variant_t
+    :members:
+
+.. doxygengroup:: VARIANT_API_GROUP
+    :content-only:
+
 
 ***********************
 Miscellaneous functions
