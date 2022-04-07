@@ -7,6 +7,10 @@ repos:
       - id: mixed-line-ending
       - id: check-case-conflict
       - id: check-yaml
+  - repo: https://github.com/benjeffery/pre-commit-copyright-year
+    rev: c62dcbb78f724162e14197f8fa264eaa8c3aad49
+    hooks:
+    -   id: copyright-year
   - repo: https://github.com/benjeffery/pre-commit-clang-format
     rev: c21a74d089aaeb86c2c19df371c7e7bf40c07207
     hooks:
