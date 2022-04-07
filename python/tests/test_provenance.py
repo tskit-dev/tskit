@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2019 Tskit Developers
+# Copyright (c) 2018-2020 Tskit Developers
 # Copyright (C) 2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
