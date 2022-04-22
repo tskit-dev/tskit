@@ -1445,6 +1445,10 @@ class EdgeTable(BaseTable, MetadataColumnMixin):
         equal to the smallest left coordinate in the set, and a right coordinate
         equal to the largest right coordinate in the set.
         The new edge table will be sorted in the canonical order (P, C, L, R).
+
+        .. note::
+            Note that this method will fail if any edges have non-empty metadata.
+
         """
         self.ll_table.squash()
 

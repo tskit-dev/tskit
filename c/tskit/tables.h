@@ -1754,13 +1754,35 @@ the default doubling strategy.
 int tsk_edge_table_set_max_metadata_length_increment(
     tsk_edge_table_t *self, tsk_size_t max_metadata_length_increment);
 
+/**
+@brief Squash adjacent edges in-place
+
+@rst
+Sorts, then condenses the table into the smallest possible number of rows by
+combining any adjacent edges. A pair of edges is said to be `adjacent` if
+they have the same parent and child nodes, and if the left coordinate of
+one of the edges is equal to the right coordinate of the other edge.
+This process is performed in-place so that any set of adjacent edges is
+replaced by a single edge. The new edge will have the same parent and child
+node, a left coordinate equal to the smallest left coordinate in the set,
+and a right coordinate equal to the largest right coordinate in the set.
+The new edge table will be sorted in the canonical order (P, C, L, R).
+
+.. note::
+    Note that this method will fail if any edges have non-empty metadata.
+
+@endrst
+
+@param self A pointer to a tsk_edge_table_t object.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_edge_table_squash(tsk_edge_table_t *self);
+
 /** @} */
 
 /* Undocumented methods */
 
 int tsk_edge_table_dump_text(const tsk_edge_table_t *self, FILE *out);
-
-int tsk_edge_table_squash(tsk_edge_table_t *self);
 
 /**
 @defgroup MIGRATION_TABLE_API_GROUP Migration table API.
