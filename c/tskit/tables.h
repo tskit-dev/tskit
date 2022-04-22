@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2021 Tskit Developers
+ * Copyright (c) 2019-2022 Tskit Developers
  * Copyright (c) 2017-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -72,7 +72,9 @@ typedef struct {
     const char *metadata;
     /** @brief Size of the metadata in bytes. */
     tsk_size_t metadata_length;
+    /** @brief An array of the nodes associated with this individual */
     const tsk_id_t *nodes;
+    /** @brief The number of nodes associated with this individual*/
     tsk_size_t nodes_length;
 } tsk_individual_t;
 
@@ -176,7 +178,9 @@ typedef struct {
     const char *metadata;
     /** @brief Metadata length in bytes. */
     tsk_size_t metadata_length;
+    /** @brief An array of this site's mutations */
     const tsk_mutation_t *mutations;
+    /** @brief The number of mutations at this site */
     tsk_size_t mutations_length;
 } tsk_site_t;
 
