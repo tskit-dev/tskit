@@ -269,15 +269,153 @@ typedef struct {
 @defgroup TREESEQ_API_GROUP Tree sequence API
 @{
 */
+
+/**
+@brief Initialises the tree sequence based on the specified table collection.
+
+@rst
+This method will copy the supplied table collection unless TSK_TAKE_OWNERSHIP is
+specified. The table collection will be checked for integrity and index maps
+built.
+
+This must be called before any operations are performed on the tree sequence.
+See the :ref:`sec_c_api_overview_structure` for details on how objects
+are initialised and freed.
+
+**Options**
+
+Options can be specified by providing one or more of the following bitwise
+flags:
+
+TSK_TAKE_OWNERSHIP
+    By default the table collection is copied, however if this flag is
+    specified the table collection will be taken and owned with a reference
+    held by this tree sequence. The table collection will be free'd with
+    this tree sequence.
+
+TSK_BUILD_INDEXES
+    If specified edge indexes will be built and stored in the table collection
+@endrst
+
+@param self A pointer to an uninitialised tsk_table_collection_t object.
+@param tables A pointer to a tsk_table_collection_t
+@param options Allocation time options. See above for details.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_treeseq_init(
     tsk_treeseq_t *self, tsk_table_collection_t *tables, tsk_flags_t options);
 
+/**
+@brief Load a tree sequence from a file path.
+
+@rst
+Loads the data from the specified file into this tree sequence.
+The tree sequence is also initialised.
+The resources allocated must be freed using
+:c:func:`tsk_treeseq_free` even in error conditions.
+
+Works similarly to :c:func:`tsk_table_collection_load` please see
+that function's documentation for details and options.
+
+**Examples**
+
+.. code-block:: c
+
+    int ret;
+    tsk_treeseq_t ts;
+    ret = tsk_treeseq_load(&ts, "data.trees", 0);
+    if (ret != 0) {
+        fprintf(stderr, "Load error:%s\n", tsk_strerror(ret));
+        exit(EXIT_FAILURE);
+    }
+
+@endrst
+
+@param self A pointer to an uninitialised tsk_treeseq_t object
+@param filename A NULL terminated string containing the filename.
+@param options Bitwise options. See above for details.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_treeseq_load(tsk_treeseq_t *self, const char *filename, tsk_flags_t options);
+
+/**
+@brief Load a tree sequence from a stream.
+
+@rst
+Loads a tree sequence from the specified file stream. The tree sequence
+is also initialised. The resources allocated must be freed using
+:c:func:`tsk_treeseq_free` even in error conditions.
+
+Works similarly to :c:func:`tsk_table_collection_loadf` please
+see that function's documentation for details and options.
+
+@endrst
+
+@param self A pointer to an uninitialised tsk_treeseq_t object.
+@param file A FILE stream opened in an appropriate mode for reading (e.g.
+    "r", "r+" or "w+") positioned at the beginning of a tree sequence
+    definition.
+@param options Bitwise options. See above for details.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_treeseq_loadf(tsk_treeseq_t *self, FILE *file, tsk_flags_t options);
 
+/**
+@brief Write a tree sequence to file.
+
+@rst
+Writes the data from this tree sequence to the specified file.
+
+If an error occurs the file path is deleted, ensuring that only complete
+and well formed files will be written.
+@endrst
+
+@param self A pointer to an initialised tsk_treeseq_t object.
+@param filename A NULL terminated string containing the filename.
+@param options Bitwise options. Currently unused; should be
+    set to zero to ensure compatibility with later versions of tskit.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_treeseq_dump(
     const tsk_treeseq_t *self, const char *filename, tsk_flags_t options);
+
+/**
+@brief Write a tree sequence to a stream.
+
+@rst
+Writes the data from this tree sequence to the specified FILE stream.
+Semantics are identical to :c:func:`tsk_treeseq_dump`.
+
+Please see the :ref:`sec_c_api_examples_file_streaming` section for an example
+of how to sequentially dump and load tree sequences from a stream.
+@endrst
+
+@param self A pointer to an initialised tsk_treeseq_t object.
+@param file A FILE stream opened in an appropriate mode for writing (e.g.
+    "w", "a", "r+" or "w+").
+@param options Bitwise options. Currently unused; should be
+    set to zero to ensure compatibility with later versions of tskit.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_treeseq_dumpf(const tsk_treeseq_t *self, FILE *file, tsk_flags_t options);
+
+/**
+@brief Copies the state of the table collection underlying this tree sequence
+into the specified destination table collection.
+
+@rst
+By default the method initialises the specified destination table collection. If the
+destination is already initialised, the :c:macro:`TSK_NO_INIT` option should
+be supplied to avoid leaking memory.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@param tables A pointer to a tsk_table_collection_t object. If the TSK_NO_INIT option
+    is specified, this must be an initialised table collection. If not, it must
+    be an uninitialised table collection.
+@param options Bitwise option flags.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_treeseq_copy_tables(
     const tsk_treeseq_t *self, tsk_table_collection_t *tables, tsk_flags_t options);
 
@@ -302,6 +440,103 @@ on and may change arbitrarily between versions.
 void tsk_treeseq_print_state(const tsk_treeseq_t *self, FILE *out);
 
 /**
+@brief Get the number of nodes
+
+@rst
+Returns the number of nodes in this tree sequence.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns the number of nodes.
+*/
+tsk_size_t tsk_treeseq_get_num_nodes(const tsk_treeseq_t *self);
+
+/**
+@brief Get the number of edges
+
+@rst
+Returns the number of edges in this tree sequence.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns the number of edges.
+*/
+
+tsk_size_t tsk_treeseq_get_num_edges(const tsk_treeseq_t *self);
+
+/**
+@brief Get the number of migrations
+
+@rst
+Returns the number of migrations in this tree sequence.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns the number of migrations.
+*/
+tsk_size_t tsk_treeseq_get_num_migrations(const tsk_treeseq_t *self);
+
+/**
+@brief Get the number of sites
+
+@rst
+Returns the number of sites in this tree sequence.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns the number of sites.
+*/
+tsk_size_t tsk_treeseq_get_num_sites(const tsk_treeseq_t *self);
+
+/**
+@brief Get the number of mutations
+
+@rst
+Returns the number of mutations in this tree sequence.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns the number of mutations.
+*/
+tsk_size_t tsk_treeseq_get_num_mutations(const tsk_treeseq_t *self);
+
+/**
+@brief Get the number of provenances
+
+@rst
+Returns the number of provenances in this tree sequence.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns the number of provenances.
+*/
+tsk_size_t tsk_treeseq_get_num_provenances(const tsk_treeseq_t *self);
+
+/**
+@brief Get the number of populations
+
+@rst
+Returns the number of populations in this tree sequence.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns the number of populations.
+*/
+tsk_size_t tsk_treeseq_get_num_populations(const tsk_treeseq_t *self);
+
+/**
+@brief Get the number of individuals
+
+@rst
+Returns the number of individuals in this tree sequence.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns the number of individuals.
+*/
+tsk_size_t tsk_treeseq_get_num_individuals(const tsk_treeseq_t *self);
+
+/**
 @brief Return the number of trees in this tree sequence.
 
 @rst
@@ -313,51 +548,338 @@ This is a constant time operation.
 */
 tsk_size_t tsk_treeseq_get_num_trees(const tsk_treeseq_t *self);
 
-/** @} */
+/**
+@brief Get the number of samples
 
-bool tsk_treeseq_has_reference_sequence(const tsk_treeseq_t *self);
-tsk_size_t tsk_treeseq_get_num_nodes(const tsk_treeseq_t *self);
-tsk_size_t tsk_treeseq_get_num_edges(const tsk_treeseq_t *self);
-tsk_size_t tsk_treeseq_get_num_migrations(const tsk_treeseq_t *self);
-tsk_size_t tsk_treeseq_get_num_sites(const tsk_treeseq_t *self);
-tsk_size_t tsk_treeseq_get_num_mutations(const tsk_treeseq_t *self);
-tsk_size_t tsk_treeseq_get_num_provenances(const tsk_treeseq_t *self);
-tsk_size_t tsk_treeseq_get_num_populations(const tsk_treeseq_t *self);
-tsk_size_t tsk_treeseq_get_num_individuals(const tsk_treeseq_t *self);
+@rst
+Returns the number of nodes marked as samples in this tree sequence.
+@endrst
 
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns the number of samples.
+*/
 tsk_size_t tsk_treeseq_get_num_samples(const tsk_treeseq_t *self);
+
+/**
+@brief Get the top-level tree sequence metadata.
+
+@rst
+Returns a pointer to the metadata string, which is owned by the tree sequence and
+not null-terminated.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns a pointer to the metadata.
+*/
 const char *tsk_treeseq_get_metadata(const tsk_treeseq_t *self);
+
+/**
+@brief Get the length of top-level tree sequence metadata
+
+@rst
+Returns the length of the metadata string.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns the length of the metadata.
+*/
 tsk_size_t tsk_treeseq_get_metadata_length(const tsk_treeseq_t *self);
+
+/**
+@brief Get the top-level tree sequence metadata schema.
+
+@rst
+Returns a pointer to the metadata schema string, which is owned by the tree sequence and
+not null-terminated.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns a pointer to the metadata schema.
+*/
 const char *tsk_treeseq_get_metadata_schema(const tsk_treeseq_t *self);
+
+/**
+@brief Get the length of the top-level tree sequence metadata schema.
+
+@rst
+Returns the length of the metadata schema string.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns the length of the metadata schema.
+*/
 tsk_size_t tsk_treeseq_get_metadata_schema_length(const tsk_treeseq_t *self);
+
+/**
+@brief Get the time units string
+
+@rst
+Returns a pointer to the time units string, which is owned by the tree sequence and
+not null-terminated.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns a pointer to the time units.
+*/
 const char *tsk_treeseq_get_time_units(const tsk_treeseq_t *self);
+
+/**
+@brief Get the length of time units string
+@rst
+Returns the length of the time units string.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns the length of the time units.
+*/
 tsk_size_t tsk_treeseq_get_time_units_length(const tsk_treeseq_t *self);
+
+/**
+@brief Get the file uuid
+
+@rst
+Returns a pointer to the null-terminated file uuid string, which is owned by the tree
+sequence.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns a pointer to the time units.
+*/
 const char *tsk_treeseq_get_file_uuid(const tsk_treeseq_t *self);
+
+/**
+@brief Get the sequence length
+
+@rst
+Returns the sequence length of this tree sequence
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns the sequence length.
+*/
 double tsk_treeseq_get_sequence_length(const tsk_treeseq_t *self);
+
+/**
+@brief Get the breakpoints
+
+@rst
+Returns an array of breakpoint locations, the array is owned by the tree sequence.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns the pointer to the breakpoint array.
+*/
 const double *tsk_treeseq_get_breakpoints(const tsk_treeseq_t *self);
+
+/**
+@brief Get the samples
+
+@rst
+Returns an array of ids of sample nodes in this tree sequence.
+I.e. nodes that have the TSK_NODE_IS_SAMPLE flag set.
+The array is owned by the tree sequence and should not be modified or free'd.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns the pointer to the sample node id array.
+*/
 const tsk_id_t *tsk_treeseq_get_samples(const tsk_treeseq_t *self);
+
+/**
+@brief Get the map of node id to sample index
+
+@rst
+Returns the location of each node in the list of samples or
+TSK_NULL for nodes that are not samples.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns the pointer to the breakpoint array.
+*/
 const tsk_id_t *tsk_treeseq_get_sample_index_map(const tsk_treeseq_t *self);
+
+/**
+@brief Check if a node is a sample
+
+@rst
+Returns the sample status of a given node id.
+@endrst
+@param self A pointer to a tsk_treeseq_t object.
+@param u The id of the node to be checked.
+@return Returns true if the node is a sample.
+*/
 bool tsk_treeseq_is_sample(const tsk_treeseq_t *self, tsk_id_t u);
+
+/**
+@brief Get the discrete genome status
+
+@rst
+If all the genomic locations in the tree sequence are discrete integer values
+then this flag will be true.
+@endrst
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns true if all genomic locations are discrete.
+*/
 bool tsk_treeseq_get_discrete_genome(const tsk_treeseq_t *self);
+
+/**
+@brief Get the discrete time status
+
+@rst
+If all times in the tree sequence are discrete integer values
+then this flag will be true
+@endrst
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns true if all times are discrete.
+*/
 bool tsk_treeseq_get_discrete_time(const tsk_treeseq_t *self);
 
+/**
+@brief Get a node by its index
+
+@rst
+Copies a node from this tree sequence to the specified destination.
+@endrst
+@param self A pointer to a tsk_treeseq_t object.
+@param index The node index to copy
+@param node A pointer to a tsk_node_t object.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_treeseq_get_node(const tsk_treeseq_t *self, tsk_id_t index, tsk_node_t *node);
+
+/**
+@brief Get a edge by its index
+
+@rst
+Copies a edge from this tree sequence to the specified destination.
+@endrst
+@param self A pointer to a tsk_treeseq_t object.
+@param index The edge index to copy
+@param edge A pointer to a tsk_edge_t object.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_treeseq_get_edge(const tsk_treeseq_t *self, tsk_id_t index, tsk_edge_t *edge);
+
+/**
+@brief Get a edge by its index
+
+@rst
+Copies a migration from this tree sequence to the specified destination.
+@endrst
+@param self A pointer to a tsk_treeseq_t object.
+@param index The migration index to copy
+@param migration A pointer to a tsk_migration_t object.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_treeseq_get_migration(
     const tsk_treeseq_t *self, tsk_id_t index, tsk_migration_t *migration);
+
+/**
+@brief Get a site by its index
+
+@rst
+Copies a site from this tree sequence to the specified destination.
+@endrst
+@param self A pointer to a tsk_treeseq_t object.
+@param index The site index to copy
+@param site A pointer to a tsk_site_t object.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_treeseq_get_site(const tsk_treeseq_t *self, tsk_id_t index, tsk_site_t *site);
+
+/**
+@brief Get a mutation by its index
+
+@rst
+Copies a mutation from this tree sequence to the specified destination.
+@endrst
+@param self A pointer to a tsk_treeseq_t object.
+@param index The mutation index to copy
+@param mutation A pointer to a tsk_mutation_t object.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_treeseq_get_mutation(
     const tsk_treeseq_t *self, tsk_id_t index, tsk_mutation_t *mutation);
+
+/**
+@brief Get a provenance by its index
+
+@rst
+Copies a provenance from this tree sequence to the specified destination.
+@endrst
+@param self A pointer to a tsk_treeseq_t object.
+@param index The provenance index to copy
+@param provenance A pointer to a tsk_provenance_t object.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_treeseq_get_provenance(
     const tsk_treeseq_t *self, tsk_id_t index, tsk_provenance_t *provenance);
+
+/**
+@brief Get a population by its index
+
+@rst
+Copies a population from this tree sequence to the specified destination.
+@endrst
+@param self A pointer to a tsk_treeseq_t object.
+@param index The population index to copy
+@param population A pointer to a tsk_population_t object.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_treeseq_get_population(
     const tsk_treeseq_t *self, tsk_id_t index, tsk_population_t *population);
+
+/**
+@brief Get a individual by its index
+
+@rst
+Copies a individual from this tree sequence to the specified destination.
+@endrst
+@param self A pointer to a tsk_treeseq_t object.
+@param index The individual index to copy
+@param individual A pointer to a tsk_individual_t object.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_treeseq_get_individual(
     const tsk_treeseq_t *self, tsk_id_t index, tsk_individual_t *individual);
 
+/**
+@brief Create a simplified instance of this tree sequence
+
+@rst
+Copies this tree sequence to the specified destination and performs simplification.
+The destination tree sequence should be uninitialised.
+Simplification transforms the tables to remove redundancy and canonicalise
+tree sequence data. See the :ref:`simplification <sec_simplification>` tutorial for
+more details.
+
+For full details and flags see :c:func:`tsk_table_collection_simplify` which performs
+the same operation in place.
+
+@endrst
+@param self A pointer to a uninitialised tsk_treeseq_t object.
+@param samples Either NULL or an array of num_samples distinct and valid node IDs.
+    If non-null the nodes in this array will be marked as samples in the output.
+    If NULL, the num_samples parameter is ignored and the samples in the output
+    will be the same as the samples in the input. This is equivalent to populating
+    the samples array with all of the sample nodes in the input in increasing
+    order of ID.
+@param num_samples The number of node IDs in the input samples array. Ignored
+    if the samples array is NULL.
+@param options Simplify options; see above for the available bitwise flags.
+    For the default behaviour, a value of 0 should be provided.
+@param output A pointer to an uninitialised tsk_treeseq_t object.
+@param node_map If not NULL, this array will be filled to define the mapping
+    between nodes IDs in the table collection before and after simplification.
+@return Return 0 on success or a negative value on failure.
+*/
 int tsk_treeseq_simplify(const tsk_treeseq_t *self, const tsk_id_t *samples,
     tsk_size_t num_samples, tsk_flags_t options, tsk_treeseq_t *output,
     tsk_id_t *node_map);
+
+/** @} */
+
+bool tsk_treeseq_has_reference_sequence(const tsk_treeseq_t *self);
 
 int tsk_treeseq_kc_distance(const tsk_treeseq_t *self, const tsk_treeseq_t *other,
     double lambda_, double *result);

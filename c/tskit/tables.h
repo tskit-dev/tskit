@@ -3473,15 +3473,15 @@ bool tsk_table_collection_equals(const tsk_table_collection_t *self,
 @brief Copies the state of this table collection into the specified destination.
 
 @rst
-By default the method initialises the specified destination table. If the
+By default the method initialises the specified destination table collection. If the
 destination is already initialised, the :c:macro:`TSK_NO_INIT` option should
 be supplied to avoid leaking memory.
 @endrst
 
 @param self A pointer to a tsk_table_collection_t object.
 @param dest A pointer to a tsk_table_collection_t object. If the TSK_NO_INIT option
-    is specified, this must be an initialised provenance table. If not, it must
-    be an uninitialised provenance table.
+    is specified, this must be an initialised table collection. If not, it must
+    be an uninitialised table collection.
 @param options Bitwise option flags.
 @return Return 0 on success or a negative value on failure.
 */
@@ -3572,6 +3572,9 @@ If the :c:macro:`TSK_NO_INIT` option is set, the table collection is
 not initialised, allowing an already initialised table collection to
 be overwritten with the data from a file.
 
+The stream can be an arbitrary file descriptor, for example a network socket.
+No seek operations are performed.
+
 If the stream contains multiple table collection definitions, this function
 will load the next table collection from the stream. If the stream contains no
 more table collection definitions the error value :c:macro:`TSK_ERR_EOF` will
@@ -3646,7 +3649,8 @@ and well formed files will be written.
 
 @param self A pointer to an initialised tsk_table_collection_t object.
 @param filename A NULL terminated string containing the filename.
-@param options Bitwise options. See above for details.
+@param options Bitwise options. Currently unused; should be
+    set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_table_collection_dump(
@@ -3667,10 +3671,10 @@ of how to sequentially dump and load tree sequences from a stream.
 @param self A pointer to an initialised tsk_table_collection_t object.
 @param file A FILE stream opened in an appropriate mode for writing (e.g.
     "w", "a", "r+" or "w+").
-@param options Bitwise options. See above for details.
+@param options Bitwise options. Currently unused; should be
+    set to zero to ensure compatibility with later versions of tskit.
 @return Return 0 on success or a negative value on failure.
 */
-
 int tsk_table_collection_dumpf(
     const tsk_table_collection_t *self, FILE *file, tsk_flags_t options);
 
@@ -3863,7 +3867,7 @@ The table collection will always be unindexed after simplify successfully
 completes.
 @endrst
 
-@param self A pointer to a tsk_individual_table_t object.
+@param self A pointer to a tsk_table_collection_t object.
 @param samples Either NULL or an array of num_samples distinct and valid node IDs.
     If non-null the nodes in this array will be marked as samples in the output.
     If NULL, the num_samples parameter is ignored and the samples in the output
