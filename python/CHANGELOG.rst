@@ -4,6 +4,10 @@
 
 **Changes**
 
+- A ``min_time`` parameter in ``draw_svg`` enables the youngest node as the y axis min
+  value, allowing negative times.
+  (:user:`hyanwong`, :issue:`2197`, :pr:`2215`)
+
 - ``VcfWriter.write`` now prints the site ID of variants in the ID field of the
   output VCF files.
   (:user:`roohy`, :issue:`2103`, :pr:`2107`)
