@@ -88,7 +88,9 @@ typedef struct {
     tsk_mutation_t *site_mutations_mem;
     tsk_mutation_t **site_mutations;
     tsk_size_t *site_mutations_length;
-    /* The underlying tables */
+    /** @brief  The table collection underlying this tree sequence, This table
+     *  collection must be treated as read-only, and any changes to it will
+     *  lead to undefined behaviour. */
     tsk_table_collection_t *tables;
 } tsk_treeseq_t;
 
