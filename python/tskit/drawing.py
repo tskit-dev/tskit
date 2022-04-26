@@ -62,6 +62,38 @@ class Offsets:
     mutation: int = 0
 
 
+@dataclass
+class Timescaling:
+    "Class used to transform the time axis"
+    max_time: float
+    min_time: float
+    plot_min: float
+    plot_range: float
+    use_log_transform: bool
+
+    def __post_init__(self):
+        if self.plot_range < 0:
+            raise ValueError("Image size too small to allow space to plot tree")
+        if self.use_log_transform:
+            if self.min_time < 0:
+                raise ValueError("Cannot use a log scale if there are negative times")
+            self.transform = self.log_transform
+        else:
+            self.transform = self.linear_transform
+
+    def log_transform(self, y):
+        "Standard log transform but allowing for values of 0 by adding 1"
+        delta = 1 if self.min_time == 0 else 0
+        log_max = np.log(self.max_time + delta)
+        log_min = np.log(self.min_time + delta)
+        y_scale = self.plot_range / (log_max - log_min)
+        return self.plot_min - (np.log(y + delta) - log_min) * y_scale
+
+    def linear_transform(self, y):
+        y_scale = self.plot_range / (self.max_time - self.min_time)
+        return self.plot_min - (y - self.min_time) * y_scale
+
+
 def check_orientation(orientation):
     if orientation is None:
         orientation = TOP
@@ -82,6 +114,21 @@ def check_max_time(max_time, allow_numeric=True):
     if max_time not in ["tree", "ts"] and (allow_numeric and not is_numeric):
         raise ValueError("max_time must be a numeric value or one of 'tree' or 'ts'")
     return max_time
+
+
+def check_min_time(min_time, allow_numeric=True):
+    if min_time is None:
+        min_time = "tree"
+    if allow_numeric:
+        is_numeric = isinstance(min_time, numbers.Real)
+        if min_time not in ["tree", "ts"] and not is_numeric:
+            raise ValueError(
+                "min_time must be a numeric value or one of 'tree' or 'ts'"
+            )
+    else:
+        if min_time not in ["tree", "ts"]:
+            raise ValueError("min_time must be 'tree' or 'ts'")
+    return min_time
 
 
 def check_time_scale(time_scale):
@@ -308,6 +355,7 @@ def draw_tree(
     time_scale=None,
     tree_height_scale=None,
     max_time=None,
+    min_time=None,
     max_tree_height=None,
     order=None,
 ):
@@ -360,6 +408,7 @@ def draw_tree(
             mutation_labels=mutation_labels,
             time_scale=time_scale,
             max_time=max_time,
+            min_time=min_time,
             node_attrs=node_attrs,
             edge_attrs=edge_attrs,
             node_label_attrs=node_label_attrs,
@@ -389,6 +438,7 @@ def draw_tree(
             tree,
             node_labels=node_labels,
             max_time=max_time,
+            min_time=min_time,
             use_ascii=use_ascii,
             orientation=TOP,
             order=order,
@@ -723,11 +773,11 @@ class SvgPlot:
         if self.y_axis:
             y_axis.add(dwg.line((x, rnd(lower)), (x, rnd(upper))))
             ticks_group = y_axis.add(dwg.g(class_="ticks"))
-            for pos, label in ticks.items():
+            for y, label in ticks.items():
                 tick = ticks_group.add(
                     dwg.g(
                         class_="tick",
-                        transform=f"translate({x} {rnd(self.y_transform(pos))})",
+                        transform=f"translate({x} {rnd(self.timescaling.transform(y))})",
                     )
                 )
                 if gridlines:
@@ -800,9 +850,6 @@ class SvgPlot:
             "No transform func defined for genome pos -> plot coords"
         )
 
-    def y_transform(self, y):
-        raise NotImplementedError("No transform func defined for time -> plot pos")
-
 
 class SvgTreeSequence(SvgPlot):
     """
@@ -832,6 +879,7 @@ class SvgTreeSequence(SvgPlot):
         y_gridlines,
         x_lim=None,
         max_time=None,
+        min_time=None,
         node_attrs=None,
         mutation_attrs=None,
         edge_attrs=None,
@@ -862,6 +910,8 @@ class SvgTreeSequence(SvgPlot):
             size = (200 * num_trees, 200)
         if max_time is None:
             max_time = "ts"
+        if min_time is None:
+            min_time = "ts"
         # X axis shown by default
         if x_axis is None:
             x_axis = True
@@ -901,6 +951,7 @@ class SvgTreeSequence(SvgPlot):
                 force_root_branch=force_root_branch,
                 symbol_size=symbol_size,
                 max_time=max_time,
+                min_time=min_time,
                 node_attrs=node_attrs,
                 mutation_attrs=mutation_attrs,
                 edge_attrs=edge_attrs,
@@ -922,14 +973,13 @@ class SvgTreeSequence(SvgPlot):
         )
         y_low = self.tree_plotbox.bottom
         if y_axis is not None:
-            self.y_transform = lambda x: svg_trees[0].y_transform(x) + y
+            self.timescaling = svg_trees[0].timescaling
             for svg_tree in svg_trees:
-                if self.y_transform(1.234) != svg_tree.y_transform(1.234) + y:
-                    # Slight hack: check an arbitrary value is transformed identically
+                if self.timescaling != svg_tree.timescaling:
                     raise ValueError(
-                        "Can't draw a tree sequence Y axis for trees of varying yscales"
+                        "Can't draw a tree sequence Y axis if trees vary in timescale"
                     )
-            y_low = self.y_transform(0)  # if poss use zero point for lowest axis value
+            y_low = self.timescaling.transform(self.timescaling.min_time)
             if y_ticks is None:
                 y_ticks = np.unique(ts.tables.nodes.time[referenced_nodes(ts)])
                 if self.time_scale == "rank":
@@ -1027,6 +1077,7 @@ class SvgTree(SvgPlot):
         tree,
         size=None,
         max_time=None,
+        min_time=None,
         max_tree_height=None,
         node_labels=None,
         mutation_labels=None,
@@ -1203,7 +1254,7 @@ class SvgTree(SvgPlot):
                 add_class(self.mutation_label_attrs[m], "lab")
 
         self.set_spacing(top=10, left=20, bottom=15, right=20)
-        self.assign_y_coordinates(max_time, force_root_branch)
+        self.assign_y_coordinates(max_time, min_time, force_root_branch)
         self.assign_x_coordinates()
         tick_length_lower = self.default_tick_length  # TODO - parameterize
         tick_length_upper = self.default_tick_length_site  # TODO - parameterize
@@ -1230,7 +1281,7 @@ class SvgTree(SvgPlot):
 
         self.draw_y_axis(
             ticks=check_y_ticks(y_ticks),
-            lower=self.y_transform(0),
+            lower=self.timescaling.transform(self.timescaling.min_time),
             tick_length_left=self.default_tick_length,
             gridlines=y_gridlines,
         )
@@ -1260,20 +1311,22 @@ class SvgTree(SvgPlot):
     def assign_y_coordinates(
         self,
         max_time,
+        min_time,
         force_root_branch,
         bottom_space=SvgPlot.line_height,
         top_space=SvgPlot.line_height,
     ):
         """
-        Create a self.node_height dict, a self.y_transform func and
+        Create a self.node_height dict, a self.timescaling instance and
         self.min_root_branch_plot_length for use in plotting. Allow extra space within
         the plotbox, at the bottom for leaf labels, and  (potentially, if no root
         branches are plotted) above the topmost root node for root labels.
         """
         max_time = check_max_time(max_time, self.time_scale != "rank")
+        min_time = check_min_time(min_time, self.time_scale != "rank")
         node_time = self.ts.tables.nodes.time
         mut_time = self.ts.tables.mutations.time
-        root_branch_length = 0
+        root_branch_len = 0
         if self.time_scale == "rank":
             t = np.zeros_like(node_time)
             if max_time == "tree":
@@ -1290,16 +1343,19 @@ class SvgTree(SvgPlot):
             max_node_height = len(times)
             depth = {t: j for j, t in enumerate(times)}
             if self.mutations_over_roots or force_root_branch:
-                root_branch_length = 1  # Will get scaled later
-            max_time = max(depth.values()) + root_branch_length
-            # In pathological cases, all the roots are at 0
-            if max_time == 0:
-                max_time = 1
+                root_branch_len = 1  # Will get scaled later
+            max_time = max(depth.values()) + root_branch_len
+            if min_time in (None, "tree", "ts"):
+                assert min(depth.values()) == 0
+                min_time = 0
+            # In pathological cases, all the nodes are at the same time
+            if max_time == min_time:
+                max_time = min_time + 1
             self.node_height = {u: depth[node_time[u]] for u in self.tree.nodes()}
             for u in self.node_mutations.keys():
                 parent = self.tree.parent(u)
                 if parent == NULL:
-                    top = self.node_height[u] + root_branch_length
+                    top = self.node_height[u] + root_branch_len
                 else:
                     top = self.node_height[parent]
                 self.process_mutations_over_node(
@@ -1313,62 +1369,59 @@ class SvgTree(SvgPlot):
                 max_mut_height = np.nanmax(
                     [0] + [mut.time for m in self.node_mutations.values() for mut in m]
                 )
-            else:
+                max_time = max(max_node_height, max_mut_height)  # Reuse variable
+            elif max_time == "ts":
                 max_node_height = self.ts.max_root_time
                 max_mut_height = np.nanmax(np.append(mut_time, 0))
-            max_time = max(max_node_height, max_mut_height)  # Reuse variable
-            # In pathological cases, all the roots are at 0
-            if max_time == 0:
-                max_time = 1
-
+                max_time = max(max_node_height, max_mut_height)  # Reuse variable
+            if min_time == "tree":
+                min_time = min(self.node_height.values())
+                # don't need to check mutation times, as they must be above a node
+            elif min_time == "ts":
+                min_time = np.min(self.ts.tables.nodes.time[referenced_nodes(self.ts)])
+            # In pathological cases, all the nodes are at the same time
+            if min_time == max_time:
+                max_time = min_time + 1
             if self.mutations_over_roots or force_root_branch:
                 # Define a minimum root branch length, after transformation if necessary
                 if self.time_scale != "log_time":
-                    root_branch_length = max_time * self.root_branch_fraction
+                    root_branch_len = (max_time - min_time) * self.root_branch_fraction
                 else:
-                    log_height = np.log(max_time + 1)
-                    root_branch_length = (
-                        np.exp(log_height * (1 + self.root_branch_fraction))
-                        - 1
-                        - max_time
-                    )
+                    max_plot_y = np.log(max_time + 1)
+                    diff_plot_y = max_plot_y - np.log(min_time + 1)
+                    root_plot_y = max_plot_y + diff_plot_y * self.root_branch_fraction
+                    root_branch_len = np.exp(root_plot_y) - 1 - max_time
                 # If necessary, allow for this extra branch in max_time
-                if max_node_height + root_branch_length > max_time:
-                    max_time = max_node_height + root_branch_length
+                if max_node_height + root_branch_len > max_time:
+                    max_time = max_node_height + root_branch_len
             for u in self.node_mutations.keys():
                 parent = self.tree.parent(u)
                 if parent == NULL:
                     # This is a root: if muts have no times we must specify an upper time
-                    top = self.node_height[u] + root_branch_length
+                    top = self.node_height[u] + root_branch_len
                 else:
                     top = self.node_height[parent]
                 self.process_mutations_over_node(u, self.node_height[u], top)
 
         assert float(max_time) == max_time
-
+        assert float(min_time) == min_time
         # Add extra space above the top and below the bottom of the tree to keep the
         # node labels within the plotbox (but top label space not needed if the
         # existence of a root branch pushes the whole tree + labels downwards anyway)
-        top_space = 0 if root_branch_length > 0 else top_space
-        zero_pos = self.plotbox.height + self.plotbox.top - bottom_space
-        padding_numerator = self.plotbox.height - top_space - bottom_space
-        if padding_numerator < 0:
-            raise ValueError("Image size too small to allow space to plot tree")
-        # Transform the y values into plot space (inverted y with 0 at the top of screen)
-        if self.time_scale == "log_time":
-            # add 1 so that don't reach log(0) = -inf error.
-            # just shifts entire timeset by 1 unit so shouldn't affect anything
-            y_scale = padding_numerator / np.log(max_time + 1)
-            self.y_transform = lambda y: zero_pos - np.log(y + 1) * y_scale
-        else:
-            y_scale = padding_numerator / max_time
-            self.y_transform = lambda y: zero_pos - y * y_scale
+        top_space = 0 if root_branch_len > 0 else top_space
+        self.timescaling = Timescaling(
+            max_time=max_time,
+            min_time=min_time,
+            plot_min=self.plotbox.height + self.plotbox.top - bottom_space,
+            plot_range=self.plotbox.height - top_space - bottom_space,
+            use_log_transform=(self.time_scale == "log_time"),
+        )
 
         # Calculate default root branch length to use (in plot coords). This is a
         # minimum, as branches with deep root mutations could be longer
-        self.min_root_branch_plot_length = self.y_transform(
-            max_time
-        ) - self.y_transform(max_time + root_branch_length)
+        self.min_root_branch_plot_length = self.timescaling.transform(
+            self.timescaling.max_time
+        ) - self.timescaling.transform(self.timescaling.max_time + root_branch_len)
 
     def assign_x_coordinates(self):
         num_leaves = len(list(self.tree.leaves()))
@@ -1437,7 +1490,9 @@ class SvgTree(SvgPlot):
     def draw_tree(self):
         dwg = self.drawing
         node_x_coord_map = self.node_x_coord_map
-        node_y_coord_map = {u: self.y_transform(h) for u, h in self.node_height.items()}
+        node_y_coord_map = {
+            u: self.timescaling.transform(h) for u, h in self.node_height.items()
+        }
         tree = self.tree
         left_child = get_left_child(tree, self.traversal_order)
 
@@ -1485,7 +1540,8 @@ class SvgTree(SvgPlot):
                         mutation = self.node_mutations[u][0]  # Oldest on this branch
                         root_branch_l = max(
                             root_branch_l,
-                            node_y_coord_map[u] - self.y_transform(mutation.time),
+                            node_y_coord_map[u]
+                            - self.timescaling.transform(mutation.time),
                         )
                     path = dwg.path(
                         [("M", o), ("V", rnd(-root_branch_l)), ("H", 0)],
@@ -1498,7 +1554,7 @@ class SvgTree(SvgPlot):
             for mutation in self.node_mutations[u]:
                 # TODO get rid of these manual positioning tweaks and add them
                 # as offsets the user can access via a transform or something.
-                dy = self.y_transform(mutation.time) - pu[1]
+                dy = self.timescaling.transform(mutation.time) - pu[1]
                 mutation_id = mutation.id + self.offsets.mutation
                 mutation_class = (
                     f"mut m{mutation_id} " f"s{mutation.site+ self.offsets.site}"
@@ -1743,6 +1799,7 @@ class TextTree:
         tree,
         node_labels=None,
         max_time=None,
+        min_time=None,
         use_ascii=False,
         orientation=None,
         order=None,
@@ -1750,6 +1807,7 @@ class TextTree:
         self.tree = tree
         self.traversal_order = check_order(order)
         self.max_time = check_max_time(max_time, allow_numeric=False)
+        self.min_time = check_min_time(min_time, allow_numeric=False)
         self.use_ascii = use_ascii
         self.orientation = check_orientation(orientation)
         self.horizontal_line_char = "━"

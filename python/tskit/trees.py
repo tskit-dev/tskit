@@ -1593,6 +1593,7 @@ class Tree:
         time_scale=None,
         tree_height_scale=None,
         max_time=None,
+        min_time=None,
         max_tree_height=None,
         node_labels=None,
         mutation_labels=None,
@@ -1629,14 +1630,22 @@ class Tree:
             heights are spaced equally according to their ranked times.
         :param str tree_height_scale: Deprecated alias for time_scale. (Deprecated in
                 0.3.6)
-        :param str,float max_time: The maximum time value in the current
+        :param str,float max_time: The maximum plotted time value in the current
             scaling system (see ``time_scale``). Can be either a string or a
             numeric value. If equal to ``"tree"`` (the default), the maximum time
             is set to be that of the oldest root in the tree. If equal to ``"ts"`` the
             maximum time is set to be the time of the oldest root in the tree
             sequence; this is useful when drawing trees from the same tree sequence as it
             ensures that node heights are consistent. If a numeric value, this is used as
-            the maximum time by which to scale other nodes.
+            the maximum plotted time by which to scale other nodes.
+        :param str,float min_time: The minimum plotted time value in the current
+            scaling system (see ``time_scale``). Can be either a string or a
+            numeric value. If equal to ``"tree"`` (the default), the minimum time
+            is set to be that of the youngest node in the tree. If equal to ``"ts"`` the
+            minimum time is set to be the time of the youngest node in the tree
+            sequence; this is useful when drawing trees from the same tree sequence as it
+            ensures that node heights are consistent. If a numeric value, this is used as
+            the minimum plotted time.
         :param str,float max_tree_height: Deprecated alias for max_time. (Deprecated in
             0.3.6)
         :param node_labels: If specified, show custom labels for the nodes
@@ -1696,6 +1705,7 @@ class Tree:
             time_scale=time_scale,
             tree_height_scale=tree_height_scale,
             max_time=max_time,
+            min_time=min_time,
             max_tree_height=max_tree_height,
             node_labels=node_labels,
             mutation_labels=mutation_labels,
@@ -1733,6 +1743,7 @@ class Tree:
         time_scale=None,
         tree_height_scale=None,
         max_time=None,
+        min_time=None,
         max_tree_height=None,
         order=None,
     ):
@@ -1824,6 +1835,15 @@ class Tree:
             that node heights are consistent. If a numeric value, this is used as the
             maximum time by which to scale other nodes. This parameter
             is not currently supported for text output.
+        :param str,float min_time: The minimum time value in the current
+            scaling system (see ``time_scale``). Can be either a string or a
+            numeric value. If equal to ``"tree"``, the minimum time is set to be
+            that of the youngest node in the tree. If equal to ``"ts"`` the minimum
+            time is set to be the time of the youngest node in the tree sequence;
+            this is useful when drawing trees from the same tree sequence as it ensures
+            that node heights are consistent. If a numeric value, this is used as the
+            minimum time to display. This parameter is not currently supported for text
+            output.
         :param str max_tree_height: Deprecated alias for max_time. (Deprecated in
                 0.3.6)
         :param str order: The left-to-right ordering of child nodes in the drawn tree.
@@ -1849,6 +1869,7 @@ class Tree:
             time_scale=time_scale,
             tree_height_scale=tree_height_scale,
             max_time=max_time,
+            min_time=min_time,
             max_tree_height=max_tree_height,
             order=order,
         )

@@ -221,6 +221,28 @@ class TestTreeDraw:
         tables.mutations.time = np.full_like(tables.mutations.time, tskit.UNKNOWN_TIME)
         return tables.tree_sequence()
 
+    def get_ts_varying_min_times(self, *args, **kwargs):
+        """
+        Like get_simple_ts but return a tree sequence with negative times, and some trees
+        with different min times (i.e. with dangling nonsample nodes at negative times)
+        """
+        ts = self.get_simple_ts(*args, **kwargs)
+        tables = ts.dump_tables()
+        time = tables.nodes.time
+        time[time == 0] = 0.1
+        time[3] = -9.99
+        tables.nodes.time = time
+        # set node 3 to be non-sample node lower than the rest
+        flags = tables.nodes.flags
+        flags[3] = 0
+        tables.nodes.flags = flags
+        edges = tables.edges
+        assert edges[3].child == 3 and edges[3].parent == 5
+        edges[3] = edges[3].replace(left=ts.breakpoints(True)[1])
+        tables.sort()
+        tables.nodes.flags = flags
+        return tables.tree_sequence()
+
     def fail(self, *args, **kwargs):
         """
         Required for xmlunittest.XmlTestMixin to work with pytest not unittest
@@ -591,6 +613,8 @@ class TestDrawText(TestTreeDraw):
             t.draw(format=self.drawing_format, node_colours={})
         with pytest.raises(ValueError):
             t.draw(format=self.drawing_format, max_time=1234)
+        with pytest.raises(ValueError):
+            t.draw(format=self.drawing_format, min_time=1234)
         with pytest.raises(ValueError):
             with pytest.warns(FutureWarning):
                 t.draw(format=self.drawing_format, max_tree_height=1234)
@@ -1500,8 +1524,6 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         plot.set_spacing()
         with pytest.raises(NotImplementedError):
             plot.draw_x_axis(tick_positions=ts.breakpoints(as_array=True))
-        with pytest.raises(NotImplementedError):
-            plot.draw_y_axis(ticks={0: "0"})
 
     def test_bad_tick_spacing(self):
         # Integer y_ticks to give auto-generated tick locs is not currently implemented
@@ -1514,7 +1536,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
 
     def test_no_mixed_yscales(self):
         ts = self.get_simple_ts()
-        with pytest.raises(ValueError, match="varying yscales"):
+        with pytest.raises(ValueError, match="vary in timescale"):
             ts.draw_svg(y_axis=True, max_time="tree")
 
     def test_draw_defaults(self):
@@ -1704,6 +1726,21 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
                 with pytest.warns(FutureWarning):
                     t.draw_svg(max_tree_height=bad_height)
 
+    def test_bad_min_time(self):
+        t = self.get_binary_tree()
+        for bad_min in ["te", "asdf", "", [], b"23"]:
+            with pytest.raises(ValueError):
+                t.draw_svg(min_time=bad_min)
+            with pytest.raises(ValueError):
+                with pytest.warns(FutureWarning):
+                    t.draw_svg(max_tree_height=bad_min)
+
+    def test_bad_neg_log_time(self):
+        t = self.get_ts_varying_min_times().at_index(1)
+        assert min(t.time(u) for u in t.nodes()) < 0
+        with pytest.raises(ValueError, match="negative times"):
+            t.draw_svg(t.draw_svg(time_scale="log_time"))
+
     def test_time_scale_time_and_max_time(self):
         ts = msprime.simulate(5, recombination_rate=2, random_seed=2)
         t = ts.first()
@@ -1727,16 +1764,40 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         ts = msprime.simulate(5, recombination_rate=2, random_seed=2)
         t = ts.first()
         # The default should be the same as tree.
-        svg1 = t.draw_svg(max_time="tree", time_scale="rank")
+        svg1 = t.draw_svg(max_time="tree", time_scale="rank", y_axis=True)
         self.verify_basic_svg(svg1)
-        svg2 = t.draw_svg(time_scale="rank")
+        svg2 = t.draw_svg(time_scale="rank", y_axis=True)
         assert svg1 == svg2
-        svg3 = t.draw_svg(max_time="ts", time_scale="rank")
+        svg3 = t.draw_svg(max_time="ts", time_scale="rank", y_axis=True)
         assert svg1 != svg3
         self.verify_basic_svg(svg3)
         # Numeric max time not supported for rank scale.
         with pytest.raises(ValueError):
-            t.draw_svg(max_time=2, time_scale="rank")
+            t.draw_svg(max_time=2, time_scale="rank", y_axis=True)
+
+    def test_min_tree_time(self):
+        ts = self.get_ts_varying_min_times()
+        t = ts.first()
+        # The default should be the same as tree.
+        svg1 = t.draw_svg(min_time="tree", y_axis=True)
+        self.verify_basic_svg(svg1)
+        svg2 = t.draw_svg(y_axis=True)
+        assert svg1 == svg2
+        svg3 = t.draw_svg(min_time="ts", y_axis=True)
+        assert svg1 != svg3
+        svg4 = t.draw_svg(min_time=min(ts.tables.nodes.time), y_axis=True)
+        assert svg3 == svg4
+
+    def test_min_ts_time(self):
+        ts = self.get_ts_varying_min_times()
+        svg1 = ts.draw_svg(y_axis=True)
+        self.verify_basic_svg(svg1, width=200 * ts.num_trees)
+        svg2 = ts.draw_svg(min_time="ts", y_axis=True)
+        assert svg1 == svg2
+        with pytest.raises(ValueError, match="vary in timescale"):
+            ts.draw_svg(min_time="tree", y_axis=True)
+        svg3 = ts.draw_svg(min_time=min(ts.tables.nodes.time), y_axis=True)
+        assert svg2 == svg3
 
     #
     # TODO: update the tests below here to check the new SVG based interface.
@@ -1894,6 +1955,42 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         snippet2 = svg2[svg2.rfind("edge", 0, str_pos) : str_pos]
         assert snippet1 == snippet2
 
+    def test_min_time(self):
+        nodes = io.StringIO(
+            """\
+        id  is_sample   time
+        0   0           -1.11
+        1   1           2.22
+        2   1           2.22
+        3   0           3.33
+        4   0           4.44
+        5   0           5.55
+        """
+        )
+        edges = io.StringIO(
+            """\
+        left    right   parent  child
+        0       1       5       2
+        0       1       5       3
+        1       2       4       2
+        1       2       4       3
+        0       1       3       0
+        0       2       3       1
+        """
+        )
+        ts = tskit.load_text(nodes, edges, strict=False)
+        svg1a = ts.at_index(0).draw_svg(y_axis=True)
+        svg1b = ts.at_index(0).draw_svg(y_axis=True, min_time="ts")
+        svg2a = ts.at_index(1).draw_svg(y_axis=True)
+        svg2b = ts.at_index(1).draw_svg(y_axis=True, min_time="ts")
+        # axis should start at -1.11
+        assert svg1a == svg1b
+        assert ">-1.11<" in svg1a
+        # 2nd tree should be different depending on whether min_time is "tree" or "ts"
+        assert svg2a != svg2b
+        assert ">-1.11<" not in svg2a
+        assert ">-1.11<" not in svg2b
+
     def test_draw_sized_tree(self):
         tree = self.get_binary_tree()
         svg = tree.draw_svg(size=(600, 400))
@@ -1987,7 +2084,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         assert svg_no_css.count("y-axis") == 0
 
     def test_y_axis(self):
-        tree = msprime.simulate(4, random_seed=2).first()
+        tree = self.get_simple_ts().first()
         for hscale, label in [
             (None, "Time"),
             ("time", "Time"),
