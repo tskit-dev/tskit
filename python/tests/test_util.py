@@ -540,3 +540,17 @@ class TestRandomNuceotides:
     def test_length_bad_type(self, length):
         with pytest.raises(TypeError, match="argument must be a string"):
             tskit.random_nucleotides(length)
+
+
+class TestAlleleRemap:
+    def test_a_bigger_than_b(self):
+        a = ["A", "C", "G", "T"]
+        b = ["G", "C"]  # 'A', 'T'
+        m = tskit.allele_remap(a, b)
+        assert m == [2, 1, 0, 3]
+
+    def test_a_smaller_than_b(self):
+        a = ["G", "C"]
+        b = ["A", "C", "G", "T"]
+        m = tskit.allele_remap(a, b)
+        assert m == [2, 1]
