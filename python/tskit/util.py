@@ -613,12 +613,12 @@ def allele_remap(alleles_from, alleles_to):
         where the elements of alleles_from are found.
     :rtype: list
     """
-    allele_map = []
+    allele_map = [None] * len(alleles_from)
     overflow = len(alleles_to)
-    for allele in alleles_from:
+    for i, allele in enumerate(alleles_from):
         try:
-            allele_map.append(alleles_to.index(allele))
+            allele_map[i] = alleles_to.index(allele)
         except Exception:
-            allele_map.append(overflow)
+            allele_map[i] = overflow
             overflow += 1
     return allele_map
