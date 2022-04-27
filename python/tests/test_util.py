@@ -554,3 +554,16 @@ class TestAlleleRemap:
         b = ["A", "C", "G", "T"]
         m = tskit.allele_remap(a, b)
         assert m == [2, 1]
+
+    def test_one_is_empty(self):
+        a = ["A", "C", "G", "T"]
+        b = []  # 'A', 'C', 'G', 'T'
+        m1 = tskit.allele_remap(a, b)
+        m2 = tskit.allele_remap(b, a)
+        assert m1 == [0, 1, 2, 3]
+        assert m2 == []
+
+    def test_both_are_empty(self):
+        a = []
+        m = tskit.allele_remap(a, a)
+        assert m == []
