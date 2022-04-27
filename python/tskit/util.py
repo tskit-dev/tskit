@@ -592,3 +592,28 @@ def random_nucleotides(length: numbers.Number, *, seed: Union[int, None] = None)
     encoded_nucleotides = np.array(list(map(ord, "ACTG")), dtype=np.int8)
     a = rng.choice(encoded_nucleotides, size=int(length))
     return a.tobytes().decode("ascii")
+
+
+#
+# Miscellaneous auxiliary methods.
+#
+
+
+def allele_remap(alleles_from, alleles_to):
+    """
+    Returns an index map from the elements in one list
+    to the elements of another list.
+
+    It is assumed that all the elements in alleles_from
+    are found in allleles_to.
+
+    :param list alleles_from: A list of alleles to map from.
+    :param list alleles_to: A list of alleles to map to.
+    :return: A list of indices in alleles_to
+        where the elements of alleles_from are found.
+    :rtype: list
+    """
+    allele_map = [None] * len(alleles_from)
+    for i, allele in enumerate(alleles_from):
+        allele_map[i] = alleles_to.index(allele)
+    return allele_map
