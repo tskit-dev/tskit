@@ -618,7 +618,7 @@ def allele_remap(alleles_from, alleles_to):
     for i, allele in enumerate(alleles_from):
         try:
             allele_map[i] = alleles_to.index(allele)
-        except Exception:
+        except ValueError:
             allele_map[i] = overflow
             overflow += 1
     return allele_map
