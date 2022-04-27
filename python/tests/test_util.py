@@ -543,27 +543,24 @@ class TestRandomNuceotides:
 
 
 class TestAlleleRemap:
+    a = ["A", "C", "G", "T"]
+    b = ["G", "C"]
+    c = []
+
     def test_a_bigger_than_b(self):
-        a = ["A", "C", "G", "T"]
-        b = ["G", "C"]  # 'A', 'T'
-        m = tskit.allele_remap(a, b)
+        m = tskit.allele_remap(self.a, self.b)
         assert m == [2, 1, 0, 3]
 
     def test_a_smaller_than_b(self):
-        a = ["G", "C"]
-        b = ["A", "C", "G", "T"]
-        m = tskit.allele_remap(a, b)
+        m = tskit.allele_remap(self.b, self.a)
         assert m == [2, 1]
 
     def test_one_is_empty(self):
-        a = ["A", "C", "G", "T"]
-        b = []  # 'A', 'C', 'G', 'T'
-        m1 = tskit.allele_remap(a, b)
-        m2 = tskit.allele_remap(b, a)
+        m1 = tskit.allele_remap(self.a, self.c)
+        m2 = tskit.allele_remap(self.c, self.a)
         assert m1 == [0, 1, 2, 3]
         assert m2 == []
 
     def test_both_are_empty(self):
-        a = []
-        m = tskit.allele_remap(a, a)
+        m = tskit.allele_remap(self.c, self.c)
         assert m == []
