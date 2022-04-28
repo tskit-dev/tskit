@@ -11617,7 +11617,7 @@ tsk_table_collection_canonicalise(tsk_table_collection_t *self, tsk_flags_t opti
     tsk_id_t k;
     tsk_id_t *nodes = NULL;
     tsk_table_sorter_t sorter;
-    tsk_flags_t subset_options = options & TSK_KEEP_UNREFERENCED;
+    tsk_flags_t subset_options = options & TSK_SUBSET_KEEP_UNREFERENCED;
 
     ret = tsk_table_sorter_init(&sorter, self, 0);
     if (ret != 0) {
@@ -12174,8 +12174,8 @@ tsk_table_collection_subset(tsk_table_collection_t *self, const tsk_id_t *nodes,
     tsk_population_t pop;
     tsk_site_t site;
     tsk_mutation_t mut;
-    bool keep_unreferenced = !!(options & TSK_KEEP_UNREFERENCED);
-    bool no_change_populations = !!(options & TSK_NO_CHANGE_POPULATIONS);
+    bool keep_unreferenced = !!(options & TSK_SUBSET_KEEP_UNREFERENCED);
+    bool no_change_populations = !!(options & TSK_SUBSET_NO_CHANGE_POPULATIONS);
 
     ret = tsk_table_collection_copy(self, &tables, 0);
     if (ret != 0) {

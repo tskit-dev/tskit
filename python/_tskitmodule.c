@@ -6706,10 +6706,10 @@ TableCollection_subset(TableCollection *self, PyObject *args, PyObject *kwds)
     shape = PyArray_DIMS(nodes_array);
     num_nodes = (tsk_size_t) shape[0];
     if (!reorder_populations) {
-        options |= TSK_NO_CHANGE_POPULATIONS;
+        options |= TSK_SUBSET_NO_CHANGE_POPULATIONS;
     }
     if (!remove_unreferenced) {
-        options |= TSK_KEEP_UNREFERENCED;
+        options |= TSK_SUBSET_KEEP_UNREFERENCED;
     }
 
     err = tsk_table_collection_subset(
@@ -6972,7 +6972,7 @@ TableCollection_canonicalise(TableCollection *self, PyObject *args, PyObject *kw
         goto out;
     }
     if (!remove_unreferenced) {
-        options |= TSK_KEEP_UNREFERENCED;
+        options |= TSK_SUBSET_KEEP_UNREFERENCED;
     }
 
     err = tsk_table_collection_canonicalise(self->tables, options);
