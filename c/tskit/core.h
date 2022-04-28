@@ -181,6 +181,31 @@ to the API or ABI are introduced, i.e., internal refactors of bugfixes.
 #define TSK_FILE_FORMAT_VERSION_MINOR 7
 
 /**
+@defgroup GENERIC_FUNCTION_OPTIONS General options flags used in some functions.
+@{
+*/
+
+/* Place the commmon options at the top of the space; this way we can start
+ * options for individual functions at the bottom without worrying about
+ * clashing with the common options */
+
+/** @brief Turn on debugging output. Not supported by all functions. */
+#define TSK_DEBUG (1u << 31)
+
+/** @brief Do not initialise the parameter object. */
+#define TSK_NO_INIT (1u << 30)
+
+/** @brief Do not run integrity checks before performing an operation. */
+#define TSK_NO_CHECK_INTEGRITY (1u << 29)
+
+/** @brief Instead of taking a copy of input data, take ownership of it
+ *  and its lifecycle */
+#define TSK_TAKE_OWNERSHIP (1u << 28)
+
+/** @} */
+
+
+/**
 @defgroup GENERAL_ERROR_GROUP General errors.
 @{
 */

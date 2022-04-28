@@ -671,30 +671,6 @@ typedef struct {
 /* Common function options */
 /****************************************************************************/
 
-/**
-@defgroup TABLES_API_FUNCTION_OPTIONS Common function options in tables API
-@{
-*/
-
-/* Start the commmon options at the top of the space; this way we can start
- * options for individual functions at the bottom without worrying about
- * clashing with the common options */
-
-/** @brief Turn on debugging output. Not supported by all functions. */
-#define TSK_DEBUG (1u << 31)
-
-/** @brief Do not initialise the parameter object. */
-#define TSK_NO_INIT (1u << 30)
-
-/** @brief Do not run integrity checks before performing an operation. */
-#define TSK_NO_CHECK_INTEGRITY (1u << 29)
-
-/** @brief Instead of taking a copy of input data, take ownership of it
- *  and its lifecycle */
-#define TSK_TAKE_OWNERSHIP (1 << 28)
-
-/**@} */
-
 /* Flags for simplify() */
 #define TSK_SIMPLIFY_FILTER_SITES (1 << 0)
 #define TSK_SIMPLIFY_FILTER_POPULATIONS (1 << 1)
@@ -726,8 +702,8 @@ typedef struct {
 
 /* Flags for dump tables */
 /* We may not want to document this flag, but it's useful for testing
- * so we put it high up in the bit space */
-#define TSK_DUMP_FORCE_OFFSET_64 (1 << 30)
+ * so we put it high up in the bit space, below the common options */
+#define TSK_DUMP_FORCE_OFFSET_64 (1 << 27)
 
 /* Flags for table collection init/copy */
 /* TODO: need to careful about what flags get passed to init, from other
