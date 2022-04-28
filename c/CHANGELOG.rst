@@ -20,8 +20,11 @@
 - Rename several flags:
      - All flags to ``simplify`` for example ``TSK_KEEP_INPUT_ROOTS`` becomes ``TSK_SIMPLIFY_KEEP_INPUT_ROOTS``.
      - All flags to ``subset`` for example ``TSK_KEEP_UNREFERENCED`` becomes ``TSK_SUBSET_KEEP_UNREFERENCED``.
-  
-  (:user:`benjeffery`, :issue:`1720`, :pr:`2226`, :pr:`2229`)
+     - ``TSK_BUILD_INDEXES`` -> ``TSK_TS_INIT_BUILD_INDEXES``
+     - ``TSK_NO_METADATA`` -> ``TSK_TABLE_NO_METADATA``
+     - ``TSK_NO_EDGE_METADATA`` -> ``TSK_TC_NO_EDGE_METADATA``
+
+  (:user:`benjeffery`, :issue:`1720`, :pr:`2226`, :pr:`2229`, :pr:`2224`)
 
 **Features**
 

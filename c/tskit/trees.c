@@ -389,7 +389,7 @@ out:
 }
 
 /* TODO we need flags to be able to control how the input table is used.
- * - The default behaviour is to take a copy. TSK_BUILD_INDEXES is allowed
+ * - The default behaviour is to take a copy. TSK_TS_INIT_BUILD_INDEXES is allowed
  *   in this case because we have an independent copy.
  * - Need an option to take 'ownership' of the tables so that we keep the
  *   tables and free them at the end of the treeseq's lifetime. This will be
@@ -415,7 +415,7 @@ tsk_treeseq_init(
         }
 
         /* Note that this copy reinstates metadata for a table collection with
-         * TSK_NO_EDGE_METADATA. Otherwise a table without metadata would
+         * TSK_TC_NO_EDGE_METADATA. Otherwise a table without metadata would
          * crash tsk_diff_iter_next. This is something we will need to
          * watch out for when we take a read-only view of the input table
          * rather than a copy. */
@@ -424,7 +424,7 @@ tsk_treeseq_init(
             goto out;
         }
     }
-    if (options & TSK_BUILD_INDEXES) {
+    if (options & TSK_TS_INIT_BUILD_INDEXES) {
         ret = tsk_table_collection_build_index(self->tables, 0);
         if (ret != 0) {
             goto out;
@@ -3216,7 +3216,7 @@ tsk_treeseq_simplify(const tsk_treeseq_t *self, const tsk_id_t *samples,
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_treeseq_init(output, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(output, &tables, TSK_TS_INIT_BUILD_INDEXES);
 out:
     tsk_table_collection_free(&tables);
     return ret;

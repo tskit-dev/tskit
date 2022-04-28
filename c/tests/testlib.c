@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2021 Tskit Developers
+ * Copyright (c) 2019-2022 Tskit Developers
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -782,7 +782,7 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length, const char *nod
         }
     }
 
-    ret = tsk_treeseq_init(ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     /* tsk_treeseq_print_state(ts, stdout); */
     /* printf("ret = %s\n", tsk_strerror(ret)); */
     CU_ASSERT_EQUAL_FATAL(ret, 0);

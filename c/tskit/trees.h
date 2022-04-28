@@ -61,6 +61,10 @@ extern "C" {
 
 /* For the edge diff iterator */
 #define TSK_INCLUDE_TERMINAL        (1 << 0)
+
+/* Tree sequence init flags */
+#define TSK_TS_INIT_BUILD_INDEXES (1 << 0)
+
 // clang-format on
 
 /**

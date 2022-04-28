@@ -7662,7 +7662,7 @@ TreeSequence_load_tables(TreeSequence *self, PyObject *args, PyObject *kwds)
         goto out;
     }
     if (build_indexes) {
-        options |= TSK_BUILD_INDEXES;
+        options |= TSK_TS_INIT_BUILD_INDEXES;
     }
     err = tsk_treeseq_init(self->tree_sequence, tables->tables, options);
     if (err != 0) {
