@@ -13,6 +13,10 @@
 - Rename TSK_TAKE_TABLES to TSK_TAKE_OWNERSHIP.
   (:user:`benjeffery`, :issue:`2221`, :pr:`2222`)
 
+- Rename all flags to ``simplify`` for example ``TSK_KEEP_INPUT_ROOTS`` becomes ``TSK_SIMPLIFY_KEEP_INPUT_ROOTS``
+  (:user:`benjeffery`, :issue:`1720`, :pr:`2226`))
+
+
 **Features**
 
 - Make dumping of tables and tree sequences to disk a zero-copy operation.
@@ -199,7 +203,7 @@ Minor bugfix on internal APIs
 
 **Features**
 
-- Add ``TSK_KEEP_UNARY_IN_INDIVIDUALS`` flag to simplify, which allows the user to
+- Add ``TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS`` flag to simplify, which allows the user to
   keep unary nodes only if they belong to a tabled individual. This is useful for
   simplification in forwards simulations (:user:`hyanwong`, :issue:`1113`, :pr:`1119`).
 
@@ -249,7 +253,7 @@ Minor bugfix on internal APIs
 **Bugfixes**
 
 - :issue:`823` - Fix mutation time error when using
-  ``tsk_table_collection_simplify`` with ``TSK_KEEP_INPUT_ROOTS``
+  ``tsk_table_collection_simplify`` with ``TSK_SIMPLIFY_KEEP_INPUT_ROOTS``
   (:user:`petrelharp`, :pr:`823`).
 
 ---------------------
@@ -263,7 +267,7 @@ Minor bugfix on internal APIs
 
 **New features**
 
-- Add a ``TSK_KEEP_INPUT_ROOTS`` option to simplify which, if enabled, adds edges
+- Add a ``TSK_SIMPLIFY_KEEP_INPUT_ROOTS`` option to simplify which, if enabled, adds edges
   from the MRCAs of samples in the simplified tree sequence back to the roots
   in the input tree sequence (:user:`jeromekelleher`, :issue:`775`, :pr:`782`).
 
@@ -357,7 +361,7 @@ Minor bugfix on internal APIs
   tree sequence. These store arbitrary bytes and are optional in the file format.
   (:user: `benjeffery`, :pr:`641`)
 
-- Add the ``TSK_KEEP_UNARY`` option to simplify (:user:`gtsambos`). See :issue:`1`
+- Add the ``TSK_SIMPLIFY_KEEP_UNARY`` option to simplify (:user:`gtsambos`). See :issue:`1`
   and :pr:`143`.
 
 - Add a ``set_root_threshold`` option to tsk_tree_t which allows us to set the
