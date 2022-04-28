@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2021 Tskit Developers
+ * Copyright (c) 2019-2022 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -405,7 +405,7 @@ tsk_treeseq_init(
     tsk_id_t num_trees;
 
     tsk_memset(self, 0, sizeof(*self));
-    if (options & TSK_TAKE_TABLES) {
+    if (options & TSK_TAKE_OWNERSHIP) {
         self->tables = tables;
     } else {
         self->tables = tsk_malloc(sizeof(*self->tables));
@@ -493,9 +493,9 @@ tsk_treeseq_load(tsk_treeseq_t *self, const char *filename, tsk_flags_t options)
         tsk_safe_free(tables);
         goto out;
     }
-    /* TSK_TAKE_TABLES takes immediate ownership of the tables, regardless
+    /* TSK_TAKE_OWNERSHIP takes immediate ownership of the tables, regardless
      * of error conditions. */
-    ret = tsk_treeseq_init(self, tables, TSK_TAKE_TABLES);
+    ret = tsk_treeseq_init(self, tables, TSK_TAKE_OWNERSHIP);
     if (ret != 0) {
         goto out;
     }
@@ -523,9 +523,9 @@ tsk_treeseq_loadf(tsk_treeseq_t *self, FILE *file, tsk_flags_t options)
         tsk_safe_free(tables);
         goto out;
     }
-    /* TSK_TAKE_TABLES takes immediate ownership of the tables, regardless
+    /* TSK_TAKE_OWNERSHIP takes immediate ownership of the tables, regardless
      * of error conditions. */
-    ret = tsk_treeseq_init(self, tables, TSK_TAKE_TABLES);
+    ret = tsk_treeseq_init(self, tables, TSK_TAKE_OWNERSHIP);
     if (ret != 0) {
         goto out;
     }

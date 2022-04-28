@@ -689,6 +689,10 @@ typedef struct {
 /** @brief Do not run integrity checks before performing an operation. */
 #define TSK_NO_CHECK_INTEGRITY (1u << 29)
 
+/** @brief Instead of taking a copy of input data, take ownership of it
+ *  and its lifecycle */
+#define TSK_TAKE_OWNERSHIP (1 << 28)
+
 /**@} */
 
 /* Flags for simplify() */
@@ -719,7 +723,6 @@ typedef struct {
 
 /* Flags for load tables */
 #define TSK_BUILD_INDEXES (1 << 0)
-#define TSK_TAKE_TABLES (1 << 1)
 
 /* Flags for dump tables */
 /* We may not want to document this flag, but it's useful for testing
