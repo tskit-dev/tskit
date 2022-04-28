@@ -376,8 +376,6 @@ be indexed, it is always recommended to call
 Tree sequences
 **************
 
-.. warning:: This part of the API is more preliminary and may be subject to change.
-
 .. doxygenstruct:: tsk_treeseq_t
     :members:
 
@@ -387,8 +385,6 @@ Tree sequences
 *****
 Trees
 *****
-
-.. warning:: This part of the API is more preliminary and may be subject to change.
 
 .. doxygenstruct:: tsk_tree_t
     :members:
