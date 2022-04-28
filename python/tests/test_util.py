@@ -547,11 +547,11 @@ class TestAlleleRemap:
     b = ["G", "C"]
     c = []
 
-    def test_a_bigger_than_b(self):
+    def test_from_bigger_than_to(self):
         m = tskit.allele_remap(self.a, self.b)
         assert m == [2, 1, 0, 3]
 
-    def test_a_smaller_than_b(self):
+    def test_to_bigger_than_from(self):
         m = tskit.allele_remap(self.b, self.a)
         assert m == [2, 1]
 
