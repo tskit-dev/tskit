@@ -13,11 +13,15 @@
 - Rename TSK_TAKE_TABLES to TSK_TAKE_OWNERSHIP.
   (:user:`benjeffery`, :issue:`2221`, :pr:`2222`)
 
-- Rename all flags to ``simplify`` for example ``TSK_KEEP_INPUT_ROOTS`` becomes ``TSK_SIMPLIFY_KEEP_INPUT_ROOTS``
-  (:user:`benjeffery`, :issue:`1720`, :pr:`2226`))
 
 - ``TSK_DEBUG``, ``TSK_NO_INIT``, ``TSK_NO_CHECK_INTEGRITY`` and ``TSK_TAKE_OWNERSHIP`` have moved to ``core.h``
   (:user:`benjeffery`, :issue:`2218`, :pr:`2230`))
+
+- Rename several flags:
+     - All flags to ``simplify`` for example ``TSK_KEEP_INPUT_ROOTS`` becomes ``TSK_SIMPLIFY_KEEP_INPUT_ROOTS``.
+     - All flags to ``subset`` for example ``TSK_KEEP_UNREFERENCED`` becomes ``TSK_SUBSET_KEEP_UNREFERENCED``.
+  
+  (:user:`benjeffery`, :issue:`1720`, :pr:`2226`, :pr:`2229`)
 
 **Features**
 

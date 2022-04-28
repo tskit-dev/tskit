@@ -681,8 +681,8 @@ typedef struct {
 #define TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS (1 << 6)
 
 /* Flags for subset() */
-#define TSK_NO_CHANGE_POPULATIONS (1 << 0)
-#define TSK_KEEP_UNREFERENCED (1 << 1)
+#define TSK_SUBSET_NO_CHANGE_POPULATIONS (1 << 0)
+#define TSK_SUBSET_KEEP_UNREFERENCED (1 << 1)
 
 /* Flags for check_integrity */
 #define TSK_CHECK_EDGE_ORDERING (1 << 0)
@@ -3804,7 +3804,7 @@ tree sequence sortedness requirements.
 Options can be specified by providing one or more of the following bitwise
 flags:
 
-TSK_KEEP_UNREFERENCED
+TSK_SUBSET_KEEP_UNREFERENCED
     By default, this will remove any unreferenced sites, populations, and
     individuals. If this flag is provided, these will be retained, with
     unreferenced individuals and populations at the end of the tables, in
@@ -3918,14 +3918,14 @@ This function does *not* require the tables to be sorted.
 Options can be specified by providing one or more of the following bitwise
 flags:
 
-TSK_NO_CHANGE_POPULATIONS
+TSK_SUBSET_NO_CHANGE_POPULATIONS
     If this flag is provided, the population table will not be changed
     in any way.
 
-TSK_KEEP_UNREFERENCED
+TSK_SUBSET_KEEP_UNREFERENCED
     If this flag is provided, then unreferenced sites, individuals, and populations
     will not be removed. If so, the site and individual tables will not be changed,
-    and (unless TSK_NO_CHANGE_POPULATIONS is also provided) unreferenced
+    and (unless TSK_SUBSET_NO_CHANGE_POPULATIONS is also provided) unreferenced
     populations will be placed last, in their original order.
 
 .. note:: Migrations are currently not supported by susbset, and an error will

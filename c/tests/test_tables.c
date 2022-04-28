@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2021 Tskit Developers
+ * Copyright (c) 2019-2022 Tskit Developers
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -8128,7 +8128,7 @@ test_sort_tables_canonical(void)
     parse_sites(sites, &t1.sites);
     parse_mutations(mutations, &t1.mutations);
 
-    ret = tsk_table_collection_canonicalise(&t1, TSK_KEEP_UNREFERENCED);
+    ret = tsk_table_collection_canonicalise(&t1, TSK_SUBSET_KEEP_UNREFERENCED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     parse_nodes(nodes_sorted, &t2.nodes);
@@ -9414,7 +9414,8 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     // unless NO_CHANGE_POPULATIONS is provided
     ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT | options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_subset(&tables_copy, NULL, 0, TSK_NO_CHANGE_POPULATIONS);
+    ret = tsk_table_collection_subset(
+        &tables_copy, NULL, 0, TSK_SUBSET_NO_CHANGE_POPULATIONS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(tables_copy.nodes.num_rows, 0);
     CU_ASSERT_EQUAL_FATAL(tables_copy.individuals.num_rows, 0);
@@ -9426,7 +9427,8 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     // or KEEP_UNREFERENCED
     ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT | options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_subset(&tables_copy, NULL, 0, TSK_KEEP_UNREFERENCED);
+    ret = tsk_table_collection_subset(
+        &tables_copy, NULL, 0, TSK_SUBSET_KEEP_UNREFERENCED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(tables_copy.nodes.num_rows, 0);
     CU_ASSERT_FATAL(
@@ -9438,8 +9440,8 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     // or both
     ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT | options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_subset(
-        &tables_copy, NULL, 0, TSK_KEEP_UNREFERENCED | TSK_NO_CHANGE_POPULATIONS);
+    ret = tsk_table_collection_subset(&tables_copy, NULL, 0,
+        TSK_SUBSET_KEEP_UNREFERENCED | TSK_SUBSET_NO_CHANGE_POPULATIONS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(tables_copy.nodes.num_rows, 0);
     CU_ASSERT_FATAL(
@@ -9455,7 +9457,8 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     }
     ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT | options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_subset(&tables_copy, nodes, 4, TSK_KEEP_UNREFERENCED);
+    ret = tsk_table_collection_subset(
+        &tables_copy, nodes, 4, TSK_SUBSET_KEEP_UNREFERENCED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &tables_copy, 0));
 
@@ -9479,9 +9482,11 @@ test_table_collection_subset_with_options(tsk_flags_t options)
     }
     ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT | options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_subset(&tables_copy, nodes, 4, TSK_KEEP_UNREFERENCED);
+    ret = tsk_table_collection_subset(
+        &tables_copy, nodes, 4, TSK_SUBSET_KEEP_UNREFERENCED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_subset(&tables_copy, nodes, 4, TSK_KEEP_UNREFERENCED);
+    ret = tsk_table_collection_subset(
+        &tables_copy, nodes, 4, TSK_SUBSET_KEEP_UNREFERENCED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = (int) tsk_table_collection_check_integrity(&tables_copy, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -9554,7 +9559,8 @@ test_table_collection_subset_unsorted(void)
     }
     ret = tsk_table_collection_copy(&tables, &tables_copy, TSK_NO_INIT);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_subset(&tables_copy, nodes, 3, TSK_KEEP_UNREFERENCED);
+    ret = tsk_table_collection_subset(
+        &tables_copy, nodes, 3, TSK_SUBSET_KEEP_UNREFERENCED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FATAL(tsk_table_collection_equals(&tables, &tables_copy, 0));
 
