@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2021 Tskit Developers
+ * Copyright (c) 2019-2022 Tskit Developers
  * Copyright (c) 2017-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -8660,14 +8660,15 @@ simplifier_print_state(simplifier_t *self, FILE *out)
     fprintf(out, "--simplifier state--\n");
     fprintf(out, "options:\n");
     fprintf(out, "\tfilter_unreferenced_sites   : %d\n",
-        !!(self->options & TSK_FILTER_SITES));
+        !!(self->options & TSK_SIMPLIFY_FILTER_SITES));
     fprintf(out, "\treduce_to_site_topology : %d\n",
-        !!(self->options & TSK_REDUCE_TO_SITE_TOPOLOGY));
-    fprintf(out, "\tkeep_unary              : %d\n", !!(self->options & TSK_KEEP_UNARY));
+        !!(self->options & TSK_SIMPLIFY_REDUCE_TO_SITE_TOPOLOGY));
+    fprintf(out, "\tkeep_unary              : %d\n",
+        !!(self->options & TSK_SIMPLIFY_KEEP_UNARY));
     fprintf(out, "\tkeep_input_roots        : %d\n",
-        !!(self->options & TSK_KEEP_INPUT_ROOTS));
+        !!(self->options & TSK_SIMPLIFY_KEEP_INPUT_ROOTS));
     fprintf(out, "\tkeep_unary_in_individuals : %d\n",
-        !!(self->options & TSK_KEEP_UNARY_IN_INDIVIDUALS));
+        !!(self->options & TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS));
 
     fprintf(out, "===\nInput tables\n==\n");
     tsk_table_collection_print_state(&self->input_tables, out);
@@ -8723,7 +8724,7 @@ simplifier_print_state(simplifier_t *self, FILE *out)
             fprintf(out, "]\n");
         }
     }
-    if (!!(self->options & TSK_REDUCE_TO_SITE_TOPOLOGY)) {
+    if (!!(self->options & TSK_SIMPLIFY_REDUCE_TO_SITE_TOPOLOGY)) {
         fprintf(out, "===\nposition_lookup\n==\n");
         for (j = 0; j < self->input_tables.sites.num_rows + 2; j++) {
             fprintf(out, "%lld\t-> %f\n", (long long) j, self->position_lookup[j]);
@@ -8883,7 +8884,7 @@ simplifier_record_edge(simplifier_t *self, double left, double right, tsk_id_t c
     interval_list_t *tail, *x;
     bool skip;
 
-    if (!!(self->options & TSK_REDUCE_TO_SITE_TOPOLOGY)) {
+    if (!!(self->options & TSK_SIMPLIFY_REDUCE_TO_SITE_TOPOLOGY)) {
         skip = simplifier_map_reduced_coordinates(self, &left, &right);
         /* NOTE: we exit early here when reduce_coordindates has told us to
          * skip this edge, as it is not visible in the reduced tree sequence */
@@ -9073,7 +9074,7 @@ simplifier_init(simplifier_t *self, const tsk_id_t *samples, tsk_size_t num_samp
     /* TODO Current unit tests require TSK_CHECK_SITE_DUPLICATES but it's
      * debateable whether we need it. If we remove, we definitely need explicit
      * tests to ensure we're doing sensible things with duplicate sites.
-     * (Particularly, re TSK_REDUCE_TO_SITE_TOPOLOGY.) */
+     * (Particularly, re TSK_SIMPLIFY_REDUCE_TO_SITE_TOPOLOGY.) */
     ret_id = tsk_table_collection_check_integrity(tables,
         TSK_CHECK_EDGE_ORDERING | TSK_CHECK_SITE_ORDERING | TSK_CHECK_SITE_DUPLICATES);
     if (ret_id != 0) {
@@ -9141,7 +9142,7 @@ simplifier_init(simplifier_t *self, const tsk_id_t *samples, tsk_size_t num_samp
     if (ret != 0) {
         goto out;
     }
-    if (!!(self->options & TSK_REDUCE_TO_SITE_TOPOLOGY)) {
+    if (!!(self->options & TSK_SIMPLIFY_REDUCE_TO_SITE_TOPOLOGY)) {
         ret = simplifier_init_position_lookup(self);
         if (ret != 0) {
             goto out;
@@ -9218,10 +9219,10 @@ simplifier_merge_ancestors(simplifier_t *self, tsk_id_t input_id)
 
     bool is_sample = output_id != TSK_NULL;
     bool keep_unary = false;
-    if (self->options & TSK_KEEP_UNARY) {
+    if (self->options & TSK_SIMPLIFY_KEEP_UNARY) {
         keep_unary = true;
     }
-    if ((self->options & TSK_KEEP_UNARY_IN_INDIVIDUALS)
+    if ((self->options & TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS)
         && (self->input_tables.nodes.individual[input_id] != TSK_NULL)) {
         keep_unary = true;
     }
@@ -9428,7 +9429,7 @@ simplifier_output_sites(simplifier_t *self)
     tsk_id_t num_output_mutations, num_output_site_mutations;
     tsk_id_t mapped_node;
     bool keep_site;
-    bool filter_sites = !!(self->options & TSK_FILTER_SITES);
+    bool filter_sites = !!(self->options & TSK_SIMPLIFY_FILTER_SITES);
     tsk_site_t site;
     tsk_mutation_t mutation;
 
@@ -9516,7 +9517,7 @@ simplifier_finalise_references(simplifier_t *self)
         = tsk_calloc(num_populations, sizeof(*population_referenced));
     tsk_id_t *population_id_map
         = tsk_malloc(num_populations * sizeof(*population_id_map));
-    bool filter_populations = !!(self->options & TSK_FILTER_POPULATIONS);
+    bool filter_populations = !!(self->options & TSK_SIMPLIFY_FILTER_POPULATIONS);
 
     tsk_individual_t ind;
     tsk_id_t ind_id;
@@ -9526,7 +9527,7 @@ simplifier_finalise_references(simplifier_t *self)
         = tsk_calloc(num_individuals, sizeof(*individual_referenced));
     tsk_id_t *individual_id_map
         = tsk_malloc(num_individuals * sizeof(*individual_id_map));
-    bool filter_individuals = !!(self->options & TSK_FILTER_INDIVIDUALS);
+    bool filter_individuals = !!(self->options & TSK_SIMPLIFY_FILTER_INDIVIDUALS);
 
     if (population_referenced == NULL || population_id_map == NULL
         || individual_referenced == NULL || individual_id_map == NULL) {
@@ -9729,7 +9730,7 @@ simplifier_run(simplifier_t *self, tsk_id_t *node_map)
             goto out;
         }
     }
-    if (self->options & TSK_KEEP_INPUT_ROOTS) {
+    if (self->options & TSK_SIMPLIFY_KEEP_INPUT_ROOTS) {
         ret = simplifier_insert_input_roots(self);
         if (ret != 0) {
             goto out;
@@ -9749,7 +9750,7 @@ simplifier_run(simplifier_t *self, tsk_id_t *node_map)
             self->input_tables.nodes.num_rows * sizeof(tsk_id_t));
     }
     if (self->edge_sort_offset != TSK_NULL) {
-        tsk_bug_assert(self->options & TSK_KEEP_INPUT_ROOTS);
+        tsk_bug_assert(self->options & TSK_SIMPLIFY_KEEP_INPUT_ROOTS);
         ret = simplifier_sort_edges(self);
         if (ret != 0) {
             goto out;
@@ -11446,7 +11447,8 @@ tsk_table_collection_simplify(tsk_table_collection_t *self, const tsk_id_t *samp
     /* Avoid calling to simplifier_free with uninit'd memory on error branches */
     tsk_memset(&simplifier, 0, sizeof(simplifier_t));
 
-    if ((options & TSK_KEEP_UNARY) && (options & TSK_KEEP_UNARY_IN_INDIVIDUALS)) {
+    if ((options & TSK_SIMPLIFY_KEEP_UNARY)
+        && (options & TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS)) {
         ret = TSK_ERR_KEEP_UNARY_MUTUALLY_EXCLUSIVE;
         goto out;
     }

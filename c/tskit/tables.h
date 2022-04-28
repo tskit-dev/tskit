@@ -696,13 +696,13 @@ typedef struct {
 /**@} */
 
 /* Flags for simplify() */
-#define TSK_FILTER_SITES (1 << 0)
-#define TSK_FILTER_POPULATIONS (1 << 1)
-#define TSK_FILTER_INDIVIDUALS (1 << 2)
-#define TSK_REDUCE_TO_SITE_TOPOLOGY (1 << 3)
-#define TSK_KEEP_UNARY (1 << 4)
-#define TSK_KEEP_INPUT_ROOTS (1 << 5)
-#define TSK_KEEP_UNARY_IN_INDIVIDUALS (1 << 6)
+#define TSK_SIMPLIFY_FILTER_SITES (1 << 0)
+#define TSK_SIMPLIFY_FILTER_POPULATIONS (1 << 1)
+#define TSK_SIMPLIFY_FILTER_INDIVIDUALS (1 << 2)
+#define TSK_SIMPLIFY_REDUCE_TO_SITE_TOPOLOGY (1 << 3)
+#define TSK_SIMPLIFY_KEEP_UNARY (1 << 4)
+#define TSK_SIMPLIFY_KEEP_INPUT_ROOTS (1 << 5)
+#define TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS (1 << 6)
 
 /* Flags for subset() */
 #define TSK_NO_CHANGE_POPULATIONS (1 << 0)
@@ -3859,14 +3859,14 @@ at least ``self->nodes.num_rows`` :c:type:`tsk_id_t` values.
 Options can be specified by providing one or more of the following bitwise
 flags:
 
-TSK_FILTER_SITES
+TSK_SIMPLIFY_FILTER_SITES
     Remove sites from the output if there are no mutations that reference them.
-TSK_FILTER_POPULATIONS
+TSK_SIMPLIFY_FILTER_POPULATIONS
     Remove populations from the output if there are no nodes or migrations that
     reference them.
-TSK_FILTER_INDIVIDUALS
+TSK_SIMPLIFY_FILTER_INDIVIDUALS
     Remove individuals from the output if there are no nodes that reference them.
-TSK_REDUCE_TO_SITE_TOPOLOGY
+TSK_SIMPLIFY_REDUCE_TO_SITE_TOPOLOGY
     Reduce the topological information in the tables to the minimum necessary to
     represent the trees that contain sites. If there are zero sites this will
     result in an zero output edges. When the number of sites is greater than zero,
@@ -3874,16 +3874,16 @@ TSK_REDUCE_TO_SITE_TOPOLOGY
     For a given site, the topology of the tree containing that site will be
     identical (up to node ID remapping) to the topology of the corresponding tree
     in the input.
-TSK_KEEP_UNARY
+TSK_SIMPLIFY_KEEP_UNARY
     By default simplify removes unary nodes (i.e., nodes with exactly one child)
     along the path from samples to root. If this option is specified such unary
     nodes will be preserved in the output.
-TSK_KEEP_INPUT_ROOTS
+TSK_SIMPLIFY_KEEP_INPUT_ROOTS
     By default simplify removes all topology ancestral the MRCAs of the samples.
     This option inserts edges from these MRCAs back to the roots of the input
     trees.
-TSK_KEEP_UNARY_IN_INDIVDUALS
-    This acts like TSK_KEEP_UNARY (and is mutually exclusive with that flag). It
+TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVDUALS
+    This acts like TSK_SIMPLIFY_KEEP_UNARY (and is mutually exclusive with that flag). It
     keeps unary nodes, but only if the unary node is referenced from an individual.
 
 .. note:: Migrations are currently not supported by simplify, and an error will

@@ -6573,25 +6573,25 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
     shape = PyArray_DIMS(samples_array);
     num_samples = (tsk_size_t) shape[0];
     if (filter_sites) {
-        options |= TSK_FILTER_SITES;
+        options |= TSK_SIMPLIFY_FILTER_SITES;
     }
     if (filter_individuals) {
-        options |= TSK_FILTER_INDIVIDUALS;
+        options |= TSK_SIMPLIFY_FILTER_INDIVIDUALS;
     }
     if (filter_populations) {
-        options |= TSK_FILTER_POPULATIONS;
+        options |= TSK_SIMPLIFY_FILTER_POPULATIONS;
     }
     if (reduce_to_site_topology) {
-        options |= TSK_REDUCE_TO_SITE_TOPOLOGY;
+        options |= TSK_SIMPLIFY_REDUCE_TO_SITE_TOPOLOGY;
     }
     if (keep_unary) {
-        options |= TSK_KEEP_UNARY;
+        options |= TSK_SIMPLIFY_KEEP_UNARY;
     }
     if (keep_unary_in_individuals) {
-        options |= TSK_KEEP_UNARY_IN_INDIVIDUALS;
+        options |= TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS;
     }
     if (keep_input_roots) {
-        options |= TSK_KEEP_INPUT_ROOTS;
+        options |= TSK_SIMPLIFY_KEEP_INPUT_ROOTS;
     }
 
     /* Allocate a new array to hold the node map. */

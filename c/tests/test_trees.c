@@ -654,7 +654,7 @@ verify_simplify(tsk_treeseq_t *ts)
     const tsk_id_t *sample;
     tsk_id_t *node_map = tsk_malloc(tsk_treeseq_get_num_nodes(ts) * sizeof(tsk_id_t));
     tsk_treeseq_t subset;
-    tsk_flags_t options = TSK_FILTER_SITES;
+    tsk_flags_t options = TSK_SIMPLIFY_FILTER_SITES;
 
     CU_ASSERT_FATAL(node_map != NULL);
     sample = tsk_treeseq_get_samples(ts);
@@ -1118,17 +1118,19 @@ test_simplest_records(void)
     tsk_treeseq_free(&simplified);
 
     ret = tsk_treeseq_simplify(&ts, sample_ids, 2,
-        TSK_KEEP_UNARY | TSK_KEEP_UNARY_IN_INDIVIDUALS, &simplified, NULL);
+        TSK_SIMPLIFY_KEEP_UNARY | TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS, &simplified,
+        NULL);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_KEEP_UNARY_MUTUALLY_EXCLUSIVE);
     tsk_treeseq_free(&simplified);
 
-    ret = tsk_treeseq_simplify(&ts, sample_ids, 2, TSK_KEEP_UNARY, &simplified, NULL);
+    ret = tsk_treeseq_simplify(
+        &ts, sample_ids, 2, TSK_SIMPLIFY_KEEP_UNARY, &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
     tsk_treeseq_free(&simplified);
 
     ret = tsk_treeseq_simplify(
-        &ts, sample_ids, 2, TSK_KEEP_UNARY_IN_INDIVIDUALS, &simplified, NULL);
+        &ts, sample_ids, 2, TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS, &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
     tsk_treeseq_free(&simplified);
@@ -1161,13 +1163,14 @@ test_simplest_nonbinary_records(void)
     CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
     tsk_treeseq_free(&simplified);
 
-    ret = tsk_treeseq_simplify(&ts, sample_ids, 4, TSK_KEEP_UNARY, &simplified, NULL);
+    ret = tsk_treeseq_simplify(
+        &ts, sample_ids, 4, TSK_SIMPLIFY_KEEP_UNARY, &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
     tsk_treeseq_free(&simplified);
 
     ret = tsk_treeseq_simplify(
-        &ts, sample_ids, 4, TSK_KEEP_UNARY_IN_INDIVIDUALS, &simplified, NULL);
+        &ts, sample_ids, 4, TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS, &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
     tsk_treeseq_free(&simplified);
@@ -1208,13 +1211,14 @@ test_simplest_unary_records(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&simplified), 1);
     tsk_treeseq_free(&simplified);
 
-    ret = tsk_treeseq_simplify(&ts, sample_ids, 2, TSK_KEEP_UNARY, &simplified, NULL);
+    ret = tsk_treeseq_simplify(
+        &ts, sample_ids, 2, TSK_SIMPLIFY_KEEP_UNARY, &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
     tsk_treeseq_free(&simplified);
 
     ret = tsk_treeseq_simplify(
-        &ts, sample_ids, 2, TSK_KEEP_UNARY_IN_INDIVIDUALS, &simplified, NULL);
+        &ts, sample_ids, 2, TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS, &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
     ret = tsk_treeseq_simplify(&ts, sample_ids, 2, 0, &simplified_other, NULL);
@@ -1285,7 +1289,8 @@ test_simplest_unary_with_individuals(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_populations(&ts), 1);
 
     ret = tsk_treeseq_simplify(&ts, sample_ids, 2,
-        TSK_KEEP_UNARY_IN_INDIVIDUALS | TSK_FILTER_INDIVIDUALS, &simplified, NULL);
+        TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS | TSK_SIMPLIFY_FILTER_INDIVIDUALS,
+        &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(simplified.tables, expected.tables, 0));
     tsk_treeseq_free(&simplified);
@@ -1410,7 +1415,8 @@ test_simplest_degenerate_multiple_root_records(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&simplified), 2);
     tsk_treeseq_free(&simplified);
 
-    ret = tsk_treeseq_simplify(&ts, sample_ids, 2, TSK_KEEP_UNARY, &simplified, NULL);
+    ret = tsk_treeseq_simplify(
+        &ts, sample_ids, 2, TSK_SIMPLIFY_KEEP_UNARY, &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
     tsk_treeseq_free(&simplified);
@@ -1745,7 +1751,8 @@ test_simplest_holey_tree_sequence(void)
     CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
     tsk_treeseq_free(&simplified);
 
-    ret = tsk_treeseq_simplify(&ts, sample_ids, 2, TSK_KEEP_UNARY, &simplified, NULL);
+    ret = tsk_treeseq_simplify(
+        &ts, sample_ids, 2, TSK_SIMPLIFY_KEEP_UNARY, &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
     tsk_treeseq_free(&simplified);
@@ -1837,7 +1844,8 @@ test_simplest_initial_gap_tree_sequence(void)
     CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
     tsk_treeseq_free(&simplified);
 
-    ret = tsk_treeseq_simplify(&ts, sample_ids, 2, TSK_KEEP_UNARY, &simplified, NULL);
+    ret = tsk_treeseq_simplify(
+        &ts, sample_ids, 2, TSK_SIMPLIFY_KEEP_UNARY, &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
     tsk_treeseq_free(&simplified);
@@ -2899,7 +2907,7 @@ test_simplest_reduce_site_topology(void)
     CU_ASSERT_EQUAL_FATAL(tables.sites.num_rows, 1);
 
     ret = tsk_table_collection_simplify(
-        &tables, samples, 2, TSK_REDUCE_TO_SITE_TOPOLOGY, NULL);
+        &tables, samples, 2, TSK_SIMPLIFY_REDUCE_TO_SITE_TOPOLOGY, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     CU_ASSERT_EQUAL(tables.nodes.num_rows, 3);
@@ -3006,7 +3014,7 @@ test_simplest_population_filter(void)
     CU_ASSERT_EQUAL(tables.populations.metadata[2], '2');
 
     ret = tsk_table_collection_simplify(
-        &tables, samples, 2, TSK_FILTER_POPULATIONS, NULL);
+        &tables, samples, 2, TSK_SIMPLIFY_FILTER_POPULATIONS, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(tables.nodes.num_rows, 2);
     CU_ASSERT_EQUAL(tables.nodes.population[0], 0);
@@ -3044,7 +3052,7 @@ test_simplest_individual_filter(void)
     CU_ASSERT_EQUAL(tables.individuals.metadata[2], '2');
 
     ret = tsk_table_collection_simplify(
-        &tables, samples, 2, TSK_FILTER_INDIVIDUALS, NULL);
+        &tables, samples, 2, TSK_SIMPLIFY_FILTER_INDIVIDUALS, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(tables.nodes.num_rows, 2);
     CU_ASSERT_EQUAL(tables.nodes.individual[0], 0);
@@ -4165,7 +4173,8 @@ test_single_tree_simplify_keep_input_roots(void)
     ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_simplify(&tables, samples, 2, TSK_KEEP_INPUT_ROOTS, NULL);
+    ret = tsk_table_collection_simplify(
+        &tables, samples, 2, TSK_SIMPLIFY_KEEP_INPUT_ROOTS, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(tables.nodes.num_rows, 4);
     CU_ASSERT_EQUAL(tables.edges.num_rows, 3);
@@ -4948,7 +4957,8 @@ test_simplify_keep_input_roots_multi_tree(void)
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
     tsk_treeseq_dump(&ts, "tmp.trees", 0);
-    ret = tsk_treeseq_simplify(&ts, samples, 2, TSK_KEEP_INPUT_ROOTS, &simplified, NULL);
+    ret = tsk_treeseq_simplify(
+        &ts, samples, 2, TSK_SIMPLIFY_KEEP_INPUT_ROOTS, &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     verify_trees(&simplified, num_trees, parents);
 
