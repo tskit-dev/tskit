@@ -10,6 +10,8 @@
 - ``tsk_variant_t`` now includes its ``tsk_site_t`` rather than pointing to it. 
   (:user:`benjeffery`, :issue:`2161`, :pr:`2162`)
 
+- Rename TSK_TAKE_TABLES to TSK_TAKE_OWNERSHIP.
+  (:user:`benjeffery`, :issue:`2221`, :pr:`2222`)
 
 **Features**
 
