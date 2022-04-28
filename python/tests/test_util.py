@@ -542,25 +542,27 @@ class TestRandomNuceotides:
             tskit.random_nucleotides(length)
 
 
-class TestAlleleRemap:
-    a = ["A", "C", "G", "T"]
-    b = ["G", "C"]
-    c = []
+#
+# Tests for allele_remap
+#
+@pytest.mark.parametrize(
+    "alleles_from, alleles_to, allele_map",
+    [
+        (["A", "C", "G", "T"], ["G", "C"], [2, 1, 0, 3]),
+        (["G", "C"], ["A", "C", "G", "T"], [2, 1]),
+    ],
+)
+def test_lists_differ_in_length(alleles_from, alleles_to, allele_map):
+    assert allele_map == tskit.allele_remap(alleles_from, alleles_to)
 
-    def test_from_bigger_than_to(self):
-        m = tskit.allele_remap(self.a, self.b)
-        assert m == [2, 1, 0, 3]
 
-    def test_to_bigger_than_from(self):
-        m = tskit.allele_remap(self.b, self.a)
-        assert m == [2, 1]
+@pytest.mark.parametrize(
+    "alleles_from, alleles_to, allele_map",
+    [(["A", "C", "G", "T"], [], [0, 1, 2, 3]), ([], ["A", "C", "G", "T"], [])],
+)
+def test_one_list_is_empty(alleles_from, alleles_to, allele_map):
+    assert allele_map == tskit.allele_remap(alleles_from, alleles_to)
 
-    def test_one_is_empty(self):
-        m1 = tskit.allele_remap(self.a, self.c)
-        m2 = tskit.allele_remap(self.c, self.a)
-        assert m1 == [0, 1, 2, 3]
-        assert m2 == []
 
-    def test_both_are_empty(self):
-        m = tskit.allele_remap(self.c, self.c)
-        assert m == []
+def test_both_lists_are_empty():
+    assert [] == tskit.allele_remap([], [])
