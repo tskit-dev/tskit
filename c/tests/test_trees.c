@@ -942,26 +942,26 @@ test_simplest_discrete_genome(void)
     tsk_treeseq_free(&ts);
 
     tables.sequence_length = 1.001;
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_treeseq_get_discrete_genome(&ts));
     tsk_treeseq_free(&ts);
     tables.sequence_length = 1;
 
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_treeseq_get_discrete_genome(&ts));
     tsk_treeseq_free(&ts);
 
     tables.edges.right[0] = 0.999;
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_treeseq_get_discrete_genome(&ts));
     tsk_treeseq_free(&ts);
     tables.edges.right[0] = 1.0;
 
     tables.edges.left[0] = 0.999;
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_treeseq_get_discrete_genome(&ts));
     tsk_treeseq_free(&ts);
@@ -969,14 +969,14 @@ test_simplest_discrete_genome(void)
 
     ret_id = tsk_site_table_add_row(&tables.sites, 0, "A", 1, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret_id, 0);
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_treeseq_get_discrete_genome(&ts));
     tsk_treeseq_free(&ts);
 
     tables.sites.position[0] = 0.001;
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_treeseq_get_discrete_genome(&ts));
     tsk_treeseq_free(&ts);
@@ -989,14 +989,14 @@ test_simplest_discrete_genome(void)
     ret_id
         = tsk_migration_table_add_row(&tables.migrations, 0, 1, 0, 0, 1, 1.0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret_id, 0);
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_treeseq_get_discrete_genome(&ts));
     tsk_treeseq_free(&ts);
 
     tables.migrations.left[0] = 0.001;
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_treeseq_get_discrete_genome(&ts));
     tsk_treeseq_free(&ts);
@@ -1004,7 +1004,7 @@ test_simplest_discrete_genome(void)
 
     tables.migrations.right[0] = 0.999;
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_treeseq_get_discrete_genome(&ts));
     tsk_treeseq_free(&ts);
@@ -1012,7 +1012,7 @@ test_simplest_discrete_genome(void)
 
     /* An empty tree sequence is has a discrete genome. */
     tsk_table_collection_clear(&tables, 0);
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_treeseq_get_discrete_genome(&ts));
     tsk_treeseq_free(&ts);
@@ -1050,27 +1050,27 @@ test_simplest_discrete_time(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_treeseq_free(&ts);
 
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_treeseq_get_discrete_time(&ts));
     tsk_treeseq_free(&ts);
 
     tables.nodes.time[0] = 0.0001;
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_treeseq_get_discrete_time(&ts));
     tsk_treeseq_free(&ts);
     tables.nodes.time[0] = 0;
 
     tables.mutations.time[0] = 0.001;
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_treeseq_get_discrete_time(&ts));
     tsk_treeseq_free(&ts);
     tables.mutations.time[0] = 0;
 
     tables.migrations.time[0] = 0.001;
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_treeseq_get_discrete_time(&ts));
     tsk_treeseq_free(&ts);
@@ -1080,14 +1080,14 @@ test_simplest_discrete_time(void)
     tables.mutations.time[1] = TSK_UNKNOWN_TIME;
     tables.mutations.time[2] = TSK_UNKNOWN_TIME;
     tables.mutations.time[3] = TSK_UNKNOWN_TIME;
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_treeseq_get_discrete_time(&ts));
     tsk_treeseq_free(&ts);
 
     /* An empty tree sequence is has a discrete time. */
     tsk_table_collection_clear(&tables, 0);
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_treeseq_get_discrete_time(&ts));
     tsk_treeseq_free(&ts);
@@ -1580,7 +1580,7 @@ test_simplest_tree_mrca(void)
         &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret_id, 0);
 
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&ts), 1);
     CU_ASSERT_EQUAL(tsk_treeseq_get_sequence_length(&ts), 1.0);
@@ -2092,7 +2092,7 @@ test_simplest_individuals(void)
     tsk_treeseq_t ts;
     tsk_node_t node;
     tsk_individual_t individual;
-    tsk_flags_t load_flags = TSK_BUILD_INDEXES;
+    tsk_flags_t load_flags = TSK_TS_INIT_BUILD_INDEXES;
     int ret;
     tsk_id_t pat_id, mat_id;
 
@@ -2106,7 +2106,7 @@ test_simplest_individuals(void)
     parse_nodes(nodes, &tables.nodes);
     CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 6);
 
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_treeseq_get_node(&ts, 0, &node);
@@ -2189,7 +2189,7 @@ test_simplest_bad_individuals(void)
                               "2      0.5,0.25 0\n";
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
-    tsk_flags_t load_flags = TSK_BUILD_INDEXES;
+    tsk_flags_t load_flags = TSK_TS_INIT_BUILD_INDEXES;
     tsk_id_t ret_id;
     int ret;
 
@@ -2283,7 +2283,7 @@ test_simplest_bad_edges(void)
     tsk_table_collection_t tables;
     int ret;
     tsk_id_t ret_id;
-    tsk_flags_t load_flags = TSK_BUILD_INDEXES;
+    tsk_flags_t load_flags = TSK_TS_INIT_BUILD_INDEXES;
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -2679,7 +2679,7 @@ test_simplest_overlapping_parents(void)
     tsk_table_collection_t tables;
     tsk_tree_t tree;
     int ret;
-    tsk_flags_t load_flags = TSK_BUILD_INDEXES;
+    tsk_flags_t load_flags = TSK_TS_INIT_BUILD_INDEXES;
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -2725,7 +2725,7 @@ test_simplest_contradictory_children(void)
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
     int ret;
-    tsk_flags_t load_flags = TSK_BUILD_INDEXES;
+    tsk_flags_t load_flags = TSK_TS_INIT_BUILD_INDEXES;
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -3489,7 +3489,7 @@ test_single_tree_bad_records(void)
     int ret = 0;
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
-    tsk_flags_t load_flags = TSK_BUILD_INDEXES;
+    tsk_flags_t load_flags = TSK_TS_INIT_BUILD_INDEXES;
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -3608,7 +3608,7 @@ test_single_tree_bad_mutations(void)
                             "2   2  1  -1  0\n";
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
-    tsk_flags_t load_flags = TSK_BUILD_INDEXES;
+    tsk_flags_t load_flags = TSK_TS_INIT_BUILD_INDEXES;
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -5069,7 +5069,7 @@ test_tsk_treeseq_bad_records(void)
         7, 5, 4, 4, 5, 7, TSK_NULL, TSK_NULL, TSK_NULL,
     };
     // clang-format on
-    tsk_flags_t load_flags = TSK_BUILD_INDEXES;
+    tsk_flags_t load_flags = TSK_TS_INIT_BUILD_INDEXES;
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -5874,11 +5874,11 @@ test_empty_tree_kc(void)
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SEQUENCE_LENGTH);
     tsk_treeseq_free(&ts);
     tables.sequence_length = 1.0;
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     verify_empty_tree_sequence(&ts, 1.0);
@@ -6743,11 +6743,11 @@ test_empty_tree_sequence(void)
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SEQUENCE_LENGTH);
     tsk_treeseq_free(&ts);
     tables.sequence_length = 1.0;
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     verify_empty_tree_sequence(&ts, 1.0);
@@ -6937,7 +6937,7 @@ test_time_uncalibrated(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 1;
 
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ts.time_uncalibrated, false);
     tsk_treeseq_free(&ts);
@@ -6945,7 +6945,7 @@ test_time_uncalibrated(void)
     ret = tsk_table_collection_set_time_units(
         &tables, TSK_TIME_UNITS_UNCALIBRATED, strlen(TSK_TIME_UNITS_UNCALIBRATED));
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ts.time_uncalibrated, true);
     tsk_treeseq_free(&ts);
@@ -7003,14 +7003,14 @@ test_reference_sequence(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 1;
 
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_FALSE(tsk_treeseq_has_reference_sequence(&ts));
     tsk_treeseq_free(&ts);
 
     ret = tsk_reference_sequence_set_data(&tables.reference_sequence, "abc", 3);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_treeseq_has_reference_sequence(&ts));
     tsk_treeseq_free(&ts);

@@ -2370,7 +2370,7 @@ tsk_edge_table_free(tsk_edge_table_t *self)
 static int
 tsk_edge_table_has_metadata(const tsk_edge_table_t *self)
 {
-    return !(self->options & TSK_NO_METADATA);
+    return !(self->options & TSK_TABLE_NO_METADATA);
 }
 
 static int
@@ -2601,8 +2601,8 @@ tsk_edge_table_copy(
         }
     }
 
-    /* We can't use TSK_NO_METADATA in dest if metadata_length is non-zero.
-     * This also captures the case where TSK_NO_METADATA is set on this table.
+    /* We can't use TSK_TABLE_NO_METADATA in dest if metadata_length is non-zero.
+     * This also captures the case where TSK_TABLE_NO_METADATA is set on this table.
      */
     if (self->metadata_length > 0 && !tsk_edge_table_has_metadata(dest)) {
         ret = TSK_ERR_METADATA_DISABLED;
@@ -10457,8 +10457,8 @@ tsk_table_collection_init(tsk_table_collection_t *self, tsk_flags_t options)
     tsk_flags_t edge_options = 0;
 
     tsk_memset(self, 0, sizeof(*self));
-    if (options & TSK_NO_EDGE_METADATA) {
-        edge_options |= TSK_NO_METADATA;
+    if (options & TSK_TC_NO_EDGE_METADATA) {
+        edge_options |= TSK_TABLE_NO_METADATA;
     }
 
     /* Set default time_units value */

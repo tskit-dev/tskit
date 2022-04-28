@@ -697,28 +697,21 @@ typedef struct {
 /* Leave room for more positive check flags */
 #define TSK_NO_CHECK_POPULATION_REFS (1 << 12)
 
-/* Flags for load tables */
-#define TSK_BUILD_INDEXES (1 << 0)
+/* These flags are for table collection load or init, or used as
+   flags on table collection or individual tables.
+ * As flags are passed though from load to init they share a namespace */
+#define TSK_LOAD_SKIP_TABLES (1 << 0)
+#define TSK_LOAD_SKIP_REFERENCE_SEQUENCE (1 << 1)
+#define TSK_TABLE_NO_METADATA (1 << 2)
+#define TSK_TC_NO_EDGE_METADATA (1 << 3)
 
 /* Flags for dump tables */
 /* We may not want to document this flag, but it's useful for testing
  * so we put it high up in the bit space, below the common options */
 #define TSK_DUMP_FORCE_OFFSET_64 (1 << 27)
 
-/* Flags for table collection init/copy */
-/* TODO: need to careful about what flags get passed to init, from other
- * functions. Review as part of #1720 */
-#define TSK_NO_EDGE_METADATA (1 << 0)
-#define TSK_COPY_FILE_UUID (1 << 1)
-
-/* Flags for table collection load */
-/* This shares an interface with table collection init.
-   TODO: review as part of #1720 */
-#define TSK_LOAD_SKIP_TABLES (1 << 1)
-#define TSK_LOAD_SKIP_REFERENCE_SEQUENCE (1 << 2)
-
-/* Flags for table init. */
-#define TSK_NO_METADATA (1 << 0)
+/* Flags for table collection copy */
+#define TSK_COPY_FILE_UUID (1 << 0)
 
 /* Flags for union() */
 #define TSK_UNION_NO_CHECK_SHARED (1 << 0)
@@ -1439,7 +1432,7 @@ are initialised and freed.
 Options can be specified by providing one or more of the following bitwise
 flags:
 
-TSK_NO_METADATA
+TSK_TABLE_NO_METADATA
     Do not allocate space to store metadata in this table. Operations
     attempting to add non-empty metadata to the table will fail
     with error TSK_ERR_METADATA_DISABLED.
@@ -3377,7 +3370,7 @@ are initialised and freed.
 Options can be specified by providing one or more of the following bitwise
 flags:
 
-TSK_NO_EDGE_METADATA
+TSK_TC_NO_EDGE_METADATA
     Do not allocate space to store metadata in the edge table. Operations
     attempting to add non-empty metadata to the edge table will fail
     with error TSK_ERR_METADATA_DISABLED.

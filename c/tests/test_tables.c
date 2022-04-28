@@ -1496,7 +1496,7 @@ test_edge_table_with_options(tsk_flags_t options)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     for (j = 0; j < (tsk_id_t) num_rows; j++) {
-        if (options & TSK_NO_METADATA) {
+        if (options & TSK_TABLE_NO_METADATA) {
             ret_id = tsk_edge_table_add_row(&table, (double) j, (double) j, j, j,
                 test_metadata, test_metadata_length);
             CU_ASSERT_EQUAL(ret_id, TSK_ERR_METADATA_DISABLED);
@@ -1512,7 +1512,7 @@ test_edge_table_with_options(tsk_flags_t options)
         CU_ASSERT_EQUAL(table.parent[j], j);
         CU_ASSERT_EQUAL(table.child[j], j);
         CU_ASSERT_EQUAL(table.num_rows, (tsk_size_t) j + 1);
-        if (options & TSK_NO_METADATA) {
+        if (options & TSK_TABLE_NO_METADATA) {
             CU_ASSERT_EQUAL(table.metadata_length, 0);
             CU_ASSERT_EQUAL(table.metadata, NULL);
             CU_ASSERT_EQUAL(table.metadata_offset, NULL);
@@ -1533,7 +1533,7 @@ test_edge_table_with_options(tsk_flags_t options)
         CU_ASSERT_EQUAL(edge.right, j);
         CU_ASSERT_EQUAL(edge.parent, j);
         CU_ASSERT_EQUAL(edge.child, j);
-        if (options & TSK_NO_METADATA) {
+        if (options & TSK_TABLE_NO_METADATA) {
             CU_ASSERT_EQUAL(edge.metadata_length, 0);
             CU_ASSERT_EQUAL(edge.metadata, NULL);
         } else {
@@ -1568,7 +1568,7 @@ test_edge_table_with_options(tsk_flags_t options)
     for (j = 0; j < (tsk_id_t) num_rows + 1; j++) {
         metadata_offset[j] = (tsk_size_t) j;
     }
-    if (options & TSK_NO_METADATA) {
+    if (options & TSK_TABLE_NO_METADATA) {
         ret = tsk_edge_table_set_columns(
             &table, num_rows, left, right, parent, child, metadata, metadata_offset);
         CU_ASSERT_EQUAL(ret, TSK_ERR_METADATA_DISABLED);
@@ -1583,7 +1583,7 @@ test_edge_table_with_options(tsk_flags_t options)
     CU_ASSERT_EQUAL(tsk_memcmp(table.right, right, num_rows * sizeof(double)), 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.parent, parent, num_rows * sizeof(tsk_id_t)), 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.child, child, num_rows * sizeof(tsk_id_t)), 0);
-    if (options & TSK_NO_METADATA) {
+    if (options & TSK_TABLE_NO_METADATA) {
         CU_ASSERT_EQUAL(table.metadata, NULL);
         CU_ASSERT_EQUAL(table.metadata_offset, NULL);
         CU_ASSERT_EQUAL(table.metadata_length, 0);
@@ -1599,7 +1599,7 @@ test_edge_table_with_options(tsk_flags_t options)
     CU_ASSERT_EQUAL(table.num_rows, num_rows);
 
     /* Append another num_rows to the end. */
-    if (options & TSK_NO_METADATA) {
+    if (options & TSK_TABLE_NO_METADATA) {
         ret = tsk_edge_table_append_columns(
             &table, num_rows, left, right, parent, child, metadata, metadata_offset);
         CU_ASSERT_EQUAL(ret, TSK_ERR_METADATA_DISABLED);
@@ -1622,7 +1622,7 @@ test_edge_table_with_options(tsk_flags_t options)
     CU_ASSERT_EQUAL(tsk_memcmp(table.child, child, num_rows * sizeof(tsk_id_t)), 0);
     CU_ASSERT_EQUAL(
         tsk_memcmp(table.child + num_rows, child, num_rows * sizeof(tsk_id_t)), 0);
-    if (options & TSK_NO_METADATA) {
+    if (options & TSK_TABLE_NO_METADATA) {
         CU_ASSERT_EQUAL(table.metadata, NULL);
         CU_ASSERT_EQUAL(table.metadata_offset, NULL);
         CU_ASSERT_EQUAL(table.metadata_length, 0);
@@ -1643,7 +1643,7 @@ test_edge_table_with_options(tsk_flags_t options)
     CU_ASSERT_EQUAL(tsk_memcmp(table.right, right, num_rows * sizeof(double)), 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.parent, parent, num_rows * sizeof(tsk_id_t)), 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.child, child, num_rows * sizeof(tsk_id_t)), 0);
-    if (options & TSK_NO_METADATA) {
+    if (options & TSK_TABLE_NO_METADATA) {
         CU_ASSERT_EQUAL(table.metadata, NULL);
         CU_ASSERT_EQUAL(table.metadata_offset, NULL);
         CU_ASSERT_EQUAL(table.metadata_length, 0);
@@ -1664,7 +1664,7 @@ test_edge_table_with_options(tsk_flags_t options)
     tsk_edge_table_copy(&table, &table2, 0);
     CU_ASSERT_TRUE(tsk_edge_table_equals(&table, &table2, 0));
     CU_ASSERT_TRUE(tsk_edge_table_equals(&table, &table2, TSK_CMP_IGNORE_METADATA));
-    if (!(options & TSK_NO_METADATA)) {
+    if (!(options & TSK_TABLE_NO_METADATA)) {
         /* Change the metadata values */
         table2.metadata[0] = 0;
         CU_ASSERT_FALSE(tsk_edge_table_equals(&table, &table2, 0));
@@ -1711,7 +1711,7 @@ test_edge_table_with_options(tsk_flags_t options)
     CU_ASSERT_EQUAL(tsk_memcmp(table.right, right, num_rows * sizeof(double)), 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.parent, parent, num_rows * sizeof(tsk_id_t)), 0);
     CU_ASSERT_EQUAL(tsk_memcmp(table.child, child, num_rows * sizeof(tsk_id_t)), 0);
-    if (options & TSK_NO_METADATA) {
+    if (options & TSK_TABLE_NO_METADATA) {
         CU_ASSERT_EQUAL(table.metadata, NULL);
         CU_ASSERT_EQUAL(table.metadata_offset, NULL);
     } else {
@@ -1736,7 +1736,7 @@ test_edge_table_with_options(tsk_flags_t options)
     CU_ASSERT_EQUAL(tsk_memcmp(table.child, child, num_rows * sizeof(tsk_id_t)), 0);
     CU_ASSERT_EQUAL(
         tsk_memcmp(table.child + num_rows, child, num_rows * sizeof(tsk_id_t)), 0);
-    if (options & TSK_NO_METADATA) {
+    if (options & TSK_TABLE_NO_METADATA) {
         CU_ASSERT_EQUAL(table.metadata, NULL);
         CU_ASSERT_EQUAL(table.metadata_offset, NULL);
     } else {
@@ -1778,7 +1778,7 @@ test_edge_table_with_options(tsk_flags_t options)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
 
     /* Copy rows in order if index NULL */
-    if (options & TSK_NO_METADATA) {
+    if (options & TSK_TABLE_NO_METADATA) {
         ret = tsk_edge_table_set_columns(
             &table2, num_rows, left, right, parent, child, NULL, NULL);
     } else {
@@ -1804,7 +1804,7 @@ test_edge_table_with_options(tsk_flags_t options)
     ret = tsk_edge_table_truncate(&table2, num_rows / 2);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_edge_table_equals(&table, &table2, 0));
-    if (options & TSK_NO_METADATA) {
+    if (options & TSK_TABLE_NO_METADATA) {
         ret = tsk_edge_table_set_columns(
             &table2, num_rows, left, right, parent, child, NULL, NULL);
     } else {
@@ -1880,7 +1880,7 @@ static void
 test_edge_table(void)
 {
     test_edge_table_with_options(0);
-    test_edge_table_with_options(TSK_NO_METADATA);
+    test_edge_table_with_options(TSK_TABLE_NO_METADATA);
 }
 
 static void
@@ -1974,7 +1974,7 @@ test_edge_table_update_row_no_metadata(void)
     tsk_edge_t row;
     const char *metadata = "ABC";
 
-    ret = tsk_edge_table_init(&table, TSK_NO_METADATA);
+    ret = tsk_edge_table_init(&table, TSK_TABLE_NO_METADATA);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret_id = tsk_edge_table_add_row(&table, 0, 1.0, 2, 3, NULL, 0);
@@ -2036,7 +2036,7 @@ test_edge_table_takeset_with_options(tsk_flags_t table_options)
     ret = tsk_edge_table_init(&source_table, table_options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     for (j = 0; j < (tsk_id_t) num_rows; j++) {
-        if (table_options & TSK_NO_METADATA) {
+        if (table_options & TSK_TABLE_NO_METADATA) {
             ret_id = tsk_edge_table_add_row(
                 &source_table, (double) j, (double) j + 1, j + 2, j + 3, NULL, 0);
 
@@ -2060,7 +2060,7 @@ test_edge_table_takeset_with_options(tsk_flags_t table_options)
     child = tsk_malloc(num_rows * sizeof(tsk_id_t));
     CU_ASSERT_FATAL(child != NULL);
     tsk_memcpy(child, source_table.child, num_rows * sizeof(tsk_id_t));
-    if (table_options & TSK_NO_METADATA) {
+    if (table_options & TSK_TABLE_NO_METADATA) {
         metadata = NULL;
         metadata_offset = NULL;
         test_metadata = NULL;
@@ -2103,7 +2103,7 @@ test_edge_table_takeset_with_options(tsk_flags_t table_options)
     ret = tsk_edge_table_takeset_columns(
         &table, num_rows, left, right, parent, NULL, metadata, metadata_offset);
     CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
-    if (table_options & TSK_NO_METADATA) {
+    if (table_options & TSK_TABLE_NO_METADATA) {
         /* It isn't used, so any pointer does for testing that presence of metadata
             fails */
         ret = tsk_edge_table_takeset_columns(
@@ -2132,7 +2132,7 @@ test_edge_table_takeset_with_options(tsk_flags_t table_options)
 static void
 test_edge_table_takeset(void)
 {
-    test_edge_table_takeset_with_options(TSK_NO_METADATA);
+    test_edge_table_takeset_with_options(TSK_TABLE_NO_METADATA);
     test_edge_table_takeset_with_options(0);
 }
 
@@ -2157,7 +2157,7 @@ test_edge_table_copy_semantics(void)
     tsk_table_collection_free(&t2);
 
     /* We should not be able to copy into a table with no metadata */
-    ret = tsk_table_collection_copy(&t1, &t2, TSK_NO_EDGE_METADATA);
+    ret = tsk_table_collection_copy(&t1, &t2, TSK_TC_NO_EDGE_METADATA);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_METADATA_DISABLED);
     tsk_table_collection_free(&t2);
 
@@ -2172,7 +2172,7 @@ test_edge_table_copy_semantics(void)
     CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2, 0));
     tsk_table_collection_free(&t2);
 
-    ret = tsk_table_collection_copy(&t1, &t2, TSK_NO_EDGE_METADATA);
+    ret = tsk_table_collection_copy(&t1, &t2, TSK_TC_NO_EDGE_METADATA);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2, 0));
     tsk_table_collection_free(&t2);
@@ -2332,7 +2332,7 @@ test_edge_table_squash_bad_intervals(void)
     const char *edges_ex = "0  0.6   1   0\n"
                            "0.4  1   1   0\n";
 
-    ret = tsk_table_collection_init(&tables, TSK_NO_EDGE_METADATA);
+    ret = tsk_table_collection_init(&tables, TSK_TC_NO_EDGE_METADATA);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 1;
 
@@ -2366,7 +2366,7 @@ test_edge_table_squash_metadata(void)
 
     tsk_table_collection_free(&tables);
 
-    ret = tsk_table_collection_init(&tables, TSK_NO_EDGE_METADATA);
+    ret = tsk_table_collection_init(&tables, TSK_TC_NO_EDGE_METADATA);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 10;
     ret_id = tsk_edge_table_add_row(&tables.edges, 0, 0, 1, 1, NULL, 0);
@@ -7726,7 +7726,7 @@ static void
 test_sort_tables_drops_indexes(void)
 {
     test_sort_tables_drops_indexes_with_options(0);
-    test_sort_tables_drops_indexes_with_options(TSK_NO_EDGE_METADATA);
+    test_sort_tables_drops_indexes_with_options(TSK_TC_NO_EDGE_METADATA);
 }
 
 static void
@@ -7764,12 +7764,12 @@ test_sort_tables_no_edge_metadata(void)
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
         NULL, NULL, NULL, 0);
-    ret = tsk_treeseq_copy_tables(&ts, &t1, TSK_NO_EDGE_METADATA);
+    ret = tsk_treeseq_copy_tables(&ts, &t1, TSK_TC_NO_EDGE_METADATA);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_FATAL(t1.edges.options & TSK_NO_EDGE_METADATA);
+    CU_ASSERT_FATAL(t1.edges.options & TSK_TABLE_NO_METADATA);
     ret = tsk_table_collection_copy(&t1, &t2, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_FALSE(t2.edges.options & TSK_NO_EDGE_METADATA);
+    CU_ASSERT_FALSE(t2.edges.options & TSK_TABLE_NO_METADATA);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2, 0));
     reverse_edges(&t1);
     CU_ASSERT_FALSE(tsk_table_collection_equals(&t1, &t2, 0));
@@ -7778,10 +7778,10 @@ test_sort_tables_no_edge_metadata(void)
     CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2, 0));
     tsk_table_collection_free(&t2);
 
-    ret = tsk_table_collection_copy(&t1, &t2, TSK_NO_EDGE_METADATA);
+    ret = tsk_table_collection_copy(&t1, &t2, TSK_TC_NO_EDGE_METADATA);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(t1.edges.options & TSK_NO_EDGE_METADATA);
-    CU_ASSERT_TRUE(t2.edges.options & TSK_NO_EDGE_METADATA);
+    CU_ASSERT_TRUE(t1.edges.options & TSK_TABLE_NO_METADATA);
+    CU_ASSERT_TRUE(t2.edges.options & TSK_TABLE_NO_METADATA);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2, 0));
     reverse_edges(&t1);
     CU_ASSERT_FALSE(tsk_table_collection_equals(&t1, &t2, 0));
@@ -8359,7 +8359,7 @@ static void
 test_dump_unindexed(void)
 {
     test_dump_unindexed_with_options(0);
-    test_dump_unindexed_with_options(TSK_NO_EDGE_METADATA);
+    test_dump_unindexed_with_options(TSK_TC_NO_EDGE_METADATA);
 }
 
 static void
@@ -8385,7 +8385,7 @@ static void
 test_dump_load_empty(void)
 {
     test_dump_load_empty_with_options(0);
-    test_dump_load_empty_with_options(TSK_NO_EDGE_METADATA);
+    test_dump_load_empty_with_options(TSK_TC_NO_EDGE_METADATA);
 }
 
 static void
@@ -8445,7 +8445,7 @@ static void
 test_dump_load_unsorted(void)
 {
     test_dump_load_unsorted_with_options(0);
-    test_dump_load_unsorted_with_options(TSK_NO_EDGE_METADATA);
+    test_dump_load_unsorted_with_options(TSK_TC_NO_EDGE_METADATA);
 }
 
 static void
@@ -9323,7 +9323,7 @@ static void
 test_table_collection_check_integrity(void)
 {
     test_table_collection_check_integrity_with_options(0);
-    test_table_collection_check_integrity_with_options(TSK_NO_EDGE_METADATA);
+    test_table_collection_check_integrity_with_options(TSK_TC_NO_EDGE_METADATA);
 }
 
 static void
@@ -9500,7 +9500,7 @@ static void
 test_table_collection_subset(void)
 {
     test_table_collection_subset_with_options(0);
-    test_table_collection_subset_with_options(TSK_NO_EDGE_METADATA);
+    test_table_collection_subset_with_options(TSK_TC_NO_EDGE_METADATA);
 }
 
 static void

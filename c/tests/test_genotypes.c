@@ -756,7 +756,7 @@ test_single_tree_many_alleles(void)
         ret_id = tsk_mutation_table_add_row(&tables.mutations, 0, 0, j - 1,
             TSK_UNKNOWN_TIME, alleles, (tsk_size_t) j, NULL, 0);
         CU_ASSERT_FATAL(ret_id >= 0);
-        ret = tsk_treeseq_init(&ts, &tables, TSK_BUILD_INDEXES);
+        ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
 
         ret = tsk_vargen_init(&vargen, &ts, NULL, 0, NULL, 0);
