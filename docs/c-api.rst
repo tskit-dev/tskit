@@ -203,7 +203,7 @@ Basic Types
 Common options
 **************
 
-.. doxygengroup:: TABLES_API_FUNCTION_OPTIONS
+.. doxygengroup:: GENERIC_FUNCTION_OPTIONS
    :content-only:
 
 .. _sec_c_api_tables_api:

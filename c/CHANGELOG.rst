@@ -16,6 +16,8 @@
 - Rename all flags to ``simplify`` for example ``TSK_KEEP_INPUT_ROOTS`` becomes ``TSK_SIMPLIFY_KEEP_INPUT_ROOTS``
   (:user:`benjeffery`, :issue:`1720`, :pr:`2226`))
 
+- ``TSK_DEBUG``, ``TSK_NO_INIT``, ``TSK_NO_CHECK_INTEGRITY`` and ``TSK_TAKE_OWNERSHIP`` have moved to ``core.h``
+  (:user:`benjeffery`, :issue:`2218`, :pr:`2230`))
 
 **Features**
 
