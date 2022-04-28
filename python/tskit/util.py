@@ -600,19 +600,11 @@ def random_nucleotides(length: numbers.Number, *, seed: Union[int, None] = None)
 
 
 def allele_remap(alleles_from, alleles_to):
-    """
-    Returns an index map from the elements in one list (alleles_from)
-    to the elements of another list (alleles_to).
-
-    If some elements in alleles_from are not in alleles_to,
-    then indices outside of alleles_to are used.
-
-    :param list alleles_from: A list of alleles to map from.
-    :param list alleles_to: A list of alleles to map to.
-    :return: A list of indices in alleles_to
-        where the elements of alleles_from are found.
-    :rtype: list
-    """
+    # Returns an index map from the elements in one list (alleles_from)
+    # to the elements of another list (alleles_to).
+    #
+    # If some elements in alleles_from are not in alleles_to,
+    # then indices outside of alleles_to are used.
     allele_map = [None] * len(alleles_from)
     overflow = len(alleles_to)
     for i, allele in enumerate(alleles_from):
