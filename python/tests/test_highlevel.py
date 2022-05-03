@@ -25,6 +25,7 @@ Test cases for the high level interface to tskit.
 """
 import collections
 import dataclasses
+import decimal
 import inspect
 import io
 import itertools
@@ -2023,6 +2024,8 @@ class TestTreeSequence(HighLevelTestCase):
             for index, site in enumerate(ts.sites()):
                 s2 = ts.site(site.id)
                 assert s2 == site
+                s3 = ts.site(position=site.position)
+                assert s3 == site
                 assert site.position == sites.position[index]
                 assert site.position > previous_pos
                 previous_pos = site.position
@@ -4323,3 +4326,97 @@ class TestTskitConversionOutput(unittest.TestCase):
             ValueError, match="macs output only supports single letter alleles"
         ):
             ts.to_macs()
+
+
+class TestTreeSequenceGetSite:
+    """
+    Tests for getting Site objects from a TreeSequence object
+    by specifying the position.
+    """
+
+    def get_example_ts_discrete_coordinates(self):
+        tables = tskit.TableCollection(sequence_length=10)
+        tables.sites.add_row(position=3, ancestral_state="A")
+        tables.sites.add_row(position=5, ancestral_state="C")
+        tables.sites.add_row(position=7, ancestral_state="G")
+        return tables.tree_sequence()
+
+    def get_example_ts_continuous_coordinates(self):
+        tables = tskit.TableCollection(sequence_length=10)
+        tables.sites.add_row(position=0.5, ancestral_state="A")
+        tables.sites.add_row(position=6.2, ancestral_state="C")
+        tables.sites.add_row(position=8.3, ancestral_state="T")
+        return tables.tree_sequence()
+
+    def get_example_ts_without_sites(self):
+        tables = tskit.TableCollection(sequence_length=10)
+        return tables.tree_sequence()
+
+    @pytest.mark.parametrize("id_", [0, 1, 2])
+    def test_site_id(self, id_):
+        ts = self.get_example_ts_discrete_coordinates()
+        site = ts.site(id_)
+        assert site.id == id_
+
+    @pytest.mark.parametrize("position", [3, 5, 7])
+    def test_position_discrete_coordinates(self, position):
+        ts = self.get_example_ts_discrete_coordinates()
+        site = ts.site(position=position)
+        assert site.position == position
+
+    @pytest.mark.parametrize("position", [0.5, 6.2, 8.3])
+    def test_position_continuous_coordinates(self, position):
+        ts = self.get_example_ts_continuous_coordinates()
+        site = ts.site(position=position)
+        assert site.position == position
+
+    @pytest.mark.parametrize("position", [0, 2.999999999, 5.000000001, 9])
+    def test_position_not_found(self, position):
+        with pytest.raises(ValueError, match=r"There is no site at position"):
+            ts = self.get_example_ts_discrete_coordinates()
+            ts.site(position=position)
+
+    @pytest.mark.parametrize(
+        "position",
+        [
+            np.array([3], dtype=float)[0],
+            np.array([3], dtype=int)[0],
+            decimal.Decimal(3),
+        ],
+    )
+    def test_position_good_type(self, position):
+        ts = self.get_example_ts_discrete_coordinates()
+        ts.site(position=position)
+
+    def test_position_not_scalar(self):
+        with pytest.raises(
+            ValueError, match="Position must be provided as a scalar value."
+        ):
+            ts = self.get_example_ts_discrete_coordinates()
+            ts.site(position=[1, 4, 8])
+
+    @pytest.mark.parametrize("position", [-1, 10, 11])
+    def test_position_out_of_bounds(self, position):
+        with pytest.raises(
+            ValueError,
+            match="Position is beyond the coordinates defined by sequence length.",
+        ):
+            ts = self.get_example_ts_discrete_coordinates()
+            ts.site(position=position)
+
+    def test_query_position_siteless_ts(self):
+        with pytest.raises(ValueError, match=r"There is no site at position"):
+            ts = self.get_example_ts_without_sites()
+            ts.site(position=1)
+
+    def test_site_id_and_position_are_none(self):
+        with pytest.raises(TypeError, match="Site id or position must be provided."):
+            ts = self.get_example_ts_discrete_coordinates()
+            ts.site(None, position=None)
+
+    def test_site_id_and_position_are_specified(self):
+        with pytest.raises(
+            TypeError, match="Only one of site id or position needs to be provided."
+        ):
+            ts = self.get_example_ts_discrete_coordinates()
+            ts.site(0, position=3)

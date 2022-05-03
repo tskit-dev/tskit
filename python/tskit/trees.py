@@ -5209,13 +5209,33 @@ class TreeSequence:
             metadata_decoder=self.table_metadata_schemas.mutation.decode_row,
         )
 
-    def site(self, id_):
+    def site(self, id_=None, *, position=None):
         """
         Returns the :ref:`site <sec_site_table_definition>` in this tree sequence
-        with the specified ID.
+        with either the specified ID or position.
+
+        When position is specified instead of site ID, a binary search is done
+        on the list of positions of the sites (pre-sorted in ascending order)
+        to try to find a site with the user-specified position.
 
         :rtype: :class:`Site`
         """
+        if id_ is None and position is None:
+            raise TypeError("Site id or position must be provided.")
+        elif id_ is not None and position is not None:
+            raise TypeError("Only one of site id or position needs to be provided.")
+        elif id_ is None:
+            position = np.array(position)
+            if len(position.shape) > 0:
+                raise ValueError("Position must be provided as a scalar value.")
+            if position < 0 or position >= self.sequence_length:
+                raise ValueError(
+                    "Position is beyond the coordinates defined by sequence length."
+                )
+            site_pos = self.tables.sites.position  # Sorted in ascending order
+            id_ = site_pos.searchsorted(position)
+            if id_ >= len(site_pos) or site_pos[id_] != position:
+                raise ValueError(f"There is no site at position {position}.")
         ll_site = self._ll_tree_sequence.get_site(id_)
         pos, ancestral_state, ll_mutations, _, metadata = ll_site
         mutations = [self.mutation(mut_id) for mut_id in ll_mutations]
