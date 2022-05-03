@@ -716,10 +716,44 @@ This function is equivalent to ``tree.right_child[tree.virtual_root]``.
 */
 tsk_id_t tsk_tree_get_right_root(const tsk_tree_t *self);
 
+/**
+@brief Get the list of sites for this tree.
+
+@rst
+Gets the list of :c:data:`tsk_site_t` objects in the parent tree sequence
+for which the position lies within this tree's genomic interval.
+
+The memory pointed to by the ``sites`` parameter is managed by the
+``tsk_tree_t`` object and must not be altered or freed by client code.
+
+.. code-block:: c
+
+    static void
+    print_sites(const tsk_tree_t *tree)
+    {
+        int ret;
+        tsk_size_t j, num_sites;
+        const tsk_site_t *sites;
+
+        ret = tsk_tree_get_sites(tree, &sites, &num_sites);
+        check_tsk_error(ret);
+        for (j = 0; j < num_sites; j++) {
+            printf("position = %f\n", sites[j].position);
+        }
+    }
+
+This is a constant time operation.
+
+@endrst
+
+@param self A pointer to a tsk_tree_t object.
+@param sites The destination pointer for the list of sites.
+@param sites_length A pointer to a tsk_size_t value in which the number
+    of sites is stored.
+@return 0 on success or a negative value on failure.
+*/
 int tsk_tree_get_sites(
     const tsk_tree_t *self, const tsk_site_t **sites, tsk_size_t *sites_length);
-
-bool tsk_tree_equals(const tsk_tree_t *self, const tsk_tree_t *other);
 
 /**
 @brief Return an upper bound on the number of nodes reachable
@@ -792,7 +826,7 @@ for example:
 .. code-block:: c
 
     static void
-    print_times(tsk_tree_t *tree)
+    print_times(const tsk_tree_t *tree)
     {
         int ret;
         tsk_size_t num_nodes, j;
@@ -975,8 +1009,16 @@ int tsk_tree_map_mutations(tsk_tree_t *self, int32_t *genotypes, double *cost_ma
 int tsk_tree_kc_distance(
     const tsk_tree_t *self, const tsk_tree_t *other, double lambda, double *result);
 
-/* This is redundant, really, remove? */
+/* Things to consider removing: */
+
+/* This is redundant, really */
 bool tsk_tree_is_sample(const tsk_tree_t *self, tsk_id_t u);
+
+/* Not terribly useful, since the definition is
+ * return (self->tree_sequence == other->tree_sequence) && (self->index == other->index)
+ * Remove?
+ */
+bool tsk_tree_equals(const tsk_tree_t *self, const tsk_tree_t *other);
 
 /****************************************************************************/
 /* Diff iterator */
