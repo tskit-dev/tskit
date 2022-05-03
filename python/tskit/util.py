@@ -605,8 +605,8 @@ def allele_remap(alleles_from, alleles_to):
     #
     # If some elements in alleles_from are not in alleles_to,
     # then indices outside of alleles_to are used.
-    alleles_to = np.array(alleles_to, dtype="U1")
-    alleles_from = np.array(alleles_from, dtype="U1")
+    alleles_to = np.array(alleles_to, dtype="U")
+    alleles_from = np.array(alleles_from, dtype="U")
     allele_map = np.empty_like(alleles_from, dtype="uint32")
     overflow = len(alleles_to)
     for i, allele in enumerate(alleles_from):

@@ -574,6 +574,12 @@ class TestRandomNuceotides:
             ["ABBA", "CDCD", "EFEF", "GG", 18],
             np.array([0, 1], dtype="uint32"),
         ),
+        # Case 10: Lists contain unicode characters.
+        (
+            ["\u1F1E8", "\u1F1EC"],
+            ["\u1F1EC", "\u1F1E8", "\u1F1E6", "\u1F1F3"],
+            np.array([1, 0], dtype="uint32"),
+        ),
     ],
 )
 def test_allele_remap(alleles_from, alleles_to, allele_map):
