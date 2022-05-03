@@ -553,6 +553,9 @@ class TestRandomNuceotides:
         (["A", "C", "G", "T"], [], [0, 1, 2, 3]),  # One list is empty
         ([], ["A", "C", "G", "T"], []),  # One list is empty
         ([], [], []),  # Both lists are empty
+        ("ACGT", "GC", [2, 1, 0, 3]),  # Both inputs are strings
+        (("G", "C"), ("A", "C", "G", "T"), [2, 1]),  # Both inputs are tuples
+        ("ACGT", ["G", "C"], [2, 1, 0, 3]),  # Inputs are of different type
     ],
 )
 def test_allele_remap(alleles_from, alleles_to, allele_map):
