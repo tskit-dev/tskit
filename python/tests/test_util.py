@@ -548,15 +548,19 @@ class TestRandomNuceotides:
 @pytest.mark.parametrize(
     "alleles_from, alleles_to, allele_map",
     [
-        (["A", "C", "G", "T"], ["G", "C"], [2, 1, 0, 3]),  # Lists differ in length
-        (["G", "C"], ["A", "C", "G", "T"], [2, 1]),  # Lists differ in length
-        (["A", "C", "G", "T"], [], [0, 1, 2, 3]),  # One list is empty
-        ([], ["A", "C", "G", "T"], []),  # One list is empty
-        ([], [], []),  # Both lists are empty
-        ("ACGT", "GC", [2, 1, 0, 3]),  # Both inputs are strings
-        (("G", "C"), ("A", "C", "G", "T"), [2, 1]),  # Both inputs are tuples
-        ("ACGT", ["G", "C"], [2, 1, 0, 3]),  # Inputs are of different type
+        # Case 1: alleles_to is longer than alleles_from.
+        (["A", "C", "G", "T"], ["G", "C"], np.array([2, 1, 0, 3], dtype="uint32")),
+        # Case 2: alleles_to is shorter than alleles_from.
+        (["G", "C"], ["A", "C", "G", "T"], np.array([2, 1], dtype="uint32")),
+        # Case 3: alleles_to is empty.
+        (["A", "C", "G", "T"], [], np.array([0, 1, 2, 3], dtype="uint32")),
+        # Case 4: alleles_from is empty.
+        ([], ["A", "C", "G", "T"], np.array([], dtype="uint32")),
+        # Case 5: Both lists are empty.
+        ([], [], np.array([], dtype="uint32")),
+        # Case 6: Both lists are tuples.
+        (("G", "C"), ("A", "C", "G", "T"), np.array([2, 1], dtype="uint32")),
     ],
 )
 def test_allele_remap(alleles_from, alleles_to, allele_map):
-    assert allele_map == tskit.allele_remap(alleles_from, alleles_to)
+    assert np.array_equal(allele_map, tskit.allele_remap(alleles_from, alleles_to))
