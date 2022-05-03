@@ -377,6 +377,10 @@ tsk_strerror_internal(int err)
         case TSK_ERR_VARIANT_CANT_DECODE_COPY:
             ret = "Can't decode a copy of a variant";
             break;
+        case TSK_CANT_TAKE_OWNERSHIP_NO_EDGE_METADATA:
+            ret = "A tree sequence can't take ownership of tables with "
+                  "TSK_NO_EDGE_METADATA";
+            break;
 
         /* Stats errors */
         case TSK_ERR_BAD_NUM_WINDOWS:

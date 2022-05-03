@@ -7018,6 +7018,27 @@ test_reference_sequence(void)
     tsk_table_collection_free(&tables);
 }
 
+static void
+test_init_take_ownership_no_edge_metadata(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t *tables = tsk_malloc(sizeof(tsk_table_collection_t));
+
+    CU_ASSERT_NOT_EQUAL_FATAL(tables, NULL);
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, tables, TSK_TC_NO_EDGE_METADATA);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+
+    ret = tsk_treeseq_init(&ts, tables, TSK_TAKE_OWNERSHIP);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_CANT_TAKE_OWNERSHIP_NO_EDGE_METADATA);
+
+    tsk_treeseq_free(&ts);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -7188,6 +7209,8 @@ main(int argc, char **argv)
         { "test_tree_sequence_metadata", test_tree_sequence_metadata },
         { "test_time_uncalibrated", test_time_uncalibrated },
         { "test_reference_sequence", test_reference_sequence },
+        { "test_init_take_ownership_no_edge_metadata",
+            test_init_take_ownership_no_edge_metadata },
         { NULL, NULL },
     };
 
