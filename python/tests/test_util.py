@@ -548,21 +548,12 @@ class TestRandomNuceotides:
 @pytest.mark.parametrize(
     "alleles_from, alleles_to, allele_map",
     [
-        (["A", "C", "G", "T"], ["G", "C"], [2, 1, 0, 3]),
-        (["G", "C"], ["A", "C", "G", "T"], [2, 1]),
+        (["A", "C", "G", "T"], ["G", "C"], [2, 1, 0, 3]),  # Lists differ in length
+        (["G", "C"], ["A", "C", "G", "T"], [2, 1]),  # Lists differ in length
+        (["A", "C", "G", "T"], [], [0, 1, 2, 3]),  # One list is empty
+        ([], ["A", "C", "G", "T"], []),  # One list is empty
+        ([], [], []),  # Both lists are empty
     ],
 )
-def test_lists_differ_in_length(alleles_from, alleles_to, allele_map):
+def test_allele_remap(alleles_from, alleles_to, allele_map):
     assert allele_map == tskit.allele_remap(alleles_from, alleles_to)
-
-
-@pytest.mark.parametrize(
-    "alleles_from, alleles_to, allele_map",
-    [(["A", "C", "G", "T"], [], [0, 1, 2, 3]), ([], ["A", "C", "G", "T"], [])],
-)
-def test_one_list_is_empty(alleles_from, alleles_to, allele_map):
-    assert allele_map == tskit.allele_remap(alleles_from, alleles_to)
-
-
-def test_both_lists_are_empty():
-    assert [] == tskit.allele_remap([], [])
