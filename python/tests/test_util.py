@@ -568,6 +568,12 @@ class TestRandomNuceotides:
         ),
         # Case 8: Lists are of two different types.
         (np.array(("G", "C")), ["A", "C", "G", "T"], np.array([2, 1], dtype="uint32")),
+        # Case 9: Lists contain elements of arbitrary types.
+        (
+            ["ABBA", "CDCD"],
+            ["ABBA", "CDCD", "EFEF", "GG", 18],
+            np.array([0, 1], dtype="uint32"),
+        ),
     ],
 )
 def test_allele_remap(alleles_from, alleles_to, allele_map):
