@@ -549,17 +549,41 @@ class TestRandomNuceotides:
     "alleles_from, alleles_to, allele_map",
     [
         # Case 1: alleles_to is longer than alleles_from.
-        (["A", "C", "G", "T"], ["G", "C"], np.array([2, 1, 0, 3], dtype="uint32")),
+        (
+            ["A", "C", "G", "T"],
+            ["G", "C"],
+            np.array([2, 1, 0, 3], dtype="uint32"),
+        ),
         # Case 2: alleles_to is shorter than alleles_from.
-        (["G", "C"], ["A", "C", "G", "T"], np.array([2, 1], dtype="uint32")),
+        (
+            ["G", "C"],
+            ["A", "C", "G", "T"],
+            np.array([2, 1], dtype="uint32"),
+        ),
         # Case 3: alleles_to is empty.
-        (["A", "C", "G", "T"], [], np.array([0, 1, 2, 3], dtype="uint32")),
+        (
+            ["A", "C", "G", "T"],
+            [],
+            np.array([0, 1, 2, 3], dtype="uint32"),
+        ),
         # Case 4: alleles_from is empty.
-        ([], ["A", "C", "G", "T"], np.array([], dtype="uint32")),
+        (
+            [],
+            ["A", "C", "G", "T"],
+            np.array([], dtype="uint32"),
+        ),
         # Case 5: Both lists are empty.
-        ([], [], np.array([], dtype="uint32")),
+        (
+            [],
+            [],
+            np.array([], dtype="uint32"),
+        ),
         # Case 6: Both lists are tuples.
-        (("G", "C"), ("A", "C", "G", "T"), np.array([2, 1], dtype="uint32")),
+        (
+            ("G", "C"),
+            ("A", "C", "G", "T"),
+            np.array([2, 1], dtype="uint32"),
+        ),
         # Case 7: Both lists are numpy arrays.
         (
             np.array(("G", "C")),
@@ -567,7 +591,11 @@ class TestRandomNuceotides:
             np.array([2, 1], dtype="uint32"),
         ),
         # Case 8: Lists are of two different types.
-        (np.array(("G", "C")), ["A", "C", "G", "T"], np.array([2, 1], dtype="uint32")),
+        (
+            np.array(("G", "C")),
+            ["A", "C", "G", "T"],
+            np.array([2, 1], dtype="uint32"),
+        ),
         # Case 9: Lists contain elements of arbitrary types.
         (
             ["ABBA", "CDCD"],
