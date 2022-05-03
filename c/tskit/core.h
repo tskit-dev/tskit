@@ -346,6 +346,7 @@ An unsupported type was provided for a column in the file.
 #define TSK_ERR_CANNOT_EXTEND_FROM_SELF                             -806
 #define TSK_ERR_SILENT_MUTATIONS_NOT_SUPPORTED                      -807
 #define TSK_ERR_VARIANT_CANT_DECODE_COPY                            -808
+#define TSK_CANT_TAKE_OWNERSHIP_NO_EDGE_METADATA                    -809
 
 /* Stats errors */
 #define TSK_ERR_BAD_NUM_WINDOWS                                     -900

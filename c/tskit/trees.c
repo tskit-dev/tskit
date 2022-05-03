@@ -407,6 +407,10 @@ tsk_treeseq_init(
     tsk_memset(self, 0, sizeof(*self));
     if (options & TSK_TAKE_OWNERSHIP) {
         self->tables = tables;
+        if (tables->edges.options & TSK_TABLE_NO_METADATA) {
+            ret = TSK_CANT_TAKE_OWNERSHIP_NO_EDGE_METADATA;
+            goto out;
+        }
     } else {
         self->tables = tsk_malloc(sizeof(*self->tables));
         if (self->tables == NULL) {
@@ -416,9 +420,7 @@ tsk_treeseq_init(
 
         /* Note that this copy reinstates metadata for a table collection with
          * TSK_TC_NO_EDGE_METADATA. Otherwise a table without metadata would
-         * crash tsk_diff_iter_next. This is something we will need to
-         * watch out for when we take a read-only view of the input table
-         * rather than a copy. */
+         * crash tsk_diff_iter_next. */
         ret = tsk_table_collection_copy(tables, self->tables, TSK_COPY_FILE_UUID);
         if (ret != 0) {
             goto out;
