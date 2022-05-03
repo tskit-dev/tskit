@@ -560,6 +560,14 @@ class TestRandomNuceotides:
         ([], [], np.array([], dtype="uint32")),
         # Case 6: Both lists are tuples.
         (("G", "C"), ("A", "C", "G", "T"), np.array([2, 1], dtype="uint32")),
+        # Case 7: Both lists are numpy arrays.
+        (
+            np.array(("G", "C")),
+            np.array(("A", "C", "G", "T")),
+            np.array([2, 1], dtype="uint32"),
+        ),
+        # Case 8: Lists are of two different types.
+        (np.array(("G", "C")), ["A", "C", "G", "T"], np.array([2, 1], dtype="uint32")),
     ],
 )
 def test_allele_remap(alleles_from, alleles_to, allele_map):
