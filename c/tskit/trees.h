@@ -764,15 +764,99 @@ void tsk_tree_print_state(const tsk_tree_t *self, FILE *out);
 @{
 */
 
-/* Returns true if u is a descendant of v; false otherwise */
-bool tsk_tree_is_descendant(const tsk_tree_t *self, tsk_id_t u, tsk_id_t v);
-bool tsk_tree_is_sample(const tsk_tree_t *self, tsk_id_t u);
+/**
+@brief Returns the parent of the specified node.
 
-int tsk_tree_get_branch_length(
-    const tsk_tree_t *self, tsk_id_t u, double *branch_length);
+@rst
+Equivalent to ``tree.parent[u]`` with bounds checking for the node u.
+Performance sensitive code which can guarantee that the node u is
+valid should use the direct array access in preference to this method.
+@endrst
+
+@param self A pointer to a tsk_tree_t object.
+@param u The tree node.
+@param parent A tsk_id_t pointer to store the returned parent node.
+@return 0 on success or a negative value on failure.
+*/
+int tsk_tree_get_parent(const tsk_tree_t *self, tsk_id_t u, tsk_id_t *parent);
 
 /**
-@brief Returns the sum of the lengths of all branches reachable from
+@brief Returns the time of the specified node.
+
+@rst
+Equivalent to ``tables->nodes.time[u]`` with bounds checking for the node u.
+Performance sensitive code which can guarantee that the node u is
+valid should use the direct array access in preference to this method,
+for example:
+
+.. code-block:: c
+
+    static void
+    print_times(tsk_tree_t *tree)
+    {
+        int ret;
+        tsk_size_t num_nodes, j;
+        const double *node_time = tree->tree_sequence->tables->nodes.time;
+        tsk_id_t *nodes = malloc(tsk_tree_get_size_bound(tree) * sizeof(*nodes));
+
+        if (nodes == NULL) {
+
+            errx(EXIT_FAILURE, "Out of memory");
+        }
+        ret = tsk_tree_preorder(tree, -1, nodes, &num_nodes);
+        check_tsk_error(ret);
+        for (j = 0; j < num_nodes; j++) {
+            printf("time = %f\n", node_time[nodes[j]]);
+        }
+        free(nodes);
+    }
+
+@endrst
+
+@param self A pointer to a tsk_tree_t object.
+@param u The tree node.
+@param ret_time A double pointer to store the returned node time.
+@return 0 on success or a negative value on failure.
+*/
+int tsk_tree_get_time(const tsk_tree_t *self, tsk_id_t u, double *ret_time);
+
+/**
+@brief Return number of nodes on the path from the specified node to root.
+
+@rst
+Return the number of nodes on the path from u to root, not including u.
+The depth of a root is therefore zero.
+
+As a special case, the depth of the
+:ref:`virtual root <sec_data_model_tree_roots>` is defined as -1.
+@endrst
+
+@param self A pointer to a tsk_tree_t object.
+@param u The tree node.
+@param ret_depth An int pointer to store the returned node depth.
+@return 0 on success or a negative value on failure.
+*/
+int tsk_tree_get_depth(const tsk_tree_t *self, tsk_id_t u, int *ret_depth);
+
+/**
+@brief Return the length of the branch ancestral to the specified node.
+
+@rst
+Return the length of the branch ancestral to the specified node.
+Branch length is defined as difference between the time
+of a node and its parent. The branch length of a root is zero.
+@endrst
+
+@param self A pointer to a tsk_tree_t object.
+@param u The tree node.
+@param ret_branch_length A double pointer to store the returned branch length.
+@return 0 on success or a negative value on failure.
+*/
+int tsk_tree_get_branch_length(
+    const tsk_tree_t *self, tsk_id_t u, double *ret_branch_length);
+
+/**
+@brief Computes the sum of the lengths of all branches reachable from
     the specified node, or from all roots if u=TSK_NULL.
 
 @rst
@@ -788,7 +872,7 @@ leaf node is zero.
 @endrst
 
 @param self A pointer to a tsk_tree_t object.
-@param u The tree node to compute branch length or TSK_NULL to return the
+@param u The root of the subtree of interest, or TSK_NULL to return the
     total branch length of the tree.
 @param ret_tbl A double pointer to store the returned total branch length.
 @return 0 on success or a negative value on failure.
@@ -796,12 +880,57 @@ leaf node is zero.
 int tsk_tree_get_total_branch_length(
     const tsk_tree_t *self, tsk_id_t u, double *ret_tbl);
 
-int tsk_tree_get_time(const tsk_tree_t *self, tsk_id_t u, double *t);
-int tsk_tree_get_parent(const tsk_tree_t *self, tsk_id_t u, tsk_id_t *parent);
-int tsk_tree_get_depth(const tsk_tree_t *self, tsk_id_t u, int *depth);
-int tsk_tree_get_mrca(const tsk_tree_t *self, tsk_id_t u, tsk_id_t v, tsk_id_t *mrca);
+/**
+@brief Counts the number of samples in the subtree rooted at a node.
+
+@rst
+Returns the number of samples descending from a particular node,
+including the node itself.
+
+This is a constant time operation.
+@endrst
+
+@param self A pointer to a tsk_tree_t object.
+@param u The tree node.
+@param ret_num_samples A tsk_size_t pointer to store the returned
+    number of samples.
+@return 0 on success or a negative value on failure.
+*/
 int tsk_tree_get_num_samples(
-    const tsk_tree_t *self, tsk_id_t u, tsk_size_t *num_samples);
+    const tsk_tree_t *self, tsk_id_t u, tsk_size_t *ret_num_samples);
+
+/**
+@brief Compute the most recent common ancestor of two nodes.
+
+@rst
+If two nodes do not share a common ancestor in the current tree, the MRCA
+node is TSK_NULL.
+@endrst
+
+@param self A pointer to a tsk_tree_t object.
+@param u A tree node.
+@param v A tree node.
+@param mrca A tsk_id_t pointer to store the returned most recent cmomon ancestor node.
+@return 0 on success or a negative value on failure.
+*/
+int tsk_tree_get_mrca(const tsk_tree_t *self, tsk_id_t u, tsk_id_t v, tsk_id_t *mrca);
+
+/**
+@brief Returns true if u is a descendant of v.
+
+@rst
+Returns true if u and v are both valid nodes in the tree sequence
+and v lies on the path from u to root, and false otherwise.
+
+Any node is a descendant of itself.
+@endrst
+
+@param self A pointer to a tsk_tree_t object.
+@param u The descendant node.
+@param v The ancestral node.
+@return true if u is a descendant of v, and false otherwise.
+*/
+bool tsk_tree_is_descendant(const tsk_tree_t *self, tsk_id_t u, tsk_id_t v);
 
 /** @} */
 
@@ -845,6 +974,9 @@ int tsk_tree_map_mutations(tsk_tree_t *self, int32_t *genotypes, double *cost_ma
 
 int tsk_tree_kc_distance(
     const tsk_tree_t *self, const tsk_tree_t *other, double lambda, double *result);
+
+/* This is redundant, really, remove? */
+bool tsk_tree_is_sample(const tsk_tree_t *self, tsk_id_t u);
 
 /****************************************************************************/
 /* Diff iterator */
