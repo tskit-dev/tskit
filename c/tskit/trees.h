@@ -1289,8 +1289,9 @@ int tsk_tree_get_sites(
 This function provides an upper bound on the number of nodes that
 can be reached in tree traversals, and is intended to be used
 for memory allocation purposes. If ``num_nodes`` is the number
-of nodes visited in a tree traversal from the virtual root
-(e.g., ``tsk_tree_preorder(tree, tree->virtual_root, nodes,
+of nodes visited in a tree traversal from the
+:ref:`virtual root<sec_data_model_tree_roots>`
+(e.g., ``tsk_tree_preorder_from(tree, tree->virtual_root, nodes,
 &num_nodes)``), the bound ``N`` returned here is guaranteed to
 be greater than or equal to ``num_nodes``.
 
@@ -1360,10 +1361,9 @@ for example:
         tsk_id_t *nodes = malloc(tsk_tree_get_size_bound(tree) * sizeof(*nodes));
 
         if (nodes == NULL) {
-
             errx(EXIT_FAILURE, "Out of memory");
         }
-        ret = tsk_tree_preorder(tree, -1, nodes, &num_nodes);
+        ret = tsk_tree_preorder(tree, nodes, &num_nodes);
         check_tsk_error(ret);
         for (j = 0; j < num_nodes; j++) {
             printf("time = %f\n", node_time[nodes[j]]);
@@ -1421,8 +1421,9 @@ int tsk_tree_get_branch_length(
 
 @rst
 Return the total branch length in a particular subtree or of the
-entire tree. If the specified node is TSK_NULL (or the virtual
-root) the sum of the lengths of all branches reachable from roots
+entire tree. If the specified node is TSK_NULL (or the
+:ref:`virtual root<sec_data_model_tree_roots>`)
+the sum of the lengths of all branches reachable from roots
 is returned. Branch length is defined as difference between the time
 of a node and its parent. The branch length of a root is zero.
 
@@ -1499,16 +1500,151 @@ bool tsk_tree_is_descendant(const tsk_tree_t *self, tsk_id_t u, tsk_id_t v);
 @{
 */
 
-int tsk_tree_preorder(
+/**
+@brief Fill an array with the nodes of this tree in preorder.
+
+@rst
+Populate an array with the nodes in this tree in preorder. The array
+must be pre-allocated and be sufficiently large to hold the array
+of nodes visited. The recommended approach is to use the
+:c:func:`tsk_tree_get_size_bound` function, as in the following example:
+
+.. code-block:: c
+
+    static void
+    print_preorder(tsk_tree_t *tree)
+    {
+        int ret;
+        tsk_size_t num_nodes, j;
+        tsk_id_t *nodes = malloc(tsk_tree_get_size_bound(tree) * sizeof(*nodes));
+
+        if (nodes == NULL) {
+            errx(EXIT_FAILURE, "Out of memory");
+        }
+        ret = tsk_tree_preorder(tree, nodes, &num_nodes);
+        check_tsk_error(ret);
+        for (j = 0; j < num_nodes; j++) {
+            printf("Visit preorder %lld\n", (long long) nodes[j]);
+        }
+        free(nodes);
+    }
+
+.. seealso::
+    See the :ref:`sec_c_api_examples_tree_traversals` section for
+    more examples.
+
+@endrst
+
+@param self A pointer to a tsk_tree_t object.
+@param nodes The tsk_id_t array to store nodes in. See notes above for
+    details.
+@param num_nodes A pointer to a tsk_size_t value where we store the number
+    of nodes in the traversal.
+@return 0 on success or a negative value on failure.
+*/
+int tsk_tree_preorder(const tsk_tree_t *self, tsk_id_t *nodes, tsk_size_t *num_nodes);
+
+/**
+@brief Fill an array with the nodes of this tree starting from a particular node.
+
+@rst
+As for :c:func:`tsk_tree_preorder` but starting the traversal at a particular node
+(which will be the first node in the traversal list). The
+:ref:`virtual root<sec_data_model_tree_roots>` is a valid input for this function
+and will be treated like any other tree node. The value ``-1`` is a special case,
+in which we visit all nodes reachable from the roots, and equivalent to
+calling :c:func:`tsk_tree_preorder`.
+
+See :c:func:`tsk_tree_preorder` for details the requirements for the ``nodes``
+array.
+@endrst
+
+@param self A pointer to a tsk_tree_t object.
+@param root The root of the subtree to traverse, or -1 to visit all nodes.
+@param nodes The tsk_id_t array to store nodes in.
+@param num_nodes A pointer to a tsk_size_t value where we store the number
+    of nodes in the traversal.
+@return 0 on success or a negative value on failure.
+*/
+int tsk_tree_preorder_from(
     const tsk_tree_t *self, tsk_id_t root, tsk_id_t *nodes, tsk_size_t *num_nodes);
-int tsk_tree_postorder(
-    const tsk_tree_t *self, tsk_id_t root, tsk_id_t *nodes, tsk_size_t *num_nodes);
-int tsk_tree_preorder_samples(
+
+/**
+@brief Fill an array with the nodes of this tree in postorder.
+
+@rst
+Populate an array with the nodes in this tree in postorder. The array
+must be pre-allocated and be sufficiently large to hold the array
+of nodes visited. The recommended approach is to use the
+:c:func:`tsk_tree_get_size_bound` function, as in the following example:
+
+.. code-block:: c
+
+    static void
+    print_postorder(tsk_tree_t *tree)
+    {
+        int ret;
+        tsk_size_t num_nodes, j;
+        tsk_id_t *nodes = malloc(tsk_tree_get_size_bound(tree) * sizeof(*nodes));
+
+        if (nodes == NULL) {
+            errx(EXIT_FAILURE, "Out of memory");
+        }
+        ret = tsk_tree_postorder(tree, nodes, &num_nodes);
+        check_tsk_error(ret);
+        for (j = 0; j < num_nodes; j++) {
+            printf("Visit postorder %lld\n", (long long) nodes[j]);
+        }
+        free(nodes);
+    }
+
+.. seealso::
+    See the :ref:`sec_c_api_examples_tree_traversals` section for
+    more examples.
+
+@endrst
+
+@param self A pointer to a tsk_tree_t object.
+@param nodes The tsk_id_t array to store nodes in. See notes above for
+    details.
+@param num_nodes A pointer to a tsk_size_t value where we store the number
+    of nodes in the traversal.
+@return 0 on success or a negative value on failure.
+*/
+int tsk_tree_postorder(const tsk_tree_t *self, tsk_id_t *nodes, tsk_size_t *num_nodes);
+
+/**
+@brief Fill an array with the nodes of this tree starting from a particular node.
+
+@rst
+As for :c:func:`tsk_tree_postorder` but starting the traversal at a particular node
+(which will be the last node in the traversal list). The
+:ref:`virtual root<sec_data_model_tree_roots>` is a valid input for this function
+and will be treated like any other tree node. The value ``-1`` is a special case,
+in which we visit all nodes reachable from the roots, and equivalent to
+calling :c:func:`tsk_tree_postorder`.
+
+See :c:func:`tsk_tree_postorder` for details the requirements for the ``nodes``
+array.
+@endrst
+
+@param self A pointer to a tsk_tree_t object.
+@param root The root of the subtree to traverse, or -1 to visit all nodes.
+@param nodes The tsk_id_t array to store nodes in. See
+    :c:func:`tsk_tree_postorder` for more details.
+@param num_nodes A pointer to a tsk_size_t value where we store the number
+    of nodes in the traversal.
+@return 0 on success or a negative value on failure.
+*/
+int tsk_tree_postorder_from(
     const tsk_tree_t *self, tsk_id_t root, tsk_id_t *nodes, tsk_size_t *num_nodes);
 
 /** @} */
 
 /* Undocumented for now */
+
+int tsk_tree_preorder_samples_from(
+    const tsk_tree_t *self, tsk_id_t root, tsk_id_t *nodes, tsk_size_t *num_nodes);
 
 int tsk_tree_set_root_threshold(tsk_tree_t *self, tsk_size_t root_threshold);
 tsk_size_t tsk_tree_get_root_threshold(const tsk_tree_t *self);
