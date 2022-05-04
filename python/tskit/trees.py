@@ -5935,6 +5935,64 @@ class TreeSequence:
         tables.trim(record_provenance)
         return tables.tree_sequence()
 
+    def split_edges(self, time, *, flags=None, population=None, metadata=None):
+        """
+        Returns a copy of this tree sequence in which we replace any
+        edge ``(left, right, parent, child)`` in which
+        ``node_time[child] < time < node_time[parent]`` with two edges
+        ``(left, right, parent, u)`` and ``(left, right, u, child)``,
+        where ``u`` is a newly added node for each intersecting edge.
+
+        If ``metadata``, ``flags``, or ``population`` are specified, newly
+        added nodes will be assigned these values. Otherwise, default values
+        will be used. The default metadata is an empty dictionary if a metadata
+        schema is defined for the node table, and is an empty byte string
+        otherwise. The default population for the new node will be derived from
+        the population of the edge's child. Newly added have a default
+        ``flags`` value of 0.
+
+        Any metadata associated with a split edge will be copied to the new edge.
+
+        .. warning:: This method currently does not support migrations
+            and a error will be raised if the migration table is not
+            empty. Future versions may take migrations that intersect with the
+            edge into account when determining the default population
+            assignments for new nodes.
+
+        Any mutations lying on the edge whose time is >= ``time`` will have
+        their node value set to ``u``. Note that the time of the mutation is
+        defined as the time of the child node if the mutation's time is
+        unknown.
+
+        :param float time: The cutoff time.
+        :param int flags: The flags value for newly-inserted nodes. (Default = 0)
+        :param int population: The population value for newly inserted nodes.
+            Defaults to the population of the child node of the split edge
+            if not specified.
+        :param metadata: The metadata for any newly inserted nodes. See
+            :meth:`.NodeTable.add_row` for details on how default metadata
+            is produced for a given schema (or none).
+        :return: A copy of this tree sequence with edges split at the specified time.
+        :rtype: tskit.TreeSequence
+        """
+        impute_population = False
+        if population is None:
+            impute_population = True
+            population = tskit.NULL
+        flags = 0 if flags is None else flags
+        schema = self.table_metadata_schemas.node
+        if metadata is None:
+            metadata = schema.empty_value
+        metadata = schema.validate_and_encode_row(metadata)
+        ll_ts = self._ll_tree_sequence.split_edges(
+            time=time,
+            flags=flags,
+            population=population,
+            metadata=metadata,
+            impute_population=impute_population,
+        )
+        return TreeSequence(ll_ts)
+
     def subset(
         self,
         nodes,

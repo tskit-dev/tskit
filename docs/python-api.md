@@ -218,6 +218,7 @@ which perform the same actions but modify the {class}`TableCollection` in place.
   TreeSequence.delete_intervals
   TreeSequence.delete_sites
   TreeSequence.trim
+  TreeSequence.split_edges
 ```
 
 (sec_python_api_tree_sequences_ibd)=

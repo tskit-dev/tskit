@@ -1535,6 +1535,45 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         ts.load_tables(tables)
         assert ts.get_discrete_time() == 1
 
+    def test_split_edges_return_type(self):
+        ts = self.get_example_tree_sequence()
+        split = ts.split_edges(
+            time=0, flags=0, population=0, metadata=b"", impute_population=True
+        )
+        assert isinstance(split, _tskit.TreeSequence)
+
+    def test_split_edges_bad_types(self):
+        ts = self.get_example_tree_sequence()
+
+        def f(time=0, flags=0, population=0, metadata=b"", impute_population=False):
+            return ts.split_edges(
+                time=time,
+                flags=flags,
+                population=population,
+                metadata=metadata,
+                impute_population=impute_population,
+            )
+
+        with pytest.raises(TypeError):
+            f(time="0")
+        with pytest.raises(TypeError):
+            f(flags="0")
+        with pytest.raises(TypeError):
+            f(metadata="0")
+        with pytest.raises(TypeError):
+            f(impute_population="0")
+
+    def test_split_edges_bad_population(self):
+        ts = self.get_example_tree_sequence()
+        with pytest.raises(_tskit.LibraryError, match="POPULATION_OUT_OF_BOUNDS"):
+            ts.split_edges(
+                time=0,
+                flags=0,
+                population=ts.get_num_populations(),
+                metadata=b"",
+                impute_population=False,
+            )
+
 
 class StatsInterfaceMixin:
     """
