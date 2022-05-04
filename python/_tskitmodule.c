@@ -7023,6 +7023,29 @@ out:
 }
 
 static PyObject *
+TableCollection_decapitate(TableCollection *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    int err;
+    double time;
+
+    if (TableCollection_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTuple(args, "d", &time)) {
+        goto out;
+    }
+    err = tsk_table_collection_decapitate(self->tables, time, 0);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
+static PyObject *
 TableCollection_compute_mutation_times(TableCollection *self)
 {
     int err;
@@ -7507,6 +7530,10 @@ static PyMethodDef TableCollection_methods[] = {
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc
         = "Returns True if the parameter table collection is equal to this one." },
+    { .ml_name = "decapitate",
+        .ml_meth = (PyCFunction) TableCollection_decapitate,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Removes information older than the specified time." },
     { .ml_name = "compute_mutation_parents",
         .ml_meth = (PyCFunction) TableCollection_compute_mutation_parents,
         .ml_flags = METH_NOARGS,

@@ -5935,6 +5935,20 @@ class TreeSequence:
         tables.trim(record_provenance)
         return tables.tree_sequence()
 
+    def decapitate(self, time, record_provenance=True):
+        """
+        Return a copy of this tree sequence with topology and mutation information
+        older than the specified time removed. Please see the
+        :meth:`.TableCollection.decapitate` method for details.
+
+        :param float time: The cutoff time.
+        :param bool record_provenance: If True, add details of this operation to the
+            provenance information of the returned tree sequence. (Default: True).
+        """
+        tables = self.dump_tables()
+        tables.decapitate(time, record_provenance=record_provenance)
+        return tables.tree_sequence()
+
     def subset(
         self,
         nodes,

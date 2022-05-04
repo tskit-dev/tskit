@@ -4252,6 +4252,12 @@ int tsk_provenance_table_takeset_columns(tsk_provenance_table_t *self,
     tsk_size_t *record_offset);
 
 bool tsk_table_collection_has_reference_sequence(const tsk_table_collection_t *self);
+
+/* Not documenting this because we may want to pass through default values
+ * for the new nodes (in particular the metadata) in the future */
+int tsk_table_collection_decapitate(
+    tsk_table_collection_t *self, double time, tsk_flags_t options);
+
 int tsk_reference_sequence_init(tsk_reference_sequence_t *self, tsk_flags_t options);
 int tsk_reference_sequence_free(tsk_reference_sequence_t *self);
 bool tsk_reference_sequence_is_null(const tsk_reference_sequence_t *self);

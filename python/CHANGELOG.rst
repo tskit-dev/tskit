@@ -4,7 +4,12 @@
 
 **Changes**
 
-- ``VcfWriter.write`` now prints the site ID of variants in the ID field of the output VCF files.
+- Add ``TableCollection.decapitate`` and ``TreeSequence.decapitate`` operations
+  to remove information from that data model that is older than a specific time.
+  (:user:`jeromekelleher`, :issue:`2236`, :pr:`2240`)
+
+- ``VcfWriter.write`` now prints the site ID of variants in the ID field of the
+  output VCF files.
   (:user:`roohy`, :issue:`2103`, :pr:`2107`)
 
 - Make dumping of tables and tree sequences to disk a zero-copy operation.
