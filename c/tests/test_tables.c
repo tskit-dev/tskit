@@ -10156,6 +10156,80 @@ test_table_collection_clear(void)
 }
 
 static void
+test_table_collection_decapitate(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t t;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &t, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+
+    /* Add some migrations */
+    tsk_population_table_add_row(&t.populations, NULL, 0);
+    tsk_population_table_add_row(&t.populations, NULL, 0);
+    tsk_migration_table_add_row(&t.migrations, 0, 10, 0, 0, 1, 0.05, NULL, 0);
+    tsk_migration_table_add_row(&t.migrations, 0, 10, 0, 1, 0, 0.09, NULL, 0);
+    tsk_migration_table_add_row(&t.migrations, 0, 10, 0, 0, 1, 0.10, NULL, 0);
+    CU_ASSERT_EQUAL(t.migrations.num_rows, 3);
+
+    /* NOTE: haven't worked out the exact IDs on the branches here, just
+     * for illustration.
+    0.09┊ 9  5 10 ┊ 9   5   ┊11   5   ┊
+        ┊ ┃ ┏┻┓ ┃ ┊ ┃ ┏━┻┓  ┊ ┃ ┏━┻┓  ┊
+    0.07┊ ┃ ┃ ┃ ┃ ┊ ┃ ┃  4  ┊ ┃ ┃  4  ┊
+        ┊ ┃ ┃ ┃ ┃ ┊ ┃ ┃ ┏┻┓ ┊ ┃ ┃ ┏┻┓ ┊
+    0.00┊ 0 1 3 2 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊
+      0.00      2.00      7.00      10.00
+    */
+
+    ret = tsk_table_collection_decapitate(&t, 0.09, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_init(&ts, &t, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 3);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&ts), 12);
+    /* Lost the mutation over 5 */
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 2);
+    /* We keep the migration at exactly 0.09. */
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_migrations(&ts), 2);
+
+    tsk_table_collection_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_table_collection_decapitate_errors(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t t;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &t, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+
+    /* This should be caught later when we try to index */
+    reverse_edges(&t);
+    ret = tsk_table_collection_decapitate(&t, 0.09, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGES_NOT_SORTED_CHILD);
+
+    /* This should be caught immediately on entry to the function */
+    t.sequence_length = -1;
+    ret = tsk_table_collection_decapitate(&t, 0.09, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SEQUENCE_LENGTH);
+
+    tsk_table_collection_free(&t);
+}
+
+static void
 test_table_collection_takeset_indexes(void)
 {
     int ret;
@@ -10317,6 +10391,9 @@ main(int argc, char **argv)
             test_table_collection_union_middle_merge },
         { "test_table_collection_union_errors", test_table_collection_union_errors },
         { "test_table_collection_clear", test_table_collection_clear },
+        { "test_table_collection_decapitate", test_table_collection_decapitate },
+        { "test_table_collection_decapitate_errors",
+            test_table_collection_decapitate_errors },
         { "test_table_collection_takeset_indexes",
             test_table_collection_takeset_indexes },
         { NULL, NULL },

@@ -410,6 +410,19 @@ class TestTableCollection(LowLevelTestCase):
         with pytest.raises(ValueError):
             tc.union(tc2, np.array([[1], [2]], dtype="int32"))
 
+    def test_decapitate_bad_args(self):
+        tc = _tskit.TableCollection(1)
+        self.get_example_tree_sequence().dump_tables(tc)
+        with pytest.raises(TypeError):
+            tc.decapitate()
+        with pytest.raises(TypeError):
+            tc.decapitate("1234")
+
+    def test_decapitate_error(self):
+        tc = _tskit.TableCollection(-1)
+        with pytest.raises(_tskit.LibraryError, match="Sequence length"):
+            tc.decapitate(0)
+
     def test_equals_bad_args(self):
         ts = msprime.simulate(10, random_seed=1242)
         tc = ts.tables._ll_tables

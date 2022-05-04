@@ -3862,6 +3862,56 @@ class TableCollection(metadata.MetadataProvider):
                 record=json.dumps(provenance.get_provenance_dict(parameters))
             )
 
+    def decapitate(self, time, *, record_provenance=True):
+        """
+        Delete all edge topology and mutational information older than the
+        specified time from this set of tables.
+
+        Removes all edges in which the time of the child is >= the specified
+        time ``t``, and breaks edges that intersect with ``t``. For each edge
+        intersecting with ``t`` we create a new node with time equal to ``t``,
+        and set the parent of the edge to this new node. The node table
+        is not altered in any other way. Newly added nodes have empty metadata,
+        a ``flags`` value of 0, and NULL ``population`` and ``individual``
+        references.
+
+        .. warning::
+            The empty metadata values for newly added nodes may not be compatible
+            with the node table's metadata schema! The current behaviour may
+            change in future versions to better accomodate metadata schemas.
+
+        .. note::
+            Note that each edge is treated independently, so that even if two
+            edges that are broken by this operation share the same parent and
+            child nodes, there will be two different new parent nodes inserted.
+
+        Any mutation whose time is >= ``t`` will be removed. A mutation's time
+        is its associated ``time`` value, or the time of its node if the
+        mutation's time was marked as unknown (:data:`UNKNOWN_TIME`).
+
+        Any migration with time > ``t`` will be removed.
+
+        .. important::
+            The tables must satisfy the standard
+            :ref:`sortedness requirements <sec_valid_tree_sequence_requirements>`.
+
+        .. note::
+            As a side-effect, this method will build the table indexes
+            and recompute the parents of all mutations. This is an implementation
+            detail and may not happen in future versions.
+
+        :param float time: The cutoff time.
+        :param bool record_provenance: If ``True``, add details of this operation
+            to the provenance table in this TableCollection. (Default: ``True``).
+        """
+        self._ll_tables.decapitate(time)
+        if record_provenance:
+            # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
+            parameters = {"command": "decapitate", "time": float(time)}
+            self.provenances.add_row(
+                record=json.dumps(provenance.get_provenance_dict(parameters))
+            )
+
     def clear(
         self,
         clear_provenance=False,
