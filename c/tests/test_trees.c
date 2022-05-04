@@ -7250,6 +7250,206 @@ test_reference_sequence(void)
 }
 
 static void
+test_split_edges_no_populations(void)
+{
+    int ret;
+    tsk_treeseq_t ts, split_ts;
+    tsk_table_collection_t tables;
+    tsk_id_t new_nodes[] = { 9, 10, 11 };
+    tsk_size_t num_new_nodes = 3;
+    const char *metadata = "some metadata";
+    tsk_size_t j;
+    tsk_node_t node;
+    double time = 0.09;
+    tsk_id_t ret_id;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
+
+    ret_id = tsk_table_collection_copy(ts.tables, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    tsk_treeseq_free(&ts);
+    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret = tsk_table_collection_compute_mutation_times(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_treeseq_init(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    /* NOTE: haven't worked out the exact IDs on the branches here, just
+     * for illustration.
+
+    0.25┊     8   ┊         ┊         ┊
+        ┊   ┏━┻━┓ ┊         ┊         ┊
+    0.20┊   ┃   ┃ ┊         ┊   7     ┊
+        ┊   ┃   ┃ ┊         ┊ ┏━┻━┓   ┊
+    0.17┊   6   ┃ ┊   6     ┊ ┃   ┃   ┊
+        ┊ ┏━┻┓  ┃ ┊ ┏━┻━┓   ┊ ┃   ┃   ┊
+    0.09┊ 9  5  10┊ 9   5   ┊ 11  5   ┊
+        ┊ ┃ ┏┻┓ ┃ ┊ ┃ ┏━┻┓  ┊ ┃ ┏━┻┓  ┊
+    0.07┊ ┃ ┃ ┃ ┃ ┊ ┃ ┃  4  ┊ ┃ ┃  4  ┊
+        ┊ ┃ ┃ ┃ ┃ ┊ ┃ ┃ ┏┻┓ ┊ ┃ ┃ ┏┻┓ ┊
+    0.00┊ 0 1 3 2 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊
+      0.00      2.00      7.00      10.00
+    */
+    ret = tsk_treeseq_split_edges(
+        &ts, time, 1234, 0, metadata, strlen(metadata), 0, &split_ts);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&split_ts), 3);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&split_ts), 12);
+
+    for (j = 0; j < num_new_nodes; j++) {
+        ret = tsk_treeseq_get_node(&split_ts, new_nodes[j], &node);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(node.time, time);
+        CU_ASSERT_EQUAL(node.flags, 1234);
+        CU_ASSERT_EQUAL(node.individual, TSK_NULL);
+        CU_ASSERT_EQUAL(node.population, 0);
+        CU_ASSERT_EQUAL(node.metadata_length, strlen(metadata));
+        CU_ASSERT_EQUAL(strncmp(node.metadata, metadata, strlen(metadata)), 0);
+    }
+    tsk_treeseq_free(&split_ts);
+
+    /* And again with imputed population value */
+    ret = tsk_treeseq_split_edges(&ts, time, 1234, 0, metadata, strlen(metadata),
+        TSK_SPLIT_EDGES_IMPUTE_POPULATION, &split_ts);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&split_ts), 3);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&split_ts), 12);
+
+    for (j = 0; j < num_new_nodes; j++) {
+        ret = tsk_treeseq_get_node(&split_ts, new_nodes[j], &node);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(node.time, time);
+        CU_ASSERT_EQUAL(node.flags, 1234);
+        CU_ASSERT_EQUAL(node.individual, TSK_NULL);
+        CU_ASSERT_EQUAL(node.population, TSK_NULL);
+        CU_ASSERT_EQUAL(node.metadata_length, strlen(metadata));
+        CU_ASSERT_EQUAL(strncmp(node.metadata, metadata, strlen(metadata)), 0);
+    }
+    tsk_treeseq_free(&split_ts);
+
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_split_edges_populations(void)
+{
+    int ret;
+    tsk_treeseq_t ts, split_ts;
+    tsk_table_collection_t tables;
+    double time = 0.5;
+    tsk_node_t node;
+    tsk_id_t valid_pops[] = { -1, 0, 1 };
+    tsk_id_t num_valid_pops = 3;
+    tsk_id_t j, population, ret_id;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+
+    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 0, 0, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 1, 1, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    ret_id = tsk_edge_table_add_row(&tables.edges, 0, 1, 1, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    for (j = 0; j < num_valid_pops; j++) {
+        population = valid_pops[j];
+        ret = tsk_treeseq_split_edges(&ts, time, 0, population, NULL, 0, 0, &split_ts);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&split_ts), 1);
+        CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&split_ts), 3);
+        ret = tsk_treeseq_get_node(&split_ts, 2, &node);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(node.population, population);
+        tsk_treeseq_free(&split_ts);
+
+        ret = tsk_treeseq_split_edges(&ts, time, 0, population, NULL, 0,
+            TSK_SPLIT_EDGES_IMPUTE_POPULATION, &split_ts);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&split_ts), 1);
+        CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&split_ts), 3);
+        ret = tsk_treeseq_get_node(&split_ts, 2, &node);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(node.population, 0);
+        tsk_treeseq_free(&split_ts);
+    }
+
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_split_edges_errors(void)
+{
+    int ret;
+    tsk_treeseq_t ts, split_ts;
+    tsk_table_collection_t tables;
+    double time = 0.5;
+    tsk_id_t invalid_pops[] = { -2, 2, 3 };
+    tsk_id_t num_invalid_pops = 3;
+    tsk_id_t j, population, ret_id;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+
+    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 0, 0, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 1, 1, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    ret_id = tsk_edge_table_add_row(&tables.edges, 0, 1, 1, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_split_edges(
+        &ts, TSK_UNKNOWN_TIME, 0, TSK_NULL, NULL, 0, 0, &split_ts);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TIME_NONFINITE);
+
+    for (j = 0; j < num_invalid_pops; j++) {
+        population = invalid_pops[j];
+        ret = tsk_treeseq_split_edges(&ts, time, 0, population, NULL, 0, 0, &split_ts);
+        CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
+        tsk_treeseq_free(&split_ts);
+
+        /* We always check population values, even if they aren't used */
+        ret = tsk_treeseq_split_edges(&ts, time, 0, population, NULL, 0,
+            TSK_SPLIT_EDGES_IMPUTE_POPULATION, &split_ts);
+        CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
+        tsk_treeseq_free(&split_ts);
+    }
+    tsk_treeseq_free(&ts);
+
+    ret_id
+        = tsk_migration_table_add_row(&tables.migrations, 0, 1, 0, 0, 1, 1.0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_treeseq_split_edges(&ts, time, 0, population, NULL, 0, 0, &split_ts);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATIONS_NOT_SUPPORTED);
+    tsk_treeseq_free(&split_ts);
+
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_init_take_ownership_no_edge_metadata(void)
 {
     int ret;
@@ -7449,6 +7649,9 @@ main(int argc, char **argv)
         { "test_tree_sequence_metadata", test_tree_sequence_metadata },
         { "test_time_uncalibrated", test_time_uncalibrated },
         { "test_reference_sequence", test_reference_sequence },
+        { "test_split_edges_no_populations", test_split_edges_no_populations },
+        { "test_split_edges_populations", test_split_edges_populations },
+        { "test_split_edges_errors", test_split_edges_errors },
         { "test_init_take_ownership_no_edge_metadata",
             test_init_take_ownership_no_edge_metadata },
         { NULL, NULL },

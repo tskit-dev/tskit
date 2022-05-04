@@ -4,7 +4,8 @@
 
 **Changes**
 
-- ``VcfWriter.write`` now prints the site ID of variants in the ID field of the output VCF files.
+- ``VcfWriter.write`` now prints the site ID of variants in the ID field of the
+  output VCF files.
   (:user:`roohy`, :issue:`2103`, :pr:`2107`)
 
 - Make dumping of tables and tree sequences to disk a zero-copy operation.
@@ -20,6 +21,10 @@
 - Add a ``edge`` attribute to the ``Mutation`` class that gives the ID of the
   edge that the mutation falls on.
   (:user:`jeromekelleher`, :issue:`685`, :pr:`2279`).
+
+- Add the ``TreeSequence.split_edges`` operation which inserts nodes into
+  edges at a specific time.
+  (:user:`jeromekelleher`, :issue:`2276`, :pr:`2296`).
 
 **Breaking Changes**
 
