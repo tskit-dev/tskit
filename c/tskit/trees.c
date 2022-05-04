@@ -3410,7 +3410,7 @@ tsk_tree_track_descendant_samples(tsk_tree_t *self, tsk_id_t node)
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    ret = tsk_tree_postorder(self, node, nodes, &num_nodes);
+    ret = tsk_tree_postorder_from(self, node, nodes, &num_nodes);
     if (ret != 0) {
         goto out;
     }
@@ -3592,7 +3592,7 @@ tsk_tree_get_num_samples_by_traversal(
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    ret = tsk_tree_preorder(self, u, nodes, &num_nodes);
+    ret = tsk_tree_preorder_from(self, u, nodes, &num_nodes);
     if (ret != 0) {
         goto out;
     }
@@ -3749,7 +3749,7 @@ tsk_tree_get_total_branch_length(const tsk_tree_t *self, tsk_id_t node, double *
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-    ret = tsk_tree_preorder(self, node, nodes, &num_nodes);
+    ret = tsk_tree_preorder_from(self, node, nodes, &num_nodes);
     if (ret != 0) {
         goto out;
     }
@@ -4455,7 +4455,13 @@ tsk_tree_alloc_node_stack(const tsk_tree_t *self)
 }
 
 int
-tsk_tree_preorder(
+tsk_tree_preorder(const tsk_tree_t *self, tsk_id_t *nodes, tsk_size_t *num_nodes_ret)
+{
+    return tsk_tree_preorder_from(self, -1, nodes, num_nodes_ret);
+}
+
+int
+tsk_tree_preorder_from(
     const tsk_tree_t *self, tsk_id_t root, tsk_id_t *nodes, tsk_size_t *num_nodes_ret)
 {
     int ret = 0;
@@ -4512,7 +4518,7 @@ out:
  * of mallocing the intermediate node list (which will be bigger than
  * the number of samples). */
 int
-tsk_tree_preorder_samples(
+tsk_tree_preorder_samples_from(
     const tsk_tree_t *self, tsk_id_t root, tsk_id_t *nodes, tsk_size_t *num_nodes_ret)
 {
     int ret = 0;
@@ -4571,7 +4577,12 @@ out:
 }
 
 int
-tsk_tree_postorder(
+tsk_tree_postorder(const tsk_tree_t *self, tsk_id_t *nodes, tsk_size_t *num_nodes_ret)
+{
+    return tsk_tree_postorder_from(self, -1, nodes, num_nodes_ret);
+}
+int
+tsk_tree_postorder_from(
     const tsk_tree_t *self, tsk_id_t root, tsk_id_t *nodes, tsk_size_t *num_nodes_ret)
 {
     int ret = 0;
@@ -4753,7 +4764,7 @@ tsk_tree_map_mutations(tsk_tree_t *self, int32_t *genotypes,
         }
     }
 
-    ret = tsk_tree_postorder(self, self->virtual_root, nodes, &num_nodes);
+    ret = tsk_tree_postorder_from(self, self->virtual_root, nodes, &num_nodes);
     if (ret != 0) {
         goto out;
     }

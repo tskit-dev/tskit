@@ -9,9 +9,8 @@
         errx(EXIT_FAILURE, "line %d: %s", __LINE__, tsk_strerror(val));                 \
     }
 
-
 static void
-traverse_standard(tsk_tree_t *tree)
+traverse_standard(const tsk_tree_t *tree)
 {
     int ret;
     tsk_size_t num_nodes, j;
@@ -20,14 +19,13 @@ traverse_standard(tsk_tree_t *tree)
     if (nodes == NULL) {
         errx(EXIT_FAILURE, "Out of memory");
     }
-
-    ret = tsk_tree_preorder(tree, -1, nodes, &num_nodes);
+    ret = tsk_tree_preorder(tree, nodes, &num_nodes);
     check_tsk_error(ret);
     for (j = 0; j < num_nodes; j++) {
         printf("Visit preorder %lld\n", (long long) nodes[j]);
     }
 
-    ret = tsk_tree_postorder(tree, -1, nodes, &num_nodes);
+    ret = tsk_tree_postorder(tree, nodes, &num_nodes);
     check_tsk_error(ret);
     for (j = 0; j < num_nodes; j++) {
         printf("Visit postorder %lld\n", (long long) nodes[j]);
@@ -36,9 +34,8 @@ traverse_standard(tsk_tree_t *tree)
     free(nodes);
 }
 
-
 static void
-_traverse(tsk_tree_t *tree, tsk_id_t u, int depth)
+_traverse(const tsk_tree_t *tree, tsk_id_t u, int depth)
 {
     tsk_id_t v;
     int j;
@@ -53,13 +50,13 @@ _traverse(tsk_tree_t *tree, tsk_id_t u, int depth)
 }
 
 static void
-traverse_recursive(tsk_tree_t *tree)
+traverse_recursive(const tsk_tree_t *tree)
 {
     _traverse(tree, tree->virtual_root, -1);
 }
 
 static void
-traverse_stack(tsk_tree_t *tree)
+traverse_stack(const tsk_tree_t *tree)
 {
     int stack_top;
     tsk_id_t u, v;
@@ -84,7 +81,7 @@ traverse_stack(tsk_tree_t *tree)
 }
 
 static void
-traverse_upwards(tsk_tree_t *tree)
+traverse_upwards(const tsk_tree_t *tree)
 {
     const tsk_id_t *samples = tsk_treeseq_get_samples(tree->tree_sequence);
     tsk_size_t num_samples = tsk_treeseq_get_num_samples(tree->tree_sequence);

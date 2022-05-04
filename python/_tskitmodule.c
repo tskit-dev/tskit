@@ -10660,13 +10660,13 @@ out:
 static PyObject *
 Tree_get_preorder(Tree *self, PyObject *args)
 {
-    return Tree_get_traversal_array(self, args, tsk_tree_preorder);
+    return Tree_get_traversal_array(self, args, tsk_tree_preorder_from);
 }
 
 static PyObject *
 Tree_get_postorder(Tree *self, PyObject *args)
 {
-    return Tree_get_traversal_array(self, args, tsk_tree_postorder);
+    return Tree_get_traversal_array(self, args, tsk_tree_postorder_from);
 }
 
 /* The x_array properties are the high-performance zero-copy interface to the

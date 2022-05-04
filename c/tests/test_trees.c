@@ -5402,18 +5402,16 @@ test_no_sample_count_semantics(void)
 
     CU_ASSERT_EQUAL(tsk_tree_get_num_roots(&t), 0);
     CU_ASSERT_EQUAL(tsk_tree_get_left_root(&t), TSK_NULL);
-    CU_ASSERT_EQUAL(
-        tsk_tree_preorder(&t, -1, &nodes, &n), TSK_ERR_UNSUPPORTED_OPERATION);
-    CU_ASSERT_EQUAL(
-        tsk_tree_postorder(&t, -1, &nodes, &n), TSK_ERR_UNSUPPORTED_OPERATION);
-    CU_ASSERT_EQUAL(
-        tsk_tree_preorder_samples(&t, -1, &nodes, &n), TSK_ERR_UNSUPPORTED_OPERATION);
+    CU_ASSERT_EQUAL(tsk_tree_preorder(&t, &nodes, &n), TSK_ERR_UNSUPPORTED_OPERATION);
+    CU_ASSERT_EQUAL(tsk_tree_postorder(&t, &nodes, &n), TSK_ERR_UNSUPPORTED_OPERATION);
+    CU_ASSERT_EQUAL(tsk_tree_preorder_samples_from(&t, -1, &nodes, &n),
+        TSK_ERR_UNSUPPORTED_OPERATION);
 
-    CU_ASSERT_EQUAL(tsk_tree_preorder(&t, t.virtual_root, &nodes, &n),
+    CU_ASSERT_EQUAL(tsk_tree_preorder_from(&t, t.virtual_root, &nodes, &n),
         TSK_ERR_UNSUPPORTED_OPERATION);
-    CU_ASSERT_EQUAL(tsk_tree_postorder(&t, t.virtual_root, &nodes, &n),
+    CU_ASSERT_EQUAL(tsk_tree_postorder_from(&t, t.virtual_root, &nodes, &n),
         TSK_ERR_UNSUPPORTED_OPERATION);
-    CU_ASSERT_EQUAL(tsk_tree_preorder_samples(&t, t.virtual_root, &nodes, &n),
+    CU_ASSERT_EQUAL(tsk_tree_preorder_samples_from(&t, t.virtual_root, &nodes, &n),
         TSK_ERR_UNSUPPORTED_OPERATION);
 
     tsk_tree_free(&t);
@@ -5458,65 +5456,75 @@ test_single_tree_traversal(void)
     ret = tsk_tree_first(&t);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_TREE_OK);
 
-    ret = tsk_tree_preorder(&t, -1, nodes, &n);
+    ret = tsk_tree_preorder(&t, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, num_nodes);
     verify_node_lists(n, nodes, preorder);
 
-    ret = tsk_tree_preorder(&t, t.virtual_root, nodes, &n);
+    ret = tsk_tree_preorder_from(&t, -1, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, num_nodes);
+    verify_node_lists(n, nodes, preorder);
+
+    ret = tsk_tree_preorder_from(&t, t.virtual_root, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, num_nodes + 1);
     verify_node_lists(n, nodes, preorder_vr);
 
-    ret = tsk_tree_preorder_samples(&t, -1, nodes, &n);
+    ret = tsk_tree_preorder_samples_from(&t, -1, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 4);
     verify_node_lists(n, nodes, preorder_samples);
 
-    ret = tsk_tree_preorder_samples(&t, t.virtual_root, nodes, &n);
+    ret = tsk_tree_preorder_samples_from(&t, t.virtual_root, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 4);
     verify_node_lists(n, nodes, preorder_samples);
 
-    ret = tsk_tree_preorder(&t, 5, nodes, &n);
+    ret = tsk_tree_preorder_from(&t, 5, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 3);
     verify_node_lists(n, nodes, preorder + 4);
 
-    ret = tsk_tree_preorder_samples(&t, 5, nodes, &n);
+    ret = tsk_tree_preorder_samples_from(&t, 5, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 2);
     verify_node_lists(n, nodes, preorder_samples + 2);
 
-    ret = tsk_tree_postorder(&t, -1, nodes, &n);
+    ret = tsk_tree_postorder(&t, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, num_nodes);
     verify_node_lists(n, nodes, postorder);
 
-    ret = tsk_tree_postorder(&t, t.virtual_root, nodes, &n);
+    ret = tsk_tree_postorder_from(&t, -1, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, num_nodes);
+    verify_node_lists(n, nodes, postorder);
+
+    ret = tsk_tree_postorder_from(&t, t.virtual_root, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, num_nodes + 1);
     verify_node_lists(n, nodes, postorder_vr);
 
-    ret = tsk_tree_postorder(&t, 4, nodes, &n);
+    ret = tsk_tree_postorder_from(&t, 4, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 3);
     verify_node_lists(n, nodes, postorder);
 
     /* Check errors */
-    ret = tsk_tree_preorder(&t, -2, nodes, &n);
+    ret = tsk_tree_preorder_from(&t, -2, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
-    ret = tsk_tree_preorder(&t, 8, nodes, &n);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
-
-    ret = tsk_tree_preorder_samples(&t, -2, nodes, &n);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
-    ret = tsk_tree_preorder_samples(&t, 8, nodes, &n);
+    ret = tsk_tree_preorder_from(&t, 8, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
-    ret = tsk_tree_postorder(&t, -2, nodes, &n);
+    ret = tsk_tree_preorder_samples_from(&t, -2, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
-    ret = tsk_tree_postorder(&t, 8, nodes, &n);
+    ret = tsk_tree_preorder_samples_from(&t, 8, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    ret = tsk_tree_postorder_from(&t, -2, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    ret = tsk_tree_postorder_from(&t, 8, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
     tsk_tree_free(&t);
@@ -5563,52 +5571,62 @@ test_multiroot_tree_traversal(void)
     ret = tsk_tree_first(&t);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_TREE_OK);
 
-    ret = tsk_tree_preorder(&t, -1, nodes, &n);
+    ret = tsk_tree_preorder(&t, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 9);
     verify_node_lists(n, nodes, preorder);
 
-    ret = tsk_tree_preorder(&t, t.virtual_root, nodes, &n);
+    ret = tsk_tree_preorder_from(&t, -1, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 9);
+    verify_node_lists(n, nodes, preorder);
+
+    ret = tsk_tree_preorder_from(&t, t.virtual_root, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 10);
     verify_node_lists(n, nodes, preorder_vr);
 
-    ret = tsk_tree_preorder(&t, 10, nodes, &n);
+    ret = tsk_tree_preorder_from(&t, 10, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 3);
     verify_node_lists(n, nodes, preorder + 6);
 
-    ret = tsk_tree_preorder_samples(&t, -1, nodes, &n);
+    ret = tsk_tree_preorder_samples_from(&t, -1, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 6);
     verify_node_lists(n, nodes, preorder_samples);
 
-    ret = tsk_tree_preorder_samples(&t, t.virtual_root, nodes, &n);
+    ret = tsk_tree_preorder_samples_from(&t, t.virtual_root, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 6);
     verify_node_lists(n, nodes, preorder_samples);
 
-    ret = tsk_tree_preorder_samples(&t, 5, nodes, &n);
+    ret = tsk_tree_preorder_samples_from(&t, 5, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 1);
     verify_node_lists(n, nodes, preorder_samples);
 
-    ret = tsk_tree_preorder_samples(&t, 10, nodes, &n);
+    ret = tsk_tree_preorder_samples_from(&t, 10, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 2);
     verify_node_lists(n, nodes, preorder_samples + 4);
 
-    ret = tsk_tree_postorder(&t, -1, nodes, &n);
+    ret = tsk_tree_postorder(&t, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 9);
     verify_node_lists(n, nodes, postorder);
 
-    ret = tsk_tree_postorder(&t, t.virtual_root, nodes, &n);
+    ret = tsk_tree_postorder_from(&t, -1, nodes, &n);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(n, 9);
+    verify_node_lists(n, nodes, postorder);
+
+    ret = tsk_tree_postorder_from(&t, t.virtual_root, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 10);
     verify_node_lists(n, nodes, postorder_vr);
 
-    ret = tsk_tree_postorder(&t, 10, nodes, &n);
+    ret = tsk_tree_postorder_from(&t, 10, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 3);
     verify_node_lists(n, nodes, postorder + 6);
@@ -5616,17 +5634,17 @@ test_multiroot_tree_traversal(void)
     /* Nodes that aren't "in" the tree have singleton traversal lists and
      * connect to no samples */
 
-    ret = tsk_tree_preorder(&t, 11, nodes, &n);
+    ret = tsk_tree_preorder_from(&t, 11, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 1);
     CU_ASSERT_EQUAL_FATAL(nodes[0], 11);
 
-    ret = tsk_tree_postorder(&t, 11, nodes, &n);
+    ret = tsk_tree_postorder_from(&t, 11, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 1);
     CU_ASSERT_EQUAL_FATAL(nodes[0], 11);
 
-    ret = tsk_tree_preorder_samples(&t, 11, nodes, &n);
+    ret = tsk_tree_preorder_samples_from(&t, 11, nodes, &n);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(n, 0);
 

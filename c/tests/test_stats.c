@@ -632,7 +632,7 @@ verify_branch_general_stat_identity(tsk_treeseq_t *ts)
     CU_ASSERT_EQUAL(ret, 0);
 
     for (ret = tsk_tree_first(&tree); ret == TSK_TREE_OK; ret = tsk_tree_next(&tree)) {
-        ret = tsk_tree_preorder(&tree, -1, nodes, &num_nodes);
+        ret = tsk_tree_preorder(&tree, nodes, &num_nodes);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
 
         s = 0;
