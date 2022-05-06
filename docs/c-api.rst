@@ -208,8 +208,6 @@ Common options
 .. doxygengroup:: GENERIC_FUNCTION_OPTIONS
    :content-only:
 
-.. _sec_c_api_tables_api:
-
 **********
 Tables API
 **********
@@ -589,6 +587,65 @@ Miscellaneous functions
 .. doxygenfunction:: tsk_is_unknown_time
 
 
+*************************
+Function Specific Options
+*************************
+
+-------------
+Load and init
+-------------
+.. doxygengroup:: API_FLAGS_LOAD_INIT_GROUP
+    :content-only:
+
+--------------------------
+:c:func:`tsk_treeseq_init`
+--------------------------
+.. doxygengroup:: API_FLAGS_TS_INIT_GROUP
+    :content-only:
+
+-----------------------------------------------------------------------
+:c:func:`tsk_treeseq_simplify`, :c:func:`tsk_table_collection_simplify`
+-----------------------------------------------------------------------
+.. doxygengroup:: API_FLAGS_SIMPLIFY_GROUP
+    :content-only:
+
+----------------------------------------------
+:c:func:`tsk_table_collection_check_integrity`
+----------------------------------------------
+.. doxygengroup:: API_FLAGS_CHECK_INTEGRITY_GROUP
+    :content-only:
+
+------------------------------------
+:c:func:`tsk_table_collection_clear`
+------------------------------------
+.. doxygengroup:: API_FLAGS_CLEAR_GROUP
+    :content-only:
+
+-----------------------------------
+:c:func:`tsk_table_collection_copy`
+-----------------------------------
+.. doxygengroup:: API_FLAGS_COPY_GROUP
+    :content-only:
+
+----------------------
+All equality functions
+----------------------
+.. doxygengroup:: API_FLAGS_CMP_GROUP
+    :content-only:
+
+-------------------------------------
+:c:func:`tsk_table_collection_subset`
+-------------------------------------
+.. doxygengroup:: API_FLAGS_SUBSET_GROUP
+    :content-only:
+
+------------------------------------
+:c:func:`tsk_table_collection_union`
+------------------------------------
+.. doxygengroup:: API_FLAGS_UNION_GROUP
+    :content-only:
+
+
 *********
 Constants
 *********
@@ -601,6 +658,15 @@ API Version
     :content-only:
 
 .. _sec_c_api_error_codes:
+
+----------------
+Common constants
+----------------
+
+.. doxygengroup:: GENERIC_CONSTANTS
+   :content-only:
+
+.. _sec_c_api_tables_api:
 
 --------------
 Generic Errors

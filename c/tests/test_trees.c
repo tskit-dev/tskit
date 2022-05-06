@@ -7052,7 +7052,7 @@ test_init_take_ownership_no_edge_metadata(void)
     tsk_treeseq_free(&ts);
 
     ret = tsk_treeseq_init(&ts, tables, TSK_TAKE_OWNERSHIP);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_CANT_TAKE_OWNERSHIP_NO_EDGE_METADATA);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_CANT_TAKE_OWNERSHIP_NO_EDGE_METADATA);
 
     tsk_treeseq_free(&ts);
 }
