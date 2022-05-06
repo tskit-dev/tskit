@@ -408,7 +408,7 @@ tsk_treeseq_init(
     if (options & TSK_TAKE_OWNERSHIP) {
         self->tables = tables;
         if (tables->edges.options & TSK_TABLE_NO_METADATA) {
-            ret = TSK_CANT_TAKE_OWNERSHIP_NO_EDGE_METADATA;
+            ret = TSK_ERR_CANT_TAKE_OWNERSHIP_NO_EDGE_METADATA;
             goto out;
         }
     } else {

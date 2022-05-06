@@ -112,8 +112,8 @@ have their genotypes decoded. A copy of this array will be taken by the variant.
 ``NULL`` sentinel value.
 If specified, the genotypes will be decoded to match the index in this allele array.
 If ``NULL`` then alleles will be automatically determined from the mutations encountered.
-@param options Variant options. Either ``0`` or ``TSK_ISOLATED_NOT_MISSING`` which if
-specified indicates that isolated sample nodes should not be decoded as the "missing"
+@param options Variant options. Either ``0`` or ``TSK_ISOLATED_NOT_MISSING`` which
+if specified indicates that isolated sample nodes should not be decoded as the "missing"
 state but as the ancestral state (or the state of any mutation above them).
 @return Return 0 on success or a negative value on failure.
 */

@@ -62,8 +62,17 @@ extern "C" {
 /* For the edge diff iterator */
 #define TSK_INCLUDE_TERMINAL        (1 << 0)
 
-/* Tree sequence init flags */
+/**
+@defgroup API_FLAGS_TS_INIT_GROUP :c:func:`tsk_treeseq_init` specific flags.
+@{
+*/
+/**
+If specified edge indexes will be built and stored in the table collection
+when the tree sequence is initialised. Indexes are required for a valid
+tree sequence, and are not built by default for performance reasons.
+*/
 #define TSK_TS_INIT_BUILD_INDEXES (1 << 0)
+/** @} */
 
 // clang-format on
 
@@ -139,28 +148,28 @@ typedef struct {
      */
     tsk_id_t virtual_root;
     /**
-     @brief The parent of node u is parent[u]. Equal to TSK_NULL if node u is a
-     root or is not a node in the current tree.
+     @brief The parent of node u is parent[u]. Equal to ``TSK_NULL`` if node u is
+     a root or is not a node in the current tree.
      */
     tsk_id_t *parent;
     /**
-     @brief The leftmost child of node u is left_child[u]. Equal to TSK_NULL
+     @brief The leftmost child of node u is left_child[u]. Equal to ``TSK_NULL``
      if node u is a leaf or is not a node in the current tree.
      */
     tsk_id_t *left_child;
     /**
-     @brief The rightmost child of node u is right_child[u]. Equal to TSK_NULL
+     @brief The rightmost child of node u is right_child[u]. Equal to ``TSK_NULL``
      if node u is a leaf or is not a node in the current tree.
      */
     tsk_id_t *right_child;
     /**
-     @brief The sibling to the left of node u is left_sib[u]. Equal to TSK_NULL
-     if node u has no siblings to its left.
+     @brief The sibling to the left of node u is left_sib[u]. Equal to
+     TSK_NULL if node u has no siblings to its left.
      */
     tsk_id_t *left_sib;
     /**
-     @brief The sibling to the right of node u is right_sib[u]. Equal to TSK_NULL
-     if node u has no siblings to its right.
+     @brief The sibling to the right of node u is right_sib[u]. Equal to
+     ``TSK_NULL`` if node u has no siblings to its right.
      */
     tsk_id_t *right_sib;
     /**
@@ -205,7 +214,6 @@ typedef struct {
      immediately after we call ``tsk_tree_first(&tree)``, ``tree.index`` will
      be zero, and after we call ``tsk_tree_last(&tree)``, ``tree.index`` will
      be the number of trees - 1 (see :c:func:`tsk_treeseq_get_num_trees`)
-
      When the tree is in the null state (immediately after initialisation,
      or after, e.g., calling :c:func:`tsk_tree_prev` on the first tree)
      the value of the ``index`` is -1.
@@ -217,11 +225,13 @@ typedef struct {
     tsk_flags_t options;
     tsk_size_t root_threshold;
     const tsk_id_t *samples;
-    /* These are involved in the optional sample tracking; num_samples counts
-     * all samples below a give node, and num_tracked_samples counts those
-     * from a specific subset. By default sample counts are tracked and roots
-     * maintained. If TSK_NO_SAMPLE_COUNTS is specified, then neither sample
-     * counts or roots are available. */
+    /*
+    These are involved in the optional sample tracking; num_samples counts
+    all samples below a give node, and num_tracked_samples counts those
+    from a specific subset. By default sample counts are tracked and roots
+    maintained. If ``TSK_NO_SAMPLE_COUNTS`` is specified, then neither sample
+    counts or roots are available.
+    */
     tsk_size_t *num_samples;
     tsk_size_t *num_tracked_samples;
     /* These are for the optional sample list tracking. */
@@ -274,9 +284,8 @@ typedef struct {
 @brief Initialises the tree sequence based on the specified table collection.
 
 @rst
-This method will copy the supplied table collection unless TSK_TAKE_OWNERSHIP is
-specified. The table collection will be checked for integrity and index maps
-built.
+This method will copy the supplied table collection unless :c:macro:`TSK_TAKE_OWNERSHIP`
+is specified. The table collection will be checked for integrity and index maps built.
 
 This must be called before any operations are performed on the tree sequence.
 See the :ref:`sec_c_api_overview_structure` for details on how objects
@@ -284,17 +293,8 @@ are initialised and freed.
 
 **Options**
 
-Options can be specified by providing one or more of the following bitwise
-flags:
-
-TSK_TAKE_OWNERSHIP
-    By default the table collection is copied, however if this flag is
-    specified the table collection will be taken and owned with a reference
-    held by this tree sequence. The table collection will be free'd with
-    this tree sequence.
-
-TSK_BUILD_INDEXES
-    If specified edge indexes will be built and stored in the table collection
+- :c:macro:`TSK_TS_INIT_BUILD_INDEXES`
+- :c:macro:`TSK_TAKE_OWNERSHIP` (applies to the table collection).
 @endrst
 
 @param self A pointer to an uninitialised tsk_table_collection_t object.
@@ -410,9 +410,9 @@ be supplied to avoid leaking memory.
 @endrst
 
 @param self A pointer to a tsk_treeseq_t object.
-@param tables A pointer to a tsk_table_collection_t object. If the TSK_NO_INIT option
-    is specified, this must be an initialised table collection. If not, it must
-    be an uninitialised table collection.
+@param tables A pointer to a tsk_table_collection_t object. If the TSK_NO_INIT
+option is specified, this must be an initialised table collection. If not, it must be an
+uninitialised table collection.
 @param options Bitwise option flags.
 @return Return 0 on success or a negative value on failure.
 */
@@ -676,7 +676,7 @@ const double *tsk_treeseq_get_breakpoints(const tsk_treeseq_t *self);
 
 @rst
 Returns an array of ids of sample nodes in this tree sequence.
-I.e. nodes that have the TSK_NODE_IS_SAMPLE flag set.
+I.e. nodes that have the :c:macro:`TSK_NODE_IS_SAMPLE` flag set.
 The array is owned by the tree sequence and should not be modified or free'd.
 @endrst
 
@@ -690,7 +690,7 @@ const tsk_id_t *tsk_treeseq_get_samples(const tsk_treeseq_t *self);
 
 @rst
 Returns the location of each node in the list of samples or
-TSK_NULL for nodes that are not samples.
+:c:macro:`TSK_NULL` for nodes that are not samples.
 @endrst
 
 @param self A pointer to a tsk_treeseq_t object.
@@ -1043,11 +1043,10 @@ valid for the full lifetime of the destination tree.
 
 **Options**
 
-TSK_NO_INIT
-    Do **not** initialise the destination tree
+- :c:macro:`TSK_NO_INIT`
 
-If TSK_NO_INIT is not specified, options supplied to :c:func:`tsk_tree_init`
-can be provided.
+If :c:macro:`TSK_NO_INIT` is not specified, options for :c:func:`tsk_tree_init`
+can be provided and will be passed on.
 
 @endrst
 
@@ -1417,11 +1416,11 @@ int tsk_tree_get_branch_length(
 
 /**
 @brief Computes the sum of the lengths of all branches reachable from
-    the specified node, or from all roots if u=TSK_NULL.
+    the specified node, or from all roots if ``u=TSK_NULL``.
 
 @rst
 Return the total branch length in a particular subtree or of the
-entire tree. If the specified node is TSK_NULL (or the
+entire tree. If the specified node is :c:macro:`TSK_NULL` (or the
 :ref:`virtual root<sec_data_model_tree_roots>`)
 the sum of the lengths of all branches reachable from roots
 is returned. Branch length is defined as difference between the time
@@ -1433,7 +1432,7 @@ leaf node is zero.
 @endrst
 
 @param self A pointer to a tsk_tree_t object.
-@param u The root of the subtree of interest, or TSK_NULL to return the
+@param u The root of the subtree of interest, or ``TSK_NULL`` to return the
     total branch length of the tree.
 @param ret_tbl A double pointer to store the returned total branch length.
 @return 0 on success or a negative value on failure.
@@ -1465,7 +1464,7 @@ int tsk_tree_get_num_samples(
 
 @rst
 If two nodes do not share a common ancestor in the current tree, the MRCA
-node is TSK_NULL.
+node is :c:macro:`TSK_NULL`.
 @endrst
 
 @param self A pointer to a tsk_tree_t object.
