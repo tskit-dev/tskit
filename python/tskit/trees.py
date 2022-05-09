@@ -2793,6 +2793,30 @@ class Tree:
         """
         return self._ll_tree.get_kc_distance(other._ll_tree, lambda_)
 
+    def sackin_index(self):
+        """
+        Returns the Sackin imbalance index for this tree. This is defined
+        as the sum of the depths of all leaves in the tree.
+        Equivalent to ``sum(tree.depth(u) for u in tree.leaves())``
+
+        .. seealso:: See `Shao and Sokal (1990)
+            <https://www.jstor.org/stable/2992186>`_ for details.
+
+        :return: The Sackin imbalance index.
+        :rtype: int
+        """
+        # TODO implement in C
+        stack = [(root, 0) for root in self.roots]
+        total_depth = 0
+        while len(stack) > 0:
+            u, depth = stack.pop()
+            if self.is_leaf(u):
+                total_depth += depth
+            else:
+                for v in self.children(u):
+                    stack.append((v, depth + 1))
+        return total_depth
+
     def split_polytomies(
         self,
         *,
