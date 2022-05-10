@@ -2826,17 +2826,7 @@ class Tree:
         :return: The Sackin imbalance index.
         :rtype: int
         """
-        # TODO implement in C
-        stack = [(root, 0) for root in self.roots]
-        total_depth = 0
-        while len(stack) > 0:
-            u, depth = stack.pop()
-            if self.is_leaf(u):
-                total_depth += depth
-            else:
-                for v in self.children(u):
-                    stack.append((v, depth + 1))
-        return total_depth
+        return self._ll_tree.get_sackin_index()
 
     def split_polytomies(
         self,

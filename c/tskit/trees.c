@@ -4644,6 +4644,65 @@ out:
     return ret;
 }
 
+/* Balance/imbalance metrics */
+
+/* Result is a tsk_size_t value here because we could imagine the total
+ * depth overflowing a 32bit integer for a large tree. */
+int
+tsk_tree_sackin_index(const tsk_tree_t *self, tsk_size_t *result)
+{
+    /* Keep the size of the stack elements to 8 bytes in total in the
+     * standard case. A tsk_id_t depth value is always safe, since
+     * depth counts the number of nodes encountered on a path.
+     */
+    struct stack_elem {
+        tsk_id_t node;
+        tsk_id_t depth;
+    };
+    int ret = 0;
+    const tsk_id_t *restrict right_child = self->right_child;
+    const tsk_id_t *restrict left_sib = self->left_sib;
+    struct stack_elem *stack
+        = tsk_malloc(tsk_tree_get_size_bound(self) * sizeof(*stack));
+    int stack_top;
+    tsk_size_t total_depth;
+    tsk_id_t u;
+    struct stack_elem s = { .node = TSK_NULL, .depth = 0 };
+
+    if (stack == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    stack_top = -1;
+    for (u = right_child[self->virtual_root]; u != TSK_NULL; u = left_sib[u]) {
+        stack_top++;
+        s.node = u;
+        stack[stack_top] = s;
+    }
+    total_depth = 0;
+    while (stack_top >= 0) {
+        s = stack[stack_top];
+        stack_top--;
+        u = right_child[s.node];
+        if (u == TSK_NULL) {
+            total_depth += (tsk_size_t) s.depth;
+        } else {
+            s.depth++;
+            while (u != TSK_NULL) {
+                stack_top++;
+                s.node = u;
+                stack[stack_top] = s;
+                u = left_sib[u];
+            }
+        }
+    }
+    *result = total_depth;
+out:
+    tsk_safe_free(stack);
+    return ret;
+}
+
 /* Parsimony methods */
 
 static inline uint64_t

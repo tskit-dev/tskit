@@ -6392,6 +6392,90 @@ test_genealogical_nearest_neighbours_errors(void)
 }
 
 static void
+test_single_tree_balance(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    tsk_size_t sackin;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_TREE_OK);
+
+    /* Balanced binary tree with 4 leaves */
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_sackin_index(&t, &sackin), 0);
+    CU_ASSERT_EQUAL(sackin, 8);
+
+    tsk_treeseq_free(&ts);
+    tsk_tree_free(&t);
+}
+
+static void
+test_multiroot_balance(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    tsk_size_t sackin;
+
+    tsk_treeseq_from_text(&ts, 10, multiroot_ex_nodes, multiroot_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_TREE_OK);
+
+    /* 0.80┊         10 */
+    /*     ┊         ┏┻┓ */
+    /* 0.40┊     9   ┃ ┃ */
+    /*     ┊   ┏━┻┓  ┃ ┃ */
+    /* 0.30┊   ┃  ┃  ┃ ┃ */
+    /*     ┊   ┃  ┃  ┃ ┃ */
+    /* 0.20┊   ┃  7  ┃ ┃ */
+    /*     ┊   ┃ ┏┻┓ ┃ ┃ */
+    /* 0.10┊   ┃ ┃ ┃ ┃ ┃ */
+    /*     ┊   ┃ ┃ ┃ ┃ ┃ */
+    /* 0.00┊ 5 2 3 4 0 1 */
+
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_sackin_index(&t, &sackin), 0);
+    CU_ASSERT_EQUAL(sackin, 7);
+
+    tsk_treeseq_free(&ts);
+    tsk_tree_free(&t);
+}
+
+static void
+test_empty_tree_balance(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    tsk_size_t sackin;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1.0;
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_TREE_OK);
+
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_sackin_index(&t, &sackin), 0);
+    CU_ASSERT_EQUAL(sackin, 0);
+
+    tsk_table_collection_free(&tables);
+    tsk_treeseq_free(&ts);
+    tsk_tree_free(&t);
+}
+
+static void
 test_tree_errors(void)
 {
     int ret;
@@ -7212,6 +7296,11 @@ main(int argc, char **argv)
         { "test_unequal_sequence_lengths_kc", test_unequal_sequence_lengths_kc },
         { "test_different_number_trees_kc", test_different_number_trees_kc },
         { "test_offset_trees_with_errors_kc", test_offset_trees_with_errors_kc },
+
+        /* Tree balance/imbalance index tests */
+        { "test_single_tree_balance", test_single_tree_balance },
+        { "test_multiroot_balance", test_multiroot_balance },
+        { "test_empty_tree_balance", test_empty_tree_balance },
 
         /* Misc */
         { "test_tree_errors", test_tree_errors },

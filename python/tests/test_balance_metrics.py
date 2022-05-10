@@ -152,6 +152,17 @@ class TestEmpty:
         assert self.tree().sackin_index() == 0
 
 
+class TestTreeInNullState:
+    @tests.cached_example
+    def tree(self):
+        tree = tskit.Tree.generate_comb(5)
+        tree.clear()
+        return tree
+
+    def test_sackin(self):
+        assert self.tree().sackin_index() == 0
+
+
 class TestAllRootsN5:
     @tests.cached_example
     def tree(self):
