@@ -2793,6 +2793,27 @@ class Tree:
         """
         return self._ll_tree.get_kc_distance(other._ll_tree, lambda_)
 
+    def path_length(self, u, v):
+        """
+        Returns the path length between two nodes
+        (i.e., the number of edges between two nodes in this tree).
+        If the two nodes have a most recent common ancestor, then this is defined as
+        ``tree.depth(u) + tree.depth(v) - 2 * tree.depth(tree.mrca(u, v))``. If the nodes
+        do not have an MRCA (i.e., they are in disconnected subtrees) the path length
+        is infinity.
+
+        .. seealso:: See also the :meth:`.depth` method
+
+        :param int u: The first node for path length computation.
+        :param int v: The second node for path length computation.
+        :return: The number of edges between the two nodes.
+        :rtype: int
+        """
+        mrca = self.mrca(u, v)
+        if mrca == -1:
+            return math.inf
+        return self.depth(u) + self.depth(v) - 2 * self.depth(mrca)
+
     def sackin_index(self):
         """
         Returns the Sackin imbalance index for this tree. This is defined
