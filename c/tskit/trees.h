@@ -1670,6 +1670,10 @@ int tsk_tree_map_mutations(tsk_tree_t *self, int32_t *genotypes, double *cost_ma
 int tsk_tree_kc_distance(
     const tsk_tree_t *self, const tsk_tree_t *other, double lambda, double *result);
 
+/* Don't document these balance metrics for now so it doesn't get in the way of
+ * C API 1.0, but should be straightforward to document based on Python docs. */
+int tsk_tree_sackin_index(const tsk_tree_t *self, tsk_size_t *result);
+
 /* Things to consider removing: */
 
 /* This is redundant, really */
