@@ -36,11 +36,44 @@ def sackin_index_definition(tree):
     return sum(tree.depth(u) for u in tree.leaves())
 
 
+def colless_index_definition(tree):
+    is_binary = all(
+        tree.num_children(u) == 2 for u in tree.nodes() if tree.is_internal(u)
+    )
+    if tree.num_roots != 1:
+        raise ValueError("Colless index not defined for multiroot trees")
+    if not is_binary:
+        raise ValueError("Colless index not defined for nonbinary trees")
+
+    return sum(
+        abs(
+            len(list(tree.leaves(tree.left_child(u))))
+            - len(list(tree.leaves(tree.right_child(u))))
+        )
+        for u in tree.nodes()
+        if tree.is_internal(u)
+    )
+
+
 class TestDefinitions:
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_sackin(self, ts):
         for tree in ts.trees():
             assert tree.sackin_index() == sackin_index_definition(tree)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_colless(self, ts):
+        for tree in ts.trees():
+            is_binary = all(
+                tree.num_children(u) == 2 for u in tree.nodes() if tree.is_internal(u)
+            )
+            if tree.num_roots != 1 or not is_binary:
+                with pytest.raises(ValueError):
+                    tree.colless_index()
+                with pytest.raises(ValueError):
+                    colless_index_definition(tree)
+            else:
+                assert tree.colless_index() == colless_index_definition(tree)
 
 
 class TestBalancedBinaryOdd:
@@ -50,13 +83,15 @@ class TestBalancedBinaryOdd:
     #     ┊ ┃ ┏┻┓ ┊
     # 0.00┊ 0 1 2 ┊
     #     0      1
-
     @tests.cached_example
     def tree(self):
         return tskit.Tree.generate_balanced(3)
 
     def test_sackin(self):
         assert self.tree().sackin_index() == 5
+
+    def test_colless(self):
+        assert self.tree().colless_index() == 1
 
 
 class TestBalancedBinaryEven:
@@ -66,13 +101,15 @@ class TestBalancedBinaryEven:
     #     ┊ ┏┻┓ ┏┻┓ ┊
     # 0.00┊ 0 1 2 3 ┊
     #     0         1
-
     @tests.cached_example
     def tree(self):
         return tskit.Tree.generate_balanced(4)
 
     def test_sackin(self):
         assert self.tree().sackin_index() == 8
+
+    def test_colless(self):
+        assert self.tree().colless_index() == 0
 
 
 class TestBalancedTernary:
@@ -89,6 +126,10 @@ class TestBalancedTernary:
     def test_sackin(self):
         assert self.tree().sackin_index() == 18
 
+    def test_colless(self):
+        with pytest.raises(ValueError):
+            self.tree().colless_index()
+
 
 class TestStarN10:
     # 1.00┊         10          ┊
@@ -101,6 +142,10 @@ class TestStarN10:
 
     def test_sackin(self):
         assert self.tree().sackin_index() == 10
+
+    def test_colless(self):
+        with pytest.raises(ValueError):
+            self.tree().colless_index()
 
 
 class TestCombN5:
@@ -121,25 +166,35 @@ class TestCombN5:
     def test_sackin(self):
         assert self.tree().sackin_index() == 14
 
+    def test_colless(self):
+        assert self.tree().colless_index() == 6
 
-class TestMultiRoot:
-    #
-    # 1.00┊   9    10    11   ┊
-    #     ┊ ┏━╋━┓ ┏━╋━┓ ┏━╋━┓ ┊
+
+class TestMultiRootBinary:
+    # 3.00┊            15     ┊
+    #     ┊          ┏━━┻━┓   ┊
+    # 2.00┊   11     ┃   14   ┊
+    #     ┊  ┏━┻━┓   ┃  ┏━┻┓  ┊
+    # 1.00┊  9  10  12  ┃ 13  ┊
+    #     ┊ ┏┻┓ ┏┻┓ ┏┻┓ ┃ ┏┻┓ ┊
     # 0.00┊ 0 1 2 3 4 5 6 7 8 ┊
     #     0                   1
     @tests.cached_example
     def tree(self):
-        tables = tskit.Tree.generate_balanced(9, arity=3).tree_sequence.dump_tables()
+        tables = tskit.Tree.generate_balanced(9, arity=2).tree_sequence.dump_tables()
         edges = tables.edges.copy()
         tables.edges.clear()
         for edge in edges:
-            if edge.parent != 12:
+            if edge.parent != 16:
                 tables.edges.append(edge)
         return tables.tree_sequence().first()
 
     def test_sackin(self):
-        assert self.tree().sackin_index() == 9
+        assert self.tree().sackin_index() == 20
+
+    def test_colless(self):
+        with pytest.raises(ValueError):
+            self.tree().colless_index()
 
 
 class TestEmpty:
@@ -150,6 +205,10 @@ class TestEmpty:
 
     def test_sackin(self):
         assert self.tree().sackin_index() == 0
+
+    def test_colless(self):
+        with pytest.raises(ValueError):
+            self.tree().colless_index()
 
 
 class TestTreeInNullState:
@@ -173,3 +232,7 @@ class TestAllRootsN5:
 
     def test_sackin(self):
         assert self.tree().sackin_index() == 0
+
+    def test_colless(self):
+        with pytest.raises(ValueError):
+            self.tree().colless_index()
