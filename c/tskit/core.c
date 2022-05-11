@@ -183,9 +183,6 @@ tsk_strerror_internal(int err)
         case TSK_ERR_BAD_OFFSET:
             ret = "Bad offset provided in input array";
             break;
-        case TSK_ERR_OUT_OF_BOUNDS:
-            ret = "Object reference out of bounds";
-            break;
         case TSK_ERR_NODE_OUT_OF_BOUNDS:
             ret = "Node out of bounds";
             break;
@@ -338,7 +335,7 @@ tsk_strerror_internal(int err)
             ret = "Table too large; cannot allocate more than 2**31 rows.";
             break;
         case TSK_ERR_COLUMN_OVERFLOW:
-            ret = "Table column too large; cannot be more than 2**32 bytes.";
+            ret = "Table column too large; cannot be more than 2**64 bytes.";
             break;
         case TSK_ERR_TREE_OVERFLOW:
             ret = "Too many trees; cannot be more than 2**31.";
@@ -349,16 +346,14 @@ tsk_strerror_internal(int err)
 
         /* Limitations */
         case TSK_ERR_ONLY_INFINITE_SITES:
-            ret = "Only infinite sites mutations are supported for this operation";
+            ret = "Only infinite sites mutations are supported for this operation, "
+                  "i.e. at most a single mutation per site.";
             break;
         case TSK_ERR_SIMPLIFY_MIGRATIONS_NOT_SUPPORTED:
             ret = "Migrations not currently supported by simplify";
             break;
         case TSK_ERR_SORT_MIGRATIONS_NOT_SUPPORTED:
             ret = "Migrations not currently supported by sort";
-            break;
-        case TSK_ERR_MIGRATIONS_NOT_SUPPORTED:
-            ret = "Migrations not currently supported by this operation";
             break;
         case TSK_ERR_SORT_OFFSET_NOT_SUPPORTED:
             ret = "Sort offsets for sites and mutations must be either 0 "
@@ -367,6 +362,9 @@ tsk_strerror_internal(int err)
             break;
         case TSK_ERR_NONBINARY_MUTATIONS_UNSUPPORTED:
             ret = "Only binary mutations are supported for this operation";
+            break;
+        case TSK_ERR_MIGRATIONS_NOT_SUPPORTED:
+            ret = "Migrations not currently supported by this operation";
             break;
         case TSK_ERR_CANNOT_EXTEND_FROM_SELF:
             ret = "Tables can only be extended using rows from a different table";
@@ -430,18 +428,18 @@ tsk_strerror_internal(int err)
             break;
 
         /* Genotype decoding errors */
-        case TSK_ERR_TOO_MANY_ALLELES:
-            ret = "Cannot have more than 127 alleles";
-            break;
-        case TSK_ERR_ZERO_ALLELES:
-            ret = "Must have at least one allele when specifying an allele map";
-            break;
         case TSK_ERR_MUST_IMPUTE_NON_SAMPLES:
             ret = "Cannot generate genotypes for non-samples when isolated nodes are "
                   "considered as missing";
             break;
         case TSK_ERR_ALLELE_NOT_FOUND:
             ret = "An allele was not found in the user-specified allele map";
+            break;
+        case TSK_ERR_TOO_MANY_ALLELES:
+            ret = "Cannot have more than 2147483647 alleles";
+            break;
+        case TSK_ERR_ZERO_ALLELES:
+            ret = "Must have at least one allele when specifying an allele map";
             break;
 
         /* Distance metric errors */
@@ -508,7 +506,8 @@ tsk_strerror_internal(int err)
 
         /* Simplify errors */
         case TSK_ERR_KEEP_UNARY_MUTUALLY_EXCLUSIVE:
-            ret = "You cannot specify both KEEP_UNARY and KEEP_UNARY_IN_INDIVDUALS.";
+            ret = "You cannot specify both TSK_SIMPLIFY_KEEP_UNARY and "
+                  "TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVDUALS.";
             break;
 
         /* Individual errors */

@@ -575,12 +575,12 @@ test_single_tree_errors(void)
 
     samples[0] = -1;
     ret = tsk_vargen_init(&vargen, &ts, samples, 2, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
     tsk_vargen_free(&vargen);
 
     samples[0] = 7;
     ret = tsk_vargen_init(&vargen, &ts, samples, 2, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
     tsk_vargen_free(&vargen);
 
     samples[0] = 3;
@@ -945,7 +945,7 @@ test_variant_decode_errors(void)
 
     /* Bad samples */
     ret = tsk_variant_init(&var, &ts, bad_samples, 3, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
     tsk_variant_free(&var);
 
     /* Site out of bounds */

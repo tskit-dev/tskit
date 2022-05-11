@@ -271,9 +271,9 @@ test_single_tree_errors(void)
     forward.tree_sequence = &ts;
 
     ret = tsk_compressed_matrix_store_site(&forward, 3, 0, 0, NULL);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
     ret = tsk_compressed_matrix_store_site(&forward, 4, 0, 0, NULL);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
 
     T[0].tree_node = -1;
     T[0].value = 0;

@@ -27,6 +27,11 @@
 
   (:user:`benjeffery`, :issue:`1720`, :pr:`2226`, :pr:`2229`, :pr:`2224`)
 
+- Remove the generic ``TSK_ERR_OUT_OF_BOUNDS`` - replacing with specific errors.
+  Remove ``TSK_ERR_NON_SINGLE_CHAR_MUTATION`` which was unused.
+  (:user:`benjeffery`, :pr:`2260`)
+
+
 **Features**
 
 - Make dumping of tables and tree sequences to disk a zero-copy operation.
