@@ -133,17 +133,17 @@ The library major version. Incremented when breaking changes to the API or ABI a
 introduced. This includes any changes to the signatures of functions and the
 sizes and types of externally visible structs.
 */
-#define TSK_VERSION_MAJOR   0
+#define TSK_VERSION_MAJOR   1
 /**
-The library major version. Incremented when non-breaking backward-compatible changes
+The library minor version. Incremented when non-breaking backward-compatible changes
 to the API or ABI are introduced, i.e., the addition of a new function.
 */
-#define TSK_VERSION_MINOR   99
+#define TSK_VERSION_MINOR   0
 /**
 The library patch version. Incremented when any changes not relevant to the
 to the API or ABI are introduced, i.e., internal refactors of bugfixes.
 */
-#define TSK_VERSION_PATCH   15
+#define TSK_VERSION_PATCH   0
 /** @} */
 
 /*

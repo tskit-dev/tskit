@@ -1,6 +1,8 @@
 ----------------------
-[0.99.16] - 2022-0X-XX
+[1.0.0b1] - 2022-05-11
 ----------------------
+
+##BETA RELEASE
 
 **Breaking changes**
 
@@ -12,7 +14,6 @@
 
 - Rename TSK_TAKE_TABLES to TSK_TAKE_OWNERSHIP.
   (:user:`benjeffery`, :issue:`2221`, :pr:`2222`)
-
 
 - ``TSK_DEBUG``, ``TSK_NO_INIT``, ``TSK_NO_CHECK_INTEGRITY`` and ``TSK_TAKE_OWNERSHIP`` have moved to ``core.h``
   (:user:`benjeffery`, :issue:`2218`, :pr:`2230`))
