@@ -707,9 +707,121 @@ File format errors
 .. doxygengroup:: FILE_FORMAT_ERROR_GROUP
         :content-only:
 
+--------------------
+Out-of-bounds errors
+--------------------
 
-.. todo:: Add in groups for rest of the error types and document.
+.. doxygengroup:: OOB_ERROR_GROUP
+        :content-only:
 
+-----------
+Edge errors
+-----------
+
+.. doxygengroup:: EDGE_ERROR_GROUP
+        :content-only:
+
+
+-----------
+Site errors
+-----------
+
+.. doxygengroup:: SITE_ERROR_GROUP
+        :content-only:
+
+
+---------------
+Mutation errors
+---------------
+
+.. doxygengroup:: MUTATION_ERROR_GROUP
+        :content-only:
+
+
+----------------
+Migration errors
+----------------
+
+.. doxygengroup:: MIGRATION_ERROR_GROUP
+        :content-only:
+
+-------------
+Sample errors
+-------------
+
+.. doxygengroup:: SAMPLE_ERROR_GROUP
+        :content-only:
+
+------------
+Table errors
+------------
+
+.. doxygengroup:: TABLE_ERROR_GROUP
+        :content-only:
+
+------------
+Stats errors
+------------
+
+.. doxygengroup:: STATS_ERROR_GROUP
+        :content-only:
+
+-----------------------
+Mutation mapping errors
+-----------------------
+
+.. doxygengroup:: MAPPING_ERROR_GROUP
+        :content-only:
+
+------------------------
+Genotype decoding errors
+------------------------
+
+.. doxygengroup:: GENOTYPE_ERROR_GROUP
+        :content-only:
+
+----------------------
+Distance metric errors
+----------------------
+
+.. doxygengroup:: DISTANCE_ERROR_GROUP
+        :content-only:
+
+-------------------------
+Haplotype matching errors
+-------------------------
+
+.. doxygengroup:: HAPLOTYPE_ERROR_GROUP
+        :content-only:
+
+------------
+Union errors
+------------
+
+.. doxygengroup:: UNION_ERROR_GROUP
+        :content-only:
+
+----------
+IBD errors
+----------
+
+.. doxygengroup:: IBD_ERROR_GROUP
+        :content-only:
+
+
+---------------
+Simplify errors
+---------------
+
+.. doxygengroup:: SIMPLIFY_ERROR_GROUP
+        :content-only:
+
+-----------------
+Individual errors
+-----------------
+
+.. doxygengroup:: INDIVIDUAL_ERROR_GROUP
+        :content-only:
 
 
 .. _sec_c_api_examples:
