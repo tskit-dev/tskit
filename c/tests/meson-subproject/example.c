@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2020 Tskit Developers
+ * Copyright (c) 2019-2022 Tskit Developers
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -43,7 +43,7 @@ test_strerror()
 {
     printf("test_strerror\n");
     const char *str = tsk_strerror(TSK_ERR_NO_MEMORY);
-    assert(strcmp(str, "Out of memory") == 0);
+    assert(strcmp(str, "Out of memory. (TSK_ERR_NO_MEMORY)") == 0);
 }
 
 void
