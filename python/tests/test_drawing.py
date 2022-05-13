@@ -116,7 +116,7 @@ class TestTreeDraw:
 
     def get_mutations_over_roots_tree(self):
         ts = msprime.simulate(15, random_seed=1)
-        ts = tsutil.decapitate(ts, 20)
+        ts = ts.decapitate(ts.tables.nodes.time[-1] / 2)
         tables = ts.dump_tables()
         delta = 1.0 / (ts.num_nodes + 1)
         x = 0

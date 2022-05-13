@@ -1703,7 +1703,8 @@ class TestAlignmentsErrors:
 class TestAlignmentExamples:
     @pytest.mark.parametrize("ts", get_example_discrete_genome_tree_sequences())
     def test_defaults(self, ts):
-        if any(tree.num_roots > 1 for tree in ts.trees()):
+        has_missing_data = np.any(ts.genotype_matrix() == -1)
+        if has_missing_data:
             with pytest.raises(ValueError, match="1896"):
                 list(ts.alignments())
         else:
@@ -1721,7 +1722,8 @@ class TestAlignmentExamples:
     @pytest.mark.parametrize("ts", get_example_discrete_genome_tree_sequences())
     def test_reference_sequence(self, ts):
         ref = tskit.random_nucleotides(ts.sequence_length, seed=1234)
-        if any(tree.num_roots > 1 for tree in ts.trees()):
+        has_missing_data = np.any(ts.genotype_matrix() == -1)
+        if has_missing_data:
             with pytest.raises(ValueError, match="1896"):
                 list(ts.alignments(reference_sequence=ref))
         else:

@@ -581,8 +581,8 @@ class TopologyExamplesMixin:
         self.verify(ts)
 
     def test_single_tree_multiple_roots(self):
-        ts = msprime.simulate(8, random_seed=1)
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = msprime.simulate(8, random_seed=1, end_time=0.5)
+        assert ts.first().num_roots > 1
         self.verify(ts)
 
     def test_many_trees(self):

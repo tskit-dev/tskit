@@ -76,24 +76,6 @@ def subsample_sites(ts, num_sites):
     return t.tree_sequence()
 
 
-def decapitate(ts, num_edges):
-    """
-    Returns a copy of the specified tree sequence in which the specified number of
-    edges have been retained.
-    """
-    t = ts.dump_tables()
-    t.edges.set_columns(
-        left=t.edges.left[:num_edges],
-        right=t.edges.right[:num_edges],
-        parent=t.edges.parent[:num_edges],
-        child=t.edges.child[:num_edges],
-    )
-    add_provenance(t.provenances, "decapitate")
-    # Simplify to get rid of any mutations that are lying around above roots.
-    t.simplify()
-    return t.tree_sequence()
-
-
 def insert_branch_mutations(ts, mutations_per_branch=1):
     """
     Returns a copy of the specified tree sequence with a mutation on every branch

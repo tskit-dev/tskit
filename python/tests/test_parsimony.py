@@ -678,17 +678,17 @@ class TestParsimonyRoundTrip(TestParsimonyBase):
 
     def test_infinite_sites_n20_multiroot(self):
         ts = msprime.simulate(20, mutation_rate=3, random_seed=3)
-        self.verify(tsutil.decapitate(ts, ts.num_edges // 2))
+        self.verify(ts.decapitate(np.max(ts.tables.nodes.time) / 2))
 
     def test_jukes_cantor_n15_multiroot(self):
         ts = msprime.simulate(15, random_seed=1)
-        ts = tsutil.decapitate(ts, ts.num_edges // 3)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 5)
         ts = tsutil.jukes_cantor(ts, 15, 2, seed=3)
         self.verify(ts)
 
     def test_jukes_cantor_balanced_ternary_multiroot(self):
         ts = tskit.Tree.generate_balanced(50, arity=3).tree_sequence
-        ts = tsutil.decapitate(ts, ts.num_edges // 3)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 3)
         ts = tsutil.jukes_cantor(ts, 15, 2, seed=3)
         self.verify(ts)
         assert ts.num_sites > 1
@@ -696,7 +696,7 @@ class TestParsimonyRoundTrip(TestParsimonyBase):
 
     def test_jukes_cantor_n50_multiroot(self):
         ts = msprime.simulate(50, random_seed=1)
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         ts = tsutil.jukes_cantor(ts, 5, 2, seed=2)
         self.verify(ts)
 
@@ -1389,7 +1389,7 @@ class TestParsimonyExamplesAncestralState(TestParsimonyBase):
 
     def test_all_isolated_different_from_ancestral(self):
         ts = tskit.Tree.generate_star(6).tree_sequence
-        ts = tsutil.decapitate(ts, 0)
+        ts = ts.decapitate(0)
         tree = ts.first()
         genotypes = [0, 0, 0, 1, 1, 1]
         ancestral_state, transitions = self.do_map_mutations(
