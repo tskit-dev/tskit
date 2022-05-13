@@ -2256,7 +2256,7 @@ class TestTreeSequence(HighLevelTestCase):
 
             # Tables not in tc not rebuilt as per default, so error
             with pytest.raises(
-                _tskit.LibraryError, match="^Table collection must be indexed$"
+                _tskit.LibraryError, match="Table collection must be indexed"
             ):
                 assert tskit.TreeSequence.load_tables(tables).dump_tables().has_index()
 

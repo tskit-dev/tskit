@@ -1,6 +1,6 @@
 /* * MIT License
  *
- * Copyright (c) 2019-2021 Tskit Developers
+ * Copyright (c) 2019-2022 Tskit Developers
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -50,7 +50,7 @@ test_strerror()
     std::cout << "test_strerror" << endl;
     std::ostringstream o;
     o << tsk_strerror(TSK_ERR_NO_MEMORY);
-    assert(std::string("Out of memory").compare(o.str()) == 0);
+    assert(std::string("Out of memory. (TSK_ERR_NO_MEMORY)").compare(o.str()) == 0);
 }
 
 void

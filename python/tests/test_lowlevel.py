@@ -1080,8 +1080,8 @@ class TestTableMethodsErrors:
         ts = _tskit.TreeSequence()
         with pytest.raises(
             _tskit.LibraryError,
-            match="^Bad edges: contradictory children for a given"
-            " parent over an interval$",
+            match="Bad edges: contradictory children for a given"
+            " parent over an interval",
         ):
             ts.load_tables(tc, build_indexes=False)
 
@@ -1089,7 +1089,7 @@ class TestTableMethodsErrors:
         modify_indexes["edge_removal_order"] = np.full(shape, 2**30, dtype=np.int32)
         tc.indexes = modify_indexes
         ts = _tskit.TreeSequence()
-        with pytest.raises(_tskit.LibraryError, match="^Edge out of bounds$"):
+        with pytest.raises(_tskit.LibraryError, match="Edge out of bounds"):
             ts.load_tables(tc, build_indexes=False)
 
 
