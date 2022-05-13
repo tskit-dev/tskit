@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2019-2021 Tskit Developers
+# Copyright (c) 2019-2022 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,7 @@
 Tests for the various testing utilities.
 """
 import msprime
+import numpy as np
 import pytest
 
 import tests.tsutil as tsutil
@@ -43,13 +44,13 @@ class TestJukesCantor:
 
     def test_n10_multiroot(self):
         ts = msprime.simulate(10, random_seed=1)
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         ts = tsutil.jukes_cantor(ts, 1, 2, seed=7)
         self.verify(ts)
 
     def test_n50_multiroot(self):
         ts = msprime.simulate(50, random_seed=1)
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         ts = tsutil.jukes_cantor(ts, 5, 2, seed=2)
         self.verify(ts)
 

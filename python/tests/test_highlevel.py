@@ -266,11 +266,11 @@ def get_decapitated_examples():
     Returns example tree sequences in which the oldest edges have been removed.
     """
     ts = msprime.simulate(10, random_seed=1234)
-    yield tsutil.decapitate(ts, ts.num_edges // 2)
+    yield ts.decapitate(ts.tables.nodes.time[-1] / 2)
 
     ts = msprime.simulate(20, recombination_rate=1, random_seed=1234)
     assert ts.num_trees > 2
-    yield tsutil.decapitate(ts, ts.num_edges // 4)
+    yield ts.decapitate(ts.tables.nodes.time[-1] / 4)
 
 
 def get_example_tree_sequences(back_mutations=True, gaps=True, internal_samples=True):
@@ -3622,7 +3622,7 @@ class TestTree(HighLevelTestCase):
 
     def test_copy_multiple_roots(self):
         ts = msprime.simulate(20, recombination_rate=2, length=3, random_seed=42)
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         for root_threshold in [1, 2, 100]:
             tree = tskit.Tree(ts, root_threshold=root_threshold)
             copy = tree.copy()

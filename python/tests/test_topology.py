@@ -315,12 +315,12 @@ class ExampleTopologyMixin:
     def test_many_multiroot_trees(self):
         ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
         assert ts.num_trees > 3
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         self.verify(ts)
 
     def test_multiroot_tree(self):
         ts = msprime.simulate(15, random_seed=10)
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         self.verify(ts)
 
     def test_all_missing_data(self):
@@ -4832,7 +4832,7 @@ class TestSimplify(SimplifyTestBase):
             assert t1.mutations == t2.mutations
 
     def verify_multiroot_internal_samples(self, ts, keep_unary=False):
-        ts_multiroot = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts_multiroot = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         ts1 = tsutil.jiggle_samples(ts_multiroot)
         ts2, node_map = self.do_simplify(ts1, keep_unary=keep_unary)
         assert ts1.num_trees >= ts2.num_trees
@@ -5556,7 +5556,7 @@ class TestSimplify(SimplifyTestBase):
 
     def test_single_multiroot_tree_recurrent_mutations(self):
         ts = msprime.simulate(6, random_seed=10)
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         for mutations_per_branch in [1, 2, 3]:
             ts = tsutil.insert_branch_mutations(ts, mutations_per_branch)
             for num_samples in range(1, ts.num_samples):
@@ -5567,7 +5567,7 @@ class TestSimplify(SimplifyTestBase):
     def test_many_multiroot_trees_recurrent_mutations(self):
         ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
         assert ts.num_trees > 3
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         for mutations_per_branch in [1, 2, 3]:
             ts = tsutil.insert_branch_mutations(ts, mutations_per_branch)
             for num_samples in range(1, ts.num_samples):
@@ -5716,7 +5716,7 @@ class TestSimplifyKeepInputRoots(SimplifyTestBase, ExampleTopologyMixin):
     def test_many_multiroot_trees(self):
         ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
         assert ts.num_trees > 3
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         for num_samples in range(1, ts.num_samples):
             for samples in itertools.combinations(ts.samples(), num_samples):
                 self.verify_keep_input_roots(ts, samples)
@@ -6051,7 +6051,7 @@ class TestMapToAncestors:
     def test_sim_many_multiroot_trees(self):
         ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
         assert ts.num_trees > 3
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         ancestors = [4 * n for n in np.arange(0, ts.num_nodes // 4)]
         self.verify(ts, ts.samples(), ancestors)
         random_samples = [4 * n for n in np.arange(0, ts.num_nodes // 4)]
@@ -6189,14 +6189,14 @@ class TestMutationParent:
 
     def test_single_multiroot_tree_recurrent_mutations(self):
         ts = msprime.simulate(6, random_seed=10)
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         for mutations_per_branch in [1, 2, 3]:
             self.verify_branch_mutations(ts, mutations_per_branch)
 
     def test_many_multiroot_trees_recurrent_mutations(self):
         ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
         assert ts.num_trees > 3
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         for mutations_per_branch in [1, 2, 3]:
             self.verify_branch_mutations(ts, mutations_per_branch)
 
@@ -6328,14 +6328,14 @@ class TestMutationTime:
 
     def test_single_multiroot_tree_recurrent_mutations(self):
         ts = msprime.simulate(6, random_seed=10)
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         for mutations_per_branch in [1, 2, 3]:
             self.verify_branch_mutations(ts, mutations_per_branch)
 
     def test_many_multiroot_trees_recurrent_mutations(self):
         ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
         assert ts.num_trees > 3
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         for mutations_per_branch in [1, 2, 3]:
             self.verify_branch_mutations(ts, mutations_per_branch)
 
@@ -7109,13 +7109,6 @@ class TestReduceTopology:
         mts = ts.simplify(reduce_to_site_topology=True)
         assert mts.num_trees == 1
         assert mts.num_edges == 0
-
-    def test_many_roots(self):
-        ts = msprime.simulate(25, random_seed=12, recombination_rate=2, length=10)
-        tables = tsutil.decapitate(ts, ts.num_edges // 2).dump_tables()
-        for x in range(10):
-            tables.sites.add_row(x, "0")
-        self.verify(tables.tree_sequence())
 
     def test_branch_sites(self):
         ts = msprime.simulate(15, random_seed=12, recombination_rate=2, length=10)
