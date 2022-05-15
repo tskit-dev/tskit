@@ -1,2 +1,2 @@
 numpy<1.21.4 #Pinned as we get compatibility warnings.
-msprime==1.1.1
+msprime==1.2.0

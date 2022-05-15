@@ -6,11 +6,11 @@ queue_rules:
       - status-success=Docs
       - status-success=Lint
       - status-success=Python (3.7, macos-latest)
-      - status-success=Python (3.9, macos-latest)
+      - status-success=Python (3.10, macos-latest)
       - status-success=Python (3.7, ubuntu-latest)
-      - status-success=Python (3.9, ubuntu-latest)
+      - status-success=Python (3.10, ubuntu-latest)
       - status-success=Python (3.7, windows-latest)
-      - status-success=Python (3.9, windows-latest)
+      - status-success=Python (3.10, windows-latest)
       - "status-success=ci/circleci: build"
 pull_request_rules:
   - name: Automatic rebase, CI and merge
@@ -23,11 +23,11 @@ pull_request_rules:
       - status-success=Docs
       - status-success=Lint
       - status-success=Python (3.7, macos-latest)
-      - status-success=Python (3.9, macos-latest)
+      - status-success=Python (3.10, macos-latest)
       - status-success=Python (3.7, ubuntu-latest)
-      - status-success=Python (3.9, ubuntu-latest)
+      - status-success=Python (3.10, ubuntu-latest)
       - status-success=Python (3.7, windows-latest)
-      - status-success=Python (3.9, windows-latest)
+      - status-success=Python (3.10, windows-latest)
       - "status-success=ci/circleci: build"
       #- status-success=codecov/patch
       #- status-success=codecov/project/c-tests
@@ -58,11 +58,11 @@ pull_request_rules:
       - status-success=Docs
       - status-success=Lint
       - status-success=Python (3.7, macos-latest)
-      - status-success=Python (3.9, macos-latest)
+      - status-success=Python (3.10, macos-latest)
       - status-success=Python (3.7, ubuntu-latest)
-      - status-success=Python (3.9, ubuntu-latest)
+      - status-success=Python (3.10, ubuntu-latest)
       - status-success=Python (3.7, windows-latest)
-      - status-success=Python (3.9, windows-latest)
+      - status-success=Python (3.10, windows-latest)
       - "status-success=ci/circleci: build"
       - "status-success=ci/circleci: build-32"
       - status-success=codecov/patch
