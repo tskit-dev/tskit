@@ -388,15 +388,6 @@ out:
     return ret;
 }
 
-/* TODO we need flags to be able to control how the input table is used.
- * - The default behaviour is to take a copy. TSK_TS_INIT_BUILD_INDEXES is allowed
- *   in this case because we have an independent copy.
- * - Need an option to take 'ownership' of the tables so that we keep the
- *   tables and free them at the end of the treeseq's lifetime. This will be
- *   used in tsk_treeseq_load below where we can avoid copying the tree sequence.
- * - We should also allow a read-only "borrowed reference" where we use the
- *   tables directly, but don't free it at the end.
- */
 int TSK_WARN_UNUSED
 tsk_treeseq_init(
     tsk_treeseq_t *self, tsk_table_collection_t *tables, tsk_flags_t options)
