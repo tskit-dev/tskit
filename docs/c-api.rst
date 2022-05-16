@@ -32,6 +32,31 @@ is generally more useful. Python is *much* more convenient that C,
 and since the ``tskit`` Python module is essentially a wrapper for this
 C library, there's often no real performance penalty for using it.
 
+----------------------
+API stability contract
+----------------------
+
+Since the C API 1.0 release we pledge to make **no** breaking changes
+to the documented API in subsequent releases in the 1.0 series.
+What this means is that any code that compiles under the 1.0 release
+should also compile without changes in subsequent 1.x releases. We
+will not change the semantics of documented functions,  unless it is to
+fix clearly buggy behaviour. We will not change the values of macro
+constants.
+
+Undocumented functions do not have this guarantee, and may be changed
+arbitrarily between releases.
+
+.. note::
+    We do not currently make any guarantees about
+    `ABI <https://en.wikipedia.org/wiki/Application_binary_interface>`__
+    stability, since the primary use-case is for tskit to be embedded
+    within another application rather than used as a shared library. If you
+    do intend to use tskit as a shared library and ABI stability is
+    therefore imporant to you, please let us know and we can plan
+    accordingly.
+
+
 .. _sec_c_api_overview_structure:
 
 -------------
