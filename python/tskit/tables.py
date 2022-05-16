@@ -770,21 +770,10 @@ class MetadataColumnMixin:
 
         if isinstance(key, list):
             out = np.array(
-                [
-                    reduce(
-                        getter,
-                        key,
-                        row.metadata,
-                    )
-                    for row in self
-                ],
-                dtype=dtype,
+                [reduce(getter, key, row.metadata,) for row in self], dtype=dtype,
             )
         else:
-            out = np.array(
-                [getter(row.metadata, key) for row in self],
-                dtype=dtype,
-            )
+            out = np.array([getter(row.metadata, key) for row in self], dtype=dtype,)
         return out
 
 
@@ -2999,8 +2988,7 @@ class TableCollection(metadata.MetadataProvider):
     def name_map(self) -> Dict:
         # Deprecated in 0.4.1
         warnings.warn(
-            "name_map is deprecated; use table_name_map instead",
-            FutureWarning,
+            "name_map is deprecated; use table_name_map instead", FutureWarning,
         )
         return self.table_name_map
 
@@ -3861,6 +3849,54 @@ class TableCollection(metadata.MetadataProvider):
             self.provenances.add_row(
                 record=json.dumps(provenance.get_provenance_dict(parameters))
             )
+
+    def split_edges(self, time, *, flags=None, metadata=None, population=None):
+        """
+        Replace any edge ``(left, right, parent, child)`` in which
+        ``node_time[child] < time < node_time[parent]`` with two edges
+        ``(left, rignt, parent, u)`` and ``(left, right, u, child)``,
+        where ``u`` is a newly added node for each intersecting edge. If
+        ``metadata`` or ``population`` are specified, newly added nodes will be
+        assigned these values. Otherwise, default values will be used. If a
+        metadata schema is defined for the node table, the empty dictionary
+        will be used by default for the new node when calling
+        :meth:`.NodeTable.add_row`; otherwise, an empty byte string.
+
+        Any metadata associated with the edge will be copied to the new edge.
+
+        The population value for the new node will be derived from the
+        population of the edge's child.
+
+        .. warning:: This method currently does not support migrations
+            and a ValueError will be raised if the migration table is not
+            empty. Future versions may take migrations that intersect with the
+            edge into account when determining the default population
+            assignments for new nodes.
+
+        Newly added nodes will have a ``flags`` value of 0, if not specified.
+
+        Any mutations lying on the edge whose time is >= ``time`` will have
+        their node value set to ``u``. Note that the time of the mutation is
+        defined as the time of the child node if the mutation's time is
+        unknown.
+        """
+        default_population = population == None
+        flags = 0 if flags is None else flags
+        node_time = self.tables.nodes.time
+        node_population = self.tables.nodes.population
+        edges = self.edges.copy()
+        self.edges.clear()
+        for edge in edges:
+            if node_time[edge.child] < time < node_time[edge.parent]:
+                if default_population:
+                    population = node_population[edge.child]
+                u = self.nodes.add_row(
+                    flags=flags, time=time, population=population, metadata=metadata)
+                self.edges.append(edge.replace(parent=u))
+                self.edges.append(edge.replace(child=u))
+            else:
+                self.edges.append(edge)
+
 
     def decapitate(self, time, *, record_provenance=True):
         """

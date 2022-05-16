@@ -531,3 +531,33 @@ class TestDecapitateInterface:
             tables.tree_sequence()
         with pytest.raises(tskit.LibraryError, match="order violated"):
             tables.decapitate(1)
+
+
+class TestSplitEdgesSimpleTree:
+
+    # 2.00┊   4   ┊
+    #     ┊ ┏━┻┓  ┊
+    # 1.00┊ ┃  3  ┊
+    #     ┊ ┃ ┏┻┓ ┊
+    # 0.00┊ 0 1 2 ┊
+    #     0       1
+    def tables(self):
+        # Don't cache this because we modify the result!
+        tree = tskit.Tree.generate_balanced(6, branch_length=1)
+        print(tree.tree_sequence.draw_text())
+        return tree.tree_sequence.dump_tables()
+
+    @pytest.mark.parametrize("time", [0.1, 0.5, 0.9)
+    def test_lowest_branches(self, time):
+        tables = self.tables()
+        # before = tables.copy()
+        # tables.decapitate(time)
+        # ts = tables.tree_sequence()
+        # assert ts.num_trees == 1
+        # tree = ts.first()
+        # assert tree.num_roots == 3
+        # assert list(sorted(tree.roots)) == [0, 1, 2]
+        # assert before.nodes.equals(tables.nodes[: len(before.nodes)])
+        # assert len(tables.edges) == 0
+
+
