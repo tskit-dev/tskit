@@ -5949,6 +5949,70 @@ class TreeSequence:
         tables.decapitate(time, record_provenance=record_provenance)
         return tables.tree_sequence()
 
+    def split_edges(self, time, *, flags=None, metadata=None, population=None):
+        """
+        Returns a copy of this tree sequence in which we replace any
+        edge ``(left, right, parent, child)`` in which
+        ``node_time[child] < time < node_time[parent]`` with two edges
+        ``(left, right, parent, u)`` and ``(left, right, u, child)``,
+        where ``u`` is a newly added node for each intersecting edge. If
+        ``metadata`` or ``population`` are specified, newly added nodes will be
+        assigned these values. Otherwise, default values will be used. If a
+        metadata schema is defined for the node table, the empty dictionary
+        will be used by default for the new node when calling
+        :meth:`.NodeTable.add_row`; otherwise, an empty byte string.
+
+        Any metadata associated with the edge will be copied to the new edge.
+
+        The population value for the new node will be derived from the
+        population of the edge's child.
+
+        .. warning:: This method currently does not support migrations
+            and a ValueError will be raised if the migration table is not
+            empty. Future versions may take migrations that intersect with the
+            edge into account when determining the default population
+            assignments for new nodes.
+
+        Newly added nodes will have a ``flags`` value of 0, if not specified.
+
+        Any mutations lying on the edge whose time is >= ``time`` will have
+        their node value set to ``u``. Note that the time of the mutation is
+        defined as the time of the child node if the mutation's time is
+        unknown.
+        """
+        default_population = population is None
+        flags = 0 if flags is None else flags
+
+        tables = self.dump_tables()
+        node_time = tables.nodes.time
+        node_population = tables.nodes.population
+        tables.edges.clear()
+        split_edge = np.full(self.num_edges, tskit.NULL, dtype=int)
+        for edge in self.edges():
+            if node_time[edge.child] < time < node_time[edge.parent]:
+                if default_population:
+                    population = node_population[edge.child]
+                u = tables.nodes.add_row(
+                    flags=flags, time=time, population=population, metadata=metadata
+                )
+                tables.edges.append(edge.replace(parent=u))
+                tables.edges.append(edge.replace(child=u))
+                split_edge[edge.id] = u
+            else:
+                tables.edges.append(edge)
+
+        tables.mutations.clear()
+        for mutation in self.mutations():
+            mapped_node = tskit.NULL
+            if mutation.edge != tskit.NULL:
+                mapped_node = split_edge[mutation.edge]
+            if mapped_node != tskit.NULL and mutation.time >= time:
+                mutation = mutation.replace(node=mapped_node)
+            tables.mutations.append(mutation)
+
+        tables.sort()
+        return tables.tree_sequence()
+
     def subset(
         self,
         nodes,

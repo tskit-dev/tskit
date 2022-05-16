@@ -541,23 +541,79 @@ class TestSplitEdgesSimpleTree:
     #     ┊ ┃ ┏┻┓ ┊
     # 0.00┊ 0 1 2 ┊
     #     0       1
-    def tables(self):
-        # Don't cache this because we modify the result!
-        tree = tskit.Tree.generate_balanced(6, branch_length=1)
-        print(tree.tree_sequence.draw_text())
-        return tree.tree_sequence.dump_tables()
+    @tests.cached_example
+    def ts(self):
+        return tskit.Tree.generate_balanced(3, branch_length=1).tree_sequence
 
-    @pytest.mark.parametrize("time", [0.1, 0.5, 0.9)
+    @pytest.mark.parametrize("time", [0.1, 0.5, 0.9])
     def test_lowest_branches(self, time):
-        tables = self.tables()
-        # before = tables.copy()
-        # tables.decapitate(time)
-        # ts = tables.tree_sequence()
-        # assert ts.num_trees == 1
-        # tree = ts.first()
-        # assert tree.num_roots == 3
-        # assert list(sorted(tree.roots)) == [0, 1, 2]
-        # assert before.nodes.equals(tables.nodes[: len(before.nodes)])
-        # assert len(tables.edges) == 0
+        # 2.00┊   4   ┊    2.00┊   4   ┊
+        #     ┊ ┏━┻┓  ┊        ┊ ┏━┻┓  ┊
+        # 1.00┊ ┃  3  ┊    1.00┊ ┃  3  ┊
+        #     ┊ ┃ ┏┻┓ ┊        ┊ ┃ ┏┻┓ ┊
+        #     ┊ ┃ ┃ ┃ ┊      t ┊ 7 5 6 ┊
+        #     ┊ ┃ ┃ ┃ ┊ ->     ┊ ┃ ┃ ┃ ┊
+        # 0.00┊ 0 1 2 ┊    0.00┊ 0 1 2 ┊
+        #     0       1        0       1
+        before_ts = self.ts()
+        ts = before_ts.split_edges(time)
+        assert ts.num_nodes == 8
+        assert all(ts.node(u).time == time for u in [5, 6, 7])
+        assert ts.num_trees == 1
+        assert ts.first().parent_dict == {0: 7, 1: 5, 2: 6, 5: 3, 6: 3, 7: 4, 3: 4}
+        ts = ts.simplify()
+        ts.tables.assert_equals(before_ts.tables, ignore_provenance=True)
+
+    def test_same_time_as_node(self):
+        # 2.00┊   4   ┊    2.00┊   4   ┊
+        #     ┊ ┏━┻┓  ┊        ┊ ┏━┻┓  ┊
+        # 1.00┊ ┃  3  ┊    1.00┊ 5  3  ┊
+        #     ┊ ┃ ┏┻┓ ┊        ┊ ┃ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊    0.00┊ 0 1 2 ┊
+        #     0       1        0       1
+        before_ts = self.ts()
+        ts = before_ts.split_edges(1)
+        assert ts.num_nodes == 6
+        assert ts.node(5).time == 1
+        assert ts.num_trees == 1
+        assert ts.first().parent_dict == {0: 5, 1: 3, 2: 3, 5: 4, 3: 4}
+        ts = ts.simplify()
+        ts.tables.assert_equals(before_ts.tables, ignore_provenance=True)
+
+    @pytest.mark.parametrize("time", [1.1, 1.5, 1.9])
+    def test_top_branches(self, time):
+        # 2.00┊   4   ┊    2.00┊   4   ┊
+        #     ┊ ┏━┻┓  ┊        ┊ ┏━┻┓  ┊
+        #     ┊ ┃  ┃  ┊      t ┊ 5  6  ┊
+        #     ┊ ┃  ┃  ┊ ->     ┊ ┃  ┃  ┊
+        # 1.00┊ ┃  3  ┊    1.00┊ ┃  3  ┊
+        #     ┊ ┃ ┏┻┓ ┊        ┊ ┃ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊    0.00┊ 0 1 2 ┊
+        #     0       1        0       1
+
+        before_ts = self.ts()
+        ts = before_ts.split_edges(time)
+        assert ts.num_nodes == 7
+        assert all(ts.node(u).time == time for u in [5, 6])
+        assert ts.num_trees == 1
+        assert ts.first().parent_dict == {0: 5, 1: 3, 2: 3, 3: 6, 6: 4, 5: 4}
+        ts = ts.simplify()
+        ts.tables.assert_equals(before_ts.tables, ignore_provenance=True)
+
+    @pytest.mark.parametrize("time", [0, 2])
+    def test_at_leaf_or_root_time(self, time):
+        split = self.ts().split_edges(time)
+        split.tables.assert_equals(self.ts().tables, ignore_provenance=True)
+
+    @pytest.mark.parametrize("time", [-1, 2.1])
+    def test_outside_time_scales(self, time):
+        split = self.ts().split_edges(time)
+        split.tables.assert_equals(self.ts().tables, ignore_provenance=True)
 
 
+class TestSplitEdgesExamples:
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_genotypes_round_trip(self, ts):
+        time = 0 if ts.num_nodes == 0 else np.median(ts.tables.nodes.time)
+        split_ts = ts.split_edges(time)
+        assert np.array_equal(split_ts.genotype_matrix(), ts.genotype_matrix())
