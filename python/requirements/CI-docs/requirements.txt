@@ -4,7 +4,7 @@ jupyter-sphinx==0.3.2
 h5py==3.6.0
 jsonschema==3.2.0
 msprime==1.1.1
-numpy==1.21.5
+numpy==1.22.3
 PyGithub==1.55
 sphinx==4.5.0
 sphinx-argparse==0.3.1
