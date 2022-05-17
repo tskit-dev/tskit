@@ -24,13 +24,25 @@ The ``tskit`` C API is generally useful in the following situations:
 
 - You want to use the ``tskit`` API in a larger C/C++ application (e.g.,
   in order to output data in the ``.trees`` format);
-- You need to perform lots of tree traversals/loops etc to analyse some
+- You need to perform lots of tree traversals/loops etc. to analyse some
   data that is in tree sequence form.
 
 For high level operations that are not performance sensitive, the :ref:`sec_python_api`
 is generally more useful. Python is *much* more convenient that C,
 and since the ``tskit`` Python module is essentially a wrapper for this
 C library, there's often no real performance penalty for using it.
+
+-------------------------------
+Differences with the Python API
+-------------------------------
+
+Much of the explanatory material (for example tutorials) about the Python API applies to
+the C-equivalent methods as the Python API wraps this API.
+
+The main area of difference is, unlike the Python API, the C API doesn't do any
+decoding, encoding or schema validation of :ref:`sec_metadata` fields,
+instead only handling the byte sting representation of the metadata. Metadata is therefore
+never used directly by any tskit C API method, just stored.
 
 ----------------------
 API stability contract
@@ -56,14 +68,13 @@ arbitrarily between releases.
     therefore imporant to you, please let us know and we can plan
     accordingly.
 
-
 .. _sec_c_api_overview_structure:
 
 -------------
 API structure
 -------------
 
-Tskit uses a set of conventions to provide a pseudo object oriented API. Each
+Tskit uses a set of conventions to provide a pseudo object-oriented API. Each
 'object' is represented by a C struct and has a set of 'methods'. This is
 most easily explained by an example:
 
@@ -80,20 +91,20 @@ keep code written in plain C logically structured; there are no extra C++ style 
 We use object oriented terminology freely throughout this documentation
 with this understanding.
 
-In this convention, a class is defined by a struct ``class_name_t`` (e.g.
-``edge_table_t``) and its methods all have the form ``class_name_method_name``
+In this convention, a class is defined by a struct ``tsk_class_name_t`` (e.g.
+``tsk_edge_table_t``) and its methods all have the form ``tsk_class_name_method_name``
 whose first argument is always a pointer to an instance of the class (e.g.,
-``edge_table_add_row`` above).
-Each class has an initialise and free method, called ``class_name_init``
-and ``class_name_free``, respectively. The init method must
+``tsk_edge_table_add_row`` above).
+Each class has an initialise and free method, called ``tsk_class_name_init``
+and ``tsk_class_name_free``, respectively. The init method must
 be called to ensure that the object is correctly initialised (except
 for functions such as for :c:func:`tsk_table_collection_load`
 and :c:func:`tsk_table_collection_copy` which automatically initialise
 the object by default for convenience). The free
 method must always be called to avoid leaking memory, even in the
-case of an error occuring during initialisation. If ``class_name_init`` has
-been called succesfully, we say the object has been "initialised"; if not,
-it is "uninitialised". After ``class_name_free`` has been called,
+case of an error occurring during initialisation. If ``tsk_class_name_init`` has
+been called successfully, we say the object has been "initialised"; if not,
+it is "uninitialised". After ``tsk_class_name_free`` has been called,
 the object is again uninitialised.
 
 It is important to note that the init methods only allocate *internal* memory;
@@ -184,18 +195,15 @@ different project structures and build systems.
 Tskit uses the `meson <https://mesonbuild.com>`_ build system internally,
 and supports being used a `meson subproject <https://mesonbuild.com/Subprojects.html>`_.
 We show an `example <https://github.com/tskit-dev/tskit-build-examples/tree/main/meson>`_
-in which this is combined with
-`git submodules <https://git-scm.com/book/en/v2/Git-Tools-Submodules>`_ to neatly
-abstract many details of cross platform C development.
+in which this is combined with the tskit distribution tarball to neatly
+abstract many details of cross-platform C development.
 
-Some users may choose to check the source for ``tskit`` (and ``kastore``)
-directly into their source control repositories. If you wish to do this,
-the code is in the ``c`` subdirectory of the
-`tskit <https://github.com/tskit-dev/tskit/tree/main/c>`_ and
-`kastore <https://github.com/tskit-dev/kastore/tree/main/c>`__ repos.
+Some users may choose to check the source for ``tskit`` directly into their source
+control repositories. If you wish to do this, the code is in the ``c`` subdirectory of the
+`tskit <https://github.com/tskit-dev/tskit/tree/main/c>`_ repo.
 The following header files should be placed in the search path:
-``kastore.h``, ``tskit.h``, and ``tskit/*.h``.
-The C files ``kastore.c`` and ``tskit*.c`` should be compiled.
+``subprojects/kastore/kastore.h``, ``tskit.h``, and ``tskit/*.h``.
+The C files ``subprojects/kastore/kastore.c`` and ``tskit/*.c`` should be compiled.
 For those who wish to minimise the size of their compiled binaries,
 ``tskit`` is quite modular, and C files can be omitted if not needed.
 For example, if you are just using the :ref:`sec_c_api_tables_api` then
@@ -206,16 +214,16 @@ However you include ``tskit`` in your project, however, please
 ensure that it is a **released version**. Released versions are
 tagged on GitHub using the convention ``C_{VERSION}``. The code
 can either be downloaded from GitHub on the `releases page
-<https://github.com/tskit-dev/tskit/releases>`_ or checked out
-using git. For example, to check out the ``C_0.99.1`` release::
+<https://github.com/tskit-dev/tskit/releases>`_ where each release has a distribution
+tarball for example
+https://github.com/tskit-dev/tskit/releases/download/C_1.0.0/tskit-1.0.0.tar.xz
+Alternatively the code can be checked out
+using git. For example, to check out the ``C_1.0.0`` release::
 
     $ git clone https://github.com/tskit-dev/tskit.git
     $ cd tskit
-    $ git checkout C_0.99.1
+    $ git checkout C_1.0.0
 
-Git submodules may also be considered---see the
-`example <https://github.com/tskit-dev/tskit-build-examples/tree/main/meson>`_
-for how to set these up and to check out at a specific release.
 
 
 ***********
@@ -536,7 +544,7 @@ Thus, the loop on lines 11-14 can exit in two ways:
     :c:func:`tsk_tree_next`
     :c:func:`tsk_tree_prev`,
     and :c:func:`tsk_tree_seek`
-    can be called in any order and from any non-error state
+    can be called in any order and from any non-error state.
 
 .. doxygengroup:: TREE_API_SEEKING_GROUP
     :content-only:
@@ -759,39 +767,11 @@ Table errors
 .. doxygengroup:: TABLE_ERROR_GROUP
         :content-only:
 
-------------
-Stats errors
-------------
-
-.. doxygengroup:: STATS_ERROR_GROUP
-        :content-only:
-
------------------------
-Mutation mapping errors
------------------------
-
-.. doxygengroup:: MAPPING_ERROR_GROUP
-        :content-only:
-
 ------------------------
 Genotype decoding errors
 ------------------------
 
 .. doxygengroup:: GENOTYPE_ERROR_GROUP
-        :content-only:
-
-----------------------
-Distance metric errors
-----------------------
-
-.. doxygengroup:: DISTANCE_ERROR_GROUP
-        :content-only:
-
--------------------------
-Haplotype matching errors
--------------------------
-
-.. doxygengroup:: HAPLOTYPE_ERROR_GROUP
         :content-only:
 
 ------------
@@ -800,14 +780,6 @@ Union errors
 
 .. doxygengroup:: UNION_ERROR_GROUP
         :content-only:
-
-----------
-IBD errors
-----------
-
-.. doxygengroup:: IBD_ERROR_GROUP
-        :content-only:
-
 
 ---------------
 Simplify errors
