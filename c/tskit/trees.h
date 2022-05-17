@@ -164,7 +164,7 @@ typedef struct {
     tsk_id_t *right_child;
     /**
      @brief The sibling to the left of node u is left_sib[u]. Equal to
-     TSK_NULL if node u has no siblings to its left.
+     ``TSK_NULL`` if node u has no siblings to its left.
      */
     tsk_id_t *left_sib;
     /**
@@ -298,7 +298,7 @@ are initialised and freed.
 @endrst
 
 @param self A pointer to an uninitialised tsk_table_collection_t object.
-@param tables A pointer to a tsk_table_collection_t
+@param tables A pointer to a tsk_table_collection_t object.
 @param options Allocation time options. See above for details.
 @return Return 0 on success or a negative value on failure.
 */
@@ -1033,7 +1033,7 @@ int tsk_tree_free(tsk_tree_t *self);
 By default (``options`` = 0) the method initialises the specified destination
 tree by calling :c:func:`tsk_tree_init`. If the destination is already
 initialised, the :c:macro:`TSK_NO_INIT` option should be supplied to avoid
-leaking memory. If `TSK_NO_INIT` is supplied and the tree sequence associated
+leaking memory. If :c:macro:`TSK_NO_INIT` is supplied and the tree sequence associated
 with the ``dest`` tree is not equal to the tree sequence associated
 with ``self``, an error is raised.
 
@@ -1470,7 +1470,7 @@ node is :c:macro:`TSK_NULL`.
 @param self A pointer to a tsk_tree_t object.
 @param u A tree node.
 @param v A tree node.
-@param mrca A tsk_id_t pointer to store the returned most recent cmomon ancestor node.
+@param mrca A tsk_id_t pointer to store the returned most recent common ancestor node.
 @return 0 on success or a negative value on failure.
 */
 int tsk_tree_get_mrca(const tsk_tree_t *self, tsk_id_t u, tsk_id_t v, tsk_id_t *mrca);
