@@ -155,7 +155,6 @@ tsk_treeseq_init_sites(tsk_treeseq_t *self)
         if (ret != 0) {
             goto out;
         }
-        mutation->edge = TSK_NULL;
     }
     k = 0;
     for (j = 0; j < (tsk_id_t) num_sites; j++) {

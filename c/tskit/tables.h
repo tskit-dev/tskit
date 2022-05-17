@@ -155,7 +155,7 @@ typedef struct {
     const char *metadata;
     /** @brief Size of the metadata in bytes. */
     tsk_size_t metadata_length;
-    /** @brief The ID of the edge that this mutation lies on, or TSK_NULL 
+    /** @brief The ID of the edge that this mutation lies on, or TSK_NULL
       if there is no corresponding edge.*/
     tsk_id_t edge;
 } tsk_mutation_t;
@@ -2397,6 +2397,12 @@ int tsk_site_table_copy(
 
 @rst
 Updates the specified site struct to reflect the values in the specified row.
+
+This function always sets the ``mutations`` and ``mutations_length``
+fields in the parameter :c:struct:`tsk_site_t` to ``NULL`` and ``0`` respectively.
+To get access to the mutations for a particular site, please use the
+tree sequence method, :c:func:`tsk_treeseq_get_site`.
+
 Pointers to memory within this struct are handled by the table and should **not**
 be freed by client code. These pointers are guaranteed to be valid until the
 next operation that modifies the table (e.g., by adding a new row), but not afterwards.
@@ -2731,6 +2737,12 @@ int tsk_mutation_table_copy(
 
 @rst
 Updates the specified mutation struct to reflect the values in the specified row.
+
+This function always sets the ``edge`` field in parameter
+:c:struct:`tsk_mutation_t` to ``TSK_NULL``. To determine the ID of
+the edge associated with a particular mutation, please use the
+tree sequence method, :c:func:`tsk_treeseq_get_mutation`.
+
 Pointers to memory within this struct are handled by the table and should **not**
 be freed by client code. These pointers are guaranteed to be valid until the
 next operation that modifies the table (e.g., by adding a new row), but not afterwards.

@@ -9,7 +9,7 @@
 - Change the type of genotypes to ``int32_t``, removing the TSK_16_BIT_GENOTYPES flag option.
   (:user:`benjeffery`, :issue:`463`, :pr:`2108`)
 
-- ``tsk_variant_t`` now includes its ``tsk_site_t`` rather than pointing to it. 
+- ``tsk_variant_t`` now includes its ``tsk_site_t`` rather than pointing to it.
   (:user:`benjeffery`, :issue:`2161`, :pr:`2162`)
 
 - Rename TSK_TAKE_TABLES to TSK_TAKE_OWNERSHIP.
@@ -36,6 +36,9 @@
 
 - Make dumping of tables and tree sequences to disk a zero-copy operation.
   (:user:`benjeffery`, :issue:`2111`, :pr:`2124`)
+
+- Add ``edge`` attribute to ``mutation_t`` struct make available in tree sequence.
+  (:user:`jeromekelleher`, :issue:`685`, :pr:`2279`)
 
 ----------------------
 [0.99.15] - 2021-12-07
