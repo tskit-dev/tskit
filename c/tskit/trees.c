@@ -135,6 +135,7 @@ tsk_treeseq_init_sites(tsk_treeseq_t *self)
     const tsk_id_t *restrict mutation_site = self->tables->mutations.site;
     const double *restrict site_position = self->tables->sites.position;
     bool discrete_sites = true;
+    tsk_mutation_t *mutation;
 
     self->site_mutations_mem
         = tsk_malloc(num_mutations * sizeof(*self->site_mutations_mem));
@@ -149,10 +150,12 @@ tsk_treeseq_init_sites(tsk_treeseq_t *self)
     }
 
     for (k = 0; k < (tsk_id_t) num_mutations; k++) {
-        ret = tsk_treeseq_get_mutation(self, k, self->site_mutations_mem + k);
+        mutation = self->site_mutations_mem + k;
+        ret = tsk_treeseq_get_mutation(self, k, mutation);
         if (ret != 0) {
             goto out;
         }
+        mutation->edge = TSK_NULL;
     }
     k = 0;
     for (j = 0; j < (tsk_id_t) num_sites; j++) {
@@ -242,45 +245,57 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
 {
     int ret = TSK_ERR_GENERIC;
     tsk_size_t j, k, tree_index;
-    tsk_id_t site;
+    tsk_id_t site_id, edge_id, mutation_id;
     double tree_left, tree_right;
     const double sequence_length = self->tables->sequence_length;
     const tsk_id_t num_sites = (tsk_id_t) self->tables->sites.num_rows;
+    const tsk_id_t num_mutations = (tsk_id_t) self->tables->mutations.num_rows;
     const tsk_size_t num_edges = self->tables->edges.num_rows;
+    const tsk_size_t num_nodes = self->tables->nodes.num_rows;
     const double *restrict site_position = self->tables->sites.position;
+    const tsk_id_t *restrict mutation_site = self->tables->mutations.site;
     const tsk_id_t *restrict I = self->tables->indexes.edge_insertion_order;
     const tsk_id_t *restrict O = self->tables->indexes.edge_removal_order;
     const double *restrict edge_right = self->tables->edges.right;
     const double *restrict edge_left = self->tables->edges.left;
+    const tsk_id_t *restrict edge_child = self->tables->edges.child;
     tsk_size_t num_trees_alloc = self->num_trees + 1;
     bool discrete_breakpoints = true;
+    tsk_id_t *node_edge_map = tsk_malloc(num_nodes * sizeof(*node_edge_map));
+    tsk_mutation_t *mutation;
 
     self->tree_sites_length
         = tsk_malloc(num_trees_alloc * sizeof(*self->tree_sites_length));
     self->tree_sites = tsk_malloc(num_trees_alloc * sizeof(*self->tree_sites));
     self->breakpoints = tsk_malloc(num_trees_alloc * sizeof(*self->breakpoints));
-    if (self->tree_sites == NULL || self->tree_sites_length == NULL
-        || self->breakpoints == NULL) {
+    if (node_edge_map == NULL || self->tree_sites == NULL
+        || self->tree_sites_length == NULL || self->breakpoints == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
     tsk_memset(
         self->tree_sites_length, 0, self->num_trees * sizeof(*self->tree_sites_length));
     tsk_memset(self->tree_sites, 0, self->num_trees * sizeof(*self->tree_sites));
+    tsk_memset(node_edge_map, TSK_NULL, num_nodes * sizeof(*node_edge_map));
 
     tree_left = 0;
     tree_right = sequence_length;
     tree_index = 0;
-    site = 0;
+    site_id = 0;
+    mutation_id = 0;
     j = 0;
     k = 0;
     while (j < num_edges || tree_left < sequence_length) {
         discrete_breakpoints = discrete_breakpoints && is_discrete(tree_left);
         self->breakpoints[tree_index] = tree_left;
         while (k < num_edges && edge_right[O[k]] == tree_left) {
+            edge_id = O[k];
+            node_edge_map[edge_child[edge_id]] = TSK_NULL;
             k++;
         }
         while (j < num_edges && edge_left[I[j]] == tree_left) {
+            edge_id = I[j];
+            node_edge_map[edge_child[edge_id]] = edge_id;
             j++;
         }
         tree_right = sequence_length;
@@ -290,21 +305,28 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
         if (k < num_edges) {
             tree_right = TSK_MIN(tree_right, edge_right[O[k]]);
         }
-        self->tree_sites[tree_index] = self->tree_sites_mem + site;
-        while (site < num_sites && site_position[site] < tree_right) {
+        self->tree_sites[tree_index] = self->tree_sites_mem + site_id;
+        while (site_id < num_sites && site_position[site_id] < tree_right) {
             self->tree_sites_length[tree_index]++;
-            site++;
+            while (
+                mutation_id < num_mutations && mutation_site[mutation_id] == site_id) {
+                mutation = self->site_mutations_mem + mutation_id;
+                mutation->edge = node_edge_map[mutation->node];
+                mutation_id++;
+            }
+            site_id++;
         }
         tree_left = tree_right;
         tree_index++;
     }
-    tsk_bug_assert(site == num_sites);
+    tsk_bug_assert(site_id == num_sites);
     tsk_bug_assert(tree_index == self->num_trees);
     self->breakpoints[tree_index] = tree_right;
     discrete_breakpoints = discrete_breakpoints && is_discrete(tree_right);
     self->discrete_genome = self->discrete_genome && discrete_breakpoints;
     ret = 0;
 out:
+    tsk_safe_free(node_edge_map);
     return ret;
 }
 
@@ -3144,7 +3166,15 @@ int TSK_WARN_UNUSED
 tsk_treeseq_get_mutation(
     const tsk_treeseq_t *self, tsk_id_t index, tsk_mutation_t *mutation)
 {
-    return tsk_mutation_table_get_row(&self->tables->mutations, index, mutation);
+    int ret = 0;
+
+    ret = tsk_mutation_table_get_row(&self->tables->mutations, index, mutation);
+    if (ret != 0) {
+        goto out;
+    }
+    mutation->edge = self->site_mutations_mem[index].edge;
+out:
+    return ret;
 }
 
 int TSK_WARN_UNUSED

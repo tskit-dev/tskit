@@ -155,6 +155,9 @@ typedef struct {
     const char *metadata;
     /** @brief Size of the metadata in bytes. */
     tsk_size_t metadata_length;
+    /** @brief The ID of the edge that this mutation lies on, or TSK_NULL 
+      if there is no corresponding edge.*/
+    tsk_id_t edge;
 } tsk_mutation_t;
 
 /**

@@ -3437,6 +3437,63 @@ test_simplest_chained_map_mutations(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_simplest_mutation_edges(void)
+{
+    const char *nodes = "1  0   0\n"
+                        "0  1   0\n"
+                        "0  1   0";
+    const char *edges = "0  1   1   0\n"
+                        "1  2   2   0\n";
+    const char *sites = "0.5  0\n"
+                        "1.5  0\n";
+    const char *mutations = "0    1     1\n"
+                            "0    0     1\n"
+                            "0    2     1\n"
+                            "1    0     1\n"
+                            "1    1     1\n"
+                            "1    2     1\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t tree;
+    /* We have mutations over roots, samples and just isolated nodes */
+    tsk_id_t mutation_edges[] = { -1, 0, -1, 1, -1, -1 };
+    tsk_size_t i, j, k, t;
+    tsk_mutation_t mut;
+    tsk_site_t site;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 2, nodes, edges, NULL, sites, mutations, NULL, NULL, 0);
+
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 2);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_sites(&ts), 2);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 6);
+
+    for (j = 0; j < tsk_treeseq_get_num_mutations(&ts); j++) {
+        ret = tsk_treeseq_get_mutation(&ts, (tsk_id_t) j, &mut);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(mut.edge, mutation_edges[j]);
+    }
+
+    ret = tsk_tree_init(&tree, &ts, 0);
+    CU_ASSERT_EQUAL(ret, 0);
+    i = 0;
+    for (t = 0; t < 2; t++) {
+        ret = tsk_tree_next(&tree);
+        CU_ASSERT_EQUAL(ret, TSK_TREE_OK);
+        for (j = 0; j < tree.sites_length; j++) {
+            site = tree.sites[j];
+            for (k = 0; k < site.mutations_length; k++) {
+                CU_ASSERT_EQUAL(site.mutations[k].edge, mutation_edges[i]);
+                i++;
+            }
+        }
+    }
+    CU_ASSERT_EQUAL(i, 6);
+
+    tsk_tree_free(&tree);
+    tsk_treeseq_free(&ts);
+}
+
 /*=======================================================
  * Single tree tests.
  *======================================================*/
@@ -4463,6 +4520,44 @@ test_single_tree_compute_mutation_times(void)
 
     tsk_treeseq_free(&ts);
     tsk_table_collection_free(&tables);
+}
+
+static void
+test_single_tree_mutation_edges(void)
+{
+    int ret = 0;
+    tsk_size_t i, j, k;
+    tsk_treeseq_t ts;
+    tsk_tree_t tree;
+    tsk_mutation_t mut;
+    tsk_site_t site;
+    tsk_id_t mutation_edges[] = { 2, 4, 0, 0, 1, 2, 3 };
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
+
+    for (j = 0; j < 7; j++) {
+        ret = tsk_treeseq_get_mutation(&ts, (tsk_id_t) j, &mut);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(mut.edge, mutation_edges[j]);
+    }
+
+    ret = tsk_tree_init(&tree, &ts, 0);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_tree_first(&tree);
+    CU_ASSERT_EQUAL(ret, TSK_TREE_OK);
+    i = 0;
+    for (j = 0; j < tree.sites_length; j++) {
+        site = tree.sites[j];
+        for (k = 0; k < site.mutations_length; k++) {
+            CU_ASSERT_EQUAL(site.mutations[k].edge, mutation_edges[i]);
+            i++;
+        }
+    }
+    CU_ASSERT_EQUAL(i, 7);
+
+    tsk_tree_free(&tree);
+    tsk_treeseq_free(&ts);
 }
 
 static void
@@ -7206,6 +7301,7 @@ main(int argc, char **argv)
         { "test_simplest_multiple_root_map_mutations",
             test_simplest_multiple_root_map_mutations },
         { "test_simplest_chained_map_mutations", test_simplest_chained_map_mutations },
+        { "test_simplest_mutation_edges", test_simplest_mutation_edges },
 
         /* Single tree tests */
         { "test_single_tree_good_records", test_single_tree_good_records },
@@ -7232,6 +7328,7 @@ main(int argc, char **argv)
             test_single_tree_compute_mutation_parents },
         { "test_single_tree_compute_mutation_times",
             test_single_tree_compute_mutation_times },
+        { "test_single_tree_mutation_edges", test_single_tree_mutation_edges },
         { "test_single_tree_is_descendant", test_single_tree_is_descendant },
         { "test_single_tree_total_branch_length", test_single_tree_total_branch_length },
         { "test_single_tree_map_mutations", test_single_tree_map_mutations },
@@ -7250,6 +7347,7 @@ main(int argc, char **argv)
             test_simplify_keep_input_roots_multi_tree },
         { "test_left_to_right_multi_tree", test_left_to_right_multi_tree },
         { "test_gappy_multi_tree", test_gappy_multi_tree },
+
         { "test_tsk_treeseq_bad_records", test_tsk_treeseq_bad_records },
 
         /* multiroot tests */
