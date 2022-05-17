@@ -6653,6 +6653,40 @@ test_tree_errors(void)
 }
 
 static void
+test_treeseq_row_access_errors(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_treeseq_t ts;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_get_individual(&ts, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
+    ret = tsk_treeseq_get_node(&ts, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    ret = tsk_treeseq_get_edge(&ts, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGE_OUT_OF_BOUNDS);
+    ret = tsk_treeseq_get_migration(&ts, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATION_OUT_OF_BOUNDS);
+    ret = tsk_treeseq_get_site(&ts, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SITE_OUT_OF_BOUNDS);
+    ret = tsk_treeseq_get_mutation(&ts, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_OUT_OF_BOUNDS);
+    ret = tsk_treeseq_get_population(&ts, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
+    ret = tsk_treeseq_get_provenance(&ts, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_PROVENANCE_OUT_OF_BOUNDS);
+
+    tsk_treeseq_free(&ts);
+    tsk_table_collection_free(&tables);
+}
+
+static void
 test_tree_copy_flags(void)
 {
     int iret, ret;
@@ -7402,6 +7436,7 @@ main(int argc, char **argv)
 
         /* Misc */
         { "test_tree_errors", test_tree_errors },
+        { "test_treeseq_row_access_errors", test_treeseq_row_access_errors },
         { "test_tree_copy_flags", test_tree_copy_flags },
         { "test_genealogical_nearest_neighbours_errors",
             test_genealogical_nearest_neighbours_errors },
