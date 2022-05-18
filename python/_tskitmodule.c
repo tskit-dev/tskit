@@ -322,7 +322,7 @@ make_metadata(const char *metadata, Py_ssize_t length)
 }
 
 static PyObject *
-make_mutation(const tsk_mutation_t *mutation)
+make_mutation_row(const tsk_mutation_t *mutation)
 {
     PyObject *ret = NULL;
     PyObject *metadata = NULL;
@@ -334,6 +334,24 @@ make_mutation(const tsk_mutation_t *mutation)
     ret = Py_BuildValue("iis#iOd", mutation->site, mutation->node,
         mutation->derived_state, (Py_ssize_t) mutation->derived_state_length,
         mutation->parent, metadata, mutation->time);
+out:
+    Py_XDECREF(metadata);
+    return ret;
+}
+
+static PyObject *
+make_mutation_object(const tsk_mutation_t *mutation)
+{
+    PyObject *ret = NULL;
+    PyObject *metadata = NULL;
+
+    metadata = make_metadata(mutation->metadata, (Py_ssize_t) mutation->metadata_length);
+    if (metadata == NULL) {
+        goto out;
+    }
+    ret = Py_BuildValue("iis#iOdi", mutation->site, mutation->node,
+        mutation->derived_state, (Py_ssize_t) mutation->derived_state_length,
+        mutation->parent, metadata, mutation->time, mutation->edge);
 out:
     Py_XDECREF(metadata);
     return ret;
@@ -4016,7 +4034,7 @@ MutationTable_get_row(MutationTable *self, PyObject *args)
         handle_library_error(err);
         goto out;
     }
-    ret = make_mutation(&mutation);
+    ret = make_mutation_row(&mutation);
 out:
     return ret;
 }
@@ -7984,7 +8002,7 @@ TreeSequence_get_mutation(TreeSequence *self, PyObject *args)
         handle_library_error(err);
         goto out;
     }
-    ret = make_mutation(&record);
+    ret = make_mutation_object(&record);
 out:
     return ret;
 }

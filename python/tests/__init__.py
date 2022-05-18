@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2021 Tskit Developers
+# Copyright (c) 2018-2022 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -138,7 +138,15 @@ class PythonTreeSequence:
         ll_ts = self._tree_sequence._ll_tree_sequence
 
         def make_mutation(id_):
-            site, node, derived_state, parent, metadata, time = ll_ts.get_mutation(id_)
+            (
+                site,
+                node,
+                derived_state,
+                parent,
+                metadata,
+                time,
+                edge,
+            ) = ll_ts.get_mutation(id_)
             return tskit.Mutation(
                 id=id_,
                 site=site,
@@ -147,6 +155,7 @@ class PythonTreeSequence:
                 derived_state=derived_state,
                 parent=parent,
                 metadata=metadata,
+                edge=edge,
                 metadata_decoder=tskit.metadata.parse_metadata_schema(
                     ll_ts.get_table_metadata_schemas().mutation
                 ).decode_row,
