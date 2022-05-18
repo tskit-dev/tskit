@@ -6201,6 +6201,74 @@ class TestMutationParent:
             self.verify_branch_mutations(ts, mutations_per_branch)
 
 
+class TestMutationEdge:
+    def verify_mutation_edge(self, ts):
+        # print(ts.tables)
+        for mutation in ts.mutations():
+            site = ts.site(mutation.site)
+            if mutation.edge == tskit.NULL:
+                edges = [
+                    edge
+                    for edge in ts.edges()
+                    if edge.left <= site.position < edge.right
+                    and mutation.node == edge.child
+                ]
+                assert len(edges) == 0
+            else:
+                edge = ts.edge(mutation.edge)
+                assert edge.left <= site.position < edge.right
+                assert edge.child == mutation.node
+
+        for tree in ts.trees():
+            for site in tree.sites():
+                for mutation in site.mutations:
+                    assert mutation.edge == ts.mutation(mutation.id).edge
+                    if mutation.edge == tskit.NULL:
+                        assert tree.parent(mutation.node) == tskit.NULL
+
+    def verify_branch_mutations(self, ts, mutations_per_branch):
+        ts = tsutil.insert_branch_mutations(ts, mutations_per_branch)
+        assert ts.num_mutations > 1
+        self.verify_mutation_edge(ts)
+
+    def test_single_tree_one_mutation_per_branch(self):
+        ts = msprime.simulate(6, random_seed=10)
+        self.verify_branch_mutations(ts, 1)
+
+    def test_single_tree_two_mutations_per_branch(self):
+        ts = msprime.simulate(10, random_seed=9)
+        self.verify_branch_mutations(ts, 2)
+
+    def test_single_tree_three_mutations_per_branch(self):
+        ts = msprime.simulate(8, random_seed=9)
+        self.verify_branch_mutations(ts, 3)
+
+    def test_single_multiroot_tree_recurrent_mutations(self):
+        ts = msprime.simulate(6, random_seed=10)
+        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        for mutations_per_branch in [1, 2, 3]:
+            self.verify_branch_mutations(ts, mutations_per_branch)
+
+    def test_many_multiroot_trees_recurrent_mutations(self):
+        ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
+        assert ts.num_trees > 3
+        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        for mutations_per_branch in [1, 2, 3]:
+            self.verify_branch_mutations(ts, mutations_per_branch)
+
+    @pytest.mark.parametrize("n", range(2, 5))
+    @pytest.mark.parametrize("mutations_per_branch", range(3))
+    def test_balanced_binary_tree(self, n, mutations_per_branch):
+        ts = tskit.Tree.generate_balanced(4).tree_sequence
+        # These trees have a handy property
+        assert all(edge.id == edge.child for edge in ts.edges())
+        for mutation in ts.mutations():
+            assert mutation.edge == mutation.node
+        for site in ts.first().sites():
+            for mutation in site.mutations:
+                assert mutation.edge == mutation.node
+
+
 class TestMutationTime:
     """
     Tests that mutation time is correctly specified, and that we correctly

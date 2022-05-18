@@ -319,7 +319,16 @@ class Mutation(util.Dataclass):
     underlying tree sequence data.
     """
 
-    __slots__ = ["id", "site", "node", "derived_state", "parent", "metadata", "time"]
+    __slots__ = [
+        "id",
+        "site",
+        "node",
+        "derived_state",
+        "parent",
+        "metadata",
+        "time",
+        "edge",
+    ]
     id: int  # noqa A003
     """
     The integer ID of this mutation. Varies from 0 to
@@ -363,6 +372,10 @@ class Mutation(util.Dataclass):
     """
     The occurrence time of this mutation.
     """
+    edge: int
+    """
+    The ID of the edge that this mutation is on.
+    """
 
     # To get default values on slots we define a custom init
     def __init__(
@@ -374,6 +387,7 @@ class Mutation(util.Dataclass):
         derived_state=None,
         parent=NULL,
         metadata=b"",
+        edge=NULL,
     ):
         self.id = id
         self.site = site
@@ -382,6 +396,7 @@ class Mutation(util.Dataclass):
         self.derived_state = derived_state
         self.parent = parent
         self.metadata = metadata
+        self.edge = edge
 
     # We need a custom eq to compare unknown times.
     def __eq__(self, other):
@@ -392,6 +407,7 @@ class Mutation(util.Dataclass):
             and self.node == other.node
             and self.derived_state == other.derived_state
             and self.parent == other.parent
+            and self.edge == other.edge
             and self.metadata == other.metadata
             and (
                 self.time == other.time
@@ -5179,6 +5195,7 @@ class TreeSequence:
             parent,
             metadata,
             time,
+            edge,
         ) = self._ll_tree_sequence.get_mutation(id_)
         return Mutation(
             id=id_,
@@ -5188,6 +5205,7 @@ class TreeSequence:
             parent=parent,
             metadata=metadata,
             time=time,
+            edge=edge,
             metadata_decoder=self.table_metadata_schemas.mutation.decode_row,
         )
 

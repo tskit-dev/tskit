@@ -17,6 +17,10 @@
 - ``tree.mrca`` now takes 2 or more arguments and gives the common ancestor of them all.
   (:user:`savitakartik`, :issue:`1340`, :pr:`2121`)
 
+- Add a ``edge`` attribute to the ``Mutation`` class that gives the ID of the
+  edge that the mutation falls on.
+  (:user:`jeromekelleher`, :issue:`685`, :pr:`2279`).
+
 **Breaking Changes**
 
 - The JSON metadata codec now interprets the empty string as an empty object. This means

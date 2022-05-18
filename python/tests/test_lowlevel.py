@@ -1215,22 +1215,20 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             ts2.dump_tables(tc2)
             assert tc.equals(tc2)
 
-    def verify_mutations(self, ts):
-        mutations = [ts.get_mutation(j) for j in range(ts.get_num_mutations())]
-        assert ts.get_num_mutations() > 0
-        assert len(mutations) == ts.get_num_mutations()
-        # Check the form of the mutations
-        for j, (position, nodes, index) in enumerate(mutations):
-            assert j == index
-            for node in nodes:
+    def test_get_mutation_interface(self):
+        for ts in self.get_example_tree_sequences():
+            mutations = [ts.get_mutation(j) for j in range(ts.get_num_mutations())]
+            assert len(mutations) == ts.get_num_mutations()
+            # Check the form of the mutations
+            for packed in mutations:
+                site, node, derived_state, parent, metadata, time, edge = packed
+                assert isinstance(site, int)
                 assert isinstance(node, int)
-                assert node >= 0
-                assert node <= ts.get_num_nodes()
-            assert isinstance(position, float)
-            assert position > 0
-            assert position < ts.get_sequence_length()
-        # mutations must be sorted by position order.
-        assert mutations == sorted(mutations)
+                assert isinstance(derived_state, str)
+                assert isinstance(parent, int)
+                assert isinstance(metadata, bytes)
+                assert isinstance(time, float)
+                assert isinstance(edge, int)
 
     def test_get_edge_interface(self):
         for ts in self.get_example_tree_sequences():
@@ -2718,12 +2716,13 @@ class TestTree(LowLevelTestCase):
                 all_tree_sites.extend(tree_sites)
                 for (
                     position,
-                    _ancestral_state,
+                    ancestral_state,
                     mutations,
                     index,
                     metadata,
                 ) in tree_sites:
                     assert st.get_left() <= position < st.get_right()
+                    assert isinstance(ancestral_state, str)
                     assert index == j
                     assert metadata == b""
                     for mut_id in mutations:
@@ -2734,11 +2733,13 @@ class TestTree(LowLevelTestCase):
                             parent,
                             metadata,
                             time,
+                            edge,
                         ) = ts.get_mutation(mut_id)
                         assert site == index
                         assert mutation_id == mut_id
                         assert st.get_parent(node) != _tskit.NULL
                         assert metadata == b""
+                        assert edge != _tskit.NULL
                         mutation_id += 1
                     j += 1
             assert all_tree_sites == all_sites
