@@ -611,9 +611,197 @@ class TestSplitEdgesSimpleTree:
         split.tables.assert_equals(self.ts().tables, ignore_provenance=True)
 
 
+class TestSplitEdgesSimpleTreeMutationExamples:
+    def test_single_mutation_no_time(self):
+        # 2.00┊   4   ┊
+        #     ┊ ┏━┻┓  ┊
+        # 1.00┊ ┃  3  ┊
+        #     ┊ x ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        tree = tskit.Tree.generate_balanced(3, branch_length=1)
+        tables = tree.tree_sequence.dump_tables()
+        tables.sites.add_row(0, "A")
+        tables.mutations.add_row(site=0, node=0, derived_state="T", metadata=b"1234")
+        ts = tables.tree_sequence()
+
+        ts_split = ts.split_edges(1)
+        # 2.00┊   4   ┊
+        #     ┊ ┏━┻┓  ┊
+        # 1.00┊ 5  3  ┊
+        #     ┊ x ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        assert ts_split.num_nodes == 6
+        mut = ts_split.mutation(0)
+        assert mut.node == 0
+        assert mut.derived_state == "T"
+        assert mut.metadata == b"1234"
+        assert tskit.is_unknown_time(mut.time)
+
+    def test_single_mutation_split_before_time(self):
+        # 2.00┊   4   ┊
+        #     ┊ x━┻┓  ┊
+        # 1.00┊ ┃  3  ┊
+        #     ┊ ┃ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        tree = tskit.Tree.generate_balanced(3, branch_length=1)
+        tables = tree.tree_sequence.dump_tables()
+        tables.sites.add_row(0, "A")
+        tables.mutations.add_row(
+            site=0, node=0, time=1.5, derived_state="T", metadata=b"1234"
+        )
+        ts = tables.tree_sequence()
+
+        ts_split = ts.split_edges(1)
+        # 2.00┊   4   ┊
+        #     ┊ x━┻┓  ┊
+        # 1.00┊ 5  3  ┊
+        #     ┊ ┃ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        assert ts_split.num_nodes == 6
+        mut = ts_split.mutation(0)
+        assert mut.node == 5
+        assert mut.derived_state == "T"
+        assert mut.metadata == b"1234"
+        assert mut.time == 1.5
+
+    def test_single_mutation_split_at_time(self):
+        # 2.00┊   4   ┊
+        #     ┊ ┏━┻┓  ┊
+        # 1.00┊ x  3  ┊
+        #     ┊ ┃ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        tree = tskit.Tree.generate_balanced(3, branch_length=1)
+        tables = tree.tree_sequence.dump_tables()
+        tables.sites.add_row(0, "A")
+        tables.mutations.add_row(
+            site=0, node=0, time=1, derived_state="T", metadata=b"1234"
+        )
+        ts = tables.tree_sequence()
+
+        ts_split = ts.split_edges(1)
+        # 2.00┊   4   ┊
+        #     ┊ ┏━┻┓  ┊
+        # 1.00┊ 5x 3  ┊
+        #     ┊ ┃ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        mut = ts_split.mutation(0)
+        assert mut.node == 5
+        assert mut.derived_state == "T"
+        assert mut.metadata == b"1234"
+        assert mut.time == 1.0
+
+    def test_multi_mutation_no_time(self):
+        # 2.00┊   4   ┊
+        #     ┊ ┏━┻┓  ┊
+        # 1.00┊ x  3  ┊
+        #     ┊ x ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        tree = tskit.Tree.generate_balanced(3, branch_length=1)
+        tables = tree.tree_sequence.dump_tables()
+        tables.sites.add_row(0, "A")
+        tables.mutations.add_row(site=0, node=0, derived_state="T")
+        tables.mutations.add_row(site=0, node=0, parent=0, derived_state="G")
+        ts = tables.tree_sequence()
+
+        ts_split = ts.split_edges(1)
+        # 2.00┊   4   ┊
+        #     ┊ ┏━┻┓  ┊
+        #     ┊ 5  3  ┊
+        #     ┊ x  ┃  ┊
+        #     ┊ x ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        ts_split.tables.mutations.assert_equals(tables.mutations)
+
+    def test_multi_mutation_over_sample_time(self):
+        # 2.00┊   4   ┊
+        #     ┊ x━┻┓  ┊
+        # 1.00┊ ┃  3  ┊
+        #     ┊ x ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        tree = tskit.Tree.generate_balanced(3, branch_length=1)
+        tables = tree.tree_sequence.dump_tables()
+        tables.sites.add_row(0, "A")
+        tables.mutations.add_row(site=0, node=0, time=1.01, derived_state="T")
+        tables.mutations.add_row(site=0, node=0, time=0.99, parent=0, derived_state="G")
+        ts = tables.tree_sequence()
+
+        ts_split = ts.split_edges(1)
+        # 2.00┊   4   ┊
+        #     ┊ x━┻┓  ┊
+        # 1.00┊ 5  3  ┊
+        #     ┊ x ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        assert ts_split.num_mutations == 2
+
+        mut = ts_split.mutation(0)
+        assert mut.site == 0
+        assert mut.node == 5
+        assert mut.time == 1.01
+        mut = ts_split.mutation(1)
+        assert mut.site == 0
+        assert mut.node == 0
+        assert mut.time == 0.99
+
+    def test_mutation_not_on_branch(self):
+        tables = tskit.TableCollection(1)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.sites.add_row(0, "A")
+        tables.mutations.add_row(site=0, node=0, derived_state="T")
+        ts = tables.tree_sequence()
+        tables.assert_equals(ts.split_edges(0).tables, ignore_provenance=True)
+
+
 class TestSplitEdgesExamples:
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_genotypes_round_trip(self, ts):
         time = 0 if ts.num_nodes == 0 else np.median(ts.tables.nodes.time)
-        split_ts = ts.split_edges(time)
-        assert np.array_equal(split_ts.genotype_matrix(), ts.genotype_matrix())
+        if ts.num_migrations == 0:
+            split_ts = ts.split_edges(time)
+            assert np.array_equal(split_ts.genotype_matrix(), ts.genotype_matrix())
+        else:
+            with pytest.raises(ValueError):
+                ts.split_edges(time)
+
+
+class TestSplitEdgesInterface:
+    def test_migrations_fail(self, ts_fixture):
+        assert ts_fixture.num_migrations > 0
+        with pytest.raises(ValueError):
+            ts_fixture.split_edges(0)
+
+    def test_population_out_of_bounds(self):
+        tables = tskit.TableCollection(1)
+        ts = tables.tree_sequence()
+        with pytest.raises(ValueError):
+            ts.split_edges(0, population=0)
+
+
+class TestSplitEdgesNodeValues:
+    @tests.cached_example
+    def ts(self):
+        tables = tskit.TableCollection(1)
+        for _ in range(5):
+            tables.populations.add_row()
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, population=0, time=0)
+        tables.nodes.add_row(time=1)
+        tables.edges.add_row(0, 1, 1, 0)
+        return tables.tree_sequence()
+
+    def test_default_population(self):
+        ts = self.ts().split_edges(0.5)
+        assert ts.node(2).population == 0
+
+    @pytest.mark.parametrize("population", range(-1, 5))
+    def test_specify_population(self, population):
+        ts = self.ts().split_edges(0.5, population=population)
+        assert ts.node(2).population == population

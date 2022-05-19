@@ -5980,7 +5980,14 @@ class TreeSequence:
         defined as the time of the child node if the mutation's time is
         unknown.
         """
+        if self.num_migrations > 0:
+            raise ValueError("Migrations not supported")
         default_population = population is None
+        if not default_population:
+            # -1 is a valid value
+            if population < -1 or population >= self.num_populations:
+                raise ValueError("Population out of bounds")
+
         flags = 0 if flags is None else flags
 
         tables = self.dump_tables()
