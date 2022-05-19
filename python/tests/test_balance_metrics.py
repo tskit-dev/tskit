@@ -55,6 +55,14 @@ def colless_index_definition(tree):
     )
 
 
+def b1_index_definition(tree):
+    return sum(
+        1 / max(tree.path_length(n, leaf) for leaf in tree.leaves(n))
+        for n in tree.nodes()
+        if tree.parent(n) != tskit.NULL and tree.is_internal(n)
+    )
+
+
 class TestDefinitions:
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_sackin(self, ts):
@@ -75,6 +83,11 @@ class TestDefinitions:
             else:
                 assert tree.colless_index() == colless_index_definition(tree)
 
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_b1(self, ts):
+        for tree in ts.trees():
+            assert tree.b1_index() == pytest.approx(b1_index_definition(tree))
+
 
 class TestBalancedBinaryOdd:
     # 2.00┊   4   ┊
@@ -93,6 +106,9 @@ class TestBalancedBinaryOdd:
     def test_colless(self):
         assert self.tree().colless_index() == 1
 
+    def test_b1(self):
+        assert self.tree().b1_index() == 1
+
 
 class TestBalancedBinaryEven:
     # 2.00┊    6    ┊
@@ -110,6 +126,9 @@ class TestBalancedBinaryEven:
 
     def test_colless(self):
         assert self.tree().colless_index() == 0
+
+    def test_b1(self):
+        assert self.tree().b1_index() == 2
 
 
 class TestBalancedTernary:
@@ -130,6 +149,9 @@ class TestBalancedTernary:
         with pytest.raises(ValueError):
             self.tree().colless_index()
 
+    def test_b1(self):
+        assert self.tree().b1_index() == 3
+
 
 class TestStarN10:
     # 1.00┊         10          ┊
@@ -146,6 +168,9 @@ class TestStarN10:
     def test_colless(self):
         with pytest.raises(ValueError):
             self.tree().colless_index()
+
+    def test_b1(self):
+        assert self.tree().b1_index() == 0
 
 
 class TestCombN5:
@@ -168,6 +193,9 @@ class TestCombN5:
 
     def test_colless(self):
         assert self.tree().colless_index() == 6
+
+    def test_b1(self):
+        assert self.tree().b1_index() == pytest.approx(1.833, rel=1e-3)
 
 
 class TestMultiRootBinary:
@@ -196,6 +224,9 @@ class TestMultiRootBinary:
         with pytest.raises(ValueError):
             self.tree().colless_index()
 
+    def test_b1(self):
+        assert self.tree().b1_index() == 4.5
+
 
 class TestEmpty:
     @tests.cached_example
@@ -210,6 +241,9 @@ class TestEmpty:
         with pytest.raises(ValueError):
             self.tree().colless_index()
 
+    def test_b1(self):
+        assert self.tree().b1_index() == 0
+
 
 class TestTreeInNullState:
     @tests.cached_example
@@ -220,6 +254,13 @@ class TestTreeInNullState:
 
     def test_sackin(self):
         assert self.tree().sackin_index() == 0
+
+    def test_colless(self):
+        with pytest.raises(ValueError):
+            self.tree().colless_index()
+
+    def test_b1(self):
+        assert self.tree().b1_index() == 0
 
 
 class TestAllRootsN5:
@@ -236,3 +277,6 @@ class TestAllRootsN5:
     def test_colless(self):
         with pytest.raises(ValueError):
             self.tree().colless_index()
+
+    def test_b1(self):
+        assert self.tree().b1_index() == 0

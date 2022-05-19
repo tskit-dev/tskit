@@ -2814,6 +2814,29 @@ class Tree:
             return math.inf
         return self.depth(u) + self.depth(v) - 2 * self.depth(mrca)
 
+    def b1_index(self):
+        """
+        Returns the B1 balance index for this tree.
+        This is defined as the inverse of the sum of all longest paths
+        to leaves for each node besides roots.
+
+        .. seealso:: See `Shao and Sokal (1990)
+            <https://www.jstor.org/stable/2992186>`_ for details.
+
+        :return: The B1 balance index.
+        :rtype: float
+        """
+        # TODO implement in C
+        max_path_length = np.zeros(self.tree_sequence.num_nodes, dtype=int)
+        total = 0.0
+        for u in self.postorder():
+            if self.parent(u) != tskit.NULL and self.is_internal(u):
+                max_path_length[u] = 1 + max(
+                    max_path_length[v] for v in self.children(u)
+                )
+                total += 1 / max_path_length[u]
+        return total
+
     def colless_index(self):
         """
         Returns the Colless imbalance index for this tree.
