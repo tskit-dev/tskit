@@ -5944,12 +5944,13 @@ class TreeSequence:
         :param float time: The cutoff time.
         :param bool record_provenance: If True, add details of this operation to the
             provenance information of the returned tree sequence. (Default: True).
+        :rtype: tskit.TreeSequence
         """
         tables = self.dump_tables()
         tables.decapitate(time, record_provenance=record_provenance)
         return tables.tree_sequence()
 
-    def split_edges(self, time, *, flags=None, metadata=None, population=None):
+    def split_edges(self, time, *, flags=None, population=None, metadata=None):
         """
         Returns a copy of this tree sequence in which we replace any
         edge ``(left, right, parent, child)`` in which
@@ -5979,7 +5980,20 @@ class TreeSequence:
         their node value set to ``u``. Note that the time of the mutation is
         defined as the time of the child node if the mutation's time is
         unknown.
+
+        :param float time: The cutoff time.
+        :param int flags: The flags value for newly-inserted nodes. (Default = 0)
+        :param int population: The population value for newly inserted nodes.
+            Defaults to the population of the child node of the split edge
+            if not specified.
+        :param metadata: The metadata for any newly inserted nodes. See
+            :meth:`.NodeTable.add_row` for details on how default metadata
+            is produced for a given schema (or none).
+        :param bool record_provenance: If True, add details of this operation to the
+            provenance information of the returned tree sequence. (Default: True).
+        :rtype: tskit.TreeSequence
         """
+        tables = self.dump_tables()
         if self.num_migrations > 0:
             raise ValueError("Migrations not supported")
         default_population = population is None
@@ -5987,10 +6001,14 @@ class TreeSequence:
             # -1 is a valid value
             if population < -1 or population >= self.num_populations:
                 raise ValueError("Population out of bounds")
-
         flags = 0 if flags is None else flags
+        if metadata is None:
+            metadata = tables.nodes.metadata_schema.empty_value
+        metadata = tables.nodes.metadata_schema.validate_and_encode_row(metadata)
+        # This is the easiest way to turn off encoding when calling add_row below
+        schema = tables.nodes.metadata_schema
+        tables.nodes.metadata_schema = tskit.MetadataSchema(None)
 
-        tables = self.dump_tables()
         node_time = tables.nodes.time
         node_population = tables.nodes.population
         tables.edges.clear()
@@ -6007,6 +6025,8 @@ class TreeSequence:
                 split_edge[edge.id] = u
             else:
                 tables.edges.append(edge)
+        # Reinstate schema
+        tables.nodes.metadata_schema = schema
 
         tables.mutations.clear()
         for mutation in self.mutations():

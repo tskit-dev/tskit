@@ -6245,14 +6245,14 @@ class TestMutationEdge:
 
     def test_single_multiroot_tree_recurrent_mutations(self):
         ts = msprime.simulate(6, random_seed=10)
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         for mutations_per_branch in [1, 2, 3]:
             self.verify_branch_mutations(ts, mutations_per_branch)
 
     def test_many_multiroot_trees_recurrent_mutations(self):
         ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
         assert ts.num_trees > 3
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         for mutations_per_branch in [1, 2, 3]:
             self.verify_branch_mutations(ts, mutations_per_branch)
 

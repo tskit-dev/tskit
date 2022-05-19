@@ -797,6 +797,17 @@ class TestSplitEdgesNodeValues:
         tables.edges.add_row(0, 1, 1, 0)
         return tables.tree_sequence()
 
+    @tests.cached_example
+    def ts_with_schema(self):
+        tables = tskit.TableCollection(1)
+        for _ in range(5):
+            tables.populations.add_row()
+        tables.nodes.metadata_schema = tskit.MetadataSchema.permissive_json()
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, population=0, time=0)
+        tables.nodes.add_row(time=1)
+        tables.edges.add_row(0, 1, 1, 0)
+        return tables.tree_sequence()
+
     def test_default_population(self):
         ts = self.ts().split_edges(0.5)
         assert ts.node(2).population == 0
@@ -805,3 +816,30 @@ class TestSplitEdgesNodeValues:
     def test_specify_population(self, population):
         ts = self.ts().split_edges(0.5, population=population)
         assert ts.node(2).population == population
+
+    def test_default_flags(self):
+        ts = self.ts().split_edges(0.5)
+        assert ts.node(2).flags == 0
+
+    @pytest.mark.parametrize("flags", range(0, 5))
+    def test_specify_flags(self, flags):
+        ts = self.ts().split_edges(0.5, flags=flags)
+        assert ts.node(2).flags == flags
+
+    def test_default_metadata_no_schema(self):
+        ts = self.ts().split_edges(0.5)
+        assert ts.node(2).metadata == b""
+
+    @pytest.mark.parametrize("metadata", [b"", b"some bytes"])
+    def test_specify_metadata_no_schema(self, metadata):
+        ts = self.ts().split_edges(0.5, metadata=metadata)
+        assert ts.node(2).metadata == metadata
+
+    def test_default_metadata_with_schema(self):
+        ts = self.ts_with_schema().split_edges(0.5)
+        assert ts.node(2).metadata == {}
+
+    @pytest.mark.parametrize("metadata", [{}, {"some": "json"}])
+    def test_specify_metadata_with_schema(self, metadata):
+        ts = self.ts_with_schema().split_edges(0.5, metadata=metadata)
+        assert ts.node(2).metadata == metadata
