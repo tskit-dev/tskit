@@ -3253,6 +3253,30 @@ out:
     return ret;
 }
 
+int TSK_WARN_UNUSED
+tsk_treeseq_split_edges(const tsk_treeseq_t *self, double time, tsk_flags_t flags,
+    tsk_population_t population, const char *metadata, tsk_size_t metadata_length,
+    tsk_flags_t options, tsk_treeseq_t *output)
+{
+    int ret = 0;
+    tsk_table_collection_t tables;
+
+    ret = tsk_treeseq_copy_tables(self, &tables, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_table_collection_simplify(
+        &tables, samples, num_samples, options, node_map);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_treeseq_init(
+        output, &tables, TSK_TS_INIT_BUILD_INDEXES | TSK_TAKE_OWNERSHIP);
+out:
+    tsk_table_collection_free(&tables);
+    return ret;
+}
+
 /* ======================================================== *
  * Tree
  * ======================================================== */
