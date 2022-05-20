@@ -40,6 +40,9 @@
 - Add ``edge`` attribute to ``mutation_t`` struct make available in tree sequence.
   (:user:`jeromekelleher`, :issue:`685`, :pr:`2279`)
 
+- Reduce peak memory usage in ``tsk_treeseq_simplify``.
+  (:user:`jeromekelleher`, :issue:`2287`, :pr:`2288`)
+
 ----------------------
 [0.99.15] - 2021-12-07
 ----------------------

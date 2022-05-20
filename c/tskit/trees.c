@@ -3227,20 +3227,29 @@ tsk_treeseq_simplify(const tsk_treeseq_t *self, const tsk_id_t *samples,
     tsk_id_t *node_map)
 {
     int ret = 0;
-    tsk_table_collection_t tables;
+    tsk_table_collection_t *tables = tsk_malloc(sizeof(*tables));
 
-    ret = tsk_treeseq_copy_tables(self, &tables, 0);
+    if (tables == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    ret = tsk_treeseq_copy_tables(self, tables, 0);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_table_collection_simplify(
-        &tables, samples, num_samples, options, node_map);
+    ret = tsk_table_collection_simplify(tables, samples, num_samples, options, node_map);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_treeseq_init(output, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    ret = tsk_treeseq_init(
+        output, tables, TSK_TS_INIT_BUILD_INDEXES | TSK_TAKE_OWNERSHIP);
+    /* Once tsk_tree_init has returned ownership of tables is transferred */
+    tables = NULL;
 out:
-    tsk_table_collection_free(&tables);
+    if (tables != NULL) {
+        tsk_table_collection_free(tables);
+        tsk_safe_free(tables);
+    }
     return ret;
 }
 
