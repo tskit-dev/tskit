@@ -31,6 +31,7 @@ import collections
 import concurrent.futures
 import functools
 import io
+import inspect
 import itertools
 import math
 import warnings
@@ -6526,6 +6527,7 @@ class TreeSequence:
         mode=None,
         span_normalise=True,
         polarised=False,
+        centre=True,
     ):
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32
@@ -6559,6 +6561,7 @@ class TreeSequence:
             mode=mode,
             span_normalise=span_normalise,
             polarised=polarised,
+            centre=centre,
         )
         if drop_dimension:
             stat = stat.reshape(stat.shape[:-1])
@@ -6742,6 +6745,7 @@ class TreeSequence:
         span_normalise=True,
         polarised=False,
         proportion=True,
+        centre=True,
     ):
         """
         Computes genetic relatedness between (and within) pairs of
@@ -6799,6 +6803,8 @@ class TreeSequence:
             for sample sets `I` and `J`, this computes
             `E[N(I,J) - N(I,S) - N(J,T) + N(S,T)]`.
 
+        TODO: document ``centre``.
+
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of nodes to compute the statistic with.
         :param list indexes: A list of 2-tuples, or None.
@@ -6837,6 +6843,7 @@ class TreeSequence:
             mode=mode,
             span_normalise=span_normalise,
             polarised=polarised,
+            centre=centre,
         )
         with np.errstate(divide="ignore", invalid="ignore"):
             out = numerator / denominator
@@ -7332,11 +7339,19 @@ class TreeSequence:
         # around with indexes and samples sets twice.
 
         def fst_func(sample_set_sizes, flattened, indexes, **kwargs):
-            diversities = self._ll_tree_sequence.diversity(
-                sample_set_sizes, flattened, **kwargs
-            )
             divergences = self._ll_tree_sequence.divergence(
                 sample_set_sizes, flattened, indexes, **kwargs
+            )
+            # HACK since diversity doesn't take the `centred` argument
+            diversity_args = inspect.getfullargspec(self.diversity).args
+            remove_args = []
+            for a in kwargs:
+                if a not in diversity_args:
+                    remove_args.append(a)
+            for a in remove_args:
+                _ = kwargs.pop(a, None)
+            diversities = self._ll_tree_sequence.diversity(
+                sample_set_sizes, flattened, **kwargs
             )
 
             orig_shape = divergences.shape

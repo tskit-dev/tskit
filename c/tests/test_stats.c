@@ -1337,6 +1337,11 @@ test_paper_ex_genetic_relatedness(void)
     ret = tsk_treeseq_genetic_relatedness(&ts, 2, sample_set_sizes, samples, 1,
         set_indexes, 0, NULL, &result, TSK_STAT_SITE);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_genetic_relatedness(&ts, 2, sample_set_sizes, samples, 1,
+        set_indexes, 0, NULL, &result, TSK_STAT_SITE | TSK_STAT_NONCENTRED);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
     tsk_treeseq_free(&ts);
 }
 

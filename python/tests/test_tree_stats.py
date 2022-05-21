@@ -1846,8 +1846,16 @@ def site_genetic_relatedness(
 
 
 def branch_genetic_relatedness(
-    ts, sample_sets, indexes, windows=None, span_normalise=True, proportion=True
+    ts,
+    sample_sets,
+    indexes,
+    windows=None,
+    span_normalise=True,
+    proportion=True,
+    centre=True,
 ):
+    if isinstance(windows, str) and windows == "trees":
+        windows = ts.breakpoints(as_array=True)
     out = np.zeros((len(windows) - 1, len(indexes)))
     all_samples = list({u for s in sample_sets for u in s})
     denom = np.ones(len(windows))
@@ -1874,7 +1882,7 @@ def branch_genetic_relatedness(
                 haps = np.zeros(len(all_samples))
                 for x, u in enumerate(all_samples):
                     haps[x] = int(tr.is_descendant(u, v))
-                haps_mean = haps.mean()
+                haps_mean = haps.mean() if centre else 0
                 haps_centered = haps - haps_mean
                 for i, (ix, iy) in enumerate(indexes):
                     X = sample_sets[ix]
@@ -2060,6 +2068,48 @@ class TestGeneticRelatedness(StatsTestCase, TwoWaySampleSetStatsMixin):
 
 class TestBranchGeneticRelatedness(TestGeneticRelatedness, TopologyExamplesMixin):
     mode = "branch"
+
+    def test_match_genstat(self):
+        # This test checks that ts.genetic_relatedness() matches the general stat method
+        # of getting shared evolutionary times between all pairs of samples
+        ts = msprime.simulate(
+            10, mutation_rate=0.01, length=100, recombination_rate=0.01, random_seed=23
+        )
+        # Genetic relatedness method
+        sample_sets = [[i] for i in ts.samples()]
+        indexes = [(i, j) for i in ts.samples() for j in ts.samples()]
+        A = branch_genetic_relatedness(
+            ts=ts,
+            sample_sets=sample_sets,
+            indexes=indexes,
+            windows="trees",
+            span_normalise=True,
+            proportion=False,
+            centre=False,
+        )
+        # General stat method
+        k = ts.num_samples
+        W = np.identity(k)  # each node i in [0,1,...,k] given row vector of weights
+        # with 1 in column i and 0's elsewhere
+
+        def f(x):
+            return (
+                x.reshape(-1, 1) * x
+            ).flatten()  # matrix with 1's where branch above a node
+            # with value x contributes to shared time between samples
+
+        B = ts.general_stat(
+            W,
+            f,
+            k ** 2,
+            mode="branch",
+            windows="trees",
+            polarised=True,
+            strict=False,
+            span_normalise=True,
+        )
+        # Check
+        self.assertArrayAlmostEqual(A, B)
 
 
 class TestNodeGeneticRelatedness(TestGeneticRelatedness, TopologyExamplesMixin):
