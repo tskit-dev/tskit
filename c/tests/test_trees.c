@@ -7250,6 +7250,47 @@ test_reference_sequence(void)
 }
 
 static void
+test_split_edges(void)
+{
+    int ret;
+    tsk_treeseq_t ts, split_ts;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
+
+    /* NOTE: haven't worked out the exact IDs on the branches here, just
+     * for illustration.
+
+    0.25┊     8   ┊         ┊         ┊
+        ┊   ┏━┻━┓ ┊         ┊         ┊
+    0.20┊   ┃   ┃ ┊         ┊   7     ┊
+        ┊   ┃   ┃ ┊         ┊ ┏━┻━┓   ┊
+    0.17┊   6   ┃ ┊   6     ┊ ┃   ┃   ┊
+        ┊ ┏━┻┓  ┃ ┊ ┏━┻━┓   ┊ ┃   ┃   ┊
+    0.09┊ 9  5  10┊ 9   5   ┊ 11  5   ┊
+        ┊ ┃ ┏┻┓ ┃ ┊ ┃ ┏━┻┓  ┊ ┃ ┏━┻┓  ┊
+    0.07┊ ┃ ┃ ┃ ┃ ┊ ┃ ┃  4  ┊ ┃ ┃  4  ┊
+        ┊ ┃ ┃ ┃ ┃ ┊ ┃ ┃ ┏┻┓ ┊ ┃ ┃ ┏┻┓ ┊
+    0.00┊ 0 1 3 2 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊
+      0.00      2.00      7.00      10.00
+    */
+    /* tsk_treeseq_split_edges(const tsk_treeseq_t *self, double time, tsk_flags_t flags,
+     */
+    /*     tsk_id_t population, const char *metadata, tsk_size_t metadata_length, */
+    /*     tsk_flags_t TSK_UNUSED(options), tsk_treeseq_t *output) */
+
+    ret = tsk_treeseq_split_edges(&ts, 0.09, 0, TSK_NULL, NULL, 0, 0, &split_ts);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&split_ts), 3);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&split_ts), 12);
+
+    /* tsk_table_collection_free(&t); */
+    tsk_treeseq_free(&split_ts);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_init_take_ownership_no_edge_metadata(void)
 {
     int ret;
@@ -7449,6 +7490,7 @@ main(int argc, char **argv)
         { "test_tree_sequence_metadata", test_tree_sequence_metadata },
         { "test_time_uncalibrated", test_time_uncalibrated },
         { "test_reference_sequence", test_reference_sequence },
+        { "test_split_edges", test_split_edges },
         { "test_init_take_ownership_no_edge_metadata",
             test_init_take_ownership_no_edge_metadata },
         { NULL, NULL },

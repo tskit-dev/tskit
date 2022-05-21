@@ -3255,25 +3255,104 @@ out:
 
 int TSK_WARN_UNUSED
 tsk_treeseq_split_edges(const tsk_treeseq_t *self, double time, tsk_flags_t flags,
-    tsk_population_t population, const char *metadata, tsk_size_t metadata_length,
-    tsk_flags_t options, tsk_treeseq_t *output)
+    tsk_id_t population, const char *metadata, tsk_size_t metadata_length,
+    tsk_flags_t TSK_UNUSED(options), tsk_treeseq_t *output)
 {
     int ret = 0;
-    tsk_table_collection_t tables;
+    tsk_table_collection_t *tables = tsk_malloc(sizeof(*tables));
+    const double *restrict node_time = self->tables->nodes.time;
+    /* const tsk_id_t *restrict node_population = self->tables->nodes.population; */
+    const tsk_size_t num_edges = self->tables->edges.num_rows;
+    const tsk_size_t num_mutations = self->tables->mutations.num_rows;
+    tsk_id_t *split_edge = tsk_malloc(num_edges * sizeof(*split_edge));
+    tsk_id_t j, u, mapped_node, ret_id;
+    double mutation_time;
+    tsk_edge_t edge;
+    tsk_mutation_t mutation;
+    tsk_bookmark_t sort_start;
 
-    ret = tsk_treeseq_copy_tables(self, &tables, 0);
+    if (split_edge == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    ret = tsk_treeseq_copy_tables(self, tables, 0);
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_table_collection_simplify(
-        &tables, samples, num_samples, options, node_map);
+    if (tables->migrations.num_rows > 0) {
+        ret = TSK_ERR_MIGRATIONS_NOT_SUPPORTED;
+        goto out;
+    }
+    tsk_edge_table_clear(&tables->edges);
+    tsk_memset(split_edge, TSK_NULL, num_edges * sizeof(*split_edge));
+
+    for (j = 0; j < (tsk_id_t) num_edges; j++) {
+        /* Would prefer to use tsk_edge_table_get_row_unsafe, but it's
+         * currently static to tables.c */
+        ret = tsk_edge_table_get_row(&self->tables->edges, j, &edge);
+        tsk_bug_assert(ret == 0);
+        if (node_time[edge.child] < time && time < node_time[edge.parent]) {
+            u = tsk_node_table_add_row(&tables->nodes, flags, time, population, TSK_NULL,
+                metadata, metadata_length);
+            if (u < 0) {
+                ret = (int) u;
+                goto out;
+            }
+            ret_id = tsk_edge_table_add_row(&tables->edges, edge.left, edge.right, u,
+                edge.child, edge.metadata, edge.metadata_length);
+            if (ret_id < 0) {
+                ret = (int) ret;
+                goto out;
+            }
+            edge.child = u;
+            split_edge[j] = u;
+        }
+        ret_id = tsk_edge_table_add_row(&tables->edges, edge.left, edge.right,
+            edge.parent, edge.child, edge.metadata, edge.metadata_length);
+        if (ret < 0) {
+            ret = (int) ret;
+            goto out;
+        }
+    }
+    for (j = 0; j < (tsk_id_t) num_mutations; j++) {
+        /* Note: we could speed this up a bit by accessing the local
+         * memory for mutations directly. */
+        ret = tsk_treeseq_get_mutation(self, j, &mutation);
+        tsk_bug_assert(ret == 0);
+        mapped_node = TSK_NULL;
+        if (mutation.edge != TSK_NULL) {
+            mapped_node = split_edge[mutation.edge];
+        }
+        mutation_time = tsk_is_unknown_time(mutation.time) ? node_time[mutation.node]
+                                                           : mutation.time;
+        if (mapped_node != TSK_NULL && mutation_time >= time) {
+            mutation.node = mapped_node;
+        }
+        /* Update the column in-place to save a bit of time. */
+        tables->mutations.node[j] = mutation.node;
+    }
+
+    /* Skip mutations and sites as they haven't been altered */
+    /* Note we can probably optimise the edge sort a bit here also by
+     * reasoning about when the first edge gets altered in the table.
+     */
+    memset(&sort_start, 0, sizeof(sort_start));
+    sort_start.sites = tables->sites.num_rows;
+    sort_start.mutations = tables->mutations.num_rows;
+    ret = tsk_table_collection_sort(tables, &sort_start, 0);
     if (ret != 0) {
         goto out;
     }
+
     ret = tsk_treeseq_init(
-        output, &tables, TSK_TS_INIT_BUILD_INDEXES | TSK_TAKE_OWNERSHIP);
+        output, tables, TSK_TS_INIT_BUILD_INDEXES | TSK_TAKE_OWNERSHIP);
+    tables = NULL;
 out:
-    tsk_table_collection_free(&tables);
+    if (tables != NULL) {
+        tsk_table_collection_free(tables);
+        tsk_safe_free(tables);
+    }
+    tsk_safe_free(split_edge);
     return ret;
 }
 
