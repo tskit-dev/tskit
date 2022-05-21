@@ -291,6 +291,9 @@ This must be called before any operations are performed on the tree sequence.
 See the :ref:`sec_c_api_overview_structure` for details on how objects
 are initialised and freed.
 
+If specified, TSK_TAKE_OWNERSHIP takes immediate ownership of the tables, regardless
+of error conditions.
+
 **Options**
 
 - :c:macro:`TSK_TS_INIT_BUILD_INDEXES`
