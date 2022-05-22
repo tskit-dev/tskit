@@ -5440,7 +5440,7 @@ class TreeSequence:
                 n_dip_indv = int(ts.num_samples / 2)
                 indv_names = [f"tsk_{str(i)}indv" for i in range(n_dip_indv)]
                 with open("output.vcf", "w") as vcf_file:
-                    ts.write_vcf(vcf_file, ploidy=2, individual_names=indv_names)
+                    ts.write_vcf(vcf_file, individual_names=indv_names)
 
             Adding a second ``_`` (eg: ``tsk_0_indv``) is not recommended as
             ``plink`` uses ``_`` as the default separator for separating family
@@ -5521,7 +5521,8 @@ class TreeSequence:
 
         :param io.IOBase output: The file-like object to write the VCF output.
         :param int ploidy: The ploidy of the individuals to be written to
-            VCF. This sample size must be evenly divisible by ploidy.
+            VCF. This sample size must be evenly divisible by ploidy. Cannot be
+            used if there is individual data in the tree sequence.
         :param str contig_id: The value of the CHROM column in the output VCF.
         :param list(int) individuals: A list containing the individual IDs to
             write out to VCF. Defaults to all individuals in the tree sequence.
@@ -5532,7 +5533,8 @@ class TreeSequence:
             we do not check the form of these strings in any way, so that is
             is possible to output malformed VCF (for example, by embedding a
             tab character within on of the names). The default is to output
-            ``tsk_j`` for the jth individual.
+            ``tsk_j`` for the jth individual. Cannot be used if ploidy is
+            specified.
         :param position_transform: A callable that transforms the
             site position values into integer valued coordinates suitable for
             VCF. The function takes a single positional parameter x and must
