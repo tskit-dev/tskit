@@ -2195,8 +2195,8 @@ class Tree:
 
     def preorder(self, u=NULL):
         """
-        Returns a numpy array of node ids in preorder
-        <https://en.wikipedia.org/wiki/Tree_traversal#Pre-order_(NLR)>. If the node u
+        Returns a numpy array of node ids in `preorder
+        <https://en.wikipedia.org/wiki/Tree_traversal#Pre-order_(NLR)>`_. If the node u
         is specified the traversal is rooted at this node (and it will be the first
         element in the returned array). Otherwise, all nodes reachable from the tree
         roots will be returned. See :ref:`tutorials:sec_analysing_trees_traversals` for
@@ -2211,8 +2211,8 @@ class Tree:
 
     def postorder(self, u=NULL):
         """
-        Returns a numpy array of node ids in postorder
-        <https://en.wikipedia.org/wiki/Tree_traversal##Post-order_(LRN)>. If the node u
+        Returns a numpy array of node ids in `postorder
+        <https://en.wikipedia.org/wiki/Tree_traversal##Post-order_(LRN)>`_. If the node u
         is specified the traversal is rooted at this node (and it will be the last
         element in the returned array). Otherwise, all nodes reachable from the tree
         roots will be returned. See :ref:`tutorials:sec_analysing_trees_traversals` for
