@@ -3272,6 +3272,7 @@ tsk_treeseq_split_edges(const tsk_treeseq_t *self, double time, tsk_flags_t flag
     tsk_bookmark_t sort_start;
     bool impute_population = options & TSK_SPLIT_EDGES_IMPUTE_POPULATION;
 
+    memset(output, 0, sizeof(*output));
     if (split_edge == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
@@ -3284,6 +3285,11 @@ tsk_treeseq_split_edges(const tsk_treeseq_t *self, double time, tsk_flags_t flag
         ret = TSK_ERR_MIGRATIONS_NOT_SUPPORTED;
         goto out;
     }
+    if (population < -1 || population >= (tsk_id_t) self->tables->populations.num_rows) {
+        ret = TSK_ERR_POPULATION_OUT_OF_BOUNDS;
+        goto out;
+    }
+
     tsk_edge_table_clear(&tables->edges);
     tsk_memset(split_edge, TSK_NULL, num_edges * sizeof(*split_edge));
 
