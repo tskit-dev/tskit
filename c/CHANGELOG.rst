@@ -1,6 +1,6 @@
-----------------------
-[1.0.0b1] - 2022-05-11
-----------------------
+--------------------
+[1.0.0] - 2022-05-XX
+--------------------
 
 ##BETA RELEASE
 
@@ -31,6 +31,7 @@
   Remove ``TSK_ERR_NON_SINGLE_CHAR_MUTATION`` which was unused.
   (:user:`benjeffery`, :pr:`2260`)
 
+- Reorder stats API methods to place ``result`` as the last argument. (:user:`benjeffery`, :pr:`2292`, :issue:`2285`)
 
 **Features**
 
