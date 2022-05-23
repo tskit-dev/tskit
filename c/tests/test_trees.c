@@ -7250,13 +7250,28 @@ test_reference_sequence(void)
 }
 
 static void
-test_split_edges(void)
+test_split_edges_no_populations(void)
 {
     int ret;
     tsk_treeseq_t ts, split_ts;
+    tsk_table_collection_t tables;
+    tsk_id_t new_nodes[] = { 9, 10, 11 };
+    tsk_size_t num_new_nodes = 3;
+    const char *metadata = "some metadata";
+    tsk_size_t j;
+    tsk_node_t node;
+    double time = 0.09;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
+
+    ret = tsk_table_collection_copy(ts.tables, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_treeseq_init(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* NOTE: haven't worked out the exact IDs on the branches here, just
      * for illustration.
@@ -7274,19 +7289,44 @@ test_split_edges(void)
     0.00┊ 0 1 3 2 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊
       0.00      2.00      7.00      10.00
     */
-    /* tsk_treeseq_split_edges(const tsk_treeseq_t *self, double time, tsk_flags_t flags,
-     */
-    /*     tsk_id_t population, const char *metadata, tsk_size_t metadata_length, */
-    /*     tsk_flags_t TSK_UNUSED(options), tsk_treeseq_t *output) */
-
-    ret = tsk_treeseq_split_edges(&ts, 0.09, 0, TSK_NULL, NULL, 0, 0, &split_ts);
+    ret = tsk_treeseq_split_edges(
+        &ts, time, 1234, 0, metadata, strlen(metadata), 0, &split_ts);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&split_ts), 3);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&split_ts), 12);
 
-    /* tsk_table_collection_free(&t); */
+    for (j = 0; j < num_new_nodes; j++) {
+        ret = tsk_treeseq_get_node(&split_ts, new_nodes[j], &node);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(node.time, time);
+        CU_ASSERT_EQUAL(node.flags, 1234);
+        CU_ASSERT_EQUAL(node.individual, TSK_NULL);
+        CU_ASSERT_EQUAL(node.population, 0);
+        CU_ASSERT_EQUAL(node.metadata_length, strlen(metadata));
+        CU_ASSERT_EQUAL(strncmp(node.metadata, metadata, strlen(metadata)), 0);
+    }
     tsk_treeseq_free(&split_ts);
+
+    /* And again with imputed population value */
+    ret = tsk_treeseq_split_edges(&ts, time, 1234, 0, metadata, strlen(metadata),
+        TSK_SPLIT_EDGES_IMPUTE_POPULATION, &split_ts);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&split_ts), 3);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&split_ts), 12);
+
+    for (j = 0; j < num_new_nodes; j++) {
+        ret = tsk_treeseq_get_node(&split_ts, new_nodes[j], &node);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(node.time, time);
+        CU_ASSERT_EQUAL(node.flags, 1234);
+        CU_ASSERT_EQUAL(node.individual, TSK_NULL);
+        CU_ASSERT_EQUAL(node.population, TSK_NULL);
+        CU_ASSERT_EQUAL(node.metadata_length, strlen(metadata));
+        CU_ASSERT_EQUAL(strncmp(node.metadata, metadata, strlen(metadata)), 0);
+    }
+    tsk_treeseq_free(&split_ts);
+
+    tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);
 }
 
@@ -7490,7 +7530,7 @@ main(int argc, char **argv)
         { "test_tree_sequence_metadata", test_tree_sequence_metadata },
         { "test_time_uncalibrated", test_time_uncalibrated },
         { "test_reference_sequence", test_reference_sequence },
-        { "test_split_edges", test_split_edges },
+        { "test_split_edges_no_populations", test_split_edges_no_populations },
         { "test_init_take_ownership_no_edge_metadata",
             test_init_take_ownership_no_edge_metadata },
         { NULL, NULL },
