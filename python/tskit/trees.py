@@ -5956,25 +5956,23 @@ class TreeSequence:
         edge ``(left, right, parent, child)`` in which
         ``node_time[child] < time < node_time[parent]`` with two edges
         ``(left, right, parent, u)`` and ``(left, right, u, child)``,
-        where ``u`` is a newly added node for each intersecting edge. If
-        ``metadata``, ``flags``, or ``population`` are specified, newly added nodes will be
-        assigned these values. Otherwise, default values will be used.
-        The default metadata is an empty dictionary if a
-        metadata schema is defined for the node table,
-        and is an empty byte string otherwise.
+        where ``u`` is a newly added node for each intersecting edge.
 
-        Any metadata associated with the edge will be copied to the new edge.
+        If ``metadata``, ``flags``, or ``population`` are specified, newly
+        added nodes will be assigned these values. Otherwise, default values
+        will be used. The default metadata is an empty dictionary if a metadata
+        schema is defined for the node table, and is an empty byte string
+        otherwise. The default population for the new node will be derived from
+        the population of the edge's child. Newly added have a default
+        ``flags`` value of 0.
 
-        The population value for the new node will be derived from the
-        population of the edge's child.
+        Any metadata associated with a split edge will be copied to the new edge.
 
         .. warning:: This method currently does not support migrations
             and a ValueError will be raised if the migration table is not
             empty. Future versions may take migrations that intersect with the
             edge into account when determining the default population
             assignments for new nodes.
-
-        Newly added nodes will have a ``flags`` value of 0, if not specified.
 
         Any mutations lying on the edge whose time is >= ``time`` will have
         their node value set to ``u``. Note that the time of the mutation is

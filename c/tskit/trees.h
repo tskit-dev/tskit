@@ -906,10 +906,6 @@ int tsk_treeseq_general_stat(const tsk_treeseq_t *self, tsk_size_t K, const doub
     tsk_size_t M, general_stat_func_t *f, void *f_params, tsk_size_t num_windows,
     const double *windows, tsk_flags_t options, double *result);
 
-/* TODO, change the "options" param to be the last non-output argument.
- * https://github.com/tskit-dev/tskit/issues/2285
- */
-
 /* One way weighted stats */
 
 typedef int one_way_weighted_method(const tsk_treeseq_t *self, tsk_size_t num_weights,
