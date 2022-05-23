@@ -8731,7 +8731,7 @@ TreeSequence_general_stat(TreeSequence *self, PyObject *args, PyObject *kwds)
 
     err = tsk_treeseq_general_stat(self->tree_sequence, w_shape[1],
         PyArray_DATA(weights_array), output_dim, general_stat_func, summary_func,
-        num_windows, PyArray_DATA(windows_array), PyArray_DATA(result_array), options);
+        num_windows, PyArray_DATA(windows_array), options, PyArray_DATA(result_array));
     if (err == TSK_PYTHON_CALLBACK_ERROR) {
         goto out;
     } else if (err != 0) {
@@ -8805,7 +8805,7 @@ TreeSequence_one_way_weighted_method(
     }
 
     err = method(self->tree_sequence, w_shape[1], PyArray_DATA(weights_array),
-        num_windows, PyArray_DATA(windows_array), PyArray_DATA(result_array), options);
+        num_windows, PyArray_DATA(windows_array), options, PyArray_DATA(result_array));
     if (err == TSK_PYTHON_CALLBACK_ERROR) {
         goto out;
     } else if (err != 0) {
@@ -8893,7 +8893,7 @@ TreeSequence_one_way_covariates_method(TreeSequence *self, PyObject *args,
 
     err = method(self->tree_sequence, w_shape[1], PyArray_DATA(weights_array),
         z_shape[1], PyArray_DATA(covariates_array), num_windows,
-        PyArray_DATA(windows_array), PyArray_DATA(result_array), options);
+        PyArray_DATA(windows_array), options, PyArray_DATA(result_array));
     if (err == TSK_PYTHON_CALLBACK_ERROR) {
         goto out;
     } else if (err != 0) {
@@ -8963,7 +8963,7 @@ TreeSequence_one_way_stat_method(TreeSequence *self, PyObject *args, PyObject *k
     }
     err = method(self->tree_sequence, num_sample_sets,
         PyArray_DATA(sample_set_sizes_array), PyArray_DATA(sample_sets_array),
-        num_windows, PyArray_DATA(windows_array), PyArray_DATA(result_array), options);
+        num_windows, PyArray_DATA(windows_array), options, PyArray_DATA(result_array));
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -9042,7 +9042,7 @@ TreeSequence_allele_frequency_spectrum(
     }
     err = tsk_treeseq_allele_frequency_spectrum(self->tree_sequence, num_sample_sets,
         PyArray_DATA(sample_set_sizes_array), PyArray_DATA(sample_sets_array),
-        num_windows, PyArray_DATA(windows_array), PyArray_DATA(result_array), options);
+        num_windows, PyArray_DATA(windows_array), options, PyArray_DATA(result_array));
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -9168,7 +9168,7 @@ TreeSequence_k_way_stat_method(TreeSequence *self, PyObject *args, PyObject *kwd
     err = method(self->tree_sequence, num_sample_sets,
         PyArray_DATA(sample_set_sizes_array), PyArray_DATA(sample_sets_array),
         num_set_index_tuples, PyArray_DATA(indexes_array), num_windows,
-        PyArray_DATA(windows_array), PyArray_DATA(result_array), options);
+        PyArray_DATA(windows_array), options, PyArray_DATA(result_array));
     if (err != 0) {
         handle_library_error(err);
         goto out;

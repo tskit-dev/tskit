@@ -7190,13 +7190,13 @@ test_time_uncalibrated(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_treeseq_allele_frequency_spectrum(
-        &ts2, 2, sample_set_sizes, samples, 0, NULL, result, TSK_STAT_SITE);
+        &ts2, 2, sample_set_sizes, samples, 0, NULL, TSK_STAT_SITE, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_treeseq_allele_frequency_spectrum(
-        &ts2, 2, sample_set_sizes, samples, 0, NULL, result, TSK_STAT_BRANCH);
+        &ts2, 2, sample_set_sizes, samples, 0, NULL, TSK_STAT_BRANCH, result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TIME_UNCALIBRATED);
     ret = tsk_treeseq_allele_frequency_spectrum(&ts2, 2, sample_set_sizes, samples, 0,
-        NULL, result, TSK_STAT_BRANCH | TSK_STAT_ALLOW_TIME_UNCALIBRATED);
+        NULL, TSK_STAT_BRANCH | TSK_STAT_ALLOW_TIME_UNCALIBRATED, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     sigma = tsk_calloc(tsk_treeseq_get_num_nodes(&ts2), sizeof(double));
@@ -7204,16 +7204,16 @@ test_time_uncalibrated(void)
     W = tsk_calloc(num_samples, sizeof(double));
 
     ret = tsk_treeseq_general_stat(&ts2, 1, W, 1, dummy_stat, NULL,
-        tsk_treeseq_get_num_trees(&ts2), tsk_treeseq_get_breakpoints(&ts2), sigma,
-        TSK_STAT_SITE);
+        tsk_treeseq_get_num_trees(&ts2), tsk_treeseq_get_breakpoints(&ts2),
+        TSK_STAT_SITE, sigma);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_treeseq_general_stat(&ts2, 1, W, 1, dummy_stat, NULL,
-        tsk_treeseq_get_num_trees(&ts2), tsk_treeseq_get_breakpoints(&ts2), sigma,
-        TSK_STAT_BRANCH);
+        tsk_treeseq_get_num_trees(&ts2), tsk_treeseq_get_breakpoints(&ts2),
+        TSK_STAT_BRANCH, sigma);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TIME_UNCALIBRATED);
     ret = tsk_treeseq_general_stat(&ts2, 1, W, 1, dummy_stat, NULL,
-        tsk_treeseq_get_num_trees(&ts2), tsk_treeseq_get_breakpoints(&ts2), sigma,
-        TSK_STAT_BRANCH | TSK_STAT_ALLOW_TIME_UNCALIBRATED);
+        tsk_treeseq_get_num_trees(&ts2), tsk_treeseq_get_breakpoints(&ts2),
+        TSK_STAT_BRANCH | TSK_STAT_ALLOW_TIME_UNCALIBRATED, sigma);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tsk_safe_free(W);

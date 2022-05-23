@@ -296,29 +296,29 @@ verify_window_errors(tsk_treeseq_t *ts, tsk_flags_t mode)
 
     /* Window errors */
     ret = tsk_treeseq_general_stat(
-        ts, 1, W, 1, general_stat_error, NULL, 0, windows, sigma, options);
+        ts, 1, W, 1, general_stat_error, NULL, 0, windows, options, sigma);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NUM_WINDOWS);
 
     ret = tsk_treeseq_general_stat(
-        ts, 1, W, 1, general_stat_error, NULL, 2, windows, sigma, options);
+        ts, 1, W, 1, general_stat_error, NULL, 2, windows, options, sigma);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);
 
     windows[0] = 10;
     ret = tsk_treeseq_general_stat(
-        ts, 1, W, 1, general_stat_error, NULL, 2, windows, sigma, options);
+        ts, 1, W, 1, general_stat_error, NULL, 2, windows, options, sigma);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);
 
     windows[0] = 0;
     windows[2] = tsk_treeseq_get_sequence_length(ts) + 1;
     ret = tsk_treeseq_general_stat(
-        ts, 1, W, 1, general_stat_error, NULL, 2, windows, sigma, options);
+        ts, 1, W, 1, general_stat_error, NULL, 2, windows, options, sigma);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);
 
     windows[0] = 0;
     windows[1] = -1;
     windows[2] = tsk_treeseq_get_sequence_length(ts);
     ret = tsk_treeseq_general_stat(
-        ts, 1, W, 1, general_stat_error, NULL, 2, windows, sigma, options);
+        ts, 1, W, 1, general_stat_error, NULL, 2, windows, options, sigma);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);
 
     free(W);
@@ -344,7 +344,7 @@ verify_summary_func_errors(tsk_treeseq_t *ts, tsk_flags_t mode)
         params.error_on = j;
         params.error_code = -j;
         ret = tsk_treeseq_general_stat(ts, 1, W, 1, general_stat_error, &params, 0, NULL,
-            sigma, TSK_STAT_POLARISED | mode);
+            TSK_STAT_POLARISED | mode, sigma);
         if (ret == 0) {
             break;
         }
@@ -359,7 +359,7 @@ verify_summary_func_errors(tsk_treeseq_t *ts, tsk_flags_t mode)
         params.error_on = j;
         params.error_code = -j;
         ret = tsk_treeseq_general_stat(
-            ts, 1, W, 1, general_stat_error, &params, 0, NULL, sigma, mode);
+            ts, 1, W, 1, general_stat_error, &params, 0, NULL, mode, sigma);
         if (ret == 0) {
             break;
         }
@@ -408,7 +408,7 @@ verify_one_way_weighted_func_errors(tsk_treeseq_t *ts, one_way_weighted_method *
         weights[j] = 1.0;
     }
 
-    ret = method(ts, 0, weights, 0, NULL, &result, 0);
+    ret = method(ts, 0, weights, 0, NULL, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_STATE_DIMS);
 
     free(weights);
@@ -431,7 +431,7 @@ verify_one_way_weighted_covariate_func_errors(
         weights[j] = 1.0;
     }
 
-    ret = method(ts, 0, weights, 0, covariates, 0, NULL, &result, 0);
+    ret = method(ts, 0, weights, 0, covariates, 0, NULL, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_STATE_DIMS);
 
     free(weights);
@@ -447,41 +447,41 @@ verify_one_way_stat_func_errors(tsk_treeseq_t *ts, one_way_sample_stat_method *m
     double windows[] = { 0, 0, 0 };
     double result;
 
-    ret = method(ts, 0, &sample_set_sizes, samples, 0, NULL, &result, 0);
+    ret = method(ts, 0, &sample_set_sizes, samples, 0, NULL, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
 
     samples[0] = TSK_NULL;
-    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
+    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
     samples[0] = -10;
-    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
+    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
     samples[0] = num_nodes;
-    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
+    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
     samples[0] = num_nodes + 1;
-    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
+    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
     samples[0] = num_nodes - 1;
-    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
+    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLES);
 
     samples[0] = 1;
-    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
+    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
 
     samples[0] = 0;
     sample_set_sizes = 0;
-    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
+    ret = method(ts, 1, &sample_set_sizes, samples, 0, NULL, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EMPTY_SAMPLE_SET);
 
     sample_set_sizes = 4;
     /* Window errors */
-    ret = method(ts, 1, &sample_set_sizes, samples, 0, windows, &result, 0);
+    ret = method(ts, 1, &sample_set_sizes, samples, 0, windows, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NUM_WINDOWS);
 
-    ret = method(ts, 1, &sample_set_sizes, samples, 2, windows, &result, 0);
+    ret = method(ts, 1, &sample_set_sizes, samples, 2, windows, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);
 }
 
@@ -494,25 +494,25 @@ verify_two_way_stat_func_errors(tsk_treeseq_t *ts, general_sample_stat_method *m
     tsk_id_t set_indexes[] = { 0, 1 };
     double result;
 
-    ret = method(ts, 0, sample_set_sizes, samples, 1, set_indexes, 0, NULL, &result,
-        TSK_STAT_SITE);
+    ret = method(ts, 0, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
-    ret = method(ts, 1, sample_set_sizes, samples, 1, set_indexes, 0, NULL, &result,
-        TSK_STAT_SITE);
+    ret = method(ts, 1, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
 
-    ret = method(ts, 2, sample_set_sizes, samples, 0, set_indexes, 0, NULL, &result,
-        TSK_STAT_SITE);
+    ret = method(ts, 2, sample_set_sizes, samples, 0, set_indexes, 0, NULL,
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_INDEX_TUPLES);
 
     set_indexes[0] = -1;
-    ret = method(ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL, &result,
-        TSK_STAT_SITE);
+    ret = method(ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLE_SET_INDEX);
     set_indexes[0] = 0;
     set_indexes[1] = 2;
-    ret = method(ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL, &result,
-        TSK_STAT_SITE);
+    ret = method(ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLE_SET_INDEX);
 }
 
@@ -525,28 +525,28 @@ verify_three_way_stat_func_errors(tsk_treeseq_t *ts, general_sample_stat_method 
     tsk_id_t set_indexes[] = { 0, 1, 2 };
     double result;
 
-    ret = method(ts, 0, sample_set_sizes, samples, 1, set_indexes, 0, NULL, &result,
-        TSK_STAT_SITE);
+    ret = method(ts, 0, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
-    ret = method(ts, 1, sample_set_sizes, samples, 1, set_indexes, 0, NULL, &result,
-        TSK_STAT_SITE);
+    ret = method(ts, 1, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
-    ret = method(ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL, &result,
-        TSK_STAT_SITE);
+    ret = method(ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
 
-    ret = method(ts, 3, sample_set_sizes, samples, 0, set_indexes, 0, NULL, &result,
-        TSK_STAT_SITE);
+    ret = method(ts, 3, sample_set_sizes, samples, 0, set_indexes, 0, NULL,
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_INDEX_TUPLES);
 
     set_indexes[0] = -1;
-    ret = method(ts, 3, sample_set_sizes, samples, 1, set_indexes, 0, NULL, &result,
-        TSK_STAT_SITE);
+    ret = method(ts, 3, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLE_SET_INDEX);
     set_indexes[0] = 0;
     set_indexes[1] = 3;
-    ret = method(ts, 3, sample_set_sizes, samples, 1, set_indexes, 0, NULL, &result,
-        TSK_STAT_SITE);
+    ret = method(ts, 3, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLE_SET_INDEX);
 }
 
@@ -559,31 +559,31 @@ verify_four_way_stat_func_errors(tsk_treeseq_t *ts, general_sample_stat_method *
     tsk_id_t set_indexes[] = { 0, 1, 2, 3 };
     double result;
 
-    ret = method(ts, 0, sample_set_sizes, samples, 1, set_indexes, 0, NULL, &result,
-        TSK_STAT_SITE);
+    ret = method(ts, 0, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
-    ret = method(ts, 1, sample_set_sizes, samples, 1, set_indexes, 0, NULL, &result,
-        TSK_STAT_SITE);
+    ret = method(ts, 1, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
-    ret = method(ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL, &result,
-        TSK_STAT_SITE);
+    ret = method(ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
-    ret = method(ts, 3, sample_set_sizes, samples, 1, set_indexes, 0, NULL, &result,
-        TSK_STAT_SITE);
+    ret = method(ts, 3, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
 
-    ret = method(ts, 4, sample_set_sizes, samples, 0, set_indexes, 0, NULL, &result,
-        TSK_STAT_SITE);
+    ret = method(ts, 4, sample_set_sizes, samples, 0, set_indexes, 0, NULL,
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_INDEX_TUPLES);
 
     set_indexes[0] = -1;
-    ret = method(ts, 4, sample_set_sizes, samples, 1, set_indexes, 0, NULL, &result,
-        TSK_STAT_SITE);
+    ret = method(ts, 4, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLE_SET_INDEX);
     set_indexes[0] = 0;
     set_indexes[1] = 4;
-    ret = method(ts, 4, sample_set_sizes, samples, 1, set_indexes, 0, NULL, &result,
-        TSK_STAT_SITE);
+    ret = method(ts, 4, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLE_SET_INDEX);
 }
 
@@ -624,8 +624,8 @@ verify_branch_general_stat_identity(tsk_treeseq_t *ts)
     }
 
     ret = tsk_treeseq_general_stat(ts, 1, W, 1, general_stat_identity, NULL,
-        tsk_treeseq_get_num_trees(ts), tsk_treeseq_get_breakpoints(ts), sigma,
-        TSK_STAT_BRANCH | TSK_STAT_POLARISED | TSK_STAT_SPAN_NORMALISE);
+        tsk_treeseq_get_num_trees(ts), tsk_treeseq_get_breakpoints(ts),
+        TSK_STAT_BRANCH | TSK_STAT_POLARISED | TSK_STAT_SPAN_NORMALISE, sigma);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_tree_init(&tree, ts, 0);
@@ -688,7 +688,7 @@ verify_general_stat_dims(
         }
     }
     ret = tsk_treeseq_general_stat(
-        ts, K, W, M, general_stat_sum, NULL, 0, NULL, sigma, options);
+        ts, K, W, M, general_stat_sum, NULL, 0, NULL, options, sigma);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     free(W);
@@ -722,7 +722,7 @@ verify_general_stat_windows(
         windows[j] = ((double) j) * L / (double) num_windows;
     }
     ret = tsk_treeseq_general_stat(
-        ts, 1, W, M, general_stat_sum, NULL, num_windows, windows, sigma, options);
+        ts, 1, W, M, general_stat_sum, NULL, num_windows, windows, options, sigma);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     free(W);
@@ -748,11 +748,11 @@ verify_default_general_stat(tsk_treeseq_t *ts)
         }
     }
     ret = tsk_treeseq_general_stat(
-        ts, K, W, M, general_stat_sum, NULL, 0, NULL, &sigma1, TSK_STAT_SITE);
+        ts, K, W, M, general_stat_sum, NULL, 0, NULL, TSK_STAT_SITE, &sigma1);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_treeseq_general_stat(
-        ts, K, W, M, general_stat_sum, NULL, 0, NULL, &sigma2, 0);
+        ts, K, W, M, general_stat_sum, NULL, 0, NULL, 0, &sigma2);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(sigma1, sigma2);
     free(W);
@@ -796,23 +796,23 @@ verify_afs(tsk_treeseq_t *ts)
     sample_set_sizes[0] = n - 2;
     sample_set_sizes[1] = 2;
     ret = tsk_treeseq_allele_frequency_spectrum(
-        ts, 2, sample_set_sizes, samples, 0, NULL, result, 0);
+        ts, 2, sample_set_sizes, samples, 0, NULL, 0, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_treeseq_allele_frequency_spectrum(
-        ts, 2, sample_set_sizes, samples, 0, NULL, result, TSK_STAT_POLARISED);
+        ts, 2, sample_set_sizes, samples, 0, NULL, TSK_STAT_POLARISED, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_treeseq_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples, 0,
-        NULL, result, TSK_STAT_POLARISED | TSK_STAT_SPAN_NORMALISE);
+        NULL, TSK_STAT_POLARISED | TSK_STAT_SPAN_NORMALISE, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_treeseq_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples, 0,
-        NULL, result, TSK_STAT_BRANCH | TSK_STAT_POLARISED | TSK_STAT_SPAN_NORMALISE);
+        NULL, TSK_STAT_BRANCH | TSK_STAT_POLARISED | TSK_STAT_SPAN_NORMALISE, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_treeseq_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples, 0,
-        NULL, result, TSK_STAT_BRANCH | TSK_STAT_SPAN_NORMALISE);
+        NULL, TSK_STAT_BRANCH | TSK_STAT_SPAN_NORMALISE, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     free(result);
@@ -831,22 +831,22 @@ test_general_stat_input_errors(void)
 
     /* Bad input dimensions */
     ret = tsk_treeseq_general_stat(
-        &ts, 0, &W, 1, general_stat_sum, NULL, 0, NULL, &result, 0);
+        &ts, 0, &W, 1, general_stat_sum, NULL, 0, NULL, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_STATE_DIMS);
 
     ret = tsk_treeseq_general_stat(
-        &ts, 1, &W, 0, general_stat_sum, NULL, 0, NULL, &result, 0);
+        &ts, 1, &W, 0, general_stat_sum, NULL, 0, NULL, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_RESULT_DIMS);
 
     /* Multiple stats*/
     ret = tsk_treeseq_general_stat(&ts, 1, &W, 1, general_stat_sum, NULL, 0, NULL,
-        &result, TSK_STAT_SITE | TSK_STAT_BRANCH);
+        TSK_STAT_SITE | TSK_STAT_BRANCH, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MULTIPLE_STAT_MODES);
     ret = tsk_treeseq_general_stat(&ts, 1, &W, 1, general_stat_sum, NULL, 0, NULL,
-        &result, TSK_STAT_SITE | TSK_STAT_NODE);
+        TSK_STAT_SITE | TSK_STAT_NODE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MULTIPLE_STAT_MODES);
     ret = tsk_treeseq_general_stat(&ts, 1, &W, 1, general_stat_sum, NULL, 0, NULL,
-        &result, TSK_STAT_BRANCH | TSK_STAT_NODE);
+        TSK_STAT_BRANCH | TSK_STAT_NODE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MULTIPLE_STAT_MODES);
 
     tsk_treeseq_free(&ts);
@@ -1078,14 +1078,14 @@ test_paper_ex_diversity(void)
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_treeseq_diversity(
-        &ts, 1, &sample_set_sizes, samples, 0, NULL, &pi, TSK_STAT_SITE);
+        &ts, 1, &sample_set_sizes, samples, 0, NULL, TSK_STAT_SITE, &pi);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_DOUBLE_EQUAL_FATAL(pi, 1.5, 1e-6);
 
     /* A sample set size of 1 leads to NaN */
     sample_set_sizes = 1;
     ret = tsk_treeseq_diversity(
-        &ts, 1, &sample_set_sizes, samples, 0, NULL, &pi, TSK_STAT_SITE);
+        &ts, 1, &sample_set_sizes, samples, 0, NULL, TSK_STAT_SITE, &pi);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT(tsk_isnan(pi));
 
@@ -1118,7 +1118,7 @@ test_paper_ex_trait_covariance(void)
     weights[0] = weights[1] = 0.0;
     weights[2] = weights[3] = 1.0;
 
-    ret = tsk_treeseq_trait_covariance(&ts, 1, weights, 0, NULL, &result, TSK_STAT_SITE);
+    ret = tsk_treeseq_trait_covariance(&ts, 1, weights, 0, NULL, TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_DOUBLE_EQUAL_FATAL(result, 1.0 / 12.0, 1e-6);
 
@@ -1126,7 +1126,7 @@ test_paper_ex_trait_covariance(void)
     for (j = 0; j < 4; j++) {
         weights[j] = 0.0;
     }
-    ret = tsk_treeseq_trait_covariance(&ts, 1, weights, 0, NULL, &result, TSK_STAT_SITE);
+    ret = tsk_treeseq_trait_covariance(&ts, 1, weights, 0, NULL, TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_DOUBLE_EQUAL_FATAL(result, 0.0, 1e-6);
 
@@ -1160,7 +1160,7 @@ test_paper_ex_trait_correlation(void)
     weights[2] = weights[3] = 1.0;
 
     ret = tsk_treeseq_trait_correlation(
-        &ts, 1, weights, 0, NULL, &result, TSK_STAT_SITE);
+        &ts, 1, weights, 0, NULL, TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_DOUBLE_EQUAL_FATAL(result, 1.0, 1e-6);
 
@@ -1200,7 +1200,7 @@ test_paper_ex_trait_linear_model(void)
     covariates[5] = covariates[7] = 1.0;
 
     ret = tsk_treeseq_trait_linear_model(
-        &ts, 1, weights, 2, covariates, 0, NULL, &result, TSK_STAT_SITE);
+        &ts, 1, weights, 2, covariates, 0, NULL, TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_DOUBLE_EQUAL_FATAL(result, 0.0, 1e-6);
 
@@ -1233,14 +1233,14 @@ test_paper_ex_segregating_sites(void)
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_treeseq_segregating_sites(
-        &ts, 1, &sample_set_sizes, samples, 0, NULL, &segsites, TSK_STAT_SITE);
+        &ts, 1, &sample_set_sizes, samples, 0, NULL, TSK_STAT_SITE, &segsites);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_DOUBLE_EQUAL_FATAL(segsites, 3.0, 1e-6);
 
     /* A sample set size of 1 leads to 0 */
     sample_set_sizes = 1;
     ret = tsk_treeseq_segregating_sites(
-        &ts, 1, &sample_set_sizes, samples, 0, NULL, &segsites, TSK_STAT_SITE);
+        &ts, 1, &sample_set_sizes, samples, 0, NULL, TSK_STAT_SITE, &segsites);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_DOUBLE_EQUAL_FATAL(segsites, 0.0, 1e-6);
 
@@ -1270,12 +1270,12 @@ test_paper_ex_Y1(void)
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
-    ret = tsk_treeseq_Y1(&ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
+    ret = tsk_treeseq_Y1(&ts, 1, &sample_set_sizes, samples, 0, NULL, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* A sample set size of < 2 leads to NaN */
     sample_set_sizes = 1;
-    ret = tsk_treeseq_Y1(&ts, 1, &sample_set_sizes, samples, 0, NULL, &result, 0);
+    ret = tsk_treeseq_Y1(&ts, 1, &sample_set_sizes, samples, 0, NULL, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT(tsk_isnan(result));
 
@@ -1307,14 +1307,14 @@ test_paper_ex_divergence(void)
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_treeseq_divergence(&ts, 2, sample_set_sizes, samples, 1, set_indexes, 0,
-        NULL, &result, TSK_STAT_SITE);
+        NULL, TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* sample_set[0] size = 1 with indexes = (0, 0) leads to NaN */
     sample_set_sizes[0] = 1;
     set_indexes[1] = 0;
     ret = tsk_treeseq_divergence(&ts, 2, sample_set_sizes, samples, 1, set_indexes, 0,
-        NULL, &result, TSK_STAT_SITE);
+        NULL, TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT(tsk_isnan(result));
 
@@ -1335,7 +1335,7 @@ test_paper_ex_genetic_relatedness(void)
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_treeseq_genetic_relatedness(&ts, 2, sample_set_sizes, samples, 1,
-        set_indexes, 0, NULL, &result, TSK_STAT_SITE);
+        set_indexes, 0, NULL, TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_treeseq_free(&ts);
 }
@@ -1376,13 +1376,13 @@ test_paper_ex_Y2(void)
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_treeseq_Y2(&ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
-        &result, TSK_STAT_SITE);
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* sample_set_size of 1 leads to NaN */
     sample_set_sizes[1] = 1;
     ret = tsk_treeseq_Y2(&ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
-        &result, TSK_STAT_SITE);
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT(tsk_isnan(result));
 
@@ -1414,13 +1414,13 @@ test_paper_ex_f2(void)
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_treeseq_f2(&ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
-        &result, TSK_STAT_SITE);
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* sample_set_size of 1 leads to NaN */
     sample_set_sizes[0] = 1;
     ret = tsk_treeseq_f2(&ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
-        &result, TSK_STAT_SITE);
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT(tsk_isnan(result));
 
@@ -1428,7 +1428,7 @@ test_paper_ex_f2(void)
     sample_set_sizes[0] = 2;
     sample_set_sizes[1] = 1;
     ret = tsk_treeseq_f2(&ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
-        &result, TSK_STAT_SITE);
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT(tsk_isnan(result));
 
@@ -1460,7 +1460,7 @@ test_paper_ex_Y3(void)
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_treeseq_Y3(&ts, 3, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
-        &result, TSK_STAT_SITE);
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tsk_treeseq_free(&ts);
@@ -1491,13 +1491,13 @@ test_paper_ex_f3(void)
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_treeseq_f3(&ts, 3, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
-        &result, TSK_STAT_SITE);
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* sample_set_size of 1 leads to NaN */
     sample_set_sizes[0] = 1;
     ret = tsk_treeseq_f3(&ts, 3, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
-        &result, TSK_STAT_SITE);
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT(tsk_isnan(result));
 
@@ -1529,7 +1529,7 @@ test_paper_ex_f4(void)
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_treeseq_f4(&ts, 4, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
-        &result, TSK_STAT_SITE);
+        TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tsk_treeseq_free(&ts);
 }
@@ -1549,11 +1549,11 @@ test_paper_ex_afs_errors(void)
     verify_one_way_stat_func_errors(&ts, tsk_treeseq_allele_frequency_spectrum);
 
     ret = tsk_treeseq_allele_frequency_spectrum(
-        &ts, 2, sample_set_sizes, samples, 0, NULL, result, TSK_STAT_NODE);
+        &ts, 2, sample_set_sizes, samples, 0, NULL, TSK_STAT_NODE, result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSUPPORTED_STAT_MODE);
 
     ret = tsk_treeseq_allele_frequency_spectrum(&ts, 2, sample_set_sizes, samples, 0,
-        NULL, result, TSK_STAT_BRANCH | TSK_STAT_SITE);
+        NULL, TSK_STAT_BRANCH | TSK_STAT_SITE, result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MULTIPLE_STAT_MODES);
 
     tsk_treeseq_free(&ts);
@@ -1573,14 +1573,14 @@ test_paper_ex_afs(void)
     /* we have two singletons and one tripleton */
 
     ret = tsk_treeseq_allele_frequency_spectrum(
-        &ts, 1, sample_set_sizes, samples, 0, NULL, result, 0);
+        &ts, 1, sample_set_sizes, samples, 0, NULL, 0, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(result[0], 0);
     CU_ASSERT_EQUAL_FATAL(result[1], 3.0);
     CU_ASSERT_EQUAL_FATAL(result[2], 0);
 
     ret = tsk_treeseq_allele_frequency_spectrum(
-        &ts, 1, sample_set_sizes, samples, 0, NULL, result, TSK_STAT_POLARISED);
+        &ts, 1, sample_set_sizes, samples, 0, NULL, TSK_STAT_POLARISED, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(result[0], 0);
     CU_ASSERT_EQUAL_FATAL(result[1], 2.0);
