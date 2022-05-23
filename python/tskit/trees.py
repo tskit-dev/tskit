@@ -5957,11 +5957,11 @@ class TreeSequence:
         ``node_time[child] < time < node_time[parent]`` with two edges
         ``(left, right, parent, u)`` and ``(left, right, u, child)``,
         where ``u`` is a newly added node for each intersecting edge. If
-        ``metadata`` or ``population`` are specified, newly added nodes will be
-        assigned these values. Otherwise, default values will be used. If a
-        metadata schema is defined for the node table, the empty dictionary
-        will be used by default for the new node when calling
-        :meth:`.NodeTable.add_row`; otherwise, an empty byte string.
+        ``metadata``, ``flags``, or ``population`` are specified, newly added nodes will be
+        assigned these values. Otherwise, default values will be used.
+        The default metadata is an empty dictionary if a
+        metadata schema is defined for the node table,
+        and is an empty byte string otherwise.
 
         Any metadata associated with the edge will be copied to the new edge.
 
