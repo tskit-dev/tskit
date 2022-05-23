@@ -747,9 +747,13 @@ kept short and simple where at all possible.
 
 No global or module level variables are used for production code.
 
+Function parameters should be marked as ``const`` where possible.
+Parameters that are used as return variables should come last.
+The common ``options`` parameter should be the last non-output
+parameter.
+
 Please see the {ref}`sec_c_api_overview_structure` section for more information
 about how the API is structured.
-
 
 ### Error handling
 
