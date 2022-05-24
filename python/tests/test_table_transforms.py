@@ -29,10 +29,295 @@ import pytest
 
 import tests
 import tskit
+import tskit.util as util
 from tests.test_highlevel import get_example_tree_sequences
 
 # ↑ See https://github.com/tskit-dev/tskit/issues/1804 for when
 # we can remove this.
+
+
+def delete_older_definition(tables, time):
+    node_time = tables.nodes.time
+    edges = tables.edges.copy()
+    tables.edges.clear()
+    for edge in edges:
+        if node_time[edge.parent] <= time:
+            tables.edges.append(edge)
+
+    mutations = tables.mutations.copy()
+    # Map of old ID -> new ID
+    mutation_map = np.full(len(mutations), tskit.NULL, dtype=int)
+    tables.mutations.clear()
+    keep = []
+    for j, mutation in enumerate(mutations):
+        mutation_time = (
+            node_time[mutation.node]
+            if util.is_unknown_time(mutation.time)
+            else mutation.time
+        )
+        if mutation_time < time:
+            mutation_map[j] = len(keep)
+            keep.append(mutation)
+    # Not making assumptions about ordering, so do it in two passes.
+    for mutation in keep:
+        if mutation.parent != tskit.NULL:
+            mutation = mutation.replace(parent=mutation_map[mutation.parent])
+        tables.mutations.append(mutation)
+
+    migrations = tables.migrations.copy()
+    tables.migrations.clear()
+    for migration in migrations:
+        if migration.time < time:
+            tables.migrations.append(migration)
+
+
+class TestDeleteOlderExamples:
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_definition(self, ts):
+        time = 0 if ts.num_nodes == 0 else np.median(ts.tables.nodes.time)
+        tables1 = ts.dump_tables()
+        delete_older_definition(tables1, time)
+        tables2 = ts.dump_tables()
+        tables2.delete_older(time)
+        tables1.assert_equals(tables2, ignore_provenance=True)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_mutation_parents(self, ts):
+        time = 0 if ts.num_nodes == 0 else np.median(ts.tables.nodes.time)
+        tables1 = ts.dump_tables()
+        tables1.delete_older(time)
+        tables2 = tables1.copy()
+        tables2.build_index()
+        tables2.compute_mutation_parents()
+        tables1.assert_equals(tables2, ignore_provenance=True)
+
+
+class TestDeleteOlderSimpleTree:
+
+    # 2.00┊   4   ┊
+    #     ┊ ┏━┻┓  ┊
+    # 1.00┊ ┃  3  ┊
+    #     ┊ ┃ ┏┻┓ ┊
+    # 0.00┊ 0 1 2 ┊
+    #     0       1
+    def tables(self):
+        # Don't cache this because we modify the result!
+        tree = tskit.Tree.generate_balanced(3, branch_length=1)
+        return tree.tree_sequence.dump_tables()
+
+    @pytest.mark.parametrize("time", [0, -0.5, -100, 0.01, 0.999])
+    def test_before_first_internal_node(self, time):
+        tables = self.tables()
+        before = tables.copy()
+        tables.delete_older(time)
+        ts = tables.tree_sequence()
+        assert ts.num_trees == 1
+        tree = ts.first()
+        assert tree.num_roots == 3
+        assert list(sorted(tree.roots)) == [0, 1, 2]
+        assert before.nodes.equals(tables.nodes[: len(before.nodes)])
+        assert len(tables.edges) == 0
+
+    @pytest.mark.parametrize("time", [1, 1.01, 1.5, 1.999])
+    def test_t1_to_2(self, time):
+        #
+        # 2.00┊       ┊
+        #     ┊       ┊
+        # 1.00┊    3  ┊
+        #     ┊   ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        tables = self.tables()
+        before = tables.copy()
+        tables.delete_older(time)
+        ts = tables.tree_sequence()
+        assert ts.num_trees == 1
+        tree = ts.first()
+        assert tree.num_roots == 2
+        assert list(sorted(tree.roots)) == [0, 3]
+        assert len(tables.nodes) == 5
+        assert before.nodes.equals(tables.nodes)
+
+    @pytest.mark.parametrize("time", [2, 2.5, 1e9])
+    def test_t2(self, time):
+        tables = self.tables()
+        before = tables.copy()
+        tables.delete_older(time)
+        tables.assert_equals(before, ignore_provenance=True)
+
+
+class TestDeleteOlderSimpleTreeMutationExamples:
+    def test_single_mutation_no_time(self):
+        # 2.00┊   4   ┊
+        #     ┊ ┏━┻┓  ┊
+        # 1.00┊ ┃  3  ┊
+        #     ┊ x ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        tree = tskit.Tree.generate_balanced(3, branch_length=1)
+        tables = tree.tree_sequence.dump_tables()
+        tables.sites.add_row(0, "A")
+        tables.mutations.add_row(site=0, node=0, derived_state="T", metadata=b"1234")
+
+        tables.delete_older(1)
+        # 2.00┊       ┊
+        #     ┊       ┊
+        # 1.00┊    3  ┊
+        #     ┊ x ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        assert len(tables.nodes) == 5
+        mut = tables.mutations[0]
+        assert mut.node == 0
+        assert mut.derived_state == "T"
+        assert mut.metadata == b"1234"
+        assert tskit.is_unknown_time(mut.time)
+
+    def test_single_mutation_before_time(self):
+        # 2.00┊   4   ┊
+        #     ┊ x━┻┓  ┊
+        # 1.00┊ ┃  3  ┊
+        #     ┊ ┃ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        tree = tskit.Tree.generate_balanced(3, branch_length=1)
+        tables = tree.tree_sequence.dump_tables()
+        tables.sites.add_row(0, "A")
+        tables.mutations.add_row(
+            site=0, node=0, time=1.5, derived_state="T", metadata=b"1234"
+        )
+        tables.delete_older(1)
+        # 2.00┊       ┊
+        #     ┊       ┊
+        # 1.00┊    3  ┊
+        #     ┊   ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        assert len(tables.nodes) == 5
+        assert len(tables.mutations) == 0
+
+    def test_single_mutation_at_time(self):
+        # 2.00┊   4   ┊
+        #     ┊ ┏━┻┓  ┊
+        # 1.00┊ x  3  ┊
+        #     ┊ ┃ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        tree = tskit.Tree.generate_balanced(3, branch_length=1)
+        tables = tree.tree_sequence.dump_tables()
+        tables.sites.add_row(0, "A")
+        tables.mutations.add_row(
+            site=0, node=0, time=1, derived_state="T", metadata=b"1234"
+        )
+
+        tables.delete_older(1)
+        # 2.00┊       ┊
+        #     ┊       ┊
+        # 1.00┊    3  ┊
+        #     ┊   ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        assert len(tables.nodes) == 5
+        assert len(tables.mutations) == 0
+
+    def test_multi_mutation_no_time(self):
+        # 2.00┊   4   ┊
+        #     ┊ ┏━┻┓  ┊
+        # 1.00┊ x  3  ┊
+        #     ┊ x ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        tree = tskit.Tree.generate_balanced(3, branch_length=1)
+        tables = tree.tree_sequence.dump_tables()
+        tables.sites.add_row(0, "A")
+        tables.mutations.add_row(site=0, node=0, derived_state="T")
+        tables.mutations.add_row(site=0, node=0, parent=0, derived_state="G")
+        before = tables.copy()
+
+        tables.delete_older(1)
+        # 2.00┊   4   ┊
+        #     ┊       ┊
+        #     ┊    3  ┊
+        #     ┊ x  ┃  ┊
+        #     ┊ x ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        tables.mutations.assert_equals(before.mutations)
+
+    def test_multi_mutation_out_of_order(self):
+        # 2.00┊   4   ┊
+        #     ┊ ┏━┻┓  ┊
+        # 1.00┊ x  3  ┊
+        #     ┊ x ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        tree = tskit.Tree.generate_balanced(3, branch_length=1)
+        tables = tree.tree_sequence.dump_tables()
+        tables.sites.add_row(0, "A")
+        tables.mutations.add_row(site=0, node=0, parent=1, derived_state="G")
+        tables.mutations.add_row(site=0, node=0, derived_state="T")
+        before = tables.copy()
+        with pytest.raises(tskit.LibraryError, match="PARENT_AFTER_CHILD"):
+            tables.tree_sequence()
+
+        tables.delete_older(1)
+        # 2.00┊   4   ┊
+        #     ┊       ┊
+        #     ┊    3  ┊
+        #     ┊ x  ┃  ┊
+        #     ┊ x ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        tables.mutations.assert_equals(before.mutations)
+
+    def test_mutation_not_on_branch(self):
+        tables = tskit.TableCollection(1)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.sites.add_row(0, "A")
+        tables.mutations.add_row(site=0, node=0, derived_state="T")
+        before = tables.copy()
+        tables.delete_older(0.01)
+        tables.assert_equals(before, ignore_provenance=True)
+
+
+class TestDeleteOlderSimpleTreeMigrationExamples:
+    @tests.cached_example
+    def ts(self):
+        # 2.00┊   4   ┊
+        #     ┊ o━┻┓  ┊
+        # 1.00┊ o  3  ┊
+        #     ┊ o ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        tree = tskit.Tree.generate_balanced(3, branch_length=1)
+        tables = tree.tree_sequence.dump_tables()
+        tables.populations.add_row()
+        tables.populations.add_row()
+        tables.migrations.add_row(source=0, dest=1, node=0, time=0.5, left=0, right=1)
+        tables.migrations.add_row(source=1, dest=0, node=0, time=1.0, left=0, right=1)
+        tables.migrations.add_row(source=0, dest=1, node=0, time=1.5, left=0, right=1)
+        tables.compute_mutation_parents()
+        ts = tables.tree_sequence()
+        return ts
+
+    def test_t099(self):
+        tables = self.ts().dump_tables()
+        tables.delete_older(0.99)
+        assert len(tables.migrations) == 1
+        assert tables.migrations[0].time == 0.5
+
+    def test_t1(self):
+        tables = self.ts().dump_tables()
+        tables.delete_older(1)
+        assert len(tables.migrations) == 1
+        assert tables.migrations[0].time == 0.5
+
+    @pytest.mark.parametrize("time", [1.51, 2.0, 2.5])
+    def test_older(self, time):
+        tables = self.ts().dump_tables()
+        before = tables.copy()
+        tables.delete_older(time)
+        tables.migrations.assert_equals(before.migrations)
 
 
 def split_edges_definition(ts, time, *, flags=None, population=None, metadata=None):

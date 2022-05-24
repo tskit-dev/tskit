@@ -469,6 +469,14 @@ class TestTableCollection(LowLevelTestCase):
         tc = _tskit.TableCollection(1)
         tc.sort_individuals()
 
+    def test_delete_older_bad_args(self):
+        tc = _tskit.TableCollection(1)
+        self.get_example_tree_sequence().dump_tables(tc)
+        with pytest.raises(TypeError):
+            tc.delete_older()
+        with pytest.raises(TypeError):
+            tc.delete_older("1234")
+
 
 class TestIbd:
     def test_uninitialised(self):
