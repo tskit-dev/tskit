@@ -533,6 +533,55 @@ class TestDecapitateInterface:
             tables.decapitate(1)
 
 
+def split_edges_definition(ts, time, *, flags=None, population=None, metadata=None):
+    tables = ts.dump_tables()
+    if ts.num_migrations > 0:
+        raise ValueError("Migrations not supported")
+    default_population = population is None
+    if not default_population:
+        # -1 is a valid value
+        if population < -1 or population >= ts.num_populations:
+            raise ValueError("Population out of bounds")
+    flags = 0 if flags is None else flags
+    if metadata is None:
+        metadata = tables.nodes.metadata_schema.empty_value
+    metadata = tables.nodes.metadata_schema.validate_and_encode_row(metadata)
+    # This is the easiest way to turn off encoding when calling add_row below
+    schema = tables.nodes.metadata_schema
+    tables.nodes.metadata_schema = tskit.MetadataSchema(None)
+
+    node_time = tables.nodes.time
+    node_population = tables.nodes.population
+    tables.edges.clear()
+    split_edge = np.full(ts.num_edges, tskit.NULL, dtype=int)
+    for edge in ts.edges():
+        if node_time[edge.child] < time < node_time[edge.parent]:
+            if default_population:
+                population = node_population[edge.child]
+            u = tables.nodes.add_row(
+                flags=flags, time=time, population=population, metadata=metadata
+            )
+            tables.edges.append(edge.replace(parent=u))
+            tables.edges.append(edge.replace(child=u))
+            split_edge[edge.id] = u
+        else:
+            tables.edges.append(edge)
+    # Reinstate schema
+    tables.nodes.metadata_schema = schema
+
+    tables.mutations.clear()
+    for mutation in ts.mutations():
+        mapped_node = tskit.NULL
+        if mutation.edge != tskit.NULL:
+            mapped_node = split_edge[mutation.edge]
+        if mapped_node != tskit.NULL and mutation.time >= time:
+            mutation = mutation.replace(node=mapped_node)
+        tables.mutations.append(mutation)
+
+    tables.sort()
+    return tables.tree_sequence()
+
+
 class TestSplitEdgesSimpleTree:
 
     # 2.00┊   4   ┊
@@ -769,21 +818,47 @@ class TestSplitEdgesExamples:
             split_ts = ts.split_edges(time)
             assert np.array_equal(split_ts.genotype_matrix(), ts.genotype_matrix())
         else:
-            with pytest.raises(ValueError):
+            with pytest.raises(tskit.LibraryError):
                 ts.split_edges(time)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    @pytest.mark.parametrize("population", [-1, None])
+    def test_definition(self, ts, population):
+        time = 0 if ts.num_nodes == 0 else np.median(ts.tables.nodes.time)
+        if ts.num_migrations == 0:
+            ts1 = split_edges_definition(ts, time, population=population)
+            ts2 = ts.split_edges(time, population=population)
+            ts1.tables.assert_equals(ts2.tables, ignore_provenance=True)
 
 
 class TestSplitEdgesInterface:
     def test_migrations_fail(self, ts_fixture):
         assert ts_fixture.num_migrations > 0
-        with pytest.raises(ValueError):
+        with pytest.raises(tskit.LibraryError, match="MIGRATIONS_NOT_SUPPORTED"):
             ts_fixture.split_edges(0)
 
     def test_population_out_of_bounds(self):
         tables = tskit.TableCollection(1)
         ts = tables.tree_sequence()
-        with pytest.raises(ValueError):
+        with pytest.raises(tskit.LibraryError, match="POPULATION_OUT_OF_BOUNDS"):
             ts.split_edges(0, population=0)
+
+    def test_bad_flags(self):
+        ts = tskit.TableCollection(1).tree_sequence()
+        with pytest.raises(TypeError):
+            ts.split_edges(0, flags="asdf")
+
+    def test_bad_metadata_no_schema(self):
+        ts = tskit.TableCollection(1).tree_sequence()
+        with pytest.raises(TypeError):
+            ts.split_edges(0, metadata="asdf")
+
+    def test_bad_metadata_json_schema(self):
+        tables = tskit.TableCollection(1)
+        tables.nodes.metadata_schema = tskit.MetadataSchema.permissive_json()
+        ts = tables.tree_sequence()
+        with pytest.raises(tskit.MetadataEncodingError):
+            ts.split_edges(0, metadata=b"bytes")
 
 
 class TestSplitEdgesNodeValues:

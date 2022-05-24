@@ -5991,52 +5991,23 @@ class TreeSequence:
             provenance information of the returned tree sequence. (Default: True).
         :rtype: tskit.TreeSequence
         """
-        tables = self.dump_tables()
-        if self.num_migrations > 0:
-            raise ValueError("Migrations not supported")
-        default_population = population is None
-        if not default_population:
-            # -1 is a valid value
-            if population < -1 or population >= self.num_populations:
-                raise ValueError("Population out of bounds")
+        impute_population = False
+        if population is None:
+            impute_population = True
+            population = tskit.NULL
         flags = 0 if flags is None else flags
+        schema = self.table_metadata_schemas.node
         if metadata is None:
-            metadata = tables.nodes.metadata_schema.empty_value
-        metadata = tables.nodes.metadata_schema.validate_and_encode_row(metadata)
-        # This is the easiest way to turn off encoding when calling add_row below
-        schema = tables.nodes.metadata_schema
-        tables.nodes.metadata_schema = tskit.MetadataSchema(None)
-
-        node_time = tables.nodes.time
-        node_population = tables.nodes.population
-        tables.edges.clear()
-        split_edge = np.full(self.num_edges, tskit.NULL, dtype=int)
-        for edge in self.edges():
-            if node_time[edge.child] < time < node_time[edge.parent]:
-                if default_population:
-                    population = node_population[edge.child]
-                u = tables.nodes.add_row(
-                    flags=flags, time=time, population=population, metadata=metadata
-                )
-                tables.edges.append(edge.replace(parent=u))
-                tables.edges.append(edge.replace(child=u))
-                split_edge[edge.id] = u
-            else:
-                tables.edges.append(edge)
-        # Reinstate schema
-        tables.nodes.metadata_schema = schema
-
-        tables.mutations.clear()
-        for mutation in self.mutations():
-            mapped_node = tskit.NULL
-            if mutation.edge != tskit.NULL:
-                mapped_node = split_edge[mutation.edge]
-            if mapped_node != tskit.NULL and mutation.time >= time:
-                mutation = mutation.replace(node=mapped_node)
-            tables.mutations.append(mutation)
-
-        tables.sort()
-        return tables.tree_sequence()
+            metadata = schema.empty_value
+        metadata = schema.validate_and_encode_row(metadata)
+        ll_ts = self._ll_tree_sequence.split_edges(
+            time=time,
+            flags=flags,
+            population=population,
+            metadata=metadata,
+            impute_population=impute_population,
+        )
+        return TreeSequence(ll_ts)
 
     def subset(
         self,

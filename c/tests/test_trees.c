@@ -7271,6 +7271,8 @@ test_split_edges_no_populations(void)
     tsk_treeseq_free(&ts);
     ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret = tsk_table_collection_compute_mutation_times(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
     ret_id = tsk_treeseq_init(&ts, &tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret_id, 0);
 
@@ -7396,22 +7398,22 @@ test_split_edges_errors(void)
     double time = 0.5;
     tsk_id_t invalid_pops[] = { -2, 2, 3 };
     tsk_id_t num_invalid_pops = 3;
-    tsk_id_t j, population;
+    tsk_id_t j, population, ret_id;
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 1;
 
-    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_population_table_add_row(&tables.populations, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
-    ret = tsk_node_table_add_row(&tables.nodes, 0, 0, 0, TSK_NULL, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_node_table_add_row(&tables.nodes, 0, 1, 1, TSK_NULL, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
-    ret = tsk_edge_table_add_row(&tables.edges, 0, 1, 1, 0, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 0, 0, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 1, 1, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    ret_id = tsk_edge_table_add_row(&tables.edges, 0, 1, 1, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
 
     ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -7422,11 +7424,22 @@ test_split_edges_errors(void)
         CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
         tsk_treeseq_free(&split_ts);
 
+        /* We always check population values, even if they aren't used */
         ret = tsk_treeseq_split_edges(&ts, time, 0, population, NULL, 0,
             TSK_SPLIT_EDGES_IMPUTE_POPULATION, &split_ts);
         CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
         tsk_treeseq_free(&split_ts);
     }
+    tsk_treeseq_free(&ts);
+
+    ret_id
+        = tsk_migration_table_add_row(&tables.migrations, 0, 1, 0, 0, 1, 1.0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_treeseq_split_edges(&ts, time, 0, population, NULL, 0, 0, &split_ts);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATIONS_NOT_SUPPORTED);
+    tsk_treeseq_free(&split_ts);
 
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);
