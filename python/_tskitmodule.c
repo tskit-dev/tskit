@@ -7024,6 +7024,29 @@ out:
 }
 
 static PyObject *
+TableCollection_delete_older(TableCollection *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    int err;
+    double time;
+
+    if (TableCollection_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTuple(args, "d", &time)) {
+        goto out;
+    }
+    err = tsk_table_collection_delete_older(self->tables, time, 0);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
+static PyObject *
 TableCollection_compute_mutation_parents(TableCollection *self)
 {
     int err;
@@ -7527,6 +7550,10 @@ static PyMethodDef TableCollection_methods[] = {
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc
         = "Returns True if the parameter table collection is equal to this one." },
+    { .ml_name = "delete_older",
+        .ml_meth = (PyCFunction) TableCollection_delete_older,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Delete edges, mutations and migrations older than this time" },
     { .ml_name = "compute_mutation_parents",
         .ml_meth = (PyCFunction) TableCollection_compute_mutation_parents,
         .ml_flags = METH_NOARGS,

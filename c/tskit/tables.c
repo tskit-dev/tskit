@@ -12008,6 +12008,116 @@ out:
     return ret;
 }
 
+int TSK_WARN_UNUSED
+tsk_table_collection_delete_older(
+    tsk_table_collection_t *self, double time, tsk_flags_t TSK_UNUSED(options))
+{
+    int ret = 0;
+    tsk_edge_t edge;
+    tsk_mutation_t mutation;
+    tsk_migration_t migration;
+    tsk_edge_table_t edges;
+    tsk_mutation_table_t mutations;
+    tsk_migration_table_t migrations;
+    const double *restrict node_time = self->nodes.time;
+    tsk_id_t j, ret_id, parent;
+    double mutation_time;
+    tsk_id_t *mutation_map = NULL;
+
+    memset(&edges, 0, sizeof(edges));
+    memset(&mutations, 0, sizeof(mutations));
+    memset(&migrations, 0, sizeof(migrations));
+
+    ret = tsk_edge_table_copy(&self->edges, &edges, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_edge_table_clear(&self->edges);
+    if (ret != 0) {
+        goto out;
+    }
+    for (j = 0; j < (tsk_id_t) edges.num_rows; j++) {
+        tsk_edge_table_get_row_unsafe(&edges, j, &edge);
+        if (node_time[edge.parent] <= time) {
+            ret_id = tsk_edge_table_add_row(&self->edges, edge.left, edge.right,
+                edge.parent, edge.child, edge.metadata, edge.metadata_length);
+            if (ret_id < 0) {
+                ret = (int) ret_id;
+                goto out;
+            }
+        }
+    }
+    /* Calling x_table_free multiple times is safe, so get rid of the
+     * extra edge table memory as soon as we can. */
+    tsk_edge_table_free(&edges);
+
+    mutation_map = tsk_malloc(self->mutations.num_rows * sizeof(*mutation_map));
+    if (mutation_map == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    ret = tsk_mutation_table_copy(&self->mutations, &mutations, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_mutation_table_clear(&self->mutations);
+    if (ret != 0) {
+        goto out;
+    }
+    for (j = 0; j < (tsk_id_t) mutations.num_rows; j++) {
+        tsk_mutation_table_get_row_unsafe(&mutations, j, &mutation);
+        mutation_time = tsk_is_unknown_time(mutation.time) ? node_time[mutation.node]
+                                                           : mutation.time;
+        mutation_map[j] = TSK_NULL;
+        if (mutation_time < time) {
+            ret_id = tsk_mutation_table_add_row(&self->mutations, mutation.site,
+                mutation.node, mutation.parent, mutation.time, mutation.derived_state,
+                mutation.derived_state_length, mutation.metadata,
+                mutation.metadata_length);
+            if (ret_id < 0) {
+                ret = (int) ret_id;
+                goto out;
+            }
+            mutation_map[j] = ret_id;
+        }
+    }
+    tsk_mutation_table_free(&mutations);
+    for (j = 0; j < (tsk_id_t) self->mutations.num_rows; j++) {
+        parent = self->mutations.parent[j];
+        if (parent != TSK_NULL) {
+            self->mutations.parent[j] = mutation_map[parent];
+        }
+    }
+
+    ret = tsk_migration_table_copy(&self->migrations, &migrations, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_migration_table_clear(&self->migrations);
+    if (ret != 0) {
+        goto out;
+    }
+    for (j = 0; j < (tsk_id_t) migrations.num_rows; j++) {
+        tsk_migration_table_get_row_unsafe(&migrations, j, &migration);
+        if (migration.time < time) {
+            ret_id = tsk_migration_table_add_row(&self->migrations, migration.left,
+                migration.right, migration.node, migration.source, migration.dest,
+                migration.time, migration.metadata, migration.metadata_length);
+            if (ret_id < 0) {
+                ret = (int) ret_id;
+                goto out;
+            }
+        }
+    }
+    tsk_migration_table_free(&migrations);
+out:
+    tsk_edge_table_free(&edges);
+    tsk_mutation_table_free(&mutations);
+    tsk_migration_table_free(&migrations);
+    tsk_safe_free(mutation_map);
+    return ret;
+}
+
 int
 tsk_table_collection_record_num_rows(
     const tsk_table_collection_t *self, tsk_bookmark_t *position)
