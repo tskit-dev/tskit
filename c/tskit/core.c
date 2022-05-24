@@ -571,6 +571,18 @@ tsk_strerror_internal(int err)
             ret = "Individuals cannot be their own ancestor. "
                   "(TSK_ERR_INDIVIDUAL_PARENT_CYCLE)";
             break;
+
+        case TSK_ERR_INDIVIDUAL_POPULATION_MISMATCH:
+            ret = "Individual populations cannot be returned "
+                  "if an individual has nodes from more than one population. "
+                  "(TSK_ERR_INDIVIDUAL_POPULATION_MISMATCH)";
+            break;
+
+        case TSK_ERR_INDIVIDUAL_TIME_MISMATCH:
+            ret = "Individual times cannot be returned "
+                  "if an individual has nodes from more than one time. "
+                  "(TSK_ERR_INDIVIDUAL_TIME_MISMATCH)";
+            break;
     }
     return ret;
 }

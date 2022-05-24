@@ -2448,6 +2448,122 @@ class TestTreeSequence(HighLevelTestCase):
                         assert edge.right >= tree.interval.right
             assert np.all(edge_visited)
 
+    def verify_individual_vectors(self, ts):
+        verify_times = np.repeat(np.nan, ts.num_individuals)
+        verify_populations = np.repeat(tskit.NULL, ts.num_individuals)
+        for ind in ts.individuals():
+            if len(ind.nodes) > 0:
+                t = {ts.node(n).time for n in ind.nodes}
+                p = {ts.node(n).population for n in ind.nodes}
+                assert len(t) <= 1
+                assert len(p) <= 1
+                verify_times[ind.id] = t.pop()
+                verify_populations[ind.id] = p.pop()
+
+        times = ts.individuals_time
+        populations = ts.individuals_population
+        assert np.array_equal(times, verify_times, equal_nan=True)
+        assert np.array_equal(populations, verify_populations, equal_nan=True)
+        times2 = ts.individuals_time
+        populations2 = ts.individuals_population
+        assert np.array_equal(times, times2, equal_nan=True)
+        assert np.array_equal(populations, populations2, equal_nan=True)
+        # check aliases also
+        times3 = ts.individual_times
+        populations3 = ts.individual_populations
+        assert np.array_equal(times, times3, equal_nan=True)
+        assert np.array_equal(populations, populations3, equal_nan=True)
+
+    def test_individuals_population_errors(self):
+        t = tskit.TableCollection(sequence_length=1)
+        t.individuals.add_row()
+        t.individuals.add_row()
+        for j in range(2):
+            t.populations.add_row()
+            t.nodes.add_row(time=0, population=j, individual=0)
+        ts = t.tree_sequence()
+        with pytest.raises(
+            _tskit.LibraryError, match="TSK_ERR_INDIVIDUAL_POPULATION_MISMATCH"
+        ):
+            _ = ts.individuals_population
+        # inconsistent but NULL populations are also an error
+        t.nodes.clear()
+        t.nodes.add_row(time=0, population=1, individual=0)
+        t.nodes.add_row(time=0, population=tskit.NULL, individual=0)
+        ts = t.tree_sequence()
+        with pytest.raises(
+            _tskit.LibraryError, match="TSK_ERR_INDIVIDUAL_POPULATION_MISMATCH"
+        ):
+            _ = ts.individuals_population
+        t.nodes.clear()
+        t.nodes.add_row(time=0, population=tskit.NULL, individual=1)
+        t.nodes.add_row(time=0, population=0, individual=1)
+        ts = t.tree_sequence()
+        with pytest.raises(
+            _tskit.LibraryError, match="TSK_ERR_INDIVIDUAL_POPULATION_MISMATCH"
+        ):
+            _ = ts.individuals_population
+
+    def test_individuals_time_errors(self):
+        t = tskit.TableCollection(sequence_length=1)
+        t.individuals.add_row()
+        for j in range(2):
+            t.nodes.add_row(time=j, individual=0)
+        ts = t.tree_sequence()
+        with pytest.raises(
+            _tskit.LibraryError, match="TSK_ERR_INDIVIDUAL_TIME_MISMATCH"
+        ):
+            _ = ts.individuals_time
+
+    @pytest.mark.parametrize("n", [1, 10])
+    def test_individual_vectors(self, n):
+        d = msprime.Demography.island_model([10] * n, 0.1)
+        ts = msprime.sim_ancestry(
+            {pop.name: 10 for pop in d.populations},
+            demography=d,
+            random_seed=100 + n,
+            model="dtwf",
+        )
+        ts = tsutil.insert_random_consistent_individuals(ts, seed=100 + n)
+        assert ts.num_individuals > 10
+        self.verify_individual_vectors(ts)
+
+    def test_individuals_location_errors(self):
+        t = tskit.TableCollection(sequence_length=1)
+        t.individuals.add_row(location=[1.0, 2.0])
+        t.individuals.add_row(location=[0.0])
+        ts = t.tree_sequence()
+        with pytest.raises(ValueError, match="locations"):
+            _ = ts.individuals_location
+
+        t.clear()
+        t.individuals.add_row(location=[1.0, 2.0])
+        t.individuals.add_row(location=[])
+        t.individuals.add_row(location=[1.0, 2.0])
+        t.individuals.add_row(location=[])
+        ts = t.tree_sequence()
+        with pytest.raises(ValueError, match="locations"):
+            _ = ts.individuals_location
+
+    @pytest.mark.parametrize("nlocs", [0, 1, 4])
+    @pytest.mark.parametrize("num_indivs", [0, 3])
+    def test_individuals_location(self, nlocs, num_indivs):
+        t = tskit.TableCollection(sequence_length=1)
+        locs = np.array([j + np.arange(nlocs) for j in range(num_indivs)])
+        if len(locs) == 0:
+            locs = locs.reshape((num_indivs, 0))
+        for j in range(num_indivs):
+            t.individuals.add_row(location=locs[j])
+        ts = t.tree_sequence()
+        ts_locs = ts.individuals_location
+        assert locs.shape == ts_locs.shape
+        assert np.array_equal(locs, ts_locs)
+        locs2 = ts.individuals_location
+        assert np.array_equal(ts_locs, locs2)
+        # test alias
+        locs3 = ts.individual_locations
+        assert np.array_equal(ts_locs, locs3)
+
 
 class TestTreeSequenceMethodSignatures:
     ts = msprime.simulate(10, random_seed=1234)

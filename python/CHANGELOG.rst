@@ -26,6 +26,10 @@
   edges at a specific time.
   (:user:`jeromekelleher`, :issue:`2276`, :pr:`2296`).
 
+- Add the ``TreeSequence.individuals_time`` and ``TreeSequence.individuals_population``
+  methods to return arrays of per-individual times and populations, respectively.
+  (:user:`petrelharp`, :issue:`1481`, :pr:`2298`).
+
 **Breaking Changes**
 
 - The JSON metadata codec now interprets the empty string as an empty object. This means

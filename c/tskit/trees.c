@@ -716,6 +716,68 @@ tsk_treeseq_has_reference_sequence(const tsk_treeseq_t *self)
     return tsk_table_collection_has_reference_sequence(self->tables);
 }
 
+int
+tsk_treeseq_get_individuals_population(const tsk_treeseq_t *self, tsk_id_t *output)
+{
+    int ret = 0;
+    tsk_size_t i, j;
+    tsk_individual_t ind;
+    tsk_id_t ind_pop;
+    const tsk_id_t *node_population = self->tables->nodes.population;
+    const tsk_size_t num_individuals = self->tables->individuals.num_rows;
+
+    tsk_memset(output, TSK_NULL, num_individuals * sizeof(*output));
+
+    for (i = 0; i < num_individuals; i++) {
+        ret = tsk_treeseq_get_individual(self, (tsk_id_t) i, &ind);
+        tsk_bug_assert(ret == 0);
+        if (ind.nodes_length > 0) {
+            ind_pop = -2;
+            for (j = 0; j < ind.nodes_length; j++) {
+                if (ind_pop == -2) {
+                    ind_pop = node_population[ind.nodes[j]];
+                } else if (ind_pop != node_population[ind.nodes[j]]) {
+                    ret = TSK_ERR_INDIVIDUAL_POPULATION_MISMATCH;
+                    goto out;
+                }
+            }
+            output[ind.id] = ind_pop;
+        }
+    }
+out:
+    return ret;
+}
+
+int
+tsk_treeseq_get_individuals_time(const tsk_treeseq_t *self, double *output)
+{
+    int ret = 0;
+    tsk_size_t i, j;
+    tsk_individual_t ind;
+    double ind_time;
+    const double *node_time = self->tables->nodes.time;
+    const tsk_size_t num_individuals = self->tables->individuals.num_rows;
+
+    for (i = 0; i < num_individuals; i++) {
+        ret = tsk_treeseq_get_individual(self, (tsk_id_t) i, &ind);
+        tsk_bug_assert(ret == 0);
+        /* the default is UNKNOWN_TIME, but nodes cannot have
+         * UNKNOWN _TIME so this is safe. */
+        ind_time = TSK_UNKNOWN_TIME;
+        for (j = 0; j < ind.nodes_length; j++) {
+            if (j == 0) {
+                ind_time = node_time[ind.nodes[j]];
+            } else if (ind_time != node_time[ind.nodes[j]]) {
+                ret = TSK_ERR_INDIVIDUAL_TIME_MISMATCH;
+                goto out;
+            }
+        }
+        output[ind.id] = ind_time;
+    }
+out:
+    return ret;
+}
+
 /* Stats functions */
 
 #define GET_2D_ROW(array, row_len, row) (array + (((size_t)(row_len)) * (size_t) row))

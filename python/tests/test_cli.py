@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2021 Tskit Developers
+# Copyright (c) 2018-2022 Tskit Developers
 # Copyright (c) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -358,7 +358,9 @@ class TestTskitConversionOutput(unittest.TestCase):
             record_migrations=True,
         )
         assert ts.num_migrations > 0
-        cls._tree_sequence = tsutil.insert_random_ploidy_individuals(ts)
+        cls._tree_sequence = tsutil.insert_random_ploidy_individuals(
+            ts, samples_only=True
+        )
         fd, cls._tree_sequence_file = tempfile.mkstemp(
             prefix="tsk_cli", suffix=".trees"
         )

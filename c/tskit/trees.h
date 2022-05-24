@@ -697,7 +697,7 @@ Returns the location of each node in the list of samples or
 @endrst
 
 @param self A pointer to a tsk_treeseq_t object.
-@return Returns the pointer to the breakpoint array.
+@return Returns the pointer to the array of sample indexes.
 */
 const tsk_id_t *tsk_treeseq_get_sample_index_map(const tsk_treeseq_t *self);
 
@@ -889,6 +889,9 @@ int tsk_treeseq_split_edges(const tsk_treeseq_t *self, double time, tsk_flags_t 
     tsk_flags_t options, tsk_treeseq_t *output);
 
 bool tsk_treeseq_has_reference_sequence(const tsk_treeseq_t *self);
+
+int tsk_treeseq_get_individuals_population(const tsk_treeseq_t *self, tsk_id_t *output);
+int tsk_treeseq_get_individuals_time(const tsk_treeseq_t *self, double *output);
 
 int tsk_treeseq_kc_distance(const tsk_treeseq_t *self, const tsk_treeseq_t *other,
     double lambda_, double *result);
