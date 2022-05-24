@@ -136,19 +136,15 @@ Caveat emptor, etc..
 To get a local git development environment, please follow these steps:
 
 - Make a fork of the tskit repo on [GitHub](http://github.com/tskit-dev/tskit)
-- Clone your fork into a local directory, making sure that the **submodules
-  are correctly initialised**:
+- Clone your fork into a local directory:
   ```bash
-  $ git clone git@github.com:YOUR_GITHUB_USERNAME/tskit.git --recurse-submodules
-  ```
-  For an already checked out repo, the submodules can be initialised using:
-  ```bash
-  $ git submodule update --init --recursive
+  $ git clone git@github.com:YOUR_GITHUB_USERNAME/tskit.git
   ```
 - Install the {ref}`sec_development_workflow_pre_commit`:
   ```bash
   $ pre-commit install
   ```
+  If you later have trouble with these checks, you can skip them with ``git commit --no-verify``.
 
 See the {ref}`sec_development_workflow_git` section for detailed information
 on the recommended way to use git and GitHub.
@@ -617,8 +613,6 @@ install directly from  GitHub requires you to specify `subdirectory=python`.)
 - If `make` is giving you strange errors, or if tests are failing for
   strange reasons, try running `make clean` in the project root
   and then rebuilding.
-- If cryptic problems still persist, it may be that your git submodules are
-  out of date. Try running `git submodule update --init --recursive`.
 - Beware of multiple versions of the python library installed by different
   programs (e.g., pip versus installing locally from source)! In python,
   `tskit.__file__` will tell you the location of the package that is being
