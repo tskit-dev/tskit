@@ -39,6 +39,83 @@ from tests.test_highlevel import get_example_tree_sequences
 # we can remove this.
 
 
+# class TestDeleteOlderSimpleTree:
+
+#     # 2.00┊   4   ┊
+#     #     ┊ ┏━┻┓  ┊
+#     # 1.00┊ ┃  3  ┊
+#     #     ┊ ┃ ┏┻┓ ┊
+#     # 0.00┊ 0 1 2 ┊
+#     #     0       1
+#     def tables(self):
+#         # Don't cache this because we modify the result!
+#         tree = tskit.Tree.generate_balanced(3, branch_length=1)
+#         return tree.tree_sequence.dump_tables()
+
+#     @pytest.mark.parametrize("time", [0, -0.5, -100, 0.01, 0.999])
+#     def test_before_first_internal_node(self, time):
+#         tables = self.tables()
+#         before = tables.copy()
+#         tables.delete_older(time)
+#         ts = tables.tree_sequence()
+#         assert ts.num_trees == 1
+#         tree = ts.first()
+#         assert tree.num_roots == 3
+#         assert list(sorted(tree.roots)) == [0, 1, 2]
+#         assert before.nodes.equals(tables.nodes[: len(before.nodes)])
+#         assert len(tables.edges) == 0
+
+#     def test_t1(self):
+#         #
+#         # 2.00┊       ┊
+#         #     ┊       ┊
+#         # 1.00┊    3  ┊
+#         #     ┊   ┏┻┓ ┊
+#         # 0.00┊ 0 1 2 ┊
+#         #     0       1
+#         tables = self.tables()
+#         before = tables.copy()
+#         tables.delete_older(1)
+#         print(tables)
+#         ts = tables.tree_sequence()
+#         assert ts.num_trees == 1
+#         tree = ts.first()
+#         assert tree.num_roots == 2
+#         assert list(sorted(tree.roots)) == [0, 3]
+#         assert len(tables.nodes) == 5
+#         assert before.nodes.equals(tables.nodes)
+
+#     @pytest.mark.parametrize("time", [1.01, 1.5, 1.999])
+#     def test_t1_to_2(self, time):
+#         # 2.00┊       ┊
+#         #     ┊       ┊
+#         # 1.01┊ 5  6  ┊
+#         #     ┊ ┃  ┃  ┊
+#         # 1.00┊ ┃  3  ┊
+#         #     ┊ ┃ ┏┻┓ ┊
+#         # 0.00┊ 0 1 2 ┊
+#         #    0       1
+#         tables = self.tables()
+#         before = tables.copy()
+#         tables.decapitate(time)
+#         ts = tables.tree_sequence()
+#         assert ts.num_trees == 1
+#         tree = ts.first()
+#         assert tree.num_roots == 2
+#         assert list(sorted(tree.roots)) == [5, 6]
+#         assert len(tables.nodes) == 7
+#         assert tables.nodes[5].time == time
+#         assert tables.nodes[6].time == time
+#         assert before.nodes.equals(tables.nodes[: len(before.nodes)])
+
+#     @pytest.mark.parametrize("time", [2, 2.5, 1e9])
+#     def test_t2(self, time):
+#         tables = self.tables()
+#         before = tables.copy()
+#         tables.decapitate(time)
+#         tables.assert_equals(before, ignore_provenance=True)
+
+
 def decapitate_definition(ts, time):
     """
     Simple loop implementation of the decapitate operation

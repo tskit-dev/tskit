@@ -3862,6 +3862,40 @@ class TableCollection(metadata.MetadataProvider):
                 record=json.dumps(provenance.get_provenance_dict(parameters))
             )
 
+    # def delete_older(self, time, *, record_provenance=True):
+    #     node_time = self.nodes.time
+    #     edges = self.edges.copy()
+    #     self.edges.clear()
+    #     for edge in edges:
+    #         if node_time[edge.child] < time:
+    #             self.edges.append(edge)
+
+    #     mutations = self.mutations.copy()
+    #     # Map of old ID -> new ID
+    #     mutation_map = np.full(len(mutations), tskit.NULL, dtype=int)
+    #     self.mutations.clear()
+    #     keep = []
+    #     for mutation in mutations:
+    #         mutation_time = (
+    #             node_time[mutation.node]
+    #             if util.is_unknown_time(mutation.time)
+    #             else mutation.time
+    #         )
+    #         if mutation_time < time:
+    #             mutation_map[len(keep)] = mutation.id
+    #             keep.append(mutation_map)
+    #     # Not making assumptions about ordering, so it it in two passes.
+    #     for mutation in keep:
+    #         if mutation.parent != tskit.NULL:
+    #             mutation = mutation.replace(parent=mutation_map[mutation.parent])
+    #         self.mutations.append(mutation)
+
+    #     migrations = self.migrations.copy()
+    #     self.migrations.clear()
+    #     for migration in migrations:
+    #         if migration.time < time:
+    #             self.migrations.append(migration)
+
     def decapitate(self, time, *, record_provenance=True):
         """
         Delete all edge topology and mutational information older than the
