@@ -812,6 +812,16 @@ An individual was its own parent.
 An individual was its own ancestor in a cycle of references.
 */
 #define TSK_ERR_INDIVIDUAL_PARENT_CYCLE                            -1702
+/**
+An individual had nodes from more than one population
+(and only one was requested).
+*/
+#define TSK_ERR_INDIVIDUAL_POPULATION_MISMATCH                     -1703
+/**
+An individual had nodes from more than one time
+(and only one was requested).
+*/
+#define TSK_ERR_INDIVIDUAL_TIME_MISMATCH                           -1704
 /** @} */
 // clang-format on
 

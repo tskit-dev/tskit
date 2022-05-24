@@ -3774,6 +3774,9 @@ class TreeSequence:
         self._table_metadata_schemas = self._TableMetadataSchemas(
             **metadata_schema_instances
         )
+        self._individuals_time = None
+        self._individuals_population = None
+        self._individuals_location = None
 
     # Implement the pickle protocol for TreeSequence
     def __getstate__(self):
@@ -5072,6 +5075,71 @@ class TreeSequence:
         for h in H:
             a[site_pos] = h
             yield a.tobytes().decode("ascii")
+
+    @property
+    def individuals_population(self):
+        """
+        Returns the length-``num_individuals`` array containing, for each
+        individual, the ``population`` attribute of their nodes, or
+        ``tskit.NULL`` for individuals with no nodes. Errors if any individual
+        has nodes with inconsistent non-NULL populations.
+        """
+        if self._individuals_population is None:
+            self._individuals_population = (
+                self._ll_tree_sequence.get_individuals_population()
+            )
+        return self._individuals_population
+
+    @property
+    def individual_populations(self):
+        # Undocumented alias for individuals_population to avoid breaking
+        # pre-1.0 pyslim code
+        return self.individuals_population
+
+    @property
+    def individuals_time(self):
+        """
+        Returns the length-``num_individuals`` array containing, for each
+        individual, the ``time`` attribute of their nodes or ``np.nan`` for
+        individuals with no nodes. Errors if any individual has nodes with
+        inconsistent times.
+        """
+        if self._individuals_time is None:
+            self._individuals_time = self._ll_tree_sequence.get_individuals_time()
+        return self._individuals_time
+
+    @property
+    def individual_times(self):
+        # Undocumented alias for individuals_time to avoid breaking
+        # pre-1.0 pyslim code
+        return self.individuals_time
+
+    @property
+    def individuals_location(self):
+        """
+        Convenience method returning the ``num_individuals x n`` array
+        whose row k-th row contains the ``location`` property of the k-th
+        individual. The method only works if all individuals' locations
+        have the same length (which is ``n``), and errors otherwise.
+        """
+        if self._individuals_location is None:
+            individuals = self.tables.individuals
+            n = 0
+            lens = np.unique(np.diff(individuals.location_offset))
+            if len(lens) > 1:
+                raise ValueError("Individual locations are not all the same length.")
+            if len(lens) > 0:
+                n = lens[0]
+            self._individuals_location = individuals.location.reshape(
+                (self.num_individuals, n)
+            )
+        return self._individuals_location
+
+    @property
+    def individual_locations(self):
+        # Undocumented alias for individuals_time to avoid breaking
+        # pre-1.0 pyslim code
+        return self.individuals_location
 
     def individual(self, id_):
         """

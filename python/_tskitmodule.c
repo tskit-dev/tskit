@@ -8309,6 +8309,69 @@ out:
 }
 
 static PyObject *
+TreeSequence_get_individuals_population(TreeSequence *self)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *ret_array = NULL;
+    npy_intp dim;
+    int err;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+
+    dim = tsk_treeseq_get_num_individuals(self->tree_sequence);
+    ret_array = (PyArrayObject *) PyArray_SimpleNew(1, &dim, NPY_INT32);
+    if (ret_array == NULL) {
+        goto out;
+    }
+
+    err = tsk_treeseq_get_individuals_population(
+        self->tree_sequence, PyArray_DATA(ret_array));
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+
+    ret = (PyObject *) ret_array;
+    ret_array = NULL;
+out:
+    Py_XDECREF(ret_array);
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_individuals_time(TreeSequence *self)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *ret_array = NULL;
+    npy_intp dim;
+    int err;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+
+    dim = tsk_treeseq_get_num_individuals(self->tree_sequence);
+    ret_array = (PyArrayObject *) PyArray_SimpleNew(1, &dim, NPY_FLOAT64);
+    if (ret_array == NULL) {
+        goto out;
+    }
+
+    err = tsk_treeseq_get_individuals_time(self->tree_sequence, PyArray_DATA(ret_array));
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+
+    ret = (PyObject *) ret_array;
+    ret_array = NULL;
+out:
+    Py_XDECREF(ret_array);
+    return ret;
+}
+
+static PyObject *
 TreeSequence_genealogical_nearest_neighbours(
     TreeSequence *self, PyObject *args, PyObject *kwds)
 {
@@ -9560,6 +9623,14 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_get_samples,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns the samples." },
+    { .ml_name = "get_individuals_population",
+        .ml_meth = (PyCFunction) TreeSequence_get_individuals_population,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the vector of per-individual populations." },
+    { .ml_name = "get_individuals_time",
+        .ml_meth = (PyCFunction) TreeSequence_get_individuals_time,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the vector of per-individual times." },
     { .ml_name = "genealogical_nearest_neighbours",
         .ml_meth = (PyCFunction) TreeSequence_genealogical_nearest_neighbours,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,

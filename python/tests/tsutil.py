@@ -212,30 +212,74 @@ def insert_multichar_mutations(ts, seed=1, max_len=10):
 
 
 def insert_random_ploidy_individuals(
-    ts, min_ploidy=0, max_ploidy=5, max_dimension=3, seed=1
+    ts, min_ploidy=0, max_ploidy=5, max_dimension=3, samples_only=False, seed=1
 ):
     """
-    Takes random contiguous subsets of the samples an assigns them to individuals.
+    Takes random contiguous subsets of the samples and assigns them to individuals.
     Also creates random locations in variable dimensions in the unit interval,
-    and assigns random parents (including NULL parents).
+    and assigns random parents (including NULL parents). Note that resulting
+    individuals will often have nodes with inconsistent populations and/or time.
     """
     rng = random.Random(seed)
-    samples = np.array(ts.samples(), dtype=int)
+    if samples_only:
+        node_ids = np.array(ts.samples(), dtype="int")
+    else:
+        node_ids = np.arange(ts.num_nodes)
     j = 0
     tables = ts.dump_tables()
     tables.individuals.clear()
     individual = tables.nodes.individual[:]
     individual[:] = tskit.NULL
     ind_id = -1
-    while j < len(samples):
+    while j < len(node_ids):
         ploidy = rng.randint(min_ploidy, max_ploidy)
-        nodes = samples[j : min(j + ploidy, len(samples))]
+        nodes = node_ids[j : min(j + ploidy, len(node_ids))]
         dimension = rng.randint(0, max_dimension)
         location = [rng.random() for _ in range(dimension)]
         parents = rng.sample(range(-1, 1 + ind_id), min(1 + ind_id, rng.randint(0, 3)))
         ind_id = tables.individuals.add_row(location=location, parents=parents)
         individual[nodes] = ind_id
         j += ploidy
+        j += rng.randint(0, 5)  # skip a random number
+    tables.nodes.individual = individual
+    return tables.tree_sequence()
+
+
+def insert_random_consistent_individuals(
+    ts, min_ploidy=0, max_ploidy=5, min_dimension=0, max_dimension=3, seed=1
+):
+    """
+    Takes random subsets of nodes having the same time and population and
+    assigns them to individuals.  Also creates random locations in variable
+    dimensions in the unit interval, and assigns random parents (including NULL
+    parents).
+    """
+    rng = random.Random(seed)
+    tables = ts.dump_tables()
+    tables.individuals.clear()
+    individual = tables.nodes.individual[:]
+    individual[:] = tskit.NULL
+    ind_id = -1
+    pops = np.arange(ts.num_populations)
+    for pop in pops:
+        n = tables.nodes.population == pop
+        times = np.unique(tables.nodes.time[n])
+        for t in times:
+            nn = np.where(np.logical_and(n, tables.nodes.time == t))[0]
+            rng.shuffle(nn)
+            j = 0
+            while j < len(nn):
+                ploidy = rng.randint(min_ploidy, max_ploidy)
+                nodes = nn[j : min(j + ploidy, len(nn))]
+                dimension = rng.randint(min_dimension, max_dimension)
+                location = [rng.random() for _ in range(dimension)]
+                parents = rng.sample(
+                    range(-1, 1 + ind_id), min(1 + ind_id, rng.randint(0, 3))
+                )
+                ind_id = tables.individuals.add_row(location=location, parents=parents)
+                individual[nodes] = ind_id
+                j += ploidy
+                j += rng.randint(0, 2)  # skip a random number
     tables.nodes.individual = individual
     return tables.tree_sequence()
 

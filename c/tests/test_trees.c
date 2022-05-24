@@ -6687,6 +6687,172 @@ test_treeseq_row_access_errors(void)
 }
 
 static void
+test_treeseq_get_individuals_population_errors(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_table_collection_t tables;
+    tsk_treeseq_t ts;
+    tsk_id_t output[2];
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+
+    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 1.25, 0, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 1.25, TSK_NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret_id = tsk_treeseq_get_individuals_population(&ts, output);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_INDIVIDUAL_POPULATION_MISMATCH);
+
+    tsk_treeseq_free(&ts);
+    tsk_table_collection_free(&tables);
+}
+
+static void
+test_treeseq_get_individuals_population(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    int j;
+    tsk_table_collection_t tables;
+    tsk_treeseq_t ts;
+    tsk_id_t output[4];
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+
+    for (j = 0; j < 2; j++) {
+        ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+        CU_ASSERT_EQUAL_FATAL(ret_id, (tsk_id_t) j);
+    }
+    for (j = 0; j < 4; j++) {
+        ret_id = tsk_individual_table_add_row(
+            &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
+        CU_ASSERT_EQUAL_FATAL(ret_id, (tsk_id_t) j);
+    }
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 1.25, 0, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 0.0, TSK_NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 3.0, 1, 3, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 2);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 0.0, TSK_NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 3);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 1.25, 0, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 4);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_get_individuals_population(&ts, output);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL_FATAL(output[0], TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(output[1], 0);
+    CU_ASSERT_EQUAL_FATAL(output[2], TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(output[3], 1);
+
+    tsk_treeseq_free(&ts);
+    tsk_table_collection_free(&tables);
+}
+
+static void
+test_treeseq_get_individuals_time_errors(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_table_collection_t tables;
+    tsk_treeseq_t ts;
+    double output[2];
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+
+    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_individual_table_add_row(
+        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 1.2, 0, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 0.8, 0, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_get_individuals_time(&ts, output);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_TIME_MISMATCH);
+
+    tsk_treeseq_free(&ts);
+    tsk_table_collection_free(&tables);
+}
+
+static void
+test_treeseq_get_individuals_time(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    int j;
+    tsk_table_collection_t tables;
+    tsk_treeseq_t ts;
+    double output[4];
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1;
+
+    for (j = 0; j < 2; j++) {
+        ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
+        CU_ASSERT_EQUAL_FATAL(ret_id, j);
+    }
+    for (j = 0; j < 4; j++) {
+        ret_id = tsk_individual_table_add_row(
+            &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
+        CU_ASSERT_EQUAL_FATAL(ret_id, j);
+    }
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 1.25, 0, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 3.25, 0, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 3.0, 1, 3, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 2);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 3.25, 0, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 3);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 1.25, 0, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 4);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_get_individuals_time(&ts, output);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL_FATAL(output[0], 3.25);
+    CU_ASSERT_EQUAL_FATAL(output[1], 1.25);
+    CU_ASSERT_FATAL(tsk_is_unknown_time(output[2]));
+    CU_ASSERT_EQUAL_FATAL(output[3], 3.0);
+
+    tsk_treeseq_free(&ts);
+    tsk_table_collection_free(&tables);
+}
+
+static void
 test_tree_copy_flags(void)
 {
     int iret, ret;
@@ -7637,6 +7803,13 @@ main(int argc, char **argv)
         /* Misc */
         { "test_tree_errors", test_tree_errors },
         { "test_treeseq_row_access_errors", test_treeseq_row_access_errors },
+        { "test_treeseq_get_individuals_population_errors",
+            test_treeseq_get_individuals_population_errors },
+        { "test_treeseq_get_individuals_population",
+            test_treeseq_get_individuals_population },
+        { "test_treeseq_get_individuals_time_errors",
+            test_treeseq_get_individuals_time_errors },
+        { "test_treeseq_get_individuals_time", test_treeseq_get_individuals_time },
         { "test_tree_copy_flags", test_tree_copy_flags },
         { "test_genealogical_nearest_neighbours_errors",
             test_genealogical_nearest_neighbours_errors },

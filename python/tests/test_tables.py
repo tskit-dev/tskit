@@ -4621,7 +4621,9 @@ class TestUnionTables(unittest.TestCase):
             random_seed=seed,
         )
         ts = tsutil.add_random_metadata(ts, seed)
-        ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=1)
+        ts = tsutil.insert_random_ploidy_individuals(
+            ts, max_ploidy=1, samples_only=True
+        )
         return ts
 
     def get_wf_example(self, N, T, seed):
@@ -4631,7 +4633,9 @@ class TestUnionTables(unittest.TestCase):
         ts = ts.simplify()
         ts = tsutil.jukes_cantor(ts, 1, 10, seed=seed)
         ts = tsutil.add_random_metadata(ts, seed)
-        ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=2)
+        ts = tsutil.insert_random_ploidy_individuals(
+            ts, max_ploidy=2, samples_only=True
+        )
         return ts
 
     def split_example(self, ts, T):
