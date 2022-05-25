@@ -5215,8 +5215,8 @@ class TreeSequence:
         with either the specified ID or position.
 
         When position is specified instead of site ID, a binary search is done
-        on the list of positions of the sites (pre-sorted in ascending order)
-        to try to find a site with the user-specified position.
+        on the list of positions of the sites to try to find a site
+        with the user-specified position.
 
         :rtype: :class:`Site`
         """
@@ -5232,7 +5232,7 @@ class TreeSequence:
                 raise ValueError(
                     "Position is beyond the coordinates defined by sequence length."
                 )
-            site_pos = self.tables.sites.position  # Sorted in ascending order
+            site_pos = self.tables.sites.position
             id_ = site_pos.searchsorted(position)
             if id_ >= len(site_pos) or site_pos[id_] != position:
                 raise ValueError(f"There is no site at position {position}.")
