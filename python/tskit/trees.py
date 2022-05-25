@@ -5325,6 +5325,18 @@ class TreeSequence:
                 )
         return samples[keep]
 
+    def as_vcf(self, **kwargs):
+        """
+        Return the result of :meth:`.write_vcf` as a string.
+        Keyword parameters are as defined in :meth:`.write_vcf`.
+
+        :return: A VCF encoding of the variants in this tree sequence as a string.
+        :rtype: str
+        """
+        buff = io.StringIO()
+        self.write_vcf(buff, **kwargs)
+        return buff.getvalue()
+
     def write_vcf(
         self,
         output,
@@ -5333,6 +5345,8 @@ class TreeSequence:
         individuals=None,
         individual_names=None,
         position_transform=None,
+        site_mask=None,
+        sample_mask=None,
     ):
         """
         Writes a VCF formatted file to the specified file-like object.
@@ -5463,6 +5477,23 @@ class TreeSequence:
 
             $ tskit vcf example.trees | bcftools view -O b > example.bcf
 
+
+        The ``sample_mask`` argument provides a general way to mask out
+        parts of the output, which can be helpful when simulating missing
+        data. In this (contrived) example, we create a sample mask function
+        that marks one genotype missing in each variant in a regular
+        pattern:
+
+        .. code-block:: python
+
+            def sample_mask(variant):
+                sample_mask = np.zeros(ts.num_samples, dtype=bool)
+                sample_mask[variant.site.id % ts.num_samples] = 1
+                return sample_mask
+
+
+            ts.write_vcf(sys.stdout, sample_mask=sample_mask)
+
         :param io.IOBase output: The file-like object to write the VCF output.
         :param int ploidy: The ploidy of the individuals to be written to
             VCF. This sample size must be evenly divisible by ploidy. Cannot be
@@ -5488,6 +5519,20 @@ class TreeSequence:
             pre 0.2.0 legacy behaviour of rounding values to the nearest integer
             (starting from 1) and avoiding the output of identical positions
             by incrementing is used.
+        :param site_mask: A numpy boolean array (or something convertable to
+            a numpy boolean array) with num_sites elements, used to mask out
+            sites in the output. If  ``site_mask[j]`` is True, then this
+            site (i.e., the line in the VCF file) will be omitted.
+        :param sample_mask: A numpy boolean array (or something convertable to
+            a numpy boolean array) with num_samples elements, or a callable
+            that returns such an array, such that if
+            ``sample_mask[j]`` is True, then the genotype for sample ``j``
+            will be marked as missing using a ".". If ``sample_mask`` is a
+            callable, it must take a single argument and return a boolean
+            numpy array. This function will be called for each (unmasked) site
+            with the corresponding :class:`.Variant` object, allowing
+            for dynamic masks to be generated. See above for example
+            usage.
         """
         writer = vcf.VcfWriter(
             self,
@@ -5496,6 +5541,8 @@ class TreeSequence:
             individuals=individuals,
             individual_names=individual_names,
             position_transform=position_transform,
+            site_mask=site_mask,
+            sample_mask=sample_mask,
         )
         writer.write(output)
 

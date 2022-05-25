@@ -34,6 +34,11 @@
   methods to return arrays of per-individual times and populations, respectively.
   (:user:`petrelharp`, :issue:`1481`, :pr:`2298`).
 
+- Add the ``sample_mask`` and ``site_mask`` to ``write_vcf`` to allow parts
+  of an output VCF to be omitted or marked as missing data. Also add the
+  ``as_vcf`` convenience function, to return VCF as a string.
+  (:user:`jeromekelleher`, :pr:`2300`).
+
 **Breaking Changes**
 
 - The JSON metadata codec now interprets the empty string as an empty object. This means
