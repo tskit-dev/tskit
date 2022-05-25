@@ -29,12 +29,14 @@ import itertools
 import math
 import os
 import tempfile
+import textwrap
 
 import msprime
 import numpy as np
 import pytest
 import vcf
 
+import tests
 import tests.test_wright_fisher as wf
 import tskit
 from tests import tsutil
@@ -638,3 +640,192 @@ class TestIndividualNames:
         assert ts.num_sites > 0
         with ts_to_pyvcf(ts) as vcf_reader:
             assert vcf_reader.samples == ["tsk_0", "tsk_1"]
+
+
+def drop_header(s):
+    return "\n".join(line for line in s.splitlines() if not line.startswith("##"))
+
+
+class TestMasking:
+    @tests.cached_example
+    def ts(self):
+        ts = tskit.Tree.generate_balanced(3, span=10).tree_sequence
+        ts = tsutil.insert_branch_sites(ts)
+        return ts
+
+    @pytest.mark.parametrize("mask", [[True], np.zeros(5, dtype=bool), []])
+    def test_site_mask_wrong_size(self, mask):
+        with pytest.raises(ValueError, match="Site mask must be"):
+            self.ts().as_vcf(site_mask=mask)
+
+    @pytest.mark.parametrize("mask", [[[0, 1], [1, 0]], "abcd"])
+    def test_site_mask_bad_type(self, mask):
+        # converting to a bool array is pretty lax in what's allows.
+        with pytest.raises(ValueError, match="Site mask must be"):
+            self.ts().as_vcf(site_mask=mask)
+
+    @pytest.mark.parametrize("mask", [[[0, 1], [1, 0]], "abcd"])
+    def test_sample_mask_bad_type(self, mask):
+        # converting to a bool array is pretty lax in what's allows.
+        with pytest.raises(ValueError, match="Sample mask must be"):
+            self.ts().as_vcf(sample_mask=mask)
+
+    def test_no_masks(self):
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0\ttsk_1\ttsk_2
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t1\t0\t0
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t0\t1\t1
+        1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0\t1\t0
+        1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0\t0\t1"""
+        expected = textwrap.dedent(s)
+        assert drop_header(self.ts().as_vcf()) == expected
+
+    def test_no_masks_triploid(self):
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t1|0|0
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t0|1|1
+        1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0|1|0
+        1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0|0|1"""
+        expected = textwrap.dedent(s)
+        assert drop_header(self.ts().as_vcf(ploidy=3)) == expected
+
+    def test_site_0_masked(self):
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0\ttsk_1\ttsk_2
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t0\t1\t1
+        1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0\t1\t0
+        1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0\t0\t1"""
+        expected = textwrap.dedent(s)
+        actual = self.ts().as_vcf(site_mask=[True, False, False, False])
+        assert drop_header(actual) == expected
+
+    def test_site_0_masked_triploid(self):
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t0|1|1
+        1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0|1|0
+        1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0|0|1"""
+        expected = textwrap.dedent(s)
+        actual = self.ts().as_vcf(ploidy=3, site_mask=[True, False, False, False])
+        assert drop_header(actual) == expected
+
+    def test_site_1_masked(self):
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0\ttsk_1\ttsk_2
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t1\t0\t0
+        1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0\t1\t0
+        1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0\t0\t1"""
+        expected = textwrap.dedent(s)
+        actual = self.ts().as_vcf(site_mask=[False, True, False, False])
+        assert drop_header(actual) == expected
+
+    def test_all_sites_masked(self):
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0\ttsk_1\ttsk_2"""
+        expected = textwrap.dedent(s)
+        actual = self.ts().as_vcf(site_mask=[True, True, True, True])
+        assert drop_header(actual) == expected
+
+    def test_all_sites_not_masked(self):
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0\ttsk_1\ttsk_2
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t1\t0\t0
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t0\t1\t1
+        1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0\t1\t0
+        1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0\t0\t1"""
+        expected = textwrap.dedent(s)
+        actual = self.ts().as_vcf(site_mask=[False, False, False, False])
+        assert drop_header(actual) == expected
+
+    @pytest.mark.parametrize(
+        "mask",
+        [[False, False, False], [0, 0, 0], lambda _: [False, False, False]],
+    )
+    def test_all_samples_not_masked(self, mask):
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0\ttsk_1\ttsk_2
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t1\t0\t0
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t0\t1\t1
+        1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0\t1\t0
+        1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0\t0\t1"""
+        expected = textwrap.dedent(s)
+        actual = self.ts().as_vcf(sample_mask=mask)
+        assert drop_header(actual) == expected
+
+    @pytest.mark.parametrize(
+        "mask", [[True, False, False], [1, 0, 0], lambda _: [True, False, False]]
+    )
+    def test_sample_0_masked(self, mask):
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0\ttsk_1\ttsk_2
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t.\t0\t0
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t.\t1\t1
+        1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t.\t1\t0
+        1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t.\t0\t1"""
+        expected = textwrap.dedent(s)
+        actual = self.ts().as_vcf(sample_mask=mask)
+        assert drop_header(actual) == expected
+
+    @pytest.mark.parametrize(
+        "mask", [[False, True, False], [0, 1, 0], lambda _: [False, True, False]]
+    )
+    def test_sample_1_masked(self, mask):
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0\ttsk_1\ttsk_2
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t1\t.\t0
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t0\t.\t1
+        1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0\t.\t0
+        1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0\t.\t1"""
+        expected = textwrap.dedent(s)
+        actual = self.ts().as_vcf(sample_mask=mask)
+        assert drop_header(actual) == expected
+
+    @pytest.mark.parametrize(
+        "mask", [[True, True, True], [1, 1, 1], lambda _: [True, True, True]]
+    )
+    def test_all_samples_masked(self, mask):
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0\ttsk_1\ttsk_2
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t.\t.\t.
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t.\t.\t.
+        1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t.\t.\t.
+        1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t.\t.\t."""
+        expected = textwrap.dedent(s)
+        actual = self.ts().as_vcf(sample_mask=mask)
+        assert drop_header(actual) == expected
+
+    def test_all_functional_sample_mask(self):
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0\ttsk_1\ttsk_2
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t.\t0\t0
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t0\t.\t1
+        1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0\t1\t.
+        1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t.\t0\t1"""
+
+        def mask(variant):
+            a = [0, 0, 0]
+            a[variant.site.id % 3] = 1
+            return a
+
+        expected = textwrap.dedent(s)
+        actual = self.ts().as_vcf(sample_mask=mask)
+        assert drop_header(actual) == expected
+
+    @pytest.mark.skipif(not _pysam_imported, reason="pysam not available")
+    def test_mask_ok_with_pysam(self):
+        with ts_to_pysam(self.ts(), sample_mask=[0, 0, 1]) as records:
+            variants = list(records)
+            assert len(variants) == 4
+            samples = ["tsk_0", "tsk_1", "tsk_2"]
+            gts = [variants[0].samples[key]["GT"] for key in samples]
+            assert gts == [(1,), (0,), (None,)]
+
+            gts = [variants[1].samples[key]["GT"] for key in samples]
+            assert gts == [(0,), (1,), (None,)]
+
+            gts = [variants[2].samples[key]["GT"] for key in samples]
+            assert gts == [(0,), (1,), (None,)]
+
+            gts = [variants[3].samples[key]["GT"] for key in samples]
+            assert gts == [(0,), (0,), (None,)]

@@ -58,6 +58,8 @@ class VcfWriter:
         individuals=None,
         individual_names=None,
         position_transform=None,
+        site_mask=None,
+        sample_mask=None,
     ):
         self.tree_sequence = tree_sequence
         self.contig_id = contig_id
@@ -97,6 +99,18 @@ class VcfWriter:
             # so it's simpler to stay with this rule that was inherited
             # from the legacy VCF output code.
             self.contig_length = max(self.transformed_positions[-1], self.contig_length)
+
+        if site_mask is None:
+            site_mask = np.zeros(tree_sequence.num_sites, dtype=bool)
+        self.site_mask = np.array(site_mask, dtype=bool)
+        if self.site_mask.shape != (tree_sequence.num_sites,):
+            raise ValueError("Site mask must be 1D a boolean array of length num_sites")
+
+        self.sample_mask = sample_mask
+        if sample_mask is not None:
+            if not callable(sample_mask):
+                sample_mask = np.array(sample_mask, dtype=bool)
+                self.sample_mask = lambda _: sample_mask
 
     def __make_sample_mapping(self, ploidy):
         """
@@ -176,6 +190,12 @@ class VcfWriter:
         indexes = np.array(indexes, dtype=int)
 
         for variant in self.tree_sequence.variants(samples=self.samples):
+            site_id = variant.site.id
+            # We check the mask before we do any checks so we can use this as a
+            # way of skipping problematic sites.
+            if self.site_mask[site_id]:
+                continue
+
             if variant.num_alleles > 9:
                 raise ValueError(
                     "More than 9 alleles not currently supported. Please open an issue "
@@ -187,7 +207,6 @@ class VcfWriter:
                     "on GitHub if this limitation affects you."
                 )
             pos = self.transformed_positions[variant.index]
-            site_id = variant.site.id
             ref = variant.alleles[0]
             alt = ",".join(variant.alleles[1:]) if len(variant.alleles) > 1 else "."
             print(
@@ -204,7 +223,23 @@ class VcfWriter:
                 end="\t",
                 file=output,
             )
-            gt_array[indexes] = variant.genotypes + ord("0")
+            # NOTE: when we support missing data we should be able to
+            # simply add ``and not variant.has_missing_data`` here.
+            # Probably OK to take the perf hit in making the missing
+            # data case go in with the more general sample masking case.
+            if self.sample_mask is None:
+                gt_array[indexes] = variant.genotypes + ord("0")
+            else:
+                genotypes = variant.genotypes.copy()
+                sample_mask = np.array(self.sample_mask(variant), dtype=bool)
+                if sample_mask.shape != genotypes.shape:
+                    raise ValueError(
+                        "Sample mask must be a numpy array of size num_samples"
+                    )
+                gt_array[indexes] = genotypes + ord("0")
+                genotypes[sample_mask] = -1
+                missing = genotypes == -1
+                gt_array[indexes[missing]] = ord(".")
             g_bytes = memoryview(gt_array).tobytes()
             g_str = g_bytes.decode()
             print(g_str, end="", file=output)
