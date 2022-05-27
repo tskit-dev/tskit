@@ -27,6 +27,7 @@ Module responsible for managing trees and tree sequences.
 from __future__ import annotations
 
 import base64
+import builtins
 import collections
 import concurrent.futures
 import functools
@@ -93,6 +94,19 @@ class EdgeDiff(NamedTuple):
     edges_in: list
 
 
+def store_tree_sequence(cls):
+    wrapped_init = cls.__init__
+
+    # Intercept the init to record the tree_sequence
+    def new_init(self, *args, tree_sequence=None, **kwargs):
+        builtins.object.__setattr__(self, "_tree_sequence", tree_sequence)
+        wrapped_init(self, *args, **kwargs)
+
+    cls.__init__ = new_init
+    return cls
+
+
+@store_tree_sequence
 @metadata_module.lazy_decode
 @dataclass
 class Individual(util.Dataclass):
@@ -106,7 +120,15 @@ class Individual(util.Dataclass):
     underlying tree sequence data.
     """
 
-    __slots__ = ["id", "flags", "location", "parents", "nodes", "metadata"]
+    __slots__ = [
+        "id",
+        "flags",
+        "location",
+        "parents",
+        "nodes",
+        "metadata",
+        "_tree_sequence",
+    ]
     id: int  # noqa A003
     """
     The integer ID of this individual. Varies from 0 to
@@ -136,6 +158,24 @@ class Individual(util.Dataclass):
     The :ref:`metadata <sec_metadata_definition>`
     for this individual, decoded if a schema applies.
     """
+
+    @property
+    def population(self) -> int:
+        populations = {self._tree_sequence.node(n).population for n in self.nodes}
+        if len(populations) > 1:
+            raise ValueError("Individual has nodes with mis-matched populations")
+        if len(populations) == 0:
+            return tskit.NULL
+        return populations.pop()
+
+    @property
+    def time(self) -> int:
+        times = {self._tree_sequence.node(n).time for n in self.nodes}
+        if len(times) > 1:
+            raise ValueError("Individual has nodes with mis-matched times")
+        if len(times) == 0:
+            return tskit.UNKNOWN_TIME
+        return times.pop()
 
     # Custom eq for the numpy arrays
     def __eq__(self, other):
@@ -5048,7 +5088,7 @@ class TreeSequence:
             metadata,
             nodes,
         ) = self._ll_tree_sequence.get_individual(id_)
-        return Individual(
+        ind = Individual(
             id=id_,
             flags=flags,
             location=location,
@@ -5056,7 +5096,9 @@ class TreeSequence:
             metadata=metadata,
             nodes=nodes,
             metadata_decoder=self.table_metadata_schemas.individual.decode_row,
+            tree_sequence=self,
         )
+        return ind
 
     def node(self, id_):
         """

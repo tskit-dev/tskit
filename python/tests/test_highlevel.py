@@ -2564,6 +2564,97 @@ class TestTreeSequence(HighLevelTestCase):
         locs3 = ts.individual_locations
         assert np.array_equal(ts_locs, locs3)
 
+    def verify_individual_properties(self, ts):
+        for ind in ts.individuals():
+            times = [ts.node(n).time for n in ind.nodes]
+            if len(set(times)) > 1:
+                with pytest.raises(ValueError, match="mis-matched times"):
+                    _ = ind.time
+            elif len(times) == 0:
+                assert tskit.is_unknown_time(ind.time)
+            else:
+                assert len(set(times)) == 1
+                assert times[0] == ind.time
+                # test accessing more than once in case we mess up with {}.pop()
+                assert times[0] == ind.time
+            pops = [ts.node(n).population for n in ind.nodes]
+            if len(set(pops)) > 1:
+                with pytest.raises(ValueError, match="mis-matched populations"):
+                    _ = ind.population
+            elif len(pops) == 0:
+                assert ind.population is tskit.NULL
+            else:
+                assert len(set(pops)) == 1
+                assert ind.population == pops[0]
+                # test accessing more than once in case we mess up with {}.pop()
+                assert ind.population == pops[0]
+
+    def test_individual_getter_population(self):
+        tables = tskit.TableCollection(sequence_length=1)
+        for _ in range(2):
+            tables.populations.add_row()
+        pop_list = [
+            ((), tskit.NULL),
+            ((tskit.NULL,), tskit.NULL),
+            ((1,), 1),
+            ((1, 1, 1), 1),
+            ((tskit.NULL, 1), "ERR"),
+            ((0, tskit.NULL), "ERR"),
+            ((0, 1), "ERR"),
+        ]
+        for pops, _ in pop_list:
+            j = tables.individuals.add_row()
+            for p in pops:
+                tables.nodes.add_row(time=0, population=p, individual=j)
+        ts = tables.tree_sequence()
+        for ind, (_, p) in zip(ts.individuals(), pop_list):
+            if p == "ERR":
+                with pytest.raises(ValueError, match="mis-matched populations"):
+                    _ = ind.population
+            else:
+                assert p == ind.population
+
+    def test_individual_getter_time(self):
+        tables = tskit.TableCollection(sequence_length=1)
+        time_list = [
+            ((), tskit.UNKNOWN_TIME),
+            ((0.0,), 0.0),
+            ((1, 1, 1), 1),
+            ((4.0, 1), "ERR"),
+            ((0, 4.0), "ERR"),
+        ]
+        for times, _ in time_list:
+            j = tables.individuals.add_row()
+            for t in times:
+                tables.nodes.add_row(time=t, individual=j)
+        ts = tables.tree_sequence()
+        for ind, (_, t) in zip(ts.individuals(), time_list):
+            if t == "ERR":
+                with pytest.raises(ValueError, match="mis-matched times"):
+                    _ = ind.time
+            elif tskit.is_unknown_time(t):
+                assert tskit.is_unknown_time(ind.time)
+            else:
+                assert t == ind.time
+
+    @pytest.mark.parametrize("n", [1, 10])
+    def test_individual_properties(self, n):
+        # tests for the .time and .population attributes of
+        # the Individual class
+        d = msprime.Demography.island_model([10] * n, 0.1)
+        ts = msprime.sim_ancestry(
+            {pop.name: int(150 / n) for pop in d.populations},
+            demography=d,
+            random_seed=100 + n,
+            model="dtwf",
+        )
+        ts = tsutil.insert_random_consistent_individuals(ts, seed=100 + n)
+        assert ts.num_individuals > 10
+        self.verify_individual_properties(ts)
+        ts = tsutil.insert_random_ploidy_individuals(ts, seed=100 + n)
+        assert ts.num_individuals > 10
+        self.verify_individual_properties(ts)
+
 
 class TestTreeSequenceMethodSignatures:
     ts = msprime.simulate(10, random_seed=1234)
