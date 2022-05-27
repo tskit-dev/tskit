@@ -22,7 +22,8 @@ TSKIT_SOURCE=../tskit/*.c ../subprojects/kastore/kastore.c
 
 targets = api_structure error_handling \
 	haploid_wright_fisher streaming \
-	tree_iteration tree_traversal
+	tree_iteration tree_traversal \
+	take_ownership
 
 all: $(targets)
 
