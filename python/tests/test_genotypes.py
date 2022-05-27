@@ -36,6 +36,7 @@ import tests.tsutil as tsutil
 import tskit
 from tests.test_highlevel import get_example_tree_sequences
 from tskit import exceptions
+from tskit.genotypes import allele_remap
 
 # ↑ See https://github.com/tskit-dev/tskit/issues/1804 for when
 # we can remove this.
@@ -1735,3 +1736,75 @@ class TestAlignmentExamples:
                     assert a[x] == h[j]
                     last = x + 1
                 assert a[last:] == ref[last:]
+
+
+#
+# Tests for allele_remap
+#
+@pytest.mark.parametrize(
+    "alleles_from, alleles_to, allele_map",
+    [
+        # Case 1: alleles_to is longer than alleles_from.
+        (
+            ["A", "C", "G", "T"],
+            ["G", "C"],
+            np.array([2, 1, 0, 3], dtype="uint32"),
+        ),
+        # Case 2: alleles_to is shorter than alleles_from.
+        (
+            ["G", "C"],
+            ["A", "C", "G", "T"],
+            np.array([2, 1], dtype="uint32"),
+        ),
+        # Case 3: alleles_to is empty.
+        (
+            ["A", "C", "G", "T"],
+            [],
+            np.array([0, 1, 2, 3], dtype="uint32"),
+        ),
+        # Case 4: alleles_from is empty.
+        (
+            [],
+            ["A", "C", "G", "T"],
+            np.array([], dtype="uint32"),
+        ),
+        # Case 5: Both lists are empty.
+        (
+            [],
+            [],
+            np.array([], dtype="uint32"),
+        ),
+        # Case 6: Both lists are tuples.
+        (
+            ("G", "C"),
+            ("A", "C", "G", "T"),
+            np.array([2, 1], dtype="uint32"),
+        ),
+        # Case 7: Both lists are numpy arrays.
+        (
+            np.array(("G", "C")),
+            np.array(("A", "C", "G", "T")),
+            np.array([2, 1], dtype="uint32"),
+        ),
+        # Case 8: Lists are of two different types.
+        (
+            np.array(("G", "C")),
+            ["A", "C", "G", "T"],
+            np.array([2, 1], dtype="uint32"),
+        ),
+        # Case 9: Lists contain elements of arbitrary types.
+        (
+            ["ABBA", "CDCD"],
+            ["ABBA", "CDCD", "EFEF", "GG", 18],
+            np.array([0, 1], dtype="uint32"),
+        ),
+        # Case 10: Lists contain unicode characters.
+        (
+            ["\u1F1E8", "\u1F1EC"],
+            ["\u1F1EC", "\u1F1E8", "\u1F1E6", "\u1F1F3"],
+            np.array([1, 0], dtype="uint32"),
+        ),
+    ],
+)
+def test_allele_remap(alleles_from, alleles_to, allele_map):
+    assert np.array_equal(allele_map, allele_remap(alleles_from, alleles_to))
