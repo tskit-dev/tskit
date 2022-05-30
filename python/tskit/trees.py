@@ -590,6 +590,35 @@ class Variant:
         """
         return len(self.alleles) - self.has_missing_data
 
+    def concordance(self, other):
+        """
+        Calculate the fraction of samples for which the genotypes
+        of this variant are equal to the genotypes of the other variant.
+        The result is valid only if the genotypes for both the variants
+        are in the same order with respect to their samples.
+        Also, genotypes can be missing. Two genotypes with the value
+        ``tskit.MISSING_DATA`` are treated as equal.
+        """
+        if other.genotypes.shape != self.genotypes.shape:
+            raise ValueError("Variants not comparable.")
+        n = self.genotypes.shape[0]
+        if self.alleles == other.alleles:
+            # Quick path.
+            return np.sum(self.genotypes == other.genotypes, dtype=float) / n
+        else:
+            # Slow path - remap the alleles so the genotypes are comparable.
+            allele_idx_self = (
+                self.alleles if self.has_missing_data else self.alleles[:-1] + [-1]
+            )
+            allele_idx_other = (
+                other.alleles if other.has_missing_data else other.alleles[:-1] + [-1]
+            )
+            genotypes_remap_self = [allele_idx_self[i] for i in self.genotypes]
+            genotypes_remap_other = [allele_idx_other[i] for i in other.genotypes]
+            return (
+                np.sum(genotypes_remap_self == genotypes_remap_other, dtype=float) / n
+            )
+
     # Deprecated alias to avoid breaking existing code.
     @property
     def position(self) -> float:
