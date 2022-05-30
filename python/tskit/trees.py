@@ -5473,12 +5473,21 @@ class TreeSequence:
         on the VCF parser, and so we do **not** account for this change in
         coordinate system by default.
 
+        .. note::
+           Older code often uses the ``ploidy=2`` argument, because previous
+           versions of msprime did not output individual data. Specifying
+           individuals in the tree sequence is more robust, and since tree
+           sequences now  typically contain individuals (e.g., as produced by
+           ``msprime.sim_ancestry( )``), this is not necessary, and the
+           ``ploidy`` argument can safely be removed from old code in most cases.
+
+
         Example usage:
 
         .. code-block:: python
 
             with open("output.vcf", "w") as vcf_file:
-                tree_sequence.write_vcf(vcf_file, ploidy=2)
+                tree_sequence.write_vcf(vcf_file)
 
         The VCF output can also be compressed using the :mod:`gzip` module, if you wish:
 
