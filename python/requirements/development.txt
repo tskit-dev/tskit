@@ -25,7 +25,6 @@ pysam
 pytest
 pytest-cov
 pytest-xdist
-PyVCF
 sphinx==4.5
 sphinx-argparse
 sphinx-issues
