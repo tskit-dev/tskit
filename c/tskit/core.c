@@ -500,7 +500,8 @@ tsk_strerror_internal(int err)
             break;
         case TSK_ERR_NO_SAMPLE_LISTS:
             ret = "The sample_lists option must be enabled on the tree to perform this "
-                  "operation. (TSK_ERR_NO_SAMPLE_LISTS)";
+                  "operation. Pass the option to the constructor or method that created "
+                  "the tree. (TSK_ERR_NO_SAMPLE_LISTS)";
             break;
 
         /* Haplotype matching errors */
