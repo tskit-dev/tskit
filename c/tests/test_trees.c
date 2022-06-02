@@ -70,6 +70,9 @@ check_trees_identical(tsk_tree_t *self, tsk_tree_t *other)
         tsk_memcmp(self->left_sib, other->left_sib, N * sizeof(tsk_id_t)) == 0);
     CU_ASSERT_FATAL(
         tsk_memcmp(self->right_sib, other->right_sib, N * sizeof(tsk_id_t)) == 0);
+    CU_ASSERT_FATAL(
+        tsk_memcmp(self->num_children, other->num_children, N * sizeof(tsk_size_t))
+        == 0);
 
     CU_ASSERT_EQUAL_FATAL(self->num_samples == NULL, other->num_samples == NULL)
     CU_ASSERT_EQUAL_FATAL(
@@ -1149,6 +1152,7 @@ test_simplest_nonbinary_records(void)
                         "0  1   0";
     const char *edges = "0  1   4   0,1,2,3\n";
     tsk_treeseq_t ts, simplified;
+    tsk_tree_t t;
     tsk_id_t sample_ids[] = { 0, 1, 2, 3 };
     int ret;
 
@@ -1158,6 +1162,13 @@ test_simplest_nonbinary_records(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&ts), 5);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 1);
+
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL(t.num_children[4], 4);
+    CU_ASSERT_EQUAL(tsk_tree_get_num_roots(&t), 1);
+    tsk_tree_free(&t);
 
     ret = tsk_treeseq_simplify(&ts, sample_ids, 4, 0, &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -1192,6 +1203,7 @@ test_simplest_unary_records(void)
                         "0  1   3   1\n"
                         "0  1   4   2,3\n";
     tsk_treeseq_t ts, simplified, simplified_other;
+    tsk_tree_t t;
     tsk_id_t sample_ids[] = { 0, 1 };
 
     tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
@@ -1201,6 +1213,14 @@ test_simplest_unary_records(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 1);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_populations(&ts), 1);
+
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL(t.num_children[2], 1);
+    CU_ASSERT_EQUAL(t.num_children[4], 2);
+    CU_ASSERT_EQUAL(tsk_tree_get_num_roots(&t), 1);
+    tsk_tree_free(&t);
 
     ret = tsk_treeseq_simplify(&ts, sample_ids, 2, 0, &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -1408,6 +1428,8 @@ test_simplest_degenerate_multiple_root_records(void)
     CU_ASSERT_EQUAL(t.num_edges, 2);
     CU_ASSERT_EQUAL(t.right_sib[2], 3);
     CU_ASSERT_EQUAL(t.right_sib[3], TSK_NULL);
+    CU_ASSERT_EQUAL(t.num_children[2], 1);
+    CU_ASSERT_EQUAL(t.num_children[0], 0);
 
     ret = tsk_treeseq_simplify(&ts, sample_ids, 2, 0, &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -1501,6 +1523,8 @@ test_simplest_zero_root_tree(void)
     CU_ASSERT_EQUAL(tsk_tree_get_right_root(&t), TSK_NULL);
     CU_ASSERT_EQUAL(t.right_sib[2], 3);
     CU_ASSERT_EQUAL(t.right_sib[3], TSK_NULL);
+    CU_ASSERT_EQUAL(t.num_children[0], 0);
+    CU_ASSERT_EQUAL(t.num_children[4], 2);
 
     tsk_tree_free(&t);
     tsk_treeseq_free(&ts);
@@ -1544,6 +1568,8 @@ test_simplest_multi_root_tree(void)
     CU_ASSERT_EQUAL(tsk_tree_get_left_root(&t), 0);
     CU_ASSERT_EQUAL(t.right_sib[0], 3);
     CU_ASSERT_EQUAL(t.num_edges, 2);
+    CU_ASSERT_EQUAL(t.num_children[0], 0);
+    CU_ASSERT_EQUAL(t.num_children[3], 2);
 
     tsk_tree_print_state(&t, _devnull);
 
@@ -1889,12 +1915,14 @@ test_simplest_initial_gap_zero_roots(void)
     CU_ASSERT_EQUAL(ret, TSK_TREE_OK);
     CU_ASSERT_EQUAL(tsk_tree_get_left_root(&tree), TSK_NULL);
     CU_ASSERT_EQUAL(tsk_tree_get_num_roots(&tree), 0);
+
     ret = tsk_tree_next(&tree);
     CU_ASSERT_EQUAL(ret, TSK_TREE_OK);
     CU_ASSERT_EQUAL(tsk_tree_get_left_root(&tree), TSK_NULL);
     CU_ASSERT_EQUAL(tsk_tree_get_num_roots(&tree), 0);
     CU_ASSERT_EQUAL(tree.parent[0], 2);
     CU_ASSERT_EQUAL(tree.parent[1], 2);
+    CU_ASSERT_EQUAL(tree.num_children[2], 2);
 
     tsk_tree_free(&tree);
     tsk_treeseq_free(&ts);
@@ -1944,11 +1972,13 @@ test_simplest_holey_tsk_treeseq_zero_roots(void)
     CU_ASSERT_EQUAL(tree.parent[0], 2);
     CU_ASSERT_EQUAL(tree.parent[1], 2);
     CU_ASSERT_EQUAL(tsk_tree_get_num_roots(&tree), 0);
+    CU_ASSERT_EQUAL(tree.num_children[2], 2);
 
     ret = tsk_tree_next(&tree);
     CU_ASSERT_EQUAL(ret, TSK_TREE_OK);
     CU_ASSERT_EQUAL(tsk_tree_get_left_root(&tree), TSK_NULL);
     CU_ASSERT_EQUAL(tsk_tree_get_num_roots(&tree), 0);
+    CU_ASSERT_EQUAL(tree.num_children[2], 0);
 
     ret = tsk_tree_next(&tree);
     CU_ASSERT_EQUAL(ret, TSK_TREE_OK);
@@ -1956,6 +1986,7 @@ test_simplest_holey_tsk_treeseq_zero_roots(void)
     CU_ASSERT_EQUAL(tsk_tree_get_num_roots(&tree), 0);
     CU_ASSERT_EQUAL(tree.parent[0], 2);
     CU_ASSERT_EQUAL(tree.parent[1], 2);
+    CU_ASSERT_EQUAL(tree.num_children[2], 2);
 
     tsk_tree_free(&tree);
     tsk_treeseq_free(&ts);
@@ -2708,6 +2739,7 @@ test_simplest_overlapping_parents(void)
     CU_ASSERT_EQUAL(tree.right_sib[0], 1);
     CU_ASSERT_EQUAL(tree.left_sib[1], 0);
     CU_ASSERT_EQUAL(tree.right_sib[1], TSK_NULL);
+    CU_ASSERT_EQUAL(tree.num_children[2], 2);
 
     tsk_tree_free(&tree);
     tsk_treeseq_free(&ts);
@@ -3859,6 +3891,8 @@ test_single_tree_iter(void)
     CU_ASSERT_EQUAL(ret, TSK_TREE_OK);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&ts), num_nodes);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 1);
+    CU_ASSERT_EQUAL(tree.num_children[4], 2);
+    CU_ASSERT_EQUAL(tsk_tree_get_num_roots(&tree), 1);
     tsk_tree_print_state(&tree, _devnull);
 
     for (u = 0; u < (tsk_id_t) num_nodes; u++) {
@@ -3945,6 +3979,7 @@ test_single_nonbinary_tree_iter(void)
     CU_ASSERT_EQUAL(tree.left_sib[2], 1);
     CU_ASSERT_EQUAL(tree.left_sib[1], 0);
     CU_ASSERT_EQUAL(tree.left_sib[0], TSK_NULL);
+    CU_ASSERT_EQUAL(tree.num_children[u], 4);
 
     u = 8;
     ret = tsk_tree_get_num_samples(&tree, u, &num_samples);
@@ -3953,6 +3988,7 @@ test_single_nonbinary_tree_iter(void)
     CU_ASSERT_EQUAL(tree.right_child[u], 5);
     CU_ASSERT_EQUAL(tree.left_sib[5], 4);
     CU_ASSERT_EQUAL(tree.left_sib[4], TSK_NULL);
+    CU_ASSERT_EQUAL(tree.num_children[u], 2);
 
     u = 9;
     ret = tsk_tree_get_num_samples(&tree, u, &num_samples);
@@ -3962,6 +3998,7 @@ test_single_nonbinary_tree_iter(void)
     CU_ASSERT_EQUAL(tree.left_sib[8], 7);
     CU_ASSERT_EQUAL(tree.left_sib[7], 6);
     CU_ASSERT_EQUAL(tree.left_sib[6], TSK_NULL);
+    CU_ASSERT_EQUAL(tree.num_children[u], 3);
 
     CU_ASSERT_EQUAL(tsk_tree_get_num_roots(&tree), 1);
     CU_ASSERT_EQUAL(tsk_tree_get_left_root(&tree), 9);
@@ -5196,6 +5233,31 @@ test_tsk_treeseq_bad_records(void)
     tsk_table_collection_free(&tables);
 }
 
+static void
+test_num_children_multi_tree(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+
+    tsk_treeseq_from_text(
+        &ts, 10, unary_ex_nodes, unary_ex_edges, NULL, NULL, NULL, NULL, NULL, 0);
+
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+    CU_ASSERT_EQUAL(t.num_children[8], 2);
+
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+    CU_ASSERT_EQUAL(t.num_children[8], 1);
+
+    CU_ASSERT_TRUE(tsk_tree_next(&t));
+    CU_ASSERT_EQUAL(t.num_children[8], 0);
+
+    tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
 /*=======================================================
  * Diff iter tests.
  *======================================================*/
@@ -5473,6 +5535,8 @@ test_virtual_root_properties(void)
     CU_ASSERT_TRUE(tsk_tree_is_descendant(&t, t.virtual_root, t.virtual_root));
 
     CU_ASSERT_FALSE(tsk_tree_is_sample(&t, t.virtual_root));
+
+    CU_ASSERT_EQUAL(tsk_tree_get_num_roots(&t), 1);
 
     tsk_tree_free(&t);
     tsk_treeseq_free(&ts);
@@ -7747,6 +7811,7 @@ main(int argc, char **argv)
             test_simplify_keep_input_roots_multi_tree },
         { "test_left_to_right_multi_tree", test_left_to_right_multi_tree },
         { "test_gappy_multi_tree", test_gappy_multi_tree },
+        { "test_num_children_multi_tree", test_num_children_multi_tree },
 
         { "test_tsk_treeseq_bad_records", test_tsk_treeseq_bad_records },
 

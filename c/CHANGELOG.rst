@@ -1,4 +1,14 @@
 --------------------
+[1.1.0] - 2022-XX-XX
+--------------------
+
+**Features**
+
+- Add ``num_children`` to ``tsk_tree_t`` an array which contains counts of the number of child
+  nodes of each node in the tree. (:user:`GertjanBisschop`, :issue:`2274`, :pr:`2316`)
+
+
+--------------------
 [1.0.0] - 2022-05-24
 --------------------
 

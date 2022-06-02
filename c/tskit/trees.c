@@ -3466,8 +3466,10 @@ tsk_tree_init(tsk_tree_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t 
     self->right_child = tsk_malloc(N * sizeof(*self->right_child));
     self->left_sib = tsk_malloc(N * sizeof(*self->left_sib));
     self->right_sib = tsk_malloc(N * sizeof(*self->right_sib));
+    self->num_children = tsk_calloc(N, sizeof(*self->num_children));
     if (self->parent == NULL || self->left_child == NULL || self->right_child == NULL
-        || self->left_sib == NULL || self->right_sib == NULL) {
+        || self->left_sib == NULL || self->right_sib == NULL
+        || self->num_children == NULL) {
         goto out;
     }
     if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
@@ -3532,6 +3534,7 @@ tsk_tree_free(tsk_tree_t *self)
     tsk_safe_free(self->left_sample);
     tsk_safe_free(self->right_sample);
     tsk_safe_free(self->next_sample);
+    tsk_safe_free(self->num_children);
     return 0;
 }
 
@@ -3680,6 +3683,7 @@ tsk_tree_copy(const tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options)
     tsk_memcpy(dest->right_child, self->right_child, N * sizeof(*self->right_child));
     tsk_memcpy(dest->left_sib, self->left_sib, N * sizeof(*self->left_sib));
     tsk_memcpy(dest->right_sib, self->right_sib, N * sizeof(*self->right_sib));
+    tsk_memcpy(dest->num_children, self->num_children, N * sizeof(*self->num_children));
     if (!(dest->options & TSK_NO_SAMPLE_COUNTS)) {
         if (self->options & TSK_NO_SAMPLE_COUNTS) {
             ret = TSK_ERR_UNSUPPORTED_OPERATION;
@@ -3878,15 +3882,7 @@ tsk_tree_get_right_root(const tsk_tree_t *self)
 tsk_size_t
 tsk_tree_get_num_roots(const tsk_tree_t *self)
 {
-    const tsk_id_t *restrict right_sib = self->right_sib;
-    const tsk_id_t *restrict left_child = self->left_child;
-    tsk_size_t num_roots = 0;
-    tsk_id_t u;
-
-    for (u = left_child[self->virtual_root]; u != TSK_NULL; u = right_sib[u]) {
-        num_roots++;
-    }
-    return num_roots;
+    return self->num_children[self->virtual_root];
 }
 
 int TSK_WARN_UNUSED
@@ -4200,6 +4196,7 @@ tsk_tree_remove_branch(
     tsk_id_t *restrict right_child = self->right_child;
     tsk_id_t *restrict left_sib = self->left_sib;
     tsk_id_t *restrict right_sib = self->right_sib;
+    tsk_size_t *restrict num_children = self->num_children;
     tsk_id_t lsib = left_sib[c];
     tsk_id_t rsib = right_sib[c];
 
@@ -4216,6 +4213,7 @@ tsk_tree_remove_branch(
     parent[c] = TSK_NULL;
     left_sib[c] = TSK_NULL;
     right_sib[c] = TSK_NULL;
+    num_children[p]--;
 }
 
 static inline void
@@ -4226,6 +4224,7 @@ tsk_tree_insert_branch(
     tsk_id_t *restrict right_child = self->right_child;
     tsk_id_t *restrict left_sib = self->left_sib;
     tsk_id_t *restrict right_sib = self->right_sib;
+    tsk_size_t *restrict num_children = self->num_children;
     tsk_id_t u;
 
     parent[c] = p;
@@ -4240,6 +4239,7 @@ tsk_tree_insert_branch(
         right_sib[c] = TSK_NULL;
     }
     right_child[p] = c;
+    num_children[p]++;
 }
 
 static inline void
@@ -4590,6 +4590,7 @@ tsk_tree_clear(tsk_tree_t *self)
     tsk_memset(self->right_child, 0xff, N * sizeof(*self->right_child));
     tsk_memset(self->left_sib, 0xff, N * sizeof(*self->left_sib));
     tsk_memset(self->right_sib, 0xff, N * sizeof(*self->right_sib));
+    tsk_memset(self->num_children, 0, N * sizeof(*self->num_children));
 
     if (sample_counts) {
         tsk_memset(self->num_samples, 0, N * sizeof(*self->num_samples));
