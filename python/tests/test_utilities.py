@@ -23,6 +23,7 @@
 Tests for the various testing utilities.
 """
 import msprime
+import numpy as np
 import pytest
 
 import tests.tsutil as tsutil
@@ -181,3 +182,15 @@ class TestSortIndividuals:
         tables.individuals.add_row(parents=[0], metadata=b"1")
         with pytest.raises(ValueError, match="Individual pedigree has cycles"):
             tsutil.sort_individual_table(tables)
+
+
+class TestQuintuplyLinkedTrees:
+    def test_branch_operations_num_children(self):
+        qlt = tsutil.QuintuplyLinkedTree(3)
+        assert np.sum(qlt.num_children) == 0
+        qlt.insert_branch(2, 0)
+        assert qlt.num_children[2] == 1
+        assert np.sum(qlt.num_children) == 1
+
+        qlt.remove_branch(2, 0)
+        assert qlt.num_children[2] == 0

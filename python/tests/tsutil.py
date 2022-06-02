@@ -1228,15 +1228,17 @@ class QuintuplyLinkedTree:
         self.right_sib = np.zeros(n + 1, dtype=np.int32) - 1
         self.num_samples = np.zeros(n + 1, dtype=np.int32)
         self.num_edges = 0
+        self.num_children = np.zeros(n + 1, dtype=np.int32)
 
     def __str__(self):
-        s = "id\tparent\tlchild\trchild\tlsib\trsib\tnsamp\n"
+        s = "id\tparent\tlchild\trchild\tlsib\trsib\tnsamp\tnchild\n"
         for j in range(len(self.parent)):
             s += (
                 f"{j}\t{self.parent[j]}\t"
                 f"{self.left_child[j]}\t{self.right_child[j]}\t"
                 f"{self.left_sib[j]}\t{self.right_sib[j]}\t"
-                f"{self.num_samples[j]}\n"
+                f"{self.num_samples[j]}\t"
+                f"{self.num_children[j]}\n"
             )
         return s
 
@@ -1262,6 +1264,7 @@ class QuintuplyLinkedTree:
         self.parent[c] = -1
         self.left_sib[c] = -1
         self.right_sib[c] = -1
+        self.num_children[p] -= 1
 
     def insert_branch(self, p, c):
         assert self.parent[c] == -1, "contradictory edges"
@@ -1276,6 +1279,7 @@ class QuintuplyLinkedTree:
             self.left_sib[c] = u
             self.right_sib[c] = -1
         self.right_child[p] = c
+        self.num_children[p] += 1
 
     def is_potential_root(self, u):
         return self.num_samples[u] >= self.root_threshold
