@@ -61,7 +61,7 @@ class NOTSET(metaclass=NotSetMeta):
     pass
 
 
-@metadata.lazy_decode
+@metadata.lazy_decode()
 @dataclass(**dataclass_options)
 class IndividualTableRow(util.Dataclass):
     """
@@ -97,7 +97,7 @@ class IndividualTableRow(util.Dataclass):
         )
 
 
-@metadata.lazy_decode
+@metadata.lazy_decode()
 @dataclass(**dataclass_options)
 class NodeTableRow(util.Dataclass):
     """
@@ -127,7 +127,7 @@ class NodeTableRow(util.Dataclass):
     """
 
 
-@metadata.lazy_decode
+@metadata.lazy_decode()
 @dataclass(**dataclass_options)
 class EdgeTableRow(util.Dataclass):
     """
@@ -157,7 +157,7 @@ class EdgeTableRow(util.Dataclass):
     """
 
 
-@metadata.lazy_decode
+@metadata.lazy_decode()
 @dataclass(**dataclass_options)
 class MigrationTableRow(util.Dataclass):
     """
@@ -195,7 +195,7 @@ class MigrationTableRow(util.Dataclass):
     """
 
 
-@metadata.lazy_decode
+@metadata.lazy_decode()
 @dataclass(**dataclass_options)
 class SiteTableRow(util.Dataclass):
     """
@@ -217,7 +217,7 @@ class SiteTableRow(util.Dataclass):
     """
 
 
-@metadata.lazy_decode
+@metadata.lazy_decode()
 @dataclass(**dataclass_options)
 class MutationTableRow(util.Dataclass):
     """
@@ -268,7 +268,7 @@ class MutationTableRow(util.Dataclass):
         )
 
 
-@metadata.lazy_decode
+@metadata.lazy_decode()
 @dataclass(**dataclass_options)
 class PopulationTableRow(util.Dataclass):
     """
