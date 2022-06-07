@@ -751,38 +751,44 @@ class _CachedMetadata:
         __builtins__object__setattr__(row, "_metadata", value)
 
 
-def lazy_decode(cls):
-    """
-    Modifies a dataclass such that it lazily decodes metadata, if it is encoded.
-    If the metadata passed to the constructor is encoded a `metadata_decoder` parameter
-    must be also be passed.
-    """
-    wrapped_init = cls.__init__
+def lazy_decode(own_init=False):
+    def _lazy_decode(cls):
+        """
+        Modifies a dataclass such that it lazily decodes metadata, if it is encoded.
+        If the metadata passed to the constructor is encoded a `metadata_decoder`
+        parameter must be also be passed.
+        """
+        if not own_init:
+            wrapped_init = cls.__init__
 
-    # Intercept the init to record the decoder
-    def new_init(self, *args, metadata_decoder=None, **kwargs):
-        __builtins__object__setattr__(self, "_metadata_decoder", metadata_decoder)
-        wrapped_init(self, *args, **kwargs)
+            # Intercept the init to record the decoder
+            def new_init(self, *args, metadata_decoder=None, **kwargs):
+                __builtins__object__setattr__(
+                    self, "_metadata_decoder", metadata_decoder
+                )
+                wrapped_init(self, *args, **kwargs)
 
-    cls.__init__ = new_init
+            cls.__init__ = new_init
 
-    # Add a descriptor to the class to decode and cache metadata
-    cls.metadata = _CachedMetadata()
+        # Add a descriptor to the class to decode and cache metadata
+        cls.metadata = _CachedMetadata()
 
-    # Add slots needed to the class
-    slots = cls.__slots__
-    slots.extend(["_metadata", "_metadata_decoder"])
-    dict_ = dict()
-    sloted_members = dict()
-    for k, v in cls.__dict__.items():
-        if k not in slots:
-            dict_[k] = v
-        elif not isinstance(v, types.MemberDescriptorType):
-            sloted_members[k] = v
-    new_cls = type(cls.__name__, cls.__bases__, dict_)
-    for k, v in sloted_members.items():
-        setattr(new_cls, k, v)
-    return new_cls
+        # Add slots needed to the class
+        slots = cls.__slots__
+        slots.extend(["_metadata", "_metadata_decoder"])
+        dict_ = dict()
+        sloted_members = dict()
+        for k, v in cls.__dict__.items():
+            if k not in slots:
+                dict_[k] = v
+            elif not isinstance(v, types.MemberDescriptorType):
+                sloted_members[k] = v
+        new_cls = type(cls.__name__, cls.__bases__, dict_)
+        for k, v in sloted_members.items():
+            setattr(new_cls, k, v)
+        return new_cls
+
+    return _lazy_decode
 
 
 class MetadataProvider:

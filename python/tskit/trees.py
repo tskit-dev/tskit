@@ -106,7 +106,7 @@ def store_tree_sequence(cls):
 
 
 @store_tree_sequence
-@metadata_module.lazy_decode
+@metadata_module.lazy_decode()
 @dataclass
 class Individual(util.Dataclass):
     """
@@ -188,7 +188,7 @@ class Individual(util.Dataclass):
         )
 
 
-@metadata_module.lazy_decode
+@metadata_module.lazy_decode()
 @dataclass
 class Node(util.Dataclass):
     """
@@ -238,7 +238,7 @@ class Node(util.Dataclass):
         return self.flags & NODE_IS_SAMPLE
 
 
-@metadata_module.lazy_decode
+@metadata_module.lazy_decode(own_init=True)
 @dataclass
 class Edge(util.Dataclass):
     """
@@ -281,13 +281,23 @@ class Edge(util.Dataclass):
     """
 
     # Custom init to define default values with slots
-    def __init__(self, left, right, parent, child, metadata=b"", id=None):  # noqa A003
+    def __init__(
+        self,
+        left,
+        right,
+        parent,
+        child,
+        metadata=b"",
+        id=None,  # noqa A002
+        metadata_decoder=None,
+    ):
         self.id = id
         self.left = left
         self.right = right
         self.parent = parent
         self.child = child
         self.metadata = metadata
+        self._metadata_decoder = metadata_decoder
 
     @property
     def span(self):
@@ -300,7 +310,7 @@ class Edge(util.Dataclass):
         return self.right - self.left
 
 
-@metadata_module.lazy_decode
+@metadata_module.lazy_decode()
 @dataclass
 class Site(util.Dataclass):
     """
@@ -348,7 +358,7 @@ class Site(util.Dataclass):
         )
 
 
-@metadata_module.lazy_decode
+@metadata_module.lazy_decode()
 @dataclass
 class Mutation(util.Dataclass):
     """
@@ -457,7 +467,7 @@ class Mutation(util.Dataclass):
         )
 
 
-@metadata_module.lazy_decode
+@metadata_module.lazy_decode()
 @dataclass
 class Migration(util.Dataclass):
     """
@@ -508,7 +518,7 @@ class Migration(util.Dataclass):
     """
 
 
-@metadata_module.lazy_decode
+@metadata_module.lazy_decode()
 @dataclass
 class Population(util.Dataclass):
     """
@@ -4304,19 +4314,6 @@ class TreeSequence:
             yield edgeset
 
     def _edge_diffs_forward(self, include_terminal=False):
-        # Use the C based code to run this
-        iterator = _tskit.TreeDiffIterator(self._ll_tree_sequence, include_terminal)
-        metadata_decoder = self.table_metadata_schemas.edge.decode_row
-        for interval, edge_tuples_out, edge_tuples_in in iterator:
-            edges_out = [
-                Edge(*e, metadata_decoder=metadata_decoder) for e in edge_tuples_out
-            ]
-            edges_in = [
-                Edge(*e, metadata_decoder=metadata_decoder) for e in edge_tuples_in
-            ]
-            yield EdgeDiff(Interval(*interval), edges_out, edges_in)
-
-    def _edge_diffs_forward_py(self, include_terminal=False):
         metadata_decoder = self.table_metadata_schemas.edge.decode_row
         tables = self.tables
         edges = tables.edges
@@ -4333,16 +4330,22 @@ class TreeSequence:
             edges_out = []
             edges_in = []
             while k < M and edge_right[out_order[k]] == left:
-                # edges_out.append(self.edge(out_order[k]))
-                # edges_out.append(self._ll_tree_sequence.get_edge(out_order[k]))
-                e_tuple = self._ll_tree_sequence.get_edge(out_order[k])
-                edges_out.append(Edge(*e_tuple, metadata_decoder=metadata_decoder))
+                edges_out.append(
+                    Edge(
+                        *self._ll_tree_sequence.get_edge(out_order[k]),
+                        id=out_order[k],
+                        metadata_decoder=metadata_decoder,
+                    )
+                )
                 k += 1
             while j < M and edge_left[in_order[j]] == left:
-                # edges_in.append(self.edge(in_order[j]))
-                # edges_in.append(self._ll_tree_sequence.get_edge(in_order[j]))
-                e_tuple = self._ll_tree_sequence.get_edge(in_order[j])
-                edges_in.append(Edge(*e_tuple, metadata_decoder=metadata_decoder))
+                edges_in.append(
+                    Edge(
+                        *self._ll_tree_sequence.get_edge(in_order[j]),
+                        id=in_order[j],
+                        metadata_decoder=metadata_decoder,
+                    )
+                )
                 j += 1
             right = sequence_length
             if j < M:
@@ -4355,12 +4358,18 @@ class TreeSequence:
         if include_terminal:
             edges_out = []
             while k < M:
-                edges_out.append(self.edge(out_order[k]))
+                edges_out.append(
+                    Edge(
+                        *self._ll_tree_sequence.get_edge(out_order[k]),
+                        id=out_order[k],
+                        metadata_decoder=metadata_decoder,
+                    )
+                )
                 k += 1
             yield EdgeDiff(Interval(left, right), edges_out, [])
 
     def _edge_diffs_reverse(self, include_terminal=False):
-        # metadata_decoder = self.table_metadata_schemas.edge.decode_row
+        metadata_decoder = self.table_metadata_schemas.edge.decode_row
         tables = self.tables
         edges = tables.edges
         edge_left = edges.left
@@ -4376,16 +4385,23 @@ class TreeSequence:
             edges_out = []
             edges_in = []
             while k >= 0 and edge_left[out_order[k]] == right:
-                # e_tuple = self._ll_tree_sequence.get_edge(out_order[k])
-                # edges_out.append(Edge(*e_tuple, metadata_decoder=metadata_decoder))
-                edges_out.append(self.edge(out_order[k]))
+                edges_out.append(
+                    Edge(
+                        *self._ll_tree_sequence.get_edge(out_order[k]),
+                        id=out_order[k],
+                        metadata_decoder=metadata_decoder,
+                    )
+                )
                 k -= 1
             while j >= 0 and edge_right[in_order[j]] == right:
-                # e_tuple = self._ll_tree_sequence.get_edge(in_order[j])
-                # edges_in.append(Edge(*e_tuple, metadata_decoder=metadata_decoder))
-                edges_in.append(self.edge(in_order[j]))
+                edges_in.append(
+                    Edge(
+                        *self._ll_tree_sequence.get_edge(in_order[j]),
+                        id=in_order[j],
+                        metadata_decoder=metadata_decoder,
+                    )
+                )
                 j -= 1
-
             left = 0
             if j >= 0:
                 left = max(left, edge_right[in_order[j]])
@@ -4397,7 +4413,13 @@ class TreeSequence:
         if include_terminal:
             edges_out = []
             while k >= 0:
-                edges_out.append(self.edge(out_order[k]))
+                edges_out.append(
+                    Edge(
+                        *self._ll_tree_sequence.get_edge(out_order[k]),
+                        id=out_order[k],
+                        metadata_decoder=metadata_decoder,
+                    )
+                )
                 k -= 1
             yield EdgeDiff(Interval(left, right), edges_out, [])
 
