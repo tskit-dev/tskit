@@ -1808,3 +1808,43 @@ class TestAlignmentExamples:
 )
 def test_allele_remap(alleles_from, alleles_to, allele_map):
     assert np.array_equal(allele_map, allele_remap(alleles_from, alleles_to))
+
+
+class TestVariant:
+    # Much more in-depth testing of variant decoding is done via the ts.variants
+    # method as it existed before this class was publicly creatable.
+    def test_variant_init(self, ts_fixture):
+        v = tskit.Variant(ts_fixture)
+        assert np.array_equal(v.samples, np.array(ts_fixture.samples()))
+        assert v.alleles == ()
+        assert v.num_alleles == 0
+        assert v.isolated_as_missing
+        v = tskit.Variant(ts_fixture, samples=[43, 1])
+        assert np.array_equal(v.samples, np.array([43, 1]))
+        v = tskit.Variant(ts_fixture, alleles=("A", "💩"))
+        assert v.alleles == ("A", "💩")
+        v = tskit.Variant(ts_fixture, isolated_as_missing=False)
+        assert not v.isolated_as_missing
+
+    def test_not_decoded(self, ts_fixture):
+        variant = tskit.Variant(ts_fixture)
+        assert variant.index == tskit.NULL
+        with pytest.raises(ValueError, match="not yet been decoded"):
+            variant.site
+        assert variant.alleles == ()
+        with pytest.raises(ValueError, match="not yet been decoded"):
+            assert variant.genotypes
+        assert not variant.has_missing_data
+        assert variant.num_alleles == 0
+        with pytest.raises(ValueError, match="not yet been decoded"):
+            variant.position
+        assert np.array_equal(variant.samples, np.array(ts_fixture.samples()))
+
+    def test_variant_decode(self, ts_fixture):
+        v = tskit.Variant(ts_fixture)
+        v.decode(2)
+        assert v.index == 2
+        assert np.array_equal(v.samples, np.array(ts_fixture.samples()))
+        assert v.alleles == ("A", "T", "G", "C", None)
+        # No need to check contents as done in other tests
+        assert len(v.genotypes) == ts_fixture.num_samples
