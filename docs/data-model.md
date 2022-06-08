@@ -85,7 +85,9 @@ sample
   methods: (1) {meth}`TreeSequence.variants` and
   {meth}`TreeSequence.haplotypes` will output the genotypes of the samples,
   and {attr}`Tree.roots` only return roots ancestral to at least one
-  sample. (See the {ref}`node table definitions <sec_node_table_definition>`
+  sample.
+  (This can be checked with {meth}`~Node.is_sample`;
+  see the {ref}`node table definitions <sec_node_table_definition>`
   for information on how the sample
   status a node is encoded in the `flags` column.)
 
