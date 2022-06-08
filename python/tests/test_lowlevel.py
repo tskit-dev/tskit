@@ -2363,6 +2363,28 @@ class TestVariant(LowLevelTestCase):
             with pytest.raises(TypeError):
                 _tskit.Variant(ts, samples=[1, 2], alleles=(bad_allele_type,))
 
+    def test_samples(self):
+        ts = self.get_example_tree_sequence()
+        v = _tskit.Variant(ts, samples=None, alleles=None)
+        assert np.array_equal(
+            v.samples, np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=np.int32)
+        )
+        v = _tskit.Variant(ts, samples=[4, 2], alleles=None)
+        assert np.array_equal(v.samples, np.array([4, 2], dtype=np.int32))
+        v = _tskit.Variant(ts, samples=[], alleles=None)
+        assert np.array_equal(v.samples, np.array([], dtype=np.int32))
+        with pytest.raises(AttributeError):
+            v.samples = [1]
+
+    def test_isolated_as_missing(self):
+        ts = self.get_example_tree_sequence()
+        v = _tskit.Variant(ts)
+        assert v.isolated_as_missing
+        v = _tskit.Variant(ts, isolated_as_missing=True)
+        assert v.isolated_as_missing
+        v = _tskit.Variant(ts, isolated_as_missing=False)
+        assert not v.isolated_as_missing
+
     def test_undecoded(self):
         tables = _tskit.TableCollection(1)
         tables.build_index()
@@ -2372,6 +2394,8 @@ class TestVariant(LowLevelTestCase):
         assert variant.site_id == tskit.NULL
         assert np.array_equal(variant.genotypes, [])
         assert variant.alleles == ()
+        assert np.array_equal(variant.samples, ())
+        assert variant.isolated_as_missing
 
     def test_properties_unwritable(self):
         ts = self.get_example_tree_sequence()
@@ -2380,6 +2404,10 @@ class TestVariant(LowLevelTestCase):
             variant.site_id = 1
         with pytest.raises(AttributeError):
             variant.genotypes = [1]
+        with pytest.raises(AttributeError):
+            variant.samples = [1]
+        with pytest.raises(AttributeError):
+            variant.isolated_as_missing = False
         with pytest.raises(AttributeError):
             variant.alleles = "A"
 

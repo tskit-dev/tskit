@@ -597,6 +597,26 @@ out:
 }
 
 static PyObject *
+make_samples(tsk_variant_t *variant)
+{
+    PyObject *ret = NULL;
+
+    PyArrayObject *samples = NULL;
+    npy_intp dims;
+
+    dims = (npy_intp) variant->num_samples;
+    samples = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT32);
+    if (samples == NULL) {
+        goto out;
+    }
+    memcpy(PyArray_DATA(samples), variant->samples,
+        variant->num_samples * sizeof(tsk_id_t));
+    ret = (PyObject *) samples;
+out:
+    return ret;
+}
+
+static PyObject *
 convert_sites(const tsk_site_t *sites, tsk_size_t num_sites)
 {
     PyObject *ret = NULL;
@@ -11502,6 +11522,34 @@ out:
 }
 
 static PyObject *
+Variant_get_samples(Variant *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (Variant_check_state(self) != 0) {
+        goto out;
+    }
+    ret = make_samples(self->variant);
+out:
+    return ret;
+}
+
+static PyObject *
+Variant_get_isolated_as_missing(Variant *self, void *closure)
+{
+    bool isolated_as_missing;
+    PyObject *ret = NULL;
+
+    if (Variant_check_state(self) != 0) {
+        goto out;
+    }
+    isolated_as_missing = !(self->variant->options & TSK_ISOLATED_NOT_MISSING);
+    ret = Py_BuildValue("i", (int) isolated_as_missing);
+out:
+    return ret;
+}
+
+static PyObject *
 Variant_get_genotypes(Variant *self, void *closure)
 {
     PyObject *ret = NULL;
@@ -11540,6 +11588,12 @@ static PyGetSetDef Variant_getsetters[]
           { .name = "alleles",
               .get = (getter) Variant_get_alleles,
               .doc = "The alleles of the Variant" },
+          { .name = "samples",
+              .get = (getter) Variant_get_samples,
+              .doc = "The samples of the Variant" },
+          { .name = "isolated_as_missing",
+              .get = (getter) Variant_get_isolated_as_missing,
+              .doc = "The samples of the Variant" },
           { .name = "genotypes",
               .get = (getter) Variant_get_genotypes,
               .doc = "The genotypes of the Variant" },

@@ -26,16 +26,24 @@ from __future__ import annotations
 import numpy as np
 
 import _tskit
+import tskit
 import tskit.trees as trees
 
 
 class Variant:
     """
     A variant in a tree sequence, describing the observed genetic variation
-    among samples for a given site. A variant consists (a) of a reference to
-    the :class:`Site` instance in question; (b) the **alleles** that may be
-    observed at the samples for this site; and (c) the **genotypes**
-    mapping sample IDs to the observed alleles.
+    among samples for a given site. A variant consists of (a) the **alleles** that
+    may be observed at the sample nodes for this site; (b) the **genotypes**
+    mapping sample IDs to the observed alleles and (c) of a reference to
+    the :class:`Site` that the Variant has been decoded at.
+
+    After creation a Variant is not yet decoded, and has no genotypes.
+    To decode a Variant, call the :meth:`decode` method. The Variant class will then
+    use a Tree, internal to the Variant, to seek to the position of the site and decode
+    the genotypes at that site. It is therefore much more efficient to sites in
+    sequential genomic order, either in a forwards or backwards direction, than to do so
+    randomly.
 
     Each element in the ``alleles`` tuple is a string, representing the
     actual observed state for a given sample. The ``alleles`` tuple is
@@ -75,9 +83,30 @@ class Variant:
     As ``tskit.MISSING_DATA`` is equal to -1, code that decodes genotypes into
     allelic values without taking missing data into account would otherwise
     incorrectly output the last allele in the list.
+
+    :param TreeSequence tree_sequence: The tree sequence to which this variant
+        belongs.
+    :param array_like samples: An array of node IDs for which to generate
+        genotypes, or None for all sample nodes. Default: None.
+    :param bool isolated_as_missing: If True, the genotype value assigned to
+        missing samples (i.e., isolated samples without mutations) is
+        :data:`.MISSING_DATA` (-1). If False, missing samples will be
+        assigned the allele index for the ancestral state.
+        Default: True.
+    :param tuple alleles: A tuple of strings defining the encoding of
+        alleles as integer genotype values. At least one allele must be provided.
+        If duplicate alleles are provided, output genotypes will always be
+        encoded as the first occurrence of the allele. If None (the default),
+        the alleles are encoded as they are encountered during genotype
+        generation.
+
     """
 
-    def __init__(self, tree_sequence, samples, isolated_as_missing, alleles):
+    def __init__(
+        self, tree_sequence, samples=None, isolated_as_missing=None, alleles=None
+    ):
+        if isolated_as_missing is None:
+            isolated_as_missing = True
         self.tree_sequence = tree_sequence
         self._ll_variant = _tskit.Variant(
             tree_sequence._ll_tree_sequence,
@@ -86,11 +115,19 @@ class Variant:
             alleles=alleles,
         )
 
+    def _check_decoded(self):
+        if self._ll_variant.site_id == tskit.NULL:
+            raise ValueError(
+                "This variant has not yet been decoded at a specific site,"
+                "call Variant.decode to set the site."
+            )
+
     @property
     def site(self) -> trees.Site:
         """
-        The site object for this variant.
+        The Site object for the site at which this variant has been decoded.
         """
+        self._check_decoded()
         return self.tree_sequence.site(self._ll_variant.site_id)
 
     @property
@@ -103,12 +140,29 @@ class Variant:
         return self._ll_variant.alleles
 
     @property
+    def samples(self) -> tuple:
+        """
+        A numpy array of the node ids whose genotypes will be returned
+        by the :meth:`genotypes` method.
+        """
+        return self._ll_variant.samples
+
+    @property
     def genotypes(self) -> np.ndarray:
         """
         An array of indexes into the list ``alleles``, giving the
         state of each sample at the current site.
         """
+        self._check_decoded()
         return self._ll_variant.genotypes
+
+    @property
+    def isolated_as_missing(self) -> bool:
+        """
+        True if isolated samples are decoded to missing data. If False, isolated
+        samples are decoded to the ancestral state.
+        """
+        return self._ll_variant.isolated_as_missing
 
     @property
     def has_missing_data(self) -> bool:
@@ -116,7 +170,8 @@ class Variant:
         True if there is missing data for any of the
         samples at the current site.
         """
-        return self._ll_variant.alleles[-1] is None
+        alleles = self._ll_variant.alleles
+        return len(alleles) > 0 and alleles[-1] is None
 
     @property
     def num_alleles(self) -> int:
@@ -143,14 +198,25 @@ class Variant:
             isinstance(other, Variant)
             and self.tree_sequence == other.tree_sequence
             and self._ll_variant.site_id == other._ll_variant.site_id
+            and self._ll_variant.site_id != tskit.NULL
             and self._ll_variant.alleles == other._ll_variant.alleles
             and np.array_equal(self._ll_variant.genotypes, other._ll_variant.genotypes)
         )
 
     def decode(self, site_id) -> None:
+        """
+        Decode the variant at the given site, setting the site ID, genotypes and
+        alleles to those of the site and samples of this Variant.
+        :param int site_id: The ID of the site to decode. This must be a valid site ID.
+        """
         self._ll_variant.decode(site_id)
 
     def copy(self) -> Variant:
+        """
+        Create a copy of this Variant. Note that calling :meth:`decode` on the
+        copy will fail as it does not take a copy of the internal tree.
+        :return: The copy of this Variant.
+        """
         variant_copy = Variant.__new__(Variant)
         variant_copy.tree_sequence = self.tree_sequence
         variant_copy._ll_variant = self._ll_variant.restricted_copy()
