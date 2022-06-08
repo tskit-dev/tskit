@@ -485,7 +485,7 @@ tsk_variant_decode(
         goto out;
     }
 
-    /* When we have a no specified samples we need sample lists to be active
+    /* When we have no specified samples we need sample lists to be active
      * on the tree, as indicated by the presence of left_sample */
     if (!by_traversal && self->tree.left_sample == NULL) {
         ret = TSK_ERR_NO_SAMPLE_LISTS;

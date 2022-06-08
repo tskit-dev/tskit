@@ -235,8 +235,7 @@ def c_kc_distance(tree1, tree2, lambda_=0):
         raise ValueError("Trees must have one root")
     for tree in [tree1, tree2]:
         for u in range(tree.tree_sequence.num_nodes):
-            left_child = tree.left_child(u)
-            if left_child != tskit.NULL and left_child == tree.right_child(u):
+            if tree.num_children(u) == 1:
                 raise ValueError("Unary nodes are not supported")
 
     n = tree1.tree_sequence.num_samples
@@ -315,12 +314,12 @@ class ExampleTopologyMixin:
     def test_many_multiroot_trees(self):
         ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
         assert ts.num_trees > 3
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         self.verify(ts)
 
     def test_multiroot_tree(self):
         ts = msprime.simulate(15, random_seed=10)
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         self.verify(ts)
 
     def test_all_missing_data(self):
@@ -1790,7 +1789,14 @@ class TestEmptyTreeSequences(TopologyTestCase):
         assert list(t.nodes()) == []
         assert list(ts.haplotypes()) == []
         assert list(ts.variants()) == []
-        methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib]
+        methods = [
+            t.parent,
+            t.left_child,
+            t.right_child,
+            t.left_sib,
+            t.right_sib,
+            t.num_children,
+        ]
         for method in methods:
             for u in [-1, 1, 100]:
                 with pytest.raises(ValueError):
@@ -1822,9 +1828,17 @@ class TestEmptyTreeSequences(TopologyTestCase):
         assert list(t.nodes()) == []
         assert list(ts.haplotypes()) == []
         assert list(ts.variants()) == []
-        methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib]
+        methods = [
+            t.parent,
+            t.left_child,
+            t.right_child,
+            t.left_sib,
+            t.right_sib,
+            t.num_children,
+        ]
         for method in methods:
-            assert method(0) == tskit.NULL
+            expected = tskit.NULL if method != t.num_children else 0
+            assert method(0) == expected
             for u in [-1, 2, 100]:
                 with pytest.raises(ValueError):
                     method(u)
@@ -1877,9 +1891,17 @@ class TestEmptyTreeSequences(TopologyTestCase):
         assert list(t.nodes()) == [0]
         assert list(ts.haplotypes(isolated_as_missing=False)) == [""]
         assert list(ts.variants()) == []
-        methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib]
+        methods = [
+            t.parent,
+            t.left_child,
+            t.right_child,
+            t.left_sib,
+            t.right_sib,
+            t.num_children,
+        ]
         for method in methods:
-            assert method(0) == tskit.NULL
+            expected = tskit.NULL if method != t.num_children else 0
+            assert method(0) == expected
             for u in [-1, 2, 100]:
                 with pytest.raises(ValueError):
                     method(u)
@@ -1911,9 +1933,17 @@ class TestEmptyTreeSequences(TopologyTestCase):
         assert list(t.nodes()) == [0]
         assert list(ts.haplotypes(isolated_as_missing=False)) == ["1"]
         assert len(list(ts.variants())) == 1
-        methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib]
+        methods = [
+            t.parent,
+            t.left_child,
+            t.right_child,
+            t.left_sib,
+            t.right_sib,
+            t.num_children,
+        ]
         for method in methods:
-            assert method(0) == tskit.NULL
+            expected = tskit.NULL if method != t.num_children else 0
+            assert method(0) == expected
             for u in [-1, 2, 100]:
                 with pytest.raises(ValueError):
                     method(u)
@@ -2183,6 +2213,7 @@ class TestTsinferExamples(TopologyTestCase):
                 assert pt.right_child[j] == t.right_child(j)
                 assert pt.left_sib[j] == t.left_sib(j)
                 assert pt.right_sib[j] == t.right_sib(j)
+                assert pt.num_children[j] == t.num_children(j)
             n += 1
         assert n == num_trees
         intervals = [t.interval for t in ts.trees()]
@@ -4832,7 +4863,7 @@ class TestSimplify(SimplifyTestBase):
             assert t1.mutations == t2.mutations
 
     def verify_multiroot_internal_samples(self, ts, keep_unary=False):
-        ts_multiroot = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts_multiroot = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         ts1 = tsutil.jiggle_samples(ts_multiroot)
         ts2, node_map = self.do_simplify(ts1, keep_unary=keep_unary)
         assert ts1.num_trees >= ts2.num_trees
@@ -5556,7 +5587,7 @@ class TestSimplify(SimplifyTestBase):
 
     def test_single_multiroot_tree_recurrent_mutations(self):
         ts = msprime.simulate(6, random_seed=10)
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         for mutations_per_branch in [1, 2, 3]:
             ts = tsutil.insert_branch_mutations(ts, mutations_per_branch)
             for num_samples in range(1, ts.num_samples):
@@ -5567,7 +5598,7 @@ class TestSimplify(SimplifyTestBase):
     def test_many_multiroot_trees_recurrent_mutations(self):
         ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
         assert ts.num_trees > 3
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         for mutations_per_branch in [1, 2, 3]:
             ts = tsutil.insert_branch_mutations(ts, mutations_per_branch)
             for num_samples in range(1, ts.num_samples):
@@ -5716,7 +5747,7 @@ class TestSimplifyKeepInputRoots(SimplifyTestBase, ExampleTopologyMixin):
     def test_many_multiroot_trees(self):
         ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
         assert ts.num_trees > 3
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         for num_samples in range(1, ts.num_samples):
             for samples in itertools.combinations(ts.samples(), num_samples):
                 self.verify_keep_input_roots(ts, samples)
@@ -6051,7 +6082,7 @@ class TestMapToAncestors:
     def test_sim_many_multiroot_trees(self):
         ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
         assert ts.num_trees > 3
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         ancestors = [4 * n for n in np.arange(0, ts.num_nodes // 4)]
         self.verify(ts, ts.samples(), ancestors)
         random_samples = [4 * n for n in np.arange(0, ts.num_nodes // 4)]
@@ -6189,14 +6220,14 @@ class TestMutationParent:
 
     def test_single_multiroot_tree_recurrent_mutations(self):
         ts = msprime.simulate(6, random_seed=10)
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         for mutations_per_branch in [1, 2, 3]:
             self.verify_branch_mutations(ts, mutations_per_branch)
 
     def test_many_multiroot_trees_recurrent_mutations(self):
         ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
         assert ts.num_trees > 3
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         for mutations_per_branch in [1, 2, 3]:
             self.verify_branch_mutations(ts, mutations_per_branch)
 
@@ -6245,14 +6276,14 @@ class TestMutationEdge:
 
     def test_single_multiroot_tree_recurrent_mutations(self):
         ts = msprime.simulate(6, random_seed=10)
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         for mutations_per_branch in [1, 2, 3]:
             self.verify_branch_mutations(ts, mutations_per_branch)
 
     def test_many_multiroot_trees_recurrent_mutations(self):
         ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
         assert ts.num_trees > 3
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         for mutations_per_branch in [1, 2, 3]:
             self.verify_branch_mutations(ts, mutations_per_branch)
 
@@ -6396,14 +6427,14 @@ class TestMutationTime:
 
     def test_single_multiroot_tree_recurrent_mutations(self):
         ts = msprime.simulate(6, random_seed=10)
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         for mutations_per_branch in [1, 2, 3]:
             self.verify_branch_mutations(ts, mutations_per_branch)
 
     def test_many_multiroot_trees_recurrent_mutations(self):
         ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
         assert ts.num_trees > 3
-        ts = tsutil.decapitate(ts, ts.num_edges // 2)
+        ts = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         for mutations_per_branch in [1, 2, 3]:
             self.verify_branch_mutations(ts, mutations_per_branch)
 
@@ -6480,6 +6511,7 @@ class TestVirtualRootAPIs(ExampleTopologyMixin):
             assert tree.parent(tree.virtual_root) == tskit.NULL
             assert tree.left_sib(tree.virtual_root) == tskit.NULL
             assert tree.right_sib(tree.virtual_root) == tskit.NULL
+            assert tree.num_children(tree.virtual_root) == tree.num_roots
 
             u = tree.left_root
             roots = []
@@ -6616,6 +6648,7 @@ class TestOneSampleRoot(ExampleTopologyMixin):
             np.testing.assert_array_equal(tree1.right_child, tree2.right_child_array)
             np.testing.assert_array_equal(tree1.left_sib, tree2.left_sib_array)
             np.testing.assert_array_equal(tree1.right_sib, tree2.right_sib_array)
+            np.testing.assert_array_equal(tree1.num_children, tree2.num_children_array)
             tree2.next()
         assert tree2.index == -1
 
@@ -6666,6 +6699,9 @@ class RootThreshold(ExampleTopologyMixin):
             )
             np.testing.assert_array_equal(tree_py.left_sib, tree_lib.left_sib_array)
             np.testing.assert_array_equal(tree_py.right_sib, tree_lib.right_sib_array)
+            np.testing.assert_array_equal(
+                tree_py.num_children, tree_lib.num_children_array
+            )
 
             # NOTE: the legacy left_root value is *not* necessarily the same as the
             # new left_root.
@@ -7177,13 +7213,6 @@ class TestReduceTopology:
         mts = ts.simplify(reduce_to_site_topology=True)
         assert mts.num_trees == 1
         assert mts.num_edges == 0
-
-    def test_many_roots(self):
-        ts = msprime.simulate(25, random_seed=12, recombination_rate=2, length=10)
-        tables = tsutil.decapitate(ts, ts.num_edges // 2).dump_tables()
-        for x in range(10):
-            tables.sites.add_row(x, "0")
-        self.verify(tables.tree_sequence())
 
     def test_branch_sites(self):
         ts = msprime.simulate(15, random_seed=12, recombination_rate=2, length=10)

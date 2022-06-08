@@ -265,7 +265,8 @@ tsk_strerror_internal(int err)
             break;
         case TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN:
             ret = "Bad edges: contradictory children for a given parent over "
-                  "an interval. (TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN)";
+                  "an interval, or indexes need to be rebuilt. "
+                  "(TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN)";
             break;
         case TSK_ERR_CANT_PROCESS_EDGES_WITH_METADATA:
             ret = "Can't squash, flush, simplify or link ancestors with edges that have "
@@ -336,7 +337,7 @@ tsk_strerror_internal(int err)
             ret = "Duplicate sample value. (TSK_ERR_DUPLICATE_SAMPLE)";
             break;
         case TSK_ERR_BAD_SAMPLES:
-            ret = "Bad sample configuration provided. (TSK_ERR_BAD_SAMPLES)";
+            ret = "The nodes provided are not samples. (TSK_ERR_BAD_SAMPLES)";
             break;
 
         /* Table errors */
@@ -349,6 +350,10 @@ tsk_strerror_internal(int err)
             break;
         case TSK_ERR_TABLES_NOT_INDEXED:
             ret = "Table collection must be indexed. (TSK_ERR_TABLES_NOT_INDEXED)";
+            break;
+        case TSK_ERR_TABLES_BAD_INDEXES:
+            ret = "Table collection indexes inconsistent: do they need to be rebuilt? "
+                  "(TSK_ERR_TABLES_BAD_INDEXES)";
             break;
         case TSK_ERR_TABLE_OVERFLOW:
             ret = "Table too large; cannot allocate more than 2**31 rows. "
@@ -407,6 +412,14 @@ tsk_strerror_internal(int err)
         case TSK_ERR_CANT_TAKE_OWNERSHIP_NO_EDGE_METADATA:
             ret = "A tree sequence can't take ownership of tables with "
                   "TSK_NO_EDGE_METADATA. (TSK_ERR_CANT_TAKE_OWNERSHIP_NO_EDGE_METADATA)";
+            break;
+        case TSK_ERR_UNDEFINED_NONBINARY:
+            ret = "Operation undefined for nonbinary trees. "
+                  "(TSK_ERR_UNDEFINED_NONBINARY)";
+            break;
+        case TSK_ERR_UNDEFINED_MULTIROOT:
+            ret = "Operation undefined for trees that are not singly-rooted. "
+                  "(TSK_ERR_UNDEFINED_MULTIROOT)";
             break;
 
         /* Stats errors */
@@ -500,7 +513,8 @@ tsk_strerror_internal(int err)
             break;
         case TSK_ERR_NO_SAMPLE_LISTS:
             ret = "The sample_lists option must be enabled on the tree to perform this "
-                  "operation. (TSK_ERR_NO_SAMPLE_LISTS)";
+                  "operation. Pass the option to the constructor or method that created "
+                  "the tree. (TSK_ERR_NO_SAMPLE_LISTS)";
             break;
 
         /* Haplotype matching errors */
@@ -570,6 +584,18 @@ tsk_strerror_internal(int err)
         case TSK_ERR_INDIVIDUAL_PARENT_CYCLE:
             ret = "Individuals cannot be their own ancestor. "
                   "(TSK_ERR_INDIVIDUAL_PARENT_CYCLE)";
+            break;
+
+        case TSK_ERR_INDIVIDUAL_POPULATION_MISMATCH:
+            ret = "Individual populations cannot be returned "
+                  "if an individual has nodes from more than one population. "
+                  "(TSK_ERR_INDIVIDUAL_POPULATION_MISMATCH)";
+            break;
+
+        case TSK_ERR_INDIVIDUAL_TIME_MISMATCH:
+            ret = "Individual times cannot be returned "
+                  "if an individual has nodes from more than one time. "
+                  "(TSK_ERR_INDIVIDUAL_TIME_MISMATCH)";
             break;
     }
     return ret;

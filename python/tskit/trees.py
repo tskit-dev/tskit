@@ -27,6 +27,7 @@ Module responsible for managing trees and tree sequences.
 from __future__ import annotations
 
 import base64
+import builtins
 import collections
 import concurrent.futures
 import functools
@@ -93,6 +94,19 @@ class EdgeDiff(NamedTuple):
     edges_in: list
 
 
+def store_tree_sequence(cls):
+    wrapped_init = cls.__init__
+
+    # Intercept the init to record the tree_sequence
+    def new_init(self, *args, tree_sequence=None, **kwargs):
+        builtins.object.__setattr__(self, "_tree_sequence", tree_sequence)
+        wrapped_init(self, *args, **kwargs)
+
+    cls.__init__ = new_init
+    return cls
+
+
+@store_tree_sequence
 @metadata_module.lazy_decode
 @dataclass
 class Individual(util.Dataclass):
@@ -106,7 +120,15 @@ class Individual(util.Dataclass):
     underlying tree sequence data.
     """
 
-    __slots__ = ["id", "flags", "location", "parents", "nodes", "metadata"]
+    __slots__ = [
+        "id",
+        "flags",
+        "location",
+        "parents",
+        "nodes",
+        "metadata",
+        "_tree_sequence",
+    ]
     id: int  # noqa A003
     """
     The integer ID of this individual. Varies from 0 to
@@ -136,6 +158,24 @@ class Individual(util.Dataclass):
     The :ref:`metadata <sec_metadata_definition>`
     for this individual, decoded if a schema applies.
     """
+
+    @property
+    def population(self) -> int:
+        populations = {self._tree_sequence.node(n).population for n in self.nodes}
+        if len(populations) > 1:
+            raise ValueError("Individual has nodes with mis-matched populations")
+        if len(populations) == 0:
+            return tskit.NULL
+        return populations.pop()
+
+    @property
+    def time(self) -> int:
+        times = {self._tree_sequence.node(n).time for n in self.nodes}
+        if len(times) > 1:
+            raise ValueError("Individual has nodes with mis-matched times")
+        if len(times) == 0:
+            return tskit.UNKNOWN_TIME
+        return times.pop()
 
     # Custom eq for the numpy arrays
     def __eq__(self, other):
@@ -492,134 +532,6 @@ class Population(util.Dataclass):
     """
 
 
-class Variant:
-    """
-    A variant in a tree sequence, describing the observed genetic variation
-    among samples for a given site. A variant consists (a) of a reference to
-    the :class:`Site` instance in question; (b) the **alleles** that may be
-    observed at the samples for this site; and (c) the **genotypes**
-    mapping sample IDs to the observed alleles.
-
-    Each element in the ``alleles`` tuple is a string, representing the
-    actual observed state for a given sample. The ``alleles`` tuple is
-    generated in one of two ways. The first (and default) way is for
-    ``tskit`` to generate the encoding on the fly as alleles are encountered
-    while generating genotypes. In this case, the first element of this
-    tuple is guaranteed to be the same as the site's ``ancestral_state`` value
-    and the list of alleles is also guaranteed not to contain any duplicates.
-    Note that allelic values may be listed that are not referred to by any
-    samples. For example, if we have a site that is fixed for the derived state
-    (i.e., we have a mutation over the tree root), all genotypes will be 1, but
-    the alleles list will be equal to ``('0', '1')``. Other than the
-    ancestral state being the first allele, the alleles are listed in
-    no particular order, and the ordering should not be relied upon
-    (but see the notes on missing data below).
-
-    The second way is for the user to define the mapping between
-    genotype values and allelic state strings using the
-    ``alleles`` parameter to the :meth:`TreeSequence.variants` method.
-    In this case, there is no indication of which allele is the ancestral state,
-    as the ordering is determined by the user.
-
-    The ``genotypes`` represent the observed allelic states for each sample,
-    such that ``var.alleles[var.genotypes[j]]`` gives the string allele
-    for sample ID ``j``. Thus, the elements of the genotypes array are
-    indexes into the ``alleles`` list. The genotypes are provided in this
-    way via a numpy array to enable efficient calculations.
-
-    When :ref:`missing data<sec_data_model_missing_data>` is present at a given
-    site, the property ``has_missing_data`` will be True, at least one element
-    of the ``genotypes`` array will be equal to ``tskit.MISSING_DATA``, and the
-    last element of the ``alleles`` array will be ``None``. Note that in this
-    case ``variant.num_alleles`` will **not** be equal to
-    ``len(variant.alleles)``. The rationale for adding ``None`` to the end of
-    the ``alleles`` list is to help code that does not handle missing data
-    correctly fail early rather than introducing subtle and hard-to-find bugs.
-    As ``tskit.MISSING_DATA`` is equal to -1, code that decodes genotypes into
-    allelic values without taking missing data into account would otherwise
-    incorrectly output the last allele in the list.
-    """
-
-    def __init__(self, tree_sequence, samples, isolated_as_missing, alleles):
-        self.tree_sequence = tree_sequence
-        self._ll_variant = _tskit.Variant(
-            tree_sequence._ll_tree_sequence,
-            samples=samples,
-            isolated_as_missing=isolated_as_missing,
-            alleles=alleles,
-        )
-
-    @property
-    def site(self) -> Site:
-        """
-        The site object for this variant.
-        """
-        return self.tree_sequence.site(self._ll_variant.site_id)
-
-    @property
-    def alleles(self) -> tuple:
-        """
-        A tuple of the allelic values that may be observed at the
-        samples at the current site. The first element of this tuple is always
-        the site's ancestral state.
-        """
-        return self._ll_variant.alleles
-
-    @property
-    def genotypes(self) -> np.ndarray:
-        """
-        An array of indexes into the list ``alleles``, giving the
-        state of each sample at the current site.
-        """
-        return self._ll_variant.genotypes
-
-    @property
-    def has_missing_data(self) -> bool:
-        """
-        True if there is missing data for any of the
-        samples at the current site.
-        """
-        return self._ll_variant.alleles[-1] is None
-
-    @property
-    def num_alleles(self) -> int:
-        """
-        The number of distinct alleles at this site. Note that
-        this may be greater than the number of distinct values in the genotypes
-        array.
-        """
-        return len(self.alleles) - self.has_missing_data
-
-    # Deprecated alias to avoid breaking existing code.
-    @property
-    def position(self) -> float:
-        return self.site.position
-
-    # Deprecated alias to avoid breaking existing code.
-    @property
-    def index(self) -> int:
-        return self._ll_variant.site_id
-
-    # We need a custom eq for the numpy array
-    def __eq__(self, other) -> bool:
-        return (
-            isinstance(other, Variant)
-            and self.tree_sequence == other.tree_sequence
-            and self._ll_variant.site_id == other._ll_variant.site_id
-            and self._ll_variant.alleles == other._ll_variant.alleles
-            and np.array_equal(self._ll_variant.genotypes, other._ll_variant.genotypes)
-        )
-
-    def decode(self, site_id) -> None:
-        self._ll_variant.decode(site_id)
-
-    def copy(self) -> Variant:
-        variant_copy = Variant.__new__(Variant)
-        variant_copy.tree_sequence = self.tree_sequence
-        variant_copy._ll_variant = self._ll_variant.restricted_copy()
-        return variant_copy
-
-
 @dataclass
 class Edgeset(util.Dataclass):
     __slots__ = ["left", "right", "parent", "children"]
@@ -767,6 +679,7 @@ class Tree:
         self._right_child_array = self._ll_tree.right_child_array
         self._left_sib_array = self._ll_tree.left_sib_array
         self._right_sib_array = self._ll_tree.right_sib_array
+        self._num_children_array = self._ll_tree.num_children_array
 
     @property
     def tree_sequence(self):
@@ -1260,6 +1173,23 @@ class Tree:
         """
         return self._right_sib_array
 
+    @property
+    def num_children_array(self):
+        """
+        A numpy array (dtype=np.uint64) encoding the number of children of
+        each node in this tree, such that
+        ``tree.num_children_array[u] == tree.num_children(u)`` for all
+        ``0 <= u <= ts.num_nodes``. See the :meth:`~.num_children`
+        method for details on the semantics of tree num_children and the
+        :ref:`sec_data_model_tree_structure` section for information on the
+        quintuply linked tree encoding.
+
+        .. include:: substitutions/virtual_root_array_note.rst
+
+        .. include:: substitutions/tree_array_warning.rst
+        """
+        return self._num_children_array
+
     # Sample list.
 
     def left_sample(self, u):
@@ -1721,6 +1651,7 @@ class Tree:
         time_scale=None,
         tree_height_scale=None,
         max_time=None,
+        min_time=None,
         max_tree_height=None,
         node_labels=None,
         mutation_labels=None,
@@ -1757,14 +1688,22 @@ class Tree:
             heights are spaced equally according to their ranked times.
         :param str tree_height_scale: Deprecated alias for time_scale. (Deprecated in
                 0.3.6)
-        :param str,float max_time: The maximum time value in the current
+        :param str,float max_time: The maximum plotted time value in the current
             scaling system (see ``time_scale``). Can be either a string or a
             numeric value. If equal to ``"tree"`` (the default), the maximum time
             is set to be that of the oldest root in the tree. If equal to ``"ts"`` the
             maximum time is set to be the time of the oldest root in the tree
             sequence; this is useful when drawing trees from the same tree sequence as it
             ensures that node heights are consistent. If a numeric value, this is used as
-            the maximum time by which to scale other nodes.
+            the maximum plotted time by which to scale other nodes.
+        :param str,float min_time: The minimum plotted time value in the current
+            scaling system (see ``time_scale``). Can be either a string or a
+            numeric value. If equal to ``"tree"`` (the default), the minimum time
+            is set to be that of the youngest node in the tree. If equal to ``"ts"`` the
+            minimum time is set to be the time of the youngest node in the tree
+            sequence; this is useful when drawing trees from the same tree sequence as it
+            ensures that node heights are consistent. If a numeric value, this is used as
+            the minimum plotted time.
         :param str,float max_tree_height: Deprecated alias for max_time. (Deprecated in
             0.3.6)
         :param node_labels: If specified, show custom labels for the nodes
@@ -1824,6 +1763,7 @@ class Tree:
             time_scale=time_scale,
             tree_height_scale=tree_height_scale,
             max_time=max_time,
+            min_time=min_time,
             max_tree_height=max_tree_height,
             node_labels=node_labels,
             mutation_labels=mutation_labels,
@@ -1861,6 +1801,7 @@ class Tree:
         time_scale=None,
         tree_height_scale=None,
         max_time=None,
+        min_time=None,
         max_tree_height=None,
         order=None,
     ):
@@ -1952,6 +1893,15 @@ class Tree:
             that node heights are consistent. If a numeric value, this is used as the
             maximum time by which to scale other nodes. This parameter
             is not currently supported for text output.
+        :param str,float min_time: The minimum time value in the current
+            scaling system (see ``time_scale``). Can be either a string or a
+            numeric value. If equal to ``"tree"``, the minimum time is set to be
+            that of the youngest node in the tree. If equal to ``"ts"`` the minimum
+            time is set to be the time of the youngest node in the tree sequence;
+            this is useful when drawing trees from the same tree sequence as it ensures
+            that node heights are consistent. If a numeric value, this is used as the
+            minimum time to display. This parameter is not currently supported for text
+            output.
         :param str max_tree_height: Deprecated alias for max_time. (Deprecated in
                 0.3.6)
         :param str order: The left-to-right ordering of child nodes in the drawn tree.
@@ -1977,6 +1927,7 @@ class Tree:
             time_scale=time_scale,
             tree_height_scale=tree_height_scale,
             max_time=max_time,
+            min_time=min_time,
             max_tree_height=max_tree_height,
             order=order,
         )
@@ -2195,8 +2146,8 @@ class Tree:
 
     def preorder(self, u=NULL):
         """
-        Returns a numpy array of node ids in preorder
-        <https://en.wikipedia.org/wiki/Tree_traversal#Pre-order_(NLR)>. If the node u
+        Returns a numpy array of node ids in `preorder
+        <https://en.wikipedia.org/wiki/Tree_traversal#Pre-order_(NLR)>`_. If the node u
         is specified the traversal is rooted at this node (and it will be the first
         element in the returned array). Otherwise, all nodes reachable from the tree
         roots will be returned. See :ref:`tutorials:sec_analysing_trees_traversals` for
@@ -2211,8 +2162,8 @@ class Tree:
 
     def postorder(self, u=NULL):
         """
-        Returns a numpy array of node ids in postorder
-        <https://en.wikipedia.org/wiki/Tree_traversal##Post-order_(LRN)>. If the node u
+        Returns a numpy array of node ids in `postorder
+        <https://en.wikipedia.org/wiki/Tree_traversal##Post-order_(LRN)>`_. If the node u
         is specified the traversal is rooted at this node (and it will be the last
         element in the returned array). Otherwise, all nodes reachable from the tree
         roots will be returned. See :ref:`tutorials:sec_analysing_trees_traversals` for
@@ -2853,13 +2804,46 @@ class Tree:
                 total += 1 / max_path_length[u]
         return total
 
+    def b2_index(self, base=10):
+        """
+        Returns the B2 balance index for this tree.
+        This is defined as the Shannon entropy of the probability
+        distribution to reach leaves assuming a random walk
+        from a root. The base used for default is 10, to match with
+        Shao and Sokal (1990).
+
+        .. seealso:: See `Shao and Sokal (1990)
+            <https://www.jstor.org/stable/2992186>`_ for details.
+
+        :param int base: The base used for the logarithm in the
+            Shannon entropy computation.
+        :return: The B2 balance index.
+        :rtype: float
+        """
+        # TODO implement in C
+        # Note that this will take into account the number of roots also, by considering
+        # them as children of the virtual root.
+        if self.num_roots != 1:
+            raise ValueError("B2 index is only defined for trees with one root")
+        stack = [(self.root, 1)]
+        total_proba = 0
+        while len(stack) > 0:
+            u, path_product = stack.pop()
+            if self.is_leaf(u):
+                total_proba -= path_product * math.log(path_product, base)
+            else:
+                path_product *= 1 / self.num_children(u)
+                for v in self.children(u):
+                    stack.append((v, path_product))
+        return total_proba
+
     def colless_index(self):
         """
         Returns the Colless imbalance index for this tree.
         This is defined as the sum of all differences between number of
-        leaves under right sub-node and left sub-node for each node.
+        leaves subtended by the left and right child of each node.
         The Colless index is undefined for non-binary trees and trees
-        with multiple roots. This method will raise a ValueError if the
+        with multiple roots. This method will raise a LibraryError if the
         tree is not singly-rooted and binary.
 
         .. seealso:: See `Shao and Sokal (1990)
@@ -2868,25 +2852,7 @@ class Tree:
         :return: The Colless imbalance index.
         :rtype: int
         """
-        # TODO implement in C
-        if self.num_roots != 1:
-            raise ValueError("Colless index not defined for multiroot trees")
-        num_leaves = np.zeros(self.tree_sequence.num_nodes, dtype=np.int32)
-        total = 0
-        for u in self.nodes(order="postorder"):
-            num_children = 0
-            for v in self.children(u):
-                num_leaves[u] += num_leaves[v]
-                num_children += 1
-            if num_children == 0:
-                num_leaves[u] = 1
-            elif num_children != 2:
-                raise ValueError("Colless index not defined for nonbinary trees")
-            else:
-                total += abs(
-                    num_leaves[self.right_child(u)] - num_leaves[self.left_child(u)]
-                )
-        return total
+        return self._ll_tree.get_colless_index()
 
     def sackin_index(self):
         """
@@ -3774,6 +3740,9 @@ class TreeSequence:
         self._table_metadata_schemas = self._TableMetadataSchemas(
             **metadata_schema_instances
         )
+        self._individuals_time = None
+        self._individuals_population = None
+        self._individuals_location = None
 
     # Implement the pickle protocol for TreeSequence
     def __getstate__(self):
@@ -5073,6 +5042,71 @@ class TreeSequence:
             a[site_pos] = h
             yield a.tobytes().decode("ascii")
 
+    @property
+    def individuals_population(self):
+        """
+        Returns the length-``num_individuals`` array containing, for each
+        individual, the ``population`` attribute of their nodes, or
+        ``tskit.NULL`` for individuals with no nodes. Errors if any individual
+        has nodes with inconsistent non-NULL populations.
+        """
+        if self._individuals_population is None:
+            self._individuals_population = (
+                self._ll_tree_sequence.get_individuals_population()
+            )
+        return self._individuals_population
+
+    @property
+    def individual_populations(self):
+        # Undocumented alias for individuals_population to avoid breaking
+        # pre-1.0 pyslim code
+        return self.individuals_population
+
+    @property
+    def individuals_time(self):
+        """
+        Returns the length-``num_individuals`` array containing, for each
+        individual, the ``time`` attribute of their nodes or ``np.nan`` for
+        individuals with no nodes. Errors if any individual has nodes with
+        inconsistent times.
+        """
+        if self._individuals_time is None:
+            self._individuals_time = self._ll_tree_sequence.get_individuals_time()
+        return self._individuals_time
+
+    @property
+    def individual_times(self):
+        # Undocumented alias for individuals_time to avoid breaking
+        # pre-1.0 pyslim code
+        return self.individuals_time
+
+    @property
+    def individuals_location(self):
+        """
+        Convenience method returning the ``num_individuals x n`` array
+        whose row k-th row contains the ``location`` property of the k-th
+        individual. The method only works if all individuals' locations
+        have the same length (which is ``n``), and errors otherwise.
+        """
+        if self._individuals_location is None:
+            individuals = self.tables.individuals
+            n = 0
+            lens = np.unique(np.diff(individuals.location_offset))
+            if len(lens) > 1:
+                raise ValueError("Individual locations are not all the same length.")
+            if len(lens) > 0:
+                n = lens[0]
+            self._individuals_location = individuals.location.reshape(
+                (self.num_individuals, n)
+            )
+        return self._individuals_location
+
+    @property
+    def individual_locations(self):
+        # Undocumented alias for individuals_time to avoid breaking
+        # pre-1.0 pyslim code
+        return self.individuals_location
+
     def individual(self, id_):
         """
         Returns the :ref:`individual <sec_individual_table_definition>`
@@ -5087,7 +5121,7 @@ class TreeSequence:
             metadata,
             nodes,
         ) = self._ll_tree_sequence.get_individual(id_)
-        return Individual(
+        ind = Individual(
             id=id_,
             flags=flags,
             location=location,
@@ -5095,7 +5129,9 @@ class TreeSequence:
             metadata=metadata,
             nodes=nodes,
             metadata_decoder=self.table_metadata_schemas.individual.decode_row,
+            tree_sequence=self,
         )
+        return ind
 
     def node(self, id_):
         """
@@ -5209,13 +5245,33 @@ class TreeSequence:
             metadata_decoder=self.table_metadata_schemas.mutation.decode_row,
         )
 
-    def site(self, id_):
+    def site(self, id_=None, *, position=None):
         """
         Returns the :ref:`site <sec_site_table_definition>` in this tree sequence
-        with the specified ID.
+        with either the specified ID or position.
+
+        When position is specified instead of site ID, a binary search is done
+        on the list of positions of the sites to try to find a site
+        with the user-specified position.
 
         :rtype: :class:`Site`
         """
+        if id_ is None and position is None:
+            raise TypeError("Site id or position must be provided.")
+        elif id_ is not None and position is not None:
+            raise TypeError("Only one of site id or position needs to be provided.")
+        elif id_ is None:
+            position = np.array(position)
+            if len(position.shape) > 0:
+                raise ValueError("Position must be provided as a scalar value.")
+            if position < 0 or position >= self.sequence_length:
+                raise ValueError(
+                    "Position is beyond the coordinates defined by sequence length."
+                )
+            site_pos = self.tables.sites.position
+            id_ = site_pos.searchsorted(position)
+            if id_ >= len(site_pos) or site_pos[id_] != position:
+                raise ValueError(f"There is no site at position {position}.")
         ll_site = self._ll_tree_sequence.get_site(id_)
         pos, ancestral_state, ll_mutations, _, metadata = ll_site
         mutations = [self.mutation(mut_id) for mut_id in ll_mutations]
@@ -5302,14 +5358,30 @@ class TreeSequence:
                 )
         return samples[keep]
 
+    def as_vcf(self, *args, **kwargs):
+        """
+        Return the result of :meth:`.write_vcf` as a string.
+        Keyword parameters are as defined in :meth:`.write_vcf`.
+
+        :return: A VCF encoding of the variants in this tree sequence as a string.
+        :rtype: str
+        """
+        buff = io.StringIO()
+        self.write_vcf(buff, *args, **kwargs)
+        return buff.getvalue()
+
     def write_vcf(
         self,
         output,
         ploidy=None,
+        *,
         contig_id="1",
         individuals=None,
         individual_names=None,
         position_transform=None,
+        site_mask=None,
+        sample_mask=None,
+        isolated_as_missing=None,
     ):
         """
         Writes a VCF formatted file to the specified file-like object.
@@ -5352,7 +5424,7 @@ class TreeSequence:
                 n_dip_indv = int(ts.num_samples / 2)
                 indv_names = [f"tsk_{str(i)}indv" for i in range(n_dip_indv)]
                 with open("output.vcf", "w") as vcf_file:
-                    ts.write_vcf(vcf_file, ploidy=2, individual_names=indv_names)
+                    ts.write_vcf(vcf_file, individual_names=indv_names)
 
             Adding a second ``_`` (eg: ``tsk_0_indv``) is not recommended as
             ``plink`` uses ``_`` as the default separator for separating family
@@ -5385,12 +5457,21 @@ class TreeSequence:
         on the VCF parser, and so we do **not** account for this change in
         coordinate system by default.
 
+        .. note::
+           Older code often uses the ``ploidy=2`` argument, because previous
+           versions of msprime did not output individual data. Specifying
+           individuals in the tree sequence is more robust, and since tree
+           sequences now  typically contain individuals (e.g., as produced by
+           ``msprime.sim_ancestry( )``), this is not necessary, and the
+           ``ploidy`` argument can safely be removed from old code in most cases.
+
+
         Example usage:
 
         .. code-block:: python
 
             with open("output.vcf", "w") as vcf_file:
-                tree_sequence.write_vcf(vcf_file, ploidy=2)
+                tree_sequence.write_vcf(vcf_file)
 
         The VCF output can also be compressed using the :mod:`gzip` module, if you wish:
 
@@ -5431,9 +5512,27 @@ class TreeSequence:
 
             $ tskit vcf example.trees | bcftools view -O b > example.bcf
 
+
+        The ``sample_mask`` argument provides a general way to mask out
+        parts of the output, which can be helpful when simulating missing
+        data. In this (contrived) example, we create a sample mask function
+        that marks one genotype missing in each variant in a regular
+        pattern:
+
+        .. code-block:: python
+
+            def sample_mask(variant):
+                sample_mask = np.zeros(ts.num_samples, dtype=bool)
+                sample_mask[variant.site.id % ts.num_samples] = 1
+                return sample_mask
+
+
+            ts.write_vcf(sys.stdout, sample_mask=sample_mask)
+
         :param io.IOBase output: The file-like object to write the VCF output.
         :param int ploidy: The ploidy of the individuals to be written to
-            VCF. This sample size must be evenly divisible by ploidy.
+            VCF. This sample size must be evenly divisible by ploidy. Cannot be
+            used if there is individual data in the tree sequence.
         :param str contig_id: The value of the CHROM column in the output VCF.
         :param list(int) individuals: A list containing the individual IDs to
             write out to VCF. Defaults to all individuals in the tree sequence.
@@ -5444,7 +5543,8 @@ class TreeSequence:
             we do not check the form of these strings in any way, so that is
             is possible to output malformed VCF (for example, by embedding a
             tab character within on of the names). The default is to output
-            ``tsk_j`` for the jth individual.
+            ``tsk_j`` for the jth individual. Cannot be used if ploidy is
+            specified.
         :param position_transform: A callable that transforms the
             site position values into integer valued coordinates suitable for
             VCF. The function takes a single positional parameter x and must
@@ -5454,6 +5554,24 @@ class TreeSequence:
             pre 0.2.0 legacy behaviour of rounding values to the nearest integer
             (starting from 1) and avoiding the output of identical positions
             by incrementing is used.
+        :param site_mask: A numpy boolean array (or something convertable to
+            a numpy boolean array) with num_sites elements, used to mask out
+            sites in the output. If  ``site_mask[j]`` is True, then this
+            site (i.e., the line in the VCF file) will be omitted.
+        :param sample_mask: A numpy boolean array (or something convertable to
+            a numpy boolean array) with num_samples elements, or a callable
+            that returns such an array, such that if
+            ``sample_mask[j]`` is True, then the genotype for sample ``j``
+            will be marked as missing using a ".". If ``sample_mask`` is a
+            callable, it must take a single argument and return a boolean
+            numpy array. This function will be called for each (unmasked) site
+            with the corresponding :class:`.Variant` object, allowing
+            for dynamic masks to be generated. See above for example
+            usage.
+        :param bool isolated_as_missing: If True, the genotype value assigned to
+            missing samples (i.e., isolated samples without mutations) is "."
+            If False, missing samples will be assigned the the ancestral allele.
+            See :meth:`.variants` for more information. Default: True.
         """
         writer = vcf.VcfWriter(
             self,
@@ -5462,6 +5580,9 @@ class TreeSequence:
             individuals=individuals,
             individual_names=individual_names,
             position_transform=position_transform,
+            site_mask=site_mask,
+            sample_mask=sample_mask,
+            isolated_as_missing=isolated_as_missing,
         )
         writer.write(output)
 
@@ -5933,6 +6054,111 @@ class TreeSequence:
         """
         tables = self.dump_tables()
         tables.trim(record_provenance)
+        return tables.tree_sequence()
+
+    def split_edges(self, time, *, flags=None, population=None, metadata=None):
+        """
+        Returns a copy of this tree sequence in which we replace any
+        edge ``(left, right, parent, child)`` in which
+        ``node_time[child] < time < node_time[parent]`` with two edges
+        ``(left, right, parent, u)`` and ``(left, right, u, child)``,
+        where ``u`` is a newly added node for each intersecting edge.
+
+        If ``metadata``, ``flags``, or ``population`` are specified, newly
+        added nodes will be assigned these values. Otherwise, default values
+        will be used. The default metadata is an empty dictionary if a metadata
+        schema is defined for the node table, and is an empty byte string
+        otherwise. The default population for the new node will be derived from
+        the population of the edge's child. Newly added have a default
+        ``flags`` value of 0.
+
+        Any metadata associated with a split edge will be copied to the new edge.
+
+        .. warning:: This method currently does not support migrations
+            and a error will be raised if the migration table is not
+            empty. Future versions may take migrations that intersect with the
+            edge into account when determining the default population
+            assignments for new nodes.
+
+        Any mutations lying on the edge whose time is >= ``time`` will have
+        their node value set to ``u``. Note that the time of the mutation is
+        defined as the time of the child node if the mutation's time is
+        unknown.
+
+        :param float time: The cutoff time.
+        :param int flags: The flags value for newly-inserted nodes. (Default = 0)
+        :param int population: The population value for newly inserted nodes.
+            Defaults to the population of the child node of the split edge
+            if not specified.
+        :param metadata: The metadata for any newly inserted nodes. See
+            :meth:`.NodeTable.add_row` for details on how default metadata
+            is produced for a given schema (or none).
+        :return: A copy of this tree sequence with edges split at the specified time.
+        :rtype: tskit.TreeSequence
+        """
+        impute_population = False
+        if population is None:
+            impute_population = True
+            population = tskit.NULL
+        flags = 0 if flags is None else flags
+        schema = self.table_metadata_schemas.node
+        if metadata is None:
+            metadata = schema.empty_value
+        metadata = schema.validate_and_encode_row(metadata)
+        ll_ts = self._ll_tree_sequence.split_edges(
+            time=time,
+            flags=flags,
+            population=population,
+            metadata=metadata,
+            impute_population=impute_population,
+        )
+        return TreeSequence(ll_ts)
+
+    def decapitate(self, time, *, flags=None, population=None, metadata=None):
+        """
+        Delete all edge topology and mutational information at least as old
+        as the specified time from this tree sequence.
+
+        Removes all edges in which the time of the child is >= the specified
+        time ``t``, and breaks edges that intersect with ``t``. For each edge
+        intersecting with ``t`` we create a new node with time equal to ``t``,
+        and set the parent of the edge to this new node. The node table
+        is not altered in any other way. Newly added nodes have values
+        for ``flags``, ``population`` and ``metadata`` controlled by parameters
+        to this function in the same way as :meth:`.split_edges`.
+
+        .. note::
+            Note that each edge is treated independently, so that even if two
+            edges that are broken by this operation share the same parent and
+            child nodes, there will be two different new parent nodes inserted.
+
+        Any mutation whose time is >= ``t`` will be removed. A mutation's time
+        is its associated ``time`` value, or the time of its node if the
+        mutation's time was marked as unknown (:data:`UNKNOWN_TIME`).
+
+        Migrations are not supported, and a LibraryError will be raise if
+        called on a tree sequence containing migration information.
+
+        .. seealso:: This method is implemented using the :meth:`.split_edges`
+            and :meth:`TableCollection.delete_older` functions.
+
+        :param float time: The cutoff time.
+        :param int flags: The flags value for newly-inserted nodes. (Default = 0)
+        :param int population: The population value for newly inserted nodes.
+            Defaults to the population of the child node of the split edge
+            if not specified.
+        :param metadata: The metadata for any newly inserted nodes. See
+            :meth:`.NodeTable.add_row` for details on how default metadata
+            is produced for a given schema (or none).
+        :return: A copy of this tree sequence with edges split at the specified time.
+        :rtype: tskit.TreeSequence
+        """
+        split_ts = self.split_edges(
+            time, flags=flags, population=population, metadata=metadata
+        )
+        tables = split_ts.dump_tables()
+        del split_ts
+        tables.delete_older(time)
         return tables.tree_sequence()
 
     def subset(

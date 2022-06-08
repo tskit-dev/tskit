@@ -5927,7 +5927,7 @@ test_table_expansion(void)
 
     /*Extending by more rows than possible results in overflow*/
     ret = tsk_individual_table_extend(
-        &tables.individuals, &tables2.individuals, TSK_MAX_ID + 1, NULL, 0);
+        &tables.individuals, &tables2.individuals, TSK_MAX_ID, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
     CU_ASSERT_EQUAL_FATAL(tables.individuals.max_rows, 4194305);
 
@@ -5986,7 +5986,7 @@ test_table_expansion(void)
     CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows, 4194305);
 
     /*Extending by more rows than possible results in overflow*/
-    ret = tsk_node_table_extend(&tables.nodes, &tables2.nodes, TSK_MAX_ID + 1, NULL, 0);
+    ret = tsk_node_table_extend(&tables.nodes, &tables2.nodes, TSK_MAX_ID, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
     CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows, 4194305);
 
@@ -6044,7 +6044,7 @@ test_table_expansion(void)
     CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows, 4194305);
 
     /*Extending by more rows than possible results in overflow*/
-    ret = tsk_edge_table_extend(&tables.edges, &tables2.edges, TSK_MAX_ID + 1, NULL, 0);
+    ret = tsk_edge_table_extend(&tables.edges, &tables2.edges, TSK_MAX_ID, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
     CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows, 4194305);
 
@@ -6109,7 +6109,7 @@ test_table_expansion(void)
 
     /*Extending by more rows than possible results in overflow*/
     ret = tsk_migration_table_extend(
-        &tables.migrations, &tables2.migrations, TSK_MAX_ID + 1, NULL, 0);
+        &tables.migrations, &tables2.migrations, TSK_MAX_ID, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
     CU_ASSERT_EQUAL_FATAL(tables.migrations.max_rows, 4194305);
 
@@ -6168,7 +6168,7 @@ test_table_expansion(void)
     CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows, 4194305);
 
     /*Extending by more rows than possible results in overflow*/
-    ret = tsk_site_table_extend(&tables.sites, &tables2.sites, TSK_MAX_ID + 1, NULL, 0);
+    ret = tsk_site_table_extend(&tables.sites, &tables2.sites, TSK_MAX_ID, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
     CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows, 4194305);
 
@@ -6232,7 +6232,7 @@ test_table_expansion(void)
 
     /*Extending by more rows than possible results in overflow*/
     ret = tsk_mutation_table_extend(
-        &tables.mutations, &tables2.mutations, TSK_MAX_ID + 1, NULL, 0);
+        &tables.mutations, &tables2.mutations, TSK_MAX_ID, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
     CU_ASSERT_EQUAL_FATAL(tables.mutations.max_rows, 4194305);
 
@@ -6298,7 +6298,7 @@ test_table_expansion(void)
 
     /*Extending by more rows than possible results in overflow*/
     ret = tsk_population_table_extend(
-        &tables.populations, &tables2.populations, TSK_MAX_ID + 1, NULL, 0);
+        &tables.populations, &tables2.populations, TSK_MAX_ID, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
     CU_ASSERT_EQUAL_FATAL(tables.populations.max_rows, 4194305);
 
@@ -6364,7 +6364,7 @@ test_table_expansion(void)
 
     /*Extending by more rows than possible results in overflow*/
     ret = tsk_provenance_table_extend(
-        &tables.provenances, &tables2.provenances, TSK_MAX_ID + 1, NULL, 0);
+        &tables.provenances, &tables2.provenances, TSK_MAX_ID, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
     CU_ASSERT_EQUAL_FATAL(tables.provenances.max_rows, 4194305);
 
@@ -8576,7 +8576,7 @@ test_table_overflow(void)
     int ret;
     tsk_id_t ret_id;
     tsk_table_collection_t tables;
-    tsk_size_t max_rows = ((tsk_size_t) TSK_MAX_ID) + 1;
+    tsk_size_t max_rows = ((tsk_size_t) TSK_MAX_ID);
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -8802,7 +8802,7 @@ test_table_collection_check_integrity_with_options(tsk_flags_t tc_options)
     /* nodes */
     ret_id = tsk_node_table_add_row(
         &tables.nodes, TSK_NODE_IS_SAMPLE, INFINITY, TSK_NULL, TSK_NULL, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, ret_id);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
     /* Not calling with TSK_CHECK_TREES so casting is safe */
     ret = (int) tsk_table_collection_check_integrity(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TIME_NONFINITE);
@@ -9324,6 +9324,149 @@ test_table_collection_check_integrity(void)
 {
     test_table_collection_check_integrity_with_options(0);
     test_table_collection_check_integrity_with_options(TSK_TC_NO_EDGE_METADATA);
+}
+
+static void
+test_table_collection_check_integrity_bad_indexes_example(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_table_collection_t tables;
+
+    /* We start with a concrete example where you can get bad trees
+     * by building some valid tables, clearing the edges, and then
+     * building new ones without rebuilding the indexes. */
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 5;
+    /* nodes */
+    ret_id = tsk_node_table_add_row(
+        &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_node_table_add_row(
+        &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    ret_id = tsk_node_table_add_row(
+        &tables.nodes, TSK_NODE_IS_SAMPLE, 1.0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 2);
+    /* edges */
+    ret_id = tsk_edge_table_add_row(&tables.edges, 0.0, 5.0, 2, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_edge_table_add_row(&tables.edges, 0.0, 5.0, 2, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    /* build index */
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* okay now build a new table without rebuilding the indexes */
+    tsk_edge_table_clear(&tables.edges);
+    ret_id = tsk_edge_table_add_row(&tables.edges, 0.0, 1.0, 2, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    /* make sure we don't use too-long indexes */
+    ret_id = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_TABLES_NOT_INDEXED);
+
+    ret_id = tsk_edge_table_add_row(&tables.edges, 0.0, 4.0, 2, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+
+    /* should error, as tree sequence will be wrong */
+    ret_id = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_TABLES_BAD_INDEXES);
+
+    tsk_table_collection_free(&tables);
+}
+
+static void
+test_table_collection_check_integrity_bad_indexes(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_table_collection_t tables;
+
+    /* Now hit some other weird cases by manipulating the indexes directly */
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 5;
+    /* nodes */
+    ret_id = tsk_node_table_add_row(
+        &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_node_table_add_row(
+        &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    ret_id = tsk_node_table_add_row(
+        &tables.nodes, TSK_NODE_IS_SAMPLE, 1.0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 2);
+    /* edges */
+    ret_id = tsk_edge_table_add_row(&tables.edges, 0.0, 1.0, 2, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    ret_id = tsk_edge_table_add_row(&tables.edges, 1.0, 2.0, 2, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 1);
+    ret_id = tsk_edge_table_add_row(&tables.edges, 2.0, 5.0, 2, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 2);
+    ret_id = tsk_edge_table_add_row(&tables.edges, 1.0, 3.0, 2, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 3);
+    /* build index */
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret_id = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
+    CU_ASSERT(ret_id > 0);
+
+    /* edge removed before it is added */
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.indexes.edge_insertion_order[0] = 1;
+    tables.indexes.edge_insertion_order[2] = 0;
+    ret_id = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_TABLES_BAD_INDEXES);
+
+    /* edge added twice (implies another is never added) */
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.indexes.edge_insertion_order[0] = 0;
+    tables.indexes.edge_insertion_order[1] = 0;
+    tables.indexes.edge_removal_order[0] = 1;
+    tables.indexes.edge_removal_order[2] = 2;
+    ret_id = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_TABLES_BAD_INDEXES);
+
+    /* edge never removed but should have been */
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.indexes.edge_removal_order[0] = 0;
+    tables.indexes.edge_removal_order[1] = 1;
+    tables.indexes.edge_removal_order[2] = 2;
+    tables.indexes.edge_removal_order[3] = 3;
+    ret_id = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_TABLES_BAD_INDEXES);
+
+    /* edge progression out of order */
+    tables.edges.right[2] = 4.0;
+    ret_id = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_TABLES_BAD_INDEXES);
+
+    /* edge never used */
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.indexes.edge_insertion_order[0] = 0;
+    tables.indexes.edge_insertion_order[1] = 3;
+    tables.indexes.edge_insertion_order[2] = 0;
+    tables.indexes.edge_insertion_order[3] = 3;
+    tables.indexes.edge_removal_order[0] = 0;
+    tables.indexes.edge_removal_order[1] = 3;
+    tables.indexes.edge_removal_order[2] = 0;
+    tables.indexes.edge_removal_order[3] = 3;
+    ret_id = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_TABLES_BAD_INDEXES);
+
+    /* make sure we don't use the too-short indexes */
+    ret_id = tsk_edge_table_add_row(&tables.edges, 4.0, 5.0, 2, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 4);
+    ret_id = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
+    CU_ASSERT_EQUAL_FATAL(ret_id, TSK_ERR_TABLES_NOT_INDEXED);
+
+    tsk_table_collection_free(&tables);
 }
 
 static void
@@ -10202,6 +10345,59 @@ test_table_collection_takeset_indexes(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_table_collection_delete_older(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t t;
+
+    const char *mutations = "0      2   1   -1\n"
+                            "0      2   0   0\n"
+                            "1      0   1   -1\n"
+                            "2      5   1   -1\n";
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        mutations, paper_ex_individuals, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &t, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+
+    /* Add some migrations */
+    tsk_population_table_add_row(&t.populations, NULL, 0);
+    tsk_population_table_add_row(&t.populations, NULL, 0);
+    tsk_migration_table_add_row(&t.migrations, 0, 10, 0, 0, 1, 0.05, NULL, 0);
+    tsk_migration_table_add_row(&t.migrations, 0, 10, 0, 1, 0, 0.09, NULL, 0);
+    tsk_migration_table_add_row(&t.migrations, 0, 10, 0, 0, 1, 0.10, NULL, 0);
+    CU_ASSERT_EQUAL(t.migrations.num_rows, 3);
+
+    /* Note: trees 1 and 2 are identical now
+     *
+    0.09┊    5    ┊     5   ┊     5   ┊
+        ┊   ┏┻┓   ┊   ┏━┻┓  ┊   ┏━┻┓  ┊
+    0.07┊   ┃ ┃   ┊   ┃  4  ┊   ┃  4  ┊
+        ┊   ┃ ┃   ┊   ┃ ┏┻┓ ┊   ┃ ┏┻┓ ┊
+    0.00┊ 0 1 3 2 ┊ 0 1 2 3 ┊ 0 1 2 3 ┊
+      0.00      2.00      7.00      10.00
+    */
+
+    ret = tsk_table_collection_delete_older(&t, 0.09, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_init(&ts, &t, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 2);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&ts), 9);
+    /* Lost the mutation over 5 */
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 3);
+    /* We delete the migration at exactly 0.09. */
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_migrations(&ts), 1);
+
+    tsk_table_collection_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -10308,6 +10504,10 @@ main(int argc, char **argv)
             test_table_collection_check_integrity },
         { "test_table_collection_check_integrity_no_populations",
             test_table_collection_check_integrity_no_populations },
+        { "test_table_collection_check_integrity_bad_indexes_example",
+            test_table_collection_check_integrity_bad_indexes_example },
+        { "test_table_collection_check_integrity_bad_indexes",
+            test_table_collection_check_integrity_bad_indexes },
         { "test_table_collection_subset", test_table_collection_subset },
         { "test_table_collection_subset_unsorted",
             test_table_collection_subset_unsorted },
@@ -10319,6 +10519,7 @@ main(int argc, char **argv)
         { "test_table_collection_clear", test_table_collection_clear },
         { "test_table_collection_takeset_indexes",
             test_table_collection_takeset_indexes },
+        { "test_table_collection_delete_older", test_table_collection_delete_older },
         { NULL, NULL },
     };
 

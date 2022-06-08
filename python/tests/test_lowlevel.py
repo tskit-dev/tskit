@@ -469,6 +469,14 @@ class TestTableCollection(LowLevelTestCase):
         tc = _tskit.TableCollection(1)
         tc.sort_individuals()
 
+    def test_delete_older_bad_args(self):
+        tc = _tskit.TableCollection(1)
+        self.get_example_tree_sequence().dump_tables(tc)
+        with pytest.raises(TypeError):
+            tc.delete_older()
+        with pytest.raises(TypeError):
+            tc.delete_older("1234")
+
 
 class TestIbd:
     def test_uninitialised(self):
@@ -1080,8 +1088,7 @@ class TestTableMethodsErrors:
         ts = _tskit.TreeSequence()
         with pytest.raises(
             _tskit.LibraryError,
-            match="Bad edges: contradictory children for a given"
-            " parent over an interval",
+            match="TSK_ERR_TABLES_BAD_INDEXES",
         ):
             ts.load_tables(tc, build_indexes=False)
 
@@ -1534,6 +1541,45 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         ts = _tskit.TreeSequence()
         ts.load_tables(tables)
         assert ts.get_discrete_time() == 1
+
+    def test_split_edges_return_type(self):
+        ts = self.get_example_tree_sequence()
+        split = ts.split_edges(
+            time=0, flags=0, population=0, metadata=b"", impute_population=True
+        )
+        assert isinstance(split, _tskit.TreeSequence)
+
+    def test_split_edges_bad_types(self):
+        ts = self.get_example_tree_sequence()
+
+        def f(time=0, flags=0, population=0, metadata=b"", impute_population=False):
+            return ts.split_edges(
+                time=time,
+                flags=flags,
+                population=population,
+                metadata=metadata,
+                impute_population=impute_population,
+            )
+
+        with pytest.raises(TypeError):
+            f(time="0")
+        with pytest.raises(TypeError):
+            f(flags="0")
+        with pytest.raises(TypeError):
+            f(metadata="0")
+        with pytest.raises(TypeError):
+            f(impute_population="0")
+
+    def test_split_edges_bad_population(self):
+        ts = self.get_example_tree_sequence()
+        with pytest.raises(_tskit.LibraryError, match="POPULATION_OUT_OF_BOUNDS"):
+            ts.split_edges(
+                time=0,
+                flags=0,
+                population=ts.get_num_populations(),
+                metadata=b"",
+                impute_population=False,
+            )
 
 
 class StatsInterfaceMixin:
@@ -2325,6 +2371,28 @@ class TestVariant(LowLevelTestCase):
             with pytest.raises(TypeError):
                 _tskit.Variant(ts, samples=[1, 2], alleles=(bad_allele_type,))
 
+    def test_samples(self):
+        ts = self.get_example_tree_sequence()
+        v = _tskit.Variant(ts, samples=None, alleles=None)
+        assert np.array_equal(
+            v.samples, np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=np.int32)
+        )
+        v = _tskit.Variant(ts, samples=[4, 2], alleles=None)
+        assert np.array_equal(v.samples, np.array([4, 2], dtype=np.int32))
+        v = _tskit.Variant(ts, samples=[], alleles=None)
+        assert np.array_equal(v.samples, np.array([], dtype=np.int32))
+        with pytest.raises(AttributeError):
+            v.samples = [1]
+
+    def test_isolated_as_missing(self):
+        ts = self.get_example_tree_sequence()
+        v = _tskit.Variant(ts)
+        assert v.isolated_as_missing
+        v = _tskit.Variant(ts, isolated_as_missing=True)
+        assert v.isolated_as_missing
+        v = _tskit.Variant(ts, isolated_as_missing=False)
+        assert not v.isolated_as_missing
+
     def test_undecoded(self):
         tables = _tskit.TableCollection(1)
         tables.build_index()
@@ -2334,6 +2402,8 @@ class TestVariant(LowLevelTestCase):
         assert variant.site_id == tskit.NULL
         assert np.array_equal(variant.genotypes, [])
         assert variant.alleles == ()
+        assert np.array_equal(variant.samples, ())
+        assert variant.isolated_as_missing
 
     def test_properties_unwritable(self):
         ts = self.get_example_tree_sequence()
@@ -2342,6 +2412,10 @@ class TestVariant(LowLevelTestCase):
             variant.site_id = 1
         with pytest.raises(AttributeError):
             variant.genotypes = [1]
+        with pytest.raises(AttributeError):
+            variant.samples = [1]
+        with pytest.raises(AttributeError):
+            variant.isolated_as_missing = False
         with pytest.raises(AttributeError):
             variant.alleles = "A"
 
@@ -2637,7 +2711,14 @@ class TestTree(LowLevelTestCase):
     Tests on the low-level tree interface.
     """
 
-    ARRAY_NAMES = ["parent", "left_child", "right_child", "left_sib", "right_sib"]
+    ARRAY_NAMES = [
+        "parent",
+        "left_child",
+        "right_child",
+        "left_sib",
+        "right_sib",
+        "num_children",
+    ]
 
     def test_options(self):
         ts = self.get_example_tree_sequence()
@@ -2989,6 +3070,7 @@ class TestTree(LowLevelTestCase):
                 assert tree.get_parent(u) == _tskit.NULL
                 assert tree.get_left_child(u) == _tskit.NULL
                 assert tree.get_right_child(u) == _tskit.NULL
+                assert tree.get_num_children(u) == 0
 
         tree = _tskit.Tree(ts)
         check_tree(tree)
@@ -3177,7 +3259,10 @@ class TestTree(LowLevelTestCase):
         ts2 = self.get_example_tree_sequence(10)
         t2 = _tskit.Tree(ts2)
         t2.first()
-        self.verify_kc_library_error(t1, t2)
+        with pytest.raises(
+            _tskit.NoSampleListsError, match="requires that sample lists are stored"
+        ):
+            self.verify_kc_library_error(t1, t2)
 
         # Unary nodes cause errors.
         tables = _tskit.TableCollection(1.0)

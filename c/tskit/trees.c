@@ -716,6 +716,68 @@ tsk_treeseq_has_reference_sequence(const tsk_treeseq_t *self)
     return tsk_table_collection_has_reference_sequence(self->tables);
 }
 
+int
+tsk_treeseq_get_individuals_population(const tsk_treeseq_t *self, tsk_id_t *output)
+{
+    int ret = 0;
+    tsk_size_t i, j;
+    tsk_individual_t ind;
+    tsk_id_t ind_pop;
+    const tsk_id_t *node_population = self->tables->nodes.population;
+    const tsk_size_t num_individuals = self->tables->individuals.num_rows;
+
+    tsk_memset(output, TSK_NULL, num_individuals * sizeof(*output));
+
+    for (i = 0; i < num_individuals; i++) {
+        ret = tsk_treeseq_get_individual(self, (tsk_id_t) i, &ind);
+        tsk_bug_assert(ret == 0);
+        if (ind.nodes_length > 0) {
+            ind_pop = -2;
+            for (j = 0; j < ind.nodes_length; j++) {
+                if (ind_pop == -2) {
+                    ind_pop = node_population[ind.nodes[j]];
+                } else if (ind_pop != node_population[ind.nodes[j]]) {
+                    ret = TSK_ERR_INDIVIDUAL_POPULATION_MISMATCH;
+                    goto out;
+                }
+            }
+            output[ind.id] = ind_pop;
+        }
+    }
+out:
+    return ret;
+}
+
+int
+tsk_treeseq_get_individuals_time(const tsk_treeseq_t *self, double *output)
+{
+    int ret = 0;
+    tsk_size_t i, j;
+    tsk_individual_t ind;
+    double ind_time;
+    const double *node_time = self->tables->nodes.time;
+    const tsk_size_t num_individuals = self->tables->individuals.num_rows;
+
+    for (i = 0; i < num_individuals; i++) {
+        ret = tsk_treeseq_get_individual(self, (tsk_id_t) i, &ind);
+        tsk_bug_assert(ret == 0);
+        /* the default is UNKNOWN_TIME, but nodes cannot have
+         * UNKNOWN _TIME so this is safe. */
+        ind_time = TSK_UNKNOWN_TIME;
+        for (j = 0; j < ind.nodes_length; j++) {
+            if (j == 0) {
+                ind_time = node_time[ind.nodes[j]];
+            } else if (ind_time != node_time[ind.nodes[j]]) {
+                ret = TSK_ERR_INDIVIDUAL_TIME_MISMATCH;
+                goto out;
+            }
+        }
+        output[ind.id] = ind_time;
+    }
+out:
+    return ret;
+}
+
 /* Stats functions */
 
 #define GET_2D_ROW(array, row_len, row) (array + (((size_t)(row_len)) * (size_t) row))
@@ -3253,6 +3315,126 @@ out:
     return ret;
 }
 
+int TSK_WARN_UNUSED
+tsk_treeseq_split_edges(const tsk_treeseq_t *self, double time, tsk_flags_t flags,
+    tsk_id_t population, const char *metadata, tsk_size_t metadata_length,
+    tsk_flags_t options, tsk_treeseq_t *output)
+{
+    int ret = 0;
+    tsk_table_collection_t *tables = tsk_malloc(sizeof(*tables));
+    const double *restrict node_time = self->tables->nodes.time;
+    const tsk_id_t *restrict node_population = self->tables->nodes.population;
+    const tsk_size_t num_edges = self->tables->edges.num_rows;
+    const tsk_size_t num_mutations = self->tables->mutations.num_rows;
+    tsk_id_t *split_edge = tsk_malloc(num_edges * sizeof(*split_edge));
+    tsk_id_t j, u, mapped_node, ret_id;
+    double mutation_time;
+    tsk_edge_t edge;
+    tsk_mutation_t mutation;
+    tsk_bookmark_t sort_start;
+    bool impute_population = options & TSK_SPLIT_EDGES_IMPUTE_POPULATION;
+
+    memset(output, 0, sizeof(*output));
+    if (split_edge == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    ret = tsk_treeseq_copy_tables(self, tables, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    if (tables->migrations.num_rows > 0) {
+        ret = TSK_ERR_MIGRATIONS_NOT_SUPPORTED;
+        goto out;
+    }
+    if (population < -1 || population >= (tsk_id_t) self->tables->populations.num_rows) {
+        ret = TSK_ERR_POPULATION_OUT_OF_BOUNDS;
+        goto out;
+    }
+    if (!tsk_isfinite(time)) {
+        ret = TSK_ERR_TIME_NONFINITE;
+        goto out;
+    }
+
+    tsk_edge_table_clear(&tables->edges);
+    tsk_memset(split_edge, TSK_NULL, num_edges * sizeof(*split_edge));
+
+    for (j = 0; j < (tsk_id_t) num_edges; j++) {
+        /* Would prefer to use tsk_edge_table_get_row_unsafe, but it's
+         * currently static to tables.c */
+        ret = tsk_edge_table_get_row(&self->tables->edges, j, &edge);
+        tsk_bug_assert(ret == 0);
+        if (node_time[edge.child] < time && time < node_time[edge.parent]) {
+            if (impute_population) {
+                population = TSK_NULL;
+                if (node_population[edge.child] != TSK_NULL) {
+                    population = node_population[edge.child];
+                }
+            }
+            u = tsk_node_table_add_row(&tables->nodes, flags, time, population, TSK_NULL,
+                metadata, metadata_length);
+            if (u < 0) {
+                ret = (int) u;
+                goto out;
+            }
+            ret_id = tsk_edge_table_add_row(&tables->edges, edge.left, edge.right, u,
+                edge.child, edge.metadata, edge.metadata_length);
+            if (ret_id < 0) {
+                ret = (int) ret_id;
+                goto out;
+            }
+            edge.child = u;
+            split_edge[j] = u;
+        }
+        ret_id = tsk_edge_table_add_row(&tables->edges, edge.left, edge.right,
+            edge.parent, edge.child, edge.metadata, edge.metadata_length);
+        if (ret_id < 0) {
+            ret = (int) ret_id;
+            goto out;
+        }
+    }
+
+    for (j = 0; j < (tsk_id_t) num_mutations; j++) {
+        /* Note: we could speed this up a bit by accessing the local
+         * memory for mutations directly. */
+        ret = tsk_treeseq_get_mutation(self, j, &mutation);
+        tsk_bug_assert(ret == 0);
+        mapped_node = TSK_NULL;
+        if (mutation.edge != TSK_NULL) {
+            mapped_node = split_edge[mutation.edge];
+        }
+        mutation_time = tsk_is_unknown_time(mutation.time) ? node_time[mutation.node]
+                                                           : mutation.time;
+        if (mapped_node != TSK_NULL && mutation_time >= time) {
+            /* Update the column in-place to save a bit of time. */
+            tables->mutations.node[j] = mapped_node;
+        }
+    }
+
+    /* Skip mutations and sites as they haven't been altered */
+    /* Note we can probably optimise the edge sort a bit here also by
+     * reasoning about when the first edge gets altered in the table.
+     */
+    memset(&sort_start, 0, sizeof(sort_start));
+    sort_start.sites = tables->sites.num_rows;
+    sort_start.mutations = tables->mutations.num_rows;
+    ret = tsk_table_collection_sort(tables, &sort_start, 0);
+    if (ret != 0) {
+        goto out;
+    }
+
+    ret = tsk_treeseq_init(
+        output, tables, TSK_TS_INIT_BUILD_INDEXES | TSK_TAKE_OWNERSHIP);
+    tables = NULL;
+out:
+    if (tables != NULL) {
+        tsk_table_collection_free(tables);
+        tsk_safe_free(tables);
+    }
+    tsk_safe_free(split_edge);
+    return ret;
+}
+
 /* ======================================================== *
  * Tree
  * ======================================================== */
@@ -3284,8 +3466,10 @@ tsk_tree_init(tsk_tree_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t 
     self->right_child = tsk_malloc(N * sizeof(*self->right_child));
     self->left_sib = tsk_malloc(N * sizeof(*self->left_sib));
     self->right_sib = tsk_malloc(N * sizeof(*self->right_sib));
+    self->num_children = tsk_calloc(N, sizeof(*self->num_children));
     if (self->parent == NULL || self->left_child == NULL || self->right_child == NULL
-        || self->left_sib == NULL || self->right_sib == NULL) {
+        || self->left_sib == NULL || self->right_sib == NULL
+        || self->num_children == NULL) {
         goto out;
     }
     if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
@@ -3350,6 +3534,7 @@ tsk_tree_free(tsk_tree_t *self)
     tsk_safe_free(self->left_sample);
     tsk_safe_free(self->right_sample);
     tsk_safe_free(self->next_sample);
+    tsk_safe_free(self->num_children);
     return 0;
 }
 
@@ -3498,6 +3683,7 @@ tsk_tree_copy(const tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options)
     tsk_memcpy(dest->right_child, self->right_child, N * sizeof(*self->right_child));
     tsk_memcpy(dest->left_sib, self->left_sib, N * sizeof(*self->left_sib));
     tsk_memcpy(dest->right_sib, self->right_sib, N * sizeof(*self->right_sib));
+    tsk_memcpy(dest->num_children, self->num_children, N * sizeof(*self->num_children));
     if (!(dest->options & TSK_NO_SAMPLE_COUNTS)) {
         if (self->options & TSK_NO_SAMPLE_COUNTS) {
             ret = TSK_ERR_UNSUPPORTED_OPERATION;
@@ -3696,15 +3882,7 @@ tsk_tree_get_right_root(const tsk_tree_t *self)
 tsk_size_t
 tsk_tree_get_num_roots(const tsk_tree_t *self)
 {
-    const tsk_id_t *restrict right_sib = self->right_sib;
-    const tsk_id_t *restrict left_child = self->left_child;
-    tsk_size_t num_roots = 0;
-    tsk_id_t u;
-
-    for (u = left_child[self->virtual_root]; u != TSK_NULL; u = right_sib[u]) {
-        num_roots++;
-    }
-    return num_roots;
+    return (tsk_size_t) self->num_children[self->virtual_root];
 }
 
 int TSK_WARN_UNUSED
@@ -4018,6 +4196,7 @@ tsk_tree_remove_branch(
     tsk_id_t *restrict right_child = self->right_child;
     tsk_id_t *restrict left_sib = self->left_sib;
     tsk_id_t *restrict right_sib = self->right_sib;
+    tsk_id_t *restrict num_children = self->num_children;
     tsk_id_t lsib = left_sib[c];
     tsk_id_t rsib = right_sib[c];
 
@@ -4034,6 +4213,7 @@ tsk_tree_remove_branch(
     parent[c] = TSK_NULL;
     left_sib[c] = TSK_NULL;
     right_sib[c] = TSK_NULL;
+    num_children[p]--;
 }
 
 static inline void
@@ -4044,6 +4224,7 @@ tsk_tree_insert_branch(
     tsk_id_t *restrict right_child = self->right_child;
     tsk_id_t *restrict left_sib = self->left_sib;
     tsk_id_t *restrict right_sib = self->right_sib;
+    tsk_id_t *restrict num_children = self->num_children;
     tsk_id_t u;
 
     parent[c] = p;
@@ -4058,6 +4239,7 @@ tsk_tree_insert_branch(
         right_sib[c] = TSK_NULL;
     }
     right_child[p] = c;
+    num_children[p]++;
 }
 
 static inline void
@@ -4408,6 +4590,7 @@ tsk_tree_clear(tsk_tree_t *self)
     tsk_memset(self->right_child, 0xff, N * sizeof(*self->right_child));
     tsk_memset(self->left_sib, 0xff, N * sizeof(*self->left_sib));
     tsk_memset(self->right_sib, 0xff, N * sizeof(*self->right_sib));
+    tsk_memset(self->num_children, 0, N * sizeof(*self->num_children));
 
     if (sample_counts) {
         tsk_memset(self->num_samples, 0, N * sizeof(*self->num_samples));
@@ -4729,6 +4912,57 @@ tsk_tree_sackin_index(const tsk_tree_t *self, tsk_size_t *result)
     *result = total_depth;
 out:
     tsk_safe_free(stack);
+    return ret;
+}
+
+int
+tsk_tree_colless_index(const tsk_tree_t *self, tsk_size_t *result)
+{
+    int ret = 0;
+    const tsk_id_t *restrict right_child = self->right_child;
+    const tsk_id_t *restrict left_sib = self->left_sib;
+    tsk_id_t *nodes = tsk_malloc(tsk_tree_get_size_bound(self) * sizeof(*nodes));
+    tsk_id_t *num_leaves = tsk_calloc(self->num_nodes, sizeof(*num_leaves));
+    tsk_size_t j, num_nodes, total;
+    tsk_id_t num_children, u, v;
+
+    if (nodes == NULL || num_leaves == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    if (tsk_tree_get_num_roots(self) != 1) {
+        ret = TSK_ERR_UNDEFINED_MULTIROOT;
+        goto out;
+    }
+    ret = tsk_tree_postorder(self, nodes, &num_nodes);
+    if (ret != 0) {
+        goto out;
+    }
+
+    total = 0;
+    for (j = 0; j < num_nodes; j++) {
+        u = nodes[j];
+        /* Cheaper to compute this on the fly than to access the num_children array.
+         * since we're already iterating over the children. */
+        num_children = 0;
+        for (v = right_child[u]; v != TSK_NULL; v = left_sib[v]) {
+            num_children++;
+            num_leaves[u] += num_leaves[v];
+        }
+        if (num_children == 0) {
+            num_leaves[u] = 1;
+        } else if (num_children == 2) {
+            v = right_child[u];
+            total += (tsk_size_t) llabs(num_leaves[v] - num_leaves[left_sib[v]]);
+        } else {
+            ret = TSK_ERR_UNDEFINED_NONBINARY;
+            goto out;
+        }
+    }
+    *result = total;
+out:
+    tsk_safe_free(nodes);
+    tsk_safe_free(num_leaves);
     return ret;
 }
 

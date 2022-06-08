@@ -261,6 +261,9 @@ Then, if `p[i]` is the derived allele frequency in sample set `i`,
 under the hood we (essentially) compute the divergence between sample sets `i` and `j`
 by averaging `p[i] * (1 - p[j]) + (1 - p[i]) * p[j]` across the genome.
 
+Concretely, `sample_sets` specifies the IDs of the nodes to compute statistics of.
+Importantly, these nodes must be {ref}`samples <sec_data_model_definitions_sample>`.
+
 Here's an example of calculating the average
 {meth}`genetic diversity<TreeSequence.diversity>` within a specific population:
 

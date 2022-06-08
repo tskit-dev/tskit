@@ -4,7 +4,12 @@
 
 **Changes**
 
-- ``VcfWriter.write`` now prints the site ID of variants in the ID field of the output VCF files.
+- A ``min_time`` parameter in ``draw_svg`` enables the youngest node as the y axis min
+  value, allowing negative times.
+  (:user:`hyanwong`, :issue:`2197`, :pr:`2215`)
+
+- ``VcfWriter.write`` now prints the site ID of variants in the ID field of the
+  output VCF files.
   (:user:`roohy`, :issue:`2103`, :pr:`2107`)
 
 - Make dumping of tables and tree sequences to disk a zero-copy operation.
@@ -21,6 +26,31 @@
   edge that the mutation falls on.
   (:user:`jeromekelleher`, :issue:`685`, :pr:`2279`).
 
+- Add the ``TreeSequence.split_edges`` operation which inserts nodes into
+  edges at a specific time.
+  (:user:`jeromekelleher`, :issue:`2276`, :pr:`2296`).
+
+- Add the ``TreeSequence.decapitate`` (and closely related
+  ``TableCollection.delete_older``) operation to remove topology and mutations
+  older than a give time.
+  (:user:`jeromekelleher`, :issue:`2236`, :pr:`2302`, :pr:`2331`).
+
+- Add the ``TreeSequence.individuals_time`` and ``TreeSequence.individuals_population``
+  methods to return arrays of per-individual times and populations, respectively.
+  (:user:`petrelharp`, :issue:`1481`, :pr:`2298`).
+
+- Add the ``sample_mask`` and ``site_mask`` to ``write_vcf`` to allow parts
+  of an output VCF to be omitted or marked as missing data. Also add the
+  ``as_vcf`` convenience function, to return VCF as a string.
+  (:user:`jeromekelleher`, :pr:`2300`).
+
+- Add support for missing data to ``write_vcf``, and add the ``isolated_as_missing``
+  argument. (:user:`jeromekelleher`, :pr:`2329`, :issue:`447`).
+
+- Add ``Tree.num_children_array`` and ``Tree.num_children``. Returns the counts of 
+  the number of child nodes for each or a single node in the tree respectively. 
+  (:user:`GertjanBisschop`, :issue:`2318`, :issue:`2319`, :pr:`2332`)
+
 **Breaking Changes**
 
 - The JSON metadata codec now interprets the empty string as an empty object. This means
@@ -33,6 +63,9 @@
   This argument was initially deprecated more than 3 years ago when the code was part of
   ``msprime``.
   (:user:`benjeffery`, :issue:`605`, :pr:`2172`)
+
+- Arguments after ``ploidy`` in ``write_vcf`` marked as keyword only
+  (:user:`jeromekelleher`, :pr:`2329`, :issue:`2315`).
 
 ----------------------
 [0.4.1] - 2022-01-11

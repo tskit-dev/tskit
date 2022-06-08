@@ -85,7 +85,9 @@ sample
   methods: (1) {meth}`TreeSequence.variants` and
   {meth}`TreeSequence.haplotypes` will output the genotypes of the samples,
   and {attr}`Tree.roots` only return roots ancestral to at least one
-  sample. (See the {ref}`node table definitions <sec_node_table_definition>`
+  sample.
+  (This can be checked with {meth}`~Node.is_sample`;
+  see the {ref}`node table definitions <sec_node_table_definition>`
   for information on how the sample
   status a node is encoded in the `flags` column.)
 
@@ -849,6 +851,8 @@ positions between {ref}`sites<sec_data_model_definitions_site>`.
 
 ## Tree structure
 
+(sec_data_model_quintuply_linked_trees)=
+
 ### Quintuply linked trees
 
 Tree structure in `tskit` is encoded internally as a "quintuply
@@ -899,9 +903,12 @@ SVG(ts.first().draw_svg(time_scale="rank"))
 :tags: ["hide-input"]
 from IPython.display import HTML
 
-def html_quintuple_table(ts, show_virtual_root=False):
+def html_quintuple_table(ts, show_virtual_root=False, show_convenience_arrays=False):
     tree = ts.first()
     columns = ["node", "parent", "left_child", "right_child", "left_sib", "right_sib"]
+    convenience_arrays = ["num_children"]
+    if show_convenience_arrays:
+        columns += convenience_arrays
     data = {k:[] for k in columns}
     for u in sorted(tree.nodes(tree.virtual_root if show_virtual_root else None)):
         for colname in columns:
@@ -951,6 +958,22 @@ the left-to-right ordering of nodes may be different! The specific
 ordering of the children of a node should therefore not be depended on.
 :::
 
+### Convenience arrays
+ 
+Similar to the five arrays representing the {ref}`quintuply linked tree<sec_data_model_quintuply_linked_trees>`, convenience arrays track 
+information on each node in the tree. These arrays are not essential to 
+represent the trees within a treesequence. However, they can be useful for
+specific algorithms (e.g. when computing tree (im)balance metrics). The 
+convience arrays that have been implemented are: 
+{attr}`Tree.num_children_array`.
+
+Adding convenience arrays to the example above results in this table:
+
+```{code-cell} ipython3
+:tags: ["hide-input"]
+
+HTML(html_quintuple_table(ts, show_convenience_arrays=True))
+```
 
 (sec_data_model_tree_roots)=
 

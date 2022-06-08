@@ -1,8 +1,23 @@
 --------------------
-[1.0.0] - 2022-05-XX
+[1.1.0] - 2022-XX-XX
 --------------------
 
-##BETA RELEASE
+**Features**
+
+- Add ``num_children`` to ``tsk_tree_t`` an array which contains counts of the number of child
+  nodes of each node in the tree. (:user:`GertjanBisschop`, :issue:`2274`, :pr:`2316`)
+
+
+**Changes**
+
+- Reduce the maximum number of rows in a table by 1. This removes edge cases so that a ``tsk_id_t`` can be
+  used to count the number of rows. (:user:`benjeffery`, :issue:`2336`, :pr:`2337`)
+
+--------------------
+[1.0.0] - 2022-05-24
+--------------------
+
+This major release marks the point at which the documented API becomes stable and supported.
 
 **Breaking changes**
 
@@ -12,7 +27,7 @@
 - ``tsk_variant_t`` now includes its ``tsk_site_t`` rather than pointing to it.
   (:user:`benjeffery`, :issue:`2161`, :pr:`2162`)
 
-- Rename TSK_TAKE_TABLES to TSK_TAKE_OWNERSHIP.
+- Rename ``TSK_TAKE_TABLES`` to ``TSK_TAKE_OWNERSHIP``.
   (:user:`benjeffery`, :issue:`2221`, :pr:`2222`)
 
 - ``TSK_DEBUG``, ``TSK_NO_INIT``, ``TSK_NO_CHECK_INTEGRITY`` and ``TSK_TAKE_OWNERSHIP`` have moved to ``core.h``
@@ -38,7 +53,7 @@
 - Make dumping of tables and tree sequences to disk a zero-copy operation.
   (:user:`benjeffery`, :issue:`2111`, :pr:`2124`)
 
-- Add ``edge`` attribute to ``mutation_t`` struct make available in tree sequence.
+- Add ``edge`` attribute to ``mutation_t`` struct and make available in tree sequence.
   (:user:`jeromekelleher`, :issue:`685`, :pr:`2279`)
 
 - Reduce peak memory usage in ``tsk_treeseq_simplify``.

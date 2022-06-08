@@ -4217,7 +4217,9 @@ int tsk_table_collection_deduplicate_sites(
 int tsk_table_collection_compute_mutation_parents(
     tsk_table_collection_t *self, tsk_flags_t options);
 int tsk_table_collection_compute_mutation_times(
-    tsk_table_collection_t *self, double *random, tsk_flags_t TSK_UNUSED(options));
+    tsk_table_collection_t *self, double *random, tsk_flags_t options);
+int tsk_table_collection_delete_older(
+    tsk_table_collection_t *self, double time, tsk_flags_t options);
 
 int tsk_table_collection_set_indexes(tsk_table_collection_t *self,
     tsk_id_t *edge_insertion_order, tsk_id_t *edge_removal_order);
@@ -4252,6 +4254,7 @@ int tsk_provenance_table_takeset_columns(tsk_provenance_table_t *self,
     tsk_size_t *record_offset);
 
 bool tsk_table_collection_has_reference_sequence(const tsk_table_collection_t *self);
+
 int tsk_reference_sequence_init(tsk_reference_sequence_t *self, tsk_flags_t options);
 int tsk_reference_sequence_free(tsk_reference_sequence_t *self);
 bool tsk_reference_sequence_is_null(const tsk_reference_sequence_t *self);

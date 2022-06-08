@@ -36,6 +36,7 @@ import tests.tsutil as tsutil
 import tskit
 from tests.test_highlevel import get_example_tree_sequences
 from tskit import exceptions
+from tskit.genotypes import allele_remap
 
 # ↑ See https://github.com/tskit-dev/tskit/issues/1804 for when
 # we can remove this.
@@ -1702,7 +1703,8 @@ class TestAlignmentsErrors:
 class TestAlignmentExamples:
     @pytest.mark.parametrize("ts", get_example_discrete_genome_tree_sequences())
     def test_defaults(self, ts):
-        if any(tree.num_roots > 1 for tree in ts.trees()):
+        has_missing_data = np.any(ts.genotype_matrix() == -1)
+        if has_missing_data:
             with pytest.raises(ValueError, match="1896"):
                 list(ts.alignments())
         else:
@@ -1720,7 +1722,8 @@ class TestAlignmentExamples:
     @pytest.mark.parametrize("ts", get_example_discrete_genome_tree_sequences())
     def test_reference_sequence(self, ts):
         ref = tskit.random_nucleotides(ts.sequence_length, seed=1234)
-        if any(tree.num_roots > 1 for tree in ts.trees()):
+        has_missing_data = np.any(ts.genotype_matrix() == -1)
+        if has_missing_data:
             with pytest.raises(ValueError, match="1896"):
                 list(ts.alignments(reference_sequence=ref))
         else:
@@ -1735,3 +1738,115 @@ class TestAlignmentExamples:
                     assert a[x] == h[j]
                     last = x + 1
                 assert a[last:] == ref[last:]
+
+
+#
+# Tests for allele_remap
+#
+@pytest.mark.parametrize(
+    "alleles_from, alleles_to, allele_map",
+    [
+        # Case 1: alleles_to is longer than alleles_from.
+        (
+            ["A", "C", "G", "T"],
+            ["G", "C"],
+            np.array([2, 1, 0, 3], dtype="uint32"),
+        ),
+        # Case 2: alleles_to is shorter than alleles_from.
+        (
+            ["G", "C"],
+            ["A", "C", "G", "T"],
+            np.array([2, 1], dtype="uint32"),
+        ),
+        # Case 3: alleles_to is empty.
+        (
+            ["A", "C", "G", "T"],
+            [],
+            np.array([0, 1, 2, 3], dtype="uint32"),
+        ),
+        # Case 4: alleles_from is empty.
+        (
+            [],
+            ["A", "C", "G", "T"],
+            np.array([], dtype="uint32"),
+        ),
+        # Case 5: Both lists are empty.
+        (
+            [],
+            [],
+            np.array([], dtype="uint32"),
+        ),
+        # Case 6: Both lists are tuples.
+        (
+            ("G", "C"),
+            ("A", "C", "G", "T"),
+            np.array([2, 1], dtype="uint32"),
+        ),
+        # Case 7: Both lists are numpy arrays.
+        (
+            np.array(("G", "C")),
+            np.array(("A", "C", "G", "T")),
+            np.array([2, 1], dtype="uint32"),
+        ),
+        # Case 8: Lists are of two different types.
+        (
+            np.array(("G", "C")),
+            ["A", "C", "G", "T"],
+            np.array([2, 1], dtype="uint32"),
+        ),
+        # Case 9: Lists contain elements of arbitrary types.
+        (
+            ["ABBA", "CDCD"],
+            ["ABBA", "CDCD", "EFEF", "GG", 18],
+            np.array([0, 1], dtype="uint32"),
+        ),
+        # Case 10: Lists contain unicode characters.
+        (
+            ["\u1F1E8", "\u1F1EC"],
+            ["\u1F1EC", "\u1F1E8", "\u1F1E6", "\u1F1F3"],
+            np.array([1, 0], dtype="uint32"),
+        ),
+    ],
+)
+def test_allele_remap(alleles_from, alleles_to, allele_map):
+    assert np.array_equal(allele_map, allele_remap(alleles_from, alleles_to))
+
+
+class TestVariant:
+    # Much more in-depth testing of variant decoding is done via the ts.variants
+    # method as it existed before this class was publicly creatable.
+    def test_variant_init(self, ts_fixture):
+        v = tskit.Variant(ts_fixture)
+        assert np.array_equal(v.samples, np.array(ts_fixture.samples()))
+        assert v.alleles == ()
+        assert v.num_alleles == 0
+        assert v.isolated_as_missing
+        v = tskit.Variant(ts_fixture, samples=[43, 1])
+        assert np.array_equal(v.samples, np.array([43, 1]))
+        v = tskit.Variant(ts_fixture, alleles=("A", "💩"))
+        assert v.alleles == ("A", "💩")
+        v = tskit.Variant(ts_fixture, isolated_as_missing=False)
+        assert not v.isolated_as_missing
+
+    def test_not_decoded(self, ts_fixture):
+        variant = tskit.Variant(ts_fixture)
+        assert variant.index == tskit.NULL
+        with pytest.raises(ValueError, match="not yet been decoded"):
+            variant.site
+        assert variant.alleles == ()
+        with pytest.raises(ValueError, match="not yet been decoded"):
+            assert variant.genotypes
+        assert not variant.has_missing_data
+        assert variant.num_alleles == 0
+        with pytest.raises(ValueError, match="not yet been decoded"):
+            variant.position
+        assert np.array_equal(variant.samples, np.array(ts_fixture.samples()))
+
+    def test_variant_decode(self, ts_fixture):
+        v = tskit.Variant(ts_fixture)
+        v.decode(2)
+        assert v.index == 2
+        assert np.array_equal(v.samples, np.array(ts_fixture.samples()))
+        assert v.alleles == ("A", "T", "G", "C", None)
+        # No need to check contents as done in other tests
+        assert len(v.genotypes) == ts_fixture.num_samples

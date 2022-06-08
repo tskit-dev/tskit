@@ -79,13 +79,14 @@ typedef struct {
 } write_table_ragged_col_t;
 
 /* Returns true if adding the specified number of rows would result in overflow.
- * Tables can support indexes from 0 to TSK_MAX_ID, and therefore have at most
- * TSK_MAX_ID + 1 rows */
+ * Tables can support indexes from 0 to TSK_MAX_ID, and therefore could have at most
+ * TSK_MAX_ID + 1 rows. However we limit to TSK_MAX_ID rows so that counts of rows
+ * can fit in a tsk_id_t. */
 static bool
 check_table_overflow(tsk_size_t current_size, tsk_size_t additional_rows)
 {
-    tsk_size_t max_val = TSK_MAX_ID + (tsk_size_t) 1;
-    return current_size > (max_val - additional_rows);
+    tsk_size_t max_val = TSK_MAX_ID;
+    return additional_rows > max_val || current_size > (max_val - additional_rows);
 }
 
 /* Returns true if adding the specified number of elements would result in overflow
@@ -94,7 +95,9 @@ check_table_overflow(tsk_size_t current_size, tsk_size_t additional_rows)
 static bool
 check_offset_overflow(tsk_size_t current_size, tsk_size_t additional_elements)
 {
-    return current_size > (TSK_MAX_SIZE - additional_elements);
+    tsk_size_t max_val = TSK_MAX_SIZE;
+    return additional_elements > max_val
+           || current_size > (max_val - additional_elements);
 }
 
 #define TSK_NUM_ROWS_UNSET ((tsk_size_t) -1)
@@ -1554,6 +1557,10 @@ tsk_individual_table_dump_text(const tsk_individual_table_t *self, FILE *out)
                     goto out;
                 }
             }
+        }
+        err = fprintf(out, "\t");
+        if (err < 0) {
+            goto out;
         }
         for (k = self->parents_offset[j]; k < self->parents_offset[j + 1]; k++) {
             err = fprintf(out, "%lld", (long long) self->parents[k]);
@@ -10250,7 +10257,7 @@ tsk_table_collection_check_tree_integrity(const tsk_table_collection_t *self)
 {
     tsk_id_t ret = 0;
     tsk_size_t j, k;
-    tsk_id_t u, site, mutation;
+    tsk_id_t e, u, site, mutation;
     double tree_left, tree_right;
     const double sequence_length = self->sequence_length;
     const tsk_id_t num_sites = (tsk_id_t) self->sites.num_rows;
@@ -10268,14 +10275,17 @@ tsk_table_collection_check_tree_integrity(const tsk_table_collection_t *self)
     const tsk_id_t *restrict edge_child = self->edges.child;
     const tsk_id_t *restrict edge_parent = self->edges.parent;
     tsk_id_t *restrict parent = NULL;
+    int8_t *restrict used_edges = NULL;
     tsk_id_t num_trees = 0;
 
     parent = tsk_malloc(self->nodes.num_rows * sizeof(*parent));
-    if (parent == NULL) {
+    used_edges = tsk_malloc(num_edges * sizeof(*used_edges));
+    if (parent == NULL || used_edges == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
     tsk_memset(parent, 0xff, self->nodes.num_rows * sizeof(*parent));
+    tsk_memset(used_edges, 0, num_edges * sizeof(*used_edges));
 
     tree_left = 0;
     num_trees = 0;
@@ -10284,19 +10294,32 @@ tsk_table_collection_check_tree_integrity(const tsk_table_collection_t *self)
     site = 0;
     mutation = 0;
     tsk_bug_assert(I != NULL && O != NULL);
+    tsk_bug_assert(self->indexes.num_edges == num_edges);
 
     while (j < num_edges || tree_left < sequence_length) {
         while (k < num_edges && edge_right[O[k]] == tree_left) {
-            parent[edge_child[O[k]]] = TSK_NULL;
+            e = O[k];
+            if (used_edges[e] != 1) {
+                ret = TSK_ERR_TABLES_BAD_INDEXES;
+                goto out;
+            }
+            parent[edge_child[e]] = TSK_NULL;
+            used_edges[e]++;
             k++;
         }
         while (j < num_edges && edge_left[I[j]] == tree_left) {
-            u = edge_child[I[j]];
+            e = I[j];
+            if (used_edges[e] != 0) {
+                ret = TSK_ERR_TABLES_BAD_INDEXES;
+                goto out;
+            }
+            used_edges[e]++;
+            u = edge_child[e];
             if (parent[u] != TSK_NULL) {
                 ret = TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN;
                 goto out;
             }
-            parent[u] = edge_parent[I[j]];
+            parent[u] = edge_parent[e];
             j++;
         }
         tree_right = sequence_length;
@@ -10319,6 +10342,10 @@ tsk_table_collection_check_tree_integrity(const tsk_table_collection_t *self)
             }
             site++;
         }
+        if (tree_right <= tree_left) {
+            ret = TSK_ERR_TABLES_BAD_INDEXES;
+            goto out;
+        }
         tree_left = tree_right;
         /* This is technically possible; if we have 2**31 edges each defining
          * a single tree, and there's a gap between each of these edges we
@@ -10329,11 +10356,27 @@ tsk_table_collection_check_tree_integrity(const tsk_table_collection_t *self)
         }
         num_trees++;
     }
+    tsk_bug_assert(j == num_edges);
+    while (k < num_edges) {
+        /* At this point it must be that used_edges[O[k]] == 1,
+         * since otherwise we would have added a different edge twice,
+         * and so hit the error above. */
+        e = O[k];
+        if (edge_right[e] != sequence_length) {
+            ret = TSK_ERR_TABLES_BAD_INDEXES;
+            goto out;
+        }
+        used_edges[e]++;
+        k++;
+    }
     ret = num_trees;
 out:
     /* Can't use tsk_safe_free because of restrict*/
     if (parent != NULL) {
         free(parent);
+    }
+    if (used_edges != NULL) {
+        free(used_edges);
     }
     return ret;
 }
@@ -11965,6 +12008,116 @@ out:
     tsk_safe_free(parent);
     tsk_safe_free(numerator);
     tsk_safe_free(denominator);
+    return ret;
+}
+
+int TSK_WARN_UNUSED
+tsk_table_collection_delete_older(
+    tsk_table_collection_t *self, double time, tsk_flags_t TSK_UNUSED(options))
+{
+    int ret = 0;
+    tsk_edge_t edge;
+    tsk_mutation_t mutation;
+    tsk_migration_t migration;
+    tsk_edge_table_t edges;
+    tsk_mutation_table_t mutations;
+    tsk_migration_table_t migrations;
+    const double *restrict node_time = self->nodes.time;
+    tsk_id_t j, ret_id, parent;
+    double mutation_time;
+    tsk_id_t *mutation_map = NULL;
+
+    memset(&edges, 0, sizeof(edges));
+    memset(&mutations, 0, sizeof(mutations));
+    memset(&migrations, 0, sizeof(migrations));
+
+    ret = tsk_edge_table_copy(&self->edges, &edges, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_edge_table_clear(&self->edges);
+    if (ret != 0) {
+        goto out;
+    }
+    for (j = 0; j < (tsk_id_t) edges.num_rows; j++) {
+        tsk_edge_table_get_row_unsafe(&edges, j, &edge);
+        if (node_time[edge.parent] <= time) {
+            ret_id = tsk_edge_table_add_row(&self->edges, edge.left, edge.right,
+                edge.parent, edge.child, edge.metadata, edge.metadata_length);
+            if (ret_id < 0) {
+                ret = (int) ret_id;
+                goto out;
+            }
+        }
+    }
+    /* Calling x_table_free multiple times is safe, so get rid of the
+     * extra edge table memory as soon as we can. */
+    tsk_edge_table_free(&edges);
+
+    mutation_map = tsk_malloc(self->mutations.num_rows * sizeof(*mutation_map));
+    if (mutation_map == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    ret = tsk_mutation_table_copy(&self->mutations, &mutations, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_mutation_table_clear(&self->mutations);
+    if (ret != 0) {
+        goto out;
+    }
+    for (j = 0; j < (tsk_id_t) mutations.num_rows; j++) {
+        tsk_mutation_table_get_row_unsafe(&mutations, j, &mutation);
+        mutation_time = tsk_is_unknown_time(mutation.time) ? node_time[mutation.node]
+                                                           : mutation.time;
+        mutation_map[j] = TSK_NULL;
+        if (mutation_time < time) {
+            ret_id = tsk_mutation_table_add_row(&self->mutations, mutation.site,
+                mutation.node, mutation.parent, mutation.time, mutation.derived_state,
+                mutation.derived_state_length, mutation.metadata,
+                mutation.metadata_length);
+            if (ret_id < 0) {
+                ret = (int) ret_id;
+                goto out;
+            }
+            mutation_map[j] = ret_id;
+        }
+    }
+    tsk_mutation_table_free(&mutations);
+    for (j = 0; j < (tsk_id_t) self->mutations.num_rows; j++) {
+        parent = self->mutations.parent[j];
+        if (parent != TSK_NULL) {
+            self->mutations.parent[j] = mutation_map[parent];
+        }
+    }
+
+    ret = tsk_migration_table_copy(&self->migrations, &migrations, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_migration_table_clear(&self->migrations);
+    if (ret != 0) {
+        goto out;
+    }
+    for (j = 0; j < (tsk_id_t) migrations.num_rows; j++) {
+        tsk_migration_table_get_row_unsafe(&migrations, j, &migration);
+        if (migration.time < time) {
+            ret_id = tsk_migration_table_add_row(&self->migrations, migration.left,
+                migration.right, migration.node, migration.source, migration.dest,
+                migration.time, migration.metadata, migration.metadata_length);
+            if (ret_id < 0) {
+                ret = (int) ret_id;
+                goto out;
+            }
+        }
+    }
+    tsk_migration_table_free(&migrations);
+out:
+    tsk_edge_table_free(&edges);
+    tsk_mutation_table_free(&mutations);
+    tsk_migration_table_free(&migrations);
+    tsk_safe_free(mutation_map);
     return ret;
 }
 

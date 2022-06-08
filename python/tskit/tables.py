@@ -3862,6 +3862,37 @@ class TableCollection(metadata.MetadataProvider):
                 record=json.dumps(provenance.get_provenance_dict(parameters))
             )
 
+    def delete_older(self, time):
+        """
+        Deletes edge, mutation and migration information at least as old as
+        the specified time.
+
+        .. seealso:: This method is similar to the higher-level
+            :meth:`TreeSequence.decapitate` method, which also splits
+            edges that intersect with the given time.
+            :meth:`TreeSequence.decapitate`
+            is more useful for most purposes, and may be what
+            you need instead of this method!
+
+        For the purposes of this method, an edge covers the times from the
+        child node up until the *parent* node, so that any any edge with parent
+        node time > ``time`` will be removed.
+
+        Any mutation whose time is >= ``time`` will be removed. A mutation's time
+        is its associated ``time`` value, or the time of its node if the
+        mutation's time was marked as unknown (:data:`UNKNOWN_TIME`).
+
+        Any migration with time >= ``time`` will be removed.
+
+        The node table is not affected by this operation.
+
+        .. note:: This method does not have any specific sorting requirements
+            and will maintain mutation parent mappings.
+
+        :param float time: The cutoff time.
+        """
+        self._ll_tables.delete_older(time)
+
     def clear(
         self,
         clear_provenance=False,

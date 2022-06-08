@@ -52,6 +52,7 @@ static PyObject *TskitVersionTooOldError;
 static PyObject *TskitVersionTooNewError;
 static PyObject *TskitIdentityPairsNotStoredError;
 static PyObject *TskitIdentitySegmentsNotStoredError;
+static PyObject *TskitNoSampleListsError;
 
 #include "tskit_lwt_interface.h"
 
@@ -60,7 +61,7 @@ static PyObject *TskitIdentitySegmentsNotStoredError;
 /* The XTable classes each have 'lock' attribute, which is used to
  * raise an error if a Python thread attempts to access a table
  * while another Python thread is operating on it. Because tables
- * allocate memory dynamically, we cannot gaurantee safety otherwise.
+ * allocate memory dynamically, we cannot guarantee safety otherwise.
  * The locks are set before the GIL is released and unset afterwards.
  * Because C code executed here represents atomic Python operations
  * (while the GIL is held), this should be safe */
@@ -242,6 +243,10 @@ handle_library_error(int err)
           "and you have attempted to access functionality that requires them. "
           "Please use the store_segments=True option to ibd_segments "
           "(but beware this will need more time and memory).";
+    const char *no_sample_lists_msg
+        = "This method requires that sample lists are stored in the Tree object. "
+          "Please pass sample_lists=True option to the function that created the "
+          "Tree object. For example ts.trees(sample_lists=True).";
     if (tsk_is_kas_error(err)) {
         kas_err = tsk_get_kas_error(err);
         switch (kas_err) {
@@ -272,6 +277,9 @@ handle_library_error(int err)
             case TSK_ERR_IBD_SEGMENTS_NOT_STORED:
                 PyErr_SetString(TskitIdentitySegmentsNotStoredError,
                     identity_segments_not_stored_msg);
+                break;
+            case TSK_ERR_NO_SAMPLE_LISTS:
+                PyErr_SetString(TskitNoSampleListsError, no_sample_lists_msg);
                 break;
             case TSK_ERR_IO:
                 /* Note this case isn't covered by tests because it's actually
@@ -592,6 +600,26 @@ make_alleles(tsk_variant_t *variant)
         PyTuple_SET_ITEM(t, variant->num_alleles, item);
     }
     ret = t;
+out:
+    return ret;
+}
+
+static PyObject *
+make_samples(tsk_variant_t *variant)
+{
+    PyObject *ret = NULL;
+
+    PyArrayObject *samples = NULL;
+    npy_intp dims;
+
+    dims = (npy_intp) variant->num_samples;
+    samples = (PyArrayObject *) PyArray_SimpleNew(1, &dims, NPY_INT32);
+    if (samples == NULL) {
+        goto out;
+    }
+    memcpy(PyArray_DATA(samples), variant->samples,
+        variant->num_samples * sizeof(tsk_id_t));
+    ret = (PyObject *) samples;
 out:
     return ret;
 }
@@ -7004,6 +7032,29 @@ out:
 }
 
 static PyObject *
+TableCollection_delete_older(TableCollection *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    int err;
+    double time;
+
+    if (TableCollection_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTuple(args, "d", &time)) {
+        goto out;
+    }
+    err = tsk_table_collection_delete_older(self->tables, time, 0);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
+static PyObject *
 TableCollection_compute_mutation_parents(TableCollection *self)
 {
     int err;
@@ -7507,6 +7558,10 @@ static PyMethodDef TableCollection_methods[] = {
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc
         = "Returns True if the parameter table collection is equal to this one." },
+    { .ml_name = "delete_older",
+        .ml_meth = (PyCFunction) TableCollection_delete_older,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Delete edges, mutations and migrations older than this time" },
     { .ml_name = "compute_mutation_parents",
         .ml_meth = (PyCFunction) TableCollection_compute_mutation_parents,
         .ml_flags = METH_NOARGS,
@@ -8305,6 +8360,69 @@ TreeSequence_get_samples(TreeSequence *self)
     samples_array = NULL;
 out:
     Py_XDECREF(samples_array);
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_individuals_population(TreeSequence *self)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *ret_array = NULL;
+    npy_intp dim;
+    int err;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+
+    dim = tsk_treeseq_get_num_individuals(self->tree_sequence);
+    ret_array = (PyArrayObject *) PyArray_SimpleNew(1, &dim, NPY_INT32);
+    if (ret_array == NULL) {
+        goto out;
+    }
+
+    err = tsk_treeseq_get_individuals_population(
+        self->tree_sequence, PyArray_DATA(ret_array));
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+
+    ret = (PyObject *) ret_array;
+    ret_array = NULL;
+out:
+    Py_XDECREF(ret_array);
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_individuals_time(TreeSequence *self)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *ret_array = NULL;
+    npy_intp dim;
+    int err;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+
+    dim = tsk_treeseq_get_num_individuals(self->tree_sequence);
+    ret_array = (PyArrayObject *) PyArray_SimpleNew(1, &dim, NPY_FLOAT64);
+    if (ret_array == NULL) {
+        goto out;
+    }
+
+    err = tsk_treeseq_get_individuals_time(self->tree_sequence, PyArray_DATA(ret_array));
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+
+    ret = (PyObject *) ret_array;
+    ret_array = NULL;
+out:
+    Py_XDECREF(ret_array);
     return ret;
 }
 
@@ -9345,6 +9463,65 @@ out:
 }
 
 static PyObject *
+TreeSequence_split_edges(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    static char *kwlist[]
+        = { "time", "flags", "population", "metadata", "impute_population", NULL };
+    double time;
+    tsk_flags_t flags;
+    tsk_id_t population;
+    int impute_population;
+    PyObject *py_metadata = Py_None;
+    char *metadata;
+    Py_ssize_t metadata_length;
+    int err;
+    tsk_flags_t options = 0;
+    TreeSequence *output = NULL;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    /* NOTE: we could make most of these arguments optional and reason about
+     * impute_population through the value of the population parameter,
+     * but we're trying to keep this code as simple as possible and put
+     * the logic in the high-level Python code */
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "dO&O&Oi", kwlist, &time,
+            &uint32_converter, &flags, &tsk_id_converter, &population, &py_metadata,
+            &impute_population)) {
+        goto out;
+    }
+
+    if (PyBytes_AsStringAndSize(py_metadata, &metadata, &metadata_length) < 0) {
+        goto out;
+    }
+    if (impute_population) {
+        options |= TSK_SPLIT_EDGES_IMPUTE_POPULATION;
+    }
+
+    output = (TreeSequence *) _PyObject_New((PyTypeObject *) &TreeSequenceType);
+    if (output == NULL) {
+        goto out;
+    }
+    output->tree_sequence = PyMem_Malloc(sizeof(*output->tree_sequence));
+    if (output->tree_sequence == NULL) {
+        PyErr_NoMemory();
+        goto out;
+    }
+    err = tsk_treeseq_split_edges(self->tree_sequence, time, flags, population, metadata,
+        metadata_length, options, output->tree_sequence);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = (PyObject *) output;
+    output = NULL;
+out:
+    Py_XDECREF(output);
+    return ret;
+}
+
+static PyObject *
 TreeSequence_has_reference_sequence(TreeSequence *self)
 {
     PyObject *ret = NULL;
@@ -9501,6 +9678,14 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_get_samples,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns the samples." },
+    { .ml_name = "get_individuals_population",
+        .ml_meth = (PyCFunction) TreeSequence_get_individuals_population,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the vector of per-individual populations." },
+    { .ml_name = "get_individuals_time",
+        .ml_meth = (PyCFunction) TreeSequence_get_individuals_time,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the vector of per-individual times." },
     { .ml_name = "genealogical_nearest_neighbours",
         .ml_meth = (PyCFunction) TreeSequence_genealogical_nearest_neighbours,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
@@ -9577,6 +9762,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_get_genotype_matrix,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Returns the genotypes matrix." },
+    { .ml_name = "split_edges",
+        .ml_meth = (PyCFunction) TreeSequence_split_edges,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Returns a copy of this tree sequence edges split at time t" },
     { .ml_name = "has_reference_sequence",
         .ml_meth = (PyCFunction) TreeSequence_has_reference_sequence,
         .ml_flags = METH_NOARGS,
@@ -10303,18 +10492,14 @@ static PyObject *
 Tree_get_num_children(Tree *self, PyObject *args)
 {
     PyObject *ret = NULL;
-    unsigned int num_children;
+    tsk_size_t num_children;
     int node;
-    tsk_id_t u;
 
     if (Tree_get_node_argument(self, args, &node) != 0) {
         goto out;
     }
-    num_children = 0;
-    for (u = self->tree->left_child[node]; u != TSK_NULL; u = self->tree->right_sib[u]) {
-        num_children++;
-    }
-    ret = Py_BuildValue("I", num_children);
+    num_children = self->tree->num_children[node];
+    ret = Py_BuildValue("i", (int) num_children);
 out:
     return ret;
 }
@@ -10608,6 +10793,27 @@ out:
 }
 
 static PyObject *
+Tree_get_colless_index(Tree *self)
+{
+    PyObject *ret = NULL;
+    int err;
+    tsk_size_t result;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+
+    err = tsk_tree_colless_index(self->tree, &result);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("K", (unsigned long long) result);
+out:
+    return ret;
+}
+
+static PyObject *
 Tree_get_root_threshold(Tree *self)
 {
     PyObject *ret = NULL;
@@ -10805,6 +11011,19 @@ out:
     return ret;
 }
 
+static PyObject *
+Tree_get_num_children_array(Tree *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Tree_make_array(self, NPY_INT32, self->tree->num_children);
+out:
+    return ret;
+}
+
 static PyGetSetDef Tree_getsetters[]
     = { { .name = "parent_array",
             .get = (getter) Tree_get_parent_array,
@@ -10821,6 +11040,9 @@ static PyGetSetDef Tree_getsetters[]
           { .name = "right_sib_array",
               .get = (getter) Tree_get_right_sib_array,
               .doc = "The right_sib array in the quintuply linked tree." },
+          { .name = "num_children_array",
+              .get = (getter) Tree_get_num_children_array,
+              .doc = "The num_children array in the quintuply linked tree." },
           { NULL } };
 
 static PyMethodDef Tree_methods[] = {
@@ -11005,7 +11227,11 @@ static PyMethodDef Tree_methods[] = {
     { .ml_name = "get_sackin_index",
         .ml_meth = (PyCFunction) Tree_get_sackin_index,
         .ml_flags = METH_NOARGS,
-        .ml_doc = "Returns the root threshold for this tree." },
+        .ml_doc = "Returns the Sackin index for this tree." },
+    { .ml_name = "get_colless_index",
+        .ml_meth = (PyCFunction) Tree_get_colless_index,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the Colless index for this tree." },
     { NULL } /* Sentinel */
 };
 
@@ -11368,6 +11594,34 @@ out:
 }
 
 static PyObject *
+Variant_get_samples(Variant *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (Variant_check_state(self) != 0) {
+        goto out;
+    }
+    ret = make_samples(self->variant);
+out:
+    return ret;
+}
+
+static PyObject *
+Variant_get_isolated_as_missing(Variant *self, void *closure)
+{
+    bool isolated_as_missing;
+    PyObject *ret = NULL;
+
+    if (Variant_check_state(self) != 0) {
+        goto out;
+    }
+    isolated_as_missing = !(self->variant->options & TSK_ISOLATED_NOT_MISSING);
+    ret = Py_BuildValue("i", (int) isolated_as_missing);
+out:
+    return ret;
+}
+
+static PyObject *
 Variant_get_genotypes(Variant *self, void *closure)
 {
     PyObject *ret = NULL;
@@ -11406,6 +11660,12 @@ static PyGetSetDef Variant_getsetters[]
           { .name = "alleles",
               .get = (getter) Variant_get_alleles,
               .doc = "The alleles of the Variant" },
+          { .name = "samples",
+              .get = (getter) Variant_get_samples,
+              .doc = "The samples of the Variant" },
+          { .name = "isolated_as_missing",
+              .get = (getter) Variant_get_isolated_as_missing,
+              .doc = "The samples of the Variant" },
           { .name = "genotypes",
               .get = (getter) Variant_get_genotypes,
               .doc = "The genotypes of the Variant" },
@@ -12496,6 +12756,7 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "VersionTooOldError", TskitVersionTooOldError);
     TskitIdentityPairsNotStoredError
         = PyErr_NewException("_tskit.IdentityPairsNotStoredError", TskitException, NULL);
+    Py_INCREF(TskitIdentityPairsNotStoredError);
     PyModule_AddObject(
         module, "IdentityPairsNotStoredError", TskitIdentityPairsNotStoredError);
     TskitIdentitySegmentsNotStoredError = PyErr_NewException(
@@ -12503,6 +12764,10 @@ PyInit__tskit(void)
     Py_INCREF(TskitIdentitySegmentsNotStoredError);
     PyModule_AddObject(
         module, "IdentitySegmentsNotStoredError", TskitIdentitySegmentsNotStoredError);
+    TskitNoSampleListsError
+        = PyErr_NewException("_tskit.NoSampleListsError", TskitException, NULL);
+    Py_INCREF(TskitNoSampleListsError);
+    PyModule_AddObject(module, "NoSampleListsError", TskitNoSampleListsError);
 
     PyModule_AddIntConstant(module, "NULL", TSK_NULL);
     PyModule_AddIntConstant(module, "MISSING_DATA", TSK_MISSING_DATA);

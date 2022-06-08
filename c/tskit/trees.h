@@ -173,6 +173,10 @@ typedef struct {
      */
     tsk_id_t *right_sib;
     /**
+     @brief The number of children of node u is num_children[u].
+     */
+    tsk_id_t *num_children;
+    /**
      @brief The total number of edges defining the topology of this tree.
      This is equal to the number of tree sequence edges that intersect with
      the tree's genomic interval.
@@ -697,7 +701,7 @@ Returns the location of each node in the list of samples or
 @endrst
 
 @param self A pointer to a tsk_treeseq_t object.
-@return Returns the pointer to the breakpoint array.
+@return Returns the pointer to the array of sample indexes.
 */
 const tsk_id_t *tsk_treeseq_get_sample_index_map(const tsk_treeseq_t *self);
 
@@ -882,7 +886,16 @@ int tsk_treeseq_simplify(const tsk_treeseq_t *self, const tsk_id_t *samples,
 
 /** @} */
 
+#define TSK_SPLIT_EDGES_IMPUTE_POPULATION (1 << 1)
+
+int tsk_treeseq_split_edges(const tsk_treeseq_t *self, double time, tsk_flags_t flags,
+    tsk_id_t population, const char *metadata, tsk_size_t metadata_length,
+    tsk_flags_t options, tsk_treeseq_t *output);
+
 bool tsk_treeseq_has_reference_sequence(const tsk_treeseq_t *self);
+
+int tsk_treeseq_get_individuals_population(const tsk_treeseq_t *self, tsk_id_t *output);
+int tsk_treeseq_get_individuals_time(const tsk_treeseq_t *self, double *output);
 
 int tsk_treeseq_kc_distance(const tsk_treeseq_t *self, const tsk_treeseq_t *other,
     double lambda_, double *result);
@@ -1676,6 +1689,7 @@ int tsk_tree_kc_distance(
 /* Don't document these balance metrics for now so it doesn't get in the way of
  * C API 1.0, but should be straightforward to document based on Python docs. */
 int tsk_tree_sackin_index(const tsk_tree_t *self, tsk_size_t *result);
+int tsk_tree_colless_index(const tsk_tree_t *self, tsk_size_t *result);
 
 /* Things to consider removing: */
 
