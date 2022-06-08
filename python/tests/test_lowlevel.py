@@ -1080,8 +1080,7 @@ class TestTableMethodsErrors:
         ts = _tskit.TreeSequence()
         with pytest.raises(
             _tskit.LibraryError,
-            match="Bad edges: contradictory children for a given"
-            " parent over an interval",
+            match="TSK_ERR_TABLES_BAD_INDEXES",
         ):
             ts.load_tables(tc, build_indexes=False)
 

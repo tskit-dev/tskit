@@ -543,6 +543,10 @@ The table collection contains more than 2**31 trees.
 Metadata was attempted to be set on a table where it is disabled.
 */
 #define TSK_ERR_METADATA_DISABLED                                   -706
+/**
+There was an error with the table's indexes.
+*/
+#define TSK_ERR_TABLES_BAD_INDEXES                                  -707
 /** @} */
 
 /**

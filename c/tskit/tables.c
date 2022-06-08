@@ -10272,6 +10272,7 @@ tsk_table_collection_check_tree_integrity(const tsk_table_collection_t *self)
     const tsk_id_t *restrict edge_child = self->edges.child;
     const tsk_id_t *restrict edge_parent = self->edges.parent;
     tsk_id_t *restrict parent = NULL;
+    int *restrict used_edges = NULL;
     tsk_id_t num_trees = 0;
 
     parent = tsk_malloc(self->nodes.num_rows * sizeof(*parent));
@@ -10281,6 +10282,13 @@ tsk_table_collection_check_tree_integrity(const tsk_table_collection_t *self)
     }
     tsk_memset(parent, 0xff, self->nodes.num_rows * sizeof(*parent));
 
+    used_edges = tsk_malloc(num_edges * sizeof(*used_edges));
+    if (used_edges == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    tsk_memset(used_edges, 0, num_edges * sizeof(*used_edges));
+
     tree_left = 0;
     num_trees = 0;
     j = 0;
@@ -10288,13 +10296,24 @@ tsk_table_collection_check_tree_integrity(const tsk_table_collection_t *self)
     site = 0;
     mutation = 0;
     tsk_bug_assert(I != NULL && O != NULL);
+    tsk_bug_assert(self->indexes.num_edges == num_edges);
 
     while (j < num_edges || tree_left < sequence_length) {
         while (k < num_edges && edge_right[O[k]] == tree_left) {
+            if (used_edges[O[k]] != 1) {
+                ret = TSK_ERR_TABLES_BAD_INDEXES;
+                goto out;
+            }
             parent[edge_child[O[k]]] = TSK_NULL;
+            used_edges[O[k]] += 1;
             k++;
         }
         while (j < num_edges && edge_left[I[j]] == tree_left) {
+            if (used_edges[I[j]] != 0) {
+                ret = TSK_ERR_TABLES_BAD_INDEXES;
+                goto out;
+            }
+            used_edges[I[j]] += 1;
             u = edge_child[I[j]];
             if (parent[u] != TSK_NULL) {
                 ret = TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN;
@@ -10323,6 +10342,10 @@ tsk_table_collection_check_tree_integrity(const tsk_table_collection_t *self)
             }
             site++;
         }
+        if (tree_right <= tree_left) {
+            ret = TSK_ERR_TABLES_BAD_INDEXES;
+            goto out;
+        }
         tree_left = tree_right;
         /* This is technically possible; if we have 2**31 edges each defining
          * a single tree, and there's a gap between each of these edges we
@@ -10333,11 +10356,32 @@ tsk_table_collection_check_tree_integrity(const tsk_table_collection_t *self)
         }
         num_trees++;
     }
+    tsk_bug_assert(j == num_edges);
+    while (k < num_edges) {
+        /* At this point it must be that used_edges[O[k]] == 1,
+         * since otherwise we would have added a different edge twice,
+         * and so hit the error above. */
+        if (edge_right[O[k]] != sequence_length) {
+            ret = TSK_ERR_TABLES_BAD_INDEXES;
+            goto out;
+        }
+        used_edges[O[k]] += 1;
+        k++;
+    }
+    for (j = 0; j < num_edges; j++) {
+        /* To have some edge added more than once,
+         * we have to have skipped backwards at some point,
+         * so would have errored above. */
+        tsk_bug_assert(used_edges[j] == 2);
+    }
     ret = num_trees;
 out:
     /* Can't use tsk_safe_free because of restrict*/
     if (parent != NULL) {
         free(parent);
+    }
+    if (used_edges != NULL) {
+        free(used_edges);
     }
     return ret;
 }

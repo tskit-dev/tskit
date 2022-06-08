@@ -265,7 +265,8 @@ tsk_strerror_internal(int err)
             break;
         case TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN:
             ret = "Bad edges: contradictory children for a given parent over "
-                  "an interval. (TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN)";
+                  "an interval, or indexes need to be rebuilt. "
+                  "(TSK_ERR_BAD_EDGES_CONTRADICTORY_CHILDREN)";
             break;
         case TSK_ERR_CANT_PROCESS_EDGES_WITH_METADATA:
             ret = "Can't squash, flush, simplify or link ancestors with edges that have "
@@ -349,6 +350,10 @@ tsk_strerror_internal(int err)
             break;
         case TSK_ERR_TABLES_NOT_INDEXED:
             ret = "Table collection must be indexed. (TSK_ERR_TABLES_NOT_INDEXED)";
+            break;
+        case TSK_ERR_TABLES_BAD_INDEXES:
+            ret = "Table collection indexes inconsistent: do they need to be rebuilt? "
+                  "(TSK_ERR_TABLES_BAD_INDEXES)";
             break;
         case TSK_ERR_TABLE_OVERFLOW:
             ret = "Table too large; cannot allocate more than 2**31 rows. "
