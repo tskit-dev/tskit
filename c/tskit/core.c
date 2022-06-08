@@ -336,7 +336,7 @@ tsk_strerror_internal(int err)
             ret = "Duplicate sample value. (TSK_ERR_DUPLICATE_SAMPLE)";
             break;
         case TSK_ERR_BAD_SAMPLES:
-            ret = "Bad sample configuration provided. (TSK_ERR_BAD_SAMPLES)";
+            ret = "The nodes provided are not samples. (TSK_ERR_BAD_SAMPLES)";
             break;
 
         /* Table errors */
