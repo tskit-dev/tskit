@@ -6081,6 +6081,53 @@ class TreeSequence:
         )
         return TreeSequence(ll_ts)
 
+    def decapitate(self, time, *, flags=None, population=None, metadata=None):
+        """
+        Delete all edge topology and mutational information at least as old
+        as the specified time from this tree sequence.
+
+        Removes all edges in which the time of the child is >= the specified
+        time ``t``, and breaks edges that intersect with ``t``. For each edge
+        intersecting with ``t`` we create a new node with time equal to ``t``,
+        and set the parent of the edge to this new node. The node table
+        is not altered in any other way. Newly added nodes have values
+        for ``flags``, ``population`` and ``metadata`` controlled by parameters
+        to this function in the same way as :meth:`.split_edges`.
+
+        .. note::
+            Note that each edge is treated independently, so that even if two
+            edges that are broken by this operation share the same parent and
+            child nodes, there will be two different new parent nodes inserted.
+
+        Any mutation whose time is >= ``t`` will be removed. A mutation's time
+        is its associated ``time`` value, or the time of its node if the
+        mutation's time was marked as unknown (:data:`UNKNOWN_TIME`).
+
+        Migrations are not supported, and a LibraryError will be raise if
+        called on a tree sequence containing migration information.
+
+        .. seealso:: This method is implemented using the :meth:`.split_edges`
+            and :meth:`TableCollection.delete_older` functions.
+
+        :param float time: The cutoff time.
+        :param int flags: The flags value for newly-inserted nodes. (Default = 0)
+        :param int population: The population value for newly inserted nodes.
+            Defaults to the population of the child node of the split edge
+            if not specified.
+        :param metadata: The metadata for any newly inserted nodes. See
+            :meth:`.NodeTable.add_row` for details on how default metadata
+            is produced for a given schema (or none).
+        :return: A copy of this tree sequence with edges split at the specified time.
+        :rtype: tskit.TreeSequence
+        """
+        split_ts = self.split_edges(
+            time, flags=flags, population=population, metadata=metadata
+        )
+        tables = split_ts.dump_tables()
+        del split_ts
+        tables.delete_older(time)
+        return tables.tree_sequence()
+
     def subset(
         self,
         nodes,

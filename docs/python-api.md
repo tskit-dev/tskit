@@ -219,6 +219,7 @@ which perform the same actions but modify the {class}`TableCollection` in place.
   TreeSequence.delete_sites
   TreeSequence.trim
   TreeSequence.split_edges
+  TreeSequence.decapitate
 ```
 
 (sec_python_api_tree_sequences_ibd)=
@@ -683,6 +684,7 @@ a functional way, returning a new tree sequence while leaving the original uncha
   TableCollection.delete_sites
   TableCollection.trim
   TableCollection.union
+  TableCollection.delete_older
 ```
 
 (sec_tables_api_creating_valid_tree_sequence)=
