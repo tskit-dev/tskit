@@ -679,6 +679,7 @@ class Tree:
         self._right_child_array = self._ll_tree.right_child_array
         self._left_sib_array = self._ll_tree.left_sib_array
         self._right_sib_array = self._ll_tree.right_sib_array
+        self._num_children_array = self._ll_tree.num_children_array
 
     @property
     def tree_sequence(self):
@@ -1171,6 +1172,23 @@ class Tree:
         .. include:: substitutions/tree_array_warning.rst
         """
         return self._right_sib_array
+
+    @property
+    def num_children_array(self):
+        """
+        A numpy array (dtype=np.uint64) encoding the number of children of
+        each node in this tree, such that
+        ``tree.num_children_array[u] == tree.num_children(u)`` for all
+        ``0 <= u <= ts.num_nodes``. See the :meth:`~.num_children`
+        method for details on the semantics of tree num_children and the
+        :ref:`sec_data_model_tree_structure` section for information on the
+        quintuply linked tree encoding.
+
+        .. include:: substitutions/virtual_root_array_note.rst
+
+        .. include:: substitutions/tree_array_warning.rst
+        """
+        return self._num_children_array
 
     # Sample list.
 

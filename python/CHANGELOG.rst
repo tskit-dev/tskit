@@ -47,6 +47,9 @@
 - Add support for missing data to ``write_vcf``, and add the ``isolated_as_missing``
   argument. (:user:`jeromekelleher`, :pr:`2329`, :issue:`447`).
 
+- Add ``Tree.num_children_array`` and ``Tree.num_children``. Returns the counts of 
+  the number of child nodes for each or a single node in the tree respectively. 
+  (:user:`GertjanBisschop`, :issue:`2318`, :issue:`2319`, :pr:`2332`)
 
 **Breaking Changes**
 

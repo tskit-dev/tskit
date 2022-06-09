@@ -2711,7 +2711,14 @@ class TestTree(LowLevelTestCase):
     Tests on the low-level tree interface.
     """
 
-    ARRAY_NAMES = ["parent", "left_child", "right_child", "left_sib", "right_sib"]
+    ARRAY_NAMES = [
+        "parent",
+        "left_child",
+        "right_child",
+        "left_sib",
+        "right_sib",
+        "num_children",
+    ]
 
     def test_options(self):
         ts = self.get_example_tree_sequence()
@@ -3063,6 +3070,7 @@ class TestTree(LowLevelTestCase):
                 assert tree.get_parent(u) == _tskit.NULL
                 assert tree.get_left_child(u) == _tskit.NULL
                 assert tree.get_right_child(u) == _tskit.NULL
+                assert tree.get_num_children(u) == 0
 
         tree = _tskit.Tree(ts)
         check_tree(tree)
@@ -3390,7 +3398,10 @@ class TestTree(LowLevelTestCase):
         a = getattr(t1, array + "_array")
         t1.first()
         a = getattr(t1, array + "_array")
-        assert a.dtype == np.int32
+        if array != "num_children":
+            assert a.dtype == np.int32
+        else:
+            assert a.dtype == np.uint64
         assert a.shape == (ts1.get_num_nodes() + 1,)
         assert a.base == t1
         assert not a.flags.writeable
