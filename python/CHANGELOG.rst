@@ -39,6 +39,10 @@
   ``as_vcf`` convenience function, to return VCF as a string.
   (:user:`jeromekelleher`, :pr:`2300`).
 
+- Add support for missing data to ``write_vcf``, and add the ``isolated_as_missing``
+  argument. (:user:`jeromekelleher`, :pr:`2300`, :issue:`447`).
+
+
 **Breaking Changes**
 
 - The JSON metadata codec now interprets the empty string as an empty object. This means

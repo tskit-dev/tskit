@@ -53,16 +53,19 @@ class VcfWriter:
     def __init__(
         self,
         tree_sequence,
-        ploidy=None,
-        contig_id="1",
-        individuals=None,
-        individual_names=None,
-        position_transform=None,
-        site_mask=None,
-        sample_mask=None,
+        *,
+        ploidy,
+        contig_id,
+        individuals,
+        individual_names,
+        position_transform,
+        site_mask,
+        sample_mask,
+        isolated_as_missing,
     ):
         self.tree_sequence = tree_sequence
         self.contig_id = contig_id
+        self.isolated_as_missing = isolated_as_missing
 
         if individuals is None:
             individuals = np.arange(tree_sequence.num_individuals, dtype=int)
@@ -189,7 +192,9 @@ class VcfWriter:
         # array. Test it out.
         indexes = np.array(indexes, dtype=int)
 
-        for variant in self.tree_sequence.variants(samples=self.samples):
+        for variant in self.tree_sequence.variants(
+            samples=self.samples, isolated_as_missing=self.isolated_as_missing
+        ):
             site_id = variant.site.id
             # We check the mask before we do any checks so we can use this as a
             # way of skipping problematic sites.

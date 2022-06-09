@@ -5347,6 +5347,7 @@ class TreeSequence:
         position_transform=None,
         site_mask=None,
         sample_mask=None,
+        isolated_as_missing=None,
     ):
         """
         Writes a VCF formatted file to the specified file-like object.
@@ -5533,6 +5534,10 @@ class TreeSequence:
             with the corresponding :class:`.Variant` object, allowing
             for dynamic masks to be generated. See above for example
             usage.
+        :param bool isolated_as_missing: If True, the genotype value assigned to
+            missing samples (i.e., isolated samples without mutations) is "."
+            If False, missing samples will be assigned the the ancestral allele.
+            See :meth:`.variants` for more information. Default: True.
         """
         writer = vcf.VcfWriter(
             self,
@@ -5543,6 +5548,7 @@ class TreeSequence:
             position_transform=position_transform,
             site_mask=site_mask,
             sample_mask=sample_mask,
+            isolated_as_missing=isolated_as_missing,
         )
         writer.write(output)
 

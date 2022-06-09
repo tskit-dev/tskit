@@ -839,6 +839,22 @@ class TestMissingData:
         expected = textwrap.dedent(s)
         assert drop_header(self.ts().as_vcf()) == expected
 
+    def test_isolated_as_missing_true(self):
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0\ttsk_1\ttsk_2
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t1\t0\t.
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t0\t1\t."""
+        expected = textwrap.dedent(s)
+        assert drop_header(self.ts().as_vcf(isolated_as_missing=True)) == expected
+
+    def test_isolated_as_missing_false(self):
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0\ttsk_1\ttsk_2
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t1\t0\t0
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t0\t1\t0"""
+        expected = textwrap.dedent(s)
+        assert drop_header(self.ts().as_vcf(isolated_as_missing=False)) == expected
+
     @pytest.mark.skipif(not _pysam_imported, reason="pysam not available")
     def test_ok_with_pysam(self):
         with ts_to_pysam(self.ts(), sample_mask=[0, 0, 1]) as records:
