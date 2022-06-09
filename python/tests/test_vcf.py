@@ -542,14 +542,6 @@ class TestLimitations:
             with pytest.raises(ValueError):
                 ts.write_vcf(io.StringIO())
 
-    def test_missing_data(self):
-        ts = msprime.simulate(5, mutation_rate=1, random_seed=45)
-        tables = ts.dump_tables()
-        tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
-        ts = tables.tree_sequence()
-        with pytest.raises(ValueError):
-            ts.write_vcf(io.StringIO())
-
 
 class TestPositionTransformRoundTrip(ExamplesMixin):
     """
@@ -829,3 +821,32 @@ class TestMasking:
 
             gts = [variants[3].samples[key]["GT"] for key in samples]
             assert gts == [(0,), (0,), (None,)]
+
+
+class TestMissingData:
+    @tests.cached_example
+    def ts(self):
+        tables = tskit.Tree.generate_balanced(2, span=10).tree_sequence.dump_tables()
+        tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
+        ts = tsutil.insert_branch_sites(tables.tree_sequence())
+        return ts
+
+    def test_defaults(self):
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0\ttsk_1\ttsk_2
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t1\t0\t.
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t0\t1\t."""
+        expected = textwrap.dedent(s)
+        assert drop_header(self.ts().as_vcf()) == expected
+
+    @pytest.mark.skipif(not _pysam_imported, reason="pysam not available")
+    def test_ok_with_pysam(self):
+        with ts_to_pysam(self.ts(), sample_mask=[0, 0, 1]) as records:
+            variants = list(records)
+            assert len(variants) == 2
+            samples = ["tsk_0", "tsk_1", "tsk_2"]
+            gts = [variants[0].samples[key]["GT"] for key in samples]
+            assert gts == [(1,), (0,), (None,)]
+
+            gts = [variants[1].samples[key]["GT"] for key in samples]
+            assert gts == [(0,), (1,), (None,)]

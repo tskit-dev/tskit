@@ -201,14 +201,11 @@ class VcfWriter:
                     "More than 9 alleles not currently supported. Please open an issue "
                     "on GitHub if this limitation affects you."
                 )
-            if variant.has_missing_data:
-                raise ValueError(
-                    "Missing data is not currently supported. Please open an issue "
-                    "on GitHub if this limitation affects you."
-                )
             pos = self.transformed_positions[variant.index]
             ref = variant.alleles[0]
-            alt = ",".join(variant.alleles[1:]) if len(variant.alleles) > 1 else "."
+            alt = "."
+            if variant.num_alleles > 1:
+                alt = ",".join(variant.alleles[1 : variant.num_alleles])
             print(
                 self.contig_id,
                 pos,
@@ -223,21 +220,17 @@ class VcfWriter:
                 end="\t",
                 file=output,
             )
-            # NOTE: when we support missing data we should be able to
-            # simply add ``and not variant.has_missing_data`` here.
-            # Probably OK to take the perf hit in making the missing
-            # data case go in with the more general sample masking case.
-            if self.sample_mask is None:
-                gt_array[indexes] = variant.genotypes + ord("0")
-            else:
-                genotypes = variant.genotypes.copy()
+            genotypes = variant.genotypes
+            gt_array[indexes] = genotypes + ord("0")
+            if self.sample_mask is not None:
+                genotypes = genotypes.copy()
                 sample_mask = np.array(self.sample_mask(variant), dtype=bool)
                 if sample_mask.shape != genotypes.shape:
                     raise ValueError(
                         "Sample mask must be a numpy array of size num_samples"
                     )
-                gt_array[indexes] = genotypes + ord("0")
                 genotypes[sample_mask] = -1
+            if self.sample_mask is not None or variant.has_missing_data:
                 missing = genotypes == -1
                 gt_array[indexes[missing]] = ord(".")
             g_bytes = memoryview(gt_array).tobytes()
