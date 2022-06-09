@@ -487,6 +487,15 @@ class TestInterface:
             for vcf_record, site in zip(vcf_reader, ts.sites()):
                 assert int(vcf_record.ID) == site.id
 
+    def test_ploidy_positional(self):
+        ts = msprime.simulate(2, mutation_rate=2, random_seed=1)
+        assert ts.as_vcf(2) == ts.as_vcf(ploidy=2)
+
+    def test_only_ploidy_positional(self):
+        ts = msprime.simulate(2, mutation_rate=2, random_seed=1)
+        with pytest.raises(TypeError):
+            assert ts.as_vcf(2, "chr2")
+
 
 class TestRoundTripIndividuals(ExamplesMixin):
     """
