@@ -5325,7 +5325,7 @@ class TreeSequence:
                 )
         return samples[keep]
 
-    def as_vcf(self, **kwargs):
+    def as_vcf(self, *args, **kwargs):
         """
         Return the result of :meth:`.write_vcf` as a string.
         Keyword parameters are as defined in :meth:`.write_vcf`.
@@ -5334,13 +5334,14 @@ class TreeSequence:
         :rtype: str
         """
         buff = io.StringIO()
-        self.write_vcf(buff, **kwargs)
+        self.write_vcf(buff, *args, **kwargs)
         return buff.getvalue()
 
     def write_vcf(
         self,
         output,
         ploidy=None,
+        *,
         contig_id="1",
         individuals=None,
         individual_names=None,

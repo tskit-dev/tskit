@@ -40,7 +40,7 @@
   (:user:`jeromekelleher`, :pr:`2300`).
 
 - Add support for missing data to ``write_vcf``, and add the ``isolated_as_missing``
-  argument. (:user:`jeromekelleher`, :pr:`2300`, :issue:`447`).
+  argument. (:user:`jeromekelleher`, :pr:`2329`, :issue:`447`).
 
 
 **Breaking Changes**
@@ -55,6 +55,9 @@
   This argument was initially deprecated more than 3 years ago when the code was part of
   ``msprime``.
   (:user:`benjeffery`, :issue:`605`, :pr:`2172`)
+
+- Arguments after ``ploidy`` in ``write_vcf`` marked as keyword only
+  (:user:`jeromekelleher`, :pr:`2329`, :issue:`2315`).
 
 ----------------------
 [0.4.1] - 2022-01-11
