@@ -3696,21 +3696,44 @@ class TestTree(HighLevelTestCase):
         assert tree.right_child_array.shape == (N,)
         assert tree.left_sib_array.shape == (N,)
         assert tree.right_sib_array.shape == (N,)
+        assert tree.num_children_array.shape == (N,)
         for u in range(N):
             assert tree.parent(u) == tree.parent_array[u]
             assert tree.left_child(u) == tree.left_child_array[u]
             assert tree.right_child(u) == tree.right_child_array[u]
             assert tree.left_sib(u) == tree.left_sib_array[u]
             assert tree.right_sib(u) == tree.right_sib_array[u]
+            assert tree.num_children(u) == tree.num_children_array[u]
+
+    def verify_tree_arrays_python_ts(self, ts):
+        pts = tests.PythonTreeSequence(ts)
+        iter1 = ts.trees()
+        iter2 = pts.trees()
+        for st1, st2 in zip(iter1, iter2):
+            assert np.all(st1.parent_array == st2.parent)
+            assert np.all(st1.left_child_array == st2.left_child)
+            assert np.all(st1.right_child_array == st2.right_child)
+            assert np.all(st1.left_sib_array == st2.left_sib)
+            assert np.all(st1.right_sib_array == st2.right_sib)
+            assert np.all(st1.num_children_array == st2.num_children)
 
     def test_tree_arrays(self):
         ts = msprime.simulate(10, recombination_rate=1, random_seed=1)
         assert ts.num_trees > 1
+        self.verify_tree_arrays_python_ts(ts)
         for tree in ts.trees():
             self.verify_tree_arrays(tree)
 
     @pytest.mark.parametrize(
-        "array", ["parent", "left_child", "right_child", "left_sib", "right_sib"]
+        "array",
+        [
+            "parent",
+            "left_child",
+            "right_child",
+            "left_sib",
+            "right_sib",
+            "num_children",
+        ],
     )
     def test_tree_array_properties(self, array):
         name = array + "_array"
@@ -3732,6 +3755,7 @@ class TestTree(HighLevelTestCase):
             assert tree.parent(u) == tskit.NULL
             assert tree.left_child(u) == tskit.NULL
             assert tree.right_child(u) == tskit.NULL
+            assert tree.num_children(u) == 0
             if not ts.node(u).is_sample():
                 assert tree.left_sib(u) == tskit.NULL
                 assert tree.right_sib(u) == tskit.NULL
@@ -3778,6 +3802,7 @@ class TestTree(HighLevelTestCase):
         assert np.all(t1.right_child_array == t2.right_child_array)
         assert np.all(t1.left_sib_array == t2.left_sib_array)
         assert np.all(t1.right_sib_array == t2.right_sib_array)
+        assert np.all(t1.num_children_array == t2.num_children_array)
         assert list(t1.sites()) == list(t2.sites())
 
     def test_copy_seek(self):

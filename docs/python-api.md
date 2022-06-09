@@ -478,6 +478,7 @@ high performance interface which can be used in conjunction with the equivalent
   Tree.right_child_array
   Tree.left_sib_array
   Tree.right_sib_array
+  Tree.num_children_array
 ```
 
 

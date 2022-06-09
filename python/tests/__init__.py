@@ -64,6 +64,7 @@ class PythonTree:
             ret.right_child[u] = tree.right_child(u)
             ret.left_sib[u] = tree.left_sib(u)
             ret.right_sib[u] = tree.right_sib(u)
+            ret.num_children[u] = tree.num_children(u)
         assert ret == tree
         return ret
 

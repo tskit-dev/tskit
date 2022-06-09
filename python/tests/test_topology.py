@@ -235,8 +235,7 @@ def c_kc_distance(tree1, tree2, lambda_=0):
         raise ValueError("Trees must have one root")
     for tree in [tree1, tree2]:
         for u in range(tree.tree_sequence.num_nodes):
-            left_child = tree.left_child(u)
-            if left_child != tskit.NULL and left_child == tree.right_child(u):
+            if tree.num_children(u) == 1:
                 raise ValueError("Unary nodes are not supported")
 
     n = tree1.tree_sequence.num_samples
@@ -1790,7 +1789,7 @@ class TestEmptyTreeSequences(TopologyTestCase):
         assert list(t.nodes()) == []
         assert list(ts.haplotypes()) == []
         assert list(ts.variants()) == []
-        methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib]
+        methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib, t.num_children]
         for method in methods:
             for u in [-1, 1, 100]:
                 with pytest.raises(ValueError):
@@ -1822,9 +1821,10 @@ class TestEmptyTreeSequences(TopologyTestCase):
         assert list(t.nodes()) == []
         assert list(ts.haplotypes()) == []
         assert list(ts.variants()) == []
-        methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib]
+        methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib, t.num_children]
         for method in methods:
-            assert method(0) == tskit.NULL
+            expected = tskit.NULL if method != t.num_children else 0
+            assert method(0) == expected
             for u in [-1, 2, 100]:
                 with pytest.raises(ValueError):
                     method(u)
@@ -1877,9 +1877,10 @@ class TestEmptyTreeSequences(TopologyTestCase):
         assert list(t.nodes()) == [0]
         assert list(ts.haplotypes(isolated_as_missing=False)) == [""]
         assert list(ts.variants()) == []
-        methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib]
+        methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib, t.num_children]
         for method in methods:
-            assert method(0) == tskit.NULL
+            expected = tskit.NULL if method != t.num_children else 0
+            assert method(0) == expected
             for u in [-1, 2, 100]:
                 with pytest.raises(ValueError):
                     method(u)
@@ -1911,9 +1912,10 @@ class TestEmptyTreeSequences(TopologyTestCase):
         assert list(t.nodes()) == [0]
         assert list(ts.haplotypes(isolated_as_missing=False)) == ["1"]
         assert len(list(ts.variants())) == 1
-        methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib]
+        methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib, t.num_children]
         for method in methods:
-            assert method(0) == tskit.NULL
+            expected = tskit.NULL if method != t.num_children else 0
+            assert method(0) == expected
             for u in [-1, 2, 100]:
                 with pytest.raises(ValueError):
                     method(u)
@@ -2183,6 +2185,7 @@ class TestTsinferExamples(TopologyTestCase):
                 assert pt.right_child[j] == t.right_child(j)
                 assert pt.left_sib[j] == t.left_sib(j)
                 assert pt.right_sib[j] == t.right_sib(j)
+                assert pt.num_children[j] == t.num_children(j)
             n += 1
         assert n == num_trees
         intervals = [t.interval for t in ts.trees()]
@@ -6480,6 +6483,7 @@ class TestVirtualRootAPIs(ExampleTopologyMixin):
             assert tree.parent(tree.virtual_root) == tskit.NULL
             assert tree.left_sib(tree.virtual_root) == tskit.NULL
             assert tree.right_sib(tree.virtual_root) == tskit.NULL
+            assert tree.num_children(tree.virtual_root) == tree.num_roots
 
             u = tree.left_root
             roots = []
@@ -6616,6 +6620,7 @@ class TestOneSampleRoot(ExampleTopologyMixin):
             np.testing.assert_array_equal(tree1.right_child, tree2.right_child_array)
             np.testing.assert_array_equal(tree1.left_sib, tree2.left_sib_array)
             np.testing.assert_array_equal(tree1.right_sib, tree2.right_sib_array)
+            np.testing.assert_array_equal(tree1.num_children, tree2.num_children_array)
             tree2.next()
         assert tree2.index == -1
 
@@ -6666,6 +6671,7 @@ class RootThreshold(ExampleTopologyMixin):
             )
             np.testing.assert_array_equal(tree_py.left_sib, tree_lib.left_sib_array)
             np.testing.assert_array_equal(tree_py.right_sib, tree_lib.right_sib_array)
+            np.testing.assert_array_equal(tree_py.num_children, tree_lib.num_children_array)
 
             # NOTE: the legacy left_root value is *not* necessarily the same as the
             # new left_root.

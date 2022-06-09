@@ -10492,18 +10492,14 @@ static PyObject *
 Tree_get_num_children(Tree *self, PyObject *args)
 {
     PyObject *ret = NULL;
-    unsigned int num_children;
+    tsk_size_t num_children;
     int node;
-    tsk_id_t u;
 
     if (Tree_get_node_argument(self, args, &node) != 0) {
         goto out;
     }
-    num_children = 0;
-    for (u = self->tree->left_child[node]; u != TSK_NULL; u = self->tree->right_sib[u]) {
-        num_children++;
-    }
-    ret = Py_BuildValue("I", num_children);
+    num_children = self->tree->num_children[node];
+    ret = Py_BuildValue("i", (int) num_children);
 out:
     return ret;
 }
@@ -10994,6 +10990,19 @@ out:
     return ret;
 }
 
+static PyObject *
+Tree_get_num_children_array(Tree *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Tree_make_array(self, NPY_UINT64, self->tree->num_children);
+out:
+    return ret;
+}
+
 static PyGetSetDef Tree_getsetters[]
     = { { .name = "parent_array",
             .get = (getter) Tree_get_parent_array,
@@ -11010,6 +11019,9 @@ static PyGetSetDef Tree_getsetters[]
           { .name = "right_sib_array",
               .get = (getter) Tree_get_right_sib_array,
               .doc = "The right_sib array in the quintuply linked tree." },
+          { .name = "num_children_array",
+              .get = (getter) Tree_get_num_children_array,
+              .doc = "The num_children array in the quintuply linked tree." },
           { NULL } };
 
 static PyMethodDef Tree_methods[] = {
