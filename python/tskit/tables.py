@@ -3867,9 +3867,16 @@ class TableCollection(metadata.MetadataProvider):
         Deletes edge, mutation and migration information at least as old as
         the specified time.
 
-        For the purposes of this method, an edge covers the times from the child node
-        up until the *parent* node, so that any any edge with parent node time > ``time``
-        will be removed.
+        .. seealso:: This method is similar to the higher-level
+            :meth:`TreeSequence.decapitate` method, which also splits
+            edges that intersect with the given time.
+            :meth:`TreeSequence.decapitate`
+            is more useful for most purposes, and may be what
+            you need instead of this method!
+
+        For the purposes of this method, an edge covers the times from the
+        child node up until the *parent* node, so that any any edge with parent
+        node time > ``time`` will be removed.
 
         Any mutation whose time is >= ``time`` will be removed. A mutation's time
         is its associated ``time`` value, or the time of its node if the

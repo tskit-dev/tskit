@@ -30,6 +30,11 @@
   edges at a specific time.
   (:user:`jeromekelleher`, :issue:`2276`, :pr:`2296`).
 
+- Add the ``TreeSequence.decapitate`` (and closely related
+  ``TableCollection.delete_older``) operation to remove topology and mutations
+  older than a give time.
+  (:user:`jeromekelleher`, :issue:`2236`, :pr:`2302`, :pr:`2331`).
+
 - Add the ``TreeSequence.individuals_time`` and ``TreeSequence.individuals_population``
   methods to return arrays of per-individual times and populations, respectively.
   (:user:`petrelharp`, :issue:`1481`, :pr:`2298`).
