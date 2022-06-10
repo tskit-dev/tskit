@@ -79,13 +79,14 @@ typedef struct {
 } write_table_ragged_col_t;
 
 /* Returns true if adding the specified number of rows would result in overflow.
- * Tables can support indexes from 0 to TSK_MAX_ID, and therefore have at most
- * TSK_MAX_ID + 1 rows */
+ * Tables can support indexes from 0 to TSK_MAX_ID, and therefore could have at most
+ * TSK_MAX_ID + 1 rows. However we limit to TSK_MAX_ID rows so that counts of rows
+ * can fit in a tsk_id_t. */
 static bool
 check_table_overflow(tsk_size_t current_size, tsk_size_t additional_rows)
 {
-    tsk_size_t max_val = TSK_MAX_ID + (tsk_size_t) 1;
-    return current_size > (max_val - additional_rows);
+    tsk_size_t max_val = TSK_MAX_ID;
+    return additional_rows > max_val || current_size > (max_val - additional_rows);
 }
 
 /* Returns true if adding the specified number of elements would result in overflow
@@ -94,7 +95,9 @@ check_table_overflow(tsk_size_t current_size, tsk_size_t additional_rows)
 static bool
 check_offset_overflow(tsk_size_t current_size, tsk_size_t additional_elements)
 {
-    return current_size > (TSK_MAX_SIZE - additional_elements);
+    tsk_size_t max_val = TSK_MAX_SIZE;
+    return additional_elements > max_val
+           || current_size > (max_val - additional_elements);
 }
 
 #define TSK_NUM_ROWS_UNSET ((tsk_size_t) -1)

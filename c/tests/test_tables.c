@@ -5927,7 +5927,7 @@ test_table_expansion(void)
 
     /*Extending by more rows than possible results in overflow*/
     ret = tsk_individual_table_extend(
-        &tables.individuals, &tables2.individuals, TSK_MAX_ID + 1, NULL, 0);
+        &tables.individuals, &tables2.individuals, TSK_MAX_ID, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
     CU_ASSERT_EQUAL_FATAL(tables.individuals.max_rows, 4194305);
 
@@ -5986,7 +5986,7 @@ test_table_expansion(void)
     CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows, 4194305);
 
     /*Extending by more rows than possible results in overflow*/
-    ret = tsk_node_table_extend(&tables.nodes, &tables2.nodes, TSK_MAX_ID + 1, NULL, 0);
+    ret = tsk_node_table_extend(&tables.nodes, &tables2.nodes, TSK_MAX_ID, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
     CU_ASSERT_EQUAL_FATAL(tables.nodes.max_rows, 4194305);
 
@@ -6044,7 +6044,7 @@ test_table_expansion(void)
     CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows, 4194305);
 
     /*Extending by more rows than possible results in overflow*/
-    ret = tsk_edge_table_extend(&tables.edges, &tables2.edges, TSK_MAX_ID + 1, NULL, 0);
+    ret = tsk_edge_table_extend(&tables.edges, &tables2.edges, TSK_MAX_ID, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
     CU_ASSERT_EQUAL_FATAL(tables.edges.max_rows, 4194305);
 
@@ -6109,7 +6109,7 @@ test_table_expansion(void)
 
     /*Extending by more rows than possible results in overflow*/
     ret = tsk_migration_table_extend(
-        &tables.migrations, &tables2.migrations, TSK_MAX_ID + 1, NULL, 0);
+        &tables.migrations, &tables2.migrations, TSK_MAX_ID, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
     CU_ASSERT_EQUAL_FATAL(tables.migrations.max_rows, 4194305);
 
@@ -6168,7 +6168,7 @@ test_table_expansion(void)
     CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows, 4194305);
 
     /*Extending by more rows than possible results in overflow*/
-    ret = tsk_site_table_extend(&tables.sites, &tables2.sites, TSK_MAX_ID + 1, NULL, 0);
+    ret = tsk_site_table_extend(&tables.sites, &tables2.sites, TSK_MAX_ID, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
     CU_ASSERT_EQUAL_FATAL(tables.sites.max_rows, 4194305);
 
@@ -6232,7 +6232,7 @@ test_table_expansion(void)
 
     /*Extending by more rows than possible results in overflow*/
     ret = tsk_mutation_table_extend(
-        &tables.mutations, &tables2.mutations, TSK_MAX_ID + 1, NULL, 0);
+        &tables.mutations, &tables2.mutations, TSK_MAX_ID, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
     CU_ASSERT_EQUAL_FATAL(tables.mutations.max_rows, 4194305);
 
@@ -6298,7 +6298,7 @@ test_table_expansion(void)
 
     /*Extending by more rows than possible results in overflow*/
     ret = tsk_population_table_extend(
-        &tables.populations, &tables2.populations, TSK_MAX_ID + 1, NULL, 0);
+        &tables.populations, &tables2.populations, TSK_MAX_ID, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
     CU_ASSERT_EQUAL_FATAL(tables.populations.max_rows, 4194305);
 
@@ -6364,7 +6364,7 @@ test_table_expansion(void)
 
     /*Extending by more rows than possible results in overflow*/
     ret = tsk_provenance_table_extend(
-        &tables.provenances, &tables2.provenances, TSK_MAX_ID + 1, NULL, 0);
+        &tables.provenances, &tables2.provenances, TSK_MAX_ID, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TABLE_OVERFLOW);
     CU_ASSERT_EQUAL_FATAL(tables.provenances.max_rows, 4194305);
 
@@ -8576,7 +8576,7 @@ test_table_overflow(void)
     int ret;
     tsk_id_t ret_id;
     tsk_table_collection_t tables;
-    tsk_size_t max_rows = ((tsk_size_t) TSK_MAX_ID) + 1;
+    tsk_size_t max_rows = ((tsk_size_t) TSK_MAX_ID);
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
