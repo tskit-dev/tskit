@@ -8,6 +8,11 @@
   nodes of each node in the tree. (:user:`GertjanBisschop`, :issue:`2274`, :pr:`2316`)
 
 
+**Changes**
+
+- Reduce the maximum number of rows in a table by 1. This removes edge cases so that a ``tsk_id_t`` can be
+  used to count the number of rows. (:user:`benjeffery`, :issue:`2336`, :pr:`2337`)
+
 --------------------
 [1.0.0] - 2022-05-24
 --------------------
