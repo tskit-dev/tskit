@@ -76,7 +76,7 @@ class TestDefinitions:
                 tree.num_children(u) == 2 for u in tree.nodes() if tree.is_internal(u)
             )
             if tree.num_roots != 1 or not is_binary:
-                with pytest.raises(ValueError):
+                with pytest.raises(tskit.LibraryError):
                     tree.colless_index()
                 with pytest.raises(ValueError):
                     colless_index_definition(tree)
@@ -146,7 +146,7 @@ class TestBalancedTernary:
         assert self.tree().sackin_index() == 18
 
     def test_colless(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(tskit.LibraryError, match="UNDEFINED_NONBINARY"):
             self.tree().colless_index()
 
     def test_b1(self):
@@ -166,7 +166,7 @@ class TestStarN10:
         assert self.tree().sackin_index() == 10
 
     def test_colless(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(tskit.LibraryError, match="UNDEFINED_NONBINARY"):
             self.tree().colless_index()
 
     def test_b1(self):
@@ -221,7 +221,7 @@ class TestMultiRootBinary:
         assert self.tree().sackin_index() == 20
 
     def test_colless(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(tskit.LibraryError, match="UNDEFINED_MULTIROOT"):
             self.tree().colless_index()
 
     def test_b1(self):
@@ -238,7 +238,7 @@ class TestEmpty:
         assert self.tree().sackin_index() == 0
 
     def test_colless(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(tskit.LibraryError, match="UNDEFINED_MULTIROOT"):
             self.tree().colless_index()
 
     def test_b1(self):
@@ -256,7 +256,7 @@ class TestTreeInNullState:
         assert self.tree().sackin_index() == 0
 
     def test_colless(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(tskit.LibraryError, match="UNDEFINED_MULTIROOT"):
             self.tree().colless_index()
 
     def test_b1(self):
@@ -275,7 +275,7 @@ class TestAllRootsN5:
         assert self.tree().sackin_index() == 0
 
     def test_colless(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(tskit.LibraryError, match="UNDEFINED_MULTIROOT"):
             self.tree().colless_index()
 
     def test_b1(self):

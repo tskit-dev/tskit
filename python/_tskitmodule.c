@@ -10793,6 +10793,27 @@ out:
 }
 
 static PyObject *
+Tree_get_colless_index(Tree *self)
+{
+    PyObject *ret = NULL;
+    int err;
+    tsk_size_t result;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+
+    err = tsk_tree_colless_index(self->tree, &result);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("K", (unsigned long long) result);
+out:
+    return ret;
+}
+
+static PyObject *
 Tree_get_root_threshold(Tree *self)
 {
     PyObject *ret = NULL;
@@ -11206,7 +11227,11 @@ static PyMethodDef Tree_methods[] = {
     { .ml_name = "get_sackin_index",
         .ml_meth = (PyCFunction) Tree_get_sackin_index,
         .ml_flags = METH_NOARGS,
-        .ml_doc = "Returns the root threshold for this tree." },
+        .ml_doc = "Returns the Sackin index for this tree." },
+    { .ml_name = "get_colless_index",
+        .ml_meth = (PyCFunction) Tree_get_colless_index,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the Colless index for this tree." },
     { NULL } /* Sentinel */
 };
 

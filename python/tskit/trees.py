@@ -2808,9 +2808,9 @@ class Tree:
         """
         Returns the Colless imbalance index for this tree.
         This is defined as the sum of all differences between number of
-        leaves under right sub-node and left sub-node for each node.
+        leaves subtended by the left and right child of each node.
         The Colless index is undefined for non-binary trees and trees
-        with multiple roots. This method will raise a ValueError if the
+        with multiple roots. This method will raise a LibraryError if the
         tree is not singly-rooted and binary.
 
         .. seealso:: See `Shao and Sokal (1990)
@@ -2819,25 +2819,7 @@ class Tree:
         :return: The Colless imbalance index.
         :rtype: int
         """
-        # TODO implement in C
-        if self.num_roots != 1:
-            raise ValueError("Colless index not defined for multiroot trees")
-        num_leaves = np.zeros(self.tree_sequence.num_nodes, dtype=np.int32)
-        total = 0
-        for u in self.nodes(order="postorder"):
-            num_children = 0
-            for v in self.children(u):
-                num_leaves[u] += num_leaves[v]
-                num_children += 1
-            if num_children == 0:
-                num_leaves[u] = 1
-            elif num_children != 2:
-                raise ValueError("Colless index not defined for nonbinary trees")
-            else:
-                total += abs(
-                    num_leaves[self.right_child(u)] - num_leaves[self.left_child(u)]
-                )
-        return total
+        return self._ll_tree.get_colless_index()
 
     def sackin_index(self):
         """
