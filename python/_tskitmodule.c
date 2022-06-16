@@ -52,6 +52,7 @@ static PyObject *TskitVersionTooOldError;
 static PyObject *TskitVersionTooNewError;
 static PyObject *TskitIdentityPairsNotStoredError;
 static PyObject *TskitIdentitySegmentsNotStoredError;
+static PyObject *TskitNoSampleListsError;
 
 #include "tskit_lwt_interface.h"
 
@@ -60,7 +61,7 @@ static PyObject *TskitIdentitySegmentsNotStoredError;
 /* The XTable classes each have 'lock' attribute, which is used to
  * raise an error if a Python thread attempts to access a table
  * while another Python thread is operating on it. Because tables
- * allocate memory dynamically, we cannot gaurantee safety otherwise.
+ * allocate memory dynamically, we cannot guarantee safety otherwise.
  * The locks are set before the GIL is released and unset afterwards.
  * Because C code executed here represents atomic Python operations
  * (while the GIL is held), this should be safe */
@@ -242,6 +243,10 @@ handle_library_error(int err)
           "and you have attempted to access functionality that requires them. "
           "Please use the store_segments=True option to ibd_segments "
           "(but beware this will need more time and memory).";
+    const char *no_sample_lists_msg
+        = "This method requires that sample lists are stored in the Tree object. "
+          "Please pass sample_lists=True option to the function that created the "
+          "Tree object. For example ts.trees(sample_lists=True).";
     if (tsk_is_kas_error(err)) {
         kas_err = tsk_get_kas_error(err);
         switch (kas_err) {
@@ -272,6 +277,9 @@ handle_library_error(int err)
             case TSK_ERR_IBD_SEGMENTS_NOT_STORED:
                 PyErr_SetString(TskitIdentitySegmentsNotStoredError,
                     identity_segments_not_stored_msg);
+                break;
+            case TSK_ERR_NO_SAMPLE_LISTS:
+                PyErr_SetString(TskitNoSampleListsError, no_sample_lists_msg);
                 break;
             case TSK_ERR_IO:
                 /* Note this case isn't covered by tests because it's actually
@@ -12711,6 +12719,7 @@ PyInit__tskit(void)
     PyModule_AddObject(module, "VersionTooOldError", TskitVersionTooOldError);
     TskitIdentityPairsNotStoredError
         = PyErr_NewException("_tskit.IdentityPairsNotStoredError", TskitException, NULL);
+    Py_INCREF(TskitIdentityPairsNotStoredError);
     PyModule_AddObject(
         module, "IdentityPairsNotStoredError", TskitIdentityPairsNotStoredError);
     TskitIdentitySegmentsNotStoredError = PyErr_NewException(
@@ -12718,6 +12727,10 @@ PyInit__tskit(void)
     Py_INCREF(TskitIdentitySegmentsNotStoredError);
     PyModule_AddObject(
         module, "IdentitySegmentsNotStoredError", TskitIdentitySegmentsNotStoredError);
+    TskitNoSampleListsError
+        = PyErr_NewException("_tskit.NoSampleListsError", TskitException, NULL);
+    Py_INCREF(TskitNoSampleListsError);
+    PyModule_AddObject(module, "NoSampleListsError", TskitNoSampleListsError);
 
     PyModule_AddIntConstant(module, "NULL", TSK_NULL);
     PyModule_AddIntConstant(module, "MISSING_DATA", TSK_MISSING_DATA);

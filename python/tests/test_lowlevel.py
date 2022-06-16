@@ -3251,7 +3251,10 @@ class TestTree(LowLevelTestCase):
         ts2 = self.get_example_tree_sequence(10)
         t2 = _tskit.Tree(ts2)
         t2.first()
-        self.verify_kc_library_error(t1, t2)
+        with pytest.raises(
+            _tskit.NoSampleListsError, match="requires that sample lists are stored"
+        ):
+            self.verify_kc_library_error(t1, t2)
 
         # Unary nodes cause errors.
         tables = _tskit.TableCollection(1.0)
