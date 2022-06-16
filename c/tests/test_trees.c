@@ -6555,7 +6555,7 @@ test_single_tree_balance(void)
     int ret;
     tsk_treeseq_t ts;
     tsk_tree_t t;
-    tsk_size_t sackin;
+    tsk_size_t sackin, colless;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
         NULL, NULL, NULL, 0);
@@ -6567,6 +6567,8 @@ test_single_tree_balance(void)
     /* Balanced binary tree with 4 leaves */
     CU_ASSERT_EQUAL_FATAL(tsk_tree_sackin_index(&t, &sackin), 0);
     CU_ASSERT_EQUAL(sackin, 8);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_colless_index(&t, &colless), 0);
+    CU_ASSERT_EQUAL(colless, 0);
 
     tsk_treeseq_free(&ts);
     tsk_tree_free(&t);
@@ -6602,6 +6604,38 @@ test_multiroot_balance(void)
     CU_ASSERT_EQUAL_FATAL(tsk_tree_sackin_index(&t, &sackin), 0);
     CU_ASSERT_EQUAL(sackin, 7);
 
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_colless_index(&t, NULL), TSK_ERR_UNDEFINED_MULTIROOT);
+
+    tsk_treeseq_free(&ts);
+    tsk_tree_free(&t);
+}
+
+static void
+test_nonbinary_balance(void)
+{
+    int ret;
+    const char *nodes = "1  0   0\n"
+                        "1  0   0\n"
+                        "1  0   0\n"
+                        "1  0   0\n"
+                        "0  1   0";
+    const char *edges = "0  1   4   0,1,2,3\n";
+    tsk_treeseq_t ts;
+    tsk_tree_t t;
+    tsk_size_t sackin, colless;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
+    ret = tsk_tree_init(&t, &ts, 0);
+    CU_ASSERT_EQUAL(ret, 0);
+    ret = tsk_tree_first(&t);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_TREE_OK);
+
+    /* Star tree with 4 leaves */
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_sackin_index(&t, &sackin), 0);
+    CU_ASSERT_EQUAL(sackin, 4);
+    CU_ASSERT_EQUAL_FATAL(
+        tsk_tree_colless_index(&t, &colless), TSK_ERR_UNDEFINED_NONBINARY);
+
     tsk_treeseq_free(&ts);
     tsk_tree_free(&t);
 }
@@ -6613,7 +6647,7 @@ test_empty_tree_balance(void)
     tsk_table_collection_t tables;
     tsk_treeseq_t ts;
     tsk_tree_t t;
-    tsk_size_t sackin;
+    tsk_size_t sackin, colless;
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -6627,6 +6661,9 @@ test_empty_tree_balance(void)
 
     CU_ASSERT_EQUAL_FATAL(tsk_tree_sackin_index(&t, &sackin), 0);
     CU_ASSERT_EQUAL(sackin, 0);
+    /* Technically wrong here because we have 0 roots, but not worth worrying about */
+    CU_ASSERT_EQUAL_FATAL(
+        tsk_tree_colless_index(&t, &colless), TSK_ERR_UNDEFINED_MULTIROOT);
 
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);
@@ -7862,6 +7899,7 @@ main(int argc, char **argv)
         /* Tree balance/imbalance index tests */
         { "test_single_tree_balance", test_single_tree_balance },
         { "test_multiroot_balance", test_multiroot_balance },
+        { "test_nonbinary_balance", test_nonbinary_balance },
         { "test_empty_tree_balance", test_empty_tree_balance },
 
         /* Misc */
