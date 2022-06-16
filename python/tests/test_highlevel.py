@@ -948,6 +948,73 @@ class TestPathLength:
         assert math.isinf(tree.path_length(0, 1))
 
 
+class TestPath:
+    t = tskit.Tree.generate_balanced(9)
+    #         16
+    #    ┏━━━━┻━━━┓
+    #    ┃       15
+    #    ┃     ┏━━┻━┓
+    #   11     ┃   14
+    #  ┏━┻━┓   ┃  ┏━┻┓
+    #  9  10  12  ┃ 13
+    # ┏┻┓ ┏┻┓ ┏┻┓ ┃ ┏┻┓
+    # 0 1 2 3 4 5 6 7 8
+
+    def test_tmrca_leaf(self):
+        assert self.t.path(0, 16) == [9, 11, 16]
+        assert self.t.path(16, 0) == [11, 9, 0]
+        assert self.t.path(7, 16) == [13, 14, 15, 16]
+
+    def test_equal_len_path(self):
+        assert len(self.t.path(5, 16)) == self.t.path_length(5, 16)
+
+    def test_two_leaves(self):
+        assert self.t.path(0, 8) == [9, 11, 16, 15, 14, 13, 8]
+
+    def test_one_node(self):
+        assert self.t.path(0) == self.t.path(0, 16)
+
+    def test_root(self):
+        assert self.t.path(16) == []
+
+    @pytest.mark.parametrize("args", [[], [1, 2, 3]])
+    def test_bad_num_args(self, args):
+        with pytest.raises(TypeError):
+            self.t.path(*args)
+
+    @pytest.mark.parametrize("bad_arg", ["1"])
+    def test_bad_arg_type(self, bad_arg):
+        with pytest.raises(TypeError):
+            self.t.path(0, bad_arg)
+        with pytest.raises(TypeError):
+            self.t.path(bad_arg, 0)
+
+    def test_different_tree_levels(self):
+        assert self.t.path(1, 10) == [9, 11, 10]
+
+    def test_out_of_bounds_args(self):
+        with pytest.raises(ValueError):
+            self.t.path(0, 20)
+
+    @pytest.mark.parametrize("u", range(17))
+    def test_virtual_root_arg(self, u):
+        assert self.t.path(u, self.t.virtual_root) == self.t.path(u, 16) + [
+            self.t.virtual_root
+        ]
+        assert self.t.path(self.t.virtual_root, u) == [self.t.root] + self.t.path(16, u)
+
+    def test_same_args(self):
+        assert self.t.path(10, 10) == []
+
+    def test_both_args_virtual_root(self):
+        assert self.t.path(self.t.virtual_root, self.t.virtual_root) == []
+
+    def test_no_mrca(self):
+        tree = self.t.copy()
+        tree.clear()
+        assert math.isinf(tree.path(0, 1))
+
+
 class TestMRCACalculator:
     """
     Class to test the Schieber-Vishkin algorithm.

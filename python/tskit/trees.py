@@ -2781,6 +2781,43 @@ class Tree:
             return math.inf
         return self.depth(u) + self.depth(v) - 2 * self.depth(mrca)
 
+    def path(self, u, v=None):
+        """
+        Returns the path between two nodes u and v, such that
+        ``len(tree.path(u, v)) == tree.path_length(u, v)``.
+        If the second node ``v`` is not specified, return the path from u to root.
+
+        :param int u: The starting node of the path.
+        :param int v: The last node of the path.
+        :return: The list of nodes from u to v (including v).
+        :rtype: list of int
+        """
+        if v is not None:
+            if u == v:
+                return []
+            mrca = self.mrca(u, v)
+            if mrca == -1:
+                return math.inf
+            path_u = []
+            while u != mrca and self.parent(u) != tskit.NULL:
+                u = self.parent(u)
+                path_u.append(u)
+            path_v = [] if v == mrca and v is not self.virtual_root else [v]
+            v2 = self.parent(v)
+            while mrca not in [v, v2] and v2 != tskit.NULL:
+                path_v.append(v2)
+                v2 = self.parent(v2)
+            return path_u + path_v[::-1]
+        else:
+            if self.has_multiple_roots:
+                return math.inf
+            path_u = []
+            u = self.parent(u)
+            while u != tskit.NULL:
+                path_u.append(u)
+                u = self.parent(u)
+            return path_u
+
     def b1_index(self):
         """
         Returns the B1 balance index for this tree.
