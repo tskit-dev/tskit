@@ -3398,10 +3398,7 @@ class TestTree(LowLevelTestCase):
         a = getattr(t1, array + "_array")
         t1.first()
         a = getattr(t1, array + "_array")
-        if array != "num_children":
-            assert a.dtype == np.int32
-        else:
-            assert a.dtype == np.uint64
+        assert a.dtype == np.int32
         assert a.shape == (ts1.get_num_nodes() + 1,)
         assert a.base == t1
         assert not a.flags.writeable

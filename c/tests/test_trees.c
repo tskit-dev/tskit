@@ -71,8 +71,7 @@ check_trees_identical(tsk_tree_t *self, tsk_tree_t *other)
     CU_ASSERT_FATAL(
         tsk_memcmp(self->right_sib, other->right_sib, N * sizeof(tsk_id_t)) == 0);
     CU_ASSERT_FATAL(
-        tsk_memcmp(self->num_children, other->num_children, N * sizeof(tsk_size_t))
-        == 0);
+        tsk_memcmp(self->num_children, other->num_children, N * sizeof(tsk_id_t)) == 0);
 
     CU_ASSERT_EQUAL_FATAL(self->num_samples == NULL, other->num_samples == NULL)
     CU_ASSERT_EQUAL_FATAL(

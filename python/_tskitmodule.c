@@ -10998,7 +10998,7 @@ Tree_get_num_children_array(Tree *self, void *closure)
     if (Tree_check_state(self) != 0) {
         goto out;
     }
-    ret = Tree_make_array(self, NPY_UINT64, self->tree->num_children);
+    ret = Tree_make_array(self, NPY_INT32, self->tree->num_children);
 out:
     return ret;
 }
