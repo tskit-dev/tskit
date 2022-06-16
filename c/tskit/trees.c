@@ -4918,7 +4918,6 @@ out:
 int
 tsk_tree_colless_index(const tsk_tree_t *self, tsk_size_t *result)
 {
-
     int ret = 0;
     const tsk_id_t *restrict right_child = self->right_child;
     const tsk_id_t *restrict left_sib = self->left_sib;
@@ -4954,7 +4953,7 @@ tsk_tree_colless_index(const tsk_tree_t *self, tsk_size_t *result)
             num_leaves[u] = 1;
         } else if (num_children == 2) {
             v = right_child[u];
-            total += (tsk_size_t) abs(num_leaves[v] - num_leaves[left_sib[v]]);
+            total += (tsk_size_t) llabs(num_leaves[v] - num_leaves[left_sib[v]]);
         } else {
             ret = TSK_ERR_UNDEFINED_NONBINARY;
             goto out;
@@ -4964,7 +4963,6 @@ tsk_tree_colless_index(const tsk_tree_t *self, tsk_size_t *result)
 out:
     tsk_safe_free(nodes);
     tsk_safe_free(num_leaves);
-
     return ret;
 }
 

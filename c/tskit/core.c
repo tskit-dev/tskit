@@ -418,7 +418,7 @@ tsk_strerror_internal(int err)
                   "(TSK_ERR_UNDEFINED_NONBINARY)";
             break;
         case TSK_ERR_UNDEFINED_MULTIROOT:
-            ret = "Operation undefined for trees with multiple roots. "
+            ret = "Operation undefined for trees that are not singly-rooted. "
                   "(TSK_ERR_UNDEFINED_MULTIROOT)";
             break;
 
