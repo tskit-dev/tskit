@@ -3462,9 +3462,10 @@ tsk_tree_init(tsk_tree_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t 
     self->left_sib = tsk_malloc(N * sizeof(*self->left_sib));
     self->right_sib = tsk_malloc(N * sizeof(*self->right_sib));
     self->num_children = tsk_calloc(N, sizeof(*self->num_children));
+    self->edge = tsk_malloc(N * sizeof(*self->edge));
     if (self->parent == NULL || self->left_child == NULL || self->right_child == NULL
         || self->left_sib == NULL || self->right_sib == NULL
-        || self->num_children == NULL) {
+        || self->num_children == NULL || self->edge == NULL) {
         goto out;
     }
     if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
@@ -3530,6 +3531,7 @@ tsk_tree_free(tsk_tree_t *self)
     tsk_safe_free(self->right_sample);
     tsk_safe_free(self->next_sample);
     tsk_safe_free(self->num_children);
+    tsk_safe_free(self->edge);
     return 0;
 }
 
@@ -3679,6 +3681,7 @@ tsk_tree_copy(const tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options)
     tsk_memcpy(dest->left_sib, self->left_sib, N * sizeof(*self->left_sib));
     tsk_memcpy(dest->right_sib, self->right_sib, N * sizeof(*self->right_sib));
     tsk_memcpy(dest->num_children, self->num_children, N * sizeof(*self->num_children));
+    tsk_memcpy(dest->edge, self->edge, N * sizeof(*self->edge));
     if (!(dest->options & TSK_NO_SAMPLE_COUNTS)) {
         if (self->options & TSK_NO_SAMPLE_COUNTS) {
             ret = TSK_ERR_UNSUPPORTED_OPERATION;
@@ -4256,6 +4259,7 @@ tsk_tree_remove_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
     tsk_id_t *restrict parent = self->parent;
     tsk_size_t *restrict num_samples = self->num_samples;
     tsk_size_t *restrict num_tracked_samples = self->num_tracked_samples;
+    tsk_id_t *restrict edge = self->edge;
     const tsk_size_t root_threshold = self->root_threshold;
     tsk_id_t u;
     tsk_id_t path_end = TSK_NULL;
@@ -4265,6 +4269,7 @@ tsk_tree_remove_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
 
     tsk_tree_remove_branch(self, p, c, parent);
     self->num_edges--;
+    edge[c] = TSK_NULL;
 
     if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
         u = p;
@@ -4290,11 +4295,12 @@ tsk_tree_remove_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
 }
 
 static void
-tsk_tree_insert_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
+tsk_tree_insert_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c, tsk_id_t edge_id)
 {
     tsk_id_t *restrict parent = self->parent;
     tsk_size_t *restrict num_samples = self->num_samples;
     tsk_size_t *restrict num_tracked_samples = self->num_tracked_samples;
+    tsk_id_t *restrict edge = self->edge;
     const tsk_size_t root_threshold = self->root_threshold;
     tsk_id_t u;
     tsk_id_t path_end = TSK_NULL;
@@ -4322,6 +4328,7 @@ tsk_tree_insert_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
 
     tsk_tree_insert_branch(self, p, c, parent);
     self->num_edges++;
+    edge[c] = edge_id;
 
     if (self->options & TSK_SAMPLE_LISTS) {
         tsk_tree_update_sample_lists(self, p, parent);
@@ -4361,7 +4368,7 @@ tsk_tree_advance(tsk_tree_t *self, int direction, const double *restrict out_bre
     while (in >= 0 && in < num_edges && in_breakpoints[in_order[in]] == x) {
         k = in_order[in];
         in += direction;
-        tsk_tree_insert_edge(self, edge_parent[k], edge_child[k]);
+        tsk_tree_insert_edge(self, edge_parent[k], edge_child[k], k);
     }
 
     self->direction = direction;
@@ -4586,6 +4593,7 @@ tsk_tree_clear(tsk_tree_t *self)
     tsk_memset(self->left_sib, 0xff, N * sizeof(*self->left_sib));
     tsk_memset(self->right_sib, 0xff, N * sizeof(*self->right_sib));
     tsk_memset(self->num_children, 0, N * sizeof(*self->num_children));
+    tsk_memset(self->edge, 0xff, N * sizeof(*self->edge));
 
     if (sample_counts) {
         tsk_memset(self->num_samples, 0, N * sizeof(*self->num_samples));

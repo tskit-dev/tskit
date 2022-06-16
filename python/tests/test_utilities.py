@@ -194,3 +194,16 @@ class TestQuintuplyLinkedTrees:
 
         qlt.remove_branch(2, 0)
         assert qlt.num_children[2] == 0
+
+    def test_edge_operations(self):
+        tt = tskit.Tree.generate_balanced(3)
+        tts = tt.tree_sequence
+
+        for _, qlt in tsutil.algorithm_R(tts):
+            assert np.sum(qlt.edge != -1) == tt.num_edges
+            self.verify_tree_edges(qlt, tts)
+
+    def verify_tree_edges(self, quintuply_linked_tree, tts):
+        for edge in tts.edges():
+            assert quintuply_linked_tree.edge[edge.child] == edge.id
+            assert quintuply_linked_tree.parent[edge.child] == edge.parent

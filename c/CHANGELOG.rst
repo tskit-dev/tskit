@@ -7,6 +7,10 @@
 - Add ``num_children`` to ``tsk_tree_t`` an array which contains counts of the number of child
   nodes of each node in the tree. (:user:`GertjanBisschop`, :issue:`2274`, :pr:`2316`)
 
+- Add ``edge`` to ``tsk_tree_t`` an array which contains the ``edge_id`` of the edge encoding
+  the relationship between the child node and its parent for each (child) node in the tree
+  (:user:`GertjanBisschop`, :issue:`2304`, :pr:`2340`)
+
 
 **Changes**
 
