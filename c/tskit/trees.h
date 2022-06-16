@@ -175,7 +175,7 @@ typedef struct {
     /**
      @brief The number of children of node u is num_children[u].
      */
-    tsk_size_t *num_children;
+    tsk_id_t *num_children;
     /**
      @brief The total number of edges defining the topology of this tree.
      This is equal to the number of tree sequence edges that intersect with

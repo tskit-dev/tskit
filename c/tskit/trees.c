@@ -3882,7 +3882,7 @@ tsk_tree_get_right_root(const tsk_tree_t *self)
 tsk_size_t
 tsk_tree_get_num_roots(const tsk_tree_t *self)
 {
-    return self->num_children[self->virtual_root];
+    return (tsk_size_t) self->num_children[self->virtual_root];
 }
 
 int TSK_WARN_UNUSED
@@ -4196,7 +4196,7 @@ tsk_tree_remove_branch(
     tsk_id_t *restrict right_child = self->right_child;
     tsk_id_t *restrict left_sib = self->left_sib;
     tsk_id_t *restrict right_sib = self->right_sib;
-    tsk_size_t *restrict num_children = self->num_children;
+    tsk_id_t *restrict num_children = self->num_children;
     tsk_id_t lsib = left_sib[c];
     tsk_id_t rsib = right_sib[c];
 
@@ -4224,7 +4224,7 @@ tsk_tree_insert_branch(
     tsk_id_t *restrict right_child = self->right_child;
     tsk_id_t *restrict left_sib = self->left_sib;
     tsk_id_t *restrict right_sib = self->right_sib;
-    tsk_size_t *restrict num_children = self->num_children;
+    tsk_id_t *restrict num_children = self->num_children;
     tsk_id_t u;
 
     parent[c] = p;

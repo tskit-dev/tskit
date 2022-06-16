@@ -1789,7 +1789,14 @@ class TestEmptyTreeSequences(TopologyTestCase):
         assert list(t.nodes()) == []
         assert list(ts.haplotypes()) == []
         assert list(ts.variants()) == []
-        methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib, t.num_children]
+        methods = [
+            t.parent,
+            t.left_child,
+            t.right_child,
+            t.left_sib,
+            t.right_sib,
+            t.num_children,
+        ]
         for method in methods:
             for u in [-1, 1, 100]:
                 with pytest.raises(ValueError):
@@ -1821,7 +1828,14 @@ class TestEmptyTreeSequences(TopologyTestCase):
         assert list(t.nodes()) == []
         assert list(ts.haplotypes()) == []
         assert list(ts.variants()) == []
-        methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib, t.num_children]
+        methods = [
+            t.parent,
+            t.left_child,
+            t.right_child,
+            t.left_sib,
+            t.right_sib,
+            t.num_children,
+        ]
         for method in methods:
             expected = tskit.NULL if method != t.num_children else 0
             assert method(0) == expected
@@ -1877,7 +1891,14 @@ class TestEmptyTreeSequences(TopologyTestCase):
         assert list(t.nodes()) == [0]
         assert list(ts.haplotypes(isolated_as_missing=False)) == [""]
         assert list(ts.variants()) == []
-        methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib, t.num_children]
+        methods = [
+            t.parent,
+            t.left_child,
+            t.right_child,
+            t.left_sib,
+            t.right_sib,
+            t.num_children,
+        ]
         for method in methods:
             expected = tskit.NULL if method != t.num_children else 0
             assert method(0) == expected
@@ -1912,7 +1933,14 @@ class TestEmptyTreeSequences(TopologyTestCase):
         assert list(t.nodes()) == [0]
         assert list(ts.haplotypes(isolated_as_missing=False)) == ["1"]
         assert len(list(ts.variants())) == 1
-        methods = [t.parent, t.left_child, t.right_child, t.left_sib, t.right_sib, t.num_children]
+        methods = [
+            t.parent,
+            t.left_child,
+            t.right_child,
+            t.left_sib,
+            t.right_sib,
+            t.num_children,
+        ]
         for method in methods:
             expected = tskit.NULL if method != t.num_children else 0
             assert method(0) == expected
@@ -6671,7 +6699,9 @@ class RootThreshold(ExampleTopologyMixin):
             )
             np.testing.assert_array_equal(tree_py.left_sib, tree_lib.left_sib_array)
             np.testing.assert_array_equal(tree_py.right_sib, tree_lib.right_sib_array)
-            np.testing.assert_array_equal(tree_py.num_children, tree_lib.num_children_array)
+            np.testing.assert_array_equal(
+                tree_py.num_children, tree_lib.num_children_array
+            )
 
             # NOTE: the legacy left_root value is *not* necessarily the same as the
             # new left_root.
