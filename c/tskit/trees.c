@@ -4915,6 +4915,59 @@ out:
     return ret;
 }
 
+int
+tsk_tree_colless_index(const tsk_tree_t *self, tsk_size_t *result)
+{
+
+    int ret = 0;
+    const tsk_id_t *restrict right_child = self->right_child;
+    const tsk_id_t *restrict left_sib = self->left_sib;
+    tsk_id_t *nodes = tsk_malloc(tsk_tree_get_size_bound(self) * sizeof(*nodes));
+    tsk_id_t *num_leaves = tsk_calloc(self->num_nodes, sizeof(*num_leaves));
+    tsk_size_t j, num_nodes, total;
+    tsk_id_t num_children, u, v;
+
+    if (nodes == NULL || num_leaves == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    if (tsk_tree_get_num_roots(self) != 1) {
+        ret = TSK_ERR_UNDEFINED_MULTIROOT;
+        goto out;
+    }
+    ret = tsk_tree_postorder(self, nodes, &num_nodes);
+    if (ret != 0) {
+        goto out;
+    }
+
+    total = 0;
+    for (j = 0; j < num_nodes; j++) {
+        u = nodes[j];
+        /* Cheaper to compute this on the fly than to access the num_children array.
+         * since we're already iterating over the children. */
+        num_children = 0;
+        for (v = right_child[u]; v != TSK_NULL; v = left_sib[v]) {
+            num_children++;
+            num_leaves[u] += num_leaves[v];
+        }
+        if (num_children == 0) {
+            num_leaves[u] = 1;
+        } else if (num_children == 2) {
+            v = right_child[u];
+            total += (tsk_size_t) abs(num_leaves[v] - num_leaves[left_sib[v]]);
+        } else {
+            ret = TSK_ERR_UNDEFINED_NONBINARY;
+            goto out;
+        }
+    }
+    *result = total;
+out:
+    tsk_safe_free(nodes);
+    tsk_safe_free(num_leaves);
+
+    return ret;
+}
+
 /* Parsimony methods */
 
 static inline uint64_t

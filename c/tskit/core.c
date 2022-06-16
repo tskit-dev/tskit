@@ -413,6 +413,14 @@ tsk_strerror_internal(int err)
             ret = "A tree sequence can't take ownership of tables with "
                   "TSK_NO_EDGE_METADATA. (TSK_ERR_CANT_TAKE_OWNERSHIP_NO_EDGE_METADATA)";
             break;
+        case TSK_ERR_UNDEFINED_NONBINARY:
+            ret = "Operation undefined for nonbinary trees. "
+                  "(TSK_ERR_UNDEFINED_NONBINARY)";
+            break;
+        case TSK_ERR_UNDEFINED_MULTIROOT:
+            ret = "Operation undefined for trees with multiple roots. "
+                  "(TSK_ERR_UNDEFINED_MULTIROOT)";
+            break;
 
         /* Stats errors */
         case TSK_ERR_BAD_NUM_WINDOWS:
