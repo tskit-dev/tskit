@@ -177,6 +177,13 @@ typedef struct {
      */
     tsk_id_t *num_children;
     /**
+     @brief Array of edge ids where ``edge[u]`` is the edge that encodes the
+     relationship between the child node ``u`` and its parent. Equal to
+     ``TSK_NULL`` if node ``u`` is a root, virtual root or is not a node in the
+     current tree.
+     */
+    tsk_id_t *edge;
+    /**
      @brief The total number of edges defining the topology of this tree.
      This is equal to the number of tree sequence edges that intersect with
      the tree's genomic interval.

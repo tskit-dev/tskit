@@ -43,6 +43,7 @@ class PythonTree:
         self.left_sib = [tskit.NULL for _ in range(num_nodes)]
         self.right_sib = [tskit.NULL for _ in range(num_nodes)]
         self.num_children = [0 for _ in range(num_nodes)]
+        self.edge = [tskit.NULL for _ in range(num_nodes)]
         self.left = 0
         self.right = 0
         self.index = -1
@@ -65,6 +66,7 @@ class PythonTree:
             ret.left_sib[u] = tree.left_sib(u)
             ret.right_sib[u] = tree.right_sib(u)
             ret.num_children[u] = tree.num_children(u)
+            ret.edge[u] = tree.edge(u)
         assert ret == tree
         return ret
 
@@ -188,6 +190,7 @@ class PythonTreeSequence:
             pt.left_sib[:] = rtt.left_sib
             pt.right_sib[:] = rtt.right_sib
             pt.num_children[:] = rtt.num_children
+            pt.edge[:] = rtt.edge
             pt.left_root = rtt.left_child[-1]
             pt.left = left
             pt.right = right

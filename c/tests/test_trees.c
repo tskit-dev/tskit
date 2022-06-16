@@ -72,6 +72,7 @@ check_trees_identical(tsk_tree_t *self, tsk_tree_t *other)
         tsk_memcmp(self->right_sib, other->right_sib, N * sizeof(tsk_id_t)) == 0);
     CU_ASSERT_FATAL(
         tsk_memcmp(self->num_children, other->num_children, N * sizeof(tsk_id_t)) == 0);
+    CU_ASSERT_FATAL(tsk_memcmp(self->edge, other->edge, N * sizeof(tsk_id_t)) == 0);
 
     CU_ASSERT_EQUAL_FATAL(self->num_samples == NULL, other->num_samples == NULL)
     CU_ASSERT_EQUAL_FATAL(
@@ -475,6 +476,65 @@ verify_tree_diffs(tsk_treeseq_t *ts, tsk_flags_t options)
     free(parent);
     free(child);
     free(sib);
+}
+
+static void
+verify_edge_array_single_tree(
+    tsk_tree_t *tree, tsk_edge_table_t *edge_table, tsk_size_t num_nodes)
+{
+    int ret;
+    tsk_id_t c, edge_id;
+    tsk_edge_t edge;
+    tsk_size_t count_edges = 0;
+
+    for (c = 0; c <= (tsk_id_t) num_nodes; c++) {
+        edge_id = tree->edge[c];
+        if (edge_id == TSK_NULL) {
+            /*c is either (virtual) root,
+            or is not associated with an edge along this tree */
+            CU_ASSERT_EQUAL(tree->parent[c], TSK_NULL);
+        } else {
+            ret = tsk_edge_table_get_row(edge_table, edge_id, &edge);
+            CU_ASSERT_EQUAL_FATAL(ret, 0);
+            CU_ASSERT_EQUAL(edge.id, edge_id);
+            CU_ASSERT_EQUAL(edge.parent, tree->parent[c]);
+            CU_ASSERT_EQUAL(edge.child, c);
+            count_edges++;
+        }
+    }
+
+    CU_ASSERT_EQUAL(count_edges, tree->num_edges);
+}
+
+static void
+verify_edge_array_trees(tsk_treeseq_t *ts)
+{
+    int ret;
+    tsk_tree_t t;
+    tsk_edge_table_t edge_table;
+    tsk_size_t num_nodes;
+    tsk_id_t c;
+
+    num_nodes = tsk_treeseq_get_num_nodes(ts);
+
+    edge_table = ts->tables->edges;
+    ret = tsk_tree_init(&t, ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    /* verify initialized edge array */
+    for (c = 0; c <= (tsk_id_t) num_nodes; c++) {
+        CU_ASSERT_EQUAL(t.edge[c], TSK_NULL)
+    }
+    /* verify edge array for each tree in treesequence */
+    for (ret = tsk_tree_first(&t); ret == TSK_TREE_OK; ret = tsk_tree_next(&t)) {
+        verify_edge_array_single_tree(&t, &edge_table, num_nodes);
+    }
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    /* verify cleared edge array */
+    for (c = 0; c <= (tsk_id_t) num_nodes; c++) {
+        CU_ASSERT_EQUAL(t.edge[c], TSK_NULL)
+    }
+
+    tsk_tree_free(&t);
 }
 
 /* When we keep all sites in simplify, the genotypes for the subset of the
@@ -3541,6 +3601,7 @@ test_single_tree_good_records(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&ts), 7);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 1);
+    verify_edge_array_trees(&ts);
     tsk_treeseq_free(&ts);
 }
 
@@ -3568,6 +3629,7 @@ test_single_nonbinary_tree_good_records(void)
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&ts), 10);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_mutations(&ts), 0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&ts), 1);
+    verify_edge_array_trees(&ts);
     tsk_treeseq_free(&ts);
 }
 
@@ -3883,6 +3945,7 @@ test_single_tree_iter(void)
     tsk_size_t num_nodes = 7;
 
     tsk_treeseq_from_text(&ts, 6, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
+    verify_edge_array_trees(&ts);
     ret = tsk_tree_init(&tree, &ts, 0);
     CU_ASSERT_EQUAL(ret, 0);
 
@@ -3948,6 +4011,7 @@ test_single_nonbinary_tree_iter(void)
     tsk_size_t total_samples = 7;
 
     tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
+    verify_edge_array_trees(&ts);
     ret = tsk_tree_init(&tree, &ts, 0);
     CU_ASSERT_EQUAL(ret, 0);
 
@@ -4044,6 +4108,7 @@ test_single_tree_general_samples_iter(void)
     CU_ASSERT_EQUAL(samples[1], 4);
     CU_ASSERT_EQUAL(samples[2], 5);
     CU_ASSERT_EQUAL(samples[3], 6);
+    verify_edge_array_trees(&ts);
 
     ret = tsk_tree_init(&tree, &ts, 0);
     CU_ASSERT_EQUAL(ret, 0);
@@ -4951,6 +5016,7 @@ test_simple_multi_tree(void)
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_trees(&ts, num_trees, parents);
+    verify_edge_array_trees(&ts);
     tsk_treeseq_free(&ts);
 }
 
@@ -4970,6 +5036,7 @@ test_unary_multi_tree(void)
     tsk_treeseq_from_text(&ts, 10, unary_ex_nodes, unary_ex_edges, NULL, unary_ex_sites,
         unary_ex_mutations, NULL, NULL, 0);
     verify_trees(&ts, num_trees, parents);
+    verify_edge_array_trees(&ts);
     tsk_treeseq_free(&ts);
 }
 
@@ -4989,6 +5056,7 @@ test_internal_sample_multi_tree(void)
     tsk_treeseq_from_text(&ts, 10, internal_sample_ex_nodes, internal_sample_ex_edges,
         NULL, internal_sample_ex_sites, internal_sample_ex_mutations, NULL, NULL, 0);
     verify_trees(&ts, num_trees, parents);
+    verify_edge_array_trees(&ts);
     tsk_treeseq_free(&ts);
 }
 
@@ -5019,6 +5087,7 @@ test_internal_sample_simplified_multi_tree(void)
     CU_ASSERT_EQUAL(node_map[5], 2);
 
     verify_trees(&simplified, num_trees, parents);
+    verify_edge_array_trees(&ts);
     tsk_treeseq_free(&simplified);
     tsk_treeseq_free(&ts);
 }
@@ -5040,6 +5109,7 @@ test_nonbinary_multi_tree(void)
     tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges, NULL,
         nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL, 0);
     verify_trees(&ts, num_trees, parents);
+    verify_edge_array_trees(&ts);
     tsk_treeseq_free(&ts);
 }
 
@@ -5093,6 +5163,7 @@ test_simplify_keep_input_roots_multi_tree(void)
         &ts, samples, 2, TSK_SIMPLIFY_KEEP_INPUT_ROOTS, &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     verify_trees(&simplified, num_trees, parents);
+    verify_edge_array_trees(&ts);
 
     tsk_treeseq_free(&ts);
     tsk_treeseq_free(&simplified);
@@ -5138,6 +5209,7 @@ test_left_to_right_multi_tree(void)
     tsk_treeseq_from_text(&ts, 10, nodes, edges, NULL, sites, mutations, NULL, NULL, 0);
     verify_trees(&ts, num_trees, parents);
     verify_tree_next_prev(&ts);
+    verify_edge_array_trees(&ts);
     tsk_treeseq_free(&ts);
 }
 
@@ -5183,6 +5255,7 @@ test_gappy_multi_tree(void)
     tsk_treeseq_from_text(&ts, 12, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
     verify_trees(&ts, num_trees, parents);
     verify_tree_next_prev(&ts);
+    verify_edge_array_trees(&ts);
     tsk_treeseq_free(&ts);
 }
 
@@ -5233,7 +5306,7 @@ test_tsk_treeseq_bad_records(void)
 }
 
 static void
-test_num_children_multi_tree(void)
+test_convenience_arrays_multi_tree(void)
 {
     int ret;
     tsk_treeseq_t ts;
@@ -5241,7 +5314,7 @@ test_num_children_multi_tree(void)
 
     tsk_treeseq_from_text(
         &ts, 10, unary_ex_nodes, unary_ex_edges, NULL, NULL, NULL, NULL, NULL, 0);
-
+    verify_edge_array_trees(&ts);
     ret = tsk_tree_init(&t, &ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_tree_next(&t));
@@ -7823,7 +7896,7 @@ main(int argc, char **argv)
             test_simplify_keep_input_roots_multi_tree },
         { "test_left_to_right_multi_tree", test_left_to_right_multi_tree },
         { "test_gappy_multi_tree", test_gappy_multi_tree },
-        { "test_num_children_multi_tree", test_num_children_multi_tree },
+        { "test_convenience_arrays_multi_tree", test_convenience_arrays_multi_tree },
 
         { "test_tsk_treeseq_bad_records", test_tsk_treeseq_bad_records },
 
