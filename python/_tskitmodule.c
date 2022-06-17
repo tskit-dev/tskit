@@ -9466,37 +9466,26 @@ static PyObject *
 TreeSequence_split_edges(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
-    static char *kwlist[]
-        = { "time", "flags", "population", "metadata", "impute_population", NULL };
+    static char *kwlist[] = { "time", "flags", "population", "metadata", NULL };
     double time;
     tsk_flags_t flags;
     tsk_id_t population;
-    int impute_population;
     PyObject *py_metadata = Py_None;
     char *metadata;
     Py_ssize_t metadata_length;
     int err;
-    tsk_flags_t options = 0;
     TreeSequence *output = NULL;
 
     if (TreeSequence_check_state(self) != 0) {
         goto out;
     }
-    /* NOTE: we could make most of these arguments optional and reason about
-     * impute_population through the value of the population parameter,
-     * but we're trying to keep this code as simple as possible and put
-     * the logic in the high-level Python code */
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "dO&O&Oi", kwlist, &time,
-            &uint32_converter, &flags, &tsk_id_converter, &population, &py_metadata,
-            &impute_population)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "dO&O&O", kwlist, &time,
+            &uint32_converter, &flags, &tsk_id_converter, &population, &py_metadata)) {
         goto out;
     }
 
     if (PyBytes_AsStringAndSize(py_metadata, &metadata, &metadata_length) < 0) {
         goto out;
-    }
-    if (impute_population) {
-        options |= TSK_SPLIT_EDGES_IMPUTE_POPULATION;
     }
 
     output = (TreeSequence *) _PyObject_New((PyTypeObject *) &TreeSequenceType);
@@ -9509,7 +9498,7 @@ TreeSequence_split_edges(TreeSequence *self, PyObject *args, PyObject *kwds)
         goto out;
     }
     err = tsk_treeseq_split_edges(self->tree_sequence, time, flags, population, metadata,
-        metadata_length, options, output->tree_sequence);
+        metadata_length, 0, output->tree_sequence);
     if (err != 0) {
         handle_library_error(err);
         goto out;

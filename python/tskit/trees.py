@@ -6035,9 +6035,8 @@ class TreeSequence:
         added nodes will be assigned these values. Otherwise, default values
         will be used. The default metadata is an empty dictionary if a metadata
         schema is defined for the node table, and is an empty byte string
-        otherwise. The default population for the new node will be derived from
-        the population of the edge's child. Newly added have a default
-        ``flags`` value of 0.
+        otherwise. The default population for the new node is
+        :data:`tskit.NULL`. Newly added have a default ``flags`` value of 0.
 
         Any metadata associated with a split edge will be copied to the new edge.
 
@@ -6055,18 +6054,14 @@ class TreeSequence:
         :param float time: The cutoff time.
         :param int flags: The flags value for newly-inserted nodes. (Default = 0)
         :param int population: The population value for newly inserted nodes.
-            Defaults to the population of the child node of the split edge
-            if not specified.
+            Defaults to ``tskit.NULL`` if not specified.
         :param metadata: The metadata for any newly inserted nodes. See
             :meth:`.NodeTable.add_row` for details on how default metadata
             is produced for a given schema (or none).
         :return: A copy of this tree sequence with edges split at the specified time.
         :rtype: tskit.TreeSequence
         """
-        impute_population = False
-        if population is None:
-            impute_population = True
-            population = tskit.NULL
+        population = tskit.NULL if population is None else population
         flags = 0 if flags is None else flags
         schema = self.table_metadata_schemas.node
         if metadata is None:
@@ -6077,7 +6072,6 @@ class TreeSequence:
             flags=flags,
             population=population,
             metadata=metadata,
-            impute_population=impute_population,
         )
         return TreeSequence(ll_ts)
 
@@ -6112,8 +6106,7 @@ class TreeSequence:
         :param float time: The cutoff time.
         :param int flags: The flags value for newly-inserted nodes. (Default = 0)
         :param int population: The population value for newly inserted nodes.
-            Defaults to the population of the child node of the split edge
-            if not specified.
+            Defaults to ``tskit.NULL`` if not specified.
         :param metadata: The metadata for any newly inserted nodes. See
             :meth:`.NodeTable.add_row` for details on how default metadata
             is produced for a given schema (or none).

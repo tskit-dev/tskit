@@ -3318,12 +3318,11 @@ out:
 int TSK_WARN_UNUSED
 tsk_treeseq_split_edges(const tsk_treeseq_t *self, double time, tsk_flags_t flags,
     tsk_id_t population, const char *metadata, tsk_size_t metadata_length,
-    tsk_flags_t options, tsk_treeseq_t *output)
+    tsk_flags_t TSK_UNUSED(options), tsk_treeseq_t *output)
 {
     int ret = 0;
     tsk_table_collection_t *tables = tsk_malloc(sizeof(*tables));
     const double *restrict node_time = self->tables->nodes.time;
-    const tsk_id_t *restrict node_population = self->tables->nodes.population;
     const tsk_size_t num_edges = self->tables->edges.num_rows;
     const tsk_size_t num_mutations = self->tables->mutations.num_rows;
     tsk_id_t *split_edge = tsk_malloc(num_edges * sizeof(*split_edge));
@@ -3332,7 +3331,6 @@ tsk_treeseq_split_edges(const tsk_treeseq_t *self, double time, tsk_flags_t flag
     tsk_edge_t edge;
     tsk_mutation_t mutation;
     tsk_bookmark_t sort_start;
-    bool impute_population = options & TSK_SPLIT_EDGES_IMPUTE_POPULATION;
 
     memset(output, 0, sizeof(*output));
     if (split_edge == NULL) {
@@ -3347,6 +3345,9 @@ tsk_treeseq_split_edges(const tsk_treeseq_t *self, double time, tsk_flags_t flag
         ret = TSK_ERR_MIGRATIONS_NOT_SUPPORTED;
         goto out;
     }
+    /* We could catch this below in add_row, but it's simpler to guarantee
+     * that we always catch the error in corner cases where the values
+     * aren't used. */
     if (population < -1 || population >= (tsk_id_t) self->tables->populations.num_rows) {
         ret = TSK_ERR_POPULATION_OUT_OF_BOUNDS;
         goto out;
@@ -3365,12 +3366,6 @@ tsk_treeseq_split_edges(const tsk_treeseq_t *self, double time, tsk_flags_t flag
         ret = tsk_edge_table_get_row(&self->tables->edges, j, &edge);
         tsk_bug_assert(ret == 0);
         if (node_time[edge.child] < time && time < node_time[edge.parent]) {
-            if (impute_population) {
-                population = TSK_NULL;
-                if (node_population[edge.child] != TSK_NULL) {
-                    population = node_population[edge.child];
-                }
-            }
             u = tsk_node_table_add_row(&tables->nodes, flags, time, population, TSK_NULL,
                 metadata, metadata_length);
             if (u < 0) {

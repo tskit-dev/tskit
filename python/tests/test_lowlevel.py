@@ -1544,21 +1544,18 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
 
     def test_split_edges_return_type(self):
         ts = self.get_example_tree_sequence()
-        split = ts.split_edges(
-            time=0, flags=0, population=0, metadata=b"", impute_population=True
-        )
+        split = ts.split_edges(time=0, flags=0, population=0, metadata=b"")
         assert isinstance(split, _tskit.TreeSequence)
 
     def test_split_edges_bad_types(self):
         ts = self.get_example_tree_sequence()
 
-        def f(time=0, flags=0, population=0, metadata=b"", impute_population=False):
+        def f(time=0, flags=0, population=0, metadata=b""):
             return ts.split_edges(
                 time=time,
                 flags=flags,
                 population=population,
                 metadata=metadata,
-                impute_population=impute_population,
             )
 
         with pytest.raises(TypeError):
@@ -1567,8 +1564,6 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             f(flags="0")
         with pytest.raises(TypeError):
             f(metadata="0")
-        with pytest.raises(TypeError):
-            f(impute_population="0")
 
     def test_split_edges_bad_population(self):
         ts = self.get_example_tree_sequence()
@@ -1578,7 +1573,6 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
                 flags=0,
                 population=ts.get_num_populations(),
                 metadata=b"",
-                impute_population=False,
             )
 
 

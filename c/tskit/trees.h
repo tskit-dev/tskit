@@ -886,8 +886,6 @@ int tsk_treeseq_simplify(const tsk_treeseq_t *self, const tsk_id_t *samples,
 
 /** @} */
 
-#define TSK_SPLIT_EDGES_IMPUTE_POPULATION (1 << 1)
-
 int tsk_treeseq_split_edges(const tsk_treeseq_t *self, double time, tsk_flags_t flags,
     tsk_id_t population, const char *metadata, tsk_size_t metadata_length,
     tsk_flags_t options, tsk_treeseq_t *output);
