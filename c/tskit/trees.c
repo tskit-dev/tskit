@@ -4961,6 +4961,46 @@ out:
     return ret;
 }
 
+int
+tsk_tree_b1_index(const tsk_tree_t *self, double *result)
+{
+    int ret = 0;
+    const tsk_id_t *restrict parent = self->parent;
+    const tsk_id_t *restrict right_child = self->right_child;
+    const tsk_id_t *restrict left_sib = self->left_sib;
+    tsk_id_t *nodes = tsk_malloc(tsk_tree_get_size_bound(self) * sizeof(*nodes));
+    tsk_size_t *max_path_length = tsk_calloc(self->num_nodes, sizeof(*max_path_length));
+    tsk_size_t j, num_nodes, mpl;
+    double total = 0.0;
+    tsk_id_t u, v;
+
+    if (nodes == NULL || max_path_length == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    ret = tsk_tree_postorder(self, nodes, &num_nodes);
+    if (ret != 0) {
+        goto out;
+    }
+
+    for (j = 0; j < num_nodes; j++) {
+        u = nodes[j];
+        if (parent[u] != TSK_NULL && right_child[u] != TSK_NULL) {
+            mpl = 0;
+            for (v = right_child[u]; v != TSK_NULL; v = left_sib[v]) {
+                mpl = TSK_MAX(mpl, max_path_length[v]);
+            }
+            max_path_length[u] = mpl + 1;
+            total += 1 / (double) max_path_length[u];
+        }
+    }
+    *result = total;
+out:
+    tsk_safe_free(nodes);
+    tsk_safe_free(max_path_length);
+    return ret;
+}
+
 /* Parsimony methods */
 
 static inline uint64_t

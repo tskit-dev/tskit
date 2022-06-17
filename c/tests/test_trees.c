@@ -6556,6 +6556,7 @@ test_single_tree_balance(void)
     tsk_treeseq_t ts;
     tsk_tree_t t;
     tsk_size_t sackin, colless;
+    double b1;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
         NULL, NULL, NULL, 0);
@@ -6569,6 +6570,8 @@ test_single_tree_balance(void)
     CU_ASSERT_EQUAL(sackin, 8);
     CU_ASSERT_EQUAL_FATAL(tsk_tree_colless_index(&t, &colless), 0);
     CU_ASSERT_EQUAL(colless, 0);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_b1_index(&t, &b1), 0);
+    CU_ASSERT_DOUBLE_EQUAL(b1, 2, 1e-8);
 
     tsk_treeseq_free(&ts);
     tsk_tree_free(&t);
@@ -6581,6 +6584,7 @@ test_multiroot_balance(void)
     tsk_treeseq_t ts;
     tsk_tree_t t;
     tsk_size_t sackin;
+    double b1;
 
     tsk_treeseq_from_text(&ts, 10, multiroot_ex_nodes, multiroot_ex_edges, NULL, NULL,
         NULL, NULL, NULL, 0);
@@ -6603,8 +6607,9 @@ test_multiroot_balance(void)
 
     CU_ASSERT_EQUAL_FATAL(tsk_tree_sackin_index(&t, &sackin), 0);
     CU_ASSERT_EQUAL(sackin, 7);
-
     CU_ASSERT_EQUAL_FATAL(tsk_tree_colless_index(&t, NULL), TSK_ERR_UNDEFINED_MULTIROOT);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_b1_index(&t, &b1), 0);
+    CU_ASSERT_DOUBLE_EQUAL(b1, 1.0, 1e-8);
 
     tsk_treeseq_free(&ts);
     tsk_tree_free(&t);
@@ -6623,6 +6628,7 @@ test_nonbinary_balance(void)
     tsk_treeseq_t ts;
     tsk_tree_t t;
     tsk_size_t sackin, colless;
+    double b1;
 
     tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
     ret = tsk_tree_init(&t, &ts, 0);
@@ -6635,6 +6641,8 @@ test_nonbinary_balance(void)
     CU_ASSERT_EQUAL(sackin, 4);
     CU_ASSERT_EQUAL_FATAL(
         tsk_tree_colless_index(&t, &colless), TSK_ERR_UNDEFINED_NONBINARY);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_b1_index(&t, &b1), 0);
+    CU_ASSERT_DOUBLE_EQUAL_FATAL(b1, 0, 1e-8);
 
     tsk_treeseq_free(&ts);
     tsk_tree_free(&t);
@@ -6648,6 +6656,7 @@ test_empty_tree_balance(void)
     tsk_treeseq_t ts;
     tsk_tree_t t;
     tsk_size_t sackin, colless;
+    double b1;
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -6664,6 +6673,8 @@ test_empty_tree_balance(void)
     /* Technically wrong here because we have 0 roots, but not worth worrying about */
     CU_ASSERT_EQUAL_FATAL(
         tsk_tree_colless_index(&t, &colless), TSK_ERR_UNDEFINED_MULTIROOT);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_b1_index(&t, &b1), 0);
+    CU_ASSERT_EQUAL(b1, 0);
 
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);

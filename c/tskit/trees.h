@@ -1688,6 +1688,7 @@ int tsk_tree_kc_distance(
  * C API 1.0, but should be straightforward to document based on Python docs. */
 int tsk_tree_sackin_index(const tsk_tree_t *self, tsk_size_t *result);
 int tsk_tree_colless_index(const tsk_tree_t *self, tsk_size_t *result);
+int tsk_tree_b1_index(const tsk_tree_t *self, double *result);
 
 /* Things to consider removing: */
 
