@@ -2783,9 +2783,10 @@ class Tree:
 
     def b1_index(self):
         """
-        Returns the B1 balance index for this tree.
-        This is defined as the inverse of the sum of all longest paths
-        to leaves for each node besides roots.
+        Returns the
+        `B1 balance index <https://treebalance.wordpress.com/b%E2%82%81-index/>`_
+        for this tree. This is defined as the inverse of the sum of all
+        longest paths to leaves for each node besides roots.
 
         .. seealso:: See `Shao and Sokal (1990)
             <https://www.jstor.org/stable/2992186>`_ for details.
@@ -2797,12 +2798,13 @@ class Tree:
 
     def colless_index(self):
         """
-        Returns the Colless imbalance index for this tree.
-        This is defined as the sum of all differences between number of
-        leaves subtended by the left and right child of each node.
-        The Colless index is undefined for non-binary trees and trees
-        with multiple roots. This method will raise a LibraryError if the
-        tree is not singly-rooted and binary.
+        Returns the
+        `Colless imbalance index <https://treebalance.wordpress.com/colless-index/>`_
+        for this tree. This is defined as the sum of all differences between
+        number of leaves subtended by the left and right child of each node.
+        The Colless index is undefined for non-binary trees and trees with
+        multiple roots. This method will raise a LibraryError if the tree is
+        not singly-rooted and binary.
 
         .. seealso:: See `Shao and Sokal (1990)
             <https://www.jstor.org/stable/2992186>`_ for details.
@@ -2814,9 +2816,11 @@ class Tree:
 
     def sackin_index(self):
         """
-        Returns the Sackin imbalance index for this tree. This is defined
-        as the sum of the depths of all leaves in the tree.
-        Equivalent to ``sum(tree.depth(u) for u in tree.leaves())``
+        Returns the
+        `Sackin imbalance index <https://treebalance.wordpress.com/sackin-index/>`_
+        for this tree. This is defined as the sum of the depths of all leaves
+        in the tree. Equivalent to ``sum(tree.depth(u) for u in
+        tree.leaves())``
 
         .. seealso:: See `Shao and Sokal (1990)
             <https://www.jstor.org/stable/2992186>`_ for details.
