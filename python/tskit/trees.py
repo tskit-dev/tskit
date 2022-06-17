@@ -2793,16 +2793,7 @@ class Tree:
         :return: The B1 balance index.
         :rtype: float
         """
-        # TODO implement in C
-        max_path_length = np.zeros(self.tree_sequence.num_nodes, dtype=int)
-        total = 0.0
-        for u in self.postorder():
-            if self.parent(u) != tskit.NULL and self.is_internal(u):
-                max_path_length[u] = 1 + max(
-                    max_path_length[v] for v in self.children(u)
-                )
-                total += 1 / max_path_length[u]
-        return total
+        return self._ll_tree.get_b1_index()
 
     def colless_index(self):
         """
