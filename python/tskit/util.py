@@ -353,7 +353,7 @@ def obj_to_collapsed_html(d, name=None, open_depth=0):
         return f"{name} {d}"
 
 
-def truncate_string_end(string, length=40):
+def truncate_string_end(string, length):
     """
     If a string is longer than "length" then snip out the middle and replace with an
     ellipsis.
@@ -361,6 +361,12 @@ def truncate_string_end(string, length=40):
     if len(string) <= length:
         return string
     return f"{string[:length-3]}..."
+
+
+def render_metadata(md, length=40):
+    if md == b"":
+        return ""
+    return truncate_string_end(str(md), length)
 
 
 def unicode_table(rows, title=None, header=None, row_separator=True):

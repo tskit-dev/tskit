@@ -861,7 +861,7 @@ class IndividualTable(BaseTable, MetadataColumnMixin):
                         row.flags,
                         location_str,
                         parents_str,
-                        util.truncate_string_end(str(row.metadata)),
+                        util.render_metadata(row.metadata),
                     ).split("\t")
                 )
         return headers, rows
@@ -1111,7 +1111,7 @@ class NodeTable(BaseTable, MetadataColumnMixin):
                         row.population,
                         row.individual,
                         row.time,
-                        util.truncate_string_end(str(row.metadata)),
+                        util.render_metadata(row.metadata),
                     ).split("\t")
                 )
         return headers, rows
@@ -1309,7 +1309,7 @@ class EdgeTable(BaseTable, MetadataColumnMixin):
                         row.right,
                         row.parent,
                         row.child,
-                        util.truncate_string_end(str(row.metadata)),
+                        util.render_metadata(row.metadata),
                     ).split("\t")
                 )
         return headers, rows
@@ -1527,7 +1527,7 @@ class MigrationTable(BaseTable, MetadataColumnMixin):
                         row.source,
                         row.dest,
                         row.time,
-                        util.truncate_string_end(str(row.metadata)),
+                        util.render_metadata(row.metadata),
                     ).split("\t")
                 )
         return headers, rows
@@ -1729,7 +1729,6 @@ class SiteTable(BaseTable, MetadataColumnMixin):
                 range(self.num_rows - (limit - (limit // 2)), self.num_rows),
             )
         for j in indexes:
-
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
@@ -1739,7 +1738,7 @@ class SiteTable(BaseTable, MetadataColumnMixin):
                         j,
                         row.position,
                         row.ancestral_state,
-                        util.truncate_string_end(str(row.metadata)),
+                        util.render_metadata(row.metadata),
                     ).split("\t")
                 )
         return headers, rows
@@ -1962,7 +1961,7 @@ class MutationTable(BaseTable, MetadataColumnMixin):
                         row.time,
                         row.derived_state,
                         row.parent,
-                        util.truncate_string_end(str(row.metadata)),
+                        util.render_metadata(row.metadata),
                     ).split("\t")
                 )
         return headers, rows
@@ -2210,12 +2209,7 @@ class PopulationTable(BaseTable, MetadataColumnMixin):
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
-                rows.append(
-                    (
-                        str(j),
-                        util.truncate_string_end(str(self[j].metadata), length=70),
-                    )
-                )
+                rows.append((str(j), util.render_metadata(self[j].metadata, length=70)))
         return headers, rows
 
     def set_columns(self, metadata=None, metadata_offset=None, metadata_schema=None):

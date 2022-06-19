@@ -635,9 +635,13 @@ class CommonTestsMixin:
         input_data = self.make_input_data(41)
         table = self.table_class()
         table.set_columns(**input_data)
+        blank_meta_row = 39
+        if "metadata" in input_data:
+            table[blank_meta_row] = table[blank_meta_row].replace(metadata=b"")
         assert "1 rows skipped" in str(table)
         tskit.set_print_options(max_lines=None)
         assert "1 rows skipped" not in str(table)
+        assert "b''" not in str(table)
         tskit.set_print_options(max_lines=40)
         tskit.MAX_LINES = 40
 

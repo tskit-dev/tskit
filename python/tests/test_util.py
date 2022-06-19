@@ -410,9 +410,17 @@ def test_obj_to_collapsed_html(obj, expected):
 
 
 def test_truncate_string_end():
-    assert util.truncate_string_end("testing") == "testing"
+    assert util.truncate_string_end("testing", 40) == "testing"
     assert util.truncate_string_end("testing", 7) == "testing"
     assert util.truncate_string_end("testing", 5) == "te..."
+
+
+def test_render_metadata():
+    assert util.render_metadata({}) == "{}"
+    assert util.render_metadata("testing") == "testing"
+    assert util.render_metadata(b"testing") == "b'testing'"
+    assert util.render_metadata(b"testing", 6) == "b't..."
+    assert util.render_metadata(b"") == ""
 
 
 def test_unicode_table():
