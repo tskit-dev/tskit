@@ -85,6 +85,9 @@
 - Arguments after ``ploidy`` in ``write_vcf`` marked as keyword only
   (:user:`jeromekelleher`, :pr:`2329`, :issue:`2315`).
 
+- When metadata equal to ``b''`` is printed to text or HTML tables it will render as
+  an empty string rather than ``"b''"``. (:user:`hyanwong`, :issue:`2349`, :pr:`2351`)
+
 ----------------------
 [0.4.1] - 2022-01-11
 ----------------------
