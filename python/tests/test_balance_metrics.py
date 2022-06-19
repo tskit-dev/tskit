@@ -35,12 +35,13 @@ from tests.test_highlevel import get_example_tree_sequences
 # we can remove this.
 
 
-def nodes_to_root(tree, u):
-    nodes = []
-    while u not in tree.roots:
+def path(tree, u):
+    path = []
+    u = tree.parent(u)
+    while u != tskit.NULL:
+        path.append(u)
         u = tree.parent(u)
-        nodes.append(u)
-    return nodes
+    return path
 
 
 def sackin_index_definition(tree):
@@ -78,7 +79,7 @@ def b2_index_definition(tree, base=10):
     if tree.num_roots != 1:
         raise ValueError("B2 index is only defined for trees with one root")
     proba = [
-        np.prod([1 / tree.num_children(u) for u in nodes_to_root(tree, leaf)])
+        np.prod([1 / tree.num_children(u) for u in path(tree, leaf)])
         for leaf in tree.leaves()
     ]
     return -sum(p * math.log(p, base) for p in proba)
@@ -110,16 +111,17 @@ class TestDefinitions:
             assert tree.b1_index() == pytest.approx(b1_index_definition(tree))
 
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
-    def test_b2(self, ts):
+    @pytest.mark.parametrize("base", [2, 10, math.e, np.array([3])[0]])
+    def test_b2_base(self, ts, base):
         for tree in ts.trees():
             if tree.num_roots != 1:
                 with pytest.raises(ValueError):
-                    tree.b2_index(base=10)
+                    tree.b2_index(base)
                 with pytest.raises(ValueError):
-                    b2_index_definition(tree)
+                    b2_index_definition(tree, base)
             else:
-                assert tree.b2_index(base=10) == pytest.approx(
-                    b2_index_definition(tree)
+                assert tree.b2_index(base) == pytest.approx(
+                    b2_index_definition(tree, base)
                 )
 
 
