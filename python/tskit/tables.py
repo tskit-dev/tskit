@@ -681,6 +681,13 @@ class BaseTable:
             </div>
         """
 
+    def _columns_all_integer(self, *colnames):
+        """For displaying floating point values without loads of decimal places"""
+        return all(
+            np.all(getattr(self, col) == np.floor(getattr(self, col)))
+            for col in colnames
+        )
+
 
 class MetadataColumnMixin:
     """
@@ -1099,19 +1106,21 @@ class NodeTable(BaseTable, MetadataColumnMixin):
                 [-1],
                 range(self.num_rows - (limit - (limit // 2)), self.num_rows),
             )
+        decimal_places_times = 0 if self._columns_all_integer("time") else 8
         for j in indexes:
             row = self[j]
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
                 rows.append(
-                    "{}\t{}\t{}\t{}\t{:.8f}\t{}".format(
+                    "{}\t{}\t{}\t{}\t{:.{dp}f}\t{}".format(
                         j,
                         row.flags,
                         row.population,
                         row.individual,
                         row.time,
                         util.render_metadata(row.metadata),
+                        dp=decimal_places_times,
                     ).split("\t")
                 )
         return headers, rows
@@ -1297,19 +1306,21 @@ class EdgeTable(BaseTable, MetadataColumnMixin):
                 [-1],
                 range(self.num_rows - (limit - (limit // 2)), self.num_rows),
             )
+        decimal_places = 0 if self._columns_all_integer("left", "right") else 8
         for j in indexes:
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
                 row = self[j]
                 rows.append(
-                    "{}\t{:.8f}\t{:.8f}\t{}\t{}\t{}".format(
+                    "{}\t{:.{dp}f}\t{:.{dp}f}\t{}\t{}\t{}".format(
                         j,
                         row.left,
                         row.right,
                         row.parent,
                         row.child,
                         util.render_metadata(row.metadata),
+                        dp=decimal_places,
                     ).split("\t")
                 )
         return headers, rows
@@ -1513,13 +1524,15 @@ class MigrationTable(BaseTable, MetadataColumnMixin):
                 [-1],
                 range(self.num_rows - (limit - (limit // 2)), self.num_rows),
             )
+        decimal_places_coords = 0 if self._columns_all_integer("left", "right") else 8
+        decimal_places_times = 0 if self._columns_all_integer("time") else 8
         for j in indexes:
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
                 row = self[j]
                 rows.append(
-                    "{}\t{:.8f}\t{:.8f}\t{}\t{}\t{}\t{:.8f}\t{}".format(
+                    "{}\t{:.{dp_c}f}\t{:.{dp_c}f}\t{}\t{}\t{}\t{:.{dp_t}f}\t{}".format(
                         j,
                         row.left,
                         row.right,
@@ -1528,6 +1541,8 @@ class MigrationTable(BaseTable, MetadataColumnMixin):
                         row.dest,
                         row.time,
                         util.render_metadata(row.metadata),
+                        dp_c=decimal_places_coords,
+                        dp_t=decimal_places_times,
                     ).split("\t")
                 )
         return headers, rows
@@ -1728,17 +1743,19 @@ class SiteTable(BaseTable, MetadataColumnMixin):
                 [-1],
                 range(self.num_rows - (limit - (limit // 2)), self.num_rows),
             )
+        decimal_places = 0 if self._columns_all_integer("position") else 8
         for j in indexes:
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
                 row = self[j]
                 rows.append(
-                    "{}\t{:.8f}\t{}\t{}".format(
+                    "{}\t{:.{dp}f}\t{}\t{}".format(
                         j,
                         row.position,
                         row.ancestral_state,
                         util.render_metadata(row.metadata),
+                        dp=decimal_places,
                     ).split("\t")
                 )
         return headers, rows
@@ -1948,13 +1965,15 @@ class MutationTable(BaseTable, MetadataColumnMixin):
                 [-1],
                 range(self.num_rows - (limit - (limit // 2)), self.num_rows),
             )
+        # Currently mutations do not have discretised times: this for consistency
+        decimal_places_times = 0 if self._columns_all_integer("time") else 8
         for j in indexes:
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
                 row = self[j]
                 rows.append(
-                    "{}\t{}\t{}\t{:.8f}\t{}\t{}\t{}".format(
+                    "{}\t{}\t{}\t{:.{dp}f}\t{}\t{}\t{}".format(
                         j,
                         row.site,
                         row.node,
@@ -1962,6 +1981,7 @@ class MutationTable(BaseTable, MetadataColumnMixin):
                         row.derived_state,
                         row.parent,
                         util.render_metadata(row.metadata),
+                        dp=decimal_places_times,
                     ).split("\t")
                 )
         return headers, rows

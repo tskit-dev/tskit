@@ -645,6 +645,33 @@ class CommonTestsMixin:
         tskit.set_print_options(max_lines=40)
         tskit.MAX_LINES = 40
 
+    def test_str_pos_time_integer(self):
+        num_rows = 2
+        identifiable_integers = [12345, 54321]
+        identifiable_floats = [1.2345, 5.4321]
+        table = self.table_class()
+        for test_cols in [
+            ["left", "right"],
+            ["position"],
+            ["time"],
+        ]:  # only cols that get discretised
+            input_data = self.make_input_data(num_rows)
+            if all(col in input_data for col in test_cols):
+                for i, col in enumerate(test_cols):
+                    input_data[col] = [identifiable_floats[i]] * num_rows
+                table.set_columns(**input_data)
+                _, rows = table._text_header_and_rows()
+                for row in rows:
+                    assert f"{identifiable_floats[0]:.8f}" in row
+                    assert f"{identifiable_integers[0]}" not in row
+                for i, col in enumerate(test_cols):
+                    input_data[col] = [identifiable_integers[i]] * num_rows
+                table.set_columns(**input_data)
+                _, rows = table._text_header_and_rows()
+                for row in rows:
+                    assert f"{identifiable_integers[0]}" in row
+                    assert f"{identifiable_floats[0]:.8f}" not in row
+
     def test_repr_html(self):
         for num_rows in [0, 10, 40, 50]:
             input_data = {col.name: col.get_input(num_rows) for col in self.columns}
