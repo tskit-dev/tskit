@@ -22,6 +22,9 @@
 """
 Tests for tree balance/imbalance metrics.
 """
+import math
+
+import numpy as np
 import pytest
 
 import tests
@@ -30,6 +33,15 @@ from tests.test_highlevel import get_example_tree_sequences
 
 # ↑ See https://github.com/tskit-dev/tskit/issues/1804 for when
 # we can remove this.
+
+
+def path(tree, u):
+    path = []
+    u = tree.parent(u)
+    while u != tskit.NULL:
+        path.append(u)
+        u = tree.parent(u)
+    return path
 
 
 def sackin_index_definition(tree):
@@ -63,6 +75,16 @@ def b1_index_definition(tree):
     )
 
 
+def b2_index_definition(tree, base=10):
+    if tree.num_roots != 1:
+        raise ValueError("B2 index is only defined for trees with one root")
+    proba = [
+        np.prod([1 / tree.num_children(u) for u in path(tree, leaf)])
+        for leaf in tree.leaves()
+    ]
+    return -sum(p * math.log(p, base) for p in proba)
+
+
 class TestDefinitions:
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_sackin(self, ts):
@@ -88,6 +110,20 @@ class TestDefinitions:
         for tree in ts.trees():
             assert tree.b1_index() == pytest.approx(b1_index_definition(tree))
 
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    @pytest.mark.parametrize("base", [2, 10, math.e, np.array([3])[0]])
+    def test_b2_base(self, ts, base):
+        for tree in ts.trees():
+            if tree.num_roots != 1:
+                with pytest.raises(ValueError):
+                    tree.b2_index(base)
+                with pytest.raises(ValueError):
+                    b2_index_definition(tree, base)
+            else:
+                assert tree.b2_index(base) == pytest.approx(
+                    b2_index_definition(tree, base)
+                )
+
 
 class TestBalancedBinaryOdd:
     # 2.00┊   4   ┊
@@ -109,6 +145,9 @@ class TestBalancedBinaryOdd:
     def test_b1(self):
         assert self.tree().b1_index() == 1
 
+    def test_b2(self):
+        assert self.tree().b2_index(base=10) == pytest.approx(0.4515, rel=1e-3)
+
 
 class TestBalancedBinaryEven:
     # 2.00┊    6    ┊
@@ -129,6 +168,9 @@ class TestBalancedBinaryEven:
 
     def test_b1(self):
         assert self.tree().b1_index() == 2
+
+    def test_b2(self):
+        assert self.tree().b2_index() == pytest.approx(0.602, rel=1e-3)
 
 
 class TestBalancedTernary:
@@ -152,6 +194,9 @@ class TestBalancedTernary:
     def test_b1(self):
         assert self.tree().b1_index() == 3
 
+    def test_b2(self):
+        assert self.tree().b2_index() == pytest.approx(0.954, rel=1e-3)
+
 
 class TestStarN10:
     # 1.00┊         10          ┊
@@ -171,6 +216,9 @@ class TestStarN10:
 
     def test_b1(self):
         assert self.tree().b1_index() == 0
+
+    def test_b2(self):
+        assert self.tree().b2_index() == pytest.approx(0.9999, rel=1e-3)
 
 
 class TestCombN5:
@@ -196,6 +244,9 @@ class TestCombN5:
 
     def test_b1(self):
         assert self.tree().b1_index() == pytest.approx(1.833, rel=1e-3)
+
+    def test_b2(self):
+        assert self.tree().b2_index() == pytest.approx(0.564, rel=1e-3)
 
 
 class TestMultiRootBinary:
@@ -227,6 +278,10 @@ class TestMultiRootBinary:
     def test_b1(self):
         assert self.tree().b1_index() == 4.5
 
+    def test_b2(self):
+        with pytest.raises(ValueError):
+            self.tree().b2_index()
+
 
 class TestEmpty:
     @tests.cached_example
@@ -243,6 +298,10 @@ class TestEmpty:
 
     def test_b1(self):
         assert self.tree().b1_index() == 0
+
+    def test_b2(self):
+        with pytest.raises(ValueError):
+            self.tree().b2_index()
 
 
 class TestTreeInNullState:
@@ -262,6 +321,10 @@ class TestTreeInNullState:
     def test_b1(self):
         assert self.tree().b1_index() == 0
 
+    def test_b2(self):
+        with pytest.raises(ValueError):
+            self.tree().b2_index()
+
 
 class TestAllRootsN5:
     @tests.cached_example
@@ -280,3 +343,7 @@ class TestAllRootsN5:
 
     def test_b1(self):
         assert self.tree().b1_index() == 0
+
+    def test_b2(self):
+        with pytest.raises(ValueError):
+            self.tree().b2_index()
