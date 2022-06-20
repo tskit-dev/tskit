@@ -146,12 +146,6 @@ typedef struct {
 typedef struct {
     PyObject_HEAD
     TreeSequence *tree_sequence;
-    tsk_diff_iter_t *tree_diff_iterator;
-} TreeDiffIterator;
-
-typedef struct {
-    PyObject_HEAD
-    TreeSequence *tree_sequence;
     tsk_variant_t *variant;
 } Variant;
 
@@ -11265,165 +11259,6 @@ static PyTypeObject TreeType = {
 };
 
 /*===================================================================
- * TreeDiffIterator
- *===================================================================
- */
-
-static int
-TreeDiffIterator_check_state(TreeDiffIterator *self)
-{
-    int ret = 0;
-    if (self->tree_diff_iterator == NULL) {
-        PyErr_SetString(PyExc_SystemError, "iterator not initialised");
-        ret = -1;
-    }
-    return ret;
-}
-
-static void
-TreeDiffIterator_dealloc(TreeDiffIterator *self)
-{
-    if (self->tree_diff_iterator != NULL) {
-        tsk_diff_iter_free(self->tree_diff_iterator);
-        PyMem_Free(self->tree_diff_iterator);
-        self->tree_diff_iterator = NULL;
-    }
-    Py_XDECREF(self->tree_sequence);
-    Py_TYPE(self)->tp_free((PyObject *) self);
-}
-
-static int
-TreeDiffIterator_init(TreeDiffIterator *self, PyObject *args, PyObject *kwds)
-{
-    int ret = -1;
-    int err;
-    static char *kwlist[] = { "tree_sequence", "include_terminal", NULL };
-    TreeSequence *tree_sequence;
-    int include_terminal = 0;
-    tsk_flags_t options = 0;
-
-    self->tree_diff_iterator = NULL;
-    self->tree_sequence = NULL;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!|p", kwlist, &TreeSequenceType,
-            &tree_sequence, &include_terminal)) {
-        goto out;
-    }
-    if (include_terminal) {
-        options |= TSK_INCLUDE_TERMINAL;
-    }
-    self->tree_sequence = tree_sequence;
-    Py_INCREF(self->tree_sequence);
-    if (TreeSequence_check_state(self->tree_sequence) != 0) {
-        goto out;
-    }
-    self->tree_diff_iterator = PyMem_Malloc(sizeof(tsk_diff_iter_t));
-    if (self->tree_diff_iterator == NULL) {
-        PyErr_NoMemory();
-        goto out;
-    }
-    memset(self->tree_diff_iterator, 0, sizeof(tsk_diff_iter_t));
-    err = tsk_diff_iter_init(
-        self->tree_diff_iterator, self->tree_sequence->tree_sequence, options);
-    if (err != 0) {
-        handle_library_error(err);
-        goto out;
-    }
-    ret = 0;
-out:
-    return ret;
-}
-
-static PyObject *
-TreeDiffIterator_next(TreeDiffIterator *self)
-{
-    PyObject *ret = NULL;
-    PyObject *out_list = NULL;
-    PyObject *in_list = NULL;
-    PyObject *value = NULL;
-    int err;
-    double left, right;
-    tsk_size_t list_size, j;
-    tsk_edge_list_node_t *record;
-    tsk_edge_list_t records_out, records_in;
-
-    if (TreeDiffIterator_check_state(self) != 0) {
-        goto out;
-    }
-    err = tsk_diff_iter_next(
-        self->tree_diff_iterator, &left, &right, &records_out, &records_in);
-    if (err < 0) {
-        handle_library_error(err);
-        goto out;
-    }
-    if (err == 1) {
-        /* out records */
-        record = records_out.head;
-        list_size = 0;
-        while (record != NULL) {
-            list_size++;
-            record = record->next;
-        }
-        out_list = PyList_New(list_size);
-        if (out_list == NULL) {
-            goto out;
-        }
-        record = records_out.head;
-        j = 0;
-        while (record != NULL) {
-            value = make_edge(&record->edge, true);
-            if (value == NULL) {
-                goto out;
-            }
-            PyList_SET_ITEM(out_list, j, value);
-            record = record->next;
-            j++;
-        }
-        /* in records */
-        record = records_in.head;
-        list_size = 0;
-        while (record != NULL) {
-            list_size++;
-            record = record->next;
-        }
-        in_list = PyList_New(list_size);
-        if (in_list == NULL) {
-            goto out;
-        }
-        record = records_in.head;
-        j = 0;
-        while (record != NULL) {
-            value = make_edge(&record->edge, true);
-            if (value == NULL) {
-                goto out;
-            }
-            PyList_SET_ITEM(in_list, j, value);
-            record = record->next;
-            j++;
-        }
-        ret = Py_BuildValue("(dd)OO", left, right, out_list, in_list);
-    }
-out:
-    Py_XDECREF(out_list);
-    Py_XDECREF(in_list);
-    return ret;
-}
-
-static PyTypeObject TreeDiffIteratorType = {
-    // clang-format off
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "_tskit.TreeDiffIterator",
-    .tp_basicsize = sizeof(TreeDiffIterator),
-    .tp_dealloc = (destructor) TreeDiffIterator_dealloc,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_doc = "TreeDiffIterator objects",
-    .tp_iter = PyObject_SelfIter,
-    .tp_iternext = (iternextfunc) TreeDiffIterator_next,
-    .tp_init = (initproc) TreeDiffIterator_init,
-    .tp_new = PyType_GenericNew,
-    // clang-format on
-};
-
-/*===================================================================
  * Variant
  *===================================================================
  */
@@ -12678,13 +12513,6 @@ PyInit__tskit(void)
     }
     Py_INCREF(&TreeType);
     PyModule_AddObject(module, "Tree", (PyObject *) &TreeType);
-
-    /* TreeDiffIterator type */
-    if (PyType_Ready(&TreeDiffIteratorType) < 0) {
-        return NULL;
-    }
-    Py_INCREF(&TreeDiffIteratorType);
-    PyModule_AddObject(module, "TreeDiffIterator", (PyObject *) &TreeDiffIteratorType);
 
     /* Variant type */
     if (PyType_Ready(&VariantType) < 0) {

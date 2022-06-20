@@ -63,6 +63,12 @@
 - Add Colless tree imbalance index.
   (:user:`jeremyguez`, :user:`jeromekelleher`, :issue:`2250`, :pr:`2266`, :pr:`2344`).
 
+- Add ``direction`` argument to ``TreeSequence.edge_diffs``, allowing iteration
+  over diffs in the reverse direction. NOTE: this comes with a ~10% performance
+  regression as the implementation was moved from C to Python for simplicity
+  and maintainability. Please open an issue if this affects your application.
+  (:user:`jeromekelleher`, :user:`benjeffery`, :pr:`2120`).
+
 **Breaking Changes**
 
 - The JSON metadata codec now interprets the empty string as an empty object. This means

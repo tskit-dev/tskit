@@ -2288,34 +2288,6 @@ class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):
                 ts.general_stat(W, lambda x: bad_array, 1, ts.get_breakpoints())
 
 
-class TestTreeDiffIterator(LowLevelTestCase):
-    """
-    Tests for the low-level tree diff iterator.
-    """
-
-    def test_uninitialised_tree_sequence(self):
-        ts = _tskit.TreeSequence()
-        with pytest.raises(ValueError):
-            _tskit.TreeDiffIterator(ts)
-
-    def test_constructor(self):
-        with pytest.raises(TypeError):
-            _tskit.TreeDiffIterator()
-        with pytest.raises(TypeError):
-            _tskit.TreeDiffIterator(None)
-        ts = self.get_example_tree_sequence()
-        before = list(_tskit.TreeDiffIterator(ts))
-        iterator = _tskit.TreeDiffIterator(ts)
-        del ts
-        # We should keep a reference to the tree sequence.
-        after = list(iterator)
-        assert before == after
-
-    def test_iterator(self):
-        ts = self.get_example_tree_sequence()
-        self.verify_iterator(_tskit.TreeDiffIterator(ts))
-
-
 class TestVariant(LowLevelTestCase):
     """
     Tests for the Variant class.
@@ -2938,7 +2910,6 @@ class TestTree(LowLevelTestCase):
 
     def test_count_all_samples(self):
         for ts in self.get_example_tree_sequences():
-            self.verify_iterator(_tskit.TreeDiffIterator(ts))
             st = _tskit.Tree(ts)
             # Without initialisation we should be 0 samples for every node
             # that is not a sample.
