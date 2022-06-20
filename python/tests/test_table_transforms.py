@@ -324,23 +324,16 @@ class TestDeleteOlderSimpleTreeMigrationExamples:
 
 
 def split_edges_definition(ts, time, *, flags=0, population=None, metadata=None):
+    population = -1 if population is None else population
     tables = ts.dump_tables()
     if ts.num_migrations > 0:
         raise ValueError("Migrations not supported")
-    default_population = population is None
-    if not default_population:
-        # -1 is a valid value
-        if population < -1 or population >= ts.num_populations:
-            raise ValueError("Population out of bounds")
 
     node_time = tables.nodes.time
-    node_population = tables.nodes.population
     tables.edges.clear()
     split_edge = np.full(ts.num_edges, tskit.NULL, dtype=int)
     for edge in ts.edges():
         if node_time[edge.child] < time < node_time[edge.parent]:
-            if default_population:
-                population = node_population[edge.child]
             u = tables.nodes.add_row(
                 flags=flags, time=time, population=population, metadata=metadata
             )
@@ -673,7 +666,7 @@ class TestSplitEdgesNodeValues:
 
     def test_default_population(self):
         ts = self.ts().split_edges(0.5)
-        assert ts.node(2).population == 0
+        assert ts.node(2).population == -1
 
     @pytest.mark.parametrize("population", range(-1, 5))
     def test_specify_population(self, population):
@@ -712,8 +705,7 @@ def decapitate_definition(ts, time, *, flags=0, population=None, metadata=None):
     """
     Simple loop implementation of the decapitate operation
     """
-    default_population = population is None
-
+    population = -1 if population is None else population
     tables = ts.dump_tables()
     node_time = tables.nodes.time
     tables.edges.clear()
@@ -721,8 +713,6 @@ def decapitate_definition(ts, time, *, flags=0, population=None, metadata=None):
         if node_time[edge.parent] <= time:
             tables.edges.append(edge)
         elif node_time[edge.child] < time:
-            if default_population:
-                population = tables.nodes[edge.child].population
             new_parent = tables.nodes.add_row(
                 time=time, population=population, flags=flags, metadata=metadata
             )
@@ -1137,7 +1127,7 @@ class TestDecapitateNodeValues:
 
     def test_default_population(self):
         ts = self.ts().decapitate(0.5)
-        assert ts.node(2).population == 0
+        assert ts.node(2).population == tskit.NULL
 
     @pytest.mark.parametrize("population", range(-1, 5))
     def test_specify_population(self, population):

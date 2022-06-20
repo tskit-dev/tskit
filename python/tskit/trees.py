@@ -2783,9 +2783,10 @@ class Tree:
 
     def b1_index(self):
         """
-        Returns the B1 balance index for this tree.
-        This is defined as the inverse of the sum of all longest paths
-        to leaves for each node besides roots.
+        Returns the
+        `B1 balance index <https://treebalance.wordpress.com/b%E2%82%81-index/>`_
+        for this tree. This is defined as the inverse of the sum of all
+        longest paths to leaves for each node besides roots.
 
         .. seealso:: See `Shao and Sokal (1990)
             <https://www.jstor.org/stable/2992186>`_ for details.
@@ -2793,16 +2794,7 @@ class Tree:
         :return: The B1 balance index.
         :rtype: float
         """
-        # TODO implement in C
-        max_path_length = np.zeros(self.tree_sequence.num_nodes, dtype=int)
-        total = 0.0
-        for u in self.postorder():
-            if self.parent(u) != tskit.NULL and self.is_internal(u):
-                max_path_length[u] = 1 + max(
-                    max_path_length[v] for v in self.children(u)
-                )
-                total += 1 / max_path_length[u]
-        return total
+        return self._ll_tree.get_b1_index()
 
     def b2_index(self, base=10):
         """
@@ -2839,12 +2831,13 @@ class Tree:
 
     def colless_index(self):
         """
-        Returns the Colless imbalance index for this tree.
-        This is defined as the sum of all differences between number of
-        leaves subtended by the left and right child of each node.
-        The Colless index is undefined for non-binary trees and trees
-        with multiple roots. This method will raise a LibraryError if the
-        tree is not singly-rooted and binary.
+        Returns the
+        `Colless imbalance index <https://treebalance.wordpress.com/colless-index/>`_
+        for this tree. This is defined as the sum of all differences between
+        number of leaves subtended by the left and right child of each node.
+        The Colless index is undefined for non-binary trees and trees with
+        multiple roots. This method will raise a LibraryError if the tree is
+        not singly-rooted and binary.
 
         .. seealso:: See `Shao and Sokal (1990)
             <https://www.jstor.org/stable/2992186>`_ for details.
@@ -2856,9 +2849,11 @@ class Tree:
 
     def sackin_index(self):
         """
-        Returns the Sackin imbalance index for this tree. This is defined
-        as the sum of the depths of all leaves in the tree.
-        Equivalent to ``sum(tree.depth(u) for u in tree.leaves())``
+        Returns the
+        `Sackin imbalance index <https://treebalance.wordpress.com/sackin-index/>`_
+        for this tree. This is defined as the sum of the depths of all leaves
+        in the tree. Equivalent to ``sum(tree.depth(u) for u in
+        tree.leaves())``
 
         .. seealso:: See `Shao and Sokal (1990)
             <https://www.jstor.org/stable/2992186>`_ for details.
@@ -6068,9 +6063,8 @@ class TreeSequence:
         added nodes will be assigned these values. Otherwise, default values
         will be used. The default metadata is an empty dictionary if a metadata
         schema is defined for the node table, and is an empty byte string
-        otherwise. The default population for the new node will be derived from
-        the population of the edge's child. Newly added have a default
-        ``flags`` value of 0.
+        otherwise. The default population for the new node is
+        :data:`tskit.NULL`. Newly added have a default ``flags`` value of 0.
 
         Any metadata associated with a split edge will be copied to the new edge.
 
@@ -6088,18 +6082,14 @@ class TreeSequence:
         :param float time: The cutoff time.
         :param int flags: The flags value for newly-inserted nodes. (Default = 0)
         :param int population: The population value for newly inserted nodes.
-            Defaults to the population of the child node of the split edge
-            if not specified.
+            Defaults to ``tskit.NULL`` if not specified.
         :param metadata: The metadata for any newly inserted nodes. See
             :meth:`.NodeTable.add_row` for details on how default metadata
             is produced for a given schema (or none).
         :return: A copy of this tree sequence with edges split at the specified time.
         :rtype: tskit.TreeSequence
         """
-        impute_population = False
-        if population is None:
-            impute_population = True
-            population = tskit.NULL
+        population = tskit.NULL if population is None else population
         flags = 0 if flags is None else flags
         schema = self.table_metadata_schemas.node
         if metadata is None:
@@ -6110,7 +6100,6 @@ class TreeSequence:
             flags=flags,
             population=population,
             metadata=metadata,
-            impute_population=impute_population,
         )
         return TreeSequence(ll_ts)
 
@@ -6145,8 +6134,7 @@ class TreeSequence:
         :param float time: The cutoff time.
         :param int flags: The flags value for newly-inserted nodes. (Default = 0)
         :param int population: The population value for newly inserted nodes.
-            Defaults to the population of the child node of the split edge
-            if not specified.
+            Defaults to ``tskit.NULL`` if not specified.
         :param metadata: The metadata for any newly inserted nodes. See
             :meth:`.NodeTable.add_row` for details on how default metadata
             is produced for a given schema (or none).

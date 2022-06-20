@@ -546,6 +546,16 @@ Functions and static methods
   Tree.kc_distance
 ```
 
+(sec_python_api_trees_balance)=
+
+#### Balance/imbalance indices
+
+```{eval-rst}
+.. autosummary::
+  Tree.colless_index
+  Tree.sackin_index
+  Tree.b1_index
+```
 
 (sec_python_api_trees_sites_mutations)=
 

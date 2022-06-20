@@ -886,8 +886,6 @@ int tsk_treeseq_simplify(const tsk_treeseq_t *self, const tsk_id_t *samples,
 
 /** @} */
 
-#define TSK_SPLIT_EDGES_IMPUTE_POPULATION (1 << 1)
-
 int tsk_treeseq_split_edges(const tsk_treeseq_t *self, double time, tsk_flags_t flags,
     tsk_id_t population, const char *metadata, tsk_size_t metadata_length,
     tsk_flags_t options, tsk_treeseq_t *output);
@@ -1690,6 +1688,7 @@ int tsk_tree_kc_distance(
  * C API 1.0, but should be straightforward to document based on Python docs. */
 int tsk_tree_sackin_index(const tsk_tree_t *self, tsk_size_t *result);
 int tsk_tree_colless_index(const tsk_tree_t *self, tsk_size_t *result);
+int tsk_tree_b1_index(const tsk_tree_t *self, double *result);
 
 /* Things to consider removing: */
 

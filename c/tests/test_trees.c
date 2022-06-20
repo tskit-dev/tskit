@@ -6556,6 +6556,7 @@ test_single_tree_balance(void)
     tsk_treeseq_t ts;
     tsk_tree_t t;
     tsk_size_t sackin, colless;
+    double b1;
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
         NULL, NULL, NULL, 0);
@@ -6569,6 +6570,8 @@ test_single_tree_balance(void)
     CU_ASSERT_EQUAL(sackin, 8);
     CU_ASSERT_EQUAL_FATAL(tsk_tree_colless_index(&t, &colless), 0);
     CU_ASSERT_EQUAL(colless, 0);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_b1_index(&t, &b1), 0);
+    CU_ASSERT_DOUBLE_EQUAL(b1, 2, 1e-8);
 
     tsk_treeseq_free(&ts);
     tsk_tree_free(&t);
@@ -6581,6 +6584,7 @@ test_multiroot_balance(void)
     tsk_treeseq_t ts;
     tsk_tree_t t;
     tsk_size_t sackin;
+    double b1;
 
     tsk_treeseq_from_text(&ts, 10, multiroot_ex_nodes, multiroot_ex_edges, NULL, NULL,
         NULL, NULL, NULL, 0);
@@ -6603,8 +6607,9 @@ test_multiroot_balance(void)
 
     CU_ASSERT_EQUAL_FATAL(tsk_tree_sackin_index(&t, &sackin), 0);
     CU_ASSERT_EQUAL(sackin, 7);
-
     CU_ASSERT_EQUAL_FATAL(tsk_tree_colless_index(&t, NULL), TSK_ERR_UNDEFINED_MULTIROOT);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_b1_index(&t, &b1), 0);
+    CU_ASSERT_DOUBLE_EQUAL(b1, 1.0, 1e-8);
 
     tsk_treeseq_free(&ts);
     tsk_tree_free(&t);
@@ -6623,6 +6628,7 @@ test_nonbinary_balance(void)
     tsk_treeseq_t ts;
     tsk_tree_t t;
     tsk_size_t sackin, colless;
+    double b1;
 
     tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
     ret = tsk_tree_init(&t, &ts, 0);
@@ -6635,6 +6641,8 @@ test_nonbinary_balance(void)
     CU_ASSERT_EQUAL(sackin, 4);
     CU_ASSERT_EQUAL_FATAL(
         tsk_tree_colless_index(&t, &colless), TSK_ERR_UNDEFINED_NONBINARY);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_b1_index(&t, &b1), 0);
+    CU_ASSERT_DOUBLE_EQUAL_FATAL(b1, 0, 1e-8);
 
     tsk_treeseq_free(&ts);
     tsk_tree_free(&t);
@@ -6648,6 +6656,7 @@ test_empty_tree_balance(void)
     tsk_treeseq_t ts;
     tsk_tree_t t;
     tsk_size_t sackin, colless;
+    double b1;
 
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -6664,6 +6673,8 @@ test_empty_tree_balance(void)
     /* Technically wrong here because we have 0 roots, but not worth worrying about */
     CU_ASSERT_EQUAL_FATAL(
         tsk_tree_colless_index(&t, &colless), TSK_ERR_UNDEFINED_MULTIROOT);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_b1_index(&t, &b1), 0);
+    CU_ASSERT_EQUAL(b1, 0);
 
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);
@@ -7576,25 +7587,6 @@ test_split_edges_no_populations(void)
     }
     tsk_treeseq_free(&split_ts);
 
-    /* And again with imputed population value */
-    ret = tsk_treeseq_split_edges(&ts, time, 1234, 0, metadata, strlen(metadata),
-        TSK_SPLIT_EDGES_IMPUTE_POPULATION, &split_ts);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&split_ts), 3);
-    CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&split_ts), 12);
-
-    for (j = 0; j < num_new_nodes; j++) {
-        ret = tsk_treeseq_get_node(&split_ts, new_nodes[j], &node);
-        CU_ASSERT_EQUAL_FATAL(ret, 0);
-        CU_ASSERT_EQUAL(node.time, time);
-        CU_ASSERT_EQUAL(node.flags, 1234);
-        CU_ASSERT_EQUAL(node.individual, TSK_NULL);
-        CU_ASSERT_EQUAL(node.population, TSK_NULL);
-        CU_ASSERT_EQUAL(node.metadata_length, strlen(metadata));
-        CU_ASSERT_EQUAL(strncmp(node.metadata, metadata, strlen(metadata)), 0);
-    }
-    tsk_treeseq_free(&split_ts);
-
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);
 }
@@ -7639,16 +7631,6 @@ test_split_edges_populations(void)
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         CU_ASSERT_EQUAL(node.population, population);
         tsk_treeseq_free(&split_ts);
-
-        ret = tsk_treeseq_split_edges(&ts, time, 0, population, NULL, 0,
-            TSK_SPLIT_EDGES_IMPUTE_POPULATION, &split_ts);
-        CU_ASSERT_EQUAL_FATAL(ret, 0);
-        CU_ASSERT_EQUAL(tsk_treeseq_get_num_trees(&split_ts), 1);
-        CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&split_ts), 3);
-        ret = tsk_treeseq_get_node(&split_ts, 2, &node);
-        CU_ASSERT_EQUAL_FATAL(ret, 0);
-        CU_ASSERT_EQUAL(node.population, 0);
-        tsk_treeseq_free(&split_ts);
     }
 
     tsk_table_collection_free(&tables);
@@ -7691,12 +7673,6 @@ test_split_edges_errors(void)
     for (j = 0; j < num_invalid_pops; j++) {
         population = invalid_pops[j];
         ret = tsk_treeseq_split_edges(&ts, time, 0, population, NULL, 0, 0, &split_ts);
-        CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
-        tsk_treeseq_free(&split_ts);
-
-        /* We always check population values, even if they aren't used */
-        ret = tsk_treeseq_split_edges(&ts, time, 0, population, NULL, 0,
-            TSK_SPLIT_EDGES_IMPUTE_POPULATION, &split_ts);
         CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
         tsk_treeseq_free(&split_ts);
     }
