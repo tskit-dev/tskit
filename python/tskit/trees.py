@@ -4423,7 +4423,7 @@ class TreeSequence:
                 k -= 1
             yield EdgeDiff(Interval(left, right), edges_out, [])
 
-    def edge_diffs(self, include_terminal=False, *, direction=_tskit.FORWARD):
+    def edge_diffs(self, include_terminal=False, *, direction=tskit.FORWARD):
         """
         Returns an iterator over all the :ref:`edges <sec_edge_table_definition>` that
         are inserted and removed to build the trees as we move from left-to-right along
@@ -4442,6 +4442,10 @@ class TreeSequence:
         descending parent time, parent id, then child_id). This means that within
         each list, edges with the same parent appear consecutively.
 
+        The ``direction`` argument can be used to control whether diffs are produced
+        in the forward (left-to-right, increasing genome coordinate value)
+        or reverse (right-to-left, decreasing genome coordinate value) direction.
+
         :param bool include_terminal: If False (default), the iterator terminates
             after the final interval in the tree sequence (i.e., it does not
             report a final removal of all remaining edges), and the number
@@ -4449,7 +4453,9 @@ class TreeSequence:
             sequence. If True, an additional iteration takes place, with the last
             ``edges_out`` value reporting all the edges contained in the final
             tree (with both ``left`` and ``right`` equal to the sequence length).
-        :param int direction: FINISH ME
+        :param int direction: The direction of travel along the sequence for
+            diffs. Must be one of :data:`.FORWARD` or :data:`.REVERSE`.
+            (Default: :data:`.FORWARD`).
         :return: An iterator over the (interval, edges_out, edges_in) tuples. This
             is a named tuple, so the 3 values can be accessed by position
             (e.g. ``returned_tuple[0]``) or name (e.g. ``returned_tuple.interval``).
