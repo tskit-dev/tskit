@@ -2793,7 +2793,7 @@ class Tree:
     def b1_index(self):
         """
         Returns the
-        `B1 balance index <https://treebalance.wordpress.com/b%E2%82%81-index/>`_
+        `B1 balance index <https://treebalance.wordpress.com/b₁-index/>`_
         for this tree. This is defined as the inverse of the sum of all
         longest paths to leaves for each node besides roots.
 
@@ -2807,11 +2807,12 @@ class Tree:
 
     def b2_index(self, base=10):
         """
-        Returns the B2 balance index for this tree.
+        Returns the
+        `B2 balance index <https://treebalance.wordpress.com/b₂-index/>`_
+        this tree.
         This is defined as the Shannon entropy of the probability
         distribution to reach leaves assuming a random walk
-        from a root. The base used for default is 10, to match with
-        Shao and Sokal (1990).
+        from a root. The default base is 10, following Shao and Sokal (1990).
 
         .. seealso:: See `Shao and Sokal (1990)
             <https://www.jstor.org/stable/2992186>`_ for details.
@@ -2821,22 +2822,9 @@ class Tree:
         :return: The B2 balance index.
         :rtype: float
         """
-        # TODO implement in C
-        # Note that this will take into account the number of roots also, by considering
-        # them as children of the virtual root.
-        if self.num_roots != 1:
-            raise ValueError("B2 index is only defined for trees with one root")
-        stack = [(self.root, 1)]
-        total_proba = 0
-        while len(stack) > 0:
-            u, path_product = stack.pop()
-            if self.is_leaf(u):
-                total_proba -= path_product * math.log(path_product, base)
-            else:
-                path_product *= 1 / self.num_children(u)
-                for v in self.children(u):
-                    stack.append((v, path_product))
-        return total_proba
+        # Let Python decide if the base is acceptable
+        math.log(10, base)
+        return self._ll_tree.get_b2_index(base)
 
     def colless_index(self):
         """

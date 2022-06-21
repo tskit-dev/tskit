@@ -35,7 +35,7 @@ from tests.test_highlevel import get_example_tree_sequences
 # we can remove this.
 
 
-def path(tree, u):
+def node_path(tree, u):
     path = []
     u = tree.parent(u)
     while u != tskit.NULL:
@@ -79,7 +79,7 @@ def b2_index_definition(tree, base=10):
     if tree.num_roots != 1:
         raise ValueError("B2 index is only defined for trees with one root")
     proba = [
-        np.prod([1 / tree.num_children(u) for u in path(tree, leaf)])
+        np.prod([1 / tree.num_children(u) for u in node_path(tree, leaf)])
         for leaf in tree.leaves()
     ]
     return -sum(p * math.log(p, base) for p in proba)
@@ -111,18 +111,27 @@ class TestDefinitions:
             assert tree.b1_index() == pytest.approx(b1_index_definition(tree))
 
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
-    @pytest.mark.parametrize("base", [2, 10, math.e, np.array([3])[0]])
+    def test_b2(self, ts):
+        for tree in ts.trees():
+            if tree.num_roots != 1:
+                with pytest.raises(tskit.LibraryError, match="MULTIROOT"):
+                    tree.b2_index()
+                with pytest.raises(ValueError):
+                    b2_index_definition(tree)
+            else:
+                assert tree.b2_index() == b2_index_definition(tree)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    @pytest.mark.parametrize("base", [0.1, 1.1, 2, 10, math.e, np.array([3])[0]])
     def test_b2_base(self, ts, base):
         for tree in ts.trees():
             if tree.num_roots != 1:
-                with pytest.raises(ValueError):
+                with pytest.raises(tskit.LibraryError, match="MULTIROOT"):
                     tree.b2_index(base)
                 with pytest.raises(ValueError):
                     b2_index_definition(tree, base)
             else:
-                assert tree.b2_index(base) == pytest.approx(
-                    b2_index_definition(tree, base)
-                )
+                assert tree.b2_index(base) == b2_index_definition(tree, base)
 
 
 class TestBalancedBinaryOdd:
@@ -171,6 +180,31 @@ class TestBalancedBinaryEven:
 
     def test_b2(self):
         assert self.tree().b2_index() == pytest.approx(0.602, rel=1e-3)
+
+    @pytest.mark.parametrize(
+        ("base", "expected"),
+        [
+            (2, 2),
+            (3, 1.2618595071429148),
+            (4, 1.0),
+            (5, 0.8613531161467861),
+            (10, 0.6020599913279623),
+            (100, 0.30102999566398114),
+            (1000000, 0.10034333188799373),
+            (2.718281828459045, 1.3862943611198906),
+        ],
+    )
+    def test_b2_base(self, base, expected):
+        assert self.tree().b2_index(base) == expected
+
+    @pytest.mark.parametrize("base", [0, -0.001, -1, -1e-6, -1e200])
+    def test_b2_bad_base(self, base):
+        with pytest.raises(ValueError, match="math domain"):
+            self.tree().b2_index(base=base)
+
+    def test_b2_base1(self):
+        with pytest.raises(ZeroDivisionError):
+            self.tree().b2_index(base=1)
 
 
 class TestBalancedTernary:
@@ -279,7 +313,7 @@ class TestMultiRootBinary:
         assert self.tree().b1_index() == 4.5
 
     def test_b2(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(tskit.LibraryError, match="UNDEFINED_MULTIROOT"):
             self.tree().b2_index()
 
 
@@ -300,7 +334,7 @@ class TestEmpty:
         assert self.tree().b1_index() == 0
 
     def test_b2(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(tskit.LibraryError, match="UNDEFINED_MULTIROOT"):
             self.tree().b2_index()
 
 
@@ -322,7 +356,7 @@ class TestTreeInNullState:
         assert self.tree().b1_index() == 0
 
     def test_b2(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(tskit.LibraryError, match="UNDEFINED_MULTIROOT"):
             self.tree().b2_index()
 
 
@@ -345,5 +379,5 @@ class TestAllRootsN5:
         assert self.tree().b1_index() == 0
 
     def test_b2(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(tskit.LibraryError, match="UNDEFINED_MULTIROOT"):
             self.tree().b2_index()

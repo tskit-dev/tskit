@@ -57,6 +57,9 @@
 - Add B1 tree balance index.
   (:user:`jeremyguez`, :user:`jeromekelleher`, :issue:`2251`, :pr:`2281`, :pr:`2346`).
 
+- Add B2 tree balance index.
+  (:user:`jeremyguez`, :user:`jeromekelleher`, :issue:`2252`, :pr:`2353`, :pr:`2354`).
+
 - Add Sackin tree imbalance index.
   (:user:`jeremyguez`, :user:`jeromekelleher`, :pr:`2246`, :pr:`2258`).
 

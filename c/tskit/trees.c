@@ -5009,6 +5009,68 @@ out:
     return ret;
 }
 
+static double
+general_log(double x, double base)
+{
+    return log(x) / log(base);
+}
+
+int
+tsk_tree_b2_index(const tsk_tree_t *self, double base, double *result)
+{
+    struct stack_elem {
+        tsk_id_t node;
+        double path_product;
+    };
+    int ret = 0;
+    const tsk_id_t *restrict right_child = self->right_child;
+    const tsk_id_t *restrict left_sib = self->left_sib;
+    struct stack_elem *stack
+        = tsk_malloc(tsk_tree_get_size_bound(self) * sizeof(*stack));
+    int stack_top;
+    double total_proba = 0;
+    double num_children;
+    tsk_id_t u;
+    struct stack_elem s = { .node = TSK_NULL, .path_product = 1 };
+
+    if (stack == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    if (tsk_tree_get_num_roots(self) != 1) {
+        ret = TSK_ERR_UNDEFINED_MULTIROOT;
+        goto out;
+    }
+
+    stack_top = 0;
+    s.node = tsk_tree_get_left_root(self);
+    stack[stack_top] = s;
+
+    while (stack_top >= 0) {
+        s = stack[stack_top];
+        stack_top--;
+        u = right_child[s.node];
+        if (u == TSK_NULL) {
+            total_proba -= s.path_product * general_log(s.path_product, base);
+        } else {
+            num_children = 0;
+            for (; u != TSK_NULL; u = left_sib[u]) {
+                num_children++;
+            }
+            s.path_product *= 1 / num_children;
+            for (u = right_child[s.node]; u != TSK_NULL; u = left_sib[u]) {
+                stack_top++;
+                s.node = u;
+                stack[stack_top] = s;
+            }
+        }
+    }
+    *result = total_proba;
+out:
+    tsk_safe_free(stack);
+    return ret;
+}
+
 /* Parsimony methods */
 
 static inline uint64_t
