@@ -682,7 +682,7 @@ class BaseTable:
         """
 
     def _columns_all_integer(self, *colnames):
-        """For displaying floating point values without loads of decimal places"""
+        # For displaying floating point values without loads of decimal places
         return all(
             np.all(getattr(self, col) == np.floor(getattr(self, col)))
             for col in colnames
