@@ -10818,6 +10818,30 @@ out:
 }
 
 static PyObject *
+Tree_get_b2_index(Tree *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    int err;
+    double base;
+    double result;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTuple(args, "d", &base)) {
+        goto out;
+    }
+    err = tsk_tree_b2_index(self->tree, base, &result);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("d", result);
+out:
+    return ret;
+}
+
+static PyObject *
 Tree_get_root_threshold(Tree *self)
 {
     PyObject *ret = NULL;
@@ -11240,6 +11264,10 @@ static PyMethodDef Tree_methods[] = {
         .ml_meth = (PyCFunction) Tree_get_b1_index,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns the B1 index for this tree." },
+    { .ml_name = "get_b2_index",
+        .ml_meth = (PyCFunction) Tree_get_b2_index,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the B2 index for this tree." },
     { NULL } /* Sentinel */
 };
 

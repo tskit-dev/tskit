@@ -3194,6 +3194,15 @@ class TestTree(LowLevelTestCase):
                 assert not t2.equals(t1)
             last_ts = ts
 
+    def test_b2_errors(self):
+        ts1 = self.get_example_tree_sequence(10)
+        t1 = _tskit.Tree(ts1)
+        t1.first()
+        with pytest.raises(TypeError):
+            t1.get_b2_index()
+        with pytest.raises(TypeError):
+            t1.get_b2_index("asdf")
+
     def test_kc_distance_errors(self):
         ts1 = self.get_example_tree_sequence(10)
         t1 = _tskit.Tree(ts1, options=_tskit.SAMPLE_LISTS)

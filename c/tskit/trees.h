@@ -1696,6 +1696,11 @@ int tsk_tree_kc_distance(
 int tsk_tree_sackin_index(const tsk_tree_t *self, tsk_size_t *result);
 int tsk_tree_colless_index(const tsk_tree_t *self, tsk_size_t *result);
 int tsk_tree_b1_index(const tsk_tree_t *self, double *result);
+/* NOTE: if we document this as part of the C API we'll have to be more careful
+ * about the error behaviour on bad log bases. At the moment we're just returning
+ * the resulting value which can be nan, inf etc, but some surprising results
+ * happen like a base 0 seems to return a finite value. */
+int tsk_tree_b2_index(const tsk_tree_t *self, double base, double *result);
 
 /* Things to consider removing: */
 
