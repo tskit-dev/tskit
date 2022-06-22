@@ -906,7 +906,7 @@ from IPython.display import HTML
 def html_quintuple_table(ts, show_virtual_root=False, show_convenience_arrays=False):
     tree = ts.first()
     columns = ["node", "parent", "left_child", "right_child", "left_sib", "right_sib"]
-    convenience_arrays = ["num_children"]
+    convenience_arrays = ["num_children", "edge"]
     if show_convenience_arrays:
         columns += convenience_arrays
     data = {k:[] for k in columns}
@@ -965,7 +965,7 @@ information on each node in the tree. These arrays are not essential to
 represent the trees within a treesequence. However, they can be useful for
 specific algorithms (e.g. when computing tree (im)balance metrics). The 
 convience arrays that have been implemented are: 
-{attr}`Tree.num_children_array`.
+{attr}`Tree.num_children_array`, {attr}`Tree.edge_array`.
 
 Adding convenience arrays to the example above results in this table:
 

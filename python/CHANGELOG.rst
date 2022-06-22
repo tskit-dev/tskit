@@ -72,6 +72,10 @@
   and maintainability. Please open an issue if this affects your application.
   (:user:`jeromekelleher`, :user:`benjeffery`, :pr:`2120`).
 
+- Add ``Tree.edge_array`` and ``Tree.edge``. Returns the edge id of the edge encoding
+  the relationship of each node with its parent.
+  (:user:`GertjanBisschop`, :issue:`2361`, :pr:`2357`)
+
 **Breaking Changes**
 
 - The JSON metadata codec now interprets the empty string as an empty object. This means

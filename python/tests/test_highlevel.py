@@ -2364,7 +2364,8 @@ class TestTreeSequence(HighLevelTestCase):
     def test_tree_node_edges(self):
         for ts in get_example_tree_sequences():
             edge_visited = np.zeros(ts.num_edges, dtype=bool)
-            for mapping, tree in zip(ts._tree_node_edges(), ts.trees()):
+            for tree in ts.trees():
+                mapping = tree.edge_array
                 node_mapped = mapping >= 0
                 edge_visited[mapping[node_mapped]] = True
                 # Note that tree.nodes() does not necessarily list all the nodes
@@ -3711,6 +3712,7 @@ class TestTree(HighLevelTestCase):
         assert tree.left_sib_array.shape == (N,)
         assert tree.right_sib_array.shape == (N,)
         assert tree.num_children_array.shape == (N,)
+        assert tree.edge_array.shape == (N,)
         for u in range(N):
             assert tree.parent(u) == tree.parent_array[u]
             assert tree.left_child(u) == tree.left_child_array[u]
@@ -3718,6 +3720,7 @@ class TestTree(HighLevelTestCase):
             assert tree.left_sib(u) == tree.left_sib_array[u]
             assert tree.right_sib(u) == tree.right_sib_array[u]
             assert tree.num_children(u) == tree.num_children_array[u]
+            assert tree.edge(u) == tree.edge_array[u]
 
     def verify_tree_arrays_python_ts(self, ts):
         pts = tests.PythonTreeSequence(ts)
@@ -3730,6 +3733,7 @@ class TestTree(HighLevelTestCase):
             assert np.all(st1.left_sib_array == st2.left_sib)
             assert np.all(st1.right_sib_array == st2.right_sib)
             assert np.all(st1.num_children_array == st2.num_children)
+            assert np.all(st1.edge_array == st2.edge)
 
     def test_tree_arrays(self):
         ts = msprime.simulate(10, recombination_rate=1, random_seed=1)
@@ -3747,6 +3751,7 @@ class TestTree(HighLevelTestCase):
             "left_sib",
             "right_sib",
             "num_children",
+            "edge",
         ],
     )
     def test_tree_array_properties(self, array):
@@ -3770,6 +3775,7 @@ class TestTree(HighLevelTestCase):
             assert tree.left_child(u) == tskit.NULL
             assert tree.right_child(u) == tskit.NULL
             assert tree.num_children(u) == 0
+            assert tree.edge(u) == tskit.NULL
             if not ts.node(u).is_sample():
                 assert tree.left_sib(u) == tskit.NULL
                 assert tree.right_sib(u) == tskit.NULL
@@ -3817,6 +3823,7 @@ class TestTree(HighLevelTestCase):
         assert np.all(t1.left_sib_array == t2.left_sib_array)
         assert np.all(t1.right_sib_array == t2.right_sib_array)
         assert np.all(t1.num_children_array == t2.num_children_array)
+        assert np.all(t1.edge_array == t2.edge_array)
         assert list(t1.sites()) == list(t2.sites())
 
     def test_copy_seek(self):
@@ -3924,7 +3931,8 @@ class TestTree(HighLevelTestCase):
         for tree in ts.trees():
             nodes = set(tree.nodes())
             midpoint = sum(tree.interval) / 2
-            mapping = tree._node_edges()
+            # mapping = tree._node_edges()
+            mapping = tree.edge_array
             for node, edge in enumerate(mapping):
                 if node in nodes and tree.parent(node) != tskit.NULL:
                     edge_above_node = np.where(

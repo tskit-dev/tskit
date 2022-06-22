@@ -10312,6 +10312,22 @@ out:
 }
 
 static PyObject *
+Tree_get_edge(Tree *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    tsk_id_t edge_id;
+    int node;
+
+    if (Tree_get_node_argument(self, args, &node) != 0) {
+        goto out;
+    }
+    edge_id = self->tree->edge[node];
+    ret = Py_BuildValue("i", (int) edge_id);
+out:
+    return ret;
+}
+
+static PyObject *
 Tree_get_children(Tree *self, PyObject *args)
 {
     PyObject *ret = NULL;
@@ -11052,6 +11068,19 @@ out:
     return ret;
 }
 
+static PyObject *
+Tree_get_edge_array(Tree *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Tree_make_array(self, NPY_INT32, self->tree->edge);
+out:
+    return ret;
+}
+
 static PyGetSetDef Tree_getsetters[]
     = { { .name = "parent_array",
             .get = (getter) Tree_get_parent_array,
@@ -11071,6 +11100,9 @@ static PyGetSetDef Tree_getsetters[]
           { .name = "num_children_array",
               .get = (getter) Tree_get_num_children_array,
               .doc = "The num_children array in the quintuply linked tree." },
+          { .name = "edge_array",
+              .get = (getter) Tree_get_edge_array,
+              .doc = "The edge array in the quintuply linked tree." },
           { NULL } };
 
 static PyMethodDef Tree_methods[] = {
@@ -11182,6 +11214,10 @@ static PyMethodDef Tree_methods[] = {
         .ml_meth = (PyCFunction) Tree_get_right_sib,
         .ml_flags = METH_VARARGS,
         .ml_doc = "Returns the right-most sib of node u" },
+    { .ml_name = "get_edge",
+        .ml_meth = (PyCFunction) Tree_get_edge,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the edge id connecting node u to its parent" },
     { .ml_name = "get_children",
         .ml_meth = (PyCFunction) Tree_get_children,
         .ml_flags = METH_VARARGS,

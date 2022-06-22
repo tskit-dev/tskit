@@ -1174,7 +1174,7 @@ class SvgTree(SvgPlot):
             tree_right = tree.interval.right
             edge_left = ts.tables.edges.left
             edge_right = ts.tables.edges.right
-            node_edges = tree._node_edges()
+            node_edges = tree.edge_array
             # whittle mutations down so we only need look at those above the tree nodes
             mut_t = ts.tables.mutations
             focal_mutations = np.isin(mut_t.node, np.fromiter(nodes, mut_t.node.dtype))

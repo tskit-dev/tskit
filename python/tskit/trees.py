@@ -689,6 +689,7 @@ class Tree:
         self._left_sib_array = self._ll_tree.left_sib_array
         self._right_sib_array = self._ll_tree.right_sib_array
         self._num_children_array = self._ll_tree.num_children_array
+        self._edge_array = self._ll_tree.edge_array
 
     @property
     def tree_sequence(self):
@@ -1198,6 +1199,35 @@ class Tree:
         .. include:: substitutions/tree_array_warning.rst
         """
         return self._num_children_array
+
+    def edge(self, u):
+        """
+        Returns the id of the edge encoding the relationship between ``u``
+        and its parent, or :data:`tskit.NULL` if ``u`` is a root, virtual root
+        or is not a node in the current tree.
+
+        :param int u: The node of interest.
+        :return: Id of edge connecting u to its parent.
+        :rtype: int
+        """
+        return self._ll_tree.get_edge(u)
+
+    @property
+    def edge_array(self):
+        """
+        A numpy array (dtype=np.int32) of edge ids encoding the relationship
+        between the child node ``u`` and its parent, such that
+        ``tree.edge_array[u] == tree.edge(u)`` for all
+        ``0 <= u <= ts.num_nodes``. See the :meth:`~.edge`
+        method for details on the semantics of tree edge and the
+        :ref:`sec_data_model_tree_structure` section for information on the
+        quintuply linked tree encoding.
+
+        .. include:: substitutions/virtual_root_array_note.rst
+
+        .. include:: substitutions/tree_array_warning.rst
+        """
+        return self._edge_array
 
     # Sample list.
 
