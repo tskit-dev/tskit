@@ -1185,7 +1185,7 @@ class Tree:
     @property
     def num_children_array(self):
         """
-        A numpy array (dtype=np.uint64) encoding the number of children of
+        A numpy array (dtype=np.int32) encoding the number of children of
         each node in this tree, such that
         ``tree.num_children_array[u] == tree.num_children(u)`` for all
         ``0 <= u <= ts.num_nodes``. See the :meth:`~.num_children`
