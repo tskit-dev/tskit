@@ -263,29 +263,37 @@ class TestTskitArgumentParser:
         assert args.tree_sequence == tree_sequence
         assert args.wrap == 50
 
-    def test_vcf_default_values(self):
+    @pytest.mark.parametrize(
+        "flags,expected",
+        (
+            [[], None],
+            [["-P", "2"], 2],
+            [["--ploidy", "5"], 5],
+        ),
+    )
+    def test_vcf_ploidy(self, flags, expected):
         parser = cli.get_tskit_parser()
         cmd = "vcf"
         tree_sequence = "test.trees"
-        args = parser.parse_args([cmd, tree_sequence])
+        args = parser.parse_args([cmd, tree_sequence, *flags])
         assert args.tree_sequence == tree_sequence
-        assert args.ploidy is None
+        assert args.ploidy == expected
 
-    def test_vcf_short_args(self):
+    @pytest.mark.parametrize(
+        "flags,expected",
+        (
+            [[], "1"],
+            [["-c", "chrX"], "chrX"],
+            [["--contig-id", "chr20"], "chr20"],
+        ),
+    )
+    def test_vcf_contig_id(self, flags, expected):
         parser = cli.get_tskit_parser()
         cmd = "vcf"
         tree_sequence = "test.trees"
-        args = parser.parse_args([cmd, tree_sequence, "-P", "2"])
+        args = parser.parse_args([cmd, tree_sequence, *flags])
         assert args.tree_sequence == tree_sequence
-        assert args.ploidy == 2
-
-    def test_vcf_long_args(self):
-        parser = cli.get_tskit_parser()
-        cmd = "vcf"
-        tree_sequence = "test.trees"
-        args = parser.parse_args([cmd, tree_sequence, "--ploidy", "5"])
-        assert args.tree_sequence == tree_sequence
-        assert args.ploidy == 5
+        assert args.contig_id == expected
 
     def test_upgrade_default_values(self):
         parser = cli.get_tskit_parser()
