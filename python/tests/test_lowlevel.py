@@ -2684,6 +2684,7 @@ class TestTree(LowLevelTestCase):
         "left_sib",
         "right_sib",
         "num_children",
+        "edge",
     ]
 
     def test_options(self):
@@ -3036,6 +3037,7 @@ class TestTree(LowLevelTestCase):
                 assert tree.get_left_child(u) == _tskit.NULL
                 assert tree.get_right_child(u) == _tskit.NULL
                 assert tree.get_num_children(u) == 0
+                assert tree.get_edge(u) == _tskit.NULL
 
         tree = _tskit.Tree(ts)
         check_tree(tree)

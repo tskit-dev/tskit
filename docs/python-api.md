@@ -445,6 +445,7 @@ Node information
       Tree.right_child
       Tree.left_child
       Tree.children
+      Tree.edge
 
 Descendant nodes
     .. autosummary::
@@ -479,6 +480,7 @@ high performance interface which can be used in conjunction with the equivalent
   Tree.left_sib_array
   Tree.right_sib_array
   Tree.num_children_array
+  Tree.edge_array
 ```
 
 
