@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2018-2021 Tskit Developers
+# Copyright (c) 2018-2022 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -132,7 +132,7 @@ def run_fasta(args):
 
 def run_vcf(args):
     tree_sequence = load_tree_sequence(args.tree_sequence)
-    tree_sequence.write_vcf(sys.stdout, ploidy=args.ploidy)
+    tree_sequence.write_vcf(sys.stdout, ploidy=args.ploidy, contig_id=args.contig_id)
 
 
 def add_tree_sequence_argument(parser):
@@ -214,6 +214,9 @@ def get_tskit_parser():
             "to provide this argument if the tree sequence does contain "
             "individuals"
         ),
+    )
+    parser.add_argument(
+        "--contig-id", "-c", type=str, default="1", help="Specify the contig id"
     )
     parser.set_defaults(runner=run_vcf)
 
