@@ -319,6 +319,29 @@ class TestTskitArgumentParser:
         args = parser.parse_args([cmd, tree_sequence])
         assert args.tree_sequence == tree_sequence
 
+    def test_migrations_default_values(self):
+        parser = cli.get_tskit_parser()
+        cmd = "migrations"
+        tree_sequence = "test.trees"
+        args = parser.parse_args([cmd, tree_sequence])
+        assert args.tree_sequence == tree_sequence
+
+    def test_migrations_short_args(self):
+        parser = cli.get_tskit_parser()
+        cmd = "migrations"
+        tree_sequence = "test.trees"
+        args = parser.parse_args([cmd, tree_sequence, "-p", "2"])
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 2
+
+    def test_migrations_long_args(self):
+        parser = cli.get_tskit_parser()
+        cmd = "migrations"
+        tree_sequence = "test.trees"
+        args = parser.parse_args([cmd, tree_sequence, "--precision", "5"])
+        assert args.tree_sequence == tree_sequence
+        assert args.precision == 5
+
     def test_trees_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "trees"
@@ -464,6 +487,23 @@ class TestTskitConversionOutput(unittest.TestCase):
         output_mutations = stdout.splitlines()
         self.verify_mutations(output_mutations, precision)
 
+    def verify_migrations(self, output_migrations, precision):
+        with tempfile.TemporaryFile("w+") as f:
+            self._tree_sequence.dump_text(migrations=f, precision=precision)
+            f.seek(0)
+            output = f.read().splitlines()
+        assert output == output_migrations
+
+    def test_migrations(self):
+        cmd = "migrations"
+        precision = 4
+        stdout, stderr = capture_output(
+            cli.tskit_main, [cmd, self._tree_sequence_file, "-p", str(precision)]
+        )
+        assert len(stderr) == 0
+        output_migrations = stdout.splitlines()
+        self.verify_migrations(output_migrations, precision)
+
     def verify_provenances(self, output_provenances):
         with tempfile.TemporaryFile("w+") as f:
             self._tree_sequence.dump_text(provenances=f)
@@ -575,6 +615,9 @@ class TestBadFile:
 
     def test_mutations(self):
         self.verify("mutations")
+
+    def test_migrations(self):
+        self.verify("migrations")
 
     def test_provenances(self):
         self.verify("provenances")

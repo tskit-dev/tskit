@@ -111,6 +111,11 @@ def run_populations(args):
     tree_sequence.dump_text(populations=sys.stdout)
 
 
+def run_migrations(args):
+    tree_sequence = load_tree_sequence(args.tree_sequence)
+    tree_sequence.dump_text(migrations=sys.stdout, precision=args.precision)
+
+
 def run_provenances(args):
     tree_sequence = load_tree_sequence(args.tree_sequence)
     if args.human:
@@ -254,6 +259,13 @@ def get_tskit_parser():
     )
     add_tree_sequence_argument(parser)
     parser.set_defaults(runner=run_populations)
+
+    parser = subparsers.add_parser(
+        "migrations", help="Output migration information in tabular format."
+    )
+    add_tree_sequence_argument(parser)
+    add_precision_argument(parser)
+    parser.set_defaults(runner=run_migrations)
 
     parser = subparsers.add_parser(
         "provenances", help="Output provenance information in tabular format."
