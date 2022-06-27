@@ -1413,6 +1413,53 @@ class TestBranchSegregatingSitesProperties(StatsTestCase, TopologyExamplesMixin)
 
 
 ############################################
+# Watterson's theta
+############################################
+
+
+def site_watterson_theta(ts, sample_sets, windows=None, span_normalise=True):
+    pass
+
+
+def node_watterson_theta(ts, sample_sets, windows=None, span_normalise=True):
+    pass
+
+
+def branch_watterson_theta(ts, sample_sets, windows=None, span_normalise=True):
+    pass
+
+
+def wattersons_theta(ts, sample_sets, windows=None, mode="site", span_normalise=True):
+    """
+    Computes the Watterson's theta over the window specified.
+    """
+    method_map = {
+        "site": site_watterson_theta,
+        "node": branch_watterson_theta,
+        "branch": node_watterson_theta,
+    }
+    return method_map[mode](
+        ts, sample_sets, windows=windows, span_normalise=span_normalise
+    )
+
+
+class TestWattersonsTheta(StatsTestCase, SampleSetStatsMixin):
+    pass
+
+
+class TestSiteWattersonsTheta(TestWattersonsTheta, MutatedTopologyExamplesMixin):
+    mode = "site"
+
+
+class TestNodeWattersonsTheta(TestWattersonsTheta, TopologyExamplesMixin):
+    mode = "node"
+
+
+class TestBranchWattersonsTheta(TestWattersonsTheta, TopologyExamplesMixin):
+    mode = "branch"
+
+
+############################################
 # Tajima's D
 ############################################
 

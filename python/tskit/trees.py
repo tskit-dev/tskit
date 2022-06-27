@@ -7771,6 +7771,40 @@ class TreeSequence:
             polarised=polarised,
         )
 
+    def Wattersons_theta(
+        self, sample_sets=None, windows=None, mode="site", span_normalise=True
+    ):
+        """
+        Computes the Watterson's theta of sets of nodes from ``sample_sets`` in windows.
+        Please see the :ref:`one-way statistics <sec_stats_sample_sets_one_way>`
+        section for details on how the ``sample_sets`` argument is interpreted
+        and how it interacts with the dimensions of the output array.
+        See the :ref:`statistics interface <sec_stats_interface>` section for details on
+        :ref:`windows <sec_stats_windows>`, :ref:`mode <sec_stats_mode>`,
+        :ref:`span normalise <sec_stats_span_normalise>`,
+        and :ref:`return value <sec_stats_output_format>`.
+
+        TODO: Define theta.
+
+        :param list sample_sets: A list of lists of Node IDs, specifying the
+            groups of nodes to compute the statistic with.
+        :param list windows: An increasing list of breakpoints between the windows
+            to compute the statistic in.
+        :param str mode: A string giving the "type" of the statistic to be computed
+            (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True).
+        :return: A ndarray with shape equal to (num windows, num statistics).
+        """
+        num_segregating_sites = self.segregating_sites(
+            sample_sets=sample_sets,
+            windows=windows,
+            mode=mode,
+            span_normalise=span_normalise,
+        )
+        denominator = np.sum([1 / i for i in np.arange(1, self.num_samples)])
+        return num_segregating_sites / denominator
+
     def Tajimas_D(self, sample_sets=None, windows=None, mode="site"):
         """
         Computes Tajima's D of sets of nodes from ``sample_sets`` in windows.
