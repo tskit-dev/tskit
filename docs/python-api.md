@@ -1041,6 +1041,7 @@ Move some or all of these examples into a suitable alternative chapter.
   parse_mutations
   parse_individuals
   parse_populations
+  parse_migrations
   pack_strings
   unpack_strings
   pack_bytes
@@ -1143,6 +1144,7 @@ The following constants are used throughout the `tskit` API.
 .. autofunction:: parse_mutations
 .. autofunction:: parse_nodes
 .. autofunction:: parse_populations
+.. autofunction:: parse_migrations
 .. autofunction:: parse_sites
 .. autofunction:: random_nucleotides
 .. autofunction:: register_metadata_codec

@@ -264,6 +264,23 @@ class TestLoadTextMetadata:
         for a, b in zip(expected, p):
             assert a.encode("utf8") == b.metadata
 
+    @pytest.mark.parametrize(
+        "base64_metadata,expected", [(True, ["pop", "gen"]), (False, ["cG9w", "Z2Vu"])]
+    )
+    def test_migrations(self, base64_metadata, expected):
+        migrations = io.StringIO(
+            """\
+        left    right    node    source    dest    time    metadata
+        10    100    0    3    4    123.0    cG9w
+        150    360    1    1    2    307.0    Z2Vu
+        """
+        )
+        m = tskit.parse_migrations(
+            migrations, strict=False, encoding="utf8", base64_metadata=base64_metadata
+        )
+        for a, b in zip(expected, m):
+            assert a.encode("utf8") == b.metadata
+
 
 class TestMetadataModule:
     """

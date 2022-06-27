@@ -3093,6 +3093,38 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
             else:
                 assert repr(population.metadata) == splits[1]
 
+    def verify_migrations_format(self, ts, migrations_file, precision, base64_metadata):
+        """
+        Verifies that the migrations we output have the correct form.
+        """
+
+        def convert(v):
+            return "{:.{}f}".format(v, precision)
+
+        output_migrations = migrations_file.read().splitlines()
+        assert len(output_migrations) - 1 == ts.num_migrations
+        assert list(output_migrations[0].split()) == [
+            "left",
+            "right",
+            "node",
+            "source",
+            "dest",
+            "time",
+            "metadata",
+        ]
+        for migration, line in zip(ts.migrations(), output_migrations[1:]):
+            splits = line.split("\t")
+            assert str(migration.left) == splits[0]
+            assert str(migration.right) == splits[1]
+            assert str(migration.node) == splits[2]
+            assert str(migration.source) == splits[3]
+            assert str(migration.dest) == splits[4]
+            assert str(migration.time) == splits[5]
+            if isinstance(migration.metadata, bytes) and base64_metadata:
+                assert tests.base64_encode(migration.metadata) == splits[6]
+            else:
+                assert repr(migration.metadata) == splits[6]
+
     @pytest.mark.parametrize(("precision", "base64_metadata"), [(2, True), (7, False)])
     def test_output_format(self, precision, base64_metadata):
         for ts in get_example_tree_sequences():
@@ -3102,6 +3134,7 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
             mutations_file = io.StringIO()
             individuals_file = io.StringIO()
             populations_file = io.StringIO()
+            migrations_file = io.StringIO()
             provenances_file = io.StringIO()
             ts.dump_text(
                 nodes=nodes_file,
@@ -3110,6 +3143,7 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
                 mutations=mutations_file,
                 individuals=individuals_file,
                 populations=populations_file,
+                migrations=migrations_file,
                 provenances=provenances_file,
                 precision=precision,
                 base64_metadata=base64_metadata,
@@ -3120,6 +3154,7 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
             mutations_file.seek(0)
             individuals_file.seek(0)
             populations_file.seek(0)
+            migrations_file.seek(0)
             self.verify_nodes_format(ts, nodes_file, precision, base64_metadata)
             self.verify_edges_format(ts, edges_file, precision, base64_metadata)
             self.verify_sites_format(ts, sites_file, precision, base64_metadata)
@@ -3129,6 +3164,9 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
             )
             self.verify_populations_format(
                 ts, populations_file, precision, base64_metadata
+            )
+            self.verify_migrations_format(
+                ts, migrations_file, precision, base64_metadata
             )
 
     def verify_approximate_equality(self, ts1, ts2):
@@ -3143,6 +3181,7 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
         assert ts1.num_sites == ts2.num_sites
         assert ts1.num_mutations == ts2.num_mutations
         assert ts1.num_populations == ts2.num_populations
+        assert ts1.num_migrations == ts2.num_migrations
 
         checked = 0
         for n1, n2 in zip(ts1.nodes(), ts2.nodes()):
@@ -3182,6 +3221,18 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
             assert s1.metadata == s2.metadata
         assert ts1.num_mutations == checked
 
+        checked = 0
+        for s1, s2 in zip(ts1.migrations(), ts2.migrations()):
+            checked += 1
+            assert s1.left == s2.left
+            assert s1.right == s2.right
+            assert s1.node == s2.node
+            assert s1.source == s2.source
+            assert s1.dest == s2.dest
+            assert s1.time == s2.time
+            assert s1.metadata == s2.metadata
+        assert ts1.num_migrations == checked
+
         # Check the trees
         check = 0
         for t1, t2 in zip(ts1.trees(), ts2.trees()):
@@ -3199,6 +3250,7 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
                 mutations_file = io.StringIO()
                 individuals_file = io.StringIO()
                 populations_file = io.StringIO()
+                migrations_file = io.StringIO()
                 ts1.dump_text(
                     nodes=nodes_file,
                     edges=edges_file,
@@ -3206,6 +3258,7 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
                     mutations=mutations_file,
                     individuals=individuals_file,
                     populations=populations_file,
+                    migrations=migrations_file,
                     precision=16,
                 )
                 nodes_file.seek(0)
@@ -3214,6 +3267,7 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
                 mutations_file.seek(0)
                 individuals_file.seek(0)
                 populations_file.seek(0)
+                migrations_file.seek(0)
                 ts2 = tskit.load_text(
                     nodes=nodes_file,
                     edges=edges_file,
@@ -3221,6 +3275,7 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
                     mutations=mutations_file,
                     individuals=individuals_file,
                     populations=populations_file,
+                    migrations=migrations_file,
                     sequence_length=ts1.sequence_length,
                     strict=True,
                 )
@@ -3231,12 +3286,14 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
         edges_file = io.StringIO("left\tright\tparent\tchild\n")
         sites_file = io.StringIO("position\tancestral_state\n")
         mutations_file = io.StringIO("site\tnode\tderived_state\n")
+        migrations_file = io.StringIO("left\tright\tnode\tsource\tdest\ttime\n")
         with pytest.raises(_tskit.LibraryError):
             tskit.load_text(
                 nodes=nodes_file,
                 edges=edges_file,
                 sites=sites_file,
                 mutations=mutations_file,
+                migrations=migrations_file,
             )
 
     def test_empty_files_sequence_length(self):
@@ -3244,11 +3301,13 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
         edges_file = io.StringIO("left\tright\tparent\tchild\n")
         sites_file = io.StringIO("position\tancestral_state\n")
         mutations_file = io.StringIO("site\tnode\tderived_state\n")
+        migrations_file = io.StringIO("left\tright\tnode\tsource\tdest\ttime\n")
         ts = tskit.load_text(
             nodes=nodes_file,
             edges=edges_file,
             sites=sites_file,
             mutations=mutations_file,
+            migrations=migrations_file,
             sequence_length=100,
         )
         assert ts.sequence_length == 100
@@ -3256,6 +3315,7 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
         assert ts.num_edges == 0
         assert ts.num_sites == 0
         assert ts.num_edges == 0
+        assert ts.num_migrations == 0
 
     def test_load_text_no_populations(self):
         nodes_file = io.StringIO("is_sample\ttime\tpopulation\n1\t0\t2\n")

@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2021 Tskit Developers
+# Copyright (c) 2021-2022 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -261,6 +261,7 @@ def dump_text(
     mutations,
     individuals,
     populations,
+    migrations,
     provenances,
     precision,
     encoding,
@@ -395,6 +396,39 @@ def dump_text(
             metadata = text_metadata(base64_metadata, encoding, population)
             row = ("{id}\t" "{metadata}").format(id=population.id, metadata=metadata)
             print(row, file=populations)
+
+    if migrations is not None:
+        print(
+            "left",
+            "right",
+            "node",
+            "source",
+            "dest",
+            "time",
+            "metadata",
+            sep="\t",
+            file=migrations,
+        )
+        for migration in ts.migrations():
+            metadata = text_metadata(base64_metadata, encoding, migration)
+            row = (
+                "{left}\t"
+                "{right}\t"
+                "{node}\t"
+                "{source}\t"
+                "{dest}\t"
+                "{time}\t"
+                "{metadata}\t"
+            ).format(
+                left=migration.left,
+                right=migration.right,
+                node=migration.node,
+                source=migration.source,
+                dest=migration.dest,
+                time=migration.time,
+                metadata=metadata,
+            )
+            print(row, file=migrations)
 
     if provenances is not None:
         print("id", "timestamp", "record", sep="\t", file=provenances)
