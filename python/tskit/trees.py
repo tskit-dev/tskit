@@ -3525,6 +3525,75 @@ def parse_populations(
     return table
 
 
+def parse_migrations(
+    source, strict=True, encoding="utf8", base64_metadata=True, table=None
+):
+    """
+    Parse the specified file-like object containing a whitespace delimited
+    description of a migration table and returns the corresponding
+    :class:`MigrationTable` instance.
+
+    See the :ref:`migration text format <sec_migration_text_format>` section
+    for the details of the required format and the
+    :ref:`migration table definition <sec_migration_table_definition>` section
+    for the required properties of the contents. Note that if the ``time`` column
+    is missing its entries are filled with :data:`UNKNOWN_TIME`.
+
+    See :func:`tskit.load_text` for a detailed explanation of the ``strict``
+    parameter.
+
+    :param io.TextIOBase source: The file-like object containing the text.
+    :param bool strict: If True, require strict tab delimiting (default). If
+        False, a relaxed whitespace splitting algorithm is used.
+    :param str encoding: Encoding used for text representation.
+    :param bool base64_metadata: If True, metadata is encoded using Base64
+        encoding; otherwise, as plain text.
+    :param MigrationTable table: If specified, write migrations into this table.
+        If not, create a new :class:`MigrationTable` instance.
+    """
+    sep = None
+    if strict:
+        sep = "\t"
+    if table is None:
+        table = tables.MigrationTable()
+    header = source.readline().rstrip("\n").split(sep)
+    left_index = header.index("left")
+    right_index = header.index("right")
+    node_index = header.index("node")
+    source_index = header.index("source")
+    dest_index = header.index("dest")
+    time_index = header.index("time")
+    metadata_index = None
+    try:
+        metadata_index = header.index("metadata")
+    except ValueError:
+        pass
+    for line in source:
+        tokens = line.rstrip("\n").split(sep)
+        if len(tokens) >= 6:
+            left = float(tokens[left_index])
+            right = float(tokens[right_index])
+            node = int(tokens[node_index])
+            source = int(tokens[source_index])
+            dest = int(tokens[dest_index])
+            time = float(tokens[time_index])
+            metadata = b""
+            if metadata_index is not None and metadata_index < len(tokens):
+                metadata = tokens[metadata_index].encode(encoding)
+                if base64_metadata:
+                    metadata = base64.b64decode(metadata)
+            table.add_row(
+                left=left,
+                right=right,
+                node=node,
+                source=source,
+                dest=dest,
+                time=time,
+                metadata=metadata,
+            )
+    return table
+
+
 def load_text(
     nodes,
     edges,
@@ -3532,6 +3601,7 @@ def load_text(
     mutations=None,
     individuals=None,
     populations=None,
+    migrations=None,
     sequence_length=0,
     strict=True,
     encoding="utf8",
@@ -3551,12 +3621,12 @@ def load_text(
     The ``nodes`` and ``edges`` parameters are mandatory and must be file-like
     objects containing text with whitespace delimited columns,  parsable by
     :func:`parse_nodes` and :func:`parse_edges`, respectively. ``sites``,
-    ``mutations``, ``individuals`` and ``populations`` are optional, and must
-    be parsable by :func:`parse_sites`, :func:`parse_individuals`,
-    :func:`parse_populations`, and :func:`parse_mutations`, respectively. For
-    convenience, if the node table refers to populations, but the ``populations``
-    parameter is not provided, a minimal set of rows are added to the
-    population table, so that a valid tree sequence can be returned.
+    ``individuals``, ``populations``, ``mutations``, and ``migrations`` are optional,
+    and must be parsable by :func:`parse_sites`, :func:`parse_individuals`,
+    :func:`parse_populations`, :func:`parse_mutations`, and :func:`parse_migrations`,
+    respectively. For convenience, if the node table refers to populations,
+    but the ``populations`` parameter is not provided, a minimal set of rows are
+    added to the population table, so that a valid tree sequence can be returned.
 
     The ``sequence_length`` parameter determines the
     :attr:`TreeSequence.sequence_length` of the returned tree sequence. If it
@@ -3590,6 +3660,8 @@ def load_text(
         describing a :class:`IndividualTable`.
     :param io.TextIOBase populations: The file-like object containing text
         describing a :class:`PopulationTable`.
+    :param io.TextIOBase migrations: The file-like object containing text
+        describing a :class:`MigrationTable`.
     :param float sequence_length: The sequence length of the returned tree sequence. If
         not supplied or zero this will be inferred from the set of edges.
     :param bool strict: If True, require strict tab delimiting (default). If
@@ -3659,6 +3731,14 @@ def load_text(
             encoding=encoding,
             base64_metadata=base64_metadata,
             table=tc.populations,
+        )
+    if migrations is not None:
+        parse_migrations(
+            migrations,
+            strict=strict,
+            encoding=encoding,
+            base64_metadata=base64_metadata,
+            table=tc.migrations,
         )
     tc.sort()
     return tc.tree_sequence()
@@ -3943,6 +4023,7 @@ class TreeSequence:
         mutations=None,
         individuals=None,
         populations=None,
+        migrations=None,
         provenances=None,
         precision=6,
         encoding="utf8",
@@ -3965,6 +4046,8 @@ class TreeSequence:
             IndividualTable to.
         :param io.TextIOBase populations: The file-like object to write the
             PopulationTable to.
+        :param io.TextIOBase migrations: The file-like object to write the
+            MigrationTable to.
         :param io.TextIOBase provenances: The file-like object to write the
             ProvenanceTable to.
         :param int precision: The number of digits of precision.
@@ -3981,6 +4064,7 @@ class TreeSequence:
             mutations=mutations,
             individuals=individuals,
             populations=populations,
+            migrations=migrations,
             provenances=provenances,
             precision=precision,
             encoding=encoding,
