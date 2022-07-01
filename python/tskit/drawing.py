@@ -94,6 +94,16 @@ class Timescaling:
         return self.plot_min - (y - self.min_time) * y_scale
 
 
+class SVGString(str):
+    "A string containing an SVG representation"
+
+    def _repr_svg_(self):
+        """
+        Simply return the SVG string: called by jupyter notebooks to render trees.
+        """
+        return self
+
+
 def check_orientation(orientation):
     if orientation is None:
         orientation = TOP
@@ -415,7 +425,7 @@ def draw_tree(
             mutation_attrs=mutation_attrs,
             order=order,
         )
-        return tree.drawing.tostring()
+        return SVGString(tree.drawing.tostring())
 
     else:
         if width is not None:

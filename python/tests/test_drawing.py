@@ -1446,6 +1446,12 @@ class TestDrawTextExamples(TestTreeDraw):
             with pytest.raises(ValueError):
                 t.draw_text(max_time=bad_max_time)
 
+    def test_no_repr_svg(self):
+        tree = self.get_simple_ts().first()
+        output = tree.draw(format="unicode")
+        with pytest.raises(AttributeError, match="no attribute"):
+            output._repr_svg_()
+
 
 class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
     """
@@ -1489,6 +1495,15 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
             assert "class" in group.attrib
             cls = group.attrib["class"]
             assert re.search(r"\broot\b", cls)
+
+    def test_repr_svg(self):
+        ts = self.get_simple_ts()
+        svg = ts.draw_svg()
+        assert str(svg) == svg._repr_svg_()
+        svg = ts.first().draw_svg()
+        assert str(svg) == svg._repr_svg_()
+        svg = ts.first().draw(format="svg")
+        assert str(svg) == svg._repr_svg_()
 
     def test_draw_to_file(self, tmp_path):
         # NB: to view output files for testing changes to drawing code, it is possible

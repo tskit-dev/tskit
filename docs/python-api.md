@@ -1509,3 +1509,9 @@ Also see the {ref}`sec_python_api_metadata` summary.
     :members:
 ```
 
+#### The {class}`SVGString` class
+```{eval-rst}
+.. autoclass:: SVGString
+    :members:
+    :private-members: _repr_svg_
+```

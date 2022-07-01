@@ -2,6 +2,12 @@
 [0.5.1] - 2022-0X-XX
 --------------------
 
+**Changes**
+
+- SVG drawing routines now return a special string object that is automatically
+  rendered in a Jupyter notebook (:user:`hyanwong`, :pr:`2377`)
+
+
 --------------------
 [0.5.0] - 2022-06-22
 --------------------

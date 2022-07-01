@@ -84,6 +84,7 @@ from tskit.combinatorics import (  # NOQA
     all_tree_labellings,
     TopologyCounter,
 )
+from tskit.drawing import SVGString  # NOQA
 from tskit.exceptions import *  # NOQA
 from tskit.util import *  # NOQA
 from tskit.metadata import *  # NOQA
