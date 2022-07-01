@@ -1794,7 +1794,7 @@ class Tree:
             from the same tree sequence may share some plotted mutations.
 
         :return: An SVG representation of a tree.
-        :rtype: str
+        :rtype: SVGString
         """
         draw = drawing.SvgTree(
             self,
@@ -1824,7 +1824,7 @@ class Tree:
         if path is not None:
             # TODO: removed the pretty here when this is stable.
             draw.drawing.saveas(path, pretty=True)
-        return output
+        return drawing.SVGString(output)
 
     def draw(
         self,
@@ -6502,7 +6502,7 @@ class TreeSequence:
             at each y tickmark.
 
         :return: An SVG representation of a tree sequence.
-        :rtype: str
+        :rtype: SVGString
 
         .. note::
             Technically, x_lim[0] specifies a *minimum* value for the start of the X
@@ -6541,7 +6541,7 @@ class TreeSequence:
         if path is not None:
             # TODO remove the 'pretty' when we are done debugging this.
             draw.drawing.saveas(path, pretty=True)
-        return output
+        return drawing.SVGString(output)
 
     def draw_text(
         self,
