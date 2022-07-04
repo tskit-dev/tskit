@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2021 Tskit Developers
+# Copyright (c) 2018-2022 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -110,6 +110,7 @@ class Simplifier:
         filter_individuals=True,
         keep_unary=False,
         keep_unary_in_individuals=False,
+        keep_unary_if_coalescent=False,
         keep_input_roots=False,
     ):
         self.ts = ts
@@ -121,6 +122,7 @@ class Simplifier:
         self.filter_individuals = filter_individuals
         self.keep_unary = keep_unary
         self.keep_unary_in_individuals = keep_unary_in_individuals
+        self.keep_unary_if_coalescent = keep_unary_if_coalescent
         self.keep_input_roots = keep_input_roots
         self.num_mutations = ts.num_mutations
         self.input_sites = list(ts.sites())
@@ -283,17 +285,23 @@ class Simplifier:
             self.A_tail[input_id] = None
             self.A_head[input_id] = None
 
+        node_is_in_individual = self.ts.node(input_id).individual >= 0
+        overlapping_segs = list(overlapping_segments(S))
+        node_is_coalescent = any(len(X) > 1 for _, _, X in overlapping_segs)
+        keep_unary = self.keep_unary
+        if self.keep_unary_in_individuals and node_is_in_individual:
+            keep_unary = True
+        if self.keep_unary_if_coalescent and node_is_coalescent:
+            keep_unary = True
+
         prev_right = 0
-        for left, right, X in overlapping_segments(S):
+        for left, right, X in overlapping_segs:
             if len(X) == 1:
                 ancestry_node = X[0].node
                 if is_sample:
                     self.record_edge(left, right, output_id, ancestry_node)
                     ancestry_node = output_id
-                elif self.keep_unary or (
-                    self.keep_unary_in_individuals
-                    and self.ts.node(input_id).individual >= 0
-                ):
+                elif keep_unary:
                     if output_id == -1:
                         output_id = self.record_node(input_id)
                     self.record_edge(left, right, output_id, ancestry_node)
@@ -306,10 +314,7 @@ class Simplifier:
             if is_sample and left != prev_right:
                 # Fill in any gaps in the ancestry for the sample
                 self.add_ancestry(input_id, prev_right, left, output_id)
-            if self.keep_unary or (
-                self.keep_unary_in_individuals
-                and self.ts.node(input_id).individual >= 0
-            ):
+            if keep_unary:
                 ancestry_node = output_id
             self.add_ancestry(input_id, left, right, ancestry_node)
             prev_right = right
@@ -741,37 +746,50 @@ if __name__ == "__main__":
 
     if class_to_implement == "Simplifier":
 
-        samples = list(map(int, sys.argv[3:]))
+        samples = ts.samples()
 
         print("When keep_unary = True:")
         s = Simplifier(ts, samples, keep_unary=True)
         # s.print_state()
         tss, _ = s.simplify()
         tables = tss.dump_tables()
-        print(tables.nodes)
-        print(tables.edges)
-        print(tables.sites)
-        print(tables.mutations)
+        print(tss.draw_text())
+        # print(tables.nodes)
+        # print(tables.edges)
+        # print(tables.sites)
+        # print(tables.mutations)
+
+        print("\nWhen keep_unary_if_coalescent = True")
+        s = Simplifier(ts, samples, keep_unary_if_coalescent=True)
+        # s.print_state()
+        tss, _ = s.simplify()
+        print(tss.draw_text())
+        # tables = tss.dump_tables()
+        # print(tables.nodes)
+        # print(tables.edges)
+        # print(tables.sites)
+        # print(tables.mutations)
 
         print("\nWhen keep_unary = False")
         s = Simplifier(ts, samples, keep_unary=False)
         # s.print_state()
         tss, _ = s.simplify()
-        tables = tss.dump_tables()
-        print(tables.nodes)
-        print(tables.edges)
-        print(tables.sites)
-        print(tables.mutations)
+        print(tss.draw_text())
+        # tables = tss.dump_tables()
+        # print(tables.nodes)
+        # print(tables.edges)
+        # print(tables.sites)
+        # print(tables.mutations)
 
-        print("\nWhen keep_unary_in_individuals = True")
-        s = Simplifier(ts, samples, keep_unary_in_individuals=True)
-        # s.print_state()
-        tss, _ = s.simplify()
-        tables = tss.dump_tables()
-        print(tables.nodes)
-        print(tables.edges)
-        print(tables.sites)
-        print(tables.mutations)
+        # print("\nWhen keep_unary_in_individuals = True")
+        # s = Simplifier(ts, samples, keep_unary_in_individuals=True)
+        # # s.print_state()
+        # tss, _ = s.simplify()
+        # tables = tss.dump_tables()
+        # print(tables.nodes)
+        # print(tables.edges)
+        # print(tables.sites)
+        # print(tables.mutations)
 
     elif class_to_implement == "AncestorMap":
 
