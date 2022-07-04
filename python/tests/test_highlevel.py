@@ -3231,12 +3231,14 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
         edges_file = io.StringIO("left\tright\tparent\tchild\n")
         sites_file = io.StringIO("position\tancestral_state\n")
         mutations_file = io.StringIO("site\tnode\tderived_state\n")
+        individuals_file = io.StringIO("flags\n")
         with pytest.raises(_tskit.LibraryError):
             tskit.load_text(
                 nodes=nodes_file,
                 edges=edges_file,
                 sites=sites_file,
                 mutations=mutations_file,
+                individuals=individuals_file,
             )
 
     def test_empty_files_sequence_length(self):
@@ -3244,18 +3246,21 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
         edges_file = io.StringIO("left\tright\tparent\tchild\n")
         sites_file = io.StringIO("position\tancestral_state\n")
         mutations_file = io.StringIO("site\tnode\tderived_state\n")
+        individuals_file = io.StringIO("flags\n")
         ts = tskit.load_text(
             nodes=nodes_file,
             edges=edges_file,
             sites=sites_file,
             mutations=mutations_file,
+            individuals=individuals_file,
             sequence_length=100,
         )
-        assert ts.sequence_length == 100
         assert ts.num_nodes == 0
         assert ts.num_edges == 0
         assert ts.num_sites == 0
-        assert ts.num_edges == 0
+        assert ts.num_mutations == 0
+        assert ts.num_individuals == 0
+        assert ts.sequence_length == 100
 
     def test_load_text_no_populations(self):
         nodes_file = io.StringIO("is_sample\ttime\tpopulation\n1\t0\t2\n")
