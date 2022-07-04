@@ -3286,6 +3286,7 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
         edges_file = io.StringIO("left\tright\tparent\tchild\n")
         sites_file = io.StringIO("position\tancestral_state\n")
         mutations_file = io.StringIO("site\tnode\tderived_state\n")
+        individuals_file = io.StringIO("flags\n")
         migrations_file = io.StringIO("left\tright\tnode\tsource\tdest\ttime\n")
         with pytest.raises(_tskit.LibraryError):
             tskit.load_text(
@@ -3293,6 +3294,7 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
                 edges=edges_file,
                 sites=sites_file,
                 mutations=mutations_file,
+                individuals=individuals_file,
                 migrations=migrations_file,
             )
 
@@ -3301,12 +3303,14 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
         edges_file = io.StringIO("left\tright\tparent\tchild\n")
         sites_file = io.StringIO("position\tancestral_state\n")
         mutations_file = io.StringIO("site\tnode\tderived_state\n")
+        individuals_file = io.StringIO("flags\n")
         migrations_file = io.StringIO("left\tright\tnode\tsource\tdest\ttime\n")
         ts = tskit.load_text(
             nodes=nodes_file,
             edges=edges_file,
             sites=sites_file,
             mutations=mutations_file,
+            individuals=individuals_file,
             migrations=migrations_file,
             sequence_length=100,
         )
@@ -3314,7 +3318,8 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
         assert ts.num_nodes == 0
         assert ts.num_edges == 0
         assert ts.num_sites == 0
-        assert ts.num_edges == 0
+        assert ts.num_mutations == 0
+        assert ts.num_individuals == 0
         assert ts.num_migrations == 0
 
     def test_load_text_no_populations(self):
