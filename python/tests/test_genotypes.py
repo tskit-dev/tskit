@@ -25,7 +25,9 @@ Test cases for generating genotypes/haplotypes.
 import itertools
 import logging
 import random
+import re
 import textwrap
+from xml.etree import ElementTree
 
 import msprime
 import numpy as np
@@ -2100,3 +2102,104 @@ class TestVariant:
             freqs = variant.frequencies()
             assert caplog.text.count("frequencies undefined") == 1
         assert np.all(np.isnan(list(freqs.values())))
+
+    def test_variant_str(self):
+        """
+        Test using a simple dummy tree sequence for testing.
+        It has only one tree and one site, whose variant has the alleles
+        ('A', 'T', 'G', '💩', '', 'TAG', None).
+        """
+        tables = tskit.TableCollection(10)
+        for _ in np.arange(6):
+            tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.sites.add_row(position=5, ancestral_state="A")
+        tables.mutations.add_row(site=0, node=0, derived_state="T")
+        tables.mutations.add_row(site=0, node=1, derived_state="G")
+        tables.mutations.add_row(site=0, node=2, derived_state="💩")
+        tables.mutations.add_row(site=0, node=3, derived_state="")
+        tables.mutations.add_row(site=0, node=4, derived_state="TAG")
+        ts = tables.tree_sequence()
+        v = next(ts.variants())
+        assert v.alleles == ("A", "T", "G", "💩", "", "TAG", None)
+        assert isinstance(str(v), str)
+        assert re.match(
+            textwrap.dedent(
+                r"""
+                ╔═+╗
+                ║Variant\s*║
+                ╠═+╤═+╣
+                ║Site id\s*│\s*0║
+                ╟─+┼─+╢
+                ║Site position\s*│\s*[0-9\.]+║
+                ╟─+┼─+╢
+                ║Number of samples\s*│\s*[0-9]+║
+                ╟─+┼─+╢
+                ║Number of alleles\s*│\s*[0-9]+║
+                ╟─+┼─+╢
+                ║Samples with allele \'A\'\s*│\s*[0-9]+\s*\([0-9\.]+\%\)║
+                ╟─+┼─+╢
+                ║Samples with allele \'T\'\s*│\s*[0-9]+\s*\([0-9\.]+\%\)║
+                ╟─+┼─+╢
+                ║Samples with allele \'G\'\s*│\s*[0-9]+\s*\([0-9\.]+\%\)║
+                ╟─+┼─+╢
+                ║Samples with allele \'💩\'\s*│\s*[0-9]+\s*\([0-9\.]+\%\)║
+                ╟─+┼─+╢
+                ║Samples with allele \'\'\s*│\s*[0-9]+\s*\([0-9\.]+\%\)║
+                ╟─+┼─+╢
+                ║Samples with allele \'TAG\'\s*│\s*[0-9]+\s*\([0-9\.]+\%\)║
+                ╟─+┼─+╢
+                ║Samples with allele missing\s*│\s*[0-9]+\s*\([0-9\.]+\%\)║
+                ╟─+┼─+╢
+                ║Has missing data\s*│\s*True║
+                ╟─+┼─+╢
+                ║Isolated as missing\s*│\s*True║
+                ╚═+╧═+╝
+                """[
+                    1:
+                ]
+            ),
+            str(v),
+        )
+
+    def test_variant_str_no_samples(self):
+        tables = tskit.TableCollection(10)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.sites.add_row(position=5, ancestral_state="A")
+        tables.mutations.add_row(site=0, node=0, derived_state="T")
+        ts = tables.tree_sequence()
+        v = next(ts.variants(samples=[]))
+        for allele in v.alleles:
+            if allele is not None:
+                assert (
+                    re.search(
+                        rf"║Samples with allele '{allele}'\s*│\s*0\s*\(nan\%\)║", str(v)
+                    )
+                    is not None
+                )
+
+    def test_variant_str_no_site(self):
+        tables = tskit.TableCollection(10)
+        ts = tables.tree_sequence()
+        v = tskit.Variant(ts)
+        s = str(v)
+        assert len(s.splitlines()) == 5
+        assert (
+            "This variant has not yet been decoded at a specific site, "
+            + "call Variant.decode to set the site"
+            in s
+        )
+
+    def test_variant_html_repr(self, ts_fixture):
+        v = next(ts_fixture.variants())
+        html = v._repr_html_()
+        # Parse to check valid
+        ElementTree.fromstring(html)
+        assert len(html) > 1900
+
+    def test_variant_html_repr_no_site(self):
+        tables = tskit.TableCollection(10)
+        ts = tables.tree_sequence()
+        v = tskit.Variant(ts)
+        html = v._repr_html_()
+        ElementTree.fromstring(html)
+        assert len(html) > 1600
