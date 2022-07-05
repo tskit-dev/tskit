@@ -542,6 +542,98 @@ def tree_html(tree):
             """  # noqa: B950
 
 
+def variant_html(variant):
+    class_type = "Variant"
+
+    url_tskit_logo = (
+        "https://raw.githubusercontent.com/tskit-dev/administrative/main/tskit_logo.svg"
+    )
+    url_variant_class_doc = (
+        "https://tskit.dev/tskit/docs/latest/python-api.html#the-variant-class"
+    )
+
+    html_body_head = f"""
+        <div>
+            <style>
+                .tskit-table thead tr th {{text-align: left;padding: 0.5em 0.5em;}}
+                .tskit-table tbody tr td {{padding: 0.5em 0.5em;}}
+                .tskit-table tbody tr td:first-of-type {{text-align: left;}}
+                .tskit-details-label {{vertical-align: top; padding-right:5px;}}
+                .tskit-table-set {{display: inline-flex;flex-wrap: wrap;margin: -12px 0 0 -12px;width: calc(100% + 12px);}}
+                .tskit-table-set-table {{margin: 12px 0 0 12px;}}
+                details {{display: inline-block;}}
+                summary {{cursor: pointer; outline: 0; display: list-item;}}
+            </style>
+            <div class="tskit-table-set">
+                <div class="tskit-table-set-table">
+                <table class="tskit-table">
+                    <thead>
+                    <tr>
+                        <th style="padding:0;line-height:21px;">
+                        <img style="height: 32px;display: inline-block;padding: 3px 5px 3px 0;" src="{url_tskit_logo}"/>
+                        <a target="_blank" href="{url_variant_class_doc}"> {class_type} </a>
+                        </th>
+                    </tr>
+                    </thead>
+                    <tbody>
+        """  # noqa: B950
+
+    html_body_tail = """
+                    </tbody>
+            </table>
+            </div>
+        </div>
+        </div>
+        """
+
+    try:
+        variant.site
+
+        site_id = variant.site.id
+        site_position = variant.site.position
+        num_samples = len(variant.samples)
+        num_alleles = variant.num_alleles
+        has_missing_data = str(variant.has_missing_data)
+        isolated_as_missing = str(bool(variant.isolated_as_missing))
+
+        counts = variant.counts()
+        freqs = variant.frequencies()
+
+        return (
+            html_body_head
+            + f"""
+                <tr><td>Site Id</td><td>{site_id}</td></tr>
+                <tr><td>Site Position</td><td>{site_position}</td></tr>
+                <tr><td>Number of Samples</td><td>{num_samples}</td></tr>
+                <tr><td>Number of Alleles</td><td>{num_alleles}</td></tr>
+            """
+            + "\n".join(
+                [
+                    f"""<tr><td>Samples with Allele {'missing' if k is None
+                        else "'" + k + "'"}</td><td>"""
+                    + f"{counts[k]}"
+                    + " "
+                    + f"({freqs[k] * 100:.2g}%)"
+                    + "</td></tr>"
+                    for k in variant.alleles
+                ]
+            )
+            + f"""
+                <tr><td>Has Missing Data</td><td>{has_missing_data}</td></tr>
+                <tr><td>Isolated as Missing</td><td>{isolated_as_missing}</td></tr>
+            """
+            + html_body_tail
+        )
+    except ValueError as err:
+        return (
+            html_body_head
+            + f"""
+                        <tr><td>Error</td><td>{str(err)}</td></tr>
+            """
+            + html_body_tail
+        )
+
+
 def convert_file_like_to_open_file(file_like, mode):
     # Get ourselves a local version of the file. The semantics here are complex
     # because need to support a range of inputs and the free behaviour is

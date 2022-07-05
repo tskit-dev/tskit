@@ -32,6 +32,7 @@ import numpy as np
 import _tskit
 import tskit
 import tskit.trees as trees
+import tskit.util as util
 
 
 class Variant:
@@ -125,7 +126,7 @@ class Variant:
     def _check_decoded(self):
         if self._ll_variant.site_id == tskit.NULL:
             raise ValueError(
-                "This variant has not yet been decoded at a specific site,"
+                "This variant has not yet been decoded at a specific site, "
                 "call Variant.decode to set the site."
             )
 
@@ -293,6 +294,46 @@ class Variant:
             for allele, count in self.counts().items()
             if not (allele is None and remove_missing)
         }
+
+    def __str__(self) -> str:
+        """
+        Return a plain text summary of the contents of a variant.
+        """
+        try:
+            site_id = self.site.id
+            site_position = self.site.position
+            counts = self.counts()
+            freqs = self.frequencies()
+            rows = (
+                [
+                    ["Site id", str(site_id)],
+                    ["Site position", str(site_position)],
+                    ["Number of samples", str(len(self.samples))],
+                    ["Number of alleles", str(self.num_alleles)],
+                ]
+                + [
+                    [
+                        f"""Samples with allele {'missing' if k is None
+                            else "'" + k + "'"}""",
+                        f"{counts[k]} ({freqs[k] * 100:.2g}%)",
+                    ]
+                    for k in self.alleles
+                ]
+                + [
+                    ["Has missing data", str(self.has_missing_data)],
+                    ["Isolated as missing", str(bool(self.isolated_as_missing))],
+                ]
+            )
+        except ValueError as err:
+            rows = [[str(err), ""]]
+        return util.unicode_table(rows, title="Variant")
+
+    def _repr_html_(self) -> str:
+        """
+        Return an html summary of a variant. Called by Jupyter notebooks
+        to render a Variant.
+        """
+        return util.variant_html(self)
 
 
 #
