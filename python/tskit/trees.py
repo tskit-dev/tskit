@@ -357,6 +357,22 @@ class Site(util.Dataclass):
             and self.metadata == other.metadata
         )
 
+    @property
+    def alleles(self) -> set[str]:
+        """
+        Return the set of all the alleles defined at this site
+
+        .. note::
+            This deliberately returns an (unordered) *set* of the possible allelic
+            states (as defined by the site's ancestral allele and its associated
+            mutations). If you wish to obtain an (ordered) *list* of alleles, for
+            example to translate the numeric genotypes at a site into allelic states,
+            you should instead use ``.alleles`` attribute of the :class:`Variant` class,
+            which unlike this attribute includes ``None`` as a state when there is
+            missing data at a site.
+        """
+        return {self.ancestral_state} | {m.derived_state for m in self.mutations}
+
 
 @metadata_module.lazy_decode()
 @dataclass
