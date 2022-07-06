@@ -2592,6 +2592,29 @@ class TestTreeSequence(HighLevelTestCase):
         self.verify_individual_properties(ts)
 
 
+class TestSiteAlleles:
+    def test_no_mutations(self):
+        tables = tskit.TableCollection(sequence_length=1)
+        tables.sites.add_row(0, ancestral_state="")
+        site = tables.tree_sequence().site(0)
+        assert site.alleles == {""}
+
+    @pytest.mark.parametrize("k", range(5))
+    def test_k_mutations(self, k):
+        tables = tskit.TableCollection(sequence_length=1)
+        tables.sites.add_row(0, ancestral_state="ABC")
+        tables.nodes.add_row(1, 0)
+        tables.nodes.add_row(1, 0)  # will not have any mutations => missing
+        for j in range(k):
+            tables.mutations.add_row(site=0, node=0, derived_state=str(j))
+        ts = tables.tree_sequence()
+        variant = next(ts.variants())
+        assert variant.has_missing_data
+        assert len(variant.site.alleles) == k + 1
+        assert "ABC" in variant.site.alleles
+        assert variant.site.alleles == set(variant.alleles[:-1])
+
+
 class TestEdgeDiffs:
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_correct_trees_forward(self, ts):

@@ -7,6 +7,10 @@
 - SVG drawing routines now return a special string object that is automatically
   rendered in a Jupyter notebook (:user:`hyanwong`, :pr:`2377`)
 
+**Features**
+
+- New ``Site.alleles()`` method (:user:`hyanwong`, :issue:`2380`, :pr:`2385`)
+
 
 --------------------
 [0.5.0] - 2022-06-22
