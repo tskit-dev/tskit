@@ -632,9 +632,8 @@ class BaseTable:
 
     def set_columns(self, **kwargs):
         """
-        Sets the values for each column in this :class:`Table` using
-        values provided in numpy arrays. Overwrites any data currently stored in
-        the table.
+        Sets the values for each column in this :class:`Table` using values
+        provided in numpy arrays. Overwrites existing data in all the table columns.
         """
         raise NotImplementedError()
 
@@ -912,8 +911,8 @@ class IndividualTable(BaseTable, MetadataColumnMixin):
     ):
         """
         Sets the values for each column in this :class:`IndividualTable` using the
-        values in the specified arrays. Overwrites any data currently stored in
-        the table.
+        values in the specified arrays. Overwrites existing data in all the table
+        columns.
 
         The ``flags`` array is mandatory and defines the number of individuals
         the table will contain.
@@ -946,7 +945,11 @@ class IndividualTable(BaseTable, MetadataColumnMixin):
         :type metadata: numpy.ndarray, dtype=np.int8
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
-        :param metadata_schema: The encoded metadata schema.
+        :param metadata_schema: The encoded metadata schema. If None (default)
+            do not overwrite the exising schema. Note that a schema will need to be
+            encoded as a string, e.g. via ``repr(new_metadata_schema)``.
+        :type metadata_schema: str
+
         """
         self._check_required_args(flags=flags)
         self.ll_table.set_columns(
@@ -1161,7 +1164,7 @@ class NodeTable(BaseTable, MetadataColumnMixin):
     ):
         """
         Sets the values for each column in this :class:`NodeTable` using the values in
-        the specified arrays. Overwrites any data currently stored in the table.
+        the specified arrays. Overwrites existing data in all the table columns.
 
         The ``flags``, ``time`` and ``population`` arrays must all be of the same length,
         which is equal to the number of nodes the table will contain. The
@@ -1186,7 +1189,10 @@ class NodeTable(BaseTable, MetadataColumnMixin):
         :type metadata: numpy.ndarray, dtype=np.int8
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
-        :param metadata_schema: The encoded metadata schema.
+        :param metadata_schema: The encoded metadata schema. If None (default)
+            do not overwrite the exising schema. Note that a schema will need to be
+            encoded as a string, e.g. via ``repr(new_metadata_schema)``.
+        :type metadata_schema: str
         """
         self._check_required_args(flags=flags, time=time)
         self.ll_table.set_columns(
@@ -1359,7 +1365,7 @@ class EdgeTable(BaseTable, MetadataColumnMixin):
     ):
         """
         Sets the values for each column in this :class:`EdgeTable` using the values
-        in the specified arrays. Overwrites any data currently stored in the table.
+        in the specified arrays. Overwrites existing data in all the table columns.
 
         The ``left``, ``right``, ``parent`` and ``child`` parameters are mandatory,
         and must be numpy arrays of the same length (which is equal to the number of
@@ -1384,7 +1390,10 @@ class EdgeTable(BaseTable, MetadataColumnMixin):
         :type metadata: numpy.ndarray, dtype=np.int8
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
-        :param metadata_schema: The encoded metadata schema.
+        :param metadata_schema: The encoded metadata schema. If None (default)
+            do not overwrite the exising schema. Note that a schema will need to be
+            encoded as a string, e.g. via ``repr(new_metadata_schema)``.
+        :type metadata_schema: str
         """
         self._check_required_args(left=left, right=right, parent=parent, child=child)
         self.ll_table.set_columns(
@@ -1585,7 +1594,7 @@ class MigrationTable(BaseTable, MetadataColumnMixin):
     ):
         """
         Sets the values for each column in this :class:`MigrationTable` using the values
-        in the specified arrays. Overwrites any data currently stored in the table.
+        in the specified arrays. Overwrites existing data in all the table columns.
 
         All parameters except ``metadata`` and ``metadata_offset`` and are mandatory,
         and must be numpy arrays of the same length (which is equal to the number of
@@ -1613,7 +1622,10 @@ class MigrationTable(BaseTable, MetadataColumnMixin):
         :type metadata: numpy.ndarray, dtype=np.int8
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
-        :param metadata_schema: The encoded metadata schema.
+        :param metadata_schema: The encoded metadata schema. If None (default)
+            do not overwrite the exising schema. Note that a schema will need to be
+            encoded as a string, e.g. via ``repr(new_metadata_schema)``.
+        :type metadata_schema: str
         """
         self._check_required_args(
             left=left, right=right, node=node, source=source, dest=dest, time=time
@@ -1791,7 +1803,7 @@ class SiteTable(BaseTable, MetadataColumnMixin):
     ):
         """
         Sets the values for each column in this :class:`SiteTable` using the values
-        in the specified arrays. Overwrites any data currently stored in the table.
+        in the specified arrays. Overwrites existing data in all the table columns.
 
         The ``position``, ``ancestral_state`` and ``ancestral_state_offset``
         parameters are mandatory, and must be 1D numpy arrays. The length
@@ -1818,7 +1830,10 @@ class SiteTable(BaseTable, MetadataColumnMixin):
         :type metadata: numpy.ndarray, dtype=np.int8
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
-        :param metadata_schema: The encoded metadata schema.
+        :param metadata_schema: The encoded metadata schema. If None (default)
+            do not overwrite the exising schema. Note that a schema will need to be
+            encoded as a string, e.g. via ``repr(new_metadata_schema)``.
+        :type metadata_schema: str
         """
         self._check_required_args(
             position=position,
@@ -2032,7 +2047,7 @@ class MutationTable(BaseTable, MetadataColumnMixin):
     ):
         """
         Sets the values for each column in this :class:`MutationTable` using the values
-        in the specified arrays. Overwrites any data currently stored in the table.
+        in the specified arrays. Overwrites existing data in all the the table columns.
 
         The ``site``, ``node``, ``derived_state`` and ``derived_state_offset``
         parameters are mandatory, and must be 1D numpy arrays. The
@@ -2066,7 +2081,10 @@ class MutationTable(BaseTable, MetadataColumnMixin):
         :type metadata: numpy.ndarray, dtype=np.int8
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
-        :param metadata_schema: The encoded metadata schema.
+        :param metadata_schema: The encoded metadata schema. If None (default)
+            do not overwrite the exising schema. Note that a schema will need to be
+            encoded as a string, e.g. via ``repr(new_metadata_schema)``.
+        :type metadata_schema: str
         """
         self._check_required_args(
             site=site,
@@ -2235,8 +2253,8 @@ class PopulationTable(BaseTable, MetadataColumnMixin):
     def set_columns(self, metadata=None, metadata_offset=None, metadata_schema=None):
         """
         Sets the values for each column in this :class:`PopulationTable` using the
-        values in the specified arrays. Overwrites any data currently stored in the
-        table.
+        values in the specified arrays. Overwrites existing data in all the table
+        columns.
 
         The ``metadata`` and ``metadata_offset`` parameters must be supplied
         together, and meet the requirements for
@@ -2250,7 +2268,10 @@ class PopulationTable(BaseTable, MetadataColumnMixin):
         :type metadata: numpy.ndarray, dtype=np.int8
         :param metadata_offset: The offsets into the ``metadata`` array.
         :type metadata_offset: numpy.ndarray, dtype=np.uint32.
-        :param metadata_schema: The encoded metadata schema.
+        :param metadata_schema: The encoded metadata schema. If None (default)
+            do not overwrite the exising schema. Note that a schema will need to be
+            encoded as a string, e.g. via ``repr(new_metadata_schema)``.
+        :type metadata_schema: str
         """
         self.ll_table.set_columns(
             dict(
@@ -2405,8 +2426,8 @@ class ProvenanceTable(BaseTable):
     ):
         """
         Sets the values for each column in this :class:`ProvenanceTable` using the
-        values in the specified arrays. Overwrites any data currently stored in the
-        table.
+        values in the specified arrays. Overwrites existing data in all the table
+        columns.
 
         The ``timestamp`` and ``timestamp_offset`` parameters must be supplied
         together, and meet the requirements for
