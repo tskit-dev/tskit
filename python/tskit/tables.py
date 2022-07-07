@@ -589,6 +589,23 @@ class BaseTable:
             }
         )
 
+    def replace_with(self, other):
+        # Overwrite the contents of this table with a copy of the other table
+        params = {}
+        for column in self.column_names:
+            try:
+                params[column] = getattr(other, column)
+            except AttributeError:
+                raise TypeError(
+                    "Replacement table has wrong type: it lacks a {column} column"
+                )
+        try:
+            # Not all tables have a metadata_schema: if they do, encode it with repr
+            params["metadata_schema"] = repr(other.metadata_schema)
+        except AttributeError:
+            pass
+        self.set_columns(**params)
+
     def clear(self):
         """
         Deletes all rows in this table.
@@ -2869,6 +2886,10 @@ class TableCollection(metadata.MetadataProvider):
     method.
     """
 
+    set_err_text = (
+        "Cannot set tables in a table collection: use table.replace_with() instead."
+    )
+
     def __init__(self, sequence_length=0):
         self._ll_tables = _tskit.TableCollection(sequence_length)
         super().__init__(self._ll_tables)
@@ -2880,12 +2901,20 @@ class TableCollection(metadata.MetadataProvider):
         """
         return IndividualTable(ll_table=self._ll_tables.individuals)
 
+    @individuals.setter
+    def individuals(self, value):
+        raise AttributeError(self.set_err_text)
+
     @property
     def nodes(self) -> NodeTable:
         """
         The :ref:`sec_node_table_definition` in this collection.
         """
         return NodeTable(ll_table=self._ll_tables.nodes)
+
+    @nodes.setter
+    def nodes(self, value):
+        raise AttributeError(self.set_err_text)
 
     @property
     def edges(self) -> EdgeTable:
@@ -2894,12 +2923,20 @@ class TableCollection(metadata.MetadataProvider):
         """
         return EdgeTable(ll_table=self._ll_tables.edges)
 
+    @edges.setter
+    def edges(self, value):
+        raise AttributeError(self.set_err_text)
+
     @property
     def migrations(self) -> MigrationTable:
         """
         The :ref:`sec_migration_table_definition` in this collection
         """
         return MigrationTable(ll_table=self._ll_tables.migrations)
+
+    @migrations.setter
+    def migrations(self, value):
+        raise AttributeError(self.set_err_text)
 
     @property
     def sites(self) -> SiteTable:
@@ -2908,12 +2945,20 @@ class TableCollection(metadata.MetadataProvider):
         """
         return SiteTable(ll_table=self._ll_tables.sites)
 
+    @sites.setter
+    def sites(self, value):
+        raise AttributeError(self.set_err_text)
+
     @property
     def mutations(self) -> MutationTable:
         """
         The :ref:`sec_mutation_table_definition` in this collection.
         """
         return MutationTable(ll_table=self._ll_tables.mutations)
+
+    @mutations.setter
+    def mutations(self, value):
+        raise AttributeError(self.set_err_text)
 
     @property
     def populations(self) -> PopulationTable:
@@ -2922,12 +2967,20 @@ class TableCollection(metadata.MetadataProvider):
         """
         return PopulationTable(ll_table=self._ll_tables.populations)
 
+    @populations.setter
+    def populations(self, value):
+        raise AttributeError(self.set_err_text)
+
     @property
     def provenances(self) -> ProvenanceTable:
         """
         The :ref:`sec_provenance_table_definition` in this collection.
         """
         return ProvenanceTable(ll_table=self._ll_tables.provenances)
+
+    @provenances.setter
+    def provenances(self, value):
+        raise AttributeError(self.set_err_text)
 
     @property
     def indexes(self) -> TableCollectionIndexes:

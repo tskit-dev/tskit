@@ -4,6 +4,9 @@
 
 **Changes**
 
+- Tables in a table collection can be replaced using the replace_with method
+  (:user:`hyanwong`, :issue:`1489` :pr:`2389`)
+
 - SVG drawing routines now return a special string object that is automatically
   rendered in a Jupyter notebook (:user:`hyanwong`, :pr:`2377`)
 

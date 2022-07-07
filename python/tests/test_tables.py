@@ -823,6 +823,11 @@ class CommonTestsMixin:
                     t.append_columns(**input_data)
                 input_data[offset_col.name] = np.copy(original_offset)
 
+    def test_replace_with_wrong_class(self):
+        t = self.table_class()
+        with pytest.raises(TypeError, match="wrong type"):
+            t.replace_with(tskit.BaseTable(None, None))
+
 
 class MetadataTestsMixin:
     """
@@ -3834,6 +3839,12 @@ class TestTableCollection:
                 with pytest.raises(TypeError):
                     func(bad_filename)
 
+    def test_set_table(self):
+        tc = tskit.TableCollection()
+        for name, table in tc.table_name_map.items():
+            with pytest.raises(AttributeError, match="replace_with"):
+                setattr(tc, name, table)
+
 
 class TestEqualityOptions:
     def test_equals_provenance(self):
@@ -4382,6 +4393,20 @@ class TestBaseTable:
         t = tskit.BaseTable(None, None)
         with pytest.raises(NotImplementedError):
             t.set_columns()
+
+    def test_replace_with(self, ts_fixture):
+        # Although replace_with is a BaseTable method, it is simpler to test it
+        # on the subclasses directly, as some differ e.g. in having metadata schemas
+        original_tables = ts_fixture.dump_tables()
+        original_tables.nodes.metadata_schema = tskit.MetadataSchema.permissive_json()
+        new_tables = ts_fixture.dump_tables()
+        new_tables.clear(clear_provenance=True, clear_metadata_schemas=True)
+
+        # write all the data back in again
+        for name, table in new_tables.table_name_map.items():
+            new_table = getattr(original_tables, name)
+            table.replace_with(new_table)
+        new_tables.assert_equals(original_tables)
 
 
 class TestSubsetTables:
