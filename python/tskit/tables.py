@@ -3476,7 +3476,7 @@ class TableCollection(metadata.MetadataProvider):
         in their retrospective tables then neither is sorted. Note that a partial
         non-sorting is not possible, and both or neither must be skipped.
 
-        The node, population and provenance tables are not affected
+        The node, individual, population and provenance tables are not affected
         by this method.
 
         Edges are sorted as follows:
@@ -3491,8 +3491,6 @@ class TableCollection(metadata.MetadataProvider):
         tree sequence. For a valid tree sequence, we require that all edges for a
         given parent ID are adjacent, but we do not require that they be listed in
         sorted order.
-
-        Individuals are not sorted.
 
         Sites are sorted by position, and sites with the same position retain
         their relative ordering.
