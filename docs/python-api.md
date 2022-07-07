@@ -1248,7 +1248,13 @@ Also see the {ref}`sec_python_api_tree_sequences` summary.
 ```{eval-rst}
 .. autoclass:: Interval()
     :members:
+```
 
+#### The {class}`Rank` class
+
+```{eval-rst}
+.. autoclass:: Rank()
+    :members:
 ```
 
 ### TableCollection and Table classes

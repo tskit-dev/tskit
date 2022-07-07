@@ -849,19 +849,18 @@ class Tree:
             raise ValueError("Position out of bounds")
         self._ll_tree.seek(position)
 
-    def rank(self):
+    def rank(self) -> tskit.Rank:
         """
         Produce the rank of this tree in the enumeration of all leaf-labelled
         trees of n leaves. See the :ref:`sec_tree_ranks` section for
         details on ranking and unranking trees.
 
-        :rtype: tuple(int)
         :raises ValueError: If the tree has multiple roots.
         """
         return combinatorics.RankTree.from_tsk_tree(self).rank()
 
     @staticmethod
-    def unrank(num_leaves, rank, *, span=1, branch_length=1):
+    def unrank(num_leaves, rank, *, span=1, branch_length=1) -> Tree:
         """
         Reconstruct the tree of the given ``rank``
         (see :meth:`tskit.Tree.rank`) with ``num_leaves`` leaves.
@@ -880,14 +879,13 @@ class Tree:
             from which the tree is taken will have its
             :attr:`~tskit.TreeSequence.sequence_length` equal to ``span``.
         :param: float branch_length: The minimum length of a branch in this tree.
-        :rtype: Tree
         :raises: ValueError: If the given rank is out of bounds for trees
             with ``num_leaves`` leaves.
         """
         rank_tree = combinatorics.RankTree.unrank(num_leaves, rank)
         return rank_tree.to_tsk_tree(span=span, branch_length=branch_length)
 
-    def count_topologies(self, sample_sets=None):
+    def count_topologies(self, sample_sets=None) -> tskit.TopologyCounter:
         """
         Calculates the distribution of embedded topologies for every combination
         of the sample sets in ``sample_sets``. ``sample_sets`` defaults to all
@@ -926,7 +924,6 @@ class Tree:
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of nodes to compute the statistic with.
             Defaults to all samples grouped by population.
-        :rtype: tskit.TopologyCounter
         :raises ValueError: If nodes in ``sample_sets`` are invalid or are
             internal samples.
         """

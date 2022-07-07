@@ -30,11 +30,29 @@ import heapq
 import itertools
 import json
 import random
+from typing import NamedTuple
 
 import attr
 import numpy as np
 
 import tskit
+
+
+class Rank(NamedTuple):
+    """
+    A tuple of 2 numbers, ``(shape, label)``, together defining a unique
+    topology for a labeled tree. See :ref:`sec_combinatorics`.
+    """
+
+    shape: int
+    """
+    A non-negative integer representing the (unlabelled) topology of a tree with a
+    defined number of tips.
+    """
+    label: int
+    """
+    A non-negative integer representing the order of labels for a given tree topology.
+    """
 
 
 def equal_chunks(lst, k):
@@ -796,7 +814,7 @@ class RankTree:
         return num_list_of_group_labellings(child_groups)
 
     def rank(self):
-        return self.shape_rank(), self.label_rank()
+        return Rank(self.shape_rank(), self.label_rank())
 
     def shape_rank(self):
         if self._shape_rank is None:

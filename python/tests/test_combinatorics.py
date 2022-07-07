@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2020-2021 Tskit Developers
+# Copyright (c) 2020-2022 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -37,6 +37,7 @@ import tests.test_wright_fisher as wf
 import tskit
 import tskit.combinatorics as comb
 from tests import test_stats
+from tskit.combinatorics import Rank
 from tskit.combinatorics import RankTree
 
 
@@ -220,7 +221,7 @@ class TestRankTree:
     @pytest.mark.parametrize("n", range(10))
     def test_unrank_unlabelled(self, n):
         for shape_rank in range(comb.num_shapes(n)):
-            rank = (shape_rank, 0)
+            rank = Rank(shape_rank, 0)
             unranked = RankTree.unrank(n, rank)
             assert rank, unranked.rank()
 
@@ -287,6 +288,15 @@ class TestRankTree:
                 unranked = tree.label_unrank(label_rank)
                 assert labelled_tree.rank() == rank
                 assert unranked.rank() == rank
+
+    def test_rank_names(self):
+        shape = 1
+        label = 0
+        n = 3
+        tree = tskit.Tree.unrank(n, (shape, label))
+        rank = tree.rank()
+        assert rank.shape == shape
+        assert rank.label == label
 
     @pytest.mark.parametrize("n", range(6))
     def test_unrank_rank_round_trip(self, n):
