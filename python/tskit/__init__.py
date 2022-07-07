@@ -83,6 +83,7 @@ from tskit.combinatorics import (  # NOQA
     all_tree_shapes,
     all_tree_labellings,
     TopologyCounter,
+    Rank,
 )
 from tskit.drawing import SVGString  # NOQA
 from tskit.exceptions import *  # NOQA
