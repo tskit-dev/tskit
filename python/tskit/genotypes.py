@@ -207,6 +207,7 @@ class Variant:
         """
         Decode the variant at the given site, setting the site ID, genotypes and
         alleles to those of the site and samples of this Variant.
+
         :param int site_id: The ID of the site to decode. This must be a valid site ID.
         """
         self._ll_variant.decode(site_id)
@@ -215,6 +216,7 @@ class Variant:
         """
         Create a copy of this Variant. Note that calling :meth:`decode` on the
         copy will fail as it does not take a copy of the internal tree.
+
         :return: The copy of this Variant.
         """
         variant_copy = Variant.__new__(Variant)
