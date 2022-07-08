@@ -23,6 +23,7 @@
 Test cases for generating genotypes/haplotypes.
 """
 import itertools
+import logging
 import random
 import textwrap
 
@@ -1990,3 +1991,112 @@ class TestVariant:
         assert v.alleles == ("A", "T", "G", "C", None)
         # No need to check contents as done in other tests
         assert len(v.genotypes) == ts_fixture.num_samples
+
+    def test_variant_num_missing(self, ts_fixture):
+        variant = next(ts_fixture.variants())
+        assert variant.num_missing > 0
+        assert variant.num_missing == np.sum(variant.genotypes == -1)
+
+    def test_variant_counts(self, ts_fixture):
+        variant = next(ts_fixture.variants())
+        assert len(variant.alleles) > 2
+        assert None in variant.alleles
+        counts = variant.counts()
+        assert len(counts) == len(variant.alleles)
+        assert np.sum(list(counts.values())) == ts_fixture.num_samples
+        assert counts[None] == variant.num_missing
+        assert ts_fixture.num_samples > variant.num_missing
+        for i, v in enumerate(variant.alleles):
+            if v is not None:
+                assert np.sum(variant.genotypes == i) == counts[v]
+
+    def test_variant_counts_empty(self):
+        tables = tskit.TableCollection(sequence_length=1)
+        tables.sites.add_row(0, ancestral_state="💩")
+        ts = tables.tree_sequence()
+        variant = next(ts.variants())
+        assert len(variant.counts()) == 1
+        assert variant.counts()["💩"] == 0
+
+    def test_variant_simple_frequencies(self):
+        simple_tree = tskit.Tree.generate_balanced(4)
+        simple_ts = simple_tree.tree_sequence
+        tables = simple_ts.dump_tables()
+        tables.sites.add_row(position=0.3, ancestral_state="AS0")
+        tables.sites.add_row(position=0.6, ancestral_state="AS1")
+        tables.mutations.add_row(site=0, derived_state="DS0_0", node=0)
+        tables.mutations.add_row(site=0, derived_state="DS0_3", node=3)
+        tables.mutations.add_row(
+            site=1, derived_state="DS1", node=simple_tree.parent(0)
+        )
+        ts = tables.tree_sequence()
+        variant_0 = next(ts.variants())
+        freqs = variant_0.frequencies()
+        assert len(freqs) == 3
+        assert np.allclose(freqs["AS0"], 0.5)
+        assert np.allclose(freqs["DS0_0"], 0.25)
+        assert np.allclose(freqs["DS0_3"], 0.25)
+        variant_1 = next(ts.variants(left=0.5))
+        freqs = variant_1.frequencies()
+        assert len(freqs) == 2
+        assert np.allclose(freqs["AS1"], 0.5)
+        assert np.allclose(freqs["DS1"], 0.5)
+
+    def test_variant_frequencies(self, ts_fixture):
+        variant = next(ts_fixture.variants())
+        assert variant.num_missing > 0
+        freqs = variant.frequencies()
+        assert len(freqs) == len(variant.alleles)
+        assert np.allclose(np.sum(list(freqs.values())), 1)
+        for i, v in enumerate(variant.alleles):
+            if v is None:
+                f = np.sum(variant.genotypes == tskit.NULL) / ts_fixture.num_samples
+            else:
+                f = np.sum(variant.genotypes == i) / ts_fixture.num_samples
+            assert np.allclose(f, freqs[v])
+
+        freqs = variant.frequencies(remove_missing=True)
+        assert len(freqs) == len(variant.alleles) - 1
+        for i, v in enumerate(variant.alleles[:-1]):
+            f = np.sum(variant.genotypes == i) / (
+                ts_fixture.num_samples - variant.num_missing
+            )
+            assert np.allclose(f, freqs[v])
+
+    def test_variant_frequencies_limit_samples(self, ts_fixture):
+        assert ts_fixture.num_samples > 1
+        variant = next(ts_fixture.variants(samples=ts_fixture.samples()[0:1]))
+        assert len(variant.genotypes) == 1
+        allele = variant.alleles[variant.genotypes[0]]
+        freqs = variant.frequencies()
+        assert freqs[allele] == 1
+        # should be one freq of 1 and all the rest zero
+        assert list(freqs.values()).count(0) == len(freqs) - 1
+
+    def test_variant_nonsample_freqs(self):
+        simple_tree = tskit.Tree.generate_balanced(4)
+        nonsample_node_left = simple_tree.parent(0)
+        nonsample_node_right = simple_tree.parent(3)
+        assert nonsample_node_left != nonsample_node_right
+        simple_ts = simple_tree.tree_sequence
+        tables = simple_ts.dump_tables()
+        tables.sites.add_row(position=0, ancestral_state="As")
+        tables.mutations.add_row(site=0, derived_state="Ds", node=nonsample_node_left)
+        ts = tables.tree_sequence()
+        samples = [nonsample_node_left, nonsample_node_right]
+        samples += list(simple_tree.children(nonsample_node_right))
+        variant = next(ts.variants(samples=samples, isolated_as_missing=False))
+        freqs = variant.frequencies()
+        assert np.allclose(freqs["Ds"], 0.25)  # Just nonsample_node_left has the Ds
+        assert np.allclose(freqs["As"], 0.75)
+
+    def test_variant_frequencies_no_samples(self, ts_fixture, caplog):
+        tables = ts_fixture.dump_tables()
+        tables.nodes.flags = np.zeros_like(tables.nodes.flags)
+        ts = tables.tree_sequence()
+        variant = next(ts.variants())
+        assert ts.num_samples == 0
+        with caplog.at_level(logging.WARNING):
+            freqs = variant.frequencies()
+            assert caplog.text.count("frequencies undefined") == 1
+        assert np.all(np.isnan(list(freqs.values())))

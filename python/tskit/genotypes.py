@@ -23,6 +23,10 @@
 # SOFTWARE.
 from __future__ import annotations
 
+import collections
+import logging
+import typing
+
 import numpy as np
 
 import _tskit
@@ -178,6 +182,13 @@ class Variant:
         return len(alleles) > 0 and alleles[-1] is None
 
     @property
+    def num_missing(self) -> int:
+        """
+        The number of samples with missing data at this site.
+        """
+        return np.sum(self.genotypes == tskit.NULL)
+
+    @property
     def num_alleles(self) -> int:
         """
         The number of distinct alleles at this site. Note that
@@ -227,6 +238,61 @@ class Variant:
         variant_copy.tree_sequence = self.tree_sequence
         variant_copy._ll_variant = self._ll_variant.restricted_copy()
         return variant_copy
+
+    def counts(self) -> typing.Counter[str | None]:
+        """
+        Returns a :class:`python:collections.Counter` object providing counts for each
+        possible :attr:`allele <Variant.alleles>` at this site: i.e. the number of
+        samples possessing that allele among the set of samples specified when creating
+        this Variant (by default, this is all the sample nodes in the tree sequence).
+        Missing data is represented by an allelic state of ``None``.
+
+        :return: A counter of the number of samples associated with each allele.
+        """
+        counts = collections.Counter()
+        if self.alleles[-1] is None:
+            # we have to treat the last element of the genotypes array as special
+            counts[None] = np.sum(self.genotypes == tskit.MISSING_DATA)
+            for i, allele in enumerate(self.alleles[:-1]):
+                counts[allele] = np.sum(self.genotypes == i)
+        else:
+            bincounts = np.bincount(self.genotypes)
+            for i, allele in enumerate(self.alleles):
+                counts[allele] = bincounts[i] if i < len(bincounts) else 0
+        return counts
+
+    def frequencies(self, remove_missing=None) -> dict[str, float]:
+        """
+        Return a dictionary mapping each possible :attr:`allele <Variant.alleles>`
+        at this site to the frequency of that allele: i.e. the number of samples
+        with that allele divided by the total number of samples, among the set of
+        samples specified when creating this Variant (by default, this is all the
+        sample nodes in the tree sequence). Note, therefore, that if a restricted set
+        of samples was specified on creation, the allele frequencies returned here
+        will *not* be the global allele frequencies in the whole tree sequence.
+
+        :param bool remove_missing: If True, only samples with non-missing data will
+            be counted in the total number of samples used to calculate the frequency,
+            and no information on the frequency of missing data is returned. Otherwise
+            (default), samples with missing data are included when calculating
+            frequencies.
+        :return: A dictionary mapping allelic states to the frequency of each allele
+            among the samples
+        """
+        if remove_missing is None:
+            remove_missing = False
+        total = len(self.samples)
+        if remove_missing:
+            total -= self.num_missing
+        if total == 0:
+            logging.warning(
+                "No non-missing samples at this site, frequencies undefined"
+            )
+        return {
+            allele: count / total if total > 0 else np.nan
+            for allele, count in self.counts().items()
+            if not (allele is None and remove_missing)
+        }
 
 
 #

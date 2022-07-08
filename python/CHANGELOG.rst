@@ -2,6 +2,10 @@
 [0.5.2] - 2022-XX-XX
 --------------------
 
+**Features**
+
+- Variant objects now have a ``.num_missing`` attribute and ``.counts()`` and
+  ``.frequencies`` methods (:user:`hyanwong`, :issue:`2390` :pr:`2393`)
 
 
 --------------------
