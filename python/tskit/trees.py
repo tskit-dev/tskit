@@ -3800,6 +3800,48 @@ class SimpleContainerSequence:
         return self.getter(index)
 
 
+@dataclass(frozen=True)
+class TableMetadataSchemas:
+    """
+    Convenience class for returning the schemas of all the tables in a tree sequence.
+    """
+
+    node: metadata_module.MetadataSchema = None
+    """
+    The metadata schema of the node table.
+    """
+
+    edge: metadata_module.MetadataSchema = None
+    """
+    The metadata schema of the edge table.
+    """
+
+    site: metadata_module.MetadataSchema = None
+    """
+    The metadata schema of the site table.
+    """
+
+    mutation: metadata_module.MetadataSchema = None
+    """
+    The metadata schema of the mutation table.
+    """
+
+    migration: metadata_module.MetadataSchema = None
+    """
+    The metadata schema of the migration table.
+    """
+
+    individual: metadata_module.MetadataSchema = None
+    """
+    The metadata schema of the individual table.
+    """
+
+    population: metadata_module.MetadataSchema = None
+    """
+    The metadata schema of the population table.
+    """
+
+
 class TreeSequence:
     """
     A single tree sequence, as defined by the :ref:`data model <sec_data_model>`.
@@ -3819,20 +3861,6 @@ class TreeSequence:
     the :meth:`.variants` method iterates over all sites and their genotypes.
     """
 
-    @dataclass(frozen=True)
-    class _TableMetadataSchemas:
-        """
-        Convenience class for returning schemas
-        """
-
-        node: metadata_module.MetadataSchema = None
-        edge: metadata_module.MetadataSchema = None
-        site: metadata_module.MetadataSchema = None
-        mutation: metadata_module.MetadataSchema = None
-        migration: metadata_module.MetadataSchema = None
-        individual: metadata_module.MetadataSchema = None
-        population: metadata_module.MetadataSchema = None
-
     def __init__(self, ll_tree_sequence):
         self._ll_tree_sequence = ll_tree_sequence
         metadata_schema_strings = self._ll_tree_sequence.get_table_metadata_schemas()
@@ -3840,12 +3868,10 @@ class TreeSequence:
             name: metadata_module.parse_metadata_schema(
                 getattr(metadata_schema_strings, name)
             )
-            for name in vars(self._TableMetadataSchemas)
+            for name in vars(TableMetadataSchemas)
             if not name.startswith("_")
         }
-        self._table_metadata_schemas = self._TableMetadataSchemas(
-            **metadata_schema_instances
-        )
+        self._table_metadata_schemas = TableMetadataSchemas(**metadata_schema_instances)
         self._individuals_time = None
         self._individuals_population = None
         self._individuals_location = None
@@ -4134,7 +4160,7 @@ class TreeSequence:
         return self._ll_tree_sequence.get_num_samples()
 
     @property
-    def table_metadata_schemas(self) -> _TableMetadataSchemas:
+    def table_metadata_schemas(self) -> TableMetadataSchemas:
         """
         The set of metadata schemas for the tables in this tree sequence.
         """

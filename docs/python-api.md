@@ -1477,7 +1477,6 @@ section for more details and examples.
 
 #### The {class}`ReferenceSequence` class
 
-
 ```{eval-rst}
 .. todo:: Add a top-level summary section that we can link to from here.
 ```
@@ -1498,6 +1497,13 @@ Also see the {ref}`sec_python_api_metadata` summary.
     :inherited-members:
 ```
 
+#### The {class}`TableMetadataSchemas` class
+
+```{eval-rst}
+.. autoclass:: TableMetadataSchemas
+    :members:
+```
+
 #### The {class}`TopologyCounter` class
 
 ```{eval-rst}
@@ -1511,7 +1517,15 @@ Also see the {ref}`sec_python_api_metadata` summary.
     :members:
 ```
 
+#### The {class}`TableCollectionIndexes` class
+
+```{eval-rst}
+.. autoclass:: TableCollectionIndexes
+    :members:
+```
+
 #### The {class}`SVGString` class
+
 ```{eval-rst}
 .. autoclass:: SVGString
     :members:

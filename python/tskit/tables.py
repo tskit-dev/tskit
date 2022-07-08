@@ -301,6 +301,10 @@ class ProvenanceTableRow(util.Dataclass):
 
 @dataclass(**dataclass_options)
 class TableCollectionIndexes(util.Dataclass):
+    """
+    A class encapsulating the indexes of a :class:`TableCollection`
+    """
+
     edge_insertion_order: np.ndarray = None
     edge_removal_order: np.ndarray = None
 
@@ -308,7 +312,10 @@ class TableCollectionIndexes(util.Dataclass):
         return {k: v for k, v in dataclasses.asdict(self).items() if v is not None}
 
     @property
-    def nbytes(self):
+    def nbytes(self) -> int:
+        """
+        The number of bytes taken by the indexes
+        """
         total = 0
         if self.edge_removal_order is not None:
             total += self.edge_removal_order.nbytes
