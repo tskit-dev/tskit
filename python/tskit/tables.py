@@ -1488,7 +1488,10 @@ class EdgeTable(BaseTable, MetadataColumnMixin):
         The new edge will have the same parent and child node, a left coordinate
         equal to the smallest left coordinate in the set, and a right coordinate
         equal to the largest right coordinate in the set.
-        The new edge table will be sorted in the canonical order (P, C, L, R).
+        The new edge table will be sorted in the order (P, C, L, R): if the node table
+        is ordered by increasing node time, as is common, this order will meet the
+        :ref:`sec_edge_requirements` for a valid tree sequence, otherwise you will need
+        to call :meth:`.sort` on the entire :class:`TableCollection`.
 
         .. note::
             Note that this method will fail if any edges have non-empty metadata.
@@ -3345,13 +3348,13 @@ class TableCollection(metadata.MetadataProvider):
 
     def tree_sequence(self):
         """
-        Returns a :class:`TreeSequence` instance from the tables defined in
-        this :class:`TableCollection`. If the table collection is not
-        in canonical form (i.e., does not meet sorting requirements) or cannot be
-        interpreted as a tree sequence an exception is raised. The
-        :meth:`.sort` method may be used to ensure that input sorting requirements
-        are met. If the table collection does not have indexes they will be
-        built.
+        Returns a :class:`TreeSequence` instance from the tables defined in this
+        :class:`TableCollection`, building the required indexes if they have not yet
+        been created by :meth:`.build_index`. If the table collection does not meet
+        the :ref:`sec_valid_tree_sequence_requirements`, for example if the tables
+        are not correctly sorted or if they cannot be interpreted as a tree sequence,
+        an exception is raised. Note that in the former case, the :meth:`.sort`
+        method may be used to ensure that sorting requirements are met.
 
         :return: A :class:`TreeSequence` instance reflecting the structures
             defined in this set of tables.
@@ -3610,14 +3613,17 @@ class TableCollection(metadata.MetadataProvider):
 
     def canonicalise(self, remove_unreferenced=None):
         """
-        This puts the tables in *canonical* form - to do this, the individual
+        This puts the tables in *canonical* form, imposing a stricter order on the
+        tables than :ref:`required <sec_valid_tree_sequence_requirements>` for
+        a valid tree sequence. In particular, the individual
         and population tables are sorted by the first node that refers to each
-        (see :meth:`TreeSequence.subset`) Then, the remaining tables are sorted
+        (see :meth:`TreeSequence.subset`). Then, the remaining tables are sorted
         as in :meth:`.sort`, with the modification that mutations are sorted by
         site, then time, then number of descendant mutations (ensuring that
         parent mutations occur before children), then node, then original order
-        in the tables. This ensures that any two tables with the same
-        information should be identical after canonical sorting.
+        in the tables. This ensures that any two tables with the same information
+        and node order should be identical after canonical sorting (note
+        that no canonical order exists for the node table).
 
         By default, the method removes sites, individuals, and populations that
         are not referenced (by mutations and nodes, respectively). If you wish
@@ -4139,10 +4145,11 @@ class TableCollection(metadata.MetadataProvider):
         documentation for more details, and use this method only if you specifically need
         to work with a :class:`TableCollection` object.
 
-        This method has the same input data requirements as
-        :meth:`TableCollection.simplify`. In particular, the table collection must be
-        sorted in the canonical order. To find out if this is needed, see
-        :meth:`TableCollection.sort`. If the edge table contains any edges with identical
+        This method has the same data requirements as
+        :meth:`TableCollection.simplify`. In particular, the tables in the collection
+        have :ref:`required <sec_valid_tree_sequence_requirements>` sorting orders.
+        To enforce this, you can call :meth:`TableCollection.sort` before using this
+        method. If the edge table contains any edges with identical
         parents and children over adjacent genomic intervals, any IBD intervals
         underneath the edges will also be split across the breakpoint(s). To prevent this
         behaviour in this situation, use :meth:`EdgeTable.squash` beforehand.
