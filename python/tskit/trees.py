@@ -68,22 +68,24 @@ class CoalescenceRecord(NamedTuple):
 class Interval(NamedTuple):
     """
     A tuple of 2 numbers, ``[left, right)``, defining an interval over the genome.
-
-    :ivar left: The left hand end of the interval. By convention this value is included
-        in the interval.
-    :vartype left: float
-    :ivar right: The right hand end of the interval. By convention this value is *not*
-        included in the interval, i.e., the interval is half-open.
-    :vartype right: float
-    :ivar span: The span of the genome covered by this interval, simply ``right-left``.
-    :vartype span: float
     """
 
-    left: float
-    right: float
+    left: float | int
+    """
+    The left hand end of the interval. By convention this value is included
+    in the interval
+    """
+    right: float | int
+    """
+    The right hand end of the interval. By convention this value is *not*
+    included in the interval, i.e., the interval is half-open.
+    """
 
     @property
-    def span(self) -> float:
+    def span(self) -> float | int:
+        """
+        The span of the genome covered by this interval, simply ``right-left``.
+        """
         return self.right - self.left
 
 
@@ -1597,7 +1599,7 @@ class Tree:
             and right-most (exclusive) coordinates of the genomic region
             covered by this tree. The coordinates can be accessed by index
             (``0`` or ``1``) or equivalently by name (``.left`` or ``.right``)
-        :rtype: tuple
+        :rtype: Interval
         """
         return Interval(self._ll_tree.get_left(), self._ll_tree.get_right())
 
@@ -4875,18 +4877,54 @@ class TreeSequence:
             if tree2.interval.right == right:
                 tree2 = next(trees2, None)
 
+    def _check_genomic_range(self, left, right, ensure_integer=False):
+        if left is None:
+            left = 0
+        if right is None:
+            right = self.sequence_length
+        if np.isnan(left) or left < 0 or left >= self.sequence_length:
+            raise ValueError(
+                "`left` not between zero (inclusive) and sequence length (exclusive)"
+            )
+        if np.isnan(right) or right <= 0 or right > self.sequence_length:
+            raise ValueError(
+                "`right` not between zero (exclusive) and sequence length (inclusive)"
+            )
+        if left >= right:
+            raise ValueError("`left` must be less than `right`")
+        if ensure_integer:
+            if left != int(left) or right != int(right):
+                raise ValueError("`left` and `right` must be integers")
+            return Interval(int(left), int(right))
+        return Interval(left, right)
+
     def _haplotypes_array(
         self,
         *,
+        interval,
         isolated_as_missing=None,
         missing_data_character=None,
+        samples=None,
     ):
-        missing_data_character = (
-            "N" if missing_data_character is None else missing_data_character
+        # return an array of haplotypes and the first and last site positions
+        if missing_data_character is None:
+            missing_data_character = "N"
+
+        start_site, stop_site = np.searchsorted(self.tables.sites.position, interval)
+        H = np.empty(
+            (
+                self.num_samples if samples is None else len(samples),
+                stop_site - start_site,
+            ),
+            dtype=np.int8,
         )
-        H = np.empty((self.num_samples, self.num_sites), dtype=np.int8)
         missing_int8 = ord(missing_data_character.encode("ascii"))
-        for var in self.variants(isolated_as_missing=isolated_as_missing):
+        for var in self.variants(
+            samples=samples,
+            isolated_as_missing=isolated_as_missing,
+            left=interval.left,
+            right=interval.right,
+        ):
             alleles = np.full(len(var.alleles), missing_int8, dtype=np.int8)
             for i, allele in enumerate(var.alleles):
                 if allele is not None:
@@ -4913,32 +4951,37 @@ class TreeSequence:
                             )
                         )
                     alleles[i] = allele_int8
-            H[:, var.site.id] = alleles[var.genotypes]
-        return H
+            H[:, var.site.id - start_site] = alleles[var.genotypes]
+        return H, (start_site, stop_site - 1)
 
     def haplotypes(
         self,
         *,
         isolated_as_missing=None,
         missing_data_character=None,
+        samples=None,
+        left=None,
+        right=None,
         impute_missing_data=None,
     ):
         """
         Returns an iterator over the strings of haplotypes that result from
         the trees and mutations in this tree sequence. Each haplotype string
         is guaranteed to be of the same length. A tree sequence with
-        :math:`n` samples and :math:`s` sites will return a total of :math:`n`
+        :math:`n` samples and with :math:`s` sites lying between ``left`` and
+        ``right`` will return a total of :math:`n`
         strings of :math:`s` alleles concatenated together, where an allele
         consists of a single ascii character (tree sequences that include alleles
         which are not a single character in length, or where the character is
         non-ascii, will raise an error). The first string returned is the
-        haplotype for sample ``0``, and so on.
+        haplotype for the first requested sample, and so on.
 
         The alleles at each site must be represented by single byte characters,
         (i.e., variants must be single nucleotide polymorphisms, or SNPs), hence
-        the strings returned will all be of length :math:`s`, and for a haplotype
-        ``h``, the value of ``h[j]`` will be the observed allelic state
-        at site ``j``.
+        the strings returned will all be of length :math:`s`. If the ``left``
+        position is less than or equal to the position of the first site, for a
+        haplotype ``h``, the value of ``h[j]`` will therefore be the observed
+        allelic state at site ``j``.
 
         If ``isolated_as_missing`` is True (the default), isolated samples without
         mutations directly above them will be treated as
@@ -4956,10 +4999,7 @@ class TreeSequence:
         .. warning::
             For large datasets, this method can consume a **very large** amount of
             memory! To output all the sample data, it is more efficient to iterate
-            over sites rather than over samples. If you have a large dataset but only
-            want to output the haplotypes for a subset of samples, it may be worth
-            calling :meth:`.simplify` to reduce tree sequence down to the required
-            samples before outputting haplotypes.
+            over sites rather than over samples.
 
         :return: An iterator over the haplotype strings for the samples in
             this tree sequence.
@@ -4972,6 +5012,15 @@ class TreeSequence:
             be used to represent missing data.
             If any normal allele contains this character, an error is raised.
             Default: 'N'.
+        :param list[int] samples: The samples for which to output haplotypes. If
+            ``None`` (default), return haplotypes for all the samples in the tree
+            sequence, in the order given by the :meth:`.samples` method.
+        :param int left: Haplotype strings will start with the first site at or after
+            this genomic position. If ``None`` (default) start at the first site.
+        :param int right: Haplotype strings will end with the last site before this
+            position. If ``None`` (default) assume ``right`` is the sequence length
+            (i.e. the last character in the string will be the last site in the tree
+            sequence).
         :param bool impute_missing_data:
             *Deprecated in 0.3.0. Use ``isolated_as_missing``, but inverting value.
             Will be removed in a future version*
@@ -4991,9 +5040,12 @@ class TreeSequence:
         # Only use impute_missing_data if isolated_as_missing has the default value
         if isolated_as_missing is None:
             isolated_as_missing = not impute_missing_data
-        H = self._haplotypes_array(
+        interval = self._check_genomic_range(left, right)
+        H, _ = self._haplotypes_array(
+            interval=interval,
             isolated_as_missing=isolated_as_missing,
             missing_data_character=missing_data_character,
+            samples=samples,
         )
         for h in H:
             yield h.tobytes().decode("ascii")
@@ -5006,16 +5058,18 @@ class TreeSequence:
         alleles=None,
         impute_missing_data=None,
         copy=None,
+        left=None,
+        right=None,
     ):
         """
-        Returns an iterator over the variants (each site with its genotypes
-        and alleles) in this tree sequence. See the
-        :class:`Variant` class for details on the fields of each returned
-        object. The ``genotypes`` for the variants are numpy arrays,
-        corresponding to indexes into the ``alleles`` attribute in the
-        :class:`Variant` object. By default, the ``alleles`` for each
-        site are generated automatically, such that the ancestral state
-        is at the zeroth index and subsequent alleles are listed in no
+        Returns an iterator over the variants between the ``left`` (inclusive)
+        and ``right`` (exclusive) genomic positions in this tree sequence. Each
+        returned :class:`Variant` object has a site, a list of possible allelic
+        states and an array of genotypes for the specified ``samples``. The
+        ``genotypes`` value is a numpy array containing indexes into the
+        ``alleles`` list. By default, this list is generated automatically for
+        each site such that the first entry, ``alleles[0]``, is the ancestral
+        state and subsequent alleles are listed in no
         particular order. This means that the encoding of alleles in
         terms of genotype values can vary from site-to-site, which is
         sometimes inconvenient. It is possible to specify a fixed mapping
@@ -5066,9 +5120,15 @@ class TreeSequence:
             If False re-use the same Variant object for each site such that any
             references held to it are overwritten when the next site is visited.
             If True return a fresh :class:`Variant` for each site. Default: True.
+        :param int left: Start with the first site at or after
+            this genomic position. If ``None`` (default) start at the first site.
+        :param int right: End with the last site before this position. If ``None``
+            (default) assume ``right`` is the sequence length, so that the last
+            variant correspomnds to the last site in the tree sequence.
         :return: An iterator over all variants in this tree sequence.
         :rtype: iter(:class:`Variant`)
         """
+        interval = self._check_genomic_range(left, right)
         if impute_missing_data is not None:
             warnings.warn(
                 "The impute_missing_data parameter was deprecated in 0.3.0 and will"
@@ -5081,7 +5141,6 @@ class TreeSequence:
             isolated_as_missing = not impute_missing_data
         if copy is None:
             copy = True
-
         # See comments for the Variant type for discussion on why the
         # present form was chosen.
         variant = tskit.Variant(
@@ -5090,13 +5149,13 @@ class TreeSequence:
             isolated_as_missing=isolated_as_missing,
             alleles=alleles,
         )
-        sites = range(self.num_sites)
+        start, stop = np.searchsorted(self.tables.sites.position, interval)
         if copy:
-            for site_id in sites:
+            for site_id in range(start, stop):
                 variant.decode(site_id)
                 yield variant.copy()
         else:
-            for site_id in sites:
+            for site_id in range(start, stop):
                 variant.decode(site_id)
                 yield variant
 
@@ -5158,13 +5217,24 @@ class TreeSequence:
             isolated_as_missing=isolated_as_missing, alleles=alleles
         )
 
-    def alignments(self, *, reference_sequence=None, missing_data_character=None):
+    def alignments(
+        self,
+        *,
+        reference_sequence=None,
+        missing_data_character=None,
+        samples=None,
+        left=None,
+        right=None,
+    ):
         """
-        Returns an iterator over the full sequence alignments for the samples in this
-        tree sequence. Each alignment ``a`` is a string of length ``L`` where ``L``
-        is the :attr:`.sequence_length` of this tree sequence (which must have
-        :attr:`.discrete_genome` equal to True), and ``a[j]`` is the nucleotide
-        value for position ``j`` on the sequence.
+        Returns an iterator over the full sequence alignments for the defined samples
+        in this tree sequence. Each alignment ``a`` is a string of length ``L`` where
+        the first character is the genomic sequence at the ``start`` position in the
+        genome (defaulting to 0) and the last character is the genomic sequence one
+        position before the ``stop`` value (defaulting to the :attr:`.sequence_length`
+        of this tree sequence, which must have :attr:`.discrete_genome` equal to True).
+        By default ``L`` is therefore equal to the :attr:`.sequence_length`,
+        and ``a[j]`` is the nucleotide value at genomic position ``j``.
 
         .. note:: This is inherently a **zero-based** representation of the sequence
             coordinate space. Care will be needed when interacting with other
@@ -5225,14 +5295,21 @@ class TreeSequence:
         to sample genotypes and :meth:`.haplotypes` for access to sample sequences
         at just the sites in the tree sequence.
 
-        :return: An iterator over the alignment strings for the samples in
-            this tree sequence.
         :param str reference_sequence: The reference sequence to fill in
             gaps between sites in the alignments.
         :param str missing_data_character: A single ascii character that will
             be used to represent missing data.
             If any normal allele contains this character, an error is raised.
             Default: 'N'.
+        :param list[int] samples: The samples for which to output alignments. If
+            ``None`` (default), return alignments for all the samples in the tree
+            sequence, in the order given by the :meth:`.samples` method.
+        :param int left: Alignments will start at this genomic position. If ``None``
+            (default) alignments start at 0.
+        :param int right: Alignments will stop before this genomic position. If ``None``
+            (default) alignments will continue until the end of the tree sequence.
+        :return: An iterator over the alignment strings for specified samples in
+            this tree sequence, in the order given in ``samples``.
         :rtype: collections.abc.Iterable
         :raises: ValueError
             if any genome coordinate in this tree sequence is not discrete,
@@ -5242,30 +5319,35 @@ class TreeSequence:
         """
         if not self.discrete_genome:
             raise ValueError("sequence alignments only defined for discrete genomes")
-
+        interval = self._check_genomic_range(left, right, ensure_integer=True)
         missing_data_character = (
             "N" if missing_data_character is None else missing_data_character
         )
 
-        L = int(self.sequence_length)
+        L = interval.span
         a = np.empty(L, dtype=np.int8)
         if reference_sequence is None:
             if self.has_reference_sequence():
                 # This may be inefficient - see #1989. However, since we're
                 # n copies of the reference sequence anyway, this is a relatively
-                # minor tweak.
-                reference_sequence = self.reference_sequence.data
+                # minor tweak. We may also want to recode the below not to use direct
+                # access to the .data attribute, e.g. if we allow reference sequences
+                # to start at non-zero positions
+                reference_sequence = self.reference_sequence.data[
+                    interval.left : interval.right
+                ]
             else:
                 reference_sequence = missing_data_character * L
 
-        # Note: we might want to relax this to a warning if the reference
-        # is longer than L at some point, but let's not complicate things
-        # until we have a good reason.
         if len(reference_sequence) != L:
-            raise ValueError(
-                "The reference sequence must have the same length as "
-                f"this tree sequence: {len(reference_sequence)} != {L}"
-            )
+            if interval.right == int(self.sequence_length):
+                raise ValueError(
+                    "The reference sequence is shorter than the tree sequence length"
+                )
+            else:
+                raise ValueError(
+                    "The reference sequence ends before the requested stop position"
+                )
         ref_bytes = reference_sequence.encode("ascii")
         a[:] = np.frombuffer(ref_bytes, dtype=np.int8)
 
@@ -5285,10 +5367,16 @@ class TreeSequence:
                 "The current implementation may also incorrectly identify an "
                 "input tree sequence has having missing data."
             )
-        H = self._haplotypes_array(missing_data_character=missing_data_character)
-        site_pos = self.tables.sites.position.astype(np.int64)
+        H, (first_site_id, last_site_id) = self._haplotypes_array(
+            interval=interval,
+            missing_data_character=missing_data_character,
+            samples=samples,
+        )
+        site_pos = self.tables.sites.position.astype(np.int64)[
+            first_site_id : last_site_id + 1
+        ]
         for h in H:
-            a[site_pos] = h
+            a[site_pos - interval.left] = h
             yield a.tobytes().decode("ascii")
 
     @property
