@@ -638,6 +638,33 @@ class TestVariantGenerator:
         assert non_missing_found
         assert missing_found
 
+    def test_limit_interval(self):
+        ts = self.get_tree_sequence()
+        test_variant = tskit.Variant(ts)
+        test_variant.decode(1)
+        for v in ts.variants(left=ts.site(1).position, right=ts.site(2).position):
+            # should only decode the first variant
+            assert v.site.id == 1
+            assert np.all(v.genotypes == test_variant.genotypes)
+            assert v.alleles == test_variant.alleles
+
+    def test_bad_left(self):
+        ts = tskit.TableCollection(10).tree_sequence()
+        for bad_left in [-1, 10, 100, np.nan, np.inf, -np.inf]:
+            with pytest.raises(ValueError, match="`left` not between"):
+                list(ts.variants(left=bad_left))
+
+    def test_bad_right(self):
+        ts = tskit.TableCollection(10).tree_sequence()
+        for bad_right in [-1, 0, 100, np.nan, np.inf, -np.inf]:
+            with pytest.raises(ValueError, match="`right` not between"):
+                list(ts.variants(right=bad_right))
+
+    def test_bad_left_right(self):
+        ts = tskit.TableCollection(10).tree_sequence()
+        with pytest.raises(ValueError, match="must be less than"):
+            list(ts.variants(left=1, right=1))
+
 
 class TestHaplotypeGenerator:
     """
@@ -829,6 +856,29 @@ class TestHaplotypeGenerator:
                 ts.haplotypes(isolated_as_missing=False, impute_missing_data=False)
             )
         assert h == ["A", "A"]
+
+    def test_restrict_samples(self):
+        tables = tskit.TableCollection(1.0)
+        tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
+        tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
+        tables.sites.add_row(0.5, "A")
+        tables.mutations.add_row(0, 0, derived_state="B")
+        ts = tables.tree_sequence()
+        haplotypes = list(ts.haplotypes(samples=[0], isolated_as_missing=False))
+        assert haplotypes == ["B"]
+        haplotypes = list(ts.haplotypes(samples=[1], isolated_as_missing=False))
+        assert haplotypes == ["A"]
+
+    def test_restrict_positions(self):
+        tables = tskit.TableCollection(1.0)
+        tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
+        tables.sites.add_row(0.1, "A")
+        tables.sites.add_row(0.2, "B")
+        tables.sites.add_row(0.3, "C")
+        tables.sites.add_row(0.4, "D")
+        ts = tables.tree_sequence()
+        haplotypes = list(ts.haplotypes(left=0.2, right=0.4, isolated_as_missing=False))
+        assert haplotypes == ["BC"]
 
 
 class TestUserAlleles:
@@ -1090,6 +1140,14 @@ class TestBinaryTreeExample:
         assert A[0] == "NNGNNNNNNT"
         assert A[1] == "NNANNNNNNC"
         assert A[2] == "NNANNNNNNC"
+
+    def test_alignments_restricted(self):
+        ts = self.ts()
+        samples = ts.samples()
+        # Take the first 2 in reverse order
+        A = list(ts.alignments(left=1, right=9, samples=samples[1::-1]))
+        assert A[0] == "NANNNNNN"
+        assert A[1] == "NGNNNNNN"
 
     def test_alignments_missing_data_char(self):
         A = list(self.ts().alignments(missing_data_character="x"))
@@ -1669,13 +1727,17 @@ class TestAlignmentsErrors:
         tables = tskit.TableCollection(10)
         tables.reference_sequence.data = "A" * ref_length
         ts = tables.tree_sequence()
-        with pytest.raises(ValueError, match="same length"):
+        if ref_length <= tables.sequence_length:
+            with pytest.raises(ValueError, match="shorter than"):
+                list(ts.alignments())
+        else:
+            # Longer reference sequences are allowed
             list(ts.alignments())
 
     @pytest.mark.parametrize("ref", ["", "xy"])
     def test_reference_sequence_length_mismatch(self, ref):
         ts = self.simplest_ts()
-        with pytest.raises(ValueError, match="same length"):
+        with pytest.raises(ValueError, match="shorter than"):
             list(ts.alignments(reference_sequence=ref))
 
     @pytest.mark.parametrize("ref", ["À", "┃", "α"])
@@ -1698,6 +1760,23 @@ class TestAlignmentsErrors:
         ts = self.simplest_ts()
         with pytest.raises(UnicodeEncodeError):
             list(ts.alignments(missing_data_character=missing_data_char))
+
+    def test_bad_left(self):
+        ts = tskit.TableCollection(10).tree_sequence()
+        with pytest.raises(ValueError, match="integer"):
+            list(ts.alignments(left=0.1))
+
+    def test_bad_right(self):
+        ts = tskit.TableCollection(10).tree_sequence()
+        with pytest.raises(ValueError, match="integer"):
+            list(ts.alignments(right=1.1))
+
+    def test_bad_restricted(self):
+        tables = tskit.TableCollection(10)
+        tables.reference_sequence.data = "A" * 7
+        ts = tables.tree_sequence()
+        with pytest.raises(ValueError, match="sequence ends before"):
+            list(ts.alignments(right=8))
 
 
 class TestAlignmentExamples:

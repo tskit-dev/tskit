@@ -14,6 +14,10 @@
 
 - New ``Site.alleles()`` method (:user:`hyanwong`, :issue:`2380`, :pr:`2385`)
 
+- The ``variants()``, ``haplotypes()`` and ``alignments()`` methods can now
+  take a list of sample ids and a left and right position, to restrict the
+  size of the output (:user:`hyanwong`, :issue:`2092`, :pr:`2397`)
+
 
 --------------------
 [0.5.0] - 2022-06-22
