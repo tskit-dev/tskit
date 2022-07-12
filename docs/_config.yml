@@ -41,6 +41,8 @@ sphinx:
     #- sphinxcontrib.prettyspecialmethods
 
     config:
+      html_theme: tskit_book_theme
+      pygments_style: monokai
       myst_enable_extensions:
       - colon_fence
       - deflist
@@ -93,3 +95,4 @@ sphinx:
       # leads to broken links and nitpick failures. So, until we tackle
       # typehints fully, this is the simplest approach.
       autodoc_typehints: none
+
