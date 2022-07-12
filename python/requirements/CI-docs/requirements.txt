@@ -1,17 +1,16 @@
 breathe==4.33.1
-jupyter-book==0.12.3
-jupyter-sphinx==0.3.2
+jupyter-book==0.13.0
 h5py==3.6.0
 jsonschema==3.2.0
 msprime==1.2.0
 numpy==1.22.3
 PyGithub==1.55
-sphinx==4.5.0
 sphinx-argparse==0.3.1
 sphinx-autodoc-typehints==1.18.3
 sphinx-issues==3.0.1
 sphinxcontrib-prettyspecialmethods==0.1.0
 svgwrite==1.4.2
+tskit-book-theme==0.3.2
 # These are added for the new pip stricter resolver until packages fix their dep specifications
 Jinja2==3.0.3
 ipywidgets==7.7.2
