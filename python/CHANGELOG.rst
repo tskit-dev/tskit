@@ -2,6 +2,12 @@
 [0.5.1] - 2022-0X-XX
 --------------------
 
+**Fixes**
+
+- Copies of a `Variant` object would cause a segfault when ``.samples`` was accessed.
+  (:user:`benjeffery`, :issue:`2400`, :pr:`XXXX`)
+
+
 **Changes**
 
 - Tables in a table collection can be replaced using the replace_with method

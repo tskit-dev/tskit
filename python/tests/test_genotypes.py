@@ -359,6 +359,8 @@ class TestVariantGenerator:
                 for var1, var2 in zip(ts.variants(), ts.variants(samples=s)):
                     assert var1.site == var2.site
                     assert var1.alleles == var2.alleles
+                    assert np.array_equal(var1.samples, ts.samples())
+                    assert np.array_equal(var2.samples, s)
                     assert var2.genotypes.shape == (len(s),)
                     assert np.array_equal(var1.genotypes[s], var2.genotypes)
                     count += 1
