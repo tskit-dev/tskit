@@ -1287,7 +1287,7 @@ class SvgTree(SvgPlot):
             site_muts=site_muts,
         )
         if y_ticks is None:
-            y_ticks = {h: f"{ts.node(u).time:.2f}" for u, h in self.node_height.items()}
+            y_ticks = {h: ts.node(u).time for u, h in self.node_height.items()}
 
         self.draw_y_axis(
             ticks=check_y_ticks(y_ticks),
