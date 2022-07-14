@@ -2029,12 +2029,9 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         self.verify_basic_svg(svg, width=200 * ts.num_trees)
 
     def test_draw_integer_breaks_ts(self):
-        # TODO update this to use the msprime 1.0 API. Then we'll need to
-        # change to make the floating point breaks the exception.
-        recomb_map = msprime.RecombinationMap.uniform_map(
-            length=1000, rate=0.005, num_loci=1000
+        ts = msprime.sim_ancestry(
+            5, sequence_length=10, recombination_rate=0.05, random_seed=1
         )
-        ts = msprime.simulate(5, recombination_map=recomb_map, random_seed=1)
         assert ts.num_trees > 2
         svg = ts.draw_svg()
         self.verify_basic_svg(svg, width=200 * ts.num_trees)
@@ -2042,6 +2039,28 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         for b in ts.breakpoints():
             assert b == round(b)
             assert svg.find(f">{b:.0f}<", axis_pos) != -1
+
+    def test_draw_integer_times_ts(self):
+        ts = msprime.sim_ancestry(
+            5, population_size=5, sequence_length=10, model="dtwf", random_seed=1
+        )
+        svg = ts.draw_svg(y_axis=True)
+        self.verify_basic_svg(svg, width=200 * ts.num_trees)
+        axis_pos = svg.find('class="y-axis"')
+        for t in ts.tables.nodes.time:
+            assert t == round(t)
+            assert svg.find(f">{t:.0f}<", axis_pos) != -1
+
+    def test_draw_integer_times_tree(self):
+        ts = msprime.sim_ancestry(
+            5, population_size=5, sequence_length=10, model="dtwf", random_seed=1
+        )
+        svg = ts.first().draw_svg(y_axis=True)
+        self.verify_basic_svg(svg, width=200 * ts.num_trees)
+        axis_pos = svg.find('class="y-axis"')
+        for t in ts.tables.nodes.time:
+            assert t == round(t)
+            assert svg.find(f">{t:.0f}<", axis_pos) != -1
 
     def test_draw_even_height_ts(self):
         ts = msprime.simulate(5, recombination_rate=1, random_seed=1)
