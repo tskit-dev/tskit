@@ -1,5 +1,5 @@
 --------------------
-[1.1.0] - 2022-XX-XX
+[1.0.1] - 2022-07-14
 --------------------
 
 **Features**
@@ -8,7 +8,7 @@
   nodes of each node in the tree. (:user:`GertjanBisschop`, :issue:`2274`, :pr:`2316`)
 
 - Add ``edge`` to ``tsk_tree_t`` an array which contains the ``edge_id`` of the edge encoding
-  the relationship between the child node and its parent for each (child) node in the tree
+  the relationship between the child node and its parent for each (child) node in the tree.
   (:user:`GertjanBisschop`, :issue:`2304`, :pr:`2340`)
 
 
@@ -17,7 +17,7 @@
 - Reduce the maximum number of rows in a table by 1. This removes edge cases so that a ``tsk_id_t`` can be
   used to count the number of rows. (:user:`benjeffery`, :issue:`2336`, :pr:`2337`)
 
-- Samples are now copied by ``tsk_variant_restricted_copy``. (:user:`benjeffery`, :issue:`2400`, :pr:`XXXX`)
+- Samples are now copied by ``tsk_variant_restricted_copy``. (:user:`benjeffery`, :issue:`2400`, :pr:`2401`)
 
 
 --------------------

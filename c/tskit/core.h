@@ -138,7 +138,7 @@ sizes and types of externally visible structs.
 The library minor version. Incremented when non-breaking backward-compatible changes
 to the API or ABI are introduced, i.e., the addition of a new function.
 */
-#define TSK_VERSION_MINOR   0
+#define TSK_VERSION_MINOR   1
 /**
 The library patch version. Incremented when any changes not relevant to the
 to the API or ABI are introduced, i.e., internal refactors of bugfixes.
