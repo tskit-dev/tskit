@@ -33,25 +33,26 @@ import tskit.trees as trees
 class Variant:
     """
     A variant in a tree sequence, describing the observed genetic variation
-    among samples for a given site. A variant consists of (a) the **alleles** that
-    may be observed at the sample nodes for this site; (b) the **genotypes**
-    mapping sample IDs to the observed alleles and (c) of a reference to
-    the :class:`Site` that the Variant has been decoded at.
+    among samples for a given site. A variant consists of (a) a tuple of
+    **alleles** listing the potential allelic states which samples at this site
+    can possess; (b) an array of **genotypes** mapping sample IDs to the observed
+    alleles (c) a reference to the :class:`Site` at which the Variant has been decoded
+    and (d) an array of **samples** giving the node id to which the each element of
+    the genotypes array corresponds.
 
     After creation a Variant is not yet decoded, and has no genotypes.
     To decode a Variant, call the :meth:`decode` method. The Variant class will then
-    use a Tree, internal to the Variant, to seek to the position of the site and decode
-    the genotypes at that site. It is therefore much more efficient to sites in
-    sequential genomic order, either in a forwards or backwards direction, than to do so
-    randomly.
+    use a Tree, internal to the Variant, to seek to the position of the site and
+    decode the genotypes at that site. It is therefore much more efficient to visit
+    sites in sequential genomic order, either in a forwards or backwards direction,
+    than to do so randomly.
 
-    Each element in the ``alleles`` tuple is a string, representing the
-    actual observed state for a given sample. The ``alleles`` tuple is
-    generated in one of two ways. The first (and default) way is for
-    ``tskit`` to generate the encoding on the fly as alleles are encountered
-    while generating genotypes. In this case, the first element of this
-    tuple is guaranteed to be the same as the site's ``ancestral_state`` value
-    and the list of alleles is also guaranteed not to contain any duplicates.
+    Each element in the ``alleles`` tuple is a string, representing an
+    observed allelic state that may be seen at this site. The ``alleles`` tuple,
+    which is guaranteed not to contain any duplicates, is generated in one of two
+    ways. The first (and default) way is for ``tskit`` to generate the encoding on
+    the fly while generating genotypes. In this case, the first element of this
+    tuple is guaranteed to be the same as the site's ``ancestral_state`` value.
     Note that allelic values may be listed that are not referred to by any
     samples. For example, if we have a site that is fixed for the derived state
     (i.e., we have a mutation over the tree root), all genotypes will be 1, but
@@ -70,7 +71,9 @@ class Variant:
     such that ``var.alleles[var.genotypes[j]]`` gives the string allele
     for sample ID ``j``. Thus, the elements of the genotypes array are
     indexes into the ``alleles`` list. The genotypes are provided in this
-    way via a numpy array to enable efficient calculations.
+    way via a numpy numeric array to enable efficient calculations. To obtain a
+    (less efficient) array of allele strings for each sample, you can use e.g.
+    ``np.asarray(variant.alleles)[variant.genotypes]``.
 
     When :ref:`missing data<sec_data_model_missing_data>` is present at a given
     site, the property ``has_missing_data`` will be True, at least one element
