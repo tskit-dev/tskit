@@ -4,6 +4,7 @@ parts:
 - caption: Getting started
   chapters:
   - file: installation
+  - file: quickstart
 - caption: Concepts
   chapters:
   - file: glossary
