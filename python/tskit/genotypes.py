@@ -131,16 +131,17 @@ class Variant:
         return self.tree_sequence.site(self._ll_variant.site_id)
 
     @property
-    def alleles(self) -> tuple:
+    def alleles(self) -> tuple[str | None, ...]:
         """
-        A tuple of the allelic values that may be observed at the
-        samples at the current site. The first element of this tuple is always
-        the site's ancestral state.
+        A tuple of the allelic values which samples can possess at the current
+        site. Unless an encoding of alleles is specified when creating this
+        variant instance, the first element of this tuple is always the site's
+        ancestral state.
         """
         return self._ll_variant.alleles
 
     @property
-    def samples(self) -> tuple:
+    def samples(self) -> np.ndarray:
         """
         A numpy array of the node ids whose genotypes will be returned
         by the :meth:`genotypes` method.
