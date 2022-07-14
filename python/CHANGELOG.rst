@@ -1,11 +1,11 @@
 --------------------
-[0.5.1] - 2022-0X-XX
+[0.5.1] - 2022-07-14
 --------------------
 
 **Fixes**
 
 - Copies of a `Variant` object would cause a segfault when ``.samples`` was accessed.
-  (:user:`benjeffery`, :issue:`2400`, :pr:`XXXX`)
+  (:user:`benjeffery`, :issue:`2400`, :pr:`2401`)
 
 
 **Changes**
