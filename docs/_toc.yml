@@ -6,6 +6,7 @@ parts:
   - file: installation
 - caption: Concepts
   chapters:
+  - file: glossary
   - file: data-model
   - file: metadata
   - file: provenance
