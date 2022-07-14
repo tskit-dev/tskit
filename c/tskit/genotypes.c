@@ -598,17 +598,20 @@ tsk_variant_restricted_copy(const tsk_variant_t *self, tsk_variant_t *other)
     for (j = 0; j < self->num_alleles; j++) {
         total_len += self->allele_lengths[j];
     }
+    other->samples = tsk_malloc(other->num_samples * sizeof(tsk_id_t));
     other->genotypes = tsk_malloc(other->num_samples * sizeof(int32_t));
     other->user_alleles_mem = tsk_malloc(total_len * sizeof(char *));
     other->allele_lengths
         = tsk_malloc(other->num_alleles * sizeof(*other->allele_lengths));
     other->alleles = tsk_malloc(other->num_alleles * sizeof(*other->alleles));
-    if (other->genotypes == NULL || other->user_alleles_mem == NULL
-        || other->allele_lengths == NULL || other->alleles == NULL) {
+    if (other->samples == NULL || other->genotypes == NULL
+        || other->user_alleles_mem == NULL || other->allele_lengths == NULL
+        || other->alleles == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
-
+    tsk_memcpy(
+        other->samples, self->samples, other->num_samples * sizeof(*other->samples));
     tsk_memcpy(other->genotypes, self->genotypes, other->num_samples * sizeof(int32_t));
     tsk_memcpy(other->allele_lengths, self->allele_lengths,
         other->num_alleles * sizeof(*other->allele_lengths));
@@ -619,6 +622,7 @@ tsk_variant_restricted_copy(const tsk_variant_t *self, tsk_variant_t *other)
         other->alleles[j] = other->user_alleles_mem + offset;
         offset += other->allele_lengths[j];
     }
+
 out:
     return ret;
 }

@@ -2414,13 +2414,37 @@ class TestVariant(LowLevelTestCase):
         del variant
         assert np.array_equal(genotypes, expected)
 
-    def test_copy(self):
+    @pytest.mark.parametrize("isolated_as_missing", [True, False])
+    @pytest.mark.parametrize("samples", [None, [], (0,)])
+    @pytest.mark.parametrize("alleles", [None, ("1", "0")])
+    def test_copy(self, isolated_as_missing, samples, alleles):
         ts = self.get_example_tree_sequence(random_seed=42)
-        variant = _tskit.Variant(ts)
+        variant = _tskit.Variant(
+            ts,
+            isolated_as_missing=isolated_as_missing,
+            samples=samples,
+            alleles=alleles,
+        )
+
+        # Test taking a copy before decode
+        variant2 = variant.restricted_copy()
+        assert variant.site_id == variant2.site_id
+        assert variant.alleles == variant2.alleles
+        print(variant.alleles)
+        assert np.array_equal(variant.genotypes, variant2.genotypes)
+        assert np.array_equal(variant.samples, variant2.samples)
+        assert variant.isolated_as_missing == variant2.isolated_as_missing
+
         variant.decode(0)
         # Everything below should work even if the Python ts is free'd
         del ts
         variant2 = variant.restricted_copy()
+        assert variant.site_id == variant2.site_id
+        assert variant.alleles == variant2.alleles
+        assert np.array_equal(variant.genotypes, variant2.genotypes)
+        assert np.array_equal(variant.samples, variant2.samples)
+        assert variant.isolated_as_missing == variant2.isolated_as_missing
+
         # Take a copy for comparison, then move the variant to check the copy
         # doesn't move too
         genotypes = variant.genotypes
@@ -2434,13 +2458,18 @@ class TestVariant(LowLevelTestCase):
             variant2.decode(1)
         assert site_id == variant2.site_id
         assert alleles == variant2.alleles
+        # Other properties shouldn't have changed
+        assert np.array_equal(variant.samples, variant2.samples)
+        assert variant.isolated_as_missing == variant2.isolated_as_missing
 
         # Variant should be equal to the copy we took earlier
         assert np.array_equal(genotypes_copy, variant2.genotypes)
         # But not equal to the un-copies genotypes anymore as they
         # have decoded a new site as a side effect of reusing the
         # array when decoding
-        assert not np.array_equal(genotypes, variant2.genotypes)
+        assert len(variant.samples) == 0 or not np.array_equal(
+            genotypes, variant2.genotypes
+        )
 
         # Check the lifecycle of copies and copies of copies
         del variant

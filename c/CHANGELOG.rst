@@ -17,6 +17,9 @@
 - Reduce the maximum number of rows in a table by 1. This removes edge cases so that a ``tsk_id_t`` can be
   used to count the number of rows. (:user:`benjeffery`, :issue:`2336`, :pr:`2337`)
 
+- Samples are now copied by ``tsk_variant_restricted_copy``. (:user:`benjeffery`, :issue:`2400`, :pr:`XXXX`)
+
+
 --------------------
 [1.0.0] - 2022-05-24
 --------------------

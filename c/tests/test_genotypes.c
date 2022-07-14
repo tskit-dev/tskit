@@ -979,14 +979,29 @@ test_variant_copy(void)
     ret = tsk_variant_decode(&var_copy, 0, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_VARIANT_CANT_DECODE_COPY);
 
+    CU_ASSERT_EQUAL(
+        0, memcmp(var.tree_sequence, var.tree_sequence, sizeof(*var.tree_sequence)));
+    CU_ASSERT_EQUAL(0, memcmp(&var.tree, &var_copy.tree, sizeof(tsk_tree_t)));
     CU_ASSERT_EQUAL(0, memcmp(&var.site, &var_copy.site, sizeof(tsk_site_t)));
-    CU_ASSERT_EQUAL(0, memcmp(var.genotypes, var_copy.genotypes, sizeof(int32_t)));
+    CU_ASSERT_EQUAL(0, memcmp(var.genotypes, var_copy.genotypes,
+                           sizeof(int32_t) * (size_t) var.num_samples));
+    CU_ASSERT_EQUAL(var.num_alleles, var_copy.num_alleles);
     CU_ASSERT_EQUAL(
         0, memcmp(var.allele_lengths, var_copy.allele_lengths, sizeof(tsk_size_t)));
     for (j = 0; j < var.num_alleles; j++) {
         CU_ASSERT_EQUAL(0,
             memcmp(var.alleles[j], var_copy.alleles[j], (size_t) var.allele_lengths[j]));
     }
+    CU_ASSERT_EQUAL(var.has_missing_data, var_copy.has_missing_data);
+    CU_ASSERT_EQUAL(var.num_alleles, var_copy.num_alleles);
+    CU_ASSERT_EQUAL(var.num_samples, var_copy.num_samples);
+    CU_ASSERT_EQUAL(0, memcmp(var.samples, var_copy.samples,
+                           sizeof(*var.samples) * (size_t) var.num_samples));
+
+    CU_ASSERT_EQUAL(var_copy.traversal_stack, NULL);
+    CU_ASSERT_EQUAL(var_copy.sample_index_map, NULL);
+    CU_ASSERT_EQUAL(var_copy.alt_samples, NULL);
+    CU_ASSERT_EQUAL(var_copy.alt_sample_index_map, NULL);
 
     tsk_variant_free(&var);
     tsk_variant_free(&var_copy);
