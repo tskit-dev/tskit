@@ -825,7 +825,7 @@ class CommonTestsMixin:
 
     def test_replace_with_wrong_class(self):
         t = self.table_class()
-        with pytest.raises(TypeError, match="wrong type"):
+        with pytest.raises(TypeError, match="is required"):
             t.replace_with(tskit.BaseTable(None, None))
 
 

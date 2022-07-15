@@ -591,20 +591,7 @@ class BaseTable:
 
     def replace_with(self, other):
         # Overwrite the contents of this table with a copy of the other table
-        params = {}
-        for column in self.column_names:
-            try:
-                params[column] = getattr(other, column)
-            except AttributeError:
-                raise TypeError(
-                    "Replacement table has wrong type: it lacks a {column} column"
-                )
-        try:
-            # Not all tables have a metadata_schema: if they do, encode it with repr
-            params["metadata_schema"] = repr(other.metadata_schema)
-        except AttributeError:
-            pass
-        self.set_columns(**params)
+        self.set_columns(**other.asdict())
 
     def clear(self):
         """
