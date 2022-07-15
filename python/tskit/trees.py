@@ -1804,7 +1804,7 @@ class Tree:
             multiple trees. If ``False`` or ``None`` (default) mutations are only drawn
             on an edge if their site position exists within the genomic interval covered
             by this tree. If ``True``, all mutations on each edge of the tree are drawn,
-            even if the their genomic position is to the left or right of the tree
+            even if their genomic position is to the left or right of the tree
             itself. Note that this means that independent drawings of different trees
             from the same tree sequence may share some plotted mutations.
 
@@ -5146,7 +5146,12 @@ class TreeSequence:
             isolated_as_missing=isolated_as_missing,
             alleles=alleles,
         )
-        start, stop = np.searchsorted(self.tables.sites.position, interval)
+        if left == 0 and right == self.sequence_length:
+            start = 0
+            stop = self.num_sites
+        else:
+            start, stop = np.searchsorted(self.tables.sites.position, interval)
+
         if copy:
             for site_id in range(start, stop):
                 variant.decode(site_id)
@@ -5890,7 +5895,7 @@ class TreeSequence:
             usage.
         :param bool isolated_as_missing: If True, the genotype value assigned to
             missing samples (i.e., isolated samples without mutations) is "."
-            If False, missing samples will be assigned the the ancestral allele.
+            If False, missing samples will be assigned the ancestral allele.
             See :meth:`.variants` for more information. Default: True.
         """
         writer = vcf.VcfWriter(
