@@ -3361,6 +3361,7 @@ class TableCollection(metadata.MetadataProvider):
         filter_sites=True,
         keep_unary=False,
         keep_unary_in_individuals=None,
+        keep_unary_if_coalescent=None,
         keep_input_roots=False,
         record_provenance=True,
         filter_zero_mutation_sites=None,  # Deprecated alias for filter_sites
@@ -3447,6 +3448,8 @@ class TableCollection(metadata.MetadataProvider):
             samples = util.safe_np_int_cast(samples, np.int32)
         if keep_unary_in_individuals is None:
             keep_unary_in_individuals = False
+        if keep_unary_if_coalescent is None:
+            keep_unary_if_coalescent = False
 
         node_map = self._ll_tables.simplify(
             samples,
@@ -3456,6 +3459,7 @@ class TableCollection(metadata.MetadataProvider):
             reduce_to_site_topology=reduce_to_site_topology,
             keep_unary=keep_unary,
             keep_unary_in_individuals=keep_unary_in_individuals,
+            keep_unary_if_coalescent=keep_unary_if_coalescent,
             keep_input_roots=keep_input_roots,
         )
         if record_provenance:

@@ -2478,6 +2478,93 @@ class TestUnaryNodes(TopologyTestCase):
         self.verify_unary_tree_sequence(ts)
 
 
+class TestSimplifyKeepUnaryIfCoalescent:
+    def test_simple_tree_unchanged(self):
+        ts1 = tskit.Tree.generate_balanced(5).tree_sequence
+        ts2 = ts1.simplify(keep_unary_if_coalescent=True)
+        ts1.tables.assert_equals(ts2.tables, ignore_provenance=True)
+
+    @pytest.mark.parametrize("num_internal_nodes", [1, 2, 10])
+    def test_stick(self, num_internal_nodes):
+        tables = tskit.TableCollection(1)
+        u = tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
+        for _ in range(num_internal_nodes + 1):
+            v = tables.nodes.add_row(time=u + 1)
+            tables.edges.add_row(0, 1, v, u)
+            u = v
+        ts = tables.tree_sequence()
+        ts = ts.simplify(keep_unary_if_coalescent=True)
+        assert ts.num_nodes == 1
+        assert ts.num_edges == 0
+
+    def test_simplest_partially_unary(self):
+        nodes = io.StringIO(
+            """\
+        id      is_sample   time
+        0       1           0
+        1       1           0
+        2       0           1
+        """
+        )
+        edges = io.StringIO(
+            """\
+        left    right   parent  child
+        0       1       2       1
+        0       2       2       0
+        """
+        )
+        ts1 = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+        ts2 = ts1.simplify(keep_unary_if_coalescent=True)
+        ts1.tables.assert_equals(ts2.tables, ignore_provenance=True)
+
+    def test_fully_and_partially_unary(self):
+        nodes = io.StringIO(
+            """\
+        id      is_sample   time
+        0       1           0
+        1       1           0
+        2       0           2
+        3       0           3
+        4       0           1
+        """
+        )
+        edges = io.StringIO(
+            """\
+        left    right   parent  child
+        0       2       2       0
+        0       2       3       2
+        0       2       4       1
+        0       1       3       4
+        1       2       2       4
+        """
+        )
+        # 3.00┊  3  ┊  3  ┊
+        #     ┊ ┏┻┓ ┊  ┃  ┊
+        # 2.00┊ 2 ┃ ┊  2  ┊
+        #     ┊ ┃ ┃ ┊ ┏┻┓ ┊
+        # 1.00┊ ┃ 4 ┊ ┃ 4 ┊
+        #     ┊ ┃ ┃ ┊ ┃ ┃ ┊
+        # 0.00┊ 0 1 ┊ 0 1 ┊
+        #     0     1     2
+        ts1 = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+
+        # If we use keep_unary, then the tree sequence is unchanged (modulo
+        # node reordering)
+        ts2 = ts1.simplify(keep_unary=True)
+        assert ts2.num_nodes == 5
+
+        ts2 = ts1.simplify(keep_unary_if_coalescent=True)
+        # 3.00┊  3  ┊  3  ┊
+        #     ┊ ┏┻┓ ┊  ┃  ┊
+        # 2.00┊ 2 ┃ ┊  2  ┊
+        #     ┊ ┃ ┃ ┊ ┏┻┓ ┊
+        # 0.00┊ 0 1 ┊ 0 1 ┊
+        #     0     1     2
+        assert ts2.num_nodes == 4
+        assert ts2.first().parent_dict == {0: 2, 1: 3, 2: 3}
+        assert ts2.last().parent_dict == {0: 2, 1: 2, 2: 3}
+
+
 class TestGeneralSamples(TopologyTestCase):
     """
     Test cases in which we have samples at arbitrary nodes (i.e., not at
