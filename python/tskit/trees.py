@@ -5121,7 +5121,7 @@ class TreeSequence:
             this genomic position. If ``None`` (default) start at the first site.
         :param int right: End with the last site before this position. If ``None``
             (default) assume ``right`` is the sequence length, so that the last
-            variant correspomnds to the last site in the tree sequence.
+            variant corresponds to the last site in the tree sequence.
         :return: An iterator over all variants in this tree sequence.
         :rtype: iter(:class:`Variant`)
         """
