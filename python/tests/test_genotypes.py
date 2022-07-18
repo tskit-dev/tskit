@@ -640,8 +640,10 @@ class TestVariantGenerator:
         assert non_missing_found
         assert missing_found
 
-    def test_limit_interval(self):
-        ts = self.get_tree_sequence()
+
+class TestLimitInterval:
+    def test_simple_case(self, ts_fixture):
+        ts = ts_fixture
         test_variant = tskit.Variant(ts)
         test_variant.decode(1)
         for v in ts.variants(left=ts.site(1).position, right=ts.site(2).position):
@@ -650,17 +652,59 @@ class TestVariantGenerator:
             assert np.all(v.genotypes == test_variant.genotypes)
             assert v.alleles == test_variant.alleles
 
-    def test_bad_left(self):
-        ts = tskit.TableCollection(10).tree_sequence()
-        for bad_left in [-1, 10, 100, np.nan, np.inf, -np.inf]:
-            with pytest.raises(ValueError, match="`left` not between"):
-                list(ts.variants(left=bad_left))
+    @pytest.mark.parametrize(
+        ["left", "expected"],
+        [
+            (None, [0, 1, 2, 3, 4]),
+            (0, [0, 1, 2, 3, 4]),
+            (0.999, [1, 2, 3, 4]),
+            (1, [1, 2, 3, 4]),
+            (3.999, [4]),
+            (4, [4]),
+            (4.00001, []),
+            (4.99999, []),
+            (np.array([4.99999])[0], []),
+        ],
+    )
+    def test_left(self, left, expected):
+        tables = tskit.TableCollection(5)
+        for x in range(int(tables.sequence_length)):
+            tables.sites.add_row(position=x, ancestral_state="A")
+        ts = tables.tree_sequence()
+        positions = [var.site.position for var in ts.variants(left=left)]
+        assert positions == expected
 
-    def test_bad_right(self):
+    @pytest.mark.parametrize(
+        ["right", "expected"],
+        [
+            (None, [0, 1, 2, 3, 4]),
+            (5, [0, 1, 2, 3, 4]),
+            (4.00001, [0, 1, 2, 3, 4]),
+            (4.0, [0, 1, 2, 3]),
+            (3.9999, [0, 1, 2, 3]),
+            (0.00001, [0]),
+            (np.array([1e-200])[0], [0]),
+        ],
+    )
+    def test_right(self, right, expected):
+        tables = tskit.TableCollection(5)
+        for x in range(int(tables.sequence_length)):
+            tables.sites.add_row(position=x, ancestral_state="A")
+        ts = tables.tree_sequence()
+        positions = [var.site.position for var in ts.variants(right=right)]
+        assert positions == expected
+
+    @pytest.mark.parametrize("bad_left", [-1, 10, 100, np.nan, np.inf, -np.inf])
+    def test_bad_left(self, bad_left):
         ts = tskit.TableCollection(10).tree_sequence()
-        for bad_right in [-1, 0, 100, np.nan, np.inf, -np.inf]:
-            with pytest.raises(ValueError, match="`right` not between"):
-                list(ts.variants(right=bad_right))
+        with pytest.raises(ValueError, match="`left` not between"):
+            list(ts.variants(left=bad_left))
+
+    @pytest.mark.parametrize("bad_right", [-1, 0, 100, np.nan, np.inf, -np.inf])
+    def test_bad_right(self, bad_right):
+        ts = tskit.TableCollection(10).tree_sequence()
+        with pytest.raises(ValueError, match="`right` not between"):
+            list(ts.variants(right=bad_right))
 
     def test_bad_left_right(self):
         ts = tskit.TableCollection(10).tree_sequence()
@@ -1132,6 +1176,11 @@ class TestBinaryTreeExample:
         assert H[1] == "AC"
         assert H[2] == "AC"
 
+    def test_haplotypes_empty_interval(self):
+        ts = self.ts()
+        H = list(ts.haplotypes(left=4, right=5))
+        assert H == ["", "", ""]
+
     def test_genotypes(self):
         G = self.ts().genotype_matrix()
         Gp = [[1, 0, 0], [0, 1, 1]]
@@ -1150,6 +1199,16 @@ class TestBinaryTreeExample:
         A = list(ts.alignments(left=1, right=9, samples=samples[1::-1]))
         assert A[0] == "NANNNNNN"
         assert A[1] == "NGNNNNNN"
+
+    def test_empty_samples(self):
+        ts = self.ts()
+        A = list(ts.alignments(samples=[]))
+        assert len(A) == 0
+
+    def test_non_sample_samples(self):
+        ts = self.ts()
+        with pytest.raises(tskit.LibraryError, match="MUST_IMPUTE_NON_SAMPLES"):
+            list(ts.alignments(samples=[4]))
 
     def test_alignments_missing_data_char(self):
         A = list(self.ts().alignments(missing_data_character="x"))
