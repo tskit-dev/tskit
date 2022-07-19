@@ -1702,6 +1702,8 @@ int tsk_tree_b1_index(const tsk_tree_t *self, double *result);
  * happen like a base 0 seems to return a finite value. */
 int tsk_tree_b2_index(const tsk_tree_t *self, double base, double *result);
 
+int tsk_tree_num_lineages(const tsk_tree_t *self, double t, tsk_size_t *result);
+
 /* Things to consider removing: */
 
 /* This is redundant, really */

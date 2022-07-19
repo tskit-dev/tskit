@@ -3234,6 +3234,29 @@ class TestTree(LowLevelTestCase):
         with pytest.raises(TypeError):
             t1.get_b2_index("asdf")
 
+    def test_b2(self):
+        ts1 = self.get_example_tree_sequence(10)
+        t1 = _tskit.Tree(ts1)
+        t1.first()
+        assert t1.get_b2_index(10) > 0
+
+    def test_num_lineages_errors(self):
+        ts1 = self.get_example_tree_sequence(10)
+        t1 = _tskit.Tree(ts1)
+        t1.first()
+        with pytest.raises(TypeError):
+            t1.get_num_lineages()
+        with pytest.raises(TypeError):
+            t1.get_num_lineages("asdf")
+        with pytest.raises(_tskit.LibraryError, match="TIME_NONFINITE"):
+            t1.get_num_lineages(np.inf)
+
+    def test_num_lineages(self):
+        ts1 = self.get_example_tree_sequence(10)
+        t1 = _tskit.Tree(ts1)
+        t1.first()
+        assert t1.get_num_lineages(0) == 10
+
     def test_kc_distance_errors(self):
         ts1 = self.get_example_tree_sequence(10)
         t1 = _tskit.Tree(ts1, options=_tskit.SAMPLE_LISTS)

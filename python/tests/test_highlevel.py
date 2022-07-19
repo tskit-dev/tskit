@@ -4767,11 +4767,10 @@ class TestTreeSequenceGetSite:
 def num_lineages_definition(tree, t):
     lineages = 0
     for u in tree.nodes():
-        parent_time = np.inf
-        if tree.parent(u) != tskit.NULL:
-            parent_time = tree.time(tree.parent(u))
-        if tree.time(u) <= t < parent_time:
-            lineages += 1
+        v = tree.parent(u)
+        if v != tskit.NULL:
+            if tree.time(u) <= t < tree.time(v):
+                lineages += 1
     return lineages
 
 
@@ -4780,24 +4779,20 @@ class TestNumLineages:
     def test_tree_midpoint_definition(self, ts):
         t = 0
         if ts.num_nodes > 0:
-            t = np.max(ts.tables.nodes.time)
+            t = np.max(ts.tables.nodes.time) / 2
         tree = ts.first()
         assert tree.num_lineages(t) == num_lineages_definition(tree, t)
 
-    @pytest.mark.parametrize("ts", get_example_tree_sequences())
-    def test_tree_midpoint_decapitate(self, ts):
-        if ts.num_migrations == 0:
-            t = 0
-            if ts.num_nodes > 0:
-                t = np.max(ts.tables.nodes.time)
-            tree = ts.first()
-            decap = ts.decapitate(t)
-            assert tree.num_lineages(t) == decap.first().num_roots
+    @pytest.mark.parametrize("t", [-np.inf, np.inf, np.nan])
+    def test_nonfinite_time(self, t):
+        tree = tskit.Tree.generate_balanced(2)
+        with pytest.raises(tskit.LibraryError, match="NONFINITE"):
+            tree.num_lineages(t)
 
     @pytest.mark.parametrize("t", [1, 1.0, np.array([1.0])[0]])
     def test_number_types(self, t):
         tree = tskit.Tree.generate_balanced(2)
-        assert tree.num_lineages(t) == 1
+        assert tree.num_lineages(t) == 0
 
     # 2.00┊        12         ┊
     #     ┊   ┏━━━━━╋━━━━━┓   ┊
@@ -4814,8 +4809,8 @@ class TestNumLineages:
             (0.99999, 9),
             (1, 3),
             (1.999999, 3),
-            (2, 1),
-            (2.000001, 1),
+            (2, 0),
+            (2.000001, 0),
         ],
     )
     def test_balanced_ternary(self, t, expected):
@@ -4839,10 +4834,10 @@ class TestNumLineages:
             (0.99999, 9),
             (1, 5),
             (1.999999, 5),
-            (2, 3),
-            (2.000001, 3),
-            (3.00000, 2),
-            (5.00000, 2),
+            (2, 2),
+            (2.000001, 2),
+            (3.00000, 0),
+            (5.00000, 0),
         ],
     )
     def test_multiroot_different_times(self, t, expected):
@@ -4875,7 +4870,7 @@ class TestNumLineages:
             (2, 2),
             (3, 2),
             (3, 2),
-            (4, 1),
+            (4, 0),
         ],
     )
     def test_comb_different_leaf_times(self, t, expected):
@@ -4885,6 +4880,24 @@ class TestNumLineages:
         time[1] = 2
         time[0] = 3
         tables.nodes.time = time
+        ts = tables.tree_sequence()
+        tree = ts.first()
+        assert tree.num_lineages(t) == expected
+
+    @pytest.mark.parametrize(
+        ["t", "expected"],
+        [
+            (-0.00001, 0),
+            (0, 0),
+            (1, 0),
+            (2, 0),
+            (3, 0),
+        ],
+    )
+    def test_missing_data_different_times(self, t, expected):
+        tables = tskit.TableCollection(1)
+        for j in range(3):
+            tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=j)
         ts = tables.tree_sequence()
         tree = ts.first()
         assert tree.num_lineages(t) == expected

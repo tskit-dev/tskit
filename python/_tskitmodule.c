@@ -10858,6 +10858,30 @@ out:
 }
 
 static PyObject *
+Tree_get_num_lineages(Tree *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    int err;
+    double t;
+    tsk_size_t result;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTuple(args, "d", &t)) {
+        goto out;
+    }
+    err = tsk_tree_num_lineages(self->tree, t, &result);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("K", (unsigned long long) result);
+out:
+    return ret;
+}
+
+static PyObject *
 Tree_get_root_threshold(Tree *self)
 {
     PyObject *ret = NULL;
@@ -11304,6 +11328,10 @@ static PyMethodDef Tree_methods[] = {
         .ml_meth = (PyCFunction) Tree_get_b2_index,
         .ml_flags = METH_VARARGS,
         .ml_doc = "Returns the B2 index for this tree." },
+    { .ml_name = "get_num_lineages",
+        .ml_meth = (PyCFunction) Tree_get_num_lineages,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns number of lineages at time t." },
     { NULL } /* Sentinel */
 };
 

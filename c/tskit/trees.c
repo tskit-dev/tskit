@@ -5071,6 +5071,55 @@ out:
     return ret;
 }
 
+int
+tsk_tree_num_lineages(const tsk_tree_t *self, double t, tsk_size_t *result)
+{
+    int ret = 0;
+    const tsk_id_t *restrict right_child = self->right_child;
+    const tsk_id_t *restrict left_sib = self->left_sib;
+    const double *restrict time = self->tree_sequence->tables->nodes.time;
+    tsk_id_t *stack = tsk_tree_alloc_node_stack(self);
+    tsk_size_t num_lineages = 0;
+    int stack_top;
+    tsk_id_t u, v;
+    double child_time, parent_time;
+
+    if (stack == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    if (!tsk_isfinite(t)) {
+        ret = TSK_ERR_TIME_NONFINITE;
+        goto out;
+    }
+    /* Push the roots onto the stack */
+    stack_top = -1;
+    for (u = right_child[self->virtual_root]; u != TSK_NULL; u = left_sib[u]) {
+        stack_top++;
+        stack[stack_top] = u;
+    }
+
+    while (stack_top >= 0) {
+        u = stack[stack_top];
+        parent_time = time[u];
+        stack_top--;
+        for (v = right_child[u]; v != TSK_NULL; v = left_sib[v]) {
+            child_time = time[v];
+            /* Only traverse down the tree as far as we need to */
+            if (child_time > t) {
+                stack_top++;
+                stack[stack_top] = v;
+            } else if (t < parent_time) {
+                num_lineages++;
+            }
+        }
+    }
+    *result = num_lineages;
+out:
+    tsk_safe_free(stack);
+    return ret;
+}
+
 /* Parsimony methods */
 
 static inline uint64_t

@@ -7,6 +7,10 @@
 - Variant objects now have a ``.num_missing`` attribute and ``.counts()`` and
   ``.frequencies`` methods (:user:`hyanwong`, :issue:`2390` :pr:`2393`)
 
+**Changes**
+
+- Add the `Tree.num_lineages(t)` method to return the number of lineages present
+  at time t in the tree (:user:`jeromekelleher`, :issue:`386`, :pr:`2422`)
 
 --------------------
 [0.5.1] - 2022-07-14
