@@ -4740,6 +4740,45 @@ test_single_tree_total_branch_length(void)
 }
 
 static void
+test_single_tree_num_lineages(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_tree_t tree;
+    tsk_size_t num_lineages;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+    ret = tsk_tree_init(&tree, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_tree_first(&tree);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_TREE_OK);
+
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_num_lineages(&tree, 0, &num_lineages), 0);
+    CU_ASSERT_EQUAL_FATAL(num_lineages, 4);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_num_lineages(&tree, -1, &num_lineages), 0);
+    CU_ASSERT_EQUAL_FATAL(num_lineages, 0);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_num_lineages(&tree, 1, &num_lineages), 0);
+    CU_ASSERT_EQUAL_FATAL(num_lineages, 3);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_num_lineages(&tree, 2, &num_lineages), 0);
+    CU_ASSERT_EQUAL_FATAL(num_lineages, 2);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_num_lineages(&tree, 2.999, &num_lineages), 0);
+    CU_ASSERT_EQUAL_FATAL(num_lineages, 2);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_num_lineages(&tree, 3, &num_lineages), 0);
+    CU_ASSERT_EQUAL_FATAL(num_lineages, 0);
+    CU_ASSERT_EQUAL_FATAL(tsk_tree_num_lineages(&tree, 300, &num_lineages), 0);
+    CU_ASSERT_EQUAL_FATAL(num_lineages, 0);
+
+    CU_ASSERT_EQUAL_FATAL(
+        tsk_tree_num_lineages(&tree, INFINITY, &num_lineages), TSK_ERR_TIME_NONFINITE);
+    CU_ASSERT_EQUAL_FATAL(
+        tsk_tree_num_lineages(&tree, NAN, &num_lineages), TSK_ERR_TIME_NONFINITE);
+
+    tsk_tree_free(&tree);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_single_tree_map_mutations(void)
 {
     tsk_treeseq_t ts;
@@ -7924,6 +7963,7 @@ main(int argc, char **argv)
         { "test_single_tree_mutation_edges", test_single_tree_mutation_edges },
         { "test_single_tree_is_descendant", test_single_tree_is_descendant },
         { "test_single_tree_total_branch_length", test_single_tree_total_branch_length },
+        { "test_single_tree_num_lineages", test_single_tree_num_lineages },
         { "test_single_tree_map_mutations", test_single_tree_map_mutations },
         { "test_single_tree_map_mutations_internal_samples",
             test_single_tree_map_mutations_internal_samples },

@@ -2896,26 +2896,20 @@ class Tree:
     def num_lineages(self, t):
         """
         Returns the number of lineages present in this tree at time ``t``. This
-        is defined as the number of branches in this tree (reachable from roots)
-        that intersect with ``t``, plus the number of roots with time ``>= t``.
-        Thus, ``tree.num_lineages(t)`` is equal to 1 for any ``t`` greater than
-        or equal to the time of the root in a singly-rooted tree.
+        is defined as the number of branches in this tree (reachable from the
+        samples) that intersect with ``t``. Thus, ``tree.num_lineages(t)``
+        is equal to 0 for any ``t`` greater than or equal to the time of
+        the root in a singly-rooted tree.
+
+        .. note:: Note that this definition means that if a (non root) node
+            with three children has time ``t``, then it will count as one lineage,
+            not three.
 
         :param int t: The time to count lineages at.
         :return: The number of lineages in the tree at time t.
         :rtype: int
         """
-        lineages = 0
-        stack = [self.virtual_root]
-        while len(stack) > 0:
-            parent = stack.pop()
-            for child in self.children(parent):
-                child_time = self.time(child)
-                if child_time > t:
-                    stack.append(child)
-                elif child_time <= t:
-                    lineages += 1
-        return lineages
+        return self._ll_tree.get_num_lineages(t)
 
     def split_polytomies(
         self,
