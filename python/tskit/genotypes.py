@@ -256,9 +256,9 @@ class Variant:
             for i, allele in enumerate(self.alleles[:-1]):
                 counts[allele] = np.sum(self.genotypes == i)
         else:
-            bincounts = np.bincount(self.genotypes)
+            bincounts = np.bincount(self.genotypes, minlength=self.num_alleles)
             for i, allele in enumerate(self.alleles):
-                counts[allele] = bincounts[i] if i < len(bincounts) else 0
+                counts[allele] = bincounts[i]
         return counts
 
     def frequencies(self, remove_missing=None) -> dict[str, float]:
