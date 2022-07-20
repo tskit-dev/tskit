@@ -2,15 +2,34 @@
 [0.5.2] - 2022-XX-XX
 --------------------
 
+**Fixes**
+
+- Various memory leaks fixed (:user:`jeromekelleher`, :pr:`2424`, :issue:`2423`,
+  :issue:`2427`).
+
+**Performance improvements**
+
+- TreeSequence.site position search performance greatly improved, with much lower
+  memory overhead (:user:`jeromekelleher`, :pr:`2424`).
+
+- TreeSequence.samples time/population search performance greatly improved, with
+  much lower memory overhead (:user:`jeromekelleher`, :pr:`2424`, :issue:`1916`).
+
+- The ``timeasc`` and ``timedesc`` orders for ``Tree.nodes`` have much
+  improved performance and lower memory overhead
+  (:user:`jeromekelleher`, :pr:`2424`, :issue:`2423`).
+
 **Features**
 
 - Variant objects now have a ``.num_missing`` attribute and ``.counts()`` and
   ``.frequencies`` methods (:user:`hyanwong`, :issue:`2390` :pr:`2393`)
 
-**Changes**
 
 - Add the `Tree.num_lineages(t)` method to return the number of lineages present
   at time t in the tree (:user:`jeromekelleher`, :issue:`386`, :pr:`2422`)
+
+- Efficient array access to table data now provided via attributes like
+  `TreeSequence.nodes_time`, etc (:user:`jeromekelleher`, :pr:`2424`).
 
 --------------------
 [0.5.1] - 2022-07-14

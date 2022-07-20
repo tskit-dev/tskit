@@ -9532,6 +9532,376 @@ out:
     return ret;
 }
 
+/* Make a new array that is owned by the specified object. */
+static PyObject *
+make_owned_array(PyObject *self, tsk_size_t size, int dtype, void *data)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *array = NULL;
+    npy_intp dims = (npy_intp) size;
+
+    array = (PyArrayObject *) PyArray_SimpleNewFromData(1, &dims, dtype, data);
+    if (array == NULL) {
+        goto out;
+    }
+    PyArray_CLEARFLAGS(array, NPY_ARRAY_WRITEABLE);
+    if (PyArray_SetBaseObject(array, (PyObject *) self) != 0) {
+        goto out;
+    }
+    /* PyArray_SetBaseObject steals a reference, so we have to incref this
+     * object. This makes sure that the instance will stay alive if there
+     * are any arrays that refer to its memory. */
+    Py_INCREF(self);
+    ret = (PyObject *) array;
+    array = NULL;
+out:
+    Py_XDECREF(array);
+    return ret;
+}
+
+static PyObject *
+TreeSequence_make_array(TreeSequence *self, tsk_size_t size, int dtype, void *data)
+{
+    return make_owned_array((PyObject *) self, size, dtype, data);
+}
+
+static PyObject *
+TreeSequence_get_individuals_flags(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_individual_table_t individuals;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    individuals = self->tree_sequence->tables->individuals;
+    ret = TreeSequence_make_array(
+        self, individuals.num_rows, NPY_UINT32, individuals.flags);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_nodes_time(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_node_table_t nodes;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    nodes = self->tree_sequence->tables->nodes;
+    ret = TreeSequence_make_array(self, nodes.num_rows, NPY_FLOAT64, nodes.time);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_nodes_flags(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_node_table_t nodes;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    nodes = self->tree_sequence->tables->nodes;
+    ret = TreeSequence_make_array(self, nodes.num_rows, NPY_UINT32, nodes.flags);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_nodes_population(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_node_table_t nodes;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    nodes = self->tree_sequence->tables->nodes;
+    ret = TreeSequence_make_array(self, nodes.num_rows, NPY_INT32, nodes.population);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_nodes_individual(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_node_table_t nodes;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    nodes = self->tree_sequence->tables->nodes;
+    ret = TreeSequence_make_array(self, nodes.num_rows, NPY_INT32, nodes.individual);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_edges_left(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_edge_table_t edges;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    edges = self->tree_sequence->tables->edges;
+    ret = TreeSequence_make_array(self, edges.num_rows, NPY_FLOAT64, edges.left);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_edges_right(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_edge_table_t edges;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    edges = self->tree_sequence->tables->edges;
+    ret = TreeSequence_make_array(self, edges.num_rows, NPY_FLOAT64, edges.right);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_edges_parent(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_edge_table_t edges;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    edges = self->tree_sequence->tables->edges;
+    ret = TreeSequence_make_array(self, edges.num_rows, NPY_INT32, edges.parent);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_edges_child(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_edge_table_t edges;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    edges = self->tree_sequence->tables->edges;
+    ret = TreeSequence_make_array(self, edges.num_rows, NPY_INT32, edges.child);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_sites_position(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_site_table_t sites;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    sites = self->tree_sequence->tables->sites;
+    ret = TreeSequence_make_array(self, sites.num_rows, NPY_FLOAT64, sites.position);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_mutations_site(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_mutation_table_t mutations;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    mutations = self->tree_sequence->tables->mutations;
+    ret = TreeSequence_make_array(self, mutations.num_rows, NPY_INT32, mutations.site);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_mutations_node(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_mutation_table_t mutations;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    mutations = self->tree_sequence->tables->mutations;
+    ret = TreeSequence_make_array(self, mutations.num_rows, NPY_INT32, mutations.node);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_mutations_parent(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_mutation_table_t mutations;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    mutations = self->tree_sequence->tables->mutations;
+    ret = TreeSequence_make_array(self, mutations.num_rows, NPY_INT32, mutations.parent);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_mutations_time(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_mutation_table_t mutations;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    mutations = self->tree_sequence->tables->mutations;
+    ret = TreeSequence_make_array(self, mutations.num_rows, NPY_FLOAT64, mutations.time);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_migrations_left(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_migration_table_t migrations;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    migrations = self->tree_sequence->tables->migrations;
+    ret = TreeSequence_make_array(
+        self, migrations.num_rows, NPY_FLOAT64, migrations.left);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_migrations_right(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_migration_table_t migrations;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    migrations = self->tree_sequence->tables->migrations;
+    ret = TreeSequence_make_array(
+        self, migrations.num_rows, NPY_FLOAT64, migrations.right);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_migrations_node(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_migration_table_t migrations;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    migrations = self->tree_sequence->tables->migrations;
+    ret = TreeSequence_make_array(self, migrations.num_rows, NPY_INT32, migrations.node);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_migrations_source(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_migration_table_t migrations;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    migrations = self->tree_sequence->tables->migrations;
+    ret = TreeSequence_make_array(
+        self, migrations.num_rows, NPY_INT32, migrations.source);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_migrations_dest(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_migration_table_t migrations;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    migrations = self->tree_sequence->tables->migrations;
+    ret = TreeSequence_make_array(self, migrations.num_rows, NPY_INT32, migrations.dest);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_migrations_time(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_migration_table_t migrations;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    migrations = self->tree_sequence->tables->migrations;
+    ret = TreeSequence_make_array(
+        self, migrations.num_rows, NPY_FLOAT64, migrations.time);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_indexes_edge_insertion_order(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_table_collection_t *tables;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    tables = self->tree_sequence->tables;
+    ret = TreeSequence_make_array(
+        self, tables->edges.num_rows, NPY_INT32, tables->indexes.edge_insertion_order);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_indexes_edge_removal_order(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_table_collection_t *tables;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    tables = self->tree_sequence->tables;
+    ret = TreeSequence_make_array(
+        self, tables->edges.num_rows, NPY_INT32, tables->indexes.edge_removal_order);
+out:
+    return ret;
+}
+
 static PyMethodDef TreeSequence_methods[] = {
     { .ml_name = "dump",
         .ml_meth = (PyCFunction) TreeSequence_dump,
@@ -9760,6 +10130,72 @@ static PyGetSetDef TreeSequence_getsetters[] = {
     { .name = "reference_sequence",
         .get = (getter) TreeSequence_get_reference_sequence,
         .doc = "The reference sequence." },
+    { .name = "individuals_flags",
+        .get = (getter) TreeSequence_get_individuals_flags,
+        .doc = "The individual flags array" },
+    { .name = "nodes_time",
+        .get = (getter) TreeSequence_get_nodes_time,
+        .doc = "The node time array" },
+    { .name = "nodes_flags",
+        .get = (getter) TreeSequence_get_nodes_flags,
+        .doc = "The node flags array" },
+    { .name = "nodes_population",
+        .get = (getter) TreeSequence_get_nodes_population,
+        .doc = "The node population array" },
+    { .name = "nodes_individual",
+        .get = (getter) TreeSequence_get_nodes_individual,
+        .doc = "The node individual array" },
+    { .name = "edges_left",
+        .get = (getter) TreeSequence_get_edges_left,
+        .doc = "The edge left array" },
+    { .name = "edges_right",
+        .get = (getter) TreeSequence_get_edges_right,
+        .doc = "The edge right array" },
+    { .name = "edges_parent",
+        .get = (getter) TreeSequence_get_edges_parent,
+        .doc = "The edge parent array" },
+    { .name = "edges_child",
+        .get = (getter) TreeSequence_get_edges_child,
+        .doc = "The edge child array" },
+    { .name = "sites_position",
+        .get = (getter) TreeSequence_get_sites_position,
+        .doc = "The site position array" },
+    { .name = "mutations_site",
+        .get = (getter) TreeSequence_get_mutations_site,
+        .doc = "The mutation site array" },
+    { .name = "mutations_node",
+        .get = (getter) TreeSequence_get_mutations_node,
+        .doc = "The mutation node array" },
+    { .name = "mutations_parent",
+        .get = (getter) TreeSequence_get_mutations_parent,
+        .doc = "The mutation parent array" },
+    { .name = "mutations_time",
+        .get = (getter) TreeSequence_get_mutations_time,
+        .doc = "The mutation time array" },
+    { .name = "migrations_left",
+        .get = (getter) TreeSequence_get_migrations_left,
+        .doc = "The migration left array" },
+    { .name = "migrations_right",
+        .get = (getter) TreeSequence_get_migrations_right,
+        .doc = "The migration right array" },
+    { .name = "migrations_node",
+        .get = (getter) TreeSequence_get_migrations_node,
+        .doc = "The migration node array" },
+    { .name = "migrations_source",
+        .get = (getter) TreeSequence_get_migrations_source,
+        .doc = "The migration source array" },
+    { .name = "migrations_dest",
+        .get = (getter) TreeSequence_get_migrations_dest,
+        .doc = "The migration dest array" },
+    { .name = "migrations_time",
+        .get = (getter) TreeSequence_get_migrations_time,
+        .doc = "The migration time array" },
+    { .name = "indexes_edge_insertion_order",
+        .get = (getter) TreeSequence_get_indexes_edge_insertion_order,
+        .doc = "The edge insertion order array" },
+    { .name = "indexes_edge_removal_order",
+        .get = (getter) TreeSequence_get_indexes_edge_removal_order,
+        .doc = "The edge removal order array" },
     { NULL } /* Sentinel */
 };
 
@@ -10991,27 +11427,7 @@ Tree_get_postorder(Tree *self, PyObject *args)
 static PyObject *
 Tree_make_array(Tree *self, int dtype, void *data)
 {
-    PyObject *ret = NULL;
-    PyArrayObject *array = NULL;
-    npy_intp dims = self->tree->num_nodes + 1;
-
-    array = (PyArrayObject *) PyArray_SimpleNewFromData(1, &dims, dtype, data);
-    if (array == NULL) {
-        goto out;
-    }
-    PyArray_CLEARFLAGS(array, NPY_ARRAY_WRITEABLE);
-    if (PyArray_SetBaseObject(array, (PyObject *) self) != 0) {
-        goto out;
-    }
-    /* PyArray_SetBaseObject steals a reference, so we have to incref the tree
-     * object. This makes sure that the Tree instance will stay alive if there
-     * are any arrays that refer to its memory. */
-    Py_INCREF(self);
-    ret = (PyObject *) array;
-    array = NULL;
-out:
-    Py_XDECREF(array);
-    return ret;
+    return make_owned_array((PyObject *) self, self->tree->num_nodes + 1, dtype, data);
 }
 
 static PyObject *
