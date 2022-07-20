@@ -2245,7 +2245,7 @@ class Tree:
         """
         nodes = self.preorder(u)
         is_virtual_root = u == self.virtual_root
-        time = self.tree_sequence.tables.nodes.time
+        time = self.tree_sequence.nodes_time
         if is_virtual_root:
             # We could avoid creating this array if we wanted to, but
             # it's not that often people will be using this with the
@@ -3892,6 +3892,33 @@ class TreeSequence:
         self._individuals_time = None
         self._individuals_population = None
         self._individuals_location = None
+        # NOTE: when we've implemented read-only access via the underlying
+        # tables we can replace these arrays with reference to the read-only
+        # tables here (and remove the low-level boilerplate).
+        llts = self._ll_tree_sequence
+        self._individuals_flags = llts.individuals_flags
+        self._nodes_time = llts.nodes_time
+        self._nodes_flags = llts.nodes_flags
+        self._nodes_population = llts.nodes_population
+        self._nodes_individual = llts.nodes_individual
+        self._edges_left = llts.edges_left
+        self._edges_right = llts.edges_right
+        self._edges_parent = llts.edges_parent
+        self._edges_child = llts.edges_child
+        self._sites_position = llts.sites_position
+        self._mutations_site = llts.mutations_site
+        self._mutations_node = llts.mutations_node
+        self._mutations_parent = llts.mutations_parent
+        self._mutations_time = llts.mutations_time
+        self._migrations_left = llts.migrations_left
+        self._migrations_right = llts.migrations_right
+        self._migrations_right = llts.migrations_right
+        self._migrations_node = llts.migrations_node
+        self._migrations_source = llts.migrations_source
+        self._migrations_dest = llts.migrations_dest
+        self._migrations_time = llts.migrations_time
+        self._indexes_edge_insertion_order = llts.indexes_edge_insertion_order
+        self._indexes_edge_removal_order = llts.indexes_edge_removal_order
 
     # Implement the pickle protocol for TreeSequence
     def __getstate__(self):
@@ -4497,14 +4524,12 @@ class TreeSequence:
 
     def _edge_diffs_forward(self, include_terminal=False):
         metadata_decoder = self.table_metadata_schemas.edge.decode_row
-        tables = self.tables
-        edges = tables.edges
-        edge_left = edges.left
-        edge_right = edges.right
+        edge_left = self.edges_left
+        edge_right = self.edges_right
         sequence_length = self.sequence_length
-        in_order = tables.indexes.edge_insertion_order
-        out_order = tables.indexes.edge_removal_order
-        M = len(edges)
+        in_order = self.indexes_edge_insertion_order
+        out_order = self.indexes_edge_removal_order
+        M = self.num_edges
         j = 0
         k = 0
         left = 0.0
@@ -4552,14 +4577,12 @@ class TreeSequence:
 
     def _edge_diffs_reverse(self, include_terminal=False):
         metadata_decoder = self.table_metadata_schemas.edge.decode_row
-        tables = self.tables
-        edges = tables.edges
-        edge_left = edges.left
-        edge_right = edges.right
+        edge_left = self.edges_left
+        edge_right = self.edges_right
         sequence_length = self.sequence_length
-        in_order = tables.indexes.edge_removal_order
-        out_order = tables.indexes.edge_insertion_order
-        M = len(edges)
+        in_order = self.indexes_edge_removal_order
+        out_order = self.indexes_edge_insertion_order
+        M = self.num_edges
         j = M - 1
         k = M - 1
         right = sequence_length
@@ -4925,7 +4948,7 @@ class TreeSequence:
         if missing_data_character is None:
             missing_data_character = "N"
 
-        start_site, stop_site = np.searchsorted(self.tables.sites.position, interval)
+        start_site, stop_site = np.searchsorted(self.sites_position, interval)
         H = np.empty(
             (
                 self.num_samples if samples is None else len(samples),
@@ -5168,7 +5191,7 @@ class TreeSequence:
             start = 0
             stop = self.num_sites
         else:
-            start, stop = np.searchsorted(self.tables.sites.position, interval)
+            start, stop = np.searchsorted(self.sites_position, interval)
 
         if copy:
             for site_id in range(start, stop):
@@ -5392,7 +5415,7 @@ class TreeSequence:
             missing_data_character=missing_data_character,
             samples=samples,
         )
-        site_pos = self.tables.sites.position.astype(np.int64)[
+        site_pos = self.sites_position.astype(np.int64)[
             first_site_id : last_site_id + 1
         ]
         for h in H:
@@ -5463,6 +5486,228 @@ class TreeSequence:
         # Undocumented alias for individuals_time to avoid breaking
         # pre-1.0 pyslim code
         return self.individuals_location
+
+    @property
+    def individuals_flags(self):
+        """
+        Efficient access to the ``flags`` column in the
+        :ref:`sec_individual_table_definition` as a numpy array (dtype=np.uint32).
+        Equivalent to ``ts.tables.individuals.flags`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._individuals_flags
+
+    @property
+    def nodes_time(self):
+        """
+        Efficient access to the ``time`` column in the
+        :ref:`sec_node_table_definition` as a numpy array (dtype=np.float64).
+        Equivalent to ``ts.tables.nodes.time`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._nodes_time
+
+    @property
+    def nodes_flags(self):
+        """
+        Efficient access to the ``flags`` column in the
+        :ref:`sec_node_table_definition` as a numpy array (dtype=np.uint32).
+        Equivalent to ``ts.tables.nodes.flags`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._nodes_flags
+
+    @property
+    def nodes_population(self):
+        """
+        Efficient access to the ``population`` column in the
+        :ref:`sec_node_table_definition` as a numpy array (dtype=np.int32).
+        Equivalent to ``ts.tables.nodes.population`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._nodes_population
+
+    @property
+    def nodes_individual(self):
+        """
+        Efficient access to the ``individual`` column in the
+        :ref:`sec_node_table_definition` as a numpy array (dtype=np.int32).
+        Equivalent to ``ts.tables.nodes.individual`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._nodes_individual
+
+    @property
+    def edges_left(self):
+        """
+        Efficient access to the ``left`` column in the
+        :ref:`sec_edge_table_definition` as a numpy array (dtype=np.float64).
+        Equivalent to ``ts.tables.edges.left`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._edges_left
+
+    @property
+    def edges_right(self):
+        """
+        Efficient access to the ``right`` column in the
+        :ref:`sec_edge_table_definition` as a numpy array (dtype=np.float64).
+        Equivalent to ``ts.tables.edges.right`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._edges_right
+
+    @property
+    def edges_parent(self):
+        """
+        Efficient access to the ``parent`` column in the
+        :ref:`sec_edge_table_definition` as a numpy array (dtype=np.int32).
+        Equivalent to ``ts.tables.edges.parent`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._edges_parent
+
+    @property
+    def edges_child(self):
+        """
+        Efficient access to the ``child`` column in the
+        :ref:`sec_edge_table_definition` as a numpy array (dtype=np.int32).
+        Equivalent to ``ts.tables.edges.child`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._edges_child
+
+    @property
+    def sites_position(self):
+        """
+        Efficient access to the ``position`` column in the
+        :ref:`sec_site_table_definition` as a numpy array (dtype=np.float64).
+        Equivalent to ``ts.tables.sites.position`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._sites_position
+
+    @property
+    def mutations_site(self):
+        """
+        Efficient access to the ``site`` column in the
+        :ref:`sec_mutation_table_definition` as a numpy array (dtype=np.int32).
+        Equivalent to ``ts.tables.mutations.site`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._mutations_site
+
+    @property
+    def mutations_node(self):
+        """
+        Efficient access to the ``node`` column in the
+        :ref:`sec_mutation_table_definition` as a numpy array (dtype=np.int32).
+        Equivalent to ``ts.tables.mutations.node`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._mutations_node
+
+    @property
+    def mutations_parent(self):
+        """
+        Efficient access to the ``parent`` column in the
+        :ref:`sec_mutation_table_definition` as a numpy array (dtype=np.int32).
+        Equivalent to ``ts.tables.mutations.parent`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._mutations_parent
+
+    @property
+    def mutations_time(self):
+        """
+        Efficient access to the ``time`` column in the
+        :ref:`sec_mutation_table_definition` as a numpy array (dtype=np.float64).
+        Equivalent to ``ts.tables.mutations.time`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._mutations_time
+
+    @property
+    def migrations_left(self):
+        """
+        Efficient access to the ``left`` column in the
+        :ref:`sec_migration_table_definition` as a numpy array (dtype=np.float64).
+        Equivalent to ``ts.tables.migrations.left`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._migrations_left
+
+    @property
+    def migrations_right(self):
+        """
+        Efficient access to the ``right`` column in the
+        :ref:`sec_migration_table_definition` as a numpy array (dtype=np.float64).
+        Equivalent to ``ts.tables.migrations.right`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._migrations_right
+
+    @property
+    def migrations_node(self):
+        """
+        Efficient access to the ``node`` column in the
+        :ref:`sec_migration_table_definition` as a numpy array (dtype=np.int32).
+        Equivalent to ``ts.tables.migrations.node`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._migrations_node
+
+    @property
+    def migrations_source(self):
+        """
+        Efficient access to the ``source`` column in the
+        :ref:`sec_migration_table_definition` as a numpy array (dtype=np.int32).
+        Equivalent to ``ts.tables.migrations.source`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._migrations_source
+
+    @property
+    def migrations_dest(self):
+        """
+        Efficient access to the ``dest`` column in the
+        :ref:`sec_migration_table_definition` as a numpy array (dtype=np.int32).
+        Equivalent to ``ts.tables.migrations.dest`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._migrations_dest
+
+    @property
+    def migrations_time(self):
+        """
+        Efficient access to the ``time`` column in the
+        :ref:`sec_migration_table_definition` as a numpy array (dtype=np.float64).
+        Equivalent to ``ts.tables.migrations.time`` (but avoiding the full copy
+        of the table data that accessing ``ts.tables`` currently entails).
+        """
+        return self._migrations_time
+
+    @property
+    def indexes_edge_insertion_order(self):
+        """
+        Efficient access to the ``edge_insertion_order`` column in the
+        :ref:`sec_table_indexes` as a numpy array (dtype=np.int32).
+        Equivalent to ``ts.tables.indexes.edge_insertion_order`` (but avoiding
+        the full copy of the table data that accessing ``ts.tables``
+        currently entails).
+        """
+        return self._indexes_edge_insertion_order
+
+    @property
+    def indexes_edge_removal_order(self):
+        """
+        Efficient access to the ``edge_removal_order`` column in the
+        :ref:`sec_table_indexes` as a numpy array (dtype=np.int32).
+        Equivalent to ``ts.tables.indexes.edge_removal_order`` (but avoiding
+        the full copy of the table data that accessing ``ts.tables``
+        currently entails).
+        """
+        return self._indexes_edge_removal_order
 
     def individual(self, id_):
         """
@@ -5611,7 +5856,7 @@ class TreeSequence:
                 raise ValueError(
                     "Position is beyond the coordinates defined by sequence length."
                 )
-            site_pos = self.tables.sites.position
+            site_pos = self.sites_position
             id_ = site_pos.searchsorted(position)
             if id_ >= len(site_pos) or site_pos[id_] != position:
                 raise ValueError(f"There is no site at position {position}.")
@@ -5681,12 +5926,12 @@ class TreeSequence:
         samples = self._ll_tree_sequence.get_samples()
         keep = np.full(shape=samples.shape, fill_value=True)
         if population is not None:
-            sample_population = self.tables.nodes.population[samples]
+            sample_population = self.nodes_population[samples]
             keep = np.logical_and(keep, sample_population == population)
         if time is not None:
             # ndmin is set so that scalars are converted into 1d arrays
             time = np.array(time, ndmin=1, dtype=float)
-            sample_times = self.tables.nodes.time[samples]
+            sample_times = self.nodes_time[samples]
             if time.shape == (1,):
                 keep = np.logical_and(keep, np.isclose(sample_times, time))
             elif time.shape == (2,):
@@ -7012,7 +7257,7 @@ class TreeSequence:
                 windows = np.concatenate(
                     [
                         [] if self.num_sites > 0 else [0.0],
-                        self.tables.sites.position,
+                        self.sites_position,
                         [self.sequence_length],
                     ]
                 )

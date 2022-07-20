@@ -49,6 +49,7 @@ import msprime
 import networkx as nx
 import numpy as np
 import pytest
+from numpy.testing import assert_array_equal
 
 import _tskit
 import tests as tests
@@ -2591,6 +2592,81 @@ class TestTreeSequence(HighLevelTestCase):
         assert ts.num_individuals > 10
         self.verify_individual_properties(ts)
 
+    @pytest.mark.parametrize(
+        "array",
+        [
+            "individuals_flags",
+            "nodes_time",
+            "nodes_flags",
+            "nodes_population",
+            "nodes_individual",
+            "edges_left",
+            "edges_right",
+            "edges_parent",
+            "edges_child",
+            "sites_position",
+            "mutations_site",
+            "mutations_node",
+            "mutations_parent",
+            "mutations_time",
+            "migrations_left",
+            "migrations_right",
+            "migrations_node",
+            "migrations_source",
+            "migrations_dest",
+            "migrations_time",
+            "indexes_edge_insertion_order",
+            "indexes_edge_removal_order",
+        ],
+    )
+    def test_array_attr_properties(self, ts_fixture, array):
+        ts = ts_fixture
+        a = getattr(ts, array)
+        assert isinstance(a, np.ndarray)
+        with pytest.raises(AttributeError, match="set attribute"):
+            setattr(ts, array, None)
+        with pytest.raises(AttributeError, match="delete attribute"):
+            delattr(ts, array)
+        with pytest.raises(ValueError, match="read-only"):
+            a[:] = 1
+
+    def test_arrays_equal_to_tables(self, ts_fixture):
+        ts = ts_fixture
+        tables = ts.tables
+
+        assert_array_equal(ts.individuals_flags, tables.individuals.flags)
+
+        assert_array_equal(ts.nodes_flags, tables.nodes.flags)
+        assert_array_equal(ts.nodes_population, tables.nodes.population)
+        assert_array_equal(ts.nodes_time, tables.nodes.time)
+        assert_array_equal(ts.nodes_individual, tables.nodes.individual)
+
+        assert_array_equal(ts.edges_left, tables.edges.left)
+        assert_array_equal(ts.edges_right, tables.edges.right)
+        assert_array_equal(ts.edges_parent, tables.edges.parent)
+        assert_array_equal(ts.edges_child, tables.edges.child)
+
+        assert_array_equal(ts.sites_position, tables.sites.position)
+
+        assert_array_equal(ts.mutations_site, tables.mutations.site)
+        assert_array_equal(ts.mutations_node, tables.mutations.node)
+        assert_array_equal(ts.mutations_parent, tables.mutations.parent)
+        assert_array_equal(ts.mutations_time, tables.mutations.time)
+
+        assert_array_equal(ts.migrations_left, tables.migrations.left)
+        assert_array_equal(ts.migrations_right, tables.migrations.right)
+        assert_array_equal(ts.migrations_node, tables.migrations.node)
+        assert_array_equal(ts.migrations_source, tables.migrations.source)
+        assert_array_equal(ts.migrations_dest, tables.migrations.dest)
+        assert_array_equal(ts.migrations_time, tables.migrations.time)
+
+        assert_array_equal(
+            ts.indexes_edge_insertion_order, tables.indexes.edge_insertion_order
+        )
+        assert_array_equal(
+            ts.indexes_edge_removal_order, tables.indexes.edge_removal_order
+        )
+
 
 class TestSiteAlleles:
     def test_no_mutations(self):
@@ -2625,7 +2701,7 @@ class TestEdgeDiffs:
                 parent[edge.child] = tskit.NULL
             for edge in edge_diff.edges_in:
                 parent[edge.child] = edge.parent
-            np.testing.assert_array_equal(parent, tree.parent_array)
+            assert_array_equal(parent, tree.parent_array)
 
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_correct_trees_reverse(self, ts):
@@ -2639,7 +2715,7 @@ class TestEdgeDiffs:
                 parent[edge.child] = tskit.NULL
             for edge in edge_diff.edges_in:
                 parent[edge.child] = edge.parent
-            np.testing.assert_array_equal(parent, tree.parent_array)
+            assert_array_equal(parent, tree.parent_array)
 
     def test_elements_are_like_named_tuple(self, simple_degree2_ts_fixture):
         for val in simple_degree2_ts_fixture.edge_diffs():

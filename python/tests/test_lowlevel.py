@@ -1105,6 +1105,31 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
     Tests for the low-level interface for the TreeSequence.
     """
 
+    ARRAY_NAMES = [
+        "individuals_flags",
+        "nodes_time",
+        "nodes_flags",
+        "nodes_population",
+        "nodes_individual",
+        "edges_left",
+        "edges_right",
+        "edges_parent",
+        "edges_child",
+        "sites_position",
+        "mutations_site",
+        "mutations_node",
+        "mutations_parent",
+        "mutations_time",
+        "migrations_left",
+        "migrations_right",
+        "migrations_node",
+        "migrations_source",
+        "migrations_dest",
+        "migrations_time",
+        "indexes_edge_insertion_order",
+        "indexes_edge_removal_order",
+    ]
+
     def setUp(self):
         fd, self.temp_file = tempfile.mkstemp(prefix="msp_ll_ts_")
         os.close(fd)
@@ -1574,6 +1599,53 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
                 population=ts.get_num_populations(),
                 metadata=b"",
             )
+
+    @pytest.mark.parametrize("name", ARRAY_NAMES)
+    def test_array_read_only(self, name):
+        ts1 = self.get_example_tree_sequence(10)
+        with pytest.raises(AttributeError, match="not writable"):
+            setattr(ts1, name, None)
+        with pytest.raises(AttributeError, match="not writable"):
+            delattr(ts1, name)
+
+        a = getattr(ts1, name)
+        with pytest.raises(ValueError, match="assignment destination"):
+            a[:] = 0
+        with pytest.raises(ValueError, match="assignment destination"):
+            a[0] = 0
+        with pytest.raises(ValueError, match="cannot set WRITEABLE"):
+            a.setflags(write=True)
+
+    @pytest.mark.parametrize("name", ARRAY_NAMES)
+    def test_array_properties(self, name):
+        ts1 = self.get_example_tree_sequence(10)
+        a = getattr(ts1, name)
+        assert a.base == ts1
+        assert not a.flags.writeable
+        assert a.flags.aligned
+        assert a.flags.c_contiguous
+        assert not a.flags.owndata
+        b = getattr(ts1, name)
+        assert a is not b
+        assert np.all(a == b)
+        # This checks that the underlying pointer to memory is the same in
+        # both arrays.
+        assert a.__array_interface__ == b.__array_interface__
+
+    @pytest.mark.parametrize("name", ARRAY_NAMES)
+    def test_array_lifetime(self, name):
+        ts1 = self.get_example_tree_sequence(10)
+        a1 = getattr(ts1, name)
+        a2 = a1.copy()
+        assert a1 is not a2
+        del ts1
+        # Do some memory operations
+        a3 = np.ones(10**6)
+        assert np.all(a1 == a2)
+        del a1
+        # Just do something to touch memory
+        a2[:] = 0
+        assert a3 is not a2
 
 
 class StatsInterfaceMixin:
