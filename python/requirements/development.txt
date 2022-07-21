@@ -27,7 +27,7 @@ pytest-cov
 pytest-xdist
 sphinx==4.5
 sphinx-argparse
-sphinx-autodoc-typehints
+sphinx-autodoc-typehints>=1.18.3
 sphinx-issues
 sphinx-jupyterbook-latex
 sphinxcontrib-prettyspecialmethods
