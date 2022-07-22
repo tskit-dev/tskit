@@ -1,0 +1,207 @@
+setup: |
+  import tskit
+
+benchmarks:
+  - code: ts = tskit.load("{filename}")
+    parameters:
+      filename: &files
+        - "tiny.trees"
+        - "bench.trees"
+
+  - code: ts.dump("/dev/null");"{filename}"
+    setup: ts = tskit.load("{filename}")
+    parameters:
+      filename: *files
+
+  - code: ts.write_vcf(null)
+    #, site_mask=site_mask, sample_mask=sample_mask)
+    setup: |
+      import numpy
+      ts = tskit.load("bench.trees")
+      tables = ts.tables
+      tables.migrations.clear()
+      ts = tables.tree_sequence()
+      ts = ts.simplify(samples=list(range(1000)))
+      null = open("/dev/null", "w")
+
+  - code: tree = ts.first();"{filename}"
+    setup: ts = tskit.load("{filename}")
+    parameters:
+      filename: *files
+
+  - name: tree.seek()
+# We can't just repeatedly seek to the same position as this will be a noop,
+# so we go back and forth.
+    code: |
+      tree.seek(pos)
+      pos = 0 if pos == 500_000 else 500_000
+    setup: |
+      ts = tskit.load("bench.trees")
+      tree = ts.first()
+      pos = 500_000
+
+  - code: "for _ in ts.trees(): pass;'{filename}'"
+    setup: ts = tskit.load("{filename}")
+    parameters:
+      filename: *files
+
+  - code: tree.{array}
+    setup: |
+      ts = tskit.load("bench.trees")
+      tree = ts.first()
+    parameters:
+      array: &tree_arrays
+        - parent_array
+        - left_child_array
+        - right_child_array
+        - left_sib_array
+        - right_sib_array
+        - num_children_array
+        - edge_array
+
+  - code: tree.{array}(42);
+    setup: |
+      ts = tskit.load("bench.trees")
+      tree = ts.first()
+    parameters:
+      array:
+        - parent
+        - left_child
+        - right_child
+        - left_sib
+        - right_sib
+        - num_children
+        - edge
+
+  - code: tree.{traversal_order}()
+    setup: |
+      ts = tskit.load("bench.trees")
+      tree = ts.first()
+    parameters:
+      traversal_order: &traversal_orders
+        - postorder
+        - preorder
+        - timeasc
+        - timedesc
+
+  - code: "for v in ts.variants(): pass;'{filename}'"
+    setup: ts = tskit.load("{filename}")
+    parameters:
+      filename: *files
+
+  - code: "for row in ts.{table}(): pass"
+    setup: ts = tskit.load("bench.trees")
+    parameters:
+      table: &tables
+        - nodes
+        - edges
+        - sites
+        - mutations
+        - populations
+        - individuals
+        - migrations
+        - provenances
+
+  - code: "for row in ts.populations(): {decode_metadata}"
+    setup : |
+      tc = tskit.TableCollection(1)
+      tc.populations.metadata_schema = tskit.MetadataSchema({{'codec':'json'}})
+      for i in range(1000):
+        tc.populations.add_row(metadata={{'a': i}})
+      ts = tc.tree_sequence()
+    parameters:
+      decode_metadata:
+        - "pass"
+        - "row.metadata"
+
+  - code: ts.{table}(1)
+    setup: |
+      ts = tskit.load("bench.trees")
+    parameters:
+      table:
+        - node
+        - edge
+        - site
+        - mutation
+        - population
+        - individual
+        - migration
+        - provenance
+
+  - code: ts.tables
+    setup: ts = tskit.load("bench.trees")
+
+  - code: tables.{table}
+    setup: |
+      ts = tskit.load("bench.trees")
+      tables = ts.tables
+    parameters:
+      table: *tables
+
+  - code: x = {table}.{column}
+    setup: |
+      ts = tskit.load("bench.trees")
+      tables = ts.tables
+      {table} = tables.{table}
+    parameters: &table_columns
+      table:
+        nodes:
+          column:
+            - flags
+            - time
+            - population
+            - individual
+            - metadata
+            - metadata_offset
+        individuals:
+          column:
+            - flags
+            - location
+            - location_offset
+            - parents
+            - metadata
+        edges:
+          column:
+            - left
+            - right
+            - parent
+            - child
+            - metadata
+            - metadata_offset
+        sites:
+          column:
+            - position
+            - ancestral_state
+            - ancestral_state_offset
+            - metadata
+            - metadata_offset
+        mutations:
+          column:
+            - site
+            - node
+            - parent
+            - time
+            - derived_state
+            - derived_state_offset
+            - metadata
+            - metadata_offset
+        migrations:
+          column:
+            - left
+            - right
+            - node
+            - source
+            - dest
+            - time
+            - metadata
+            - metadata_offset
+        populations:
+          column:
+            - metadata
+            - metadata_offset
+        provenances:
+          column:
+            - timestamp
+            - timestamp_offset
+            - record
+            - record_offset
