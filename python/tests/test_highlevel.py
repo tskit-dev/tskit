@@ -4412,33 +4412,7 @@ class SimpleContainersWithMetadataMixin:
         # Test decoding
         instances = self.get_instances(5)
         for j, inst in enumerate(instances):
-            assert inst.metadata == ("x" * j) + "decoded"
-
-        # Decoder doesn't effect equality
-        (inst,) = self.get_instances(1)
-        (inst2,) = self.get_instances(1)
-        assert inst == inst2
-        inst._metadata = "different"
-        assert inst != inst2
-
-    def test_decoder_run_once(self):
-        # For a given instance, the decoded metadata should be cached, with the decoder
-        # called once
-        (inst,) = self.get_instances(1)
-        times_run = 0
-
-        # Hack in a tracing decoder
-        def decoder(m):
-            nonlocal times_run
-            times_run += 1
-            return m.decode() + "decoded"
-
-        inst._metadata_decoder = decoder
-        assert times_run == 0
-        _ = inst.metadata
-        assert times_run == 1
-        _ = inst.metadata
-        assert times_run == 1
+            assert inst.metadata == (b"x" * j)
 
 
 class TestIndividualContainer(SimpleContainersMixin, SimpleContainersWithMetadataMixin):
@@ -4451,7 +4425,6 @@ class TestIndividualContainer(SimpleContainersMixin, SimpleContainersWithMetadat
                 parents=[j],
                 nodes=[j],
                 metadata=b"x" * j,
-                metadata_decoder=lambda m: m.decode() + "decoded",
             )
             for j in range(n)
         ]
@@ -4467,7 +4440,6 @@ class TestNodeContainer(SimpleContainersMixin, SimpleContainersWithMetadataMixin
                 population=j,
                 individual=j,
                 metadata=b"x" * j,
-                metadata_decoder=lambda m: m.decode() + "decoded",
             )
             for j in range(n)
         ]
@@ -4482,7 +4454,6 @@ class TestEdgeContainer(SimpleContainersMixin, SimpleContainersWithMetadataMixin
                 parent=j,
                 child=j,
                 metadata=b"x" * j,
-                metadata_decoder=lambda m: m.decode() + "decoded",
                 id=j,
             )
             for j in range(n)
@@ -4498,7 +4469,6 @@ class TestSiteContainer(SimpleContainersMixin, SimpleContainersWithMetadataMixin
                 ancestral_state="A" * j,
                 mutations=TestMutationContainer().get_instances(j),
                 metadata=b"x" * j,
-                metadata_decoder=lambda m: m.decode() + "decoded",
             )
             for j in range(n)
         ]
@@ -4515,7 +4485,6 @@ class TestMutationContainer(SimpleContainersMixin, SimpleContainersWithMetadataM
                 derived_state="A" * j,
                 parent=j,
                 metadata=b"x" * j,
-                metadata_decoder=lambda m: m.decode() + "decoded",
             )
             for j in range(n)
         ]
@@ -4529,7 +4498,6 @@ class TestMutationContainer(SimpleContainersMixin, SimpleContainersWithMetadataM
             derived_state="A" * 42,
             parent=42,
             metadata=b"x" * 42,
-            metadata_decoder=lambda m: m.decode() + "decoded",
         )
         b = tskit.Mutation(
             id=42,
@@ -4538,7 +4506,6 @@ class TestMutationContainer(SimpleContainersMixin, SimpleContainersWithMetadataM
             derived_state="A" * 42,
             parent=42,
             metadata=b"x" * 42,
-            metadata_decoder=lambda m: m.decode() + "decoded",
         )
         c = tskit.Mutation(
             id=42,
@@ -4548,7 +4515,6 @@ class TestMutationContainer(SimpleContainersMixin, SimpleContainersWithMetadataM
             derived_state="A" * 42,
             parent=42,
             metadata=b"x" * 42,
-            metadata_decoder=lambda m: m.decode() + "decoded",
         )
         assert a == a
         assert a == b
@@ -4573,7 +4539,6 @@ class TestMigrationContainer(SimpleContainersMixin, SimpleContainersWithMetadata
                 dest=j,
                 time=j,
                 metadata=b"x" * j,
-                metadata_decoder=lambda m: m.decode() + "decoded",
             )
             for j in range(n)
         ]
@@ -4585,7 +4550,6 @@ class TestPopulationContainer(SimpleContainersMixin, SimpleContainersWithMetadat
             tskit.Population(
                 id=j,
                 metadata=b"x" * j,
-                metadata_decoder=lambda m: m.decode() + "decoded",
             )
             for j in range(n)
         ]

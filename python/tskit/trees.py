@@ -108,7 +108,6 @@ def store_tree_sequence(cls):
 
 
 @store_tree_sequence
-@metadata_module.lazy_decode()
 @dataclass
 class Individual(util.Dataclass):
     """
@@ -190,7 +189,6 @@ class Individual(util.Dataclass):
         )
 
 
-@metadata_module.lazy_decode()
 @dataclass
 class Node(util.Dataclass):
     """
@@ -240,7 +238,6 @@ class Node(util.Dataclass):
         return self.flags & NODE_IS_SAMPLE
 
 
-@metadata_module.lazy_decode(own_init=True)
 @dataclass
 class Edge(util.Dataclass):
     """
@@ -291,7 +288,6 @@ class Edge(util.Dataclass):
         child,
         metadata=b"",
         id=None,  # noqa A002
-        metadata_decoder=None,
     ):
         self.id = id
         self.left = left
@@ -299,7 +295,6 @@ class Edge(util.Dataclass):
         self.parent = parent
         self.child = child
         self.metadata = metadata
-        self._metadata_decoder = metadata_decoder
 
     @property
     def span(self):
@@ -312,7 +307,6 @@ class Edge(util.Dataclass):
         return self.right - self.left
 
 
-@metadata_module.lazy_decode()
 @dataclass
 class Site(util.Dataclass):
     """
@@ -376,7 +370,6 @@ class Site(util.Dataclass):
         return {self.ancestral_state} | {m.derived_state for m in self.mutations}
 
 
-@metadata_module.lazy_decode()
 @dataclass
 class Mutation(util.Dataclass):
     """
@@ -485,7 +478,6 @@ class Mutation(util.Dataclass):
         )
 
 
-@metadata_module.lazy_decode()
 @dataclass
 class Migration(util.Dataclass):
     """
@@ -536,7 +528,6 @@ class Migration(util.Dataclass):
     """
 
 
-@metadata_module.lazy_decode()
 @dataclass
 class Population(util.Dataclass):
     """
@@ -4478,7 +4469,9 @@ class TreeSequence:
             yield edgeset
 
     def _edge_diffs_forward(self, include_terminal=False):
-        metadata_decoder = self.table_metadata_schemas.edge.decode_row
+        # FIXME the metadata isn't being decoded here or in _edge_diffs_reverse
+        # We don't currently have any tests that capture that.
+        # metadata_decoder = self.table_metadata_schemas.edge.decode_row
         tables = self.tables
         edges = tables.edges
         edge_left = edges.left
@@ -4498,7 +4491,6 @@ class TreeSequence:
                     Edge(
                         *self._ll_tree_sequence.get_edge(out_order[k]),
                         id=out_order[k],
-                        metadata_decoder=metadata_decoder,
                     )
                 )
                 k += 1
@@ -4507,7 +4499,6 @@ class TreeSequence:
                     Edge(
                         *self._ll_tree_sequence.get_edge(in_order[j]),
                         id=in_order[j],
-                        metadata_decoder=metadata_decoder,
                     )
                 )
                 j += 1
@@ -4526,14 +4517,13 @@ class TreeSequence:
                     Edge(
                         *self._ll_tree_sequence.get_edge(out_order[k]),
                         id=out_order[k],
-                        metadata_decoder=metadata_decoder,
                     )
                 )
                 k += 1
             yield EdgeDiff(Interval(left, right), edges_out, [])
 
     def _edge_diffs_reverse(self, include_terminal=False):
-        metadata_decoder = self.table_metadata_schemas.edge.decode_row
+        # metadata_decoder = self.table_metadata_schemas.edge.decode_row
         tables = self.tables
         edges = tables.edges
         edge_left = edges.left
@@ -4553,7 +4543,6 @@ class TreeSequence:
                     Edge(
                         *self._ll_tree_sequence.get_edge(out_order[k]),
                         id=out_order[k],
-                        metadata_decoder=metadata_decoder,
                     )
                 )
                 k -= 1
@@ -4562,7 +4551,6 @@ class TreeSequence:
                     Edge(
                         *self._ll_tree_sequence.get_edge(in_order[j]),
                         id=in_order[j],
-                        metadata_decoder=metadata_decoder,
                     )
                 )
                 j -= 1
@@ -4581,7 +4569,6 @@ class TreeSequence:
                     Edge(
                         *self._ll_tree_sequence.get_edge(out_order[k]),
                         id=out_order[k],
-                        metadata_decoder=metadata_decoder,
                     )
                 )
                 k -= 1
@@ -5460,14 +5447,14 @@ class TreeSequence:
             metadata,
             nodes,
         ) = self._ll_tree_sequence.get_individual(id_)
+        metadata_decoder = self.table_metadata_schemas.individual.decode_row
         ind = Individual(
             id=id_,
             flags=flags,
             location=location,
             parents=parents,
-            metadata=metadata,
+            metadata=metadata_decoder(metadata),
             nodes=nodes,
-            metadata_decoder=self.table_metadata_schemas.individual.decode_row,
             tree_sequence=self,
         )
         return ind
@@ -5486,14 +5473,14 @@ class TreeSequence:
             individual,
             metadata,
         ) = self._ll_tree_sequence.get_node(id_)
+        metadata_decoder = self.table_metadata_schemas.node.decode_row
         return Node(
             id=id_,
             flags=flags,
             time=time,
             population=population,
             individual=individual,
-            metadata=metadata,
-            metadata_decoder=self.table_metadata_schemas.node.decode_row,
+            metadata=metadata_decoder(metadata),
         )
 
     def edge(self, id_):
@@ -5504,14 +5491,14 @@ class TreeSequence:
         :rtype: :class:`Edge`
         """
         left, right, parent, child, metadata = self._ll_tree_sequence.get_edge(id_)
+        metadata_decoder = self.table_metadata_schemas.edge.decode_row
         return Edge(
             id=id_,
             left=left,
             right=right,
             parent=parent,
             child=child,
-            metadata=metadata,
-            metadata_decoder=self.table_metadata_schemas.edge.decode_row,
+            metadata=metadata_decoder(metadata),
         )
 
     def migration(self, id_):
@@ -5530,6 +5517,7 @@ class TreeSequence:
             time,
             metadata,
         ) = self._ll_tree_sequence.get_migration(id_)
+        metadata_decoder = self.table_metadata_schemas.migration.decode_row
         return Migration(
             id=id_,
             left=left,
@@ -5538,8 +5526,7 @@ class TreeSequence:
             source=source,
             dest=dest,
             time=time,
-            metadata=metadata,
-            metadata_decoder=self.table_metadata_schemas.migration.decode_row,
+            metadata=metadata_decoder(metadata),
         )
 
     def mutation(self, id_):
@@ -5558,16 +5545,16 @@ class TreeSequence:
             time,
             edge,
         ) = self._ll_tree_sequence.get_mutation(id_)
+        metadata_decoder = self.table_metadata_schemas.mutation.decode_row
         return Mutation(
             id=id_,
             site=site,
             node=node,
             derived_state=derived_state,
             parent=parent,
-            metadata=metadata,
+            metadata=metadata_decoder(metadata),
             time=time,
             edge=edge,
-            metadata_decoder=self.table_metadata_schemas.mutation.decode_row,
         )
 
     def site(self, id_=None, *, position=None):
@@ -5600,13 +5587,13 @@ class TreeSequence:
         ll_site = self._ll_tree_sequence.get_site(id_)
         pos, ancestral_state, ll_mutations, _, metadata = ll_site
         mutations = [self.mutation(mut_id) for mut_id in ll_mutations]
+        metadata_decoder = self.table_metadata_schemas.site.decode_row
         return Site(
             id=id_,
             position=pos,
             ancestral_state=ancestral_state,
             mutations=mutations,
-            metadata=metadata,
-            metadata_decoder=self.table_metadata_schemas.site.decode_row,
+            metadata=metadata_decoder(metadata),
         )
 
     def population(self, id_):
@@ -5617,10 +5604,10 @@ class TreeSequence:
         :rtype: :class:`Population`
         """
         (metadata,) = self._ll_tree_sequence.get_population(id_)
+        metadata_decoder = self.table_metadata_schemas.population.decode_row
         return Population(
             id=id_,
-            metadata=metadata,
-            metadata_decoder=self.table_metadata_schemas.population.decode_row,
+            metadata=metadata_decoder(metadata),
         )
 
     def provenance(self, id_):

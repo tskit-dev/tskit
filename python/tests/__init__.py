@@ -140,6 +140,12 @@ class PythonTreeSequence:
         # to describe it in terms of the tables now if we want to have an
         # independent implementation.
         ll_ts = self._tree_sequence._ll_tree_sequence
+        site_metadata_decoder = tskit.metadata.parse_metadata_schema(
+            ll_ts.get_table_metadata_schemas().site
+        ).decode_row
+        mutation_metadata_decoder = tskit.metadata.parse_metadata_schema(
+            ll_ts.get_table_metadata_schemas().mutation
+        ).decode_row
 
         def make_mutation(id_):
             (
@@ -158,11 +164,8 @@ class PythonTreeSequence:
                 time=time,
                 derived_state=derived_state,
                 parent=parent,
-                metadata=metadata,
+                metadata=mutation_metadata_decoder(metadata),
                 edge=edge,
-                metadata_decoder=tskit.metadata.parse_metadata_schema(
-                    ll_ts.get_table_metadata_schemas().mutation
-                ).decode_row,
             )
 
         for j in range(tree_sequence.num_sites):
@@ -173,10 +176,7 @@ class PythonTreeSequence:
                     position=pos,
                     ancestral_state=ancestral_state,
                     mutations=[make_mutation(ll_mut) for ll_mut in ll_mutations],
-                    metadata=metadata,
-                    metadata_decoder=tskit.metadata.parse_metadata_schema(
-                        ll_ts.get_table_metadata_schemas().site
-                    ).decode_row,
+                    metadata=site_metadata_decoder(metadata),
                 )
             )
 
