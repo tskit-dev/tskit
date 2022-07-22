@@ -344,8 +344,14 @@ class BaseTable:
 
     def __init__(self, ll_table, row_class, **kwargs):
         self.ll_table = ll_table
-        self.row_class = row_class
+        self._row_class = row_class
         super().__init__(**kwargs)
+
+    def row_class(self, *args, **kwargs):
+        if hasattr(self, "get_extra_row_args"):
+            return self._row_class(*args, **{**kwargs, **self.get_extra_row_args()})
+        else:
+            return self._row_class(*args, **kwargs)
 
     def _check_required_args(self, **kwargs):
         for k, v in kwargs.items():
@@ -700,15 +706,11 @@ class MetadataColumnMixin:
     # low-level get/set metadata schemas functionality). We should refactor
     # this so we're only doing it in one place.
     # https://github.com/tskit-dev/tskit/issues/1957
+
+    def get_extra_row_args(self):
+        return {"metadata_decoder": self.metadata_schema.decode_row}
+
     def __init__(self):
-        base_row_class = self.row_class
-
-        def row_class(*args, **kwargs):
-            return base_row_class(
-                *args, **kwargs, metadata_decoder=self.metadata_schema.decode_row
-            )
-
-        self.row_class = row_class
         self._update_metadata_schema_cache_from_ll()
 
     def packset_metadata(self, metadatas):
