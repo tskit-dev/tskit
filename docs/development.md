@@ -1076,6 +1076,45 @@ pre-commit installed at .git/hooks/pre-commit
 ```
 
 
+## Benchmarking
+
+Tskit has a simple benchmarking tool to help keep track of performance.
+
+### Running benchmarks
+
+The benchmark suite can be run with:
+
+```bash
+> cd python/benchmark
+> python run.py
+```
+
+Results are written to `bench-results.json` in the same folder. Note that if any version of `tskit`
+is installed then that will be used for the benchmarking. To use the local development version of
+tskit ensure you have `pip uninstall tskit` before running the benchmarking. The version used is
+shown in the header of the report.
+
+### Adding a new benchmark
+
+The benchmarks are specified by the `config.yaml` file in `python/benchmark`. To add a new benchmark 
+add an entry to the `benchmarks` dictionary. For example:
+
+```yaml
+  - code: do_my_thing({option_name})
+    setup: |
+      import a_module
+    name: my_benchmark #optional, the code is used by default
+    parameters:
+      option_name:
+        - "reticulate_splines"
+        - "foobar"
+```
+
+Strings are interpreted as Python f-strings, so you can use the `parameters` dictionary to provide
+values that will be interpolated into both the `setup` and `code` strings.
+
+The suite can be run for all released versions with the `run-for-all-releases.py` script. 
+
 ## Releasing a new version
 
 Tskit maintains separate versioning for the C API and Python package, each has its own
@@ -1113,6 +1152,8 @@ e.g. 1.0.0b1. Update the Python CHANGELOG.rst, ensuring that all significant
 changes since the last release have been listed. Comparing
 `git log --follow --oneline -- python`
 with `git log --follow --oneline -- python/CHANGELOG.rst` may help here.
+Once the version number is updated run the benchmarks as detailed above and
+commit the `bench-results.json/html` files.
 Once this PR is merged, push a tag to github:
 
 ```bash
