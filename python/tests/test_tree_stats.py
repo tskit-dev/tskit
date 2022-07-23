@@ -1435,8 +1435,8 @@ def wattersons_theta(ts, sample_sets, windows=None, mode="site", span_normalise=
     """
     method_map = {
         "site": site_watterson_theta,
-        "node": branch_watterson_theta,
-        "branch": node_watterson_theta,
+        "node": node_watterson_theta,
+        "branch": branch_watterson_theta,
     }
     return method_map[mode](
         ts, sample_sets, windows=windows, span_normalise=span_normalise
