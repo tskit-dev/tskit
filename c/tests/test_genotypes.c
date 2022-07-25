@@ -958,53 +958,154 @@ test_variant_decode_errors(void)
     tsk_treeseq_free(&ts);
 }
 
+/* Checks that the data represented by the specified pair of variants exposed
+ * by the public API is equal. */
+static void
+assert_variants_equal(const tsk_variant_t *v1, const tsk_variant_t *v2)
+{
+    tsk_size_t j;
+
+    CU_ASSERT_EQUAL(v1->num_samples, v2->num_samples);
+    CU_ASSERT_EQUAL(v1->num_alleles, v2->num_alleles);
+    for (j = 0; j < v1->num_alleles; j++) {
+        CU_ASSERT_EQUAL(v1->allele_lengths[j], v2->allele_lengths[j]);
+        CU_ASSERT_EQUAL(
+            0, memcmp(v1->alleles[j], v2->alleles[j], (size_t) v1->allele_lengths[j]));
+    }
+    CU_ASSERT_EQUAL(v1->has_missing_data, v2->has_missing_data);
+    CU_ASSERT_EQUAL(v1->num_samples, v2->num_samples);
+    for (j = 0; j < v1->num_samples; j++) {
+        CU_ASSERT_EQUAL(v1->samples[j], v2->samples[j]);
+        CU_ASSERT_EQUAL(v1->genotypes[j], v2->genotypes[j]);
+    }
+    CU_ASSERT_EQUAL(v1->site.id, v2->site.id);
+    CU_ASSERT_EQUAL(v1->site.position, v2->site.position);
+    CU_ASSERT_EQUAL(v1->site.ancestral_state_length, v2->site.ancestral_state_length);
+    CU_ASSERT_EQUAL(0, memcmp(v1->site.ancestral_state, v2->site.ancestral_state,
+                           (size_t) v1->site.ancestral_state_length));
+    CU_ASSERT_EQUAL(v1->site.mutations_length, v2->site.mutations_length);
+    /* We're pointing back to the same memory for embedded pointers */
+    CU_ASSERT_EQUAL(v1->site.mutations, v2->site.mutations);
+    CU_ASSERT_EQUAL(v1->site.metadata, v2->site.metadata);
+}
+
 static void
 test_variant_copy(void)
 {
     int ret = 0;
     tsk_size_t j;
     tsk_treeseq_t ts;
-    tsk_variant_t var;
-    tsk_variant_t var_copy;
+    tsk_variant_t var, var_copy;
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     ret = tsk_variant_init(&var, &ts, NULL, 0, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_variant_decode(&var, 0, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_variant_restricted_copy(&var, &var_copy);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_variant_decode(&var_copy, 0, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_VARIANT_CANT_DECODE_COPY);
 
-    CU_ASSERT_EQUAL(
-        0, memcmp(var.tree_sequence, var.tree_sequence, sizeof(*var.tree_sequence)));
-    CU_ASSERT_EQUAL(0, memcmp(&var.tree, &var_copy.tree, sizeof(tsk_tree_t)));
-    CU_ASSERT_EQUAL(0, memcmp(&var.site, &var_copy.site, sizeof(tsk_site_t)));
-    CU_ASSERT_EQUAL(0, memcmp(var.genotypes, var_copy.genotypes,
-                           sizeof(int32_t) * (size_t) var.num_samples));
-    CU_ASSERT_EQUAL(var.num_alleles, var_copy.num_alleles);
-    CU_ASSERT_EQUAL(
-        0, memcmp(var.allele_lengths, var_copy.allele_lengths, sizeof(tsk_size_t)));
-    for (j = 0; j < var.num_alleles; j++) {
-        CU_ASSERT_EQUAL(0,
-            memcmp(var.alleles[j], var_copy.alleles[j], (size_t) var.allele_lengths[j]));
+    for (j = 0; j < tsk_treeseq_get_num_sites(&ts); j++) {
+        ret = tsk_variant_decode(&var, (tsk_id_t) j, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_variant_restricted_copy(&var, &var_copy);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_variant_decode(&var_copy, 0, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_VARIANT_CANT_DECODE_COPY);
+
+        assert_variants_equal(&var, &var_copy);
+        CU_ASSERT_EQUAL(
+            0, memcmp(var.tree_sequence, var.tree_sequence, sizeof(*var.tree_sequence)));
+        CU_ASSERT_EQUAL(0, memcmp(&var.tree, &var_copy.tree, sizeof(tsk_tree_t)));
+        CU_ASSERT_EQUAL(0, memcmp(&var.site, &var_copy.site, sizeof(tsk_site_t)));
+        CU_ASSERT_EQUAL(var_copy.traversal_stack, NULL);
+        CU_ASSERT_EQUAL(var_copy.sample_index_map, NULL);
+        CU_ASSERT_EQUAL(var_copy.alt_samples, NULL);
+        CU_ASSERT_EQUAL(var_copy.alt_sample_index_map, NULL);
+        tsk_variant_free(&var_copy);
     }
-    CU_ASSERT_EQUAL(var.has_missing_data, var_copy.has_missing_data);
-    CU_ASSERT_EQUAL(var.num_alleles, var_copy.num_alleles);
-    CU_ASSERT_EQUAL(var.num_samples, var_copy.num_samples);
-    CU_ASSERT_EQUAL(0, memcmp(var.samples, var_copy.samples,
-                           sizeof(*var.samples) * (size_t) var.num_samples));
-
-    CU_ASSERT_EQUAL(var_copy.traversal_stack, NULL);
-    CU_ASSERT_EQUAL(var_copy.sample_index_map, NULL);
-    CU_ASSERT_EQUAL(var_copy.alt_samples, NULL);
-    CU_ASSERT_EQUAL(var_copy.alt_sample_index_map, NULL);
 
     tsk_variant_free(&var);
-    tsk_variant_free(&var_copy);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_variant_copy_long_alleles(void)
+{
+    int ret = 0;
+    const char *sites = "0.0    GGGG\n"
+                        "0.125  AAAAA\n"
+                        "0.25   CCCCCC\n"
+                        "0.5    AAAAAAA\n";
+    const char *mutations = "0    0     TTT       -1\n"
+                            "1    1     CCCCCCC   -1\n"
+                            "2    0     GGGGGGG   -1\n"
+                            "2    1     AG        -1\n"
+                            "2    2     TTTTTTT   -1\n"
+                            "3    4     TGGGGGG   -1\n"
+                            "3    0     AAA       5\n";
+    tsk_treeseq_t ts;
+    tsk_variant_t var, copy, copy_of_copy;
+    tsk_size_t j;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
+        sites, mutations, NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_variant_init(&var, &ts, NULL, 0, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (j = 0; j < tsk_treeseq_get_num_sites(&ts); j++) {
+        ret = tsk_variant_decode(&var, (tsk_id_t) j, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_variant_restricted_copy(&var, &copy);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        assert_variants_equal(&var, &copy);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_variant_restricted_copy(&copy, &copy_of_copy);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        assert_variants_equal(&var, &copy_of_copy);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        tsk_variant_free(&copy_of_copy);
+        tsk_variant_free(&copy);
+    }
+    tsk_variant_free(&var);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_variant_copy_memory_management(void)
+{
+    int ret = 0;
+    tsk_size_t j;
+    tsk_treeseq_t ts;
+    tsk_variant_t *var;
+    tsk_variant_t copy, copy_of_copy;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
+
+    for (j = 0; j < tsk_treeseq_get_num_sites(&ts); j++) {
+        var = tsk_malloc(sizeof(*var));
+        CU_ASSERT_FATAL(var != NULL);
+        ret = tsk_variant_init(var, &ts, NULL, 0, NULL, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_variant_decode(var, (tsk_id_t) j, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_variant_restricted_copy(var, &copy);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        assert_variants_equal(var, &copy);
+        /* Free var to make sure we're not pointing to any of the original memory. */
+        tsk_variant_free(var);
+        free(var);
+        ret = tsk_variant_restricted_copy(&copy, &copy_of_copy);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        assert_variants_equal(&copy, &copy_of_copy);
+        ret = tsk_variant_decode(&copy, 0, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_VARIANT_CANT_DECODE_COPY);
+        ret = tsk_variant_decode(&copy_of_copy, 0, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_VARIANT_CANT_DECODE_COPY);
+
+        tsk_variant_free(&copy);
+        tsk_variant_free(&copy_of_copy);
+    }
     tsk_treeseq_free(&ts);
 }
 
@@ -1030,6 +1131,8 @@ main(int argc, char **argv)
         { "test_multiple_variant_decode", test_multiple_variant_decode },
         { "test_variant_decode_errors", test_variant_decode_errors },
         { "test_variant_copy", test_variant_copy },
+        { "test_variant_copy_long_alleles", test_variant_copy_long_alleles },
+        { "test_variant_copy_memory_management", test_variant_copy_memory_management },
         { NULL, NULL },
     };
 

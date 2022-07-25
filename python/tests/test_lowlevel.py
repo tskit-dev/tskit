@@ -2502,7 +2502,6 @@ class TestVariant(LowLevelTestCase):
         variant2 = variant.restricted_copy()
         assert variant.site_id == variant2.site_id
         assert variant.alleles == variant2.alleles
-        print(variant.alleles)
         assert np.array_equal(variant.genotypes, variant2.genotypes)
         assert np.array_equal(variant.samples, variant2.samples)
         assert variant.isolated_as_missing == variant2.isolated_as_missing
