@@ -4432,7 +4432,7 @@ class TestSubsetTables:
         # adding metadata and locations
         ts = tsutil.add_random_metadata(ts, seed)
         ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=1)
-        return ts.tables
+        return ts.dump_tables()
 
     def get_wf_example(self, N=5, ngens=2, seed=1249):
         tables = wf.wf_sim(N, N, num_pops=2, seed=seed)
@@ -4441,7 +4441,7 @@ class TestSubsetTables:
         ts = tsutil.jukes_cantor(ts, 1, 10, seed=seed)
         ts = tsutil.add_random_metadata(ts, seed)
         ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=2)
-        return ts.tables
+        return ts.dump_tables()
 
     def get_examples(self, seed):
         yield self.get_msprime_example(seed=seed)
@@ -4955,7 +4955,7 @@ class TestUnionTables(unittest.TestCase):
 class TestTableSetitemMetadata:
     @pytest.mark.parametrize("table_name", tskit.TABLE_NAMES)
     def test_setitem_metadata(self, ts_fixture, table_name):
-        table = getattr(ts_fixture.tables, table_name)
+        table = getattr(ts_fixture.dump_tables(), table_name)
         if hasattr(table, "metadata_schema"):
             assert table.metadata_schema == tskit.MetadataSchema({"codec": "json"})
             assert table[0].metadata != table[1].metadata

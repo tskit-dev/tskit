@@ -700,7 +700,7 @@ class TestTableMethods:
 
     @pytest.mark.parametrize("table_name", tskit.TABLE_NAMES)
     def test_table_extend(self, table_name, ts_fixture):
-        table = getattr(ts_fixture.tables, table_name)
+        table = getattr(ts_fixture.dump_tables(), table_name)
         assert len(table) >= 5
         ll_table = table.ll_table
         table_copy = table.copy()
@@ -730,7 +730,7 @@ class TestTableMethods:
     def test_table_extend_types(
         self, ts_fixture, table_name, row_indexes, expected_rows
     ):
-        table = getattr(ts_fixture.tables, table_name)
+        table = getattr(ts_fixture.dump_tables(), table_name)
         assert len(table) >= 5
         ll_table = table.ll_table
         table_copy = table.copy()
@@ -750,7 +750,7 @@ class TestTableMethods:
         ],
     )
     def test_table_update(self, ts_fixture, table_name, column_name):
-        table = getattr(ts_fixture.tables, table_name)
+        table = getattr(ts_fixture.dump_tables(), table_name)
         copy = table.copy()
         ll_table = table.ll_table
 
@@ -922,7 +922,7 @@ class TestTableMethodsErrors:
         tskit.TABLE_NAMES,
     )
     def test_table_extend_bad_args(self, ts_fixture, table_name):
-        table = getattr(ts_fixture.tables, table_name)
+        table = getattr(ts_fixture.dump_tables(), table_name)
         ll_table = table.ll_table
         ll_table_copy = table.copy().ll_table
 
@@ -955,7 +955,7 @@ class TestTableMethodsErrors:
 
     @pytest.mark.parametrize("table_name", tskit.TABLE_NAMES)
     def test_update_bad_row_index(self, ts_fixture, table_name):
-        table = getattr(ts_fixture.tables, table_name)
+        table = getattr(ts_fixture.dump_tables(), table_name)
         ll_table = table.ll_table
         row_data = ll_table.get_row(0)
         with pytest.raises(_tskit.LibraryError, match="out of bounds"):
@@ -1646,6 +1646,30 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         # Just do something to touch memory
         a2[:] = 0
         assert a3 is not a2
+
+
+class TestTreeSequenceTablesReadOnly:
+    @pytest.fixture
+    def ts(self, ts_fixture):
+        return ts_fixture.ll_tree_sequence
+
+    # TODO parametrize this by table name
+    def test_node_table(self, ts):
+        table = ts.tables.nodes
+        with pytest.raises(AttributeError, match="read-only"):
+            table.add_row()
+        with pytest.raises(AttributeError, match="read-only"):
+            table.update_row()
+        with pytest.raises(AttributeError, match="read-only"):
+            table.clear()
+        with pytest.raises(AttributeError, match="read-only"):
+            table.append_columns()
+        with pytest.raises(AttributeError, match="read-only"):
+            table.set_columns()
+        with pytest.raises(AttributeError, match="read-only"):
+            table.truncate()
+        with pytest.raises(AttributeError, match="read-only"):
+            table.extend()
 
 
 class StatsInterfaceMixin:
