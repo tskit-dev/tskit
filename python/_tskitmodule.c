@@ -11488,20 +11488,19 @@ Variant_restricted_copy(Variant *self)
     if (copy == NULL) {
         goto out;
     }
+    /* Copies have no ts as a way of indicating they shouldn't be decoded
+       This is safe as the copy has no reference to the mutation state strings */
+    copy->tree_sequence = NULL;
     copy->variant = PyMem_Malloc(sizeof(tsk_variant_t));
     if (copy->variant == NULL) {
         PyErr_NoMemory();
         goto out;
     }
-    /* Copies have no ts as a way of indicating they shouldn't be decoded
-       This is safe as the copy has no reference to the mutation state strings */
-    copy->tree_sequence = NULL;
     err = tsk_variant_restricted_copy(self->variant, copy->variant);
     if (err != 0) {
         handle_library_error(err);
         goto out;
     }
-
     ret = (PyObject *) copy;
     copy = NULL;
 out:
