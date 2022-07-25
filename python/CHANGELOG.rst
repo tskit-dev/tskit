@@ -26,13 +26,22 @@
 **Features**
 
 - Variant objects now have a ``.num_missing`` attribute and ``.counts()`` and
-  ``.frequencies`` methods (:user:`hyanwong`, :issue:`2390` :pr:`2393`)
+  ``.frequencies`` methods (:user:`hyanwong`, :issue:`2390` :pr:`2393`).
 
 - Add the `Tree.num_lineages(t)` method to return the number of lineages present
   at time t in the tree (:user:`jeromekelleher`, :issue:`386`, :pr:`2422`)
 
 - Efficient array access to table data now provided via attributes like
   `TreeSequence.nodes_time`, etc (:user:`jeromekelleher`, :pr:`2424`).
+
+**Breaking Changes**
+
+- Previously, accessing (e.g.) ``tables.edges`` returned a different instance of
+  EdgeTable each time. This has been changed to return the same instance
+  for the lifetime of a given TableCollection instance. This is technically
+  a breaking change, although it's difficult to see how code would depend
+  on the property that (e.g.) ``tables.edges is not tables.edges``.
+  (:user:`jeromekelleher`, :pr:`2441`, :issue:`2080`).
 
 --------------------
 [0.5.1] - 2022-07-14

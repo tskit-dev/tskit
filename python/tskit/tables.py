@@ -714,7 +714,6 @@ class MetadataTable(BaseTable):
     # https://github.com/tskit-dev/tskit/issues/1957
     def __init__(self, ll_table, row_class):
         super().__init__(ll_table, row_class)
-        self._update_metadata_schema_cache_from_ll()
 
     def _make_row(self, *args):
         return self.row_class(*args, metadata_decoder=self.metadata_schema.decode_row)
@@ -738,7 +737,11 @@ class MetadataTable(BaseTable):
         """
         The :class:`tskit.MetadataSchema` for this table.
         """
-        return self._metadata_schema_cache
+        # This isn't as inefficient as it looks because we're using an LRU cache on
+        # the parse_metadata_schema function. Thus, we're really only incurring the
+        # cost of creating the unicode string from the low-level schema and looking
+        # up the functools cache.
+        return metadata.parse_metadata_schema(self.ll_table.metadata_schema)
 
     @metadata_schema.setter
     def metadata_schema(self, schema: metadata.MetadataSchema) -> None:
@@ -748,12 +751,6 @@ class MetadataTable(BaseTable):
                 f"metadata_schema, not {type(schema)}"
             )
         self.ll_table.metadata_schema = repr(schema)
-        self._update_metadata_schema_cache_from_ll()
-
-    def _update_metadata_schema_cache_from_ll(self) -> None:
-        self._metadata_schema_cache = metadata.parse_metadata_schema(
-            self.ll_table.metadata_schema
-        )
 
     def metadata_vector(self, key, *, dtype=None, default_value=NOTSET):
         """
@@ -973,8 +970,6 @@ class IndividualTable(MetadataTable):
                 metadata_schema=metadata_schema,
             )
         )
-        if metadata_schema is not None:
-            self._update_metadata_schema_cache_from_ll()
 
     def append_columns(
         self,
@@ -1215,8 +1210,6 @@ class NodeTable(MetadataTable):
                 metadata_schema=metadata_schema,
             )
         )
-        if metadata_schema is not None:
-            self._update_metadata_schema_cache_from_ll()
 
     def append_columns(
         self,
@@ -1416,8 +1409,6 @@ class EdgeTable(MetadataTable):
                 metadata_schema=metadata_schema,
             )
         )
-        if metadata_schema is not None:
-            self._update_metadata_schema_cache_from_ll()
 
     def append_columns(
         self, left, right, parent, child, metadata=None, metadata_offset=None
@@ -1655,8 +1646,6 @@ class MigrationTable(MetadataTable):
                 metadata_schema=metadata_schema,
             )
         )
-        if metadata_schema is not None:
-            self._update_metadata_schema_cache_from_ll()
 
     def append_columns(
         self,
@@ -1862,8 +1851,6 @@ class SiteTable(MetadataTable):
                 metadata_schema=metadata_schema,
             )
         )
-        if metadata_schema is not None:
-            self._update_metadata_schema_cache_from_ll()
 
     def append_columns(
         self,
@@ -2117,8 +2104,6 @@ class MutationTable(MetadataTable):
                 metadata_schema=metadata_schema,
             )
         )
-        if metadata_schema is not None:
-            self._update_metadata_schema_cache_from_ll()
 
     def append_columns(
         self,
@@ -2292,8 +2277,6 @@ class PopulationTable(MetadataTable):
                 metadata_schema=metadata_schema,
             )
         )
-        if metadata_schema is not None:
-            self._update_metadata_schema_cache_from_ll()
 
     def append_columns(self, metadata=None, metadata_offset=None):
         """
@@ -2878,16 +2861,26 @@ class TableCollection(metadata.MetadataProvider):
         "Cannot set tables in a table collection: use table.replace_with() instead."
     )
 
-    def __init__(self, sequence_length=0):
-        self._ll_tables = _tskit.TableCollection(sequence_length)
+    def __init__(self, sequence_length=0, *, ll_tables=None):
+        self._ll_tables = ll_tables
+        if ll_tables is None:
+            self._ll_tables = _tskit.TableCollection(sequence_length)
         super().__init__(self._ll_tables)
+        self._individuals = IndividualTable(ll_table=self._ll_tables.individuals)
+        self._nodes = NodeTable(ll_table=self._ll_tables.nodes)
+        self._edges = EdgeTable(ll_table=self._ll_tables.edges)
+        self._migrations = MigrationTable(ll_table=self._ll_tables.migrations)
+        self._sites = SiteTable(ll_table=self._ll_tables.sites)
+        self._mutations = MutationTable(ll_table=self._ll_tables.mutations)
+        self._populations = PopulationTable(ll_table=self._ll_tables.populations)
+        self._provenances = ProvenanceTable(ll_table=self._ll_tables.provenances)
 
     @property
     def individuals(self) -> IndividualTable:
         """
         The :ref:`sec_individual_table_definition` in this collection.
         """
-        return IndividualTable(ll_table=self._ll_tables.individuals)
+        return self._individuals
 
     @individuals.setter
     def individuals(self, value):
@@ -2898,7 +2891,7 @@ class TableCollection(metadata.MetadataProvider):
         """
         The :ref:`sec_node_table_definition` in this collection.
         """
-        return NodeTable(ll_table=self._ll_tables.nodes)
+        return self._nodes
 
     @nodes.setter
     def nodes(self, value):
@@ -2909,7 +2902,7 @@ class TableCollection(metadata.MetadataProvider):
         """
         The :ref:`sec_edge_table_definition` in this collection.
         """
-        return EdgeTable(ll_table=self._ll_tables.edges)
+        return self._edges
 
     @edges.setter
     def edges(self, value):
@@ -2920,7 +2913,7 @@ class TableCollection(metadata.MetadataProvider):
         """
         The :ref:`sec_migration_table_definition` in this collection
         """
-        return MigrationTable(ll_table=self._ll_tables.migrations)
+        return self._migrations
 
     @migrations.setter
     def migrations(self, value):
@@ -2931,7 +2924,7 @@ class TableCollection(metadata.MetadataProvider):
         """
         The :ref:`sec_site_table_definition` in this collection.
         """
-        return SiteTable(ll_table=self._ll_tables.sites)
+        return self._sites
 
     @sites.setter
     def sites(self, value):
@@ -2942,7 +2935,7 @@ class TableCollection(metadata.MetadataProvider):
         """
         The :ref:`sec_mutation_table_definition` in this collection.
         """
-        return MutationTable(ll_table=self._ll_tables.mutations)
+        return self._mutations
 
     @mutations.setter
     def mutations(self, value):
@@ -2953,7 +2946,7 @@ class TableCollection(metadata.MetadataProvider):
         """
         The :ref:`sec_population_table_definition` in this collection.
         """
-        return PopulationTable(ll_table=self._ll_tables.populations)
+        return self._populations
 
     @populations.setter
     def populations(self, value):
@@ -2964,7 +2957,7 @@ class TableCollection(metadata.MetadataProvider):
         """
         The :ref:`sec_provenance_table_definition` in this collection.
         """
-        return ProvenanceTable(ll_table=self._ll_tables.provenances)
+        return self._provenances
 
     @provenances.setter
     def provenances(self, value):
@@ -3288,15 +3281,13 @@ class TableCollection(metadata.MetadataProvider):
     @classmethod
     def load(cls, file_or_path, *, skip_tables=False, skip_reference_sequence=False):
         file, local_file = util.convert_file_like_to_open_file(file_or_path, "rb")
-        ll_tc = _tskit.TableCollection(1)
+        ll_tc = _tskit.TableCollection()
         ll_tc.load(
             file,
             skip_tables=skip_tables,
             skip_reference_sequence=skip_reference_sequence,
         )
-        tc = TableCollection(1)
-        tc._ll_tables = ll_tc
-        return tc
+        return TableCollection(ll_tables=ll_tc)
 
     def dump(self, file_or_path):
         """
@@ -3318,9 +3309,9 @@ class TableCollection(metadata.MetadataProvider):
 
     @classmethod
     def fromdict(self, tables_dict):
-        tables = TableCollection()
-        tables._ll_tables.fromdict(tables_dict)
-        return tables
+        ll_tc = _tskit.TableCollection()
+        ll_tc.fromdict(tables_dict)
+        return TableCollection(ll_tables=ll_tc)
 
     def copy(self):
         """

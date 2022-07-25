@@ -4085,9 +4085,9 @@ class TreeSequence:
             the tree sequence.
         :rtype: TableCollection
         """
-        t = tables.TableCollection(sequence_length=self.sequence_length)
-        self._ll_tree_sequence.dump_tables(t._ll_tables)
-        return t
+        ll_tables = _tskit.TableCollection(self.sequence_length)
+        self._ll_tree_sequence.dump_tables(ll_tables)
+        return tables.TableCollection(ll_tables=ll_tables)
 
     def dump_text(
         self,
