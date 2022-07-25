@@ -349,10 +349,9 @@ class BaseTable:
     # The list of columns in the table. Must be set by subclasses.
     column_names = []
 
-    def __init__(self, ll_table, row_class, **kwargs):
+    def __init__(self, ll_table, row_class):
         self.ll_table = ll_table
         self.row_class = row_class
-        super().__init__(**kwargs)
 
     def _check_required_args(self, **kwargs):
         for k, v in kwargs.items():
@@ -491,6 +490,9 @@ class BaseTable:
         else:
             object.__setattr__(self, name, value)
 
+    def _make_row(self, *args):
+        return self.row_class(*args)
+
     def __getitem__(self, index):
         """
         If passed an integer, return the specified row of this table, decoding metadata
@@ -512,7 +514,7 @@ class BaseTable:
                 index += len(self)
             if index < 0 or index >= len(self):
                 raise IndexError("Index out of bounds")
-            return self.row_class(*self.ll_table.get_row(index))
+            return self._make_row(*self.ll_table.get_row(index))
         elif isinstance(index, numbers.Number):
             raise TypeError("Index must be integer, slice or iterable")
         elif isinstance(index, slice):
@@ -699,9 +701,9 @@ class BaseTable:
         )
 
 
-class MetadataColumnMixin:
+class MetadataTable(BaseTable):
     """
-    Mixin class for tables that have a metadata column.
+    Base class for tables that have a metadata column.
     """
 
     # TODO this class has some overlap with the MetadataProvider base class
@@ -710,16 +712,12 @@ class MetadataColumnMixin:
     # low-level get/set metadata schemas functionality). We should refactor
     # this so we're only doing it in one place.
     # https://github.com/tskit-dev/tskit/issues/1957
-    def __init__(self):
-        base_row_class = self.row_class
-
-        def row_class(*args, **kwargs):
-            return base_row_class(
-                *args, **kwargs, metadata_decoder=self.metadata_schema.decode_row
-            )
-
-        self.row_class = row_class
+    def __init__(self, ll_table, row_class):
+        super().__init__(ll_table, row_class)
         self._update_metadata_schema_cache_from_ll()
+
+    def _make_row(self, *args):
+        return self.row_class(*args, metadata_decoder=self.metadata_schema.decode_row)
 
     def packset_metadata(self, metadatas):
         """
@@ -805,7 +803,7 @@ class MetadataColumnMixin:
         return out
 
 
-class IndividualTable(BaseTable, MetadataColumnMixin):
+class IndividualTable(MetadataTable):
     """
     A table defining the individuals in a tree sequence. Note that although
     each Individual has associated nodes, reference to these is not stored in
@@ -1067,7 +1065,7 @@ class IndividualTable(BaseTable, MetadataColumnMixin):
         self.set_columns(**d)
 
 
-class NodeTable(BaseTable, MetadataColumnMixin):
+class NodeTable(MetadataTable):
     """
     A table defining the nodes in a tree sequence. See the
     :ref:`definitions <sec_node_table_definition>` for details on the columns
@@ -1270,7 +1268,7 @@ class NodeTable(BaseTable, MetadataColumnMixin):
         )
 
 
-class EdgeTable(BaseTable, MetadataColumnMixin):
+class EdgeTable(MetadataTable):
     """
     A table defining the edges in a tree sequence. See the
     :ref:`definitions <sec_edge_table_definition>` for details on the columns
@@ -1487,7 +1485,7 @@ class EdgeTable(BaseTable, MetadataColumnMixin):
         self.ll_table.squash()
 
 
-class MigrationTable(BaseTable, MetadataColumnMixin):
+class MigrationTable(MetadataTable):
     """
     A table defining the migrations in a tree sequence. See the
     :ref:`definitions <sec_migration_table_definition>` for details on the columns
@@ -1716,7 +1714,7 @@ class MigrationTable(BaseTable, MetadataColumnMixin):
         )
 
 
-class SiteTable(BaseTable, MetadataColumnMixin):
+class SiteTable(MetadataTable):
     """
     A table defining the sites in a tree sequence. See the
     :ref:`definitions <sec_site_table_definition>` for details on the columns
@@ -1932,7 +1930,7 @@ class SiteTable(BaseTable, MetadataColumnMixin):
         self.set_columns(**d)
 
 
-class MutationTable(BaseTable, MetadataColumnMixin):
+class MutationTable(MetadataTable):
     """
     A table defining the mutations in a tree sequence. See the
     :ref:`definitions <sec_mutation_table_definition>` for details on the columns
@@ -2200,7 +2198,7 @@ class MutationTable(BaseTable, MetadataColumnMixin):
         self.set_columns(**d)
 
 
-class PopulationTable(BaseTable, MetadataColumnMixin):
+class PopulationTable(MetadataTable):
     """
     A table defining the populations referred to in a tree sequence.
     The PopulationTable stores metadata for populations that may be referred to
