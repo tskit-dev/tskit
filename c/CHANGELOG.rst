@@ -1,8 +1,12 @@
 --------------------
-[1.2.0] - 2022-XX-XX
+[1.1.1] - 2022-XX-XX
 --------------------
 
+**Bug fixes**
 
+- Fix segfault in tsk_variant_restricted_copy in tree sequences with large
+  numbers of alleles or very long alleles
+  (:user:`jeromekelleher`, :pr:`2437`, :issue:`2429`).
 
 --------------------
 [1.1.0] - 2022-07-14

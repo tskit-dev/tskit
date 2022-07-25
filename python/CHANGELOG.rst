@@ -4,6 +4,10 @@
 
 **Fixes**
 
+- Iterating over ``ts.variants()`` could cause a segfault in tree sequences
+  with large numbers of alleles or very long alleles
+  (:user:`jeromekelleher`, :pr:`2437`, :issue:`2429`).
+
 - Various memory leaks fixed (:user:`jeromekelleher`, :pr:`2424`, :issue:`2423`,
   :issue:`2427`).
 
@@ -23,7 +27,6 @@
 
 - Variant objects now have a ``.num_missing`` attribute and ``.counts()`` and
   ``.frequencies`` methods (:user:`hyanwong`, :issue:`2390` :pr:`2393`)
-
 
 - Add the `Tree.num_lineages(t)` method to return the number of lineages present
   at time t in the tree (:user:`jeromekelleher`, :issue:`386`, :pr:`2422`)
