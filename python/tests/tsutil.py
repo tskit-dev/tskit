@@ -222,7 +222,6 @@ def insert_random_ploidy_individuals(
         ind_id = tables.individuals.add_row(location=location, parents=parents)
         individual[nodes] = ind_id
         j += ploidy
-        j += rng.randint(0, 5)  # skip a random number
     tables.nodes.individual = individual
     return tables.tree_sequence()
 

@@ -5995,6 +5995,12 @@ class TreeSequence:
         the output VCF is well-formed.
 
         .. note::
+            The default individual names (VCF sample IDs) are always of
+            the form ``tsk_0``, ``tsk_1``, ..., ``tsk_{N - 1}``, where
+            N is the number of individuals we output. These numbers
+            are **not** necessarily the individual IDs.
+
+        .. note::
 
             Warning to ``plink`` users:
 

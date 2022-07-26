@@ -208,13 +208,6 @@ class ExamplesMixin:
         assert ts.num_sites > 2
         self.verify(ts)
 
-    def test_simple_infinite_sites_ploidy_2_even_samples(self):
-        ts = msprime.simulate(20, mutation_rate=1, random_seed=2)
-        samples = ts.samples()[0::2]
-        ts = tsutil.insert_individuals(ts, nodes=samples, ploidy=2)
-        assert ts.num_sites > 2
-        self.verify(ts)
-
     def test_simple_jukes_cantor_random_ploidy(self):
         ts = msprime.simulate(10, random_seed=2)
         ts = tsutil.jukes_cantor(ts, num_sites=10, mu=1, seed=2)
@@ -341,36 +334,91 @@ class TestInterface:
 
     def test_bad_ploidy(self):
         ts = msprime.simulate(10, mutation_rate=0.1, random_seed=2)
-        for bad_ploidy in [-1, 0, 20]:
-            with pytest.raises(ValueError):
+        for bad_ploidy in [-1, 0]:
+            with pytest.raises(ValueError, match="Ploidy must be >= 1"):
                 ts.write_vcf(io.StringIO, bad_ploidy)
         # Non divisible
         for bad_ploidy in [3, 7]:
-            with pytest.raises(ValueError):
+            with pytest.raises(
+                ValueError, match="Sample size must be divisible by ploidy"
+            ):
                 ts.write_vcf(io.StringIO, bad_ploidy)
 
-    def test_individuals_no_nodes(self):
-        ts = msprime.simulate(10, mutation_rate=0.1, random_seed=2)
-        tables = ts.dump_tables()
+    def test_individuals_no_nodes_default_args(self):
+        ts1 = msprime.simulate(10, mutation_rate=0.1, random_seed=2)
+        tables = ts1.dump_tables()
         tables.individuals.add_row()
-        ts = tables.tree_sequence()
-        with pytest.raises(ValueError):
-            ts.write_vcf(io.StringIO())
+        ts2 = tables.tree_sequence()
+        assert ts1.as_vcf() == ts2.as_vcf()
 
-    def test_ploidy_with_individuals(self):
-        ts = msprime.simulate(10, mutation_rate=0.1, random_seed=2)
+    def test_individuals_no_nodes_as_argument(self):
+        ts1 = msprime.simulate(10, mutation_rate=0.1, random_seed=2)
+        tables = ts1.dump_tables()
+        tables.individuals.add_row()
+        ts2 = tables.tree_sequence()
+        with pytest.raises(ValueError, match="0 not associated with a node"):
+            ts2.as_vcf(individuals=[0])
+
+    def test_ploidy_with_sample_individuals(self):
+        ts = msprime.sim_ancestry(3, random_seed=2)
+        ts = tsutil.insert_branch_sites(ts)
+        with pytest.raises(ValueError, match="Cannot specify ploidy when individuals"):
+            ts.write_vcf(io.StringIO(), ploidy=2)
+
+    def test_ploidy_with_no_node_individuals(self):
+        ts1 = msprime.simulate(10, mutation_rate=0.1, random_seed=2)
+        tables = ts1.dump_tables()
+        tables.individuals.add_row()
+        ts2 = tables.tree_sequence()
+        with pytest.raises(ValueError, match="Cannot specify ploidy when individuals"):
+            ts2.as_vcf(ploidy=2)
+
+    def test_empty_individuals(self):
+        ts = msprime.sim_ancestry(3, random_seed=2)
+        ts = tsutil.insert_branch_sites(ts)
+        with pytest.raises(ValueError, match="List of sample individuals empty"):
+            ts.as_vcf(individuals=[])
+
+    def test_mixed_sample_non_sample_individuals(self):
+        ts = msprime.sim_ancestry(3, random_seed=2)
         tables = ts.dump_tables()
         tables.individuals.add_row()
+        # Add a reference to an individual from a non-sample
+        individual = tables.nodes.individual
+        individual[-1] = 0
+        tables.nodes.individual = individual
         ts = tables.tree_sequence()
-        with pytest.raises(ValueError):
-            ts.write_vcf(io.StringIO(), ploidy=2)
+        ts = tsutil.insert_branch_sites(ts)
+        with pytest.raises(
+            ValueError, match="0 has nodes that are sample and non-sample"
+        ):
+            ts.as_vcf()
+        # but it's OK if we run without the affected individual
+        assert len(ts.as_vcf(individuals=[1, 2])) > 0
+
+    def test_samples_with_and_without_individuals(self):
+        ts = tskit.Tree.generate_balanced(3).tree_sequence
+        tables = ts.dump_tables()
+        tables.individuals.add_row()
+        # Add a reference to an individual from one sample
+        individual = tables.nodes.individual
+        individual[0] = 0
+        tables.nodes.individual = individual
+        ts = tables.tree_sequence()
+        ts = tsutil.insert_branch_sites(ts)
+        with pytest.raises(
+            ValueError, match="Sample nodes must either all be associated"
+        ):
+            ts.as_vcf()
+        # But it's OK if explicitly specify that sample
+        assert len(ts.as_vcf(individuals=[0])) > 0
 
     def test_bad_individuals(self):
         ts = msprime.simulate(10, mutation_rate=0.1, random_seed=2)
         ts = tsutil.insert_individuals(ts, ploidy=2)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Invalid individual IDs provided."):
             ts.write_vcf(io.StringIO(), individuals=[0, -1])
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Invalid individual IDs provided."):
             ts.write_vcf(io.StringIO(), individuals=[1, 2, ts.num_individuals])
 
     def test_ploidy_positional(self):
@@ -379,7 +427,7 @@ class TestInterface:
 
     def test_only_ploidy_positional(self):
         ts = msprime.simulate(2, mutation_rate=2, random_seed=1)
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError, match="positional arguments"):
             assert ts.as_vcf(2, "chr2")
 
 
@@ -400,7 +448,9 @@ class TestLimitations:
         for j in range(9, 15):
             tables.mutations.add_row(0, node=j, derived_state=str(j))
             ts = tables.tree_sequence()
-            with pytest.raises(ValueError):
+            with pytest.raises(
+                ValueError, match="More than 9 alleles not currently supported"
+            ):
                 ts.write_vcf(io.StringIO())
 
 
@@ -436,17 +486,33 @@ class TestIndividualNames:
         ts = msprime.simulate(6, mutation_rate=2, random_seed=1)
         assert ts.num_sites > 0
         ts = tsutil.insert_individuals(ts, ploidy=2)
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match="individual_names must have length equal to"
+            " the number of individuals",
+        ):
             ts.write_vcf(io.StringIO(), individual_names=[])
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match="individual_names must have length equal to"
+            " the number of individuals",
+        ):
             ts.write_vcf(io.StringIO(), individual_names=["x" for _ in range(4)])
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match="individual_names must have length equal to"
+            " the number of individuals",
+        ):
             ts.write_vcf(
                 io.StringIO(),
                 individuals=list(range(ts.num_individuals)),
                 individual_names=["x" for _ in range(ts.num_individuals - 1)],
             )
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match="individual_names must have length equal to"
+            " the number of individuals",
+        ):
             ts.write_vcf(
                 io.StringIO(),
                 individuals=list(range(ts.num_individuals - 1)),
@@ -456,18 +522,30 @@ class TestIndividualNames:
     def test_bad_length_ploidy(self):
         ts = msprime.simulate(6, mutation_rate=2, random_seed=1)
         assert ts.num_sites > 0
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match="individual_names must have length equal to"
+            " the number of individuals",
+        ):
             ts.write_vcf(io.StringIO(), ploidy=2, individual_names=[])
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match="individual_names must have length equal to"
+            " the number of individuals",
+        ):
             ts.write_vcf(
                 io.StringIO(), ploidy=2, individual_names=["x" for _ in range(4)]
             )
 
     def test_bad_type(self):
         ts = msprime.simulate(2, mutation_rate=2, random_seed=1)
-        with pytest.raises(TypeError):
+        with pytest.raises(
+            TypeError, match="sequence item 0: expected str instance," " NoneType found"
+        ):
             ts.write_vcf(io.StringIO(), individual_names=[None, "b"])
-        with pytest.raises(TypeError):
+        with pytest.raises(
+            TypeError, match="sequence item 0: expected str instance," " bytes found"
+        ):
             ts.write_vcf(io.StringIO(), individual_names=[b"a", "b"])
 
 
@@ -703,3 +781,109 @@ class TestMissingData:
 
             gts = [variants[1].samples[key]["GT"] for key in samples]
             assert gts == [(0,), (1,), (None,)]
+
+
+def drop_individuals(ts):
+    tables = ts.dump_tables()
+    individual = tables.nodes.individual
+    individual[:] = -1
+    tables.individuals.clear()
+    tables.nodes.individual = individual
+    return tables.tree_sequence()
+
+
+class TestSampleOptions:
+    @tests.cached_example
+    def ts(self):
+        ts = tskit.Tree.generate_balanced(3, span=10).tree_sequence
+        ts = tsutil.insert_branch_sites(ts)
+        tables = ts.dump_tables()
+        tables.individuals.add_row()
+        tables.individuals.add_row()
+        individual = tables.nodes.individual
+        # One diploid and one haploid, not in adjacent individuals
+        individual[0] = 0
+        individual[1] = 1
+        individual[2] = 0
+        tables.nodes.individual = individual
+        return tables.tree_sequence()
+
+    def test_no_individuals_defaults(self):
+        ts = drop_individuals(self.ts())
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0\ttsk_1\ttsk_2
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t1\t0\t0
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t0\t1\t1
+        1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0\t1\t0
+        1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0\t0\t1"""
+        expected = textwrap.dedent(s)
+        assert drop_header(ts.as_vcf()) == expected
+
+    def test_no_individuals_ploidy_3(self):
+        ts = drop_individuals(self.ts())
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t1|0|0
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t0|1|1
+        1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0|1|0
+        1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0|0|1"""
+        expected = textwrap.dedent(s)
+        assert drop_header(ts.as_vcf(ploidy=3)) == expected
+
+    def test_defaults(self):
+        ts = self.ts()
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0\ttsk_1
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t1|0\t0
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t0|1\t1
+        1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0|0\t1
+        1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0|1\t0"""
+        expected = textwrap.dedent(s)
+        assert drop_header(ts.as_vcf()) == expected
+
+    def test_individual_0(self):
+        ts = self.ts()
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t1|0
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t0|1
+        1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0|0
+        1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0|1"""
+        expected = textwrap.dedent(s)
+        assert drop_header(ts.as_vcf(individuals=[0])) == expected
+
+    def test_individual_1(self):
+        ts = self.ts()
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t0
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t1
+        1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t1
+        1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0"""
+        expected = textwrap.dedent(s)
+        assert drop_header(ts.as_vcf(individuals=[1])) == expected
+
+    def test_reversed(self):
+        ts = self.ts()
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0\ttsk_1
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t0\t1|0
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t1\t0|1
+        1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t1\t0|0
+        1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0\t0|1"""
+        expected = textwrap.dedent(s)
+        assert drop_header(ts.as_vcf(individuals=[1, 0])) == expected
+
+    def test_reversed_names(self):
+        ts = self.ts()
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tA\tB
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t0\t1|0
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t1\t0|1
+        1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t1\t0|0
+        1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0\t0|1"""
+        expected = textwrap.dedent(s)
+        assert (
+            drop_header(ts.as_vcf(individuals=[1, 0], individual_names=["A", "B"]))
+            == expected
+        )
