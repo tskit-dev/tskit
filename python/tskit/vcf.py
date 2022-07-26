@@ -25,6 +25,7 @@ Convert tree sequences to VCF.
 """
 import numpy as np
 
+import tskit
 from . import provenance
 
 
@@ -67,12 +68,7 @@ class VcfWriter:
         self.contig_id = contig_id
         self.isolated_as_missing = isolated_as_missing
 
-        if individuals is None:
-            individuals = np.arange(tree_sequence.num_individuals, dtype=int)
-        self.individuals = individuals
-
-        self.__make_sample_mapping(ploidy)
-
+        self.__make_sample_mapping(ploidy, individuals)
         if individual_names is None:
             individual_names = [f"tsk_{j}" for j in range(self.num_individuals)]
         self.individual_names = individual_names
@@ -115,35 +111,67 @@ class VcfWriter:
                 sample_mask = np.array(sample_mask, dtype=bool)
                 self.sample_mask = lambda _: sample_mask
 
-    def __make_sample_mapping(self, ploidy):
+    def __make_sample_mapping(self, ploidy, individuals):
         """
         Compute the sample IDs for each VCF individual and the template for
         writing out genotypes.
         """
+        ts = self.tree_sequence
         self.samples = None
         self.individual_ploidies = []
-        if len(self.individuals) > 0:
-            if ploidy is not None:
-                raise ValueError("Cannot specify ploidy when individuals present")
+
+        # Cannot use "ploidy" when *any* individuals are present.
+        if ts.num_individuals > 0 and ploidy is not None:
+            raise ValueError(
+                "Cannot specify ploidy when individuals are present in tables "
+            )
+
+        if individuals is None:
+            # Find all sample nodes that reference individuals
+            individuals = np.unique(ts.nodes_individual[ts.samples()])
+            if len(individuals) == 1 and individuals[0] == tskit.NULL:
+                # No samples refer to individuals
+                individuals = None
+            else:
+                # np.unique sorts the argument, so if NULL (-1) is present it
+                # will be the first value.
+                if individuals[0] == tskit.NULL:
+                    raise ValueError(
+                        "Sample nodes must either all be associated with individuals "
+                        "or not associated with any individuals"
+                    )
+        else:
+            individuals = np.array(individuals, dtype=np.int32)
+            if len(individuals) == 0:
+                raise ValueError("List of sample individuals empty")
+
+        if individuals is not None:
             self.samples = []
-            for i in self.individuals:
+            # FIXME this could probably be done more efficiently.
+            for i in individuals:
                 if i < 0 or i >= self.tree_sequence.num_individuals:
                     raise ValueError("Invalid individual IDs provided.")
                 ind = self.tree_sequence.individual(i)
+                if len(ind.nodes) == 0:
+                    raise ValueError(f"Individual {i} not associated with a node")
+                is_sample = {ts.node(u).is_sample() for u in ind.nodes}
+                if len(is_sample) != 1:
+                    raise ValueError(
+                        f"Individual {ind.id} has nodes that are sample and "
+                        "non-samples"
+                    )
                 self.samples.extend(ind.nodes)
                 self.individual_ploidies.append(len(ind.nodes))
-            if len(self.samples) == 0:
-                raise ValueError("The individuals do not map to any sampled nodes.")
         else:
             if ploidy is None:
                 ploidy = 1
             if ploidy < 1:
                 raise ValueError("Ploidy must be >= 1")
-            if self.tree_sequence.num_samples % ploidy != 0:
+            if ts.num_samples % ploidy != 0:
                 raise ValueError("Sample size must be divisible by ploidy")
-            self.individual_ploidies = [
-                ploidy for _ in range(self.tree_sequence.sample_size // ploidy)
-            ]
+            self.individual_ploidies = np.full(
+                ts.sample_size // ploidy, ploidy, dtype=np.int32
+            )
         self.num_individuals = len(self.individual_ploidies)
 
     def __write_header(self, output):
