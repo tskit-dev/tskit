@@ -5972,17 +5972,40 @@ class TreeSequence:
         isolated_as_missing=None,
     ):
         """
-        Writes a VCF formatted file to the specified file-like object.
-        If there is individual information present in the tree sequence
-        (see :ref:`sec_individual_table_definition`), the values for
-        sample nodes associated with these individuals are combined
-        into phased multiploid individuals and output.
+        Convert the genetic variation data in this tree sequence to Variant
+        Call Format and write to the specified file-like object.
 
-        If there is no individual data present in the tree sequence, synthetic
-        individuals are created by combining adjacent samples, and the number
-        of samples combined is equal to the specified ploidy value (1 by
-        default). For example, if we have a ploidy of 2 and a sample of size 6,
-        then we will have 3 diploid samples in the output, consisting of the
+        .. seealso: See the :ref:`sec_export_vcf` section for examples
+            and explanations of how we map VCF to the tskit data model.
+
+        Multiploid samples in the output VCF are generated either using
+        individual information in the data model (see
+        :ref:`sec_individual_table_definition`), or by combining genotypes for
+        adjacent sample nodes using the ``ploidy`` argument. See the
+        :ref:`sec_export_vcf_constructing_gt` section for more details
+        and examples.
+
+        If individuals that are associated with sample nodes are defined in the
+        data model (see :ref:`sec_individual_table_definition`), the genotypes
+        for each of the individual's samples are combined into a phased
+        multiploid values at each site. By default, all individuals associated
+        with sample nodes are included in increasing order of individual ID.
+
+        Subsets or permutations of the sample individuals may be specified
+        using the ``individuals`` argument. It is an error to specify any
+        individuals that are not associated with any nodes, or whose
+        nodes are not all samples.
+
+        Mixed-sample individuals (e.g., those associated with one node
+        that is a sample and another that is not) in the data model will
+        result in an error by default. However, such individuals can be
+        excluded using the ``individuals`` argument.
+
+        If there are no individuals in the tree sequence,
+        synthetic individuals are created by combining adjacent samples, and
+        the number of samples combined is equal to the ``ploidy`` value (1 by
+        default). For example, if we have a ``ploidy`` of 2 and 6 sample nodes,
+        then we will have 3 diploid samples in the VCF, consisting of the
         combined genotypes for samples [0, 1], [2, 3] and [4, 5]. If we had
         genotypes 011110 at a particular variant, then we would output the
         diploid genotypes 0|1, 1|1 and 1|0 in VCF.
@@ -6000,31 +6023,6 @@ class TreeSequence:
             N is the number of individuals we output. These numbers
             are **not** necessarily the individual IDs.
 
-        .. note::
-
-            Warning to ``plink`` users:
-
-            As the default first individual name is ``tsk_0``, ``plink`` will
-            throw this error when loading the VCF:
-
-            ``Error: Sample ID ends with "_0", which induces an invalid IID of '0'.``
-
-            This can be fixed by using the ``individual_names`` argument
-            to set the names to anything where the first name doesn't end with ``_0``.
-            An example implementation for diploid individuals is:
-
-            .. code-block:: python
-
-                n_dip_indv = int(ts.num_samples / 2)
-                indv_names = [f"tsk_{str(i)}indv" for i in range(n_dip_indv)]
-                with open("output.vcf", "w") as vcf_file:
-                    ts.write_vcf(vcf_file, individual_names=indv_names)
-
-            Adding a second ``_`` (eg: ``tsk_0_indv``) is not recommended as
-            ``plink`` uses ``_`` as the default separator for separating family
-            id and individual id, and two ``_`` will throw an error.
-
-
         The REF value in the output VCF is the ancestral allele for a site
         and ALT values are the remaining alleles. It is important to note,
         therefore, that for real data this means that the REF value for a given
@@ -6032,96 +6030,19 @@ class TreeSequence:
         check that the alleles result in a valid VCF---for example, it is possible
         to use the tab character as an allele, leading to a broken VCF.
 
-        The ID value in the output VCF file is the integer ID of the corresponding
-        :ref:`site <sec_site_table_definition>` (``site.id``). Subsequently,
+        The ID value in the output VCF file is the integer ID of the
+        corresponding :ref:`site <sec_site_table_definition>` (``site.id``).
         These ID values can be utilized to match the contents of the VCF file
         to the sites in the tree sequence object.
 
-        The ``position_transform`` argument provides a way to flexibly translate
-        the genomic location of sites in tskit to the appropriate value in VCF.
-        There are two fundamental differences in the way that tskit and VCF define
-        genomic coordinates. The first is that tskit uses floating point values
-        to encode positions, whereas VCF uses integers. Thus, if the tree sequence
-        contains positions at non-integral locations there is an information loss
-        incurred by translating to VCF. By default, we round the site positions
-        to the nearest integer, such that there may be several sites with the
-        same integer position in the output. The second difference between VCF
-        and tskit is that VCF is defined to be a 1-based coordinate system, whereas
-        tskit uses 0-based. However, how coordinates are transformed depends
-        on the VCF parser, and so we do **not** account for this change in
-        coordinate system by default.
-
         .. note::
-           Older code often uses the ``ploidy=2`` argument, because previous
+           Older code often uses the ``ploidy=2`` argument, because old
            versions of msprime did not output individual data. Specifying
            individuals in the tree sequence is more robust, and since tree
            sequences now  typically contain individuals (e.g., as produced by
            ``msprime.sim_ancestry( )``), this is not necessary, and the
-           ``ploidy`` argument can safely be removed from old code in most cases.
-
-
-        Example usage:
-
-        .. code-block:: python
-
-            with open("output.vcf", "w") as vcf_file:
-                tree_sequence.write_vcf(vcf_file)
-
-        The VCF output can also be compressed using the :mod:`gzip` module, if you wish:
-
-        .. code-block:: python
-
-            import gzip
-
-            with gzip.open("output.vcf.gz", "wt") as f:
-                ts.write_vcf(f)
-
-        However, this gzipped VCF may not be fully compatible with downstream tools
-        such as tabix, which may require the VCF use the specialised bgzip format.
-        A general way to convert VCF data to various formats is to pipe the text
-        produced by ``tskit`` into ``bcftools``, as done here:
-
-        .. code-block:: python
-
-            import os
-            import subprocess
-
-            read_fd, write_fd = os.pipe()
-            write_pipe = os.fdopen(write_fd, "w")
-            with open("output.bcf", "w") as bcf_file:
-                proc = subprocess.Popen(
-                    ["bcftools", "view", "-O", "b"], stdin=read_fd, stdout=bcf_file
-                )
-                ts.write_vcf(write_pipe)
-                write_pipe.close()
-                os.close(read_fd)
-                proc.wait()
-                if proc.returncode != 0:
-                    raise RuntimeError("bcftools failed with status:", proc.returncode)
-
-        This can also be achieved on the command line use the ``tskit vcf`` command,
-        e.g.:
-
-        .. code-block:: bash
-
-            $ tskit vcf example.trees | bcftools view -O b > example.bcf
-
-
-        The ``sample_mask`` argument provides a general way to mask out
-        parts of the output, which can be helpful when simulating missing
-        data. In this (contrived) example, we create a sample mask function
-        that marks one genotype missing in each variant in a regular
-        pattern:
-
-        .. code-block:: python
-
-            def sample_mask(variant):
-                sample_mask = np.zeros(ts.num_samples, dtype=bool)
-                sample_mask[variant.site.id % ts.num_samples] = 1
-                return sample_mask
-
-
-            ts.write_vcf(sys.stdout, sample_mask=sample_mask)
+           ``ploidy`` argument can safely be removed as part of the process
+           of updating from the msprime 0.x legacy API.
 
         :param io.IOBase output: The file-like object to write the VCF output.
         :param int ploidy: The ploidy of the individuals to be written to
@@ -6129,7 +6050,10 @@ class TreeSequence:
             used if there is individual data in the tree sequence.
         :param str contig_id: The value of the CHROM column in the output VCF.
         :param list(int) individuals: A list containing the individual IDs to
-            write out to VCF. Defaults to all individuals in the tree sequence.
+            corresponding to the VCF samples. Defaults to all individuals
+            associated with sample nodes in the tree sequence.
+            See the {ref}`sec_export_vcf_constructing_gt` section for more
+            details and examples.
         :param list(str) individual_names: A list of string names to identify
             individual columns in the VCF. In VCF nomenclature, these are the
             sample IDs. If specified, this must be a list of strings of
@@ -6137,8 +6061,9 @@ class TreeSequence:
             we do not check the form of these strings in any way, so that is
             is possible to output malformed VCF (for example, by embedding a
             tab character within on of the names). The default is to output
-            ``tsk_j`` for the jth individual. Cannot be used if ploidy is
-            specified.
+            ``tsk_j`` for the jth individual.
+            See the :ref:`sec_export_vcf_individual_names` for examples
+            and more information.
         :param position_transform: A callable that transforms the
             site position values into integer valued coordinates suitable for
             VCF. The function takes a single positional parameter x and must
@@ -6148,10 +6073,14 @@ class TreeSequence:
             pre 0.2.0 legacy behaviour of rounding values to the nearest integer
             (starting from 1) and avoiding the output of identical positions
             by incrementing is used.
+            See the :ref:`sec_export_vcf_modifying_coordinates` for examples
+            and more information.
         :param site_mask: A numpy boolean array (or something convertable to
             a numpy boolean array) with num_sites elements, used to mask out
             sites in the output. If  ``site_mask[j]`` is True, then this
             site (i.e., the line in the VCF file) will be omitted.
+            See the :ref:`sec_export_vcf_masking_output` for examples
+            and more information.
         :param sample_mask: A numpy boolean array (or something convertable to
             a numpy boolean array) with num_samples elements, or a callable
             that returns such an array, such that if
@@ -6160,8 +6089,9 @@ class TreeSequence:
             callable, it must take a single argument and return a boolean
             numpy array. This function will be called for each (unmasked) site
             with the corresponding :class:`.Variant` object, allowing
-            for dynamic masks to be generated. See above for example
-            usage.
+            for dynamic masks to be generated.
+            See the :ref:`sec_export_vcf_masking_output` for examples
+            and more information.
         :param bool isolated_as_missing: If True, the genotype value assigned to
             missing samples (i.e., isolated samples without mutations) is "."
             If False, missing samples will be assigned the ancestral allele.

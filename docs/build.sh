@@ -4,7 +4,7 @@
 # saved reports, which makes it difficult to debug the reasons for 
 # build failures in CI. This is a simple wrapper to handle that.
 
-REPORTDIR=${BUILDDIR}/html/reports
+REPORTDIR=_build/html/reports
 
 jupyter-book build -Wn --keep-going .
 RETVAL=$?
