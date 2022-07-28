@@ -11,6 +11,10 @@
 - Various memory leaks fixed (:user:`jeromekelleher`, :pr:`2424`, :issue:`2423`,
   :issue:`2427`).
 
+- Fix bugs in VCF output when there isn't a 1-1 mapping between individuals
+  and sample nodes (:user:`jeromekelleher`, :pr:`2442`, :issue:`2257`,
+  :issue:`2446`, :issue:`2448`).
+
 **Performance improvements**
 
 - TreeSequence.site position search performance greatly improved, with much lower

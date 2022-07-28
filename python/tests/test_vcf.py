@@ -379,6 +379,12 @@ class TestInterface:
         with pytest.raises(ValueError, match="List of sample individuals empty"):
             ts.as_vcf(individuals=[])
 
+    def test_duplicate_individuals(self):
+        ts = msprime.sim_ancestry(3, random_seed=2)
+        ts = tsutil.insert_branch_sites(ts)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_DUPLICATE_SAMPLE"):
+            ts.as_vcf(individuals=[0, 0])
+
     def test_mixed_sample_non_sample_individuals(self):
         ts = msprime.sim_ancestry(3, random_seed=2)
         tables = ts.dump_tables()
@@ -829,6 +835,17 @@ class TestSampleOptions:
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0|0|1"""
         expected = textwrap.dedent(s)
         assert drop_header(ts.as_vcf(ploidy=3)) == expected
+
+    def test_no_individuals_ploidy_3_names(self):
+        ts = drop_individuals(self.ts())
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tA
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t1|0|0
+        1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t0|1|1
+        1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0|1|0
+        1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0|0|1"""
+        expected = textwrap.dedent(s)
+        assert drop_header(ts.as_vcf(ploidy=3, individual_names="A")) == expected
 
     def test_defaults(self):
         ts = self.ts()

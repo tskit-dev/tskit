@@ -16,6 +16,7 @@ parts:
   - file: stats
   - file: topological-analysis
   - file: ibd
+  - file: export
 - caption: Interfaces
   chapters:
   - file: python-api
