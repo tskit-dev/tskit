@@ -1,5 +1,5 @@
 --------------------
-[0.5.2] - 2022-XX-XX
+[0.5.2] - 2022-07-29
 --------------------
 
 **Fixes**
@@ -8,8 +8,8 @@
   with large numbers of alleles or very long alleles
   (:user:`jeromekelleher`, :pr:`2437`, :issue:`2429`).
 
-- Various memory leaks fixed (:user:`jeromekelleher`, :pr:`2424`, :issue:`2423`,
-  :issue:`2427`).
+- Various circular references fixed, lowering peak memory usage
+  (:user:`jeromekelleher`, :pr:`2424`, :issue:`2423`, :issue:`2427`).
 
 - Fix bugs in VCF output when there isn't a 1-1 mapping between individuals
   and sample nodes (:user:`jeromekelleher`, :pr:`2442`, :issue:`2257`,

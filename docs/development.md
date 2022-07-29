@@ -1084,8 +1084,9 @@ release process.
 
 ### C API
 
-To release the C API, the ``TSK_VERSION_*`` macros should be updated, and the changelog
-updated with the release date and version. The changelog should also be checked for
+To release the C API, the ``TSK_VERSION_*`` macros should be updated,
+along with ``VERSION.txt`` and the changelog  updated with the release
+date and version. The changelog should also be checked for
 completeness. Comparing  ``git log --follow --oneline -- c`` with
 `git log --follow --oneline -- c/CHANGELOG.rst` may help here.
 After the commit including these changes has been merged, tag a
