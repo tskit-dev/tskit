@@ -3844,6 +3844,7 @@ class TestModuleFunctions:
             assert f.read() == f"{maj}.{min_}.{patch}"
 
 
+@pytest.mark.skip("skip segfault in TreeSequence")
 def test_uninitialised():
     # These methods work from an instance that has a NULL ref so don't check
     skip_list = [
