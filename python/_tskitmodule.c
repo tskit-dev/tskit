@@ -58,17 +58,6 @@ static PyObject *TskitNoSampleListsError;
 
 // clang-format off
 
-/* The XTable classes each have 'lock' attribute, which is used to
- * raise an error if a Python thread attempts to access a table
- * while another Python thread is operating on it. Because tables
- * allocate memory dynamically, we cannot guarantee safety otherwise.
- * The locks are set before the GIL is released and unset afterwards.
- * Because C code executed here represents atomic Python operations
- * (while the GIL is held), this should be safe */
-
-/* NOTE:2021-12-10: the "lock" attribute doesn't seem to do anything -
- * where do we set it? */
-
 typedef struct _TableCollection {
     PyObject_HEAD
     tsk_table_collection_t *tables;
@@ -82,56 +71,56 @@ typedef struct _TableCollection {
   * reference to the table itself is live. */
 typedef struct {
     PyObject_HEAD
-    bool locked;
+    int state;
     tsk_individual_table_t *table;
     TableCollection *tables;
 } IndividualTable;
 
 typedef struct {
     PyObject_HEAD
-    bool locked;
+    int state;
     tsk_node_table_t *table;
     TableCollection *tables;
 } NodeTable;
 
 typedef struct {
     PyObject_HEAD
-    bool locked;
+    int state;
     tsk_edge_table_t *table;
     TableCollection *tables;
 } EdgeTable;
 
 typedef struct {
     PyObject_HEAD
-    bool locked;
+    int state;
     tsk_site_table_t *table;
     TableCollection *tables;
 } SiteTable;
 
 typedef struct {
     PyObject_HEAD
-    bool locked;
+    int state;
     tsk_mutation_table_t *table;
     TableCollection *tables;
 } MutationTable;
 
 typedef struct {
     PyObject_HEAD
-    bool locked;
+    int state;
     tsk_migration_table_t *table;
     TableCollection *tables;
 } MigrationTable;
 
 typedef struct {
     PyObject_HEAD
-    bool locked;
+    int state;
     tsk_population_table_t *table;
     TableCollection *tables;
 } PopulationTable;
 
 typedef struct {
     PyObject_HEAD
-    bool locked;
+    int state;
     tsk_provenance_table_t *table;
     TableCollection *tables;
 } ProvenanceTable;
@@ -1010,10 +999,6 @@ IndividualTable_check_state(IndividualTable *self)
         PyErr_SetString(PyExc_SystemError, "IndividualTable not initialised");
         goto out;
     }
-    if (self->locked) {
-        PyErr_SetString(PyExc_RuntimeError, "IndividualTable in use by other thread.");
-        goto out;
-    }
     ret = 0;
 out:
     return ret;
@@ -1041,7 +1026,7 @@ IndividualTable_init(IndividualTable *self, PyObject *args, PyObject *kwds)
     Py_ssize_t max_rows_increment = 0;
 
     self->table = NULL;
-    self->locked = false;
+    self->state = 0;
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|n", kwlist, &max_rows_increment)) {
         goto out;
     }
@@ -1648,10 +1633,6 @@ NodeTable_check_read(NodeTable *self)
         PyErr_SetString(PyExc_SystemError, "NodeTable not initialised");
         goto out;
     }
-    if (self->locked) {
-        PyErr_SetString(PyExc_RuntimeError, "NodeTable in use by other thread.");
-        goto out;
-    }
     ret = 0;
 out:
     return ret;
@@ -1702,7 +1683,7 @@ NodeTable_init(NodeTable *self, PyObject *args, PyObject *kwds)
     Py_ssize_t max_rows_increment = 0;
 
     self->table = NULL;
-    self->locked = false;
+    self->state = 0;
     self->tables = NULL;
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|n", kwlist, &max_rows_increment)) {
         goto out;
@@ -2231,10 +2212,6 @@ EdgeTable_check_state(EdgeTable *self)
     int ret = -1;
     if (self->table == NULL) {
         PyErr_SetString(PyExc_SystemError, "EdgeTable not initialised");
-        goto out;
-    }
-    if (self->locked) {
-        PyErr_SetString(PyExc_RuntimeError, "EdgeTable in use by other thread.");
         goto out;
     }
     ret = 0;
@@ -2804,10 +2781,6 @@ MigrationTable_check_state(MigrationTable *self)
     int ret = -1;
     if (self->table == NULL) {
         PyErr_SetString(PyExc_SystemError, "MigrationTable not initialised");
-        goto out;
-    }
-    if (self->locked) {
-        PyErr_SetString(PyExc_RuntimeError, "MigrationTable in use by other thread.");
         goto out;
     }
     ret = 0;
@@ -3391,10 +3364,6 @@ SiteTable_check_state(SiteTable *self)
         PyErr_SetString(PyExc_SystemError, "SiteTable not initialised");
         goto out;
     }
-    if (self->locked) {
-        PyErr_SetString(PyExc_RuntimeError, "SiteTable in use by other thread.");
-        goto out;
-    }
     ret = 0;
 out:
     return ret;
@@ -3930,10 +3899,6 @@ MutationTable_check_state(MutationTable *self)
     int ret = -1;
     if (self->table == NULL) {
         PyErr_SetString(PyExc_SystemError, "MutationTable not initialised");
-        goto out;
-    }
-    if (self->locked) {
-        PyErr_SetString(PyExc_RuntimeError, "MutationTable in use by other thread.");
         goto out;
     }
     ret = 0;
@@ -4527,10 +4492,6 @@ PopulationTable_check_state(PopulationTable *self)
         PyErr_SetString(PyExc_SystemError, "PopulationTable not initialised");
         goto out;
     }
-    if (self->locked) {
-        PyErr_SetString(PyExc_RuntimeError, "PopulationTable in use by other thread.");
-        goto out;
-    }
     ret = 0;
 out:
     return ret;
@@ -4558,7 +4519,7 @@ PopulationTable_init(PopulationTable *self, PyObject *args, PyObject *kwds)
     Py_ssize_t max_rows_increment = 0;
 
     self->table = NULL;
-    self->locked = false;
+    self->state = 0;
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|n", kwlist, &max_rows_increment)) {
         goto out;
     }
@@ -5013,10 +4974,6 @@ ProvenanceTable_check_state(ProvenanceTable *self)
         PyErr_SetString(PyExc_SystemError, "ProvenanceTable not initialised");
         goto out;
     }
-    if (self->locked) {
-        PyErr_SetString(PyExc_RuntimeError, "ProvenanceTable in use by other thread.");
-        goto out;
-    }
     ret = 0;
 out:
     return ret;
@@ -5044,7 +5001,7 @@ ProvenanceTable_init(ProvenanceTable *self, PyObject *args, PyObject *kwds)
     Py_ssize_t max_rows_increment = 0;
 
     self->table = NULL;
-    self->locked = false;
+    self->state = 0;
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|n", kwlist, &max_rows_increment)) {
         goto out;
     }
@@ -6305,7 +6262,7 @@ TableCollection_get_individuals(TableCollection *self, void *closure)
         goto out;
     }
     individuals->table = &self->tables->individuals;
-    individuals->locked = false;
+    individuals->state = 0;
     individuals->tables = self;
     Py_INCREF(self);
 out:
@@ -6325,7 +6282,7 @@ TableCollection_get_nodes(TableCollection *self, void *closure)
         goto out;
     }
     nodes->table = &self->tables->nodes;
-    nodes->locked = false;
+    nodes->state = 0;
     nodes->tables = self;
     Py_INCREF(self);
 out:
@@ -6345,7 +6302,7 @@ TableCollection_get_edges(TableCollection *self, void *closure)
         goto out;
     }
     edges->table = &self->tables->edges;
-    edges->locked = false;
+    edges->state = 0;
     edges->tables = self;
     Py_INCREF(self);
 out:
@@ -6365,7 +6322,7 @@ TableCollection_get_migrations(TableCollection *self, void *closure)
         goto out;
     }
     migrations->table = &self->tables->migrations;
-    migrations->locked = false;
+    migrations->state = 0;
     migrations->tables = self;
     Py_INCREF(self);
 out:
@@ -6385,7 +6342,7 @@ TableCollection_get_sites(TableCollection *self, void *closure)
         goto out;
     }
     sites->table = &self->tables->sites;
-    sites->locked = false;
+    sites->state = 0;
     sites->tables = self;
     Py_INCREF(self);
 out:
@@ -6405,7 +6362,7 @@ TableCollection_get_mutations(TableCollection *self, void *closure)
         goto out;
     }
     mutations->table = &self->tables->mutations;
-    mutations->locked = false;
+    mutations->state = 0;
     mutations->tables = self;
     Py_INCREF(self);
 out:
@@ -6425,7 +6382,7 @@ TableCollection_get_populations(TableCollection *self, void *closure)
         goto out;
     }
     populations->table = &self->tables->populations;
-    populations->locked = false;
+    populations->state = 0;
     populations->tables = self;
     Py_INCREF(self);
 out:
@@ -6445,7 +6402,7 @@ TableCollection_get_provenances(TableCollection *self, void *closure)
         goto out;
     }
     provenances->table = &self->tables->provenances;
-    provenances->locked = false;
+    provenances->state = 0;
     provenances->tables = self;
     Py_INCREF(self);
 out:
