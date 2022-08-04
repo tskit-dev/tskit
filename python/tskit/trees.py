@@ -7257,6 +7257,8 @@ class TreeSequence:
         )
         if drop_dimension:
             stat = stat.reshape(stat.shape[:-1])
+            if stat.shape == () and windows is None:
+                stat = stat[()]
         return stat
 
     def __k_way_sample_set_stat(
@@ -7276,7 +7278,9 @@ class TreeSequence:
         if np.any(sample_set_sizes == 0):
             raise ValueError("Sample sets must contain at least one element")
         flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
+        drop_based_on_index = False
         if indexes is None:
+            drop_based_on_index = True
             if len(sample_sets) != k:
                 raise ValueError(
                     "Must specify indexes if there are not exactly {} sample "
@@ -7305,6 +7309,8 @@ class TreeSequence:
         )
         if drop_dimension:
             stat = stat.reshape(stat.shape[:-1])
+            if stat.shape == () and windows is None and drop_based_on_index:
+                stat = stat[()]
         return stat
 
     ############################################
@@ -7363,6 +7369,7 @@ class TreeSequence:
         :param bool span_normalise: Whether to divide the result by the span of the
             window (defaults to True).
         :return: A numpy array whose length is equal to the number of sample sets.
+            If there is one sample set and windows=None, a numpy scalar is returned.
         """
         return self.__one_way_sample_set_stat(
             self._ll_tree_sequence.diversity,
@@ -7429,6 +7436,9 @@ class TreeSequence:
         :param bool span_normalise: Whether to divide the result by the span of the
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
+            If there is one pair of sample sets and windows=None, a numpy scalar is
+            returned.
+
         """
         return self.__k_way_sample_set_stat(
             self._ll_tree_sequence.divergence,
@@ -7558,6 +7568,8 @@ class TreeSequence:
             sample sets (rather than segregating between all of the samples of
             the tree sequence).
         :return: A ndarray with shape equal to (num windows, num statistics).
+            If there is one pair of sample sets and windows=None, a numpy scalar is
+            returned.
         """
         if proportion:
             # TODO this should be done in C also
@@ -7636,6 +7648,7 @@ class TreeSequence:
         :param bool span_normalise: Whether to divide the result by the span of the
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
+            If windows=None and W is a single column, a numpy scalar is returned.
         """
         if W.shape[0] != self.num_samples:
             raise ValueError(
@@ -7701,6 +7714,7 @@ class TreeSequence:
         :param bool span_normalise: Whether to divide the result by the span of the
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
+            If windows=None and W is a single column, a numpy scalar is returned.
         """
         if W.shape[0] != self.num_samples:
             raise ValueError(
@@ -7787,6 +7801,7 @@ class TreeSequence:
         :param bool span_normalise: Whether to divide the result by the span of the
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
+            If windows=None and W is a single column, a numpy scalar is returned.
         """
         if W.shape[0] != self.num_samples:
             raise ValueError(
@@ -7854,6 +7869,7 @@ class TreeSequence:
         :param bool span_normalise: Whether to divide the result by the span of the
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
+            If there is one sample set and windows=None, a numpy scalar is returned.
         """
         return self.__one_way_sample_set_stat(
             self._ll_tree_sequence.segregating_sites,
@@ -7956,9 +7972,9 @@ class TreeSequence:
             window (defaults to True).
         :return: A (k + 1) dimensional numpy array, where k is the number of sample
             sets specified.
+            If there is one sample set and windows=None, a 1 dimensional array is
+            returned.
         """
-        # TODO should we allow a single sample_set to be specified here as a 1D array?
-        # This won't change the output dimensions like the other stats.
         if sample_sets is None:
             sample_sets = [self.samples()]
         return self.__one_way_sample_set_stat(
@@ -8007,6 +8023,7 @@ class TreeSequence:
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
         :return: A ndarray with shape equal to (num windows, num statistics).
+            If there is one sample set and windows=None, a numpy scalar is returned.
         """
         # TODO this should be done in C as we'll want to support this method there.
         def tjd_func(sample_set_sizes, flattened, **kwargs):
@@ -8067,6 +8084,8 @@ class TreeSequence:
         :param bool span_normalise: Whether to divide the result by the span of the
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
+            If there is one pair of sample sets and windows=None, a numpy scalar is
+            returned.
         """
         # TODO this should really be implemented in C (presumably C programmers will want
         # to compute Fst too), but in the mean time implementing using the low-level
@@ -8153,6 +8172,8 @@ class TreeSequence:
         :param bool span_normalise: Whether to divide the result by the span of the
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
+            If there is one triple of sample sets and windows=None, a numpy scalar is
+            returned.
         """
         return self.__k_way_sample_set_stat(
             self._ll_tree_sequence.Y3,
@@ -8195,6 +8216,8 @@ class TreeSequence:
         :param bool span_normalise: Whether to divide the result by the span of the
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
+            If there is one pair of sample sets and windows=None, a numpy scalar is
+            returned.
         """
         return self.__k_way_sample_set_stat(
             self._ll_tree_sequence.Y2,
@@ -8233,6 +8256,7 @@ class TreeSequence:
         :param bool span_normalise: Whether to divide the result by the span of the
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
+            If there is one sample set and windows=None, a numpy scalar is returned.
         """
         return self.__one_way_sample_set_stat(
             self._ll_tree_sequence.Y1,
@@ -8288,6 +8312,7 @@ class TreeSequence:
         :param bool span_normalise: Whether to divide the result by the span of the
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
+            If there are four sample sets and windows=None, a numpy scalar is returned.
         """
         return self.__k_way_sample_set_stat(
             self._ll_tree_sequence.f4,
@@ -8341,6 +8366,7 @@ class TreeSequence:
         :param bool span_normalise: Whether to divide the result by the span of the
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
+            If there are three sample sets and windows=None, a numpy scalar is returned.
         """
         return self.__k_way_sample_set_stat(
             self._ll_tree_sequence.f3,
@@ -8385,6 +8411,8 @@ class TreeSequence:
         :param bool span_normalise: Whether to divide the result by the span of the
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
+            If there is one pair of sample sets and windows=None, a numpy scalar is
+            returned.
         """
         return self.__k_way_sample_set_stat(
             self._ll_tree_sequence.f2,
