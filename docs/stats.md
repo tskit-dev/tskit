@@ -514,6 +514,9 @@ simple rules.
    there are k sample sets, we compute the statistic from these sample sets
    and drop the last dimension.
 
+4. If, after dropping these dimensions, the dimension is 0, we return a numpy
+   scalar (instead of an array of dimension 0).
+
 Rules 2 and 3 can be summarised by "the dimensions of the input determines
 the dimensions of the output". Note that dropping these dimensions is
 **optional**: it is always possible to keep the full dimensions of the

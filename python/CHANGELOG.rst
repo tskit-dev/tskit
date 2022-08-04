@@ -2,8 +2,14 @@
 [0.5.3] - 2022-XX-XX
 --------------------
 
+**Changes**
 
-
+ - Single statistics computed with ``TreeSequence.general_stat`` are now
+   returned as numpy scalars if windows=None, AND; samples is a single
+   list or None (for a 1-way stat), OR indexes is None or a single list of 
+   length k (instead of a list of length-k lists).
+   (:user:`gtsambos`, :pr:`2417`, :issue:`2308`)
+   
 --------------------
 [0.5.2] - 2022-07-29
 --------------------
@@ -52,6 +58,7 @@
   a breaking change, although it's difficult to see how code would depend
   on the property that (e.g.) ``tables.edges is not tables.edges``.
   (:user:`jeromekelleher`, :pr:`2441`, :issue:`2080`).
+
 
 --------------------
 [0.5.1] - 2022-07-14

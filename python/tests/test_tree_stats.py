@@ -5854,6 +5854,75 @@ class TestOutputDimensions(StatsTestCase):
         assert ts.num_sites > 1
         return ts
 
+    def test_one_way_no_window_scalar_stat(self):
+        ts = self.get_example_ts()
+        x = ts.diversity()
+        assert isinstance(x, np.floating)
+
+    def test_one_way_one_list_scalar_stat(self):
+        ts = self.get_example_ts()
+        x = ts.diversity(sample_sets=list(ts.samples()))
+        assert isinstance(x, np.floating)
+
+    def test_one_way_nested_list_not_scalar_stat(self):
+        ts = self.get_example_ts()
+        x = ts.diversity(sample_sets=[list(ts.samples())])
+        assert x.shape == (1,)
+
+    def test_one_way_one_window_scalar_stat(self):
+        ts = self.get_example_ts()
+        x = ts.diversity(windows=[0, ts.sequence_length])
+        assert x.shape == (1,)
+        for samples in (None, list(ts.samples())):
+            x = ts.diversity(sample_sets=samples, windows=[0, ts.sequence_length])
+            assert x.shape == (1,)
+
+    def test_multi_way_no_window_scalar_stat(self):
+        ts = self.get_example_ts()
+        n = ts.num_samples
+        x = ts.f2(
+            sample_sets=[
+                [i for i in range(0, int(n / 2))],
+                [i for i in range(int(n / 2), n)],
+            ]
+        )
+        assert isinstance(x, np.floating)
+
+    def test_multi_way_one_window_not_scalar_stat(self):
+        ts = self.get_example_ts()
+        n = ts.num_samples
+        x = ts.f2(
+            sample_sets=[
+                [i for i in range(0, int(n / 2))],
+                [i for i in range(int(n / 2), n)],
+            ],
+            windows=[0, ts.sequence_length],
+        )
+        assert x.shape == (1,)
+
+    def test_multi_way_no_indexes_scalar_stat(self):
+        ts = self.get_example_ts()
+        n = ts.num_samples
+        x = ts.f2(
+            sample_sets=[
+                [i for i in range(0, int(n / 2))],
+                [i for i in range(int(n / 2), n)],
+            ],
+        )
+        assert isinstance(x, np.floating)
+
+    def test_multi_way_indexes_not_scalar_stat(self):
+        ts = self.get_example_ts()
+        n = ts.num_samples
+        x = ts.f2(
+            sample_sets=[
+                [i for i in range(0, int(n / 2))],
+                [i for i in range(int(n / 2), n)],
+            ],
+            indexes=[(0, 1)],
+        )
+        assert x.shape == (1,)
+
     def test_afs_default_windows(self):
         ts = self.get_example_ts()
         n = ts.num_samples
