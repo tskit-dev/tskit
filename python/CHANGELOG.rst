@@ -9,6 +9,13 @@
    list or None (for a 1-way stat), OR indexes is None or a single list of 
    length k (instead of a list of length-k lists).
    (:user:`gtsambos`, :pr:`2417`, :issue:`2308`)
+
+**Performance improvements**
+
+ - TreeSequence.link_ancestors no longer continues to process edges once all
+   of the sample and ancestral nodes have been accounted for, improving memory 
+   overhead and overall performance
+   (:user:`gtsambos`, :pr:`2456`, :issue:`2442`)
    
 --------------------
 [0.5.2] - 2022-07-29

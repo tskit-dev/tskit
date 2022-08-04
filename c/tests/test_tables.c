@@ -6613,7 +6613,7 @@ test_link_ancestors_samples_and_ancestors_overlap(void)
     tsk_table_collection_t tables;
     tsk_edge_table_t result;
     tsk_id_t samples[] = { 0, 1, 2, 4 };
-    tsk_id_t ancestors[] = { 4 };
+    tsk_id_t ancestors[] = { 2 };
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
         NULL, NULL, NULL, 0);
