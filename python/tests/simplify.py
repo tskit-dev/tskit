@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2021 Tskit Developers
+# Copyright (c) 2022 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -582,12 +582,17 @@ class AncestorMap:
         for sample_id in sample:
             self.add_ancestry(0, self.sequence_length, sample_id, sample_id)
         self.edge_buffer = {}
+        self.oldest_ancestor_time = max(ts.tables.nodes.time[u] for u in ancestors)
+        self.oldest_sample_time = max(ts.tables.nodes.time[u] for u in sample)
+        self.oldest_node_time = max(self.oldest_ancestor_time, self.oldest_sample_time)
 
     def link_ancestors(self):
         if self.ts.num_edges > 0:
             all_edges = list(self.ts.edges())
             edges = all_edges[:1]
             for e in all_edges[1:]:
+                if self.ts.tables.nodes.time[e.parent] > self.oldest_node_time:
+                    break
                 if e.parent != edges[0].parent:
                     self.process_parent_edges(edges)
                     edges = []
