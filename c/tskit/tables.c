@@ -7372,6 +7372,7 @@ typedef struct {
     tsk_id_t *buffered_children;
     tsk_size_t num_buffered_children;
     double sequence_length;
+    double oldest_node_time;
 } ancestor_mapper_t;
 
 static tsk_segment_t *TSK_WARN_UNUSED
@@ -7512,6 +7513,23 @@ out:
     return ret;
 }
 
+static void
+ancestor_mapper_find_oldest_node(ancestor_mapper_t *self)
+{
+    const double *node_time = self->tables->nodes.time;
+    tsk_size_t j;
+    double max_time = -1;
+
+    for (j = 0; j < self->num_ancestors; j++) {
+        max_time = TSK_MAX(max_time, node_time[self->ancestors[j]]);
+    }
+    for (j = 0; j < self->num_samples; j++) {
+        max_time = TSK_MAX(max_time, node_time[self->samples[j]]);
+    }
+
+    self->oldest_node_time = max_time;
+}
+
 static int
 ancestor_mapper_init_samples(ancestor_mapper_t *self, tsk_id_t *samples)
 {
@@ -7626,6 +7644,7 @@ ancestor_mapper_init(ancestor_mapper_t *self, tsk_id_t *samples, tsk_size_t num_
     if (ret != 0) {
         goto out;
     }
+    ancestor_mapper_find_oldest_node(self);
     ret = tsk_edge_table_clear(self->result);
     if (ret != 0) {
         goto out;
@@ -7805,6 +7824,8 @@ ancestor_mapper_run(ancestor_mapper_t *self)
     tsk_id_t parent, current_parent;
     const tsk_edge_table_t *input_edges = &self->tables->edges;
     tsk_size_t num_edges = input_edges->num_rows;
+    const double *node_time = self->tables->nodes.time;
+    bool early_exit = false;
 
     if (num_edges > 0) {
         start = 0;
@@ -7817,14 +7838,21 @@ ancestor_mapper_run(ancestor_mapper_t *self)
                 if (ret != 0) {
                     goto out;
                 }
-                current_parent = parent;
                 start = j;
+                current_parent = parent;
+                if (node_time[current_parent] > self->oldest_node_time) {
+                    early_exit = true;
+                    break;
+                }
             }
         }
-        ret = ancestor_mapper_process_parent_edges(
-            self, current_parent, start, num_edges);
-        if (ret != 0) {
-            goto out;
+        if (!early_exit) {
+            /* If we didn't break out of the loop early, we need to still process
+             * the final parent */
+            ret = ancestor_mapper_process_parent_edges(self, current_parent, start, j);
+            if (ret != 0) {
+                goto out;
+            }
         }
     }
 out:
