@@ -715,6 +715,13 @@ flag). It keeps unary nodes, but only if the unary node is referenced from an in
 @endrst
 */
 #define TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS (1 << 6)
+/**
+@rst
+DOCUMENT ME
+@endrst
+*/
+#define TSK_SIMPLIFY_KEEP_UNARY_IF_COALESCENT (1 << 7)
+
 /** @} */
 
 /**

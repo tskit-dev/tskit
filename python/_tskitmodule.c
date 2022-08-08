@@ -6590,19 +6590,21 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
     int filter_populations = false;
     int keep_unary = false;
     int keep_unary_in_individuals = false;
+    int keep_unary_if_coalescent = false;
     int keep_input_roots = false;
     int reduce_to_site_topology = false;
-    static char *kwlist[] = { "samples", "filter_sites", "filter_populations",
-        "filter_individuals", "reduce_to_site_topology", "keep_unary",
-        "keep_unary_in_individuals", "keep_input_roots", NULL };
+    static char *kwlist[]
+        = { "samples", "filter_sites", "filter_populations", "filter_individuals",
+              "reduce_to_site_topology", "keep_unary", "keep_unary_in_individuals",
+              "keep_unary_if_coalescent", "keep_input_roots", NULL };
 
     if (TableCollection_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iiiiiii", kwlist, &samples,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iiiiiiii", kwlist, &samples,
             &filter_sites, &filter_populations, &filter_individuals,
             &reduce_to_site_topology, &keep_unary, &keep_unary_in_individuals,
-            &keep_input_roots)) {
+            &keep_unary_if_coalescent, &keep_input_roots)) {
         goto out;
     }
     samples_array = (PyArrayObject *) PyArray_FROMANY(
@@ -6629,6 +6631,9 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
     }
     if (keep_unary_in_individuals) {
         options |= TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS;
+    }
+    if (keep_unary_if_coalescent) {
+        options |= TSK_SIMPLIFY_KEEP_UNARY_IF_COALESCENT;
     }
     if (keep_input_roots) {
         options |= TSK_SIMPLIFY_KEEP_INPUT_ROOTS;

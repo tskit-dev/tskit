@@ -344,11 +344,32 @@ class TestTableCollection(LowLevelTestCase):
         with pytest.raises(TypeError):
             tc.simplify([0, 1], keep_unary_in_individuals="abc")
         with pytest.raises(TypeError):
+            tc.simplify([0, 1], keep_unary_if_coalescent="abc")
+        with pytest.raises(TypeError):
             tc.simplify([0, 1], keep_input_roots="sdf")
         with pytest.raises(TypeError):
             tc.simplify([0, 1], filter_populations="x")
         with pytest.raises(_tskit.LibraryError):
             tc.simplify([0, -1])
+
+    @pytest.mark.parametrize("value", [True, False])
+    @pytest.mark.parametrize(
+        "flag_option",
+        [
+            "keep_unary",
+            "keep_unary_in_individuals",
+            "keep_unary_if_coalescent",
+            "keep_input_roots",
+            "filter_sites",
+            "filter_populations",
+            "filter_individuals",
+            "reduce_to_site_topology",
+        ],
+    )
+    def test_simplify_flag_args(self, flag_option, value):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.tables._ll_tables
+        tc.simplify([0, 1], **{flag_option: value})
 
     def test_link_ancestors_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)

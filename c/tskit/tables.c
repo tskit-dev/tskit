@@ -8677,6 +8677,8 @@ simplifier_print_state(simplifier_t *self, FILE *out)
         !!(self->options & TSK_SIMPLIFY_KEEP_INPUT_ROOTS));
     fprintf(out, "\tkeep_unary_in_individuals : %d\n",
         !!(self->options & TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS));
+    fprintf(out, "\tkeep_unary_if_coalescent: %d\n",
+        !!(self->options & TSK_SIMPLIFY_KEEP_UNARY_IF_COALESCENT));
 
     fprintf(out, "===\nInput tables\n==\n");
     tsk_table_collection_print_state(&self->input_tables, out);
@@ -9224,16 +9226,8 @@ simplifier_merge_ancestors(simplifier_t *self, tsk_id_t input_id)
     double left, right, prev_right;
     tsk_id_t ancestry_node;
     tsk_id_t output_id = self->node_id_map[input_id];
-
     bool is_sample = output_id != TSK_NULL;
     bool keep_unary = false;
-    if (self->options & TSK_SIMPLIFY_KEEP_UNARY) {
-        keep_unary = true;
-    }
-    if ((self->options & TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS)
-        && (self->input_tables.nodes.individual[input_id] != TSK_NULL)) {
-        keep_unary = true;
-    }
 
     if (is_sample) {
         /* Free up the existing ancestry mapping. */
@@ -9241,6 +9235,32 @@ simplifier_merge_ancestors(simplifier_t *self, tsk_id_t input_id)
         tsk_bug_assert(x->left == 0 && x->right == self->tables->sequence_length);
         self->ancestor_map_head[input_id] = NULL;
         self->ancestor_map_tail[input_id] = NULL;
+    }
+
+    if (self->options & TSK_SIMPLIFY_KEEP_UNARY) {
+        keep_unary = true;
+    }
+    if ((self->options & TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS)
+        && (self->input_tables.nodes.individual[input_id] != TSK_NULL)) {
+        keep_unary = true;
+    }
+    if (self->options & TSK_SIMPLIFY_KEEP_UNARY_IF_COALESCENT) {
+        /* Make an initial pass through the overlapping segments to see
+         * if there's any coalescence.
+         */
+        ret = segment_overlapper_start(
+            &self->segment_overlapper, self->segment_queue, self->segment_queue_size);
+        if (ret != 0) {
+            goto out;
+        }
+        while ((ret = segment_overlapper_next(
+                    &self->segment_overlapper, &left, &right, &X, &num_overlapping))
+               == 1) {
+            if (num_overlapping > 1) {
+                keep_unary = true;
+                break;
+            }
+        }
     }
 
     ret = segment_overlapper_start(
@@ -11491,10 +11511,14 @@ tsk_table_collection_simplify(tsk_table_collection_t *self, const tsk_id_t *samp
     /* Avoid calling to simplifier_free with uninit'd memory on error branches */
     tsk_memset(&simplifier, 0, sizeof(simplifier_t));
 
-    if ((options & TSK_SIMPLIFY_KEEP_UNARY)
-        && (options & TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS)) {
-        ret = TSK_ERR_KEEP_UNARY_MUTUALLY_EXCLUSIVE;
-        goto out;
+    if ((options & TSK_SIMPLIFY_KEEP_UNARY)) {
+        // FIXME what about specifying keep_unary_in_individuals *and*
+        // unary_if_coalescent?
+        if ((options & TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS)
+            || (options & TSK_SIMPLIFY_KEEP_UNARY_IF_COALESCENT)) {
+            ret = TSK_ERR_KEEP_UNARY_MUTUALLY_EXCLUSIVE;
+            goto out;
+        }
     }
 
     /* For now we don't bother with edge metadata, but it can easily be
