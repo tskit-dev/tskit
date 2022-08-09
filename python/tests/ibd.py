@@ -138,6 +138,24 @@ class IbdResult:
         key = (a, b) if a < b else (b, a)
         self.segments[key].append(tskit.IdentitySegment(seg.left, seg.right, seg.node))
 
+    def sort_and_squash_segments(self, a, b):
+        # Sort and squash in-place. This will work differently in the C implementation.
+        key = (a, b) if a < b else (b, a)
+        self.segments[key] = sorted(self.segments[key])
+        num_segs = len(self.segments[key])
+        new_list = []
+        if num_segs > 1:
+            for seg in self.segments[key]:
+                if len(new_list) == 0:
+                    new_list.append(seg)
+                else:
+                    n = new_list[-1]  # last segment
+                    if seg.node > n.node or seg.left > n.right:
+                        new_list.append(seg)
+                    else:
+                        new_list[-1] = tskit.IdentitySegment(n.left, seg.right, n.node)
+            self.segments[key] = new_list
+
 
 class IbdFinder:
     """
@@ -177,7 +195,7 @@ class IbdFinder:
         for u, a in enumerate(self.A):
             print(u, self.sample_set_id[u], a, sep="\t")
 
-    def run(self):
+    def run(self, squash=False):
         node_times = self.tables.nodes.time
         for e in self.ts.edges():
             time = node_times[e.parent]
@@ -195,11 +213,13 @@ class IbdFinder:
                 if intvl[1] - intvl[0] > self.min_span:
                     child_segs.append(Segment(intvl[0], intvl[1], s.node))
                 s = s.next
-            self.record_ibd(e.parent, child_segs)
+            self.record_ibd(e.parent, child_segs, squash=squash)
             self.A[e.parent].extend(child_segs)
+        # if squash:
+        #     self.result.squash()
         return self.result.segments
 
-    def record_ibd(self, current_parent, child_segs):
+    def record_ibd(self, current_parent, child_segs, squash):
         """
         Given the specified set of child segments for the current parent
         record the IBD segments that will occur as a result of adding these
@@ -219,8 +239,12 @@ class IbdFinder:
                 # IBD relationship.
                 if self.passes_filters(seg0.node, seg1.node, left, right):
                     self.result.add_segment(
-                        seg0.node, seg1.node, Segment(left, right, current_parent)
+                        seg0.node,
+                        seg1.node,
+                        Segment(left, right, current_parent),
                     )
+                    if squash:
+                        self.result.sort_and_squash_segments(seg0.node, seg1.node)
                 seg1 = seg1.next
             seg0 = seg0.next
 
