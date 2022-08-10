@@ -38,13 +38,19 @@ def ibd_segments(
     compare_lib=True,
     print_c=False,
     print_py=False,
+    empty_trash=False,
 ):
     """
     Calculates IBD segments using Python and converts output to lists of segments.
     Also compares result with C library.
     """
     ibd_f = ibd.IbdFinder(
-        ts, within=within, between=between, max_time=max_time, min_span=min_span
+        ts,
+        within=within,
+        between=between,
+        max_time=max_time,
+        min_span=min_span,
+        empty_trash=empty_trash,
     )
     ibd_segs = ibd_f.run()
     if print_py:
@@ -240,6 +246,13 @@ class TestIbdSingleBinaryTree:
     def test_length(self):
         ibd_segs = ibd_segments(self.ts(), min_span=2)
         assert_ibd_equal(ibd_segs, {})
+
+    def test_trash(self):
+        true_segs = {
+            (0, 2): [tskit.IdentitySegment(0.0, 1.0, 4)],
+        }
+        ibd_segs = ibd_segments(self.ts(), between=[[0], [2]], empty_trash=True)
+        assert_ibd_equal(ibd_segs, true_segs)
 
 
 class TestIbdInterface:
@@ -1161,3 +1174,20 @@ class TestIdentitySegmentsList:
         for seglist in result.values():
             for seg in seglist:
                 assert isinstance(seg, tskit.IdentitySegment)
+
+
+class TestTrashCollection:
+    def test_same_output(self):
+        for r in [98, 83, 579, 2876, 3837, 22001, 836, 661]:
+            ts = msprime.sim_ancestry(
+                10, recombination_rate=0.1, random_seed=r, sequence_length=50
+            )
+            print(ts.num_edges)
+            # For the moment, just testing that the C version (without trash collection)
+            # gives same result as Python (with trash collection)
+            samples = ts.samples()[:10]
+            ibd_segments(
+                ts,
+                empty_trash=True,
+                within=samples,
+            )

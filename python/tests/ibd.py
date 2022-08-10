@@ -144,7 +144,16 @@ class IbdFinder:
     Finds all IBD relationships between specified sample pairs in a tree sequence.
     """
 
-    def __init__(self, ts, *, within=None, between=None, min_span=0, max_time=None):
+    def __init__(
+        self,
+        ts,
+        *,
+        within=None,
+        between=None,
+        min_span=0,
+        max_time=None,
+        empty_trash=True,
+    ):
         self.ts = ts
         self.result = IbdResult()
         if within is not None and between is not None:
@@ -167,6 +176,10 @@ class IbdFinder:
             if self.sample_set_id[u] != -1:
                 self.A[u].append(Segment(0, ts.sequence_length, u))
         self.tables = self.ts.tables
+        self.empty_trash = empty_trash
+        # if self.empty_trash:
+        #     print("We're emptying the trash!!")
+        self.num_of_child_edges = [-1 for i in range(ts.num_nodes)]
 
     def print_state(self):
         print("IBD Finder")
@@ -179,6 +192,8 @@ class IbdFinder:
 
     def run(self):
         node_times = self.tables.nodes.time
+        if self.empty_trash:
+            self.count_num_of_child_edges()
         for e in self.ts.edges():
             time = node_times[e.parent]
             if time > self.max_time:
@@ -197,7 +212,27 @@ class IbdFinder:
                 s = s.next
             self.record_ibd(e.parent, child_segs)
             self.A[e.parent].extend(child_segs)
+            # Edit number of remaining child edges to find and empty trash if needed.
+            if self.empty_trash:
+                self.num_of_child_edges[e.child] += -1
+                if self.num_of_child_edges[e.child] == 0:
+                    # print("num of segs cleared:", len(self.A[e.child]))
+                    self.A[e.child] = SegmentList()
+                    # print("Just emptied trash for node", e.child)
+
         return self.result.segments
+
+    def count_num_of_child_edges(self):
+        """
+        For each node, computes and stores the number of edges where this node
+        appears in the child column.
+        """
+        for e in self.ts.edges():
+            node = e.child
+            if self.num_of_child_edges[node] == -1:
+                self.num_of_child_edges[node] = 1
+            else:
+                self.num_of_child_edges[node] += 1
 
     def record_ibd(self, current_parent, child_segs):
         """
@@ -282,6 +317,15 @@ if __name__ == "__main__":
         help="If provided, only this pair's IBD info is returned.",
     )
 
+    parser.add_argument(
+        "--empty-trash",
+        type=bool,
+        nargs=1,
+        dest="empty_trash",
+        metavar="EMPTY_TRASH",
+        help="If provided, prune away ancestral segments for memory savings.",
+    )
+
     args = parser.parse_args()
     ts = tskit.load(args.infile[0])
     if args.min_span is None:
@@ -292,12 +336,16 @@ if __name__ == "__main__":
         max_time = None
     else:
         max_time = args.max_time[0]
+    if args.empty_trash is None:
+        empty_trash = False
+    else:
+        empty_trash = args.empty_trash[0]
 
-    s = IbdFinder(ts, min_span=min_span, max_time=max_time)
+    s = IbdFinder(ts, min_span=min_span, max_time=max_time, empty_trash=empty_trash)
     all_segs = s.run()
 
-    if args.samples is None:
-        print(all_segs)
-    else:
-        samples = args.samples
-        print(all_segs[(samples[0], samples[1])])
+    # if args.samples is None:
+    #     print(all_segs)
+    # else:
+    #     samples = args.samples
+    #     print(all_segs[(samples[0], samples[1])])
