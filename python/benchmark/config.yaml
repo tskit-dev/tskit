@@ -89,6 +89,11 @@ benchmarks:
     parameters:
       filename: *files
 
+  - code: "ts.genotype_matrix();'{filename}'"
+    setup: ts = tskit.load("{filename}")
+    parameters:
+      filename: *files
+
   - code: "for row in ts.{table}(): pass"
     setup: ts = tskit.load("bench.trees")
     parameters:
