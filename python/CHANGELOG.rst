@@ -172,6 +172,10 @@
   the relationship of each node with its parent.
   (:user:`GertjanBisschop`, :issue:`2361`, :pr:`2357`)
 
+- Add ``position`` argument to ``TreeSequence.site``. Returns a ``Site`` object if there is
+  one at the specified position. If not, it raises ``ValueError``.
+  (:user:`szhan`, :issue:`2234`, :pr:`2235`)
+
 **Breaking Changes**
 
 - The JSON metadata codec now interprets the empty string as an empty object. This means
