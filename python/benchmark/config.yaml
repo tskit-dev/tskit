@@ -9,7 +9,8 @@ benchmarks:
         - "bench.trees"
 
   - code: ts.dump("/dev/null");"{filename}"
-    setup: ts = tskit.load("{filename}")
+    setup: |
+      ts = tskit.load("{filename}")
     parameters:
       filename: *files
 
@@ -90,7 +91,13 @@ benchmarks:
       filename: *files
 
   - code: "ts.genotype_matrix();'{filename}'"
-    setup: ts = tskit.load("{filename}")
+    setup: |
+      ts = tskit.load("{filename}")
+      if ts.num_samples > 10_000:
+          tables = ts.tables
+          tables.migrations.clear()
+          ts = tables.tree_sequence()
+          ts = ts.simplify(samples=list(range(1000)))
     parameters:
       filename: *files
 
