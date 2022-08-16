@@ -5256,9 +5256,17 @@ class TreeSequence:
         if isolated_as_missing is None:
             isolated_as_missing = not impute_missing_data
 
-        return self._ll_tree_sequence.get_genotype_matrix(
-            isolated_as_missing=isolated_as_missing, alleles=alleles
+        variant = tskit.Variant(
+            self, isolated_as_missing=isolated_as_missing, alleles=alleles
         )
+
+        ret = np.zeros(shape=(self.num_sites, self.num_samples), dtype=np.int32)
+
+        for site_id in range(self.num_sites):
+            variant.decode(site_id)
+            ret[site_id, :] = variant.genotypes
+
+        return ret
 
     def alignments(
         self,

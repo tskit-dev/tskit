@@ -9385,78 +9385,6 @@ out:
 }
 
 static PyObject *
-TreeSequence_get_genotype_matrix(TreeSequence *self, PyObject *args, PyObject *kwds)
-{
-    PyObject *ret = NULL;
-    static char *kwlist[] = { "isolated_as_missing", "alleles", NULL };
-    int err;
-    tsk_size_t num_sites;
-    tsk_size_t num_samples;
-    npy_intp dims[2];
-    PyObject *py_alleles = Py_None;
-    PyArrayObject *genotype_matrix = NULL;
-    tsk_variant_t variant;
-    int32_t *V;
-    tsk_size_t j;
-    int isolated_as_missing = 1;
-    const char **alleles = NULL;
-    tsk_flags_t options = 0;
-
-    memset(&variant, 0, sizeof(variant));
-
-    if (TreeSequence_check_state(self) != 0) {
-        goto out;
-    }
-
-    /* TODO add option for 16 bit genotypes */
-    if (!PyArg_ParseTupleAndKeywords(
-            args, kwds, "|iO", kwlist, &isolated_as_missing, &py_alleles)) {
-        goto out;
-    }
-    if (!isolated_as_missing) {
-        options |= TSK_ISOLATED_NOT_MISSING;
-    }
-
-    if (py_alleles != Py_None) {
-        alleles = parse_allele_list(py_alleles);
-        if (alleles == NULL) {
-            goto out;
-        }
-    }
-
-    num_sites = tsk_treeseq_get_num_sites(self->tree_sequence);
-    num_samples = tsk_treeseq_get_num_samples(self->tree_sequence);
-    dims[0] = num_sites;
-    dims[1] = num_samples;
-
-    genotype_matrix = (PyArrayObject *) PyArray_SimpleNew(2, dims, NPY_INT32);
-    if (genotype_matrix == NULL) {
-        goto out;
-    }
-    V = (int32_t *) PyArray_DATA(genotype_matrix);
-    err = tsk_variant_init(&variant, self->tree_sequence, NULL, 0, alleles, options);
-    if (err != 0) {
-        handle_library_error(err);
-        goto out;
-    }
-    num_sites = tsk_treeseq_get_num_sites(self->tree_sequence);
-    for (j = 0; j < num_sites; j++) {
-        err = tsk_variant_decode(&variant, j, 0);
-        if (err != 0) {
-            handle_library_error(err);
-            goto out;
-        }
-        memcpy(V + (j * num_samples), variant.genotypes, num_samples * sizeof(int32_t));
-    }
-    ret = (PyObject *) genotype_matrix;
-    genotype_matrix = NULL;
-out:
-    Py_XDECREF(genotype_matrix);
-    PyMem_Free(alleles);
-    return ret;
-}
-
-static PyObject *
 TreeSequence_split_edges(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
@@ -10111,10 +10039,6 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_f4,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Computes the f4 statistic." },
-    { .ml_name = "get_genotype_matrix",
-        .ml_meth = (PyCFunction) TreeSequence_get_genotype_matrix,
-        .ml_flags = METH_VARARGS | METH_KEYWORDS,
-        .ml_doc = "Returns the genotypes matrix." },
     { .ml_name = "split_edges",
         .ml_meth = (PyCFunction) TreeSequence_split_edges,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
