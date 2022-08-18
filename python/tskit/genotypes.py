@@ -192,9 +192,12 @@ class Variant:
     @property
     def num_alleles(self) -> int:
         """
-        The number of distinct alleles at this site. Note that
-        this may be greater than the number of distinct values in the genotypes
-        array.
+        The number of distinct alleles at this site. Note that this may
+        not be the same as the number of distinct values in the genotypes
+        array: firstly missing data is not counted as an allele, and secondly,
+        the site may contain mutations to alternative allele states (which are
+        counted in the number of alleles) without the mutation being inherited
+        by any of the samples.
         """
         return len(self.alleles) - self.has_missing_data
 
