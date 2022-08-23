@@ -3800,10 +3800,16 @@ class SimpleContainerSequence:
     Simple wrapper to allow arrays of SimpleContainers (e.g. edges, nodes) that have a
     function allowing access by index (e.g. ts.edge(i), ts.node(i)) to be treated as a
     python sequence, allowing forward and reverse iteration.
+
+    To generate a sequence of items in a different order, the ``order`` parameter allows
+    an array of indexes to be passed in, such as returned from np.argsort or np.lexsort.
     """
 
-    def __init__(self, getter, length):
-        self.getter = getter
+    def __init__(self, getter, length, order=None):
+        if order is None:
+            self.getter = getter
+        else:
+            self.getter = lambda index: getter(order[index])
         self.length = length
 
     def __len__(self):
@@ -4463,15 +4469,31 @@ class TreeSequence:
         """
         return SimpleContainerSequence(self.individual, self.num_individuals)
 
-    def nodes(self):
+    def nodes(self, *, order=None):
         """
         Returns an iterable sequence of all the :ref:`nodes <sec_node_table_definition>`
         in this tree sequence.
 
+        .. note:: Although node ids are commonly ordered by node time, this is not a
+            formal tree sequence requirement. If you wish to iterate over nodes in
+            time order, you should therefore use ``order="timeasc"`` (and wrap the
+            resulting sequence in the standard Python :func:`python:reversed` function
+            if you wish to iterate over older nodes before younger ones)
+
+        :param str order: The order in which the nodes should be returned: must be
+            one of "id" (default) or "timeasc" (ascending order of time, then by
+            ascending node id, matching the first two ordering requirements of
+            parent nodes in a :meth:`sorted <TableCollection.sort>` edge table).
         :return: An iterable sequence of all nodes.
         :rtype: Sequence(:class:`.Node`)
         """
-        return SimpleContainerSequence(self.node, self.num_nodes)
+        order = "id" if order is None else order
+        if order not in ["id", "timeasc"]:
+            raise ValueError('order must be "id" or "timeasc"')
+        odr = None
+        if order == "timeasc":
+            odr = np.lexsort((np.arange(self.num_nodes), self.nodes_time))
+        return SimpleContainerSequence(self.node, self.num_nodes, order=odr)
 
     def edges(self):
         """
