@@ -356,6 +356,8 @@ def make_example_tree_sequences():
     )
     tables = ts.dump_tables()
     tables.populations.metadata_schema = tskit.MetadataSchema(None)
+    ts = tskit.Tree.generate_balanced(8).tree_sequence
+    yield ("rev node order", ts.subset(np.arange(ts.num_nodes - 1, -1, -1)))
     ts = tables.tree_sequence()
     assert ts.num_trees > 1
     yield (
@@ -1440,6 +1442,27 @@ class TestTreeSequence(HighLevelTestCase):
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_pairwise_diversity(self, ts):
         self.verify_pairwise_diversity(ts)
+
+    @pytest.mark.parametrize("order", ["abc", 0, 1, False])
+    def test_bad_node_iteration_order(self, order):
+        ts = tskit.TableCollection(1).tree_sequence()
+        with pytest.raises(ValueError, match="order"):
+            ts.nodes(order=order)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_node_iteration_order(self, ts):
+        order = [n.id for n in ts.nodes()]
+        assert order == list(range(ts.num_nodes))
+        order = [n.id for n in ts.nodes(order="id")]
+        assert order == list(range(ts.num_nodes))
+        order = np.array([n.id for n in ts.nodes(order="timeasc")], dtype=int)
+        assert np.all(ts.nodes_time[order] == np.sort(ts.nodes_time))
+        # Check it conforms to the order of parents in the edge table
+        parent_only_order = order[np.isin(order, ts.edges_parent)]
+        edge_parents = np.concatenate(
+            (ts.edges_parent[:-1][np.diff(ts.edges_parent) != 0], ts.edges_parent[-1:])
+        )
+        assert np.all(parent_only_order == edge_parents)
 
     def verify_edgesets(self, ts):
         """
