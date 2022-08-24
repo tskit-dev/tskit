@@ -16,13 +16,16 @@
    Default is ``None``, where all the sample nodes are selected.
    (:user:`szhan`, :pr:`2493`, :issue:`678`)
 
-**Changes**
+**Breaking Changes**
 
  - Single statistics computed with ``TreeSequence.general_stat`` are now
    returned as numpy scalars if windows=None, AND; samples is a single
    list or None (for a 1-way stat), OR indexes is None or a single list of 
    length k (instead of a list of length-k lists).
    (:user:`gtsambos`, :pr:`2417`, :issue:`2308`)
+
+ - Accessor methods such as ts.edge(n) and ts.node(n) now allow negative
+   indexes (:user:`hyanwong`, :pr:`2478`, :issue:`1008`)
 
 **Performance improvements**
 

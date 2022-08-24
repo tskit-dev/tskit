@@ -33,6 +33,7 @@ import functools
 import io
 import itertools
 import math
+import numbers
 import warnings
 from dataclasses import dataclass
 from typing import Any
@@ -3816,10 +3817,6 @@ class SimpleContainerSequence:
         return self.length
 
     def __getitem__(self, index):
-        if index < 0:
-            index += len(self)
-        if index < 0 or index >= len(self):
-            raise IndexError("Index out of bounds")
         return self.getter(index)
 
 
@@ -5753,10 +5750,12 @@ class TreeSequence:
     def individual(self, id_):
         """
         Returns the :ref:`individual <sec_individual_table_definition>`
-        in this tree sequence with the specified ID.
+        in this tree sequence with the specified ID.  As with python lists, negative
+        IDs can be used to index backwards from the last individual.
 
         :rtype: :class:`Individual`
         """
+        id_ = self.check_index(id_, self.num_individuals)
         (
             flags,
             location,
@@ -5779,10 +5778,12 @@ class TreeSequence:
     def node(self, id_):
         """
         Returns the :ref:`node <sec_node_table_definition>` in this tree sequence
-        with the specified ID.
+        with the specified ID. As with python lists, negative IDs can be used to
+        index backwards from the last node.
 
         :rtype: :class:`Node`
         """
+        id_ = self.check_index(id_, self.num_nodes)
         (
             flags,
             time,
@@ -5800,13 +5801,27 @@ class TreeSequence:
             metadata_decoder=self.table_metadata_schemas.node.decode_row,
         )
 
+    @staticmethod
+    def check_index(index, length):
+        if not isinstance(index, numbers.Integral):
+            raise TypeError(
+                f"Index must be of integer type, not '{type(index).__name__}'"
+            )
+        if index < 0:
+            index += length
+        if index < 0 or index >= length:
+            raise IndexError("Index out of bounds")
+        return index
+
     def edge(self, id_):
         """
         Returns the :ref:`edge <sec_edge_table_definition>` in this tree sequence
-        with the specified ID.
+        with the specified ID. As with python lists, negative IDs can be used to
+        index backwards from the last edge.
 
         :rtype: :class:`Edge`
         """
+        id_ = self.check_index(id_, self.num_edges)
         left, right, parent, child, metadata = self._ll_tree_sequence.get_edge(id_)
         return Edge(
             id=id_,
@@ -5821,10 +5836,12 @@ class TreeSequence:
     def migration(self, id_):
         """
         Returns the :ref:`migration <sec_migration_table_definition>` in this tree
-        sequence with the specified ID.
+        sequence with the specified ID. As with python lists, negative IDs can be
+        used to index backwards from the last migration.
 
         :rtype: :class:`.Migration`
         """
+        id_ = self.check_index(id_, self.num_migrations)
         (
             left,
             right,
@@ -5849,10 +5866,12 @@ class TreeSequence:
     def mutation(self, id_):
         """
         Returns the :ref:`mutation <sec_mutation_table_definition>` in this tree sequence
-        with the specified ID.
+        with the specified ID. As with python lists, negative IDs can be used to
+        index backwards from the last mutation.
 
         :rtype: :class:`Mutation`
         """
+        id_ = self.check_index(id_, self.num_mutations)
         (
             site,
             node,
@@ -5877,7 +5896,8 @@ class TreeSequence:
     def site(self, id_=None, *, position=None):
         """
         Returns the :ref:`site <sec_site_table_definition>` in this tree sequence
-        with either the specified ID or position.
+        with either the specified ID or position. As with python lists, negative IDs
+        can be used to index backwards from the last site.
 
         When position is specified instead of site ID, a binary search is done
         on the list of positions of the sites to try to find a site
@@ -5901,6 +5921,8 @@ class TreeSequence:
             id_ = site_pos.searchsorted(position)
             if id_ >= len(site_pos) or site_pos[id_] != position:
                 raise ValueError(f"There is no site at position {position}.")
+        else:
+            id_ = self.check_index(id_, self.num_sites)
         ll_site = self._ll_tree_sequence.get_site(id_)
         pos, ancestral_state, ll_mutations, _, metadata = ll_site
         mutations = [self.mutation(mut_id) for mut_id in ll_mutations]
@@ -5916,10 +5938,12 @@ class TreeSequence:
     def population(self, id_):
         """
         Returns the :ref:`population <sec_population_table_definition>`
-        in this tree sequence with the specified ID.
+        in this tree sequence with the specified ID.  As with python lists, negative
+        IDs can be used to index backwards from the last population.
 
         :rtype: :class:`Population`
         """
+        id_ = self.check_index(id_, self.num_populations)
         (metadata,) = self._ll_tree_sequence.get_population(id_)
         return Population(
             id=id_,
@@ -5930,8 +5954,10 @@ class TreeSequence:
     def provenance(self, id_):
         """
         Returns the :ref:`provenance <sec_provenance_table_definition>`
-        in this tree sequence with the specified ID.
+        in this tree sequence with the specified ID.  As with python lists,
+        negative IDs can be used to index backwards from the last provenance.
         """
+        id_ = self.check_index(id_, self.num_provenances)
         timestamp, record = self._ll_tree_sequence.get_provenance(id_)
         return Provenance(id=id_, timestamp=timestamp, record=record)
 
