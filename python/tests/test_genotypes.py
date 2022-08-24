@@ -51,7 +51,7 @@ from tskit.genotypes import allele_remap
 @tests.cached_example
 def get_example_discrete_genome_tree_sequences():
     ret = []
-    for ts in get_example_tree_sequences():
+    for ts in get_example_tree_sequences(pytest_params=False):
         if ts.discrete_genome:
             snps = all(len(site.ancestral_state) == 1 for site in ts.sites()) and all(
                 len(mut.derived_state) == 1 for mut in ts.mutations()
