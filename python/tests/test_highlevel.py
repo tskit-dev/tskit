@@ -26,6 +26,7 @@ Test cases for the high level interface to tskit.
 import collections
 import dataclasses
 import decimal
+import functools
 import inspect
 import io
 import itertools
@@ -206,11 +207,13 @@ def insert_gap(ts, position, length):
     return tables.tree_sequence()
 
 
+@functools.lru_cache()
 def get_gap_examples():
     """
     Returns example tree sequences that contain gaps within the list of
     edges.
     """
+    ret = []
     ts = msprime.simulate(20, random_seed=56, recombination_rate=1)
 
     assert ts.num_trees > 1
@@ -225,20 +228,23 @@ def get_gap_examples():
                 assert len(t.parent_dict) == 0
                 found = True
         assert found
-        yield ts
+        ret.append((f"gap {x}", ts))
     # Give an example with a gap at the end.
     ts = msprime.simulate(10, random_seed=5, recombination_rate=1)
     tables = get_table_collection_copy(ts.dump_tables(), 2)
     tables.sites.clear()
     tables.mutations.clear()
     insert_uniform_mutations(tables, 100, list(ts.samples()))
-    yield tables.tree_sequence()
+    ret.append(("gap at end", tables.tree_sequence()))
+    return ret
 
 
+@functools.lru_cache()
 def get_internal_samples_examples():
     """
     Returns example tree sequences with internal samples.
     """
+    ret = []
     n = 5
     ts = msprime.simulate(n, random_seed=10, mutation_rate=5)
     assert ts.num_mutations > 0
@@ -248,84 +254,35 @@ def get_internal_samples_examples():
     # Set all nodes to be samples.
     flags[:] = tskit.NODE_IS_SAMPLE
     nodes.flags = flags
-    yield tables.tree_sequence()
+    ret.append(("all nodes samples", tables.tree_sequence()))
 
     # Set just internal nodes to be samples.
     flags[:] = 0
     flags[n:] = tskit.NODE_IS_SAMPLE
     nodes.flags = flags
-    yield tables.tree_sequence()
+    ret.append(("internal nodes samples", tables.tree_sequence()))
 
     # Set a mixture of internal and leaf samples.
     flags[:] = 0
     flags[n // 2 : n + n // 2] = tskit.NODE_IS_SAMPLE
     nodes.flags = flags
-    yield tables.tree_sequence()
+    ret.append(("mixture of internal and leaf samples", tables.tree_sequence()))
+    return ret
 
 
+@functools.lru_cache()
 def get_decapitated_examples():
     """
     Returns example tree sequences in which the oldest edges have been removed.
     """
+    ret = []
     ts = msprime.simulate(10, random_seed=1234)
-    yield ts.decapitate(ts.tables.nodes.time[-1] / 2)
+    ret.append(("decapitate", ts.decapitate(ts.tables.nodes.time[-1] / 2)))
 
     ts = msprime.simulate(20, recombination_rate=1, random_seed=1234)
     assert ts.num_trees > 2
-    yield ts.decapitate(ts.tables.nodes.time[-1] / 4)
-
-
-def get_example_tree_sequences(back_mutations=True, gaps=True, internal_samples=True):
-    if gaps:
-        yield from get_decapitated_examples()
-        yield from get_gap_examples()
-    if internal_samples:
-        yield from get_internal_samples_examples()
-    seed = 1
-    for n in [2, 3, 10, 100]:
-        for m in [1, 2, 32]:
-            for rho in [0, 0.1, 0.5]:
-                recomb_map = msprime.RecombinationMap.uniform_map(m, rho, num_loci=m)
-                ts = msprime.simulate(
-                    recombination_map=recomb_map,
-                    mutation_rate=0.1,
-                    random_seed=seed,
-                    population_configurations=[
-                        msprime.PopulationConfiguration(n),
-                        msprime.PopulationConfiguration(0),
-                    ],
-                    migration_matrix=[[0, 1], [1, 0]],
-                )
-                ts = tsutil.insert_random_ploidy_individuals(ts, 4, seed=seed)
-                yield tsutil.add_random_metadata(ts, seed=seed)
-                seed += 1
-    for ts in get_bottleneck_examples():
-        yield msprime.mutate(
-            ts,
-            rate=0.1,
-            random_seed=seed,
-            model=msprime.InfiniteSites(msprime.NUCLEOTIDES),
-        )
-    ts = msprime.sim_ancestry(
-        8, sequence_length=40, recombination_rate=0.1, random_seed=seed
-    )
-    tables = ts.dump_tables()
-    tables.populations.metadata_schema = tskit.MetadataSchema(None)
-    ts = tables.tree_sequence()
-    assert ts.num_trees > 1
-    if back_mutations:
-        yield tsutil.insert_branch_mutations(ts, mutations_per_branch=2)
-    ts = tsutil.insert_multichar_mutations(ts)
-    yield ts
-    yield tsutil.add_random_metadata(ts)
-    tables = ts.dump_tables()
-    tables.nodes.flags = np.zeros_like(tables.nodes.flags)
-    yield tables.tree_sequence()  # no samples
-    tables = ts.dump_tables()
-    tables.edges.clear()
-    yield tables.tree_sequence()  # empty tree
-    yield tskit.TableCollection(sequence_length=1).tree_sequence()  # empty tree seq
-    yield tsutil.all_fields_ts()
+    ret.append(("decapitate recomb", ts.decapitate(ts.tables.nodes.time[-1] / 4)))
+    return ret
 
 
 def get_bottleneck_examples():
@@ -345,7 +302,7 @@ def get_bottleneck_examples():
             demographic_events=bottlenecks,
             random_seed=n,
         )
-        yield ts
+        yield (f"bottleneck n={n}", ts)
 
 
 def get_back_mutation_examples():
@@ -357,6 +314,78 @@ def get_back_mutation_examples():
         yield tsutil.insert_branch_mutations(ts, mutations_per_branch=j)
     for ts in get_bottleneck_examples():
         yield tsutil.insert_branch_mutations(ts)
+
+
+def make_example_tree_sequences():
+    yield from get_decapitated_examples()
+    yield from get_gap_examples()
+    yield from get_internal_samples_examples()
+    seed = 1
+    for n in [2, 3, 10, 100]:
+        for m in [1, 2, 32]:
+            for rho in [0, 0.1, 0.5]:
+                recomb_map = msprime.RecombinationMap.uniform_map(m, rho, num_loci=m)
+                ts = msprime.simulate(
+                    recombination_map=recomb_map,
+                    mutation_rate=0.1,
+                    random_seed=seed,
+                    population_configurations=[
+                        msprime.PopulationConfiguration(n),
+                        msprime.PopulationConfiguration(0),
+                    ],
+                    migration_matrix=[[0, 1], [1, 0]],
+                )
+                ts = tsutil.insert_random_ploidy_individuals(ts, 4, seed=seed)
+                yield (
+                    f"n={n} m={m} rho={rho}",
+                    tsutil.add_random_metadata(ts, seed=seed),
+                )
+                seed += 1
+    for name, ts in get_bottleneck_examples():
+        yield (
+            f"{name} mutated",
+            msprime.mutate(
+                ts,
+                rate=0.1,
+                random_seed=seed,
+                model=msprime.InfiniteSites(msprime.NUCLEOTIDES),
+            ),
+        )
+    ts = msprime.sim_ancestry(
+        8, sequence_length=40, recombination_rate=0.1, random_seed=seed
+    )
+    tables = ts.dump_tables()
+    tables.populations.metadata_schema = tskit.MetadataSchema(None)
+    ts = tables.tree_sequence()
+    assert ts.num_trees > 1
+    yield (
+        "back mutations",
+        tsutil.insert_branch_mutations(ts, mutations_per_branch=2),
+    )
+    ts = tsutil.insert_multichar_mutations(ts)
+    yield ("multichar", ts)
+    yield ("multichar w/ metadata", tsutil.add_random_metadata(ts))
+    tables = ts.dump_tables()
+    tables.nodes.flags = np.zeros_like(tables.nodes.flags)
+    yield ("no samples", tables.tree_sequence())  # no samples
+    tables = ts.dump_tables()
+    tables.edges.clear()
+    yield ("empty tree", tables.tree_sequence())  # empty tree
+    yield (
+        "empty ts",
+        tskit.TableCollection(sequence_length=1).tree_sequence(),
+    )  # empty tree seq
+    yield ("all_fields", tsutil.all_fields_ts())
+
+
+_examples = tuple(make_example_tree_sequences())
+
+
+def get_example_tree_sequences(pytest_params=True):
+    if pytest_params:
+        return [pytest.param(ts, id=name) for name, ts in _examples]
+    else:
+        return [ts for _, ts in _examples]
 
 
 def simple_get_pairwise_diversity(haplotypes):
@@ -1379,13 +1408,13 @@ class TestTreeSequence(HighLevelTestCase):
         )
         assert ts.discrete_time == discrete_time
 
-    def test_trees(self):
-        for ts in get_example_tree_sequences():
-            self.verify_trees(ts)
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_trees(self, ts):
+        self.verify_trees(ts)
 
-    def test_mutations(self):
-        for ts in get_example_tree_sequences():
-            self.verify_mutations(ts)
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_mutations(self, ts):
+        self.verify_mutations(ts)
 
     def verify_pairwise_diversity(self, ts):
         haplotypes = ts.genotype_matrix(isolated_as_missing=False).T
@@ -1408,9 +1437,9 @@ class TestTreeSequence(HighLevelTestCase):
         assert not math.isnan(pi1)
 
     @pytest.mark.slow
-    def test_pairwise_diversity(self):
-        for ts in get_example_tree_sequences():
-            self.verify_pairwise_diversity(ts)
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_pairwise_diversity(self, ts):
+        self.verify_pairwise_diversity(ts)
 
     def verify_edgesets(self, ts):
         """
@@ -1449,38 +1478,37 @@ class TestTreeSequence(HighLevelTestCase):
         assert len(squashed) == len(edges)
         assert edges == squashed
 
-    def test_edge_ids(self):
-        for ts in get_example_tree_sequences():
-            for index, edge in enumerate(ts.edges()):
-                assert edge.id == index
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_edge_ids(self, ts):
+        for index, edge in enumerate(ts.edges()):
+            assert edge.id == index
 
-    def test_edge_span_property(self):
-        for ts in get_example_tree_sequences():
-            for edge in ts.edges():
-                assert edge.span == edge.right - edge.left
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_edge_span_property(self, ts):
+        for edge in ts.edges():
+            assert edge.span == edge.right - edge.left
 
     def test_edgesets(self):
         tested = False
-        for ts in get_example_tree_sequences():
+        # We manual loop in this test to test the example tree sequences are working
+        for ts in get_example_tree_sequences(pytest_params=False):
             # Can't get edgesets with metadata
             if ts.tables.edges.metadata_schema == tskit.MetadataSchema(None):
                 self.verify_edgesets(ts)
                 tested = True
         assert tested
 
-    def test_breakpoints(self):
-        for ts in get_example_tree_sequences():
-            breakpoints = ts.breakpoints(as_array=True)
-            assert breakpoints.shape == (ts.num_trees + 1,)
-            other = np.fromiter(
-                iter([0] + [t.interval.right for t in ts.trees()]), float
-            )
-            assert np.array_equal(other, breakpoints)
-            # in case downstream code has
-            for j, x in enumerate(ts.breakpoints()):
-                assert breakpoints[j] == x
-                assert isinstance(x, float)
-            assert j == ts.num_trees
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_breakpoints(self, ts):
+        breakpoints = ts.breakpoints(as_array=True)
+        assert breakpoints.shape == (ts.num_trees + 1,)
+        other = np.fromiter(iter([0] + [t.interval.right for t in ts.trees()]), float)
+        assert np.array_equal(other, breakpoints)
+        # in case downstream code has
+        for j, x in enumerate(ts.breakpoints()):
+            assert breakpoints[j] == x
+            assert isinstance(x, float)
+        assert j == ts.num_trees
 
     def verify_coalescence_records(self, ts):
         """
@@ -1498,28 +1526,26 @@ class TestTreeSequence(HighLevelTestCase):
             assert parent.time == record.time
             assert parent.population == record.population
 
-    def test_coalescence_records(self):
-        for ts in get_example_tree_sequences():
-            self.verify_coalescence_records(ts)
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_coalescence_records(self, ts):
+        self.verify_coalescence_records(ts)
 
-    def test_compute_mutation_parent(self):
-        for ts in get_example_tree_sequences():
-            tables = ts.dump_tables()
-            before = tables.mutations.parent[:]
-            tables.compute_mutation_parents()
-            parent = ts.tables.mutations.parent
-            assert np.array_equal(parent, before)
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_compute_mutation_parent(self, ts):
+        tables = ts.dump_tables()
+        before = tables.mutations.parent[:]
+        tables.compute_mutation_parents()
+        parent = ts.tables.mutations.parent
+        assert np.array_equal(parent, before)
 
-    def test_compute_mutation_time(self):
-        for ts in get_example_tree_sequences():
-            tables = ts.dump_tables()
-            python_time = tsutil.compute_mutation_times(ts)
-            tables.compute_mutation_times()
-            assert np.allclose(
-                python_time, tables.mutations.time, rtol=1e-10, atol=1e-10
-            )
-            # Check we have valid times
-            tables.tree_sequence()
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_compute_mutation_time(self, ts):
+        tables = ts.dump_tables()
+        python_time = tsutil.compute_mutation_times(ts)
+        tables.compute_mutation_times()
+        assert np.allclose(python_time, tables.mutations.time, rtol=1e-10, atol=1e-10)
+        # Check we have valid times
+        tables.tree_sequence()
 
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_tracked_samples(self, ts):
@@ -1548,32 +1574,30 @@ class TestTreeSequence(HighLevelTestCase):
         tree = next(ts.trees(samples))
         assert tree.num_tracked_samples() == 3
 
-    def test_deprecated_sample_aliases(self):
-        for ts in get_example_tree_sequences():
-            # Ensure that we get the same results from the various combinations
-            # of leaf_lists, sample_lists etc.
-            samples = list(ts.samples())[:2]
-            # tracked leaves/samples
-            trees_new = ts.trees(tracked_samples=samples)
-            trees_old = ts.trees(tracked_leaves=samples)
-            for t_new, t_old in zip(trees_new, trees_old):
-                for u in t_new.nodes():
-                    assert t_new.num_tracked_samples(u) == t_old.get_num_tracked_leaves(
-                        u
-                    )
-            trees_new = ts.trees()
-            trees_old = ts.trees()
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_deprecated_sample_aliases(self, ts):
+        # Ensure that we get the same results from the various combinations
+        # of leaf_lists, sample_lists etc.
+        samples = list(ts.samples())[:2]
+        # tracked leaves/samples
+        trees_new = ts.trees(tracked_samples=samples)
+        trees_old = ts.trees(tracked_leaves=samples)
+        for t_new, t_old in zip(trees_new, trees_old):
+            for u in t_new.nodes():
+                assert t_new.num_tracked_samples(u) == t_old.get_num_tracked_leaves(u)
+        trees_new = ts.trees()
+        trees_old = ts.trees()
+        for t_new, t_old in zip(trees_new, trees_old):
+            for u in t_new.nodes():
+                assert t_new.num_samples(u) == t_old.get_num_leaves(u)
+                assert list(t_new.samples(u)) == list(t_old.get_leaves(u))
+        for on in [True, False]:
+            trees_new = ts.trees(sample_lists=on)
+            trees_old = ts.trees(leaf_lists=on)
             for t_new, t_old in zip(trees_new, trees_old):
                 for u in t_new.nodes():
                     assert t_new.num_samples(u) == t_old.get_num_leaves(u)
                     assert list(t_new.samples(u)) == list(t_old.get_leaves(u))
-            for on in [True, False]:
-                trees_new = ts.trees(sample_lists=on)
-                trees_old = ts.trees(leaf_lists=on)
-                for t_new, t_old in zip(trees_new, trees_old):
-                    for u in t_new.nodes():
-                        assert t_new.num_samples(u) == t_old.get_num_leaves(u)
-                        assert list(t_new.samples(u)) == list(t_old.get_leaves(u))
 
     def verify_samples(self, ts):
         # We should get the same list of samples if we use the low-level
@@ -1586,47 +1610,48 @@ class TestTreeSequence(HighLevelTestCase):
             samples2.append(list(t.samples()))
         assert samples1 == samples2
 
-    def test_samples(self):
-        for ts in get_example_tree_sequences():
-            self.verify_samples(ts)
-            pops = {node.population for node in ts.nodes()}
-            for pop in pops:
-                subsample = ts.samples(pop)
-                assert np.array_equal(subsample, ts.samples(population=pop))
-                assert np.array_equal(subsample, ts.samples(population_id=pop))
-                assert list(subsample) == [
-                    node.id
-                    for node in ts.nodes()
-                    if node.population == pop and node.is_sample()
-                ]
-            with pytest.raises(ValueError):
-                ts.samples(population=0, population_id=0)
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_samples(self, ts):
+        self.verify_samples(ts)
+        pops = {node.population for node in ts.nodes()}
+        for pop in pops:
+            subsample = ts.samples(pop)
+            assert np.array_equal(subsample, ts.samples(population=pop))
+            assert np.array_equal(subsample, ts.samples(population_id=pop))
+            assert list(subsample) == [
+                node.id
+                for node in ts.nodes()
+                if node.population == pop and node.is_sample()
+            ]
+        with pytest.raises(ValueError):
+            ts.samples(population=0, population_id=0)
 
-    def test_first_last(self):
-        for ts in get_example_tree_sequences():
-            for kwargs in [{}, {"tracked_samples": ts.samples()}]:
-                t1 = ts.first(**kwargs)
-                t2 = next(ts.trees())
-                assert not (t1 is t2)
-                assert t1.parent_dict == t2.parent_dict
-                assert t1.index == 0
-                if "tracked_samples" in kwargs:
-                    assert t1.num_tracked_samples() == ts.num_samples
-                else:
-                    assert t1.num_tracked_samples() == 0
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_first_last(self, ts):
+        for kwargs in [{}, {"tracked_samples": ts.samples()}]:
+            t1 = ts.first(**kwargs)
+            t2 = next(ts.trees())
+            assert not (t1 is t2)
+            assert t1.parent_dict == t2.parent_dict
+            assert t1.index == 0
+            if "tracked_samples" in kwargs:
+                assert t1.num_tracked_samples() == ts.num_samples
+            else:
+                assert t1.num_tracked_samples() == 0
 
-                t1 = ts.last(**kwargs)
-                t2 = next(reversed(ts.trees()))
-                assert not (t1 is t2)
-                assert t1.parent_dict == t2.parent_dict
-                assert t1.index == ts.num_trees - 1
-                if "tracked_samples" in kwargs:
-                    assert t1.num_tracked_samples() == ts.num_samples
-                else:
-                    assert t1.num_tracked_samples() == 0
+            t1 = ts.last(**kwargs)
+            t2 = next(reversed(ts.trees()))
+            assert not (t1 is t2)
+            assert t1.parent_dict == t2.parent_dict
+            assert t1.index == ts.num_trees - 1
+            if "tracked_samples" in kwargs:
+                assert t1.num_tracked_samples() == ts.num_samples
+            else:
+                assert t1.num_tracked_samples() == 0
 
     def test_trees_interface(self):
-        ts = list(get_example_tree_sequences())[0]
+        # Use a tree sequence guaranteed to have node 0 as the first sample node
+        ts = tskit.Tree.generate_balanced(10).tree_sequence
         for t in ts.trees():
             assert t.get_num_samples(0) == 1
             assert t.get_num_tracked_samples(0) == 0
@@ -1643,25 +1668,25 @@ class TestTreeSequence(HighLevelTestCase):
             assert t.get_num_tracked_samples(0) == 0
             assert list(t.samples(0)) == [0]
 
-    def test_get_pairwise_diversity(self):
-        for ts in get_example_tree_sequences():
-            with pytest.raises(ValueError, match="at least one element"):
-                ts.get_pairwise_diversity([])
-            samples = list(ts.samples())
-            if len(samples) == 0:
-                with pytest.raises(
-                    ValueError, match="Sample sets must contain at least one element"
-                ):
-                    ts.get_pairwise_diversity()
-            else:
-                assert ts.get_pairwise_diversity() == ts.get_pairwise_diversity(samples)
-                assert ts.get_pairwise_diversity(
-                    samples[:2]
-                ) == ts.get_pairwise_diversity(list(reversed(samples[:2])))
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_get_pairwise_diversity(self, ts):
+        with pytest.raises(ValueError, match="at least one element"):
+            ts.get_pairwise_diversity([])
+        samples = list(ts.samples())
+        if len(samples) == 0:
+            with pytest.raises(
+                ValueError, match="Sample sets must contain at least one element"
+            ):
+                ts.get_pairwise_diversity()
+        else:
+            assert ts.get_pairwise_diversity() == ts.get_pairwise_diversity(samples)
+            assert ts.get_pairwise_diversity(samples[:2]) == ts.get_pairwise_diversity(
+                list(reversed(samples[:2]))
+            )
 
     def test_populations(self):
         more_than_zero = False
-        for ts in get_example_tree_sequences():
+        for ts in get_example_tree_sequences(pytest_params=False):
             N = ts.num_populations
             if N > 0:
                 more_than_zero = True
@@ -1675,7 +1700,7 @@ class TestTreeSequence(HighLevelTestCase):
     def test_individuals(self):
         more_than_zero = False
         mapped_to_nodes = False
-        for ts in get_example_tree_sequences():
+        for ts in get_example_tree_sequences(pytest_params=False):
             ind_node_map = collections.defaultdict(list)
             for node in ts.nodes():
                 if node.individual != tskit.NULL:
@@ -1698,46 +1723,44 @@ class TestTreeSequence(HighLevelTestCase):
         assert more_than_zero
         assert mapped_to_nodes
 
-    def test_get_population(self):
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_get_population(self, ts):
         # Deprecated interface for ts.node(id).population
-        for ts in get_example_tree_sequences():
-            N = ts.get_num_nodes()
-            with pytest.raises(ValueError):
-                ts.get_population(-1)
-            with pytest.raises(ValueError):
-                ts.get_population(N)
-            with pytest.raises(ValueError):
-                ts.get_population(N + 1)
-            for node in range(0, N - 1):
-                assert ts.get_population(node) == ts.node(node).population
+        N = ts.get_num_nodes()
+        with pytest.raises(ValueError):
+            ts.get_population(-1)
+        with pytest.raises(ValueError):
+            ts.get_population(N)
+        with pytest.raises(ValueError):
+            ts.get_population(N + 1)
+        for node in range(0, N - 1):
+            assert ts.get_population(node) == ts.node(node).population
 
-    def test_get_time(self):
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_get_time(self, ts):
         # Deprecated interface for ts.node(id).time
-        for ts in get_example_tree_sequences():
-            N = ts.get_num_nodes()
-            with pytest.raises(ValueError):
-                ts.get_time(-1)
-            with pytest.raises(ValueError):
-                ts.get_time(N)
-            with pytest.raises(ValueError):
-                ts.get_time(N + 1)
-            for u in range(N):
-                assert ts.get_time(u) == ts.node(u).time
+        N = ts.get_num_nodes()
+        with pytest.raises(ValueError):
+            ts.get_time(-1)
+        with pytest.raises(ValueError):
+            ts.get_time(N)
+        with pytest.raises(ValueError):
+            ts.get_time(N + 1)
+        for u in range(N):
+            assert ts.get_time(u) == ts.node(u).time
 
-    def test_max_root_time(self):
-        for ts in get_example_tree_sequences():
-            oldest = None
-            for tree in ts.trees():
-                for root in tree.roots:
-                    oldest = (
-                        tree.time(root)
-                        if oldest is None
-                        else max(oldest, tree.time(root))
-                    )
-            if oldest is None:
-                assert pytest.raises(ValueError, match="max()")
-            else:
-                assert oldest == ts.max_root_time
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_max_root_time(self, ts):
+        oldest = None
+        for tree in ts.trees():
+            for root in tree.roots:
+                oldest = (
+                    tree.time(root) if oldest is None else max(oldest, tree.time(root))
+                )
+        if oldest is None:
+            assert pytest.raises(ValueError, match="max()")
+        else:
+            assert oldest == ts.max_root_time
 
     def test_max_root_time_corner_cases(self):
         tables = tskit.TableCollection(1)
@@ -1867,7 +1890,7 @@ class TestTreeSequence(HighLevelTestCase):
     @pytest.mark.slow
     def test_simplify(self):
         num_mutations = 0
-        for ts in get_example_tree_sequences():
+        for ts in get_example_tree_sequences(pytest_params=False):
             # Can't simplify edges with metadata
             if ts.tables.edges.metadata_schema == tskit.MetadataSchema(schema=None):
                 self.verify_tables_api_equality(ts)
@@ -1942,7 +1965,7 @@ class TestTreeSequence(HighLevelTestCase):
 
     def test_sites(self):
         some_sites = False
-        for ts in get_example_tree_sequences():
+        for ts in get_example_tree_sequences(pytest_params=False):
             tables = ts.dump_tables()
             sites = tables.sites
             mutations = tables.mutations
@@ -1997,13 +2020,13 @@ class TestTreeSequence(HighLevelTestCase):
         for mut, other_mut in zip(mutations, other_mutations):
             assert mut == other_mut
 
-    def test_sites_mutations(self):
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_sites_mutations(self, ts):
         # Check that the mutations iterator returns the correct values.
-        for ts in get_example_tree_sequences():
-            self.verify_mutations(ts)
+        self.verify_mutations(ts)
 
     def test_removed_methods(self):
-        ts = next(get_example_tree_sequences())
+        ts = tskit.TableCollection(1).tree_sequence()
         with pytest.raises(NotImplementedError):
             ts.get_num_records()
         with pytest.raises(NotImplementedError):
@@ -2086,155 +2109,159 @@ class TestTreeSequence(HighLevelTestCase):
             assert migration.right == 1
             assert 0 <= migration.node < ts.num_nodes
 
-    def test_len_trees(self):
-        for ts in get_example_tree_sequences():
-            tree_iter = ts.trees()
-            assert len(tree_iter) == ts.num_trees
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_len_trees(self, ts):
+        tree_iter = ts.trees()
+        assert len(tree_iter) == ts.num_trees
 
-    def test_list(self):
-        for ts in get_example_tree_sequences():
-            for kwargs in [{}, {"tracked_samples": ts.samples()}]:
-                tree_list = ts.aslist(**kwargs)
-                assert len(tree_list) == ts.num_trees
-                assert len(set(map(id, tree_list))) == ts.num_trees
-                for index, tree in enumerate(tree_list):
-                    assert index == tree.index
-                for t1, t2 in zip(tree_list, ts.trees(**kwargs)):
-                    assert t1 == t2
-                    assert t1.parent_dict == t2.parent_dict
-                    if "tracked_samples" in kwargs:
-                        assert t1.num_tracked_samples() == ts.num_samples
-                        assert t2.num_tracked_samples() == ts.num_samples
-                    else:
-                        assert t1.num_tracked_samples() == 0
-                        assert t2.num_tracked_samples() == 0
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_list(self, ts):
+        for kwargs in [{}, {"tracked_samples": ts.samples()}]:
+            tree_list = ts.aslist(**kwargs)
+            assert len(tree_list) == ts.num_trees
+            assert len(set(map(id, tree_list))) == ts.num_trees
+            for index, tree in enumerate(tree_list):
+                assert index == tree.index
+            for t1, t2 in zip(tree_list, ts.trees(**kwargs)):
+                assert t1 == t2
+                assert t1.parent_dict == t2.parent_dict
+                if "tracked_samples" in kwargs:
+                    assert t1.num_tracked_samples() == ts.num_samples
+                    assert t2.num_tracked_samples() == ts.num_samples
+                else:
+                    assert t1.num_tracked_samples() == 0
+                    assert t2.num_tracked_samples() == 0
 
-    def test_reversed_trees(self):
-        for ts in get_example_tree_sequences():
-            index = ts.num_trees - 1
-            tree_list = ts.aslist()
-            for tree in reversed(ts.trees()):
-                assert tree.index == index
-                t2 = tree_list[index]
-                assert tree.interval == t2.interval
-                assert tree.parent_dict == t2.parent_dict
-                index -= 1
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_reversed_trees(self, ts):
+        index = ts.num_trees - 1
+        tree_list = ts.aslist()
+        for tree in reversed(ts.trees()):
+            assert tree.index == index
+            t2 = tree_list[index]
+            assert tree.interval == t2.interval
+            assert tree.parent_dict == t2.parent_dict
+            index -= 1
 
-    def test_at_index(self):
-        for ts in get_example_tree_sequences():
-            for kwargs in [{}, {"tracked_samples": ts.samples()}]:
-                tree_list = ts.aslist(**kwargs)
-                for index in list(range(ts.num_trees)) + [-1]:
-                    t1 = tree_list[index]
-                    t2 = ts.at_index(index, **kwargs)
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_at_index(self, ts):
+        for kwargs in [{}, {"tracked_samples": ts.samples()}]:
+            tree_list = ts.aslist(**kwargs)
+            for index in list(range(ts.num_trees)) + [-1]:
+                t1 = tree_list[index]
+                t2 = ts.at_index(index, **kwargs)
+                assert t1 == t2
+                assert t1.interval == t2.interval
+                assert t1.parent_dict == t2.parent_dict
+                if "tracked_samples" in kwargs:
+                    assert t2.num_tracked_samples() == ts.num_samples
+                else:
+                    assert t2.num_tracked_samples() == 0
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_at(self, ts):
+        for kwargs in [{}, {"tracked_samples": ts.samples()}]:
+            tree_list = ts.aslist(**kwargs)
+            for t1 in tree_list:
+                left, right = t1.interval
+                mid = left + (right - left) / 2
+                for pos in [left, left + 1e-9, mid, right - 1e-9]:
+                    t2 = ts.at(pos, **kwargs)
                     assert t1 == t2
                     assert t1.interval == t2.interval
                     assert t1.parent_dict == t2.parent_dict
-                    if "tracked_samples" in kwargs:
-                        assert t2.num_tracked_samples() == ts.num_samples
-                    else:
-                        assert t2.num_tracked_samples() == 0
-
-    def test_at(self):
-        for ts in get_example_tree_sequences():
-            for kwargs in [{}, {"tracked_samples": ts.samples()}]:
-                tree_list = ts.aslist(**kwargs)
-                for t1 in tree_list:
-                    left, right = t1.interval
-                    mid = left + (right - left) / 2
-                    for pos in [left, left + 1e-9, mid, right - 1e-9]:
-                        t2 = ts.at(pos, **kwargs)
-                        assert t1 == t2
-                        assert t1.interval == t2.interval
-                        assert t1.parent_dict == t2.parent_dict
-                    if right < ts.sequence_length:
-                        t2 = ts.at(right, **kwargs)
-                        t3 = tree_list[t1.index + 1]
-                        assert t3 == t2
-                        assert t3.interval == t2.interval
-                        assert t3.parent_dict == t2.parent_dict
-                    if "tracked_samples" in kwargs:
-                        assert t2.num_tracked_samples() == ts.num_samples
-                    else:
-                        assert t2.num_tracked_samples() == 0
-
-    def test_sequence_iteration(self):
-        for ts in get_example_tree_sequences():
-            for table_name in ts.tables_dict.keys():
-                sequence = getattr(ts, table_name)()
-                length = getattr(ts, "num_" + table_name)
-                # Test __iter__
-                for i, n in enumerate(sequence):
-                    assert i == n.id
-                assert n.id == (length - 1 if length else 0)
-                if table_name == "mutations":
-                    # Mutations are not currently sequences, so have no len or idx access
-                    with pytest.raises(TypeError):
-                        len(sequence)
-                    if length != 0:
-                        with pytest.raises(TypeError):
-                            sequence[0]
+                if right < ts.sequence_length:
+                    t2 = ts.at(right, **kwargs)
+                    t3 = tree_list[t1.index + 1]
+                    assert t3 == t2
+                    assert t3.interval == t2.interval
+                    assert t3.parent_dict == t2.parent_dict
+                if "tracked_samples" in kwargs:
+                    assert t2.num_tracked_samples() == ts.num_samples
                 else:
-                    # Test __len__
-                    assert len(sequence) == length
-                    # Test __getitem__ on the last item in the sequence
-                    if length != 0:
-                        assert sequence[length - 1] == n  # +ive indexing
-                        assert sequence[-1] == n  # -ive indexing
-                    with pytest.raises(IndexError):
-                        sequence[length]
-                    # Test reverse
-                    for i, n in enumerate(reversed(sequence)):
-                        assert i == length - 1 - n.id
+                    assert t2.num_tracked_samples() == 0
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_sequence_iteration(self, ts):
+        for table_name in ts.tables_dict.keys():
+            sequence = getattr(ts, table_name)()
+            length = getattr(ts, "num_" + table_name)
+            # Test __iter__
+            i = None
+            for i, n in enumerate(sequence):
+                assert i == n.id
+            if i is not None:
+                assert n.id == (length - 1 if length else 0)
+            if table_name == "mutations":
+                # Mutations are not currently sequences, so have no len or idx access
+                with pytest.raises(TypeError):
+                    len(sequence)
+                if length != 0:
+                    with pytest.raises(TypeError):
+                        sequence[0]
+            else:
+                # Test __len__
+                assert len(sequence) == length
+                # Test __getitem__ on the last item in the sequence
+                if length != 0:
+                    assert sequence[length - 1] == n  # +ive indexing
+                    assert sequence[-1] == n  # -ive indexing
+                with pytest.raises(IndexError):
+                    sequence[length]
+                # Test reverse
+                i = None
+                for i, n in enumerate(reversed(sequence)):
+                    assert i == length - 1 - n.id
+                if i is not None:
                     assert n.id == 0
 
-    def test_load_tables(self):
-        for ts in get_example_tree_sequences():
-            tables = ts.dump_tables()
-            tables.drop_index()
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_load_tables(self, ts):
+        tables = ts.dump_tables()
+        tables.drop_index()
 
-            # Tables not in tc not rebuilt as per default, so error
-            with pytest.raises(
-                _tskit.LibraryError, match="Table collection must be indexed"
-            ):
-                assert tskit.TreeSequence.load_tables(tables).dump_tables().has_index()
-
-            # Tables not in tc, but rebuilt
-            assert (
-                tskit.TreeSequence.load_tables(tables, build_indexes=True)
-                .dump_tables()
-                .has_index()
-            )
-
-            tables.build_index()
-            # Tables in tc, not rebuilt
-            assert (
-                tskit.TreeSequence.load_tables(tables, build_indexes=False)
-                .dump_tables()
-                .has_index()
-            )
-            # Tables in tc, and rebuilt
+        # Tables not in tc not rebuilt as per default, so error
+        with pytest.raises(
+            _tskit.LibraryError, match="Table collection must be indexed"
+        ):
             assert tskit.TreeSequence.load_tables(tables).dump_tables().has_index()
 
-    def test_html_repr(self):
-        for ts in get_example_tree_sequences():
-            html = ts._repr_html_()
-            # Parse to check valid
-            ElementTree.fromstring(html)
-            assert len(html) > 4300
-            assert f"<tr><td>Trees</td><td>{ts.num_trees}</td></tr>" in html
-            assert f"<tr><td>Time Units</td><td>{ts.time_units}</td></tr>" in html
-            for table in ts.tables.table_name_map:
-                assert f"<td>{table.capitalize()}</td>" in html
+        # Tables not in tc, but rebuilt
+        assert (
+            tskit.TreeSequence.load_tables(tables, build_indexes=True)
+            .dump_tables()
+            .has_index()
+        )
 
-    def test_str(self):
-        for ts in get_example_tree_sequences():
-            s = str(ts)
-            assert len(s) > 999
-            assert re.search(rf"║Trees *│ *{ts.num_trees}║", s)
-            assert re.search(rf"║Time Units *│ *{ts.time_units}║", s)
-            for table in ts.tables.table_name_map:
-                assert re.search(rf"║{table.capitalize()} *│", s)
+        tables.build_index()
+        # Tables in tc, not rebuilt
+        assert (
+            tskit.TreeSequence.load_tables(tables, build_indexes=False)
+            .dump_tables()
+            .has_index()
+        )
+        # Tables in tc, and rebuilt
+        assert tskit.TreeSequence.load_tables(tables).dump_tables().has_index()
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_html_repr(self, ts):
+        html = ts._repr_html_()
+        # Parse to check valid
+        ElementTree.fromstring(html)
+        assert len(html) > 4300
+        assert f"<tr><td>Trees</td><td>{ts.num_trees}</td></tr>" in html
+        assert f"<tr><td>Time Units</td><td>{ts.time_units}</td></tr>" in html
+        for table in ts.tables.table_name_map:
+            assert f"<td>{table.capitalize()}</td>" in html
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_str(self, ts):
+        s = str(ts)
+        assert len(s) > 999
+        assert re.search(rf"║Trees *│ *{ts.num_trees}║", s)
+        assert re.search(rf"║Time Units *│ *{ts.time_units}║", s)
+        for table in ts.tables.table_name_map:
+            assert re.search(rf"║{table.capitalize()} *│", s)
 
     @pytest.mark.skip("FIXME nbytes")
     def test_nbytes(self, tmp_path, ts_fixture):
@@ -2362,28 +2389,28 @@ class TestTreeSequence(HighLevelTestCase):
         assert t1.equals(t2)
         assert t2.equals(t1)
 
-    def test_tree_node_edges(self):
-        for ts in get_example_tree_sequences():
-            edge_visited = np.zeros(ts.num_edges, dtype=bool)
-            for tree in ts.trees():
-                mapping = tree.edge_array
-                node_mapped = mapping >= 0
-                edge_visited[mapping[node_mapped]] = True
-                # Note that tree.nodes() does not necessarily list all the nodes
-                # in the tree topology, only the ones that descend from a root.
-                # Therefore if not all the topological trees in a single `Tree` have
-                # a root, we can have edges above nodes that are not listed. This
-                # happens, for example, in a tree with no sample nodes.
-                assert np.sum(node_mapped) >= len(list(tree.nodes())) - tree.num_roots
-                for u in tree.nodes():
-                    if tree.parent(u) == tskit.NULL:
-                        assert mapping[u] == tskit.NULL
-                    else:
-                        edge = ts.edge(mapping[u])
-                        assert edge.child == u
-                        assert edge.left <= tree.interval.left
-                        assert edge.right >= tree.interval.right
-            assert np.all(edge_visited)
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_tree_node_edges(self, ts):
+        edge_visited = np.zeros(ts.num_edges, dtype=bool)
+        for tree in ts.trees():
+            mapping = tree.edge_array
+            node_mapped = mapping >= 0
+            edge_visited[mapping[node_mapped]] = True
+            # Note that tree.nodes() does not necessarily list all the nodes
+            # in the tree topology, only the ones that descend from a root.
+            # Therefore if not all the topological trees in a single `Tree` have
+            # a root, we can have edges above nodes that are not listed. This
+            # happens, for example, in a tree with no sample nodes.
+            assert np.sum(node_mapped) >= len(list(tree.nodes())) - tree.num_roots
+            for u in tree.nodes():
+                if tree.parent(u) == tskit.NULL:
+                    assert mapping[u] == tskit.NULL
+                else:
+                    edge = ts.edge(mapping[u])
+                    assert edge.child == u
+                    assert edge.left <= tree.interval.left
+                    assert edge.right >= tree.interval.right
+        assert np.all(edge_visited)
 
     def verify_individual_vectors(self, ts):
         verify_times = np.repeat(np.nan, ts.num_individuals)
@@ -3225,48 +3252,42 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
                 assert repr(migration.metadata) == splits[6]
 
     @pytest.mark.parametrize(("precision", "base64_metadata"), [(2, True), (7, False)])
-    def test_output_format(self, precision, base64_metadata):
-        for ts in get_example_tree_sequences():
-            nodes_file = io.StringIO()
-            edges_file = io.StringIO()
-            sites_file = io.StringIO()
-            mutations_file = io.StringIO()
-            individuals_file = io.StringIO()
-            populations_file = io.StringIO()
-            migrations_file = io.StringIO()
-            provenances_file = io.StringIO()
-            ts.dump_text(
-                nodes=nodes_file,
-                edges=edges_file,
-                sites=sites_file,
-                mutations=mutations_file,
-                individuals=individuals_file,
-                populations=populations_file,
-                migrations=migrations_file,
-                provenances=provenances_file,
-                precision=precision,
-                base64_metadata=base64_metadata,
-            )
-            nodes_file.seek(0)
-            edges_file.seek(0)
-            sites_file.seek(0)
-            mutations_file.seek(0)
-            individuals_file.seek(0)
-            populations_file.seek(0)
-            migrations_file.seek(0)
-            self.verify_nodes_format(ts, nodes_file, precision, base64_metadata)
-            self.verify_edges_format(ts, edges_file, precision, base64_metadata)
-            self.verify_sites_format(ts, sites_file, precision, base64_metadata)
-            self.verify_mutations_format(ts, mutations_file, precision, base64_metadata)
-            self.verify_individuals_format(
-                ts, individuals_file, precision, base64_metadata
-            )
-            self.verify_populations_format(
-                ts, populations_file, precision, base64_metadata
-            )
-            self.verify_migrations_format(
-                ts, migrations_file, precision, base64_metadata
-            )
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_output_format(self, precision, base64_metadata, ts):
+        nodes_file = io.StringIO()
+        edges_file = io.StringIO()
+        sites_file = io.StringIO()
+        mutations_file = io.StringIO()
+        individuals_file = io.StringIO()
+        populations_file = io.StringIO()
+        migrations_file = io.StringIO()
+        provenances_file = io.StringIO()
+        ts.dump_text(
+            nodes=nodes_file,
+            edges=edges_file,
+            sites=sites_file,
+            mutations=mutations_file,
+            individuals=individuals_file,
+            populations=populations_file,
+            migrations=migrations_file,
+            provenances=provenances_file,
+            precision=precision,
+            base64_metadata=base64_metadata,
+        )
+        nodes_file.seek(0)
+        edges_file.seek(0)
+        sites_file.seek(0)
+        mutations_file.seek(0)
+        individuals_file.seek(0)
+        populations_file.seek(0)
+        migrations_file.seek(0)
+        self.verify_nodes_format(ts, nodes_file, precision, base64_metadata)
+        self.verify_edges_format(ts, edges_file, precision, base64_metadata)
+        self.verify_sites_format(ts, sites_file, precision, base64_metadata)
+        self.verify_mutations_format(ts, mutations_file, precision, base64_metadata)
+        self.verify_individuals_format(ts, individuals_file, precision, base64_metadata)
+        self.verify_populations_format(ts, populations_file, precision, base64_metadata)
+        self.verify_migrations_format(ts, migrations_file, precision, base64_metadata)
 
     def verify_approximate_equality(self, ts1, ts2):
         """
@@ -3339,46 +3360,46 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
             check += 1
         assert check == ts1.get_num_trees()
 
-    def test_text_record_round_trip(self):
-        for ts1 in get_example_tree_sequences():
-            # Can't round trip without the schema
-            if ts1.tables.nodes.metadata_schema == tskit.MetadataSchema(None):
-                nodes_file = io.StringIO()
-                edges_file = io.StringIO()
-                sites_file = io.StringIO()
-                mutations_file = io.StringIO()
-                individuals_file = io.StringIO()
-                populations_file = io.StringIO()
-                migrations_file = io.StringIO()
-                ts1.dump_text(
-                    nodes=nodes_file,
-                    edges=edges_file,
-                    sites=sites_file,
-                    mutations=mutations_file,
-                    individuals=individuals_file,
-                    populations=populations_file,
-                    migrations=migrations_file,
-                    precision=16,
-                )
-                nodes_file.seek(0)
-                edges_file.seek(0)
-                sites_file.seek(0)
-                mutations_file.seek(0)
-                individuals_file.seek(0)
-                populations_file.seek(0)
-                migrations_file.seek(0)
-                ts2 = tskit.load_text(
-                    nodes=nodes_file,
-                    edges=edges_file,
-                    sites=sites_file,
-                    mutations=mutations_file,
-                    individuals=individuals_file,
-                    populations=populations_file,
-                    migrations=migrations_file,
-                    sequence_length=ts1.sequence_length,
-                    strict=True,
-                )
-                self.verify_approximate_equality(ts1, ts2)
+    @pytest.mark.parametrize("ts1", get_example_tree_sequences())
+    def test_text_record_round_trip(self, ts1):
+        # Can't round trip without the schema
+        if ts1.tables.nodes.metadata_schema == tskit.MetadataSchema(None):
+            nodes_file = io.StringIO()
+            edges_file = io.StringIO()
+            sites_file = io.StringIO()
+            mutations_file = io.StringIO()
+            individuals_file = io.StringIO()
+            populations_file = io.StringIO()
+            migrations_file = io.StringIO()
+            ts1.dump_text(
+                nodes=nodes_file,
+                edges=edges_file,
+                sites=sites_file,
+                mutations=mutations_file,
+                individuals=individuals_file,
+                populations=populations_file,
+                migrations=migrations_file,
+                precision=16,
+            )
+            nodes_file.seek(0)
+            edges_file.seek(0)
+            sites_file.seek(0)
+            mutations_file.seek(0)
+            individuals_file.seek(0)
+            populations_file.seek(0)
+            migrations_file.seek(0)
+            ts2 = tskit.load_text(
+                nodes=nodes_file,
+                edges=edges_file,
+                sites=sites_file,
+                mutations=mutations_file,
+                individuals=individuals_file,
+                populations=populations_file,
+                migrations=migrations_file,
+                sequence_length=ts1.sequence_length,
+                strict=True,
+            )
+            self.verify_approximate_equality(ts1, ts2)
 
     def test_empty_files(self):
         nodes_file = io.StringIO("is_sample\ttime\n")
@@ -3543,19 +3564,19 @@ class TestTree(HighLevelTestCase):
         for u in tree.nodes():
             assert tree.num_children(u) == len(tree.children(u))
 
-    def test_virtual_root_semantics(self):
-        for ts in get_example_tree_sequences():
-            for tree in ts.trees():
-                assert math.isinf(tree.time(tree.virtual_root))
-                assert tree.depth(tree.virtual_root) == -1
-                assert tree.parent(tree.virtual_root) == -1
-                assert list(tree.children(tree.virtual_root)) == tree.roots
-                with pytest.raises(tskit.LibraryError, match="bounds"):
-                    tree.population(tree.virtual_root)
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_virtual_root_semantics(self, ts):
+        for tree in ts.trees():
+            assert math.isinf(tree.time(tree.virtual_root))
+            assert tree.depth(tree.virtual_root) == -1
+            assert tree.parent(tree.virtual_root) == -1
+            assert list(tree.children(tree.virtual_root)) == tree.roots
+            with pytest.raises(tskit.LibraryError, match="bounds"):
+                tree.population(tree.virtual_root)
 
     def test_root_properties(self):
         tested = set()
-        for ts in get_example_tree_sequences():
+        for ts in get_example_tree_sequences(pytest_params=False):
             for tree in ts.trees():
                 if tree.has_single_root:
                     tested.add("single")
@@ -3574,7 +3595,7 @@ class TestTree(HighLevelTestCase):
         assert len(tested) == 3
 
     def test_as_dict_of_dicts(self):
-        for ts in get_example_tree_sequences():
+        for ts in get_example_tree_sequences(pytest_params=False):
             tree = next(ts.trees())
             adj_dod = tree.as_dict_of_dicts()
             g = nx.DiGraph(adj_dod)
