@@ -351,13 +351,13 @@ def make_example_tree_sequences():
                 model=msprime.InfiniteSites(msprime.NUCLEOTIDES),
             ),
         )
+    ts = tskit.Tree.generate_balanced(8).tree_sequence
+    yield ("rev node order", ts.subset(np.arange(ts.num_nodes - 1, -1, -1)))
     ts = msprime.sim_ancestry(
         8, sequence_length=40, recombination_rate=0.1, random_seed=seed
     )
     tables = ts.dump_tables()
     tables.populations.metadata_schema = tskit.MetadataSchema(None)
-    ts = tskit.Tree.generate_balanced(8).tree_sequence
-    yield ("rev node order", ts.subset(np.arange(ts.num_nodes - 1, -1, -1)))
     ts = tables.tree_sequence()
     assert ts.num_trees > 1
     yield (
@@ -484,9 +484,8 @@ def get_samples(ts, time=None, population=None):
 
 
 class TestTreeTraversals:
-    def test_bad_traversal_order(self):
-        ts = msprime.sim_ancestry(2, random_seed=234)
-        tree = ts.first()
+    def test_bad_traversal_order(self, simple_degree2_ts_fixture):
+        tree = simple_degree2_ts_fixture.first()
         for bad_order in ["pre", "post", "preorderorder", ("x",), b"preorder"]:
             with pytest.raises(ValueError, match="Traversal order"):
                 tree.nodes(order=bad_order)
@@ -1380,6 +1379,33 @@ class TestTreeSequence(HighLevelTestCase):
     """
     Tests for the tree sequence object.
     """
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_row_getter(self, ts):
+        for table_name, table in ts.tables_dict.items():
+            sequence = getattr(ts, table_name)()
+            element_name = table_name[:-1]  # cut off the "s": "edges" -> "edge"
+            element_accessor = getattr(ts, element_name)
+            for i, n in enumerate(sequence):
+                assert element_accessor(i) == n
+                assert element_accessor(-(table.num_rows - i)) == n
+            with pytest.raises(IndexError):
+                element_accessor(table.num_rows)
+            with pytest.raises(IndexError):
+                element_accessor(-(table.num_rows + 1))
+
+    @pytest.mark.parametrize("index", [0.1, float(0), None, np.array([0, 1]), np.inf])
+    def test_bad_row_getter(self, index, simple_degree2_ts_fixture):
+        for table_name in simple_degree2_ts_fixture.tables_dict.keys():
+            element_name = table_name[:-1]  # cut off the "s": "edges" -> "edge"
+            element_accessor = getattr(simple_degree2_ts_fixture, element_name)
+            if element_name == "site" and index is None:
+                # special case
+                match = "id or position must be provided"
+            else:
+                match = "integer type"
+            with pytest.raises(TypeError, match=match):
+                element_accessor(index)
 
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_discrete_genome(self, ts):

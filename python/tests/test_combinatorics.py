@@ -889,7 +889,7 @@ class TestCountTopologies:
         sample_sets = [[0], [1]]
         self.verify_value_error(tables.tree_sequence(), sample_sets)
 
-        sample_sets = [[0], [-1]]
+        sample_sets = [[0], [tables.nodes.num_rows]]
         self.verify_node_out_of_bounds_error(tables.tree_sequence(), sample_sets)
 
     def verify_value_error(self, ts, sample_sets=None):
