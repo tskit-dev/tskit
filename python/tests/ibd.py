@@ -210,13 +210,13 @@ class IbdFinder:
                     max(e.left, s.left),
                     min(e.right, s.right),
                 )
-                if intvl[1] - intvl[0] > self.min_span:
-                    child_segs.append(Segment(intvl[0], intvl[1], s.node))
+                # if intvl[1] - intvl[0] > self.min_span:
+                child_segs.append(Segment(intvl[0], intvl[1], s.node))
                 s = s.next
             self.record_ibd(e.parent, child_segs, squash=squash)
             self.A[e.parent].extend(child_segs)
-        # if squash:
-        #     self.result.squash()
+        if self.min_span > 0:
+            self.filter_by_min_span()
         return self.result.segments
 
     def record_ibd(self, current_parent, child_segs, squash):
@@ -248,10 +248,20 @@ class IbdFinder:
                 seg1 = seg1.next
             seg0 = seg0.next
 
+    def filter_by_min_span(self):
+        """
+        Remove any IBD segments that are smaller than min_span.
+        Note that we can't do this until we have squashed the IBD segments
+        """
+        for key in self.result.segments.keys():
+            self.result.segments[key] = [
+                s for s in self.result.segments[key] if s.right - s.left > self.min_span
+            ]
+
     def passes_filters(self, a, b, left, right):
         if a == b:
             return False
-        if right - left <= self.min_span:
+        if right - left <= 0:
             return False
         if self.finding_between:
             return self.sample_set_id[a] != self.sample_set_id[b]
