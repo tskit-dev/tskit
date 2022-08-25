@@ -12,3 +12,6 @@ sphinx-autodoc-typehints==1.18.3
 sphinx-issues==3.0.1
 sphinxcontrib-prettyspecialmethods==0.1.0
 svgwrite==1.4.2
+# These are added for the new pip stricter resolver until packages fix their dep specifications
+Jinja2==3.0.3
+ipywidgets==7.7.2
