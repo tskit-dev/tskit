@@ -150,7 +150,7 @@ class IbdResult:
                     new_list.append(seg)
                 else:
                     n = new_list[-1]  # last segment
-                    if seg.node > n.node or seg.left > n.right:
+                    if seg.node != n.node or seg.left != n.right:
                         new_list.append(seg)
                     else:
                         new_list[-1] = tskit.IdentitySegment(n.left, seg.right, n.node)
@@ -253,10 +253,17 @@ class IbdFinder:
         Remove any IBD segments that are smaller than min_span.
         Note that we can't do this until we have squashed the IBD segments
         """
+        keys_to_pop = []
         for key in self.result.segments.keys():
             self.result.segments[key] = [
                 s for s in self.result.segments[key] if s.right - s.left > self.min_span
             ]
+            if len(self.result.segments[key]) == 0:
+                keys_to_pop.append(key)
+
+        # Remove any keys that now have no IBD segments.
+        for key in keys_to_pop:
+            self.result.segments.pop(key)
 
     def passes_filters(self, a, b, left, right):
         if a == b:
