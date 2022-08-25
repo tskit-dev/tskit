@@ -561,12 +561,10 @@ class TestIbdDifferentPaths:
         return tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def test_defaults(self):
-        ibd_segs = ibd_segments(self.ts())
+        ibd_segs = ibd_segments(self.ts(), squash=True, compare_lib=False)
         true_segs = {
             (0, 1): [
-                tskit.IdentitySegment(0.0, 0.2, 4),
-                tskit.IdentitySegment(0.7, 1.0, 4),
-                tskit.IdentitySegment(0.2, 0.7, 4),
+                tskit.IdentitySegment(0.0, 1.0, 4),
             ]
         }
         assert_ibd_equal(ibd_segs, true_segs)
@@ -576,14 +574,9 @@ class TestIbdDifferentPaths:
         assert len(ibd_segs) == 0
 
     def test_length(self):
-        ibd_segs = ibd_segments(self.ts(), min_span=0.4)
-        true_segs = {(0, 1): [tskit.IdentitySegment(0.2, 0.7, 4)]}
+        ibd_segs = ibd_segments(self.ts(), min_span=0.6, squash=True, compare_lib=False)
+        true_segs = {(0, 1): [tskit.IdentitySegment(0.0, 1.0, 4)]}
         assert_ibd_equal(ibd_segs, true_segs)
-
-    def test_squash(self):
-        ibd_segments(
-            self.ts(), within=[0, 1], squash=True, compare_lib=False, print_py=True
-        )
 
 
 class TestIbdDifferentPaths2:
@@ -627,19 +620,26 @@ class TestIbdDifferentPaths2:
         return tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def test_defaults(self):
-        ibd_segs = ibd_segments(self.ts(), within=[1, 2])
+        ibd_segs = ibd_segments(
+            self.ts(), within=[1, 2], squash=True, compare_lib=False
+        )
         true_segs = {
             (1, 2): [
-                tskit.IdentitySegment(0.0, 0.2, 4),
-                tskit.IdentitySegment(0.2, 1.0, 4),
+                tskit.IdentitySegment(0.0, 1.0, 4),
             ],
         }
         assert_ibd_equal(ibd_segs, true_segs)
 
-    def test_squash(self):
-        ibd_segments(
-            self.ts(), within=[1, 2], squash=True, compare_lib=False, print_py=True
+    def test_length(self):
+        ibd_segs = ibd_segments(
+            self.ts(), within=[1, 2], min_span=0.5, squash=True, compare_lib=False
         )
+        true_segs = {
+            (1, 2): [
+                tskit.IdentitySegment(0.0, 1.0, 4),
+            ],
+        }
+        assert_ibd_equal(ibd_segs, true_segs)
 
 
 class TestIbdDifferentPaths3:
@@ -666,21 +666,18 @@ class TestIbdDifferentPaths3:
         return t.tree_sequence()
 
     def test_defaults(self):
-        ibd_segs = ibd_segments(self.ts())
+        ibd_segs = ibd_segments(self.ts(), squash=True, compare_lib=False)
         true_segs = {
-            (0, 1): [tskit.IdentitySegment(0, 5, 4), tskit.IdentitySegment(5, 10, 4)],
+            (0, 1): [tskit.IdentitySegment(0, 10, 4)],
         }
         assert_ibd_equal(ibd_segs, true_segs)
 
-    def test_squash(self):
-        ibd_segments(
-            self.ts(),
-            within=[0, 1],
-            squash=True,
-            compare_lib=False,
-            print_py=True,
-            print_c=True,
-        )
+    def test_length(self):
+        ibd_segs = ibd_segments(self.ts(), min_span=0.6, squash=True, compare_lib=False)
+        true_segs = {
+            (0, 1): [tskit.IdentitySegment(0, 10, 4)],
+        }
+        assert_ibd_equal(ibd_segs, true_segs)
 
 
 class TestIbdPolytomies:
@@ -724,7 +721,7 @@ class TestIbdPolytomies:
         return tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def test_defaults(self):
-        ibd_segs = ibd_segments(self.ts())
+        ibd_segs = ibd_segments(self.ts(), squash=True, compare_lib=False)
         true_segs = {
             (0, 1): [tskit.IdentitySegment(0, 1, 4)],
             (0, 2): [
@@ -744,8 +741,7 @@ class TestIbdPolytomies:
                 tskit.IdentitySegment(0.3, 1, 4),
             ],
             (2, 3): [
-                tskit.IdentitySegment(0.3, 1, 5),
-                tskit.IdentitySegment(0, 0.3, 5),
+                tskit.IdentitySegment(0, 1, 5),
             ],
         }
         assert_ibd_equal(ibd_segs, true_segs)
