@@ -1145,15 +1145,14 @@ GitHub issue milestone of the release.
 
 ### Python
 
-To make a release first prepare a pull request that sets the correct version
-number in `tskit/_version.py`  following PEP440 format. For a normal release
+It is worth running the benchmarks as above before release to check for any unexpected
+major regressions. To make a release first prepare a pull request that sets the correct
+version number in `tskit/_version.py`  following PEP440 format. For a normal release
 this should be MAJOR.MINOR.PATCH, for a beta release use MAJOR.MINOR.PATCHbX
 e.g. 1.0.0b1. Update the Python CHANGELOG.rst, ensuring that all significant
 changes since the last release have been listed. Comparing
 `git log --follow --oneline -- python`
 with `git log --follow --oneline -- python/CHANGELOG.rst` may help here.
-Once the version number is updated run the benchmarks as detailed above and
-commit the `bench-results.json/html` files.
 Once this PR is merged, push a tag to github:
 
 ```bash
@@ -1170,6 +1169,6 @@ Publishing this release will cause the github
 action to deploy to the [production PyPI](https://pypi.org/project/tskit/).
 After release, start a section in the changelog for new developments, close the
 GitHub issue milestone of the release and update ROADMAP.md.
-
-
-
+For a major release the website (github repo tskit-dev/tskit-site) should then
+be updated with a notebook of new features. The benchmarks should be run as above
+and the `bench-results.html` updated on the website.
