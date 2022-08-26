@@ -1733,7 +1733,7 @@ class TestTreeSequence(HighLevelTestCase):
             ts.get_population(N)
         with pytest.raises(ValueError):
             ts.get_population(N + 1)
-        for node in range(0, N - 1):
+        for node in range(N):
             assert ts.get_population(node) == ts.node(node).population
 
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
