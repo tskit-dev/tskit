@@ -1,3 +1,6 @@
 build-gcc
 .DS_Store
 python/benchmark/*.trees
+python/benchmark/*.json
+python/benchmark/*.html
+
