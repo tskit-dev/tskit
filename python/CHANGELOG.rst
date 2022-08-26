@@ -2,6 +2,11 @@
 [0.5.3] - 2022-XX-XX
 --------------------
 
+**Fixes**
+
+ - ``ts.subset()`` produces valid tree sequences even if nodes are shuffled
+   out of time order (:user:`hyanwong`, :pr:`2479`, :issue:`2473`)
+
 **Changes**
 
  - Single statistics computed with ``TreeSequence.general_stat`` are now
