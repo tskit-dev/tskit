@@ -6694,12 +6694,12 @@ class TreeSequence:
         of the retained nodes.  Note that this does *not* retain
         the ancestry of these nodes - for that, see :meth:`.simplify`.
 
-        This has the side effect of reordering the nodes, individuals, and
-        populations in the tree sequence: the nodes in the new tree sequence
-        will be in the order provided in ``nodes``, and both individuals and
-        populations will be ordered by the earliest retained node that refers
-        to them. (However, ``reorder_populations`` may be set to False
-        to keep the population table unchanged.)
+        This has the side effect that it may change the order of the nodes,
+        individuals, populations, and migrations in the tree sequence: the nodes
+        in the new tree sequence will be in the order provided in ``nodes``, and
+        both individuals and populations will be ordered by the earliest retained
+        node that refers to them. (However, ``reorder_populations`` may be set to
+        False to keep the population table unchanged.)
 
         By default, the method removes all individuals and populations not
         referenced by any nodes, and all sites not referenced by any mutations.
@@ -6734,6 +6734,7 @@ class TreeSequence:
             reorder_populations=reorder_populations,
             remove_unreferenced=remove_unreferenced,
         )
+        tables.sort()
         return tables.tree_sequence()
 
     def union(

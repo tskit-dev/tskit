@@ -1949,6 +1949,27 @@ class TestTreeSequence(HighLevelTestCase):
         with pytest.raises(_tskit.LibraryError):
             ts.simplify()
 
+    def test_subset_reverse_all_nodes(self):
+        ts = tskit.Tree.generate_comb(5).tree_sequence
+        assert np.all(ts.samples() == np.arange(ts.num_samples))
+        flipped_ids = np.flip(np.arange(ts.num_nodes))
+        new_ts = ts.subset(flipped_ids)
+        assert set(new_ts.samples()) == set(flipped_ids[np.arange(ts.num_samples)])
+        r1 = ts.first().rank()
+        r2 = new_ts.first().rank()
+        assert r1.shape == r2.shape
+        assert r1.label != r2.label
+
+    def test_subset_reverse_internal_nodes(self):
+        ts = tskit.Tree.generate_balanced(5).tree_sequence
+        internal_nodes = np.ones(ts.num_nodes, dtype=bool)
+        internal_nodes[ts.samples()] = False
+        node_ids = np.arange(ts.num_nodes)
+        node_ids[internal_nodes] = np.flip(node_ids[internal_nodes])
+        new_ts = ts.subset(node_ids)
+        assert np.any(new_ts.nodes_time != ts.nodes_time)
+        assert new_ts.first().rank() == ts.first().rank()
+
     def test_deprecated_apis(self):
         ts = msprime.simulate(10, random_seed=1)
         assert ts.get_ll_tree_sequence() == ts.ll_tree_sequence
