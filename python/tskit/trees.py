@@ -6801,7 +6801,6 @@ class TreeSequence:
             reorder_populations=reorder_populations,
             remove_unreferenced=remove_unreferenced,
         )
-        tables.sort()
         return tables.tree_sequence()
 
     def union(

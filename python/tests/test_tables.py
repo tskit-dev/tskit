@@ -4510,19 +4510,15 @@ class TestSubsetTables:
         for k, p in zip(pops, subset.populations):
             pp = tables.populations[k]
             assert pp == p
-        edges = [
-            i
-            for i, e in enumerate(tables.edges)
+        # subset can reorder the edges: we need to check we have the same set
+        edges = {
+            e.replace(parent=node_map[e.parent], child=node_map[e.child])
+            for e in tables.edges
             if e.parent in nodes and e.child in nodes
-        ]
+        }
         assert subset.edges.num_rows == len(edges)
-        for k, e in zip(edges, subset.edges):
-            ee = tables.edges[k]
-            assert ee.left == e.left
-            assert ee.right == e.right
-            assert node_map[ee.parent] == e.parent
-            assert node_map[ee.child] == e.child
-            assert ee.metadata == e.metadata
+        for e in edges:
+            assert e in subset.edges
         muts = []
         sites = []
         for k, m in enumerate(tables.mutations):
@@ -4648,6 +4644,35 @@ class TestSubsetTables:
         assert tables.sites == sub_tables.sites
         assert tables.populations == sub_tables.populations
         assert tables.individuals == sub_tables.individuals
+
+    def test_subset_reverse_all_nodes(self):
+        ts = tskit.Tree.generate_comb(5).tree_sequence
+        assert np.all(ts.samples() == np.arange(ts.num_samples))
+        tables = ts.dump_tables()
+        flipped_ids = np.flip(np.arange(tables.nodes.num_rows))
+        self.verify_subset(tables, flipped_ids)
+        # Now test the topology is the same
+        tables.subset(flipped_ids)
+        new_ts = tables.tree_sequence()
+        assert set(new_ts.samples()) == set(flipped_ids[np.arange(ts.num_samples)])
+        r1 = ts.first().rank()
+        r2 = new_ts.first().rank()
+        assert r1.shape == r2.shape
+        assert r1.label != r2.label
+
+    def test_subset_reverse_internal_nodes(self):
+        ts = tskit.Tree.generate_balanced(5).tree_sequence
+        internal_nodes = np.ones(ts.num_nodes, dtype=bool)
+        internal_nodes[ts.samples()] = False
+        tables = ts.dump_tables()
+        node_ids = np.arange(tables.nodes.num_rows)
+        node_ids[internal_nodes] = np.flip(node_ids[internal_nodes])
+        self.verify_subset(tables, node_ids)
+        # Now test the topology and the sample labels are the same
+        tables.subset(node_ids)
+        new_ts = tables.tree_sequence()
+        assert np.any(new_ts.nodes_time != ts.nodes_time)
+        assert new_ts.first().rank() == ts.first().rank()
 
 
 class TestUnionTables(unittest.TestCase):
