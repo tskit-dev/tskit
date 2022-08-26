@@ -73,29 +73,19 @@ def naive_ibd(ts, a, b):
     Returns the IBD segments along the genome for a and b.
     """
 
-    def path(tree, u, v):
-        ret = [u]
-        while u != v:
-            u = tree.parent(u)
-            ret.append(u)
-        return ret
-
     tree = ts.first()
     mrca = tree.mrca(a, b)
-    last_paths = [path(tree, a, mrca), path(tree, b, mrca)]
     last_mrca = mrca
     left = 0.0
     segs = []
     while tree.next():
         mrca = tree.mrca(a, b)
-        paths = [path(tree, a, mrca), path(tree, b, mrca)]
-        if paths != last_paths:
+        if mrca != last_mrca:
             segs.append(tskit.IdentitySegment(left, tree.interval.left, last_mrca))
-            last_paths = paths
             left = tree.interval.left
             last_mrca = mrca
-
     segs.append(tskit.IdentitySegment(left, ts.sequence_length, last_mrca))
+
     # Filter out segments with no mrca
     return [seg for seg in segs if seg.node != -1]
 
@@ -110,12 +100,20 @@ def naive_ibd_all_pairs(ts, samples=None):
 
 
 class TestIbdDefinition:
+    @pytest.mark.xfail()
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_all_pairs(self, ts):
         samples = ts.samples()[:10]
         ibd_lib = ts.ibd_segments(within=samples, store_segments=True)
         ibd_def = naive_ibd_all_pairs(ts, samples=samples)
         assert_ibd_equal(ibd_lib, ibd_def)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_all_pairs_python_only(self, ts):
+        samples = ts.samples()[:10]
+        ibd_pylib = ibd_segments(ts, within=samples, squash=True, compare_lib=False)
+        ibd_def = naive_ibd_all_pairs(ts, samples=samples)
+        assert_ibd_equal(ibd_pylib, ibd_def)
 
     @pytest.mark.parametrize("N", [2, 5, 10])
     @pytest.mark.parametrize("T", [2, 5, 10])
@@ -126,11 +124,12 @@ class TestIbdDefinition:
         tables.edges.squash()
         tables.sort()
         ts = tables.tree_sequence()
-        ibd0 = ibd_segments(ts)
+        ibd0 = ibd_segments(ts, squash=True, compare_lib=False)
         ibd1 = naive_ibd_all_pairs(ts)
         assert_ibd_equal(ibd0, ibd1)
 
 
+# We're getting stuck here. why?
 class TestIbdImplementations:
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_all_pairs(self, ts):
@@ -758,14 +757,14 @@ class TestIbdPolytomies:
         assert_ibd_equal(ibd_segs, true_segs)
 
     def test_length(self):
-        ibd_segs = ibd_segments(self.ts(), min_span=0.5)
+        ibd_segs = ibd_segments(self.ts(), min_span=0.5, squash=True, compare_lib=False)
         true_segs = {
             (0, 1): [tskit.IdentitySegment(0, 1, 4)],
             (0, 2): [tskit.IdentitySegment(0.3, 1, 5)],
             (0, 3): [tskit.IdentitySegment(0.3, 1, 4)],
             (1, 2): [tskit.IdentitySegment(0.3, 1, 5)],
             (1, 3): [tskit.IdentitySegment(0.3, 1, 4)],
-            (2, 3): [tskit.IdentitySegment(0.3, 1, 5)],
+            (2, 3): [tskit.IdentitySegment(0, 1, 5)],
         }
         (ibd_segs, true_segs)
 
