@@ -4024,10 +4024,11 @@ class TableCollection(metadata.MetadataProvider):
         """
         Modifies the tables in place to contain only the entries referring to
         the provided list of node IDs, with nodes reordered according to the
-        order they appear in the list. See :meth:`TreeSequence.subset` for a
-        more detailed description.
-
-        Note: there are no sortedness requirements on the tables.
+        order they appear in the list. Other tables are :meth:`sorted <sort>`
+        to conform to the :ref:`sec_valid_tree_sequence_requirements`, and
+        additionally sorted as described in the documentation for the equivalent
+        tree sequence method :meth:`TreeSequence.subset`: please see this for more
+        detail.
 
         :param list nodes: The list of nodes for which to retain information. This
             may be a numpy array (or array-like) object (dtype=np.int32).
@@ -4052,6 +4053,7 @@ class TableCollection(metadata.MetadataProvider):
             reorder_populations=reorder_populations,
             remove_unreferenced=remove_unreferenced,
         )
+        self.sort()
         if record_provenance:
             parameters = {"command": "subset", "nodes": nodes.tolist()}
             self.provenances.add_row(

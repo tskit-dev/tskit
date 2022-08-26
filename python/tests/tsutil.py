@@ -709,6 +709,8 @@ def py_subset(
             )
             mutation_map[i] = new_mut
 
+    tables.sort()
+
 
 def py_union(tables, other, nodes, record_provenance=True, add_populations=True):
     """

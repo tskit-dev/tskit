@@ -2,11 +2,6 @@
 [0.5.3] - 2022-XX-XX
 --------------------
 
-**Fixes**
-
- - ``ts.subset()`` produces valid tree sequences even if nodes are shuffled
-   out of time order (:user:`hyanwong`, :pr:`2479`, :issue:`2473`)
-
 **Features**
 
  - The ``ts.nodes`` method now takes an ``order`` parameter so that nodes
@@ -26,6 +21,11 @@
 
  - Accessor methods such as ts.edge(n) and ts.node(n) now allow negative
    indexes (:user:`hyanwong`, :pr:`2478`, :issue:`1008`)
+
+ - ``ts.subset()`` produces valid tree sequences even if nodes are shuffled
+   out of time order (:user:`hyanwong`, :pr:`2479`, :issue:`2473`), and the
+   same for ``tables.subset()`` (:user:`hyanwong`, :pr:`2489`). This involves
+   sorting the returned tables, potentially changing the returned edge order.
 
 **Performance improvements**
 
