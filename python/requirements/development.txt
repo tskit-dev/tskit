@@ -10,6 +10,7 @@ h5py>=2.6.0
 jsonschema>=3.0.0
 jupyter-book>=0.12.1
 kastore
+lshmm
 matplotlib
 meson>=0.61.0
 msgpack>=1.0.0
