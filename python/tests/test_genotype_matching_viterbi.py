@@ -13,6 +13,8 @@ BOTH_HET = 7
 REF_HOM_OBS_HET = 1
 REF_HET_OBS_HOM = 2
 
+MISSING = -1
+
 
 class ValueTransition:
     """Simple struct holding value transition values."""
@@ -390,6 +392,7 @@ class LsHmmAlgorithm:
         ]
 
         query_is_het = genotype_state == 1
+        query_is_missing = genotype_state == MISSING
 
         for st1 in T:
             u1 = st1.tree_node
@@ -423,6 +426,7 @@ class LsHmmAlgorithm:
                             match,
                             template_is_het,
                             query_is_het,
+                            query_is_missing,
                             u1,
                             u2,
                         )
@@ -486,6 +490,7 @@ class LsHmmAlgorithm:
         is_match,
         template_is_het,
         query_is_het,
+        query_is_missing,
         node_1,
         node_2,
     ):
@@ -830,6 +835,7 @@ class ViterbiAlgorithm(LsHmmAlgorithm):
         is_match,
         template_is_het,
         query_is_het,
+        query_is_missing,
         node_1,
         node_2,
     ):
@@ -841,26 +847,28 @@ class ViterbiAlgorithm(LsHmmAlgorithm):
         double_recombination_required = False
         single_recombination_required = False
 
-        template_is_hom = np.logical_not(template_is_het)
-        query_is_hom = np.logical_not(query_is_het)
+        if query_is_missing:
+            p_e = 1
+        else:
+            template_is_hom = np.logical_not(template_is_het)
+            query_is_hom = np.logical_not(query_is_het)
+            equal_both_hom = np.logical_and(
+                np.logical_and(is_match, template_is_hom), query_is_hom
+            )
+            unequal_both_hom = np.logical_and(
+                np.logical_and(np.logical_not(is_match), template_is_hom), query_is_hom
+            )
+            both_het = np.logical_and(template_is_het, query_is_het)
+            ref_hom_obs_het = np.logical_and(template_is_hom, query_is_het)
+            ref_het_obs_hom = np.logical_and(template_is_het, query_is_hom)
 
-        EQUAL_BOTH_HOM = np.logical_and(
-            np.logical_and(is_match, template_is_hom), query_is_hom
-        )
-        UNEQUAL_BOTH_HOM = np.logical_and(
-            np.logical_and(np.logical_not(is_match), template_is_hom), query_is_hom
-        )
-        BOTH_HET = np.logical_and(template_is_het, query_is_het)
-        REF_HOM_OBS_HET = np.logical_and(template_is_hom, query_is_het)
-        REF_HET_OBS_HOM = np.logical_and(template_is_het, query_is_hom)
-
-        p_e = (
-            EQUAL_BOTH_HOM * (1 - mu) ** 2
-            + UNEQUAL_BOTH_HOM * (mu**2)
-            + REF_HOM_OBS_HET * (2 * mu * (1 - mu))
-            + REF_HET_OBS_HOM * (mu * (1 - mu))
-            + BOTH_HET * ((1 - mu) ** 2 + mu**2)
-        )
+            p_e = (
+                equal_both_hom * (1 - mu) ** 2
+                + unequal_both_hom * (mu**2)
+                + ref_hom_obs_het * (2 * mu * (1 - mu))
+                + ref_het_obs_hom * (mu * (1 - mu))
+                + both_het * ((1 - mu) ** 2 + mu**2)
+            )
 
         no_switch = (1 - r) ** 2 + 2 * (r_n * (1 - r)) + r_n**2
         single_switch = r_n * (1 - r) + r_n**2
@@ -919,6 +927,21 @@ class LSBase:
         s = H[:, 0].reshape(1, H.shape[0]) + H[:, 1].reshape(1, H.shape[0])
         H = H[:, 2:]
 
+        genotypes = [
+            s,
+            H[:, -1].reshape(1, H.shape[0]) + H[:, -2].reshape(1, H.shape[0]),
+        ]
+
+        s_tmp = s.copy()
+        s_tmp[0, -1] = MISSING
+        genotypes.append(s_tmp)
+        s_tmp = s.copy()
+        s_tmp[0, ts.num_sites // 2] = MISSING
+        genotypes.append(s_tmp)
+        s_tmp = s.copy()
+        s_tmp[0, :] = MISSING
+        genotypes.append(s_tmp)
+
         m = ts.get_num_sites()
         n = H.shape[1]
 
@@ -926,11 +949,11 @@ class LSBase:
         for i in range(m):
             G[i, :, :] = np.add.outer(H[i, :], H[i, :])
 
-        return H, G, s
+        return H, G, genotypes
 
     def example_parameters_genotypes(self, ts, seed=42):
         np.random.seed(seed)
-        H, G, s = self.example_genotypes(ts)
+        H, G, genotypes = self.example_genotypes(ts)
         n = H.shape[1]
         m = ts.get_num_sites()
 
@@ -941,13 +964,16 @@ class LSBase:
 
         e = self.genotype_emission(mu, m)
 
-        yield n, m, G, s, e, r, mu
+        for s in genotypes:
+            yield n, m, G, s, e, r, mu
 
         # Mixture of random and extremes
         rs = [np.zeros(m) + 0.999, np.zeros(m) + 1e-6, np.random.rand(m)]
         mus = [np.zeros(m) + 0.33, np.zeros(m) + 1e-6, np.random.rand(m) * 0.33]
 
-        for r, mu in itertools.product(rs, mus):
+        e = self.genotype_emission(mu, m)
+
+        for s, r, mu in itertools.product(genotypes, rs, mus):
             r[0] = 0
             e = self.genotype_emission(mu, m)
             yield n, m, G, s, e, r, mu
