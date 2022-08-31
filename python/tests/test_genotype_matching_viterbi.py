@@ -1,12 +1,14 @@
 # Simulation
 import itertools
 
-# Python libraries
+import lshmm as ls
 import msprime
 import numpy as np
 import pytest
+
 import tskit
-import lshmm as ls
+
+# Python libraries
 
 EQUAL_BOTH_HOM = 4
 UNEQUAL_BOTH_HOM = 0
@@ -17,6 +19,7 @@ REF_HET_OBS_HOM = 2
 # Plug in all the functions that I created here.
 import copy
 from math import isclose
+
 
 def mirror_coordinates(ts):
     """
@@ -868,15 +871,15 @@ class ViterbiAlgorithm(LsHmmAlgorithm):
 
         p_e = (
             EQUAL_BOTH_HOM * (1 - mu) ** 2
-            + UNEQUAL_BOTH_HOM * (mu ** 2)
+            + UNEQUAL_BOTH_HOM * (mu**2)
             + REF_HOM_OBS_HET * (2 * mu * (1 - mu))
             + REF_HET_OBS_HOM * (mu * (1 - mu))
-            + BOTH_HET * ((1 - mu) ** 2 + mu ** 2)
+            + BOTH_HET * ((1 - mu) ** 2 + mu**2)
         )
 
-        no_switch = (1 - r) ** 2 + 2 * (r_n * (1 - r)) + r_n ** 2
-        single_switch = r_n * (1 - r) + r_n ** 2
-        double_switch = r_n ** 2
+        no_switch = (1 - r) ** 2 + 2 * (r_n * (1 - r)) + r_n**2
+        single_switch = r_n * (1 - r) + r_n**2
+        double_switch = r_n**2
 
         V_single_switch = inner_normalisation_factor
         p_t = p_last * no_switch
@@ -918,8 +921,8 @@ class LSBase:
         # Define the emission probability matrix
         e = np.zeros((m, 8))
         e[:, EQUAL_BOTH_HOM] = (1 - mu) ** 2
-        e[:, UNEQUAL_BOTH_HOM] = mu ** 2
-        e[:, BOTH_HET] = (1 - mu) ** 2 + mu ** 2
+        e[:, UNEQUAL_BOTH_HOM] = mu**2
+        e[:, BOTH_HET] = (1 - mu) ** 2 + mu**2
         e[:, REF_HOM_OBS_HET] = 2 * mu * (1 - mu)
         e[:, REF_HET_OBS_HOM] = mu * (1 - mu)
 
@@ -1018,6 +1021,7 @@ class FBAlgorithmBase(LSBase):
 class VitAlgorithmBase(LSBase):
     """Base for viterbi algoritm tests."""
 
+
 # @pytest.mark.skip(reason="DEV: skip for time being")
 class TestTreeViterbiDip(VitAlgorithmBase):
     """Test that we have the same log-likelihood between tree and matrix implementations"""
@@ -1036,12 +1040,17 @@ class TestTreeViterbiDip(VitAlgorithmBase):
                 )
             ts_check = ts.simplify(range(1, n + 1), filter_sites=False)
 
-            phased_path, ll = ls.viterbi(G_check, s, r,
+            phased_path, ll = ls.viterbi(
+                G_check, s, r, mutation_rate=mu, scale_mutation_based_on_n_alleles=False
+            )
+            path_ll_matrix = ls.path_ll(
+                G_check,
+                s,
+                phased_path,
+                r,
                 mutation_rate=mu,
-                scale_mutation_based_on_n_alleles=False)         
-            path_ll_matrix = ls.path_ll(G_check, s, phased_path, r,
-                mutation_rate=mu,
-                scale_mutation_based_on_n_alleles=False)
+                scale_mutation_based_on_n_alleles=False,
+            )
 
             c_v = ls_viterbi_tree(s[0, :], ts_check, r, mu)
             ll_tree = np.sum(np.log10(c_v.normalisation_factor))
@@ -1050,11 +1059,13 @@ class TestTreeViterbiDip(VitAlgorithmBase):
             path_tree_dict = c_v.traceback()
             # Work out the likelihood of the proposed path
             path_ll_tree = ls.path_ll(
-                G_check, s, np.transpose(path_tree_dict), r,
+                G_check,
+                s,
+                np.transpose(path_tree_dict),
+                r,
                 mutation_rate=mu,
-                scale_mutation_based_on_n_alleles=False
-                )
+                scale_mutation_based_on_n_alleles=False,
+            )
 
             self.assertAllClose(ll, ll_tree)
             self.assertAllClose(path_ll_tree, path_ll_matrix)
-
