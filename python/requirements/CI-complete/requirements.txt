@@ -6,6 +6,7 @@ flake8==4.0.1
 h5py==3.6.0
 jsonschema==4.4.0
 kastore==0.3.1
+lshmm==0.0.2
 msgpack==1.0.3
 msprime==1.2.0
 networkx==2.6.3
