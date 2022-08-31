@@ -1089,6 +1089,18 @@ The benchmark suite can be run with:
 > python run.py
 ```
 
+A subset of benchmarks can be run by specifying a string. For example, the following command runs all the benchmarks whose names contain "genotype", e.g. "genotype_matrix".
+
+```bash
+> python run.py -k genotype
+```
+
+If desired, the results of the benchmarks can be printed to STDOUT.
+
+```bash
+> python run.py -k genotype -p
+```
+
 Results are written to `bench-results.json` in the same folder. Note that if any version of `tskit`
 is installed then that will be used for the benchmarking. To use the local development version of
 tskit ensure you have `pip uninstall tskit` before running the benchmarking. The version used is
