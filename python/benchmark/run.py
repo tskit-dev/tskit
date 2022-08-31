@@ -5,6 +5,7 @@ import sys
 import timeit
 from pathlib import Path
 
+import click
 import psutil
 import tqdm
 import yaml
@@ -83,10 +84,12 @@ def autotime(setup, code):
     return one_run, num_trials, t.timeit(number=num_trials) / num_trials
 
 
-def run_benchmarks():
+def run_benchmarks(keyword_filter):
     results = {}
     for benchmark in tqdm.tqdm(config["benchmarks"]):
         bench_name = benchmark.get("name", benchmark["code"])
+        if keyword_filter not in bench_name:
+            continue
         params = benchmark.get("parameters", {"noop": [None]})
 
         # Expand the parameters
@@ -189,12 +192,32 @@ def generate_report(all_versions_results):
         f.write("</table>\n")
 
 
-if __name__ == "__main__":
+def print_result(results):
+    max_name_length = max(len(name) for name in results.keys()) + 1
+    for _bench, param_results in results.items():
+        for name, data in param_results.items():
+            print(name.ljust(max_name_length), si_format(data["avg"]))
+
+
+@click.command()
+@click.option(
+    "--keyword_filter",
+    "-k",
+    type=str,
+    default="",
+    help="Only benchmarks with a name containing this string will be run",
+)
+@click.option("--print_results", "-p", is_flag=True, help="Print results to STDOUT")
+def run_benchmark_and_save(keyword_filter, print_results):
     print("Benchmarking tskit version:", tskit._version.tskit_version)
     make_file()
     results = {}
     results["system"] = system_info()
-    results["tskit_benchmarks"] = run_benchmarks()
+    results["tskit_benchmarks"] = run_benchmarks(keyword_filter)
+
+    if print_results:
+        print_result(results["tskit_benchmarks"])
+
     all_versions_results = {}
     results_json = tskit_dir / "benchmark" / "bench-results.json"
     if os.path.exists(results_json):
@@ -207,3 +230,7 @@ if __name__ == "__main__":
     generate_report(all_versions_results)
 
     sys.exit(0)
+
+
+if __name__ == "__main__":
+    run_benchmark_and_save()
