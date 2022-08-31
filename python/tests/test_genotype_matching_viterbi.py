@@ -172,8 +172,8 @@ class LsHmmAlgorithm:
         # Retain the old T_index, because the internal T that's passed up the tree will
         # retain this ordering.
         old_T_index = copy.deepcopy(self.T_index)
-        self.T_index = np.zeros(tree.num_nodes, dtype=int) - 1
-        self.N = np.zeros(tree.num_nodes, dtype=int)
+        self.T_index = np.zeros(self.ts.num_nodes, dtype=int) - 1
+        self.N = np.zeros(self.ts.num_nodes, dtype=int)
         self.T.clear()
 
         # First, create T root.
@@ -342,7 +342,7 @@ class LsHmmAlgorithm:
                     vt.tree_node = -1
                 vt.value_index = -1
 
-        self.N = np.zeros(self.tree.num_nodes, dtype=int)
+        self.N = np.zeros(self.ts.num_nodes, dtype=int)
         node_map = {st.tree_node: st for st in self.T}
 
         for u in self.tree.samples():
