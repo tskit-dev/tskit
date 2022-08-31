@@ -1,24 +1,18 @@
 # Simulation
+import copy
 import itertools
 
 import lshmm as ls
 import msprime
 import numpy as np
-import pytest
 
 import tskit
-
-# Python libraries
 
 EQUAL_BOTH_HOM = 4
 UNEQUAL_BOTH_HOM = 0
 BOTH_HET = 7
 REF_HOM_OBS_HET = 1
 REF_HET_OBS_HOM = 2
-
-# Plug in all the functions that I created here.
-import copy
-from math import isclose
 
 
 def mirror_coordinates(ts):
@@ -78,9 +72,7 @@ class InternalValueTransition:
 
 
 class LsHmmAlgorithm:
-    """
-    Abstract superclass of Li and Stephens HMM algorithm.
-    """
+    """Abstract superclass of Li and Stephens HMM algorithm."""
 
     def __init__(self, ts, rho, mu, precision=30):
         self.ts = ts
@@ -133,10 +125,12 @@ class LsHmmAlgorithm:
                 assert j == self.T_index[st.tree_node]
 
     def stupid_compress_dict(self):
-        # Duncan to create a stupid compression that just runs parsimony so is guaranteed to work.
+        """
+        Duncan created a compression that just runs parsimony so
+        is guaranteed to work.
+        """
         tree = self.tree
         T = self.T
-        alleles = np.zeros((tree.num_samples(), tree.num_samples()))
         alleles_string_vec = np.zeros(tree.num_samples()).astype("object")
         genotypes = np.zeros(tree.num_samples(), dtype=int)
         genotype_index = 0
@@ -175,7 +169,8 @@ class LsHmmAlgorithm:
 
         ancestral_allele, mutations = tree.map_mutations(genotypes, alleles_string_vec)
 
-        # Retain the old T_index, because the internal T that's passed up the tree will retain this ordering.
+        # Retain the old T_index, because the internal T that's passed up the tree will
+        # retain this ordering.
         old_T_index = copy.deepcopy(self.T_index)
         self.T_index = np.zeros(tree.num_nodes, dtype=int) - 1
         self.N = np.zeros(tree.num_nodes, dtype=int)
@@ -237,9 +232,10 @@ class LsHmmAlgorithm:
                     )
                 )
 
-        # General approach here is to use mapping_back[mut.derived_state]['value_list'][old_T_index[mapping_back[mut2.derived_state]["tree_node"]]
-        # and append this to the T_inner.
-
+        # General approach here is to use
+        # mapping_back[mut.derived_state]['value_list'][
+        #   old_T_index[mapping_back[mut2.derived_state]["tree_node"]
+        # ] and append this to the T_inner.
         node_map = {st.tree_node: st for st in self.T}
 
         for u in tree.samples():
@@ -317,7 +313,8 @@ class LsHmmAlgorithm:
                 st = T[T_index[edge.child]]
                 # Mark the lower ValueTransition as unused.
                 st.value_list = -1
-                # Also need to mark the corresponding InternalValueTransition as unused for the remaining states
+                # Also need to mark the corresponding InternalValueTransition as
+                # unused for the remaining states
                 for st2 in T:
                     if not (st2.value_list == tskit.NULL):
                         st2.value_list[T_index[edge.child]].value = -1
@@ -335,7 +332,8 @@ class LsHmmAlgorithm:
         for vt in T:
             if vt.tree_node != -1:
                 if parent[vt.tree_node] == -1 and vt.value_index != -2:
-                    # Also need to mark the corresponding InternalValueTransition as unused for the remaining states
+                    # Also need to mark the corresponding InternalValueTransition
+                    # as unused for the remaining states
                     for st2 in T:
                         if not (st2.value_list == tskit.NULL):
                             st2.value_list[T_index[vt.tree_node]].value = -1
@@ -583,9 +581,9 @@ class ViterbiMatrix(CompressedMatrix):
 
     def __init__(self, ts):
         super().__init__(ts)
-        self.double_recombination_required = [
-            (-1, 0, 0, False)
-        ]  # Tuple containing the site, the pair of nodes in the tree, and whether recombination is required
+        # Tuples containing the site, the pair of nodes in the tree,
+        # and whether recombination is required
+        self.double_recombination_required = [(-1, 0, 0, False)]
         self.single_recombination_required = [(-1, 0, 0, False)]
 
     def add_single_recombination_required(self, site, node_s1, node_s2, required):
@@ -631,7 +629,8 @@ class ViterbiMatrix(CompressedMatrix):
         return (u1, u2)
 
     def choose_sample_single(self, site_id, tree, current_nodes):
-        # I want to find which is the max between any choice if I switch just u1, and any choice if I switch just u2.
+        # I want to find which is the max between any choice if I switch just u1,
+        # and any choice if I switch just u2.
         node_map = {st[0]: st for st in self.value_transitions[site_id]}
         to_compute = (
             np.zeros(2, dtype=int) - 1
@@ -642,7 +641,8 @@ class ViterbiMatrix(CompressedMatrix):
                 v = tree.parent(v)
             to_compute[i] = v
 
-        # Need to go to the (j1 :)th entries, and the (:,j2)the entries, and pick the best.
+        # Need to go to the (j1 :)th entries, and the (:,j2)the entries,
+        # and pick the best.
         T_index = np.zeros(self.ts.num_nodes, dtype=int) - 1
         for j, st in enumerate(self.value_transitions[site_id]):
             T_index[st[0]] = j
@@ -703,7 +703,6 @@ class ViterbiMatrix(CompressedMatrix):
     def traceback(self):
         # Run the traceback.
         m = self.ts.num_sites
-        n = self.ts.num_samples
         match = np.zeros((m, 2), dtype=int)
 
         single_recombination_tree = (
@@ -728,14 +727,18 @@ class ViterbiMatrix(CompressedMatrix):
             assert tree.interval.left <= site.position < tree.interval.right
 
             # Fill in the recombination single tree
-            j_single = rr_single_index  # This starts from the end of all the recombination required information, and includes all the information for the current site.
+            j_single = rr_single_index
+            # The above starts from the end of all the recombination required
+            # information, and includes all the information for the current site.
             while self.single_recombination_required[j_single][0] == site.id:
                 u1, u2, required = self.single_recombination_required[j_single][1:]
                 single_recombination_tree[u1, u2] = required
                 j_single -= 1
 
             # Fill in the recombination double tree
-            j_double = rr_double_index  # This starts from the end of all the recombination required information, and includes all the information for the current site.
+            j_double = rr_double_index
+            # The above starts from the end of all the recombination required
+            # information, and includes all the information for the current site.
             while self.double_recombination_required[j_double][0] == site.id:
                 u1, u2, required = self.double_recombination_required[j_double][1:]
                 double_recombination_tree[u1, u2] = required
@@ -971,7 +974,8 @@ class LSBase:
         """Assert that all entries of two matrices are 'close'"""
         assert np.allclose(A, B, rtol=1e-5, atol=1e-8)
 
-    # Define a bunch of very small tree-sequences for testing a collection of parameters on
+    # Define a bunch of very small tree-sequences for testing a collection of
+    # parameters on
     def test_simple_n_10_no_recombination(self):
         ts = msprime.simulate(
             10, recombination_rate=0, mutation_rate=0.5, random_seed=42
@@ -984,7 +988,7 @@ class LSBase:
         assert ts.num_sites > 3
         self.verify(ts)
 
-    def test_simple_n_10_no_recombination_high_mut(self):
+    def test_simple_n_10_no_recombination_higher_mut(self):
         ts = msprime.simulate(20, recombination_rate=0, mutation_rate=3, random_seed=42)
         assert ts.num_sites > 3
         self.verify(ts)
@@ -1022,14 +1026,17 @@ class VitAlgorithmBase(LSBase):
     """Base for viterbi algoritm tests."""
 
 
-# @pytest.mark.skip(reason="DEV: skip for time being")
 class TestTreeViterbiDip(VitAlgorithmBase):
-    """Test that we have the same log-likelihood between tree and matrix implementations"""
+    """
+    Test that we have the same log-likelihood between tree and matrix
+    implementations
+    """
 
     def verify(self, ts):
 
-        for n, m, G_vs, s, e_vs, r, mu in self.example_parameters_genotypes(ts):
-            # Note, need to remove the first sample from the ts, and ensure that invariant sites aren't removed.
+        for n, m, _, s, _, r, mu in self.example_parameters_genotypes(ts):
+            # Note, need to remove the first sample from the ts, and ensure that
+            # invariant sites aren't removed.
             ts_check, mapping = ts.simplify(
                 range(1, n + 1), filter_sites=False, map_nodes=True
             )
