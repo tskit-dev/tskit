@@ -1754,7 +1754,8 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         t = self.get_ts_varying_min_times().at_index(1)
         assert min(t.time(u) for u in t.nodes()) < 0
         with pytest.raises(ValueError, match="negative times"):
-            t.draw_svg(t.draw_svg(time_scale="log_time"))
+            with np.errstate(invalid="ignore"):
+                t.draw_svg(t.draw_svg(time_scale="log_time"))
 
     def test_time_scale_time_and_max_time(self):
         ts = msprime.simulate(5, recombination_rate=2, random_seed=2)
