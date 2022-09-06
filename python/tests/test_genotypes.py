@@ -295,15 +295,17 @@ class TestVariantGenerator:
         assert len(variants) == 0
 
     @pytest.mark.parametrize("samples", [None, [1, 2], [2, 4], []])
-    @pytest.mark.parametrize("sites", [None, [2, 3], [1, 3], []])
+    @pytest.mark.parametrize("sites", [None, [1, 2], [1, 3], []])
     def test_genotype_matrix(self, samples, sites):
         ts = self.get_tree_sequence()
         num_samples = ts.num_samples if samples is None else len(samples)
         num_sites = ts.num_sites if sites is None else len(sites)
         G = np.empty((num_sites, num_samples), dtype=np.int32)
-        if num_sites > 0:
-            for v in ts.variants(samples=samples):
-                G[v.index, :] = v.genotypes
+        i = 0
+        for v in ts.variants(samples=samples):
+            if v.site.id in sites:
+                G[i, :] = v.genotypes
+                i += 1
         if samples is None and sites is None:
             G2 = ts.genotype_matrix()
         elif samples is None:
