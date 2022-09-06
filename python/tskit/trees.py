@@ -5228,6 +5228,7 @@ class TreeSequence:
         self,
         *,
         samples=None,
+        sites=None,
         isolated_as_missing=None,
         alleles=None,
         impute_missing_data=None,
@@ -5256,6 +5257,8 @@ class TreeSequence:
 
         :param array_like samples: An array of node IDs for which to generate
             genotypes, or None for all sample nodes. Default: None.
+        :param array_like sites: An array of site IDs for which to generate
+            genotypes, or None for all sites. Default: None.
         :param bool isolated_as_missing: If True, the genotype value assigned to
             missing samples (i.e., isolated samples without mutations) is
             :data:`.MISSING_DATA` (-1). If False, missing samples will be
@@ -5293,9 +5296,11 @@ class TreeSequence:
         )
 
         num_samples = self.num_samples if samples is None else len(samples)
-        ret = np.zeros(shape=(self.num_sites, num_samples), dtype=np.int32)
+        num_sites = self.num_sites if sites is None else len(sites)
+        ret = np.zeros(shape=(num_sites, num_samples), dtype=np.int32)
 
-        for site_id in range(self.num_sites):
+        sites = range(self.num_sites) if sites is None else sites
+        for site_id in sites:
             variant.decode(site_id)
             ret[site_id, :] = variant.genotypes
 
