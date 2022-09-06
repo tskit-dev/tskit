@@ -12,6 +12,10 @@
  - The ``ts.nodes`` method now takes an ``order`` parameter so that nodes
    can be visited in time order (:user:`hyanwong`, :pr:`2471`, :issue:`2370`)
 
+ - Add ``samples`` argument to ``TreeSequence.genotype_matrix``.
+   Default is ``None``, where all the sample nodes are selected.
+   (:user:`szhan`, :pr:`2493`, :issue:`678`)
+
 **Changes**
 
  - Single statistics computed with ``TreeSequence.general_stat`` are now

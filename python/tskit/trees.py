@@ -5225,7 +5225,12 @@ class TreeSequence:
                 yield variant
 
     def genotype_matrix(
-        self, *, isolated_as_missing=None, alleles=None, impute_missing_data=None
+        self,
+        *,
+        samples=None,
+        isolated_as_missing=None,
+        alleles=None,
+        impute_missing_data=None,
     ):
         """
         Returns an :math:`m \\times n` numpy array of the genotypes in this
@@ -5249,6 +5254,8 @@ class TreeSequence:
             all genotypes are not needed at once, it is usually better to
             access them sequentially using the :meth:`.variants` iterator.
 
+        :param array_like samples: An array of node IDs for which to generate
+            genotypes, or None for all sample nodes. Default: None.
         :param bool isolated_as_missing: If True, the genotype value assigned to
             missing samples (i.e., isolated samples without mutations) is
             :data:`.MISSING_DATA` (-1). If False, missing samples will be
@@ -5279,10 +5286,14 @@ class TreeSequence:
             isolated_as_missing = not impute_missing_data
 
         variant = tskit.Variant(
-            self, isolated_as_missing=isolated_as_missing, alleles=alleles
+            self,
+            samples=samples,
+            isolated_as_missing=isolated_as_missing,
+            alleles=alleles,
         )
 
-        ret = np.zeros(shape=(self.num_sites, self.num_samples), dtype=np.int32)
+        num_samples = self.num_samples if samples is None else len(samples)
+        ret = np.zeros(shape=(self.num_sites, num_samples), dtype=np.int32)
 
         for site_id in range(self.num_sites):
             variant.decode(site_id)
