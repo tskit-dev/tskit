@@ -179,7 +179,7 @@ jobs:
 
   build-32:
     docker:
-      - image: tskitimages/testing-32bit:1.0
+      - image: tskitimages/testing-32bit:2.0
     working_directory: /home/circleci/tskit
     steps:
       - checkout

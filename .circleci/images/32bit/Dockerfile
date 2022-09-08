@@ -1,6 +1,6 @@
-FROM i386/python:3.7-buster
+FROM i386/python:3.7-slim-bullseye
 
-RUN apt-get update && apt-get install -y sudo rustc libhdf5-dev libgsl-dev
+RUN apt-get update && apt-get install -y sudo rustc cargo libhdf5-dev libgsl-dev pkg-config libssl-dev
 RUN adduser --disabled-password --gecos "" circleci
 RUN echo 'circleci     ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
