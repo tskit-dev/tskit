@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2020-2021 Tskit Developers
+# Copyright (c) 2020-2022 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -293,8 +293,8 @@ if __name__ == "__main__":
     else:
         max_time = args.max_time[0]
 
-    s = IbdFinder(ts, samples=ts.samples(), min_span=min_span, max_time=max_time)
-    all_segs = s.find_ibd_segments()
+    s = IbdFinder(ts, min_span=min_span, max_time=max_time)
+    all_segs = s.run()
 
     if args.samples is None:
         print(all_segs)
