@@ -811,14 +811,14 @@ ordering of the children of a node should therefore not be depended on.
 
 ### Convenience arrays
  
-Similar to the five arrays representing the {ref}`quintuply linked tree<sec_data_model_quintuply_linked_trees>`, convenience arrays track 
-information on each node in the tree. These arrays are not essential to 
-represent the trees within a treesequence. However, they can be useful for
-specific algorithms (e.g. when computing tree (im)balance metrics). The 
-convience arrays that have been implemented are: 
-{attr}`Tree.num_children_array`, {attr}`Tree.edge_array`.
+Similar to the five arrays representing the {ref}`quintuply linked tree<sec_data_model_quintuply_linked_trees>`,
+convenience arrays track information on each node in the tree. These arrays are not essential to 
+represent the trees within a tree sequence. However, they can be useful for
+specific algorithms (e.g. when computing tree (im)balance metrics). Two 
+convenience arrays have been implemented so far: 
+{attr}`Tree.num_children_array` and {attr}`Tree.edge_array`.
 
-Adding convenience arrays to the example above results in this table:
+Here is the table above with the convenience arrays also shown:
 
 ```{code-cell} ipython3
 :tags: ["hide-input"]
