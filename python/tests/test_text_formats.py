@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2021 Tskit Developers
+# Copyright (c) 2021-2022 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -92,7 +92,9 @@ class TestParseFam:
         entry = FamEntry(iid="1")
         for field in fields[n_cols:]:
             entry.__setattr__(field, None)
-        with pytest.raises(IndexError):
+        with pytest.raises(
+            Exception
+        ):  # Have to be non-specific here as numpy 1.23 changed the exception type
             self.get_parsed_fam(entries=[entry])
 
     def test_unrelated_duplicate_iids(self):
@@ -135,7 +137,9 @@ class TestParseFam:
 
     def test_empty_sex_value(self):
         entries = [FamEntry(iid="1", sex="")]
-        with pytest.raises(IndexError):
+        with pytest.raises(
+            Exception
+        ):  # Have to be non-specific here as numpy 1.23 changed the exception type
             self.get_parsed_fam(entries=entries)
 
     def test_single_family_map_parent_ids(self):

@@ -1,5 +1,5 @@
 lshmm==0.0.2
-numpy==1.21.5
+numpy==1.21.6 # Held at 1.21.6 for Python 3.7 compatibility
 pytest==7.1.1
 pytest-cov==3.0.0
 pytest-xdist==2.5.0

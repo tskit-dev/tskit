@@ -3,7 +3,7 @@ jupyter-book==0.13.0
 h5py==3.6.0
 jsonschema==3.2.0
 msprime==1.2.0
-numpy==1.22.3
+numpy==1.21.6 # Held at 1.21.6 for Python 3.7 compatibility
 PyGithub==1.55
 sphinx-argparse==0.3.1
 sphinx-autodoc-typehints==1.18.3
