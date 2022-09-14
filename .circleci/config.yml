@@ -185,10 +185,10 @@ jobs:
       - checkout
       - run: sudo chown -R circleci:circleci *
       - restore_cache:
-          key: tskit-32-{{ .Branch }}-v6
+          key: tskit-32-{{ .Branch }}-v7
       - setup
       - save_cache:
-          key: tskit-32-{{ .Branch }}-v6
+          key: tskit-32-{{ .Branch }}-v7
           paths:
             - "/home/circleci/.local"
       - compile_and_test
