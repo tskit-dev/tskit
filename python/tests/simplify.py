@@ -569,7 +569,7 @@ class AncestorMap:
     samples and a designated set of ancestors.
     """
 
-    def __init__(self, ts, sample, ancestors):
+    def __init__(self, ts, sample, ancestors, empty_trash=True):
         self.ts = ts
         self.samples = set(sample)
         assert (self.samples).issubset(set(range(0, ts.num_nodes)))
@@ -585,13 +585,18 @@ class AncestorMap:
         self.oldest_ancestor_time = max(ts.nodes_time[u] for u in ancestors)
         self.oldest_sample_time = max(ts.nodes_time[u] for u in sample)
         self.oldest_node_time = max(self.oldest_ancestor_time, self.oldest_sample_time)
+        self.empty_trash = empty_trash
+        self.num_of_child_edges = [-1 for i in range(ts.num_nodes)]
 
     def link_ancestors(self):
+        node_times = self.ts.tables.nodes.time
+        if self.empty_trash:
+            self.count_num_of_child_edges()
         if self.ts.num_edges > 0:
             all_edges = list(self.ts.edges())
             edges = all_edges[:1]
             for e in all_edges[1:]:
-                if self.ts.tables.nodes.time[e.parent] > self.oldest_node_time:
+                if node_times[e.parent] > self.oldest_node_time:
                     break
                 if e.parent != edges[0].parent:
                     self.process_parent_edges(edges)
@@ -599,6 +604,18 @@ class AncestorMap:
                 edges.append(e)
             self.process_parent_edges(edges)
         return self.table
+
+    def count_num_of_child_edges(self):
+        """
+        For each node, computes and stores the number of edges where this node
+        appears in the child column.
+        """
+        for e in self.ts.edges():
+            node = e.child
+            if self.num_of_child_edges[node] == -1:
+                self.num_of_child_edges[node] = 1
+            else:
+                self.num_of_child_edges[node] += 1
 
     def process_parent_edges(self, edges):
         """
@@ -616,6 +633,12 @@ class AncestorMap:
                     )
                     S.append(y)
                 x = x.next
+            # Edit number of remaining child edges to find and empty trash if needed.
+            if self.empty_trash:
+                self.num_of_child_edges[edge.child] += -1
+                if self.num_of_child_edges[edge.child] == 0:
+                    self.A_head[edge.child] = None
+                    self.A_tail[edge.child] = None
         self.merge_labeled_ancestors(S, parent)
         self.check_state()
 
@@ -780,16 +803,16 @@ if __name__ == "__main__":
 
     elif class_to_implement == "AncestorMap":
 
-        samples = sys.argv[3]
-        samples = samples.split(",")
-        samples = list(map(int, samples))
+        samples = ts.samples()
+        census_time = float(sys.argv[3])
+        ancestors = [n.id for n in ts.nodes() if n.time == census_time]
+        if int(sys.argv[4]) == 0:
+            empty_trash = False
+        else:
+            empty_trash = True
 
-        ancestors = sys.argv[4]
-        ancestors = ancestors.split(",")
-        ancestors = list(map(int, ancestors))
-
-        s = AncestorMap(ts, samples, ancestors)
+        s = AncestorMap(ts, samples, ancestors, empty_trash=empty_trash)
         tss = s.link_ancestors()
         # tables = tss.dump_tables()
         # print(tables.nodes)
-        print(tss)
+        # print(tss)

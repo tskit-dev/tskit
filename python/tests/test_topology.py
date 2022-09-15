@@ -5875,6 +5875,8 @@ class TestMapToAncestors:
         ancestor_table = s.link_ancestors()
         if compare_lib:
             lib_result = ts.tables.link_ancestors(samples, ancestors)
+            print(lib_result)
+            print(ancestor_table)
             assert ancestor_table == lib_result
         return ancestor_table
 
