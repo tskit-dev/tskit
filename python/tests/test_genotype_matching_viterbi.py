@@ -1,4 +1,3 @@
-# Simulation
 import copy
 import itertools
 
@@ -13,23 +12,6 @@ UNEQUAL_BOTH_HOM = 0
 BOTH_HET = 7
 REF_HOM_OBS_HET = 1
 REF_HET_OBS_HOM = 2
-
-
-def mirror_coordinates(ts):
-    """
-    Returns a copy of the specified tree sequence in which all
-    coordinates x are transformed into L - x.
-    """
-    L = ts.sequence_length
-    tables = ts.dump_tables()
-    left = tables.edges.left
-    right = tables.edges.right
-    tables.edges.left = L - right
-    tables.edges.right = L - left
-    tables.sites.position = L - tables.sites.position  # + 1
-    # TODO migrations.
-    tables.sort()
-    return tables.tree_sequence()
 
 
 class ValueTransition:
@@ -1046,7 +1028,6 @@ class TestTreeViterbiDip(VitAlgorithmBase):
                     ts_check.genotype_matrix()[i, :], ts_check.genotype_matrix()[i, :]
                 )
             ts_check = ts.simplify(range(1, n + 1), filter_sites=False)
-
             phased_path, ll = ls.viterbi(
                 G_check, s, r, mutation_rate=mu, scale_mutation_based_on_n_alleles=False
             )
