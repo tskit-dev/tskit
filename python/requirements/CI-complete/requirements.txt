@@ -4,7 +4,7 @@ coverage==6.3.2
 dendropy==4.5.2
 flake8==4.0.1
 h5py==3.6.0
-jsonschema==4.9.0
+jsonschema==4.16.0
 kastore==0.3.1
 lshmm==0.0.2
 msgpack==1.0.3

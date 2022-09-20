@@ -73,6 +73,8 @@ deref_meta_schema["required"] = ["codec"]
 # For interoperability reasons, force the top-level to be an object or union
 # of object and null
 deref_meta_schema["properties"]["type"] = {"enum": ["object", ["object", "null"]]}
+# Change the schema URL to avoid jsonschema's cache
+deref_meta_schema["$schema"] = "http://json-schema.org/draft-o=07/schema#tskit"
 TSKITMetadataSchemaValidator.META_SCHEMA = deref_meta_schema
 
 
@@ -194,23 +196,24 @@ def binary_format_validator(validator, types, instance, schema):
     yield from jsonschema._validators.type(validator, types, instance, schema)
 
     # Non-composite types must have a binaryFormat
-    if (
-        validator.is_type(instance, "object")
-        and (
-            instance.get("type")
-            not in (None, "object", "array", "null", ["object", "null"])
-        )
-        and "binaryFormat" not in instance
-    ):
-        yield jsonschema.ValidationError(
-            f"{instance['type']} type must have binaryFormat set"
-        )
+    if validator.is_type(instance, "object"):
+        for v in instance.values():
+            if (
+                isinstance(v, dict)
+                and v.get("type")
+                not in (None, "object", "array", "null", ["object", "null"])
+                and "binaryFormat" not in v
+            ):
+                yield jsonschema.ValidationError(
+                    f"{v['type']} type must have binaryFormat set"
+                )
     # null type must be padding
     if (
         validator.is_type(instance, "object")
-        and instance.get("type") == "null"
-        and "binaryFormat" in instance
-        and instance["binaryFormat"][-1] != "x"
+        and "null" in instance
+        and instance["null"].get("type") == "null"
+        and "binaryFormat" in instance["null"]
+        and instance["null"]["binaryFormat"][-1] != "x"
     ):
         yield jsonschema.ValidationError(
             'null type binaryFormat must be padding ("x") if set'
