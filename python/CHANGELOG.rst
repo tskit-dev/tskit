@@ -16,6 +16,10 @@
    Default is ``None``, where all the sample nodes are selected.
    (:user:`szhan`, :pr:`2493`, :issue:`678`)
 
+ - ``ts.draw`` and the ``draw_svg`` methods now have an optional ``omit_sites``
+   parameter, aiding drawing large trees with many sites and mutations
+   (:user:`hyanwong`, :pr:`2519`, :issue:`2516`)
+
 **Breaking Changes**
 
  - Single statistics computed with ``TreeSequence.general_stat`` are now

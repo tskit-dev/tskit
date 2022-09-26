@@ -1722,6 +1722,7 @@ class Tree:
         y_ticks=None,
         y_gridlines=None,
         all_edge_mutations=None,
+        omit_sites=None,
         **kwargs,
     ):
         """
@@ -1808,6 +1809,8 @@ class Tree:
             even if their genomic position is to the left or right of the tree
             itself. Note that this means that independent drawings of different trees
             from the same tree sequence may share some plotted mutations.
+        :param bool omit_sites: If True, omit sites and mutations from the drawing.
+            Default: False
 
         :return: An SVG representation of a tree.
         :rtype: SVGString
@@ -1834,6 +1837,7 @@ class Tree:
             y_ticks=y_ticks,
             y_gridlines=y_gridlines,
             all_edge_mutations=all_edge_mutations,
+            omit_sites=omit_sites,
             **kwargs,
         )
         output = draw.drawing.tostring()
@@ -1859,6 +1863,7 @@ class Tree:
         min_time=None,
         max_tree_height=None,
         order=None,
+        omit_sites=None,
     ):
         """
         Returns a drawing of this tree.
@@ -1966,6 +1971,8 @@ class Tree:
             in the left-to-right order defined by the
             :ref:`quintuply linked tree structure <sec_data_model_tree_structure>`.
             If not specified or None, this defaults to ``"minlex"``.
+        :param bool omit_sites: If True, omit sites and mutations from the drawing
+            (only relevant to the SVG format). Default: False
         :return: A representation of this tree in the requested format.
         :rtype: str
         """
@@ -1985,6 +1992,7 @@ class Tree:
             min_time=min_time,
             max_tree_height=max_tree_height,
             order=order,
+            omit_sites=omit_sites,
         )
         if path is not None:
             with open(path, "w") as f:
@@ -6881,6 +6889,7 @@ class TreeSequence:
         y_label=None,
         y_ticks=None,
         y_gridlines=None,
+        omit_sites=None,
         **kwargs,
     ):
         """
@@ -6956,6 +6965,8 @@ class TreeSequence:
             node value.
         :param bool y_gridlines: Whether to plot horizontal lines behind the tree
             at each y tickmark.
+        :param bool omit_sites: If True, omit sites and mutations from the drawing.
+            Default: False
 
         :return: An SVG representation of a tree sequence.
         :rtype: SVGString
@@ -6991,6 +7002,7 @@ class TreeSequence:
             y_label=y_label,
             y_ticks=y_ticks,
             y_gridlines=y_gridlines,
+            omit_sites=omit_sites,
             **kwargs,
         )
         output = draw.drawing.tostring()
