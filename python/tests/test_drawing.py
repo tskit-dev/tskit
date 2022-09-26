@@ -1636,6 +1636,34 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         svg = t.draw_svg()
         self.verify_basic_svg(svg)
 
+    def test_mutations_present(self):
+        t = self.get_binary_tree()
+        assert t.tree_sequence.num_mutations > 0
+        svg = t.draw()
+        self.verify_basic_svg(svg)
+        assert svg.count('class="mut') == t.tree_sequence.num_mutations
+        svg = t.draw_svg()
+        self.verify_basic_svg(svg)
+        assert svg.count('class="mut') == t.tree_sequence.num_mutations
+        svg = t.tree_sequence.draw_svg()
+        self.verify_basic_svg(svg)
+        assert 'class="site' in svg
+        assert svg.count('class="site') == t.tree_sequence.num_sites
+
+    def test_sites_omitted(self):
+        t = self.get_binary_tree()
+        assert t.tree_sequence.num_mutations > 0
+        svg = t.draw(omit_sites=True)
+        self.verify_basic_svg(svg)
+        assert svg.count('class="mut') == 0
+        svg = t.draw_svg(omit_sites=True)
+        self.verify_basic_svg(svg)
+        assert svg.count('class="mut') == 0
+        svg = t.tree_sequence.draw_svg(omit_sites=True)
+        self.verify_basic_svg(svg)
+        assert svg.count('class="mut') == 0
+        assert svg.count('class="site') == 0
+
     def test_width_height(self):
         t = self.get_binary_tree()
         w = 123

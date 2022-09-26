@@ -368,6 +368,7 @@ def draw_tree(
     min_time=None,
     max_tree_height=None,
     order=None,
+    omit_sites=None,
 ):
     if time_scale is None and tree_height_scale is not None:
         time_scale = tree_height_scale
@@ -424,6 +425,7 @@ def draw_tree(
             node_label_attrs=node_label_attrs,
             mutation_attrs=mutation_attrs,
             order=order,
+            omit_sites=omit_sites,
         )
         return SVGString(tree.drawing.tostring())
 
@@ -582,6 +584,7 @@ class SvgPlot:
         y_label=None,
         offsets=None,
         debug_box=None,
+        omit_sites=None,
     ):
         """
         Creates self.drawing, an svgwrite.Drawing object for further use, and populates
@@ -617,6 +620,7 @@ class SvgPlot:
         self.x_label = x_label
         self.y_label = y_label
         self.offsets = Offsets() if offsets is None else offsets
+        self.omit_sites = omit_sites
         self.mutations_outside_tree = set()  # mutations in here get an additional class
 
     def get_plotbox(self):
@@ -720,7 +724,7 @@ class SvgPlot:
                         # place origin at the bottom of the tick plus a single px space
                         pos=(0, tick_length_lower + 1),
                     )
-            if site_muts is not None:
+            if not self.omit_sites and site_muts is not None:
                 # Add sites as vertical lines with overlaid mutations as upper chevrons
                 for s_id, mutations in site_muts.items():
                     s = self.ts.site(s_id)
@@ -1111,6 +1115,7 @@ class SvgTree(SvgPlot):
         node_label_attrs=None,
         mutation_label_attrs=None,
         offsets=None,
+        omit_sites=None,
         **kwargs,
     ):
         if max_time is None and max_tree_height is not None:
@@ -1148,6 +1153,7 @@ class SvgTree(SvgPlot):
             x_label=x_label,
             y_label=y_label,
             offsets=offsets,
+            omit_sites=omit_sites,
             **kwargs,
         )
         self.tree = tree
@@ -1164,14 +1170,15 @@ class SvgTree(SvgPlot):
         # mutations collected per node
         nodes = set(tree.nodes())
         unplotted = []
-        for site in tree.sites():
-            for mutation in site.mutations:
-                if mutation.node in nodes:
-                    self.node_mutations[mutation.node].append(mutation)
-                    if tree.parent(mutation.node) == NULL:
-                        self.mutations_over_roots = True
-                else:
-                    unplotted.append(mutation.id + self.offsets.mutation)
+        if not omit_sites:
+            for site in tree.sites():
+                for mutation in site.mutations:
+                    if mutation.node in nodes:
+                        self.node_mutations[mutation.node].append(mutation)
+                        if tree.parent(mutation.node) == NULL:
+                            self.mutations_over_roots = True
+                    else:
+                        unplotted.append(mutation.id + self.offsets.mutation)
         if len(unplotted) > 0:
             logging.warning(
                 f"Mutations {unplotted} are above nodes which are not present in the "
@@ -1179,7 +1186,7 @@ class SvgTree(SvgPlot):
             )
         self.left_extent = tree.interval.left
         self.right_extent = tree.interval.right
-        if all_edge_mutations:
+        if not omit_sites and all_edge_mutations:
             tree_left = tree.interval.left
             tree_right = tree.interval.right
             edge_left = ts.tables.edges.left
@@ -1244,7 +1251,7 @@ class SvgTree(SvgPlot):
         for _, mutations in self.node_mutations.items():
             for mutation in mutations:
                 m = mutation.id + self.offsets.mutation
-                # We need to offset the rectangle so that it's centred
+                # We need to offset the mutation symbol so that it's centred
                 self.mutation_attrs[m] = {
                     "d": "M -{0},-{0} l {1},{1} M -{0},{0} l {1},-{1}".format(
                         half_symbol_size, symbol_size
