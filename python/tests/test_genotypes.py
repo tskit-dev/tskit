@@ -374,6 +374,13 @@ class TestVariantGenerator:
                     count += 1
                 assert count == ts.num_sites
 
+    def test_samples_64bit(self):
+        ts = msprime.simulate(4, length=5, mutation_rate=5, random_seed=2)
+        s = np.where(ts.nodes_time == 0)[0]  # normally returns 64 bit ints
+        next(ts.variants(samples=s))
+        s = np.array(s, dtype=np.int64)  # cast just to make sure
+        next(ts.variants(samples=s))
+
     def test_samples_missing_data(self):
         n = 4
         ts = msprime.simulate(

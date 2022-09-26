@@ -116,6 +116,8 @@ class Variant:
         if isolated_as_missing is None:
             isolated_as_missing = True
         self.tree_sequence = tree_sequence
+        if samples is not None:
+            samples = util.safe_np_int_cast(samples, np.int32)
         self._ll_variant = _tskit.Variant(
             tree_sequence._ll_tree_sequence,
             samples=samples,
