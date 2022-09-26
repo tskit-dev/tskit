@@ -2,6 +2,11 @@
 [0.5.3] - 2022-XX-XX
 --------------------
 
+**Fixes**
+
+ - The ``Variant`` object can now be initialized with 64 bit numpy ints as
+   returned e.g. from np.where (:user:`hyanwong`, :pr:`2518`, :issue:`2514`)
+
 **Features**
 
  - The ``ts.nodes`` method now takes an ``order`` parameter so that nodes
