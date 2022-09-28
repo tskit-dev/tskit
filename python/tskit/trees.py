@@ -2745,8 +2745,27 @@ class Tree:
             will result in these missing observations being imputed to the
             most parsimonious state.
 
+        Because the ``parent`` in the returned list of mutations refers to the index
+        in that list, if you are adding mutations to an existing tree sequence, you
+        will need to maintain a map of list IDs to the newly added mutations, for
+        instance::
+
+            last_tree = ts.last()
+            anc_state, parsimonious_muts = last_tree.map_mutations([0, 1, 0], ("A", "T"))
+            # Edit the tree sequence, see the "Tables and Editing" tutorial
+            tables = ts.dump_tables()
+            # add a new site at the end of ts, assumes there isn't one there already
+            site_id = tables.sites.add_row(ts.sequence_length - 1, anc_state)
+
+            mut_id_map = {tskit.NULL: tskit.NULL}  # don't change if parent id is -1
+            for list_id, mutation in enumerate(parsimonious_muts):
+                mut_id_map[list_id] = tables.mutations.append(
+                    mutation.replace(site=site_id, parent=mut_id_map[mutation.parent]))
+            tables.sort()  # Redundant here, but needed if the site is not the last one
+            new_ts = tables.tree_sequence()
+
         See the :ref:`tutorials:sec_analysing_trees_parsimony` section in the tutorial
-        for examples of how to use this method.
+        for further examples of how to use this method.
 
         :param array_like genotypes: The input observations for the samples in this tree.
         :param tuple(str) alleles: The alleles for the specified ``genotypes``. Each
