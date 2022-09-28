@@ -1015,7 +1015,7 @@ class Tree:
         Returns the time of the most recent common ancestor of the specified
         nodes. This is equivalent to::
 
-        >>> tree.time(tree.mrca(u, v))
+            >>> tree.time(tree.mrca(u, v))
 
         .. note::
             If you are using this method to calculate average tmrca values along the
