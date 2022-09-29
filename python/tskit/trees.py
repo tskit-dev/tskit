@@ -1004,7 +1004,12 @@ class Tree:
         """
         if len(args) < 2:
             raise ValueError("Must supply at least two arguments")
-        return functools.reduce(self._ll_tree.get_mrca, args)
+        mrca = args[0]
+        for node in args[1:]:
+            mrca = self._ll_tree.get_mrca(mrca, node)
+            if mrca == tskit.NULL:
+                break
+        return mrca
 
     def get_tmrca(self, u, v):
         # Deprecated alias for tmrca

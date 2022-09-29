@@ -916,6 +916,11 @@ class TestMRCA:
     def test_virtual_root_arg(self):
         assert self.t.mrca(0, 5) == 5
 
+    def test_multiple_roots(self):
+        ts = tskit.Tree.generate_balanced(10).tree_sequence
+        ts = ts.delete_intervals([ts.first().interval])
+        assert ts.first().mrca(*ts.samples()) == tskit.NULL
+
 
 class TestPathLength:
     t = tskit.Tree.generate_balanced(9)
