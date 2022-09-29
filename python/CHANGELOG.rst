@@ -7,6 +7,9 @@
  - The ``Variant`` object can now be initialized with 64 bit numpy ints as
    returned e.g. from np.where (:user:`hyanwong`, :pr:`2518`, :issue:`2514`)
 
+ - Fix `tree.mrca` for the case of a tree with multiple roots.
+   (:user:`benjeffery`, :pr:`2533`, :issue:`2521`)
+
 **Features**
 
  - The ``ts.nodes`` method now takes an ``order`` parameter so that nodes
