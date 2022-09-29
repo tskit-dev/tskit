@@ -319,6 +319,16 @@ class Edge(util.Dataclass):
         """
         return self.right - self.left
 
+    @property
+    def interval(self):
+        """
+        Returns the left and right positions of this edge as an :class:`Interval`
+
+        :return: The interval covered by this edge.
+        :rtype: :class:`Interval`
+        """
+        return Interval(self.left, self.right)
+
 
 @metadata_module.lazy_decode()
 @dataclass

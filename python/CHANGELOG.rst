@@ -43,6 +43,8 @@
 - Add ``Interval.mid`` and ``Tree.mid`` properties to return the midpoint of the interval.
   (:user:`currocam`, :pr:`2960`)
 
+- Edges now have an ``.interval`` attribute returning a ``tskit.Interval`` object.
+  (:user:`hyanwong`, :pr:`2531`)
 
 --------------------
 [0.5.8] - 2024-06-27

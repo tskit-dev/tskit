@@ -1576,6 +1576,14 @@ class TestTreeSequence(HighLevelTestCase):
         for edge in ts.edges():
             assert edge.span == edge.right - edge.left
 
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_edge_interval_property(self, ts):
+        for edge in ts.edges():
+            assert edge.interval == (edge.left, edge.right)
+        if ts.num_trees == 1 and ts.num_edges > 0:
+            for edge in ts.edges():
+                assert edge.interval == ts.first().interval
+
     def test_edgesets(self):
         tested = False
         # We manual loop in this test to test the example tree sequences are working
