@@ -26,7 +26,7 @@ pyparsing
 pysam
 pytest
 pytest-cov
-pytest-xdist
+pytest-xdist==2.5.0
 si-prefix
 sphinx==4.5
 sphinx-argparse
