@@ -2,7 +2,7 @@ autodocsumm>=0.2.7
 biopython
 black
 breathe
-codecov
+codecov==2.1.12
 coverage
 dendropy
 flake8
