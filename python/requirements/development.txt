@@ -1,5 +1,5 @@
 autodocsumm>=0.2.7
-biopython
+biopython==1.79
 black
 breathe
 codecov
