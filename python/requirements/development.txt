@@ -21,7 +21,7 @@ ninja
 numpy
 packaging
 portion
-pre-commit
+pre-commit==2.20.0
 pyparsing 
 pysam
 pytest
