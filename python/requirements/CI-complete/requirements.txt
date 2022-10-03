@@ -9,7 +9,7 @@ kastore==0.3.2
 lshmm==0.0.4
 msgpack==1.0.4
 msprime==1.2.0
-networkx==2.6.3 # Held at 2.6.3 for Python 3.7 compatibility
+networkx==2.8.7 # Held at 2.6.3 for Python 3.7 compatibility
 newick==1.3.2
 numpy==1.21.6 # Held at 1.21.6 for Python 3.7 compatibility
 portion==2.3.0
