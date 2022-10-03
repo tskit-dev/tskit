@@ -17,7 +17,7 @@ msgpack>=1.0.0
 msprime>=1.0.0
 networkx
 newick
-ninja
+ninja==1.10.2.4
 numpy
 packaging
 portion
