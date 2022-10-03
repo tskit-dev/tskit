@@ -1,7 +1,7 @@
 autodocsumm>=0.2.7
 biopython
 black
-breathe
+breathe==4.34.0
 codecov
 coverage
 dendropy
