@@ -1,6 +1,6 @@
 autodocsumm>=0.2.7
 biopython
-black
+black==22.8.0
 breathe
 codecov
 coverage
