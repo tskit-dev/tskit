@@ -1,0 +1,11 @@
+update: all
+pin: True
+branch: main
+schedule: "every month"
+search: False
+requirements:
+  - python/requirements/CI-complete/requirements.txt
+  - python/requirements/CI-docs/requirements.txt
+  - python/requirements/CI-tests-conda/requirements.txt
+  - python/requirements/CI-tests-pip/requirements.txt
+assignees: benjeffery
