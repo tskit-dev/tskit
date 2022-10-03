@@ -19,7 +19,7 @@ networkx
 newick
 ninja
 numpy
-packaging
+packaging==21.3
 portion
 pre-commit
 pyparsing 
