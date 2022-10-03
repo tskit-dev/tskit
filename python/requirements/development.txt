@@ -20,7 +20,7 @@ newick
 ninja
 numpy
 packaging
-portion
+portion==2.3.0
 pre-commit
 pyparsing 
 pysam
