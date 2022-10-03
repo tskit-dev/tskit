@@ -9,7 +9,7 @@ flake8
 h5py>=2.6.0
 jsonschema>=3.0.0
 jupyter-book>=0.12.1
-kastore
+kastore==0.3.2
 lshmm
 matplotlib
 meson>=0.61.0
