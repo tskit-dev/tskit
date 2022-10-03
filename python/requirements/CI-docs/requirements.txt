@@ -1,7 +1,7 @@
 breathe==4.34.0
 jupyter-book==0.13.1
 h5py==3.7.0
-jsonschema==3.2.0 #jupyter-book 0.13.1 depends on jsonschema<4
+jsonschema==4.16.0 #jupyter-book 0.13.1 depends on jsonschema<4
 msprime==1.2.0
 numpy==1.21.6 # Held at 1.21.6 for Python 3.7 compatibility
 PyGithub==1.55
