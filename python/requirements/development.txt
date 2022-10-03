@@ -22,7 +22,7 @@ numpy
 packaging
 portion
 pre-commit
-pyparsing 
+pyparsing==3.0.9 
 pysam
 pytest
 pytest-cov
