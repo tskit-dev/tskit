@@ -38,4 +38,4 @@ tqdm
 tskit-book-theme
 pydata_sphinx_theme>=0.7.2
 svgwrite>=1.1.10
-xmlunittest
+xmlunittest==0.5.0
