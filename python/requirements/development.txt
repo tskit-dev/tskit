@@ -27,7 +27,7 @@ pysam
 pytest
 pytest-cov
 pytest-xdist
-si-prefix
+si-prefix==1.2.2
 sphinx==4.5
 sphinx-argparse
 sphinx-autodoc-typehints>=1.18.3
