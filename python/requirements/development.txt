@@ -29,7 +29,7 @@ pytest-cov
 pytest-xdist
 si-prefix
 sphinx==4.5
-sphinx-argparse
+sphinx-argparse==0.3.2
 sphinx-autodoc-typehints>=1.18.3
 sphinx-issues
 sphinx-jupyterbook-latex
