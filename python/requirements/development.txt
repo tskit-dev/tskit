@@ -5,7 +5,7 @@ breathe
 codecov
 coverage
 dendropy
-flake8
+flake8==5.0.4
 h5py>=2.6.0
 jsonschema>=3.0.0
 jupyter-book>=0.12.1
