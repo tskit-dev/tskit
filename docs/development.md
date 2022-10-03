@@ -936,6 +936,10 @@ checks for code quality.
 
 - [CodeCov](https://codecov.io/gh)_ tracks test coverage in Python and C.
 
+- [PyUp](https://pyup.io/) Runs monthly checks on the Python dependencies listed in the
+  requirements files, which are pinned to ensure CI reproducibility. PyUp opens one PR
+  a month with updated pins.
+
 
 (sec_development_best_practices)=
 
