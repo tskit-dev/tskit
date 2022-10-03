@@ -31,7 +31,7 @@ si-prefix
 sphinx==4.5
 sphinx-argparse
 sphinx-autodoc-typehints>=1.18.3
-sphinx-issues
+sphinx-issues==3.0.1
 sphinx-jupyterbook-latex
 sphinxcontrib-prettyspecialmethods
 tqdm
