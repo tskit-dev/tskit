@@ -5,7 +5,7 @@ jsonschema==3.2.0 #jupyter-book 0.13.1 depends on jsonschema<4
 msprime==1.2.0
 numpy==1.21.6 # Held at 1.21.6 for Python 3.7 compatibility
 PyGithub==1.55
-sphinx-argparse==0.3.1
+sphinx-argparse==0.3.2
 sphinx-autodoc-typehints==1.18.3 # Held at 1.18.3 as that depends on sphinx>=5.2.1 while jupyter-book 0.13.1 depends on sphinx<5
 sphinx-issues==3.0.1
 sphinxcontrib-prettyspecialmethods==0.1.0
