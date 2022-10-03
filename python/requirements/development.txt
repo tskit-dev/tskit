@@ -35,7 +35,7 @@ sphinx-issues
 sphinx-jupyterbook-latex
 sphinxcontrib-prettyspecialmethods
 tqdm
-tskit-book-theme
+tskit-book-theme==0.3.2
 pydata_sphinx_theme>=0.7.2
 svgwrite>=1.1.10
 xmlunittest
