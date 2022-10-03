@@ -7789,7 +7789,7 @@ class TreeSequence:
             This is computed as the
             :meth:`trait_covariance <.TreeSequence.trait_covariance>`
             divided by the variance of the relevant column of W
-            and by ;math:`p * (1 - p)`, where :math:`p` is the allele frequency.
+            and by :math:`p * (1 - p)`, where :math:`p` is the allele frequency.
 
         "branch"
             The sum of squared correlations between the split induced by each branch and
@@ -7882,15 +7882,15 @@ class TreeSequence:
             over each cancels the factor of two.)
 
         "branch"
-            The squared coefficient `b_1^2`, computed for the split induced by each
+            The squared coefficient :math:`b_1^2`, computed for the split induced by each
             branch (i.e., with :math:`g` indicating inheritance from that branch),
             multiplied by branch length and tree span, summed over all trees
             in the window, and divided by the length of the window if
             ``span_normalise=True``.
 
         "node"
-            For each node, the squared coefficient `b_1^2`, computed for the property of
-            inheriting from this node, as in "branch".
+            For each node, the squared coefficient :math:`b_1^2`, computed for
+            the property of inheriting from this node, as in "branch".
 
         :param numpy.ndarray W: An array of values with one row for each sample and one
             column for each "phenotype".
