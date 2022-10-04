@@ -134,9 +134,69 @@ class IbdResult:
     def __str__(self):
         return repr(self)
 
-    def add_segment(self, a, b, seg):
+    def add_segment_deprecated(self, a, b, seg):
+        # The original version of add_segment that doesn't sort or squash.
         key = (a, b) if a < b else (b, a)
         self.segments[key].append(tskit.IdentitySegment(seg.left, seg.right, seg.node))
+
+    def add_segment(self, a, b, seg):
+        key = (a, b) if a < b else (b, a)
+
+        # Get position and add into the correct position.
+        current_segs = self.segments[key]
+        num_segs = len(current_segs)
+
+        if num_segs == 0:
+            self.segments[key].append(
+                tskit.IdentitySegment(seg.left, seg.right, seg.node)
+            )
+        else:
+            # Find the position for the new segment.
+            i = 0
+            while (
+                i < num_segs
+                and current_segs[i].node <= seg.node
+                and current_segs[i].right <= seg.left
+            ):
+                i += 1
+
+            # Calculate boolean values that determine whether to squash
+            # and if so, where.
+            PUT_FIRST = False  # Insert segment at start of list.
+            PUT_LAST = False  # Insert segment at end of list.
+            SQUASH_LEFT = False  # Squash with the left segment.
+            SQUASH_RIGHT = False  # Squash with the right segment.
+
+            if i == 0:
+                PUT_FIRST = True
+            if i == num_segs:
+                PUT_LAST = True
+            if not PUT_FIRST:
+                if (
+                    current_segs[i - 1].node == seg.node
+                    and current_segs[i - 1].right == seg.left
+                ):
+                    SQUASH_LEFT = True
+            if not PUT_LAST:
+                if (
+                    seg.node == current_segs[i].node
+                    and seg.right == current_segs[i].left
+                ):
+                    SQUASH_RIGHT = True
+
+            # Insert the new segment and squash if needed.
+            if SQUASH_LEFT and not SQUASH_RIGHT:
+                current_segs[i - 1].right = seg.right
+            elif SQUASH_RIGHT and not SQUASH_LEFT:
+                current_segs[i].left = seg.left
+            elif SQUASH_LEFT and SQUASH_RIGHT:
+                # To squash twice, must pop one of the existing segments.
+                current_segs[i - 1].right = current_segs[i].right
+                current_segs.pop(i)
+            else:
+                self.segments[key].insert(
+                    i, tskit.IdentitySegment(seg.left, seg.right, seg.node)
+                )
 
 
 class IbdFinder:
@@ -177,7 +237,7 @@ class IbdFinder:
         for u, a in enumerate(self.A):
             print(u, self.sample_set_id[u], a, sep="\t")
 
-    def run(self):
+    def run(self, squash=False):
         node_times = self.tables.nodes.time
         for e in self.ts.edges():
             time = node_times[e.parent]
@@ -192,14 +252,16 @@ class IbdFinder:
                     max(e.left, s.left),
                     min(e.right, s.right),
                 )
-                if intvl[1] - intvl[0] > self.min_span:
-                    child_segs.append(Segment(intvl[0], intvl[1], s.node))
+                # if intvl[1] - intvl[0] > self.min_span:
+                child_segs.append(Segment(intvl[0], intvl[1], s.node))
                 s = s.next
-            self.record_ibd(e.parent, child_segs)
+            self.record_ibd(e.parent, child_segs, squash=squash)
             self.A[e.parent].extend(child_segs)
+        if self.min_span > 0:
+            self.filter_by_min_span()
         return self.result.segments
 
-    def record_ibd(self, current_parent, child_segs):
+    def record_ibd(self, current_parent, child_segs, squash):
         """
         Given the specified set of child segments for the current parent
         record the IBD segments that will occur as a result of adding these
@@ -218,16 +280,42 @@ class IbdFinder:
                 # If there are any overlapping segments, record as a new
                 # IBD relationship.
                 if self.passes_filters(seg0.node, seg1.node, left, right):
-                    self.result.add_segment(
-                        seg0.node, seg1.node, Segment(left, right, current_parent)
-                    )
+                    if squash:
+                        self.result.add_segment(
+                            seg0.node,
+                            seg1.node,
+                            Segment(left, right, current_parent),
+                        )
+                    else:
+                        self.result.add_segment_deprecated(
+                            seg0.node,
+                            seg1.node,
+                            Segment(left, right, current_parent),
+                        )
                 seg1 = seg1.next
             seg0 = seg0.next
+
+    def filter_by_min_span(self):
+        """
+        Remove any IBD segments that are smaller than min_span.
+        Note that we can't do this until we have squashed the IBD segments
+        """
+        keys_to_pop = []
+        for key in self.result.segments.keys():
+            self.result.segments[key] = [
+                s for s in self.result.segments[key] if s.right - s.left > self.min_span
+            ]
+            if len(self.result.segments[key]) == 0:
+                keys_to_pop.append(key)
+
+        # Remove any keys that now have no IBD segments.
+        for key in keys_to_pop:
+            self.result.segments.pop(key)
 
     def passes_filters(self, a, b, left, right):
         if a == b:
             return False
-        if right - left <= self.min_span:
+        if right - left <= 0:
             return False
         if self.finding_between:
             return self.sample_set_id[a] != self.sample_set_id[b]
