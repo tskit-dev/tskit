@@ -5301,7 +5301,7 @@ class TreeSequence:
             Will be removed in a future version*
 
         :return: The full matrix of genotypes.
-        :rtype: numpy.ndarray (dtype=np.int8)
+        :rtype: numpy.ndarray (dtype=np.int32)
         """
         if impute_missing_data is not None:
             warnings.warn(
