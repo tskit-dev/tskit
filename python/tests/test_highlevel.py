@@ -2725,9 +2725,9 @@ class TestTreeSequence(HighLevelTestCase):
         ts = ts_fixture
         a = getattr(ts, array)
         assert isinstance(a, np.ndarray)
-        with pytest.raises(AttributeError, match="set attribute"):
+        with pytest.raises(AttributeError):
             setattr(ts, array, None)
-        with pytest.raises(AttributeError, match="delete attribute"):
+        with pytest.raises(AttributeError):
             delattr(ts, array)
         with pytest.raises(ValueError, match="read-only"):
             a[:] = 1
