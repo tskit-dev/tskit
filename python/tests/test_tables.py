@@ -931,7 +931,7 @@ class MetadataTestsMixin:
         table.metadata_schema = self.metadata_schema
         assert repr(table.metadata_schema) == repr(self.metadata_schema)
         # Del should fail
-        with pytest.raises(AttributeError, match="can't delete attribute"):
+        with pytest.raises(AttributeError):
             del table.metadata_schema
         # None should fail
         with pytest.raises(
