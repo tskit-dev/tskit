@@ -1932,9 +1932,12 @@ def all_trees_ts(n):
     return tables.tree_sequence()
 
 
-def all_fields_ts():
+def all_fields_ts(edge_metadata=True, migrations=True):
     """
-    A tree sequence with data in all fields
+    A tree sequence with data in all fields (except edge metadata is not set if
+    edge_metadata is False and migrations are not defined if migrations is False
+    (this is needed to test simplify, which doesn't allow either)
+
     """
     demography = msprime.Demography()
     demography.add_population(name="A", initial_size=10_000)
@@ -1949,7 +1952,7 @@ def all_fields_ts():
         sequence_length=5,
         random_seed=42,
         recombination_rate=1,
-        record_migrations=True,
+        record_migrations=migrations,
         record_provenance=True,
     )
     ts = msprime.sim_mutations(ts, rate=0.001, random_seed=42)
@@ -1973,21 +1976,27 @@ def all_fields_ts():
                 population=i % len(tables.populations),
             )
         )
-    tables.migrations.add_row(left=0, right=1, node=21, source=1, dest=3, time=1001)
+    if migrations:
+        tables.migrations.add_row(left=0, right=1, node=21, source=1, dest=3, time=1001)
 
     # Add metadata
     for name, table in tables.table_name_map.items():
-        if name != "provenances":
-            table.metadata_schema = tskit.MetadataSchema.permissive_json()
-            metadatas = [f'{{"foo":"n_{name}_{u}"}}' for u in range(len(table))]
-            metadata, metadata_offset = tskit.pack_strings(metadatas)
-            table.set_columns(
-                **{
-                    **table.asdict(),
-                    "metadata": metadata,
-                    "metadata_offset": metadata_offset,
-                }
-            )
+        if name == "provenances":
+            continue
+        if name == "migrations" and not migrations:
+            continue
+        if name == "edges" and not edge_metadata:
+            continue
+        table.metadata_schema = tskit.MetadataSchema.permissive_json()
+        metadatas = [f'{{"foo":"n_{name}_{u}"}}' for u in range(len(table))]
+        metadata, metadata_offset = tskit.pack_strings(metadatas)
+        table.set_columns(
+            **{
+                **table.asdict(),
+                "metadata": metadata,
+                "metadata_offset": metadata_offset,
+            }
+        )
     tables.metadata_schema = tskit.MetadataSchema.permissive_json()
     tables.metadata = "Test metadata"
     tables.time_units = "Test time units"

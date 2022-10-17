@@ -8697,6 +8697,8 @@ simplifier_print_state(simplifier_t *self, FILE *out)
     fprintf(out, "options:\n");
     fprintf(out, "\tfilter_unreferenced_sites   : %d\n",
         !!(self->options & TSK_SIMPLIFY_FILTER_SITES));
+    fprintf(out, "\tno_filter_nodes   : %d\n",
+        !!(self->options & TSK_SIMPLIFY_NO_FILTER_NODES));
     fprintf(out, "\treduce_to_site_topology : %d\n",
         !!(self->options & TSK_SIMPLIFY_REDUCE_TO_SITE_TOPOLOGY));
     fprintf(out, "\tkeep_unary              : %d\n",
@@ -9059,16 +9061,17 @@ out:
 }
 
 static int
-simplifier_init_samples(simplifier_t *self, const tsk_id_t *samples)
+simplifier_init_nodes(simplifier_t *self, const tsk_id_t *samples)
 {
     int ret = 0;
     tsk_id_t node_id;
     tsk_size_t j;
+    tsk_size_t num_nodes = self->input_tables.nodes.num_rows;
+    bool filter_nodes = !(self->options & TSK_SIMPLIFY_NO_FILTER_NODES);
+    bool is_sample;
 
-    /* Go through the samples to check for errors. */
     for (j = 0; j < self->num_samples; j++) {
-        if (samples[j] < 0
-            || samples[j] > (tsk_id_t) self->input_tables.nodes.num_rows) {
+        if (samples[j] < 0 || samples[j] > (tsk_id_t) num_nodes) {
             ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
             goto out;
         }
@@ -9077,15 +9080,38 @@ simplifier_init_samples(simplifier_t *self, const tsk_id_t *samples)
             goto out;
         }
         self->is_sample[samples[j]] = true;
-        node_id = simplifier_record_node(self, samples[j], true);
-        if (node_id < 0) {
-            ret = (int) node_id;
-            goto out;
+    }
+
+    if (filter_nodes) {
+        /* Go through the samples to check for errors. */
+        for (j = 0; j < self->num_samples; j++) {
+            node_id = simplifier_record_node(self, samples[j], true);
+            if (node_id < 0) {
+                ret = (int) node_id;
+                goto out;
+            }
+            ret = simplifier_add_ancestry(
+                self, samples[j], 0, self->tables->sequence_length, node_id);
+            if (ret != 0) {
+                goto out;
+            }
         }
-        ret = simplifier_add_ancestry(
-            self, samples[j], 0, self->tables->sequence_length, node_id);
-        if (ret != 0) {
-            goto out;
+    } else {
+        /* record all the nodes, but only save ancestry for those in the sample */
+        for (j = 0; j < num_nodes; j++) {
+            is_sample = self->is_sample[j];
+            node_id = simplifier_record_node(self, (tsk_id_t) j, is_sample);
+            if (node_id < 0) {
+                ret = (int) node_id;
+                goto out;
+            }
+            if (is_sample) {
+                ret = simplifier_add_ancestry(
+                    self, node_id, 0, self->tables->sequence_length, node_id);
+                if (ret != 0) {
+                    goto out;
+                }
+            }
         }
     }
 out:
@@ -9174,7 +9200,7 @@ simplifier_init(simplifier_t *self, const tsk_id_t *samples, tsk_size_t num_samp
     if (ret != 0) {
         goto out;
     }
-    ret = simplifier_init_samples(self, samples);
+    ret = simplifier_init_nodes(self, samples);
     if (ret != 0) {
         goto out;
     }
@@ -9253,11 +9279,10 @@ simplifier_merge_ancestors(simplifier_t *self, tsk_id_t input_id)
     tsk_id_t ancestry_node;
     tsk_id_t output_id = self->node_id_map[input_id];
 
-    bool is_sample = output_id != TSK_NULL;
-    bool keep_unary = false;
-    if (self->options & TSK_SIMPLIFY_KEEP_UNARY) {
-        keep_unary = true;
-    }
+    bool is_sample = self->is_sample[input_id];
+    /* bool is_sample = output_id != TSK_NULL; */
+    bool filter_nodes = !(self->options & TSK_SIMPLIFY_NO_FILTER_NODES);
+    bool keep_unary = !!(self->options & TSK_SIMPLIFY_KEEP_UNARY);
     if ((self->options & TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS)
         && (self->input_tables.nodes.individual[input_id] != TSK_NULL)) {
         keep_unary = true;
@@ -9348,7 +9373,7 @@ simplifier_merge_ancestors(simplifier_t *self, tsk_id_t input_id)
         if (ret != 0) {
             goto out;
         }
-        if (num_flushed_edges == 0 && !is_sample) {
+        if (filter_nodes && (num_flushed_edges == 0) && !is_sample) {
             ret = simplifier_rewind_node(self, input_id, output_id);
         }
     }

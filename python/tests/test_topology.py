@@ -2641,8 +2641,10 @@ class TestSimplifyExamples(TopologyTestCase):
     def verify_simplify(
         self,
         samples,
+        *,
         filter_sites=True,
         keep_input_roots=False,
+        filter_nodes=True,
         nodes_before=None,
         edges_before=None,
         sites_before=None,
@@ -2657,7 +2659,7 @@ class TestSimplifyExamples(TopologyTestCase):
         Verifies that if we run simplify on the specified input we get the
         required output.
         """
-        ts = tskit.load_text(
+        before = tskit.load_text(
             nodes=io.StringIO(nodes_before),
             edges=io.StringIO(edges_before),
             sites=io.StringIO(sites_before) if sites_before is not None else None,
@@ -2666,9 +2668,8 @@ class TestSimplifyExamples(TopologyTestCase):
             ),
             strict=False,
         )
-        before = ts.dump_tables()
 
-        ts = tskit.load_text(
+        after = tskit.load_text(
             nodes=io.StringIO(nodes_after),
             edges=io.StringIO(edges_after),
             sites=io.StringIO(sites_after) if sites_after is not None else None,
@@ -2678,23 +2679,26 @@ class TestSimplifyExamples(TopologyTestCase):
             strict=False,
             sequence_length=before.sequence_length,
         )
-        after = ts.dump_tables()
-        # Make sure it's a valid tree sequence
-        ts = before.tree_sequence()
-        before.simplify(
+
+        result, _ = do_simplify(
+            before,
             samples=samples,
             filter_sites=filter_sites,
             keep_input_roots=keep_input_roots,
-            record_provenance=False,
+            filter_nodes=filter_nodes,
+            compare_lib=False,  # TMP
         )
         if debug:
             print("before")
             print(before)
-            print(before.tree_sequence().draw_text())
+            print(before.draw_text())
             print("after")
             print(after)
-            print(after.tree_sequence().draw_text())
-        assert before == after
+            print(after.draw_text())
+            print("result")
+            print(result)
+            print(result.draw_text())
+        after.tables.assert_equals(result.tables)
 
     def test_unsorted_edges(self):
         # We have two nodes at the same time and interleave edges for
@@ -3248,6 +3252,38 @@ class TestSimplifyExamples(TopologyTestCase):
             edges_before=edges_before,
             nodes_after=nodes_before,
             edges_after=edges_before,
+        )
+
+    def test_keep_nodes(self):
+        nodes_before = """\
+        id      is_sample   time
+        0       1           0
+        1       1           0
+        2       0           1
+        3       0           2
+        4       0           3
+        """
+        edges_before = """\
+        left    right   parent  child
+        0       1       2       0
+        0       1       2       1
+        0       1       3       2
+        0       1       4       3
+        """
+        edges_after = """\
+        left    right   parent  child
+        0       1       2       0
+        0       1       2       1
+        0       1       4       2
+        """
+        self.verify_simplify(
+            samples=[0, 1],
+            nodes_before=nodes_before,
+            edges_before=edges_before,
+            nodes_after=nodes_before,
+            edges_after=edges_after,
+            filter_nodes=False,
+            keep_input_roots=True,
         )
 
 
@@ -4711,74 +4747,77 @@ class TestCoiteration:
             assert t1.num_tracked_samples() == t2.num_tracked_samples() == 4
 
 
+def do_simplify(
+    ts,
+    samples=None,
+    compare_lib=True,
+    filter_sites=True,
+    filter_populations=True,
+    filter_individuals=True,
+    filter_nodes=True,
+    keep_unary=False,
+    keep_input_roots=False,
+):
+    """
+    Runs the Python test implementation of simplify.
+    """
+    if samples is None:
+        samples = ts.samples()
+    s = tests.Simplifier(
+        ts,
+        samples,
+        filter_sites=filter_sites,
+        filter_populations=filter_populations,
+        filter_individuals=filter_individuals,
+        filter_nodes=filter_nodes,
+        keep_unary=keep_unary,
+        keep_input_roots=keep_input_roots,
+    )
+    new_ts, node_map = s.simplify()
+    if compare_lib:
+        sts, lib_node_map1 = ts.simplify(
+            samples,
+            filter_sites=filter_sites,
+            filter_individuals=filter_individuals,
+            filter_populations=filter_populations,
+            filter_nodes=filter_nodes,
+            keep_unary=keep_unary,
+            keep_input_roots=keep_input_roots,
+            map_nodes=True,
+        )
+        lib_tables1 = sts.dump_tables()
+
+        lib_tables2 = ts.dump_tables()
+        lib_node_map2 = lib_tables2.simplify(
+            samples,
+            filter_sites=filter_sites,
+            keep_unary=keep_unary,
+            keep_input_roots=keep_input_roots,
+            filter_individuals=filter_individuals,
+            filter_populations=filter_populations,
+            filter_nodes=filter_nodes,
+        )
+
+        py_tables = new_ts.dump_tables()
+        for lib_tables, lib_node_map in [
+            (lib_tables1, lib_node_map1),
+            (lib_tables2, lib_node_map2),
+        ]:
+            assert lib_tables.nodes == py_tables.nodes
+            assert lib_tables.edges == py_tables.edges
+            assert lib_tables.migrations == py_tables.migrations
+            assert lib_tables.sites == py_tables.sites
+            assert lib_tables.mutations == py_tables.mutations
+            assert lib_tables.individuals == py_tables.individuals
+            assert lib_tables.populations == py_tables.populations
+            assert all(node_map == lib_node_map)
+    return new_ts, node_map
+
+
 class SimplifyTestBase:
     """
     Base class for simplify tests.
     """
-
-    def do_simplify(
-        self,
-        ts,
-        samples=None,
-        compare_lib=True,
-        filter_sites=True,
-        filter_populations=True,
-        filter_individuals=True,
-        keep_unary=False,
-        keep_input_roots=False,
-    ):
-        """
-        Runs the Python test implementation of simplify.
-        """
-        if samples is None:
-            samples = ts.samples()
-        s = tests.Simplifier(
-            ts,
-            samples,
-            filter_sites=filter_sites,
-            filter_populations=filter_populations,
-            filter_individuals=filter_individuals,
-            keep_unary=keep_unary,
-            keep_input_roots=keep_input_roots,
-        )
-        new_ts, node_map = s.simplify()
-        if compare_lib:
-            sts, lib_node_map1 = ts.simplify(
-                samples,
-                filter_sites=filter_sites,
-                filter_individuals=filter_individuals,
-                filter_populations=filter_populations,
-                keep_unary=keep_unary,
-                keep_input_roots=keep_input_roots,
-                map_nodes=True,
-            )
-            lib_tables1 = sts.dump_tables()
-
-            lib_tables2 = ts.dump_tables()
-            lib_node_map2 = lib_tables2.simplify(
-                samples,
-                filter_sites=filter_sites,
-                keep_unary=keep_unary,
-                keep_input_roots=keep_input_roots,
-                filter_individuals=filter_individuals,
-                filter_populations=filter_populations,
-            )
-
-            py_tables = new_ts.dump_tables()
-            for lib_tables, lib_node_map in [
-                (lib_tables1, lib_node_map1),
-                (lib_tables2, lib_node_map2),
-            ]:
-
-                assert lib_tables.nodes == py_tables.nodes
-                assert lib_tables.edges == py_tables.edges
-                assert lib_tables.migrations == py_tables.migrations
-                assert lib_tables.sites == py_tables.sites
-                assert lib_tables.mutations == py_tables.mutations
-                assert lib_tables.individuals == py_tables.individuals
-                assert lib_tables.populations == py_tables.populations
-                assert all(node_map == lib_node_map)
-        return new_ts, node_map
 
 
 class TestSimplify(SimplifyTestBase):
@@ -4824,11 +4863,9 @@ class TestSimplify(SimplifyTestBase):
         """
         t1 = ts.dump_tables()
         t1.nodes.flags = np.zeros_like(t1.nodes.flags)
-        ts1, node_map1 = self.do_simplify(
-            ts, samples=ts.samples(), keep_unary=keep_unary
-        )
+        ts1, node_map1 = do_simplify(ts, samples=ts.samples(), keep_unary=keep_unary)
         t1 = ts1.dump_tables()
-        ts2, node_map2 = self.do_simplify(ts, keep_unary=keep_unary)
+        ts2, node_map2 = do_simplify(ts, keep_unary=keep_unary)
         t2 = ts2.dump_tables()
         t1.assert_equals(t2)
 
@@ -4841,7 +4878,7 @@ class TestSimplify(SimplifyTestBase):
         """
         ts_single = tsutil.single_childify(ts)
 
-        tss, node_map = self.do_simplify(ts_single, keep_unary=keep_unary)
+        tss, node_map = do_simplify(ts_single, keep_unary=keep_unary)
         # All original nodes should still be present.
         for u in range(ts.num_samples):
             assert u == node_map[u]
@@ -4865,7 +4902,7 @@ class TestSimplify(SimplifyTestBase):
     def verify_multiroot_internal_samples(self, ts, keep_unary=False):
         ts_multiroot = ts.decapitate(np.max(ts.tables.nodes.time) / 2)
         ts1 = tsutil.jiggle_samples(ts_multiroot)
-        ts2, node_map = self.do_simplify(ts1, keep_unary=keep_unary)
+        ts2, node_map = do_simplify(ts1, keep_unary=keep_unary)
         assert ts1.num_trees >= ts2.num_trees
         trees2 = ts2.trees()
         t2 = next(trees2)
@@ -4897,10 +4934,10 @@ class TestSimplify(SimplifyTestBase):
     def test_single_tree_mutations(self):
         ts = msprime.simulate(10, mutation_rate=1, random_seed=self.random_seed)
         assert ts.num_sites > 1
-        self.do_simplify(ts)
+        do_simplify(ts)
         self.verify_single_childified(ts)
         # Also with keep_unary == True.
-        self.do_simplify(ts, keep_unary=True)
+        do_simplify(ts, keep_unary=True)
         self.verify_single_childified(ts, keep_unary=True)
 
     def test_many_trees_mutations(self):
@@ -4910,10 +4947,10 @@ class TestSimplify(SimplifyTestBase):
         assert ts.num_trees > 2
         assert ts.num_sites > 2
         self.verify_no_samples(ts)
-        self.do_simplify(ts)
+        do_simplify(ts)
         self.verify_single_childified(ts)
         # Also with keep_unary == True.
-        self.do_simplify(ts, keep_unary=True)
+        do_simplify(ts, keep_unary=True)
         self.verify_single_childified(ts, keep_unary=True)
 
     def test_many_trees(self):
@@ -4944,14 +4981,14 @@ class TestSimplify(SimplifyTestBase):
         nodes.flags = flags
         ts = tables.tree_sequence()
         assert ts.sample_size == 5
-        tss, node_map = self.do_simplify(ts, [3, 5])
+        tss, node_map = do_simplify(ts, [3, 5])
         assert node_map[3] == 0
         assert node_map[5] == 1
         assert tss.num_nodes == 3
         assert tss.num_edges == 2
         self.verify_no_samples(ts)
         # with keep_unary == True
-        tss, node_map = self.do_simplify(ts, [3, 5], keep_unary=True)
+        tss, node_map = do_simplify(ts, [3, 5], keep_unary=True)
         assert node_map[3] == 0
         assert node_map[5] == 1
         assert tss.num_nodes == 5
@@ -4974,7 +5011,7 @@ class TestSimplify(SimplifyTestBase):
         nodes.flags = flags
         ts = tables.tree_sequence()
         assert ts.sample_size == 2
-        tss, node_map = self.do_simplify(ts, [0, 7])
+        tss, node_map = do_simplify(ts, [0, 7])
         assert node_map[0] == 0
         assert node_map[7] == 1
         assert tss.num_nodes == 2
@@ -4982,7 +5019,7 @@ class TestSimplify(SimplifyTestBase):
         t = next(tss.trees())
         assert t.parent_dict == {0: 1}
         # with keep_unary == True
-        tss, node_map = self.do_simplify(ts, [0, 7], keep_unary=True)
+        tss, node_map = do_simplify(ts, [0, 7], keep_unary=True)
         assert node_map[0] == 0
         assert node_map[7] == 1
         assert tss.num_nodes == 4
@@ -5006,7 +5043,7 @@ class TestSimplify(SimplifyTestBase):
         nodes.flags = flags
         ts = tables.tree_sequence()
         assert ts.sample_size == 3
-        tss, node_map = self.do_simplify(ts, [0, 1, 7])
+        tss, node_map = do_simplify(ts, [0, 1, 7])
         assert node_map[0] == 0
         assert node_map[1] == 1
         assert node_map[7] == 2
@@ -5015,7 +5052,7 @@ class TestSimplify(SimplifyTestBase):
         t = next(tss.trees())
         assert t.parent_dict == {0: 3, 1: 3, 3: 2}
         # with keep_unary == True
-        tss, node_map = self.do_simplify(ts, [0, 1, 7], keep_unary=True)
+        tss, node_map = do_simplify(ts, [0, 1, 7], keep_unary=True)
         assert node_map[0] == 0
         assert node_map[1] == 1
         assert node_map[7] == 2
@@ -5044,7 +5081,7 @@ class TestSimplify(SimplifyTestBase):
         assert ts.num_sites == 4
         assert ts.num_mutations == 4
         for keep in [True, False]:
-            tss = self.do_simplify(ts, [0, 2], keep_unary=keep)[0]
+            tss = do_simplify(ts, [0, 2], keep_unary=keep)[0]
             assert tss.sample_size == 2
             assert tss.num_mutations == 4
             assert list(tss.haplotypes()) == ["1011", "0100"]
@@ -5059,12 +5096,10 @@ class TestSimplify(SimplifyTestBase):
         assert ts.num_sites == 8
         assert ts.num_mutations == 8
         for keep in [True, False]:
-            tss, _ = self.do_simplify(ts, [4, 0, 1], filter_sites=True, keep_unary=keep)
+            tss, _ = do_simplify(ts, [4, 0, 1], filter_sites=True, keep_unary=keep)
             assert tss.num_sites == 5
             assert tss.num_mutations == 5
-            tss, _ = self.do_simplify(
-                ts, [4, 0, 1], filter_sites=False, keep_unary=keep
-            )
+            tss, _ = do_simplify(ts, [4, 0, 1], filter_sites=False, keep_unary=keep)
             assert tss.num_sites == 8
             assert tss.num_mutations == 5
 
@@ -5086,7 +5121,7 @@ class TestSimplify(SimplifyTestBase):
         assert ts.num_sites == 3
         assert ts.num_mutations == 3
         for keep in [True, False]:
-            tss, _ = self.do_simplify(ts, [4, 1], keep_unary=keep)
+            tss, _ = do_simplify(ts, [4, 1], keep_unary=keep)
             assert tss.sample_size == 2
             assert tss.num_mutations == 0
             assert list(tss.haplotypes()) == ["", ""]
@@ -5104,7 +5139,7 @@ class TestSimplify(SimplifyTestBase):
         assert ts.num_sites == 1
         assert ts.num_mutations == 1
         for keep_unary, filter_sites in itertools.product([True, False], repeat=2):
-            tss, _ = self.do_simplify(
+            tss, _ = do_simplify(
                 ts, [0, 1], filter_sites=filter_sites, keep_unary=keep_unary
             )
             assert tss.num_sites == 1
@@ -5125,7 +5160,7 @@ class TestSimplify(SimplifyTestBase):
         assert ts.num_sites == 1
         assert ts.num_mutations == 2
         for keep in [True, False]:
-            tss = self.do_simplify(ts, [4, 3], keep_unary=keep)[0]
+            tss = do_simplify(ts, [4, 3], keep_unary=keep)[0]
             assert tss.sample_size == 2
             assert tss.num_sites == 1
             assert tss.num_mutations == 2
@@ -5149,7 +5184,7 @@ class TestSimplify(SimplifyTestBase):
         assert list(ts.haplotypes()) == ["0", "1", "0", "0", "1"]
         # First check if we simplify for all samples and keep original state.
         for keep in [True, False]:
-            tss = self.do_simplify(ts, [0, 1, 2, 3, 4], keep_unary=keep)[0]
+            tss = do_simplify(ts, [0, 1, 2, 3, 4], keep_unary=keep)[0]
             assert tss.sample_size == 5
             assert tss.num_sites == 1
             assert tss.num_mutations == 3
@@ -5157,7 +5192,7 @@ class TestSimplify(SimplifyTestBase):
 
         # The ancestral state above 5 should be 0.
         for keep in [True, False]:
-            tss = self.do_simplify(ts, [0, 1], keep_unary=keep)[0]
+            tss = do_simplify(ts, [0, 1], keep_unary=keep)[0]
             assert tss.sample_size == 2
             assert tss.num_sites == 1
             assert tss.num_mutations == 3
@@ -5165,7 +5200,7 @@ class TestSimplify(SimplifyTestBase):
 
         # The ancestral state above 7 should be 1.
         for keep in [True, False]:
-            tss = self.do_simplify(ts, [4, 0, 1], keep_unary=keep)[0]
+            tss = do_simplify(ts, [4, 0, 1], keep_unary=keep)[0]
             assert tss.sample_size == 3
             assert tss.num_sites == 1
             assert tss.num_mutations == 3
@@ -5192,7 +5227,7 @@ class TestSimplify(SimplifyTestBase):
         assert ts.num_trees == 3
         assert ts.sequence_length == 3
         for keep in [True, False]:
-            tss, node_map = self.do_simplify(ts, samples=[0, 1, 2], keep_unary=keep)
+            tss, node_map = do_simplify(ts, samples=[0, 1, 2], keep_unary=keep)
             assert list(node_map) == [0, 1, 2]
             trees = [{0: 2}, {0: 2, 1: 2}, {1: 2}]
             for t in tss.trees():
@@ -5220,7 +5255,7 @@ class TestSimplify(SimplifyTestBase):
         trees = [{0: 2}, {0: 2, 1: 2}, {1: 2}]
         for t in ts.trees():
             assert t.parent_dict == trees[t.index]
-        tss, node_map = self.do_simplify(ts)
+        tss, node_map = do_simplify(ts)
         assert list(node_map) == [0, 1, 2]
 
     def test_isolated_samples(self):
@@ -5242,7 +5277,7 @@ class TestSimplify(SimplifyTestBase):
         assert ts.num_trees == 1
         assert ts.num_nodes == 3
         for keep in [True, False]:
-            tss, node_map = self.do_simplify(ts, keep_unary=keep)
+            tss, node_map = do_simplify(ts, keep_unary=keep)
             assert ts.tables.nodes == tss.tables.nodes
             assert ts.tables.edges == tss.tables.edges
             assert list(node_map) == [0, 1, 2]
@@ -5275,7 +5310,7 @@ class TestSimplify(SimplifyTestBase):
         )
 
         ts = tskit.load_text(nodes, edges, strict=False)
-        tss, node_map = self.do_simplify(ts, [5, 2, 0])
+        tss, node_map = do_simplify(ts, [5, 2, 0])
         assert node_map[0] == 2
         assert node_map[1] == -1
         assert node_map[2] == 1
@@ -5290,7 +5325,7 @@ class TestSimplify(SimplifyTestBase):
         for t in tss.trees():
             assert t.parent_dict == trees[t.index]
         # with keep_unary == True
-        tss, node_map = self.do_simplify(ts, [5, 2, 0], keep_unary=True)
+        tss, node_map = do_simplify(ts, [5, 2, 0], keep_unary=True)
         assert node_map[0] == 2
         assert node_map[1] == 4
         assert node_map[2] == 1
@@ -5343,7 +5378,7 @@ class TestSimplify(SimplifyTestBase):
         assert ts.num_sites == 1
         assert ts.num_mutations == 2
         for keep in [True, False]:
-            tss, node_map = self.do_simplify(ts, keep_unary=keep)
+            tss, node_map = do_simplify(ts, keep_unary=keep)
             assert tss.num_sites == 1
             assert tss.num_mutations == 2
             assert list(tss.haplotypes(isolated_as_missing=False)) == ["0"]
@@ -5384,7 +5419,7 @@ class TestSimplify(SimplifyTestBase):
         assert ts.num_sites == 1
         assert ts.num_mutations == 3
         for keep in [True, False]:
-            tss, node_map = self.do_simplify(ts, keep_unary=keep)
+            tss, node_map = do_simplify(ts, keep_unary=keep)
             assert tss.num_sites == 1
             assert tss.num_mutations == 3
             assert list(tss.haplotypes(isolated_as_missing=False)) == ["1"]
@@ -5397,7 +5432,7 @@ class TestSimplify(SimplifyTestBase):
         assert ts.num_sites > ts.num_trees
         for keep in [True, False]:
             for filter_sites in [True, False]:
-                tss, _ = self.do_simplify(
+                tss, _ = do_simplify(
                     ts, samples=None, filter_sites=filter_sites, keep_unary=keep
                 )
                 assert ts.num_sites == tss.num_sites
@@ -5411,7 +5446,7 @@ class TestSimplify(SimplifyTestBase):
         assert ts.num_mutations == ts.num_trees
         for keep in [True, False]:
             for filter_sites in [True, False]:
-                tss, _ = self.do_simplify(
+                tss, _ = do_simplify(
                     ts, samples=None, filter_sites=filter_sites, keep_unary=keep
                 )
                 assert ts.num_sites == tss.num_sites
@@ -5423,11 +5458,11 @@ class TestSimplify(SimplifyTestBase):
         tables.populations.add_row(metadata=b"unreferenced")
         assert len(tables.populations) == 2
         for keep in [True, False]:
-            tss, _ = self.do_simplify(
+            tss, _ = do_simplify(
                 tables.tree_sequence(), filter_populations=True, keep_unary=keep
             )
             assert tss.num_populations == 1
-            tss, _ = self.do_simplify(
+            tss, _ = do_simplify(
                 tables.tree_sequence(), filter_populations=False, keep_unary=keep
             )
             assert tss.num_populations == 2
@@ -5451,14 +5486,14 @@ class TestSimplify(SimplifyTestBase):
         ts = tables.tree_sequence()
         id_map = np.array([-1, 0, -1, -1], dtype=np.int32)
         for keep in [True, False]:
-            tss, _ = self.do_simplify(ts, filter_populations=True, keep_unary=keep)
+            tss, _ = do_simplify(ts, filter_populations=True, keep_unary=keep)
             assert tss.num_populations == 1
             population = tss.population(0)
             assert population.metadata == bytes([1])
             assert np.array_equal(
                 id_map[ts.tables.nodes.population], tss.tables.nodes.population
             )
-            tss, _ = self.do_simplify(ts, filter_populations=False, keep_unary=keep)
+            tss, _ = do_simplify(ts, filter_populations=False, keep_unary=keep)
             assert tss.num_populations == 4
 
     def test_removed_node_population_filter(self):
@@ -5472,7 +5507,7 @@ class TestSimplify(SimplifyTestBase):
         tables.nodes.add_row(flags=0, population=1)
         tables.nodes.add_row(flags=1, population=2)
         for keep in [True, False]:
-            tss, _ = self.do_simplify(
+            tss, _ = do_simplify(
                 tables.tree_sequence(), filter_populations=True, keep_unary=keep
             )
             assert tss.num_nodes == 2
@@ -5482,7 +5517,7 @@ class TestSimplify(SimplifyTestBase):
             assert tss.node(0).population == 0
             assert tss.node(1).population == 1
 
-            tss, _ = self.do_simplify(
+            tss, _ = do_simplify(
                 tables.tree_sequence(), filter_populations=False, keep_unary=keep
             )
             assert tss.tables.populations == tables.populations
@@ -5494,14 +5529,14 @@ class TestSimplify(SimplifyTestBase):
         tables.nodes.add_row(flags=1, individual=0)
         tables.nodes.add_row(flags=1, individual=0)
         for keep in [True, False]:
-            tss, _ = self.do_simplify(
+            tss, _ = do_simplify(
                 tables.tree_sequence(), filter_individuals=True, keep_unary=keep
             )
             assert tss.num_nodes == 2
             assert tss.num_individuals == 1
             assert tss.individual(0).flags == 0
 
-        tss, _ = self.do_simplify(tables.tree_sequence(), filter_individuals=False)
+        tss, _ = do_simplify(tables.tree_sequence(), filter_individuals=False)
         assert tss.tables.individuals == tables.individuals
 
     def test_interleaved_individual_filter(self):
@@ -5513,14 +5548,14 @@ class TestSimplify(SimplifyTestBase):
         tables.nodes.add_row(flags=1, individual=-1)
         tables.nodes.add_row(flags=1, individual=1)
         for keep in [True, False]:
-            tss, _ = self.do_simplify(
+            tss, _ = do_simplify(
                 tables.tree_sequence(), filter_individuals=True, keep_unary=keep
             )
             assert tss.num_nodes == 3
             assert tss.num_individuals == 1
             assert tss.individual(0).flags == 1
 
-            tss, _ = self.do_simplify(
+            tss, _ = do_simplify(
                 tables.tree_sequence(), filter_individuals=False, keep_unary=keep
             )
             assert tss.tables.individuals == tables.individuals
@@ -5536,7 +5571,7 @@ class TestSimplify(SimplifyTestBase):
         tables.nodes.add_row(flags=0, individual=1)
         tables.nodes.add_row(flags=1, individual=2)
         for keep in [True, False]:
-            tss, _ = self.do_simplify(
+            tss, _ = do_simplify(
                 tables.tree_sequence(), filter_individuals=True, keep_unary=keep
             )
             assert tss.num_nodes == 2
@@ -5546,13 +5581,13 @@ class TestSimplify(SimplifyTestBase):
             assert tss.node(0).individual == 0
             assert tss.node(1).individual == 1
 
-            tss, _ = self.do_simplify(
+            tss, _ = do_simplify(
                 tables.tree_sequence(), filter_individuals=False, keep_unary=keep
             )
             assert tss.tables.individuals == tables.individuals
 
     def verify_simplify_haplotypes(self, ts, samples, keep_unary=False):
-        sub_ts, node_map = self.do_simplify(
+        sub_ts, node_map = do_simplify(
             ts, samples, filter_sites=False, keep_unary=keep_unary
         )
         assert ts.num_sites == sub_ts.num_sites
@@ -5643,7 +5678,7 @@ class TestSimplifyKeepInputRoots(SimplifyTestBase, ExampleTopologyMixin):
 
     def verify_keep_input_roots(self, ts, samples):
         ts = tsutil.insert_unique_metadata(ts, ["individuals"])
-        ts_with_roots, node_map = self.do_simplify(
+        ts_with_roots, node_map = do_simplify(
             ts, samples, keep_input_roots=True, filter_sites=False, compare_lib=True
         )
         new_to_input_map = {
@@ -5782,6 +5817,159 @@ class TestSimplifyKeepInputRoots(SimplifyTestBase, ExampleTopologyMixin):
             for num_samples in range(1, ts.num_samples):
                 for samples in itertools.combinations(ts.samples(), num_samples):
                     self.verify_keep_input_roots(ts, samples)
+
+
+class TestSimplifyFilterNodes:
+    """
+    Tests simplify when nodes are kept in the ts with filter_nodes=False
+    """
+
+    def reverse_node_indexes(self, ts):
+        tables = ts.dump_tables()
+        nodes = tables.nodes
+        edges = tables.edges
+        mutations = tables.mutations
+        nodes.replace_with(nodes[::-1])
+        edges.parent = ts.num_nodes - edges.parent - 1
+        edges.child = ts.num_nodes - edges.child - 1
+        mutations.node = ts.num_nodes - mutations.node - 1
+        tables.sort()
+        return tables.tree_sequence()
+
+    def verify_nodes_unchanged(self, ts_in, resample_size=None, **kwargs):
+        if resample_size is None:
+            samples = None
+        else:
+            np.random.seed(42)
+            samples = np.sort(
+                np.random.choice(ts_in.num_nodes, resample_size, replace=False)
+            )
+
+        for ts in (ts_in, self.reverse_node_indexes(ts_in)):
+            filtered, n_map = do_simplify(
+                ts, samples=samples, filter_nodes=False, compare_lib=False, **kwargs
+            )
+            assert np.array_equal(n_map, np.arange(ts.num_nodes, dtype=n_map.dtype))
+            referenced_nodes = set(filtered.samples())
+            referenced_nodes.update(filtered.edges_parent)
+            referenced_nodes.update(filtered.edges_child)
+            for n1, n2 in zip(ts.nodes(), filtered.nodes()):
+                # Ignore the tskit.NODE_IS_SAMPLE flag which can be changed by simplify
+                if n2.id in referenced_nodes:
+                    assert n_map[n2.id] == tskit.NULL
+                else:
+                    n1 = n1.replace(flags=n1.flags | tskit.NODE_IS_SAMPLE)
+                    n2 = n2.replace(flags=n2.flags | tskit.NODE_IS_SAMPLE)
+                    assert n1 == n2
+
+            # Check that edges are identical to the normal simplify(),
+            # with the normal "simplify" having altered IDs
+            simplified, node_map = ts.simplify(
+                samples=samples, map_nodes=True, **kwargs
+            )
+            simplified_edges = {e for e in simplified.tables.edges}
+            filtered_edges = {
+                e.replace(parent=node_map[e.parent], child=node_map[e.child])
+                for e in filtered.tables.edges
+            }
+            assert filtered_edges == simplified_edges
+
+    def test_empty(self):
+        ts = tskit.TableCollection(1).tree_sequence()
+        self.verify_nodes_unchanged(ts)
+
+    def test_all_samples(self):
+        ts = tskit.Tree.generate_comb(5).tree_sequence
+        tables = ts.dump_tables()
+        flags = tables.nodes.flags
+        flags |= tskit.NODE_IS_SAMPLE
+        tables.nodes.flags = flags
+        ts = tables.tree_sequence()
+        assert ts.num_samples == ts.num_nodes
+        self.verify_nodes_unchanged(ts)
+
+    @pytest.mark.parametrize("resample_size", [None, 4])
+    def test_no_topology(self, resample_size):
+        ts = tskit.Tree.generate_comb(5).tree_sequence
+        ts = ts.keep_intervals([], simplify=False)
+        assert ts.num_nodes > 5  # has unreferenced nodes
+        self.verify_nodes_unchanged(ts, resample_size=resample_size)
+
+    @pytest.mark.parametrize("resample_size", [None, 2])
+    def test_stick_tree(self, resample_size):
+        ts = tskit.Tree.generate_comb(2).tree_sequence
+        ts = ts.simplify([0], keep_unary=True)
+        assert ts.first().parent(0) != tskit.NULL
+        self.verify_nodes_unchanged(ts, resample_size=resample_size)
+
+        # switch to an internal sample
+        tables = ts.dump_tables()
+        flags = tables.nodes.flags
+        flags[0] = 0
+        flags[1] = tskit.NODE_IS_SAMPLE
+        tables.nodes.flags = flags
+        self.verify_nodes_unchanged(tables.tree_sequence(), resample_size=resample_size)
+
+    @pytest.mark.parametrize("resample_size", [None, 4])
+    def test_internal_samples(self, resample_size):
+        ts = tskit.Tree.generate_comb(4).tree_sequence
+        tables = ts.dump_tables()
+        flags = tables.nodes.flags
+        flags ^= tskit.NODE_IS_SAMPLE
+        tables.nodes.flags = flags
+        ts = tables.tree_sequence()
+        assert np.all(ts.samples() >= ts.num_samples)
+        self.verify_nodes_unchanged(ts, resample_size=resample_size)
+
+    @pytest.mark.parametrize("resample_size", [None, 4])
+    def test_blank_flanks(self, resample_size):
+        ts = tskit.Tree.generate_comb(4).tree_sequence
+        ts = ts.keep_intervals([[0.25, 0.75]], simplify=False)
+        self.verify_nodes_unchanged(ts, resample_size=resample_size)
+
+    @pytest.mark.parametrize("resample_size", [None, 4])
+    def test_multiroot(self, resample_size):
+        ts = tskit.Tree.generate_balanced(6).tree_sequence
+        ts = ts.decapitate(2.5)
+        self.verify_nodes_unchanged(ts, resample_size=resample_size)
+
+    @pytest.mark.parametrize("resample_size", [None, 10])
+    def test_with_metadata(self, ts_fixture_for_simplify, resample_size):
+        assert ts_fixture_for_simplify.num_nodes > 10
+        self.verify_nodes_unchanged(
+            ts_fixture_for_simplify, resample_size=resample_size
+        )
+
+    @pytest.mark.parametrize("resample_size", [None, 7])
+    def test_complex_ts_with_unary(self, resample_size):
+        ts = msprime.sim_ancestry(
+            3,
+            sequence_length=10,
+            recombination_rate=1,
+            record_full_arg=True,
+            random_seed=123,
+        )
+        assert ts.num_trees > 2
+        ts = msprime.sim_mutations(ts, rate=1, random_seed=123)
+        # Add some unreferenced nodes
+        tables = ts.dump_tables()
+        tables.nodes.add_row(flags=0)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE)
+        ts = tables.tree_sequence()
+        self.verify_nodes_unchanged(ts, resample_size=resample_size)
+
+    def test_keeping_unary(self):
+        # Test interaction with keeping unary nodes
+        n_samples = 6
+        ts = tskit.Tree.generate_comb(n_samples).tree_sequence
+        num_nodes = ts.num_nodes
+        reduced_n_samples = [2, n_samples - 1]  # last sample is most deeply nested
+        ts_with_unary = ts.simplify(reduced_n_samples, keep_unary=True)
+        assert ts_with_unary.num_nodes == num_nodes - n_samples + len(reduced_n_samples)
+        tree = ts_with_unary.first()
+        assert any([tree.num_children(u) == 1 for u in tree.nodes()])
+        self.verify_nodes_unchanged(ts_with_unary, keep_unary=True)
+        self.verify_nodes_unchanged(ts_with_unary, keep_unary=False)
 
 
 class TestMapToAncestors:
