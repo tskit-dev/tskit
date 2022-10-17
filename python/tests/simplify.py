@@ -111,6 +111,7 @@ class Simplifier:
         keep_unary=False,
         keep_unary_in_individuals=False,
         keep_input_roots=False,
+        filter_nodes=True,
     ):
         self.ts = ts
         self.n = len(sample)
@@ -119,6 +120,7 @@ class Simplifier:
         self.filter_sites = filter_sites
         self.filter_populations = filter_populations
         self.filter_individuals = filter_individuals
+        self.filter_nodes = filter_nodes
         self.keep_unary = keep_unary
         self.keep_unary_in_individuals = keep_unary_in_individuals
         self.keep_input_roots = keep_input_roots
@@ -141,9 +143,17 @@ class Simplifier:
         for mutation_id in range(ts.num_mutations):
             site_position = position[site[mutation_id]]
             self.mutation_map[node[mutation_id]].append((site_position, mutation_id))
-        for sample_id in sample:
-            output_id = self.record_node(sample_id, is_sample=True)
-            self.add_ancestry(sample_id, 0, self.sequence_length, output_id)
+        if filter_nodes:
+            for sample_id in sample:
+                output_id = self.record_node(sample_id, is_sample=True)
+                self.add_ancestry(sample_id, 0, self.sequence_length, output_id)
+        else:
+            assert list(sample) == list(ts.samples())
+            for node in ts.nodes():
+                self.record_node(node.id, node.is_sample())
+                if node.is_sample():
+                    self.add_ancestry(node.id, 0, self.sequence_length, node.id)
+
         self.position_lookup = None
         if self.reduce_to_site_topology:
             self.position_lookup = np.hstack([[0], position, [self.sequence_length]])
@@ -275,7 +285,8 @@ class Simplifier:
         The new parent must be assigned and any overlapping segments coalesced.
         """
         output_id = self.node_id_map[input_id]
-        is_sample = output_id != -1
+        is_sample = input_id in self.samples  # HACK
+        # is_sample = output_id != -1
         if is_sample:
             # Free up the existing ancestry mapping.
             x = self.A_tail[input_id]
@@ -319,7 +330,7 @@ class Simplifier:
             self.add_ancestry(input_id, prev_right, self.sequence_length, output_id)
         if output_id != -1:
             num_edges = self.flush_edges()
-            if num_edges == 0 and not is_sample:
+            if self.filter_nodes and num_edges == 0 and not is_sample:
                 self.rewind_node(input_id, output_id)
 
     def extract_ancestry(self, edge):
