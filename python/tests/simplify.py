@@ -111,6 +111,7 @@ class Simplifier:
         keep_unary=False,
         keep_unary_in_individuals=False,
         keep_input_roots=False,
+        filter_nodes=True,  # If this is False, the order in `sample` is ignored
     ):
         self.ts = ts
         self.n = len(sample)
@@ -119,6 +120,7 @@ class Simplifier:
         self.filter_sites = filter_sites
         self.filter_populations = filter_populations
         self.filter_individuals = filter_individuals
+        self.filter_nodes = filter_nodes
         self.keep_unary = keep_unary
         self.keep_unary_in_individuals = keep_unary_in_individuals
         self.keep_input_roots = keep_input_roots
@@ -128,6 +130,11 @@ class Simplifier:
         self.A_tail = [None for _ in range(ts.num_nodes)]
         self.tables = self.ts.tables.copy()
         self.tables.clear()
+        if not filter_nodes:
+            # NOTE: this is hack-ish.
+            # So far, we have copied the tables once,
+            # cleared them, and then re-copied.
+            self.tables = self.ts.tables.copy()
         self.edge_buffer = {}
         self.node_id_map = np.zeros(ts.num_nodes, dtype=np.int32) - 1
         self.mutation_node_map = [-1 for _ in range(self.num_mutations)]
@@ -144,6 +151,7 @@ class Simplifier:
         for sample_id in sample:
             output_id = self.record_node(sample_id, is_sample=True)
             self.add_ancestry(sample_id, 0, self.sequence_length, output_id)
+
         self.position_lookup = None
         if self.reduce_to_site_topology:
             self.position_lookup = np.hstack([[0], position, [self.sequence_length]])
@@ -159,6 +167,9 @@ class Simplifier:
         flags &= ~tskit.NODE_IS_SAMPLE
         if is_sample:
             flags |= tskit.NODE_IS_SAMPLE
+        if not self.filter_nodes:
+            self.node_id_map[input_id] = input_id
+            return input_id
         output_id = self.tables.nodes.append(node.replace(flags=flags))
         self.node_id_map[input_id] = output_id
         return output_id

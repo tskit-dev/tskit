@@ -6585,22 +6585,23 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
     npy_intp *shape, dims;
     tsk_size_t num_samples;
     tsk_flags_t options = 0;
-    int filter_sites = true;
+    int filter_sites = false;
     int filter_individuals = false;
     int filter_populations = false;
+    int filter_nodes = true;
     int keep_unary = false;
     int keep_unary_in_individuals = false;
     int keep_input_roots = false;
     int reduce_to_site_topology = false;
     static char *kwlist[] = { "samples", "filter_sites", "filter_populations",
-        "filter_individuals", "reduce_to_site_topology", "keep_unary",
+        "filter_individuals", "filter_nodes", "reduce_to_site_topology", "keep_unary",
         "keep_unary_in_individuals", "keep_input_roots", NULL };
 
     if (TableCollection_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iiiiiii", kwlist, &samples,
-            &filter_sites, &filter_populations, &filter_individuals,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iiiiiiii", kwlist, &samples,
+            &filter_sites, &filter_populations, &filter_individuals, &filter_nodes,
             &reduce_to_site_topology, &keep_unary, &keep_unary_in_individuals,
             &keep_input_roots)) {
         goto out;
@@ -6620,6 +6621,9 @@ TableCollection_simplify(TableCollection *self, PyObject *args, PyObject *kwds)
     }
     if (filter_populations) {
         options |= TSK_SIMPLIFY_FILTER_POPULATIONS;
+    }
+    if (!filter_nodes) {
+        options |= TSK_SIMPLIFY_NO_FILTER_NODES;
     }
     if (reduce_to_site_topology) {
         options |= TSK_SIMPLIFY_REDUCE_TO_SITE_TOPOLOGY;

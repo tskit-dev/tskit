@@ -6491,6 +6491,7 @@ class TreeSequence:
         filter_populations=None,
         filter_individuals=None,
         filter_sites=None,
+        filter_nodes=None,
         keep_unary=False,
         keep_unary_in_individuals=None,
         keep_input_roots=False,
@@ -6505,11 +6506,14 @@ class TreeSequence:
         original tree sequence, or :data:`tskit.NULL` (-1) if ``u`` is no longer
         present in the simplified tree sequence.
 
-        In the returned tree sequence, the node with ID ``0`` corresponds to
-        ``samples[0]``, node ``1`` corresponds to ``samples[1]`` etc., and all
-        the passed-in nodes are flagged as samples. The remaining node IDs in
-        the returned tree sequence are allocated sequentially in time order
-        and are not flagged as samples.
+        In the returned tree sequence the only nodes flagged as samples are those
+        passed as ``samples``: all others are not flagged as samples.
+        If ``filter_nodes`` is not False, nodes in the returned tree sequence are
+        also reordered such that the node with ID ``0`` corresponds to ``samples[0]``,
+        node ``1`` corresponds to ``samples[1]`` etc., and the remaining node IDs
+        are allocated sequentially in time order. Alternatively, if ``filter_nodes``
+        is False, the node order is not changed, and the order of IDs passed to
+        ``samples`` is irrelevant.
 
         If you wish to simplify a set of tables that do not satisfy all
         requirements for building a TreeSequence, then use
@@ -6525,12 +6529,12 @@ class TreeSequence:
         (up to node ID remapping) to the topology of the corresponding tree
         in the input tree sequence.
 
-        If ``filter_populations``, ``filter_individuals`` or ``filter_sites`` is
-        True, any of the corresponding objects that are not referenced elsewhere
-        are filtered out. As this is the default behaviour, it is important to
-        realise IDs for these objects may change through simplification. By setting
-        these parameters to False, however, the corresponding tables can be preserved
-        without changes.
+        If ``filter_populations``, ``filter_individuals``, ``filter_sites``, or
+        ``filter_nodes`` is True, any of the corresponding objects that are not
+        referenced elsewhere are filtered out. As this is the default behaviour,
+        it is important to realise IDs for these objects may change through
+        simplification. By setting these parameters to False, however, the
+        corresponding tables can be preserved without changes.
 
         :param list[int] samples: A list of node IDs to retain as samples. They
             need not be nodes marked as samples in the original tree sequence, but
@@ -6556,6 +6560,11 @@ class TreeSequence:
             not referenced by mutations after simplification; new site IDs are
             allocated sequentially from zero. If False, the site table will not
             be altered in any way. (Default: None, treated as True)
+        :param bool filter_nodes: If True, remove any nodes that are
+            not referenced by edges after simplification. If False, the only
+            potential change to the node table may be to change the node flags
+            (if ``samples`` is specified and different from the existing samples).
+            (Default: None, treated as True)
         :param bool keep_unary: If True, preserve unary nodes (i.e., nodes with
             exactly one child) that exist on the path from samples to root.
             (Default: False)
@@ -6587,6 +6596,7 @@ class TreeSequence:
             filter_populations=filter_populations,
             filter_individuals=filter_individuals,
             filter_sites=filter_sites,
+            filter_nodes=filter_nodes,
             keep_unary=keep_unary,
             keep_unary_in_individuals=keep_unary_in_individuals,
             keep_input_roots=keep_input_roots,

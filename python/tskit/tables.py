@@ -3348,6 +3348,7 @@ class TableCollection(metadata.MetadataProvider):
         filter_populations=None,
         filter_individuals=None,
         filter_sites=None,
+        filter_nodes=None,
         keep_unary=False,
         keep_unary_in_individuals=None,
         keep_input_roots=False,
@@ -3357,9 +3358,9 @@ class TableCollection(metadata.MetadataProvider):
         """
         Simplifies the tables in place to retain only the information necessary
         to reconstruct the tree sequence describing the given ``samples``.
-        This will change the ID of the nodes, so that the node
-        ``samples[k]`` will have ID ``k`` in the result. The resulting
-        NodeTable will have only the first ``len(samples)`` nodes marked
+        If ``filter_nodes`` is True, this can change the ID of the nodes, so
+        that the node ``samples[k]`` will have ID ``k`` in the result, resulting
+        in a NodeTable where only the first ``len(samples)`` nodes are marked
         as samples. The mapping from node IDs in the current set of tables to
         their equivalent values in the simplified tables is also returned as a
         numpy array. If an array ``a`` is returned by this function and ``u``
@@ -3399,6 +3400,11 @@ class TableCollection(metadata.MetadataProvider):
             not referenced by mutations after simplification; new site IDs are
             allocated sequentially from zero. If False, the site table will not
             be altered in any way. (Default: None, treated as True)
+        :param bool filter_nodes: If True, remove any nodes that are
+            not referenced by edges after simplification. If False, the only
+            potential change to the node table may be to change the node flags
+            (if ``samples`` is specified and different from the existing samples).
+            (Default: None, treated as True)
         :param bool keep_unary: If True, preserve unary nodes (i.e. nodes with
             exactly one child) that exist on the path from samples to root.
             (Default: False)
@@ -3440,6 +3446,8 @@ class TableCollection(metadata.MetadataProvider):
             filter_individuals = True
         if filter_sites is None:
             filter_sites = True
+        if filter_nodes is None:
+            filter_nodes = True
         if keep_unary_in_individuals is None:
             keep_unary_in_individuals = False
 
@@ -3448,6 +3456,7 @@ class TableCollection(metadata.MetadataProvider):
             filter_sites=filter_sites,
             filter_individuals=filter_individuals,
             filter_populations=filter_populations,
+            filter_nodes=filter_nodes,
             reduce_to_site_topology=reduce_to_site_topology,
             keep_unary=keep_unary,
             keep_unary_in_individuals=keep_unary_in_individuals,

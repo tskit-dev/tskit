@@ -112,6 +112,14 @@ def ts_fixture():
 
 
 @fixture(scope="session")
+def ts_fixture_for_simplify():
+    """
+    A tree sequence with data in all fields execpt edge metadata and migrations
+    """
+    return tsutil.all_fields_ts(edge_metadata=False, migrations=False)
+
+
+@fixture(scope="session")
 def replicate_ts_fixture():
     """
     A list of tree sequences
