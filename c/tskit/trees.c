@@ -363,6 +363,13 @@ tsk_treeseq_init_mutations(tsk_treeseq_t *self)
             = discrete_times && (is_discrete(time[j]) || tsk_is_unknown_time(time[j]));
     }
     self->discrete_time = self->discrete_time && discrete_times;
+
+    for (j = 0; j < num_mutations; j++) {
+        if (!tsk_is_unknown_time(time[j])) {
+            self->min_time = TSK_MIN(self->min_time, time[j]);
+            self->max_time = TSK_MAX(self->max_time, time[j]);
+        }
+    }
 }
 
 static int
@@ -405,6 +412,13 @@ tsk_treeseq_init_nodes(tsk_treeseq_t *self)
             = discrete_times && (is_discrete(time[j]) || tsk_is_unknown_time(time[j]));
     }
     self->discrete_time = self->discrete_time && discrete_times;
+
+    for (j = 0; j < num_nodes; j++) {
+        if (!tsk_is_unknown_time(time[j])) {
+            self->min_time = TSK_MIN(self->min_time, time[j]);
+            self->max_time = TSK_MAX(self->max_time, time[j]);
+        }
+    }
 out:
     return ret;
 }
@@ -452,6 +466,8 @@ tsk_treeseq_init(
     self->num_trees = (tsk_size_t) num_trees;
     self->discrete_genome = true;
     self->discrete_time = true;
+    self->min_time = INFINITY;
+    self->max_time = -INFINITY;
     ret = tsk_treeseq_init_nodes(self);
     if (ret != 0) {
         goto out;
@@ -708,6 +724,18 @@ bool
 tsk_treeseq_get_discrete_time(const tsk_treeseq_t *self)
 {
     return self->discrete_time;
+}
+
+double
+tsk_treeseq_get_min_time(const tsk_treeseq_t *self)
+{
+    return self->min_time;
+}
+
+double
+tsk_treeseq_get_max_time(const tsk_treeseq_t *self)
+{
+    return self->max_time;
 }
 
 bool

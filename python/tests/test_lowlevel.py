@@ -1535,6 +1535,14 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         ts.load_tables(tables)
         assert ts.get_discrete_time() == 1
 
+    def test_min_time(self):
+        ts = self.get_example_tree_sequence(5)
+        assert isinstance(ts.get_min_time(), float)
+
+    def test_max_time(self):
+        ts = self.get_example_tree_sequence(5)
+        assert isinstance(ts.get_max_time(), float)
+
     def test_split_edges_return_type(self):
         ts = self.get_example_tree_sequence()
         split = ts.split_edges(time=0, flags=0, population=0, metadata=b"")

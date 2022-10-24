@@ -2,7 +2,13 @@
 [1.1.2] - 2022-XX-XX
 --------------------
 
+**Features**
 
+- The struct ``tsk_treeseq_t`` now has the variables ``min_time`` and ``max_time``,
+  which are the minimum and maximum among the node times and mutation times,
+  respectively. ``min_time`` and ``max_time`` can be accessed using the functions
+  ``tsk_treeseq_get_min_time`` and ``tsk_treeseq_get_max_time``, respectively.
+  (:user:`szhan`, :pr:`2612`, :issue:`2271`)
 
 --------------------
 [1.1.1] - 2022-07-29

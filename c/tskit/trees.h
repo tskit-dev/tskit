@@ -89,6 +89,9 @@ typedef struct {
     bool discrete_genome;
     /* Are all time values discrete? */
     bool discrete_time;
+    /* Min and max time in node table and mutation table */
+    double min_time;
+    double max_time;
     /* Breakpoints along the sequence, including 0 and L. */
     double *breakpoints;
     /* If a node is a sample, map to its index in the samples list */
@@ -747,6 +750,30 @@ then this flag will be true
 @return Returns true if all times are discrete.
 */
 bool tsk_treeseq_get_discrete_time(const tsk_treeseq_t *self);
+
+/**
+@brief Get the min time in node table and mutation table
+
+@rst
+The times stored in both the node and mutation tables are considered.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns the min time of all nodes and mutations.
+*/
+double tsk_treeseq_get_min_time(const tsk_treeseq_t *self);
+
+/**
+@brief Get the max time in node table and mutation table
+
+@rst
+The times stored in both the node and mutation tables are considered.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@return Returns the max time of all nodes and mutations.
+*/
+double tsk_treeseq_get_max_time(const tsk_treeseq_t *self);
 
 /**
 @brief Get a node by its index

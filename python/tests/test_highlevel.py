@@ -2770,6 +2770,66 @@ class TestTreeSequence(HighLevelTestCase):
         )
 
 
+class TestMinMaxTime:
+    def get_example_tree_sequence(self, use_unknown_time):
+        """
+        Min time is set to 0.1.
+        Max time is set to 2.0.
+        """
+        tables = tskit.TableCollection(sequence_length=2)
+        tables.nodes.add_row(flags=1, time=0.1)
+        tables.nodes.add_row(flags=1, time=0.1)
+        tables.nodes.add_row(flags=1, time=0.1)
+        tables.nodes.add_row(flags=0, time=1)
+        tables.nodes.add_row(flags=0, time=2)
+        tables.edges.add_row(left=0, right=2, parent=3, child=0)
+        tables.edges.add_row(left=0, right=2, parent=3, child=1)
+        tables.edges.add_row(left=0, right=2, parent=4, child=2)
+        tables.edges.add_row(left=0, right=2, parent=4, child=3)
+        tables.sites.add_row(position=0, ancestral_state="0")
+        tables.sites.add_row(position=1, ancestral_state="0")
+        if use_unknown_time:
+            tables.mutations.add_row(
+                site=0, node=2, derived_state="1", time=tskit.UNKNOWN_TIME
+            )
+            tables.mutations.add_row(
+                site=1, node=3, derived_state="1", time=tskit.UNKNOWN_TIME
+            )
+        else:
+            tables.mutations.add_row(site=0, node=2, derived_state="1", time=0.5)
+            tables.mutations.add_row(site=1, node=3, derived_state="1", time=1.5)
+        ts = tables.tree_sequence()
+        return ts
+
+    def get_empty_tree_sequence(self):
+        """
+        Min time is initialised to positive infinity.
+        Max time is initialised to negative infinity.
+        """
+        tables = tskit.TableCollection(sequence_length=2)
+        ts = tables.tree_sequence()
+        return ts
+
+    def test_example(self):
+        ts = self.get_example_tree_sequence(use_unknown_time=False)
+        expected_min_time = min(ts.nodes_time.min(), ts.mutations_time.min())
+        expected_max_time = max(ts.nodes_time.max(), ts.mutations_time.max())
+        assert ts.min_time == expected_min_time
+        assert ts.max_time == expected_max_time
+
+    def test_example_unknown_mutation_times(self):
+        ts = self.get_example_tree_sequence(use_unknown_time=True)
+        expected_min_time = ts.nodes_time.min()
+        expected_max_time = ts.nodes_time.max()
+        assert ts.min_time == expected_min_time
+        assert ts.max_time == expected_max_time
+
+    def test_empty(self):
+        ts = self.get_empty_tree_sequence()
+        assert ts.min_time == np.inf
+        assert ts.max_time == -np.inf
+
+
 class TestSiteAlleles:
     def test_no_mutations(self):
         tables = tskit.TableCollection(sequence_length=1)

@@ -1158,6 +1158,108 @@ test_simplest_discrete_time(void)
 }
 
 static void
+test_simplest_min_time(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+
+    const char *nodes = "1  0.1 0  -1\n"
+                        "1  0.1 0  -1\n"
+                        "1  0.1 0  -1\n"
+                        "0  1 0  -1\n"
+                        "0  2 0  -1\n";
+    const char *edges = "0  2   3   0,1\n"
+                        "0  2   4   2,3\n";
+    const char *sites = "0  0\n"
+                        "1  0\n";
+    const char *mutations = "0  2   1   -1  0.5\n"
+                            "1  3   1   -1  1.5\n";
+
+    tsk_treeseq_from_text(&ts, 2, nodes, edges, NULL, sites, mutations, NULL, NULL, 0);
+    CU_ASSERT_DOUBLE_EQUAL(tsk_treeseq_get_min_time(&ts), 0.1, 1E-6);
+
+    ret = tsk_table_collection_copy(ts.tables, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_DOUBLE_EQUAL(tsk_treeseq_get_min_time(&ts), 0.1, 1E-6);
+    tsk_treeseq_free(&ts);
+
+    /* Setting mutation times to unknown should have no effect on min time. */
+    tables.mutations.time[0] = TSK_UNKNOWN_TIME;
+    tables.mutations.time[1] = TSK_UNKNOWN_TIME;
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_DOUBLE_EQUAL(tsk_treeseq_get_min_time(&ts), 0.1, 1E-6);
+    tsk_treeseq_free(&ts);
+    tables.mutations.time[0] = 0.5;
+    tables.mutations.time[1] = 1.5;
+
+    /* An empty tree sequence has infinity min time. */
+    tsk_table_collection_clear(&tables, 0);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_min_time(&ts), INFINITY);
+    tsk_treeseq_free(&ts);
+
+    tsk_table_collection_free(&tables);
+}
+
+static void
+test_simplest_max_time(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+
+    const char *nodes = "1  0.1 0  -1\n"
+                        "1  0.1 0  -1\n"
+                        "1  0.1 0  -1\n"
+                        "0  1 0  -1\n"
+                        "0  2 0  -1\n";
+    const char *edges = "0  2   3   0,1\n"
+                        "0  2   4   2,3\n";
+    const char *sites = "0  0\n"
+                        "1  0\n";
+    const char *mutations = "0  2   1   -1  0.5\n"
+                            "1  3   1   -1  1.5\n";
+
+    tsk_treeseq_from_text(&ts, 2, nodes, edges, NULL, sites, mutations, NULL, NULL, 0);
+    CU_ASSERT_DOUBLE_EQUAL(tsk_treeseq_get_max_time(&ts), 2.0, 1E-6);
+
+    ret = tsk_table_collection_copy(ts.tables, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_DOUBLE_EQUAL(tsk_treeseq_get_max_time(&ts), 2.0, 1E-6);
+    tsk_treeseq_free(&ts);
+
+    /* Setting mutation times to unknown should have no effect on max time. */
+    tables.mutations.time[0] = TSK_UNKNOWN_TIME;
+    tables.mutations.time[1] = TSK_UNKNOWN_TIME;
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_DOUBLE_EQUAL(tsk_treeseq_get_max_time(&ts), 2.0, 1E-6);
+    tsk_treeseq_free(&ts);
+    tables.mutations.time[0] = 0.5;
+    tables.mutations.time[1] = 1.5;
+
+    /* An empty tree sequence has negative infinity max time. */
+    tsk_table_collection_clear(&tables, 0);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_max_time(&ts), -INFINITY);
+    tsk_treeseq_free(&ts);
+
+    tsk_table_collection_free(&tables);
+}
+
+static void
 test_simplest_records(void)
 {
     const char *nodes = "1  0   0\n"
@@ -7875,6 +7977,8 @@ main(int argc, char **argv)
         /* simplest example tests */
         { "test_simplest_discrete_genome", test_simplest_discrete_genome },
         { "test_simplest_discrete_time", test_simplest_discrete_time },
+        { "test_simplest_min_time", test_simplest_min_time },
+        { "test_simplest_max_time", test_simplest_max_time },
         { "test_simplest_records", test_simplest_records },
         { "test_simplest_nonbinary_records", test_simplest_nonbinary_records },
         { "test_simplest_unary_records", test_simplest_unary_records },
