@@ -4293,6 +4293,34 @@ class TreeSequence:
         return bool(self._ll_tree_sequence.get_discrete_time())
 
     @property
+    def min_time(self):
+        """
+        Returns the min time in this tree sequence. This is the minimum
+        of the node times and mutation times.
+
+        Note that mutation times with the value ``tskit.UNKNOWN_TIME``
+        are ignored.
+
+        :return: The min time of the nodes and mutations in this tree sequence.
+        :rtype: float
+        """
+        return self._ll_tree_sequence.get_min_time()
+
+    @property
+    def max_time(self):
+        """
+        Returns the max time in this tree sequence. This is the maximum
+        of the node times and mutation times.
+
+        Note that mutation times with the value ``tskit.UNKNOWN_TIME``
+        are ignored.
+
+        :return: The max time of the nodes and mutations in this tree sequence.
+        :rtype: float
+        """
+        return self._ll_tree_sequence.get_max_time()
+
+    @property
     def sequence_length(self):
         """
         Returns the sequence length in this tree sequence. This defines the

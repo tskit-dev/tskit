@@ -2,6 +2,12 @@
 [0.5.4] - 2022-XX-XX
 --------------------
 
+**Features**
+
+- The ``TreeSequence`` object now has the attributes ``min_time`` and ``max_time``,
+  which are the minimum and maximum among the node times and mutation times,
+  respectively. (:user:`szhan`, :pr:`2612`, :issue:`2271`)
+
 **Breaking Changes**
 
  - the ``filter_populations``, ``filter_individuals``, and ``filter_sites``

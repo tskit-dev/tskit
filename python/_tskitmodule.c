@@ -8261,6 +8261,32 @@ out:
 }
 
 static PyObject *
+TreeSequence_get_min_time(TreeSequence *self)
+{
+    PyObject *ret = NULL;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue("d", tsk_treeseq_get_min_time(self->tree_sequence));
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_max_time(TreeSequence *self)
+{
+    PyObject *ret = NULL;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue("d", tsk_treeseq_get_max_time(self->tree_sequence));
+out:
+    return ret;
+}
+
+static PyObject *
 TreeSequence_get_breakpoints(TreeSequence *self)
 {
     PyObject *ret = NULL;
@@ -9911,6 +9937,14 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_get_discrete_time,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns True if this TreeSequence has discrete times" },
+    { .ml_name = "get_min_time",
+        .ml_meth = (PyCFunction) TreeSequence_get_min_time,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the min time." },
+    { .ml_name = "get_max_time",
+        .ml_meth = (PyCFunction) TreeSequence_get_max_time,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the max time." },
     { .ml_name = "get_breakpoints",
         .ml_meth = (PyCFunction) TreeSequence_get_breakpoints,
         .ml_flags = METH_NOARGS,
