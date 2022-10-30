@@ -6444,9 +6444,9 @@ class TreeSequence:
         *,
         map_nodes=False,
         reduce_to_site_topology=False,
-        filter_populations=True,
-        filter_individuals=True,
-        filter_sites=True,
+        filter_populations=None,
+        filter_individuals=None,
+        filter_sites=None,
         keep_unary=False,
         keep_unary_in_individuals=None,
         keep_input_roots=False,
@@ -6503,15 +6503,15 @@ class TreeSequence:
         :param bool filter_populations: If True, remove any populations that are
             not referenced by nodes after simplification; new population IDs are
             allocated sequentially from zero. If False, the population table will
-            not be altered in any way. (Default: True)
+            not be altered in any way. (Default: None, treated as True)
         :param bool filter_individuals: If True, remove any individuals that are
             not referenced by nodes after simplification; new individual IDs are
             allocated sequentially from zero. If False, the individual table will
-            not be altered in any way. (Default: True)
+            not be altered in any way. (Default: None, treated as True)
         :param bool filter_sites: If True, remove any sites that are
             not referenced by mutations after simplification; new site IDs are
             allocated sequentially from zero. If False, the site table will not
-            be altered in any way. (Default: True)
+            be altered in any way. (Default: None, treated as True)
         :param bool keep_unary: If True, preserve unary nodes (i.e., nodes with
             exactly one child) that exist on the path from samples to root.
             (Default: False)
