@@ -1208,6 +1208,33 @@ class Tree:
         """
         return self._right_sib_array
 
+    def siblings(self, u):
+        """
+        Returns the sibling(s) of the specified node ``u`` as a tuple of integer
+        node IDs. If ``u`` has no siblings or is not a node in the current tree,
+        returns an empty tuple. If ``u`` is the root of a single-root tree,
+        returns an empty tuple; if ``u`` is the root of a multi-root tree,
+        returns the other roots (note all the roots are related by the virtual root).
+        If ``u`` is the virtual root (which has no siblings), returns an empty tuple.
+        If ``u`` is an isolated node, whether it has siblings or not depends on
+        whether it is a sample or non-sample node; if it is a sample node,
+        returns the root(s) of the tree, otherwise, returns an empty tuple.
+        The ordering of siblings  is arbitrary and should not be depended on;
+        see the :ref:`data model <sec_data_model_tree_structure>` section for details.
+
+        :param int u: The node of interest.
+        :return: The siblings of ``u``.
+        :rtype: tuple(int)
+        """
+        if u == self.virtual_root:
+            return tuple()
+        parent = self.parent(u)
+        if self.is_root(u):
+            parent = self.virtual_root
+        if parent != tskit.NULL:
+            return tuple(v for v in self.children(parent) if u != v)
+        return tuple()
+
     @property
     def num_children_array(self):
         """

@@ -157,7 +157,7 @@ jobs:
           python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 tests
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           working-directory: python
           fail_ci_if_error: true

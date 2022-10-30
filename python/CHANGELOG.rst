@@ -19,6 +19,12 @@
   extra room on the canvas e.g. for long labels or repositioned graphical
   elements (:user:`hyanwong`, :pr:`2646`, :issue:`2645`)
 
+- The ``Tree`` object now has the method ``siblings`` to get
+   the siblings of a node. It returns an empty tuple if the node
+   has no siblings, is not a node in the tree, is the virtual root,
+   or is an isolated non-sample node.
+   (:user:`szhan`, :pr:`2618`, :issue:`2616`)
+
 **Breaking Changes**
 
  - the ``filter_populations``, ``filter_individuals``, and ``filter_sites``

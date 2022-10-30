@@ -4317,6 +4317,69 @@ class TestTree(HighLevelTestCase):
                     assert edge == tskit.NULL
 
 
+class TestSiblings:
+    def test_balanced_binary_tree(self):
+        t = tskit.Tree.generate_balanced(num_leaves=3)
+        assert t.has_single_root
+        # Nodes 0 to 2 are leaves
+        for u in range(2):
+            assert t.is_leaf(u)
+        assert t.siblings(0) == (3,)
+        assert t.siblings(1) == (2,)
+        assert t.siblings(2) == (1,)
+        # Node 3 is the internal node
+        assert t.is_internal(3)
+        assert t.siblings(3) == (0,)
+        # Node 4 is the root
+        assert 4 == t.root
+        assert t.siblings(4) == tuple()
+        # Node 5 is the virtual root
+        assert 5 == t.virtual_root
+        assert t.siblings(5) == tuple()
+
+    def test_star(self):
+        t = tskit.Tree.generate_star(num_leaves=3)
+        assert t.has_single_root
+        # Nodes 0 to 2 are leaves
+        for u in range(2):
+            assert t.is_leaf(u)
+        assert t.siblings(0) == (1, 2)
+        assert t.siblings(1) == (0, 2)
+        assert t.siblings(2) == (0, 1)
+        # Node 3 is the root
+        assert 3 == t.root
+        assert t.siblings(3) == tuple()
+        # Node 4 is the virtual root
+        assert 4 == t.virtual_root
+        assert t.siblings(4) == tuple()
+
+    def test_multiroot_tree(self):
+        ts = tskit.Tree.generate_balanced(4, arity=2).tree_sequence
+        t = ts.decapitate(ts.node(5).time).first()
+        assert t.has_multiple_roots
+        # Nodes 0 to 3 are leaves
+        assert t.siblings(0) == (1,)
+        assert t.siblings(1) == (0,)
+        assert t.siblings(2) == (3,)
+        assert t.siblings(3) == (2,)
+        # Nodes 4 and 5 are both roots
+        assert 4 in t.roots
+        assert t.siblings(4) == (5,)
+        assert 5 in t.roots
+        assert t.siblings(5) == (4,)
+        # Node 7 is the virtual root
+        assert 7 == t.virtual_root
+        assert t.siblings(7) == tuple()
+
+    @pytest.mark.parametrize("flag,expected", [(0, ()), (1, (2,))])
+    def test_isolated_node(self, flag, expected):
+        tables = tskit.Tree.generate_balanced(2, arity=2).tree_sequence.dump_tables()
+        tables.nodes.add_row(flags=flag)  # Add node 3
+        t = tables.tree_sequence().first()
+        assert t.is_isolated(3)
+        assert t.siblings(3) == expected
+
+
 class TestNodeOrdering(HighLevelTestCase):
     """
     Verify that we can use any node ordering for internal nodes
