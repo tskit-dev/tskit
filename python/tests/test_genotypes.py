@@ -655,6 +655,65 @@ class TestVariantGenerator:
         assert non_missing_found
         assert missing_found
 
+    def get_missing_data_ts(self):
+        tables = tskit.TableCollection(1.0)
+        tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
+        tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
+        tables.nodes.add_row(tskit.NODE_IS_SAMPLE, 0)
+        s = tables.sites.add_row(0, "A")
+        tables.mutations.add_row(site=s, derived_state="B", node=1)
+        tables.mutations.add_row(site=s, derived_state="C", node=2)
+        s = tables.sites.add_row(0.5, "")
+        tables.mutations.add_row(site=s, derived_state="A long string", node=2)
+        return tables.tree_sequence()
+
+    def test_states(self):
+        ts = self.get_missing_data_ts()
+        v_iter = ts.variants(isolated_as_missing=False)
+        v = next(v_iter)
+        assert np.array_equal(v.states(), np.array(["A", "B", "C"]))
+        v = next(v_iter)
+        assert np.array_equal(v.states(), np.array(["", "", "A long string"]))
+        # With no mssing data, it shouldn't matter if the missing string = an allele
+        assert np.array_equal(
+            v.states(missing_data_string=""), np.array(["", "", "A long string"])
+        )
+
+        v_iter = ts.variants(isolated_as_missing=True)
+        v = next(v_iter)
+        assert np.array_equal(v.states(), np.array(["N", "B", "C"]))
+        v = next(v_iter)
+        assert np.array_equal(v.states(), np.array(["N", "N", "A long string"]))
+        assert np.array_equal(
+            v.states(missing_data_string="MISSING"),
+            np.array(["MISSING", "MISSING", "A long string"]),
+        )
+
+    @pytest.mark.parametrize("missing", [True, False])
+    def test_states_haplotypes_equiv(self, missing):
+        ts = msprime.sim_ancestry(2, sequence_length=20, random_seed=1)
+        ts = msprime.sim_mutations(ts, rate=0.1, random_seed=1)
+        assert ts.num_sites > 5
+        tables = ts.dump_tables()
+        tables.delete_intervals([[0, ts.site(4).position]])
+        tables.sites.replace_with(ts.tables.sites)
+        ts = tables.tree_sequence()
+        states = np.array(
+            [v.states() for v in ts.variants(isolated_as_missing=missing)]
+        )
+        for h1, h2 in zip(ts.haplotypes(isolated_as_missing=missing), states.T):
+            assert h1 == "".join(h2)
+
+    @pytest.mark.parametrize("s", ["", "A long string", True, np.nan, 0, -1])
+    def test_bad_states(self, s):
+        ts = self.get_missing_data_ts()
+        v_iter = ts.variants(isolated_as_missing=True)
+        v = next(v_iter)
+        v = next(v_iter)
+        match = "existing allele" if isinstance(s, str) else "not a string"
+        with pytest.raises(ValueError, match=match):
+            v.states(missing_data_string=s)
+
 
 class TestLimitInterval:
     def test_simple_case(self, ts_fixture):
