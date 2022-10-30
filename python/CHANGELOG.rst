@@ -1,4 +1,16 @@
 --------------------
+[0.5.4] - 2022-XX-XX
+--------------------
+
+**Breaking Changes**
+
+ - the ``filter_populations``, ``filter_individuals``, and ``filter_sites``
+   parameters to simplify previously defaulted to ``True`` but now default
+   to ``None``, which is treated as ``True``. Previously, passing ``None``
+   would result in an error. (:user:`hyanwong`, :pr:`2609`, :issue:`2608`)
+
+
+--------------------
 [0.5.3] - 2022-10-03
 --------------------
 

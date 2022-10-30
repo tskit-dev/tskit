@@ -3314,12 +3314,37 @@ class TestSimplifyTables:
     def test_unsorted_individuals_ok(self, simple_degree1_ts_fixture):
         tables = simple_degree1_ts_fixture.dump_tables()
         tables.individuals.clear()
-        tables.individuals.clear()
         tables.individuals.add_row(parents=[1])
         tables.individuals.add_row(parents=[-1])
         # we really just want to check that no error is thrown here
         tables.simplify()
         assert tables.individuals.num_rows == 0
+
+    def test_filter_none(self, simple_degree1_ts_fixture):
+        tables = simple_degree1_ts_fixture.simplify().dump_tables()
+        tables.populations.add_row()
+        tables.individuals.add_row()
+        tables.sites.add_row(
+            position=np.nextafter(tables.sequence_length, 0),
+            ancestral_state="XXX",
+        )
+        orig_num_populations = len(tables.populations)
+        orig_num_individuals = len(tables.individuals)
+        orig_num_sites = len(tables.sites)
+
+        tables.simplify(
+            filter_populations=False, filter_individuals=False, filter_sites=False
+        )
+        assert len(tables.populations) == orig_num_populations
+        assert len(tables.individuals) == orig_num_individuals
+        assert len(tables.sites) == orig_num_sites
+
+        tables.simplify(
+            filter_populations=None, filter_individuals=None, filter_sites=None
+        )
+        assert len(tables.populations) < orig_num_populations
+        assert len(tables.individuals) < orig_num_individuals
+        assert len(tables.sites) < orig_num_sites
 
 
 class TestTableCollection:
