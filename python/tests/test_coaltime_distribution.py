@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 # Copyright (C) 2016 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -25,6 +25,7 @@ Test cases for coalescence time distribution objects in tskit.
 """
 import msprime
 import numpy as np
+import pytest
 
 import tests
 import tskit
@@ -181,7 +182,7 @@ class TestCoalescenceTimeDistribution:
     @tests.cached_example
     def ts_many_edge_diffs(self):
         ts = msprime.sim_ancestry(
-            samples=75,
+            samples=80,
             ploidy=1,
             sequence_length=4,
             recombination_rate=10,
@@ -216,31 +217,31 @@ class TestUnweightedCoalescenceTimeTable(TestCoalescenceTimeDistribution):
         t = np.array([0, 1, 5, 8, 29])
         distr = self.coalescence_time_distribution()
         tt = distr.tables[0].time
-        assert np.allclose(t, tt)
+        np.testing.assert_allclose(t, tt)
 
     def test_block(self):
         b = np.array([0, 0, 0, 0, 0])
         distr = self.coalescence_time_distribution()
         tb = distr.tables[0].block
-        assert np.allclose(b, tb)
+        np.testing.assert_allclose(b, tb)
 
     def test_weights(self):
         w = np.array([[0, 1, 1, 1, 1]]).T
         distr = self.coalescence_time_distribution()
         tw = distr.tables[0].weights
-        assert np.allclose(w, tw)
+        np.testing.assert_allclose(w, tw)
 
     def test_cum_weights(self):
         c = np.array([[0, 1, 2, 3, 4]]).T
         distr = self.coalescence_time_distribution()
         tc = distr.tables[0].cum_weights
-        assert np.allclose(c, tc)
+        np.testing.assert_allclose(c, tc)
 
     def test_quantile(self):
         q = np.array([[0, 0.25, 0.50, 0.75, 1]]).T
         distr = self.coalescence_time_distribution()
         tq = distr.tables[0].quantile
-        assert np.allclose(q, tq)
+        np.testing.assert_allclose(q, tq)
 
 
 class TestPairWeightedCoalescenceTimeTable(TestCoalescenceTimeDistribution):
@@ -277,13 +278,13 @@ class TestPairWeightedCoalescenceTimeTable(TestCoalescenceTimeDistribution):
         t = np.array([0, 1, 5, 8, 29])
         distr = self.coalescence_time_distribution()
         tt = distr.tables[0].time
-        assert np.allclose(t, tt)
+        np.testing.assert_allclose(t, tt)
 
     def test_block(self):
         b = np.array([0, 0, 0, 0, 0])
         distr = self.coalescence_time_distribution()
         tb = distr.tables[0].block
-        assert np.allclose(b, tb)
+        np.testing.assert_allclose(b, tb)
 
     def test_weights(self):
         w = np.array(
@@ -297,7 +298,7 @@ class TestPairWeightedCoalescenceTimeTable(TestCoalescenceTimeDistribution):
         )
         distr = self.coalescence_time_distribution()
         tw = distr.tables[0].weights
-        assert np.allclose(w, tw)
+        np.testing.assert_allclose(w, tw)
 
     def test_cum_weights(self):
         c = np.array(
@@ -311,7 +312,7 @@ class TestPairWeightedCoalescenceTimeTable(TestCoalescenceTimeDistribution):
         )
         distr = self.coalescence_time_distribution()
         tc = distr.tables[0].cum_weights
-        assert np.allclose(c, tc)
+        np.testing.assert_allclose(c, tc)
 
     def test_quantile(self):
         q = np.array(
@@ -325,7 +326,7 @@ class TestPairWeightedCoalescenceTimeTable(TestCoalescenceTimeDistribution):
         )
         distr = self.coalescence_time_distribution()
         tq = distr.tables[0].quantile
-        assert np.allclose(q, tq)
+        np.testing.assert_allclose(q, tq)
 
 
 class TestTrioFirstWeightedCoalescenceTimeTable(TestCoalescenceTimeDistribution):
@@ -376,13 +377,13 @@ class TestTrioFirstWeightedCoalescenceTimeTable(TestCoalescenceTimeDistribution)
         t = np.array([0.0, 1.0, 2.0, 2.0, 6.0, 8.00])
         distr = self.coalescence_time_distribution()
         tt = distr.tables[0].time
-        assert np.allclose(t, tt)
+        np.testing.assert_allclose(t, tt)
 
     def test_block(self):
         b = np.array([0, 0, 0, 0, 0, 0])
         distr = self.coalescence_time_distribution()
         tb = distr.tables[0].block
-        assert np.allclose(b, tb)
+        np.testing.assert_allclose(b, tb)
 
     def test_weights(self):
         w = np.array(
@@ -397,7 +398,7 @@ class TestTrioFirstWeightedCoalescenceTimeTable(TestCoalescenceTimeDistribution)
         )
         distr = self.coalescence_time_distribution()
         tw = distr.tables[0].weights
-        assert np.allclose(w, tw)
+        np.testing.assert_allclose(w, tw)
 
     def test_cum_weights(self):
         c = np.array(
@@ -412,7 +413,7 @@ class TestTrioFirstWeightedCoalescenceTimeTable(TestCoalescenceTimeDistribution)
         )
         distr = self.coalescence_time_distribution()
         tc = distr.tables[0].cum_weights
-        assert np.allclose(c, tc)
+        np.testing.assert_allclose(c, tc)
 
     def test_quantile(self):
         q = np.array(
@@ -429,7 +430,7 @@ class TestTrioFirstWeightedCoalescenceTimeTable(TestCoalescenceTimeDistribution)
         q /= q[-1, :]
         distr = self.coalescence_time_distribution()
         tq = distr.tables[0].quantile
-        assert np.allclose(q, tq[:, :-1]) and np.all(np.isnan(tq[:, -1]))
+        np.testing.assert_allclose(q, tq[:, :-1]) and np.all(np.isnan(tq[:, -1]))
 
 
 class TestSingleBlockCoalescenceTimeTable(TestCoalescenceTimeDistribution):
@@ -461,31 +462,32 @@ class TestSingleBlockCoalescenceTimeTable(TestCoalescenceTimeDistribution):
         t = np.array([0.0, 0.54, 0.59, 0.73, 1.74])
         distr = self.coalescence_time_distribution()
         tt = distr.tables[0].time
-        assert np.allclose(t, tt)
+        np.testing.assert_allclose(t, tt)
 
     def test_block(self):
         b = np.array([0, 0, 0, 0, 0])
         distr = self.coalescence_time_distribution()
         tb = distr.tables[0].block
-        assert np.allclose(b, tb)
+        np.testing.assert_allclose(b, tb)
 
     def test_weights(self):
         w = np.array([[0, 1, 2, 1, 2]]).T
         distr = self.coalescence_time_distribution()
         tw = distr.tables[0].weights
-        assert np.allclose(w, tw)
+        np.testing.assert_allclose(w, tw)
 
     def test_cum_weights(self):
         c = np.array([[0, 1, 3, 4, 6]]).T
         distr = self.coalescence_time_distribution()
         tc = distr.tables[0].cum_weights
-        assert np.allclose(c, tc) and np.allclose(c, tc)
+        np.testing.assert_allclose(c, tc)
+        np.testing.assert_allclose(c, tc)
 
     def test_quantile(self):
         q = np.array([[0.0, 1 / 6, 3 / 6, 4 / 6, 1.0]]).T
         distr = self.coalescence_time_distribution()
         tq = distr.tables[0].quantile
-        assert np.allclose(q, tq)
+        np.testing.assert_allclose(q, tq)
 
 
 class TestWindowedCoalescenceTimeTable(TestCoalescenceTimeDistribution):
@@ -523,7 +525,8 @@ class TestWindowedCoalescenceTimeTable(TestCoalescenceTimeDistribution):
         distr = self.coalescence_time_distribution()
         tt1 = distr.tables[0].time
         tt2 = distr.tables[1].time
-        assert np.allclose(t1, tt1) and np.allclose(t2, tt2)
+        np.testing.assert_allclose(t1, tt1)
+        np.testing.assert_allclose(t2, tt2)
 
     def test_block(self):
         b1 = np.array([0, 0, 0, 0])
@@ -531,7 +534,8 @@ class TestWindowedCoalescenceTimeTable(TestCoalescenceTimeDistribution):
         distr = self.coalescence_time_distribution()
         tb1 = distr.tables[0].block
         tb2 = distr.tables[1].block
-        assert np.allclose(b1, tb1) and np.allclose(b2, tb2)
+        np.testing.assert_allclose(b1, tb1)
+        np.testing.assert_allclose(b2, tb2)
 
     def test_weights(self):
         w1 = np.array([[0, 1, 1, 1]]).T
@@ -539,7 +543,8 @@ class TestWindowedCoalescenceTimeTable(TestCoalescenceTimeDistribution):
         distr = self.coalescence_time_distribution()
         tw1 = distr.tables[0].weights
         tw2 = distr.tables[1].weights
-        assert np.allclose(w1, tw1) and np.allclose(w2, tw2)
+        np.testing.assert_allclose(w1, tw1)
+        np.testing.assert_allclose(w2, tw2)
 
     def test_cum_weights(self):
         c1 = np.array([[0, 1, 2, 3]]).T
@@ -547,7 +552,8 @@ class TestWindowedCoalescenceTimeTable(TestCoalescenceTimeDistribution):
         distr = self.coalescence_time_distribution()
         tc1 = distr.tables[0].cum_weights
         tc2 = distr.tables[1].cum_weights
-        assert np.allclose(c1, tc1) and np.allclose(c2, tc2)
+        np.testing.assert_allclose(c1, tc1)
+        np.testing.assert_allclose(c2, tc2)
 
     def test_quantile(self):
         e1 = np.array([[0.0, 1 / 3, 2 / 3, 1.0]]).T
@@ -555,7 +561,8 @@ class TestWindowedCoalescenceTimeTable(TestCoalescenceTimeDistribution):
         distr = self.coalescence_time_distribution()
         te1 = distr.tables[0].quantile
         te2 = distr.tables[1].quantile
-        assert np.allclose(e1, te1) and np.allclose(e2, te2)
+        np.testing.assert_allclose(e1, te1)
+        np.testing.assert_allclose(e2, te2)
 
 
 class TestCoalescenceTimeDistributionPointMethods(TestCoalescenceTimeDistribution):
@@ -595,7 +602,7 @@ class TestCoalescenceTimeDistributionPointMethods(TestCoalescenceTimeDistributio
             [0.0, 0.25, et[1], 0.57, et[2], 0.65, et[3], 1.00, et[4], 2.00],
         )
         te = distr.ecdf(t)
-        assert np.allclose(e, te)
+        np.testing.assert_allclose(e, te)
 
     def test_num_coalesced(self):
         c = np.array([0, 0, 1, 1, 3, 3, 4, 4, 6, 6]).reshape(1, 10, 1)
@@ -605,7 +612,7 @@ class TestCoalescenceTimeDistributionPointMethods(TestCoalescenceTimeDistributio
             [0.0, 0.25, et[1], 0.57, et[2], 0.65, et[3], 1.00, et[4], 2.00],
         )
         tc = distr.num_coalesced(t)
-        assert np.allclose(c, tc)
+        np.testing.assert_allclose(c, tc)
 
     def test_num_uncoalesced(self):
         u = np.array([6, 6, 5, 5, 3, 3, 2, 2, 0, 0]).reshape(1, 10, 1)
@@ -615,7 +622,28 @@ class TestCoalescenceTimeDistributionPointMethods(TestCoalescenceTimeDistributio
             [0.0, 0.25, et[1], 0.57, et[2], 0.65, et[3], 1.00, et[4], 2.00],
         )
         tu = distr.num_uncoalesced(t)
-        assert np.allclose(u, tu)
+        np.testing.assert_allclose(u, tu)
+
+    def test_interpolated_quantile(self):
+        x = np.array(
+            [
+                0.54,
+                0.558,
+                0.576,
+                0.5993,
+                0.6413,
+                0.6833,
+                0.7253,
+                0.9609,
+                1.2206,
+                1.4803,
+                1.74,
+            ]
+        ).reshape(1, 11, 1)
+        distr = self.coalescence_time_distribution()
+        q = np.linspace(0, 1, 11)
+        qx = distr.quantile(q).round(4)
+        np.testing.assert_allclose(x, qx)
 
 
 class TestCoalescenceTimeDistributionIntervalMethods(TestCoalescenceTimeDistribution):
@@ -667,7 +695,7 @@ class TestCoalescenceTimeDistributionIntervalMethods(TestCoalescenceTimeDistribu
         et = distr.tables[0].time
         t = np.array([0.00, 0.55, et[3], 2.00])
         tp = distr.coalescence_probability_in_intervals(t)
-        assert np.allclose(p, tp)
+        np.testing.assert_allclose(p, tp)
 
     def test_coalescence_probability_in_intervals_oor(self):
         distr = self.coalescence_time_distribution()
@@ -681,7 +709,7 @@ class TestCoalescenceTimeDistributionIntervalMethods(TestCoalescenceTimeDistribu
         et = distr.tables[0].time
         t = np.array([0.00, 0.55, et[3], 2.00])
         tc = distr.coalescence_rate_in_intervals(t)
-        assert np.allclose(c, tc)
+        np.testing.assert_allclose(c, tc, atol=1e-6)
 
     def test_coalescence_rate_in_intervals_oor(self):
         distr = self.coalescence_time_distribution()
@@ -694,7 +722,7 @@ class TestCoalescenceTimeDistributionIntervalMethods(TestCoalescenceTimeDistribu
         distr = self.coalescence_time_distribution()
         et = distr.tables[0].time
         tm = distr.mean(et[2])
-        assert np.allclose(m, tm)
+        np.testing.assert_allclose(m, tm)
 
     def test_mean_oor(self):
         distr = self.coalescence_time_distribution()
@@ -754,7 +782,8 @@ class TestCoalescenceTimeDistributionBootstrap(TestCoalescenceTimeDistribution):
         boot_distr = self.coalescence_time_distribution_boot()
         tw1 = boot_distr.tables[0].cum_weights
         tw2 = boot_distr.tables[1].cum_weights
-        assert np.allclose(w1, tw1) and np.allclose(w2, tw2)
+        np.testing.assert_allclose(w1, tw1)
+        np.testing.assert_allclose(w2, tw2)
 
     def test_ecdf(self):
         e = np.array(
@@ -766,20 +795,20 @@ class TestCoalescenceTimeDistributionBootstrap(TestCoalescenceTimeDistribution):
         boot_distr = self.coalescence_time_distribution_boot()
         t = np.array([0.54, 0.55, 0.59, 0.60, 0.73, 0.74, 1.74])
         te = boot_distr.ecdf(t)
-        assert np.allclose(e, te)
+        np.testing.assert_allclose(e, te)
 
     def test_mean(self):
         m = np.array([[1.02, 0.9566667]])
         boot_distr = self.coalescence_time_distribution_boot()
         tm = boot_distr.mean()
-        assert np.allclose(m, tm)
+        np.testing.assert_allclose(m, tm)
 
     def test_boot_of_boot_equivalence(self):
         boot_distr = self.coalescence_time_distribution_boot()
         reboot_distr = next(boot_distr.block_bootstrap(1, 3))
         cw1 = boot_distr.tables[1].cum_weights
         cw2 = reboot_distr.tables[1].cum_weights
-        assert np.allclose(cw1, cw2)
+        np.testing.assert_allclose(cw1, cw2)
 
 
 class TestCoalescenceTimeDistributionEmpty(TestCoalescenceTimeDistribution):
@@ -790,11 +819,16 @@ class TestCoalescenceTimeDistributionEmpty(TestCoalescenceTimeDistribution):
     def coalescence_time_distribution(self):
         ts = self.ts_two_trees_four_leaves()
 
-        def null_weight(node, tree, sample_sets):
-            return np.array([0, 0])
+        def null_weight_init(node, sample_sets):
+            blank = np.array([[0, 0]], dtype=np.float64)
+            return (blank,)
+
+        def null_weight_update(blank):
+            blank = np.array([[0, 0]], dtype=np.float64)
+            return blank, (blank,)
 
         distr = ts.coalescence_time_distribution(
-            weight_func=null_weight,
+            weight_func=(null_weight_init, null_weight_update),
             span_normalise=False,
         )
         return distr
@@ -834,6 +868,18 @@ class TestCoalescenceTimeDistributionEmpty(TestCoalescenceTimeDistribution):
         tc = distr.coalescence_rate_in_intervals(t)
         assert np.all(np.isnan(tc))
 
+    def test_quantile(self):
+        distr = self.coalescence_time_distribution()
+        t = np.array([0.0, 0.5, 1.0])
+        tq = distr.quantile(t)
+        assert np.all(np.isnan(tq))
+
+    def test_resample(self):
+        distr = self.coalescence_time_distribution()
+        boot_distr = next(distr.block_bootstrap(1, 3))
+        assert np.all(boot_distr.tables[0].cum_weights == 0)
+        assert np.all(np.isnan(boot_distr.tables[0].quantile))
+
 
 class TestCoalescenceTimeDistributionNullWeight(TestCoalescenceTimeDistribution):
     """
@@ -844,11 +890,16 @@ class TestCoalescenceTimeDistributionNullWeight(TestCoalescenceTimeDistribution)
     def coalescence_time_distribution(self):
         ts = self.ts_two_trees_four_leaves()
 
-        def half_empty(node, tree, sample_sets):
-            return np.array([1, 0])
+        def half_empty_init(node, sample_sets):
+            blank = np.array([[1, 0]], dtype=np.float64)
+            return (blank,)
+
+        def half_empty_update(blank):
+            blank = np.array([[1, 0]], dtype=np.float64)
+            return blank, (blank,)
 
         distr = ts.coalescence_time_distribution(
-            weight_func=half_empty,
+            weight_func=(half_empty_init, half_empty_update),
             span_normalise=False,
         )
         return distr
@@ -888,6 +939,20 @@ class TestCoalescenceTimeDistributionNullWeight(TestCoalescenceTimeDistribution)
         tr = distr.coalescence_rate_in_intervals(t)
         assert np.all(np.isnan(tr[1, :])) and np.all(~np.isnan(tr[0, :]))
 
+    def test_quantile(self):
+        distr = self.coalescence_time_distribution()
+        t = np.array([0.0, 0.5, 1.0])
+        tq = distr.quantile(t)
+        assert np.all(np.isnan(tq[1, :])) and np.all(~np.isnan(tq[0, :]))
+
+    def test_resample(self):
+        distr = self.coalescence_time_distribution()
+        boot_distr = next(distr.block_bootstrap(1, 3))
+        assert np.all(boot_distr.tables[0].cum_weights[:, 1] == 0)
+        assert np.all(np.isnan(boot_distr.tables[0].quantile[:, 1]))
+        assert np.any(boot_distr.tables[0].cum_weights[:, 0] > 0)
+        assert np.all(~np.isnan(boot_distr.tables[0].quantile[:, 0]))
+
 
 class TestCoalescenceTimeDistributionTableResize(TestCoalescenceTimeDistribution):
     """
@@ -921,12 +986,18 @@ class TestCoalescenceTimeDistributionBlocking(TestCoalescenceTimeDistribution):
         ts = self.ts_eight_trees_two_leaves()
         bk = [t.interval.left for t in ts.trees()][::4] + [ts.sequence_length]
 
-        def count_root(node, tree, sample_sets):
-            weight = int(node == tree.get_root())
-            return np.array([weight])
+        def count_root_init(node, sample_sets):
+            all_samples = [i for s in sample_sets for i in s]
+            state = np.array([[node == i for i in all_samples]], dtype=np.float64)
+            return (state,)
+
+        def count_root_update(child_state):
+            state = np.sum(child_state, axis=0, keepdims=True)
+            is_root = np.array([[np.all(state > 0)]], dtype=np.float64)
+            return is_root, (state,)
 
         distr = ts.coalescence_time_distribution(
-            weight_func=count_root,
+            weight_func=(count_root_init, count_root_update),
             window_breaks=np.array(bk),
             blocks_per_window=2,
             span_normalise=False,
@@ -936,12 +1007,12 @@ class TestCoalescenceTimeDistributionBlocking(TestCoalescenceTimeDistribution):
     def test_blocks_per_window(self):
         distr = self.coalescence_time_distribution()
         bpw = np.array([i.num_blocks for i in distr.tables])
-        assert np.allclose(bpw, 2)
+        np.testing.assert_allclose(bpw, 2)
 
     def test_trees_per_window(self):
         distr = self.coalescence_time_distribution()
         tpw = np.array([np.sum(distr.tables[i].weights) for i in range(2)])
-        assert np.allclose(tpw, 4)
+        np.testing.assert_allclose(tpw, 4)
 
     def test_trees_per_block(self):
         distr = self.coalescence_time_distribution()
@@ -949,7 +1020,80 @@ class TestCoalescenceTimeDistributionBlocking(TestCoalescenceTimeDistribution):
         for table in distr.tables:
             for block in range(2):
                 tpb += [np.sum(table.weights[table.block == block])]
-        assert np.allclose(tpb, 2)
+        np.testing.assert_allclose(tpb, 2)
+
+
+class TestCoalescenceTimeDistributionBlockedVsUnblocked(
+    TestCoalescenceTimeDistribution
+):
+    """
+    Test that methods give the same result regardless of how trees are blocked.
+    """
+
+    def coalescence_time_distribution(self, num_blocks=1):
+        ts = self.ts_many_edge_diffs()
+        sample_sets = [list(range(10)), list(range(20, 40)), list(range(70, 80))]
+        distr = ts.coalescence_time_distribution(
+            sample_sets=sample_sets,
+            weight_func="pair_coalescence_events",
+            blocks_per_window=num_blocks,
+            span_normalise=True,
+        )
+        return distr
+
+    def test_ecdf(self):
+        distr_noblock = self.coalescence_time_distribution(num_blocks=1)
+        distr_block = self.coalescence_time_distribution(num_blocks=10)
+        t = np.linspace(0, distr_noblock.tables[0].time[-1] + 1, 5)
+        np.testing.assert_allclose(distr_noblock.ecdf(t), distr_block.ecdf(t))
+
+    def test_num_coalesced(self):
+        distr_noblock = self.coalescence_time_distribution(num_blocks=1)
+        distr_block = self.coalescence_time_distribution(num_blocks=10)
+        t = np.linspace(0, distr_noblock.tables[0].time[-1] + 1, 5)
+        np.testing.assert_allclose(
+            distr_noblock.num_coalesced(t), distr_block.num_coalesced(t)
+        )
+
+    def test_num_uncoalesced(self):
+        distr_noblock = self.coalescence_time_distribution(num_blocks=1)
+        distr_block = self.coalescence_time_distribution(num_blocks=10)
+        t = np.linspace(0, distr_noblock.tables[0].time[-1] + 1, 5)
+        np.testing.assert_allclose(
+            distr_noblock.num_uncoalesced(t), distr_block.num_uncoalesced(t)
+        )
+
+    def test_quantile(self):
+        distr_noblock = self.coalescence_time_distribution(num_blocks=1)
+        distr_block = self.coalescence_time_distribution(num_blocks=10)
+        q = np.linspace(0, 1, 11)
+        np.testing.assert_allclose(distr_noblock.quantile(q), distr_block.quantile(q))
+
+    def test_mean(self):
+        distr_noblock = self.coalescence_time_distribution(num_blocks=1)
+        distr_block = self.coalescence_time_distribution(num_blocks=10)
+        t = distr_noblock.tables[0].time[-1] / 2
+        np.testing.assert_allclose(
+            distr_noblock.mean(since=t), distr_block.mean(since=t)
+        )
+
+    def test_coalescence_rate_in_intervals(self):
+        distr_noblock = self.coalescence_time_distribution(num_blocks=1)
+        distr_block = self.coalescence_time_distribution(num_blocks=10)
+        t = np.linspace(0, distr_noblock.tables[0].time[-1] + 1, 5)
+        np.testing.assert_allclose(
+            distr_noblock.coalescence_rate_in_intervals(t),
+            distr_block.coalescence_rate_in_intervals(t),
+        )
+
+    def test_coalescence_probability_in_intervals(self):
+        distr_noblock = self.coalescence_time_distribution(num_blocks=1)
+        distr_block = self.coalescence_time_distribution(num_blocks=10)
+        t = np.linspace(0, distr_noblock.tables[0].time[-1] + 1, 5)
+        np.testing.assert_allclose(
+            distr_noblock.coalescence_probability_in_intervals(t),
+            distr_block.coalescence_probability_in_intervals(t),
+        )
 
 
 class TestCoalescenceTimeDistributionRunningUpdate(TestCoalescenceTimeDistribution):
@@ -957,23 +1101,23 @@ class TestCoalescenceTimeDistributionRunningUpdate(TestCoalescenceTimeDistributi
     When traversing trees, weights are updated for nodes whose descendant subtree
     has changed. This is done by taking the parents of added edges, and tracing
     ancestors down to the root. This class tests that this "running update"
-    scheme produces the same results as calculating weights separately for each
-    tree.
+    scheme produces the correct result.
     """
 
-    # TODO: when missing data handling is implemented, test here
-
-    def coalescence_time_distribution(self, ts):
-        brk = np.array([t.interval.left for t in ts.trees()] + [ts.sequence_length])
-        smp_set = np.arange(0, ts.num_samples)
-        smp_set = np.floor_divide((len(brk) - 1) * smp_set, ts.num_samples)
-        smp_set = [np.where(smp_set == i)[0].tolist() for i in range(len(brk) - 1)]
+    def coalescence_time_distribution_running(self, ts, brk, sets=2):
+        n = ts.num_samples // sets
+        smp_set = [list(range(i, i + n)) for i in range(0, ts.num_samples, n)]
         distr = ts.coalescence_time_distribution(
             sample_sets=smp_set,
             window_breaks=brk,
             weight_func="trio_first_coalescence_events",
             span_normalise=False,
         )
+        return distr
+
+    def coalescence_time_distribution_split(self, ts, brk, sets=2):
+        n = ts.num_samples // sets
+        smp_set = [list(range(i, i + n)) for i in range(0, ts.num_samples, n)]
         distr_by_win = []
         for left, right in zip(brk[:-1], brk[1:]):
             ts_trim = ts.keep_intervals([[left, right]]).trim()
@@ -981,20 +1125,65 @@ class TestCoalescenceTimeDistributionRunningUpdate(TestCoalescenceTimeDistributi
                 ts_trim.coalescence_time_distribution(
                     sample_sets=smp_set,
                     weight_func="trio_first_coalescence_events",
+                    span_normalise=False,
                 )
             ]
-        return distr, distr_by_win
+        return distr_by_win
 
     def test_many_edge_diffs(self):
+        """
+        Test that ts windowed by tree gives same result as set of single trees.
+        """
         ts = self.ts_many_edge_diffs()
-        distr, distr_win = self.coalescence_time_distribution(ts)
+        brk = np.array([t.interval.left for t in ts.trees()] + [ts.sequence_length])
+        distr = self.coalescence_time_distribution_running(ts, brk)
+        distr_win = self.coalescence_time_distribution_split(ts, brk)
         time_breaks = np.array([np.inf])
         updt = distr.num_coalesced(time_breaks)
         sepr = np.zeros(updt.shape)
         for i, d in enumerate(distr_win):
             c = d.num_coalesced(time_breaks)
             sepr[:, :, i] = c.reshape((c.shape[0], 1))
-        assert np.allclose(sepr, updt)
+        np.testing.assert_allclose(sepr, updt)
+
+    def test_missing_trees(self):
+        """
+        Test that ts with half of each tree masked gives same result as unmasked ts.
+        """
+        ts = self.ts_many_edge_diffs()
+        brk = np.array([t.interval.left for t in ts.trees()] + [ts.sequence_length])
+        mask = np.array(
+            [
+                [tr.interval.left, (tr.interval.right + tr.interval.left) / 2]
+                for tr in ts.trees()
+            ]
+        )
+        ts_mask = ts.delete_intervals(mask)
+        distr = self.coalescence_time_distribution_running(ts, brk)
+        distr_mask = self.coalescence_time_distribution_running(ts_mask, brk)
+        time_breaks = np.array([np.inf])
+        updt = distr.num_coalesced(time_breaks)
+        updt_mask = distr_mask.num_coalesced(time_breaks)
+        np.testing.assert_allclose(updt, updt_mask)
+
+    def test_unary_nodes(self):
+        """
+        Test that ts with unary nodes gives same result as ts with unary nodes removed.
+        """
+        ts = self.ts_many_edge_diffs()
+        ts_unary = ts.simplify(
+            samples=list(range(ts.num_samples // 2)), keep_unary=True
+        )
+        ts_nounary = ts.simplify(
+            samples=list(range(ts.num_samples // 2)), keep_unary=False
+        )
+        brk = np.array([t.interval.left for t in ts.trees()] + [ts.sequence_length])
+        distr_unary = self.coalescence_time_distribution_running(ts_unary, brk)
+        distr_nounary = self.coalescence_time_distribution_running(ts_nounary, brk)
+        time_breaks = np.array([np.inf])
+        updt_unary = distr_unary.num_coalesced(time_breaks)
+        updt_nounary = distr_nounary.num_coalesced(time_breaks)
+        np.testing.assert_allclose(updt_unary, updt_nounary)
 
 
 class TestSpanNormalisedCoalescenceTimeTable(TestCoalescenceTimeDistribution):
@@ -1016,24 +1205,39 @@ class TestSpanNormalisedCoalescenceTimeTable(TestCoalescenceTimeDistribution):
     Uniform weights on nodes summed over trees, weighted by tree span
     """
 
-    def coalescence_time_distribution(self):
+    def coalescence_time_distribution(self, mask_half_of_each_tree=False):
+        """
+        Methods should give the same result if half of each tree is masked,
+        because "span weights" are normalised using the accessible (nonmissing)
+        portion of the tree sequence.
+        """
         ts = self.ts_two_trees_four_leaves()
+        if mask_half_of_each_tree:
+            mask = np.array(
+                [
+                    [t.interval.left, (t.interval.right + t.interval.left) / 2]
+                    for t in ts.trees()
+                ]
+            )
+            ts = ts.delete_intervals(mask)
         distr = ts.coalescence_time_distribution(
             span_normalise=True,
         )
         return distr
 
-    def test_weights(self):
+    @pytest.mark.parametrize("with_missing_data", [True, False])
+    def test_weights(self, with_missing_data):
         w = np.array([[0, 0.12, 1.0, 0.88, 1.0]]).T
-        distr = self.coalescence_time_distribution()
+        distr = self.coalescence_time_distribution(with_missing_data)
         tw = distr.tables[0].weights
-        assert np.allclose(w, tw)
+        np.testing.assert_allclose(w, tw)
 
-    def test_cum_weights(self):
+    @pytest.mark.parametrize("with_missing_data", [True, False])
+    def test_cum_weights(self, with_missing_data):
         c = np.array([[0, 0.12, 1.12, 2.00, 3.00]]).T
-        distr = self.coalescence_time_distribution()
+        distr = self.coalescence_time_distribution(with_missing_data)
         tc = distr.tables[0].cum_weights
-        assert np.allclose(c, tc) and np.allclose(c, tc)
+        np.testing.assert_allclose(c, tc)
 
 
 class TestWindowedSpanNormalisedCoalescenceTimeTable(TestCoalescenceTimeDistribution):
@@ -1058,9 +1262,19 @@ class TestWindowedSpanNormalisedCoalescenceTimeTable(TestCoalescenceTimeDistribu
     """
 
     @tests.cached_example
-    def coalescence_time_distribution(self):
+    def coalescence_time_distribution(self, mask_half_of_each_tree=False):
+        """
+        Methods should give the same result if half of each tree is masked,
+        because "span weights" are normalised using the accessible (nonmissing)
+        portion of the tree sequence.
+        """
         ts = self.ts_two_trees_four_leaves()
         gen_breaks = np.array([0.0, 0.5, 1.0])
+        if mask_half_of_each_tree:
+            breaks = [i for i in ts.breakpoints()]
+            breaks = np.unique(np.concatenate([breaks, gen_breaks]))
+            mask = np.array([[a, (a + b) / 2] for a, b in zip(breaks[:-1], breaks[1:])])
+            ts = ts.keep_intervals(mask)
         distr = ts.coalescence_time_distribution(
             window_breaks=gen_breaks,
             blocks_per_window=2,
@@ -1068,26 +1282,32 @@ class TestWindowedSpanNormalisedCoalescenceTimeTable(TestCoalescenceTimeDistribu
         )
         return distr
 
-    def test_time(self):
+    @pytest.mark.parametrize("with_missing_data", [True, False])
+    def test_time(self, with_missing_data):
         t1 = np.array([0.0, 0.59, 0.73, 1.74])
         t2 = np.array([0.0, 0.54, 0.59, 0.59, 0.73, 1.74, 1.74])
-        distr = self.coalescence_time_distribution()
+        distr = self.coalescence_time_distribution(with_missing_data)
         tt1 = distr.tables[0].time
         tt2 = distr.tables[1].time
-        assert np.allclose(t1, tt1) and np.allclose(t2, tt2)
+        np.testing.assert_allclose(t1, tt1)
+        np.testing.assert_allclose(t2, tt2)
 
-    def test_block(self):
+    @pytest.mark.parametrize("with_missing_data", [True, False])
+    def test_block(self, with_missing_data):
         b1 = np.array([0, 0, 0, 0])
         b2 = np.array([0, 1, 0, 1, 0, 0, 1])
-        distr = self.coalescence_time_distribution()
+        distr = self.coalescence_time_distribution(with_missing_data)
         tb1 = distr.tables[0].block
         tb2 = distr.tables[1].block
-        assert np.allclose(b1, tb1) and np.allclose(b2, tb2)
+        np.testing.assert_allclose(b1, tb1)
+        np.testing.assert_allclose(b2, tb2)
 
-    def test_weights(self):
+    @pytest.mark.parametrize("with_missing_data", [True, False])
+    def test_weights(self, with_missing_data):
         w1 = np.array([[0, 1.0, 1.0, 1.0]]).T
         w2 = np.array([[0, 0.24, 0.76, 0.24, 0.76, 0.76, 0.24]]).T
-        distr = self.coalescence_time_distribution()
+        distr = self.coalescence_time_distribution(with_missing_data)
         tw1 = distr.tables[0].weights
         tw2 = distr.tables[1].weights
-        assert np.allclose(w1, tw1) and np.allclose(w2, tw2)
+        np.testing.assert_allclose(w1, tw1)
+        np.testing.assert_allclose(w2, tw2)
