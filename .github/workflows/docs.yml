@@ -19,28 +19,31 @@ env:
 jobs:
   build-deploy-docs:
     name: Docs
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.6.0
         with:
           access_token: ${{ github.token }}
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
         with:
           python-version: 3.8
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         id: cache
         with:
           path: venv
-          key: docs-venv-v2-${{ hashFiles(env.REQUIREMENTS) }}
+          key: docs-venv-v4-${{ hashFiles(env.REQUIREMENTS) }}
 
       - name: Build virtualenv
         if: steps.cache.outputs.cache-hit != 'true'
         run: python -m venv venv
+
+      - name: Downgrade pip
+        run: venv/bin/activate && pip install pip==20.0.2
 
       - name: Install deps
         run: venv/bin/activate && pip install -r ${{env.REQUIREMENTS}}
