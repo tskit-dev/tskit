@@ -347,8 +347,28 @@ class TestTableCollection(LowLevelTestCase):
             tc.simplify([0, 1], keep_input_roots="sdf")
         with pytest.raises(TypeError):
             tc.simplify([0, 1], filter_populations="x")
+        with pytest.raises(TypeError):
+            tc.simplify([0, 1], filter_nodes="x")
         with pytest.raises(_tskit.LibraryError):
             tc.simplify([0, -1])
+
+    @pytest.mark.parametrize("value", [True, False])
+    @pytest.mark.parametrize(
+        "flag",
+        [
+            "filter_sites",
+            "filter_populations",
+            "filter_individuals",
+            "filter_nodes",
+            "reduce_to_site_topology",
+            "keep_unary",
+            "keep_unary_in_individuals",
+            "keep_input_roots",
+        ],
+    )
+    def test_simplify_flags(self, flag, value):
+        tables = _tskit.TableCollection(1)
+        tables.simplify([], **{flag: value})
 
     def test_link_ancestors_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)

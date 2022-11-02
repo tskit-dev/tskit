@@ -3358,15 +3358,26 @@ class TableCollection(metadata.MetadataProvider):
         """
         Simplifies the tables in place to retain only the information necessary
         to reconstruct the tree sequence describing the given ``samples``.
-        If ``filter_nodes`` is True, this can change the ID of the nodes, so
-        that the node ``samples[k]`` will have ID ``k`` in the result, resulting
-        in a NodeTable where only the first ``len(samples)`` nodes are marked
-        as samples. The mapping from node IDs in the current set of tables to
-        their equivalent values in the simplified tables is also returned as a
-        numpy array. If an array ``a`` is returned by this function and ``u``
-        is the ID of a node in the input table, then ``a[u]`` is the ID of this
-        node in the output table. For any node ``u`` that is not mapped into
-        the output tables, this mapping will equal ``-1``.
+        If ``filter_nodes`` is True (the default), this can change the ID of
+        the nodes, so that the node ``samples[k]`` will have ID ``k`` in the
+        result, resulting in a NodeTable where only the first ``len(samples)``
+        nodes are marked as samples. The mapping from node IDs in the current
+        set of tables to their equivalent values in the simplified tables is
+        also returned as a numpy array. If an array ``a`` is returned by this
+        function and ``u`` is the ID of a node in the input table, then
+        ``a[u]`` is the ID of this node in the output table. For any node ``u``
+        that is not mapped into the output tables, this mapping will equal
+        ``-1``.
+
+        If ``filter_nodes`` is False, then the output node table will be
+        unchanged except for updating the sample status of nodes. Nodes that
+        are in the specified list of ``samples`` will be marked as samples
+        in the output, and nodes that are currently marked as samples in
+        the node table but **not** in the specified list of ``samples``
+        will have their sample flag cleared. Note also that the order of
+        the ``samples`` list is not meaningful when ``filter_nodes`` is False.
+        The returned node mapping is always the identity mapping, such that
+        ``a[u] == u`` for all nodes.
 
         Tables operated on by this function must: be sorted (see
         :meth:`TableCollection.sort`), have children be born strictly after their

@@ -3258,6 +3258,72 @@ test_simplest_individual_filter(void)
 }
 
 static void
+test_simplest_no_node_filter(void)
+{
+    const char *nodes = "1  0   0\n"
+                        "1  0   0\n"
+                        "0  1   0\n"
+                        "0  1   0"; /* unreferenced node */
+    const char *edges = "0  1   2   0,1\n";
+    tsk_treeseq_t ts, simplified;
+    tsk_id_t sample_ids[] = { 0, 1 };
+    tsk_id_t node_map[] = { -1, -1, -1, -1 };
+    tsk_id_t j;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
+
+    ret = tsk_treeseq_simplify(
+        &ts, NULL, 0, TSK_SIMPLIFY_NO_FILTER_NODES, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
+    tsk_treeseq_free(&simplified);
+
+    ret = tsk_treeseq_simplify(
+        &ts, sample_ids, 2, TSK_SIMPLIFY_NO_FILTER_NODES, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
+    tsk_treeseq_free(&simplified);
+
+    /* Reversing sample order makes no difference */
+    sample_ids[0] = 1;
+    sample_ids[1] = 0;
+    ret = tsk_treeseq_simplify(
+        &ts, sample_ids, 2, TSK_SIMPLIFY_NO_FILTER_NODES, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
+    tsk_treeseq_free(&simplified);
+
+    ret = tsk_treeseq_simplify(
+        &ts, sample_ids, 1, TSK_SIMPLIFY_NO_FILTER_NODES, &simplified, node_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&simplified), 4);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_edges(&simplified), 0);
+    for (j = 0; j < 4; j++) {
+        CU_ASSERT_EQUAL(node_map[j], j);
+    }
+    tsk_treeseq_free(&simplified);
+
+    ret = tsk_treeseq_simplify(&ts, sample_ids, 1,
+        TSK_SIMPLIFY_NO_FILTER_NODES | TSK_SIMPLIFY_KEEP_INPUT_ROOTS
+            | TSK_SIMPLIFY_KEEP_UNARY,
+        &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&simplified), 4);
+    CU_ASSERT_EQUAL(tsk_treeseq_get_num_edges(&simplified), 1);
+    tsk_treeseq_free(&simplified);
+
+    sample_ids[0] = 0;
+    sample_ids[1] = 0;
+    ret = tsk_treeseq_simplify(
+        &ts, sample_ids, 2, TSK_SIMPLIFY_NO_FILTER_NODES, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
+    tsk_treeseq_free(&simplified);
+
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_simplest_map_mutations(void)
 {
     const char *nodes = "1  0   0\n"
@@ -8026,6 +8092,7 @@ main(int argc, char **argv)
         { "test_simplest_simplify_defragment", test_simplest_simplify_defragment },
         { "test_simplest_population_filter", test_simplest_population_filter },
         { "test_simplest_individual_filter", test_simplest_individual_filter },
+        { "test_simplest_no_node_filter", test_simplest_no_node_filter },
         { "test_simplest_map_mutations", test_simplest_map_mutations },
         { "test_simplest_nonbinary_map_mutations",
             test_simplest_nonbinary_map_mutations },
