@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2022 Tskit Developers
+ * Copyright (c) 2019-2023 Tskit Developers
  * Copyright (c) 2017-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -686,6 +686,13 @@ reference them. */
 #define TSK_SIMPLIFY_FILTER_POPULATIONS (1 << 1)
 /** Remove individuals from the output if there are no nodes that reference them.*/
 #define TSK_SIMPLIFY_FILTER_INDIVIDUALS (1 << 2)
+/** Do not remove nodes from the output if there are no edges that reference
+them and do not reorder nodes so that the samples are nodes 0 to num_samples - 1.
+Note that this flag is negated compared to other filtering options because
+the default behaviour is to filter unreferenced nodes and reorder to put samples
+first.
+*/
+#define TSK_SIMPLIFY_NO_FILTER_NODES (1 << 7)
 /**
 Reduce the topological information in the tables to the minimum necessary to
 represent the trees that contain sites. If there are zero sites this will
@@ -715,10 +722,6 @@ flag). It keeps unary nodes, but only if the unary node is referenced from an in
 @endrst
 */
 #define TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS (1 << 6)
-/** Retain nodes in the output even if no edges reference them. This is negated
-compared to the other TSK_SIMPLIFY_FILTER_XXX flags to preserve previous behaviour.
-*/
-#define TSK_SIMPLIFY_NO_FILTER_NODES (1 << 7)
 /** @} */
 
 /**
@@ -3913,8 +3916,32 @@ A mapping from the node IDs in the table before simplification to their equivale
 values after simplification can be obtained via the ``node_map`` argument. If this
 is non NULL, ``node_map[u]`` will contain the new ID for node ``u`` after simplification,
 or :c:macro:`TSK_NULL` if the node has been removed. Thus, ``node_map`` must be an array
-of at least ``self->nodes.num_rows`` :c:type:`tsk_id_t` values. The table collection will
-always be unindexed after simplify successfully completes.
+of at least ``self->nodes.num_rows`` :c:type:`tsk_id_t` values.
+
+If the `TSK_SIMPLIFY_NO_FILTER_NODES` option is specified, the node table will be
+unaltered except for changing the sample status of nodes that were samples in the
+input tables, but not in the specified list of sample IDs (if provided). The
+``node_map`` (if specified) will always be the identity mapping, such that
+``node_map[u] == u`` for all nodes. Note also that the order of the list of
+samples is not important in this case.
+
+When a table is not filtered (i.e., if the `TSK_SIMPLIFY_NO_FILTER_NODES`
+option is provided or the `TSK_SIMPLIFY_FILTER_SITES`,
+`TSK_SIMPLIFY_FILTER_POPULATIONS` or `TSK_SIMPLIFY_FILTER_INDIVIDUALS`
+options are *not* provided) the corresponding table is modified as
+little as possible, and all pointers are guaranteed to remain valid
+after simplification. The only changes made to an unfiltered table are
+to update any references to tables that may have changed (for example,
+remapping population IDs in the node table if
+`TSK_SIMPLIFY_FILTER_POPULATIONS` was specified) or altering the
+sample status flag of nodes.
+
+.. note:: It is possible for populations and individuals to be filtered
+   even if `TSK_SIMPLIFY_NO_FILTER_NODES` is specified because there
+   may be entirely unreferenced entities in the input tables, which
+   are not affected by whether we filter nodes or not.
+
+The table collection will always be unindexed after simplify successfully completes.
 
 .. note:: Migrations are currently not supported by simplify, and an error will
     be raised if we attempt call simplify on a table collection with greater
@@ -3928,11 +3955,11 @@ flags:
 - :c:macro:`TSK_SIMPLIFY_FILTER_SITES`
 - :c:macro:`TSK_SIMPLIFY_FILTER_POPULATIONS`
 - :c:macro:`TSK_SIMPLIFY_FILTER_INDIVIDUALS`
+- :c:macro:`TSK_SIMPLIFY_NO_FILTER_NODES`
 - :c:macro:`TSK_SIMPLIFY_REDUCE_TO_SITE_TOPOLOGY`
 - :c:macro:`TSK_SIMPLIFY_KEEP_UNARY`
 - :c:macro:`TSK_SIMPLIFY_KEEP_INPUT_ROOTS`
 - :c:macro:`TSK_SIMPLIFY_KEEP_UNARY_IN_INDIVIDUALS`
-- :c:macro:`TSK_SIMPLIFY_NO_FILTER_NODES`
 @endrst
 
 @param self A pointer to a tsk_table_collection_t object.

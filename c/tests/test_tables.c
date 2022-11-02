@@ -345,9 +345,31 @@ test_table_collection_simplify_errors(void)
     tsk_id_t samples[] = { 0, 1 };
     tsk_id_t ret_id;
     const char *individuals = "1      0.25     -2\n";
+
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tables.sequence_length = 1;
+
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+
+    /* Bad samples */
+    samples[0] = -1;
+    ret = tsk_table_collection_simplify(&tables, samples, 2, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    samples[0] = 10;
+    ret = tsk_table_collection_simplify(&tables, samples, 2, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    samples[0] = 0;
+
+    /* Duplicate samples */
+    samples[0] = 0;
+    samples[1] = 0;
+    ret = tsk_table_collection_simplify(&tables, samples, 2, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
+    samples[0] = 0;
 
     ret_id = tsk_site_table_add_row(&tables.sites, 0, "A", 1, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);

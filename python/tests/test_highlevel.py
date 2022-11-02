@@ -1828,181 +1828,6 @@ class TestTreeSequence(HighLevelTestCase):
         tables.edges.add_row(0, 1, 3, 1)
         assert tables.tree_sequence().max_root_time == 3
 
-    def verify_simplify_provenance(self, ts):
-        new_ts = ts.simplify()
-        assert new_ts.num_provenances == ts.num_provenances + 1
-        old = list(ts.provenances())
-        new = list(new_ts.provenances())
-        assert old == new[:-1]
-        # TODO call verify_provenance on this.
-        assert len(new[-1].timestamp) > 0
-        assert len(new[-1].record) > 0
-
-        new_ts = ts.simplify(record_provenance=False)
-        assert new_ts.tables.provenances == ts.tables.provenances
-
-    def verify_simplify_topology(self, ts, sample):
-        new_ts, node_map = ts.simplify(sample, map_nodes=True)
-        if len(sample) == 0:
-            assert new_ts.num_nodes == 0
-            assert new_ts.num_edges == 0
-            assert new_ts.num_sites == 0
-            assert new_ts.num_mutations == 0
-        elif len(sample) == 1:
-            assert new_ts.num_nodes == 1
-            assert new_ts.num_edges == 0
-        # The output samples should be 0...n
-        assert new_ts.num_samples == len(sample)
-        assert list(range(len(sample))) == list(new_ts.samples())
-        for j in range(new_ts.num_samples):
-            assert node_map[sample[j]] == j
-        for u in range(ts.num_nodes):
-            old_node = ts.node(u)
-            if node_map[u] != tskit.NULL:
-                new_node = new_ts.node(node_map[u])
-                assert old_node.time == new_node.time
-                assert old_node.population == new_node.population
-                assert old_node.metadata == new_node.metadata
-        for u in sample:
-            old_node = ts.node(u)
-            new_node = new_ts.node(node_map[u])
-            assert old_node.flags == new_node.flags
-            assert old_node.time == new_node.time
-            assert old_node.population == new_node.population
-            assert old_node.metadata == new_node.metadata
-        old_trees = ts.trees()
-        old_tree = next(old_trees)
-        assert ts.get_num_trees() >= new_ts.get_num_trees()
-        for new_tree in new_ts.trees():
-            new_left, new_right = new_tree.get_interval()
-            old_left, old_right = old_tree.get_interval()
-            # Skip ahead on the old tree until new_left is within its interval
-            while old_right <= new_left:
-                old_tree = next(old_trees)
-                old_left, old_right = old_tree.get_interval()
-            # If the MRCA of all pairs of samples is the same, then we have the
-            # same information. We limit this to at most 500 pairs
-            pairs = itertools.islice(itertools.combinations(sample, 2), 500)
-            for pair in pairs:
-                mapped_pair = [node_map[u] for u in pair]
-                mrca1 = old_tree.get_mrca(*pair)
-                mrca2 = new_tree.get_mrca(*mapped_pair)
-                if mrca1 == tskit.NULL:
-                    assert mrca2 == mrca1
-                else:
-                    assert mrca2 == node_map[mrca1]
-                    assert old_tree.get_time(mrca1) == new_tree.get_time(mrca2)
-                    assert old_tree.get_population(mrca1) == new_tree.get_population(
-                        mrca2
-                    )
-
-    def verify_simplify_equality(self, ts, sample):
-        for filter_sites in [False, True]:
-            s1, node_map1 = ts.simplify(
-                sample, map_nodes=True, filter_sites=filter_sites
-            )
-            t1 = s1.dump_tables()
-            s2, node_map2 = simplify_tree_sequence(
-                ts, sample, filter_sites=filter_sites
-            )
-            t2 = s2.dump_tables()
-            assert s1.num_samples == len(sample)
-            assert s2.num_samples == len(sample)
-            assert all(node_map1 == node_map2)
-            assert t1.individuals == t2.individuals
-            assert t1.nodes == t2.nodes
-            assert t1.edges == t2.edges
-            assert t1.migrations == t2.migrations
-            assert t1.sites == t2.sites
-            assert t1.mutations == t2.mutations
-            assert t1.populations == t2.populations
-
-    def verify_simplify_variants(self, ts, sample):
-        subset = ts.simplify(sample)
-        sample_map = {u: j for j, u in enumerate(ts.samples())}
-        # Need to map IDs back to their sample indexes
-        s = np.array([sample_map[u] for u in sample])
-        # Build a map of genotypes by position
-        full_genotypes = {}
-        for variant in ts.variants(isolated_as_missing=False):
-            alleles = [variant.alleles[g] for g in variant.genotypes]
-            full_genotypes[variant.position] = alleles
-        for variant in subset.variants(isolated_as_missing=False):
-            if variant.position in full_genotypes:
-                a1 = [full_genotypes[variant.position][u] for u in s]
-                a2 = [variant.alleles[g] for g in variant.genotypes]
-                assert a1 == a2
-
-    def verify_tables_api_equality(self, ts):
-        for samples in [None, list(ts.samples()), ts.samples()]:
-            tables = ts.dump_tables()
-            tables.simplify(samples=samples)
-            tables.assert_equals(
-                ts.simplify(samples=samples).tables, ignore_timestamps=True
-            )
-
-    @pytest.mark.slow
-    def test_simplify(self):
-        num_mutations = 0
-        for ts in get_example_tree_sequences(pytest_params=False):
-            # Can't simplify edges with metadata
-            if ts.tables.edges.metadata_schema == tskit.MetadataSchema(schema=None):
-                self.verify_tables_api_equality(ts)
-                self.verify_simplify_provenance(ts)
-                n = ts.num_samples
-                num_mutations += ts.num_mutations
-                sample_sizes = {0}
-                if n > 1:
-                    sample_sizes |= {1}
-                if n > 2:
-                    sample_sizes |= {2, max(2, n // 2), n - 1}
-                for k in sample_sizes:
-                    subset = random.sample(list(ts.samples()), k)
-                    self.verify_simplify_topology(ts, subset)
-                    self.verify_simplify_equality(ts, subset)
-                    self.verify_simplify_variants(ts, subset)
-        assert num_mutations > 0
-
-    def test_simplify_bugs(self):
-        prefix = os.path.join(os.path.dirname(__file__), "data", "simplify-bugs")
-        j = 1
-        while True:
-            nodes_file = os.path.join(prefix, f"{j:02d}-nodes.txt")
-            if not os.path.exists(nodes_file):
-                break
-            edges_file = os.path.join(prefix, f"{j:02d}-edges.txt")
-            sites_file = os.path.join(prefix, f"{j:02d}-sites.txt")
-            mutations_file = os.path.join(prefix, f"{j:02d}-mutations.txt")
-            with open(nodes_file) as nodes, open(edges_file) as edges, open(
-                sites_file
-            ) as sites, open(mutations_file) as mutations:
-                ts = tskit.load_text(
-                    nodes=nodes,
-                    edges=edges,
-                    sites=sites,
-                    mutations=mutations,
-                    strict=False,
-                )
-            samples = list(ts.samples())
-            self.verify_simplify_equality(ts, samples)
-            j += 1
-        assert j > 1
-
-    def test_simplify_migrations_fails(self):
-        ts = msprime.simulate(
-            population_configurations=[
-                msprime.PopulationConfiguration(10),
-                msprime.PopulationConfiguration(10),
-            ],
-            migration_matrix=[[0, 1], [1, 0]],
-            random_seed=2,
-            record_migrations=True,
-        )
-        assert ts.num_migrations > 0
-        # We don't support simplify with migrations, so should fail.
-        with pytest.raises(_tskit.LibraryError):
-            ts.simplify()
-
     def test_subset_reverse_all_nodes(self):
         ts = tskit.Tree.generate_comb(5).tree_sequence
         assert np.all(ts.samples() == np.arange(ts.num_samples))
@@ -2768,6 +2593,197 @@ class TestTreeSequence(HighLevelTestCase):
         assert_array_equal(
             ts.indexes_edge_removal_order, tables.indexes.edge_removal_order
         )
+
+
+class TestSimplify:
+    # This class was factored out of the old TestHighlevel class 2022-12-13,
+    # and is a mishmash of different testing paradigms. There is some valuable
+    # testing done here, so it would be good to fully bring it up to date.
+
+    def verify_simplify_provenance(self, ts):
+        new_ts = ts.simplify()
+        assert new_ts.num_provenances == ts.num_provenances + 1
+        old = list(ts.provenances())
+        new = list(new_ts.provenances())
+        assert old == new[:-1]
+        # TODO call verify_provenance on this.
+        assert len(new[-1].timestamp) > 0
+        assert len(new[-1].record) > 0
+
+        new_ts = ts.simplify(record_provenance=False)
+        assert new_ts.tables.provenances == ts.tables.provenances
+
+    def verify_simplify_topology(self, ts, sample):
+        new_ts, node_map = ts.simplify(sample, map_nodes=True)
+        if len(sample) == 0:
+            assert new_ts.num_nodes == 0
+            assert new_ts.num_edges == 0
+            assert new_ts.num_sites == 0
+            assert new_ts.num_mutations == 0
+        elif len(sample) == 1:
+            assert new_ts.num_nodes == 1
+            assert new_ts.num_edges == 0
+        # The output samples should be 0...n
+        assert new_ts.num_samples == len(sample)
+        assert list(range(len(sample))) == list(new_ts.samples())
+        for j in range(new_ts.num_samples):
+            assert node_map[sample[j]] == j
+        for u in range(ts.num_nodes):
+            old_node = ts.node(u)
+            if node_map[u] != tskit.NULL:
+                new_node = new_ts.node(node_map[u])
+                assert old_node.time == new_node.time
+                assert old_node.population == new_node.population
+                assert old_node.metadata == new_node.metadata
+        for u in sample:
+            old_node = ts.node(u)
+            new_node = new_ts.node(node_map[u])
+            assert old_node.flags == new_node.flags
+            assert old_node.time == new_node.time
+            assert old_node.population == new_node.population
+            assert old_node.metadata == new_node.metadata
+        old_trees = ts.trees()
+        old_tree = next(old_trees)
+        assert ts.get_num_trees() >= new_ts.get_num_trees()
+        for new_tree in new_ts.trees():
+            new_left, new_right = new_tree.get_interval()
+            old_left, old_right = old_tree.get_interval()
+            # Skip ahead on the old tree until new_left is within its interval
+            while old_right <= new_left:
+                old_tree = next(old_trees)
+                old_left, old_right = old_tree.get_interval()
+            # If the MRCA of all pairs of samples is the same, then we have the
+            # same information. We limit this to at most 500 pairs
+            pairs = itertools.islice(itertools.combinations(sample, 2), 500)
+            for pair in pairs:
+                mapped_pair = [node_map[u] for u in pair]
+                mrca1 = old_tree.get_mrca(*pair)
+                mrca2 = new_tree.get_mrca(*mapped_pair)
+                if mrca1 == tskit.NULL:
+                    assert mrca2 == mrca1
+                else:
+                    assert mrca2 == node_map[mrca1]
+                    assert old_tree.get_time(mrca1) == new_tree.get_time(mrca2)
+                    assert old_tree.get_population(mrca1) == new_tree.get_population(
+                        mrca2
+                    )
+
+    def verify_simplify_equality(self, ts, sample):
+        for filter_sites in [False, True]:
+            s1, node_map1 = ts.simplify(
+                sample, map_nodes=True, filter_sites=filter_sites
+            )
+            t1 = s1.dump_tables()
+            s2, node_map2 = simplify_tree_sequence(
+                ts, sample, filter_sites=filter_sites
+            )
+            t2 = s2.dump_tables()
+            assert s1.num_samples == len(sample)
+            assert s2.num_samples == len(sample)
+            assert all(node_map1 == node_map2)
+            assert t1.individuals == t2.individuals
+            assert t1.nodes == t2.nodes
+            assert t1.edges == t2.edges
+            assert t1.migrations == t2.migrations
+            assert t1.sites == t2.sites
+            assert t1.mutations == t2.mutations
+            assert t1.populations == t2.populations
+
+    def verify_simplify_variants(self, ts, sample):
+        subset = ts.simplify(sample)
+        sample_map = {u: j for j, u in enumerate(ts.samples())}
+        # Need to map IDs back to their sample indexes
+        s = np.array([sample_map[u] for u in sample])
+        # Build a map of genotypes by position
+        full_genotypes = {}
+        for variant in ts.variants(isolated_as_missing=False):
+            alleles = [variant.alleles[g] for g in variant.genotypes]
+            full_genotypes[variant.position] = alleles
+        for variant in subset.variants(isolated_as_missing=False):
+            if variant.position in full_genotypes:
+                a1 = [full_genotypes[variant.position][u] for u in s]
+                a2 = [variant.alleles[g] for g in variant.genotypes]
+                assert a1 == a2
+
+    def verify_tables_api_equality(self, ts):
+        for samples in [None, list(ts.samples()), ts.samples()]:
+            tables = ts.dump_tables()
+            tables.simplify(samples=samples)
+            tables.assert_equals(
+                ts.simplify(samples=samples).tables, ignore_timestamps=True
+            )
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_simplify_tables_equality(self, ts):
+        # Can't simplify edges with metadata
+        if ts.tables.edges.metadata_schema == tskit.MetadataSchema(schema=None):
+            self.verify_tables_api_equality(ts)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_simplify_provenance(self, ts):
+        # Can't simplify edges with metadata
+        if ts.tables.edges.metadata_schema == tskit.MetadataSchema(schema=None):
+            self.verify_simplify_provenance(ts)
+
+    # TODO this test needs to be broken up into discrete bits, so that we can
+    # test them independently. A way of getting a random-ish subset of samples
+    # from the pytest param would be useful.
+    @pytest.mark.slow
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_simplify(self, ts):
+        # Can't simplify edges with metadata
+        if ts.tables.edges.metadata_schema == tskit.MetadataSchema(schema=None):
+            n = ts.num_samples
+            sample_sizes = {0}
+            if n > 1:
+                sample_sizes |= {1}
+            if n > 2:
+                sample_sizes |= {2, max(2, n // 2), n - 1}
+            for k in sample_sizes:
+                subset = random.sample(list(ts.samples()), k)
+                self.verify_simplify_topology(ts, subset)
+                self.verify_simplify_equality(ts, subset)
+                self.verify_simplify_variants(ts, subset)
+
+    def test_simplify_bugs(self):
+        prefix = os.path.join(os.path.dirname(__file__), "data", "simplify-bugs")
+        j = 1
+        while True:
+            nodes_file = os.path.join(prefix, f"{j:02d}-nodes.txt")
+            if not os.path.exists(nodes_file):
+                break
+            edges_file = os.path.join(prefix, f"{j:02d}-edges.txt")
+            sites_file = os.path.join(prefix, f"{j:02d}-sites.txt")
+            mutations_file = os.path.join(prefix, f"{j:02d}-mutations.txt")
+            with open(nodes_file) as nodes, open(edges_file) as edges, open(
+                sites_file
+            ) as sites, open(mutations_file) as mutations:
+                ts = tskit.load_text(
+                    nodes=nodes,
+                    edges=edges,
+                    sites=sites,
+                    mutations=mutations,
+                    strict=False,
+                )
+            samples = list(ts.samples())
+            self.verify_simplify_equality(ts, samples)
+            j += 1
+        assert j > 1
+
+    def test_simplify_migrations_fails(self):
+        ts = msprime.simulate(
+            population_configurations=[
+                msprime.PopulationConfiguration(10),
+                msprime.PopulationConfiguration(10),
+            ],
+            migration_matrix=[[0, 1], [1, 0]],
+            random_seed=2,
+            record_migrations=True,
+        )
+        assert ts.num_migrations > 0
+        # We don't support simplify with migrations, so should fail.
+        with pytest.raises(_tskit.LibraryError):
+            ts.simplify()
 
 
 class TestMinMaxTime:

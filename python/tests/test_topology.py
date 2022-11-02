@@ -2686,7 +2686,7 @@ class TestSimplifyExamples(TopologyTestCase):
             filter_sites=filter_sites,
             keep_input_roots=keep_input_roots,
             filter_nodes=filter_nodes,
-            compare_lib=False,  # TMP
+            compare_lib=True,  # TMP
         )
         if debug:
             print("before")
@@ -4799,18 +4799,10 @@ def do_simplify(
         )
 
         py_tables = new_ts.dump_tables()
-        for lib_tables, lib_node_map in [
-            (lib_tables1, lib_node_map1),
-            (lib_tables2, lib_node_map2),
-        ]:
-            assert lib_tables.nodes == py_tables.nodes
-            assert lib_tables.edges == py_tables.edges
-            assert lib_tables.migrations == py_tables.migrations
-            assert lib_tables.sites == py_tables.sites
-            assert lib_tables.mutations == py_tables.mutations
-            assert lib_tables.individuals == py_tables.individuals
-            assert lib_tables.populations == py_tables.populations
-            assert all(node_map == lib_node_map)
+        py_tables.assert_equals(lib_tables1, ignore_provenance=True)
+        py_tables.assert_equals(lib_tables2, ignore_provenance=True)
+        assert all(node_map == lib_node_map1)
+        assert all(node_map == lib_node_map2)
     return new_ts, node_map
 
 
@@ -5663,6 +5655,96 @@ class TestSimplify(SimplifyTestBase):
                         self.verify_simplify_haplotypes(ts, samples, keep_unary=keep)
 
 
+class TestSimplifyUnreferencedPopulations:
+    def example(self):
+        tables = tskit.TableCollection(1)
+        tables.populations.add_row()
+        tables.populations.add_row()
+        # No references to population 0
+        tables.nodes.add_row(time=0, population=1, flags=1)
+        tables.nodes.add_row(time=0, population=1, flags=1)
+        tables.nodes.add_row(time=1, population=1, flags=0)
+        # Unreference node
+        tables.nodes.add_row(time=1, population=1, flags=0)
+        tables.edges.add_row(0, 1, parent=2, child=0)
+        tables.edges.add_row(0, 1, parent=2, child=1)
+        tables.sort()
+        return tables
+
+    def test_no_filter_populations(self):
+        tables = self.example()
+        tables.simplify(filter_populations=False)
+        assert len(tables.populations) == 2
+        assert len(tables.nodes) == 3
+        assert np.all(tables.nodes.population == 1)
+
+    def test_no_filter_populations_nodes(self):
+        tables = self.example()
+        tables.simplify(filter_populations=False, filter_nodes=False)
+        assert len(tables.populations) == 2
+        assert len(tables.nodes) == 4
+        assert np.all(tables.nodes.population == 1)
+
+    def test_filter_populations_no_filter_nodes(self):
+        tables = self.example()
+        tables.simplify(filter_populations=True, filter_nodes=False)
+        assert len(tables.populations) == 1
+        assert len(tables.nodes) == 4
+        assert np.all(tables.nodes.population == 0)
+
+    def test_remapped_default(self):
+        tables = self.example()
+        tables.simplify()
+        assert len(tables.populations) == 1
+        assert len(tables.nodes) == 3
+        assert np.all(tables.nodes.population == 0)
+
+
+class TestSimplifyUnreferencedIndividuals:
+    def example(self):
+        tables = tskit.TableCollection(1)
+        tables.individuals.add_row()
+        tables.individuals.add_row()
+        # No references to individual 0
+        tables.nodes.add_row(time=0, individual=1, flags=1)
+        tables.nodes.add_row(time=0, individual=1, flags=1)
+        tables.nodes.add_row(time=1, individual=1, flags=0)
+        # Unreference node
+        tables.nodes.add_row(time=1, individual=1, flags=0)
+        tables.edges.add_row(0, 1, parent=2, child=0)
+        tables.edges.add_row(0, 1, parent=2, child=1)
+        tables.sort()
+        return tables
+
+    def test_no_filter_individuals(self):
+        tables = self.example()
+        tables.simplify(filter_individuals=False)
+        assert len(tables.individuals) == 2
+        assert len(tables.nodes) == 3
+        assert np.all(tables.nodes.individual == 1)
+
+    def test_no_filter_individuals_nodes(self):
+        tables = self.example()
+        tables.simplify(filter_individuals=False, filter_nodes=False)
+        assert len(tables.individuals) == 2
+        assert len(tables.nodes) == 4
+        assert np.all(tables.nodes.individual == 1)
+
+    def test_filter_individuals_no_filter_nodes(self):
+        tables = self.example()
+        tables.simplify(filter_individuals=True, filter_nodes=False)
+        assert len(tables.individuals) == 1
+        assert len(tables.nodes) == 4
+        assert np.all(tables.nodes.individual == 0)
+
+    def test_remapped_default(self):
+        tables = self.example()
+        tables.simplify()
+        assert len(tables.individuals) == 1
+        assert len(tables.nodes) == 3
+        assert np.all(tables.nodes.individual == 0)
+
+
 class TestSimplifyKeepInputRoots(SimplifyTestBase, ExampleTopologyMixin):
     """
     Tests for the keep_input_roots option to simplify.
@@ -5847,7 +5929,7 @@ class TestSimplifyFilterNodes:
 
         for ts in (ts_in, self.reverse_node_indexes(ts_in)):
             filtered, n_map = do_simplify(
-                ts, samples=samples, filter_nodes=False, compare_lib=False, **kwargs
+                ts, samples=samples, filter_nodes=False, compare_lib=True, **kwargs
             )
             assert np.array_equal(n_map, np.arange(ts.num_nodes, dtype=n_map.dtype))
             referenced_nodes = set(filtered.samples())
@@ -5855,12 +5937,9 @@ class TestSimplifyFilterNodes:
             referenced_nodes.update(filtered.edges_child)
             for n1, n2 in zip(ts.nodes(), filtered.nodes()):
                 # Ignore the tskit.NODE_IS_SAMPLE flag which can be changed by simplify
-                if n2.id in referenced_nodes:
-                    assert n_map[n2.id] == tskit.NULL
-                else:
-                    n1 = n1.replace(flags=n1.flags | tskit.NODE_IS_SAMPLE)
-                    n2 = n2.replace(flags=n2.flags | tskit.NODE_IS_SAMPLE)
-                    assert n1 == n2
+                n1 = n1.replace(flags=n1.flags | tskit.NODE_IS_SAMPLE)
+                n2 = n2.replace(flags=n2.flags | tskit.NODE_IS_SAMPLE)
+                assert n1 == n2
 
             # Check that edges are identical to the normal simplify(),
             # with the normal "simplify" having altered IDs
@@ -5970,6 +6049,46 @@ class TestSimplifyFilterNodes:
         assert any([tree.num_children(u) == 1 for u in tree.nodes()])
         self.verify_nodes_unchanged(ts_with_unary, keep_unary=True)
         self.verify_nodes_unchanged(ts_with_unary, keep_unary=False)
+
+    def test_find_unreferenced_nodes(self):
+        # Simple test to show we can find unreferenced nodes easily.
+        # 2.00┊    6    ┊
+        #     ┊  ┏━┻━┓  ┊
+        # 1.00┊  4   5  ┊
+        #     ┊ ┏┻┓ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 3 ┊
+        #     0         1
+        ts1 = tskit.Tree.generate_balanced(4).tree_sequence
+        ts2, node_map = do_simplify(
+            ts1,
+            [0, 1, 2],
+            filter_nodes=False,
+        )
+        assert np.array_equal(node_map, np.arange(ts1.num_nodes))
+        node_references = np.zeros(ts1.num_nodes, dtype=np.int32)
+        node_references[ts2.edges_parent] += 1
+        node_references[ts2.edges_child] += 1
+        # Simplifying for [0, 1, 2] should remove references to node 3 and 5
+        assert list(node_references) == [1, 1, 1, 0, 2, 0, 1]
+
+    def test_mutations_on_removed_branches(self):
+        # 2.00┊    6    ┊
+        #     ┊  ┏━┻━┓  ┊
+        # 1.00┊  4   5  ┊
+        #     ┊ ┏┻┓ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 3 ┊
+        #     0         1
+        tables = tskit.Tree.generate_balanced(4).tree_sequence.dump_tables()
+        # A mutation on a removed branch should get removed
+        tables.sites.add_row(0.5, "A")
+        tables.mutations.add_row(0, node=3, derived_state="T")
+        ts2, node_map = do_simplify(
+            tables.tree_sequence(),
+            [0, 1, 2],
+            filter_nodes=False,
+        )
+        assert ts2.num_sites == 0
+        assert ts2.num_mutations == 0
 
 
 class TestMapToAncestors:

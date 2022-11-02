@@ -6506,14 +6506,14 @@ class TreeSequence:
         original tree sequence, or :data:`tskit.NULL` (-1) if ``u`` is no longer
         present in the simplified tree sequence.
 
-        In the returned tree sequence the only nodes flagged as samples are those
-        passed as ``samples``: all others are not flagged as samples.
-        If ``filter_nodes`` is not False, nodes in the returned tree sequence are
-        also reordered such that the node with ID ``0`` corresponds to ``samples[0]``,
-        node ``1`` corresponds to ``samples[1]`` etc., and the remaining node IDs
-        are allocated sequentially in time order. Alternatively, if ``filter_nodes``
-        is False, the node order is not changed, and the order of IDs passed to
-        ``samples`` is irrelevant.
+        In the returned tree sequence the only nodes flagged as samples are
+        those passed as ``samples``: all others are not flagged as samples. If
+        ``filter_nodes`` is True (the default), nodes in the returned tree
+        sequence are also reordered such that the node with ID ``0``
+        corresponds to ``samples[0]``, node ``1`` corresponds to ``samples[1]``
+        etc., and the remaining node IDs are allocated sequentially in time
+        order. Alternatively, if ``filter_nodes`` is False, the node order is
+        not changed, and the order of IDs passed to ``samples`` is irrelevant.
 
         If you wish to simplify a set of tables that do not satisfy all
         requirements for building a TreeSequence, then use

@@ -10,6 +10,13 @@
   ``tsk_treeseq_get_min_time`` and ``tsk_treeseq_get_max_time``, respectively.
   (:user:`szhan`, :pr:`2612`, :issue:`2271`)
 
+- Add the `TSK_SIMPLIFY_NO_FILTER_NODES` option to simplify to allow unreferenced
+  nodes be kept in the output (:user:`jeromekelleher`, :user:`hyanwong`,
+  :issue:`2606`, :pr:`2619`).
+
+- Guarantee that unfiltered tables are not written to unnecessarily
+  during simplify (:user:`jeromekelleher` :pr:`2619`).
+
 --------------------
 [1.1.1] - 2022-07-29
 --------------------

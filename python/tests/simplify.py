@@ -130,33 +130,48 @@ class Simplifier:
         self.A_tail = [None for _ in range(ts.num_nodes)]
         self.tables = self.ts.tables.copy()
         self.tables.clear()
-        if not filter_nodes:
-            # NOTE: this is hack-ish.
-            # So far, we have copied the tables once,
-            # cleared them, and then re-copied.
-            self.tables = self.ts.tables.copy()
         self.edge_buffer = {}
         self.node_id_map = np.zeros(ts.num_nodes, dtype=np.int32) - 1
+        self.is_sample = np.zeros(ts.num_nodes, dtype=np.int8)
         self.mutation_node_map = [-1 for _ in range(self.num_mutations)]
         self.samples = set(sample)
         self.sort_offset = -1
         # We keep a map of input nodes to mutations.
         self.mutation_map = [[] for _ in range(ts.num_nodes)]
-        position = ts.tables.sites.position
-        site = ts.tables.mutations.site
-        node = ts.tables.mutations.node
+        position = ts.sites_position
+        site = ts.mutations_site
+        node = ts.mutations_node
         for mutation_id in range(ts.num_mutations):
             site_position = position[site[mutation_id]]
             self.mutation_map[node[mutation_id]].append((site_position, mutation_id))
+
         for sample_id in sample:
-            output_id = self.record_node(sample_id, is_sample=True)
-            self.add_ancestry(sample_id, 0, self.sequence_length, output_id)
+            self.is_sample[sample_id] = 1
+
+        if not self.filter_nodes:
+            # NOTE In the C implementation we would really just not touch the
+            # original tables.
+            self.tables.nodes.replace_with(self.ts.tables.nodes)
+            # TODO make this optional somehow
+            flags = self.tables.nodes.flags
+            # Zero out other sample flags
+            flags = np.bitwise_and(flags, ~tskit.NODE_IS_SAMPLE)
+            flags[sample] |= tskit.NODE_IS_SAMPLE
+            self.tables.nodes.flags = flags.astype(np.uint32)
+            self.node_id_map[:] = np.arange(ts.num_nodes)
+
+            for sample_id in sample:
+                self.add_ancestry(sample_id, 0, self.sequence_length, sample_id)
+        else:
+            for sample_id in sample:
+                output_id = self.record_node(sample_id)
+                self.add_ancestry(sample_id, 0, self.sequence_length, output_id)
 
         self.position_lookup = None
         if self.reduce_to_site_topology:
             self.position_lookup = np.hstack([[0], position, [self.sequence_length]])
 
-    def record_node(self, input_id, is_sample=False):
+    def record_node(self, input_id):
         """
         Adds a new node to the output table corresponding to the specified input
         node ID.
@@ -165,11 +180,8 @@ class Simplifier:
         flags = node.flags
         # Need to zero out the sample flag
         flags &= ~tskit.NODE_IS_SAMPLE
-        if is_sample:
+        if self.is_sample[input_id]:
             flags |= tskit.NODE_IS_SAMPLE
-        if not self.filter_nodes:
-            self.node_id_map[input_id] = input_id
-            return input_id
         output_id = self.tables.nodes.append(node.replace(flags=flags))
         self.node_id_map[input_id] = output_id
         return output_id
@@ -286,7 +298,7 @@ class Simplifier:
         The new parent must be assigned and any overlapping segments coalesced.
         """
         output_id = self.node_id_map[input_id]
-        is_sample = output_id != -1
+        is_sample = self.is_sample[input_id]
         if is_sample:
             # Free up the existing ancestry mapping.
             x = self.A_tail[input_id]
@@ -330,7 +342,7 @@ class Simplifier:
             self.add_ancestry(input_id, prev_right, self.sequence_length, output_id)
         if output_id != -1:
             num_edges = self.flush_edges()
-            if num_edges == 0 and not is_sample:
+            if self.filter_nodes and num_edges == 0 and not is_sample:
                 self.rewind_node(input_id, output_id)
 
     def extract_ancestry(self, edge):

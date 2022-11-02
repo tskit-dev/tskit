@@ -3029,8 +3029,8 @@ class TestSimplifyTables:
     def test_bad_samples(self):
         n = 10
         ts = msprime.simulate(n, random_seed=self.random_seed)
-        tables = ts.dump_tables()
-        for bad_node in [-1, n, n + 1, ts.num_nodes - 1, ts.num_nodes, 2**31 - 1]:
+        for bad_node in [-1, ts.num_nodes, 2**31 - 1]:
+            tables = ts.dump_tables()
             with pytest.raises(_tskit.LibraryError):
                 tables.simplify(samples=[0, bad_node])
 
