@@ -356,7 +356,8 @@ tsk_strerror_internal(int err)
                   "(TSK_ERR_TABLES_BAD_INDEXES)";
             break;
         case TSK_ERR_TABLE_OVERFLOW:
-            ret = "Table too large; cannot allocate more than 2**31 rows. "
+            ret = "Table too large; cannot allocate more than 2**31 rows. This error "
+                  "is often caused by a lack of simplification when simulating. "
                   "(TSK_ERR_TABLE_OVERFLOW)";
             break;
         case TSK_ERR_COLUMN_OVERFLOW:
