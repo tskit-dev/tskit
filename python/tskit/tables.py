@@ -27,7 +27,6 @@ Tree sequence IO via the tables API.
 import collections.abc
 import dataclasses
 import datetime
-import itertools
 import json
 import numbers
 import warnings
@@ -657,41 +656,10 @@ class BaseTable:
         return util.unicode_table(rows, header=headers, row_separator=False)
 
     def _repr_html_(self):
-        """
-        Called by jupyter notebooks to render tables
-        """
         headers, rows = self._text_header_and_rows(
             limit=tskit._print_options["max_lines"]
         )
-        headers = "".join(f"<th>{header}</th>" for header in headers)
-        rows = (
-            f'<td style="text-align: center;" colspan="{len(headers)}"><em>{row[11:]}'
-            f" rows skipped (tskit.set_print_options)</em></td>"
-            if "__skipped__" in row
-            else "".join(f"<td>{cell}</td>" for cell in row)
-            for row in rows
-        )
-        rows = "".join(f"<tr>{row}</tr>\n" for row in rows)
-        return f"""
-            <div>
-                <style scoped="">
-                    .tskit-table tbody tr th:only-of-type {{vertical-align: middle;}}
-                    .tskit-table tbody tr th {{vertical-align: top;}}
-                    .tskit-table tbody td {{text-align: right;padding: 0.5em 0.5em;}}
-                    .tskit-table tbody th {{padding: 0.5em 0.5em;}}
-                </style>
-                <table border="1" class="tskit-table">
-                    <thead>
-                        <tr>
-                            {headers}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows}
-                    </tbody>
-                </table>
-            </div>
-        """
+        return util.html_table(rows, header=headers)
 
     def _columns_all_integer(self, *colnames):
         # For displaying floating point values without loads of decimal places
@@ -852,15 +820,8 @@ class IndividualTable(MetadataTable):
     def _text_header_and_rows(self, limit=None):
         headers = ("id", "flags", "location", "parents", "metadata")
         rows = []
-        if limit is None or self.num_rows <= limit:
-            indexes = range(self.num_rows)
-        else:
-            indexes = itertools.chain(
-                range(limit // 2),
-                [-1],
-                range(self.num_rows - (limit - (limit // 2)), self.num_rows),
-            )
-        for j in indexes:
+        row_indexes = util.truncate_rows(self.num_rows, limit)
+        for j in row_indexes:
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
@@ -1105,16 +1066,9 @@ class NodeTable(MetadataTable):
     def _text_header_and_rows(self, limit=None):
         headers = ("id", "flags", "population", "individual", "time", "metadata")
         rows = []
-        if limit is None or self.num_rows <= limit:
-            indexes = range(self.num_rows)
-        else:
-            indexes = itertools.chain(
-                range(limit // 2),
-                [-1],
-                range(self.num_rows - (limit - (limit // 2)), self.num_rows),
-            )
+        row_indexes = util.truncate_rows(self.num_rows, limit)
         decimal_places_times = 0 if self._columns_all_integer("time") else 8
-        for j in indexes:
+        for j in row_indexes:
             row = self[j]
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
@@ -1306,16 +1260,9 @@ class EdgeTable(MetadataTable):
     def _text_header_and_rows(self, limit=None):
         headers = ("id", "left", "right", "parent", "child", "metadata")
         rows = []
-        if limit is None or self.num_rows <= limit:
-            indexes = range(self.num_rows)
-        else:
-            indexes = itertools.chain(
-                range(limit // 2),
-                [-1],
-                range(self.num_rows - (limit - (limit // 2)), self.num_rows),
-            )
+        row_indexes = util.truncate_rows(self.num_rows, limit)
         decimal_places = 0 if self._columns_all_integer("left", "right") else 8
-        for j in indexes:
+        for j in row_indexes:
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
@@ -1528,17 +1475,10 @@ class MigrationTable(MetadataTable):
     def _text_header_and_rows(self, limit=None):
         headers = ("id", "left", "right", "node", "source", "dest", "time", "metadata")
         rows = []
-        if limit is None or self.num_rows <= limit:
-            indexes = range(self.num_rows)
-        else:
-            indexes = itertools.chain(
-                range(limit // 2),
-                [-1],
-                range(self.num_rows - (limit - (limit // 2)), self.num_rows),
-            )
+        row_indexes = util.truncate_rows(self.num_rows, limit)
         decimal_places_coords = 0 if self._columns_all_integer("left", "right") else 8
         decimal_places_times = 0 if self._columns_all_integer("time") else 8
-        for j in indexes:
+        for j in row_indexes:
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
@@ -1748,16 +1688,9 @@ class SiteTable(MetadataTable):
     def _text_header_and_rows(self, limit=None):
         headers = ("id", "position", "ancestral_state", "metadata")
         rows = []
-        if limit is None or self.num_rows <= limit:
-            indexes = range(self.num_rows)
-        else:
-            indexes = itertools.chain(
-                range(limit // 2),
-                [-1],
-                range(self.num_rows - (limit - (limit // 2)), self.num_rows),
-            )
+        row_indexes = util.truncate_rows(self.num_rows, limit)
         decimal_places = 0 if self._columns_all_integer("position") else 8
-        for j in indexes:
+        for j in row_indexes:
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
@@ -1971,17 +1904,10 @@ class MutationTable(MetadataTable):
     def _text_header_and_rows(self, limit=None):
         headers = ("id", "site", "node", "time", "derived_state", "parent", "metadata")
         rows = []
-        if limit is None or self.num_rows <= limit:
-            indexes = range(self.num_rows)
-        else:
-            indexes = itertools.chain(
-                range(limit // 2),
-                [-1],
-                range(self.num_rows - (limit - (limit // 2)), self.num_rows),
-            )
+        row_indexes = util.truncate_rows(self.num_rows, limit)
         # Currently mutations do not have discretised times: this for consistency
         decimal_places_times = 0 if self._columns_all_integer("time") else 8
-        for j in indexes:
+        for j in row_indexes:
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
@@ -2232,15 +2158,8 @@ class PopulationTable(MetadataTable):
     def _text_header_and_rows(self, limit=None):
         headers = ("id", "metadata")
         rows = []
-        if limit is None or self.num_rows <= limit:
-            indexes = range(self.num_rows)
-        else:
-            indexes = itertools.chain(
-                range(limit // 2),
-                [-1],
-                range(self.num_rows - (limit - (limit // 2)), self.num_rows),
-            )
-        for j in indexes:
+        row_indexes = util.truncate_rows(self.num_rows, limit)
+        for j in row_indexes:
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:
@@ -2490,15 +2409,8 @@ class ProvenanceTable(BaseTable):
     def _text_header_and_rows(self, limit=None):
         headers = ("id", "timestamp", "record")
         rows = []
-        if limit is None or self.num_rows <= limit:
-            indexes = range(self.num_rows)
-        else:
-            indexes = itertools.chain(
-                range(limit // 2),
-                [-1],
-                range(self.num_rows - (limit - (limit // 2)), self.num_rows),
-            )
-        for j in indexes:
+        row_indexes = util.truncate_rows(self.num_rows, limit)
+        for j in row_indexes:
             if j == -1:
                 rows.append(f"__skipped__{self.num_rows-limit}")
             else:

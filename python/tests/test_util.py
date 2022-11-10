@@ -489,12 +489,12 @@ def test_unicode_table():
     )
 
 
-def test_unicode_table_alignments():
+def test_unicode_table_column_alignments():
     assert (
         util.unicode_table(
             [["5", "6", "7", "8"], ["90", "10", "11", "12"]],
             header=["1", "2", "3", "4"],
-            alignments="<>><",
+            column_alignments="<>><",
         )
         == textwrap.dedent(
             """
