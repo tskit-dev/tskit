@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 # Copyright (c) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -656,6 +656,9 @@ class BaseTable:
         return util.unicode_table(rows, header=headers, row_separator=False)
 
     def _repr_html_(self):
+        """
+        Called e.g. by jupyter notebooks to render tables
+        """
         headers, rows = self._text_header_and_rows(
             limit=tskit._print_options["max_lines"]
         )

@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -447,9 +447,6 @@ def unicode_table(
 
 
 def html_table(rows, *, header):
-    """
-    Called by jupyter notebooks to render tables
-    """
     headers = "".join(f"<th>{h}</th>" for h in header)
     rows = (
         f'<td style="text-align: center;" colspan="{len(headers)}"><em>{row[11:]}'
@@ -724,8 +721,8 @@ def set_print_options(*, max_lines=40):
 
 def truncate_rows(num_rows, limit=None):
     """
-    Return a list of indexes into a set of rows, but is limit is set, truncate the
-    number of rows and place a `-1` instead of the intermediate indexes
+    Return a list of indexes into a set of rows, but if a ``limit`` is set, truncate the
+    number of rows and place a single ``-1`` entry, instead of the intermediate indexes
     """
     if limit is None or num_rows <= limit:
         return range(num_rows)
