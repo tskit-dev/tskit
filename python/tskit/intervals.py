@@ -26,12 +26,12 @@ Utilities for working with intervals and interval maps.
 from __future__ import annotations
 
 import collections.abc
-import itertools
 import numbers
-import warnings
 
 import numpy as np
-from msprime import core
+
+import tskit
+import tskit.util as util
 
 
 class RateMap(collections.abc.Mapping):
@@ -333,53 +333,42 @@ class RateMap(collections.abc.Mapping):
         # if the returned array contains any nans though.
         raise KeyError("Key {key} not in map")
 
-    def _display_table(self):
-        def format_row(left, right, mid, span, rate):
-            return [
-                f"{left:.10g}",
-                f"{right:.10g}",
-                f"{mid:.10g}",
-                f"{span:.10g}",
-                f"{rate:.2g}",
-            ]
-
-        def format_slice(start, end):
-            return list(
-                itertools.starmap(
-                    format_row,
-                    zip(
-                        self.left[start:end],
-                        self.right[start:end],
-                        self.mid[start:end],
-                        self.span[start:end],
-                        self.rate[start:end],
-                    ),
+    def _text_header_and_rows(self, limit=None):
+        headers = ("left", "right", "mid", "span", "rate")
+        num_rows = len(self.left)
+        rows = []
+        row_indexes = util.truncate_rows(num_rows, limit)
+        for j in row_indexes:
+            if j == -1:
+                rows.append(f"__skipped__{num_rows-limit}")
+            else:
+                rows.append(
+                    [
+                        f"{self.left[j]:.10g}",
+                        f"{self.right[j]:.10g}",
+                        f"{self.mid[j]:.10g}",
+                        f"{self.span[j]:.10g}",
+                        f"{self.rate[j]:.2g}",
+                    ]
                 )
-            )
-
-        if self.num_intervals < 40:
-            data = format_slice(0, None)
-        else:
-            data = format_slice(0, 10)
-            data.append(["⋯"] * 5)
-            data += format_slice(-10, None)
-
-        return ["left", "right", "mid", "span", "rate"], data
+        return headers, rows
 
     def __str__(self):
-        titles, data = self._display_table()
-        data = [[[item] for item in row] for row in data]
-        table = core.text_table(
-            caption="",
-            column_titles=[[title] for title in titles],
+        header, rows = self._text_header_and_rows(
+            limit=tskit._print_options["max_lines"]
+        )
+        table = util.unicode_table(
+            rows=rows,
+            header=header,
             column_alignments="<<>>>",
-            data=data,
         )
         return table
 
     def _repr_html_(self):
-        col_titles, data = self._display_table()
-        return core.html_table("", col_titles, data)
+        header, rows = self._text_header_and_rows(
+            limit=tskit._print_options["max_lines"]
+        )
+        return util.html_table(rows, header=header)
 
     def __repr__(self):
         return f"RateMap(position={repr(self.position)}, rate={repr(self.rate)})"
@@ -609,155 +598,3 @@ class RateMap(collections.abc.Mapping):
         if end != physical_positions[-1]:
             rate[-1] = np.nan
         return RateMap(position=physical_positions, rate=rate)
-
-
-class RecombinationMap:
-    """
-    A RecombinationMap represents the changing rates of recombination
-    along a chromosome. This is defined via two lists of numbers:
-    ``positions`` and ``rates``, which must be of the same length.
-    Given an index j in these lists, the rate of recombination
-    per base per generation is ``rates[j]`` over the interval
-    ``positions[j]`` to ``positions[j + 1]``. Consequently, the first
-    position must be zero, and by convention the last rate value
-    is also required to be zero (although it is not used).
-
-    .. important::
-        This class is deprecated (but supported indefinitely);
-        please use the :class:`.RateMap` class in new code.
-        In particular, note that when specifying ``rates`` in the
-        the :class:`.RateMap` class we now require an array
-        of length :math:`n - 1` (this class requires an array
-        of length :math:`n` in which the last entry is zero).
-
-    :param list positions: The positions (in bases) denoting the
-        distinct intervals where recombination rates change. These can
-        be floating point values.
-    :param list rates: The list of rates corresponding to the supplied
-        ``positions``. Recombination rates are specified per base,
-        per generation.
-    :param int num_loci: **This parameter is no longer supported.**
-        Must be either None (meaning a continuous genome of the
-        finest possible resolution) or be equal to ``positions[-1]``
-        (meaning a discrete genome). Any other value will result in
-        an error. Please see the :ref:`sec_legacy_0x_genome_discretisation`
-        section for more information.
-    """
-
-    def __init__(self, positions, rates, num_loci=None, map_start=0):
-        # Used as an internal flag for the 0.x simulate() function. This allows
-        # us to emulate the discrete-sites behaviour of 0.x code.
-        self._is_discrete = num_loci == positions[-1]
-        if num_loci is not None and num_loci != positions[-1]:
-            raise ValueError(
-                "The RecombinationMap interface is deprecated and only "
-                "partially supported. If you wish to simulate a number of "
-                "discrete loci, you must set num_loci == the sequence length. "
-                "If you wish to simulate recombination process on as fine "
-                "a map as possible, please omit the num_loci parameter (or set "
-                "to None). Otherwise, num_loci is no longer supported and "
-                "the behaviour of msprime 0.x cannot be emulated. Please "
-                "consider upgrading your code to the version 1.x APIs."
-            )
-        self.map = RateMap(position=positions, rate=rates[:-1])
-
-    @classmethod
-    def uniform_map(cls, length, rate, num_loci=None):
-        """
-        Returns a :class:`.RecombinationMap` instance in which the recombination
-        rate is constant over a chromosome of the specified length.
-        The legacy ``num_loci`` option is no longer supported and should not be used.
-
-        :param float length: The length of the chromosome.
-        :param float rate: The rate of recombination per unit of sequence length
-            along this chromosome.
-        :param int num_loci: This parameter is no longer supported.
-        """
-        return cls([0, length], [rate, 0], num_loci=num_loci)
-
-    @classmethod
-    def read_hapmap(cls, filename):
-        """
-        Parses the specified file in HapMap format.
-
-        .. warning::
-            This method is deprecated, use the :meth:`.RateMap.read_hapmap`
-            method instead.
-
-        :param str filename: The name of the file to be parsed. This may be
-            in plain text or gzipped plain text.
-        :return: A RecombinationMap object.
-        """
-        warnings.warn(
-            "RecombinationMap.read_hapmap() is deprecated. "
-            "Use RateMap.read_hapmap() instead.",
-            FutureWarning,
-        )
-        rate_map = RateMap.read_hapmap(filename, position_col=1, rate_col=2)
-        # Mark anything missing as 0 for backwards compatibility. This will
-        # ensure that simulate() never trims parts of the tree sequence.
-        rate = rate_map.rate.copy()
-        rate[rate_map.missing] = 0
-        return cls(rate_map.position, np.append(rate, 0))
-
-    @property
-    def mean_recombination_rate(self):
-        """
-        Return the weighted mean recombination rate
-        across all windows of the entire recombination map.
-        """
-        return self.map.mean_rate
-
-    def get_total_recombination_rate(self):
-        """
-        Returns the effective recombination rate for this genetic map.
-        This is the weighted mean of the rates across all intervals.
-        """
-        return self.map.total_mass
-
-    def physical_to_genetic(self, x):
-        return self.map.get_cumulative_mass(x)
-
-    def genetic_to_physical(self, genetic_x):
-        if self.map.total_mass == 0:
-            # If we have a zero recombination rate throughout then everything
-            # except L maps to 0.
-            return self.get_sequence_length() if genetic_x > 0 else 0
-        if genetic_x == 0:
-            return self.map.position[0]
-        # TODO refactor this to this to use get_cumulative_mass() function / add the
-        # corresponding high-level function to the rate map.
-        index = np.searchsorted(self.map._cumulative_mass, genetic_x) - 1
-        y = (
-            self.map.position[index]
-            + (genetic_x - self.map._cumulative_mass[index]) / self.map.rate[index]
-        )
-        return y
-
-    def physical_to_discrete_genetic(self, physical_x):
-        raise ValueError("Discrete genetic space is no longer supported")
-
-    def get_per_locus_recombination_rate(self):
-        raise ValueError("Genetic loci are no longer supported")
-
-    def get_num_loci(self):
-        raise ValueError("num_loci is no longer supported")
-
-    def get_size(self):
-        return len(self.map.position)
-
-    def get_positions(self):
-        return list(self.map.position)
-
-    def get_rates(self):
-        return list(self.map.rate) + [0]
-
-    def get_sequence_length(self):
-        return self.map.sequence_length
-
-    def get_length(self):
-        # Deprecated: use get_sequence_length() instead
-        return self.get_sequence_length()
-
-    def asdict(self):
-        return self.map.asdict()

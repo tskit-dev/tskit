@@ -8,6 +8,10 @@
   which are the minimum and maximum among the node times and mutation times,
   respectively. (:user:`szhan`, :pr:`2612`, :issue:`2271`)
 
+- The ``msprime.RateMap`` class has been ported into tskit: functionality should
+  be identical to the version in msprime, apart from minor changes in the formatting
+  of tabular text output (:user:`hyanwong`, :pr:`2636`)
+
 **Breaking Changes**
 
  - the ``filter_populations``, ``filter_individuals``, and ``filter_sites``
