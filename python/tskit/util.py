@@ -320,7 +320,7 @@ def obj_to_collapsed_html(d, name=None, open_depth=0):
 
     :param str name: Name for this object
     :param int open_depth: By default sub-sections are collapsed. If this number is
-    non-zero the first layers up to open_depth will be opened.
+        non-zero the first layers up to open_depth will be opened.
     :return: The HTML as a string
     :rtype: str
     """
@@ -369,19 +369,25 @@ def render_metadata(md, length=40):
     return truncate_string_end(str(md), length)
 
 
-def unicode_table(rows, title=None, header=None, row_separator=True):
+def unicode_table(
+    rows, title=None, header=None, row_separator=True, column_alignments=None
+):
     """
     Convert a table (list of lists) of strings to a unicode table. If a row contains
     the string "__skipped__NNN" then "skipped N rows" is displayed.
 
     :param list[list[str]] rows: List of rows, each of which is a list of strings for
-    each cell. The first column will be left justified, the others right. Each row must
-    have the same number of cells.
+        each cell. Each row must have the same number of cells.
     :param str title: If specified the first output row will be a single cell
-    containing this string, left-justified. [optional]
+        containing this string, left-justified. [optional]
     :param list[str] header: Specifies a row above the main rows which will be in double
-    lined borders and left justified. Must be same length as each row. [optional]
+        lined borders and left justified. Must be same length as each row. [optional]
     :param boolean row_separator: If True add lines between each row. [Default: True]
+    :param column_alignments str: A string of the same length as the number of cells in
+        a row (i.e. columns) where each character specifies an alignment such as ``<``,
+        ``>`` or ``^`` as used in Python's string formatting mini-language. If ``None``,
+        set the first column to be left justified and the remaining columns to be right
+        justified [Default: ``None``]
     :return: The table as a string
     :rtype: str
     """
@@ -392,6 +398,8 @@ def unicode_table(rows, title=None, header=None, row_separator=True):
     widths = [
         max(len(row[i_col]) for row in all_rows) for i_col in range(len(all_rows[0]))
     ]
+    if column_alignments is None:
+        column_alignments = "<" + ">" * (len(widths) - 1)
     out = []
     inner_width = sum(widths) + len(header or rows[0]) - 1
     if title is not None:
@@ -423,9 +431,13 @@ def unicode_table(rows, title=None, header=None, row_separator=True):
         else:
             if i != 0 and not last_skipped and row_separator:
                 out.append(f"╟{'┼'.join('─' * w for w in widths)}╢\n")
+
             out.append(
-                f"║{row[0].ljust(widths[0])}│"
-                f"{'│'.join(cell.rjust(w) for cell, w in zip(row[1:], widths[1:]))}║\n"
+                "║"
+                + "│".join(
+                    f"{r:{a}{w}}" for r, w, a in zip(row, widths, column_alignments)
+                )
+                + "║\n"
             )
             last_skipped = False
 

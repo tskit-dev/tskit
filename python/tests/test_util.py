@@ -489,6 +489,27 @@ def test_unicode_table():
     )
 
 
+def test_unicode_table_alignments():
+    assert (
+        util.unicode_table(
+            [["5", "6", "7", "8"], ["90", "10", "11", "12"]],
+            header=["1", "2", "3", "4"],
+            alignments="<>><",
+        )
+        == textwrap.dedent(
+            """
+           ╔══╤══╤══╤══╗
+           ║1 │2 │3 │4 ║
+           ╠══╪══╪══╪══╣
+           ║5 │ 6│ 7│8 ║
+           ╟──┼──┼──┼──╢
+           ║90│10│11│12║
+           ╚══╧══╧══╧══╝
+        """
+        )[1:]
+    )
+
+
 def test_set_printoptions():
     assert tskit._print_options == {"max_lines": 40}
     util.set_print_options(max_lines=None)
