@@ -33,10 +33,11 @@ import pickle
 import textwrap
 import xml
 
-import msprime
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
+
+import tskit
 
 
 class TestRateMapErrors:
@@ -53,40 +54,40 @@ class TestRateMapErrors:
     )
     def test_bad_input(self, position, rate):
         with pytest.raises(ValueError):
-            msprime.RateMap(position=position, rate=rate)
+            tskit.RateMap(position=position, rate=rate)
 
     def test_zero_length_interval(self):
         with pytest.raises(ValueError, match=r"at indexes \[2 4\]"):
-            msprime.RateMap(position=[0, 1, 1, 2, 2, 3], rate=[0, 0, 0, 0, 0])
+            tskit.RateMap(position=[0, 1, 1, 2, 2, 3], rate=[0, 0, 0, 0, 0])
 
     def test_bad_length(self):
         positions = np.array([0, 1, 2])
         rates = np.array([0, 1, 2])
         with pytest.raises(ValueError, match="one less entry"):
-            msprime.RateMap(position=positions, rate=rates)
+            tskit.RateMap(position=positions, rate=rates)
 
     def test_bad_first_pos(self):
         positions = np.array([1, 2, 3])
         rates = np.array([1, 1])
         with pytest.raises(ValueError, match="First position"):
-            msprime.RateMap(position=positions, rate=rates)
+            tskit.RateMap(position=positions, rate=rates)
 
     def test_bad_rate(self):
         positions = np.array([0, 1, 2])
         rates = np.array([1, -1])
         with pytest.raises(ValueError, match="negative.*1"):
-            msprime.RateMap(position=positions, rate=rates)
+            tskit.RateMap(position=positions, rate=rates)
 
     def test_bad_rate_with_missing(self):
         positions = np.array([0, 1, 2])
         rates = np.array([np.nan, -1])
         with pytest.raises(ValueError, match="negative.*1"):
-            msprime.RateMap(position=positions, rate=rates)
+            tskit.RateMap(position=positions, rate=rates)
 
     def test_read_only(self):
         positions = np.array([0, 0.25, 0.5, 0.75, 1])
         rates = np.array([0.125, 0.25, 0.5, 0.75])  # 1 shorter than positions
-        rate_map = msprime.RateMap(position=positions, rate=rates)
+        rate_map = tskit.RateMap(position=positions, rate=rates)
         assert np.all(rates == rate_map.rate)
         assert np.all(positions == rate_map.position)
         with pytest.raises(AttributeError):
@@ -113,12 +114,12 @@ class TestRateMapErrors:
 
 class TestGetRateAllKnown:
     examples = [
-        msprime.RateMap(position=[0, 1], rate=[0]),
-        msprime.RateMap(position=[0, 1], rate=[0.1]),
-        msprime.RateMap(position=[0, 1, 2], rate=[0.1, 0.2]),
-        msprime.RateMap(position=[0, 1, 2], rate=[0, 0.2]),
-        msprime.RateMap(position=[0, 1, 2], rate=[0.1, 1e-6]),
-        msprime.RateMap(position=range(100), rate=range(99)),
+        tskit.RateMap(position=[0, 1], rate=[0]),
+        tskit.RateMap(position=[0, 1], rate=[0.1]),
+        tskit.RateMap(position=[0, 1, 2], rate=[0.1, 0.2]),
+        tskit.RateMap(position=[0, 1, 2], rate=[0, 0.2]),
+        tskit.RateMap(position=[0, 1, 2], rate=[0.1, 1e-6]),
+        tskit.RateMap(position=range(100), rate=range(99)),
     ]
 
     @pytest.mark.parametrize("rate_map", examples)
@@ -145,16 +146,16 @@ class TestGetRateAllKnown:
 
 class TestOperations:
     examples = [
-        msprime.RateMap(position=[0, 1], rate=[0]),
-        msprime.RateMap(position=[0, 1], rate=[0.1]),
-        msprime.RateMap(position=[0, 1, 2], rate=[0.1, 0.2]),
-        msprime.RateMap(position=[0, 1, 2], rate=[0, 0.2]),
-        msprime.RateMap(position=[0, 1, 2], rate=[0.1, 1e-6]),
-        msprime.RateMap(position=range(100), rate=range(99)),
+        tskit.RateMap.uniform(sequence_length=1, rate=0),
+        tskit.RateMap.uniform(sequence_length=1, rate=0.1),
+        tskit.RateMap(position=[0, 1, 2], rate=[0.1, 0.2]),
+        tskit.RateMap(position=[0, 1, 2], rate=[0, 0.2]),
+        tskit.RateMap(position=[0, 1, 2], rate=[0.1, 1e-6]),
+        tskit.RateMap(position=range(100), rate=range(99)),
         # Missing data
-        msprime.RateMap(position=[0, 1, 2], rate=[np.nan, 0]),
-        msprime.RateMap(position=[0, 1, 2], rate=[0, np.nan]),
-        msprime.RateMap(position=[0, 1, 2, 3], rate=[0, np.nan, 1]),
+        tskit.RateMap(position=[0, 1, 2], rate=[np.nan, 0]),
+        tskit.RateMap(position=[0, 1, 2], rate=[0, np.nan]),
+        tskit.RateMap(position=[0, 1, 2, 3], rate=[0, np.nan, 1]),
     ]
 
     @pytest.mark.parametrize("rate_map", examples)
@@ -220,17 +221,23 @@ class TestOperations:
         for x in rate_map.mid[rate_map.missing]:
             assert x not in rate_map
 
+    def test_asdict(self):
+        rate_map = tskit.RateMap.uniform(sequence_length=2, rate=4)
+        d = rate_map.asdict()
+        assert_array_equal(d["position"], np.array([0.0, 2.0]))
+        assert_array_equal(d["rate"], np.array([4.0]))
+
 
 class TestFindIndex:
     def test_one_interval(self):
-        rate_map = msprime.RateMap(position=[0, 10], rate=[0.1])
+        rate_map = tskit.RateMap(position=[0, 10], rate=[0.1])
         for j in range(10):
             assert rate_map.find_index(j) == 0
         assert rate_map.find_index(0.0001) == 0
         assert rate_map.find_index(9.999) == 0
 
     def test_two_intervals(self):
-        rate_map = msprime.RateMap(position=[0, 5, 10], rate=[0.1, 0.1])
+        rate_map = tskit.RateMap(position=[0, 5, 10], rate=[0.1, 0.1])
         assert rate_map.find_index(0) == 0
         assert rate_map.find_index(0.0001) == 0
         assert rate_map.find_index(4.9999) == 0
@@ -240,7 +247,7 @@ class TestFindIndex:
         assert rate_map.find_index(9.999) == 1
 
     def test_three_intervals(self):
-        rate_map = msprime.RateMap(position=[0, 5, 10, 15], rate=[0.1, 0.1, 0.1])
+        rate_map = tskit.RateMap(position=[0, 5, 10, 15], rate=[0.1, 0.1, 0.1])
         assert rate_map.find_index(0) == 0
         assert rate_map.find_index(0.0001) == 0
         assert rate_map.find_index(4.9999) == 0
@@ -254,13 +261,13 @@ class TestFindIndex:
         assert rate_map.find_index(14.9999) == 2
 
     def test_out_of_bounds(self):
-        rate_map = msprime.RateMap(position=[0, 10], rate=[0.1])
+        rate_map = tskit.RateMap(position=[0, 10], rate=[0.1])
         for bad_value in [-1, -0.0001, 10, 10.0001, 1e9]:
             with pytest.raises(KeyError, match="out of bounds"):
                 rate_map.find_index(bad_value)
 
     def test_input_types(self):
-        rate_map = msprime.RateMap(position=[0, 10], rate=[0.1])
+        rate_map = tskit.RateMap(position=[0, 10], rate=[0.1])
         assert rate_map.find_index(0) == 0
         assert rate_map.find_index(0.0) == 0
         assert rate_map.find_index(np.zeros(1)[0]) == 0
@@ -269,37 +276,37 @@ class TestFindIndex:
 class TestSimpleExamples:
     def test_all_missing_one_interval(self):
         with pytest.raises(ValueError, match="missing data"):
-            msprime.RateMap(position=[0, 10], rate=[np.nan])
+            tskit.RateMap(position=[0, 10], rate=[np.nan])
 
     def test_all_missing_two_intervals(self):
         with pytest.raises(ValueError, match="missing data"):
-            msprime.RateMap(position=[0, 5, 10], rate=[np.nan, np.nan])
+            tskit.RateMap(position=[0, 5, 10], rate=[np.nan, np.nan])
 
     def test_count(self):
-        rate_map = msprime.RateMap(position=[0, 5, 10], rate=[np.nan, 1])
+        rate_map = tskit.RateMap(position=[0, 5, 10], rate=[np.nan, 1])
         assert rate_map.num_intervals == 2
         assert rate_map.num_missing_intervals == 1
         assert rate_map.num_non_missing_intervals == 1
 
     def test_missing_arrays(self):
-        rate_map = msprime.RateMap(position=[0, 5, 10], rate=[np.nan, 1])
+        rate_map = tskit.RateMap(position=[0, 5, 10], rate=[np.nan, 1])
         assert list(rate_map.missing) == [True, False]
         assert list(rate_map.non_missing) == [False, True]
 
     def test_missing_at_start_mean_rate(self):
         positions = np.array([0, 0.5, 1, 2])
         rates = np.array([np.nan, 0, 1])
-        rate_map = msprime.RateMap(position=positions, rate=rates)
+        rate_map = tskit.RateMap(position=positions, rate=rates)
         assert np.isclose(rate_map.mean_rate, 1 / (1 + 0.5))
 
     def test_missing_at_end_mean_rate(self):
         positions = np.array([0, 1, 1.5, 2])
         rates = np.array([1, 0, np.nan])
-        rate_map = msprime.RateMap(position=positions, rate=rates)
+        rate_map = tskit.RateMap(position=positions, rate=rates)
         assert np.isclose(rate_map.mean_rate, 1 / (1 + 0.5))
 
     def test_interval_properties_all_known(self):
-        rate_map = msprime.RateMap(position=[0, 1, 2, 3], rate=[0.1, 0.2, 0.3])
+        rate_map = tskit.RateMap(position=[0, 1, 2, 3], rate=[0.1, 0.2, 0.3])
         assert list(rate_map.left) == [0, 1, 2]
         assert list(rate_map.right) == [1, 2, 3]
         assert list(rate_map.mid) == [0.5, 1.5, 2.5]
@@ -307,55 +314,55 @@ class TestSimpleExamples:
         assert list(rate_map.mass) == [0.1, 0.2, 0.3]
 
     def test_pickle_non_missing(self):
-        r1 = msprime.RateMap(position=[0, 1, 2, 3], rate=[0.1, 0.2, 0.3])
+        r1 = tskit.RateMap(position=[0, 1, 2, 3], rate=[0.1, 0.2, 0.3])
         r2 = pickle.loads(pickle.dumps(r1))
         assert r1 == r2
 
     def test_pickle_missing(self):
-        r1 = msprime.RateMap(position=[0, 1, 2, 3], rate=[0.1, np.nan, 0.3])
+        r1 = tskit.RateMap(position=[0, 1, 2, 3], rate=[0.1, np.nan, 0.3])
         r2 = pickle.loads(pickle.dumps(r1))
         assert r1 == r2
 
     def test_get_cumulative_mass_all_known(self):
-        rate_map = msprime.RateMap(position=[0, 10, 20, 30], rate=[0.1, 0.2, 0.3])
+        rate_map = tskit.RateMap(position=[0, 10, 20, 30], rate=[0.1, 0.2, 0.3])
         assert list(rate_map.mass) == [1, 2, 3]
         assert list(rate_map.get_cumulative_mass([10, 20, 30])) == [1, 3, 6]
 
     def test_cumulative_mass_missing(self):
-        rate_map = msprime.RateMap(position=[0, 10, 20, 30], rate=[0.1, np.nan, 0.3])
+        rate_map = tskit.RateMap(position=[0, 10, 20, 30], rate=[0.1, np.nan, 0.3])
         assert list(rate_map.get_cumulative_mass([10, 20, 30])) == [1, 1, 4]
 
 
 class TestDisplay:
     def test_str(self):
-        rate_map = msprime.RateMap(position=[0, 10], rate=[0.1])
-        s = """
-        ┌──────────────────────────────────┐
-        │left  │right  │  mid│  span│  rate│
-        ├──────────────────────────────────┤
-        │0     │10     │    5│    10│   0.1│
-        └──────────────────────────────────┘
+        rate_map = tskit.RateMap(position=[0, 10], rate=[0.1])
+        s = """\
+        ╔════╤═════╤═══╤════╤════╗
+        ║left│right│mid│span│rate║
+        ╠════╪═════╪═══╪════╪════╣
+        ║0   │10   │  5│  10│ 0.1║
+        ╚════╧═════╧═══╧════╧════╝
         """
         assert textwrap.dedent(s) == str(rate_map)
 
     def test_str_scinot(self):
-        rate_map = msprime.RateMap(position=[0, 10], rate=[0.000001])
-        s = """
-        ┌───────────────────────────────────┐
-        │left  │right  │  mid│  span│   rate│
-        ├───────────────────────────────────┤
-        │0     │10     │    5│    10│  1e-06│
-        └───────────────────────────────────┘
+        rate_map = tskit.RateMap(position=[0, 10], rate=[0.000001])
+        s = """\
+        ╔════╤═════╤═══╤════╤═════╗
+        ║left│right│mid│span│rate ║
+        ╠════╪═════╪═══╪════╪═════╣
+        ║0   │10   │  5│  10│1e-06║
+        ╚════╧═════╧═══╧════╧═════╝
         """
         assert textwrap.dedent(s) == str(rate_map)
 
     def test_repr(self):
-        rate_map = msprime.RateMap(position=[0, 10], rate=[0.1])
+        rate_map = tskit.RateMap(position=[0, 10], rate=[0.1])
         s = "RateMap(position=array([ 0., 10.]), rate=array([0.1]))"
         assert repr(rate_map) == s
 
     def test_repr_html(self):
-        rate_map = msprime.RateMap(position=[0, 10], rate=[0.1])
+        rate_map = tskit.RateMap(position=[0, 10], rate=[0.1])
         html = rate_map._repr_html_()
         root = xml.etree.ElementTree.fromstring(html)
         assert root.tag == "div"
@@ -365,8 +372,8 @@ class TestDisplay:
 
     def test_long_table(self):
         n = 100
-        rate_map = msprime.RateMap(position=range(n + 1), rate=[0.1] * n)
-        headers, data = rate_map._display_table()
+        rate_map = tskit.RateMap(position=range(n + 1), rate=[0.1] * n)
+        headers, data = rate_map._text_header_and_rows(limit=20)
         assert len(headers) == 5
         assert len(data) == 21
         # check some left values
@@ -375,8 +382,8 @@ class TestDisplay:
 
     def test_short_table(self):
         n = 10
-        rate_map = msprime.RateMap(position=range(n + 1), rate=[0.1] * n)
-        headers, data = rate_map._display_table()
+        rate_map = tskit.RateMap(position=range(n + 1), rate=[0.1] * n)
+        headers, data = rate_map._text_header_and_rows(limit=20)
         assert len(headers) == 5
         assert len(data) == n
         # check some left values.
@@ -386,22 +393,22 @@ class TestDisplay:
 
 class TestRateMapIsMapping:
     def test_items(self):
-        rate_map = msprime.RateMap(position=[0, 1, 2, 3], rate=[0.1, 0.2, 0.3])
+        rate_map = tskit.RateMap(position=[0, 1, 2, 3], rate=[0.1, 0.2, 0.3])
         items = list(rate_map.items())
         assert items[0] == (0.5, 0.1)
         assert items[1] == (1.5, 0.2)
         assert items[2] == (2.5, 0.3)
 
     def test_keys(self):
-        rate_map = msprime.RateMap(position=[0, 1, 2, 3], rate=[0.1, 0.2, 0.3])
+        rate_map = tskit.RateMap(position=[0, 1, 2, 3], rate=[0.1, 0.2, 0.3])
         assert list(rate_map.keys()) == [0.5, 1.5, 2.5]
 
     def test_values(self):
-        rate_map = msprime.RateMap(position=[0, 1, 2, 3], rate=[0.1, 0.2, 0.3])
+        rate_map = tskit.RateMap(position=[0, 1, 2, 3], rate=[0.1, 0.2, 0.3])
         assert list(rate_map.values()) == [0.1, 0.2, 0.3]
 
     def test_in_points(self):
-        rate_map = msprime.RateMap(position=[0, 1, 2, 3], rate=[0.1, 0.2, 0.3])
+        rate_map = tskit.RateMap(position=[0, 1, 2, 3], rate=[0.1, 0.2, 0.3])
         # Any point within the map are True
         for x in [0, 0.5, 1, 2.9999]:
             assert x in rate_map
@@ -410,7 +417,7 @@ class TestRateMapIsMapping:
             assert x not in rate_map
 
     def test_in_slices(self):
-        rate_map = msprime.RateMap(position=[0, 1, 2, 3], rate=[0.1, 0.2, 0.3])
+        rate_map = tskit.RateMap(position=[0, 1, 2, 3], rate=[0.1, 0.2, 0.3])
         # slices that are within the map are "in"
         for x in [slice(0, 0.5), slice(0, 1), slice(0, 2), slice(2, 3), slice(0, 3)]:
             assert x in rate_map
@@ -422,41 +429,41 @@ class TestRateMapIsMapping:
         assert slice(-2, -1) not in rate_map
 
     def test_other_types_not_in(self):
-        rate_map = msprime.RateMap(position=[0, 1, 2, 3], rate=[0.1, 0.2, 0.3])
+        rate_map = tskit.RateMap(position=[0, 1, 2, 3], rate=[0.1, 0.2, 0.3])
         for other_type in [None, "sdf", "123", {}, [], Exception]:
             assert other_type not in rate_map
 
     def test_len(self):
-        rate_map = msprime.RateMap(position=[0, 1], rate=[0.1])
+        rate_map = tskit.RateMap(position=[0, 1], rate=[0.1])
         assert len(rate_map) == 1
-        rate_map = msprime.RateMap(position=[0, 1, 2], rate=[0.1, 0.2])
+        rate_map = tskit.RateMap(position=[0, 1, 2], rate=[0.1, 0.2])
         assert len(rate_map) == 2
-        rate_map = msprime.RateMap(position=[0, 1, 2, 3], rate=[0.1, 0.2, 0.3])
+        rate_map = tskit.RateMap(position=[0, 1, 2, 3], rate=[0.1, 0.2, 0.3])
         assert len(rate_map) == 3
 
     def test_immutable(self):
-        rate_map = msprime.RateMap(position=[0, 1], rate=[0.1])
+        rate_map = tskit.RateMap(position=[0, 1], rate=[0.1])
         with pytest.raises(TypeError, match="item assignment"):
             rate_map[0] = 1
         with pytest.raises(TypeError, match="item deletion"):
             del rate_map[0]
 
     def test_eq(self):
-        r1 = msprime.RateMap(position=[0, 1, 2], rate=[0.1, 0.2])
-        r2 = msprime.RateMap(position=[0, 1, 2], rate=[0.1, 0.2])
+        r1 = tskit.RateMap(position=[0, 1, 2], rate=[0.1, 0.2])
+        r2 = tskit.RateMap(position=[0, 1, 2], rate=[0.1, 0.2])
         assert r1 == r1
         assert r1 == r2
-        r2 = msprime.RateMap(position=[0, 1, 3], rate=[0.1, 0.2])
+        r2 = tskit.RateMap(position=[0, 1, 3], rate=[0.1, 0.2])
         assert r1 != r2
-        assert msprime.RateMap(position=[0, 1], rate=[0.1]) != msprime.RateMap(
+        assert tskit.RateMap(position=[0, 1], rate=[0.1]) != tskit.RateMap(
             position=[0, 1], rate=[0.2]
         )
-        assert msprime.RateMap(position=[0, 1], rate=[0.1]) != msprime.RateMap(
+        assert tskit.RateMap(position=[0, 1], rate=[0.1]) != tskit.RateMap(
             position=[0, 10], rate=[0.1]
         )
 
     def test_getitem_value(self):
-        rate_map = msprime.RateMap(position=[0, 1, 2], rate=[0.1, 0.2])
+        rate_map = tskit.RateMap(position=[0, 1, 2], rate=[0.1, 0.2])
         assert rate_map[0] == 0.1
         assert rate_map[0.5] == 0.1
         assert rate_map[1] == 0.2
@@ -471,7 +478,7 @@ class TestRateMapIsMapping:
         assert rate_map[decimal.Decimal(1)] == 0.2
 
     def test_getitem_slice(self):
-        r1 = msprime.RateMap(position=[0, 1, 2], rate=[0.1, 0.2])
+        r1 = tskit.RateMap(position=[0, 1, 2], rate=[0.1, 0.2])
         # The semantics of the slice() function are tested elsewhere.
         assert r1[:] == r1.copy()
         assert r1[:] is not r1
@@ -480,7 +487,7 @@ class TestRateMapIsMapping:
         assert r1[0.5:1.5] == r1.slice(left=0.5, right=1.5)
 
     def test_getitem_slice_step(self):
-        r1 = msprime.RateMap(position=[0, 1, 2], rate=[0.1, 0.2])
+        r1 = tskit.RateMap(position=[0, 1, 2], rate=[0.1, 0.2])
         # Trying to set a "step" is a error
         with pytest.raises(TypeError, match="interval slicing"):
             r1[0:3:1]
@@ -488,20 +495,20 @@ class TestRateMapIsMapping:
 
 class TestMappingMissingData:
     def test_get_missing(self):
-        rate_map = msprime.RateMap(position=[0, 1, 2], rate=[np.nan, 0.2])
+        rate_map = tskit.RateMap(position=[0, 1, 2], rate=[np.nan, 0.2])
         with pytest.raises(KeyError, match="within a missing interval"):
             rate_map[0]
         with pytest.raises(KeyError, match="within a missing interval"):
             rate_map[0.999]
 
     def test_in_missing(self):
-        rate_map = msprime.RateMap(position=[0, 1, 2], rate=[np.nan, 0.2])
+        rate_map = tskit.RateMap(position=[0, 1, 2], rate=[np.nan, 0.2])
         assert 0 not in rate_map
         assert 0.999 not in rate_map
         assert 1 in rate_map
 
     def test_keys_missing(self):
-        rate_map = msprime.RateMap(position=[0, 1, 2], rate=[np.nan, 0.2])
+        rate_map = tskit.RateMap(position=[0, 1, 2], rate=[np.nan, 0.2])
         assert list(rate_map.keys()) == [1.5]
 
 
@@ -509,13 +516,13 @@ class TestGetIntermediates:
     def test_get_rate(self):
         positions = np.array([0, 1, 2])
         rates = np.array([1, 4])
-        rate_map = msprime.RateMap(position=positions, rate=rates)
+        rate_map = tskit.RateMap(position=positions, rate=rates)
         assert np.all(rate_map.get_rate([0.5, 1.5]) == rates)
 
     def test_get_rate_out_of_bounds(self):
         positions = np.array([0, 1, 2])
         rates = np.array([1, 4])
-        rate_map = msprime.RateMap(position=positions, rate=rates)
+        rate_map = tskit.RateMap(position=positions, rate=rates)
         with pytest.raises(ValueError, match="out of bounds"):
             rate_map.get_rate([1, -0.1])
         with pytest.raises(ValueError, match="out of bounds"):
@@ -524,14 +531,14 @@ class TestGetIntermediates:
     def test_get_cumulative_mass(self):
         positions = np.array([0, 1, 2])
         rates = np.array([1, 4])
-        rate_map = msprime.RateMap(position=positions, rate=rates)
+        rate_map = tskit.RateMap(position=positions, rate=rates)
         assert np.allclose(rate_map.get_cumulative_mass([0.5, 1.5]), np.array([0.5, 3]))
         assert rate_map.get_cumulative_mass([2]) == rate_map.total_mass
 
     def test_get_bad_cumulative_mass(self):
         positions = np.array([0, 1, 2])
         rates = np.array([1, 4])
-        rate_map = msprime.RateMap(position=positions, rate=rates)
+        rate_map = tskit.RateMap(position=positions, rate=rates)
         with pytest.raises(ValueError, match="positions"):
             rate_map.get_cumulative_mass([1, -0.1])
         with pytest.raises(ValueError, match="positions"):
@@ -541,7 +548,7 @@ class TestGetIntermediates:
 class TestSlice:
     def test_slice_no_params(self):
         # test RateMap.slice(..., trim=False)
-        a = msprime.RateMap(position=[0, 100, 200, 300, 400], rate=[0, 1, 2, 3])
+        a = tskit.RateMap(position=[0, 100, 200, 300, 400], rate=[0, 1, 2, 3])
         b = a.slice()
         assert a.sequence_length == b.sequence_length
         assert_array_equal(a.position, b.position)
@@ -549,7 +556,7 @@ class TestSlice:
         assert a == b
 
     def test_slice_left_examples(self):
-        a = msprime.RateMap(position=[0, 100, 200, 300, 400], rate=[0, 1, 2, 3])
+        a = tskit.RateMap(position=[0, 100, 200, 300, 400], rate=[0, 1, 2, 3])
         b = a.slice(left=50)
         assert a.sequence_length == b.sequence_length
         assert_array_equal([0, 50, 100, 200, 300, 400], b.position)
@@ -566,7 +573,7 @@ class TestSlice:
         assert_array_equal([np.nan, 1, 2, 3], b.rate)
 
     def test_slice_right_examples(self):
-        a = msprime.RateMap(position=[0, 100, 200, 300, 400], rate=[0, 1, 2, 3])
+        a = tskit.RateMap(position=[0, 100, 200, 300, 400], rate=[0, 1, 2, 3])
         b = a.slice(right=300)
         assert a.sequence_length == b.sequence_length
         assert_array_equal([0, 100, 200, 300, 400], b.position)
@@ -578,7 +585,7 @@ class TestSlice:
         assert_array_equal([0, 1, 2, np.nan], b.rate)
 
     def test_slice_left_right_examples(self):
-        a = msprime.RateMap(position=[0, 100, 200, 300, 400], rate=[0, 1, 2, 3])
+        a = tskit.RateMap(position=[0, 100, 200, 300, 400], rate=[0, 1, 2, 3])
         b = a.slice(left=50, right=300)
         assert a.sequence_length == b.sequence_length
         assert_array_equal([0, 50, 100, 200, 300, 400], b.position)
@@ -602,7 +609,7 @@ class TestSlice:
     def test_slice_right_missing(self):
         # If we take a right-slice into a trailing missing region,
         # we should recover the same map.
-        a = msprime.RateMap(position=[0, 100, 200, 300, 400], rate=[0, 1, 2, np.nan])
+        a = tskit.RateMap(position=[0, 100, 200, 300, 400], rate=[0, 1, 2, np.nan])
         b = a.slice(right=350)
         assert a.sequence_length == b.sequence_length
         assert_array_equal(a.position, b.position)
@@ -614,7 +621,7 @@ class TestSlice:
         assert_array_equal(a.rate, b.rate)
 
     def test_slice_left_missing(self):
-        a = msprime.RateMap(position=[0, 100, 200, 300, 400], rate=[np.nan, 1, 2, 3])
+        a = tskit.RateMap(position=[0, 100, 200, 300, 400], rate=[np.nan, 1, 2, 3])
         b = a.slice(left=50)
         assert a.sequence_length == b.sequence_length
         assert_array_equal(a.position, b.position)
@@ -627,7 +634,7 @@ class TestSlice:
 
     def test_slice_with_floats(self):
         #  test RateMap.slice(..., trim=False) with floats
-        a = msprime.RateMap(
+        a = tskit.RateMap(
             position=[np.pi * x for x in [0, 100, 200, 300, 400]], rate=[0, 1, 2, 3]
         )
         b = a.slice(left=50 * np.pi)
@@ -636,21 +643,21 @@ class TestSlice:
         assert_array_equal([np.nan] + list(a.rate), b.rate)
 
     def test_slice_trim_left(self):
-        a = msprime.RateMap(position=[0, 100, 200, 300, 400], rate=[1, 2, 3, 4])
+        a = tskit.RateMap(position=[0, 100, 200, 300, 400], rate=[1, 2, 3, 4])
         b = a.slice(left=100, trim=True)
-        assert b == msprime.RateMap(position=[0, 100, 200, 300], rate=[2, 3, 4])
+        assert b == tskit.RateMap(position=[0, 100, 200, 300], rate=[2, 3, 4])
         b = a.slice(left=50, trim=True)
-        assert b == msprime.RateMap(position=[0, 50, 150, 250, 350], rate=[1, 2, 3, 4])
+        assert b == tskit.RateMap(position=[0, 50, 150, 250, 350], rate=[1, 2, 3, 4])
 
     def test_slice_trim_right(self):
-        a = msprime.RateMap(position=[0, 100, 200, 300, 400], rate=[1, 2, 3, 4])
+        a = tskit.RateMap(position=[0, 100, 200, 300, 400], rate=[1, 2, 3, 4])
         b = a.slice(right=300, trim=True)
-        assert b == msprime.RateMap(position=[0, 100, 200, 300], rate=[1, 2, 3])
+        assert b == tskit.RateMap(position=[0, 100, 200, 300], rate=[1, 2, 3])
         b = a.slice(right=350, trim=True)
-        assert b == msprime.RateMap(position=[0, 100, 200, 300, 350], rate=[1, 2, 3, 4])
+        assert b == tskit.RateMap(position=[0, 100, 200, 300, 350], rate=[1, 2, 3, 4])
 
     def test_slice_error(self):
-        recomb_map = msprime.RateMap(position=[0, 100], rate=[1])
+        recomb_map = tskit.RateMap(position=[0, 100], rate=[1])
         with pytest.raises(KeyError):
             recomb_map.slice(left=-1)
         with pytest.raises(KeyError):
@@ -672,7 +679,7 @@ class TestReadHapmap:
             chr1 2 x 0.000001 x
             chr1 3 x 0.000006 x x"""
         )
-        rm = msprime.RateMap.read_hapmap(hapfile)
+        rm = tskit.RateMap.read_hapmap(hapfile)
         assert_array_equal(rm.position, [0, 1, 2, 3])
         assert np.allclose(rm.rate, [np.nan, 1e-8, 5e-8], equal_nan=True)
 
@@ -685,7 +692,7 @@ class TestReadHapmap:
                 chr1 2 x 0.000001 x
                 chr1 3 x 0.000006 x x"""
             )
-        rm = msprime.RateMap.read_hapmap(tmp_path / "hapfile.txt")
+        rm = tskit.RateMap.read_hapmap(tmp_path / "hapfile.txt")
         assert_array_equal(rm.position, [0, 1, 2, 3])
         assert np.allclose(rm.rate, [np.nan, 1e-8, 5e-8], equal_nan=True)
 
@@ -696,7 +703,7 @@ class TestReadHapmap:
             HEADER"""
         )
         with pytest.raises(ValueError, match="Empty"):
-            msprime.RateMap.read_hapmap(hapfile)
+            tskit.RateMap.read_hapmap(hapfile)
 
     def test_read_hapmap_col_pos(self):
         hapfile = io.StringIO(
@@ -706,7 +713,7 @@ class TestReadHapmap:
             0.000001 1 x
             0.000006 2 x x"""
         )
-        rm = msprime.RateMap.read_hapmap(hapfile, position_col=1, map_col=0)
+        rm = tskit.RateMap.read_hapmap(hapfile, position_col=1, map_col=0)
         assert_array_equal(rm.position, [0, 1, 2])
         assert np.allclose(rm.rate, [1e-8, 5e-8])
 
@@ -719,7 +726,7 @@ class TestReadHapmap:
             chr1 2 2 0.000006 x x"""
         )
         with pytest.raises(ValueError, match="both rate_col and map_col"):
-            msprime.RateMap.read_hapmap(hapfile, rate_col=2, map_col=3)
+            tskit.RateMap.read_hapmap(hapfile, rate_col=2, map_col=3)
 
     def test_read_hapmap_duplicate_pos(self):
         hapfile = io.StringIO(
@@ -730,7 +737,7 @@ class TestReadHapmap:
             0.000006 2 x x"""
         )
         with pytest.raises(ValueError, match="same columns"):
-            msprime.RateMap.read_hapmap(hapfile, map_col=1)
+            tskit.RateMap.read_hapmap(hapfile, map_col=1)
 
     def test_read_hapmap_nonzero_rate_start(self):
         hapfile = io.StringIO(
@@ -739,7 +746,7 @@ class TestReadHapmap:
             chr1 1 5 x
             chr1 2 0 x x x"""
         )
-        rm = msprime.RateMap.read_hapmap(hapfile, rate_col=2)
+        rm = tskit.RateMap.read_hapmap(hapfile, rate_col=2)
         assert_array_equal(rm.position, [0, 1, 2])
         assert_array_equal(rm.rate, [np.nan, 5e-8])
 
@@ -751,7 +758,7 @@ class TestReadHapmap:
             chr1 2 1 x x x"""
         )
         with pytest.raises(ValueError, match="last entry.*must be zero"):
-            msprime.RateMap.read_hapmap(hapfile, rate_col=2)
+            tskit.RateMap.read_hapmap(hapfile, rate_col=2)
 
     def test_read_hapmap_gzipped(self, tmp_path):
         hapfile = os.path.join(tmp_path, "hapmap.txt.gz")
@@ -760,7 +767,7 @@ class TestReadHapmap:
             gzfile.write(b"chr1 0 1\n")
             gzfile.write(b"chr1 1 5.5\n")
             gzfile.write(b"chr1 2 0\n")
-        rm = msprime.RateMap.read_hapmap(hapfile, rate_col=2)
+        rm = tskit.RateMap.read_hapmap(hapfile, rate_col=2)
         assert_array_equal(rm.position, [0, 1, 2])
         assert_array_equal(rm.rate, [1e-8, 5.5e-8])
 
@@ -772,7 +779,7 @@ class TestReadHapmap:
             chr1 2 x 0.000001 x
             chr1 3 x 0.000006 x x x"""
         )
-        rm = msprime.RateMap.read_hapmap(hapfile)
+        rm = tskit.RateMap.read_hapmap(hapfile)
         assert_array_equal(rm.position, [0, 1, 2, 3])
         assert np.allclose(rm.rate, [1e-8, 0, 5e-8])
 
@@ -785,7 +792,7 @@ class TestReadHapmap:
             chr1 2 x 0.000006 x x x"""
         )
         with pytest.raises(ValueError, match="start.*must be zero"):
-            msprime.RateMap.read_hapmap(hapfile)
+            tskit.RateMap.read_hapmap(hapfile)
 
     def test_sequence_length(self):
         hapfile = io.StringIO(
@@ -796,12 +803,12 @@ class TestReadHapmap:
             chr1 2 x 0.000006 x x x"""
         )
         # test identical seq len
-        rm = msprime.RateMap.read_hapmap(hapfile, sequence_length=2)
+        rm = tskit.RateMap.read_hapmap(hapfile, sequence_length=2)
         assert_array_equal(rm.position, [0, 1, 2])
         assert np.allclose(rm.rate, [1e-8, 5e-8])
 
         hapfile.seek(0)
-        rm = msprime.RateMap.read_hapmap(hapfile, sequence_length=10)
+        rm = tskit.RateMap.read_hapmap(hapfile, sequence_length=10)
         assert_array_equal(rm.position, [0, 1, 2, 10])
         assert np.allclose(rm.rate, [1e-8, 5e-8, np.nan], equal_nan=True)
 
@@ -814,7 +821,7 @@ class TestReadHapmap:
             chr1 2 x 0.000006 x x x"""
         )
         with pytest.raises(ValueError, match="sequence_length"):
-            msprime.RateMap.read_hapmap(hapfile, sequence_length=1.999)
+            tskit.RateMap.read_hapmap(hapfile, sequence_length=1.999)
 
     def test_no_header(self):
         data = """\
@@ -824,9 +831,9 @@ class TestReadHapmap:
         hapfile_noheader = io.StringIO(data)
         hapfile_header = io.StringIO("chr pos rate cM\n" + data)
         with pytest.raises(ValueError):
-            msprime.RateMap.read_hapmap(hapfile_header, has_header=False)
-        rm1 = msprime.RateMap.read_hapmap(hapfile_header)
-        rm2 = msprime.RateMap.read_hapmap(hapfile_noheader, has_header=False)
+            tskit.RateMap.read_hapmap(hapfile_header, has_header=False)
+        rm1 = tskit.RateMap.read_hapmap(hapfile_header)
+        rm2 = tskit.RateMap.read_hapmap(hapfile_noheader, has_header=False)
         assert_array_equal(rm1.rate, rm2.rate)
         assert_array_equal(rm1.position, rm2.position)
 
@@ -844,8 +851,8 @@ class TestReadHapmap:
             1   9752154    0.0864316558730679      1.25601286485381
             1   9881751    0.0                     1.26721414815999"""
         )
-        rm1 = msprime.RateMap.read_hapmap(hapfile)
+        rm1 = tskit.RateMap.read_hapmap(hapfile)
         hapfile.seek(0)
-        rm2 = msprime.RateMap.read_hapmap(hapfile, rate_col=2)
+        rm2 = tskit.RateMap.read_hapmap(hapfile, rate_col=2)
         assert np.allclose(rm1.position, rm2.position)
         assert np.allclose(rm1.rate, rm2.rate, equal_nan=True)

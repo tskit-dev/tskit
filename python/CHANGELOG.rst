@@ -25,6 +25,10 @@
    or is an isolated non-sample node.
    (:user:`szhan`, :pr:`2618`, :issue:`2616`)
 
+- The ``msprime.RateMap`` class has been ported into tskit: functionality should
+  be identical to the version in msprime, apart from minor changes in the formatting
+  of tabular text output (:user:`hyanwong`, :user:`jeromekelleher`, :pr:`2678`)
+
 **Breaking Changes**
 
  - the ``filter_populations``, ``filter_individuals``, and ``filter_sites``
@@ -62,7 +66,7 @@
 
  - Single statistics computed with ``TreeSequence.general_stat`` are now
    returned as numpy scalars if windows=None, AND; samples is a single
-   list or None (for a 1-way stat), OR indexes is None or a single list of 
+   list or None (for a 1-way stat), OR indexes is None or a single list of
    length k (instead of a list of length-k lists).
    (:user:`gtsambos`, :pr:`2417`, :issue:`2308`)
 
@@ -77,10 +81,10 @@
 **Performance improvements**
 
  - TreeSequence.link_ancestors no longer continues to process edges once all
-   of the sample and ancestral nodes have been accounted for, improving memory 
+   of the sample and ancestral nodes have been accounted for, improving memory
    overhead and overall performance
    (:user:`gtsambos`, :pr:`2456`, :issue:`2442`)
-   
+
 --------------------
 [0.5.2] - 2022-07-29
 --------------------

@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -90,3 +90,4 @@ from tskit.exceptions import *  # NOQA
 from tskit.util import *  # NOQA
 from tskit.metadata import *  # NOQA
 from tskit.text_formats import *  # NOQA
+from tskit.intervals import RateMap  # NOQA
