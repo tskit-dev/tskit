@@ -23,6 +23,7 @@
 Module responsible for various utility functions used in other modules.
 """
 import dataclasses
+import itertools
 import json
 import numbers
 import os
@@ -370,7 +371,7 @@ def render_metadata(md, length=40):
 
 
 def unicode_table(
-    rows, title=None, header=None, row_separator=True, column_alignments=None
+    rows, *, title=None, header=None, row_separator=True, column_alignments=None
 ):
     """
     Convert a table (list of lists) of strings to a unicode table. If a row contains
@@ -443,6 +444,41 @@ def unicode_table(
 
     out.append(f"╚{'╧'.join('═' * w for w in widths)}╝\n")
     return "".join(out)
+
+
+def html_table(rows, *, header):
+    """
+    Called by jupyter notebooks to render tables
+    """
+    headers = "".join(f"<th>{h}</th>" for h in header)
+    rows = (
+        f'<td style="text-align: center;" colspan="{len(headers)}"><em>{row[11:]}'
+        f" rows skipped (tskit.set_print_options)</em></td>"
+        if "__skipped__" in row
+        else "".join(f"<td>{cell}</td>" for cell in row)
+        for row in rows
+    )
+    rows = "".join(f"<tr>{row}</tr>\n" for row in rows)
+    return f"""
+        <div>
+            <style scoped="">
+                .tskit-table tbody tr th:only-of-type {{vertical-align: middle;}}
+                .tskit-table tbody tr th {{vertical-align: top;}}
+                .tskit-table tbody td {{text-align: right;padding: 0.5em 0.5em;}}
+                .tskit-table tbody th {{padding: 0.5em 0.5em;}}
+            </style>
+            <table border="1" class="tskit-table">
+                <thead>
+                    <tr>
+                        {headers}
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows}
+                </tbody>
+            </table>
+        </div>
+    """
 
 
 def tree_sequence_html(ts):
@@ -684,6 +720,20 @@ def set_print_options(*, max_lines=40):
     this number the middle of the table will be skipped.
     """
     tskit._print_options = {"max_lines": max_lines}
+
+
+def truncate_rows(num_rows, limit=None):
+    """
+    Return a list of indexes into a set of rows, but is limit is set, truncate the
+    number of rows and place a `-1` instead of the intermediate indexes
+    """
+    if limit is None or num_rows <= limit:
+        return range(num_rows)
+    return itertools.chain(
+        range(limit // 2),
+        [-1],
+        range(num_rows - (limit - (limit // 2)), num_rows),
+    )
 
 
 def random_nucleotides(length: numbers.Number, *, seed: Union[int, None] = None) -> str:
