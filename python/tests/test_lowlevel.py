@@ -2318,7 +2318,7 @@ class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):
         for exception in [ValueError, TypeError]:
 
             def f(x):
-                raise exception("test")
+                raise exception("test")  # noqa: B023
 
             with pytest.raises(exception):
                 ts.general_stat(W, f, 1, ts.get_breakpoints())
@@ -2326,14 +2326,18 @@ class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):
         # Wrong output dimensions
         for bad_array in [[1, 1], range(10)]:
             with pytest.raises(ValueError):
-                ts.general_stat(W, lambda x: bad_array, 1, ts.get_breakpoints())
+                ts.general_stat(
+                    W, lambda x: bad_array, 1, ts.get_breakpoints()  # noqa:B023
+                )
         with pytest.raises(ValueError):
             ts.general_stat(W, lambda x: [1], 2, ts.get_breakpoints())
 
         # Bad arrays returned from f
         for bad_array in [["sdf"], 0, "w4", None]:
             with pytest.raises(ValueError):
-                ts.general_stat(W, lambda x: bad_array, 1, ts.get_breakpoints())
+                ts.general_stat(
+                    W, lambda x: bad_array, 1, ts.get_breakpoints()  # noqa:B023
+                )
 
 
 class TestVariant(LowLevelTestCase):
