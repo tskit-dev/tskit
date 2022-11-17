@@ -1479,7 +1479,9 @@ class Tree:
         """
         warnings.warn(
             "This property is a deprecated alias for Tree.tree_sequence.num_nodes "
-            "and will be removed in the future",
+            "and will be removed in the future. To obtain the number of nodes "
+            "in the topology of the current tree (i.e. reachable from the roots) "
+            "use len(tree.preorder()).",
             FutureWarning,
         )
         return self.tree_sequence.num_nodes
