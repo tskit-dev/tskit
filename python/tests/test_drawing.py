@@ -2407,7 +2407,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         svg_fn = pathlib.Path(__file__).parent / "data" / "svg" / filename
         if save:
             logging.warning(f"Overwriting SVG file `{svg_fn}` with new version")
-            with open(svg_fn, "wt") as file:
+            with open(svg_fn, "w") as file:
                 file.write(svg)
         with open(svg_fn, "rb") as file:
             expected_svg = file.read()
