@@ -1527,8 +1527,9 @@ class Tree:
     @property
     def roots(self):
         """
-        The list of roots in this tree. A root is defined as a unique endpoint of
-        the paths starting at samples. We can define the set of roots as follows:
+        The list of roots in this tree. A root is defined as a unique endpoint of the
+        paths starting at samples, subject to the condition that it is connected to at
+        least :attr:`root_threshold` samples. We can define the set of roots as follows:
 
         .. code-block:: python
 
@@ -1536,7 +1537,8 @@ class Tree:
             for u in tree_sequence.samples():
                 while tree.parent(u) != tskit.NULL:
                     u = tree.parent(u)
-                roots.add(u)
+                if tree.num_samples(u) >= tree.root_threshold:
+                    roots.add(u)
             # roots is now the set of all roots in this tree.
             assert sorted(roots) == sorted(tree.roots)
 
