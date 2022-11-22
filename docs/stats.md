@@ -422,7 +422,7 @@ we'd calculate divergence with `span_normalise=False`.
 
 Following on from above, suppose we computed the statistic `S` with
 `windows = [0, a, b]` and `span_normalise=True`,
-and then computed `T` in just the same way except with `span_normalize=False`.
+and then computed `T` in just the same way except with `span_normalise=False`.
 Then `S[0]` would be equal to `T[0] / a` and `S[1] = T[1] / (b - a)`.
 Furthermore, the value obtained with `windows = [0, b]` would be equal to `T[0] + T[1]`.
 However, you probably usually want the (default) normalized version:
