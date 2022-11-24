@@ -8,6 +8,10 @@
   which are the minimum and maximum among the node times and mutation times,
   respectively. (:user:`szhan`, :pr:`2612`, :issue:`2271`)
 
+- The ``draw_svg`` methods now accept a ``canvas_size`` parameter to allow
+  extra room on the canvas e.g. for long labels or repositioned graphical
+  elements (:user:`hyanwong`, :pr:`2646`, :issue:`2645`)
+
 **Breaking Changes**
 
  - the ``filter_populations``, ``filter_individuals``, and ``filter_sites``

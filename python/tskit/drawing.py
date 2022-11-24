@@ -585,6 +585,7 @@ class SvgPlot:
         offsets=None,
         debug_box=None,
         omit_sites=None,
+        canvas_size=None,
     ):
         """
         Creates self.drawing, an svgwrite.Drawing object for further use, and populates
@@ -596,8 +597,10 @@ class SvgPlot:
         self.svg_class = svg_class
         if root_svg_attributes is None:
             root_svg_attributes = {}
+        if canvas_size is None:
+            canvas_size = size
         self.root_svg_attributes = root_svg_attributes
-        dwg = svgwrite.Drawing(size=size, debug=True, **root_svg_attributes)
+        dwg = svgwrite.Drawing(size=canvas_size, debug=True, **root_svg_attributes)
         # Put all styles in a single stylesheet (required for Inkscape 0.92)
         style = self.standard_style + ("" if style is None else style)
         dwg.defs.add(dwg.style(style))

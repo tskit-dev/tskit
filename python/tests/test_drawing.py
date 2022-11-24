@@ -2040,6 +2040,18 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         svg = tree.draw_svg(size=(600, 400))
         self.verify_basic_svg(svg, width=600, height=400)
 
+    def test_canvas_size_tree(self):
+        tree = self.get_binary_tree()
+        svg1 = tree.draw_svg(size=(200, 200))
+        svg2 = tree.draw_svg(size=(200, 200), canvas_size=(700, 500))
+        self.verify_basic_svg(svg1, width=200, height=200)
+        self.verify_basic_svg(svg2, width=700, height=500)
+        # height and width are specified in the starting <svg> tag
+        assert svg1.startswith("<svg")
+        assert svg2.startswith("<svg")
+        # after the close of the tag, the two strings should be the same
+        assert svg1[svg1.find(">") :] == svg2[svg2.find(">") :]
+
     def test_draw_bad_sized_treebox(self):
         tree = self.get_binary_tree()
         with pytest.raises(ValueError, match="too small to fit"):
@@ -2103,6 +2115,18 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         ts = msprime.simulate(5, recombination_rate=1, random_seed=1)
         svg = ts.draw_svg(size=(600, 400))
         self.verify_basic_svg(svg, width=600, height=400)
+
+    def test_canvas_size_ts(self):
+        ts = msprime.simulate(5, recombination_rate=1, random_seed=1)
+        svg1 = ts.draw_svg(size=(600, 400))
+        svg2 = ts.draw_svg(size=(600, 400), canvas_size=(1000, 500))
+        self.verify_basic_svg(svg1, width=600, height=400)
+        self.verify_basic_svg(svg2, width=1000, height=500)
+        # height and width are specified in the starting <svg> tag
+        assert svg1.startswith("<svg")
+        assert svg2.startswith("<svg")
+        # after the close of the tag, the two strings should be the same
+        assert svg1[svg1.find(">") :] == svg2[svg2.find(">") :]
 
     def test_time_scale(self):
         ts = msprime.simulate(4, random_seed=2)
