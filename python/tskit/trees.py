@@ -1733,6 +1733,7 @@ class Tree:
         y_gridlines=None,
         all_edge_mutations=None,
         omit_sites=None,
+        canvas_size=None,
         **kwargs,
     ):
         """
@@ -1743,10 +1744,13 @@ class Tree:
 
         :param str path: The path to the file to write the output. If None, do not
             write to file.
-        :param size: A tuple of (width, height) giving the width and height of the
-            produced SVG drawing in abstract user units (usually interpreted as pixels on
-            initial display).
-        :type size: tuple(int, int)
+        :param tuple(int, int) size: A tuple of (width, height) specifying a target
+            drawing size in abstract user units (usually interpreted as pixels on
+            initial display). Components of the drawing will be scaled so that the total
+            plot including labels etc. normally fits onto a canvas of this size (see
+            ``canvas_size`` below). If ``None``, pick a size appropriate for a tree
+            with a reasonably small number (i.e. tens) of samples. Default: ``None``
+        :type size:
         :param str time_scale: Control how height values for nodes are computed.
             If this is equal to ``"time"`` (the default), node heights are proportional
             to their time values. If this is equal to ``"log_time"``, node heights are
@@ -1821,6 +1825,11 @@ class Tree:
             from the same tree sequence may share some plotted mutations.
         :param bool omit_sites: If True, omit sites and mutations from the drawing.
             Default: False
+        :param tuple(int, int) canvas_size: The (width, height) of the SVG canvas.
+            This will change the SVG width and height without rescaling graphical
+            elements, allowing extra room e.g. for unusually long labels. If ``None``
+            take the canvas size to be the same as the target drawing size (see
+            ``size``, above). Default: None
 
         :return: An SVG representation of a tree.
         :rtype: SVGString
@@ -1848,6 +1857,7 @@ class Tree:
             y_gridlines=y_gridlines,
             all_edge_mutations=all_edge_mutations,
             omit_sites=omit_sites,
+            canvas_size=canvas_size,
             **kwargs,
         )
         output = draw.drawing.tostring()
@@ -6947,6 +6957,7 @@ class TreeSequence:
         y_ticks=None,
         y_gridlines=None,
         omit_sites=None,
+        canvas_size=None,
         **kwargs,
     ):
         """
@@ -6955,10 +6966,14 @@ class TreeSequence:
 
         :param str path: The path to the file to write the output. If None, do not write
             to file.
-        :param size: A tuple of (width, height) giving the width and height of the
-            produced SVG drawing in abstract user units (usually interpreted as pixels on
-            display).
-        :type size: tuple(int, int)
+        :param tuple(int, int) size: A tuple of (width, height) specifying a target
+            drawing size in abstract user units (usually interpreted as pixels on
+            initial display). Components of the drawing will be scaled so that the total
+            plot including labels etc. normally fits onto a canvas of this size (see
+            ``canvas_size`` below). If ``None``, chose values such that each tree is
+            drawn at a size appropriate for a reasonably small set of samples (this will
+            nevertheless result in a very wide drawing if there are many trees to
+            display). Default: ``None``
         :param str x_scale: Control how the X axis is drawn. If "physical" (the default)
             the axis scales linearly with physical distance along the sequence,
             background shading is used to indicate the position of the trees along the
@@ -7024,6 +7039,11 @@ class TreeSequence:
             at each y tickmark.
         :param bool omit_sites: If True, omit sites and mutations from the drawing.
             Default: False
+        :param tuple(int, int) canvas_size: The (width, height) of the SVG canvas.
+            This will change the SVG width and height without rescaling graphical
+            elements, allowing extra room e.g. for unusually long labels. If ``None``
+            take the canvas size to be the same as the target drawing size (see
+            ``size``, above). Default: None
 
         :return: An SVG representation of a tree sequence.
         :rtype: SVGString
@@ -7060,6 +7080,7 @@ class TreeSequence:
             y_ticks=y_ticks,
             y_gridlines=y_gridlines,
             omit_sites=omit_sites,
+            canvas_size=canvas_size,
             **kwargs,
         )
         output = draw.drawing.tostring()
