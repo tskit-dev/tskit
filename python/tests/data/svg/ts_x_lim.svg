@@ -11,7 +11,7 @@
 		</g>
 		<g class="axes">
 			<g class="x-axis">
-				<g transform="translate(300 200)">
+				<g class="title" transform="translate(300 200)">
 					<text class="lab" text-anchor="middle" transform="translate(0 -11)">Genome position</text>
 				</g>
 				<line x1="20" x2="580" y1="163.2" y2="163.2"/>

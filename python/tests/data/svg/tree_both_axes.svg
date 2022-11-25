@@ -6,7 +6,7 @@
 	<g class="tree t4">
 		<g class="axes">
 			<g class="x-axis">
-				<g transform="translate(118.4 200)">
+				<g class="title" transform="translate(118.4 200)">
 					<text class="lab" text-anchor="middle" transform="translate(0 -11)">Genome position</text>
 				</g>
 				<line x1="56.8" x2="180" y1="163.2" y2="163.2"/>
@@ -26,7 +26,7 @@
 				</g>
 			</g>
 			<g class="y-axis">
-				<g transform="translate(0 70.7)">
+				<g class="title" transform="translate(0 70.7)">
 					<text class="lab" text-anchor="middle" transform="translate(11) rotate(-90)">Time</text>
 				</g>
 				<line x1="56.8" x2="56.8" y1="131.4" y2="10"/>

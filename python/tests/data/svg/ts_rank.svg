@@ -13,7 +13,7 @@
 		</g>
 		<g class="axes">
 			<g class="x-axis">
-				<g transform="translate(518.4 200)">
+				<g class="title" transform="translate(518.4 200)">
 					<text class="lab" text-anchor="middle" transform="translate(0 -11)">Genome position</text>
 				</g>
 				<line x1="56.8" x2="980" y1="163.2" y2="163.2"/>
@@ -96,7 +96,7 @@
 				</g>
 			</g>
 			<g class="y-axis">
-				<g transform="translate(0 65.7)">
+				<g class="title" transform="translate(0 65.7)">
 					<text class="lab" text-anchor="middle" transform="translate(11) rotate(-90)">Node time</text>
 				</g>
 				<line x1="56.8" x2="56.8" y1="121.4" y2="10"/>

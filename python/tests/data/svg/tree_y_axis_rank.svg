@@ -6,7 +6,7 @@
 	<g class="tree t1">
 		<g class="axes">
 			<g class="y-axis">
-				<g transform="translate(0 89.1)">
+				<g class="title" transform="translate(0 89.1)">
 					<text class="lab" text-anchor="middle" transform="translate(11) rotate(-90)">Time (relative steps)</text>
 				</g>
 				<line x1="56.8" x2="56.8" y1="168.2" y2="10"/>
