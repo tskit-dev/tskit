@@ -2461,6 +2461,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         svg_no_css = svg[svg.find("</style>") :]
         assert svg_no_css.count("axes") == 1
         assert svg_no_css.count("x-axis") == 1
+        assert svg_no_css.count("title") == 1
         assert svg_no_css.count("y-axis") == 0
         self.verify_known_svg(svg, "tree_x_axis.svg", overwrite_viz, width=400)
 
@@ -2482,6 +2483,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         assert svg_no_css.count("axes") == 1
         assert svg_no_css.count("x-axis") == 0
         assert svg_no_css.count("y-axis") == 1
+        assert svg_no_css.count("title") == 1
         self.verify_known_svg(svg, "tree_y_axis_rank.svg", overwrite_viz)
 
     def test_known_svg_tree_both_axes(self, overwrite_viz, draw_plotbox):
@@ -2491,6 +2493,7 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         assert svg_no_css.count("axes") == 1
         assert svg_no_css.count("x-axis") == 1
         assert svg_no_css.count("y-axis") == 1
+        assert svg_no_css.count("title") == 2
         self.verify_known_svg(svg, "tree_both_axes.svg", overwrite_viz)
 
     def test_known_svg_tree_root_mut(self, overwrite_viz, draw_plotbox):
