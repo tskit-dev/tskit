@@ -8,6 +8,10 @@
   which are the minimum and maximum among the node times and mutation times,
   respectively. (:user:`szhan`, :pr:`2612`, :issue:`2271`)
 
+- The ``draw_svg`` methods now have a ``max_num_trees`` parameter to truncate
+  the total number of trees shown, giving a readable display for tree
+  sequences with many trees (:user:`hyanwong`, :pr:`2652`)
+
 - The ``draw_svg`` methods now accept a ``canvas_size`` parameter to allow
   extra room on the canvas e.g. for long labels or repositioned graphical
   elements (:user:`hyanwong`, :pr:`2646`, :issue:`2645`)
