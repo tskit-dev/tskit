@@ -1,3 +1,13 @@
+--------
+UPCOMING
+--------
+
+**Features**
+
+- Add the `tsk_treeseq_extend_edges` method that can compress a tree sequence
+  by extending edges into adjacent trees and thus creating unary nodes in those
+  trees (:user:`petrelharp`, :user:`hfr1tze`, :user:`avabamf`, :pr:`2651`).
+
 --------------------
 [1.1.2] - 2023-05-17
 --------------------
@@ -24,7 +34,7 @@
   (:user:`jeromekelleher`, :issue:`2662`, :pr:`2663`).
 
 - Guarantee that unfiltered tables are not written to unnecessarily
-  during simplify (:user:`jeromekelleher` :pr:`2619`).
+  during simplify (:user:`jeromekelleher`, :pr:`2619`).
 
 - Add `x_table_keep_rows` methods to provide efficient in-place table subsetting
   (:user:`jeromekelleher`, :pr:`2700`).

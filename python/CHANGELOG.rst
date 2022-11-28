@@ -2,6 +2,11 @@
 [0.5.7] - 2023-XX-XX
 --------------------
 
+**Features**
+
+- Add ``TreeSequence.extend_edges`` method that extends ancestral haplotypes
+  using recombination information, leading to unary nodes in many trees and
+  fewer edges. (:user:`petrelharp`, :user:`hfr1tz3`, :user:`avabamf`, :pr:`2651`)
 
 
 --------------------

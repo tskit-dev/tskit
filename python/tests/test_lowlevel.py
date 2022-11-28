@@ -1496,6 +1496,22 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             ts.load_tables(tables)
             assert ts.get_time_units() == value
 
+    def test_extend_edges_bad_args(self):
+        ts1 = self.get_example_tree_sequence(10)
+        with pytest.raises(TypeError):
+            ts1.extend_edges()
+        with pytest.raises(TypeError, match="an integer"):
+            ts1.extend_edges("sdf")
+        with pytest.raises(_tskit.LibraryError, match="positive"):
+            ts1.extend_edges(0)
+        with pytest.raises(_tskit.LibraryError, match="positive"):
+            ts1.extend_edges(-1)
+        tsm = self.get_example_migration_tree_sequence()
+        with pytest.raises(
+            _tskit.LibraryError, match="TSK_ERR_MIGRATIONS_NOT_SUPPORTED"
+        ):
+            tsm.extend_edges(1)
+
     def test_kc_distance_errors(self):
         ts1 = self.get_example_tree_sequence(10)
         with pytest.raises(TypeError):

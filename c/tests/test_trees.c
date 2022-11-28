@@ -8213,6 +8213,165 @@ test_split_edges_errors(void)
 }
 
 static void
+test_extend_edges_simple(void)
+{
+    int ret;
+    tsk_treeseq_t ts, ets;
+    const char *nodes = "1  0       -1   -1\n"
+                        "1  0       -1   -1\n"
+                        "0  2.0     -1   -1\n";
+    const char *edges = "0  10   2   0\n"
+                        "0  10   2   1\n";
+    const char *sites = "0.0  0\n"
+                        "1.0  0\n";
+    const char *mutations = "0    0     1  -1  0.5\n"
+                            "1    1     1  -1  0.5\n";
+
+    tsk_treeseq_from_text(&ts, 10, nodes, edges, NULL, sites, mutations, NULL, NULL, 0);
+    ret = tsk_treeseq_extend_edges(&ts, 10, 0, &ets);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, ets.tables, 0));
+    tsk_treeseq_free(&ts);
+
+    tsk_treeseq_free(&ets);
+}
+
+static void
+test_extend_edges_errors(void)
+{
+    int ret;
+    tsk_treeseq_t ts, ets;
+    const char *nodes = "1  0       -1   -1\n"
+                        "1  0       -1   -1\n"
+                        "0  2.0     -1   -1\n";
+    const char *edges = "0  10   2   0\n"
+                        "0  10   2   1\n";
+    const char *sites = "0.0  0\n"
+                        "1.0  0\n";
+    const char *mutations = "0    0     1  -1   0.5\n"
+                            "1    1     1  -1   0.5\n";
+    const char *mutations_no_time = "0    0     1  -1\n"
+                                    "1    1     1  -1\n";
+    // left, right, node source, dest, time
+    const char *migrations = "0  10  0  0  1  0.5\n"
+                             "0  10  0  1  0  1.5\n";
+
+    tsk_treeseq_from_text(&ts, 10, nodes, edges, NULL, sites, mutations, NULL, NULL, 0);
+    ret = tsk_treeseq_extend_edges(&ts, -2, 0, &ets);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EXTEND_EDGES_BAD_MAXITER);
+    tsk_treeseq_free(&ts);
+
+    tsk_treeseq_from_text(
+        &ts, 10, nodes, edges, migrations, sites, mutations, NULL, NULL, 0);
+    ret = tsk_treeseq_extend_edges(&ts, 10, 0, &ets);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATIONS_NOT_SUPPORTED);
+    tsk_treeseq_free(&ts);
+
+    tsk_treeseq_from_text(
+        &ts, 10, nodes, edges, NULL, sites, mutations_no_time, NULL, NULL, 0);
+    ret = tsk_treeseq_extend_edges(&ts, 10, 0, &ets);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DISALLOWED_UNKNOWN_MUTATION_TIME);
+    tsk_treeseq_free(&ts);
+
+    tsk_treeseq_free(&ets);
+}
+
+static void
+assert_equal_except_edges_and_mutation_nodes(
+    const tsk_treeseq_t *ts1, const tsk_treeseq_t *ts2)
+{
+    tsk_table_collection_t t1, t2;
+    int ret;
+
+    ret = tsk_table_collection_copy(ts1->tables, &t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_table_collection_copy(ts2->tables, &t2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tsk_memset(t1.mutations.node, 0, t1.mutations.num_rows * sizeof(*t1.mutations.node));
+    tsk_memset(t2.mutations.node, 0, t2.mutations.num_rows * sizeof(*t2.mutations.node));
+
+    tsk_edge_table_clear(&t1.edges);
+    tsk_edge_table_clear(&t2.edges);
+
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t1, &t2, 0));
+
+    tsk_table_collection_free(&t1);
+    tsk_table_collection_free(&t2);
+}
+
+static void
+test_extend_edges(void)
+{
+    int ret, max_iter;
+    tsk_treeseq_t ts, ets;
+    /* 7 and 8 should be extended to the whole sequence
+
+       6          6      6         6
+     +-+-+      +-+-+  +-+-+     +-+-+
+     |   |      7   |  |   8     |   |
+     |   |     ++-+ |  | +-++    |   |
+     4   5     4  | |  4 |  5    4   5
+    +++ +++   +++ | |  | | +++  +++ +++
+    0 1 2 3   0 1 2 3  0 1 2 3  0 1 2 3
+    */
+
+    const char *nodes = "1  0       -1   -1\n"
+                        "1  0       -1   -1\n"
+                        "1  0       -1   -1\n"
+                        "1  0       -1   -1\n"
+                        "0  1.0     -1   -1\n"
+                        "0  1.0     -1   -1\n"
+                        "0  3.0     -1   -1\n"
+                        "0  2.0     -1   -1\n"
+                        "0  2.0     -1   -1\n";
+    // l, r, p, c
+    const char *edges = "0  10   4  0\n"
+                        "0   5   4  1\n"
+                        "7  10   4  1\n"
+                        "0   2   5  2\n"
+                        "5  10   5  2\n"
+                        "0   2   5  3\n"
+                        "5  10   5  3\n"
+                        "2   5   7  2\n"
+                        "2   5   7  4\n"
+                        "5   7   8  1\n"
+                        "5   7   8  5\n"
+                        "2   5   6  3\n"
+                        "0   2   6  4\n"
+                        "5  10   6  4\n"
+                        "0   2   6  5\n"
+                        "7  10   6  5\n"
+                        "2   5   6  7\n"
+                        "5   7   6  8\n";
+    const char *sites = "0.0  0\n"
+                        "9.0  0\n";
+    const char *mutations = "0    4     1  -1  2.5\n"
+                            "0    4     2   0  1.5\n"
+                            "1    5     1  -1  2.5\n"
+                            "1    5     2   2  1.5\n";
+
+    tsk_treeseq_from_text(&ts, 10, nodes, edges, NULL, sites, mutations, NULL, NULL, 0);
+
+    for (max_iter = 1; max_iter < 10; max_iter++) {
+        ret = tsk_treeseq_extend_edges(&ts, max_iter, 0, &ets);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        assert_equal_except_edges_and_mutation_nodes(&ts, &ets);
+        CU_ASSERT_TRUE(ets.tables->edges.num_rows >= 12);
+        tsk_treeseq_free(&ets);
+    }
+
+    ret = tsk_treeseq_extend_edges(&ts, 10, 0, &ets);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(ets.tables->nodes.num_rows, 9);
+    CU_ASSERT_EQUAL_FATAL(ets.tables->edges.num_rows, 12);
+    tsk_treeseq_free(&ets);
+
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_init_take_ownership_no_edge_metadata(void)
 {
     int ret;
@@ -8431,6 +8590,9 @@ main(int argc, char **argv)
         { "test_split_edges_no_populations", test_split_edges_no_populations },
         { "test_split_edges_populations", test_split_edges_populations },
         { "test_split_edges_errors", test_split_edges_errors },
+        { "test_extend_edges_simple", test_extend_edges_simple },
+        { "test_extend_edges_errors", test_extend_edges_errors },
+        { "test_extend_edges", test_extend_edges },
         { "test_init_take_ownership_no_edge_metadata",
             test_init_take_ownership_no_edge_metadata },
         { NULL, NULL },
