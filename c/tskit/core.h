@@ -500,6 +500,11 @@ the edge on which it occurs, and wasn't TSK_UNKNOWN_TIME.
 A single site had a mixture of known mutation times and TSK_UNKNOWN_TIME
 */
 #define TSK_ERR_MUTATION_TIME_HAS_BOTH_KNOWN_AND_UNKNOWN            -509
+/**
+Some mutations have TSK_UNKNOWN_TIME in an algorithm where that's
+disallowed (use compute_mutation_times?).
+*/
+#define TSK_ERR_DISALLOWED_UNKNOWN_MUTATION_TIME                    -510
 /** @} */
 
 /**
@@ -864,6 +869,16 @@ An individual had nodes from more than one time
 (and only one was requested).
 */
 #define TSK_ERR_INDIVIDUAL_TIME_MISMATCH                           -1704
+/** @} */
+
+/**
+@defgroup EXTEND_EDGES_ERROR_GROUP Extend edges errors.
+@{
+*/
+/**
+Maximum iteration number (max_iter) must be positive.
+*/
+#define TSK_ERR_EXTEND_EDGES_BAD_MAXITER                          -1800
 /** @} */
 // clang-format on
 

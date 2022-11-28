@@ -330,6 +330,11 @@ tsk_strerror_internal(int err)
                   "values for any single site. "
                   "(TSK_ERR_MUTATION_TIME_HAS_BOTH_KNOWN_AND_UNKNOWN)";
             break;
+        case TSK_ERR_DISALLOWED_UNKNOWN_MUTATION_TIME:
+            ret = "Some mutation times are marked 'unknown' for a method that requires "
+                  "no unknown times. (Use compute_mutation_times to add times?) "
+                  "(TSK_ERR_DISALLOWED_UNKNOWN_MUTATION_TIME)";
+            break;
 
         /* Migration errors */
         case TSK_ERR_UNSORTED_MIGRATIONS:
@@ -614,6 +619,11 @@ tsk_strerror_internal(int err)
             ret = "Individual times cannot be returned "
                   "if an individual has nodes from more than one time. "
                   "(TSK_ERR_INDIVIDUAL_TIME_MISMATCH)";
+            break;
+
+        case TSK_ERR_EXTEND_EDGES_BAD_MAXITER:
+            ret = "Maximum number of iterations must be positive. "
+                  "(TSK_ERR_EXTEND_EDGES_BAD_MAXITER)";
             break;
     }
     return ret;

@@ -6912,6 +6912,56 @@ class TreeSequence:
         tables.delete_older(time)
         return tables.tree_sequence()
 
+    def extend_edges(self, max_iter=10):
+        """
+        Returns a new tree sequence in which the span covered by ancestral nodes
+        is "extended" to regions of the genome according to the following rule:
+        If an ancestral segment corresponding to node `n` has parent `p` and
+        child `c` on some portion of the genome, and on an adjacent segment of
+        genome `p` is the immediate parent of `c`, then `n` is inserted into the
+        edge from `p` to `c`. This involves extending the span of the edges
+        from `p` to `n` and `n` to `c` and reducing the span of the edge from
+        `p` to `c`. However, any edges whose child node is a sample will not
+        be modified.
+
+        Since some edges may be removed entirely, this process reduces (or at
+        least does not increase) the number of edges in the tree sequence.
+
+        *Note:* this is a somewhat experimental operation, and is probably not
+        what you are looking for.
+
+        The method works by iterating over the genome to look for edges that can
+        be extended in this way; the maximum number of such iterations is
+        controlled by ``max_iter``.
+
+        The rationale is that we know that `n` carries a portion of the segment
+        of ancestral genome inherited by `c` from `p`, and so likely carries
+        the *entire* inherited segment (since the implication otherwise would
+        be that distinct recombined segments were passed down separately from
+        `p` to `c`).
+
+        If an edge that a mutation falls on is split by this operation, the
+        mutation's node may need to be moved. This is only unambiguous if the
+        mutation's time is known, so the method requires known mutation times.
+        See :meth:`.impute_unknown_mutations_time` if mutation times are
+        not known.
+
+        The method will not affect the marginal trees (so, if the original tree
+        sequence was simplified, then following up with `simplify` will recover
+        the original tree sequence, possibly with edges in a different order).
+        It will also not affect the genotype matrix, or any of the tables other
+        than the edge table or the node column in the mutation table.
+
+        :param int max_iters: The maximum number of iterations over the tree
+            sequence. Defaults to 10.
+
+        :return: A new tree sequence with unary nodes extended.
+        :rtype: tskit.TreeSequence
+        """
+        max_iter = int(max_iter)
+        ll_ts = self._ll_tree_sequence.extend_edges(max_iter)
+        return TreeSequence(ll_ts)
+
     def subset(
         self,
         nodes,
