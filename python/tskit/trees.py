@@ -6958,6 +6958,7 @@ class TreeSequence:
         y_gridlines=None,
         omit_sites=None,
         canvas_size=None,
+        max_num_trees=None,
         **kwargs,
     ):
         """
@@ -7044,6 +7045,11 @@ class TreeSequence:
             elements, allowing extra room e.g. for unusually long labels. If ``None``
             take the canvas size to be the same as the target drawing size (see
             ``size``, above). Default: None
+        :param int max_num_trees: The maximum number of trees to plot. If there are
+            more trees than this in the tree sequence, the middle trees will be skipped
+            from the plot and a message "XX trees skipped" displayed in their place.
+            If ``None``, all the trees will be plotted: this can produce a very wide
+            plot if there are many trees in the tree sequence. Default: None
 
         :return: An SVG representation of a tree sequence.
         :rtype: SVGString
@@ -7081,6 +7087,7 @@ class TreeSequence:
             y_gridlines=y_gridlines,
             omit_sites=omit_sites,
             canvas_size=canvas_size,
+            max_num_trees=max_num_trees,
             **kwargs,
         )
         output = draw.drawing.tostring()

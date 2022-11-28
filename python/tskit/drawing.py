@@ -50,8 +50,9 @@ BOTTOM = "bottom"
 
 # constants for whether to plot a tree in a tree sequence
 OMIT = 1
-LEFT_CLIPPED_BIT = 2
-RIGHT_CLIPPED_BIT = 4
+LEFT_CLIP = 2
+RIGHT_CLIP = 4
+OMIT_MIDDLE = 8
 
 
 @dataclass
@@ -62,7 +63,7 @@ class Offsets:
     mutation: int = 0
 
 
-@dataclass
+@dataclass(frozen=True)
 class Timescaling:
     "Class used to transform the time axis"
     max_time: float
@@ -77,9 +78,9 @@ class Timescaling:
         if self.use_log_transform:
             if self.min_time < 0:
                 raise ValueError("Cannot use a log scale if there are negative times")
-            self.transform = self.log_transform
+            super().__setattr__("transform", self.log_transform)
         else:
-            self.transform = self.linear_transform
+            super().__setattr__("transform", self.linear_transform)
 
     def log_transform(self, y):
         "Standard log transform but allowing for values of 0 by adding 1"
@@ -229,10 +230,11 @@ def create_tick_labels(tick_values, decimal_places=2):
     return [f"{lab:.{label_precision}f}" for lab in tick_values]
 
 
-def clip_ts(ts, x_min, x_max):
+def clip_ts(ts, x_min, x_max, max_num_trees=None):
     """
     Culls the edges of the tree sequence outside the limits of x_min and x_max if
-    necessary.
+    necessary, and flags internal trees for omission if there are more than
+    max_num_trees in the tree sequence
 
     Returns the new tree sequence using the same genomic scale, and an
     array specifying which trees to actually plot from it. This array contains
@@ -276,6 +278,12 @@ def clip_ts(ts, x_min, x_max):
             if ts.num_sites > 0 and np.max(sites.position) > x_max:
                 x_max = ts.sequence_length  # Last region has sites but no edges => keep
 
+    if max_num_trees is None:
+        max_num_trees = np.inf
+
+    if max_num_trees < 2:
+        raise ValueError("Must show at least 2 trees when clipping a tree sequence")
+
     if (x_min > 0) or (x_max < ts.sequence_length):
         old_breaks = ts.breakpoints(as_array=True)
         offsets.tree = np.searchsorted(old_breaks, x_min, "right") - 2
@@ -303,10 +311,22 @@ def clip_ts(ts, x_min, x_max):
 
         # Which breakpoints are new ones, as a result of clipping
         new_breaks = np.logical_not(np.isin(ts.breakpoints(as_array=True), old_breaks))
-        tree_status[new_breaks[:-1]] |= LEFT_CLIPPED_BIT
-        tree_status[new_breaks[1:]] |= RIGHT_CLIPPED_BIT
+        tree_status[new_breaks[:-1]] |= LEFT_CLIP
+        tree_status[new_breaks[1:]] |= RIGHT_CLIP
     else:
         tree_status = np.zeros(ts.num_trees, dtype=np.uint8)
+
+    first_tree = 1 if tree_status[0] & OMIT else 0
+    last_tree = ts.num_trees - 2 if tree_status[-1] & OMIT else ts.num_trees - 1
+    num_shown_trees = last_tree - first_tree + 1
+    if num_shown_trees > max_num_trees:
+        num_start_trees = max_num_trees // 2 + (1 if max_num_trees % 2 else 0)
+        num_end_trees = max_num_trees // 2
+        assert num_start_trees + num_end_trees == max_num_trees
+        tree_status[
+            (first_tree + num_start_trees) : (last_tree - num_end_trees + 1)
+        ] = (OMIT | OMIT_MIDDLE)
+
     return ts, tree_status, offsets
 
 
@@ -336,20 +356,27 @@ def rnd(x):
     return x
 
 
-def referenced_nodes(ts):
+def edge_and_sample_nodes(ts, omit_regions=None):
     """
-    Return the ids of nodes which are actually plotted in this tree sequence
-    (i.e. do not include nodes which are not samples and not in any edge: this
-    happens extensively in plotting tree sequences with x_lim specified)
+    Return ids of nodes which are mentioned in an edge in this tree sequence or which
+    are samples: nodes not connected to an edge are often found if x_lim is specified.
     """
-    ids = np.concatenate(
-        (
-            ts.tables.edges.child,
-            ts.tables.edges.parent,
-            np.where(ts.tables.nodes.flags & NODE_IS_SAMPLE)[0],
-        )
+    if omit_regions is None or len(omit_regions) == 0:
+        ids = np.concatenate((ts.edges_child, ts.edges_parent))
+    else:
+        ids = np.array([], dtype=ts.edges_child.dtype)
+        edges = ts.tables.edges
+        assert omit_regions.shape[1] == 2
+        omit_regions = omit_regions.flatten()
+        assert np.all(omit_regions == np.unique(omit_regions))  # Check they're in order
+        use_regions = np.concatenate(([0.0], omit_regions, [ts.sequence_length]))
+        use_regions = use_regions.reshape(-1, 2)
+        for left, right in use_regions:
+            used_edges = edges[np.logical_and(edges.left >= left, edges.right < right)]
+            ids = np.concatenate((ids, used_edges.child, used_edges.parent))
+    return np.unique(
+        np.concatenate((ids, np.where(ts.nodes_flags & NODE_IS_SAMPLE)[0]))
     )
-    return np.unique(ids)
 
 
 def draw_tree(
@@ -469,10 +496,17 @@ def add_class(attrs_dict, classes_str):
 @dataclass
 class Plotbox:
     total_size: list
-    pad_top: float
-    pad_left: float
-    pad_bottom: float
-    pad_right: float
+    pad_top: float = 0
+    pad_left: float = 0
+    pad_bottom: float = 0
+    pad_right: float = 0
+
+    def set_padding(self, top, left, bottom, right):
+        self.pad_top = top
+        self.pad_left = left
+        self.pad_bottom = bottom
+        self.pad_right = right
+        self._check()
 
     @property
     def max_x(self):
@@ -507,6 +541,9 @@ class Plotbox:
         return self.bottom - self.top
 
     def __post_init__(self):
+        self._check()
+
+    def _check(self):
         if self.width < 1 or self.height < 1:
             raise ValueError("Image size too small to fit")
 
@@ -537,7 +574,92 @@ class Plotbox:
 
 
 class SvgPlot:
-    """The base class for plotting either a tree or a tree sequence as an SVG file"""
+    """
+    The base class for plotting any box to canvas
+    """
+
+    text_height = 14  # May want to calculate this based on a font size
+    line_height = text_height * 1.2  # allowing padding above and below a line
+
+    def __init__(
+        self,
+        size,
+        svg_class,
+        root_svg_attributes=None,
+        canvas_size=None,
+    ):
+        """
+        Creates self.drawing, an svgwrite.Drawing object for further use, and populates
+        it with a base group. The root_groups will be populated with
+        items that can be accessed from the outside, such as the plotbox, axes, etc.
+        """
+
+        if root_svg_attributes is None:
+            root_svg_attributes = {}
+        if canvas_size is None:
+            canvas_size = size
+        dwg = svgwrite.Drawing(size=canvas_size, debug=True, **root_svg_attributes)
+
+        self.image_size = size
+        self.plotbox = Plotbox(size)
+        self.root_groups = {}
+        self.svg_class = svg_class
+        self.timescaling = None
+        self.root_svg_attributes = root_svg_attributes
+        self.dwg_base = dwg.add(dwg.g(class_=svg_class))
+        self.drawing = dwg
+
+    def get_plotbox(self):
+        """
+        Get the svgwrite plotbox, creating it if necessary.
+        """
+        if "plotbox" not in self.root_groups:
+            dwg = self.drawing
+            self.root_groups["plotbox"] = self.dwg_base.add(dwg.g(class_="plotbox"))
+        return self.root_groups["plotbox"]
+
+    def add_text_in_group(self, text, add_to, pos, group_class=None, **kwargs):
+        """
+        Add the text to the elem within a group; allows text rotations to work smoothly,
+        otherwise, if x & y parameters are used to position text, rotations applied to
+        the text tag occur around the (0,0) point of the containing group
+        """
+        dwg = self.drawing
+        group_attributes = {"transform": f"translate({rnd(pos[0])} {rnd(pos[1])})"}
+        if group_class is not None:
+            group_attributes["class_"] = group_class
+        grp = add_to.add(dwg.g(**group_attributes))
+        grp.add(dwg.text(text, **kwargs))
+
+
+class SvgSkippedPlot(SvgPlot):
+    def __init__(
+        self,
+        size,
+        num_skipped,
+    ):
+        super().__init__(
+            size,
+            svg_class="skipped",
+        )
+        container = self.get_plotbox()
+        x = self.plotbox.width / 2
+        y = self.plotbox.height / 2
+        self.add_text_in_group(
+            f"{num_skipped} trees",
+            container,
+            (x, y - self.line_height / 2),
+            text_anchor="middle",
+        )
+        self.add_text_in_group(
+            "skipped", container, (x, y + self.line_height / 2), text_anchor="middle"
+        )
+
+
+class SvgAxisPlot(SvgPlot):
+    """
+    The class used for plotting either a tree or a tree sequence as an SVG file
+    """
 
     standard_style = (
         ".background path {fill: #808080; fill-opacity: 0}"
@@ -546,6 +668,7 @@ class SvgPlot:
         ".x-axis .tick .lab {font-weight: bold; dominant-baseline: hanging}"
         ".axes, .tree {font-size: 14px; text-anchor: middle}"
         ".axes line, .edge {stroke: black; fill: none}"
+        ".axes .ax-skip {stroke-dasharray: 4}"
         ".y-axis .grid {stroke: #FAFAFA}"
         ".node > .sym {fill: black; stroke: none}"
         ".site > .sym {stroke: black}"
@@ -561,8 +684,6 @@ class SvgPlot:
     )
 
     # TODO: we may want to make some of the constants below into parameters
-    text_height = 14  # May want to calculate this based on a font size
-    line_height = text_height * 1.2  # allowing padding above and below a line
     root_branch_fraction = 1 / 8  # Rel root branch len, unless it has a timed mutation
     default_tick_length = 5
     default_tick_length_site = 10
@@ -587,27 +708,18 @@ class SvgPlot:
         omit_sites=None,
         canvas_size=None,
     ):
-        """
-        Creates self.drawing, an svgwrite.Drawing object for further use, and populates
-        it with a stylesheet and base group. The root_groups will be populated with
-        items that can be accessed from the outside, such as the plotbox, axes, etc.
-        """
+        super().__init__(
+            size,
+            svg_class,
+            root_svg_attributes,
+            canvas_size,
+        )
         self.ts = ts
-        self.image_size = size
-        self.svg_class = svg_class
-        if root_svg_attributes is None:
-            root_svg_attributes = {}
-        if canvas_size is None:
-            canvas_size = size
-        self.root_svg_attributes = root_svg_attributes
-        dwg = svgwrite.Drawing(size=canvas_size, debug=True, **root_svg_attributes)
+        dwg = self.drawing
         # Put all styles in a single stylesheet (required for Inkscape 0.92)
         style = self.standard_style + ("" if style is None else style)
         dwg.defs.add(dwg.style(style))
-        self.dwg_base = dwg.add(dwg.g(class_=svg_class))
-        self.root_groups = {}
         self.debug_box = debug_box
-        self.drawing = dwg
         self.time_scale = check_time_scale(time_scale)
         self.y_axis = y_axis
         self.x_axis = x_axis
@@ -626,29 +738,6 @@ class SvgPlot:
         self.omit_sites = omit_sites
         self.mutations_outside_tree = set()  # mutations in here get an additional class
 
-    def get_plotbox(self):
-        """
-        Get the svgwrite plotbox (contains the tree(s) but not axes etc), creating it
-        if necessary.
-        """
-        if "plotbox" not in self.root_groups:
-            dwg = self.drawing
-            self.root_groups["plotbox"] = self.dwg_base.add(dwg.g(class_="plotbox"))
-        return self.root_groups["plotbox"]
-
-    def add_text_in_group(self, text, add_to, pos, group_class=None, **kwargs):
-        """
-        Add the text to the elem within a group; allows text rotations to work smoothly,
-        otherwise, if x & y parameters are used to position text, rotations applied to
-        the text tag occur around the (0,0) point of the containing group
-        """
-        dwg = self.drawing
-        group_attributes = {"transform": f"translate({rnd(pos[0])} {rnd(pos[1])})"}
-        if group_class is not None:
-            group_attributes["class_"] = group_class
-        grp = add_to.add(dwg.g(**group_attributes))
-        grp.add(dwg.text(text, **kwargs))
-
     def set_spacing(self, top=0, left=0, bottom=0, right=0):
         """
         Set edges, but allow space for axes etc
@@ -663,7 +752,7 @@ class SvgPlot:
             bottom += self.x_axis_offset
         if self.y_axis:
             left = self.y_axis_offset  # Override user-provided, so y-axis is at x=0
-        self.plotbox = Plotbox(self.image_size, top, left, bottom, right)
+        self.plotbox.set_padding(top, left, bottom, right)
         if self.debug_box:
             self.root_groups["debug"] = self.dwg_base.add(
                 self.drawing.g(class_="debug")
@@ -682,9 +771,12 @@ class SvgPlot:
         tick_length_lower=default_tick_length,
         tick_length_upper=None,  # If None, use the same as tick_length_lower
         site_muts=None,  # A dict of site id => mutation to plot as ticks on the x axis
+        alternate_dash_positions=None,  # Where to alternate the axis from solid to dash
     ):
         if not self.x_axis and not self.x_label:
             return
+        if alternate_dash_positions is None:
+            alternate_dash_positions = np.array([])
         dwg = self.drawing
         axes = self.get_axes()
         x_axis = axes.add(dwg.g(class_="x-axis"))
@@ -702,7 +794,21 @@ class SvgPlot:
             if tick_length_upper is None:
                 tick_length_upper = tick_length_lower
             y = rnd(self.plotbox.max_y - self.x_axis_offset)
-            x_axis.add(dwg.line((self.plotbox.left, y), (self.plotbox.right, y)))
+            dash_locs = np.concatenate(
+                (
+                    [self.plotbox.left],
+                    self.x_transform(alternate_dash_positions),
+                    [self.plotbox.right],
+                )
+            )
+            for i, (x1, x2) in enumerate(zip(dash_locs[:-1], dash_locs[1:])):
+                x_axis.add(
+                    dwg.line(
+                        (rnd(x1), y),
+                        (rnd(x2), y),
+                        class_="ax-skip" if i % 2 else "ax-line",
+                    )
+                )
             if tick_positions is not None:
                 if tick_labels is None or isinstance(tick_labels, np.ndarray):
                     if tick_labels is None:
@@ -790,7 +896,7 @@ class SvgPlot:
                 transform="translate(11) rotate(-90)",
             )
         if self.y_axis:
-            y_axis.add(dwg.line((x, rnd(lower)), (x, rnd(upper))))
+            y_axis.add(dwg.line((x, rnd(lower)), (x, rnd(upper)), class_="ax-line"))
             ticks_group = y_axis.add(dwg.g(class_="ticks"))
             for y, label in ticks.items():
                 tick = ticks_group.add(
@@ -870,7 +976,7 @@ class SvgPlot:
         )
 
 
-class SvgTreeSequence(SvgPlot):
+class SvgTreeSequence(SvgAxisPlot):
     """
     A class to draw a tree sequence in SVG format.
 
@@ -906,6 +1012,7 @@ class SvgTreeSequence(SvgPlot):
         mutation_label_attrs=None,
         tree_height_scale=None,
         max_tree_height=None,
+        max_num_trees=None,
         **kwargs,
     ):
         if max_time is None and max_tree_height is not None:
@@ -923,10 +1030,13 @@ class SvgTreeSequence(SvgPlot):
                 FutureWarning,
             )
         x_lim = check_x_lim(x_lim, max_x=ts.sequence_length)
-        ts, self.tree_status, offsets = clip_ts(ts, x_lim[0], x_lim[1])
-        num_trees = int(np.sum((self.tree_status & OMIT) != OMIT))
+        ts, self.tree_status, offsets = clip_ts(ts, x_lim[0], x_lim[1], max_num_trees)
+
+        use_tree = self.tree_status & OMIT == 0
+        use_skipped = np.append(np.diff(self.tree_status & OMIT_MIDDLE == 0) == 1, 0)
+        num_plotboxes = np.sum(np.logical_or(use_tree, use_skipped))
         if size is None:
-            size = (200 * num_trees, 200)
+            size = (200 * int(num_plotboxes), 200)
         if max_time is None:
             max_time = "ts"
         if min_time is None:
@@ -954,53 +1064,68 @@ class SvgTreeSequence(SvgPlot):
         if force_root_branch is None:
             force_root_branch = any(
                 any(tree.parent(mut.node) == NULL for mut in tree.mutations())
-                for tree in ts.trees()
+                for tree, use in zip(ts.trees(), use_tree)
+                if use
             )
 
         # TODO add general padding arguments following matplotlib's terminology.
         self.set_spacing(top=0, left=20, bottom=10, right=20)
-        svg_trees = [
-            SvgTree(
-                tree,
-                (self.plotbox.width / num_trees, self.plotbox.height),
-                time_scale=time_scale,
-                node_labels=node_labels,
-                mutation_labels=mutation_labels,
-                order=order,
-                force_root_branch=force_root_branch,
-                symbol_size=symbol_size,
-                max_time=max_time,
-                min_time=min_time,
-                node_attrs=node_attrs,
-                mutation_attrs=mutation_attrs,
-                edge_attrs=edge_attrs,
-                node_label_attrs=node_label_attrs,
-                mutation_label_attrs=mutation_label_attrs,
-                offsets=offsets,
-                # Do not plot axes on these subplots
-                **kwargs,  # pass though e.g. debug boxes
-            )
-            for status, tree in zip(self.tree_status, ts.trees())
-            if (status & OMIT) != OMIT
-        ]
+        subplot_size = (self.plotbox.width / num_plotboxes, self.plotbox.height)
+        subplots = []
+        for tree, use, summary in zip(ts.trees(), use_tree, use_skipped):
+            if use:
+                subplots.append(
+                    SvgTree(
+                        tree,
+                        size=subplot_size,
+                        time_scale=time_scale,
+                        node_labels=node_labels,
+                        mutation_labels=mutation_labels,
+                        order=order,
+                        force_root_branch=force_root_branch,
+                        symbol_size=symbol_size,
+                        max_time=max_time,
+                        min_time=min_time,
+                        node_attrs=node_attrs,
+                        mutation_attrs=mutation_attrs,
+                        edge_attrs=edge_attrs,
+                        node_label_attrs=node_label_attrs,
+                        mutation_label_attrs=mutation_label_attrs,
+                        offsets=offsets,
+                        # Do not plot axes on these subplots
+                        **kwargs,  # pass though e.g. debug boxes
+                    )
+                )
+                last_used_index = tree.index
+            elif summary:
+                subplots.append(
+                    SvgSkippedPlot(
+                        size=subplot_size, num_skipped=tree.index - last_used_index
+                    )
+                )
         y = self.plotbox.top
-        self.tree_plotbox = svg_trees[0].plotbox
+        self.tree_plotbox = subplots[0].plotbox
+        tree_is_used, breaks, skipbreaks = self.find_used_trees()
         self.draw_x_axis(
             x_scale,
+            tree_is_used,
+            breaks,
+            skipbreaks,
             tick_length_lower=self.default_tick_length,  # TODO - parameterize
             tick_length_upper=self.default_tick_length_site,  # TODO - parameterize
         )
         y_low = self.tree_plotbox.bottom
         if y_axis is not None:
-            self.timescaling = svg_trees[0].timescaling
-            for svg_tree in svg_trees:
-                if self.timescaling != svg_tree.timescaling:
-                    raise ValueError(
-                        "Can't draw a tree sequence Y axis if trees vary in timescale"
-                    )
+            tscales = {s.timescaling for s in subplots if s.timescaling}
+            if len(tscales) > 1:
+                raise ValueError(
+                    "Can't draw a tree sequence Y axis if trees vary in timescale"
+                )
+            self.timescaling = tscales.pop()
             y_low = self.timescaling.transform(self.timescaling.min_time)
             if y_ticks is None:
-                y_ticks = np.unique(ts.tables.nodes.time[referenced_nodes(ts)])
+                used_nodes = edge_and_sample_nodes(ts, breaks[skipbreaks])
+                y_ticks = np.unique(ts.nodes_time[used_nodes])
                 if self.time_scale == "rank":
                     # Ticks labelled by time not rank
                     y_ticks = dict(enumerate(y_ticks))
@@ -1013,78 +1138,128 @@ class SvgTreeSequence(SvgPlot):
             gridlines=y_gridlines,
         )
 
-        tree_x = self.plotbox.left
-        trees = self.get_plotbox()  # Top-level TS plotbox contains all trees
-        trees["class"] = trees["class"] + " trees"
-        for svg_tree in svg_trees:
-            tree = trees.add(
+        subplot_x = self.plotbox.left
+        container = self.get_plotbox()  # Top-level TS plotbox contains all trees
+        container["class"] = container["class"] + " trees"
+        for subplot in subplots:
+            svg_subplot = container.add(
                 self.drawing.g(
-                    class_=svg_tree.svg_class, transform=f"translate({rnd(tree_x)} {y})"
+                    class_=subplot.svg_class,
+                    transform=f"translate({rnd(subplot_x)} {y})",
                 )
             )
-            for svg_items in svg_tree.root_groups.values():
-                tree.add(svg_items)
-            tree_x += svg_tree.image_size[0]
-            assert self.tree_plotbox == svg_tree.plotbox
+            for svg_items in subplot.root_groups.values():
+                svg_subplot.add(svg_items)
+            subplot_x += subplot.image_size[0]
+
+    def find_used_trees(self):
+        """
+        Return a boolean array of which trees are actually plotted,
+        a list of which breakpoints are used to transition between plotted trees,
+        and a 2 x n array (often n=0) of indexes into these breakpoints delimiting
+        the regions that should be plotted as "skipped"
+        """
+        tree_is_used = (self.tree_status & OMIT) != OMIT
+        break_used_as_tree_left = np.append(tree_is_used, False)
+        break_used_as_tree_right = np.insert(tree_is_used, 0, False)
+        break_used = np.logical_or(break_used_as_tree_left, break_used_as_tree_right)
+        all_breaks = self.ts.breakpoints(True)
+        used_breaks = all_breaks[break_used]
+        mark_skip_transitions = np.concatenate(
+            ([False], np.diff(self.tree_status & OMIT_MIDDLE) != 0, [False])
+        )
+        skipregion_indexes = np.where(mark_skip_transitions[break_used])[0]
+        assert len(skipregion_indexes) % 2 == 0  # all skipped regions have start, end
+        return tree_is_used, used_breaks, skipregion_indexes.reshape((-1, 2))
 
     def draw_x_axis(
         self,
         x_scale,
-        tick_length_lower=SvgPlot.default_tick_length,
-        tick_length_upper=SvgPlot.default_tick_length_site,
+        tree_is_used,
+        breaks,
+        skipbreaks,
+        tick_length_lower=SvgAxisPlot.default_tick_length,
+        tick_length_upper=SvgAxisPlot.default_tick_length_site,
     ):
         """
-        Add extra functionality to the original draw_x_axis method in SvgPlot, mainly
+        Add extra functionality to the original draw_x_axis method in SvgAxisPlot,
         to account for the background shading that is displayed in a tree sequence
+        and in case trees are omitted from the middle of the tree sequence
         """
         if not self.x_axis and not self.x_label:
             return
-        left_break_status = np.append(self.tree_status, OMIT)
-        right_break_status = np.insert(self.tree_status, 0, OMIT)
-        use_left = (left_break_status & OMIT) != OMIT
-        use_right = (right_break_status & OMIT) != OMIT
-        all_breaks = self.ts.breakpoints(True)
-        breaks = all_breaks[np.logical_or(use_left, use_right)]
         if x_scale == "physical":
-            # Assume the trees are simply concatenated end-to-end
-            self.x_transform = (
-                lambda x: self.plotbox.left
-                + (x - breaks[0]) / (breaks[-1] - breaks[0]) * self.plotbox.width
+            # In a tree sequence plot, the x_transform is used for the ticks, background
+            # shading positions, and sites along the x-axis. Each tree will have its own
+            # separate x_transform function for node positions within the tree.
+
+            # For a plot with a break on the x-axis (representing "skipped" trees), the
+            # x_transform is a piecewise function. We need to identify the breakpoints
+            # where the x-scale transitions from the standard scale to the scale(s) used
+            # within a skipped region
+
+            skipregion_plot_width = self.tree_plotbox.width
+            skipregion_span = np.diff(breaks[skipbreaks]).T[0]
+            std_scale = (
+                self.plotbox.width - skipregion_plot_width * len(skipregion_span)
+            ) / (breaks[-1] - breaks[0] - np.sum(skipregion_span))
+            skipregion_pos = breaks[skipbreaks].flatten()
+            genome_pos = np.concatenate(([breaks[0]], skipregion_pos, [breaks[-1]]))
+            plot_step = np.full(len(genome_pos) - 1, skipregion_plot_width)
+            plot_step[::2] = std_scale * np.diff(genome_pos)[::2]
+            plot_pos = np.cumsum(np.insert(plot_step, 0, self.plotbox.left))
+            # Convert to slope + intercept form
+            slope = np.diff(plot_pos) / np.diff(genome_pos)
+            intercept = plot_pos[1:] - slope * genome_pos[1:]
+            self.x_transform = lambda y: (
+                y * slope[np.searchsorted(skipregion_pos, y)]
+                + intercept[np.searchsorted(skipregion_pos, y)]
             )
+            tick_positions = breaks
+            site_muts = {
+                s.id: s.mutations
+                for tree, use in zip(self.ts.trees(), tree_is_used)
+                for s in tree.sites()
+                if use
+            }
+
             self.shade_background(
                 breaks,
                 tick_length_lower,
                 self.tree_plotbox.max_x,
                 self.plotbox.pad_bottom + self.tree_plotbox.pad_bottom,
             )
-            site_muts = {s.id: s.mutations for s in self.ts.sites()}
-            # omit tick on LHS for trees that have been clipped on left, and same on RHS
-            use_left = np.logical_and(
-                use_left, (left_break_status & LEFT_CLIPPED_BIT) != LEFT_CLIPPED_BIT
-            )
-            use_right = np.logical_and(
-                use_right, (right_break_status & RIGHT_CLIPPED_BIT) != RIGHT_CLIPPED_BIT
-            )
-            super().draw_x_axis(
-                tick_positions=all_breaks[np.logical_or(use_left, use_right)],
-                tick_length_lower=tick_length_lower,
-                tick_length_upper=tick_length_upper,
-                site_muts=site_muts,
-            )
-
         else:
-            # No background shading needed if x_scale is "treewise"
+
+            # For a treewise plot, the only time the x_transform is used is to apply
+            # to tick positions, so simply use positions 0..num_used_breaks for the
+            # positions, and a simple transform
             self.x_transform = (
                 lambda x: self.plotbox.left + x / (len(breaks) - 1) * self.plotbox.width
             )
-            super().draw_x_axis(
-                tick_positions=np.arange(len(breaks)),
-                tick_labels=breaks,
-                tick_length_lower=tick_length_lower,
-            )
+            tick_positions = np.arange(len(breaks))
+
+            site_muts = None  # It doesn't make sense to plot sites for "treewise" plots
+            tick_length_upper = None  # No sites plotted, so use the default upper tick
+
+            # NB: no background shading needed if x_scale is "treewise"
+
+            skipregion_pos = skipbreaks.flatten()
+
+        first_tick = 1 if np.any(self.tree_status[tree_is_used] & LEFT_CLIP) else 0
+        last_tick = -1 if np.any(self.tree_status[tree_is_used] & RIGHT_CLIP) else None
+
+        super().draw_x_axis(
+            tick_positions=tick_positions[first_tick:last_tick],
+            tick_labels=breaks[first_tick:last_tick],
+            tick_length_lower=tick_length_lower,
+            tick_length_upper=tick_length_upper,
+            site_muts=site_muts,
+            alternate_dash_positions=skipregion_pos,
+        )
 
 
-class SvgTree(SvgPlot):
+class SvgTree(SvgAxisPlot):
     """
     A class to draw a tree in SVG format.
 
@@ -1335,8 +1510,8 @@ class SvgTree(SvgPlot):
         max_time,
         min_time,
         force_root_branch,
-        bottom_space=SvgPlot.line_height,
-        top_space=SvgPlot.line_height,
+        bottom_space=SvgAxisPlot.line_height,
+        top_space=SvgAxisPlot.line_height,
     ):
         """
         Create a self.node_height dict, a self.timescaling instance and
@@ -1346,8 +1521,8 @@ class SvgTree(SvgPlot):
         """
         max_time = check_max_time(max_time, self.time_scale != "rank")
         min_time = check_min_time(min_time, self.time_scale != "rank")
-        node_time = self.ts.tables.nodes.time
-        mut_time = self.ts.tables.mutations.time
+        node_time = self.ts.nodes_time
+        mut_time = self.ts.mutations_time
         root_branch_len = 0
         if self.time_scale == "rank":
             t = np.zeros_like(node_time)
@@ -1358,7 +1533,8 @@ class SvgTree(SvgPlot):
             else:
                 # only rank the nodes that are actually referenced in the edge table
                 # (non-referenced nodes could occur if the user specifies x_lim values)
-                use_time = referenced_nodes(self.ts)
+                # However, we do include nodes in trees that have been skipped
+                use_time = edge_and_sample_nodes(self.ts)
                 t[use_time] = node_time[use_time]
             node_time = t
             times = np.unique(node_time[node_time <= self.ts.max_root_time])
@@ -1400,7 +1576,7 @@ class SvgTree(SvgPlot):
                 min_time = min(self.node_height.values())
                 # don't need to check mutation times, as they must be above a node
             elif min_time == "ts":
-                min_time = np.min(self.ts.tables.nodes.time[referenced_nodes(self.ts)])
+                min_time = np.min(self.ts.nodes_time[edge_and_sample_nodes(self.ts)])
             # In pathological cases, all the nodes are at the same time
             if min_time == max_time:
                 max_time = min_time + 1
@@ -1967,7 +2143,6 @@ class VerticalTextTree(TextTree):
                         self.canvas[y, xv] = mid_char
                     self.canvas[y, left] = left_child
                     self.canvas[y, right] = right_child
-        # print(self.canvas)
         if self.orientation == TOP:
             self.canvas = np.flip(self.canvas, axis=0)
             # Reverse the time positions so that we can use them in the tree
@@ -2070,4 +2245,3 @@ class HorizontalTextTree(TextTree):
             # Move the padding to the left.
             self.canvas[:, :-1] = self.canvas[:, 1:]
             self.canvas[:, -1] = " "
-        # print(self.canvas)

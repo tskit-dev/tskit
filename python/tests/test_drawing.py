@@ -1453,9 +1453,9 @@ class TestDrawTextExamples(TestTreeDraw):
             output._repr_svg_()
 
 
-class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
+class TestDrawSvgBase(TestTreeDraw, xmlunittest.XmlTestMixin):
     """
-    Tests the SVG tree drawing.
+    Base class for testing the SVG tree drawing method
     """
 
     def verify_basic_svg(self, svg, width=200, height=200, num_trees=1):
@@ -1496,6 +1496,12 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
             cls = group.attrib["class"]
             assert re.search(r"\broot\b", cls)
 
+
+class TestDrawSvg(TestDrawSvgBase):
+    """
+    Simple testing for the draw_svg method
+    """
+
     def test_repr_svg(self):
         ts = self.get_simple_ts()
         svg = ts.draw_svg()
@@ -1535,7 +1541,9 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
 
     def test_nonimplemented_base_class(self):
         ts = self.get_simple_ts()
-        plot = drawing.SvgPlot(ts, (100, 100), {}, "", "dummy-class", None, True, True)
+        plot = drawing.SvgAxisPlot(
+            ts, (100, 100), {}, "", "dummy-class", None, True, True
+        )
         plot.set_spacing()
         with pytest.raises(NotImplementedError):
             plot.draw_x_axis(tick_positions=ts.breakpoints(as_array=True))
@@ -2422,6 +2430,43 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         assert svg.count("outer_plotbox") == ts.num_trees + 1
         assert svg.count("inner_plotbox") == ts.num_trees + 1
 
+    @pytest.mark.parametrize("max_trees", [-1, 0, 1])
+    def test_bad_max_num_trees(self, max_trees):
+        ts = self.get_simple_ts()
+        with pytest.raises(ValueError, match="at least 2"):
+            ts.draw_svg(max_num_trees=max_trees)
+
+    @pytest.mark.parametrize("max_trees", [2, 4, 9])
+    def test_max_num_trees(self, max_trees):
+        ts = msprime.sim_ancestry(
+            3, sequence_length=100, recombination_rate=0.1, random_seed=1
+        )
+        ts = msprime.sim_mutations(ts, rate=0.1, random_seed=1)
+        assert ts.num_trees > 10
+        num_sites = 0
+        num_unplotted_sites = 0
+        svg = ts.draw_svg(max_num_trees=max_trees)
+        for tree in ts.trees():
+            if (
+                tree.index < (max_trees + 1) // 2
+                or ts.num_trees - tree.index <= max_trees // 2
+            ):
+                num_sites += tree.num_sites
+                assert re.search(rf"t{tree.index}[^\d]", svg) is not None
+            else:
+                assert re.search(rf"t{tree.index}[^\d]", svg) is None
+                num_unplotted_sites += tree.num_sites
+        assert num_unplotted_sites > 0
+        site_strings_in_stylesheet = svg.count(".site")
+        assert svg.count("site") - site_strings_in_stylesheet == num_sites
+        self.verify_basic_svg(svg, width=200 * (max_trees + 1))
+
+
+class TestDrawKnownSvg(TestDrawSvgBase):
+    """
+    Compare against known files
+    """
+
     def verify_known_svg(self, svg, filename, save=False, **kwargs):
         # expected SVG files can be inspected in tests/data/svg/*.svg
         svg = xml.dom.minidom.parseString(
@@ -2751,6 +2796,43 @@ class TestDrawSvg(TestTreeDraw, xmlunittest.XmlTestMixin):
         svg = ts.draw_svg(x_lim=[0.051, 0.9])
         num_trees = sum(1 for b in ts.breakpoints() if 0.051 <= b < 0.9) + 1
         self.verify_known_svg(svg, "ts_x_lim.svg", overwrite_viz, width=200 * num_trees)
+
+    def test_known_max_num_trees(self, overwrite_viz, draw_plotbox, caplog):
+        max_trees = 5
+        ts = msprime.sim_ancestry(
+            3, sequence_length=100, recombination_rate=0.1, random_seed=1
+        )
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        assert ts.num_trees > 10
+        first_break = next(ts.trees()).interval.right
+        # limit to just past the first tree
+        svg = ts.draw_svg(
+            max_num_trees=max_trees,
+            x_lim=(first_break + 0.1, ts.sequence_length - 0.1),
+            y_axis=True,
+            time_scale="log_time",
+        )
+        self.verify_known_svg(
+            svg, "ts_max_trees.svg", overwrite_viz, width=200 * (max_trees + 1)
+        )
+
+    def test_known_max_num_trees_treewise(self, overwrite_viz, draw_plotbox, caplog):
+        max_trees = 5
+        ts = msprime.sim_ancestry(
+            3, sequence_length=100, recombination_rate=0.1, random_seed=1
+        )
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1)
+        assert ts.num_trees > 10
+        first_break = next(ts.trees()).interval.right
+        svg = ts.draw_svg(
+            max_num_trees=max_trees,
+            x_lim=(first_break + 0.1, ts.sequence_length - 0.1),
+            y_axis=True,
+            x_scale="treewise",
+        )
+        self.verify_known_svg(
+            svg, "ts_max_trees_treewise.svg", overwrite_viz, width=200 * (max_trees + 1)
+        )
 
 
 class TestRounding:
