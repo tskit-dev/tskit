@@ -965,7 +965,7 @@ class SvgAxisPlot(SvgPlot):
                         diag_h=rnd(diag_height),
                         tick_h=rnd(tick_length_lower),
                         ax_x=rnd(prev_break_x - break_x),
-                        ldiag_x=rnd(prev_tree_x - prev_break_x),
+                        ldiag_x=rnd(rnd(prev_tree_x) - rnd(prev_break_x)),
                     )
                 )
             )

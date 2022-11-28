@@ -29,6 +29,7 @@ import logging
 import math
 import os
 import pathlib
+import platform
 import re
 import xml.dom.minidom
 import xml.etree
@@ -42,6 +43,9 @@ import tests.test_wright_fisher as wf
 import tests.tsutil as tsutil
 import tskit
 from tskit import drawing
+
+
+IS_WINDOWS = platform.system() == "Windows"
 
 
 class TestTreeDraw:
@@ -2797,6 +2801,7 @@ class TestDrawKnownSvg(TestDrawSvgBase):
         num_trees = sum(1 for b in ts.breakpoints() if 0.051 <= b < 0.9) + 1
         self.verify_known_svg(svg, "ts_x_lim.svg", overwrite_viz, width=200 * num_trees)
 
+    @pytest.mark.skipif(IS_WINDOWS, reason="Msprime gives different result on Windows")
     def test_known_max_num_trees(self, overwrite_viz, draw_plotbox, caplog):
         max_trees = 5
         ts = msprime.sim_ancestry(
@@ -2816,6 +2821,7 @@ class TestDrawKnownSvg(TestDrawSvgBase):
             svg, "ts_max_trees.svg", overwrite_viz, width=200 * (max_trees + 1)
         )
 
+    @pytest.mark.skipif(IS_WINDOWS, reason="Msprime gives different result on Windows")
     def test_known_max_num_trees_treewise(self, overwrite_viz, draw_plotbox, caplog):
         max_trees = 5
         ts = msprime.sim_ancestry(
