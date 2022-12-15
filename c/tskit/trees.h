@@ -1192,12 +1192,6 @@ we will have ``position < tree.interval.right``.
 
 Seeking to a position currently covered by the tree is
 a constant time operation.
-
-.. warning::
-   The current implementation of ``seek`` does **not** provide efficient
-   random access to arbitrary positions along the genome. However,
-   sequentially seeking in either direction is as efficient as calling
-   :c:func:`tsk_tree_next` or :c:func:`tsk_tree_prev` directly.
 @endrst
 
 @param self A pointer to an initialised tsk_tree_t object.
@@ -1207,6 +1201,22 @@ a constant time operation.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_tree_seek(tsk_tree_t *self, double position, tsk_flags_t options);
+
+/**
+@brief Seek to a specific tree in a tree sequence.
+
+@rst
+Set the state of this tree to reflect the tree in parent
+tree sequence whose index is ``0 <= tree < num_trees``.
+@endrst
+
+@param self A pointer to an initialised tsk_tree_t object.
+@param tree The target tree index.
+@param options Seek options. Currently unused. Set to 0 for compatibility
+    with future versions of tskit.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_tree_seek_index(tsk_tree_t *self, tsk_id_t tree, tsk_flags_t options);
 
 /** @} */
 
