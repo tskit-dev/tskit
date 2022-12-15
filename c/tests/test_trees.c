@@ -6140,8 +6140,14 @@ test_seek_multi_tree(void)
         ret = tsk_tree_seek(&t, breakpoints[j], 0);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         CU_ASSERT_EQUAL_FATAL(t.index, j);
+        ret = tsk_tree_seek_index(&t, j, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL_FATAL(t.index, j);
         for (k = 0; k < num_trees; k++) {
             ret = tsk_tree_seek(&t, breakpoints[k], 0);
+            CU_ASSERT_EQUAL_FATAL(ret, 0);
+            CU_ASSERT_EQUAL_FATAL(t.index, k);
+            ret = tsk_tree_seek_index(&t, k, 0);
             CU_ASSERT_EQUAL_FATAL(ret, 0);
             CU_ASSERT_EQUAL_FATAL(t.index, k);
         }
@@ -6204,6 +6210,10 @@ test_seek_errors(void)
     ret = tsk_tree_seek(&t, 10, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SEEK_OUT_OF_BOUNDS);
     ret = tsk_tree_seek(&t, 11, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SEEK_OUT_OF_BOUNDS);
+    ret = tsk_tree_seek_index(&t, (tsk_id_t) ts.num_trees, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SEEK_OUT_OF_BOUNDS);
+    ret = tsk_tree_seek_index(&t, -1, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SEEK_OUT_OF_BOUNDS);
 
     tsk_tree_free(&t);

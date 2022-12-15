@@ -4598,10 +4598,13 @@ class TestSeekDirection:
             t2.prev()
         assert_same_tree_different_order(t1, t2)
 
-    def test_seek_0_from_null(self):
+    @pytest.mark.parametrize("position", [0, 1, 2, 3])
+    def test_seek_from_null(self, position):
         t1, t2 = self.setup()
-        t1.first()
-        t2.seek(0)
+        t1.clear()
+        t1.seek(position)
+        t2.first()
+        t2.seek(position)
         assert_trees_identical(t1, t2)
 
     @pytest.mark.parametrize("index", range(3))
@@ -4654,6 +4657,14 @@ class TestSeekDirection:
         t2.seek(3)
         assert_trees_identical(t1, t2)
 
+    def test_seek_3_from_null_prev(self):
+        t1, t2 = self.setup()
+        t1.last()
+        t1.prev()
+        t2.seek(3)
+        t2.prev()
+        assert_trees_identical(t1, t2)
+
     def test_seek_3_from_0(self):
         t1, t2 = self.setup()
         t1.last()
@@ -4667,6 +4678,37 @@ class TestSeekDirection:
         t1.first()
         t2.last()
         t2.seek(0)
+        assert_trees_identical(t1, t2)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_seek_mid_null_and_middle(self, ts):
+        breakpoints = ts.breakpoints(as_array=True)
+        mid = breakpoints[:-1] + np.diff(breakpoints) / 2
+        for index, x in enumerate(mid[:-1]):
+            t1 = tskit.Tree(ts)
+            t1.seek(x)
+            # Also seek to this point manually to make sure we're not
+            # reusing the seek from null under the hood.
+            t2 = tskit.Tree(ts)
+            if index <= ts.num_trees / 2:
+                while t2.index != index:
+                    t2.next()
+            else:
+                while t2.index != index:
+                    t2.prev()
+            assert t1.index == t2.index
+            assert np.all(t1.parent_array == t2.parent_array)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_seek_last_then_prev(self, ts):
+        t1 = tskit.Tree(ts)
+        t1.seek(ts.sequence_length - 0.00001)
+        assert t1.index == ts.num_trees - 1
+        t2 = tskit.Tree(ts)
+        t2.prev()
+        assert_trees_identical(t1, t2)
+        t1.prev()
+        t2.prev()
         assert_trees_identical(t1, t2)
 
 

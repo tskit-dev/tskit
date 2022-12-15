@@ -4549,19 +4549,138 @@ tsk_tree_position_in_interval(const tsk_tree_t *self, double x)
     return self->interval.left <= x && x < self->interval.right;
 }
 
-int TSK_WARN_UNUSED
-tsk_tree_seek(tsk_tree_t *self, double x, tsk_flags_t TSK_UNUSED(options))
+/* NOTE:
+ *
+ * Notes from Kevin Thornton:
+ *
+ * This method inserts the edges for an arbitrary tree
+ * in linear time and requires no additional memory.
+ *
+ * During design, the following alternatives were tested
+ * (in a combination of rust + C):
+ * 1. Indexing edge insertion/removal locations by tree.
+ *    The indexing can be done in O(n) time, giving O(1)
+ *    access to the first edge in a tree. We can then add
+ *    edges to the tree in O(e) time, where e is the number
+ *    of edges. This apparoach requires O(n) additional memory
+ *    and is only marginally faster than the implementation below.
+ * 2. Building an interval tree mapping edge id -> span.
+ *    This approach adds a lot of complexity and wasn't any faster
+ *    than the indexing described above.
+ */
+static int
+tsk_tree_seek_from_null(tsk_tree_t *self, double x, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
+    tsk_size_t edge;
+    tsk_id_t p, c, e, j, k, tree_index;
     const double L = tsk_treeseq_get_sequence_length(self->tree_sequence);
-    const double t_l = self->interval.left;
-    const double t_r = self->interval.right;
-    double distance_left, distance_right;
+    const tsk_treeseq_t *treeseq = self->tree_sequence;
+    const tsk_table_collection_t *tables = treeseq->tables;
+    const tsk_id_t *restrict edge_parent = tables->edges.parent;
+    const tsk_id_t *restrict edge_child = tables->edges.child;
+    const tsk_size_t num_edges = tables->edges.num_rows;
+    const tsk_size_t num_trees = self->tree_sequence->num_trees;
+    const double *restrict edge_left = tables->edges.left;
+    const double *restrict edge_right = tables->edges.right;
+    const double *restrict breakpoints = treeseq->breakpoints;
+    const tsk_id_t *restrict insertion = tables->indexes.edge_insertion_order;
+    const tsk_id_t *restrict removal = tables->indexes.edge_removal_order;
 
-    if (x < 0 || x >= L) {
+    // NOTE: it may be better to get the
+    // index first and then ask if we are
+    // searching in the first or last 1/2
+    // of trees.
+    j = -1;
+    if (x <= L / 2.0) {
+        for (edge = 0; edge < num_edges; edge++) {
+            e = insertion[edge];
+            if (edge_left[e] > x) {
+                j = (tsk_id_t) edge;
+                break;
+            }
+            if (x >= edge_left[e] && x < edge_right[e]) {
+                p = edge_parent[e];
+                c = edge_child[e];
+                tsk_tree_insert_edge(self, p, c, e);
+            }
+        }
+    } else {
+        for (edge = 0; edge < num_edges; edge++) {
+            e = removal[num_edges - edge - 1];
+            if (edge_right[e] < x) {
+                j = (tsk_id_t)(num_edges - edge - 1);
+                while (j < (tsk_id_t) num_edges && edge_left[insertion[j]] <= x) {
+                    j++;
+                }
+                break;
+            }
+            if (x >= edge_left[e] && x < edge_right[e]) {
+                p = edge_parent[e];
+                c = edge_child[e];
+                tsk_tree_insert_edge(self, p, c, e);
+            }
+        }
+    }
+
+    if (j == -1) {
+        j = 0;
+        while (j < (tsk_id_t) num_edges && edge_left[insertion[j]] <= x) {
+            j++;
+        }
+    }
+    k = 0;
+    while (k < (tsk_id_t) num_edges && edge_right[removal[k]] <= x) {
+        k++;
+    }
+
+    /* NOTE: tsk_search_sorted finds the first the first
+     * insertion locatiom >= the query point, which
+     * finds a RIGHT value for queries not at the left edge.
+     */
+    tree_index = (tsk_id_t) tsk_search_sorted(breakpoints, num_trees + 1, x);
+    if (breakpoints[tree_index] > x) {
+        tree_index -= 1;
+    }
+    self->index = tree_index;
+    self->interval.left = breakpoints[tree_index];
+    self->interval.right = breakpoints[tree_index + 1];
+    self->left_index = j;
+    self->right_index = k;
+    self->direction = TSK_DIR_FORWARD;
+    self->num_nodes = tables->nodes.num_rows;
+    if (tables->sites.num_rows > 0) {
+        self->sites = treeseq->tree_sites[self->index];
+        self->sites_length = treeseq->tree_sites_length[self->index];
+    }
+
+    return ret;
+}
+
+int TSK_WARN_UNUSED
+tsk_tree_seek_index(tsk_tree_t *self, tsk_id_t tree, tsk_flags_t options)
+{
+    int ret = 0;
+    double x;
+
+    if (tree < 0 || tree >= (tsk_id_t) self->tree_sequence->num_trees) {
         ret = TSK_ERR_SEEK_OUT_OF_BOUNDS;
         goto out;
     }
+    x = self->tree_sequence->breakpoints[tree];
+    ret = tsk_tree_seek(self, x, options);
+out:
+    return ret;
+}
+
+static int TSK_WARN_UNUSED
+tsk_tree_seek_linear(tsk_tree_t *self, double x, tsk_flags_t TSK_UNUSED(options))
+{
+    const double L = tsk_treeseq_get_sequence_length(self->tree_sequence);
+    const double t_l = self->interval.left;
+    const double t_r = self->interval.right;
+    int ret = 0;
+    double distance_left, distance_right;
 
     if (x < t_l) {
         /* |-----|-----|========|---------| */
@@ -4590,6 +4709,27 @@ tsk_tree_seek(tsk_tree_t *self, double x, tsk_flags_t TSK_UNUSED(options))
         }
     }
     ret = 0;
+out:
+    return ret;
+}
+
+int TSK_WARN_UNUSED
+tsk_tree_seek(tsk_tree_t *self, double x, tsk_flags_t options)
+{
+    int ret = 0;
+    const double L = tsk_treeseq_get_sequence_length(self->tree_sequence);
+
+    if (x < 0 || x >= L) {
+        ret = TSK_ERR_SEEK_OUT_OF_BOUNDS;
+        goto out;
+    }
+
+    if (self->index == -1) {
+        ret = tsk_tree_seek_from_null(self, x, options);
+    } else {
+        ret = tsk_tree_seek_linear(self, x, options);
+    }
+
 out:
     return ret;
 }
