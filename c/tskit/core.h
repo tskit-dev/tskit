@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2022 Tskit Developers
+ * Copyright (c) 2019-2023 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -356,6 +356,12 @@ A time value was non-finite (NaN counts as finite)
 A genomic position was non-finite
 */
 #define TSK_ERR_GENOME_COORDS_NONFINITE                             -211
+/**
+One of the rows in the retained table refers to a row that has been
+deleted.
+*/
+#define TSK_ERR_KEEP_ROWS_MAP_TO_DELETED                            -212
+
 /** @} */
 
 /**

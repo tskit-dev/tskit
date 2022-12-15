@@ -1492,6 +1492,106 @@ test_node_table_update_row(void)
 }
 
 static void
+test_node_table_keep_rows(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_size_t j;
+    tsk_node_table_t source, t1, t2;
+    tsk_node_t row;
+    bool keep[3] = { 1, 1, 1 };
+    tsk_id_t id_map[3];
+    const char *metadata = "ABC";
+    tsk_id_t indexes[] = { 0, 1, 2 };
+
+    ret = tsk_node_table_init(&source, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret_id = tsk_node_table_add_row(&source, 0, 1.0, 2, 3, metadata, 1);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_node_table_add_row(&source, 1, 2.0, 3, 4, metadata, 2);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_node_table_add_row(&source, 2, 3.0, 4, 5, metadata, 3);
+    CU_ASSERT_FATAL(ret_id >= 0);
+
+    ret = tsk_node_table_copy(&source, &t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_node_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_node_table_equals(&t1, &source, 0));
+
+    ret = tsk_node_table_keep_rows(&t1, keep, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_node_table_equals(&t1, &source, 0));
+    CU_ASSERT_EQUAL_FATAL(id_map[0], 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], 1);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], 2);
+
+    keep[0] = 0;
+    keep[1] = 0;
+    keep[2] = 0;
+    ret = tsk_node_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t1.num_rows, 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[0], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], -1);
+
+    ret = tsk_node_table_copy(&source, &t1, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    keep[0] = 0;
+    keep[1] = 1;
+    keep[2] = 0;
+    ret = tsk_node_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t1.num_rows, 1);
+    CU_ASSERT_EQUAL_FATAL(id_map[0], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], -1);
+
+    ret = tsk_node_table_get_row(&t1, 0, &row);
+    CU_ASSERT_EQUAL_FATAL(row.flags, 1);
+    CU_ASSERT_EQUAL_FATAL(row.time, 2.0);
+    CU_ASSERT_EQUAL_FATAL(row.population, 3);
+    CU_ASSERT_EQUAL_FATAL(row.individual, 4);
+    CU_ASSERT_EQUAL_FATAL(row.metadata_length, 2);
+    CU_ASSERT_EQUAL_FATAL(row.metadata[0], 'A');
+    CU_ASSERT_EQUAL_FATAL(row.metadata[1], 'B');
+
+    tsk_node_table_free(&t1);
+
+    keep[0] = 0;
+    keep[1] = 0;
+    keep[2] = 0;
+    /* Keeping first n rows equivalent to truncate */
+    for (j = 0; j < source.num_rows; j++) {
+        ret = tsk_node_table_copy(&source, &t2, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_node_table_copy(&source, &t1, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_node_table_truncate(&t1, j + 1);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        keep[j] = 1;
+        ret = tsk_node_table_keep_rows(&t2, keep, 0, NULL);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_node_table_equals(&t1, &t2, 0));
+
+        /* Adding the remaining rows back on to the table gives the original
+         * table */
+        ret = tsk_node_table_extend(
+            &t2, &source, source.num_rows - j - 1, indexes + j + 1, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_node_table_equals(&source, &t2, 0));
+
+        tsk_node_table_free(&t1);
+        tsk_node_table_free(&t2);
+    }
+
+    tsk_node_table_free(&source);
+}
+
+static void
 test_edge_table_with_options(tsk_flags_t options)
 {
     int ret;
@@ -2032,6 +2132,203 @@ test_edge_table_update_row_no_metadata(void)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_METADATA_DISABLED);
 
     tsk_edge_table_free(&table);
+}
+
+static void
+test_edge_table_keep_rows(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_size_t j;
+    tsk_edge_table_t source, t1, t2;
+    tsk_edge_t row;
+    bool keep[3] = { 1, 1, 1 };
+    tsk_id_t id_map[3];
+    const char *metadata = "ABC";
+    tsk_id_t indexes[] = { 0, 1, 2 };
+
+    ret = tsk_edge_table_init(&source, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret_id = tsk_edge_table_add_row(&source, 0, 1.0, 2, 3, metadata, 1);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_edge_table_add_row(&source, 1, 2.0, 3, 4, metadata, 2);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_edge_table_add_row(&source, 2, 3.0, 4, 5, metadata, 3);
+    CU_ASSERT_FATAL(ret_id >= 0);
+
+    ret = tsk_edge_table_copy(&source, &t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_edge_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_edge_table_equals(&t1, &source, 0));
+
+    ret = tsk_edge_table_keep_rows(&t1, keep, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_edge_table_equals(&t1, &source, 0));
+    CU_ASSERT_EQUAL_FATAL(id_map[0], 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], 1);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], 2);
+
+    keep[0] = 0;
+    keep[1] = 0;
+    keep[2] = 0;
+    ret = tsk_edge_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t1.num_rows, 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[0], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], -1);
+
+    ret = tsk_edge_table_copy(&source, &t1, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    keep[0] = 0;
+    keep[1] = 1;
+    keep[2] = 0;
+    ret = tsk_edge_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t1.num_rows, 1);
+    CU_ASSERT_EQUAL_FATAL(id_map[0], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], -1);
+
+    ret = tsk_edge_table_get_row(&t1, 0, &row);
+    CU_ASSERT_EQUAL_FATAL(row.left, 1);
+    CU_ASSERT_EQUAL_FATAL(row.right, 2.0);
+    CU_ASSERT_EQUAL_FATAL(row.parent, 3);
+    CU_ASSERT_EQUAL_FATAL(row.child, 4);
+    CU_ASSERT_EQUAL_FATAL(row.metadata_length, 2);
+    CU_ASSERT_EQUAL_FATAL(row.metadata[0], 'A');
+    CU_ASSERT_EQUAL_FATAL(row.metadata[1], 'B');
+
+    tsk_edge_table_free(&t1);
+
+    keep[0] = 0;
+    keep[1] = 0;
+    keep[2] = 0;
+    /* Keeping first n rows equivalent to truncate */
+    for (j = 0; j < source.num_rows; j++) {
+        ret = tsk_edge_table_copy(&source, &t2, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_edge_table_copy(&source, &t1, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_edge_table_truncate(&t1, j + 1);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        keep[j] = 1;
+        ret = tsk_edge_table_keep_rows(&t2, keep, 0, NULL);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_edge_table_equals(&t1, &t2, 0));
+
+        /* Adding the remaining rows back on to the table gives the original
+         * table */
+        ret = tsk_edge_table_extend(
+            &t2, &source, source.num_rows - j - 1, indexes + j + 1, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_edge_table_equals(&source, &t2, 0));
+
+        tsk_edge_table_free(&t1);
+        tsk_edge_table_free(&t2);
+    }
+
+    tsk_edge_table_free(&source);
+}
+
+static void
+test_edge_table_keep_rows_no_metadata(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_size_t j;
+    tsk_edge_table_t source, t1, t2;
+    tsk_edge_t row;
+    bool keep[3] = { 1, 1, 1 };
+    tsk_id_t id_map[3];
+    tsk_id_t indexes[] = { 0, 1, 2 };
+
+    ret = tsk_edge_table_init(&source, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret_id = tsk_edge_table_add_row(&source, 0, 1.0, 2, 3, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_edge_table_add_row(&source, 1, 2.0, 3, 4, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_edge_table_add_row(&source, 2, 3.0, 4, 5, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+
+    ret = tsk_edge_table_copy(&source, &t1, TSK_TABLE_NO_METADATA);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_edge_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_edge_table_equals(&t1, &source, 0));
+
+    ret = tsk_edge_table_keep_rows(&t1, keep, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_edge_table_equals(&t1, &source, 0));
+    CU_ASSERT_EQUAL_FATAL(id_map[0], 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], 1);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], 2);
+
+    keep[0] = 0;
+    keep[1] = 0;
+    keep[2] = 0;
+    ret = tsk_edge_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t1.num_rows, 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[0], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], -1);
+
+    ret = tsk_edge_table_copy(&source, &t1, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    keep[0] = 0;
+    keep[1] = 1;
+    keep[2] = 0;
+    ret = tsk_edge_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t1.num_rows, 1);
+    CU_ASSERT_EQUAL_FATAL(id_map[0], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], -1);
+
+    ret = tsk_edge_table_get_row(&t1, 0, &row);
+    CU_ASSERT_EQUAL_FATAL(row.left, 1);
+    CU_ASSERT_EQUAL_FATAL(row.right, 2.0);
+    CU_ASSERT_EQUAL_FATAL(row.parent, 3);
+    CU_ASSERT_EQUAL_FATAL(row.child, 4);
+    CU_ASSERT_EQUAL_FATAL(row.metadata_length, 0);
+
+    tsk_edge_table_free(&t1);
+
+    keep[0] = 0;
+    keep[1] = 0;
+    keep[2] = 0;
+    /* Keeping first n rows equivalent to truncate */
+    for (j = 0; j < source.num_rows; j++) {
+        ret = tsk_edge_table_copy(&source, &t2, TSK_TABLE_NO_METADATA);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_edge_table_copy(&source, &t1, TSK_TABLE_NO_METADATA);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_edge_table_truncate(&t1, j + 1);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        keep[j] = 1;
+        ret = tsk_edge_table_keep_rows(&t2, keep, 0, NULL);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_edge_table_equals(&t1, &t2, 0));
+
+        /* Adding the remaining rows back on to the table gives the original
+         * table */
+        ret = tsk_edge_table_extend(
+            &t2, &source, source.num_rows - j - 1, indexes + j + 1, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_edge_table_equals(&source, &t2, 0));
+
+        tsk_edge_table_free(&t1);
+        tsk_edge_table_free(&t2);
+    }
+
+    tsk_edge_table_free(&source);
 }
 
 static void
@@ -2959,6 +3256,107 @@ test_site_table_update_row(void)
 }
 
 static void
+test_site_table_keep_rows(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_size_t j;
+    tsk_site_table_t source, t1, t2;
+    tsk_site_t row;
+    const char *ancestral_state = "XYZ";
+    const char *metadata = "ABC";
+    bool keep[3] = { 1, 1, 1 };
+    tsk_id_t id_map[3];
+    tsk_id_t indexes[] = { 0, 1, 2 };
+
+    ret = tsk_site_table_init(&source, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret_id = tsk_site_table_add_row(&source, 0, ancestral_state, 1, metadata, 1);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_site_table_add_row(&source, 1, ancestral_state, 2, metadata, 2);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_site_table_add_row(&source, 2, ancestral_state, 3, metadata, 3);
+    CU_ASSERT_FATAL(ret_id >= 0);
+
+    ret = tsk_site_table_copy(&source, &t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_site_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_site_table_equals(&t1, &source, 0));
+
+    ret = tsk_site_table_keep_rows(&t1, keep, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_site_table_equals(&t1, &source, 0));
+    CU_ASSERT_EQUAL_FATAL(id_map[0], 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], 1);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], 2);
+
+    keep[0] = 0;
+    keep[1] = 0;
+    keep[2] = 0;
+    ret = tsk_site_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t1.num_rows, 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[0], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], -1);
+
+    ret = tsk_site_table_copy(&source, &t1, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    keep[0] = 0;
+    keep[1] = 1;
+    keep[2] = 0;
+    ret = tsk_site_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t1.num_rows, 1);
+    CU_ASSERT_EQUAL_FATAL(id_map[0], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], -1);
+
+    ret = tsk_site_table_get_row(&t1, 0, &row);
+    CU_ASSERT_EQUAL_FATAL(row.position, 1);
+    CU_ASSERT_EQUAL_FATAL(row.ancestral_state_length, 2);
+    CU_ASSERT_EQUAL_FATAL(row.ancestral_state[0], 'X');
+    CU_ASSERT_EQUAL_FATAL(row.ancestral_state[1], 'Y');
+    CU_ASSERT_EQUAL_FATAL(row.metadata_length, 2);
+    CU_ASSERT_EQUAL_FATAL(row.metadata[0], 'A');
+    CU_ASSERT_EQUAL_FATAL(row.metadata[1], 'B');
+
+    tsk_site_table_free(&t1);
+
+    keep[0] = 0;
+    keep[1] = 0;
+    keep[2] = 0;
+    /* Keeping first n rows equivalent to truncate */
+    for (j = 0; j < source.num_rows; j++) {
+        ret = tsk_site_table_copy(&source, &t2, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_site_table_copy(&source, &t1, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_site_table_truncate(&t1, j + 1);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        keep[j] = 1;
+        ret = tsk_site_table_keep_rows(&t2, keep, 0, NULL);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_site_table_equals(&t1, &t2, 0));
+
+        /* Adding the remaining rows back on to the table gives the original
+         * table */
+        ret = tsk_site_table_extend(
+            &t2, &source, source.num_rows - j - 1, indexes + j + 1, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_site_table_equals(&source, &t2, 0));
+
+        tsk_site_table_free(&t1);
+        tsk_site_table_free(&t2);
+    }
+
+    tsk_site_table_free(&source);
+}
+
+static void
 test_mutation_table(void)
 {
     int ret;
@@ -3644,6 +4042,199 @@ test_mutation_table_update_row(void)
 }
 
 static void
+test_mutation_table_keep_rows(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_size_t j;
+    tsk_mutation_table_t source, t1, t2;
+    tsk_mutation_t row;
+    const char *derived_state = "XYZ";
+    const char *metadata = "ABC";
+    bool keep[3] = { 1, 1, 1 };
+    tsk_id_t id_map[3];
+    tsk_id_t indexes[] = { 0, 1, 2 };
+
+    ret = tsk_mutation_table_init(&source, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret_id = tsk_mutation_table_add_row(
+        &source, 0, 1, -1, 3.0, derived_state, 1, metadata, 1);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_mutation_table_add_row(
+        &source, 1, 2, -1, 4.0, derived_state, 2, metadata, 2);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_mutation_table_add_row(
+        &source, 2, 3, 0, 5.0, derived_state, 3, metadata, 3);
+    CU_ASSERT_FATAL(ret_id >= 0);
+
+    ret = tsk_mutation_table_copy(&source, &t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_mutation_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_mutation_table_equals(&t1, &source, 0));
+
+    ret = tsk_mutation_table_keep_rows(&t1, keep, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_mutation_table_equals(&t1, &source, 0));
+    CU_ASSERT_EQUAL_FATAL(id_map[0], 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], 1);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], 2);
+
+    keep[0] = 0;
+    keep[1] = 0;
+    keep[2] = 0;
+    ret = tsk_mutation_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t1.num_rows, 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[0], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], -1);
+
+    ret = tsk_mutation_table_copy(&source, &t1, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    keep[0] = 0;
+    keep[1] = 1;
+    keep[2] = 0;
+    ret = tsk_mutation_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t1.num_rows, 1);
+    CU_ASSERT_EQUAL_FATAL(id_map[0], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], -1);
+
+    ret = tsk_mutation_table_get_row(&t1, 0, &row);
+    CU_ASSERT_EQUAL_FATAL(row.site, 1);
+    CU_ASSERT_EQUAL_FATAL(row.node, 2);
+    CU_ASSERT_EQUAL_FATAL(row.parent, -1);
+    CU_ASSERT_EQUAL_FATAL(row.time, 4);
+    CU_ASSERT_EQUAL_FATAL(row.derived_state_length, 2);
+    CU_ASSERT_EQUAL_FATAL(row.derived_state[0], 'X');
+    CU_ASSERT_EQUAL_FATAL(row.derived_state[1], 'Y');
+    CU_ASSERT_EQUAL_FATAL(row.metadata_length, 2);
+    CU_ASSERT_EQUAL_FATAL(row.metadata[0], 'A');
+    CU_ASSERT_EQUAL_FATAL(row.metadata[1], 'B');
+
+    tsk_mutation_table_free(&t1);
+
+    keep[0] = 0;
+    keep[1] = 0;
+    keep[2] = 0;
+    /* Keeping first n rows equivalent to truncate */
+    for (j = 0; j < source.num_rows; j++) {
+        ret = tsk_mutation_table_copy(&source, &t2, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_mutation_table_copy(&source, &t1, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_mutation_table_truncate(&t1, j + 1);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        keep[j] = 1;
+        ret = tsk_mutation_table_keep_rows(&t2, keep, 0, NULL);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_mutation_table_equals(&t1, &t2, 0));
+
+        /* Adding the remaining rows back on to the table gives the original
+         * table */
+        ret = tsk_mutation_table_extend(
+            &t2, &source, source.num_rows - j - 1, indexes + j + 1, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_mutation_table_equals(&source, &t2, 0));
+
+        tsk_mutation_table_free(&t1);
+        tsk_mutation_table_free(&t2);
+    }
+
+    tsk_mutation_table_free(&source);
+}
+
+static void
+test_mutation_table_keep_rows_parent_references(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_mutation_table_t source, t;
+    bool keep[4] = { 1, 1, 1, 1 };
+    tsk_id_t id_map[4];
+
+    ret = tsk_mutation_table_init(&source, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret_id = tsk_mutation_table_add_row(&source, 0, 1, -1, 3.0, "A", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_mutation_table_add_row(&source, 1, 2, -1, 4.0, "A", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_mutation_table_add_row(&source, 2, 3, 1, 5.0, "A", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_mutation_table_add_row(&source, 3, 4, 1, 6.0, "A", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+
+    ret = tsk_mutation_table_copy(&source, &t, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* OOB errors */
+    t.parent[0] = -2;
+    ret = tsk_mutation_table_keep_rows(&t, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(t.num_rows, 4);
+
+    t.parent[0] = 4;
+    ret = tsk_mutation_table_keep_rows(&t, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(t.num_rows, 4);
+    /* But ignored if row is not kept */
+    keep[0] = false;
+    ret = tsk_mutation_table_keep_rows(&t, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_mutation_table_free(&t);
+
+    ret = tsk_mutation_table_copy(&source, &t, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    /* Try to remove referenced row 1 */
+    keep[0] = true;
+    keep[1] = false;
+    ret = tsk_mutation_table_keep_rows(&t, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_KEEP_ROWS_MAP_TO_DELETED);
+    CU_ASSERT_TRUE(tsk_mutation_table_equals(&source, &t, 0));
+    tsk_mutation_table_free(&t);
+
+    ret = tsk_mutation_table_copy(&source, &t, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    /* remove unreferenced row 0 */
+    keep[0] = false;
+    keep[1] = true;
+    ret = tsk_mutation_table_keep_rows(&t, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t.num_rows, 3);
+    CU_ASSERT_EQUAL_FATAL(t.parent[0], TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(t.parent[1], 0);
+    CU_ASSERT_EQUAL_FATAL(t.parent[2], 0);
+    tsk_mutation_table_free(&t);
+
+    /* Check that we don't change the table in error cases. */
+    source.parent[3] = -2;
+    ret = tsk_mutation_table_copy(&source, &t, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    keep[0] = true;
+    ret = tsk_mutation_table_keep_rows(&t, keep, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_OUT_OF_BOUNDS);
+    CU_ASSERT_TRUE(tsk_mutation_table_equals(&source, &t, 0));
+    tsk_mutation_table_free(&t);
+
+    /* Check that we don't change the table in error cases. */
+    source.parent[3] = 0;
+    ret = tsk_mutation_table_copy(&source, &t, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    keep[0] = false;
+    ret = tsk_mutation_table_keep_rows(&t, keep, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_KEEP_ROWS_MAP_TO_DELETED);
+    CU_ASSERT_TRUE(tsk_mutation_table_equals(&source, &t, 0));
+    tsk_mutation_table_free(&t);
+
+    tsk_mutation_table_free(&source);
+}
+
+static void
 test_migration_table(void)
 {
     int ret;
@@ -4242,6 +4833,108 @@ test_migration_table_update_row(void)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATION_OUT_OF_BOUNDS);
 
     tsk_migration_table_free(&table);
+}
+
+static void
+test_migration_table_keep_rows(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_size_t j;
+    tsk_migration_table_t source, t1, t2;
+    tsk_migration_t row;
+    const char *metadata = "ABC";
+    bool keep[3] = { 1, 1, 1 };
+    tsk_id_t id_map[3];
+    tsk_id_t indexes[] = { 0, 1, 2 };
+
+    ret = tsk_migration_table_init(&source, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret_id = tsk_migration_table_add_row(&source, 0, 1.0, 2, 3, 4, 5, metadata, 1);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_migration_table_add_row(&source, 1, 2.0, 3, 4, 5, 6, metadata, 2);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_migration_table_add_row(&source, 2, 3.0, 4, 5, 6, 7, metadata, 3);
+    CU_ASSERT_FATAL(ret_id >= 0);
+
+    ret = tsk_migration_table_copy(&source, &t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_migration_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_migration_table_equals(&t1, &source, 0));
+
+    ret = tsk_migration_table_keep_rows(&t1, keep, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_migration_table_equals(&t1, &source, 0));
+    CU_ASSERT_EQUAL_FATAL(id_map[0], 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], 1);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], 2);
+
+    keep[0] = 0;
+    keep[1] = 0;
+    keep[2] = 0;
+    ret = tsk_migration_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t1.num_rows, 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[0], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], -1);
+
+    ret = tsk_migration_table_copy(&source, &t1, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    keep[0] = 0;
+    keep[1] = 1;
+    keep[2] = 0;
+    ret = tsk_migration_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t1.num_rows, 1);
+    CU_ASSERT_EQUAL_FATAL(id_map[0], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], -1);
+
+    ret = tsk_migration_table_get_row(&t1, 0, &row);
+    CU_ASSERT_EQUAL_FATAL(row.left, 1);
+    CU_ASSERT_EQUAL_FATAL(row.right, 2);
+    CU_ASSERT_EQUAL_FATAL(row.node, 3);
+    CU_ASSERT_EQUAL_FATAL(row.source, 4);
+    CU_ASSERT_EQUAL_FATAL(row.dest, 5);
+    CU_ASSERT_EQUAL_FATAL(row.time, 6);
+    CU_ASSERT_EQUAL_FATAL(row.metadata_length, 2);
+    CU_ASSERT_EQUAL_FATAL(row.metadata[0], 'A');
+    CU_ASSERT_EQUAL_FATAL(row.metadata[1], 'B');
+
+    tsk_migration_table_free(&t1);
+
+    keep[0] = 0;
+    keep[1] = 0;
+    keep[2] = 0;
+    /* Keeping first n rows equivalent to truncate */
+    for (j = 0; j < source.num_rows; j++) {
+        ret = tsk_migration_table_copy(&source, &t2, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_migration_table_copy(&source, &t1, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_migration_table_truncate(&t1, j + 1);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        keep[j] = 1;
+        ret = tsk_migration_table_keep_rows(&t2, keep, 0, NULL);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_migration_table_equals(&t1, &t2, 0));
+
+        /* Adding the remaining rows back on to the table gives the original
+         * table */
+        ret = tsk_migration_table_extend(
+            &t2, &source, source.num_rows - j - 1, indexes + j + 1, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_migration_table_equals(&source, &t2, 0));
+
+        tsk_migration_table_free(&t1);
+        tsk_migration_table_free(&t2);
+    }
+
+    tsk_migration_table_free(&source);
 }
 
 static void
@@ -4970,6 +5663,201 @@ test_individual_table_update_row(void)
 }
 
 static void
+test_individual_table_keep_rows(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_individual_t row;
+    double location[] = { 0, 1, 2 };
+    tsk_id_t parents[] = { -1, 1, -1 };
+    const char *metadata = "ABC";
+    bool keep[3] = { 1, 1, 1 };
+    tsk_id_t indexes[] = { 0, 1, 2 };
+    tsk_id_t id_map[3];
+    tsk_individual_table_t source, t1, t2;
+    tsk_size_t j;
+
+    ret = tsk_individual_table_init(&source, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret_id
+        = tsk_individual_table_add_row(&source, 0, location, 1, parents, 1, metadata, 1);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id
+        = tsk_individual_table_add_row(&source, 1, location, 2, parents, 2, metadata, 2);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id
+        = tsk_individual_table_add_row(&source, 2, location, 3, parents, 3, metadata, 3);
+    CU_ASSERT_FATAL(ret_id >= 0);
+
+    ret = tsk_individual_table_copy(&source, &t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_individual_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_individual_table_equals(&t1, &source, 0));
+
+    ret = tsk_individual_table_keep_rows(&t1, keep, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_individual_table_equals(&t1, &source, 0));
+    CU_ASSERT_EQUAL_FATAL(id_map[0], 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], 1);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], 2);
+
+    keep[0] = 0;
+    keep[1] = 0;
+    keep[2] = 0;
+    ret = tsk_individual_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t1.num_rows, 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[0], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], -1);
+
+    ret = tsk_individual_table_copy(&source, &t1, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    keep[0] = 0;
+    keep[1] = 1;
+    keep[2] = 0;
+    ret = tsk_individual_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t1.num_rows, 1);
+    CU_ASSERT_EQUAL_FATAL(id_map[0], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], -1);
+
+    ret = tsk_individual_table_get_row(&t1, 0, &row);
+    CU_ASSERT_EQUAL_FATAL(row.flags, 1);
+    CU_ASSERT_EQUAL_FATAL(row.parents_length, 2);
+    CU_ASSERT_EQUAL_FATAL(row.parents[0], -1);
+    CU_ASSERT_EQUAL_FATAL(row.parents[1], 0);
+    CU_ASSERT_EQUAL_FATAL(row.location_length, 2);
+    CU_ASSERT_EQUAL_FATAL(row.location[0], 0);
+    CU_ASSERT_EQUAL_FATAL(row.location[1], 1);
+    CU_ASSERT_EQUAL_FATAL(row.metadata_length, 2);
+    CU_ASSERT_EQUAL_FATAL(row.metadata[0], 'A');
+    CU_ASSERT_EQUAL_FATAL(row.metadata[1], 'B');
+
+    tsk_individual_table_free(&t1);
+
+    keep[0] = 0;
+    keep[1] = 0;
+    keep[2] = 0;
+    /* Keeping first n rows equivalent to truncate */
+    for (j = 0; j < source.num_rows; j++) {
+        ret = tsk_individual_table_copy(&source, &t2, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_individual_table_copy(&source, &t1, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_individual_table_truncate(&t1, j + 1);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        keep[j] = 1;
+        ret = tsk_individual_table_keep_rows(&t2, keep, 0, NULL);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_individual_table_equals(&t1, &t2, 0));
+
+        /* Adding the remaining rows back on to the table gives the original
+         * table */
+        ret = tsk_individual_table_extend(
+            &t2, &source, source.num_rows - j - 1, indexes + j + 1, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_individual_table_equals(&source, &t2, 0));
+
+        tsk_individual_table_free(&t1);
+        tsk_individual_table_free(&t2);
+    }
+
+    tsk_individual_table_free(&source);
+}
+
+static void
+test_individual_table_keep_rows_parent_references(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_individual_table_t source, t;
+    bool keep[] = { 1, 1, 1, 1 };
+    tsk_id_t parents[] = { -1, 1, 2 };
+    tsk_id_t id_map[4];
+
+    ret = tsk_individual_table_init(&source, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret_id = tsk_individual_table_add_row(&source, 0, NULL, 0, parents, 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_individual_table_add_row(&source, 0, NULL, 0, parents, 3, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_individual_table_add_row(&source, 0, NULL, 0, parents, 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_individual_table_add_row(&source, 0, NULL, 0, parents, 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+
+    ret = tsk_individual_table_copy(&source, &t, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* OOB errors */
+    t.parents[0] = -2;
+    ret = tsk_individual_table_keep_rows(&t, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(t.num_rows, 4);
+
+    t.parents[0] = 4;
+    ret = tsk_individual_table_keep_rows(&t, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
+    CU_ASSERT_EQUAL_FATAL(t.num_rows, 4);
+    /* But ignored if row is not kept */
+    keep[0] = false;
+    ret = tsk_individual_table_keep_rows(&t, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_individual_table_free(&t);
+
+    ret = tsk_individual_table_copy(&source, &t, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    /* Try to remove referenced row 2 */
+    keep[0] = true;
+    keep[2] = false;
+    ret = tsk_individual_table_keep_rows(&t, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_KEEP_ROWS_MAP_TO_DELETED);
+    CU_ASSERT_TRUE(tsk_individual_table_equals(&source, &t, 0));
+    tsk_individual_table_free(&t);
+
+    ret = tsk_individual_table_copy(&source, &t, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    /* remove unreferenced row 0 */
+    keep[0] = false;
+    keep[2] = true;
+    ret = tsk_individual_table_keep_rows(&t, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t.num_rows, 3);
+    CU_ASSERT_EQUAL_FATAL(t.parents[0], TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(t.parents[1], 0);
+    CU_ASSERT_EQUAL_FATAL(t.parents[2], 1);
+    tsk_individual_table_free(&t);
+
+    /* Check that we don't change the table in error cases. */
+    source.parents[1] = -2;
+    ret = tsk_individual_table_copy(&source, &t, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    keep[0] = true;
+    ret = tsk_individual_table_keep_rows(&t, keep, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS);
+    CU_ASSERT_TRUE(tsk_individual_table_equals(&source, &t, 0));
+    tsk_individual_table_free(&t);
+
+    /* Check that we don't change the table in error cases. */
+    source.parents[1] = 0;
+    ret = tsk_individual_table_copy(&source, &t, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    keep[0] = false;
+    ret = tsk_individual_table_keep_rows(&t, keep, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_KEEP_ROWS_MAP_TO_DELETED);
+    CU_ASSERT_TRUE(tsk_individual_table_equals(&source, &t, 0));
+    tsk_individual_table_free(&t);
+
+    tsk_individual_table_free(&source);
+}
+
+static void
 test_population_table(void)
 {
     int ret;
@@ -5344,6 +6232,102 @@ test_population_table_update_row(void)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_POPULATION_OUT_OF_BOUNDS);
 
     tsk_population_table_free(&table);
+}
+
+static void
+test_population_table_keep_rows(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_size_t j;
+    tsk_population_table_t source, t1, t2;
+    tsk_population_t row;
+    const char *metadata = "ABC";
+    bool keep[3] = { 1, 1, 1 };
+    tsk_id_t id_map[3];
+    tsk_id_t indexes[] = { 0, 1, 2 };
+
+    ret = tsk_population_table_init(&source, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret_id = tsk_population_table_add_row(&source, metadata, 1);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_population_table_add_row(&source, metadata, 2);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_population_table_add_row(&source, metadata, 3);
+    CU_ASSERT_FATAL(ret_id >= 0);
+
+    ret = tsk_population_table_copy(&source, &t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_population_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_population_table_equals(&t1, &source, 0));
+
+    ret = tsk_population_table_keep_rows(&t1, keep, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_population_table_equals(&t1, &source, 0));
+    CU_ASSERT_EQUAL_FATAL(id_map[0], 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], 1);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], 2);
+
+    keep[0] = 0;
+    keep[1] = 0;
+    keep[2] = 0;
+    ret = tsk_population_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t1.num_rows, 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[0], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], -1);
+
+    ret = tsk_population_table_copy(&source, &t1, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    keep[0] = 0;
+    keep[1] = 1;
+    keep[2] = 0;
+    ret = tsk_population_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t1.num_rows, 1);
+    CU_ASSERT_EQUAL_FATAL(id_map[0], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], -1);
+
+    ret = tsk_population_table_get_row(&t1, 0, &row);
+    CU_ASSERT_EQUAL_FATAL(row.metadata_length, 2);
+    CU_ASSERT_EQUAL_FATAL(row.metadata[0], 'A');
+    CU_ASSERT_EQUAL_FATAL(row.metadata[1], 'B');
+
+    tsk_population_table_free(&t1);
+
+    keep[0] = 0;
+    keep[1] = 0;
+    keep[2] = 0;
+    /* Keeping first n rows equivalent to truncate */
+    for (j = 0; j < source.num_rows; j++) {
+        ret = tsk_population_table_copy(&source, &t2, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_population_table_copy(&source, &t1, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_population_table_truncate(&t1, j + 1);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        keep[j] = 1;
+        ret = tsk_population_table_keep_rows(&t2, keep, 0, NULL);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_population_table_equals(&t1, &t2, 0));
+
+        /* Adding the remaining rows back on to the table gives the original
+         * table */
+        ret = tsk_population_table_extend(
+            &t2, &source, source.num_rows - j - 1, indexes + j + 1, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_population_table_equals(&source, &t2, 0));
+
+        tsk_population_table_free(&t1);
+        tsk_population_table_free(&t2);
+    }
+
+    tsk_population_table_free(&source);
 }
 
 static void
@@ -5783,6 +6767,106 @@ test_provenance_table_update_row(void)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_PROVENANCE_OUT_OF_BOUNDS);
 
     tsk_provenance_table_free(&table);
+}
+
+static void
+test_provenance_table_keep_rows(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_size_t j;
+    tsk_provenance_table_t source, t1, t2;
+    tsk_provenance_t row;
+    const char *timestamp = "XYZ";
+    const char *record = "ABC";
+    bool keep[3] = { 1, 1, 1 };
+    tsk_id_t indexes[] = { 0, 1, 2 };
+    tsk_id_t id_map[3];
+
+    ret = tsk_provenance_table_init(&source, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret_id = tsk_provenance_table_add_row(&source, timestamp, 1, record, 1);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_provenance_table_add_row(&source, timestamp, 2, record, 2);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_provenance_table_add_row(&source, timestamp, 3, record, 3);
+    CU_ASSERT_FATAL(ret_id >= 0);
+
+    ret = tsk_provenance_table_copy(&source, &t1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_provenance_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_provenance_table_equals(&t1, &source, 0));
+
+    ret = tsk_provenance_table_keep_rows(&t1, keep, 0, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_provenance_table_equals(&t1, &source, 0));
+    CU_ASSERT_EQUAL_FATAL(id_map[0], 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], 1);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], 2);
+
+    keep[0] = 0;
+    keep[1] = 0;
+    keep[2] = 0;
+    ret = tsk_provenance_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t1.num_rows, 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[0], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], -1);
+
+    ret = tsk_provenance_table_copy(&source, &t1, TSK_NO_INIT);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    keep[0] = 0;
+    keep[1] = 1;
+    keep[2] = 0;
+    ret = tsk_provenance_table_keep_rows(&t1, keep, 0, id_map);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(t1.num_rows, 1);
+    CU_ASSERT_EQUAL_FATAL(id_map[0], -1);
+    CU_ASSERT_EQUAL_FATAL(id_map[1], 0);
+    CU_ASSERT_EQUAL_FATAL(id_map[2], -1);
+
+    ret = tsk_provenance_table_get_row(&t1, 0, &row);
+    CU_ASSERT_EQUAL_FATAL(row.timestamp_length, 2);
+    CU_ASSERT_EQUAL_FATAL(row.timestamp[0], 'X');
+    CU_ASSERT_EQUAL_FATAL(row.timestamp[1], 'Y');
+    CU_ASSERT_EQUAL_FATAL(row.record_length, 2);
+    CU_ASSERT_EQUAL_FATAL(row.record[0], 'A');
+    CU_ASSERT_EQUAL_FATAL(row.record[1], 'B');
+
+    tsk_provenance_table_free(&t1);
+
+    keep[0] = 0;
+    keep[1] = 0;
+    keep[2] = 0;
+    /* Keeping first n rows equivalent to truncate */
+    for (j = 0; j < source.num_rows; j++) {
+        ret = tsk_provenance_table_copy(&source, &t2, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_provenance_table_copy(&source, &t1, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_provenance_table_truncate(&t1, j + 1);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        keep[j] = 1;
+        ret = tsk_provenance_table_keep_rows(&t2, keep, 0, NULL);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_provenance_table_equals(&t1, &t2, 0));
+
+        /* Adding the remaining rows back on to the table gives the original
+         * table */
+        ret = tsk_provenance_table_extend(
+            &t2, &source, source.num_rows - j - 1, indexes + j + 1, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_TRUE(tsk_provenance_table_equals(&source, &t2, 0));
+
+        tsk_provenance_table_free(&t1);
+        tsk_provenance_table_free(&t2);
+    }
+
+    tsk_provenance_table_free(&source);
 }
 
 static void
@@ -10456,11 +11540,15 @@ main(int argc, char **argv)
     CU_TestInfo tests[] = {
         { "test_node_table", test_node_table },
         { "test_node_table_update_row", test_node_table_update_row },
+        { "test_node_table_keep_rows", test_node_table_keep_rows },
         { "test_node_table_takeset", test_node_table_takeset },
         { "test_edge_table", test_edge_table },
         { "test_edge_table_update_row", test_edge_table_update_row },
         { "test_edge_table_update_row_no_metadata",
             test_edge_table_update_row_no_metadata },
+        { "test_edge_table_keep_rows", test_edge_table_keep_rows },
+        { "test_edge_table_keep_rows_no_metadata",
+            test_edge_table_keep_rows_no_metadata },
         { "test_edge_table_takeset", test_edge_table_takeset },
         { "test_edge_table_copy_semantics", test_edge_table_copy_semantics },
         { "test_edge_table_squash", test_edge_table_squash },
@@ -10472,21 +11560,31 @@ main(int argc, char **argv)
         { "test_edge_table_squash_metadata", test_edge_table_squash_metadata },
         { "test_site_table", test_site_table },
         { "test_site_table_update_row", test_site_table_update_row },
+        { "test_site_table_keep_rows", test_site_table_keep_rows },
         { "test_site_table_takeset", test_site_table_takeset },
         { "test_mutation_table", test_mutation_table },
         { "test_mutation_table_update_row", test_mutation_table_update_row },
         { "test_mutation_table_takeset", test_mutation_table_takeset },
+        { "test_mutation_table_keep_rows", test_mutation_table_keep_rows },
+        { "test_mutation_table_keep_rows_parent_references",
+            test_mutation_table_keep_rows_parent_references },
         { "test_migration_table", test_migration_table },
         { "test_migration_table_update_row", test_migration_table_update_row },
+        { "test_migration_table_keep_rows", test_migration_table_keep_rows },
         { "test_migration_table_takeset", test_migration_table_takeset },
         { "test_individual_table", test_individual_table },
         { "test_individual_table_takeset", test_individual_table_takeset },
         { "test_individual_table_update_row", test_individual_table_update_row },
+        { "test_individual_table_keep_rows", test_individual_table_keep_rows },
+        { "test_individual_table_keep_rows_parent_references",
+            test_individual_table_keep_rows_parent_references },
         { "test_population_table", test_population_table },
         { "test_population_table_update_row", test_population_table_update_row },
+        { "test_population_table_keep_rows", test_population_table_keep_rows },
         { "test_population_table_takeset", test_population_table_takeset },
         { "test_provenance_table", test_provenance_table },
         { "test_provenance_table_update_row", test_provenance_table_update_row },
+        { "test_provenance_table_keep_rows", test_provenance_table_keep_rows },
         { "test_provenance_table_takeset", test_provenance_table_takeset },
         { "test_table_size_increments", test_table_size_increments },
         { "test_table_expansion", test_table_expansion },
