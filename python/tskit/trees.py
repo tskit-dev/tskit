@@ -1583,6 +1583,23 @@ class Tree:
             raise ValueError("More than one root exists. Use tree.roots instead")
         return self.left_root
 
+    def is_root(self, u) -> bool:
+        """
+        Returns ``True`` if the specified node is a root in this tree (see
+        :attr:`~Tree.roots` for the definition of a root). This is exactly equivalent to
+        finding the node ID in :attr:`~Tree.roots`, but is more efficient for trees
+        with large numbers of roots, such as in regions with extensive
+        :ref:`sec_data_model_missing_data`.  Note that ``False`` is returned for all
+        other nodes, including :ref:`isolated<sec_data_model_tree_isolated_nodes>`
+        non-sample nodes which are not found in the topology of the current tree.
+
+        :param int u: The node of interest.
+        :return: ``True`` if u is a root.
+        """
+        return (
+            self.num_samples(u) >= self.root_threshold and self.parent(u) == tskit.NULL
+        )
+
     def get_index(self):
         # Deprecated alias for self.index
         return self.index

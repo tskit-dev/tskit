@@ -3899,6 +3899,21 @@ class TestTree(HighLevelTestCase):
         tree = tskit.Tree.generate_balanced(3, root_threshold=4)
         assert tree.num_roots == 0
 
+    @pytest.mark.parametrize("root_threshold", [1, 2, 3])
+    def test_is_root(self, root_threshold):
+        # Make a tree with multiple roots with different numbers of samples under each
+        ts = tskit.Tree.generate_balanced(5).tree_sequence
+        ts = ts.decapitate(ts.max_root_time - 0.1)
+        tables = ts.dump_tables()
+        tables.nodes.add_row(flags=0)  # Isolated non-sample
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE)  # Isolated sample
+        ts = tables.tree_sequence()
+        assert {ts.first().num_samples(u) for u in ts.first().roots} == {1, 2, 3}
+        tree = ts.first(root_threshold=root_threshold)
+        roots = set(tree.roots)
+        for u in range(ts.num_nodes):  # Will also test isolated nodes
+            assert tree.is_root(u) == (u in roots)
+
     def test_is_descendant(self):
         def is_descendant(tree, u, v):
             path = []
