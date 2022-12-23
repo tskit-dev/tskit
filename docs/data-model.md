@@ -830,12 +830,13 @@ HTML(html_quintuple_table(ts, show_convenience_arrays=True))
 
 ### Roots
 
-The roots of a tree are defined as the unique endpoints of upward paths
-starting from sample nodes ({ref}`isolated<sec_data_model_tree_isolated_nodes>`
-sample nodes also count as roots). Thus, trees can have multiple roots in `tskit`.
-For example, if we delete the edge joining `6` and `7` in the previous
-example, we get a tree with two roots:
-
+In the `tskit` {class}`trees <Tree>` we have shown so far, all the sample nodes have
+been connected to each other. This means each tree has only a single {attr}`~Tree.root`
+(i.e. the oldest node found when tracing a path backwards in time from any sample).
+However, a tree can contain {ref}`sec_data_model_tree_isolated_sample_nodes`
+or unconnected topologies, and can therefore have *multiple* {attr}`~Tree.roots`.
+Here's an example, created by deleting the edge joining `6` and `7` in the tree sequence
+used above:
 
 ```{code-cell} ipython3
 :tags: ["hide-input"]
@@ -845,7 +846,7 @@ ts_multiroot = tables.tree_sequence()
 SVG(ts_multiroot.first().draw_svg(time_scale="rank"))
 ```
 
-Note that in tree sequence terminology, this should *not* be thought
+In `tskit` terminology, this should *not* be thought
 of as two separate trees, but as a single multi-root "tree", comprising
 two unlinked topologies. This fits with the definition of a tree
 in a tree sequence: a tree describes the ancestry of the same
@@ -853,19 +854,34 @@ fixed set of sample nodes at a single position in the genome. In the
 picture above, *both* the left and right hand topologies are required
 to describe the genealogy of samples 0..4 at this position.
 
-Here's what it looks like for an entire tree sequence:
+Here's what the entire tree sequence now looks like:
 
 ```{code-cell} ipython3
 :tags: ["hide-input"]
 SVG(ts_multiroot.draw_svg(time_scale="rank"))
 ```
 
-This tree sequence consists of three trees. The first tree, which applies from
-position 0 to 20, is the one used in our example. As we saw, removing the edge
-connecting node 6 to node 7 has created a tree with 2 roots (and thus 2
-unconnected topologies in a single tree). In contrast, the second tree, from
-position 20 to 40, has a single root. Finally the third tree, from position
-40 to 60, again has two roots.
+From the terminology above, it can be seen that this tree sequence consists of only
+three trees (not five). The first tree, which applies from position 0 to 20, is the one
+used in our example. As we saw, removing the edge connecting node 6 to node 7 has
+created a tree with 2 roots (and thus 2 unconnected topologies in a single tree).
+In contrast, the second tree, from position 20 to 40, has a single root. Finally the
+third tree, from position 40 to 60, again has two roots.
+
+(sec_data_model_tree_root_threshold)=
+
+#### The root threshold
+
+The roots of a tree are defined by reference to the
+{ref}`sample nodes<sec_data_model_definitions_sample>`. By default, roots are the unique
+endpoints of the paths traced upwards from the sample nodes; equivalently, each root
+counts one or more samples among its descendants (or is itself a sample node). This is
+the case when the {attr}`~Tree.root_threshold` property of a tree is left at its default
+value of `1`. If, however, the `root_threshold` is (say) `2`, then a node is
+considered a root only if it counts at least two samples among its descendants. Setting
+an alternative `root_threshold` value can be used to avoid visiting
+{ref}`sec_data_model_tree_isolated_sample_nodes`, for example when dealing with trees
+containing {ref}`sec_data_model_missing_data`.
 
 (sec_data_model_tree_virtual_root)=
 
@@ -940,11 +956,18 @@ for tree in ts_multiroot.trees():
     )
 ```
 
-However, it is also possible for a {ref}`sample node<sec_data_model_definitions_sample>`
-to be isolated. Unlike other nodes, isolated *sample* nodes are still considered as
-being present on the tree (meaning they will still returned by the {meth}`Tree.nodes`
-and {meth}`Tree.samples` methods): they are therefore plotted, but unconnected to any
-other nodes. To illustrate, we can remove the edge from node 2 to node 7.
+
+(sec_data_model_tree_isolated_sample_nodes)=
+
+#### Isolated sample nodes
+
+It is also possible for a {ref}`sample node<sec_data_model_definitions_sample>`
+to be isolated. As long as the {ref}`root threshold<sec_data_model_tree_root_threshold>`
+is set to its default value, an isolated *sample* node will count as a root, and
+therefore be considered as being present on the tree (meaning it will be
+returned by the {meth}`Tree.nodes`
+and {meth}`Tree.samples` methods). When displaying a tree, isolated samples are shown
+unconnected to other nodes. To illustrate, we can remove the edge from node 2 to node 7:
 
 ```{code-cell} ipython3
 :tags: ["hide-input"]
@@ -955,9 +978,9 @@ ts_isolated = tables.tree_sequence()
 SVG(ts_isolated.draw_svg(time_scale="rank"))
 ```
 
-The rightmost tree now contains an isolated sample node (node 2). Isolated
-sample nodes count as one of the {ref}`sec_data_model_tree_roots` of the tree,
-so that tree has three roots, one of which is node 2:
+The rightmost tree now contains an isolated sample node (node 2), which counts as
+one of the {ref}`sec_data_model_tree_roots` of the tree. This tree therefore has three
+roots, one of which is node 2:
 
 ```{code-cell} ipython3
 rightmost_tree = ts_isolated.at_index(-1)

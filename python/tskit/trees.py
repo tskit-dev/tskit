@@ -727,7 +727,8 @@ class Tree:
     def root_threshold(self):
         """
         Returns the minimum number of samples that a node must be an ancestor
-        of to be considered a potential root.
+        of to be considered a potential root. This can be set, for example, when
+        calling the :meth:`TreeSequence.trees` iterator.
 
         :return: The root threshold.
         :rtype: :class:`TreeSequence`
@@ -1547,6 +1548,12 @@ class Tree:
         The roots of the tree are returned in a list, in no particular order.
 
         Only requires O(number of roots) time.
+
+        .. note::
+            In trees with large amounts of :ref:`sec_data_model_missing_data`,
+            for example where a region of the genome lacks any ancestral information,
+            there can be a very large number of roots, potentially all the samples
+            in the tree sequence.
 
         :return: The list of roots in this tree.
         :rtype: list
