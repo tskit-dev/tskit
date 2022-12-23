@@ -4,6 +4,9 @@
 
 **Features**
 
+- A new ``Tree.is_empty`` method can be used to determine if a tree is empty
+  for 2 definitions of emptiness (:user:`hyanwong`, :pr:`2668`, :issue:`2640`)
+
 - The ``TreeSequence`` object now has the attributes ``min_time`` and ``max_time``,
   which are the minimum and maximum among the node times and mutation times,
   respectively. (:user:`szhan`, :pr:`2612`, :issue:`2271`)

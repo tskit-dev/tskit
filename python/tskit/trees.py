@@ -851,6 +851,35 @@ class Tree:
             raise ValueError("Position out of bounds")
         self._ll_tree.seek(position)
 
+    def is_empty(self, check_roots=None) -> bool:
+        """
+        Check if this tree is "empty" (i.e. has no topology). A tree is empty if it has
+        no edges. However, it may also be considered empty if it contains edges which
+        represent :ref:`dead branches<sec_data_model_tree_dead_leaves_and_branches>`
+        (i.e. not reachable from the :meth:`~Tree.roots` of the tree). To consider such
+        a tree as empty too, which is more involved, specify ``check_roots=True``.
+
+        Note that this is purely a property of the topology. An "empty" tree can still
+        contain sites and there may even be mutations on those sites.
+
+        :param bool check_roots: Should we also consider a tree empty if it has
+            topology but the topology is unconnected to any of the roots of the tree?
+            Default: ``None`` treated as ``False``.
+        :return: ``True`` if this tree is empty, ``False`` otherwise.
+        """
+        if self.num_edges == 0:
+            return True
+
+        if not check_roots:
+            return False
+
+        # Exhaustively check the roots: it's not simply enough to check that the roots
+        # are all samples, as they could still have children
+        for u in self.roots:
+            if self.num_children(u) != 0:
+                return False
+        return True
+
     def rank(self) -> tskit.Rank:
         """
         Produce the rank of this tree in the enumeration of all leaf-labelled

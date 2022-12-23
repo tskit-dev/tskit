@@ -1764,6 +1764,85 @@ class TestZeroRoots:
         self.verify(ts, no_root_ts)
 
 
+class TestEmptyTrees(TopologyTestCase):
+    """
+    Tests for different sorts of "empty" trees
+    """
+
+    @pytest.mark.parametrize("check_roots", [None, True, False])
+    def test_no_nodes(self, check_roots):
+        tables = tskit.TableCollection(1)
+        tree = tables.tree_sequence().first()
+        assert tree.is_empty(check_roots=check_roots)
+
+    @pytest.mark.parametrize("check_roots", [None, True, False])
+    @pytest.mark.parametrize("root_threshold", [1, 2, 3])
+    def test_normal(self, check_roots, root_threshold):
+        tree = tskit.Tree.generate_balanced(2, root_threshold=root_threshold)
+        if check_roots and root_threshold > 2:
+            assert tree.is_empty(check_roots=check_roots)
+        else:
+            assert not tree.is_empty(check_roots=check_roots)
+
+    @pytest.mark.parametrize("check_roots", [None, True, False])
+    @pytest.mark.parametrize("root_threshold", [1, 2])
+    def test_stick(self, check_roots, root_threshold):
+        ts = tskit.Tree.generate_balanced(2).tree_sequence
+        stick_tree = ts.simplify([0], keep_unary=True).first(
+            root_threshold=root_threshold
+        )
+        if check_roots and root_threshold > 1:
+            assert stick_tree.is_empty(check_roots=check_roots)
+        else:
+            assert not stick_tree.is_empty(check_roots=check_roots)
+
+    @pytest.mark.parametrize("check_roots", [None, True, False])
+    @pytest.mark.parametrize("root_threshold", [1, 2])
+    def test_upsidedown_stick(self, check_roots, root_threshold):
+        ts = tskit.Tree.generate_balanced(2).tree_sequence
+        tables = ts.simplify([0], keep_unary=True).dump_tables()
+        # swap flags so that non-sample is dangling off sample
+        tables.nodes.flags = 1 - tables.nodes.flags
+        upsidedown_stick_tree = tables.tree_sequence().first(
+            root_threshold=root_threshold
+        )
+        if check_roots and root_threshold > 1:
+            assert upsidedown_stick_tree.is_empty(check_roots=check_roots)
+        else:
+            assert not upsidedown_stick_tree.is_empty(check_roots=check_roots)
+
+    @pytest.mark.parametrize("check_roots", [None, True, False])
+    @pytest.mark.parametrize("root_threshold", [1, 2])
+    def test_multiroot_non_empty(self, check_roots, root_threshold):
+        tables = tskit.Tree.generate_balanced(2).tree_sequence.dump_tables()
+        tables.edges.truncate(1)
+        multiroot_tree = tables.tree_sequence().first(root_threshold=root_threshold)
+        assert multiroot_tree.num_roots == (2 if root_threshold == 1 else 0)
+        if check_roots and root_threshold > 1:
+            assert multiroot_tree.is_empty(check_roots=check_roots)
+        else:
+            assert not multiroot_tree.is_empty(check_roots=check_roots)
+
+    @pytest.mark.parametrize("check_roots", [True, False])
+    @pytest.mark.parametrize("root_threshold", [1, 2])
+    def test_empty(self, check_roots, root_threshold):
+        tables = tskit.Tree.generate_balanced(2).tree_sequence.dump_tables()
+        tables.delete_intervals([[0, 1]])
+        # check that sites & mutations make no difference
+        s = tables.sites.add_row(position=0.5, ancestral_state="0")
+        s = tables.mutations.add_row(site=s, derived_state="1", node=0)
+        tree = tables.tree_sequence().first(root_threshold=root_threshold)
+        assert tree.is_empty(check_roots=check_roots)
+
+    def test_dead_branch(self):
+        tables = tskit.Tree.generate_balanced(2).tree_sequence.dump_tables()
+        tables.nodes.flags = np.zeros_like(tables.nodes.flags)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE)
+        tree = tables.tree_sequence().first()
+        assert not tree.is_empty(check_roots=False)
+        assert tree.is_empty(check_roots=True)
+
+
 class TestEmptyTreeSequences(TopologyTestCase):
     """
     Tests covering tree sequences that have zero edges.
