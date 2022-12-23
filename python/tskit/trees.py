@@ -652,6 +652,7 @@ class Tree:
         tracked_samples=None,
         *,
         sample_lists=False,
+        skip_empty=None,
         root_threshold=1,
         sample_counts=None,
     ):
@@ -671,6 +672,7 @@ class Tree:
 
         self._tree_sequence = tree_sequence
         self._ll_tree = _tskit.Tree(tree_sequence.ll_tree_sequence, **kwargs)
+        self.skip_empty = skip_empty  # This is a python-only facility, not in _ll
         self._ll_tree.set_root_threshold(root_threshold)
         self._make_arrays()
 
@@ -3851,6 +3853,7 @@ class TreeIterator:
         self.tree = tree
         self.more_trees = True
         self.forward = True
+        self.no_skip_empty = True if tree.skip_empty is None else not tree.skip_empty
 
     def __iter__(self):
         return self
@@ -3860,15 +3863,19 @@ class TreeIterator:
         return self
 
     def __next__(self):
-        if self.forward:
-            self.more_trees = self.more_trees and self.tree.next()
-        else:
-            self.more_trees = self.more_trees and self.tree.prev()
-        if not self.more_trees:
-            raise StopIteration()
+        while True:
+            if self.forward:
+                self.more_trees = self.more_trees and self.tree.next()
+            else:
+                self.more_trees = self.more_trees and self.tree.prev()
+            if not self.more_trees:
+                raise StopIteration()
+            if self.no_skip_empty or not self.tree.is_empty():
+                break
         return self.tree
 
     def __len__(self):
+        # NB: this can return a longer length than the iterator if we skip empty trees
         return self.tree.tree_sequence.num_trees
 
 
@@ -4945,6 +4952,7 @@ class TreeSequence:
         tracked_samples=None,
         *,
         sample_lists=False,
+        skip_empty=None,
         root_threshold=1,
         sample_counts=None,
         tracked_leaves=None,
@@ -4972,6 +4980,9 @@ class TreeSequence:
         :param bool sample_lists: If True, provide more efficient access
             to the samples beneath a given node using the
             :meth:`Tree.samples` method.
+        :param bool skip_empty: If True, skip trees that are
+            :meth:`empty<Tree.is_empty>`, commonly found at the start and end of
+            a tree sequence. Default: ``None`` treated as ``False``.
         :param int root_threshold: The minimum number of samples that a node
             must be ancestral to for it to be in the list of roots. By default
             this is 1, so that isolated samples (representing missing data)
@@ -4996,6 +5007,7 @@ class TreeSequence:
             self,
             tracked_samples=tracked_samples,
             sample_lists=sample_lists,
+            skip_empty=skip_empty,
             root_threshold=root_threshold,
             sample_counts=sample_counts,
         )
