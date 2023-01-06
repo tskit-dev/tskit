@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -53,7 +53,7 @@ class PythonTree:
 
     @classmethod
     def from_tree(cls, tree):
-        ret = PythonTree(tree.num_nodes)
+        ret = PythonTree(tree.tree_sequence.num_nodes)
         ret.left, ret.right = tree.get_interval()
         ret.site_list = list(tree.sites())
         ret.index = tree.get_index()
