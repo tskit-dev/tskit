@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -3866,6 +3866,22 @@ class TestTree(HighLevelTestCase):
         assert tree.branch_length(0) == 0
         assert tree.branch_length(1) == 0
         assert tree.total_branch_length == 0
+
+    @pytest.mark.parametrize("r_threshold", [0, -1])
+    def test_bad_val_root_threshold(self, r_threshold):
+        with pytest.raises(ValueError, match="greater than 0"):
+            tskit.Tree.generate_balanced(2, root_threshold=r_threshold)
+
+    @pytest.mark.parametrize("r_threshold", [None, 0.5, 1.5, np.inf])
+    def test_bad_type_root_threshold(self, r_threshold):
+        with pytest.raises(TypeError):
+            tskit.Tree.generate_balanced(2, root_threshold=r_threshold)
+
+    def test_simple_root_threshold(self):
+        tree = tskit.Tree.generate_balanced(3, root_threshold=3)
+        assert tree.num_roots == 1
+        tree = tskit.Tree.generate_balanced(3, root_threshold=4)
+        assert tree.num_roots == 0
 
     def test_is_descendant(self):
         def is_descendant(tree, u, v):

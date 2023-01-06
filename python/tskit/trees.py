@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -665,6 +665,8 @@ class Tree:
         if sample_lists:
             options |= _tskit.SAMPLE_LISTS
         kwargs = {"options": options}
+        if root_threshold <= 0:
+            raise ValueError("Root threshold must be greater than 0")
         if tracked_samples is not None:
             # TODO remove this when we allow numpy arrays in the low-level API.
             kwargs["tracked_samples"] = list(tracked_samples)
