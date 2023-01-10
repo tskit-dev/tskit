@@ -12,7 +12,7 @@ commands:
             sudo pip install meson
             pip install numpy==1.18.5
             pip install --user -r python/requirements/CI-complete/requirements.txt
-            pip install twine --user
+            ARGO_NET_GIT_FETCH_WITH_CLI=1 pip install twine --user
             # Remove tskit installed by msprime
             pip uninstall tskit -y
             echo 'export PATH=/home/circleci/.local/bin:$PATH' >> $BASH_ENV
