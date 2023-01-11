@@ -15,12 +15,12 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        python: [3.7, 3.8, 3.9, "3.10"]
+        python: [3.7, 3.8, 3.9, "3.10", 3.11]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
       - name: Install deps
@@ -55,7 +55,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        python: [3.7, 3.8, 3.9, "3.10"]
+        python: [3.7, 3.8, 3.9, "3.10", 3.11]
         wordsize: [64]
     steps:
       - name: Checkout
@@ -108,7 +108,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Set up Python 3.8
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: 3.8
 
@@ -140,14 +140,14 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        python: [3.7, 3.8, 3.9, "3.10"]
+        python: [3.7, 3.8, 3.9, "3.10", 3.11]
     steps:
       - name: Download wheels
         uses: actions/download-artifact@v2
         with:
           name: osx-wheel-${{ matrix.python }}
       - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
       - name: Install wheel and test
@@ -162,7 +162,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        python: [3.7, 3.8, 3.9, "3.10"]
+        python: [3.7, 3.8, 3.9, "3.10", 3.11]
         wordsize: [64]
     steps:
       - name: Download wheels
@@ -170,7 +170,7 @@ jobs:
         with:
           name: win-wheel-${{ matrix.python }}-${{ matrix.wordsize }}
       - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
       - name: Install wheel and test
@@ -186,7 +186,7 @@ jobs:
     needs: ['manylinux']
     strategy:
       matrix:
-        python: [3.7, 3.8, 3.9, "3.10"]
+        python: [3.7, 3.8, 3.9, "3.10", 3.11]
         include:
           - python: 3.7
             wheel: cp37
@@ -196,13 +196,15 @@ jobs:
             wheel: cp39
           - python: "3.10"
             wheel: cp310
+          - python: 3.11
+            wheel: cp311
     steps:
       - name: Download wheels
         uses: actions/download-artifact@v2
         with:
           name: linux-wheels
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
       - name: Install wheel and test

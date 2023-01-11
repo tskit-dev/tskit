@@ -61,7 +61,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: [ 3.7, 3.9, "3.10" ]
+        python: [ 3.7, 3.9, "3.11" ]
         os:  [ macos-latest, ubuntu-latest, windows-latest ]
     defaults:
       run:
@@ -143,6 +143,11 @@ jobs:
           conda activate anaconda-client-env
           python setup.py build_ext --inplace
 
+      - name: Remove py311 incompatible tests (lack of numba support for 3.11, needed for lshmm)
+        if: matrix.python == '3.11'
+        run: |
+          rm python/tests/test_genotype_matching_*
+
       - name: Run tests
         working-directory: python
         run: |
@@ -152,7 +157,6 @@ jobs:
           python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 tests
 
       - name: Upload coverage to Codecov
-        if: matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@v2
         with:
           working-directory: python
