@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2022 Tskit Developers
+ * Copyright (c) 2019-2023 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -58,9 +58,6 @@ extern "C" {
 
 #define TSK_DIR_FORWARD 1
 #define TSK_DIR_REVERSE -1
-
-/* For the edge diff iterator */
-#define TSK_INCLUDE_TERMINAL        (1 << 0)
 
 /**
 @defgroup API_FLAGS_TS_INIT_GROUP :c:func:`tsk_treeseq_init` specific flags.
@@ -260,30 +257,6 @@ typedef struct {
     tsk_id_t left_index;
     tsk_id_t right_index;
 } tsk_tree_t;
-
-/* Diff iterator. */
-typedef struct _tsk_edge_list_node_t {
-    tsk_edge_t edge;
-    struct _tsk_edge_list_node_t *next;
-    struct _tsk_edge_list_node_t *prev;
-} tsk_edge_list_node_t;
-
-typedef struct {
-    tsk_edge_list_node_t *head;
-    tsk_edge_list_node_t *tail;
-} tsk_edge_list_t;
-
-typedef struct {
-    tsk_size_t num_nodes;
-    tsk_size_t num_edges;
-    double tree_left;
-    const tsk_treeseq_t *tree_sequence;
-    tsk_id_t insertion_index;
-    tsk_id_t removal_index;
-    tsk_id_t tree_index;
-    tsk_id_t last_index;
-    tsk_edge_list_node_t *edge_list_nodes;
-} tsk_diff_iter_t;
 
 /****************************************************************************/
 /* Tree sequence.*/
@@ -1114,10 +1087,6 @@ int tsk_tree_copy(const tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options)
 @{
 */
 
-/** @brief Value returned by seeking methods when they have successfully
-    seeked to a non-null tree. */
-#define TSK_TREE_OK 1
-
 /**
 @brief Seek to the first tree in the sequence.
 
@@ -1742,16 +1711,8 @@ bool tsk_tree_is_sample(const tsk_tree_t *self, tsk_id_t u);
  */
 bool tsk_tree_equals(const tsk_tree_t *self, const tsk_tree_t *other);
 
-/****************************************************************************/
-/* Diff iterator */
-/****************************************************************************/
-
-int tsk_diff_iter_init(
+int tsk_diff_iter_init_from_ts(
     tsk_diff_iter_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t options);
-int tsk_diff_iter_free(tsk_diff_iter_t *self);
-int tsk_diff_iter_next(tsk_diff_iter_t *self, double *left, double *right,
-    tsk_edge_list_t *edges_out, tsk_edge_list_t *edges_in);
-void tsk_diff_iter_print_state(const tsk_diff_iter_t *self, FILE *out);
 
 #ifdef __cplusplus
 }

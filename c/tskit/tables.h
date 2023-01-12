@@ -670,6 +670,30 @@ typedef struct {
     bool store_pairs;
 } tsk_identity_segments_t;
 
+/* Diff iterator. */
+typedef struct _tsk_edge_list_node_t {
+    tsk_edge_t edge;
+    struct _tsk_edge_list_node_t *next;
+    struct _tsk_edge_list_node_t *prev;
+} tsk_edge_list_node_t;
+
+typedef struct {
+    tsk_edge_list_node_t *head;
+    tsk_edge_list_node_t *tail;
+} tsk_edge_list_t;
+
+typedef struct {
+    tsk_size_t num_nodes;
+    tsk_size_t num_edges;
+    double tree_left;
+    const tsk_table_collection_t *tables;
+    tsk_id_t insertion_index;
+    tsk_id_t removal_index;
+    tsk_id_t tree_index;
+    tsk_id_t last_index;
+    tsk_edge_list_node_t *edge_list_nodes;
+} tsk_diff_iter_t;
+
 /****************************************************************************/
 /* Common function options */
 /****************************************************************************/
@@ -891,6 +915,16 @@ top-level information of the table collections being compared.
 /** Additionally clear the provenance table*/
 #define TSK_CLEAR_PROVENANCE (1 << 2)
 /** @} */
+
+/* For the edge diff iterator */
+#define TSK_INCLUDE_TERMINAL (1 << 0)
+
+/** @brief Value returned by seeking methods when they have successfully
+    seeked to a non-null tree.
+
+    @ingroup TREE_API_SEEKING_GROUP
+*/
+#define TSK_TREE_OK 1
 
 /****************************************************************************/
 /* Function signatures */
@@ -4416,6 +4450,19 @@ int tsk_identity_segments_get(const tsk_identity_segments_t *self, tsk_id_t a,
     tsk_id_t b, tsk_identity_segment_list_t **ret_list);
 void tsk_identity_segments_print_state(tsk_identity_segments_t *self, FILE *out);
 int tsk_identity_segments_free(tsk_identity_segments_t *self);
+
+/* Edge differences */
+
+/* Internal API - currently used in a few places, but a better API is envisaged
+ * at some point.
+ * IMPORTANT: tskit-rust uses this API, so don't break without discussing!
+ */
+int tsk_diff_iter_init(tsk_diff_iter_t *self, const tsk_table_collection_t *tables,
+    tsk_id_t num_trees, tsk_flags_t options);
+int tsk_diff_iter_free(tsk_diff_iter_t *self);
+int tsk_diff_iter_next(tsk_diff_iter_t *self, double *left, double *right,
+    tsk_edge_list_t *edges_out, tsk_edge_list_t *edges_in);
+void tsk_diff_iter_print_state(const tsk_diff_iter_t *self, FILE *out);
 
 #ifdef __cplusplus
 }

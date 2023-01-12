@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2022 Tskit Developers
+ * Copyright (c) 2019-2023 Tskit Developers
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -407,7 +407,7 @@ verify_tree_diffs(tsk_treeseq_t *ts, tsk_flags_t options)
         child[j] = TSK_NULL;
         sib[j] = TSK_NULL;
     }
-    ret = tsk_diff_iter_init(&iter, ts, options);
+    ret = tsk_diff_iter_init_from_ts(&iter, ts, options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_tree_init(&tree, ts, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
