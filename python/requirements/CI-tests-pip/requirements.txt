@@ -12,3 +12,4 @@ dendropy==4.5.2
 networkx==2.6.3 # Held at 2.6.3 for Python 3.7 compatibility
 msgpack==1.0.4
 newick==1.3.2
+tszip==0.2.2

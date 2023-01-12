@@ -3197,12 +3197,18 @@ class TableCollection(metadata.MetadataProvider):
     def load(cls, file_or_path, *, skip_tables=False, skip_reference_sequence=False):
         file, local_file = util.convert_file_like_to_open_file(file_or_path, "rb")
         ll_tc = _tskit.TableCollection()
-        ll_tc.load(
-            file,
-            skip_tables=skip_tables,
-            skip_reference_sequence=skip_reference_sequence,
-        )
-        return TableCollection(ll_tables=ll_tc)
+        try:
+            ll_tc.load(
+                file,
+                skip_tables=skip_tables,
+                skip_reference_sequence=skip_reference_sequence,
+            )
+            return TableCollection(ll_tables=ll_tc)
+        except tskit.FileFormatError as e:
+            util.raise_known_file_format_errors(file, e)
+        finally:
+            if local_file:
+                file.close()
 
     def dump(self, file_or_path):
         """
