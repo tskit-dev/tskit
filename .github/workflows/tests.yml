@@ -159,6 +159,7 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           working-directory: python
           fail_ci_if_error: true
           flags: python-tests
