@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2022 Tskit Developers
+ * Copyright (c) 2019-2023 Tskit Developers
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,7 @@
  */
 
 #include "testlib.h"
+#include "tskit/core.h"
 #include <tskit/tables.h>
 
 #include <float.h>
@@ -10420,6 +10421,35 @@ test_table_collection_delete_older(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_table_collection_edge_diffs_errors(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_table_collection_t tables;
+    tsk_diff_iter_t iter;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL(ret, 0);
+    tables.sequence_length = 1;
+    ret_id
+        = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0, -1, -1, NULL, 0);
+    CU_ASSERT_EQUAL(ret_id, 0);
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 1, -1, -1, NULL, 0);
+    CU_ASSERT_EQUAL(ret_id, 1);
+    ret = (int) tsk_edge_table_add_row(&tables.edges, 0., 1., 1, 0, NULL, 0);
+    CU_ASSERT_EQUAL(ret, 0);
+
+    ret = tsk_diff_iter_init(&iter, &tables, -1, 0);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_TABLES_NOT_INDEXED);
+
+    tables.nodes.time[0] = 1;
+    ret = tsk_diff_iter_init(&iter, &tables, -1, 0);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_NODE_TIME_ORDERING);
+
+    tsk_table_collection_free(&tables);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -10542,6 +10572,8 @@ main(int argc, char **argv)
         { "test_table_collection_takeset_indexes",
             test_table_collection_takeset_indexes },
         { "test_table_collection_delete_older", test_table_collection_delete_older },
+        { "test_table_collection_edge_diffs_errors",
+            test_table_collection_edge_diffs_errors },
         { NULL, NULL },
     };
 
