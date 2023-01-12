@@ -6516,6 +6516,7 @@ class TreeSequence:
         filter_individuals=None,
         filter_sites=None,
         filter_nodes=None,
+        filter_all=None,
         keep_unary=False,
         keep_unary_in_individuals=None,
         keep_input_roots=False,
@@ -6589,6 +6590,13 @@ class TreeSequence:
             potential change to the node table may be to change the node flags
             (if ``samples`` is specified and different from the existing samples).
             (Default: None, treated as True)
+        :param bool filter_all: Shorthand for simultaneously setting all the ``filter_X``
+            parameters. Set to False for minimal simplification of the tree sequence,
+            such that the only altered tables are the edge table and potentially, the
+            flags in the node table (this only if the ``samples`` change, as described
+            in the ``filter_nodes`` parameter). If None, this parameter has no effect.
+            If any other value and any ``filter_X`` parameter has been set,
+            an error will be raised. (Default: None)
         :param bool keep_unary: If True, preserve unary nodes (i.e., nodes with
             exactly one child) that exist on the path from samples to root.
             (Default: False)
@@ -6621,6 +6629,7 @@ class TreeSequence:
             filter_individuals=filter_individuals,
             filter_sites=filter_sites,
             filter_nodes=filter_nodes,
+            filter_all=filter_all,
             keep_unary=keep_unary,
             keep_unary_in_individuals=keep_unary_in_individuals,
             keep_input_roots=keep_input_roots,

@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2019-2022 Tskit Developers
+# Copyright (c) 2019-2023 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -112,15 +112,22 @@ class Simplifier:
         keep_unary_in_individuals=False,
         keep_input_roots=False,
         filter_nodes=True,  # If this is False, the order in `sample` is ignored
+        filter_all=None,  # Shorthand to set all other filter args at once
     ):
         self.ts = ts
         self.n = len(sample)
         self.reduce_to_site_topology = reduce_to_site_topology
         self.sequence_length = ts.sequence_length
-        self.filter_sites = filter_sites
-        self.filter_populations = filter_populations
-        self.filter_individuals = filter_individuals
-        self.filter_nodes = filter_nodes
+        if filter_all is not None:
+            self.filter_sites = filter_all
+            self.filter_populations = filter_all
+            self.filter_individuals = filter_all
+            self.filter_nodes = filter_all
+        else:
+            self.filter_sites = filter_sites
+            self.filter_populations = filter_populations
+            self.filter_individuals = filter_individuals
+            self.filter_nodes = filter_nodes
         self.keep_unary = keep_unary
         self.keep_unary_in_individuals = keep_unary_in_individuals
         self.keep_input_roots = keep_input_roots
