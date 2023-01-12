@@ -4093,6 +4093,8 @@ class TreeSequence:
                 skip_reference_sequence=skip_reference_sequence,
             )
             return TreeSequence(ts)
+        except tskit.FileFormatError as e:
+            util.raise_known_file_format_errors(file, e)
         finally:
             if local_file:
                 file.close()

@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -35,6 +35,7 @@ import tempfile
 import traceback
 
 import pytest
+import tszip
 from pytest import fixture
 
 import tskit
@@ -308,3 +309,59 @@ class TestSocket:
     def test_single_then_multi(self, ts_fixture, replicate_ts_fixture, client_fd):
         self.verify_stream([ts_fixture], client_fd)
         self.verify_stream(replicate_ts_fixture, client_fd)
+
+
+def write_to_fifo(path, file_path):
+    with open(path, "wb") as fifo:
+        with open(file_path, "rb") as file:
+            fifo.write(file.read())
+
+
+def read_from_fifo(path, expected_exception, error_text, read_func):
+    with open(path) as fifo:
+        with pytest.raises(expected_exception, match=error_text):
+            read_func(fifo)
+
+
+def write_and_read_from_fifo(fifo_path, file_path, expected_exception, error_text):
+    os.mkfifo(fifo_path)
+    for read_func in [tskit.load, tskit.TableCollection.load]:
+        read_process = multiprocessing.Process(
+            target=read_from_fifo,
+            args=(fifo_path, expected_exception, error_text, read_func),
+        )
+        read_process.start()
+        write_process = multiprocessing.Process(
+            target=write_to_fifo, args=(fifo_path, file_path)
+        )
+        write_process.start()
+        write_process.join(timeout=3)
+        read_process.join(timeout=3)
+
+
+@pytest.mark.skipif(IS_WINDOWS, reason="No FIFOs on Windows")
+class TestBadStream:
+    def test_bad_stream(self, tmp_path):
+        fifo_path = tmp_path / "fifo"
+        bad_file_path = tmp_path / "bad_file"
+        bad_file_path.write_bytes(b"bad data")
+        write_and_read_from_fifo(
+            fifo_path, bad_file_path, tskit.FileFormatError, "not in kastore format"
+        )
+
+    def test_legacy_stream(self, tmp_path):
+        fifo_path = tmp_path / "fifo"
+        legacy_file_path = os.path.join(
+            os.path.dirname(__file__), "data", "hdf5-formats", "msprime-0.3.0_v2.0.hdf5"
+        )
+        write_and_read_from_fifo(
+            fifo_path, legacy_file_path, tskit.FileFormatError, "not in kastore format"
+        )
+
+    def test_tszip_stream(self, tmp_path, ts_fixture):
+        fifo_path = tmp_path / "fifo"
+        zip_file_path = tmp_path / "tszip_file"
+        tszip.compress(ts_fixture, zip_file_path)
+        write_and_read_from_fifo(
+            fifo_path, zip_file_path, tskit.FileFormatError, "not in kastore format"
+        )

@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 # Copyright (c) 2016-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -36,11 +36,11 @@ import kastore
 import msprime
 import numpy as np
 import pytest
+import tszip as tszip
 
 import tests.tsutil as tsutil
 import tskit
 import tskit.exceptions as exceptions
-
 
 CURRENT_FILE_MAJOR = 12
 CURRENT_FILE_MINOR = 7
@@ -262,11 +262,17 @@ class TestLoadLegacyExamples(TestFileFormat):
         ]
         for filename in files:
             path = os.path.join(test_data_dir, "hdf5-formats", filename)
+
             with pytest.raises(
                 exceptions.FileFormatError,
-                match="uses the old HDF5-based format which can no longer",
+                match="appears to be in HDF5 format",
             ):
                 tskit.load(path)
+            with pytest.raises(
+                exceptions.FileFormatError,
+                match="appears to be in HDF5 format",
+            ):
+                tskit.TableCollection.load(path)
 
     def test_msprime_v_0_5_0(self):
         path = os.path.join(test_data_dir, "hdf5-formats", "msprime-0.5.0_v10.0.hdf5")
@@ -510,6 +516,14 @@ class TestErrors(TestFileFormat):
                 tskit.load_legacy(path)
             with pytest.raises(ImportError, match=msg):
                 tskit.dump_legacy(ts, path)
+
+    def test_tszip_file(self):
+        ts = msprime.simulate(5)
+        tszip.compress(ts, self.temp_file)
+        with pytest.raises(tskit.FileFormatError, match="appears to be in zip format"):
+            tskit.load(self.temp_file)
+        with pytest.raises(tskit.FileFormatError, match="appears to be in zip format"):
+            tskit.TableCollection.load(self.temp_file)
 
 
 class TestDumpFormat(TestFileFormat):
