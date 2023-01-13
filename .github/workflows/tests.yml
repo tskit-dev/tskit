@@ -8,10 +8,10 @@ on:
 jobs:
   pre-commit:
     name: Lint
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.10.0
+        uses: styfle/cancel-workflow-action@0.11.0
         with:
           access_token: ${{ github.token }}
       - uses: actions/checkout@v3
@@ -21,9 +21,8 @@ jobs:
       - name: install clang-format
         if: steps.clang_format.outputs.cache-hit != 'true'
         run: |
-          sudo apt-get remove -y clang-6.0 libclang-common-6.0-dev libclang1-6.0 libllvm6.0
-          sudo apt-get autoremove
-          sudo apt-get install clang-format clang-format-6.0
+          sudo pip install clang-format==6.0.1
+          sudo ln -s /usr/local/bin/clang-format /usr/local/bin/clang-format-6.0
       - uses: pre-commit/action@v3.0.0
 
   benchmark:
