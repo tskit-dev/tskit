@@ -3264,6 +3264,7 @@ class TableCollection(metadata.MetadataProvider):
         filter_individuals=None,
         filter_sites=None,
         filter_nodes=None,
+        update_sample_flags=None,
         keep_unary=False,
         keep_unary_in_individuals=None,
         keep_input_roots=False,
@@ -3278,21 +3279,11 @@ class TableCollection(metadata.MetadataProvider):
         result, resulting in a NodeTable where only the first ``len(samples)``
         nodes are marked as samples. The mapping from node IDs in the current
         set of tables to their equivalent values in the simplified tables is
-        also returned as a numpy array. If an array ``a`` is returned by this
+        returned as a numpy array. If an array ``a`` is returned by this
         function and ``u`` is the ID of a node in the input table, then
         ``a[u]`` is the ID of this node in the output table. For any node ``u``
         that is not mapped into the output tables, this mapping will equal
         ``-1``.
-
-        If ``filter_nodes`` is False, then the output node table will be
-        unchanged except for updating the sample status of nodes. Nodes that
-        are in the specified list of ``samples`` will be marked as samples
-        in the output, and nodes that are currently marked as samples in
-        the node table but **not** in the specified list of ``samples``
-        will have their sample flag cleared. Note also that the order of
-        the ``samples`` list is not meaningful when ``filter_nodes`` is False.
-        The returned node mapping is always the identity mapping, such that
-        ``a[u] == u`` for all nodes.
 
         Tables operated on by this function must: be sorted (see
         :meth:`TableCollection.sort`), have children be born strictly after their
@@ -3301,10 +3292,11 @@ class TableCollection(metadata.MetadataProvider):
         requirements to specify a valid tree sequence (but the resulting tables
         will).
 
-        This is identical to :meth:`TreeSequence.simplify` but acts *in place* to
-        alter the data in this :class:`TableCollection`. Please see the
-        :meth:`TreeSequence.simplify` method for a description of the remaining
-        parameters.
+        .. seealso::
+            This is identical to :meth:`TreeSequence.simplify` but acts *in place* to
+            alter the data in this :class:`TableCollection`. Please see the
+            :meth:`TreeSequence.simplify` method for a description of the remaining
+            parameters.
 
         :param list[int] samples: A list of node IDs to retain as samples. They
             need not be nodes marked as samples in the original tree sequence, but
@@ -3331,6 +3323,10 @@ class TableCollection(metadata.MetadataProvider):
             potential change to the node table may be to change the node flags
             (if ``samples`` is specified and different from the existing samples).
             (Default: None, treated as True)
+        :param bool update_sample_flags: If True, update node flags to so that
+            nodes in the specified list of samples have the NODE_IS_SAMPLE
+            flag after simplification, and nodes that are not in this list
+            do not. (Default: None, treated as True)
         :param bool keep_unary: If True, preserve unary nodes (i.e. nodes with
             exactly one child) that exist on the path from samples to root.
             (Default: False)
@@ -3374,6 +3370,8 @@ class TableCollection(metadata.MetadataProvider):
             filter_sites = True
         if filter_nodes is None:
             filter_nodes = True
+        if update_sample_flags is None:
+            update_sample_flags = True
         if keep_unary_in_individuals is None:
             keep_unary_in_individuals = False
 
@@ -3383,6 +3381,7 @@ class TableCollection(metadata.MetadataProvider):
             filter_individuals=filter_individuals,
             filter_populations=filter_populations,
             filter_nodes=filter_nodes,
+            update_sample_flags=update_sample_flags,
             reduce_to_site_topology=reduce_to_site_topology,
             keep_unary=keep_unary,
             keep_unary_in_individuals=keep_unary_in_individuals,

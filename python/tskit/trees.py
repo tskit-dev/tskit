@@ -6543,6 +6543,7 @@ class TreeSequence:
         filter_individuals=None,
         filter_sites=None,
         filter_nodes=None,
+        update_sample_flags=None,
         keep_unary=False,
         keep_unary_in_individuals=None,
         keep_input_roots=False,
@@ -6557,18 +6558,10 @@ class TreeSequence:
         original tree sequence, or :data:`tskit.NULL` (-1) if ``u`` is no longer
         present in the simplified tree sequence.
 
-        In the returned tree sequence the only nodes flagged as samples are
-        those passed as ``samples``: all others are not flagged as samples. If
-        ``filter_nodes`` is True (the default), nodes in the returned tree
-        sequence are also reordered such that the node with ID ``0``
-        corresponds to ``samples[0]``, node ``1`` corresponds to ``samples[1]``
-        etc., and the remaining node IDs are allocated sequentially in time
-        order. Alternatively, if ``filter_nodes`` is False, the node order is
-        not changed, and the order of IDs passed to ``samples`` is irrelevant.
-
-        If you wish to simplify a set of tables that do not satisfy all
-        requirements for building a TreeSequence, then use
-        :meth:`TableCollection.simplify`.
+        .. note::
+            If you wish to simplify a set of tables that do not satisfy all
+            requirements for building a TreeSequence, then use
+            :meth:`TableCollection.simplify`.
 
         If the ``reduce_to_site_topology`` parameter is True, the returned tree
         sequence will contain only topological information that is necessary to
@@ -6586,6 +6579,27 @@ class TreeSequence:
         it is important to realise IDs for these objects may change through
         simplification. By setting these parameters to False, however, the
         corresponding tables can be preserved without changes.
+
+        If ``filter_nodes`` is False, then the output node table will be
+        unchanged except for updating the sample status of nodes and any ID
+        remappings caused by filtering individuals and populations (if the
+        ``filter_individuals`` and ``filter_populations`` options are enabled).
+        Nodes that are in the specified list of ``samples`` will be marked as
+        samples in the output, and nodes that are currently marked as samples
+        in the node table but not in the specified list of ``samples`` will
+        have their :data:`tskit.NODE_IS_SAMPLE` flag cleared. Note also that
+        the order of the ``samples`` list is not meaningful when
+        ``filter_nodes`` is False. In this case, the returned node mapping is
+        always the identity mapping, such that ``a[u] == u`` for all nodes.
+
+        Setting the ``update_sample_flags`` parameter to False disables the
+        automatic sample status update of nodes (described above) from
+        occuring, making it the responsibility of calling code to keep track of
+        the ultimate sample status of nodes. This is an advanced option, mostly
+        of use when combined with the ``filter_nodes=False``,
+        ``filter_populations=False`` and ``filter_individuals=False`` options,
+        which then guarantees that the node table will not be altered by
+        simplification.
 
         :param list[int] samples: A list of node IDs to retain as samples. They
             need not be nodes marked as samples in the original tree sequence, but
@@ -6616,6 +6630,10 @@ class TreeSequence:
             potential change to the node table may be to change the node flags
             (if ``samples`` is specified and different from the existing samples).
             (Default: None, treated as True)
+        :param bool update_sample_flags: If True, update node flags to so that
+            nodes in the specified list of samples have the NODE_IS_SAMPLE
+            flag after simplification, and nodes that are not in this list
+            do not. (Default: None, treated as True)
         :param bool keep_unary: If True, preserve unary nodes (i.e., nodes with
             exactly one child) that exist on the path from samples to root.
             (Default: False)
@@ -6648,6 +6666,7 @@ class TreeSequence:
             filter_individuals=filter_individuals,
             filter_sites=filter_sites,
             filter_nodes=filter_nodes,
+            update_sample_flags=update_sample_flags,
             keep_unary=keep_unary,
             keep_unary_in_individuals=keep_unary_in_individuals,
             keep_input_roots=keep_input_roots,

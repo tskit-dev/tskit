@@ -111,7 +111,8 @@ class Simplifier:
         keep_unary=False,
         keep_unary_in_individuals=False,
         keep_input_roots=False,
-        filter_nodes=True,  # If this is False, the order in `sample` is ignored
+        filter_nodes=True,
+        update_sample_flags=True,
     ):
         self.ts = ts
         self.n = len(sample)
@@ -121,6 +122,7 @@ class Simplifier:
         self.filter_populations = filter_populations
         self.filter_individuals = filter_individuals
         self.filter_nodes = filter_nodes
+        self.update_sample_flags = update_sample_flags
         self.keep_unary = keep_unary
         self.keep_unary_in_individuals = keep_unary_in_individuals
         self.keep_input_roots = keep_input_roots
@@ -152,14 +154,14 @@ class Simplifier:
             # NOTE In the C implementation we would really just not touch the
             # original tables.
             self.tables.nodes.replace_with(self.ts.tables.nodes)
-            # TODO make this optional somehow
-            flags = self.tables.nodes.flags
-            # Zero out other sample flags
-            flags = np.bitwise_and(flags, ~tskit.NODE_IS_SAMPLE)
-            flags[sample] |= tskit.NODE_IS_SAMPLE
-            self.tables.nodes.flags = flags.astype(np.uint32)
-            self.node_id_map[:] = np.arange(ts.num_nodes)
+            if self.update_sample_flags:
+                flags = self.tables.nodes.flags
+                # Zero out other sample flags
+                flags = np.bitwise_and(flags, ~tskit.NODE_IS_SAMPLE)
+                flags[sample] |= tskit.NODE_IS_SAMPLE
+                self.tables.nodes.flags = flags.astype(np.uint32)
 
+            self.node_id_map[:] = np.arange(ts.num_nodes)
             for sample_id in sample:
                 self.add_ancestry(sample_id, 0, self.sequence_length, sample_id)
         else:
@@ -178,10 +180,11 @@ class Simplifier:
         """
         node = self.ts.node(input_id)
         flags = node.flags
-        # Need to zero out the sample flag
-        flags &= ~tskit.NODE_IS_SAMPLE
-        if self.is_sample[input_id]:
-            flags |= tskit.NODE_IS_SAMPLE
+        if self.update_sample_flags:
+            # Need to zero out the sample flag
+            flags &= ~tskit.NODE_IS_SAMPLE
+            if self.is_sample[input_id]:
+                flags |= tskit.NODE_IS_SAMPLE
         output_id = self.tables.nodes.append(node.replace(flags=flags))
         self.node_id_map[input_id] = output_id
         return output_id
