@@ -3264,6 +3264,7 @@ class TableCollection(metadata.MetadataProvider):
         filter_individuals=None,
         filter_sites=None,
         filter_nodes=None,
+        filter_all=None,
         keep_unary=False,
         keep_unary_in_individuals=None,
         keep_input_roots=False,
@@ -3331,6 +3332,13 @@ class TableCollection(metadata.MetadataProvider):
             potential change to the node table may be to change the node flags
             (if ``samples`` is specified and different from the existing samples).
             (Default: None, treated as True)
+        :param bool filter_all: Shorthand for simultaneously setting all the ``filter_X``
+            parameters. Set to False for minimal simplification of the tree sequence,
+            such that the only altered tables are the edge table and potentially, the
+            flags in the node table (this only if the ``samples`` change, as described
+            in the ``filter_nodes`` parameter). If None, this parameter has no effect.
+            If any other value and any ``filter_X`` parameter has been set,
+            an error will be raised. (Default: None)
         :param bool keep_unary: If True, preserve unary nodes (i.e. nodes with
             exactly one child) that exist on the path from samples to root.
             (Default: False)
@@ -3366,14 +3374,34 @@ class TableCollection(metadata.MetadataProvider):
             ].astype(np.int32)
         else:
             samples = util.safe_np_int_cast(samples, np.int32)
-        if filter_populations is None:
-            filter_populations = True
-        if filter_individuals is None:
-            filter_individuals = True
-        if filter_sites is None:
-            filter_sites = True
-        if filter_nodes is None:
-            filter_nodes = True
+        if filter_all is not None:
+            if any(
+                [
+                    filter_x is not None
+                    for filter_x in (
+                        filter_populations,
+                        filter_individuals,
+                        filter_sites,
+                        filter_nodes,
+                    )
+                ]
+            ):
+                raise ValueError(
+                    "Cannot combine `filter_all` with other `filter_X` parameters"
+                )
+            filter_populations = filter_all
+            filter_individuals = filter_all
+            filter_sites = filter_all
+            filter_nodes = filter_all
+        else:
+            if filter_populations is None:
+                filter_populations = True
+            if filter_individuals is None:
+                filter_individuals = True
+            if filter_sites is None:
+                filter_sites = True
+            if filter_nodes is None:
+                filter_nodes = True
         if keep_unary_in_individuals is None:
             keep_unary_in_individuals = False
 

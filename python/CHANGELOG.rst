@@ -4,6 +4,9 @@
 
 **Features**
 
+- A new ``filter_all`` parameter for simplify allows all filter_x params to be set
+  simultaneously (:user:`hyanwong`, :pr:`2681`, :issue:`2607`)
+
 - A new ``Tree.is_root`` method avoids the need to to search the potentially
   large list of ``Tree.roots`` (:user:`hyanwong`, :pr:`2669`, :issue:`2620`)
 
