@@ -29,6 +29,9 @@
   be identical to the version in msprime, apart from minor changes in the formatting
   of tabular text output (:user:`hyanwong`, :user:`jeromekelleher`, :pr:`2678`)
 
+- Tskit now supports and has wheels for Python 3.11. This Python version has a significant
+  performance boost (:user:`benjeffery`, :pr:`2624`, :issue:`2248`)
+
 **Breaking Changes**
 
  - the ``filter_populations``, ``filter_individuals``, and ``filter_sites``
