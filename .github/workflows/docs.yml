@@ -36,7 +36,7 @@ jobs:
         id: cache
         with:
           path: venv
-          key: docs-venv-v6-${{ hashFiles(env.REQUIREMENTS) }}
+          key: docs-venv-v7-${{ hashFiles(env.REQUIREMENTS) }}
 
       - name: Build virtualenv
         if: steps.cache.outputs.cache-hit != 'true'
