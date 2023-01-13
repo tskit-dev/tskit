@@ -127,7 +127,7 @@ jobs:
       - name: Build wheels in docker
         shell: bash
         run: |
-          docker run --rm -v `pwd`:/project -w /project quay.io/pypa/manylinux2010_x86_64 bash .github/workflows/docker/buildwheel.sh
+          docker run --rm -v `pwd`:/project -w /project quay.io/pypa/manylinux2014_x86_64 bash .github/workflows/docker/buildwheel.sh
 
       - name: Upload Wheels
         uses: actions/upload-artifact@v2
