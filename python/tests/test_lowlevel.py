@@ -349,6 +349,8 @@ class TestTableCollection(LowLevelTestCase):
             tc.simplify([0, 1], filter_populations="x")
         with pytest.raises(TypeError):
             tc.simplify([0, 1], filter_nodes="x")
+        with pytest.raises(TypeError):
+            tc.simplify([0, 1], update_sample_flags="x")
         with pytest.raises(_tskit.LibraryError):
             tc.simplify([0, -1])
 
@@ -360,6 +362,7 @@ class TestTableCollection(LowLevelTestCase):
             "filter_populations",
             "filter_individuals",
             "filter_nodes",
+            "update_sample_flags",
             "reduce_to_site_topology",
             "keep_unary",
             "keep_unary_in_individuals",

@@ -8808,16 +8808,18 @@ static tsk_id_t TSK_WARN_UNUSED
 simplifier_record_node(simplifier_t *self, tsk_id_t input_id)
 {
     tsk_node_t node;
-    tsk_flags_t flags;
+    bool update_flags = !(self->options & TSK_SIMPLIFY_NO_UPDATE_SAMPLE_FLAGS);
 
     tsk_node_table_get_row_unsafe(&self->input_tables.nodes, (tsk_id_t) input_id, &node);
-    /* Zero out the sample bit */
-    flags = node.flags & (tsk_flags_t) ~TSK_NODE_IS_SAMPLE;
-    if (self->is_sample[input_id]) {
-        flags |= TSK_NODE_IS_SAMPLE;
+    if (update_flags) {
+        /* Zero out the sample bit */
+        node.flags &= (tsk_flags_t) ~TSK_NODE_IS_SAMPLE;
+        if (self->is_sample[input_id]) {
+            node.flags |= TSK_NODE_IS_SAMPLE;
+        }
     }
     self->node_id_map[input_id] = (tsk_id_t) self->tables->nodes.num_rows;
-    return tsk_node_table_add_row(&self->tables->nodes, flags, node.time,
+    return tsk_node_table_add_row(&self->tables->nodes, node.flags, node.time,
         node.population, node.individual, node.metadata, node.metadata_length);
 }
 
@@ -9108,6 +9110,7 @@ simplifier_init_nodes(simplifier_t *self, const tsk_id_t *samples)
     tsk_size_t j;
     const tsk_size_t num_nodes = self->input_tables.nodes.num_rows;
     bool filter_nodes = !(self->options & TSK_SIMPLIFY_NO_FILTER_NODES);
+    bool update_flags = !(self->options & TSK_SIMPLIFY_NO_UPDATE_SAMPLE_FLAGS);
     tsk_flags_t *node_flags = self->tables->nodes.flags;
     tsk_id_t *node_id_map = self->node_id_map;
 
@@ -9123,13 +9126,17 @@ simplifier_init_nodes(simplifier_t *self, const tsk_id_t *samples)
         }
     } else {
         tsk_bug_assert(self->tables->nodes.num_rows == num_nodes);
-        /* The node table has not been changed */
-        for (j = 0; j < num_nodes; j++) {
-            /* Reset the sample flags */
-            node_flags[j] &= (tsk_flags_t) ~TSK_NODE_IS_SAMPLE;
-            if (self->is_sample[j]) {
-                node_flags[j] |= TSK_NODE_IS_SAMPLE;
+        if (update_flags) {
+            for (j = 0; j < num_nodes; j++) {
+                /* Reset the sample flags */
+                node_flags[j] &= (tsk_flags_t) ~TSK_NODE_IS_SAMPLE;
+                if (self->is_sample[j]) {
+                    node_flags[j] |= TSK_NODE_IS_SAMPLE;
+                }
             }
+        }
+
+        for (j = 0; j < num_nodes; j++) {
             node_id_map[j] = (tsk_id_t) j;
         }
     }

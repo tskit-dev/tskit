@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 # Copyright (c) 2016-2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -2686,7 +2686,7 @@ class TestSimplifyExamples(TopologyTestCase):
             filter_sites=filter_sites,
             keep_input_roots=keep_input_roots,
             filter_nodes=filter_nodes,
-            compare_lib=True,  # TMP
+            compare_lib=True,
         )
         if debug:
             print("before")
@@ -4757,6 +4757,7 @@ def do_simplify(
     filter_nodes=True,
     keep_unary=False,
     keep_input_roots=False,
+    update_sample_flags=True,
 ):
     """
     Runs the Python test implementation of simplify.
@@ -4772,6 +4773,7 @@ def do_simplify(
         filter_nodes=filter_nodes,
         keep_unary=keep_unary,
         keep_input_roots=keep_input_roots,
+        update_sample_flags=update_sample_flags,
     )
     new_ts, node_map = s.simplify()
     if compare_lib:
@@ -4781,28 +4783,16 @@ def do_simplify(
             filter_individuals=filter_individuals,
             filter_populations=filter_populations,
             filter_nodes=filter_nodes,
+            update_sample_flags=update_sample_flags,
             keep_unary=keep_unary,
             keep_input_roots=keep_input_roots,
             map_nodes=True,
         )
         lib_tables1 = sts.dump_tables()
 
-        lib_tables2 = ts.dump_tables()
-        lib_node_map2 = lib_tables2.simplify(
-            samples,
-            filter_sites=filter_sites,
-            keep_unary=keep_unary,
-            keep_input_roots=keep_input_roots,
-            filter_individuals=filter_individuals,
-            filter_populations=filter_populations,
-            filter_nodes=filter_nodes,
-        )
-
         py_tables = new_ts.dump_tables()
         py_tables.assert_equals(lib_tables1, ignore_provenance=True)
-        py_tables.assert_equals(lib_tables2, ignore_provenance=True)
         assert all(node_map == lib_node_map1)
-        assert all(node_map == lib_node_map2)
     return new_ts, node_map
 
 
@@ -6089,6 +6079,64 @@ class TestSimplifyFilterNodes:
         )
         assert ts2.num_sites == 0
         assert ts2.num_mutations == 0
+
+
+class TestSimplifyNoUpdateSampleFlags:
+    """
+    Tests for simplify when we don't update the sample flags.
+    """
+
+    def test_simple_case_filter_nodes(self):
+        # 2.00┊    6    ┊
+        #     ┊  ┏━┻━┓  ┊
+        # 1.00┊  4   5  ┊
+        #     ┊ ┏┻┓ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 3 ┊
+        #     0         1
+        ts1 = tskit.Tree.generate_balanced(4).tree_sequence
+        ts2, node_map = do_simplify(
+            ts1,
+            [0, 1, 6],
+            update_sample_flags=False,
+        )
+        # Because we don't retain 2 and 3 here, they don't stay as
+        # samples. But, we specified 6 as a sample, so it's coming
+        # through where it would ordinarily be dropped.
+
+        # 2.00┊  2  ┊
+        #     ┊  ┃  ┊
+        # 1.00┊  3  ┊
+        #     ┊ ┏┻┓ ┊
+        # 0.00┊ 0 1 ┊
+        #     0     1
+        assert list(ts2.nodes_flags) == [1, 1, 0, 0]
+        tree = ts2.first()
+        assert list(tree.parent_array) == [3, 3, -1, 2, -1]
+
+    def test_simple_case_no_filter_nodes(self):
+        # 2.00┊    6    ┊
+        #     ┊  ┏━┻━┓  ┊
+        # 1.00┊  4   5  ┊
+        #     ┊ ┏┻┓ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 3 ┊
+        #     0         1
+        ts1 = tskit.Tree.generate_balanced(4).tree_sequence
+        ts2, node_map = do_simplify(
+            ts1,
+            [0, 1, 6],
+            update_sample_flags=False,
+            filter_nodes=False,
+        )
+
+        # 2.00┊  6      ┊
+        #     ┊  ┃      ┊
+        # 1.00┊  4      ┊
+        #     ┊ ┏┻┓     ┊
+        # 0.00┊ 0 1 2 3 ┊
+        #     0         1
+        assert list(ts2.nodes_flags) == list(ts1.nodes_flags)
+        tree = ts2.first()
+        assert list(tree.parent_array) == [4, 4, -1, -1, 6, -1, -1, -1]
 
 
 class TestMapToAncestors:

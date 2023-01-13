@@ -694,6 +694,10 @@ first.
 */
 #define TSK_SIMPLIFY_NO_FILTER_NODES (1 << 7)
 /**
+Do not update the sample status of nodes as a result of simplification.
+*/
+#define TSK_SIMPLIFY_NO_UPDATE_SAMPLE_FLAGS (1 << 8)
+/**
 Reduce the topological information in the tables to the minimum necessary to
 represent the trees that contain sites. If there are zero sites this will
 result in an zero output edges. When the number of sites is greater than zero,
@@ -3919,9 +3923,10 @@ or :c:macro:`TSK_NULL` if the node has been removed. Thus, ``node_map`` must be 
 of at least ``self->nodes.num_rows`` :c:type:`tsk_id_t` values.
 
 If the `TSK_SIMPLIFY_NO_FILTER_NODES` option is specified, the node table will be
-unaltered except for changing the sample status of nodes that were samples in the
-input tables, but not in the specified list of sample IDs (if provided). The
-``node_map`` (if specified) will always be the identity mapping, such that
+unaltered except for changing the sample status of nodes (but see the
+`TSK_SIMPLIFY_NO_UPDATE_SAMPLE_FLAGS` option below) and to update references
+to other tables that may have changed as a result of filtering (see below).
+The ``node_map`` (if specified) will always be the identity mapping, such that
 ``node_map[u] == u`` for all nodes. Note also that the order of the list of
 samples is not important in this case.
 
@@ -3941,6 +3946,17 @@ sample status flag of nodes.
    may be entirely unreferenced entities in the input tables, which
    are not affected by whether we filter nodes or not.
 
+By default, the node sample flags are updated by unsetting the
+:c:macro:`TSK_NODE_IS_SAMPLE` flag for all nodes and subsequently setting it
+for the nodes provided as input to this function. The
+`TSK_SIMPLIFY_NO_UPDATE_SAMPLE_FLAGS` option will prevent this from occuring,
+making it the responsibility of calling code to keep track of the ultimate
+sample status of nodes. Using this option in conjunction with
+`TSK_SIMPLIFY_NO_FILTER_NODES` (and without the
+`TSK_SIMPLIFY_FILTER_POPULATIONS` and `TSK_SIMPLIFY_FILTER_INDIVIDUALS`
+options) guarantees that the node table will not be written to during the
+lifetime of this function.
+
 The table collection will always be unindexed after simplify successfully completes.
 
 .. note:: Migrations are currently not supported by simplify, and an error will
@@ -3956,6 +3972,7 @@ flags:
 - :c:macro:`TSK_SIMPLIFY_FILTER_POPULATIONS`
 - :c:macro:`TSK_SIMPLIFY_FILTER_INDIVIDUALS`
 - :c:macro:`TSK_SIMPLIFY_NO_FILTER_NODES`
+- :c:macro:`TSK_SIMPLIFY_NO_UPDATE_SAMPLE_FLAGS`
 - :c:macro:`TSK_SIMPLIFY_REDUCE_TO_SITE_TOPOLOGY`
 - :c:macro:`TSK_SIMPLIFY_KEEP_UNARY`
 - :c:macro:`TSK_SIMPLIFY_KEEP_INPUT_ROOTS`

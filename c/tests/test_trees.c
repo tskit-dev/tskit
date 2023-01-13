@@ -3324,6 +3324,36 @@ test_simplest_no_node_filter(void)
 }
 
 static void
+test_simplest_no_update_flags(void)
+{
+    const char *nodes = "0  0   0\n"
+                        "1  0   0\n"
+                        "0  1   0\n";
+    const char *edges = "0  1   2   0,1\n";
+    tsk_treeseq_t ts, simplified;
+    tsk_id_t sample_ids[] = { 0, 1 };
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
+
+    /* We have a mixture of sample and non-samples in the input tables */
+    ret = tsk_treeseq_simplify(
+        &ts, sample_ids, 2, TSK_SIMPLIFY_NO_UPDATE_SAMPLE_FLAGS, &simplified, NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
+    tsk_treeseq_free(&simplified);
+
+    ret = tsk_treeseq_simplify(&ts, sample_ids, 2,
+        TSK_SIMPLIFY_NO_UPDATE_SAMPLE_FLAGS | TSK_SIMPLIFY_NO_FILTER_NODES, &simplified,
+        NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, simplified.tables, 0));
+    tsk_treeseq_free(&simplified);
+
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_simplest_map_mutations(void)
 {
     const char *nodes = "1  0   0\n"
@@ -8093,6 +8123,7 @@ main(int argc, char **argv)
         { "test_simplest_population_filter", test_simplest_population_filter },
         { "test_simplest_individual_filter", test_simplest_individual_filter },
         { "test_simplest_no_node_filter", test_simplest_no_node_filter },
+        { "test_simplest_no_update_flags", test_simplest_no_update_flags },
         { "test_simplest_map_mutations", test_simplest_map_mutations },
         { "test_simplest_nonbinary_map_mutations",
             test_simplest_nonbinary_map_mutations },

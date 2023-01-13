@@ -254,19 +254,19 @@ def get_internal_samples_examples():
     # Set all nodes to be samples.
     flags[:] = tskit.NODE_IS_SAMPLE
     nodes.flags = flags
-    ret.append(("all nodes samples", tables.tree_sequence()))
+    ret.append(("all_nodes_samples", tables.tree_sequence()))
 
     # Set just internal nodes to be samples.
     flags[:] = 0
     flags[n:] = tskit.NODE_IS_SAMPLE
     nodes.flags = flags
-    ret.append(("internal nodes samples", tables.tree_sequence()))
+    ret.append(("internal_nodes_samples", tables.tree_sequence()))
 
     # Set a mixture of internal and leaf samples.
     flags[:] = 0
     flags[n // 2 : n + n // 2] = tskit.NODE_IS_SAMPLE
     nodes.flags = flags
-    ret.append(("mixture of internal and leaf samples", tables.tree_sequence()))
+    ret.append(("mixed_internal_leaf_samples", tables.tree_sequence()))
     return ret
 
 
@@ -281,7 +281,7 @@ def get_decapitated_examples():
 
     ts = msprime.simulate(20, recombination_rate=1, random_seed=1234)
     assert ts.num_trees > 2
-    ret.append(("decapitate recomb", ts.decapitate(ts.tables.nodes.time[-1] / 4)))
+    ret.append(("decapitate_recomb", ts.decapitate(ts.tables.nodes.time[-1] / 4)))
     return ret
 
 
@@ -302,7 +302,7 @@ def get_bottleneck_examples():
             demographic_events=bottlenecks,
             random_seed=n,
         )
-        yield (f"bottleneck n={n}", ts)
+        yield (f"bottleneck_n={n}", ts)
 
 
 def get_back_mutation_examples():
@@ -337,13 +337,13 @@ def make_example_tree_sequences():
                 )
                 ts = tsutil.insert_random_ploidy_individuals(ts, 4, seed=seed)
                 yield (
-                    f"n={n} m={m} rho={rho}",
+                    f"n={n}_m={m}_rho={rho}",
                     tsutil.add_random_metadata(ts, seed=seed),
                 )
                 seed += 1
     for name, ts in get_bottleneck_examples():
         yield (
-            f"{name} mutated",
+            f"{name}_mutated",
             msprime.mutate(
                 ts,
                 rate=0.1,
@@ -352,7 +352,7 @@ def make_example_tree_sequences():
             ),
         )
     ts = tskit.Tree.generate_balanced(8).tree_sequence
-    yield ("rev node order", ts.subset(np.arange(ts.num_nodes - 1, -1, -1)))
+    yield ("rev_node_order", ts.subset(np.arange(ts.num_nodes - 1, -1, -1)))
     ts = msprime.sim_ancestry(
         8, sequence_length=40, recombination_rate=0.1, random_seed=seed
     )
@@ -361,20 +361,20 @@ def make_example_tree_sequences():
     ts = tables.tree_sequence()
     assert ts.num_trees > 1
     yield (
-        "back mutations",
+        "back_mutations",
         tsutil.insert_branch_mutations(ts, mutations_per_branch=2),
     )
     ts = tsutil.insert_multichar_mutations(ts)
     yield ("multichar", ts)
-    yield ("multichar w/ metadata", tsutil.add_random_metadata(ts))
+    yield ("multichar_no_metadata", tsutil.add_random_metadata(ts))
     tables = ts.dump_tables()
     tables.nodes.flags = np.zeros_like(tables.nodes.flags)
-    yield ("no samples", tables.tree_sequence())  # no samples
+    yield ("no_samples", tables.tree_sequence())  # no samples
     tables = ts.dump_tables()
     tables.edges.clear()
-    yield ("empty tree", tables.tree_sequence())  # empty tree
+    yield ("empty_tree", tables.tree_sequence())  # empty tree
     yield (
-        "empty ts",
+        "empty_ts",
         tskit.TableCollection(sequence_length=1).tree_sequence(),
     )  # empty tree seq
     yield ("all_fields", tsutil.all_fields_ts())
@@ -384,6 +384,8 @@ _examples = tuple(make_example_tree_sequences())
 
 
 def get_example_tree_sequences(pytest_params=True):
+    # NOTE: pytest names should not contain spaces and be shell safe so
+    # that they can be easily specified on the command line.
     if pytest_params:
         return [pytest.param(ts, id=name) for name, ts in _examples]
     else:
@@ -2784,6 +2786,19 @@ class TestSimplify:
         # We don't support simplify with migrations, so should fail.
         with pytest.raises(_tskit.LibraryError):
             ts.simplify()
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_no_update_sample_flags_no_filter_nodes(self, ts):
+        # Can't simplify edges with metadata
+        if ts.tables.edges.metadata_schema == tskit.MetadataSchema(schema=None):
+            k = min(ts.num_samples, 3)
+            subset = ts.samples()[:k]
+            ts1 = ts.simplify(subset)
+            ts2 = ts.simplify(subset, update_sample_flags=False, filter_nodes=False)
+            assert ts1.num_samples == len(subset)
+            assert ts2.num_samples == ts.num_samples
+            assert ts1.num_edges == ts2.num_edges
+            assert ts2.tables.nodes == ts.tables.nodes
 
 
 class TestMinMaxTime:
