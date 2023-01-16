@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2019-2022 Tskit Developers
+# Copyright (c) 2019-2023 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -2215,3 +2215,17 @@ class TestVariant:
         html = v._repr_html_()
         ElementTree.fromstring(html)
         assert len(html) > 1600
+
+    def test_variant_repr(self, ts_fixture):
+        v = next(ts_fixture.variants())
+        str_rep = repr(v)
+        assert len(str_rep) > 0 and len(str_rep) < 10000
+        assert re.search(r"\AVariant", str_rep)
+        assert re.search(rf"\'site\': Site\(id={v.site.id}", str_rep)
+        assert re.search(rf"position={v.position}", str_rep)
+        alleles = re.escape("'alleles': " + str(v.alleles))
+        assert re.search(rf"{alleles}", str_rep)
+        assert re.search(r"\'genotypes\': array\(\[", str_rep)
+        assert re.search(rf"position={v.position}", str_rep)
+        assert re.search(rf"\'has_missing_data\': {v.has_missing_data}", str_rep)
+        assert re.search(rf"\'isolated_as_missing\': {v.isolated_as_missing}", str_rep)

@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -339,6 +339,17 @@ class Variant:
         to render a Variant.
         """
         return util.variant_html(self)
+
+    def __repr__(self):
+        d = {
+            "site": self.site,
+            "samples": self.samples,
+            "alleles": self.alleles,
+            "genotypes": self.genotypes,
+            "has_missing_data": self.has_missing_data,
+            "isolated_as_missing": self.isolated_as_missing,
+        }
+        return f"Variant({repr(d)})"
 
 
 #
