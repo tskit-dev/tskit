@@ -1,4 +1,14 @@
 --------------------
+[0.5.5] - 2023-01-XX
+--------------------
+
+**Features**
+
+- Add ``__repr__`` for variants to return a string representation of the raw data
+  without spewing megabytes of text (:user:`chriscrsmith`, :pr:`2695`, :issue:`2694`)
+
+  
+--------------------
 [0.5.4] - 2023-01-13
 --------------------
 
