@@ -42,6 +42,10 @@
 - Tskit now supports and has wheels for Python 3.11. This Python version has a significant
   performance boost (:user:`benjeffery`, :pr:`2624`, :issue:`2248`)
 
+- Add the `update_sample_flags` option to `simplify` which ensures
+  no node sample flags are changed to allow calling code to manage sample status.
+  (:user:`jeromekelleher`, :issue:`2662`, :pr:`2663`).
+
 **Breaking Changes**
 
  - the ``filter_populations``, ``filter_individuals``, and ``filter_sites``
