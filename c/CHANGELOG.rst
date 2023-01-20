@@ -14,6 +14,10 @@
   nodes be kept in the output (:user:`jeromekelleher`, :user:`hyanwong`,
   :issue:`2606`, :pr:`2619`).
 
+- Add the `TSK_SIMPLIFY_NO_UPDATE_SAMPLE_FLAGS` option to simplify which ensures
+  no node sample flags are changed to allow calling code to manage sample status.
+  (:user:`jeromekelleher`, :issue:`2662`, :pr:`2663`).
+
 - Guarantee that unfiltered tables are not written to unnecessarily
   during simplify (:user:`jeromekelleher` :pr:`2619`).
 
