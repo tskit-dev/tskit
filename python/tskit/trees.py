@@ -635,7 +635,7 @@ class Tree:
     :param list tracked_samples: The list of samples to be tracked and
         counted using the :meth:`Tree.num_tracked_samples` method.
     :param bool sample_lists: If True, provide more efficient access
-        to the samples beneath a give node using the
+        to the samples beneath a given node using the
         :meth:`Tree.samples` method.
     :param int root_threshold: The minimum number of samples that a node
         must be ancestral to for it to be in the list of roots. By default
