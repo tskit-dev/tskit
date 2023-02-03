@@ -942,19 +942,81 @@ out:
 }
 
 static int
-int32_array_converter(PyObject *py_obj, PyArrayObject **array_out)
+array_converter(int type, PyObject *py_obj, PyArrayObject **array_out)
 {
     int ret = 0;
     PyArrayObject *temp_array;
 
     temp_array = (PyArrayObject *) PyArray_FromAny(
-        py_obj, PyArray_DescrFromType(NPY_INT32), 1, 1, NPY_ARRAY_IN_ARRAY, NULL);
+        py_obj, PyArray_DescrFromType(type), 1, 1, NPY_ARRAY_IN_ARRAY, NULL);
+
     if (temp_array == NULL) {
         goto out;
     }
     *array_out = temp_array;
     ret = 1;
 out:
+    return ret;
+}
+
+static int
+int32_array_converter(PyObject *py_obj, PyArrayObject **array_out)
+{
+    return array_converter(NPY_INT32, py_obj, array_out);
+}
+
+static int
+bool_array_converter(PyObject *py_obj, PyArrayObject **array_out)
+{
+    /* We are assuming that npy_bool and C99 bool are interchangeable, which
+     * may not always be true. If this ever crops up in the real world we
+     * may want to promote this to a module-load time check.
+     */
+    assert(sizeof(npy_bool) == sizeof(bool));
+    return array_converter(NPY_BOOL, py_obj, array_out);
+}
+
+/* Note: it doesn't seem to be possible to cast pointers to the actual
+ * table functions to this type because the first argument must be a
+ * void *, so the simplest option is to put in a small shim that
+ * wraps the library function and casts to the correct table type.
+ */
+typedef int keep_row_func_t(
+    void *self, const bool *keep, tsk_flags_t options, tsk_id_t *id_map);
+
+static PyObject *
+table_keep_rows(
+    PyObject *args, void *table, tsk_size_t num_rows, keep_row_func_t keep_row_func)
+{
+
+    PyObject *ret = NULL;
+    PyArrayObject *keep = NULL;
+    PyArrayObject *id_map = NULL;
+    npy_intp n = (npy_intp) num_rows;
+    int err;
+
+    if (!PyArg_ParseTuple(args, "O&", &bool_array_converter, &keep)) {
+        goto out;
+    }
+    if (PyArray_DIMS(keep)[0] != n) {
+        PyErr_SetString(PyExc_ValueError, "keep array must be of length Table.num_rows");
+        goto out;
+    }
+    id_map = (PyArrayObject *) PyArray_SimpleNew(1, &n, NPY_INT32);
+    if (id_map == NULL) {
+        goto out;
+    }
+    err = keep_row_func(table, PyArray_DATA(keep), 0, PyArray_DATA(id_map));
+
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = (PyObject *) id_map;
+    id_map = NULL;
+out:
+    Py_XDECREF(keep);
+    Py_XDECREF(id_map);
     return ret;
 }
 
@@ -1332,6 +1394,28 @@ out:
     return ret;
 }
 
+static int
+individual_table_keep_rows_generic(
+    void *table, const bool *keep, tsk_flags_t options, tsk_id_t *id_map)
+{
+    return tsk_individual_table_keep_rows(
+        (tsk_individual_table_t *) table, keep, options, id_map);
+}
+
+static PyObject *
+IndividualTable_keep_rows(IndividualTable *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+
+    if (IndividualTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = table_keep_rows(args, (void *) self->table, self->table->num_rows,
+        individual_table_keep_rows_generic);
+out:
+    return ret;
+}
+
 static PyObject *
 IndividualTable_get_max_rows_increment(IndividualTable *self, void *closure)
 {
@@ -1578,6 +1662,10 @@ static PyMethodDef IndividualTable_methods[] = {
         .ml_meth = (PyCFunction) IndividualTable_extend,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Extend this table from another using specified row_indexes" },
+    { .ml_name = "keep_rows",
+        .ml_meth = (PyCFunction) IndividualTable_keep_rows,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Keep rows in this table according to boolean array" },
     { NULL } /* Sentinel */
 };
 
@@ -1911,6 +1999,27 @@ out:
     return ret;
 }
 
+static int
+node_table_keep_rows_generic(
+    void *table, const bool *keep, tsk_flags_t options, tsk_id_t *id_map)
+{
+    return tsk_node_table_keep_rows((tsk_node_table_t *) table, keep, options, id_map);
+}
+
+static PyObject *
+NodeTable_keep_rows(NodeTable *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+
+    if (NodeTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = table_keep_rows(
+        args, (void *) self->table, self->table->num_rows, node_table_keep_rows_generic);
+out:
+    return ret;
+}
+
 static PyObject *
 NodeTable_get_max_rows_increment(NodeTable *self, void *closure)
 {
@@ -2138,6 +2247,10 @@ static PyMethodDef NodeTable_methods[] = {
         .ml_meth = (PyCFunction) NodeTable_extend,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Extend this table from another using specified row_indexes" },
+    { .ml_name = "keep_rows",
+        .ml_meth = (PyCFunction) NodeTable_keep_rows,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Keep rows in this table according to boolean array" },
 
     { NULL } /* Sentinel */
 };
@@ -2482,6 +2595,27 @@ out:
     return ret;
 }
 
+static int
+edge_table_keep_rows_generic(
+    void *table, const bool *keep, tsk_flags_t options, tsk_id_t *id_map)
+{
+    return tsk_edge_table_keep_rows((tsk_edge_table_t *) table, keep, options, id_map);
+}
+
+static PyObject *
+EdgeTable_keep_rows(EdgeTable *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+
+    if (EdgeTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = table_keep_rows(
+        args, (void *) self->table, self->table->num_rows, edge_table_keep_rows_generic);
+out:
+    return ret;
+}
+
 static PyObject *
 EdgeTable_get_max_rows_increment(EdgeTable *self, void *closure)
 {
@@ -2707,11 +2841,14 @@ static PyMethodDef EdgeTable_methods[] = {
         .ml_meth = (PyCFunction) EdgeTable_extend,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Extend this table from another using specified row_indexes" },
-
     { .ml_name = "squash",
         .ml_meth = (PyCFunction) EdgeTable_squash,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Squashes sets of edges with adjacent L,R and identical P,C values." },
+    { .ml_name = "keep_rows",
+        .ml_meth = (PyCFunction) EdgeTable_keep_rows,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Keep rows in this table according to boolean array" },
     { NULL } /* Sentinel */
 };
 
@@ -3039,6 +3176,28 @@ out:
     return ret;
 }
 
+static int
+migration_table_keep_rows_generic(
+    void *table, const bool *keep, tsk_flags_t options, tsk_id_t *id_map)
+{
+    return tsk_migration_table_keep_rows(
+        (tsk_migration_table_t *) table, keep, options, id_map);
+}
+
+static PyObject *
+MigrationTable_keep_rows(MigrationTable *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+
+    if (MigrationTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = table_keep_rows(args, (void *) self->table, self->table->num_rows,
+        migration_table_keep_rows_generic);
+out:
+    return ret;
+}
+
 static PyObject *
 MigrationTable_get_max_rows_increment(MigrationTable *self, void *closure)
 {
@@ -3296,6 +3455,10 @@ static PyMethodDef MigrationTable_methods[] = {
         .ml_meth = (PyCFunction) MigrationTable_extend,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Extend this table from another using specified row_indexes" },
+    { .ml_name = "keep_rows",
+        .ml_meth = (PyCFunction) MigrationTable_keep_rows,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Keep rows in this table according to boolean array" },
 
     { NULL } /* Sentinel */
 };
@@ -3623,6 +3786,27 @@ out:
     return ret;
 }
 
+static int
+site_table_keep_rows_generic(
+    void *table, const bool *keep, tsk_flags_t options, tsk_id_t *id_map)
+{
+    return tsk_site_table_keep_rows((tsk_site_table_t *) table, keep, options, id_map);
+}
+
+static PyObject *
+SiteTable_keep_rows(SiteTable *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+
+    if (SiteTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = table_keep_rows(
+        args, (void *) self->table, self->table->num_rows, site_table_keep_rows_generic);
+out:
+    return ret;
+}
+
 static PyObject *
 SiteTable_get_max_rows_increment(SiteTable *self, void *closure)
 {
@@ -3837,6 +4021,10 @@ static PyMethodDef SiteTable_methods[] = {
         .ml_meth = (PyCFunction) SiteTable_extend,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Extend this table from another using specified row_indexes" },
+    { .ml_name = "keep_rows",
+        .ml_meth = (PyCFunction) SiteTable_keep_rows,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Keep rows in this table according to boolean array" },
 
     { NULL } /* Sentinel */
 };
@@ -4173,6 +4361,28 @@ out:
     return ret;
 }
 
+static int
+mutation_table_keep_rows_generic(
+    void *table, const bool *keep, tsk_flags_t options, tsk_id_t *id_map)
+{
+    return tsk_mutation_table_keep_rows(
+        (tsk_mutation_table_t *) table, keep, options, id_map);
+}
+
+static PyObject *
+MutationTable_keep_rows(MutationTable *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+
+    if (MutationTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = table_keep_rows(args, (void *) self->table, self->table->num_rows,
+        mutation_table_keep_rows_generic);
+out:
+    return ret;
+}
+
 static PyObject *
 MutationTable_get_max_rows_increment(MutationTable *self, void *closure)
 {
@@ -4432,6 +4642,10 @@ static PyMethodDef MutationTable_methods[] = {
         .ml_meth = (PyCFunction) MutationTable_extend,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Extend this table from another using specified row_indexes" },
+    { .ml_name = "keep_rows",
+        .ml_meth = (PyCFunction) MutationTable_keep_rows,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Keep rows in this table according to boolean array" },
 
     { NULL } /* Sentinel */
 };
@@ -4754,6 +4968,28 @@ out:
     return ret;
 }
 
+static int
+population_table_keep_rows_generic(
+    void *table, const bool *keep, tsk_flags_t options, tsk_id_t *id_map)
+{
+    return tsk_population_table_keep_rows(
+        (tsk_population_table_t *) table, keep, options, id_map);
+}
+
+static PyObject *
+PopulationTable_keep_rows(PopulationTable *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+
+    if (PopulationTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = table_keep_rows(args, (void *) self->table, self->table->num_rows,
+        population_table_keep_rows_generic);
+out:
+    return ret;
+}
+
 static PyObject *
 PopulationTable_get_max_rows_increment(PopulationTable *self, void *closure)
 {
@@ -4918,6 +5154,10 @@ static PyMethodDef PopulationTable_methods[] = {
         .ml_meth = (PyCFunction) PopulationTable_extend,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Extend this table from another using specified row_indexes" },
+    { .ml_name = "keep_rows",
+        .ml_meth = (PyCFunction) PopulationTable_keep_rows,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Keep rows in this table according to boolean array" },
 
     { NULL } /* Sentinel */
 };
@@ -5232,6 +5472,28 @@ out:
     return ret;
 }
 
+static int
+provenance_table_keep_rows_generic(
+    void *table, const bool *keep, tsk_flags_t options, tsk_id_t *id_map)
+{
+    return tsk_provenance_table_keep_rows(
+        (tsk_provenance_table_t *) table, keep, options, id_map);
+}
+
+static PyObject *
+ProvenanceTable_keep_rows(ProvenanceTable *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+
+    if (ProvenanceTable_check_state(self) != 0) {
+        goto out;
+    }
+    ret = table_keep_rows(args, (void *) self->table, self->table->num_rows,
+        provenance_table_keep_rows_generic);
+out:
+    return ret;
+}
+
 static PyObject *
 ProvenanceTable_get_max_rows_increment(ProvenanceTable *self, void *closure)
 {
@@ -5385,6 +5647,10 @@ static PyMethodDef ProvenanceTable_methods[] = {
         .ml_meth = (PyCFunction) ProvenanceTable_extend,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Extend this table from another using specified row_indexes" },
+    { .ml_name = "keep_rows",
+        .ml_meth = (PyCFunction) ProvenanceTable_keep_rows,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Keep rows in this table according to boolean array" },
 
     { NULL } /* Sentinel */
 };
