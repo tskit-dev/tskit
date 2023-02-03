@@ -71,11 +71,13 @@ sphinx:
           ["c:identifier", "uint32_t"],
           ["c:identifier", "uint64_t"],
           ["c:identifier", "FILE"],
+          ["c:identifier", "bool"],
           # This is for the anonymous interval struct embedded in the tsk_tree_t.
           ["c:identifier", "tsk_tree_t.@1"],
           ["c:type", "int32_t"],
           ["c:type", "uint32_t"],
           ["c:type", "uint64_t"],
+          ["c:type", "bool"],
           # TODO these have been triaged here to make the docs compile, but we should
           # sort them out properly. https://github.com/tskit-dev/tskit/issues/336
           ["py:class", "array_like"],
@@ -87,6 +89,18 @@ sphinx:
           ["py:class", "dtype=np.int8"],
           ["py:class", "dtype=np.float64"],
           ["py:class", "dtype=np.int64"],
+      ]
+
+      # Added to allow "bool" be used as a :ctype: - this list has to be
+      # manually specifed in order to remove "bool" from it.
+      c_extra_keywords: [
+        "alignas",
+        "alignof",
+        "complex",
+        "imaginary",
+        "noreturn",
+        "static_assert",
+        "thread_local"
       ]
 
       autodoc_member_order: bysource
