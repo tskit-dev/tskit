@@ -993,12 +993,14 @@ table_keep_rows(
     PyArrayObject *keep = NULL;
     PyArrayObject *id_map = NULL;
     npy_intp n = (npy_intp) num_rows;
+    npy_intp array_len;
     int err;
 
     if (!PyArg_ParseTuple(args, "O&", &bool_array_converter, &keep)) {
         goto out;
     }
-    if (PyArray_DIMS(keep)[0] != n) {
+    array_len = PyArray_DIMS(keep)[0];
+    if (array_len != n) {
         PyErr_SetString(PyExc_ValueError, "keep array must be of length Table.num_rows");
         goto out;
     }

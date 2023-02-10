@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 # Copyright (c) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -624,6 +624,18 @@ class CommonTestsMixin:
                         assert table.max_rows == max((max_rows * 2) + 1, table.num_rows)
                     else:
                         assert table.max_rows == max(max_rows + 1, table.num_rows)
+
+    def test_keep_rows_data(self):
+        input_data = self.make_input_data(100)
+        t1 = self.table_class()
+        t1.append_columns(**input_data)
+        t2 = t1.copy()
+        keep = np.ones(len(t1), dtype=bool)
+        # Only keep even
+        keep[::2] = 0
+        t1.keep_rows(keep)
+        keep_rows_definition(t2, keep)
+        assert t1.equals(t2)
 
     def test_str(self):
         for num_rows in [0, 10]:
@@ -1729,6 +1741,21 @@ class TestIndividualTable(*common_tests):
         a = tskit.MutationTableRow(**args)
         assert a == b
 
+    def test_keep_rows_data(self):
+        input_data = self.make_input_data(100)
+        t1 = self.table_class()
+        # Set the parent column to -1s for this simple test as
+        # we need to reason about reference integrity
+        t1.append_columns(**input_data)
+        t1.parents = np.full_like(t1.parents, -1)
+        t2 = t1.copy()
+        keep = np.ones(len(t1), dtype=bool)
+        # Only keep even
+        keep[::2] = 0
+        t1.keep_rows(keep)
+        keep_rows_definition(t2, keep)
+        assert t1.equals(t2)
+
 
 class TestNodeTable(*common_tests):
 
@@ -1991,6 +2018,21 @@ class TestMutationTable(*common_tests):
             table.packset_derived_state(derived_states)
             assert np.array_equal(table.derived_state, derived_state)
             assert np.array_equal(table.derived_state_offset, derived_state_offset)
+
+    def test_keep_rows_data(self):
+        input_data = self.make_input_data(100)
+        t1 = self.table_class()
+        # Set the parent column to -1s for this simple test as
+        # we need to reason about reference integrity
+        t1.append_columns(**input_data)
+        t1.parent = np.full_like(t1.parent, -1)
+        t2 = t1.copy()
+        keep = np.ones(len(t1), dtype=bool)
+        # Only keep even
+        keep[::2] = 0
+        t1.keep_rows(keep)
+        keep_rows_definition(t2, keep)
+        assert t1.equals(t2)
 
 
 class TestMigrationTable(*common_tests):
@@ -5011,3 +5053,362 @@ class TestTableSetitemMetadata:
             assert table[0].metadata != table[1].metadata
             table[0] = table[1]
             assert table[0] == table[1]
+
+
+def keep_rows_definition(table, keep):
+    id_map = np.full(len(table), -1, np.int32)
+    copy = table.copy()
+    table.clear()
+    for j, row in enumerate(copy):
+        if keep[j]:
+            id_map[j] = len(table)
+            table.append(row)
+    return id_map
+
+
+class KeepRowsBaseTest:
+    # Simple tests assuming that rows aren't self-referential
+
+    def test_keep_all(self, ts_fixture):
+        table = self.get_table(ts_fixture)
+        before = table.copy()
+        table.keep_rows(np.ones(len(table), dtype=bool))
+        assert table.equals(before)
+
+    def test_keep_none(self, ts_fixture):
+        table = self.get_table(ts_fixture)
+        table.keep_rows(np.zeros(len(table), dtype=bool))
+        assert len(table) == 0
+
+    def check_keep_rows(self, table, keep):
+        copy = table.copy()
+        id_map1 = keep_rows_definition(copy, keep)
+        id_map2 = table.keep_rows(keep)
+        table.assert_equals(copy)
+        np.testing.assert_array_equal(id_map1, id_map2)
+
+    def test_keep_even(self, ts_fixture):
+        table = self.get_table(ts_fixture)
+        keep = np.ones(len(table), dtype=bool)
+        keep[1::2] = 0
+        self.check_keep_rows(table, keep)
+
+    def test_keep_odd(self, ts_fixture):
+        table = self.get_table(ts_fixture)
+        keep = np.ones(len(table), dtype=bool)
+        keep[::2] = 0
+        self.check_keep_rows(table, keep)
+
+    def test_keep_first(self, ts_fixture):
+        table = self.get_table(ts_fixture)
+        keep = np.zeros(len(table), dtype=bool)
+        keep[0] = 1
+        self.check_keep_rows(table, keep)
+        assert len(table) == 1
+
+    def test_keep_last(self, ts_fixture):
+        table = self.get_table(ts_fixture)
+        keep = np.zeros(len(table), dtype=bool)
+        keep[-1] = 1
+        self.check_keep_rows(table, keep)
+        assert len(table) == 1
+
+    @pytest.mark.parametrize("dtype", [np.int32, int, np.float32])
+    def test_bad_array_dtype(self, ts_fixture, dtype):
+        table = self.get_table(ts_fixture)
+        keep = np.zeros(len(table), dtype=dtype)
+        with pytest.raises(TypeError, match="Cannot cast array"):
+            table.keep_rows(keep)
+
+    @pytest.mark.parametrize("truthy", [False, 0, "", None])
+    def test_python_falsey_input(self, ts_fixture, truthy):
+        table = self.get_table(ts_fixture)
+        keep = [truthy] * len(table)
+        self.check_keep_rows(table, keep)
+        assert len(table) == 0
+
+    @pytest.mark.parametrize("truthy", [True, 1, "string", 1e-6])
+    def test_python_truey_input(self, ts_fixture, truthy):
+        table = self.get_table(ts_fixture)
+        n = len(table)
+        keep = [truthy] * len(table)
+        self.check_keep_rows(table, keep)
+        assert len(table) == n
+
+    @pytest.mark.parametrize("offset", [-1, 1, 100])
+    def test_bad_length(self, ts_fixture, offset):
+        table = self.get_table(ts_fixture)
+        keep = [True] * (len(table) + offset)
+        match_str = f"need:{len(table)}, got:{len(table) + offset}"
+        with pytest.raises(ValueError, match=match_str):
+            table.keep_rows(keep)
+
+    @pytest.mark.parametrize("bad_type", [False, 0, None])
+    def test_non_list_input(self, ts_fixture, bad_type):
+        table = self.get_table(ts_fixture)
+        with pytest.raises(TypeError, match="has no len"):
+            table.keep_rows(bad_type)
+
+
+class TestNodeTableKeepRows(KeepRowsBaseTest):
+    def get_table(self, ts):
+        return ts.dump_tables().nodes
+
+
+class TestEdgeTableKeepRows(KeepRowsBaseTest):
+    def get_table(self, ts):
+        return ts.dump_tables().edges
+
+
+class TestSiteTableKeepRows(KeepRowsBaseTest):
+    def get_table(self, ts):
+        return ts.dump_tables().sites
+
+
+class TestMigrationTableKeepRows(KeepRowsBaseTest):
+    def get_table(self, ts):
+        return ts.dump_tables().migrations
+
+
+class TestPopulationTableKeepRows(KeepRowsBaseTest):
+    def get_table(self, ts):
+        return ts.dump_tables().populations
+
+
+class TestProvenanceTableKeepRows(KeepRowsBaseTest):
+    def get_table(self, ts):
+        return ts.dump_tables().provenances
+
+
+# Null out the self-referential columns (this is why the tests are structed via
+# classes rather than pytest parametrize.
+
+
+class TestIndividualTableKeepRows(KeepRowsBaseTest):
+    def get_table(self, ts):
+        table = ts.dump_tables().individuals
+        table.parents = np.zeros_like(table.parents) - 1
+        return table
+
+    def check_keep_rows(self, table, keep):
+        copy = table.copy()
+        id_map1 = keep_rows_definition(copy, keep)
+        for j, row in enumerate(copy):
+            parents = [p if p == tskit.NULL else id_map1[p] for p in row.parents]
+            copy[j] = row.replace(parents=parents)
+        id_map2 = table.keep_rows(keep)
+        table.assert_equals(copy)
+        np.testing.assert_array_equal(id_map1, id_map2)
+
+    def test_delete_unreferenced(self, ts_fixture):
+        table = ts_fixture.dump_tables().individuals
+        ref_count = np.zeros(len(table))
+        for row in table:
+            for parent in row.parents:
+                ref_count[parent] += 1
+        self.check_keep_rows(table, ref_count > 0)
+
+
+class TestMutationTableKeepRows(KeepRowsBaseTest):
+    def get_table(self, ts):
+        table = ts.dump_tables().mutations
+        table.parent = np.zeros_like(table.parent) - 1
+        return table
+
+    def check_keep_rows(self, table, keep):
+        copy = table.copy()
+        id_map1 = keep_rows_definition(copy, keep)
+        for j, row in enumerate(copy):
+            if row.parent != tskit.NULL:
+                copy[j] = row.replace(parent=id_map1[row.parent])
+        id_map2 = table.keep_rows(keep)
+        table.assert_equals(copy)
+        np.testing.assert_array_equal(id_map1, id_map2)
+
+    def test_delete_unreferenced(self, ts_fixture):
+        table = ts_fixture.dump_tables().mutations
+        parent = table.parent.copy()
+        parent[parent == tskit.NULL] = len(table)
+        references = np.bincount(parent)
+        self.check_keep_rows(table, references[:-1] > 0)
+
+    def test_error_on_bad_ids(self, ts_fixture):
+        table = ts_fixture.dump_tables().mutations
+        table.add_row(site=0, node=0, derived_state="A", parent=10000)
+        before = table.copy()
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_MUTATION_OUT_OF_BOUNDS"):
+            table.keep_rows(np.ones(len(table), dtype=bool))
+        table.assert_equals(before)
+
+
+class TestKeepRowsExamples:
+    """
+    Some examples of how to use the keep_rows method in an idiomatic
+    and efficient way.
+
+    TODO these should be converted into documentation examples when we
+    write an "examples" section for table editing.
+    """
+
+    def test_detach_subtree(self):
+        # 2.00┊   4   ┊
+        #     ┊ ┏━┻┓  ┊
+        # 1.00┊ ┃  3  ┊
+        #     ┊ ┃ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        ts = tskit.Tree.generate_balanced(3).tree_sequence
+        tables = ts.dump_tables()
+        tables.edges.keep_rows(tables.edges.child != 3)
+
+        # 2.00┊ 4     ┊
+        #     ┊ ┃     ┊
+        # 1.00┊ ┃  3  ┊
+        #     ┊ ┃ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        ts = tables.tree_sequence()
+        assert ts.num_trees == 1
+        assert ts.first().parent_dict == {0: 4, 1: 3, 2: 3}
+
+    def test_delete_older_edges(self):
+        # 2.00┊   4   ┊
+        #     ┊ ┏━┻┓  ┊
+        # 1.00┊ ┃  3  ┊
+        #     ┊ ┃ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        ts = tskit.Tree.generate_balanced(3).tree_sequence
+        tables = ts.dump_tables()
+        tables.edges.keep_rows(tables.nodes.time[tables.edges.parent] <= 1)
+
+        # 2.00┊       ┊
+        #     ┊       ┊
+        # 1.00┊    3  ┊
+        #     ┊   ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        ts = tables.tree_sequence()
+        assert ts.num_trees == 1
+        assert ts.first().parent_dict == {1: 3, 2: 3}
+
+    def test_delete_unreferenced_nodes(self):
+        # 2.00┊   4   ┊
+        #     ┊ ┏━┻┓  ┊
+        # 1.00┊ ┃  3  ┊
+        #     ┊ ┃ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        ts = tskit.Tree.generate_balanced(3).tree_sequence
+        tables = ts.dump_tables()
+        edges = tables.edges
+        nodes = tables.nodes
+        edges.keep_rows(nodes.time[edges.parent] <= 1)
+        # 2.00┊       ┊
+        #     ┊       ┊
+        # 1.00┊    3  ┊
+        #     ┊   ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        ref_count = np.bincount(edges.child, minlength=len(nodes))
+        ref_count += np.bincount(edges.parent, minlength=len(nodes))
+        assert list(ref_count) == [0, 1, 1, 2, 0]
+        id_map = nodes.keep_rows(ref_count > 0)
+        assert list(id_map) == [-1, 0, 1, 2, -1]
+        assert len(nodes) == 3
+        # Remap the edges IDs
+        edges.child = id_map[edges.child]
+        edges.parent = id_map[edges.parent]
+        ts = tables.tree_sequence()
+        assert ts.num_trees == 1
+        assert ts.first().parent_dict == {0: 2, 1: 2}
+
+    def test_mutation_ids_auto_remapped(self):
+        mutations = tskit.MutationTable()
+        # Add 5 initial rows with no parents
+        for j in range(5):
+            mutations.add_row(site=j, node=j, derived_state=f"{j}")
+        # Now 5 more in a chain
+        last = -1
+        for j in range(5):
+            last = mutations.add_row(
+                site=10 + j, node=10 + j, parent=last, derived_state=f"{j}"
+            )
+
+        # ╔══╤════╤════╤════╤═════════════╤══════╤════════╗
+        # ║id│site│node│time│derived_state│parent│metadata║
+        # ╠══╪════╪════╪════╪═════════════╪══════╪════════╣
+        # ║0 │   0│   0│ nan│            0│    -1│        ║
+        # ║1 │   1│   1│ nan│            1│    -1│        ║
+        # ║2 │   2│   2│ nan│            2│    -1│        ║
+        # ║3 │   3│   3│ nan│            3│    -1│        ║
+        # ║4 │   4│   4│ nan│            4│    -1│        ║
+        # ║5 │  10│  10│ nan│            0│    -1│        ║
+        # ║6 │  11│  11│ nan│            1│     5│        ║
+        # ║7 │  12│  12│ nan│            2│     6│        ║
+        # ║8 │  13│  13│ nan│            3│     7│        ║
+        # ║9 │  14│  14│ nan│            4│     8│        ║
+        # ╚══╧════╧════╧════╧═════════════╧══════╧════════╝
+
+        keep = np.ones(len(mutations), dtype=bool)
+        keep[:5] = False
+        mutations.keep_rows(keep)
+
+        # ╔══╤════╤════╤════╤═════════════╤══════╤════════╗
+        # ║id│site│node│time│derived_state│parent│metadata║
+        # ╠══╪════╪════╪════╪═════════════╪══════╪════════╣
+        # ║0 │  10│  10│ nan│            0│    -1│        ║
+        # ║1 │  11│  11│ nan│            1│     0│        ║
+        # ║2 │  12│  12│ nan│            2│     1│        ║
+        # ║3 │  13│  13│ nan│            3│     2│        ║
+        # ║4 │  14│  14│ nan│            4│     3│        ║
+        # ╚══╧════╧════╧════╧═════════════╧══════╧════════╝
+        assert list(mutations.site) == [10, 11, 12, 13, 14]
+        assert list(mutations.node) == [10, 11, 12, 13, 14]
+        assert list(mutations.parent) == [-1, 0, 1, 2, 3]
+
+    def test_individual_ids_auto_remapped(self):
+        individuals = tskit.IndividualTable()
+        # Add some rows with missing parents in different forms
+        individuals.add_row()
+        individuals.add_row(parents=[-1])
+        individuals.add_row(parents=[-1, -1])
+        # Now 5 more in a chain
+        last = -1
+        for _ in range(5):
+            last = individuals.add_row(parents=[last])
+        last = individuals.add_row(parents=[last, last])
+
+        # ╔══╤═════╤════════╤═══════╤════════╗
+        # ║id│flags│location│parents│metadata║
+        # ╠══╪═════╪════════╪═══════╪════════╣
+        # ║0 │    0│        │       │        ║
+        # ║1 │    0│        │     -1│        ║
+        # ║2 │    0│        │ -1, -1│        ║
+        # ║3 │    0│        │     -1│        ║
+        # ║4 │    0│        │      3│        ║
+        # ║5 │    0│        │      4│        ║
+        # ║6 │    0│        │      5│        ║
+        # ║7 │    0│        │      6│        ║
+        # ║8 │    0│        │   7, 7│        ║
+        # ╚══╧═════╧════════╧═══════╧════════╝
+
+        keep = np.ones(len(individuals), dtype=bool)
+        # Only delete one row
+        keep[1] = False
+        individuals.keep_rows(keep)
+
+        # ╔══╤═════╤════════╤═══════╤════════╗
+        # ║id│flags│location│parents│metadata║
+        # ╠══╪═════╪════════╪═══════╪════════╣
+        # ║0 │    0│        │       │        ║
+        # ║1 │    0│        │ -1, -1│        ║
+        # ║2 │    0│        │     -1│        ║
+        # ║3 │    0│        │      2│        ║
+        # ║4 │    0│        │      3│        ║
+        # ║5 │    0│        │      4│        ║
+        # ║6 │    0│        │      5│        ║
+        # ║7 │    0│        │   6, 6│        ║
+        # ╚══╧═════╧════════╧═══════╧════════╝
+        parents = [list(ind.parents) for ind in individuals]
+        assert parents == [[], [-1, -1], [-1], [2], [3], [4], [5], [6, 6]]
