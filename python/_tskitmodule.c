@@ -9639,6 +9639,78 @@ TreeSequence_f4(TreeSequence *self, PyObject *args, PyObject *kwds)
 }
 
 static PyObject *
+TreeSequence_divergence_matrix(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    static char *kwlist[] = { "windows", "samples", "mode", NULL };
+    PyArrayObject *result_array = NULL;
+    PyObject *windows = NULL;
+    PyObject *py_samples = Py_None;
+    char *mode = NULL;
+    PyArrayObject *windows_array = NULL;
+    PyArrayObject *samples_array = NULL;
+    tsk_flags_t options = 0;
+    npy_intp *shape, dims[3];
+    tsk_size_t num_samples, num_windows;
+    tsk_id_t *samples = NULL;
+    int err;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(
+            args, kwds, "O|Os", kwlist, &windows, &py_samples, &mode)) {
+        goto out;
+    }
+    num_samples = tsk_treeseq_get_num_samples(self->tree_sequence);
+    if (py_samples != Py_None) {
+        samples_array = (PyArrayObject *) PyArray_FROMANY(
+            py_samples, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
+        if (samples_array == NULL) {
+            goto out;
+        }
+        shape = PyArray_DIMS(samples_array);
+        samples = PyArray_DATA(samples_array);
+        num_samples = (tsk_size_t) shape[0];
+    }
+    if (parse_windows(windows, &windows_array, &num_windows) != 0) {
+        goto out;
+    }
+    dims[0] = num_windows;
+    dims[1] = num_samples;
+    dims[2] = num_samples;
+    result_array = (PyArrayObject *) PyArray_SimpleNew(3, dims, NPY_FLOAT64);
+    if (result_array == NULL) {
+        goto out;
+    }
+    if (parse_stats_mode(mode, &options) != 0) {
+        goto out;
+    }
+    // clang-format off
+    Py_BEGIN_ALLOW_THREADS
+    err = tsk_treeseq_divergence_matrix(
+        self->tree_sequence,
+        num_samples, samples,
+        num_windows, PyArray_DATA(windows_array),
+        options, PyArray_DATA(result_array));
+    Py_END_ALLOW_THREADS
+        // clang-format on
+        /* Clang-format insists on doing this in spite of the "off" instruction above */
+        if (err != 0)
+    {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = (PyObject *) result_array;
+    result_array = NULL;
+out:
+    Py_XDECREF(result_array);
+    Py_XDECREF(windows_array);
+    Py_XDECREF(samples_array);
+    return ret;
+}
+
+static PyObject *
 TreeSequence_get_num_mutations(TreeSequence *self)
 {
     PyObject *ret = NULL;
@@ -10346,6 +10418,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_f4,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Computes the f4 statistic." },
+    { .ml_name = "divergence_matrix",
+        .ml_meth = (PyCFunction) TreeSequence_divergence_matrix,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes the pairwise divergence matrix." },
     { .ml_name = "split_edges",
         .ml_meth = (PyCFunction) TreeSequence_split_edges,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,

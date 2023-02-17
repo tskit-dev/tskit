@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2022 Tskit Developers
+ * Copyright (c) 2019-2023 Tskit Developers
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -964,6 +964,16 @@ tskit_suite_init(void)
         return CUE_SINIT_FAILED;
     }
     return CUE_SUCCESS;
+}
+
+void
+assert_arrays_almost_equal(tsk_size_t len, double *a, double *b)
+{
+    tsk_size_t j;
+
+    for (j = 0; j < len; j++) {
+        CU_ASSERT_DOUBLE_EQUAL(a[j], b[j], 1e-9);
+    }
 }
 
 static int

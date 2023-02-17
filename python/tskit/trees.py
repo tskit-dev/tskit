@@ -7695,8 +7695,80 @@ class TreeSequence:
             span_normalise=span_normalise,
         )
 
-    # JK: commenting this out for now to get the other methods well tested.
-    # Issue: https://github.com/tskit-dev/tskit/issues/201
+    ############################################
+    # Pairwise sample x sample statistics
+    ############################################
+
+    def _chunk_sequence_by_tree(self, num_chunks):
+        """
+        Return list of (left, right) genome interval tuples that contain
+        approximately equal numbers of trees as a 2D numpy array. A
+        maximum of self.num_trees single-tree intervals can be returned.
+        """
+        if num_chunks <= 0 or int(num_chunks) != num_chunks:
+            raise ValueError("Number of chunks must be an integer > 0")
+        num_chunks = min(self.num_trees, num_chunks)
+        breakpoints = self.breakpoints(as_array=True)[:-1]
+        splits = np.array_split(breakpoints, num_chunks)
+        chunks = []
+        for j in range(num_chunks - 1):
+            chunks.append((splits[j][0], splits[j + 1][0]))
+        chunks.append((splits[-1][0], self.sequence_length))
+        return chunks
+
+    @staticmethod
+    def _chunk_windows(windows, num_chunks):
+        """
+        Returns a list of (at most) num_chunks windows, which represent splitting
+        up the specified list of windows into roughly equal work.
+
+        Currently this is implemented by just splitting up into roughly equal
+        numbers of windows in each chunk.
+        """
+        if num_chunks <= 0 or int(num_chunks) != num_chunks:
+            raise ValueError("Number of chunks must be an integer > 0")
+        num_chunks = min(len(windows) - 1, num_chunks)
+        splits = np.array_split(windows[:-1], num_chunks)
+        chunks = []
+        for j in range(num_chunks - 1):
+            chunk = np.append(splits[j], splits[j + 1][0])
+            chunks.append(chunk)
+        chunk = np.append(splits[-1], windows[-1])
+        chunks.append(chunk)
+        return chunks
+
+    def _parallelise_divmat_by_tree(self, num_threads, **kwargs):
+        """
+        No windows were specified, so we can chunk up the whole genome by
+        tree, and do a simple sum of the results.
+        """
+
+        def worker(interval):
+            return self._ll_tree_sequence.divergence_matrix(interval, **kwargs)
+
+        work = self._chunk_sequence_by_tree(num_threads)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as pool:
+            results = pool.map(worker, work)
+        return sum(results)
+
+    def _parallelise_divmat_by_window(self, windows, num_threads, **kwargs):
+        """
+        We assume we have a number of windows that's >= to the number
+        of threads available, and let each thread have a chunk of the
+        windows. There will definitely cases where this leads to
+        pathological behaviour, so we may need a more sophisticated
+        strategy at some point.
+        """
+
+        def worker(sub_windows):
+            return self._ll_tree_sequence.divergence_matrix(sub_windows, **kwargs)
+
+        work = self._chunk_windows(windows, num_threads)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+            futures = [executor.submit(worker, sub_windows) for sub_windows in work]
+            concurrent.futures.wait(futures)
+        return np.vstack([future.result() for future in futures])
+
     # def divergence_matrix(self, sample_sets, windows=None, mode="site"):
     #     """
     #     Finds the mean divergence  between pairs of samples from each set of
@@ -7730,6 +7802,36 @@ class TreeSequence:
     #                 A[w, i, j] = A[w, j, i] = x[w][k]
     #                 k += 1
     #     return A
+    # NOTE: see older definition of divmat here, which may be useful when documenting
+    # this function. See https://github.com/tskit-dev/tskit/issues/2781
+    def divergence_matrix(
+        self, *, windows=None, samples=None, num_threads=0, mode=None
+    ):
+        windows_specified = windows is not None
+        windows = [0, self.sequence_length] if windows is None else windows
+
+        mode = "site" if mode is None else mode
+
+        # NOTE: maybe we want to use a different default for num_threads here, just
+        # following the approach in GNN
+        if num_threads <= 0:
+            D = self._ll_tree_sequence.divergence_matrix(
+                windows, samples=samples, mode=mode
+            )
+        else:
+            if windows_specified:
+                D = self._parallelise_divmat_by_window(
+                    windows, num_threads, samples=samples, mode=mode
+                )
+            else:
+                D = self._parallelise_divmat_by_tree(
+                    num_threads, samples=samples, mode=mode
+                )
+
+        if not windows_specified:
+            # Drop the windows dimension
+            D = D[0]
+        return D
 
     def genetic_relatedness(
         self,

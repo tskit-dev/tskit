@@ -466,6 +466,15 @@ tsk_strerror_internal(int err)
             ret = "Statistics using branch lengths cannot be calculated when time_units "
                   "is 'uncalibrated'. (TSK_ERR_TIME_UNCALIBRATED)";
             break;
+        case TSK_ERR_STAT_POLARISED_UNSUPPORTED:
+            ret = "The TSK_STAT_POLARISED option is not supported by this statistic. "
+                  "(TSK_ERR_STAT_POLARISED_UNSUPPORTED)";
+            break;
+        case TSK_ERR_STAT_SPAN_NORMALISE_UNSUPPORTED:
+            ret = "The TSK_STAT_SPAN_NORMALISE option is not supported by this "
+                  "statistic. "
+                  "(TSK_ERR_STAT_SPAN_NORMALISE_UNSUPPORTED)";
+            break;
 
         /* Mutation mapping errors */
         case TSK_ERR_GENOTYPES_ALL_MISSING:

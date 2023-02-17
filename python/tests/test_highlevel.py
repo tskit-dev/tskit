@@ -228,14 +228,14 @@ def get_gap_examples():
                 assert len(t.parent_dict) == 0
                 found = True
         assert found
-        ret.append((f"gap {x}", ts))
+        ret.append((f"gap_{x}", ts))
     # Give an example with a gap at the end.
     ts = msprime.simulate(10, random_seed=5, recombination_rate=1)
     tables = get_table_collection_copy(ts.dump_tables(), 2)
     tables.sites.clear()
     tables.mutations.clear()
     insert_uniform_mutations(tables, 100, list(ts.samples()))
-    ret.append(("gap at end", tables.tree_sequence()))
+    ret.append(("gap_at_end", tables.tree_sequence()))
     return ret
 
 

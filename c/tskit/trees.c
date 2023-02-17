@@ -1191,9 +1191,11 @@ out:
  * General stats framework
  ***********************************/
 
+#define TSK_REQUIRE_FULL_SPAN 1
+
 static int
-tsk_treeseq_check_windows(
-    const tsk_treeseq_t *self, tsk_size_t num_windows, const double *windows)
+tsk_treeseq_check_windows(const tsk_treeseq_t *self, tsk_size_t num_windows,
+    const double *windows, tsk_flags_t options)
 {
     int ret = TSK_ERR_BAD_WINDOWS;
     tsk_size_t j;
@@ -1202,12 +1204,23 @@ tsk_treeseq_check_windows(
         ret = TSK_ERR_BAD_NUM_WINDOWS;
         goto out;
     }
-    /* TODO these restrictions can be lifted later if we want a specific interval. */
-    if (windows[0] != 0) {
-        goto out;
-    }
-    if (windows[num_windows] != self->tables->sequence_length) {
-        goto out;
+    if (options & TSK_REQUIRE_FULL_SPAN) {
+        /* TODO the general stat code currently requires that we include the
+         * entire tree sequence span. This should be relaxed, so hopefully
+         * this branch (and the option) can be removed at some point */
+        if (windows[0] != 0) {
+            goto out;
+        }
+        if (windows[num_windows] != self->tables->sequence_length) {
+            goto out;
+        }
+    } else {
+        if (windows[0] < 0) {
+            goto out;
+        }
+        if (windows[num_windows] > self->tables->sequence_length) {
+            goto out;
+        }
     }
     for (j = 0; j < num_windows; j++) {
         if (windows[j] >= windows[j + 1]) {
@@ -1960,7 +1973,8 @@ tsk_treeseq_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
         num_windows = 1;
         windows = default_windows;
     } else {
-        ret = tsk_treeseq_check_windows(self, num_windows, windows);
+        ret = tsk_treeseq_check_windows(
+            self, num_windows, windows, TSK_REQUIRE_FULL_SPAN);
         if (ret != 0) {
             goto out;
         }
@@ -2468,7 +2482,7 @@ tsk_treeseq_allele_frequency_spectrum(const tsk_treeseq_t *self,
     bool stat_site = !!(options & TSK_STAT_SITE);
     bool stat_branch = !!(options & TSK_STAT_BRANCH);
     bool stat_node = !!(options & TSK_STAT_NODE);
-    double default_windows[] = { 0, self->tables->sequence_length };
+    const double default_windows[] = { 0, self->tables->sequence_length };
     const tsk_size_t num_nodes = self->tables->nodes.num_rows;
     const tsk_size_t K = num_sample_sets + 1;
     tsk_size_t j, k, l, afs_size;
@@ -2496,7 +2510,8 @@ tsk_treeseq_allele_frequency_spectrum(const tsk_treeseq_t *self,
         num_windows = 1;
         windows = default_windows;
     } else {
-        ret = tsk_treeseq_check_windows(self, num_windows, windows);
+        ret = tsk_treeseq_check_windows(
+            self, num_windows, windows, TSK_REQUIRE_FULL_SPAN);
         if (ret != 0) {
             goto out;
         }
@@ -3331,7 +3346,7 @@ tsk_treeseq_simplify(const tsk_treeseq_t *self, const tsk_id_t *samples,
     }
     ret = tsk_treeseq_init(
         output, tables, TSK_TS_INIT_BUILD_INDEXES | TSK_TAKE_OWNERSHIP);
-    /* Once tsk_tree_init has returned ownership of tables is transferred */
+    /* Once tsk_treeseq_init has returned ownership of tables is transferred */
     tables = NULL;
 out:
     if (tables != NULL) {
@@ -3459,6 +3474,20 @@ out:
 /* ======================================================== *
  * Tree
  * ======================================================== */
+
+/* Return the root for the specified node.
+ * NOTE: no bounds checking is done here.
+ */
+static tsk_id_t
+tsk_tree_get_node_root(const tsk_tree_t *self, tsk_id_t u)
+{
+    const tsk_id_t *restrict parent = self->parent;
+
+    while (parent[u] != TSK_NULL) {
+        u = parent[u];
+    }
+    return u;
+}
 
 int TSK_WARN_UNUSED
 tsk_tree_init(tsk_tree_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t options)
@@ -6007,5 +6036,528 @@ out:
         kc_vectors_free(&kcs[i]);
         tsk_safe_free(depths[i]);
     }
+    return ret;
+}
+
+/*
+ * Divergence matrix
+ */
+
+typedef struct {
+    /* Note it's a waste storing the triply linked tree here, but the code
+     * is written on the assumption of 1-based trees and the algorithm is
+     * frighteningly subtle, so it doesn't seem worth messing with it
+     * unless we really need to save some memory */
+    tsk_id_t *parent;
+    tsk_id_t *child;
+    tsk_id_t *sib;
+    tsk_id_t *lambda;
+    tsk_id_t *pi;
+    tsk_id_t *tau;
+    tsk_id_t *beta;
+    tsk_id_t *alpha;
+} sv_tables_t;
+
+static int
+sv_tables_init(sv_tables_t *self, tsk_size_t n)
+{
+    int ret = 0;
+
+    self->parent = tsk_malloc(n * sizeof(*self->parent));
+    self->child = tsk_malloc(n * sizeof(*self->child));
+    self->sib = tsk_malloc(n * sizeof(*self->sib));
+    self->pi = tsk_malloc(n * sizeof(*self->pi));
+    self->lambda = tsk_malloc(n * sizeof(*self->lambda));
+    self->tau = tsk_malloc(n * sizeof(*self->tau));
+    self->beta = tsk_malloc(n * sizeof(*self->beta));
+    self->alpha = tsk_malloc(n * sizeof(*self->alpha));
+    if (self->parent == NULL || self->child == NULL || self->sib == NULL
+        || self->lambda == NULL || self->tau == NULL || self->beta == NULL
+        || self->alpha == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+out:
+    return ret;
+}
+
+static int
+sv_tables_free(sv_tables_t *self)
+{
+    tsk_safe_free(self->parent);
+    tsk_safe_free(self->child);
+    tsk_safe_free(self->sib);
+    tsk_safe_free(self->lambda);
+    tsk_safe_free(self->pi);
+    tsk_safe_free(self->tau);
+    tsk_safe_free(self->beta);
+    tsk_safe_free(self->alpha);
+    return 0;
+}
+static void
+sv_tables_reset(sv_tables_t *self, tsk_tree_t *tree)
+{
+    const tsk_size_t n = 1 + tree->num_nodes;
+    tsk_memset(self->parent, 0, n * sizeof(*self->parent));
+    tsk_memset(self->child, 0, n * sizeof(*self->child));
+    tsk_memset(self->sib, 0, n * sizeof(*self->sib));
+    tsk_memset(self->pi, 0, n * sizeof(*self->pi));
+    tsk_memset(self->lambda, 0, n * sizeof(*self->lambda));
+    tsk_memset(self->tau, 0, n * sizeof(*self->tau));
+    tsk_memset(self->beta, 0, n * sizeof(*self->beta));
+    tsk_memset(self->alpha, 0, n * sizeof(*self->alpha));
+}
+
+static void
+sv_tables_convert_tree(sv_tables_t *self, tsk_tree_t *tree)
+{
+    const tsk_size_t n = 1 + tree->num_nodes;
+    const tsk_id_t *restrict tsk_parent = tree->parent;
+    tsk_id_t *restrict child = self->child;
+    tsk_id_t *restrict parent = self->parent;
+    tsk_id_t *restrict sib = self->sib;
+    tsk_size_t j;
+    tsk_id_t u, v;
+
+    for (j = 0; j < n - 1; j++) {
+        u = (tsk_id_t) j + 1;
+        v = tsk_parent[j] + 1;
+        sib[u] = child[v];
+        child[v] = u;
+        parent[u] = v;
+    }
+}
+
+#define LAMBDA 0
+
+static void
+sv_tables_build_index(sv_tables_t *self)
+{
+    const tsk_id_t *restrict child = self->child;
+    const tsk_id_t *restrict parent = self->parent;
+    const tsk_id_t *restrict sib = self->sib;
+    tsk_id_t *restrict lambda = self->lambda;
+    tsk_id_t *restrict pi = self->pi;
+    tsk_id_t *restrict tau = self->tau;
+    tsk_id_t *restrict beta = self->beta;
+    tsk_id_t *restrict alpha = self->alpha;
+    tsk_id_t a, n, p, h;
+
+    p = child[LAMBDA];
+    n = 0;
+    lambda[0] = -1;
+    while (p != LAMBDA) {
+        while (true) {
+            n++;
+            pi[p] = n;
+            tau[n] = LAMBDA;
+            lambda[n] = 1 + lambda[n >> 1];
+            if (child[p] != LAMBDA) {
+                p = child[p];
+            } else {
+                break;
+            }
+        }
+        beta[p] = n;
+        while (true) {
+            tau[beta[p]] = parent[p];
+            if (sib[p] != LAMBDA) {
+                p = sib[p];
+                break;
+            } else {
+                p = parent[p];
+                if (p != LAMBDA) {
+                    h = lambda[n & -pi[p]];
+                    beta[p] = ((n >> h) | 1) << h;
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+
+    /* Begin the second traversal */
+    lambda[0] = lambda[n];
+    pi[LAMBDA] = 0;
+    beta[LAMBDA] = 0;
+    alpha[LAMBDA] = 0;
+    p = child[LAMBDA];
+    while (p != LAMBDA) {
+        while (true) {
+            a = alpha[parent[p]] | (beta[p] & -beta[p]);
+            alpha[p] = a;
+            if (child[p] != LAMBDA) {
+                p = child[p];
+            } else {
+                break;
+            }
+        }
+        while (true) {
+            if (sib[p] != LAMBDA) {
+                p = sib[p];
+                break;
+            } else {
+                p = parent[p];
+                if (p == LAMBDA) {
+                    break;
+                }
+            }
+        }
+    }
+}
+
+static void
+sv_tables_build(sv_tables_t *self, tsk_tree_t *tree)
+{
+    sv_tables_reset(self, tree);
+    sv_tables_convert_tree(self, tree);
+    sv_tables_build_index(self);
+}
+
+static tsk_id_t
+sv_tables_mrca_one_based(const sv_tables_t *self, tsk_id_t x, tsk_id_t y)
+{
+    const tsk_id_t *restrict lambda = self->lambda;
+    const tsk_id_t *restrict pi = self->pi;
+    const tsk_id_t *restrict tau = self->tau;
+    const tsk_id_t *restrict beta = self->beta;
+    const tsk_id_t *restrict alpha = self->alpha;
+    tsk_id_t h, k, xhat, yhat, ell, j, z;
+
+    if (beta[x] <= beta[y]) {
+        h = lambda[beta[y] & -beta[x]];
+    } else {
+        h = lambda[beta[x] & -beta[y]];
+    }
+    k = alpha[x] & alpha[y] & -(1 << h);
+    h = lambda[k & -k];
+    j = ((beta[x] >> h) | 1) << h;
+    if (j == beta[x]) {
+        xhat = x;
+    } else {
+        ell = lambda[alpha[x] & ((1 << h) - 1)];
+        xhat = tau[((beta[x] >> ell) | 1) << ell];
+    }
+    if (j == beta[y]) {
+        yhat = y;
+    } else {
+        ell = lambda[alpha[y] & ((1 << h) - 1)];
+        yhat = tau[((beta[y] >> ell) | 1) << ell];
+    }
+    if (pi[xhat] <= pi[yhat]) {
+        z = xhat;
+    } else {
+        z = yhat;
+    }
+    return z;
+}
+
+static tsk_id_t
+sv_tables_mrca(const sv_tables_t *self, tsk_id_t x, tsk_id_t y)
+{
+    /* Convert to 1-based indexes and back */
+    return sv_tables_mrca_one_based(self, x + 1, y + 1) - 1;
+}
+
+static int
+tsk_treeseq_check_node_bounds(
+    const tsk_treeseq_t *self, tsk_size_t num_nodes, const tsk_id_t *nodes)
+{
+    int ret = 0;
+    tsk_size_t j;
+    tsk_id_t u;
+    const tsk_id_t N = (tsk_id_t) self->tables->nodes.num_rows;
+
+    for (j = 0; j < num_nodes; j++) {
+        u = nodes[j];
+        if (u < 0 || u >= N) {
+            ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
+            goto out;
+        }
+    }
+out:
+    return ret;
+}
+
+static int
+tsk_treeseq_divergence_matrix_branch(const tsk_treeseq_t *self, tsk_size_t num_samples,
+    const tsk_id_t *restrict samples, tsk_size_t num_windows,
+    const double *restrict windows, tsk_flags_t options, double *restrict result)
+{
+    int ret = 0;
+    tsk_tree_t tree;
+    const double *restrict nodes_time = self->tables->nodes.time;
+    const tsk_size_t n = num_samples;
+    tsk_size_t i, j, k;
+    tsk_id_t u, v, w, u_root, v_root;
+    double tu, tv, d, span, left, right, span_left, span_right;
+    double *restrict D;
+    sv_tables_t sv;
+
+    memset(&sv, 0, sizeof(sv));
+    ret = tsk_tree_init(&tree, self, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = sv_tables_init(&sv, self->tables->nodes.num_rows + 1);
+    if (ret != 0) {
+        goto out;
+    }
+
+    if (self->time_uncalibrated && !(options & TSK_STAT_ALLOW_TIME_UNCALIBRATED)) {
+        ret = TSK_ERR_TIME_UNCALIBRATED;
+        goto out;
+    }
+
+    for (i = 0; i < num_windows; i++) {
+        left = windows[i];
+        right = windows[i + 1];
+        D = result + i * n * n;
+        ret = tsk_tree_seek(&tree, left, 0);
+        if (ret != 0) {
+            goto out;
+        }
+        while (tree.interval.left < right && tree.index != -1) {
+            span_left = TSK_MAX(tree.interval.left, left);
+            span_right = TSK_MIN(tree.interval.right, right);
+            span = span_right - span_left;
+            sv_tables_build(&sv, &tree);
+            for (j = 0; j < n; j++) {
+                u = samples[j];
+                for (k = j + 1; k < n; k++) {
+                    v = samples[k];
+                    w = sv_tables_mrca(&sv, u, v);
+                    if (w != TSK_NULL) {
+                        u_root = w;
+                        v_root = w;
+                    } else {
+                        /* Slow path - only happens for nodes in disconnected
+                         * subtrees in a tree with multiple roots */
+                        u_root = tsk_tree_get_node_root(&tree, u);
+                        v_root = tsk_tree_get_node_root(&tree, v);
+                    }
+                    tu = nodes_time[u_root] - nodes_time[u];
+                    tv = nodes_time[v_root] - nodes_time[v];
+                    d = (tu + tv) * span;
+                    D[j * n + k] += d;
+                }
+            }
+            ret = tsk_tree_next(&tree);
+            if (ret < 0) {
+                goto out;
+            }
+        }
+    }
+    ret = 0;
+out:
+    tsk_tree_free(&tree);
+    sv_tables_free(&sv);
+    return ret;
+}
+
+static tsk_size_t
+count_mutations_on_path(tsk_id_t u, tsk_id_t v, const tsk_id_t *restrict parent,
+    const double *restrict time, const tsk_size_t *restrict mutations_per_node)
+{
+    double tu, tv;
+    tsk_size_t count = 0;
+
+    tu = time[u];
+    tv = time[v];
+    while (u != v) {
+        if (tu < tv) {
+            count += mutations_per_node[u];
+            u = parent[u];
+            if (u == TSK_NULL) {
+                break;
+            }
+            tu = time[u];
+        } else {
+            count += mutations_per_node[v];
+            v = parent[v];
+            if (v == TSK_NULL) {
+                break;
+            }
+            tv = time[v];
+        }
+    }
+    if (u != v) {
+        while (u != TSK_NULL) {
+            count += mutations_per_node[u];
+            u = parent[u];
+        }
+        while (v != TSK_NULL) {
+            count += mutations_per_node[v];
+            v = parent[v];
+        }
+    }
+    return count;
+}
+
+static int
+tsk_treeseq_divergence_matrix_site(const tsk_treeseq_t *self, tsk_size_t num_samples,
+    const tsk_id_t *restrict samples, tsk_size_t num_windows,
+    const double *restrict windows, tsk_flags_t TSK_UNUSED(options),
+    double *restrict result)
+{
+    int ret = 0;
+    tsk_tree_t tree;
+    const tsk_size_t n = num_samples;
+    const tsk_size_t num_nodes = self->tables->nodes.num_rows;
+    const double *restrict nodes_time = self->tables->nodes.time;
+    tsk_size_t i, j, k, tree_site, tree_mut;
+    tsk_site_t site;
+    tsk_mutation_t mut;
+    tsk_id_t u, v;
+    double left, right, span_left, span_right;
+    double *restrict D;
+    tsk_size_t *mutations_per_node = tsk_malloc(num_nodes * sizeof(*mutations_per_node));
+
+    ret = tsk_tree_init(&tree, self, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    if (mutations_per_node == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    for (i = 0; i < num_windows; i++) {
+        left = windows[i];
+        right = windows[i + 1];
+        D = result + i * n * n;
+        ret = tsk_tree_seek(&tree, left, 0);
+        if (ret != 0) {
+            goto out;
+        }
+        while (tree.interval.left < right && tree.index != -1) {
+            span_left = TSK_MAX(tree.interval.left, left);
+            span_right = TSK_MIN(tree.interval.right, right);
+
+            /* NOTE: we could avoid this full memset across all nodes by doing
+             * the same loops again and decrementing at the end of the main
+             * tree-loop. It's probably not worth it though, because of the
+             * overwhelming O(n^2) below */
+            tsk_memset(mutations_per_node, 0, num_nodes * sizeof(*mutations_per_node));
+            for (tree_site = 0; tree_site < tree.sites_length; tree_site++) {
+                site = tree.sites[tree_site];
+                if (span_left <= site.position && site.position < span_right) {
+                    for (tree_mut = 0; tree_mut < site.mutations_length; tree_mut++) {
+                        mut = site.mutations[tree_mut];
+                        mutations_per_node[mut.node]++;
+                    }
+                }
+            }
+
+            for (j = 0; j < n; j++) {
+                u = samples[j];
+                for (k = j + 1; k < n; k++) {
+                    v = samples[k];
+                    D[j * n + k] += (double) count_mutations_on_path(
+                        u, v, tree.parent, nodes_time, mutations_per_node);
+                }
+            }
+            ret = tsk_tree_next(&tree);
+            if (ret < 0) {
+                goto out;
+            }
+        }
+    }
+    ret = 0;
+out:
+    tsk_tree_free(&tree);
+    tsk_safe_free(mutations_per_node);
+    return ret;
+}
+
+static void
+fill_lower_triangle(
+    double *restrict result, const tsk_size_t n, const tsk_size_t num_windows)
+{
+    tsk_size_t i, j, k;
+    double *restrict D;
+
+    /* TODO there's probably a better striding pattern that could be used here */
+    for (i = 0; i < num_windows; i++) {
+        D = result + i * n * n;
+        for (j = 0; j < n; j++) {
+            for (k = j + 1; k < n; k++) {
+                D[k * n + j] = D[j * n + k];
+            }
+        }
+    }
+}
+
+int
+tsk_treeseq_divergence_matrix(const tsk_treeseq_t *self, tsk_size_t num_samples,
+    const tsk_id_t *samples_in, tsk_size_t num_windows, const double *windows,
+    tsk_flags_t options, double *result)
+{
+    int ret = 0;
+    const tsk_id_t *samples = self->samples;
+    tsk_size_t n = self->num_samples;
+    const double default_windows[] = { 0, self->tables->sequence_length };
+    bool stat_site = !!(options & TSK_STAT_SITE);
+    bool stat_branch = !!(options & TSK_STAT_BRANCH);
+    bool stat_node = !!(options & TSK_STAT_NODE);
+
+    if (stat_node) {
+        ret = TSK_ERR_UNSUPPORTED_STAT_MODE;
+        goto out;
+    }
+    /* If no mode is specified, we default to site mode */
+    if (!(stat_site || stat_branch)) {
+        stat_site = true;
+    }
+    /* It's an error to specify more than one mode */
+    if (stat_site + stat_branch > 1) {
+        ret = TSK_ERR_MULTIPLE_STAT_MODES;
+        goto out;
+    }
+
+    if (options & TSK_STAT_POLARISED) {
+        ret = TSK_ERR_STAT_POLARISED_UNSUPPORTED;
+        goto out;
+    }
+    if (options & TSK_STAT_SPAN_NORMALISE) {
+        ret = TSK_ERR_STAT_SPAN_NORMALISE_UNSUPPORTED;
+        goto out;
+    }
+
+    if (windows == NULL) {
+        num_windows = 1;
+        windows = default_windows;
+    } else {
+        ret = tsk_treeseq_check_windows(self, num_windows, windows, 0);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+
+    if (samples_in != NULL) {
+        samples = samples_in;
+        n = num_samples;
+        ret = tsk_treeseq_check_node_bounds(self, n, samples);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+
+    tsk_memset(result, 0, num_windows * n * n * sizeof(*result));
+
+    if (stat_branch) {
+        ret = tsk_treeseq_divergence_matrix_branch(
+            self, n, samples, num_windows, windows, options, result);
+    } else {
+        tsk_bug_assert(stat_site);
+        ret = tsk_treeseq_divergence_matrix_site(
+            self, n, samples, num_windows, windows, options, result);
+    }
+    if (ret != 0) {
+        goto out;
+    }
+    fill_lower_triangle(result, n, num_windows);
+
+out:
     return ret;
 }

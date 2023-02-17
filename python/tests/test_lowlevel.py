@@ -1529,6 +1529,26 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             x2 = ts2.get_kc_distance(ts1, lambda_)
             assert x1 == x2
 
+    def test_divergence_matrix(self):
+        n = 10
+        ts = self.get_example_tree_sequence(n, random_seed=12)
+        D = ts.divergence_matrix([0, ts.get_sequence_length()])
+        assert D.shape == (1, n, n)
+        D = ts.divergence_matrix([0, ts.get_sequence_length()], samples=[0, 1])
+        assert D.shape == (1, 2, 2)
+        with pytest.raises(TypeError):
+            ts.divergence_matrix(windoze=[0, 1])
+        with pytest.raises(ValueError, match="at least 2"):
+            ts.divergence_matrix(windows=[0])
+        with pytest.raises(_tskit.LibraryError, match="BAD_WINDOWS"):
+            ts.divergence_matrix(windows=[-1, 0, 1])
+        with pytest.raises(ValueError):
+            ts.divergence_matrix(windows=[0, 1], samples="sdf")
+        with pytest.raises(ValueError, match="Unrecognised stats mode"):
+            ts.divergence_matrix(windows=[0, 1], mode="sdf")
+        with pytest.raises(_tskit.LibraryError, match="UNSUPPORTED_STAT_MODE"):
+            ts.divergence_matrix(windows=[0, 1], mode="node")
+
     def test_load_tables_build_indexes(self):
         for ts in self.get_example_tree_sequences():
             tables = _tskit.TableCollection(sequence_length=ts.get_sequence_length())

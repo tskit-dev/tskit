@@ -1003,6 +1003,10 @@ int tsk_treeseq_f4(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
     tsk_size_t num_index_tuples, const tsk_id_t *index_tuples, tsk_size_t num_windows,
     const double *windows, tsk_flags_t options, double *result);
 
+int tsk_treeseq_divergence_matrix(const tsk_treeseq_t *self, tsk_size_t num_samples,
+    const tsk_id_t *samples, tsk_size_t num_windows, const double *windows,
+    tsk_flags_t options, double *result);
+
 /****************************************************************************/
 /* Tree */
 /****************************************************************************/

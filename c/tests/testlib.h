@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2021 Tskit Developers
+ * Copyright (c) 2019-2023 Tskit Developers
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -53,6 +53,8 @@ void parse_mutations(const char *text, tsk_mutation_table_t *mutation_table);
 void parse_individuals(const char *text, tsk_individual_table_t *individual_table);
 
 void unsort_edges(tsk_edge_table_t *edges, size_t start);
+
+void assert_arrays_almost_equal(tsk_size_t len, double *a, double *b);
 
 extern const char *single_tree_ex_nodes;
 extern const char *single_tree_ex_edges;
