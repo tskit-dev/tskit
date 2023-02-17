@@ -675,6 +675,16 @@ Statistics based on branch lengths were attempted when the ``time_units``
 were ``uncalibrated``.
 */
 #define TSK_ERR_TIME_UNCALIBRATED                                   -910
+/**
+The TSK_STAT_POLARISED option was passed to a statistic that does
+not support it.
+*/
+#define TSK_ERR_STAT_POLARISED_UNSUPPORTED                          -911
+/**
+The TSK_STAT_SPAN_NORMALISE option was passed to a statistic that does
+not support it.
+*/
+#define TSK_ERR_STAT_SPAN_NORMALISE_UNSUPPORTED                     -912
 /** @} */
 
 /**

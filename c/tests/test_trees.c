@@ -5395,7 +5395,6 @@ test_simplify_keep_input_roots_multi_tree(void)
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
-    tsk_treeseq_dump(&ts, "tmp.trees", 0);
     ret = tsk_treeseq_simplify(
         &ts, samples, 2, TSK_SIMPLIFY_KEEP_INPUT_ROOTS, &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -7801,7 +7800,7 @@ test_time_uncalibrated(void)
     tsk_size_t sample_set_sizes[] = { 2, 2 };
     tsk_id_t samples[] = { 0, 1, 2, 3 };
     tsk_size_t num_samples;
-    double result[10];
+    double result[100];
     double *W;
     double *sigma;
 
@@ -7855,6 +7854,12 @@ test_time_uncalibrated(void)
     ret = tsk_treeseq_general_stat(&ts2, 1, W, 1, dummy_stat, NULL,
         tsk_treeseq_get_num_trees(&ts2), tsk_treeseq_get_breakpoints(&ts2),
         TSK_STAT_BRANCH | TSK_STAT_ALLOW_TIME_UNCALIBRATED, sigma);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_divergence_matrix(&ts2, 0, NULL, 0, NULL, TSK_STAT_BRANCH, result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TIME_UNCALIBRATED);
+    ret = tsk_treeseq_divergence_matrix(&ts2, 0, NULL, 0, NULL,
+        TSK_STAT_BRANCH | TSK_STAT_ALLOW_TIME_UNCALIBRATED, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tsk_safe_free(W);

@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 # Copyright (C) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -81,6 +81,8 @@ def insert_branch_mutations(ts, mutations_per_branch=1):
     Returns a copy of the specified tree sequence with a mutation on every branch
     in every tree.
     """
+    if mutations_per_branch == 0:
+        return ts
     tables = ts.dump_tables()
     tables.sites.clear()
     tables.mutations.clear()
@@ -146,23 +148,26 @@ def insert_discrete_time_mutations(ts, num_times=4, num_sites=10):
     return tables.tree_sequence()
 
 
-def insert_branch_sites(ts):
+def insert_branch_sites(ts, m=1):
     """
-    Returns a copy of the specified tree sequence with a site on every branch
+    Returns a copy of the specified tree sequence with m sites on every branch
     of every tree.
     """
+    if m == 0:
+        return ts
     tables = ts.dump_tables()
     tables.sites.clear()
     tables.mutations.clear()
     for tree in ts.trees():
         left, right = tree.interval
-        delta = (right - left) / len(list(tree.nodes()))
+        delta = (right - left) / (m * len(list(tree.nodes())))
         x = left
         for u in tree.nodes():
             if tree.parent(u) != tskit.NULL:
-                site = tables.sites.add_row(position=x, ancestral_state="0")
-                tables.mutations.add_row(site=site, node=u, derived_state="1")
-                x += delta
+                for _ in range(m):
+                    site = tables.sites.add_row(position=x, ancestral_state="0")
+                    tables.mutations.add_row(site=site, node=u, derived_state="1")
+                    x += delta
     add_provenance(tables.provenances, "insert_branch_sites")
     return tables.tree_sequence()
 
@@ -1774,7 +1779,6 @@ def mean_descendants(ts, reference_sets):
 
 
 def genealogical_nearest_neighbours(ts, focal, reference_sets):
-
     reference_set_map = np.zeros(ts.num_nodes, dtype=int) - 1
     for k, reference_set in enumerate(reference_sets):
         for u in reference_set:
