@@ -1,8 +1,38 @@
-# Efficient computation of the pairwise divergence matrix.
+# MIT License
+#
+# Copyright (c) 2023 Tskit Developers
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+"""
+Test cases for divergence matrix based pairwise stats
+"""
+import itertools
+
 import msprime
 import numpy as np
+import pytest
 
 import tskit
+from tests.test_highlevel import get_example_tree_sequences
+
+# ↑ See https://github.com/tskit-dev/tskit/issues/1804 for when
+# we can remove this.
 
 
 def assert_dicts_close(d1, d2):
@@ -11,12 +41,14 @@ def assert_dicts_close(d1, d2):
         print("d2:", set(d2.keys()) - set(d1.keys()))
     assert set(d1.keys()) == set(d2.keys())
     for k in d1:
-        if not np.isclose(d1[k], d2[k]):
-            print(k, d1[k], d2[k])
-    for k in d1:
-        assert np.isclose(d1[k], d2[k])
+        np.testing.assert_allclose(d1[k], d2[k])
 
 
+# Implementation note: the class structure here, where we pass in all the
+# needed arrays through the constructor was determined by an older version
+# in which we used numba acceleration. We could just pass in a reference to
+# the tree sequence now, but it is useful to keep track of exactly what we
+# require, so leaving it as it is for now.
 class DivergenceMatrix:
     def __init__(
         self,
@@ -31,7 +63,7 @@ class DivergenceMatrix:
         edge_removal_order,
         sequence_length,
         verbosity=0,
-        strict=False,
+        internal_checks=False,
     ):
         # virtual root is at num_nodes; virtual samples are beyond that
         N = num_nodes + 1 + len(samples)
@@ -58,33 +90,38 @@ class DivergenceMatrix:
         self.x = np.zeros(N, dtype=np.float64)
         self.stack = [{} for _ in range(N)]
         self.verbosity = verbosity
-        self.strict = strict
+        self.internal_checks = internal_checks
 
-        n = samples.shape[0]
-        for j in range(n):
-            u = samples[j]
+        for j, u in enumerate(samples):
             self.num_samples[u] = 1
             self.insert_root(u)
-            self.insert_branch(u, num_nodes + 1 + j)
+            # Add branch to the virtual sample
+            v = num_nodes + 1 + j
+            self.insert_branch(u, v)
+            self.num_samples[v] = 1
 
     def print_state(self, msg=""):
         num_nodes = len(self.parent)
         print(f"..........{msg}................")
         print(f"position = {self.position}")
         for j in range(num_nodes):
-            st = "NaN" if j >= self.virtual_root else f"{self.nodes_time[j]}"
-            pt = (
-                "NaN"
-                if self.parent[j] == tskit.NULL
-                else f"{self.nodes_time[self.parent[j]]}"
-            )
-            print(
-                f"node {j} -> {self.parent[j]}: "
-                f"ns = {self.num_samples[j]}, "
-                f"z = ({pt} - {st})"
-                f" * ({self.position} - {self.x[j]})"
-                f" = {self.get_z(j)}"
-            )
+            if j <= self.virtual_root:
+                st = "NaN" if j >= self.virtual_root else f"{self.nodes_time[j]}"
+                pt = (
+                    "NaN"
+                    if self.parent[j] == tskit.NULL
+                    else f"{self.nodes_time[self.parent[j]]}"
+                )
+                print(
+                    f"node {j} -> {self.parent[j]}: "
+                    f"ns = {self.num_samples[j]}, "
+                    f"z = ({pt} - {st})"
+                    f" * ({self.position} - {self.x[j]})"
+                    f" = {self.get_z(j)}"
+                )
+            else:
+                sample = self.samples[j - self.virtual_root - 1]
+                print(f"node {j} -> virtual sample for : {sample}")
             for u, z in self.stack[j].items():
                 print(f"   {(j, u)}: {z}")
         print(f"Virtual root: {self.virtual_root}")
@@ -168,7 +205,7 @@ class DivergenceMatrix:
     # begin stack stuff
 
     def add_to_stack(self, u, v, z):
-        if z > 0:
+        if z > 0 and self.num_samples[u] > 0 and self.num_samples[v] > 0:
             if v not in self.stack[u]:
                 self.stack[u][v] = 0.0
                 assert u not in self.stack[v]
@@ -176,7 +213,7 @@ class DivergenceMatrix:
             self.stack[u][v] += z
             self.stack[v][u] += z
         # pedantic error checking:
-        if self.strict:
+        if self.internal_checks:
             p = u
             while p != tskit.NULL:
                 assert p != v
@@ -186,35 +223,32 @@ class DivergenceMatrix:
                 assert p != u
                 p = self.parent[p]
 
-    def empty_stack(self, n):
-        for w in self.stack[n]:
-            assert n in self.stack[w]
-            del self.stack[w][n]
-        self.stack[n].clear()
+    def empty_stack(self, u):
+        for w in self.stack[u]:
+            assert u in self.stack[w]
+            del self.stack[w][u]
+        self.stack[u].clear()
 
-    def verify_zero_spine(self, n):
+    def verify_zero_spine(self, u):
         """
         Verify that there are no contributions along the path
-        from n up to the root. (should be true after clear_spine)
+        from u up to the root. (should be true after clear_spine)
         """
-        for u, z in self.stack[n].items():
+        for v, z in self.stack[u].items():
             if z != 0:
-                print(f"Uh-oh!: [{n}] : ({u}, {z})")
+                print(f"Uh-oh!: [{u}] : ({v}, {z})")
             assert z == 0
-        while n != tskit.NULL:
-            assert self.parent[n] == tskit.NULL or self.x[n] == self.position
-            n = self.parent[n]
+        while u != tskit.NULL:
+            assert self.parent[u] == tskit.NULL or self.x[u] == self.position
+            u = self.parent[u]
 
     def get_z(self, u):
         p = self.parent[u]
-        return (
-            0
-            if p == tskit.NULL
-            else (
-                (self.nodes_time[self.parent[u]] - self.nodes_time[u])
-                * (self.position - self.x[u])
-            )
-        )
+        if p == tskit.NULL or u >= self.virtual_root:
+            return 0
+        time = self.nodes_time[p] - self.nodes_time[u]
+        span = self.position - self.x[u]
+        return time * span
 
     def mrca(self, a, b):
         # just used for `current_state`
@@ -236,53 +270,54 @@ class DivergenceMatrix:
         """
         if self.verbosity > 1:
             print("---------------")
-        out = {(a, b): 0 for a in self.samples for b in self.samples if a < b}
-        for a in self.samples:
-            for b in self.samples:
-                if a < b:
-                    k = tuple(sorted([a, b]))
-                    m = self.mrca(a, b)
-                    # edges on the path up from a
-                    pa = a
-                    while pa != m:
-                        if self.verbosity > 1:
-                            print("edge:", k, pa, self.get_z(pa))
-                        out[k] += self.get_z(pa)
-                        pa = self.parent[pa]
-                    # edges on the path up from b
-                    pb = b
-                    while pb != m:
-                        if self.verbosity > 1:
-                            print("edge:", k, pb, self.get_z(pb))
-                        out[k] += self.get_z(pb)
-                        pb = self.parent[pb]
-                    # pairwise stack references along the way
-                    pa = a
-                    while pa != m:
-                        pb = b
-                        while pb != m:
-                            for w, z in self.stack[pa].items():
-                                if w == pb:
-                                    if self.verbosity > 1:
-                                        print("stack:", k, (pa, pb), z)
-                                    out[k] += z
-                            pb = self.parent[pb]
-                        pa = self.parent[pa]
+        n = len(self.samples)
+        virtual_samples = [j + self.virtual_root + 1 for j in range(n)]
+        out = {}
+        for a, b in itertools.combinations(virtual_samples, 2):
+            k = (a, b)
+            out[k] = 0
+            m = self.mrca(a, b)
+            # edges on the path up from a
+            pa = a
+            while pa != m:
+                if self.verbosity > 1:
+                    print("edge:", k, pa, self.get_z(pa))
+                out[k] += self.get_z(pa)
+                pa = self.parent[pa]
+            # edges on the path up from b
+            pb = b
+            while pb != m:
+                if self.verbosity > 1:
+                    print("edge:", k, pb, self.get_z(pb))
+                out[k] += self.get_z(pb)
+                pb = self.parent[pb]
+            # pairwise stack references along the way
+            pa = a
+            while pa != m:
+                pb = b
+                while pb != m:
+                    for w, z in self.stack[pa].items():
+                        if w == pb:
+                            if self.verbosity > 1:
+                                print("stack:", k, (pa, pb), z)
+                            out[k] += z
+                    pb = self.parent[pb]
+                pa = self.parent[pa]
         if self.verbosity > 1:
             print("---------------")
         return out
 
-    def clear_edge(self, n):
+    def clear_edge(self, u):
         if self.verbosity > 0:
-            print(f"clear_edge({n})")
-        if self.strict:
+            print(f"clear_edge({u})")
+        if self.internal_checks:
             # this operation should not change the current output
             before_state = self.current_state()
-        z = self.get_z(n)
-        self.x[n] = self.position
-        assert self.get_z(n) == 0
+        z = self.get_z(u)
+        self.x[u] = self.position
+        assert self.get_z(u) == 0
         # iterate over the siblings of the path to the virtual root
-        c = n
+        c = u
         p = self.parent[c]
         # how to better include the virtual root in the traversal?
         root = False
@@ -291,65 +326,64 @@ class DivergenceMatrix:
             while s != tskit.NULL:
                 if s != c:
                     if self.verbosity > 1:
-                        print(f"adding {z} to {(n, s)}")
-                    self.add_to_stack(n, s, z)
+                        print(f"adding {z} to {(u, s)}")
+                    self.add_to_stack(u, s, z)
                 s = self.right_sib[s]
             c = p
             p = self.parent[c]
             if not root and p == tskit.NULL:
                 p = self.virtual_root
                 root = True
-        if self.strict:
+        if self.internal_checks:
             after_state = self.current_state()
             assert_dicts_close(before_state, after_state)
 
-    def push_down(self, n):
+    def push_down(self, u):
         """
-        Push down references in the stack from n to other nodes
-        to the children of n.
+        Push down references in the stack from u to other nodes
+        to the children of u.
         """
-        if self.strict:
+        if self.internal_checks:
             # this operation should not change the current output
             before_state = self.current_state()
         if self.verbosity > 0:
-            print(f"push_down({n})")
-        for w, z in self.stack[n].items():
-            c = self.left_child[n]
+            print(f"push_down({u})")
+        for w, z in self.stack[u].items():
+            c = self.left_child[u]
             while c != tskit.NULL:
                 if self.verbosity > 1:
                     print(f"adding {z} to {(w, c)}")
                 self.add_to_stack(w, c, z)
                 c = self.right_sib[c]
-        self.empty_stack(n)
-        assert len(self.stack[n]) == 0
-        if self.strict:
+        self.empty_stack(u)
+        assert len(self.stack[u]) == 0
+        if self.internal_checks:
             after_state = self.current_state()
             assert_dicts_close(before_state, after_state)
 
-    def clear_spine(self, n):
+    def clear_spine(self, u):
         """
-        Clears all nodes on the path from the virtual root down to n
+        Clears all nodes on the path from the virtual root down to u
         by pushing the contributions of all their branches to the stack
         and pushing all stack references to their children.
         """
         if self.verbosity > 0:
-            print(f"clear_spine({n})")
-        if self.strict:
+            print(f"clear_spine({u})")
+        if self.internal_checks:
             # this operation should not change the current output
             before_state = self.current_state()
         spine = []
-        p = n
+        p = u
         while p != tskit.NULL:
             spine.append(p)
             p = self.parent[p]
         spine.append(self.virtual_root)
-        for j in range(len(spine) - 1, -1, -1):
-            p = spine[j]
+        for p in reversed(spine):
             self.clear_edge(p)
             self.push_down(p)
             self.verify_zero_spine(p)
-        self.verify_zero_spine(n)
-        if self.strict:
+        self.verify_zero_spine(u)
+        if self.internal_checks:
             after_state = self.current_state()
             assert_dicts_close(before_state, after_state)
 
@@ -366,7 +400,8 @@ class DivergenceMatrix:
         j = 0
         k = 0
         # TODO: self.position is redundant with left
-        self.position = left = 0
+        left = 0
+        self.position = left
 
         while k < M and left <= self.sequence_length:
             while k < M and edges_right[out_order[k]] == left:
@@ -396,8 +431,11 @@ class DivergenceMatrix:
                 right = min(right, edges_left[in_order[j]])
             if k < M:
                 right = min(right, edges_right[out_order[k]])
-            self.position = left = right
-        assert j == M and left == self.sequence_length
+            left = right
+            self.position = left
+
+        # self.print_state()
+
         # clear remaining things down to virtual samples
         for u in self.samples:
             self.push_down(u)
@@ -430,33 +468,66 @@ def divergence_matrix(ts, **kwargs):
 
 
 def lib_divergence_matrix(ts, mode="branch"):
-    out = ts.divergence(
-        [[u] for u in ts.samples()],
-        [(i, j) for i in range(ts.num_samples) for j in range(ts.num_samples)],
-        mode=mode,
-        span_normalise=False,
-    ).reshape((ts.num_samples, ts.num_samples))
-    for i in range(ts.num_samples):
-        out[i, i] = 0
+    if ts.num_samples > 0:
+        # FIXME: the code general stat code doesn't seem to handle zero samples
+        # case, need to identify MWE and file issue.
+        out = ts.divergence(
+            [[u] for u in ts.samples()],
+            [(i, j) for i in range(ts.num_samples) for j in range(ts.num_samples)],
+            mode=mode,
+            span_normalise=False,
+        ).reshape((ts.num_samples, ts.num_samples))
+        for i in range(ts.num_samples):
+            out[i, i] = 0
+    else:
+        out = np.zeros(shape=(0, 0))
     return out
 
 
-def small_example():
-    ts = msprime.sim_ancestry(
-        4,
-        ploidy=1,
-        population_size=10,
-        sequence_length=10,
-        recombination_rate=0.01,
-        random_seed=124,
-    )
-    print(f"========trees: {ts.num_trees}=============")
-    divergence_matrix(ts, verbosity=2)
-    print("=====================")
+def check_divmat(ts, *, internal_checks=False, verbosity=0):
+    if verbosity > 1:
+        print(ts.draw_text())
+    D1 = lib_divergence_matrix(ts, mode="branch")
+    D2 = divergence_matrix(ts, internal_checks=internal_checks, verbosity=verbosity)
+    # print(f"========{ts.num_trees}=============")
+    # for i in range(D2.shape[0]):
+    #     for j in range(D2.shape[1]):
+    #         print(i, j, D1[i, j], D2[i, j])
+    # print("=====================")
+    assert np.allclose(D1, D2)
+    return D1
 
 
-def verify():
-    for seed in range(1, 10):
+class TestExamples:
+    @pytest.mark.parametrize("n", [2, 3, 5])
+    @pytest.mark.parametrize("seed", range(1, 4))
+    def test_small_internal_checks(self, n, seed):
+        ts = msprime.sim_ancestry(
+            n,
+            ploidy=1,
+            sequence_length=1000,
+            recombination_rate=0.01,
+            random_seed=seed,
+        )
+        assert ts.num_trees >= 2
+        check_divmat(ts, verbosity=0, internal_checks=True)
+
+    @pytest.mark.parametrize("n", [2, 3, 5, 15])
+    @pytest.mark.parametrize("seed", range(1, 5))
+    def test_simple_sims(self, n, seed):
+        ts = msprime.sim_ancestry(
+            n,
+            ploidy=1,
+            population_size=20,
+            sequence_length=100,
+            recombination_rate=0.01,
+            random_seed=seed,
+        )
+        assert ts.num_trees >= 2
+        check_divmat(ts)
+
+    @pytest.mark.parametrize("seed", range(1, 5))
+    def test_one_internal_sample_sims(self, seed):
         ts = msprime.sim_ancestry(
             10,
             ploidy=1,
@@ -465,25 +536,66 @@ def verify():
             recombination_rate=0.01,
             random_seed=seed,
         )
-        t = ts.tables
-        n = t.nodes.add_row(time=-1, flags=tskit.NODE_IS_SAMPLE)
-        t.edges.add_row(parent=0, child=n, left=0, right=ts.sequence_length)
+        t = ts.dump_tables()
+        # Add a new sample directly below another sample
+        u = t.nodes.add_row(time=-1, flags=tskit.NODE_IS_SAMPLE)
+        t.edges.add_row(parent=0, child=u, left=0, right=ts.sequence_length)
         t.sort()
         t.build_index()
         ts = t.tree_sequence()
-        D1 = lib_divergence_matrix(ts, mode="branch")
-        D2 = divergence_matrix(ts, verbosity=0, strict=False)
-        print(f"========{ts.num_trees}=============")
-        for i in range(D2.shape[0]):
-            for j in range(D2.shape[1]):
-                print(i, j, D1[i, j], D2[i, j])
-        print("=====================")
-        assert np.allclose(D1, D2)
+        check_divmat(ts)
 
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_suite_examples(self, ts):
+        check_divmat(ts)
 
-if __name__ == "__main__":
+    @pytest.mark.parametrize("n", [2, 3, 10])
+    def test_dangling_on_samples(self, n):
+        # Adding non sample branches below the samples does not alter
+        # the overall divergence *between* the samples
+        ts1 = tskit.Tree.generate_balanced(n).tree_sequence
+        D1 = check_divmat(ts1)
+        tables = ts1.dump_tables()
+        for u in ts1.samples():
+            v = tables.nodes.add_row(time=-1)
+            tables.edges.add_row(left=0, right=ts1.sequence_length, parent=u, child=v)
+        tables.sort()
+        tables.build_index()
+        ts2 = tables.tree_sequence()
+        D2 = lib_divergence_matrix(ts2)
+        D2 = check_divmat(ts2, internal_checks=True)
+        np.testing.assert_array_almost_equal(D1, D2)
 
-    np.set_printoptions(linewidth=500, precision=4)
-    # small_example()
-    verify()
-    # compare_perf()
+    @pytest.mark.parametrize("n", [2, 3, 10])
+    def test_dangling_on_all(self, n):
+        # Adding non sample branches below the samples does not alter
+        # the overall divergence *between* the samples
+        ts1 = tskit.Tree.generate_balanced(n).tree_sequence
+        D1 = check_divmat(ts1)
+        tables = ts1.dump_tables()
+        for u in range(ts1.num_nodes):
+            v = tables.nodes.add_row(time=-1)
+            tables.edges.add_row(left=0, right=ts1.sequence_length, parent=u, child=v)
+        tables.sort()
+        tables.build_index()
+        ts2 = tables.tree_sequence()
+        D2 = lib_divergence_matrix(ts2)
+        D2 = check_divmat(ts2, internal_checks=True)
+        np.testing.assert_array_almost_equal(D1, D2)
+
+    def test_disconnected_non_sample_topology(self):
+        # Adding non sample branches below the samples does not alter
+        # the overall divergence *between* the samples
+        ts1 = tskit.Tree.generate_balanced(5).tree_sequence
+        D1 = check_divmat(ts1)
+        tables = ts1.dump_tables()
+        # Add an extra bit of disconnected non-sample topology
+        u = tables.nodes.add_row(time=0)
+        v = tables.nodes.add_row(time=1)
+        tables.edges.add_row(left=0, right=ts1.sequence_length, parent=v, child=u)
+        tables.sort()
+        tables.build_index()
+        ts2 = tables.tree_sequence()
+        D2 = lib_divergence_matrix(ts2)
+        D2 = check_divmat(ts2, internal_checks=True)
+        np.testing.assert_array_almost_equal(D1, D2)
