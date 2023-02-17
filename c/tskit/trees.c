@@ -5871,3 +5871,91 @@ out:
     }
     return ret;
 }
+
+/* ======================================================== *
+ * Divergence matrix
+ * ======================================================== */
+
+typedef struct {
+    const tsk_treeseq_t *ts;
+    tsk_size_t num_input_samples;
+    const tsk_id_t *samples;
+    tsk_flags_t options;
+    double *result;
+    /* Internal state */
+    tsk_id_t virtual_root;
+    tsk_id_t *parent;
+    tsk_id_t *left_child;
+    tsk_id_t *right_child;
+    tsk_id_t *left_sib;
+    tsk_id_t *right_sib;
+    tsk_size_t *num_samples;
+} tsk_divmat_calculator_t;
+
+static int
+tsk_divmat_calculator_init(tsk_divmat_calculator_t *self, const tsk_treeseq_t *ts,
+    tsk_size_t num_input_samples, const tsk_id_t *samples, tsk_flags_t options,
+    double *result)
+{
+    int ret = 0;
+    tsk_size_t N = num_input_samples * num_input_samples;
+    tsk_size_t num_nodes = ts->tables->nodes.num_rows + num_input_samples + 1;
+
+    self->ts = ts;
+    self->num_input_samples = num_input_samples;
+    self->samples = samples;
+    self->options = options;
+    self->result = result;
+
+    self->parent = tsk_malloc(num_nodes * sizeof(*self->parent));
+    self->left_child = tsk_malloc(num_nodes * sizeof(*self->left_child));
+    self->right_child = tsk_malloc(num_nodes * sizeof(*self->right_child));
+    self->left_sib = tsk_malloc(num_nodes * sizeof(*self->left_sib));
+    self->right_sib = tsk_malloc(num_nodes * sizeof(*self->right_sib));
+    self->num_samples = tsk_malloc(num_nodes * sizeof(*self->num_samples));
+
+    if (self->parent == NULL || self->left_child == NULL || self->right_child == NULL
+        || self->left_sib == NULL || self->right_sib == NULL
+        || self->num_samples == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    memset(result, 0, N * sizeof(double));
+out:
+    return ret;
+}
+
+static int
+tsk_divmat_calculator_free(tsk_divmat_calculator_t *self)
+{
+    tsk_safe_free(self->parent);
+    tsk_safe_free(self->left_child);
+    tsk_safe_free(self->right_child);
+    tsk_safe_free(self->left_sib);
+    tsk_safe_free(self->right_sib);
+    tsk_safe_free(self->num_samples);
+    return 0;
+}
+
+int
+tsk_treeseq_divergence_matrix(const tsk_treeseq_t *self, tsk_size_t num_samples,
+    const tsk_id_t *samples, tsk_flags_t options, double *result)
+{
+    int ret = 0;
+    tsk_divmat_calculator_t calc;
+
+    memset(&calc, 0, sizeof(calc));
+
+    if (samples == NULL) {
+        samples = self->samples;
+        num_samples = self->num_samples;
+    }
+    ret = tsk_divmat_calculator_init(&calc, self, num_samples, samples, options, result);
+    if (ret != 0) {
+        goto out;
+    }
+out:
+    tsk_divmat_calculator_free(&calc);
+    return ret;
+}

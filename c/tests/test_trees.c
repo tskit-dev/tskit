@@ -3783,6 +3783,30 @@ test_simplest_mutation_edges(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_simplest_divergence_matrix(void)
+{
+    const char *nodes = "1  0   0\n"
+                        "1  0   0\n"
+                        "0  1   0\n";
+    const char *edges = "0  1   2   0,1\n";
+    tsk_treeseq_t ts;
+    tsk_id_t sample_ids[] = { 0, 1 };
+    double D[4];
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
+
+    ret = tsk_treeseq_divergence_matrix(&ts, 2, sample_ids, 0, D);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL_FATAL(D[0], 0);
+    /* CU_ASSERT_EQUAL_FATAL(D[1], 2); */
+    /* CU_ASSERT_EQUAL_FATAL(D[2], 2); */
+    CU_ASSERT_EQUAL_FATAL(D[3], 0);
+
+    tsk_treeseq_free(&ts);
+}
+
 /*=======================================================
  * Single tree tests.
  *======================================================*/
@@ -8136,6 +8160,7 @@ main(int argc, char **argv)
             test_simplest_multiple_root_map_mutations },
         { "test_simplest_chained_map_mutations", test_simplest_chained_map_mutations },
         { "test_simplest_mutation_edges", test_simplest_mutation_edges },
+        { "test_simplest_divergence_matrix", test_simplest_divergence_matrix },
 
         /* Single tree tests */
         { "test_single_tree_good_records", test_single_tree_good_records },
