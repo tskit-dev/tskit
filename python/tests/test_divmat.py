@@ -562,7 +562,6 @@ class TestExamples:
         tables.sort()
         tables.build_index()
         ts2 = tables.tree_sequence()
-        D2 = lib_divergence_matrix(ts2)
         D2 = check_divmat(ts2, internal_checks=True)
         np.testing.assert_array_almost_equal(D1, D2)
 
@@ -579,7 +578,6 @@ class TestExamples:
         tables.sort()
         tables.build_index()
         ts2 = tables.tree_sequence()
-        D2 = lib_divergence_matrix(ts2)
         D2 = check_divmat(ts2, internal_checks=True)
         np.testing.assert_array_almost_equal(D1, D2)
 
@@ -596,6 +594,5 @@ class TestExamples:
         tables.sort()
         tables.build_index()
         ts2 = tables.tree_sequence()
-        D2 = lib_divergence_matrix(ts2)
         D2 = check_divmat(ts2, internal_checks=True)
         np.testing.assert_array_almost_equal(D1, D2)
