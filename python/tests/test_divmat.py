@@ -545,6 +545,20 @@ class TestExamples:
         ts = t.tree_sequence()
         check_divmat(ts)
 
+    def test_missing_flanks(self):
+        ts = msprime.sim_ancestry(
+            20,
+            ploidy=1,
+            population_size=20,
+            sequence_length=100,
+            recombination_rate=0.01,
+            random_seed=1234,
+        )
+        assert ts.num_trees >= 2
+        ts = ts.keep_intervals([[20, 80]])
+        assert ts.first().interval == (0, 20)
+        check_divmat(ts)
+
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_suite_examples(self, ts):
         check_divmat(ts)
