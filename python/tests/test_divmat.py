@@ -418,6 +418,9 @@ class DivergenceMatrix:
             while j < M and edges_left[in_order[j]] == left:
                 p = edges_parent[in_order[j]]
                 c = edges_child[in_order[j]]
+                # QUESTION: how does this deal with us having bits missing
+                # out of the trees? What happens when we have a missing
+                # left flank?
                 if self.position > 0:
                     self.clear_spine(p)
                 assert self.parent[p] == tskit.NULL or self.x[p] == self.position

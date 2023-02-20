@@ -5882,7 +5882,8 @@ typedef struct {
     const tsk_id_t *samples;
     tsk_flags_t options;
     double *result;
-    /* Internal state */
+    /* Quintuply linked tree & sample counter */
+    double tree_left;
     tsk_id_t virtual_root;
     tsk_size_t num_nodes;
     tsk_id_t *parent;
@@ -5891,18 +5892,32 @@ typedef struct {
     tsk_id_t *left_sib;
     tsk_id_t *right_sib;
     tsk_size_t *num_samples;
+    /* Divergence state */
+    tsk_id_t *root_path;
+    tsk_blkalloc_t avl_node_heap;
+    tsk_avl_node_int_t **avl_node_buffer;
+    /* TODO better names for these: */
+    /* Maybe last_update_position and accumulator */
+    tsk_avl_tree_int_t *stack;
+    double *x;
 } tsk_divmat_calculator_t;
 
 static void
 tsk_divmat_calculator_print_state(const tsk_divmat_calculator_t *self, FILE *out)
 {
+    tsk_size_t k;
     tsk_id_t j, u;
+    int64_t key;
+    double value;
+
+    tsk_avl_node_int_t **ordered_nodes
+        = tsk_malloc(self->num_nodes * sizeof(*ordered_nodes));
+    tsk_bug_assert(ordered_nodes != NULL);
 
     fprintf(out, "Divmat state:\n");
     fprintf(out, "options = %d\n", self->options);
-    /* fprintf(out, "left = %f\n", self->interval.left); */
-    /* fprintf(out, "right = %f\n", self->interval.right); */
-    fprintf(out, "node\tparent\tlchild\trchild\tlsib\trsib");
+    fprintf(out, "tree_left = %f\n", self->tree_left);
+    fprintf(out, "node\tparent\tlchild\trchild\tlsib\trsib\tcount\tx");
     fprintf(out, "\n");
 
     for (j = 0; j < (tsk_id_t) self->num_nodes; j++) {
@@ -5914,12 +5929,23 @@ tsk_divmat_calculator_print_state(const tsk_divmat_calculator_t *self, FILE *out
             u = self->samples[j - self->virtual_root - 1];
             fprintf(out, "%lld(%lld)\t", (long long) j, (long long) u);
         }
-        fprintf(out, "%lld\t%lld\t%lld\t%lld\t%lld\t%lld", (long long) self->parent[j],
-            (long long) self->left_child[j], (long long) self->right_child[j],
-            (long long) self->left_sib[j], (long long) self->right_sib[j],
-            (long long) self->num_samples[j]);
-        fprintf(out, "\n");
+        fprintf(out, "%lld\t%lld\t%lld\t%lld\t%lld\t%lld\t%g",
+            (long long) self->parent[j], (long long) self->left_child[j],
+            (long long) self->right_child[j], (long long) self->left_sib[j],
+            (long long) self->right_sib[j], (long long) self->num_samples[j],
+            self->x[j]);
+
+        tsk_avl_tree_int_ordered_nodes(&self->stack[j], ordered_nodes);
+        fprintf(out, "\t{");
+        for (k = 0; k < self->stack[j].size; k++) {
+            key = ordered_nodes[k]->key;
+            value = *(double *) ordered_nodes[k]->value;
+            fprintf(out, "%lld:%g,", (long long) key, value);
+        }
+
+        fprintf(out, "}\n");
     }
+    free(ordered_nodes);
 }
 
 static int
@@ -5930,6 +5956,7 @@ tsk_divmat_calculator_init(tsk_divmat_calculator_t *self, const tsk_treeseq_t *t
     int ret = 0;
     const tsk_size_t n2 = num_input_samples * num_input_samples;
     const tsk_size_t num_nodes = ts->tables->nodes.num_rows + num_input_samples + 1;
+    tsk_size_t j;
 
     self->ts = ts;
     self->num_input_samples = num_input_samples;
@@ -5945,11 +5972,23 @@ tsk_divmat_calculator_init(tsk_divmat_calculator_t *self, const tsk_treeseq_t *t
     self->left_sib = tsk_malloc(num_nodes * sizeof(*self->left_sib));
     self->right_sib = tsk_malloc(num_nodes * sizeof(*self->right_sib));
     self->num_samples = tsk_malloc(num_nodes * sizeof(*self->num_samples));
+    self->x = tsk_malloc(num_nodes * sizeof(*self->x));
+    self->stack = tsk_malloc(num_nodes * sizeof(*self->stack));
+
+    /* NOTE: usually this will be an large overestimate */
+    self->root_path = tsk_malloc(num_nodes * sizeof(*self->root_path));
+    self->avl_node_buffer = tsk_malloc(n2 * sizeof(*self->root_path));
 
     if (self->parent == NULL || self->left_child == NULL || self->right_child == NULL
-        || self->left_sib == NULL || self->right_sib == NULL
-        || self->num_samples == NULL) {
+        || self->left_sib == NULL || self->right_sib == NULL || self->num_samples == NULL
+        || self->x == NULL || self->root_path == NULL || self->avl_node_buffer == NULL) {
         ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    /* Allocate heap memory in 1MiB blocks */
+    ret = tsk_blkalloc_init(&self->avl_node_heap, 1024 * 1024);
+    if (ret != 0) {
         goto out;
     }
 
@@ -5961,6 +6000,15 @@ tsk_divmat_calculator_init(tsk_divmat_calculator_t *self, const tsk_treeseq_t *t
     tsk_memset(self->left_sib, TSK_NULL, num_nodes * sizeof(*self->left_sib));
     tsk_memset(self->right_sib, TSK_NULL, num_nodes * sizeof(*self->right_sib));
     tsk_memset(self->num_samples, 0, num_nodes * sizeof(*self->num_samples));
+    tsk_memset(self->x, 0, num_nodes * sizeof(*self->x));
+
+    for (j = 0; j < num_nodes; j++) {
+        ret = tsk_avl_tree_int_init(&self->stack[j]);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+
 out:
     return ret;
 }
@@ -5968,12 +6016,26 @@ out:
 static int
 tsk_divmat_calculator_free(tsk_divmat_calculator_t *self)
 {
+    tsk_size_t j;
+
+    for (j = 0; j < self->num_nodes; j++) {
+        tsk_avl_tree_int_free(&self->stack[j]);
+    }
+
     tsk_safe_free(self->parent);
     tsk_safe_free(self->left_child);
     tsk_safe_free(self->right_child);
     tsk_safe_free(self->left_sib);
     tsk_safe_free(self->right_sib);
     tsk_safe_free(self->num_samples);
+    tsk_safe_free(self->x);
+    tsk_safe_free(self->stack);
+    tsk_safe_free(self->root_path);
+    tsk_safe_free(self->avl_node_buffer);
+    tsk_blkalloc_free(&self->avl_node_heap);
+
+    /* Make this safe for multiple free calls */
+    memset(self, 0, sizeof(*self));
     return 0;
 }
 
@@ -6124,12 +6186,263 @@ tsk_divmat_calculator_set_initial_state(tsk_divmat_calculator_t *self)
 }
 
 static int
+tsk_divmat_calculator_increment_node_accumulator(
+    tsk_divmat_calculator_t *self, tsk_id_t u, tsk_id_t v, double z)
+{
+    int ret = 0;
+    tsk_avl_tree_int_t *avl_tree = &self->stack[u];
+    tsk_avl_node_int_t *avl_node = tsk_avl_tree_int_search(avl_tree, (int64_t) v);
+    void *p;
+    double *value;
+
+    if (avl_node == NULL) {
+        p = tsk_blkalloc_get(&self->avl_node_heap, sizeof(*avl_node) + sizeof(double));
+        if (p == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+        /* The first 8 bytes are used to store the value, then the rest is for
+         * the avl_node. This *should* satisfy alignment requirements, but
+         * if odd things happen on some platforms that would be worth ruling out.
+         */
+        value = (double *) p;
+        *value = z;
+        avl_node = (tsk_avl_node_int_t *) (((uintptr_t) p) + sizeof(double));
+        avl_node->key = v;
+        avl_node->value = value;
+        ret = tsk_avl_tree_int_insert(avl_tree, avl_node);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    tsk_bug_assert(avl_node->key == v);
+    value = (double *) avl_node->value;
+    *value += z;
+out:
+    return ret;
+}
+
+static int
+tsk_divmat_calculator_add_to_stack(
+    tsk_divmat_calculator_t *self, tsk_id_t u, tsk_id_t v, double z)
+{
+    int ret = 0;
+    const tsk_size_t *restrict num_samples = self->num_samples;
+
+    if (z > 0 && num_samples[u] > 0 && num_samples[v] > 0) {
+        ret = tsk_divmat_calculator_increment_node_accumulator(self, u, v, z);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_divmat_calculator_increment_node_accumulator(self, v, u, z);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+out:
+    return ret;
+}
+
+/* Push values in the accumulator from u to other nodes to the children
+ * of u.
+ */
+static void
+tsk_divmat_calculator_push_down(tsk_divmat_calculator_t *self, tsk_id_t u)
+{
+    int ret;
+    tsk_id_t c, v;
+    double z;
+    tsk_size_t j;
+    const tsk_id_t *restrict left_child = self->left_child;
+    const tsk_id_t *restrict right_sib = self->right_sib;
+    tsk_avl_node_int_t *avl_node;
+    tsk_avl_node_int_t **avl_nodes = self->avl_node_buffer;
+
+    ret = tsk_avl_tree_int_ordered_nodes(&self->stack[u], avl_nodes);
+    tsk_bug_assert(ret == 0);
+
+    /* printf("Push down u=%d len=%d\n", (int) u, (int) self->stack[u].size); */
+    for (j = 0; j < self->stack[u].size; j++) {
+        v = (tsk_id_t) avl_nodes[j]->key;
+        z = *((double *) avl_nodes[j]->value);
+        /* printf("\t%d -> %g (%p)\n", v, z, (void *) avl_nodes[j]); */
+        if (z > 0) {
+            for (c = left_child[u]; c != TSK_NULL; c = right_sib[c]) {
+                tsk_divmat_calculator_add_to_stack(self, v, c, z);
+            }
+
+            /* Remove the symmetrical value, in stack[v] */
+            /* NOTE: we don't have avl tree node deletion implemented, so just
+             * setting the value to 0 for now. May not make much difference.*/
+            avl_node = tsk_avl_tree_int_search(&self->stack[v], (int64_t) u);
+            tsk_bug_assert(avl_node != NULL);
+            tsk_bug_assert(*((double *) avl_node->value) == z);
+            *((double *) avl_nodes[j]->value) = 0;
+            *((double *) avl_node->value) = 0;
+            tsk_bug_assert(avl_node->key == u);
+
+            z = *((double *) avl_nodes[j]->value);
+            assert(z == 0);
+            z = *((double *) avl_node->value);
+            assert(z == 0);
+            /* printf("\tzero'd (%p)\n", (void *) avl_node); */
+        }
+    }
+
+    /* HACK for avl_tree_clear() */
+    memset(&self->stack[u], 0, sizeof(self->stack[u]));
+}
+
+static double
+tsk_divmat_calculator_get_z(const tsk_divmat_calculator_t *self, tsk_id_t u)
+{
+    double ret = 0;
+    const tsk_id_t p = self->parent[u];
+    const double *restrict nodes_time = self->ts->tables->nodes.time;
+    double t, span;
+
+    if (p != TSK_NULL && u < self->virtual_root) {
+        t = nodes_time[p] - nodes_time[u];
+        span = self->tree_left - self->x[u];
+        ret = t * span;
+    }
+    return ret;
+}
+
+static void
+tsk_divmat_calculator_clear_edge(tsk_divmat_calculator_t *self, tsk_id_t u)
+{
+    const tsk_id_t *restrict parent = self->parent;
+    const tsk_id_t *restrict left_child = self->left_child;
+    const tsk_id_t *restrict right_sib = self->right_sib;
+    double z = tsk_divmat_calculator_get_z(self, u);
+    self->x[u] = self->tree_left;
+    tsk_id_t p, c, sib;
+
+    /* FIXME not including the virtual root correctly here */
+
+    /* Iterate over siblings back to the virtual root, including the roots
+     * of disconnected subtrees
+     */
+    c = u;
+    for (p = parent[c]; p != TSK_NULL; p = parent[p]) {
+        for (sib = left_child[p]; sib != TSK_NULL; sib = right_sib[sib]) {
+            if (sib != c) {
+                tsk_divmat_calculator_add_to_stack(self, u, sib, z);
+            }
+        }
+    }
+}
+
+static void
+tsk_divmat_calculator_clear_spine(tsk_divmat_calculator_t *self, tsk_id_t u)
+{
+    tsk_id_t *restrict root_path = self->root_path;
+    const tsk_id_t *restrict parent = self->parent;
+    tsk_id_t p, j;
+    tsk_id_t root_path_length = 0;
+
+    for (p = u; p != TSK_NULL; p = parent[p]) {
+        root_path[root_path_length] = p;
+        root_path_length++;
+    }
+    tsk_bug_assert(root_path_length < (tsk_id_t) self->num_nodes);
+    root_path[root_path_length] = self->virtual_root;
+
+    for (j = root_path_length; j >= 0; j--) {
+        p = root_path[j];
+        tsk_divmat_calculator_clear_edge(self, p);
+        tsk_divmat_calculator_push_down(self, p);
+    }
+}
+/* def clear_spine(self, u): */
+/*     """ */
+/*     Clears all nodes on the path from the virtual root down to u */
+/*     by pushing the contributions of all their branches to the stack */
+/*     and pushing all stack references to their children. */
+/*     """ */
+/*     if self.verbosity > 0: */
+/*         print(f"clear_spine({u})") */
+/*     if self.internal_checks: */
+/*         # this operation should not change the current output */
+/*         before_state = self.current_state() */
+/*     spine = [] */
+/*     p = u */
+/*     while p != tskit.NULL: */
+/*         spine.append(p) */
+/*         p = self.parent[p] */
+/*     spine.append(self.virtual_root) */
+/*     for p in reversed(spine): */
+/*         self.clear_edge(p) */
+/*         self.push_down(p) */
+/*         self.verify_zero_spine(p) */
+/*     self.verify_zero_spine(u) */
+/*     if self.internal_checks: */
+/*         after_state = self.current_state() */
+/*         assert_dicts_close(before_state, after_state) */
+
+static void
+tsk_divmat_calculator_write_output(tsk_divmat_calculator_t *self)
+{
+    int ret;
+    tsk_id_t u, v;
+    tsk_size_t i, j, k;
+    const tsk_size_t n = self->num_input_samples;
+    double *restrict D = self->result;
+    double z;
+    tsk_avl_node_int_t **avl_nodes = self->avl_node_buffer;
+
+    for (j = 0; j < n; j++) {
+        u = self->samples[j];
+        /* FIXME at the moment we seem to be pushing 0 values down to the
+         * earlier samples at the j'th sample. Should look into this.
+         */
+        /* printf("pushdown %d \n", u); */
+        tsk_divmat_calculator_push_down(self, u);
+        /* tsk_divmat_calculator_print_state(self, stdout); */
+    }
+
+    tsk_divmat_calculator_print_state(self, stdout);
+    for (j = 0; j < n; j++) {
+        u = self->virtual_root + 1 + (tsk_id_t) j;
+        ret = tsk_avl_tree_int_ordered_nodes(&self->stack[u], avl_nodes);
+        tsk_bug_assert(ret == 0);
+
+        for (i = 0; i < self->stack[u].size; i++) {
+            v = (tsk_id_t) avl_nodes[i]->key;
+            z = *((double *) avl_nodes[i]->value);
+            /* FIXME this shouldn't be needed - see point above about pushing
+             * down 0 values for sample nodes */
+            if (v > self->virtual_root) {
+                k = (tsk_size_t)(v - self->virtual_root - 1);
+                D[j * n + k] += z;
+            } else {
+                tsk_bug_assert(z == 0);
+            }
+        }
+    }
+
+    /* # clear remaining things down to virtual samples */
+    /* for u in self.samples: */
+    /*     self.push_down(u) */
+    /* out = np.zeros((len(self.samples), len(self.samples))) */
+    /* for out_i in range(len(self.samples)): */
+    /*     i = out_i + self.virtual_root + 1 */
+    /*     for j, z in self.stack[i].items(): */
+    /*         assert j > self.virtual_root */
+    /*         assert j <= self.virtual_root + len(self.samples) */
+    /*         out_j = j - self.virtual_root - 1 */
+    /*         out[out_i, out_j] = z */
+    /* return out */
+}
+
+static int
 tsk_divmat_calculator_run(tsk_divmat_calculator_t *self)
 {
     int ret = 0;
     tsk_size_t j, k;
-    tsk_id_t e;
-    double tree_left, tree_right;
+    tsk_id_t e, p, c;
+    double tree_right;
     const double sequence_length = self->ts->tables->sequence_length;
     const tsk_size_t num_edges = self->ts->tables->edges.num_rows;
     const tsk_id_t *restrict I = self->ts->tables->indexes.edge_insertion_order;
@@ -6141,21 +6454,37 @@ tsk_divmat_calculator_run(tsk_divmat_calculator_t *self)
 
     tsk_divmat_calculator_set_initial_state(self);
 
-    tsk_divmat_calculator_print_state(self, stdout);
-
-    tree_left = 0;
+    self->tree_left = 0;
     tree_right = sequence_length;
     j = 0;
     k = 0;
-    while (j < num_edges || tree_left < sequence_length) {
-        while (k < num_edges && edge_right[O[k]] == tree_left) {
+
+    /* while k < M and left <= self.sequence_length: */
+    /*     while k < M and edges_right[out_order[k]] == left: */
+    /*     while j < M and edges_left[in_order[j]] == left: */
+
+    while (k < num_edges || self->tree_left < sequence_length) {
+        while (k < num_edges && edge_right[O[k]] == self->tree_left) {
             e = O[k];
-            tsk_divmat_calculator_remove_edge(self, edge_parent[e], edge_child[e]);
+            p = edge_parent[e];
+            c = edge_child[e];
+            /* self.clear_edge(c) */
+            /* self.clear_spine(p) */
+            tsk_divmat_calculator_clear_edge(self, c);
+            tsk_divmat_calculator_clear_spine(self, p);
+
+            tsk_divmat_calculator_remove_edge(self, p, c);
             k++;
         }
-        while (j < num_edges && edge_left[I[j]] == tree_left) {
+        while (j < num_edges && edge_left[I[j]] == self->tree_left) {
             e = I[j];
-            tsk_divmat_calculator_insert_edge(self, edge_parent[e], edge_child[e]);
+            p = edge_parent[e];
+            c = edge_child[e];
+            if (self->tree_left > 0) {
+                tsk_divmat_calculator_clear_spine(self, p);
+            }
+            tsk_divmat_calculator_insert_edge(self, p, c);
+            self->x[c] = self->tree_left;
             j++;
         }
         tree_right = sequence_length;
@@ -6165,8 +6494,11 @@ tsk_divmat_calculator_run(tsk_divmat_calculator_t *self)
         if (k < num_edges) {
             tree_right = TSK_MIN(tree_right, edge_right[O[k]]);
         }
-        tree_left = tree_right;
+        self->tree_left = tree_right;
+        tsk_divmat_calculator_print_state(self, stdout);
     }
+    tsk_divmat_calculator_write_output(self);
+
     /* out: */
     return ret;
 }

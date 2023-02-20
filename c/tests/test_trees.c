@@ -3802,8 +3802,8 @@ test_simplest_divergence_matrix(void)
     ret = tsk_treeseq_divergence_matrix(&ts, 2, sample_ids, 0, D);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(D[0], 0);
-    /* CU_ASSERT_EQUAL_FATAL(D[1], 2); */
-    /* CU_ASSERT_EQUAL_FATAL(D[2], 2); */
+    CU_ASSERT_EQUAL_FATAL(D[1], 2);
+    CU_ASSERT_EQUAL_FATAL(D[2], 2);
     CU_ASSERT_EQUAL_FATAL(D[3], 0);
 
     tsk_treeseq_free(&ts);
@@ -5257,6 +5257,22 @@ test_single_tree_tracked_samples(void)
 
     tsk_treeseq_free(&ts);
     tsk_tree_free(&tree);
+}
+
+static void
+test_single_tree_divergence_matrix(void)
+{
+    tsk_treeseq_t ts;
+    int ret;
+    double D[16];
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+
+    ret = tsk_treeseq_divergence_matrix(&ts, 0, NULL, 0, D);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tsk_treeseq_free(&ts);
 }
 
 /*=======================================================
@@ -8197,6 +8213,7 @@ main(int argc, char **argv)
         { "test_single_tree_map_mutations_internal_samples",
             test_single_tree_map_mutations_internal_samples },
         { "test_single_tree_tracked_samples", test_single_tree_tracked_samples },
+        { "test_single_tree_divergence_matrix", test_single_tree_divergence_matrix },
 
         /* Multi tree tests */
         { "test_simple_multi_tree", test_simple_multi_tree },
