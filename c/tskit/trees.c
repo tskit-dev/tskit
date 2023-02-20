@@ -3333,7 +3333,7 @@ tsk_treeseq_simplify(const tsk_treeseq_t *self, const tsk_id_t *samples,
     }
     ret = tsk_treeseq_init(
         output, tables, TSK_TS_INIT_BUILD_INDEXES | TSK_TAKE_OWNERSHIP);
-    /* Once tsk_tree_init has returned ownership of tables is transferred */
+    /* Once tsk_treeseq_init has returned ownership of tables is transferred */
     tables = NULL;
 out:
     if (tables != NULL) {
@@ -5884,6 +5884,7 @@ typedef struct {
     double *result;
     /* Internal state */
     tsk_id_t virtual_root;
+    tsk_size_t num_nodes;
     tsk_id_t *parent;
     tsk_id_t *left_child;
     tsk_id_t *right_child;
@@ -5892,20 +5893,51 @@ typedef struct {
     tsk_size_t *num_samples;
 } tsk_divmat_calculator_t;
 
+static void
+tsk_divmat_calculator_print_state(const tsk_divmat_calculator_t *self, FILE *out)
+{
+    tsk_id_t j, u;
+
+    fprintf(out, "Divmat state:\n");
+    fprintf(out, "options = %d\n", self->options);
+    /* fprintf(out, "left = %f\n", self->interval.left); */
+    /* fprintf(out, "right = %f\n", self->interval.right); */
+    fprintf(out, "node\tparent\tlchild\trchild\tlsib\trsib");
+    fprintf(out, "\n");
+
+    for (j = 0; j < (tsk_id_t) self->num_nodes; j++) {
+        if (j < self->virtual_root) {
+            fprintf(out, "%lld\t", (long long) j);
+        } else if (j == self->virtual_root) {
+            fprintf(out, "VR:%lld\t", (long long) j);
+        } else {
+            u = self->samples[j - self->virtual_root - 1];
+            fprintf(out, "%lld(%lld)\t", (long long) j, (long long) u);
+        }
+        fprintf(out, "%lld\t%lld\t%lld\t%lld\t%lld\t%lld", (long long) self->parent[j],
+            (long long) self->left_child[j], (long long) self->right_child[j],
+            (long long) self->left_sib[j], (long long) self->right_sib[j],
+            (long long) self->num_samples[j]);
+        fprintf(out, "\n");
+    }
+}
+
 static int
 tsk_divmat_calculator_init(tsk_divmat_calculator_t *self, const tsk_treeseq_t *ts,
     tsk_size_t num_input_samples, const tsk_id_t *samples, tsk_flags_t options,
     double *result)
 {
     int ret = 0;
-    tsk_size_t N = num_input_samples * num_input_samples;
-    tsk_size_t num_nodes = ts->tables->nodes.num_rows + num_input_samples + 1;
+    const tsk_size_t n2 = num_input_samples * num_input_samples;
+    const tsk_size_t num_nodes = ts->tables->nodes.num_rows + num_input_samples + 1;
 
     self->ts = ts;
     self->num_input_samples = num_input_samples;
     self->samples = samples;
     self->options = options;
     self->result = result;
+    self->num_nodes = num_nodes;
+    self->virtual_root = (tsk_id_t) ts->tables->nodes.num_rows;
 
     self->parent = tsk_malloc(num_nodes * sizeof(*self->parent));
     self->left_child = tsk_malloc(num_nodes * sizeof(*self->left_child));
@@ -5921,7 +5953,14 @@ tsk_divmat_calculator_init(tsk_divmat_calculator_t *self, const tsk_treeseq_t *t
         goto out;
     }
 
-    memset(result, 0, N * sizeof(double));
+    tsk_memset(result, 0, n2 * sizeof(double));
+    tsk_memset(self->num_samples, 1, num_nodes * sizeof(*self->num_samples));
+    tsk_memset(self->parent, TSK_NULL, num_nodes * sizeof(*self->parent));
+    tsk_memset(self->left_child, TSK_NULL, num_nodes * sizeof(*self->left_child));
+    tsk_memset(self->right_child, TSK_NULL, num_nodes * sizeof(*self->right_child));
+    tsk_memset(self->left_sib, TSK_NULL, num_nodes * sizeof(*self->left_sib));
+    tsk_memset(self->right_sib, TSK_NULL, num_nodes * sizeof(*self->right_sib));
+    tsk_memset(self->num_samples, 0, num_nodes * sizeof(*self->num_samples));
 out:
     return ret;
 }
@@ -5936,6 +5975,200 @@ tsk_divmat_calculator_free(tsk_divmat_calculator_t *self)
     tsk_safe_free(self->right_sib);
     tsk_safe_free(self->num_samples);
     return 0;
+}
+
+static inline void
+tsk_divmat_calculator_remove_branch(
+    tsk_divmat_calculator_t *self, tsk_id_t p, tsk_id_t c, tsk_id_t *restrict parent)
+{
+    tsk_id_t *restrict left_child = self->left_child;
+    tsk_id_t *restrict right_child = self->right_child;
+    tsk_id_t *restrict left_sib = self->left_sib;
+    tsk_id_t *restrict right_sib = self->right_sib;
+    tsk_id_t lsib = left_sib[c];
+    tsk_id_t rsib = right_sib[c];
+
+    if (lsib == TSK_NULL) {
+        left_child[p] = rsib;
+    } else {
+        right_sib[lsib] = rsib;
+    }
+    if (rsib == TSK_NULL) {
+        right_child[p] = lsib;
+    } else {
+        left_sib[rsib] = lsib;
+    }
+    parent[c] = TSK_NULL;
+    left_sib[c] = TSK_NULL;
+    right_sib[c] = TSK_NULL;
+}
+
+static inline void
+tsk_divmat_calculator_insert_branch(
+    tsk_divmat_calculator_t *self, tsk_id_t p, tsk_id_t c, tsk_id_t *restrict parent)
+{
+    tsk_id_t *restrict left_child = self->left_child;
+    tsk_id_t *restrict right_child = self->right_child;
+    tsk_id_t *restrict left_sib = self->left_sib;
+    tsk_id_t *restrict right_sib = self->right_sib;
+    tsk_id_t u;
+
+    parent[c] = p;
+    u = right_child[p];
+    if (u == TSK_NULL) {
+        left_child[p] = c;
+        left_sib[c] = TSK_NULL;
+        right_sib[c] = TSK_NULL;
+    } else {
+        right_sib[u] = c;
+        left_sib[c] = u;
+        right_sib[c] = TSK_NULL;
+    }
+    right_child[p] = c;
+}
+
+static inline void
+tsk_divmat_calculator_insert_root(
+    tsk_divmat_calculator_t *self, tsk_id_t root, tsk_id_t *restrict parent)
+{
+    tsk_divmat_calculator_insert_branch(self, self->virtual_root, root, parent);
+    parent[root] = TSK_NULL;
+}
+
+static inline void
+tsk_divmat_calculator_remove_root(
+    tsk_divmat_calculator_t *self, tsk_id_t root, tsk_id_t *restrict parent)
+{
+    tsk_divmat_calculator_remove_branch(self, self->virtual_root, root, parent);
+}
+
+static void
+tsk_divmat_calculator_remove_edge(tsk_divmat_calculator_t *self, tsk_id_t p, tsk_id_t c)
+{
+    tsk_id_t *restrict parent = self->parent;
+    tsk_size_t *restrict num_samples = self->num_samples;
+    const tsk_size_t root_threshold = 1;
+    tsk_id_t u;
+    tsk_id_t path_end = TSK_NULL;
+    bool path_end_was_root = false;
+
+#define POTENTIAL_ROOT(U) (num_samples[U] >= root_threshold)
+
+    tsk_divmat_calculator_remove_branch(self, p, c, parent);
+
+    if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
+        u = p;
+        while (u != TSK_NULL) {
+            path_end = u;
+            path_end_was_root = POTENTIAL_ROOT(u);
+            num_samples[u] -= num_samples[c];
+            u = parent[u];
+        }
+
+        if (path_end_was_root && !POTENTIAL_ROOT(path_end)) {
+            tsk_divmat_calculator_remove_root(self, path_end, parent);
+        }
+        if (POTENTIAL_ROOT(c)) {
+            tsk_divmat_calculator_insert_root(self, c, parent);
+        }
+    }
+}
+
+static void
+tsk_divmat_calculator_insert_edge(tsk_divmat_calculator_t *self, tsk_id_t p, tsk_id_t c)
+{
+    tsk_id_t *restrict parent = self->parent;
+    tsk_size_t *restrict num_samples = self->num_samples;
+    const tsk_size_t root_threshold = 1;
+    tsk_id_t u;
+    tsk_id_t path_end = TSK_NULL;
+    bool path_end_was_root = false;
+
+#define POTENTIAL_ROOT(U) (num_samples[U] >= root_threshold)
+
+    if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
+        u = p;
+        while (u != TSK_NULL) {
+            path_end = u;
+            path_end_was_root = POTENTIAL_ROOT(u);
+            num_samples[u] += num_samples[c];
+            u = parent[u];
+        }
+
+        if (POTENTIAL_ROOT(c)) {
+            tsk_divmat_calculator_remove_root(self, c, parent);
+        }
+        if (POTENTIAL_ROOT(path_end) && !path_end_was_root) {
+            tsk_divmat_calculator_insert_root(self, path_end, parent);
+        }
+    }
+
+    tsk_divmat_calculator_insert_branch(self, p, c, parent);
+}
+
+static void
+tsk_divmat_calculator_set_initial_state(tsk_divmat_calculator_t *self)
+{
+    const tsk_id_t n = (tsk_id_t) self->num_input_samples;
+    tsk_id_t j, u, v;
+
+    for (j = 0; j < n; j++) {
+        u = self->samples[j];
+        self->num_samples[j] = 1;
+        tsk_divmat_calculator_insert_root(self, u, self->parent);
+        /* Insert the virtual samples */
+        v = self->virtual_root + j + 1;
+        tsk_divmat_calculator_insert_branch(self, u, v, self->parent);
+        self->num_samples[v] = 1;
+    }
+}
+
+static int
+tsk_divmat_calculator_run(tsk_divmat_calculator_t *self)
+{
+    int ret = 0;
+    tsk_size_t j, k;
+    tsk_id_t e;
+    double tree_left, tree_right;
+    const double sequence_length = self->ts->tables->sequence_length;
+    const tsk_size_t num_edges = self->ts->tables->edges.num_rows;
+    const tsk_id_t *restrict I = self->ts->tables->indexes.edge_insertion_order;
+    const tsk_id_t *restrict O = self->ts->tables->indexes.edge_removal_order;
+    const double *restrict edge_right = self->ts->tables->edges.right;
+    const double *restrict edge_left = self->ts->tables->edges.left;
+    const tsk_id_t *restrict edge_child = self->ts->tables->edges.child;
+    const tsk_id_t *restrict edge_parent = self->ts->tables->edges.parent;
+
+    tsk_divmat_calculator_set_initial_state(self);
+
+    tsk_divmat_calculator_print_state(self, stdout);
+
+    tree_left = 0;
+    tree_right = sequence_length;
+    j = 0;
+    k = 0;
+    while (j < num_edges || tree_left < sequence_length) {
+        while (k < num_edges && edge_right[O[k]] == tree_left) {
+            e = O[k];
+            tsk_divmat_calculator_remove_edge(self, edge_parent[e], edge_child[e]);
+            k++;
+        }
+        while (j < num_edges && edge_left[I[j]] == tree_left) {
+            e = I[j];
+            tsk_divmat_calculator_insert_edge(self, edge_parent[e], edge_child[e]);
+            j++;
+        }
+        tree_right = sequence_length;
+        if (j < num_edges) {
+            tree_right = TSK_MIN(tree_right, edge_left[I[j]]);
+        }
+        if (k < num_edges) {
+            tree_right = TSK_MIN(tree_right, edge_right[O[k]]);
+        }
+        tree_left = tree_right;
+    }
+    /* out: */
+    return ret;
 }
 
 int
@@ -5955,6 +6188,7 @@ tsk_treeseq_divergence_matrix(const tsk_treeseq_t *self, tsk_size_t num_samples,
     if (ret != 0) {
         goto out;
     }
+    ret = tsk_divmat_calculator_run(&calc);
 out:
     tsk_divmat_calculator_free(&calc);
     return ret;
