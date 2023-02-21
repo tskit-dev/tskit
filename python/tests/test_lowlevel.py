@@ -1529,6 +1529,11 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             x2 = ts2.get_kc_distance(ts1, lambda_)
             assert x1 == x2
 
+    def test_divergence_matrix(self):
+        ts = self.get_example_tree_sequence(10, random_seed=12)
+        D = ts.divergence_matrix()
+        print(D)
+
     def test_load_tables_build_indexes(self):
         for ts in self.get_example_tree_sequences():
             tables = _tskit.TableCollection(sequence_length=ts.get_sequence_length())

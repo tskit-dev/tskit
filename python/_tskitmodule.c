@@ -9638,6 +9638,43 @@ TreeSequence_f4(TreeSequence *self, PyObject *args, PyObject *kwds)
 }
 
 static PyObject *
+TreeSequence_divergence_matrix(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    static char *kwlist[] = { NULL };
+    PyArrayObject *result_array = NULL;
+    tsk_flags_t options = 0;
+    npy_intp dims[2];
+    tsk_size_t num_samples;
+    int err;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "", kwlist)) {
+        goto out;
+    }
+    num_samples = tsk_treeseq_get_num_samples(self->tree_sequence);
+    dims[0] = num_samples;
+    dims[1] = num_samples;
+    result_array = (PyArrayObject *) PyArray_SimpleNew(2, dims, NPY_FLOAT64);
+    if (result_array == NULL) {
+        goto out;
+    }
+    err = tsk_treeseq_divergence_matrix(
+        self->tree_sequence, 0, NULL, options, PyArray_DATA(result_array));
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = (PyObject *) result_array;
+    result_array = NULL;
+out:
+    Py_XDECREF(result_array);
+    return ret;
+}
+
+static PyObject *
 TreeSequence_get_num_mutations(TreeSequence *self)
 {
     PyObject *ret = NULL;
@@ -10345,6 +10382,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_f4,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Computes the f4 statistic." },
+    { .ml_name = "divergence_matrix",
+        .ml_meth = (PyCFunction) TreeSequence_divergence_matrix,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes the pairwise divergence matrix." },
     { .ml_name = "split_edges",
         .ml_meth = (PyCFunction) TreeSequence_split_edges,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
