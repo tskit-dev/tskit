@@ -316,12 +316,12 @@ class DivergenceMatrix:
         z = self.get_z(u)
         self.x[u] = self.position
         assert self.get_z(u) == 0
+
         # iterate over the siblings of the path to the virtual root
-        c = u
-        p = self.parent[c]
-        # how to better include the virtual root in the traversal?
-        root = False
-        while p != tskit.NULL:
+        spine = self.get_spine(u)
+        for j in range(len(spine) - 1):
+            c = spine[j]
+            p = spine[j + 1]
             s = self.left_child[p]
             while s != tskit.NULL:
                 if s != c:
@@ -329,11 +329,6 @@ class DivergenceMatrix:
                         print(f"adding {z} to {(u, s)}")
                     self.add_to_stack(u, s, z)
                 s = self.right_sib[s]
-            c = p
-            p = self.parent[c]
-            if not root and p == tskit.NULL:
-                p = self.virtual_root
-                root = True
         if self.internal_checks:
             after_state = self.current_state()
             assert_dicts_close(before_state, after_state)
@@ -361,6 +356,18 @@ class DivergenceMatrix:
             after_state = self.current_state()
             assert_dicts_close(before_state, after_state)
 
+    def get_spine(self, u):
+        """
+        Returns the list of nodes back to the virtual root.
+        """
+        spine = []
+        p = u
+        while p != tskit.NULL:
+            spine.append(p)
+            p = self.parent[p]
+        spine.append(self.virtual_root)
+        return spine
+
     def clear_spine(self, u):
         """
         Clears all nodes on the path from the virtual root down to u
@@ -372,12 +379,7 @@ class DivergenceMatrix:
         if self.internal_checks:
             # this operation should not change the current output
             before_state = self.current_state()
-        spine = []
-        p = u
-        while p != tskit.NULL:
-            spine.append(p)
-            p = self.parent[p]
-        spine.append(self.virtual_root)
+        spine = self.get_spine(u)
         for p in reversed(spine):
             self.clear_edge(p)
             self.push_down(p)
