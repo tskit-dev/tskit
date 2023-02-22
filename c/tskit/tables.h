@@ -1106,6 +1106,12 @@ column of rows that are retained, an error is raised.
 These error conditions are checked before any alterations to the table are
 made.
 
+.. warning::
+    C++ users need to be careful to specify the correct type when
+    passing in values for the ``keep`` array,
+    using ``std::vector<tsk_bool_t>`` and not ``std::vector<bool>``,
+    as the latter may not be correct size.
+
 @endrst
 
 @param self A pointer to a tsk_individual_table_t object.
@@ -1117,7 +1123,7 @@ made.
     and old IDs. If NULL, this will be ignored.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_individual_table_keep_rows(tsk_individual_table_t *self, const bool *keep,
+int tsk_individual_table_keep_rows(tsk_individual_table_t *self, const tsk_bool_t *keep,
     tsk_flags_t options, tsk_id_t *id_map);
 
 /**
@@ -1484,6 +1490,13 @@ the mapping between IDs before and after row deletion. For row ``j``,
 ``id_map[j]`` will contain the new ID for row ``j`` if it is retained, or
 :c:macro:`TSK_NULL` if the row has been removed. Thus, ``id_map`` must be an
 array of at least ``num_rows`` :c:type:`tsk_id_t` values.
+
+.. warning::
+    C++ users need to be careful to specify the correct type when
+    passing in values for the ``keep`` array,
+    using ``std::vector<tsk_bool_t>`` and not ``std::vector<bool>``,
+    as the latter may not be correct size.
+
 @endrst
 
 @param self A pointer to a tsk_node_table_t object.
@@ -1495,8 +1508,8 @@ array of at least ``num_rows`` :c:type:`tsk_id_t` values.
     and old IDs. If NULL, this will be ignored.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_node_table_keep_rows(
-    tsk_node_table_t *self, const bool *keep, tsk_flags_t options, tsk_id_t *id_map);
+int tsk_node_table_keep_rows(tsk_node_table_t *self, const tsk_bool_t *keep,
+    tsk_flags_t options, tsk_id_t *id_map);
 
 /**
 @brief Returns true if the data in the specified table is identical to the data
@@ -1824,6 +1837,13 @@ the mapping between IDs before and after row deletion. For row ``j``,
 ``id_map[j]`` will contain the new ID for row ``j`` if it is retained, or
 :c:macro:`TSK_NULL` if the row has been removed. Thus, ``id_map`` must be an
 array of at least ``num_rows`` :c:type:`tsk_id_t` values.
+
+.. warning::
+    C++ users need to be careful to specify the correct type when
+    passing in values for the ``keep`` array,
+    using ``std::vector<tsk_bool_t>`` and not ``std::vector<bool>``,
+    as the latter may not be correct size.
+
 @endrst
 
 @param self A pointer to a tsk_edge_table_t object.
@@ -1835,8 +1855,8 @@ array of at least ``num_rows`` :c:type:`tsk_id_t` values.
     and old IDs. If NULL, this will be ignored.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_edge_table_keep_rows(
-    tsk_edge_table_t *self, const bool *keep, tsk_flags_t options, tsk_id_t *id_map);
+int tsk_edge_table_keep_rows(tsk_edge_table_t *self, const tsk_bool_t *keep,
+    tsk_flags_t options, tsk_id_t *id_map);
 
 /**
 @brief Returns true if the data in the specified table is identical to the data
@@ -2188,6 +2208,13 @@ the mapping between IDs before and after row deletion. For row ``j``,
 ``id_map[j]`` will contain the new ID for row ``j`` if it is retained, or
 :c:macro:`TSK_NULL` if the row has been removed. Thus, ``id_map`` must be an
 array of at least ``num_rows`` :c:type:`tsk_id_t` values.
+
+.. warning::
+    C++ users need to be careful to specify the correct type when
+    passing in values for the ``keep`` array,
+    using ``std::vector<tsk_bool_t>`` and not ``std::vector<bool>``,
+    as the latter may not be correct size.
+
 @endrst
 
 @param self A pointer to a tsk_migration_table_t object.
@@ -2199,7 +2226,7 @@ array of at least ``num_rows`` :c:type:`tsk_id_t` values.
     and old IDs. If NULL, this will be ignored.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_migration_table_keep_rows(tsk_migration_table_t *self, const bool *keep,
+int tsk_migration_table_keep_rows(tsk_migration_table_t *self, const tsk_bool_t *keep,
     tsk_flags_t options, tsk_id_t *id_map);
 
 /**
@@ -2526,6 +2553,13 @@ the mapping between IDs before and after row deletion. For row ``j``,
 ``id_map[j]`` will contain the new ID for row ``j`` if it is retained, or
 :c:macro:`TSK_NULL` if the row has been removed. Thus, ``id_map`` must be an
 array of at least ``num_rows`` :c:type:`tsk_id_t` values.
+
+.. warning::
+    C++ users need to be careful to specify the correct type when
+    passing in values for the ``keep`` array,
+    using ``std::vector<tsk_bool_t>`` and not ``std::vector<bool>``,
+    as the latter may not be correct size.
+
 @endrst
 
 @param self A pointer to a tsk_site_table_t object.
@@ -2537,8 +2571,8 @@ array of at least ``num_rows`` :c:type:`tsk_id_t` values.
     and old IDs. If NULL, this will be ignored.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_site_table_keep_rows(
-    tsk_site_table_t *self, const bool *keep, tsk_flags_t options, tsk_id_t *id_map);
+int tsk_site_table_keep_rows(tsk_site_table_t *self, const tsk_bool_t *keep,
+    tsk_flags_t options, tsk_id_t *id_map);
 
 /**
 @brief Returns true if the data in the specified table is identical to the data
@@ -2905,6 +2939,12 @@ column of rows that are retained, an error is raised.
 These error conditions are checked before any alterations to the table are
 made.
 
+.. warning::
+    C++ users need to be careful to specify the correct type when
+    passing in values for the ``keep`` array,
+    using ``std::vector<tsk_bool_t>`` and not ``std::vector<bool>``,
+    as the latter may not be correct size.
+
 @endrst
 
 @param self A pointer to a tsk_mutation_table_t object.
@@ -2916,8 +2956,8 @@ made.
     and old IDs. If NULL, this will be ignored.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_mutation_table_keep_rows(
-    tsk_mutation_table_t *self, const bool *keep, tsk_flags_t options, tsk_id_t *id_map);
+int tsk_mutation_table_keep_rows(tsk_mutation_table_t *self, const tsk_bool_t *keep,
+    tsk_flags_t options, tsk_id_t *id_map);
 
 /**
 @brief Returns true if the data in the specified table is identical to the data
@@ -3262,6 +3302,13 @@ the mapping between IDs before and after row deletion. For row ``j``,
 ``id_map[j]`` will contain the new ID for row ``j`` if it is retained, or
 :c:macro:`TSK_NULL` if the row has been removed. Thus, ``id_map`` must be an
 array of at least ``num_rows`` :c:type:`tsk_id_t` values.
+
+.. warning::
+    C++ users need to be careful to specify the correct type when
+    passing in values for the ``keep`` array,
+    using ``std::vector<tsk_bool_t>`` and not ``std::vector<bool>``,
+    as the latter may not be correct size.
+
 @endrst
 
 @param self A pointer to a tsk_population_table_t object.
@@ -3273,7 +3320,7 @@ array of at least ``num_rows`` :c:type:`tsk_id_t` values.
     and old IDs. If NULL, this will be ignored.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_population_table_keep_rows(tsk_population_table_t *self, const bool *keep,
+int tsk_population_table_keep_rows(tsk_population_table_t *self, const tsk_bool_t *keep,
     tsk_flags_t options, tsk_id_t *id_map);
 
 /**
@@ -3586,6 +3633,13 @@ the mapping between IDs before and after row deletion. For row ``j``,
 ``id_map[j]`` will contain the new ID for row ``j`` if it is retained, or
 :c:macro:`TSK_NULL` if the row has been removed. Thus, ``id_map`` must be an
 array of at least ``num_rows`` :c:type:`tsk_id_t` values.
+
+.. warning::
+    C++ users need to be careful to specify the correct type when
+    passing in values for the ``keep`` array,
+    using ``std::vector<tsk_bool_t>`` and not ``std::vector<bool>``,
+    as the latter may not be correct size.
+
 @endrst
 
 @param self A pointer to a tsk_provenance_table_t object.
@@ -3597,7 +3651,7 @@ array of at least ``num_rows`` :c:type:`tsk_id_t` values.
     and old IDs. If NULL, this will be ignored.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_provenance_table_keep_rows(tsk_provenance_table_t *self, const bool *keep,
+int tsk_provenance_table_keep_rows(tsk_provenance_table_t *self, const tsk_bool_t *keep,
     tsk_flags_t options, tsk_id_t *id_map);
 
 /**

@@ -968,11 +968,6 @@ int32_array_converter(PyObject *py_obj, PyArrayObject **array_out)
 static int
 bool_array_converter(PyObject *py_obj, PyArrayObject **array_out)
 {
-    /* We are assuming that npy_bool and C99 bool are interchangeable, which
-     * may not always be true. If this ever crops up in the real world we
-     * may want to promote this to a module-load time check.
-     */
-    assert(sizeof(npy_bool) == sizeof(bool));
     return array_converter(NPY_BOOL, py_obj, array_out);
 }
 
@@ -982,7 +977,7 @@ bool_array_converter(PyObject *py_obj, PyArrayObject **array_out)
  * wraps the library function and casts to the correct table type.
  */
 typedef int keep_row_func_t(
-    void *self, const bool *keep, tsk_flags_t options, tsk_id_t *id_map);
+    void *self, const tsk_bool_t *keep, tsk_flags_t options, tsk_id_t *id_map);
 
 static PyObject *
 table_keep_rows(
@@ -1398,7 +1393,7 @@ out:
 
 static int
 individual_table_keep_rows_generic(
-    void *table, const bool *keep, tsk_flags_t options, tsk_id_t *id_map)
+    void *table, const tsk_bool_t *keep, tsk_flags_t options, tsk_id_t *id_map)
 {
     return tsk_individual_table_keep_rows(
         (tsk_individual_table_t *) table, keep, options, id_map);
@@ -2003,7 +1998,7 @@ out:
 
 static int
 node_table_keep_rows_generic(
-    void *table, const bool *keep, tsk_flags_t options, tsk_id_t *id_map)
+    void *table, const tsk_bool_t *keep, tsk_flags_t options, tsk_id_t *id_map)
 {
     return tsk_node_table_keep_rows((tsk_node_table_t *) table, keep, options, id_map);
 }
@@ -2599,7 +2594,7 @@ out:
 
 static int
 edge_table_keep_rows_generic(
-    void *table, const bool *keep, tsk_flags_t options, tsk_id_t *id_map)
+    void *table, const tsk_bool_t *keep, tsk_flags_t options, tsk_id_t *id_map)
 {
     return tsk_edge_table_keep_rows((tsk_edge_table_t *) table, keep, options, id_map);
 }
@@ -3180,7 +3175,7 @@ out:
 
 static int
 migration_table_keep_rows_generic(
-    void *table, const bool *keep, tsk_flags_t options, tsk_id_t *id_map)
+    void *table, const tsk_bool_t *keep, tsk_flags_t options, tsk_id_t *id_map)
 {
     return tsk_migration_table_keep_rows(
         (tsk_migration_table_t *) table, keep, options, id_map);
@@ -3790,7 +3785,7 @@ out:
 
 static int
 site_table_keep_rows_generic(
-    void *table, const bool *keep, tsk_flags_t options, tsk_id_t *id_map)
+    void *table, const tsk_bool_t *keep, tsk_flags_t options, tsk_id_t *id_map)
 {
     return tsk_site_table_keep_rows((tsk_site_table_t *) table, keep, options, id_map);
 }
@@ -4365,7 +4360,7 @@ out:
 
 static int
 mutation_table_keep_rows_generic(
-    void *table, const bool *keep, tsk_flags_t options, tsk_id_t *id_map)
+    void *table, const tsk_bool_t *keep, tsk_flags_t options, tsk_id_t *id_map)
 {
     return tsk_mutation_table_keep_rows(
         (tsk_mutation_table_t *) table, keep, options, id_map);
@@ -4972,7 +4967,7 @@ out:
 
 static int
 population_table_keep_rows_generic(
-    void *table, const bool *keep, tsk_flags_t options, tsk_id_t *id_map)
+    void *table, const tsk_bool_t *keep, tsk_flags_t options, tsk_id_t *id_map)
 {
     return tsk_population_table_keep_rows(
         (tsk_population_table_t *) table, keep, options, id_map);
@@ -5476,7 +5471,7 @@ out:
 
 static int
 provenance_table_keep_rows_generic(
-    void *table, const bool *keep, tsk_flags_t options, tsk_id_t *id_map)
+    void *table, const tsk_bool_t *keep, tsk_flags_t options, tsk_id_t *id_map)
 {
     return tsk_provenance_table_keep_rows(
         (tsk_provenance_table_t *) table, keep, options, id_map);

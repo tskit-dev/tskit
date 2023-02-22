@@ -123,6 +123,15 @@ specify options to API functions.
 typedef uint32_t tsk_flags_t;
 #define TSK_FLAGS_STORAGE_TYPE KAS_UINT32
 
+/**
+@brief Boolean type.
+
+@rst
+Fixed-size (1 byte) boolean values.
+@endrst
+*/
+typedef uint8_t tsk_bool_t;
+
 // clang-format off
 /**
 @defgroup API_VERSION_GROUP API version macros.

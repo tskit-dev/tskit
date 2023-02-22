@@ -67,6 +67,7 @@ sphinx:
       # Note we have to use the regex version here because of
       # https://github.com/sphinx-doc/sphinx/issues/9748
       nitpick_ignore_regex: [
+          ["c:identifier", "uint8_t"],
           ["c:identifier", "int32_t"],
           ["c:identifier", "uint32_t"],
           ["c:identifier", "uint64_t"],

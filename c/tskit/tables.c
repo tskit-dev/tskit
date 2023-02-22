@@ -735,7 +735,7 @@ write_metadata_schema_header(
 /* Utilities for in-place subsetting columns */
 
 static tsk_size_t
-count_true(tsk_size_t num_rows, const bool *restrict keep)
+count_true(tsk_size_t num_rows, const tsk_bool_t *restrict keep)
 {
     tsk_size_t j;
     tsk_size_t count = 0;
@@ -750,7 +750,7 @@ count_true(tsk_size_t num_rows, const bool *restrict keep)
 
 static void
 keep_mask_to_id_map(
-    tsk_size_t num_rows, const bool *restrict keep, tsk_id_t *restrict id_map)
+    tsk_size_t num_rows, const tsk_bool_t *restrict keep, tsk_id_t *restrict id_map)
 {
     tsk_size_t j;
     tsk_id_t next_id = 0;
@@ -766,7 +766,7 @@ keep_mask_to_id_map(
 
 static tsk_size_t
 subset_remap_id_column(tsk_id_t *restrict column, tsk_size_t num_rows,
-    const bool *restrict keep, const tsk_id_t *restrict id_map)
+    const tsk_bool_t *restrict keep, const tsk_id_t *restrict id_map)
 {
     tsk_size_t j, k;
     tsk_id_t value;
@@ -792,7 +792,7 @@ subset_remap_id_column(tsk_id_t *restrict column, tsk_size_t num_rows,
 
 static tsk_size_t
 subset_id_column(
-    tsk_id_t *restrict column, tsk_size_t num_rows, const bool *restrict keep)
+    tsk_id_t *restrict column, tsk_size_t num_rows, const tsk_bool_t *restrict keep)
 {
     tsk_size_t j, k;
 
@@ -808,7 +808,7 @@ subset_id_column(
 
 static tsk_size_t
 subset_flags_column(
-    tsk_flags_t *restrict column, tsk_size_t num_rows, const bool *restrict keep)
+    tsk_flags_t *restrict column, tsk_size_t num_rows, const tsk_bool_t *restrict keep)
 {
     tsk_size_t j, k;
 
@@ -824,7 +824,7 @@ subset_flags_column(
 
 static tsk_size_t
 subset_double_column(
-    double *restrict column, tsk_size_t num_rows, const bool *restrict keep)
+    double *restrict column, tsk_size_t num_rows, const tsk_bool_t *restrict keep)
 {
     tsk_size_t j, k;
 
@@ -840,7 +840,7 @@ subset_double_column(
 
 static tsk_size_t
 subset_ragged_char_column(char *restrict data, tsk_size_t *restrict offset_col,
-    tsk_size_t num_rows, const bool *restrict keep)
+    tsk_size_t num_rows, const tsk_bool_t *restrict keep)
 {
     tsk_size_t j, k, i, offset;
 
@@ -864,7 +864,7 @@ subset_ragged_char_column(char *restrict data, tsk_size_t *restrict offset_col,
 
 static tsk_size_t
 subset_ragged_double_column(double *restrict data, tsk_size_t *restrict offset_col,
-    tsk_size_t num_rows, const bool *restrict keep)
+    tsk_size_t num_rows, const tsk_bool_t *restrict keep)
 {
     tsk_size_t j, k, i, offset;
 
@@ -888,7 +888,8 @@ subset_ragged_double_column(double *restrict data, tsk_size_t *restrict offset_c
 
 static tsk_size_t
 subset_remap_ragged_id_column(tsk_id_t *restrict data, tsk_size_t *restrict offset_col,
-    tsk_size_t num_rows, const bool *restrict keep, const tsk_id_t *restrict id_map)
+    tsk_size_t num_rows, const tsk_bool_t *restrict keep,
+    const tsk_id_t *restrict id_map)
 {
     tsk_size_t j, k, i, offset;
     tsk_id_t di;
@@ -1804,7 +1805,7 @@ tsk_individual_table_equals(const tsk_individual_table_t *self,
 }
 
 int
-tsk_individual_table_keep_rows(tsk_individual_table_t *self, const bool *keep,
+tsk_individual_table_keep_rows(tsk_individual_table_t *self, const tsk_bool_t *keep,
     tsk_flags_t TSK_UNUSED(options), tsk_id_t *ret_id_map)
 {
     int ret = 0;
@@ -2518,7 +2519,7 @@ out:
 }
 
 int
-tsk_node_table_keep_rows(tsk_node_table_t *self, const bool *keep,
+tsk_node_table_keep_rows(tsk_node_table_t *self, const tsk_bool_t *keep,
     tsk_flags_t TSK_UNUSED(options), tsk_id_t *id_map)
 {
     int ret = 0;
@@ -3210,7 +3211,7 @@ tsk_edge_table_equals(
 }
 
 int
-tsk_edge_table_keep_rows(tsk_edge_table_t *self, const bool *keep,
+tsk_edge_table_keep_rows(tsk_edge_table_t *self, const tsk_bool_t *keep,
     tsk_flags_t TSK_UNUSED(options), tsk_id_t *id_map)
 {
     int ret = 0;
@@ -3968,7 +3969,7 @@ out:
 }
 
 int
-tsk_site_table_keep_rows(tsk_site_table_t *self, const bool *keep,
+tsk_site_table_keep_rows(tsk_site_table_t *self, const tsk_bool_t *keep,
     tsk_flags_t TSK_UNUSED(options), tsk_id_t *id_map)
 {
     int ret = 0;
@@ -4733,7 +4734,7 @@ out:
 }
 
 int
-tsk_mutation_table_keep_rows(tsk_mutation_table_t *self, const bool *keep,
+tsk_mutation_table_keep_rows(tsk_mutation_table_t *self, const tsk_bool_t *keep,
     tsk_flags_t TSK_UNUSED(options), tsk_id_t *ret_id_map)
 {
     int ret = 0;
@@ -5437,7 +5438,7 @@ tsk_migration_table_equals(const tsk_migration_table_t *self,
 }
 
 int
-tsk_migration_table_keep_rows(tsk_migration_table_t *self, const bool *keep,
+tsk_migration_table_keep_rows(tsk_migration_table_t *self, const tsk_bool_t *keep,
     tsk_flags_t TSK_UNUSED(options), tsk_id_t *id_map)
 {
     int ret = 0;
@@ -6031,7 +6032,7 @@ tsk_population_table_equals(const tsk_population_table_t *self,
 }
 
 int
-tsk_population_table_keep_rows(tsk_population_table_t *self, const bool *keep,
+tsk_population_table_keep_rows(tsk_population_table_t *self, const tsk_bool_t *keep,
     tsk_flags_t TSK_UNUSED(options), tsk_id_t *id_map)
 {
     int ret = 0;
@@ -6661,7 +6662,7 @@ tsk_provenance_table_equals(const tsk_provenance_table_t *self,
 }
 
 int
-tsk_provenance_table_keep_rows(tsk_provenance_table_t *self, const bool *keep,
+tsk_provenance_table_keep_rows(tsk_provenance_table_t *self, const tsk_bool_t *keep,
     tsk_flags_t TSK_UNUSED(options), tsk_id_t *id_map)
 {
     int ret = 0;

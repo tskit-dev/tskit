@@ -1499,7 +1499,7 @@ test_node_table_keep_rows(void)
     tsk_size_t j;
     tsk_node_table_t source, t1, t2;
     tsk_node_t row;
-    bool keep[3] = { 1, 1, 1 };
+    tsk_bool_t keep[3] = { 1, 1, 1 };
     tsk_id_t id_map[3];
     const char *metadata = "ABC";
     tsk_id_t indexes[] = { 0, 1, 2 };
@@ -2142,7 +2142,7 @@ test_edge_table_keep_rows(void)
     tsk_size_t j;
     tsk_edge_table_t source, t1, t2;
     tsk_edge_t row;
-    bool keep[3] = { 1, 1, 1 };
+    tsk_bool_t keep[3] = { 1, 1, 1 };
     tsk_id_t id_map[3];
     const char *metadata = "ABC";
     tsk_id_t indexes[] = { 0, 1, 2 };
@@ -2242,7 +2242,7 @@ test_edge_table_keep_rows_no_metadata(void)
     tsk_size_t j;
     tsk_edge_table_t source, t1, t2;
     tsk_edge_t row;
-    bool keep[3] = { 1, 1, 1 };
+    tsk_bool_t keep[3] = { 1, 1, 1 };
     tsk_id_t id_map[3];
     tsk_id_t indexes[] = { 0, 1, 2 };
 
@@ -3265,7 +3265,7 @@ test_site_table_keep_rows(void)
     tsk_site_t row;
     const char *ancestral_state = "XYZ";
     const char *metadata = "ABC";
-    bool keep[3] = { 1, 1, 1 };
+    tsk_bool_t keep[3] = { 1, 1, 1 };
     tsk_id_t id_map[3];
     tsk_id_t indexes[] = { 0, 1, 2 };
 
@@ -4051,7 +4051,7 @@ test_mutation_table_keep_rows(void)
     tsk_mutation_t row;
     const char *derived_state = "XYZ";
     const char *metadata = "ABC";
-    bool keep[3] = { 1, 1, 1 };
+    tsk_bool_t keep[3] = { 1, 1, 1 };
     tsk_id_t id_map[3];
     tsk_id_t indexes[] = { 0, 1, 2 };
 
@@ -4154,7 +4154,7 @@ test_mutation_table_keep_rows_parent_references(void)
     int ret;
     tsk_id_t ret_id;
     tsk_mutation_table_t source, t;
-    bool keep[4] = { 1, 1, 1, 1 };
+    tsk_bool_t keep[4] = { 1, 1, 1, 1 };
     tsk_id_t id_map[4];
 
     ret = tsk_mutation_table_init(&source, 0);
@@ -4844,7 +4844,7 @@ test_migration_table_keep_rows(void)
     tsk_migration_table_t source, t1, t2;
     tsk_migration_t row;
     const char *metadata = "ABC";
-    bool keep[3] = { 1, 1, 1 };
+    tsk_bool_t keep[3] = { 1, 1, 1 };
     tsk_id_t id_map[3];
     tsk_id_t indexes[] = { 0, 1, 2 };
 
@@ -5671,7 +5671,7 @@ test_individual_table_keep_rows(void)
     double location[] = { 0, 1, 2 };
     tsk_id_t parents[] = { -1, 1, -1 };
     const char *metadata = "ABC";
-    bool keep[3] = { 1, 1, 1 };
+    tsk_bool_t keep[3] = { 1, 1, 1 };
     tsk_id_t indexes[] = { 0, 1, 2 };
     tsk_id_t id_map[3];
     tsk_individual_table_t source, t1, t2;
@@ -5776,7 +5776,7 @@ test_individual_table_keep_rows_parent_references(void)
     int ret;
     tsk_id_t ret_id;
     tsk_individual_table_t source, t;
-    bool keep[] = { 1, 1, 1, 1 };
+    tsk_bool_t keep[] = { 1, 1, 1, 1 };
     tsk_id_t parents[] = { -1, 1, 2 };
     tsk_id_t id_map[4];
 
@@ -6243,7 +6243,7 @@ test_population_table_keep_rows(void)
     tsk_population_table_t source, t1, t2;
     tsk_population_t row;
     const char *metadata = "ABC";
-    bool keep[3] = { 1, 1, 1 };
+    tsk_bool_t keep[3] = { 1, 1, 1 };
     tsk_id_t id_map[3];
     tsk_id_t indexes[] = { 0, 1, 2 };
 
@@ -6779,7 +6779,7 @@ test_provenance_table_keep_rows(void)
     tsk_provenance_t row;
     const char *timestamp = "XYZ";
     const char *record = "ABC";
-    bool keep[3] = { 1, 1, 1 };
+    tsk_bool_t keep[3] = { 1, 1, 1 };
     tsk_id_t indexes[] = { 0, 1, 2 };
     tsk_id_t id_map[3];
 
