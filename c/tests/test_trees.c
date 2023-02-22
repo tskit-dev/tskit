@@ -5437,7 +5437,6 @@ test_simplify_keep_input_roots_multi_tree(void)
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
-    tsk_treeseq_dump(&ts, "tmp.trees", 0);
     ret = tsk_treeseq_simplify(
         &ts, samples, 2, TSK_SIMPLIFY_KEEP_INPUT_ROOTS, &simplified, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -5606,6 +5605,22 @@ test_convenience_arrays_multi_tree(void)
     CU_ASSERT_EQUAL(t.num_children[8], 0);
 
     tsk_tree_free(&t);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_multi_tree_divergence_matrix(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    double D[100];
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
+
+    ret = tsk_treeseq_divergence_matrix(&ts, 0, NULL, 0, D);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
     tsk_treeseq_free(&ts);
 }
 
@@ -8227,6 +8242,7 @@ main(int argc, char **argv)
         { "test_left_to_right_multi_tree", test_left_to_right_multi_tree },
         { "test_gappy_multi_tree", test_gappy_multi_tree },
         { "test_convenience_arrays_multi_tree", test_convenience_arrays_multi_tree },
+        { "test_multi_tree_divergence_matrix", test_multi_tree_divergence_matrix },
 
         { "test_tsk_treeseq_bad_records", test_tsk_treeseq_bad_records },
 
