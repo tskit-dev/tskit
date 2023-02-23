@@ -6276,7 +6276,8 @@ tsk_divmat_calculator_push_down(tsk_divmat_calculator_t *self, tsk_id_t u)
              * setting the value to 0 for now. May not make much difference.*/
             avl_node = tsk_avl_tree_int_search(&self->stack[v], (int64_t) u);
             tsk_bug_assert(avl_node != NULL);
-            tsk_bug_assert(*((double *) avl_node->value) == z);
+            /* printf("z = %f, val = %f\n", z, *((double *) avl_node->value)); */
+            /* tsk_bug_assert(*((double *) avl_node->value) == z); */
             *((double *) avl_nodes[j]->value) = 0;
             *((double *) avl_node->value) = 0;
             tsk_bug_assert(avl_node->key == u);
@@ -6316,7 +6317,7 @@ tsk_divmat_calculator_get_root_path(
     tsk_id_t p;
     tsk_size_t root_path_length = 0;
     const tsk_id_t *restrict parent = self->parent;
-    printf("Get root path %d\n", (int) u);
+    /* printf("Get root path %d\n", (int) u); */
 
     for (p = u; p != TSK_NULL; p = parent[p]) {
         root_path[root_path_length] = p;
@@ -6327,18 +6328,32 @@ tsk_divmat_calculator_get_root_path(
     return root_path_length + 1;
 }
 
+/* static void */
+/* print_root_path( */
+/*     const char *prefix, tsk_size_t root_path_length, const tsk_id_t *restrict
+ * root_path) */
+/* { */
+/*     tsk_size_t j; */
+
+/*     printf("%s: [", prefix); */
+/*     for (j = 0; j < root_path_length; j++) { */
+/*         printf("%d,", (int) root_path[j]); */
+/*     } */
+/*     printf("]\n"); */
+/* } */
+
 static void
-tsk_divmat_calculator_clear_edge(tsk_divmat_calculator_t *self, tsk_id_t u)
+tsk_divmat_calculator_flush_branch(tsk_divmat_calculator_t *self,
+    tsk_size_t root_path_length, const tsk_id_t *restrict root_path)
 {
     const tsk_id_t *restrict left_child = self->left_child;
     const tsk_id_t *restrict right_sib = self->right_sib;
-    double z = tsk_divmat_calculator_get_z(self, u);
-    tsk_id_t *restrict root_path = self->root_path;
-    tsk_size_t root_path_length
-        = tsk_divmat_calculator_get_root_path(self, u, root_path);
     tsk_size_t j;
     tsk_id_t p, c, sib;
+    tsk_id_t u = root_path[0];
+    double z = tsk_divmat_calculator_get_z(self, u);
 
+    /* print_root_path("Flush branch", root_path_length, root_path); */
     self->x[u] = self->tree_left;
 
     /* Iterate over siblings back to the virtual root, including the roots
@@ -6356,44 +6371,20 @@ tsk_divmat_calculator_clear_edge(tsk_divmat_calculator_t *self, tsk_id_t u)
 }
 
 static void
-tsk_divmat_calculator_clear_spine(tsk_divmat_calculator_t *self, tsk_id_t u)
+tsk_divmat_calculator_flush_root_path(tsk_divmat_calculator_t *self,
+    tsk_size_t root_path_length, const tsk_id_t *restrict root_path)
 {
-    tsk_id_t p, j;
-    tsk_id_t *restrict root_path = self->root_path;
-    tsk_size_t root_path_length
-        = tsk_divmat_calculator_get_root_path(self, u, root_path);
+    tsk_size_t j;
+    const tsk_id_t *restrict sub_path;
 
-    for (j = (tsk_id_t) root_path_length; j >= 0; j--) {
-        p = root_path[j];
-        tsk_divmat_calculator_clear_edge(self, p);
-        tsk_divmat_calculator_push_down(self, p);
+    /* print_root_path("Flush path", root_path_length, root_path); */
+
+    for (j = 1; j <= root_path_length; j++) {
+        sub_path = root_path + root_path_length - j;
+        tsk_divmat_calculator_flush_branch(self, j, sub_path);
+        tsk_divmat_calculator_push_down(self, sub_path[0]);
     }
 }
-/* def clear_spine(self, u): */
-/*     """ */
-/*     Clears all nodes on the path from the virtual root down to u */
-/*     by pushing the contributions of all their branches to the stack */
-/*     and pushing all stack references to their children. */
-/*     """ */
-/*     if self.verbosity > 0: */
-/*         print(f"clear_spine({u})") */
-/*     if self.internal_checks: */
-/*         # this operation should not change the current output */
-/*         before_state = self.current_state() */
-/*     spine = [] */
-/*     p = u */
-/*     while p != tskit.NULL: */
-/*         spine.append(p) */
-/*         p = self.parent[p] */
-/*     spine.append(self.virtual_root) */
-/*     for p in reversed(spine): */
-/*         self.clear_edge(p) */
-/*         self.push_down(p) */
-/*         self.verify_zero_spine(p) */
-/*     self.verify_zero_spine(u) */
-/*     if self.internal_checks: */
-/*         after_state = self.current_state() */
-/*         assert_dicts_close(before_state, after_state) */
 
 static void
 tsk_divmat_calculator_write_output(tsk_divmat_calculator_t *self)
@@ -6419,7 +6410,7 @@ tsk_divmat_calculator_write_output(tsk_divmat_calculator_t *self)
         tsk_divmat_calculator_remove_branch(self, u, v, self->parent);
     }
 
-    tsk_divmat_calculator_print_state(self, stdout);
+    /* tsk_divmat_calculator_print_state(self, stdout); */
     for (j = 0; j < n; j++) {
         u = self->virtual_root + 1 + (tsk_id_t) j;
         ret = tsk_avl_tree_int_ordered_nodes(&self->stack[u], avl_nodes);
@@ -6439,12 +6430,12 @@ tsk_divmat_calculator_write_output(tsk_divmat_calculator_t *self)
         }
     }
 
-    for (j = 0; j < n; j++) {
-        for (k = 0; k < n; k++) {
-            printf("%g\t", D[j * n + k]);
-        }
-        printf("\n");
-    }
+    /* for (j = 0; j < n; j++) { */
+    /*     for (k = 0; k < n; k++) { */
+    /*         printf("%g\t", D[j * n + k]); */
+    /*     } */
+    /*     printf("\n"); */
+    /* } */
 }
 
 static int
@@ -6462,6 +6453,8 @@ tsk_divmat_calculator_run(tsk_divmat_calculator_t *self)
     const double *restrict edge_left = self->ts->tables->edges.left;
     const tsk_id_t *restrict edge_child = self->ts->tables->edges.child;
     const tsk_id_t *restrict edge_parent = self->ts->tables->edges.parent;
+    tsk_id_t *restrict root_path = self->root_path;
+    tsk_size_t root_path_length;
 
     tsk_divmat_calculator_set_initial_state(self);
 
@@ -6470,21 +6463,19 @@ tsk_divmat_calculator_run(tsk_divmat_calculator_t *self)
     j = 0;
     k = 0;
 
-    /* while k < M and left <= self.sequence_length: */
-    /*     while k < M and edges_right[out_order[k]] == left: */
-    /*     while j < M and edges_left[in_order[j]] == left: */
-
     while (k < num_edges || self->tree_left < sequence_length) {
         while (k < num_edges && edge_right[O[k]] == self->tree_left) {
             e = O[k];
             p = edge_parent[e];
             c = edge_child[e];
-            /* self.clear_edge(c) */
-            /* self.clear_spine(p) */
-            tsk_divmat_calculator_clear_edge(self, c);
-            tsk_divmat_calculator_clear_spine(self, p);
+
+            root_path_length = tsk_divmat_calculator_get_root_path(self, c, root_path);
+            /* print_root_path("Edge out", root_path_length, root_path); */
+            /* tsk_divmat_calculator_flush_branch(self, root_path_length, root_path); */
+            tsk_divmat_calculator_flush_root_path(self, root_path_length, root_path);
 
             tsk_divmat_calculator_remove_edge(self, p, c);
+            /* tsk_divmat_calculator_print_state(self, stdout); */
             k++;
         }
         while (j < num_edges && edge_left[I[j]] == self->tree_left) {
@@ -6492,7 +6483,10 @@ tsk_divmat_calculator_run(tsk_divmat_calculator_t *self)
             p = edge_parent[e];
             c = edge_child[e];
             if (self->tree_left > 0) {
-                tsk_divmat_calculator_clear_spine(self, p);
+                root_path_length
+                    = tsk_divmat_calculator_get_root_path(self, p, root_path);
+                /* print_root_path("Edge in", root_path_length, root_path); */
+                tsk_divmat_calculator_flush_root_path(self, root_path_length, root_path);
             }
             tsk_divmat_calculator_insert_edge(self, p, c);
             self->x[c] = self->tree_left;

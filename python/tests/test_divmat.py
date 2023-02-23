@@ -389,7 +389,6 @@ class DivergenceMatrix:
         # NOTE: we have a quadratic complexity here in the length of the
         # root path, because each iteration of this loop goes over the root
         # path in flush_branch
-        u = root_path[0]
         j = len(root_path) - 1
         while j >= 0:
             p = root_path[j]
@@ -398,6 +397,7 @@ class DivergenceMatrix:
             self.verify_zero_root_path(p)
             j -= 1
 
+        u = root_path[0]
         self.verify_zero_root_path(u)
         if self.internal_checks:
             after_state = self.current_state()
@@ -424,7 +424,6 @@ class DivergenceMatrix:
                 p = edges_parent[out_order[k]]
                 c = edges_child[out_order[k]]
                 root_path = self.get_root_path(c)
-                self.flush_branch(root_path)
                 self.flush_root_path(root_path)
                 assert self.x[c] == self.position
                 assert self.parent[p] == tskit.NULL or self.x[p] == self.position
