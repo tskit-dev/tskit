@@ -5895,6 +5895,7 @@ typedef struct {
     /* Divergence state */
     tsk_id_t *root_path;
     tsk_blkalloc_t avl_node_heap;
+    tsk_size_t avl_node_buffer_size;
     tsk_avl_node_int_t **avl_node_buffer;
     /* TODO better names for these: */
     /* Maybe last_update_position and accumulator */
@@ -5974,10 +5975,12 @@ tsk_divmat_calculator_init(tsk_divmat_calculator_t *self, const tsk_treeseq_t *t
     self->num_samples = tsk_malloc(num_nodes * sizeof(*self->num_samples));
     self->x = tsk_malloc(num_nodes * sizeof(*self->x));
     self->stack = tsk_malloc(num_nodes * sizeof(*self->stack));
+    self->avl_node_buffer_size = 2 * num_nodes;
+    self->avl_node_buffer
+        = tsk_malloc(self->avl_node_buffer_size * sizeof(*self->avl_node_buffer));
 
     /* NOTE: usually this will be an large overestimate */
     self->root_path = tsk_malloc(num_nodes * sizeof(*self->root_path));
-    self->avl_node_buffer = tsk_malloc(n2 * sizeof(*self->avl_node_buffer));
 
     if (self->parent == NULL || self->left_child == NULL || self->right_child == NULL
         || self->left_sib == NULL || self->right_sib == NULL || self->num_samples == NULL
@@ -6261,6 +6264,8 @@ tsk_divmat_calculator_push_down(tsk_divmat_calculator_t *self, tsk_id_t u)
     tsk_avl_node_int_t *avl_node;
     tsk_avl_node_int_t **avl_nodes = self->avl_node_buffer;
 
+    tsk_bug_assert(self->stack[u].size < self->avl_node_buffer_size);
+
     ret = tsk_avl_tree_int_ordered_nodes(&self->stack[u], avl_nodes);
     tsk_bug_assert(ret == 0);
 
@@ -6443,6 +6448,7 @@ tsk_divmat_calculator_write_output(tsk_divmat_calculator_t *self)
     /* tsk_divmat_calculator_print_state(self, stdout); */
     for (j = 0; j < n; j++) {
         u = self->virtual_root + 1 + (tsk_id_t) j;
+        tsk_bug_assert(self->stack[u].size < self->avl_node_buffer_size);
         ret = tsk_avl_tree_int_ordered_nodes(&self->stack[u], avl_nodes);
         tsk_bug_assert(ret == 0);
 
