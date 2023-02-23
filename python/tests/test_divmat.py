@@ -205,6 +205,7 @@ class DivergenceMatrix:
     # begin stack stuff
 
     def add_to_stack(self, u, v, z):
+        # print(f"\t\taccumuate ({u}, {v}) -> {z}")
         if z > 0 and self.num_samples[u] > 0 and self.num_samples[v] > 0:
             if v not in self.stack[u]:
                 self.stack[u][v] = 0.0
@@ -389,10 +390,12 @@ class DivergenceMatrix:
         # NOTE: we have a quadratic complexity here in the length of the
         # root path, because each iteration of this loop goes over the root
         # path in flush_branch
+        # print("Flush root path", root_path)
         j = len(root_path) - 1
         while j >= 0:
-            p = root_path[j]
+            # print("\tsub path", root_path[j:])
             self.flush_branch(root_path[j:])
+            p = root_path[j]
             self.push_down(p)
             self.verify_zero_root_path(p)
             j -= 1
@@ -513,8 +516,8 @@ def check_divmat(ts, *, internal_checks=False, verbosity=0):
     D1 = lib_divergence_matrix(ts, mode="branch")
     D2 = divergence_matrix(ts, internal_checks=internal_checks, verbosity=verbosity)
     np.testing.assert_allclose(D1, D2)
-    # D3 = ts.divergence_matrix()
-    # np.testing.assert_allclose(D1, D3)
+    D3 = ts.divergence_matrix()
+    np.testing.assert_allclose(D1, D3)
     return D1
 
 
@@ -549,6 +552,7 @@ class TestExamples:
     @pytest.mark.parametrize("n", [2, 3, 5, 15])
     def test_single_balanced_tree(self, n):
         ts = tskit.Tree.generate_balanced(n).tree_sequence
+        # print(ts.draw_text())
         check_divmat(ts, verbosity=0)
 
     @pytest.mark.parametrize("seed", range(1, 5))

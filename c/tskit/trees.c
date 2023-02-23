@@ -6206,7 +6206,7 @@ tsk_divmat_calculator_increment_node_accumulator(
          * if odd things happen on some platforms that would be worth ruling out.
          */
         value = (double *) p;
-        *value = z;
+        *value = 0;
         avl_node = (tsk_avl_node_int_t *) (((uintptr_t) p) + sizeof(double));
         avl_node->key = v;
         avl_node->value = value;
@@ -6229,6 +6229,8 @@ tsk_divmat_calculator_add_to_stack(
     int ret = 0;
     const tsk_size_t *restrict num_samples = self->num_samples;
 
+    /* printf("\t\taccumulate: (%d, %d) -> %f\n", u, v, z); */
+
     if (z > 0 && num_samples[u] > 0 && num_samples[v] > 0) {
         ret = tsk_divmat_calculator_increment_node_accumulator(self, u, v, z);
         if (ret != 0) {
@@ -6239,6 +6241,7 @@ tsk_divmat_calculator_add_to_stack(
             goto out;
         }
     }
+    /* tsk_divmat_calculator_print_state(self, stdout); */
 out:
     return ret;
 }
@@ -6277,7 +6280,7 @@ tsk_divmat_calculator_push_down(tsk_divmat_calculator_t *self, tsk_id_t u)
             avl_node = tsk_avl_tree_int_search(&self->stack[v], (int64_t) u);
             tsk_bug_assert(avl_node != NULL);
             /* printf("z = %f, val = %f\n", z, *((double *) avl_node->value)); */
-            /* tsk_bug_assert(*((double *) avl_node->value) == z); */
+            tsk_bug_assert(*((double *) avl_node->value) == z);
             *((double *) avl_nodes[j]->value) = 0;
             *((double *) avl_node->value) = 0;
             tsk_bug_assert(avl_node->key == u);
@@ -6368,6 +6371,23 @@ tsk_divmat_calculator_flush_branch(tsk_divmat_calculator_t *self,
             }
         }
     }
+
+    /* u = root_path[0] */
+    /* z = self.get_z(u) */
+    /* self.x[u] = self.position */
+    /* assert self.get_z(u) == 0 */
+
+    /* # iterate over the siblings of the path to the virtual root */
+    /* for j in range(len(root_path) - 1): */
+    /*     c = root_path[j] */
+    /*     p = root_path[j + 1] */
+    /*     s = self.left_child[p] */
+    /*     while s != tskit.NULL: */
+    /*         if s != c: */
+    /*             if self.verbosity > 1: */
+    /*                 print(f"adding {z} to {(u, s)}") */
+    /*             self.add_to_stack(u, s, z) */
+    /*         s = self.right_sib[s] */
 }
 
 static void
@@ -6379,8 +6399,17 @@ tsk_divmat_calculator_flush_root_path(tsk_divmat_calculator_t *self,
 
     /* print_root_path("Flush path", root_path_length, root_path); */
 
+    /* j = len(root_path) - 1 */
+    /* while j >= 0: */
+    /*     p = root_path[j] */
+    /*     self.flush_branch(root_path[j:]) */
+    /*     self.push_down(p) */
+    /*     self.verify_zero_root_path(p) */
+    /*     j -= 1 */
+
     for (j = 1; j <= root_path_length; j++) {
         sub_path = root_path + root_path_length - j;
+        /* print_root_path("\tFlush sub path", j, sub_path); */
         tsk_divmat_calculator_flush_branch(self, j, sub_path);
         tsk_divmat_calculator_push_down(self, sub_path[0]);
     }
@@ -6406,6 +6435,7 @@ tsk_divmat_calculator_write_output(tsk_divmat_calculator_t *self)
         tsk_divmat_calculator_push_down(self, u);
         /* tsk_divmat_calculator_print_state(self, stdout); */
         v = self->virtual_root + 1 + (tsk_id_t) j;
+        tsk_bug_assert(u == self->parent[v]);
         /* printf("REMOVE %d -> %d\n", (int) v, (int) u); */
         tsk_divmat_calculator_remove_branch(self, u, v, self->parent);
     }
@@ -6468,12 +6498,15 @@ tsk_divmat_calculator_run(tsk_divmat_calculator_t *self)
             e = O[k];
             p = edge_parent[e];
             c = edge_child[e];
-
+            /* root_path = self.get_root_path(c) */
+            /* self.flush_root_path(root_path) */
             root_path_length = tsk_divmat_calculator_get_root_path(self, c, root_path);
             /* print_root_path("Edge out", root_path_length, root_path); */
             /* tsk_divmat_calculator_flush_branch(self, root_path_length, root_path); */
             tsk_divmat_calculator_flush_root_path(self, root_path_length, root_path);
 
+            assert(self->x[c] == self->tree_left);
+            assert(self->parent[p] == TSK_NULL || self->x[p] == self->tree_left);
             tsk_divmat_calculator_remove_edge(self, p, c);
             /* tsk_divmat_calculator_print_state(self, stdout); */
             k++;
