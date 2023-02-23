@@ -5894,7 +5894,6 @@ typedef struct {
     tsk_size_t *num_samples;
     /* Divergence state */
     tsk_id_t *root_path;
-    tsk_blkalloc_t avl_node_heap;
     tsk_size_t avl_node_buffer_size;
     tsk_avl_node_int_t **avl_node_buffer;
     /* TODO better names for these: */
@@ -5949,6 +5948,25 @@ tsk_divmat_calculator_print_state(const tsk_divmat_calculator_t *self, FILE *out
     free(ordered_nodes);
 }
 
+static void
+tsk_divmat_calculator_free_avl_tree(
+    tsk_divmat_calculator_t *self, tsk_avl_tree_int_t *avl_tree)
+{
+
+    tsk_size_t j;
+    tsk_avl_node_int_t **avl_nodes = self->avl_node_buffer;
+
+    tsk_bug_assert(avl_tree->size < self->avl_node_buffer_size);
+
+    tsk_avl_tree_int_ordered_nodes(avl_tree, avl_nodes);
+
+    for (j = 0; j < avl_tree->size; j++) {
+        /* Nasty hacks here mean we can't use tsk_safe_free */
+        free(avl_nodes[j]->value);
+    }
+    memset(avl_tree, 0, sizeof(*avl_tree));
+}
+
 static int
 tsk_divmat_calculator_init(tsk_divmat_calculator_t *self, const tsk_treeseq_t *ts,
     tsk_size_t num_input_samples, const tsk_id_t *samples, tsk_flags_t options,
@@ -5989,12 +6007,6 @@ tsk_divmat_calculator_init(tsk_divmat_calculator_t *self, const tsk_treeseq_t *t
         goto out;
     }
 
-    /* Allocate heap memory in 1MiB blocks */
-    ret = tsk_blkalloc_init(&self->avl_node_heap, 1024 * 1024);
-    if (ret != 0) {
-        goto out;
-    }
-
     tsk_memset(result, 0, n2 * sizeof(double));
     tsk_memset(self->num_samples, 1, num_nodes * sizeof(*self->num_samples));
     tsk_memset(self->parent, TSK_NULL, num_nodes * sizeof(*self->parent));
@@ -6022,7 +6034,7 @@ tsk_divmat_calculator_free(tsk_divmat_calculator_t *self)
     tsk_size_t j;
 
     for (j = 0; j < self->num_nodes; j++) {
-        tsk_avl_tree_int_free(&self->stack[j]);
+        tsk_divmat_calculator_free_avl_tree(self, &self->stack[j]);
     }
 
     tsk_safe_free(self->parent);
@@ -6035,7 +6047,6 @@ tsk_divmat_calculator_free(tsk_divmat_calculator_t *self)
     tsk_safe_free(self->stack);
     tsk_safe_free(self->root_path);
     tsk_safe_free(self->avl_node_buffer);
-    tsk_blkalloc_free(&self->avl_node_heap);
 
     /* Make this safe for multiple free calls */
     memset(self, 0, sizeof(*self));
@@ -6199,7 +6210,7 @@ tsk_divmat_calculator_increment_node_accumulator(
     double *value;
 
     if (avl_node == NULL) {
-        p = tsk_blkalloc_get(&self->avl_node_heap, sizeof(*avl_node) + sizeof(double));
+        p = tsk_malloc(sizeof(*avl_node) + sizeof(double));
         if (p == NULL) {
             ret = TSK_ERR_NO_MEMORY;
             goto out;
@@ -6298,8 +6309,7 @@ tsk_divmat_calculator_push_down(tsk_divmat_calculator_t *self, tsk_id_t u)
         }
     }
 
-    /* HACK for avl_tree_clear() */
-    memset(&self->stack[u], 0, sizeof(self->stack[u]));
+    tsk_divmat_calculator_free_avl_tree(self, &self->stack[u]);
 }
 
 static double
