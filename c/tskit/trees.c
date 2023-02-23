@@ -6310,12 +6310,13 @@ tsk_divmat_calculator_get_z(const tsk_divmat_calculator_t *self, tsk_id_t u)
 }
 
 static tsk_size_t
-tsk_divmat_calculator_fill_root_path(
+tsk_divmat_calculator_get_root_path(
     tsk_divmat_calculator_t *self, tsk_id_t u, tsk_id_t *restrict root_path)
 {
-    const tsk_id_t *restrict parent = self->parent;
     tsk_id_t p;
     tsk_size_t root_path_length = 0;
+    const tsk_id_t *restrict parent = self->parent;
+    printf("Get root path %d\n", (int) u);
 
     for (p = u; p != TSK_NULL; p = parent[p]) {
         root_path[root_path_length] = p;
@@ -6332,12 +6333,13 @@ tsk_divmat_calculator_clear_edge(tsk_divmat_calculator_t *self, tsk_id_t u)
     const tsk_id_t *restrict left_child = self->left_child;
     const tsk_id_t *restrict right_sib = self->right_sib;
     double z = tsk_divmat_calculator_get_z(self, u);
-    tsk_size_t j;
     tsk_id_t *restrict root_path = self->root_path;
     tsk_size_t root_path_length
-        = tsk_divmat_calculator_fill_root_path(self, u, root_path);
-    self->x[u] = self->tree_left;
+        = tsk_divmat_calculator_get_root_path(self, u, root_path);
+    tsk_size_t j;
     tsk_id_t p, c, sib;
+
+    self->x[u] = self->tree_left;
 
     /* Iterate over siblings back to the virtual root, including the roots
      * of disconnected subtrees
@@ -6359,7 +6361,7 @@ tsk_divmat_calculator_clear_spine(tsk_divmat_calculator_t *self, tsk_id_t u)
     tsk_id_t p, j;
     tsk_id_t *restrict root_path = self->root_path;
     tsk_size_t root_path_length
-        = tsk_divmat_calculator_fill_root_path(self, u, root_path);
+        = tsk_divmat_calculator_get_root_path(self, u, root_path);
 
     for (j = (tsk_id_t) root_path_length; j >= 0; j--) {
         p = root_path[j];
@@ -6412,6 +6414,9 @@ tsk_divmat_calculator_write_output(tsk_divmat_calculator_t *self)
         /* printf("pushdown %d \n", u); */
         tsk_divmat_calculator_push_down(self, u);
         /* tsk_divmat_calculator_print_state(self, stdout); */
+        v = self->virtual_root + 1 + (tsk_id_t) j;
+        /* printf("REMOVE %d -> %d\n", (int) v, (int) u); */
+        tsk_divmat_calculator_remove_branch(self, u, v, self->parent);
     }
 
     tsk_divmat_calculator_print_state(self, stdout);
@@ -6434,18 +6439,12 @@ tsk_divmat_calculator_write_output(tsk_divmat_calculator_t *self)
         }
     }
 
-    /* # clear remaining things down to virtual samples */
-    /* for u in self.samples: */
-    /*     self.push_down(u) */
-    /* out = np.zeros((len(self.samples), len(self.samples))) */
-    /* for out_i in range(len(self.samples)): */
-    /*     i = out_i + self.virtual_root + 1 */
-    /*     for j, z in self.stack[i].items(): */
-    /*         assert j > self.virtual_root */
-    /*         assert j <= self.virtual_root + len(self.samples) */
-    /*         out_j = j - self.virtual_root - 1 */
-    /*         out[out_i, out_j] = z */
-    /* return out */
+    for (j = 0; j < n; j++) {
+        for (k = 0; k < n; k++) {
+            printf("%g\t", D[j * n + k]);
+        }
+        printf("\n");
+    }
 }
 
 static int
@@ -6507,7 +6506,7 @@ tsk_divmat_calculator_run(tsk_divmat_calculator_t *self)
             tree_right = TSK_MIN(tree_right, edge_right[O[k]]);
         }
         self->tree_left = tree_right;
-        tsk_divmat_calculator_print_state(self, stdout);
+        /* tsk_divmat_calculator_print_state(self, stdout); */
     }
     tsk_divmat_calculator_write_output(self);
 
@@ -6531,6 +6530,9 @@ tsk_treeseq_divergence_matrix(const tsk_treeseq_t *self, tsk_size_t num_samples,
     ret = tsk_divmat_calculator_init(&calc, self, num_samples, samples, options, result);
     if (ret != 0) {
         goto out;
+    }
+    if (options & TSK_DEBUG) {
+        tsk_divmat_calculator_print_state(&calc, tsk_get_debug_stream());
     }
     ret = tsk_divmat_calculator_run(&calc);
 out:

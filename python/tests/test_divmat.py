@@ -229,10 +229,10 @@ class DivergenceMatrix:
             del self.stack[w][u]
         self.stack[u].clear()
 
-    def verify_zero_spine(self, u):
+    def verify_zero_root_path(self, u):
         """
         Verify that there are no contributions along the path
-        from u up to the root. (should be true after clear_spine)
+        from u up to the root. (should be true after flush_root_path)
         """
         for v, z in self.stack[u].items():
             if z != 0:
@@ -307,21 +307,24 @@ class DivergenceMatrix:
             print("---------------")
         return out
 
-    def clear_edge(self, u):
+    def flush_branch(self, root_path):
+        # Flush the contributions of the branch at the start of this
+        # path to the total divergance to all of the sibs on the path.
         if self.verbosity > 0:
-            print(f"clear_edge({u})")
+            print(f"flush_branch({root_path})")
         if self.internal_checks:
             # this operation should not change the current output
             before_state = self.current_state()
+
+        u = root_path[0]
         z = self.get_z(u)
         self.x[u] = self.position
         assert self.get_z(u) == 0
 
         # iterate over the siblings of the path to the virtual root
-        spine = self.get_spine(u)
-        for j in range(len(spine) - 1):
-            c = spine[j]
-            p = spine[j + 1]
+        for j in range(len(root_path) - 1):
+            c = root_path[j]
+            p = root_path[j + 1]
             s = self.left_child[p]
             while s != tskit.NULL:
                 if s != c:
@@ -329,6 +332,7 @@ class DivergenceMatrix:
                         print(f"adding {z} to {(u, s)}")
                     self.add_to_stack(u, s, z)
                 s = self.right_sib[s]
+
         if self.internal_checks:
             after_state = self.current_state()
             assert_dicts_close(before_state, after_state)
@@ -343,6 +347,7 @@ class DivergenceMatrix:
             before_state = self.current_state()
         if self.verbosity > 0:
             print(f"push_down({u})")
+
         for w, z in self.stack[u].items():
             c = self.left_child[u]
             while c != tskit.NULL:
@@ -351,40 +356,49 @@ class DivergenceMatrix:
                 self.add_to_stack(w, c, z)
                 c = self.right_sib[c]
         self.empty_stack(u)
+
         assert len(self.stack[u]) == 0
         if self.internal_checks:
             after_state = self.current_state()
             assert_dicts_close(before_state, after_state)
 
-    def get_spine(self, u):
+    def get_root_path(self, u):
         """
         Returns the list of nodes back to the virtual root.
         """
-        spine = []
+        root_path = []
         p = u
         while p != tskit.NULL:
-            spine.append(p)
+            root_path.append(p)
             p = self.parent[p]
-        spine.append(self.virtual_root)
-        return spine
+        root_path.append(self.virtual_root)
+        return root_path
 
-    def clear_spine(self, u):
+    def flush_root_path(self, root_path):
         """
         Clears all nodes on the path from the virtual root down to u
         by pushing the contributions of all their branches to the stack
         and pushing all stack references to their children.
         """
         if self.verbosity > 0:
-            print(f"clear_spine({u})")
+            print(f"flush_root_path({root_path})")
         if self.internal_checks:
             # this operation should not change the current output
             before_state = self.current_state()
-        spine = self.get_spine(u)
-        for p in reversed(spine):
-            self.clear_edge(p)
+
+        # NOTE: we have a quadratic complexity here in the length of the
+        # root path, because each iteration of this loop goes over the root
+        # path in flush_branch
+        u = root_path[0]
+        j = len(root_path) - 1
+        while j >= 0:
+            p = root_path[j]
+            self.flush_branch(root_path[j:])
             self.push_down(p)
-            self.verify_zero_spine(p)
-        self.verify_zero_spine(u)
+            self.verify_zero_root_path(p)
+            j -= 1
+
+        self.verify_zero_root_path(u)
         if self.internal_checks:
             after_state = self.current_state()
             assert_dicts_close(before_state, after_state)
@@ -409,8 +423,9 @@ class DivergenceMatrix:
             while k < M and edges_right[out_order[k]] == left:
                 p = edges_parent[out_order[k]]
                 c = edges_child[out_order[k]]
-                self.clear_edge(c)
-                self.clear_spine(p)
+                root_path = self.get_root_path(c)
+                self.flush_branch(root_path)
+                self.flush_root_path(root_path)
                 assert self.x[c] == self.position
                 assert self.parent[p] == tskit.NULL or self.x[p] == self.position
                 self.remove_edge(p, c)
@@ -424,7 +439,8 @@ class DivergenceMatrix:
                 # out of the trees? What happens when we have a missing
                 # left flank?
                 if self.position > 0:
-                    self.clear_spine(p)
+                    root_path = self.get_root_path(p)
+                    self.flush_root_path(root_path)
                 assert self.parent[p] == tskit.NULL or self.x[p] == self.position
                 self.insert_edge(p, c)
                 self.x[c] = self.position
@@ -442,8 +458,11 @@ class DivergenceMatrix:
         # self.print_state()
 
         # clear remaining things down to virtual samples
-        for u in self.samples:
+        for j, u in enumerate(self.samples):
             self.push_down(u)
+            v = self.virtual_root + 1 + j
+            self.remove_edge(u, v)
+        # self.print_state()
         out = np.zeros((len(self.samples), len(self.samples)))
         for out_i in range(len(self.samples)):
             i = out_i + self.virtual_root + 1
@@ -494,12 +513,9 @@ def check_divmat(ts, *, internal_checks=False, verbosity=0):
         print(ts.draw_text())
     D1 = lib_divergence_matrix(ts, mode="branch")
     D2 = divergence_matrix(ts, internal_checks=internal_checks, verbosity=verbosity)
-    # print(f"========{ts.num_trees}=============")
-    # for i in range(D2.shape[0]):
-    #     for j in range(D2.shape[1]):
-    #         print(i, j, D1[i, j], D2[i, j])
-    # print("=====================")
-    assert np.allclose(D1, D2)
+    np.testing.assert_allclose(D1, D2)
+    # D3 = ts.divergence_matrix()
+    # np.testing.assert_allclose(D1, D3)
     return D1
 
 
@@ -530,6 +546,11 @@ class TestExamples:
         )
         assert ts.num_trees >= 2
         check_divmat(ts)
+
+    @pytest.mark.parametrize("n", [2, 3, 5, 15])
+    def test_single_balanced_tree(self, n):
+        ts = tskit.Tree.generate_balanced(n).tree_sequence
+        check_divmat(ts, verbosity=0)
 
     @pytest.mark.parametrize("seed", range(1, 5))
     def test_one_internal_sample_sims(self, seed):

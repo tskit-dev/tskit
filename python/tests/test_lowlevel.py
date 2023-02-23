@@ -1530,9 +1530,10 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             assert x1 == x2
 
     def test_divergence_matrix(self):
-        ts = self.get_example_tree_sequence(10, random_seed=12)
+        n = 10
+        ts = self.get_example_tree_sequence(n, random_seed=12)
         D = ts.divergence_matrix()
-        print(D)
+        assert D.shape == (n, n)
 
     def test_load_tables_build_indexes(self):
         for ts in self.get_example_tree_sequences():

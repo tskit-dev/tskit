@@ -5264,12 +5264,14 @@ test_single_tree_divergence_matrix(void)
 {
     tsk_treeseq_t ts;
     int ret;
-    double D[16];
+    double result[16];
+    /* double D[16] = { */
+    /*     0, 1, */
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
         NULL, NULL, NULL, 0);
 
-    ret = tsk_treeseq_divergence_matrix(&ts, 0, NULL, 0, D);
+    ret = tsk_treeseq_divergence_matrix(&ts, 0, NULL, 0, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tsk_treeseq_free(&ts);

@@ -7698,6 +7698,10 @@ class TreeSequence:
             span_normalise=span_normalise,
         )
 
+    ############################################
+    # Pairwise sample x sample statistics
+    ############################################
+
     # JK: commenting this out for now to get the other methods well tested.
     # Issue: https://github.com/tskit-dev/tskit/issues/201
     # def divergence_matrix(self, sample_sets, windows=None, mode="site"):
@@ -7733,6 +7737,11 @@ class TreeSequence:
     #                 A[w, i, j] = A[w, j, i] = x[w][k]
     #                 k += 1
     #     return A
+
+    # NOTE see older definition above that we didn't finish up. Should this be
+    # the model for the API in general?
+    def divergence_matrix(self):
+        return self._ll_tree_sequence.divergence_matrix()
 
     def genetic_relatedness(
         self,
