@@ -732,6 +732,188 @@ write_metadata_schema_header(
     return fprintf(out, fmt, (int) metadata_schema_length, metadata_schema);
 }
 
+/* Utilities for in-place subsetting columns */
+
+static tsk_size_t
+count_true(tsk_size_t num_rows, const tsk_bool_t *restrict keep)
+{
+    tsk_size_t j;
+    tsk_size_t count = 0;
+
+    for (j = 0; j < num_rows; j++) {
+        if (keep[j]) {
+            count++;
+        }
+    }
+    return count;
+}
+
+static void
+keep_mask_to_id_map(
+    tsk_size_t num_rows, const tsk_bool_t *restrict keep, tsk_id_t *restrict id_map)
+{
+    tsk_size_t j;
+    tsk_id_t next_id = 0;
+
+    for (j = 0; j < num_rows; j++) {
+        id_map[j] = TSK_NULL;
+        if (keep[j]) {
+            id_map[j] = next_id;
+            next_id++;
+        }
+    }
+}
+
+static tsk_size_t
+subset_remap_id_column(tsk_id_t *restrict column, tsk_size_t num_rows,
+    const tsk_bool_t *restrict keep, const tsk_id_t *restrict id_map)
+{
+    tsk_size_t j, k;
+    tsk_id_t value;
+
+    k = 0;
+    for (j = 0; j < num_rows; j++) {
+        if (keep[j]) {
+            value = column[j];
+            if (value != TSK_NULL) {
+                value = id_map[value];
+            }
+            column[k] = value;
+            k++;
+        }
+    }
+    return k;
+}
+
+/* Trigger warning: C++ programmers should look away... This may be one of the
+ * few cases where some macro funkiness is warranted, as these are exact
+ * duplicates of the same function with just the type of the column
+ * parameter changed. */
+
+static tsk_size_t
+subset_id_column(
+    tsk_id_t *restrict column, tsk_size_t num_rows, const tsk_bool_t *restrict keep)
+{
+    tsk_size_t j, k;
+
+    k = 0;
+    for (j = 0; j < num_rows; j++) {
+        if (keep[j]) {
+            column[k] = column[j];
+            k++;
+        }
+    }
+    return k;
+}
+
+static tsk_size_t
+subset_flags_column(
+    tsk_flags_t *restrict column, tsk_size_t num_rows, const tsk_bool_t *restrict keep)
+{
+    tsk_size_t j, k;
+
+    k = 0;
+    for (j = 0; j < num_rows; j++) {
+        if (keep[j]) {
+            column[k] = column[j];
+            k++;
+        }
+    }
+    return k;
+}
+
+static tsk_size_t
+subset_double_column(
+    double *restrict column, tsk_size_t num_rows, const tsk_bool_t *restrict keep)
+{
+    tsk_size_t j, k;
+
+    k = 0;
+    for (j = 0; j < num_rows; j++) {
+        if (keep[j]) {
+            column[k] = column[j];
+            k++;
+        }
+    }
+    return k;
+}
+
+static tsk_size_t
+subset_ragged_char_column(char *restrict data, tsk_size_t *restrict offset_col,
+    tsk_size_t num_rows, const tsk_bool_t *restrict keep)
+{
+    tsk_size_t j, k, i, offset;
+
+    k = 0;
+    offset = 0;
+    for (j = 0; j < num_rows; j++) {
+        if (keep[j]) {
+            offset_col[k] = offset;
+            /* Note: Unclear whether it's worth calling memcpy instead here?
+             * Need to be careful since the regions are overlapping */
+            for (i = offset_col[j]; i < offset_col[j + 1]; i++) {
+                data[offset] = data[i];
+                offset++;
+            }
+            k++;
+        }
+    }
+    offset_col[k] = offset;
+    return offset;
+}
+
+static tsk_size_t
+subset_ragged_double_column(double *restrict data, tsk_size_t *restrict offset_col,
+    tsk_size_t num_rows, const tsk_bool_t *restrict keep)
+{
+    tsk_size_t j, k, i, offset;
+
+    k = 0;
+    offset = 0;
+    for (j = 0; j < num_rows; j++) {
+        if (keep[j]) {
+            offset_col[k] = offset;
+            /* Note: Unclear whether it's worth calling memcpy instead here?
+             * Need to be careful since the regions are overlapping */
+            for (i = offset_col[j]; i < offset_col[j + 1]; i++) {
+                data[offset] = data[i];
+                offset++;
+            }
+            k++;
+        }
+    }
+    offset_col[k] = offset;
+    return offset;
+}
+
+static tsk_size_t
+subset_remap_ragged_id_column(tsk_id_t *restrict data, tsk_size_t *restrict offset_col,
+    tsk_size_t num_rows, const tsk_bool_t *restrict keep,
+    const tsk_id_t *restrict id_map)
+{
+    tsk_size_t j, k, i, offset;
+    tsk_id_t di;
+
+    k = 0;
+    offset = 0;
+    for (j = 0; j < num_rows; j++) {
+        if (keep[j]) {
+            offset_col[k] = offset;
+            for (i = offset_col[j]; i < offset_col[j + 1]; i++) {
+                di = data[i];
+                if (di != TSK_NULL) {
+                    di = id_map[di];
+                }
+                data[offset] = di;
+                offset++;
+            }
+            k++;
+        }
+    }
+    offset_col[k] = offset;
+    return offset;
+}
+
 /*************************
  * reference sequence
  *************************/
@@ -1622,6 +1804,71 @@ tsk_individual_table_equals(const tsk_individual_table_t *self,
     return ret;
 }
 
+int
+tsk_individual_table_keep_rows(tsk_individual_table_t *self, const tsk_bool_t *keep,
+    tsk_flags_t TSK_UNUSED(options), tsk_id_t *ret_id_map)
+{
+    int ret = 0;
+    const tsk_size_t current_num_rows = self->num_rows;
+    tsk_size_t j, k, remaining_rows;
+    tsk_id_t pk;
+    tsk_id_t *id_map = ret_id_map;
+    tsk_id_t *restrict parents = self->parents;
+    tsk_size_t *restrict parents_offset = self->parents_offset;
+
+    if (ret_id_map == NULL) {
+        id_map = tsk_malloc(current_num_rows * sizeof(*id_map));
+        if (id_map == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+    }
+
+    keep_mask_to_id_map(current_num_rows, keep, id_map);
+
+    /* See notes in tsk_mutation_table_keep_rows for possibilities
+     * on making this more flexible */
+    for (j = 0; j < current_num_rows; j++) {
+        if (keep[j]) {
+            for (k = parents_offset[j]; k < parents_offset[j + 1]; k++) {
+                pk = parents[k];
+                if (pk != TSK_NULL) {
+                    if (pk < 0 || pk >= (tsk_id_t) current_num_rows) {
+                        ret = TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS;
+                        ;
+                        goto out;
+                    }
+                    if (id_map[pk] == TSK_NULL) {
+                        ret = TSK_ERR_KEEP_ROWS_MAP_TO_DELETED;
+                        goto out;
+                    }
+                }
+            }
+        }
+    }
+
+    remaining_rows = subset_flags_column(self->flags, current_num_rows, keep);
+    self->parents_length = subset_remap_ragged_id_column(
+        self->parents, self->parents_offset, current_num_rows, keep, id_map);
+    self->location_length = subset_ragged_double_column(
+        self->location, self->location_offset, current_num_rows, keep);
+    if (self->metadata_length > 0) {
+        /* Implementation note: we special case metadata here because
+         * it'll make the common-case of no metadata a bit faster, and
+         * to also potentially support more general use of the
+         * TSK_TABLE_NO_METADATA option. This is done for all the tables
+         * but only commented on here. */
+        self->metadata_length = subset_ragged_char_column(
+            self->metadata, self->metadata_offset, current_num_rows, keep);
+    }
+    self->num_rows = remaining_rows;
+out:
+    if (ret_id_map == NULL) {
+        tsk_safe_free(id_map);
+    }
+    return ret;
+}
+
 static int
 tsk_individual_table_dump(
     const tsk_individual_table_t *self, kastore_t *store, tsk_flags_t options)
@@ -2268,6 +2515,29 @@ tsk_node_table_get_row(const tsk_node_table_t *self, tsk_id_t index, tsk_node_t 
     }
     tsk_node_table_get_row_unsafe(self, index, row);
 out:
+    return ret;
+}
+
+int
+tsk_node_table_keep_rows(tsk_node_table_t *self, const tsk_bool_t *keep,
+    tsk_flags_t TSK_UNUSED(options), tsk_id_t *id_map)
+{
+    int ret = 0;
+    tsk_size_t remaining_rows;
+
+    if (id_map != NULL) {
+        keep_mask_to_id_map(self->num_rows, keep, id_map);
+    }
+
+    remaining_rows = subset_flags_column(self->flags, self->num_rows, keep);
+    subset_double_column(self->time, self->num_rows, keep);
+    subset_id_column(self->population, self->num_rows, keep);
+    subset_id_column(self->individual, self->num_rows, keep);
+    if (self->metadata_length > 0) {
+        self->metadata_length = subset_ragged_char_column(
+            self->metadata, self->metadata_offset, self->num_rows, keep);
+    }
+    self->num_rows = remaining_rows;
     return ret;
 }
 
@@ -2937,6 +3207,29 @@ tsk_edge_table_equals(
         }
         ret = ret && metadata_equal;
     }
+    return ret;
+}
+
+int
+tsk_edge_table_keep_rows(tsk_edge_table_t *self, const tsk_bool_t *keep,
+    tsk_flags_t TSK_UNUSED(options), tsk_id_t *id_map)
+{
+    int ret = 0;
+    tsk_size_t remaining_rows;
+
+    if (id_map != NULL) {
+        keep_mask_to_id_map(self->num_rows, keep, id_map);
+    }
+    remaining_rows = subset_double_column(self->left, self->num_rows, keep);
+    subset_double_column(self->right, self->num_rows, keep);
+    subset_id_column(self->parent, self->num_rows, keep);
+    subset_id_column(self->child, self->num_rows, keep);
+    if (self->metadata_length > 0) {
+        tsk_bug_assert(!(self->options & TSK_TABLE_NO_METADATA));
+        self->metadata_length = subset_ragged_char_column(
+            self->metadata, self->metadata_offset, self->num_rows, keep);
+    }
+    self->num_rows = remaining_rows;
     return ret;
 }
 
@@ -3672,6 +3965,28 @@ tsk_site_table_dump_text(const tsk_site_table_t *self, FILE *out)
     }
     ret = 0;
 out:
+    return ret;
+}
+
+int
+tsk_site_table_keep_rows(tsk_site_table_t *self, const tsk_bool_t *keep,
+    tsk_flags_t TSK_UNUSED(options), tsk_id_t *id_map)
+{
+    int ret = 0;
+    tsk_size_t remaining_rows;
+
+    if (id_map != NULL) {
+        keep_mask_to_id_map(self->num_rows, keep, id_map);
+    }
+
+    remaining_rows = subset_double_column(self->position, self->num_rows, keep);
+    self->ancestral_state_length = subset_ragged_char_column(
+        self->ancestral_state, self->ancestral_state_offset, self->num_rows, keep);
+    if (self->metadata_length > 0) {
+        self->metadata_length = subset_ragged_char_column(
+            self->metadata, self->metadata_offset, self->num_rows, keep);
+    }
+    self->num_rows = remaining_rows;
     return ret;
 }
 
@@ -4418,6 +4733,65 @@ out:
     return ret;
 }
 
+int
+tsk_mutation_table_keep_rows(tsk_mutation_table_t *self, const tsk_bool_t *keep,
+    tsk_flags_t TSK_UNUSED(options), tsk_id_t *ret_id_map)
+{
+    int ret = 0;
+    const tsk_size_t current_num_rows = self->num_rows;
+    tsk_size_t j, remaining_rows;
+    tsk_id_t pj;
+    tsk_id_t *id_map = ret_id_map;
+    tsk_id_t *restrict parent = self->parent;
+
+    if (ret_id_map == NULL) {
+        id_map = tsk_malloc(current_num_rows * sizeof(*id_map));
+        if (id_map == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+    }
+
+    keep_mask_to_id_map(current_num_rows, keep, id_map);
+
+    /* Note: we could add some options to avoid these checks if we wanted.
+     * MAP_DELETED_TO_NULL is an obvious one, and I guess it might be
+     * helpful to also provide NO_REMAP to prevent reference remapping
+     * entirely. */
+    for (j = 0; j < current_num_rows; j++) {
+        if (keep[j]) {
+            pj = parent[j];
+            if (pj != TSK_NULL) {
+                if (pj < 0 || pj >= (tsk_id_t) current_num_rows) {
+                    ret = TSK_ERR_MUTATION_OUT_OF_BOUNDS;
+                    goto out;
+                }
+                if (id_map[pj] == TSK_NULL) {
+                    ret = TSK_ERR_KEEP_ROWS_MAP_TO_DELETED;
+                    goto out;
+                }
+            }
+        }
+    }
+
+    remaining_rows = subset_id_column(self->site, current_num_rows, keep);
+    subset_id_column(self->node, current_num_rows, keep);
+    subset_remap_id_column(parent, current_num_rows, keep, id_map);
+    subset_double_column(self->time, current_num_rows, keep);
+    self->derived_state_length = subset_ragged_char_column(
+        self->derived_state, self->derived_state_offset, current_num_rows, keep);
+    if (self->metadata_length > 0) {
+        self->metadata_length = subset_ragged_char_column(
+            self->metadata, self->metadata_offset, current_num_rows, keep);
+    }
+    self->num_rows = remaining_rows;
+out:
+    if (ret_id_map == NULL) {
+        tsk_safe_free(id_map);
+    }
+    return ret;
+}
+
 static int
 tsk_mutation_table_dump(
     const tsk_mutation_table_t *self, kastore_t *store, tsk_flags_t options)
@@ -5063,6 +5437,31 @@ tsk_migration_table_equals(const tsk_migration_table_t *self,
     return ret;
 }
 
+int
+tsk_migration_table_keep_rows(tsk_migration_table_t *self, const tsk_bool_t *keep,
+    tsk_flags_t TSK_UNUSED(options), tsk_id_t *id_map)
+{
+    int ret = 0;
+    tsk_size_t remaining_rows;
+
+    if (id_map != NULL) {
+        keep_mask_to_id_map(self->num_rows, keep, id_map);
+    }
+
+    remaining_rows = subset_double_column(self->left, self->num_rows, keep);
+    subset_double_column(self->right, self->num_rows, keep);
+    subset_id_column(self->node, self->num_rows, keep);
+    subset_id_column(self->source, self->num_rows, keep);
+    subset_id_column(self->dest, self->num_rows, keep);
+    subset_double_column(self->time, self->num_rows, keep);
+    if (self->metadata_length > 0) {
+        self->metadata_length = subset_ragged_char_column(
+            self->metadata, self->metadata_offset, self->num_rows, keep);
+    }
+    self->num_rows = remaining_rows;
+    return ret;
+}
+
 static int
 tsk_migration_table_dump(
     const tsk_migration_table_t *self, kastore_t *store, tsk_flags_t options)
@@ -5629,6 +6028,24 @@ tsk_population_table_equals(const tsk_population_table_t *self,
                      self->metadata_schema_length * sizeof(char))
                      == 0;
     }
+    return ret;
+}
+
+int
+tsk_population_table_keep_rows(tsk_population_table_t *self, const tsk_bool_t *keep,
+    tsk_flags_t TSK_UNUSED(options), tsk_id_t *id_map)
+{
+    int ret = 0;
+
+    if (id_map != NULL) {
+        keep_mask_to_id_map(self->num_rows, keep, id_map);
+    }
+
+    if (self->metadata_length > 0) {
+        self->metadata_length = subset_ragged_char_column(
+            self->metadata, self->metadata_offset, self->num_rows, keep);
+    }
+    self->num_rows = count_true(self->num_rows, keep);
     return ret;
 }
 
@@ -6241,6 +6658,24 @@ tsk_provenance_table_equals(const tsk_provenance_table_t *self,
                      self->timestamp_length * sizeof(char))
                      == 0;
     }
+    return ret;
+}
+
+int
+tsk_provenance_table_keep_rows(tsk_provenance_table_t *self, const tsk_bool_t *keep,
+    tsk_flags_t TSK_UNUSED(options), tsk_id_t *id_map)
+{
+    int ret = 0;
+
+    if (id_map != NULL) {
+        keep_mask_to_id_map(self->num_rows, keep, id_map);
+    }
+    self->timestamp_length = subset_ragged_char_column(
+        self->timestamp, self->timestamp_offset, self->num_rows, keep);
+    self->record_length = subset_ragged_char_column(
+        self->record, self->record_offset, self->num_rows, keep);
+    self->num_rows = count_true(self->num_rows, keep);
+
     return ret;
 }
 

@@ -612,6 +612,30 @@ class BaseTable:
         """
         return self.ll_table.truncate(num_rows)
 
+    def keep_rows(self, keep):
+        """
+        .. include:: substitutions/table_keep_rows_main.rst
+
+        :param array-like keep: The rows to keep as a boolean array. Must
+            be the same length as the table, and convertible to a numpy
+            array of dtype bool.
+        :return: The mapping between old and new row IDs as a numpy
+            array (dtype int32).
+        :rtype: numpy.ndarray (dtype=np.int32)
+        """
+        # We do this check here rather than in the C code because calling
+        # len() on the input will cause a more readable exception to be
+        # raised than the inscrutable errors we get from numpy when
+        # converting arguments of the wrong type.
+        if len(keep) != len(self):
+            msg = (
+                "Argument for keep_rows must be a boolean array of "
+                "the same length as the table. "
+                f"(need:{len(self)}, got:{len(keep)})"
+            )
+            raise ValueError(msg)
+        return self.ll_table.keep_rows(keep)
+
     # Pickle support
     def __getstate__(self):
         return self.asdict()
@@ -1022,6 +1046,33 @@ class IndividualTable(MetadataTable):
         d["parents"] = packed
         d["parents_offset"] = offset
         self.set_columns(**d)
+
+    def keep_rows(self, keep):
+        """
+        .. include:: substitutions/table_keep_rows_main.rst
+
+        The values in the ``parents`` column are updated according to this
+        map, so that reference integrity within the table is maintained.
+        As a consequence of this, the values in the ``parents`` column
+        for kept rows are bounds-checked and an error raised if they
+        are not valid. Rows that are deleted are not checked for
+        parent ID integrity.
+
+        If an attempt is made to delete rows that are referred to by
+        the ``parents`` column of rows that are retained, an error
+        is raised.
+
+        These error conditions are checked before any alterations to
+        the table are made.
+
+        :param array-like keep: The rows to keep as a boolean array. Must
+            be the same length as the table, and convertible to a numpy
+            array of dtype bool.
+        :return: The mapping between old and new row IDs as a numpy
+            array (dtype int32).
+        :rtype: numpy.ndarray (dtype=np.int32)
+        """
+        return super().keep_rows(keep)
 
 
 class NodeTable(MetadataTable):
@@ -2110,6 +2161,33 @@ class MutationTable(MetadataTable):
         d["derived_state"] = packed
         d["derived_state_offset"] = offset
         self.set_columns(**d)
+
+    def keep_rows(self, keep):
+        """
+        .. include:: substitutions/table_keep_rows_main.rst
+
+        The values in the ``parent`` column are updated according to this
+        map, so that reference integrity within the table is maintained.
+        As a consequence of this, the values in the ``parent`` column
+        for kept rows are bounds-checked and an error raised if they
+        are not valid. Rows that are deleted are not checked for
+        parent ID integrity.
+
+        If an attempt is made to delete rows that are referred to by
+        the ``parent`` column of rows that are retained, an error
+        is raised.
+
+        These error conditions are checked before any alterations to
+        the table are made.
+
+        :param array-like keep: The rows to keep as a boolean array. Must
+            be the same length as the table, and convertible to a numpy
+            array of dtype bool.
+        :return: The mapping between old and new row IDs as a numpy
+            array (dtype int32).
+        :rtype: numpy.ndarray (dtype=np.int32)
+        """
+        return super().keep_rows(keep)
 
 
 class PopulationTable(MetadataTable):

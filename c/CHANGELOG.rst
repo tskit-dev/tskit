@@ -1,5 +1,5 @@
 --------------------
-[1.1.2] - 2022-XX-XX
+[1.1.2] - 2023-XX-XX
 --------------------
 
 **Features**
@@ -20,6 +20,9 @@
 
 - Guarantee that unfiltered tables are not written to unnecessarily
   during simplify (:user:`jeromekelleher` :pr:`2619`).
+
+- Add `x_table_keep_rows` methods to provide efficient in-place table subsetting
+  (:user:`jeromekelleher`, :pr:`2700`).
 
 --------------------
 [1.1.1] - 2022-07-29

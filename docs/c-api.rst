@@ -233,6 +233,7 @@ Basic Types
 .. doxygentypedef:: tsk_id_t
 .. doxygentypedef:: tsk_size_t
 .. doxygentypedef:: tsk_flags_t
+.. doxygentypedef:: tsk_bool_t
 
 **************
 Common options

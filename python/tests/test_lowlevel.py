@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -762,6 +762,54 @@ class TestTableMethods:
         assert len(table) == len(table_copy) + len(expected_rows)
         for i, expected_row in enumerate(expected_rows):
             assert table[len(table_copy) + i] == table_copy[expected_row]
+
+    @pytest.mark.parametrize("table_name", tskit.TABLE_NAMES)
+    def test_table_keep_rows_errors(self, table_name, ts_fixture):
+        table = getattr(ts_fixture.tables, table_name)
+        n = len(table)
+        ll_table = table.ll_table
+        with pytest.raises(ValueError, match="must be of length"):
+            ll_table.keep_rows(np.ones(n - 1, dtype=bool))
+        with pytest.raises(ValueError, match="must be of length"):
+            ll_table.keep_rows(np.ones(n + 1, dtype=bool))
+        with pytest.raises(TypeError, match="Cannot cast"):
+            ll_table.keep_rows(np.ones(n, dtype=int))
+
+    @pytest.mark.parametrize("table_name", tskit.TABLE_NAMES)
+    def test_table_keep_rows_all(self, table_name, ts_fixture):
+        table = getattr(ts_fixture.tables, table_name)
+        n = len(table)
+        ll_table = table.ll_table
+        a = ll_table.keep_rows(np.ones(n, dtype=bool))
+        assert ll_table.num_rows == n
+        assert a.shape == (n,)
+        assert a.dtype == np.int32
+        assert np.all(a == np.arange(n))
+
+    @pytest.mark.parametrize("table_name", tskit.TABLE_NAMES)
+    def test_table_keep_rows_none(self, table_name, ts_fixture):
+        table = getattr(ts_fixture.tables, table_name)
+        n = len(table)
+        ll_table = table.ll_table
+        a = ll_table.keep_rows(np.zeros(n, dtype=bool))
+        assert ll_table.num_rows == 0
+        assert a.shape == (n,)
+        assert a.dtype == np.int32
+        assert np.all(a == -1)
+
+    def test_mutation_table_keep_rows_ref_error(self):
+        table = _tskit.MutationTable()
+        table.add_row(site=0, node=0, derived_state="A", parent=2)
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_MUTATION_OUT_OF_BOUNDS"):
+            table.keep_rows([True])
+
+    def test_individual_table_keep_rows_ref_error(self):
+        table = _tskit.IndividualTable()
+        table.add_row(parents=[2])
+        with pytest.raises(
+            _tskit.LibraryError, match="TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS"
+        ):
+            table.keep_rows([True])
 
     @pytest.mark.parametrize(
         ["table_name", "column_name"],
