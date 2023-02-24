@@ -33,6 +33,16 @@
  * Verification utilities.
  *======================================================*/
 
+static void
+assert_arrays_almost_equal(tsk_size_t len, double *a, double *b)
+{
+    tsk_size_t j;
+
+    for (j = 0; j < len; j++) {
+        CU_ASSERT_DOUBLE_EQUAL(a[j], b[j], 1e-9);
+    }
+}
+
 /* Checks if the specified trees are topologically equivalent, i.e, represent
  * the same tree without checking state specific to seeking.*/
 static void
@@ -3792,19 +3802,40 @@ test_simplest_divergence_matrix(void)
     const char *edges = "0  1   2   0,1\n";
     tsk_treeseq_t ts;
     tsk_id_t sample_ids[] = { 0, 1 };
-    double D[4];
+    double D[4] = { 0, 2, 2, 0 };
+    double result[4];
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
+
+    /* ret = tsk_treeseq_divergence_matrix(&ts, 0, NULL, 0, D); */
+    ret = tsk_treeseq_divergence_matrix(&ts, 2, sample_ids, 0, result);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    assert_arrays_almost_equal(4, D, result);
+
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_simplest_divergence_matrix_internal_sample(void)
+{
+    const char *nodes = "1  0   0\n"
+                        "1  0   0\n"
+                        "1  1   0\n";
+    const char *edges = "0  1   2   0,1\n";
+    tsk_treeseq_t ts;
+    tsk_id_t sample_ids[] = { 0, 1, 2 };
+    double result[9];
+    double D[9] = { 0, 2, 1, 2, 0, 1, 1, 1, 0 };
     int ret;
 
     tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
 
     /* ret = tsk_treeseq_divergence_matrix(&ts, 0, NULL, 0, D); */
 
-    ret = tsk_treeseq_divergence_matrix(&ts, 2, sample_ids, 0, D);
+    ret = tsk_treeseq_divergence_matrix(&ts, 3, sample_ids, 0, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_EQUAL_FATAL(D[0], 0);
-    CU_ASSERT_EQUAL_FATAL(D[1], 2);
-    CU_ASSERT_EQUAL_FATAL(D[2], 2);
-    CU_ASSERT_EQUAL_FATAL(D[3], 0);
+    assert_arrays_almost_equal(9, D, result);
 
     tsk_treeseq_free(&ts);
 }
@@ -5265,14 +5296,42 @@ test_single_tree_divergence_matrix(void)
     tsk_treeseq_t ts;
     int ret;
     double result[16];
-    /* double D[16] = { */
-    /*     0, 1, */
+    double D[16] = { 0, 2, 6, 6, 2, 0, 6, 6, 6, 6, 0, 4, 6, 6, 4, 0 };
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
         NULL, NULL, NULL, 0);
 
+    ret = tsk_treeseq_divergence_matrix(&ts, 0, NULL, TSK_DEBUG, result);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    assert_arrays_almost_equal(16, result, D);
+
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_single_tree_divergence_matrix_internal_samples(void)
+{
+    tsk_treeseq_t ts;
+    int ret;
+    double result[16];
+    double D[16] = { 0, 2, 4, 3, 2, 0, 4, 3, 4, 4, 0, 1, 3, 3, 1, 0 };
+
+    const char *nodes = "1  0   -1   -1\n" /* 2.00┊    6    ┊ */
+                        "1  0   -1   -1\n" /*     ┊  ┏━┻━┓  ┊ */
+                        "1  0   -1   -1\n" /* 1.00┊  4   5* ┊ */
+                        "0  0   -1   -1\n" /*     ┊ ┏┻┓ ┏┻┓ ┊ */
+                        "0  1   -1   -1\n" /* 0.00┊ 0 1 2 3 ┊ */
+                        "1  1   -1   -1\n" /*     0 * * *   1 */
+                        "0  2   -1   -1\n";
+    const char *edges = "0  1   4   0,1\n"
+                        "0  1   5   2,3\n"
+                        "0  1   6   4,5\n";
+
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
+
     ret = tsk_treeseq_divergence_matrix(&ts, 0, NULL, 0, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+    assert_arrays_almost_equal(16, result, D);
 
     tsk_treeseq_free(&ts);
 }
@@ -8196,6 +8255,8 @@ main(int argc, char **argv)
         { "test_simplest_chained_map_mutations", test_simplest_chained_map_mutations },
         { "test_simplest_mutation_edges", test_simplest_mutation_edges },
         { "test_simplest_divergence_matrix", test_simplest_divergence_matrix },
+        { "test_simplest_divergence_matrix_internal_sample",
+            test_simplest_divergence_matrix_internal_sample },
 
         /* Single tree tests */
         { "test_single_tree_good_records", test_single_tree_good_records },
@@ -8231,6 +8292,8 @@ main(int argc, char **argv)
             test_single_tree_map_mutations_internal_samples },
         { "test_single_tree_tracked_samples", test_single_tree_tracked_samples },
         { "test_single_tree_divergence_matrix", test_single_tree_divergence_matrix },
+        { "test_single_tree_divergence_matrix_internal_samples",
+            test_single_tree_divergence_matrix_internal_samples },
 
         /* Multi tree tests */
         { "test_simple_multi_tree", test_simple_multi_tree },

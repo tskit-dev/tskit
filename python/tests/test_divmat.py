@@ -91,6 +91,11 @@ class DivergenceMatrix:
         self.stack = [{} for _ in range(N)]
         self.verbosity = verbosity
         self.internal_checks = internal_checks
+        # Temporary way of controlling whether we allow zeros in the
+        # stack to reflect the non-deletion semantics of the current
+        # C implementation
+        self.zeros_in_stack = True
+        # self.zeros_in_stack = False
 
         for j, u in enumerate(samples):
             self.num_samples[u] = 1
@@ -124,13 +129,36 @@ class DivergenceMatrix:
                 print(f"node {j} -> virtual sample for : {sample}")
             for u, z in self.stack[j].items():
                 print(f"   {(j, u)}: {z}")
-        print(f"Virtual root: {self.virtual_root}")
         roots = []
         u = self.left_child[self.virtual_root]
         while u != tskit.NULL:
             roots.append(u)
             u = self.right_sib[u]
-        print("Roots:", roots)
+        fmt = "{:<6}{:>8}{:>8}{:>8}{:>8}{:>8}{:>8}"
+        s = f"roots = {roots}\n"
+        s += (
+            fmt.format("node", "parent", "lsib", "rsib", "lchild", "rchild", "nsamp")
+            + "\n"
+        )
+        for u in range(num_nodes):
+            u_str = f"{u}"
+            if u == self.virtual_root:
+                u_str = f"{u}(VR)"
+            elif u > self.virtual_root:
+                sample = self.parent[u]
+                u_str = f"{u}({sample})"
+            s += fmt.format(
+                u_str,
+                self.parent[u],
+                self.left_sib[u],
+                self.right_sib[u],
+                self.left_child[u],
+                self.right_child[u],
+                self.num_samples[u],
+            )
+            s += f"  {self.stack[u]}\n"
+        print(s[:-1])
+
         print("Current state:")
         state = self.current_state()
         for k in state:
@@ -207,10 +235,18 @@ class DivergenceMatrix:
     def add_to_stack(self, u, v, z):
         # print(f"\t\taccumuate ({u}, {v}) -> {z}")
         if z > 0 and self.num_samples[u] > 0 and self.num_samples[v] > 0:
-            if v not in self.stack[u]:
-                self.stack[u][v] = 0.0
-                assert u not in self.stack[v]
-                self.stack[v][u] = 0.0
+            # Strict non-zero stack:
+            if self.zeros_in_stack:
+                if v not in self.stack[u]:
+                    self.stack[u][v] = 0.0
+                if u not in self.stack[v]:
+                    self.stack[v][u] = 0.0
+            else:
+                if v not in self.stack[u]:
+                    self.stack[u][v] = 0.0
+                    assert u not in self.stack[v]
+                    self.stack[v][u] = 0.0
+
             self.stack[u][v] += z
             self.stack[v][u] += z
         # pedantic error checking:
@@ -225,9 +261,18 @@ class DivergenceMatrix:
                 p = self.parent[p]
 
     def empty_stack(self, u):
-        for w in self.stack[u]:
-            assert u in self.stack[w]
-            del self.stack[w][u]
+        for w, z in self.stack[u].items():
+            if self.zeros_in_stack:
+                if z > 0:
+                    assert u in self.stack[w]
+                    # del self.stack[w][u]
+                    self.stack[w][u] = 0
+                else:
+                    assert self.stack[w].get(u, 0) == 0
+            else:
+                assert z > 0
+                del self.stack[w][u]
+
         self.stack[u].clear()
 
     def verify_zero_root_path(self, u):
@@ -357,6 +402,7 @@ class DivergenceMatrix:
                 self.add_to_stack(w, c, z)
                 c = self.right_sib[c]
         self.empty_stack(u)
+        # self.print_state()
 
         assert len(self.stack[u]) == 0
         if self.internal_checks:
@@ -464,15 +510,23 @@ class DivergenceMatrix:
             self.push_down(u)
             v = self.virtual_root + 1 + j
             self.remove_edge(u, v)
-        # self.print_state()
+
+        if self.verbosity > 1:
+            self.print_state()
+
         out = np.zeros((len(self.samples), len(self.samples)))
         for out_i in range(len(self.samples)):
             i = out_i + self.virtual_root + 1
             for j, z in self.stack[i].items():
-                assert j > self.virtual_root
-                assert j <= self.virtual_root + len(self.samples)
-                out_j = j - self.virtual_root - 1
-                out[out_i, out_j] = z
+                if self.zeros_in_stack:
+                    if j > self.virtual_root:
+                        out_j = j - self.virtual_root - 1
+                        out[out_i, out_j] = z
+                else:
+                    assert j > self.virtual_root
+                    assert j <= self.virtual_root + len(self.samples)
+                    out_j = j - self.virtual_root - 1
+                    out[out_i, out_j] = z
         return out
 
 
@@ -555,7 +609,20 @@ class TestExamples:
         # print(ts.draw_text())
         check_divmat(ts, verbosity=0)
 
-    @pytest.mark.skip()
+    def test_internal_sample(self):
+        tables = tskit.Tree.generate_balanced(4).tree_sequence.dump_tables()
+        flags = tables.nodes.flags
+        flags[3] = 0
+        flags[5] = tskit.NODE_IS_SAMPLE
+        tables.nodes.flags = flags
+        ts = tables.tree_sequence()
+        # print()
+        # print(ts.draw_text())
+        # print(ts.draw_text())
+        check_divmat(ts, verbosity=0)
+        # print(D)
+
+    # @pytest.mark.skip()
     @pytest.mark.parametrize("seed", range(1, 5))
     def test_one_internal_sample_sims(self, seed):
         ts = msprime.sim_ancestry(
@@ -591,7 +658,7 @@ class TestExamples:
 
     # Currently internal samples are tripping things up, and also the revnodes
     # example
-    @pytest.mark.skip()
+    # @pytest.mark.skip()
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_suite_examples(self, ts):
         check_divmat(ts)

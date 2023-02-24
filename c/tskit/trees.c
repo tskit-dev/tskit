@@ -5917,6 +5917,11 @@ tsk_divmat_calculator_print_state(const tsk_divmat_calculator_t *self, FILE *out
     fprintf(out, "Divmat state:\n");
     fprintf(out, "options = %d\n", self->options);
     fprintf(out, "tree_left = %f\n", self->tree_left);
+    fprintf(out, "samples = %lld: [", (long long) self->num_input_samples);
+    for (j = 0; j < (tsk_id_t) self->num_input_samples; j++) {
+        fprintf(out, "%lld, ", (long long) self->samples[j]);
+    }
+    fprintf(out, "]\n");
     fprintf(out, "node\tparent\tlchild\trchild\tlsib\trsib\tcount\tx");
     fprintf(out, "\n");
 
@@ -6008,7 +6013,6 @@ tsk_divmat_calculator_init(tsk_divmat_calculator_t *self, const tsk_treeseq_t *t
     }
 
     tsk_memset(result, 0, n2 * sizeof(double));
-    tsk_memset(self->num_samples, 1, num_nodes * sizeof(*self->num_samples));
     tsk_memset(self->parent, TSK_NULL, num_nodes * sizeof(*self->parent));
     tsk_memset(self->left_child, TSK_NULL, num_nodes * sizeof(*self->left_child));
     tsk_memset(self->right_child, TSK_NULL, num_nodes * sizeof(*self->right_child));
@@ -6190,7 +6194,7 @@ tsk_divmat_calculator_set_initial_state(tsk_divmat_calculator_t *self)
 
     for (j = 0; j < n; j++) {
         u = self->samples[j];
-        self->num_samples[j] = 1;
+        self->num_samples[u] = 1;
         tsk_divmat_calculator_insert_root(self, u, self->parent);
         /* Insert the virtual samples */
         v = self->virtual_root + j + 1;
@@ -6441,6 +6445,7 @@ tsk_divmat_calculator_write_output(tsk_divmat_calculator_t *self)
     double z;
     tsk_avl_node_int_t **avl_nodes = self->avl_node_buffer;
 
+    /* printf("HERE!!\n"); */
     for (j = 0; j < n; j++) {
         u = self->samples[j];
         /* FIXME at the moment we seem to be pushing 0 values down to the
@@ -6476,12 +6481,14 @@ tsk_divmat_calculator_write_output(tsk_divmat_calculator_t *self)
         }
     }
 
-    /* for (j = 0; j < n; j++) { */
-    /*     for (k = 0; k < n; k++) { */
-    /*         printf("%g\t", D[j * n + k]); */
-    /*     } */
-    /*     printf("\n"); */
-    /* } */
+    if (self->options & TSK_DEBUG) {
+        for (j = 0; j < n; j++) {
+            for (k = 0; k < n; k++) {
+                printf("%g\t", D[j * n + k]);
+            }
+            printf("\n");
+        }
+    }
 }
 
 static int
@@ -6549,8 +6556,11 @@ tsk_divmat_calculator_run(tsk_divmat_calculator_t *self)
             tree_right = TSK_MIN(tree_right, edge_right[O[k]]);
         }
         self->tree_left = tree_right;
-        /* tsk_divmat_calculator_print_state(self, stdout); */
+        if (self->options & TSK_DEBUG) {
+            tsk_divmat_calculator_print_state(self, stdout);
+        }
     }
+    /* tsk_divmat_calculator_print_state(self, stdout); */
     tsk_divmat_calculator_write_output(self);
 
     /* out: */
