@@ -160,7 +160,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           working-directory: python
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           flags: python-tests
           name: codecov-umbrella
           verbose: true
