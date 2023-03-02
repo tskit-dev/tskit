@@ -664,7 +664,14 @@ class MetadataSchema:
         return self._string
 
     def __str__(self) -> str:
-        return pprint.pformat(self._schema)
+        if isinstance(self._schema, collections.OrderedDict):
+            s = pprint.pformat(dict(self._schema))
+        else:
+            s = pprint.pformat(self._schema)
+        if "\n" in s:
+            return f"tskit.MetadataSchema(\n{s}\n)"
+        else:
+            return f"tskit.MetadataSchema({s})"
 
     def __eq__(self, other) -> bool:
         return self._string == other._string

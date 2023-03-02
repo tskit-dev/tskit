@@ -322,7 +322,10 @@ class TestMetadataModule:
             "required": ["one", "two"],
             "additionalProperties": False,
         }
-        assert str(metadata.MetadataSchema(schema)) == pprint.pformat(schema)
+        assert (
+            str(metadata.MetadataSchema(schema))
+            == f"tskit.MetadataSchema(\n{pprint.pformat(schema)}\n)"
+        )
 
     def test_register_codec(self):
         class TestCodec(metadata.AbstractMetadataCodec):
