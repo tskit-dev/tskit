@@ -3739,13 +3739,13 @@ test_simplest_mutation_edges(void)
     const char *mutations = "0    1     1\n"
                             "0    0     1\n"
                             "0    2     1\n"
-                            "1    0     1\n"
+                            "1    2     1\n"
                             "1    1     1\n"
-                            "1    2     1\n";
+                            "1    0     1\n";
     tsk_treeseq_t ts;
     tsk_tree_t tree;
     /* We have mutations over roots, samples and just isolated nodes */
-    tsk_id_t mutation_edges[] = { -1, 0, -1, 1, -1, -1 };
+    tsk_id_t mutation_edges[] = { -1, 0, -1, -1, -1, 1 };
     tsk_size_t i, j, k, t;
     tsk_mutation_t mut;
     tsk_site_t site;
