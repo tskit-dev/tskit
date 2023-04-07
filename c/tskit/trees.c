@@ -32,6 +32,10 @@
 
 #include <tskit/trees.h>
 
+/* FIXME !! Temporary inclusion to profile the divmat code under a reasonable
+ * AVL tree implementation. */
+#include "avl.h"
+
 static inline bool
 is_discrete(double x)
 {
@@ -5898,21 +5902,39 @@ typedef struct {
     tsk_avl_node_int_t **avl_node_buffer;
     /* TODO better names for these: */
     /* Maybe last_update_position and accumulator */
-    tsk_avl_tree_int_t *stack;
+    /* tsk_avl_tree_int_t *stack; */
+    avl_tree_t *stack1;
     double *x;
 } tsk_divmat_calculator_t;
+
+typedef struct {
+    tsk_id_t node;
+    double value;
+    /* Embed the avl node here for simplicity */
+    avl_node_t avl_node;
+} stack_value_t;
+
+static int
+cmp_stack_value(const void *a, const void *b)
+{
+    const stack_value_t *ia = (const stack_value_t *) a;
+    const stack_value_t *ib = (const stack_value_t *) b;
+    return (ia->node > ib->node) - (ia->node < ib->node);
+}
 
 static void
 tsk_divmat_calculator_print_state(const tsk_divmat_calculator_t *self, FILE *out)
 {
-    tsk_size_t k;
+    /* tsk_size_t k; */
     tsk_id_t j, u;
-    int64_t key;
-    double value;
+    avl_node_t *avl_node;
+    stack_value_t *sv;
+    /* int64_t key; */
+    /* double value; */
 
-    tsk_avl_node_int_t **ordered_nodes
-        = tsk_malloc(self->num_nodes * sizeof(*ordered_nodes));
-    tsk_bug_assert(ordered_nodes != NULL);
+    /* tsk_avl_node_int_t **ordered_nodes */
+    /*     = tsk_malloc(self->num_nodes * sizeof(*ordered_nodes)); */
+    /* tsk_bug_assert(ordered_nodes != NULL); */
 
     fprintf(out, "Divmat state:\n");
     fprintf(out, "options = %d\n", self->options);
@@ -5939,37 +5961,30 @@ tsk_divmat_calculator_print_state(const tsk_divmat_calculator_t *self, FILE *out
             (long long) self->right_child[j], (long long) self->left_sib[j],
             (long long) self->right_sib[j], (long long) self->num_samples[j],
             self->x[j]);
-
-        tsk_avl_tree_int_ordered_nodes(&self->stack[j], ordered_nodes);
         fprintf(out, "\t{");
-        for (k = 0; k < self->stack[j].size; k++) {
-            key = ordered_nodes[k]->key;
-            value = *(double *) ordered_nodes[k]->value;
-            fprintf(out, "%lld:%g,", (long long) key, value);
+        for (avl_node = self->stack1[j].head; avl_node != NULL;
+             avl_node = avl_node->next) {
+            sv = (stack_value_t *) avl_node->item;
+            fprintf(out, "%lld:%g,", (long long) sv->node, sv->value);
         }
-
         fprintf(out, "}\n");
     }
-    free(ordered_nodes);
 }
 
 static void
-tsk_divmat_calculator_free_avl_tree(
-    tsk_divmat_calculator_t *self, tsk_avl_tree_int_t *avl_tree)
+tsk_divmat_calculator_free_avl_tree(avl_tree_t *avl_tree)
 {
+    avl_node_t *a = avl_tree->head;
+    avl_node_t *tmp;
+    stack_value_t *sv;
 
-    tsk_size_t j;
-    tsk_avl_node_int_t **avl_nodes = self->avl_node_buffer;
-
-    tsk_bug_assert(avl_tree->size < self->avl_node_buffer_size);
-
-    tsk_avl_tree_int_ordered_nodes(avl_tree, avl_nodes);
-
-    for (j = 0; j < avl_tree->size; j++) {
-        /* Nasty hacks here mean we can't use tsk_safe_free */
-        free(avl_nodes[j]->value);
+    while (a != NULL) {
+        sv = (stack_value_t *) a->item;
+        tmp = a->next;
+        avl_unlink_node(avl_tree, a);
+        a = tmp;
+        free(sv);
     }
-    memset(avl_tree, 0, sizeof(*avl_tree));
 }
 
 static int
@@ -5997,7 +6012,8 @@ tsk_divmat_calculator_init(tsk_divmat_calculator_t *self, const tsk_treeseq_t *t
     self->right_sib = tsk_malloc(num_nodes * sizeof(*self->right_sib));
     self->num_samples = tsk_malloc(num_nodes * sizeof(*self->num_samples));
     self->x = tsk_malloc(num_nodes * sizeof(*self->x));
-    self->stack = tsk_malloc(num_nodes * sizeof(*self->stack));
+    /* self->stack = tsk_malloc(num_nodes * sizeof(*self->stack)); */
+    self->stack1 = tsk_malloc(num_nodes * sizeof(*self->stack1));
     self->avl_node_buffer_size = 2 * num_nodes;
     self->avl_node_buffer
         = tsk_malloc(self->avl_node_buffer_size * sizeof(*self->avl_node_buffer));
@@ -6022,12 +6038,12 @@ tsk_divmat_calculator_init(tsk_divmat_calculator_t *self, const tsk_treeseq_t *t
     tsk_memset(self->x, 0, num_nodes * sizeof(*self->x));
 
     for (j = 0; j < num_nodes; j++) {
-        ret = tsk_avl_tree_int_init(&self->stack[j]);
-        if (ret != 0) {
-            goto out;
-        }
+        /* ret = tsk_avl_tree_int_init(&self->stack[j]); */
+        /* if (ret != 0) { */
+        /*     goto out; */
+        /* } */
+        avl_init_tree(&self->stack1[j], cmp_stack_value, NULL);
     }
-
 out:
     return ret;
 }
@@ -6038,7 +6054,7 @@ tsk_divmat_calculator_free(tsk_divmat_calculator_t *self)
     tsk_size_t j;
 
     for (j = 0; j < self->num_nodes; j++) {
-        tsk_divmat_calculator_free_avl_tree(self, &self->stack[j]);
+        tsk_divmat_calculator_free_avl_tree(&self->stack1[j]);
     }
 
     tsk_safe_free(self->parent);
@@ -6048,7 +6064,8 @@ tsk_divmat_calculator_free(tsk_divmat_calculator_t *self)
     tsk_safe_free(self->right_sib);
     tsk_safe_free(self->num_samples);
     tsk_safe_free(self->x);
-    tsk_safe_free(self->stack);
+    /* tsk_safe_free(self->stack); */
+    tsk_safe_free(self->stack1);
     tsk_safe_free(self->root_path);
     tsk_safe_free(self->avl_node_buffer);
 
@@ -6207,6 +6224,7 @@ static int
 tsk_divmat_calculator_increment_node_accumulator(
     tsk_divmat_calculator_t *self, tsk_id_t u, tsk_id_t v, double z)
 {
+#if 0
     int ret = 0;
     tsk_avl_tree_int_t *avl_tree = &self->stack[u];
     tsk_avl_node_int_t *avl_node = tsk_avl_tree_int_search(avl_tree, (int64_t) v);
@@ -6236,6 +6254,30 @@ tsk_divmat_calculator_increment_node_accumulator(
     tsk_bug_assert(avl_node->key == v);
     value = (double *) avl_node->value;
     *value += z;
+out:
+#endif
+    int ret = 0;
+    stack_value_t search = { .node = v, .value = 0 };
+    avl_tree_t *avl_tree = &self->stack1[u];
+    avl_node_t *avl_node = avl_search(avl_tree, &search);
+    stack_value_t *sv;
+
+    if (avl_node == NULL) {
+        sv = tsk_malloc(sizeof(*sv));
+        if (sv == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+        sv->node = v;
+        sv->value = 0;
+        sv->avl_node.item = sv;
+        avl_node = avl_insert_node(avl_tree, &sv->avl_node);
+        tsk_bug_assert(avl_node != NULL);
+    } else {
+        sv = (stack_value_t *) avl_node->item;
+    }
+    tsk_bug_assert(sv->node == v);
+    sv->value += z;
 out:
     return ret;
 }
@@ -6270,50 +6312,36 @@ out:
 static void
 tsk_divmat_calculator_push_down(tsk_divmat_calculator_t *self, tsk_id_t u)
 {
-    int ret;
+    /* int ret = 0; */
     tsk_id_t c, v;
     double z;
-    tsk_size_t j;
     const tsk_id_t *restrict left_child = self->left_child;
     const tsk_id_t *restrict right_sib = self->right_sib;
-    tsk_avl_node_int_t *avl_node;
-    tsk_avl_node_int_t **avl_nodes = self->avl_node_buffer;
+    avl_node_t *a1, *a2;
+    stack_value_t *sv, search;
 
-    tsk_bug_assert(self->stack[u].size < self->avl_node_buffer_size);
-
-    ret = tsk_avl_tree_int_ordered_nodes(&self->stack[u], avl_nodes);
-    tsk_bug_assert(ret == 0);
-
-    /* printf("Push down u=%d len=%d\n", (int) u, (int) self->stack[u].size); */
-    for (j = 0; j < self->stack[u].size; j++) {
-        v = (tsk_id_t) avl_nodes[j]->key;
-        z = *((double *) avl_nodes[j]->value);
-        /* printf("\t%d -> %g (%p)\n", v, z, (void *) avl_nodes[j]); */
+    /* printf("Push down u=%d len=%d\n", (int) u, (int) avl_count(&self->stack1[u])); */
+    for (a1 = self->stack1[u].head; a1 != NULL; a1 = a1->next) {
+        sv = (stack_value_t *) a1->item;
+        v = sv->node;
+        z = sv->value;
+        /* printf("\t%d -> %g (%p)\n", v, z, (void *) a1); */
         if (z > 0) {
             for (c = left_child[u]; c != TSK_NULL; c = right_sib[c]) {
                 tsk_divmat_calculator_add_to_stack(self, v, c, z);
             }
-
             /* Remove the symmetrical value, in stack[v] */
-            /* NOTE: we don't have avl tree node deletion implemented, so just
-             * setting the value to 0 for now. May not make much difference.*/
-            avl_node = tsk_avl_tree_int_search(&self->stack[v], (int64_t) u);
-            tsk_bug_assert(avl_node != NULL);
-            /* printf("z = %f, val = %f\n", z, *((double *) avl_node->value)); */
-            tsk_bug_assert(*((double *) avl_node->value) == z);
-            *((double *) avl_nodes[j]->value) = 0;
-            *((double *) avl_node->value) = 0;
-            tsk_bug_assert(avl_node->key == u);
-
-            z = *((double *) avl_nodes[j]->value);
-            assert(z == 0);
-            z = *((double *) avl_node->value);
-            assert(z == 0);
-            /* printf("\tzero'd (%p)\n", (void *) avl_node); */
+            search.node = u;
+            a2 = avl_search(&self->stack1[v], &search);
+            tsk_bug_assert(a2 != NULL);
+            avl_unlink_node(&self->stack1[v], a2);
+            sv = (stack_value_t *) a2->item;
+            free(sv);
         }
     }
-
-    tsk_divmat_calculator_free_avl_tree(self, &self->stack[u]);
+    /* We could free the AVL nodes in the above loop but this is a bit
+     * simpler */
+    tsk_divmat_calculator_free_avl_tree(&self->stack1[u]);
 }
 
 static double
@@ -6437,13 +6465,13 @@ tsk_divmat_calculator_flush_root_path(tsk_divmat_calculator_t *self,
 static void
 tsk_divmat_calculator_write_output(tsk_divmat_calculator_t *self)
 {
-    int ret;
     tsk_id_t u, v;
-    tsk_size_t i, j, k;
+    tsk_size_t j, k;
     const tsk_size_t n = self->num_input_samples;
     double *restrict D = self->result;
     double z;
-    tsk_avl_node_int_t **avl_nodes = self->avl_node_buffer;
+    avl_node_t *a;
+    stack_value_t *sv;
 
     /* printf("HERE!!\n"); */
     for (j = 0; j < n; j++) {
@@ -6463,13 +6491,14 @@ tsk_divmat_calculator_write_output(tsk_divmat_calculator_t *self)
     /* tsk_divmat_calculator_print_state(self, stdout); */
     for (j = 0; j < n; j++) {
         u = self->virtual_root + 1 + (tsk_id_t) j;
-        tsk_bug_assert(self->stack[u].size < self->avl_node_buffer_size);
-        ret = tsk_avl_tree_int_ordered_nodes(&self->stack[u], avl_nodes);
-        tsk_bug_assert(ret == 0);
 
-        for (i = 0; i < self->stack[u].size; i++) {
-            v = (tsk_id_t) avl_nodes[i]->key;
-            z = *((double *) avl_nodes[i]->value);
+        /* for (i = 0; i < self->stack[u].size; i++) { */
+        for (a = self->stack1[u].head; a != NULL; a = a->next) {
+            sv = (stack_value_t *) a->item;
+            v = sv->node;
+            z = sv->value;
+            /* v = (tsk_id_t) avl_nodes[i]->key; */
+            /* z = *((double *) avl_nodes[i]->value); */
             /* FIXME this shouldn't be needed - see point above about pushing
              * down 0 values for sample nodes */
             if (v > self->virtual_root) {

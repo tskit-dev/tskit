@@ -25,17 +25,20 @@ lib_headers = [
     'tskit/core.h', 'tskit/tables.h', 'tskit/trees.h',
     'tskit/genotypes.h', 'tskit/stats.h', 'tskit/convert.h', 'tskit/haplotype_matching.h']
 
+avl_lib = static_library('avl', sources: ['avl.c'])
+
 # Subprojects use the static library for simplicity.
 tskit_inc = [kastore_inc, include_directories(['.'])]
 tskit_lib = static_library('tskit',
-    sources: lib_sources, dependencies: lib_deps)
-tskit_dep = declare_dependency(include_directories:tskit_inc, link_with: tskit_lib)
+    sources: lib_sources, dependencies: lib_deps, link_with:[avl_lib])
+tskit_dep = declare_dependency(include_directories:tskit_inc, link_with: [tskit_lib, avl_lib])
 
 if not meson.is_subproject()
 
     # Shared library install target.
     shared_library('tskit',
-        sources: lib_sources, dependencies: lib_deps, c_args: extra_c_args, install: true)
+        sources: lib_sources, dependencies: lib_deps, c_args: extra_c_args, install: true,
+       link_with: [avl_lib])
     install_headers('tskit.h')
     install_headers(lib_headers, subdir: 'tskit')
 

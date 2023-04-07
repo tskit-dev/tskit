@@ -5301,7 +5301,7 @@ test_single_tree_divergence_matrix(void)
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
         NULL, NULL, NULL, 0);
 
-    ret = tsk_treeseq_divergence_matrix(&ts, 0, NULL, TSK_DEBUG, result);
+    ret = tsk_treeseq_divergence_matrix(&ts, 0, NULL, 0, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     assert_arrays_almost_equal(16, result, D);
 

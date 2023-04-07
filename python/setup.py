@@ -36,6 +36,7 @@ tsk_source_files = [
 ]
 sources = (
     ["_tskitmodule.c"]
+    + [os.path.join(libdir, "avl.c")]
     + [os.path.join(libdir, "tskit", f) for f in tsk_source_files]
     + [os.path.join(kastore_dir, "kastore.c")]
 )
