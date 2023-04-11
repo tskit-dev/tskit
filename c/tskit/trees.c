@@ -6325,19 +6325,17 @@ tsk_divmat_calculator_push_down(tsk_divmat_calculator_t *self, tsk_id_t u)
         sv = (stack_value_t *) a1->item;
         v = sv->node;
         z = sv->value;
-        /* printf("\t%d -> %g (%p)\n", v, z, (void *) a1); */
-        if (z > 0) {
-            for (c = left_child[u]; c != TSK_NULL; c = right_sib[c]) {
-                tsk_divmat_calculator_add_to_stack(self, v, c, z);
-            }
-            /* Remove the symmetrical value, in stack[v] */
-            search.node = u;
-            a2 = avl_search(&self->stack1[v], &search);
-            tsk_bug_assert(a2 != NULL);
-            avl_unlink_node(&self->stack1[v], a2);
-            sv = (stack_value_t *) a2->item;
-            free(sv);
+        tsk_bug_assert(z > 0);
+        for (c = left_child[u]; c != TSK_NULL; c = right_sib[c]) {
+            tsk_divmat_calculator_add_to_stack(self, v, c, z);
         }
+        /* Remove the symmetrical value, in stack[v] */
+        search.node = u;
+        a2 = avl_search(&self->stack1[v], &search);
+        tsk_bug_assert(a2 != NULL);
+        avl_unlink_node(&self->stack1[v], a2);
+        sv = (stack_value_t *) a2->item;
+        free(sv);
     }
     /* We could free the AVL nodes in the above loop but this is a bit
      * simpler */
@@ -6476,9 +6474,6 @@ tsk_divmat_calculator_write_output(tsk_divmat_calculator_t *self)
     /* printf("HERE!!\n"); */
     for (j = 0; j < n; j++) {
         u = self->samples[j];
-        /* FIXME at the moment we seem to be pushing 0 values down to the
-         * earlier samples at the j'th sample. Should look into this.
-         */
         /* printf("pushdown %d \n", u); */
         tsk_divmat_calculator_push_down(self, u);
         /* tsk_divmat_calculator_print_state(self, stdout); */
@@ -6492,21 +6487,12 @@ tsk_divmat_calculator_write_output(tsk_divmat_calculator_t *self)
     for (j = 0; j < n; j++) {
         u = self->virtual_root + 1 + (tsk_id_t) j;
 
-        /* for (i = 0; i < self->stack[u].size; i++) { */
         for (a = self->stack1[u].head; a != NULL; a = a->next) {
             sv = (stack_value_t *) a->item;
             v = sv->node;
             z = sv->value;
-            /* v = (tsk_id_t) avl_nodes[i]->key; */
-            /* z = *((double *) avl_nodes[i]->value); */
-            /* FIXME this shouldn't be needed - see point above about pushing
-             * down 0 values for sample nodes */
-            if (v > self->virtual_root) {
-                k = (tsk_size_t)(v - self->virtual_root - 1);
-                D[j * n + k] += z;
-            } else {
-                tsk_bug_assert(z == 0);
-            }
+            k = (tsk_size_t)(v - self->virtual_root - 1);
+            D[j * n + k] += z;
         }
     }
 
@@ -6550,8 +6536,6 @@ tsk_divmat_calculator_run(tsk_divmat_calculator_t *self)
             e = O[k];
             p = edge_parent[e];
             c = edge_child[e];
-            /* root_path = self.get_root_path(c) */
-            /* self.flush_root_path(root_path) */
             root_path_length = tsk_divmat_calculator_get_root_path(self, c, root_path);
             /* print_root_path("Edge out", root_path_length, root_path); */
             /* tsk_divmat_calculator_flush_branch(self, root_path_length, root_path); */
