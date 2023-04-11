@@ -10659,6 +10659,29 @@ out:
 }
 
 static PyObject *
+Tree_seek_index(Tree *self, PyObject *args)
+{
+    PyObject *ret = NULL;
+    tsk_id_t index = 0;
+    int err;
+
+    if (Tree_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTuple(args, "O&", tsk_id_converter, &index)) {
+        goto out;
+    }
+    err = tsk_tree_seek_index(self->tree, index, 0);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    return ret;
+}
+
+static PyObject *
 Tree_clear(Tree *self)
 {
     PyObject *ret = NULL;
@@ -11796,6 +11819,10 @@ static PyMethodDef Tree_methods[] = {
         .ml_meth = (PyCFunction) Tree_seek,
         .ml_flags = METH_VARARGS,
         .ml_doc = "Seeks to the tree at the specified position" },
+    { .ml_name = "seek_index",
+        .ml_meth = (PyCFunction) Tree_seek_index,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Seeks to the tree at the specified index" },
     { .ml_name = "clear",
         .ml_meth = (PyCFunction) Tree_clear,
         .ml_flags = METH_NOARGS,
