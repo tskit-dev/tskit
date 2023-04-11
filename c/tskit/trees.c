@@ -4640,7 +4640,7 @@ tsk_tree_seek_from_null(tsk_tree_t *self, double x, tsk_flags_t TSK_UNUSED(optio
      */
     tree_index = (tsk_id_t) tsk_search_sorted(breakpoints, num_trees + 1, x);
     if (breakpoints[tree_index] > x) {
-        tree_index -= 1;
+        tree_index--;
     }
     self->index = tree_index;
     self->interval.left = breakpoints[tree_index];

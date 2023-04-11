@@ -820,7 +820,6 @@ class Tree:
 
         .. include:: substitutions/linear_traversal_warning.rst
 
-
         :param int index: The tree index to seek to.
         :raises IndexError: If an index outside the acceptable range is provided.
         """
@@ -829,12 +828,7 @@ class Tree:
             index += num_trees
         if index < 0 or index >= num_trees:
             raise IndexError("Index out of bounds")
-        # This should be implemented in C efficiently using the indexes.
-        # No point in complicating the current implementation by trying
-        # to seek from the correct direction.
-        self.first()
-        while self.index != index:
-            self.next()
+        self._ll_tree.seek_index(index)
 
     def seek(self, position):
         """

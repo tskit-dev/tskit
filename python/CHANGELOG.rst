@@ -2,6 +2,11 @@
 [0.5.5] - 2023-01-XX
 --------------------
 
+**Performance improvements**
+
+- Methods like ts.at() which seek to a specified position on the sequence from
+  a new Tree instance are now much faster (:user:`molpopgen`, :pr:`2661`).
+
 **Features**
 
 - Add ``__repr__`` for variants to return a string representation of the raw data

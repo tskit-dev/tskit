@@ -2,6 +2,11 @@
 [1.1.2] - 2023-XX-XX
 --------------------
 
+**Performance improvements**
+
+- tsk_tree_seek is now much faster at seeking to arbitrary points along
+  the sequence from the null tree (:user:`molpopgen`, :pr:`2661`).
+
 **Features**
 
 - The struct ``tsk_treeseq_t`` now has the variables ``min_time`` and ``max_time``,
@@ -23,6 +28,8 @@
 
 - Add `x_table_keep_rows` methods to provide efficient in-place table subsetting
   (:user:`jeromekelleher`, :pr:`2700`).
+
+- Add `tsk_tree_seek_index` function
 
 --------------------
 [1.1.1] - 2022-07-29
