@@ -1264,7 +1264,7 @@ tsk_treeseq_branch_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
 {
     int ret = 0;
     tsk_id_t u, v;
-    tsk_size_t j, k, tree_index, window_index;
+    tsk_size_t j, k, window_index;
     tsk_size_t num_nodes = self->tables->nodes.num_rows;
     const tsk_id_t num_edges = (tsk_id_t) self->tables->edges.num_rows;
     const tsk_id_t *restrict I = self->tables->indexes.edge_insertion_order;
@@ -1315,7 +1315,6 @@ tsk_treeseq_branch_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
     tj = 0;
     tk = 0;
     t_left = 0;
-    tree_index = 0;
     window_index = 0;
     while (tj < num_edges || t_left < sequence_length) {
         while (tk < num_edges && edge_right[O[tk]] == t_left) {
@@ -1400,7 +1399,6 @@ tsk_treeseq_branch_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
         }
         /* Move to the next tree */
         t_left = t_right;
-        tree_index++;
     }
     tsk_bug_assert(window_index == num_windows);
 out:
