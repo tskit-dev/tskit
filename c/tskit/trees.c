@@ -1315,7 +1315,6 @@ tsk_treeseq_branch_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
     tj = 0;
     tk = 0;
     t_left = 0;
-    tree_index = 0;
     window_index = 0;
     while (tj < num_edges || t_left < sequence_length) {
         while (tk < num_edges && edge_right[O[tk]] == t_left) {
