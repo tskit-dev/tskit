@@ -2181,9 +2181,12 @@ class Tree:
     def samples(self, u=None):
         """
         Returns an iterator over the numerical IDs of all the sample nodes in
-        this tree that are underneath node ``u``. If ``u`` is a sample, it is
-        included in the returned iterator. If u is not specified, return all
-        sample node IDs in the tree.
+        this tree that are underneath the node with ID ``u``. If ``u`` is a sample,
+        it is included in the returned iterator. If ``u`` is not a sample, it is
+        possible for the returned iterator to be empty, for example if ``u`` is an
+        :meth:`isolated<Tree.is_isolated>` node that is not part of the the current
+        topology. If u is not specified, return all sample node IDs in the tree
+        (equivalent to all the sample node IDs in the tree sequence).
 
         If the :meth:`TreeSequence.trees` method is called with
         ``sample_lists=True``, this method uses an efficient algorithm to find
