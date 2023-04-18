@@ -1,4 +1,6 @@
 version: 2.1
+orbs:
+  codecov: codecov/codecov@3.2.4
 
 commands:
   setup:
@@ -48,12 +50,14 @@ commands:
             ninja -C build-gcc test
 
       - run:
-          name: Run gcov & upload coverage.
+          name: Run gcov
           command: |
             cd build-gcc
             find ../c/tskit/*.c -type f -printf "%f\n" | xargs -i gcov -pb libtskit.a.p/tskit_{}.gcno ../c/tskit/{}
-            cd ..
-            bash <(curl -s https://codecov.io/bash) -X gcov -X coveragepy -F c-tests
+
+      - codecov/upload:
+          flags: c-tests
+          token: CODECOV_TOKEN
 
       - run:
           name: Valgrind for C tests.
@@ -116,14 +120,17 @@ commands:
             python -m pytest -n2
 
       - run:
-          name: Upload LWT coverage
+          name: Generate coverage
           command: |
             # Make sure the C coverage reports aren't lying around
             rm -fR build-gcc
             ls -R
             cd python/lwt_interface
             gcov -pb -o ./build/temp.linux*/*.gcno example_c_module.c
-            bash <(curl -s https://codecov.io/bash) -X gcov -F lwt-tests
+
+      - codecov/upload:
+          flags: lwt-tests
+          token: CODECOV_TOKEN
 
       - run:
           name: Run Python tests
@@ -132,13 +139,17 @@ commands:
             python -m pytest --cov=tskit  --cov-report=xml --cov-branch -n2 tests/test_lowlevel.py tests/test_tables.py tests/test_file_format.py
 
       - run:
-          name: Upload Python coverage
+          name: Generate Python coverage
           command: |
             # Make sure the C coverage reports aren't lying around
             rm -fR build-gcc
+            rm -f python/lwt_interface/*.gcov
             cd python
             gcov -pb -o ./build/temp.linux*/*.gcno _tskitmodule.c
-            bash <(curl -s https://codecov.io/bash) -X gcov -F python-c-tests
+
+      - codecov/upload:
+          flags: python-c-tests
+          token: CODECOV_TOKEN
 
       - run:
           name: Build Python package
@@ -191,6 +202,8 @@ jobs:
           key: tskit-32-{{ .Branch }}-v7
           paths:
             - "/home/circleci/.local"
+      # We need to install curl for the codecov upload.
+      - run: sudo apt-get install -y curl
       - compile_and_test
 
 workflows:
