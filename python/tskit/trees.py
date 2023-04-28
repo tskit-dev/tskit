@@ -9075,3 +9075,95 @@ def write_ms(
                         )
             else:
                 print(file=output)
+
+
+
+# add_PBS
+def pbs(
+	self, sample_sets,indexes=None,windows=None,mode="site",span_normalise=True
+):
+	"""
+	Computes "Windowed" population branch statistics(PBS) across trio pop sets of nodes from ``sample_sets``;
+	operates on ``k = 3`` sample sets at a time;
+    please see the
+        :ref:`multi-way statistics <sec_stats_sample_sets_multi_way>`
+        section for details on how the ``sample_sets`` and ``indexes`` arguments are
+        interpreted and how they interact with the dimensions of the output array.
+        See the :ref:`statistics interface <sec_stats_interface>` section for details on
+        :ref:`windows <sec_stats_windows>`,
+        :ref:`mode <sec_stats_mode>`,
+        :ref:`span normalise <sec_stats_span_normalise>`,
+        and :ref:`return value <sec_stats_output_format>`.
+
+    For sample sets ``X``, ``Y``, ``Z``,
+        ``X`` is the focus population;
+        ``Y`` is the sister population of ``X``;
+        ``Z`` is the far population of ``X``;
+        if ``d(X, Y)`` is the
+        :meth:`divergence <.TreeSequence.divergence>`
+        between ``X`` and ``Y``, and ``d(X)`` is the
+        :meth:`diversity <.TreeSequence.diversity>` of ``X``, then what is
+        computed is
+
+    .. code-block:: python
+            Fst_xy = 1 - 2 * (d(X) + d(Y)) / (d(X) + 2 * d(X, Y) + d(Y))
+            Fst_xz = 1 - 2 * (d(X) + d(Z)) / (d(X) + 2 * d(X, Z) + d(Z))
+            Fst_yz = 1 - 2 * (d(Y) + d(Z)) / (d(Y) + 2 * d(Y, Z) + d(Z))
+
+            pbs_x = (-math.log(1-Fst_xy, 10) + -math.log(1-Fst_xz, 10) -
+                -math.log(1-Fst_yz, 10)) / 2
+            pbs_y = (-math.log(1-Fst_xy, 10) + -math.log(1-Fst_yz, 10) -
+                -math.log(1-Fst_xz, 10)) / 2
+            pbs_z = (-math.log(1-Fst_xz, 10) + -math.log(1-Fst_yz, 10) -
+                -math.log(1-Fst_xy, 10)) / 2
+
+	"""
+
+    def pbs_func(sample_set_sizes, flattened, indexes=[(0, 1), (0, 2), (1,2)], **kwargs):
+            diversities = self._ll_tree_sequence.diversity(
+                sample_set_sizes, flattened, **kwargs
+            )
+            divergences = self._ll_tree_sequence.divergence(
+                sample_set_sizes, flattened, indexes, **kwargs
+            )
+
+            orig_shape = divergences.shape
+            # "node" statistics produce a 3D array
+            if len(divergences.shape) == 2:
+                divergences.shape = (divergences.shape[0], 1, divergences.shape[1])
+                diversities.shape = (diversities.shape[0], 1, diversities.shape[1])
+
+            fst = np.repeat(1.0, np.product(divergences.shape))
+            fst.shape = divergences.shape
+            for i, (u, v) in enumerate(indexes):
+                denom = (
+                    diversities[:, :, u]
+                    + diversities[:, :, v]
+                    + 2 * divergences[:, :, i]
+                )
+                with np.errstate(divide="ignore", invalid="ignore"):
+                    fst[:, :, i] -= (
+                        2 * (div=ersities[:, :, u] + diversities[:, :, v]) / denom
+                    )
+            fst.shape = orig_shape
+
+            def cal_pbs(arr_0):
+                arr = 1 - arr_0
+                arr[:, 0] = (-np.log10(arr[:, 0]) + np.log10(arr[:, 1]) - np.log10(arr[:, 2]))/2
+                arr[:, 1] = (-np.log10(arr[:, 0]) + np.log10(arr[:, 2]) - np.log10(arr[:, 1]))/2
+                arr[:, 2] = (-np.log10(arr[:, 1]) + np.log10(arr[:, 2]) - np.log10(arr[:, 0]))/2
+                return arr
+
+            pbs = cal_pbs(fst)
+            return pbs
+
+    return self.__k_way_sample_set_stat(
+            pbs_func,
+            3,
+            sample_sets,
+            indexes=indexes,
+            windows=windows,
+            mode=mode,
+            span_normalise=span_normalise,
+    )
+
