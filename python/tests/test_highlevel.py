@@ -1724,6 +1724,48 @@ class TestTreeSequence(HighLevelTestCase):
             assert t.get_num_tracked_samples(0) == 0
             assert list(t.samples(0)) == [0]
 
+    def test_trees_bad_left_right(self):
+        ts = tskit.Tree.generate_balanced(10, span=1).tree_sequence
+        with pytest.raises(ValueError):
+            ts.trees(left=0.5, right=0.5)
+        with pytest.raises(ValueError):
+            ts.trees(left=0.5, right=0.4)
+        with pytest.raises(ValueError):
+            ts.trees(left=0.5, right=1.1)
+        with pytest.raises(ValueError):
+            ts.trees(left=-0.1, right=0.1)
+        with pytest.raises(ValueError):
+            ts.trees(left=1, right=1.5)
+
+    def test_trees_left_right_one_tree(self):
+        ts = tskit.Tree.generate_balanced(10).tree_sequence
+        tree_iterator = ts.trees(left=0.5, right=0.6)
+        assert len(tree_iterator) == 1
+        trees = [tree.copy() for tree in tree_iterator]
+        assert len(trees) == 1
+        tree_iterator = reversed(ts.trees(left=0.5, right=0.6))
+        assert len(tree_iterator) == 1
+        assert trees[0] == ts.first()
+        trees = [tree.copy() for tree in tree_iterator]
+        assert len(trees) == 1
+        assert trees[0] == ts.first()
+
+    @pytest.mark.parametrize(
+        "interval", [(0, 0.5), (0.4, 0.6), (0.5, np.nextafter(0.5, 1)), (0.5, 1)]
+    )
+    def test_trees_left_right_many_trees(self, interval):
+        ts = msprime.simulate(5, recombination_rate=10, random_seed=1)
+        assert ts.num_trees > 10
+        tree_iter = ts.trees(left=interval[0], right=interval[1])
+        expected_length = len(tree_iter)
+        n_trees = 0
+        for tree in ts.trees():
+            # check if the tree is within the interval
+            if tree.interval[1] > interval[0] and tree.interval[0] < interval[1]:
+                n_trees += 1
+                assert tree.interval == next(tree_iter).interval
+        assert n_trees == expected_length
+
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_get_pairwise_diversity(self, ts):
         with pytest.raises(ValueError, match="at least one element"):
@@ -2994,8 +3036,18 @@ class TestTreeSequenceMethodSignatures:
         )
         # Skip the first param, which is `tree_sequence` and `self` respectively
         tree_class_params = tree_class_params[1:]
-        # The trees iterator has some extra (deprecated) aliases
-        trees_iter_params = trees_iter_params[1:-3]
+        # The trees iterator has some extra (deprecated) aliases at the end
+        num_deprecated = 3
+        trees_iter_params = trees_iter_params[1:-num_deprecated]
+
+        # The trees iterator also has left/right/copy params which aren't in __init__()
+        assert trees_iter_params[-1][0] == "copy"
+        trees_iter_params = trees_iter_params[:-1]
+        assert trees_iter_params[-1][0] == "right"
+        trees_iter_params = trees_iter_params[:-1]
+        assert trees_iter_params[-1][0] == "left"
+        trees_iter_params = trees_iter_params[:-1]
+
         assert trees_iter_params == tree_class_params
 
 
