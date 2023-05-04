@@ -12,9 +12,12 @@
 - Add ``__repr__`` for variants to return a string representation of the raw data
   without spewing megabytes of text (:user:`chriscrsmith`, :pr:`2695`, :issue:`2694`)
 
-- Add ``keep_rows`` method to table classes to support efficient in-place
-  table subsetting (:user:`jeromekelleher`, :pr:`2700`)
+**Breaking Changes**
 
+- Printing ``tskit.MetadataSchema(schema=None)`` now shows ``"Null_schema"`` rather
+  than ``None``, to avoid confusion (:user:`hyanwong`, :pr:`2720`)
+
+  
 --------------------
 [0.5.4] - 2023-01-13
 --------------------

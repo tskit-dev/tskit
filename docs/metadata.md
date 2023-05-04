@@ -61,7 +61,7 @@ in the tskit Python API.
 
 Note that the C API simply provides byte-array binary access to the metadata,
 leaving the encoding and decoding to the user. The same can be achieved with the Python
-API, see {ref}`sec_tutorial_metadata_binary`.
+API by specifying a null schema (see {ref}`sec_metadata_codecs_none`).
 
 
 (sec_metadata_examples)=
@@ -70,17 +70,43 @@ API, see {ref}`sec_tutorial_metadata_binary`.
 
 In this section we give some examples of how to define metadata
 schemas and how to add metadata to various parts of a tree sequence
-using the Python API.
+using the Python API. Note that to
+{ref}`edit a tree sequence<tutorials:sec_tables_editing>` (e.g. to
+redefine a schema or to add metadata) requires use of the
+{ref}`tables API<sec_tables_api>`. 
 
 (sec_metadata_examples_top_level)=
 
 ### Top level
 
-```{eval-rst}
-.. todo:: Add examples of top-level metadata. One with the ``permissive_json``
-  schema first to to show the simplest possible way of doing it. Then
-  followed with an example where we describe the metadata also.
+```{code-cell}
+import tskit
+
+ts = tskit.Tree.generate_star(6).tree_sequence  # Make a basic 1-tree ts
+
+# Changing metadata or schemas means editing the underlying tables 
+tables = ts.dump_tables()
+
+# permissive_json() creates a schema that can contain anything JSON encodable ...
+tables.metadata_schema = tskit.MetadataSchema.permissive_json()
+tables.metadata = {"species": "Binomium ridiculus"}
+ts_md = tables.tree_sequence()
+
+print(f'The tree sequence is of species {ts_md.metadata["species"]}')
+
+# ... but a more helpful schema can document some or all the content
+tables.metadata_schema = tskit.MetadataSchema({
+    "codec": "json",
+    "properties": {
+        "species": {
+            "description": "The species represented by this tree sequence",
+            "type": "string",
+        }
+    }
+})
+ts_descriptive_md = tables.tree_sequence()
 ```
+
 
 (sec_metadata_examples_reference_sequence)=
 
@@ -97,8 +123,39 @@ using the Python API.
 
 ### Tables
 
-```{eval-rst}
-.. todo:: Add examples of adding table-level metadata schemas.
+Each table (apart from the provenances table) has a separate metadata schema to describe
+the contents of the metadata entry for each row of the table. The schemas for each table
+are completely independent.
+
+```{code-cell}
+# One table can have a json codec ...
+tables.populations.metadata_schema = tskit.MetadataSchema.permissive_json()
+# ... another can have a struct codec
+tables.individuals.metadata_schema = tskit.MetadataSchema({
+    "codec": "struct",
+    "type": "object",
+    "properties": {
+        "age": {
+            "description": "The age (in years) of this individual when sampled",
+            "type": "number",
+            "binaryFormat": "f",
+        }
+    },
+    "required": ["age"],
+})
+i = tables.individuals.add_row(metadata={"age": 25.5})  # This will be validated
+p = tables.populations.add_row(metadata={"geo_region": "Eurasia"})
+tables.nodes[0] = tables.nodes[0].replace(individual=i, population=p)
+tables.nodes[0] = tables.nodes[1].replace(individual=i, population=p)
+
+ts_table_md = tables.tree_sequence()
+nd = ts_table_md.node(0)
+print(
+    f"Node {nd.id} is from an individual with",
+    ts_table_md.individual(nd.individual).metadata,
+    "from",
+    ts_table_md.population(nd.population).metadata,
+)
 ```
 
 (sec_metadata_codecs)=
@@ -110,12 +167,38 @@ As the underlying metadata is in raw binary (see
 must be encoded and decoded. The C API does not do this, but the Python API will
 use the schema to decode the metadata to Python objects.
 The encoding for doing this is specified in the top-level schema property `codec`.
-Currently the Python API supports the `json` codec which encodes metadata as
+Currently as well as the null schema which performs no encoding or decoding,
+the Python API supports the `json` codec which encodes metadata as
 [JSON](https://www.json.org/json-en.html), and the `struct` codec which encodes
 metadata in an efficient schema-defined binary format using {func}`python:struct.pack` .
 
+(sec_metadata_codecs_none)=
 
-### JSON
+### No codec
+
+If no schema is specified, the default "null schema" is set, which does not define
+a codec. In this case, no encoding or decoding is performed and the metadata is
+stored and returned as raw bytes. To check if a metadata schema is the null schema
+you can compare it to `tskit.MetadataSchema(schema=None)`, as below:
+
+```{code-cell}
+print("The edges table has a metadata schema of: ", tables.edges.metadata_schema, "\n")
+
+null_schema = tskit.MetadataSchema(schema=None)
+for t_name, table in tables.table_name_map.items():
+    if t_name == "provenances":
+        continue
+    if table.metadata_schema == null_schema:  # This is how to check for a null schema
+        print("Metadata in the", t_name, "table is stored as raw bytes")
+    else:
+        print(
+            "* The schema of the", t_name, "table uses",
+            table.metadata_schema.schema["codec"],
+            "to encode and decode metadata"
+        )
+```
+
+### JSON codec
 
 When `json` is specified as the `codec` in the schema the metadata is encoded in
 the human readable [JSON](https://www.json.org/json-en.html) format. As this format
@@ -127,15 +210,15 @@ empty metadata is interpreted as an empty object. This is to allow setting of a 
 to a table with out the need to modify all existing empty rows.
 
 
-### struct
+### struct codec
 
-When `struct` is specifed as the `codec` in the schema the metadata is encoded
+When `struct` is specifed as the `codec` in the schema, the metadata is encoded
 using {func}`python:struct.pack` which results in a compact binary representation which
 is much smaller and generally faster to encode/decode than JSON.
 
 This codec places extra restrictions on the schema:
 
-1. Each property must have a `binaryFormat`
+1. Each property (apart from those of `"type": "object"`) must have a `binaryFormat`
     This sets the binary encoding used for the property.
 
 2. All metadata objects must have fixed properties.

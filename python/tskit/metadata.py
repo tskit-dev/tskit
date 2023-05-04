@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2020-2022 Tskit Developers
+# Copyright (c) 2020-2023 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -654,7 +654,10 @@ class MetadataSchema:
         return self._string
 
     def __str__(self) -> str:
-        return pprint.pformat(self._schema)
+        if self._schema is None:
+            return "Null_schema"
+        else:
+            return pprint.pformat(self._schema)
 
     def __eq__(self, other) -> bool:
         return self._string == other._string

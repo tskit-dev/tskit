@@ -1333,9 +1333,8 @@ class AssertEqualsMixin:
             table2.metadata_schema = tskit.MetadataSchema({"codec": "json"})
             with pytest.raises(
                 AssertionError,
-                match=f"{type(table_5row).__name__} metadata schemas differ: self=None "
-                f"other=OrderedDict([('codec', "
-                "'json')])",
+                match=f"{type(table_5row).__name__} metadata schemas differ: "
+                "self=Null_schema other=OrderedDict([('codec', 'json')])",
             ):
                 table_5row.assert_equals(table2)
             table_5row.assert_equals(table2, ignore_metadata=True)
@@ -4032,7 +4031,7 @@ class TestTableCollectionAssertEquals:
             AssertionError,
             match=re.escape(
                 "Metadata schemas differ: self=OrderedDict([('codec', 'json')]) "
-                "other=None"
+                "other=Null_schema"
             ),
         ):
             t1.assert_equals(t2)
@@ -4081,7 +4080,7 @@ class TestTableCollectionAssertEquals:
                 AssertionError,
                 match=re.escape(
                     f"{type(table).__name__} metadata schemas differ: "
-                    f"self=OrderedDict([('codec', 'json')]) other=None"
+                    f"self=OrderedDict([('codec', 'json')]) other=Null_schema"
                 ),
             ):
                 t1.assert_equals(t2)
@@ -4142,7 +4141,7 @@ class TestTableCollectionAssertEquals:
             AssertionError,
             match=re.escape(
                 "Metadata schemas differ: "
-                "self=OrderedDict([('codec', 'json')]) other=None"
+                "self=OrderedDict([('codec', 'json')]) other=Null_schema"
             ),
         ):
             t1.assert_equals(t2)
