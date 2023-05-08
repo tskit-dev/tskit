@@ -8638,17 +8638,16 @@ test_table_collection_modular_simplify_simple_tree(void)
     tsk_edge_table_t new_edges;
     tsk_id_t new_parent1, new_parent2, new_child1, new_child2;
     tsk_modular_simplifier_t simplifier;
-    tsk_id_t samples[2];
+    tsk_id_t *samples;
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_edge_table_init(&new_edges, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+    samples = tsk_malloc(2 * sizeof(tsk_id_t));
+    CU_ASSERT_TRUE(samples != NULL)
 
     parse_nodes(single_tree_ex_nodes, &tables.nodes);
     parse_edges(single_tree_ex_edges, &tables.edges);
-
-    tsk_table_collection_free(&tables);
-    tsk_edge_table_free(&new_edges);
 
     // "record new births" into node table
     new_parent1 = tsk_node_table_add_row(&tables.nodes, 0, -1.0, -1, -1, NULL, 0);
@@ -8673,12 +8672,14 @@ test_table_collection_modular_simplify_simple_tree(void)
     ret = tsk_edge_table_add_row(
         &new_edges, 0, tables.sequence_length, new_parent2, new_child2, NULL, 0);
     CU_ASSERT_TRUE(ret >= 0);
-
     samples[0] = new_child1;
     samples[1] = new_child2;
     ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 2, 0);
-    CU_ASSERT_TRUE(ret >= 0);
+    CU_ASSERT_TRUE(ret > 0);
     CU_ASSERT_EQUAL_FATAL(1, 0);
+
+    tsk_table_collection_free(&tables);
+    tsk_edge_table_free(&new_edges);
 }
 
 static void
