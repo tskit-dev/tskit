@@ -13641,12 +13641,21 @@ out:
     return ret;
 }
 
-// FIXME: parent not used
 int
 tsk_modular_simplifier_add_edge(tsk_modular_simplifier_t *self, double left,
     double right, tsk_id_t parent, tsk_id_t child)
 {
-    int ret = simplifier_extract_ancestry(&self->pimpl->simplifier, left, right, child);
+    int ret = 0;
+
+    if (parent != self->pimpl->last_parent_processed
+        && self->pimpl->last_parent_processed != TSK_NULL) {
+        if (self->pimpl->input_nodes[parent] != TSK_NULL) {
+            ret = TSK_ERR_EDGES_NONCONTIGUOUS_PARENTS;
+            goto out;
+        }
+    }
+    ret = simplifier_extract_ancestry(&self->pimpl->simplifier, left, right, child);
+out:
     return ret;
 }
 
@@ -13654,7 +13663,13 @@ int
 tsk_modular_simplifier_merge_ancestors(tsk_modular_simplifier_t *self, tsk_id_t parent)
 {
     int ret = simplifier_merge_ancestors(&self->pimpl->simplifier, parent);
+    if (ret != 0) {
+        goto out;
+    }
+    /* mark this input parent as "seen" */
+    self->pimpl->input_nodes[parent] = parent;
     self->pimpl->simplifier.segment_queue_size = 0;
+out:
     return ret;
 }
 
