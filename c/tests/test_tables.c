@@ -8639,6 +8639,7 @@ test_table_collection_modular_simplify_simple_tree(void)
     tsk_id_t new_parent1, new_parent2, new_child1, new_child2;
     tsk_modular_simplifier_t simplifier;
     tsk_id_t *samples;
+    tsk_size_t row;
     ret = tsk_table_collection_init(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_edge_table_init(&new_edges, 0);
@@ -8676,11 +8677,25 @@ test_table_collection_modular_simplify_simple_tree(void)
     samples[1] = new_child2;
     ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 2, 0);
     CU_ASSERT_TRUE(ret > 0);
-    CU_ASSERT_EQUAL_FATAL(1, 0);
+    CU_ASSERT_EQUAL(new_edges.num_rows, 4);
+
+    for (row = 0; row < new_edges.num_rows; ++row) {
+        CU_ASSERT(new_edges.parent[new_edges.num_rows - row - 1] >= 0);
+        CU_ASSERT(new_edges.parent[new_edges.num_rows - row - 1]
+                  < (tsk_id_t) tables.nodes.num_rows);
+        ret = tsk_modular_simplifier_add_edge(&simplifier,
+            new_edges.left[new_edges.num_rows - row - 1],
+            new_edges.right[new_edges.num_rows - row - 1],
+            new_edges.parent[new_edges.num_rows - row - 1],
+            new_edges.child[new_edges.num_rows - row - 1]);
+        CU_ASSERT_TRUE(ret == 0);
+    }
 
     tsk_table_collection_free(&tables);
     tsk_edge_table_free(&new_edges);
     tsk_modular_simplifier_free(&simplifier);
+    tsk_safe_free(samples);
+    CU_ASSERT_EQUAL_FATAL(1, 0);
 }
 
 static void
