@@ -25,6 +25,7 @@
 #include "testlib.h"
 #include "tskit/core.h"
 #include <CUnit/CUnit.h>
+#include <stdio.h>
 #include <tskit/tables.h>
 
 #include <float.h>
@@ -8630,6 +8631,56 @@ test_simplify_metadata(void)
     tsk_table_collection_free(&tables);
 }
 
+static void
+make_single_tree_for_testing_modular_simplify(
+    tsk_table_collection_t *tables, tsk_edge_table_t *new_edges, tsk_id_t **samples)
+{
+    int ret;
+    tsk_id_t new_parent1, new_parent2, new_child1, new_child2;
+    tsk_size_t row;
+    ret = tsk_table_collection_init(tables, 0);
+    tables->sequence_length = 1.0;
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_init(new_edges, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    *samples = tsk_malloc(2 * sizeof(tsk_id_t));
+    CU_ASSERT_TRUE(samples != NULL)
+
+    parse_nodes(single_tree_ex_nodes, &tables->nodes);
+    parse_edges(single_tree_ex_edges, &tables->edges);
+
+    /* "record new births" into node table */
+    new_parent1 = tsk_node_table_add_row(&tables->nodes, 0, -1.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(new_parent1 >= 0);
+    new_parent2 = tsk_node_table_add_row(&tables->nodes, 0, -1.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(new_parent2 >= 0);
+    new_child1 = tsk_node_table_add_row(&tables->nodes, 0, -2.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(new_child1 >= 0);
+    new_child2 = tsk_node_table_add_row(&tables->nodes, 0, -2.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(new_child2 >= 0);
+
+    for (row = 0; row < tables->nodes.num_rows; ++row) {
+        // make all times >= 0.0.
+        tables->nodes.time[row] += 2.0;
+    }
+
+    /* record edges */
+    ret = tsk_edge_table_add_row(
+        new_edges, 0, tables->sequence_length, 0, new_parent1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(ret >= 0);
+    ret = tsk_edge_table_add_row(
+        new_edges, 0, tables->sequence_length, 2, new_parent2, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(ret >= 0);
+    ret = tsk_edge_table_add_row(
+        new_edges, 0, tables->sequence_length, new_parent1, new_child1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(ret >= 0);
+    ret = tsk_edge_table_add_row(
+        new_edges, 0, tables->sequence_length, new_parent2, new_child2, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(ret >= 0);
+    (*samples)[0] = new_child1;
+    (*samples)[1] = new_child2;
+}
+
 /*
  * Start with this tree:
  *          6
@@ -8664,47 +8715,12 @@ test_table_collection_modular_simplify_simple_tree(void)
     int ret;
     tsk_table_collection_t tables;
     tsk_edge_table_t new_edges;
-    tsk_id_t new_parent1, new_parent2, new_child1, new_child2;
     tsk_modular_simplifier_t simplifier;
     tsk_id_t *samples;
     tsk_id_t last_parent;
     tsk_size_t row;
-    ret = tsk_table_collection_init(&tables, 0);
-    tables.sequence_length = 1.0;
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_edge_table_init(&new_edges, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    samples = tsk_malloc(2 * sizeof(tsk_id_t));
-    CU_ASSERT_TRUE(samples != NULL)
 
-    parse_nodes(single_tree_ex_nodes, &tables.nodes);
-    parse_edges(single_tree_ex_edges, &tables.edges);
-
-    /* "record new births" into node table */
-    new_parent1 = tsk_node_table_add_row(&tables.nodes, 0, -1.0, -1, -1, NULL, 0);
-    CU_ASSERT_TRUE_FATAL(new_parent1 >= 0);
-    new_parent2 = tsk_node_table_add_row(&tables.nodes, 0, -1.0, -1, -1, NULL, 0);
-    CU_ASSERT_TRUE_FATAL(new_parent2 >= 0);
-    new_child1 = tsk_node_table_add_row(&tables.nodes, 0, -2.0, -1, -1, NULL, 0);
-    CU_ASSERT_TRUE_FATAL(new_child1 >= 0);
-    new_child2 = tsk_node_table_add_row(&tables.nodes, 0, -2.0, -1, -1, NULL, 0);
-    CU_ASSERT_TRUE_FATAL(new_child2 >= 0);
-
-    /* record edges */
-    ret = tsk_edge_table_add_row(
-        &new_edges, 0, tables.sequence_length, 0, new_parent1, NULL, 0);
-    CU_ASSERT_TRUE_FATAL(ret >= 0);
-    ret = tsk_edge_table_add_row(
-        &new_edges, 0, tables.sequence_length, 2, new_parent2, NULL, 0);
-    CU_ASSERT_TRUE_FATAL(ret >= 0);
-    ret = tsk_edge_table_add_row(
-        &new_edges, 0, tables.sequence_length, new_parent1, new_child1, NULL, 0);
-    CU_ASSERT_TRUE_FATAL(ret >= 0);
-    ret = tsk_edge_table_add_row(
-        &new_edges, 0, tables.sequence_length, new_parent2, new_child2, NULL, 0);
-    CU_ASSERT_TRUE_FATAL(ret >= 0);
-    samples[0] = new_child1;
-    samples[1] = new_child2;
+    make_single_tree_for_testing_modular_simplify(&tables, &new_edges, &samples);
     ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 2, 0);
     CU_ASSERT_TRUE_FATAL(ret == 0);
     CU_ASSERT_EQUAL(new_edges.num_rows, 4);
@@ -8717,7 +8733,7 @@ test_table_collection_modular_simplify_simple_tree(void)
         if (new_edges.parent[new_edges.num_rows - row - 1] != last_parent) {
             ret = tsk_modular_simplifier_merge_ancestors(&simplifier, last_parent);
             CU_ASSERT_EQUAL_FATAL(ret, 0);
-            new_edges.parent[new_edges.num_rows - row - 1] = last_parent;
+            last_parent = new_edges.parent[row];
         }
         CU_ASSERT_FATAL(new_edges.parent[new_edges.num_rows - row - 1] >= 0);
         ret = tsk_modular_simplifier_add_edge(&simplifier,
@@ -8743,6 +8759,53 @@ test_table_collection_modular_simplify_simple_tree(void)
     tsk_safe_free(samples);
 }
 
+static void
+test_table_collection_modular_simplify_simple_tree_add_edges_wrong_birth_order(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_edge_table_t new_edges;
+    tsk_modular_simplifier_t simplifier;
+    tsk_id_t *samples;
+    tsk_id_t last_parent;
+    tsk_size_t row;
+    int failed = 0;
+
+    make_single_tree_for_testing_modular_simplify(&tables, &new_edges, &samples);
+    ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 2, 0);
+    CU_ASSERT_TRUE_FATAL(ret == 0);
+    CU_ASSERT_EQUAL(new_edges.num_rows, 4);
+
+    last_parent = TSK_NULL;
+    for (row = 0; row < new_edges.num_rows; ++row) {
+        if (last_parent == TSK_NULL) {
+            last_parent = new_edges.parent[row];
+        }
+        if (new_edges.parent[row] != last_parent) {
+            ret = tsk_modular_simplifier_merge_ancestors(&simplifier, last_parent);
+            CU_ASSERT_EQUAL_FATAL(ret, 0);
+            last_parent = new_edges.parent[row];
+        }
+        CU_ASSERT_FATAL(new_edges.parent[row] >= 0);
+        ret = tsk_modular_simplifier_add_edge(&simplifier, new_edges.left[row],
+            new_edges.right[row], new_edges.parent[row], new_edges.child[row]);
+        // First two rows are okay,
+        // then the next row has a birth time
+        // more recent than the previous.
+        if (row < 2) {
+            CU_ASSERT_TRUE_FATAL(ret >= 0);
+            ++failed;
+        } else {
+            CU_ASSERT_TRUE_FATAL(ret < 0);
+        }
+    }
+    CU_ASSERT_TRUE_FATAL(failed);
+
+    tsk_table_collection_free(&tables);
+    tsk_edge_table_free(&new_edges);
+    tsk_modular_simplifier_free(&simplifier);
+    tsk_safe_free(samples);
+}
 static void
 test_edge_update_invalidates_index(void)
 {
@@ -11708,6 +11771,9 @@ main(int argc, char **argv)
             test_table_collection_simplify_errors },
         { "test_table_collection_modular_simplify_simple_tree",
             test_table_collection_modular_simplify_simple_tree },
+        { "test_table_collection_modular_simplify_simple_tree_add_edges_wrong_birth_"
+          "order",
+            test_table_collection_modular_simplify_simple_tree_add_edges_wrong_birth_order },
         { "test_table_collection_time_units", test_table_collection_time_units },
         { "test_table_collection_reference_sequence",
             test_table_collection_reference_sequence },

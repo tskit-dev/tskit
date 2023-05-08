@@ -13613,6 +13613,7 @@ typedef struct __tsk_modular_simplifier_impl_t {
     tsk_id_t last_parent_processed;
     tsk_id_t *input_nodes;
     tsk_size_t num_input_nodes;
+    double last_parent_time;
 } tsk_modular_simplifier_impl_t;
 
 int
@@ -13636,6 +13637,7 @@ tsk_modular_simplifier_init(tsk_modular_simplifier_t *self,
     }
     self->pimpl->num_input_nodes = tables->nodes.num_rows;
     self->pimpl->last_parent_processed = -1;
+    self->pimpl->last_parent_time = DBL_MIN;
 
     /* Now that we have set up the pimpl state,
      * we can let the unsual init happen
@@ -13664,6 +13666,16 @@ tsk_modular_simplifier_add_edge(tsk_modular_simplifier_t *self, double left,
         ret = TSK_ERR_NULL_CHILD;
         goto out;
     }
+
+    fprintf(stdout, "%lf %lf\n", self->pimpl->last_parent_time,
+        self->pimpl->simplifier.input_tables.nodes.time[parent]);
+    if (self->pimpl->simplifier.input_tables.nodes.time[parent]
+        < self->pimpl->last_parent_time) {
+        ret = -999999999;
+        goto out;
+    }
+    self->pimpl->last_parent_time
+        = self->pimpl->simplifier.input_tables.nodes.time[parent];
 
     if (parent != self->pimpl->last_parent_processed
         && self->pimpl->last_parent_processed != TSK_NULL) {
