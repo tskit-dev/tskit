@@ -8680,6 +8680,7 @@ test_table_collection_modular_simplify_simple_tree(void)
 
     tsk_table_collection_free(&tables);
     tsk_edge_table_free(&new_edges);
+    tsk_modular_simplifier_free(&simplifier);
 }
 
 static void
