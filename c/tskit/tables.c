@@ -13659,19 +13659,19 @@ tsk_modular_simplifier_add_edge(tsk_modular_simplifier_t *self, double left,
     int ret = 0;
 
     if (parent == TSK_NULL || parent >= (tsk_id_t) self->pimpl->num_input_nodes) {
+        // FIXME: we don't have good error code for this
         ret = TSK_ERR_NULL_PARENT;
         goto out;
     }
     if (child == TSK_NULL || child >= (tsk_id_t) self->pimpl->num_input_nodes) {
+        // FIXME: we don't have good error code for this
         ret = TSK_ERR_NULL_CHILD;
         goto out;
     }
 
-    fprintf(stdout, "%lf %lf\n", self->pimpl->last_parent_time,
-        self->pimpl->simplifier.input_tables.nodes.time[parent]);
     if (self->pimpl->simplifier.input_tables.nodes.time[parent]
         < self->pimpl->last_parent_time) {
-        ret = -999999999;
+        ret = TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME;
         goto out;
     }
     self->pimpl->last_parent_time
