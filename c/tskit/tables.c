@@ -13625,6 +13625,14 @@ tsk_modular_simplifier_init(tsk_modular_simplifier_t *self,
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
+    /* Have to init this array here b/c the internal simplifier
+     * "steals" input tables"
+     */
+    self->pimpl->input_nodes = tsk_malloc(tables->nodes.num_rows * sizeof(tsk_id_t));
+    if (self->pimpl->input_nodes == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
     ret = simplifier_init(
         &self->pimpl->simplifier, samples, num_samples, tables, options);
     if (ret != 0) {
@@ -13632,11 +13640,6 @@ tsk_modular_simplifier_init(tsk_modular_simplifier_t *self,
     }
 
     self->pimpl->last_parent_processed = -1;
-    self->pimpl->input_nodes = tsk_malloc(tables->nodes.num_rows * sizeof(tsk_id_t));
-    if (self->pimpl->input_nodes == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
-        goto out;
-    }
 out:
     return ret;
 }

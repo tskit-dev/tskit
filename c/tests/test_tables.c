@@ -8639,8 +8639,10 @@ test_table_collection_modular_simplify_simple_tree(void)
     tsk_id_t new_parent1, new_parent2, new_child1, new_child2;
     tsk_modular_simplifier_t simplifier;
     tsk_id_t *samples;
-    tsk_size_t row;
+    tsk_id_t last_parent;
+    tsk_size_t row, num_input_nodes;
     ret = tsk_table_collection_init(&tables, 0);
+    tables.sequence_length = 1.0;
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_edge_table_init(&new_edges, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -8652,50 +8654,64 @@ test_table_collection_modular_simplify_simple_tree(void)
 
     // "record new births" into node table
     new_parent1 = tsk_node_table_add_row(&tables.nodes, 0, -1.0, -1, -1, NULL, 0);
-    CU_ASSERT_TRUE(new_parent1 >= 0);
+    CU_ASSERT_TRUE_FATAL(new_parent1 >= 0);
     new_parent2 = tsk_node_table_add_row(&tables.nodes, 0, -1.0, -1, -1, NULL, 0);
-    CU_ASSERT_TRUE(new_parent2 >= 0);
+    CU_ASSERT_TRUE_FATAL(new_parent2 >= 0);
     new_child1 = tsk_node_table_add_row(&tables.nodes, 0, -2.0, -1, -1, NULL, 0);
-    CU_ASSERT_TRUE(new_child1 >= 0);
+    CU_ASSERT_TRUE_FATAL(new_child1 >= 0);
     new_child2 = tsk_node_table_add_row(&tables.nodes, 0, -2.0, -1, -1, NULL, 0);
-    CU_ASSERT_TRUE(new_child2 >= 0);
+    CU_ASSERT_TRUE_FATAL(new_child2 >= 0);
 
     // record edges
     ret = tsk_edge_table_add_row(
         &new_edges, 0, tables.sequence_length, 0, new_parent1, NULL, 0);
-    CU_ASSERT_TRUE(ret >= 0);
+    CU_ASSERT_TRUE_FATAL(ret >= 0);
     ret = tsk_edge_table_add_row(
         &new_edges, 0, tables.sequence_length, 2, new_parent2, NULL, 0);
-    CU_ASSERT_TRUE(ret >= 0);
+    CU_ASSERT_TRUE_FATAL(ret >= 0);
     ret = tsk_edge_table_add_row(
         &new_edges, 0, tables.sequence_length, new_parent1, new_child1, NULL, 0);
-    CU_ASSERT_TRUE(ret >= 0);
+    CU_ASSERT_TRUE_FATAL(ret >= 0);
     ret = tsk_edge_table_add_row(
         &new_edges, 0, tables.sequence_length, new_parent2, new_child2, NULL, 0);
-    CU_ASSERT_TRUE(ret >= 0);
+    CU_ASSERT_TRUE_FATAL(ret >= 0);
     samples[0] = new_child1;
     samples[1] = new_child2;
+    num_input_nodes = tables.nodes.num_rows;
     ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 2, 0);
-    CU_ASSERT_TRUE(ret > 0);
+    CU_ASSERT_TRUE_FATAL(ret == 0);
     CU_ASSERT_EQUAL(new_edges.num_rows, 4);
 
+    // FIXME: using last_parent means we have knowledge about the
+    // internal details of how simplification works, which is a no-no.
+    last_parent = TSK_NULL;
     for (row = 0; row < new_edges.num_rows; ++row) {
-        CU_ASSERT(new_edges.parent[new_edges.num_rows - row - 1] >= 0);
-        CU_ASSERT(new_edges.parent[new_edges.num_rows - row - 1]
-                  < (tsk_id_t) tables.nodes.num_rows);
+        if (last_parent == TSK_NULL) {
+            last_parent = new_edges.parent[new_edges.num_rows - row - 1];
+        }
+        if (new_edges.parent[new_edges.num_rows - row - 1] != last_parent) {
+            ret = tsk_modular_simplifier_merge_ancestors(&simplifier, last_parent);
+            CU_ASSERT_EQUAL_FATAL(ret, 0);
+            new_edges.parent[new_edges.num_rows - row - 1] = last_parent;
+        }
+        CU_ASSERT_FATAL(new_edges.parent[new_edges.num_rows - row - 1] >= 0);
+        CU_ASSERT_FATAL(
+            new_edges.parent[new_edges.num_rows - row - 1] < (tsk_id_t) num_input_nodes);
         ret = tsk_modular_simplifier_add_edge(&simplifier,
             new_edges.left[new_edges.num_rows - row - 1],
             new_edges.right[new_edges.num_rows - row - 1],
             new_edges.parent[new_edges.num_rows - row - 1],
             new_edges.child[new_edges.num_rows - row - 1]);
-        CU_ASSERT_TRUE(ret == 0);
+        CU_ASSERT_TRUE_FATAL(ret >= 0);
     }
+
+    ret = tsk_modular_simplifier_finalise(&simplifier, NULL);
+    CU_ASSERT_TRUE_FATAL(ret >= 0);
 
     tsk_table_collection_free(&tables);
     tsk_edge_table_free(&new_edges);
     tsk_modular_simplifier_free(&simplifier);
     tsk_safe_free(samples);
-    CU_ASSERT_EQUAL_FATAL(1, 0);
 }
 
 static void
