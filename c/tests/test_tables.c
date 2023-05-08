@@ -8630,6 +8630,34 @@ test_simplify_metadata(void)
     tsk_table_collection_free(&tables);
 }
 
+/*
+ * Start with this tree:
+ *          6
+ *         / \
+ *        /   \
+ *       /     \
+ *      /       5
+ *     4       / \
+ *    / \     /   \
+ *   0   1   2     3
+ *
+ *   Add data like a fake forward sim to give:
+ *
+ *          6
+ *         / \
+ *        /   \
+ *       /     \
+ *      /       5
+ *     4       / \
+ *    / \     /   \
+ *   0   1   2     3
+ *   |       |
+ *   7       8 <- new_parent 1 and 2, resp.
+ *   |       |
+ *   9       10 <- new child 1 and 2, resp.
+ *
+ *   Then, we simplify w.r.to 9 and 10.
+ */
 static void
 test_table_collection_modular_simplify_simple_tree(void)
 {
@@ -8652,7 +8680,7 @@ test_table_collection_modular_simplify_simple_tree(void)
     parse_nodes(single_tree_ex_nodes, &tables.nodes);
     parse_edges(single_tree_ex_edges, &tables.edges);
 
-    // "record new births" into node table
+    /* "record new births" into node table */
     new_parent1 = tsk_node_table_add_row(&tables.nodes, 0, -1.0, -1, -1, NULL, 0);
     CU_ASSERT_TRUE_FATAL(new_parent1 >= 0);
     new_parent2 = tsk_node_table_add_row(&tables.nodes, 0, -1.0, -1, -1, NULL, 0);
@@ -8662,7 +8690,7 @@ test_table_collection_modular_simplify_simple_tree(void)
     new_child2 = tsk_node_table_add_row(&tables.nodes, 0, -2.0, -1, -1, NULL, 0);
     CU_ASSERT_TRUE_FATAL(new_child2 >= 0);
 
-    // record edges
+    /* record edges */
     ret = tsk_edge_table_add_row(
         &new_edges, 0, tables.sequence_length, 0, new_parent1, NULL, 0);
     CU_ASSERT_TRUE_FATAL(ret >= 0);
@@ -8682,8 +8710,11 @@ test_table_collection_modular_simplify_simple_tree(void)
     CU_ASSERT_TRUE_FATAL(ret == 0);
     CU_ASSERT_EQUAL(new_edges.num_rows, 4);
 
-    // FIXME: using last_parent means we have knowledge about the
-    // internal details of how simplification works, which is a no-no.
+    /*FIXME: using last_parent means we have knowledge about the
+     * internal details of how simplification works, which is a no-no.
+     * We need the internal state of this thing to know the number of
+     * input nodes and check against that internally.
+     */
     last_parent = TSK_NULL;
     for (row = 0; row < new_edges.num_rows; ++row) {
         if (last_parent == TSK_NULL) {
@@ -8707,6 +8738,12 @@ test_table_collection_modular_simplify_simple_tree(void)
 
     ret = tsk_modular_simplifier_finalise(&simplifier, NULL);
     CU_ASSERT_TRUE_FATAL(ret >= 0);
+    CU_ASSERT_TRUE_FATAL(!tsk_table_collection_has_index(&tables, 0));
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_TRUE_FATAL(ret == 0);
+    ret = tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_EDGE_ORDERING | TSK_CHECK_TREES | TSK_CHECK_INDEXES);
+    CU_ASSERT_TRUE_FATAL(ret == 1); /* this is no. trees, not an error code */
 
     tsk_table_collection_free(&tables);
     tsk_edge_table_free(&new_edges);
