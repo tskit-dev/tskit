@@ -13607,3 +13607,54 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
     self->tree_left = right;
     return ret;
 }
+
+typedef struct __tsk_modular_simplifier_impl_t {
+    simplifier_t simplifier;
+} tsk_modular_simplifier_impl_t;
+
+int
+tsk_modular_simplifier_init(tsk_modular_simplifier_t *self,
+    tsk_table_collection_t *tables, const tsk_id_t *samples, tsk_size_t num_samples,
+    tsk_flags_t options)
+{
+    int ret = 0;
+    self->pimpl = tsk_malloc(sizeof(tsk_modular_simplifier_impl_t));
+    if (self->pimpl == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    ret = simplifier_init(
+        &self->pimpl->simplifier, samples, num_samples, tables, options);
+    if (ret != 0) {
+        goto out;
+    }
+
+out:
+    return ret;
+}
+
+// FIXME: parent not used
+int
+tsk_modular_simplifier_add_edge(tsk_modular_simplifier_t *self, double left,
+    double right, tsk_id_t parent, tsk_id_t child)
+{
+    int ret = simplifier_extract_ancestry(&self->pimpl->simplifier, left, right, child);
+    return ret;
+}
+
+int
+tsk_modular_simplifier_merge_ancestors(tsk_modular_simplifier_t *self, tsk_id_t parent)
+{
+    int ret = simplifier_merge_ancestors(&self->pimpl->simplifier, parent);
+    self->pimpl->simplifier.segment_queue_size = 0;
+    return ret;
+}
+
+int
+tsk_modular_simplifier_finalise(tsk_modular_simplifier_t *self, tsk_id_t *node_map)
+{
+    int ret = 0;
+    simplifier_t *simplifier = &self->pimpl->simplifier;
+    ret = simplifier_run(simplifier, node_map);
+    return ret;
+}
