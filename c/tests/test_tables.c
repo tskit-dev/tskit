@@ -8668,7 +8668,7 @@ test_table_collection_modular_simplify_simple_tree(void)
     tsk_modular_simplifier_t simplifier;
     tsk_id_t *samples;
     tsk_id_t last_parent;
-    tsk_size_t row, num_input_nodes;
+    tsk_size_t row;
     ret = tsk_table_collection_init(&tables, 0);
     tables.sequence_length = 1.0;
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -8705,16 +8705,10 @@ test_table_collection_modular_simplify_simple_tree(void)
     CU_ASSERT_TRUE_FATAL(ret >= 0);
     samples[0] = new_child1;
     samples[1] = new_child2;
-    num_input_nodes = tables.nodes.num_rows;
     ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 2, 0);
     CU_ASSERT_TRUE_FATAL(ret == 0);
     CU_ASSERT_EQUAL(new_edges.num_rows, 4);
 
-    /*FIXME: using last_parent means we have knowledge about the
-     * internal details of how simplification works, which is a no-no.
-     * We need the internal state of this thing to know the number of
-     * input nodes and check against that internally.
-     */
     last_parent = TSK_NULL;
     for (row = 0; row < new_edges.num_rows; ++row) {
         if (last_parent == TSK_NULL) {
@@ -8726,8 +8720,6 @@ test_table_collection_modular_simplify_simple_tree(void)
             new_edges.parent[new_edges.num_rows - row - 1] = last_parent;
         }
         CU_ASSERT_FATAL(new_edges.parent[new_edges.num_rows - row - 1] >= 0);
-        CU_ASSERT_FATAL(
-            new_edges.parent[new_edges.num_rows - row - 1] < (tsk_id_t) num_input_nodes);
         ret = tsk_modular_simplifier_add_edge(&simplifier,
             new_edges.left[new_edges.num_rows - row - 1],
             new_edges.right[new_edges.num_rows - row - 1],

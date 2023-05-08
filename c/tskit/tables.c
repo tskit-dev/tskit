@@ -13612,6 +13612,7 @@ typedef struct __tsk_modular_simplifier_impl_t {
     simplifier_t simplifier;
     tsk_id_t last_parent_processed;
     tsk_id_t *input_nodes;
+    tsk_size_t num_input_nodes;
 } tsk_modular_simplifier_impl_t;
 
 int
@@ -13633,13 +13634,18 @@ tsk_modular_simplifier_init(tsk_modular_simplifier_t *self,
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
+    self->pimpl->num_input_nodes = tables->nodes.num_rows;
+    self->pimpl->last_parent_processed = -1;
+
+    /* Now that we have set up the pimpl state,
+     * we can let the unsual init happen
+     */
     ret = simplifier_init(
         &self->pimpl->simplifier, samples, num_samples, tables, options);
     if (ret != 0) {
         goto out;
     }
 
-    self->pimpl->last_parent_processed = -1;
 out:
     return ret;
 }
@@ -13649,6 +13655,15 @@ tsk_modular_simplifier_add_edge(tsk_modular_simplifier_t *self, double left,
     double right, tsk_id_t parent, tsk_id_t child)
 {
     int ret = 0;
+
+    if (parent == TSK_NULL || parent >= (tsk_id_t) self->pimpl->num_input_nodes) {
+        ret = TSK_ERR_NULL_PARENT;
+        goto out;
+    }
+    if (child == TSK_NULL || child >= (tsk_id_t) self->pimpl->num_input_nodes) {
+        ret = TSK_ERR_NULL_CHILD;
+        goto out;
+    }
 
     if (parent != self->pimpl->last_parent_processed
         && self->pimpl->last_parent_processed != TSK_NULL) {
