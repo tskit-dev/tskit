@@ -8631,6 +8631,34 @@ test_simplify_metadata(void)
     tsk_table_collection_free(&tables);
 }
 
+/*
+ * Start with this tree:
+ *          6
+ *         / \
+ *        /   \
+ *       /     \
+ *      /       5
+ *     4       / \
+ *    / \     /   \
+ *   0   1   2     3
+ *
+ *   Add data like a fake forward sim to give:
+ *
+ *          6
+ *         / \
+ *        /   \
+ *       /     \
+ *      /       5
+ *     4       / \
+ *    / \     /   \
+ *   0   1   2     3
+ *   |       |
+ *   7       8 <- new_parent 1 and 2, resp.
+ *   |       |
+ *   9       10 <- new child 1 and 2, resp.
+ *
+ *   Then, we simplify w.r.to 9 and 10.
+ */
 static void
 make_single_tree_for_testing_modular_simplify(
     tsk_table_collection_t *tables, tsk_edge_table_t *new_edges, tsk_id_t **samples)
@@ -8681,34 +8709,6 @@ make_single_tree_for_testing_modular_simplify(
     (*samples)[1] = new_child2;
 }
 
-/*
- * Start with this tree:
- *          6
- *         / \
- *        /   \
- *       /     \
- *      /       5
- *     4       / \
- *    / \     /   \
- *   0   1   2     3
- *
- *   Add data like a fake forward sim to give:
- *
- *          6
- *         / \
- *        /   \
- *       /     \
- *      /       5
- *     4       / \
- *    / \     /   \
- *   0   1   2     3
- *   |       |
- *   7       8 <- new_parent 1 and 2, resp.
- *   |       |
- *   9       10 <- new child 1 and 2, resp.
- *
- *   Then, we simplify w.r.to 9 and 10.
- */
 static void
 test_table_collection_modular_simplify_simple_tree(void)
 {
