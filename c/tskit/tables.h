@@ -4786,21 +4786,22 @@ void tsk_diff_iter_print_state(const tsk_diff_iter_t *self, FILE *out);
 
 typedef struct {
     /* don't leak private types into public API */
-    struct __tsk_modular_simplifier_impl_t * pimpl;
+    struct __tsk_modular_simplifier_impl_t *pimpl;
 } tsk_modular_simplifier_t;
 
-int tsk_modular_simplifier_init(tsk_modular_simplifier_t * self,
-    tsk_table_collection_t *tables, const tsk_id_t *samples,
-    tsk_size_t num_samples, tsk_flags_t options);
-int tsk_modular_simplifier_free(tsk_modular_simplifier_t * self);
+int tsk_modular_simplifier_init(tsk_modular_simplifier_t *self,
+    tsk_table_collection_t *tables, const tsk_id_t *samples, tsk_size_t num_samples,
+    tsk_flags_t options);
+int tsk_modular_simplifier_free(tsk_modular_simplifier_t *self);
 // metadata...
-int tsk_modular_simplifier_add_edge(tsk_modular_simplifier_t * self,
-    double left, double right, tsk_id_t parent, tsk_id_t child);
-int tsk_modular_simplifier_merge_ancestors(tsk_modular_simplifier_t * self, tsk_id_t parent);
+int tsk_modular_simplifier_add_edge(tsk_modular_simplifier_t *self, double left,
+    double right, tsk_id_t parent, tsk_id_t child);
+int tsk_modular_simplifier_merge_ancestors(
+    tsk_modular_simplifier_t *self, tsk_id_t parent);
 
 // runs the simplifier, thus processing ancient edges
 // present in the input edge table.
-int tsk_modular_simplifier_finalise(tsk_modular_simplifier_t * self, tsk_id_t *node_map);
+int tsk_modular_simplifier_finalise(tsk_modular_simplifier_t *self, tsk_id_t *node_map);
 
 #ifdef __cplusplus
 }
