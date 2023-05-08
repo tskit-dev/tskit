@@ -8794,12 +8794,25 @@ test_table_collection_modular_simplify_simple_tree_add_edges_wrong_birth_order(v
         // more recent than the previous.
         if (row < 2) {
             CU_ASSERT_TRUE_FATAL(ret >= 0);
-            ++failed;
         } else {
             CU_ASSERT_TRUE_FATAL(ret < 0);
+            CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
+            ++failed;
         }
     }
     CU_ASSERT_TRUE_FATAL(failed);
+
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_TRUE_FATAL(ret == 0);
+    /* NOTE: by not handling the errors that increment failed,
+     * we can get tables that appear valid.
+     * Production code MUST exit the "edge adding loop" upon error.
+     */
+    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_EDGE_ORDERING);
+    CU_ASSERT_TRUE_FATAL(ret == 0);
+    ret = tsk_table_collection_check_integrity(
+        &tables, TSK_CHECK_EDGE_ORDERING | TSK_CHECK_TREES | TSK_CHECK_INDEXES);
+    CU_ASSERT_TRUE_FATAL(ret == 1);
 
     tsk_table_collection_free(&tables);
     tsk_edge_table_free(&new_edges);
