@@ -24,6 +24,7 @@
 
 #include "testlib.h"
 #include "tskit/core.h"
+#include <CUnit/CUnit.h>
 #include <tskit/tables.h>
 
 #include <float.h>
@@ -8630,10 +8631,53 @@ test_simplify_metadata(void)
 }
 
 static void
-test_modular_simplifier(void)
+test_table_collection_modular_simplify_simple_tree(void)
 {
     int ret;
     tsk_table_collection_t tables;
+    tsk_edge_table_t new_edges;
+    tsk_id_t new_parent1, new_parent2, new_child1, new_child2;
+    tsk_modular_simplifier_t simplifier;
+    tsk_id_t samples[2];
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_init(&new_edges, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    parse_nodes(single_tree_ex_nodes, &tables.nodes);
+    parse_edges(single_tree_ex_edges, &tables.edges);
+
+    tsk_table_collection_free(&tables);
+    tsk_edge_table_free(&new_edges);
+
+    // "record new births" into node table
+    new_parent1 = tsk_node_table_add_row(&tables.nodes, 0, -1.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE(new_parent1 >= 0);
+    new_parent2 = tsk_node_table_add_row(&tables.nodes, 0, -1.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE(new_parent2 >= 0);
+    new_child1 = tsk_node_table_add_row(&tables.nodes, 0, -2.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE(new_child1 >= 0);
+    new_child2 = tsk_node_table_add_row(&tables.nodes, 0, -2.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE(new_child2 >= 0);
+
+    // record edges
+    ret = tsk_edge_table_add_row(
+        &new_edges, 0, tables.sequence_length, 0, new_parent1, NULL, 0);
+    CU_ASSERT_TRUE(ret >= 0);
+    ret = tsk_edge_table_add_row(
+        &new_edges, 0, tables.sequence_length, 2, new_parent2, NULL, 0);
+    CU_ASSERT_TRUE(ret >= 0);
+    ret = tsk_edge_table_add_row(
+        &new_edges, 0, tables.sequence_length, new_parent1, new_child1, NULL, 0);
+    CU_ASSERT_TRUE(ret >= 0);
+    ret = tsk_edge_table_add_row(
+        &new_edges, 0, tables.sequence_length, new_parent2, new_child2, NULL, 0);
+    CU_ASSERT_TRUE(ret >= 0);
+
+    samples[0] = new_child1;
+    samples[1] = new_child2;
+    ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 2, 0);
+    CU_ASSERT_TRUE(ret >= 0);
     CU_ASSERT_EQUAL_FATAL(1, 0);
 }
 
@@ -11600,6 +11644,8 @@ main(int argc, char **argv)
         { "test_table_collection_equals_options", test_table_collection_equals_options },
         { "test_table_collection_simplify_errors",
             test_table_collection_simplify_errors },
+        { "test_table_collection_modular_simplify_simple_tree",
+            test_table_collection_modular_simplify_simple_tree },
         { "test_table_collection_time_units", test_table_collection_time_units },
         { "test_table_collection_reference_sequence",
             test_table_collection_reference_sequence },
