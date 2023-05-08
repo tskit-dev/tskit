@@ -13610,6 +13610,8 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
 
 typedef struct __tsk_modular_simplifier_impl_t {
     simplifier_t simplifier;
+    tsk_id_t last_parent_processed;
+    tsk_id_t *input_nodes;
 } tsk_modular_simplifier_impl_t;
 
 int
@@ -13629,6 +13631,12 @@ tsk_modular_simplifier_init(tsk_modular_simplifier_t *self,
         goto out;
     }
 
+    self->pimpl->last_parent_processed = -1;
+    self->pimpl->input_nodes = tsk_malloc(tables->nodes.num_rows * sizeof(tsk_id_t));
+    if (self->pimpl->input_nodes == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
 out:
     return ret;
 }
@@ -13656,5 +13664,19 @@ tsk_modular_simplifier_finalise(tsk_modular_simplifier_t *self, tsk_id_t *node_m
     int ret = 0;
     simplifier_t *simplifier = &self->pimpl->simplifier;
     ret = simplifier_run(simplifier, node_map);
+    return ret;
+}
+
+int
+tsk_modular_simplifier_free(tsk_modular_simplifier_t *self)
+{
+    int ret = 0;
+    ret = simplifier_free(&self->pimpl->simplifier);
+    if (ret != 0) {
+        goto out;
+    }
+    tsk_safe_free(self->pimpl->input_nodes);
+    tsk_safe_free(self->pimpl);
+out:
     return ret;
 }
