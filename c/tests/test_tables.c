@@ -8630,6 +8630,14 @@ test_simplify_metadata(void)
 }
 
 static void
+test_modular_simplifier(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    CU_ASSERT_EQUAL_FATAL(1, 0);
+}
+
+static void
 test_edge_update_invalidates_index(void)
 {
     int ret;
