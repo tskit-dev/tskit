@@ -8716,6 +8716,66 @@ make_single_tree_for_testing_modular_simplify(
     (*samples)[2] = new_child3;
 }
 
+/* This is our starting tree.
+ * We will add additional births
+ * to 0/1/3 and then use that as
+ * the basis for testing.
+ *
+ * 1.20┊         ┊     8   ┊         ┊
+ *     ┊         ┊   ┏━┻━┓ ┊         ┊
+ * 1.00┊   7     ┊   ┃   ┃ ┊         ┊
+ *     ┊ ┏━┻━┓   ┊   ┃   ┃ ┊         ┊
+ * 0.70┊ ┃   ┃   ┊   ┃   ┃ ┊   6     ┊
+ *     ┊ ┃   ┃   ┊   ┃   ┃ ┊ ┏━┻━┓   ┊
+ * 0.50┊ ┃   5   ┊   5   ┃ ┊ ┃   5   ┊
+ *     ┊ ┃ ┏━┻┓  ┊  ┏┻━┓ ┃ ┊ ┃ ┏━┻┓  ┊
+ * 0.40┊ ┃ ┃  4  ┊  4  ┃ ┃ ┊ ┃ ┃  4  ┊
+ *     ┊ ┃ ┃ ┏┻┓ ┊ ┏┻┓ ┃ ┃ ┊ ┃ ┃ ┏┻┓ ┊
+ * 0.20┊ ┃ ┃ ┃ 3 ┊ ┃ ┃ ┃ 3 ┊ ┃ ┃ ┃ 3 ┊
+ *     ┊ ┃ ┃ ┃   ┊ ┃ ┃ ┃   ┊ ┃ ┃ ┃   ┊
+ * 0.10┊ ┃ 1 2   ┊ ┃ 2 1   ┊ ┃ 1 2   ┊
+ *     ┊ ┃       ┊ ┃       ┊ ┃       ┊
+ * 0.00┊ 0       ┊ 0       ┊ 0       ┊
+ *   0.00      2.00      8.00      10.00
+ */
+static void
+make_overlapping_generations_trees_for_testing_modular_simplify(
+    tsk_table_collection_t *tables, tsk_edge_table_t *new_edges, tsk_id_t **samples)
+{
+    int ret;
+    tsk_id_t new_child0, new_child1, new_child2;
+    ret = tsk_table_collection_init(tables, 0);
+    parse_edges(internal_sample_ex_edges, &tables->edges);
+    parse_nodes(internal_sample_ex_nodes, &tables->nodes);
+    tables->sequence_length = 10.0;
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_init(new_edges, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    *samples = tsk_malloc(3 * sizeof(tsk_id_t));
+    CU_ASSERT_TRUE_FATAL(*samples != NULL);
+
+    new_child0 = tsk_node_table_add_row(&tables->nodes, 0, -1.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(new_child0 > 0);
+    new_child1 = tsk_node_table_add_row(&tables->nodes, 0, -1.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(new_child1 > 0);
+    new_child2 = tsk_node_table_add_row(&tables->nodes, 0, -1.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(new_child2 > 0);
+
+    /* To maintain sanity, transmit non-recombinant genomes */
+    ret = tsk_edge_table_add_row(
+        &tables->edges, 0., tables->sequence_length, 0, new_child0, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(ret >= 0);
+    ret = tsk_edge_table_add_row(
+        &tables->edges, 0., tables->sequence_length, 1, new_child1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(ret >= 0);
+    ret = tsk_edge_table_add_row(
+        &tables->edges, 0., tables->sequence_length, 3, new_child2, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(ret >= 0);
+    (*samples)[0] = new_child0;
+    (*samples)[1] = new_child1;
+    (*samples)[2] = new_child2;
+}
+
 static void
 run_test_modular_simplify_single_tree(tsk_id_t row_order[5], int expected_result)
 {
@@ -8939,6 +8999,18 @@ test_table_collection_modular_simplify_add_child_with_invalid_time(void)
     tsk_table_collection_free(&tables);
     tsk_edge_table_free(&new_edges);
     tsk_modular_simplifier_free(&simplifier);
+}
+
+static void
+test_table_collection_modular_simplify_overlapping_generations(void)
+{
+    // int ret;
+    tsk_table_collection_t tables;
+    tsk_edge_table_t new_edges;
+    // tsk_modular_simplifier_t simplifier;
+    tsk_id_t *samples;
+    make_overlapping_generations_trees_for_testing_modular_simplify(
+        &tables, &new_edges, &samples);
 }
 
 /* This hits part of simplifier intialisation that is
@@ -11962,6 +12034,8 @@ main(int argc, char **argv)
             test_table_collection_modular_simplify_bad_samples },
         { "test_table_collection_modular_simplify_table_integrity_check_fail",
             test_table_collection_modular_simplify_table_integrity_check_fail },
+        { "test_table_collection_modular_simplify_overlapping_generations",
+            test_table_collection_modular_simplify_overlapping_generations },
         { "test_table_collection_time_units", test_table_collection_time_units },
         { "test_table_collection_reference_sequence",
             test_table_collection_reference_sequence },
