@@ -8753,25 +8753,20 @@ run_test_modular_simplify_single_tree(tsk_id_t row_order[5], int expected_result
     if (ret < 0) {
         goto out;
     }
-    last_parent = TSK_NULL;
-    for (row = 0; row < new_edges.num_rows; ++row) {
-        if (last_parent == TSK_NULL) {
-            last_parent = new_edges.parent[row_order[row]];
-        }
-        /* NOTE: this is a goof, as we are not correctly diagnosing
-         * when the final input row is a sole new parent id
-         */
-        if (new_edges.parent[row_order[row]] != last_parent && last_parent != TSK_NULL) {
-            fprintf(stdout, "merging %d\n", last_parent);
-            ret = tsk_modular_simplifier_merge_ancestors(&simplifier, last_parent);
+    row = 0;
+    while (row < new_edges.num_rows) {
+        last_parent = new_edges.parent[row_order[row]];
+        while (row < new_edges.num_rows
+               && new_edges.parent[row_order[row]] == last_parent) {
+            ret = tsk_modular_simplifier_add_edge(&simplifier,
+                new_edges.left[row_order[row]], new_edges.right[row_order[row]],
+                new_edges.parent[row_order[row]], new_edges.child[row_order[row]]);
             if (ret < 0) {
                 goto out;
             }
+            ++row;
         }
-        last_parent = new_edges.parent[row_order[row]];
-        ret = tsk_modular_simplifier_add_edge(&simplifier,
-            new_edges.left[row_order[row]], new_edges.right[row_order[row]],
-            new_edges.parent[row_order[row]], new_edges.child[row_order[row]]);
+        ret = tsk_modular_simplifier_merge_ancestors(&simplifier, last_parent);
         if (ret < 0) {
             goto out;
         }
