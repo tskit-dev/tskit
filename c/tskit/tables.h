@@ -4784,21 +4784,26 @@ int tsk_diff_iter_next(tsk_diff_iter_t *self, double *left, double *right,
     tsk_edge_list_t *edges_out, tsk_edge_list_t *edges_in);
 void tsk_diff_iter_print_state(const tsk_diff_iter_t *self, FILE *out);
 
+/* TODO: document */
 typedef struct {
     /* don't leak private types into public API */
     struct __tsk_modular_simplifier_impl_t *pimpl;
 } tsk_modular_simplifier_t;
 
+/* TODO: document */
 int tsk_modular_simplifier_init(tsk_modular_simplifier_t *self,
     tsk_table_collection_t *tables, const tsk_id_t *samples, tsk_size_t num_samples,
     tsk_flags_t options);
+/* TODO: document */
 int tsk_modular_simplifier_free(tsk_modular_simplifier_t *self);
-// metadata...
+/* TODO: document */
 int tsk_modular_simplifier_add_edge(tsk_modular_simplifier_t *self, double left,
     double right, tsk_id_t parent, tsk_id_t child);
+/* TODO: document */
 int tsk_modular_simplifier_merge_ancestors(
     tsk_modular_simplifier_t *self, tsk_id_t parent);
 
+/* TODO: document */
 // runs the simplifier, thus processing ancient edges
 // present in the input edge table.
 int tsk_modular_simplifier_finalise(tsk_modular_simplifier_t *self, tsk_id_t *node_map);
