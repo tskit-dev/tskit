@@ -8740,13 +8740,16 @@ run_test_modular_simplify_single_tree(tsk_id_t row_order[5], int expected_result
     if (ret < 0) {
         goto out;
     }
+    CU_ASSERT_EQUAL_FATAL(
+        standard_tables.edges.num_rows, tables.edges.num_rows + new_edges.num_rows);
+    CU_ASSERT_EQUAL_FATAL(standard_tables.nodes.num_rows, tables.nodes.num_rows);
 
     ret = tsk_table_collection_simplify(&standard_tables, samples, 3, 0, NULL);
     if (ret < 0) {
         goto out;
     }
 
-    ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 2, 0);
+    ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 3, 0);
     if (ret < 0) {
         goto out;
     }
@@ -8755,13 +8758,17 @@ run_test_modular_simplify_single_tree(tsk_id_t row_order[5], int expected_result
         if (last_parent == TSK_NULL) {
             last_parent = new_edges.parent[row_order[row]];
         }
-        if (new_edges.parent[row_order[row]] != last_parent) {
+        /* NOTE: this is a goof, as we are not correctly diagnosing
+         * when the final input row is a sole new parent id
+         */
+        if (new_edges.parent[row_order[row]] != last_parent && last_parent != TSK_NULL) {
+            fprintf(stdout, "merging %d\n", last_parent);
             ret = tsk_modular_simplifier_merge_ancestors(&simplifier, last_parent);
             if (ret < 0) {
                 goto out;
             }
-            last_parent = new_edges.parent[row_order[row]];
         }
+        last_parent = new_edges.parent[row_order[row]];
         ret = tsk_modular_simplifier_add_edge(&simplifier,
             new_edges.left[row_order[row]], new_edges.right[row_order[row]],
             new_edges.parent[row_order[row]], new_edges.child[row_order[row]]);
@@ -8769,6 +8776,16 @@ run_test_modular_simplify_single_tree(tsk_id_t row_order[5], int expected_result
             goto out;
         }
     }
+    ret = tsk_modular_simplifier_finalise(&simplifier, NULL);
+    if (ret < 0) {
+        goto out;
+    }
+
+    // Now, we can compare various properties of the two table collections
+    fprintf(stdout, "%ld %ld\n", standard_tables.nodes.num_rows, tables.nodes.num_rows);
+    fprintf(stdout, "%ld %ld\n", standard_tables.edges.num_rows, tables.edges.num_rows);
+    CU_ASSERT_EQUAL_FATAL(standard_tables.edges.num_rows, tables.edges.num_rows);
+    CU_ASSERT_EQUAL_FATAL(standard_tables.nodes.num_rows, tables.nodes.num_rows);
 
 out:
     tsk_table_collection_free(&tables);
