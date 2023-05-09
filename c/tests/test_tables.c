@@ -8942,6 +8942,24 @@ test_table_collection_modular_simplify_add_child_with_invalid_time(void)
 }
 
 static void
+test_table_collection_modular_simplify_bad_samples(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_edge_table_t new_edges;
+    tsk_modular_simplifier_t simplifier;
+    tsk_id_t *samples;
+    make_single_tree_for_testing_modular_simplify(&tables, &new_edges, &samples);
+    samples[0] = -1;
+    ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 3, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    tsk_safe_free(samples);
+    tsk_table_collection_free(&tables);
+    tsk_edge_table_free(&new_edges);
+    tsk_modular_simplifier_free(&simplifier);
+}
+
+static void
 test_edge_update_invalidates_index(void)
 {
     int ret;
@@ -11915,6 +11933,8 @@ main(int argc, char **argv)
             test_table_collection_modular_simplify_add_invalid_parent_or_child },
         { "test_table_collection_modular_simplify_add_child_with_invalid_time",
             test_table_collection_modular_simplify_add_child_with_invalid_time },
+        { "test_table_collection_modular_simplify_bad_samples",
+            test_table_collection_modular_simplify_bad_samples },
         { "test_table_collection_time_units", test_table_collection_time_units },
         { "test_table_collection_reference_sequence",
             test_table_collection_reference_sequence },
