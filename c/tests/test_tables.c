@@ -8795,6 +8795,7 @@ test_table_collection_modular_simplify_simple_tree_discontiguous_parents(void)
             last_parent = new_edges.parent[row_order[row]];
         }
         if (new_edges.parent[row_order[row]] != last_parent) {
+            fprintf(stdout, "merging %d\n", last_parent);
             ret = tsk_modular_simplifier_merge_ancestors(&simplifier, last_parent);
             CU_ASSERT_EQUAL_FATAL(ret, 0);
             last_parent = new_edges.parent[row_order[row]];

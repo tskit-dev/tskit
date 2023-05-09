@@ -13679,7 +13679,11 @@ tsk_modular_simplifier_add_edge(tsk_modular_simplifier_t *self, double left,
 
     if (parent != self->pimpl->last_parent_processed
         && self->pimpl->last_parent_processed != TSK_NULL) {
+        fprintf(
+            stdout, "parent stuff: %d %d\n", parent, self->pimpl->last_parent_processed);
         if (self->pimpl->input_nodes[parent] != TSK_NULL) {
+            fprintf(stdout, "parent stuff fail: %d %d\n", parent,
+                self->pimpl->last_parent_processed);
             ret = TSK_ERR_EDGES_NONCONTIGUOUS_PARENTS;
             goto out;
         }
@@ -13699,6 +13703,7 @@ tsk_modular_simplifier_merge_ancestors(tsk_modular_simplifier_t *self, tsk_id_t 
     /* mark this input parent as "seen" */
     self->pimpl->input_nodes[parent] = parent;
     self->pimpl->simplifier.segment_queue_size = 0;
+    self->pimpl->last_parent_processed = parent;
 out:
     return ret;
 }
