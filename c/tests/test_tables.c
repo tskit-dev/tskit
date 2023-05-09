@@ -8758,6 +8758,23 @@ run_test_modular_simplify_single_tree(tsk_id_t row_order[5], int expected_result
         goto out;
     }
     row = 0;
+    /* Pseudocode that we are mocking:
+     * For each parent of a new edge:
+     *   - add that edge to the segment queue.
+     *   - When done, finalise the queue and merge ancestors.
+     *
+     * If our buffer is wrong, we will have parents unsorted by time
+     * and/or the same parent processed in different loop iterations.
+     * Each case is an error that MUST be handled.
+     * It is trivial to show that not handling the errors can give rise
+     * to invalid table collections / tree sequences.
+     * The requirement for error handling must be documented
+     *
+     * Production code should use an input other than
+     * an edge table.
+     * (How edges are sorted is an internal detail
+     *  and cannot be used for testing.)
+     */
     while (row < new_edges.num_rows) {
         last_parent = new_edges.parent[row_order[row]];
         while (row < new_edges.num_rows
@@ -8775,6 +8792,18 @@ run_test_modular_simplify_single_tree(tsk_id_t row_order[5], int expected_result
             goto out;
         }
     }
+    /* Simplification's internal cleanup.
+     * Shoud NOT be called if above loop errors.
+     * We know that not calling it and calling
+     * "modular simplifier free" does not leak
+     * because valgrind is happy.
+     *
+     * Now, we have processed all (child) nodes whose births are
+     * MORE RECENT than those in the input tables.
+     *
+     * TODO: the init method should check the preconditon
+     * stated above.
+     */
     ret = tsk_modular_simplifier_finalise(&simplifier, NULL);
     if (ret < 0) {
         goto out;
