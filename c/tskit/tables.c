@@ -13611,7 +13611,7 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
 typedef struct __tsk_modular_simplifier_impl_t {
     simplifier_t simplifier;
     tsk_id_t last_parent_processed;
-    tsk_id_t *input_nodes;
+    tsk_id_t *input_node_visited;
     tsk_size_t num_input_nodes;
     double last_parent_time;
 } tsk_modular_simplifier_impl_t;
@@ -13631,13 +13631,14 @@ tsk_modular_simplifier_init(tsk_modular_simplifier_t *self,
     /* Have to init this array here b/c the internal simplifier
      * "steals" input tables"
      */
-    self->pimpl->input_nodes = tsk_malloc(tables->nodes.num_rows * sizeof(tsk_id_t));
-    if (self->pimpl->input_nodes == NULL) {
+    self->pimpl->input_node_visited
+        = tsk_malloc(tables->nodes.num_rows * sizeof(tsk_id_t));
+    if (self->pimpl->input_node_visited == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
     for (i = 0; i < tables->nodes.num_rows; ++i) {
-        self->pimpl->input_nodes[i] = TSK_NULL;
+        self->pimpl->input_node_visited[i] = 0;
     }
     self->pimpl->num_input_nodes = tables->nodes.num_rows;
     self->pimpl->last_parent_processed = -1;
@@ -13683,7 +13684,7 @@ tsk_modular_simplifier_add_edge(tsk_modular_simplifier_t *self, double left,
 
     if (parent != self->pimpl->last_parent_processed
         && self->pimpl->last_parent_processed != TSK_NULL) {
-        if (self->pimpl->input_nodes[parent] != TSK_NULL) {
+        if (self->pimpl->input_node_visited[parent] != 0) {
             ret = TSK_ERR_EDGES_NONCONTIGUOUS_PARENTS;
             goto out;
         }
@@ -13701,7 +13702,7 @@ tsk_modular_simplifier_merge_ancestors(tsk_modular_simplifier_t *self, tsk_id_t 
         goto out;
     }
     /* mark this input parent as "seen" */
-    self->pimpl->input_nodes[parent] = parent;
+    self->pimpl->input_node_visited[parent] = 1;
     self->pimpl->simplifier.segment_queue_size = 0;
     self->pimpl->last_parent_processed = parent;
 out:
@@ -13725,7 +13726,7 @@ tsk_modular_simplifier_free(tsk_modular_simplifier_t *self)
     if (ret != 0) {
         goto out;
     }
-    tsk_safe_free(self->pimpl->input_nodes);
+    tsk_safe_free(self->pimpl->input_node_visited);
     tsk_safe_free(self->pimpl);
 out:
     return ret;
