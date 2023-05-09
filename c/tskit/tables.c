@@ -13614,6 +13614,7 @@ typedef struct __tsk_modular_simplifier_impl_t {
     tsk_id_t *input_node_visited;
     tsk_size_t num_input_nodes;
     double last_parent_time;
+    double minimum_input_node_time;
 } tsk_modular_simplifier_impl_t;
 
 int
@@ -13643,6 +13644,12 @@ tsk_modular_simplifier_init(tsk_modular_simplifier_t *self,
     self->pimpl->num_input_nodes = tables->nodes.num_rows;
     self->pimpl->last_parent_processed = -1;
     self->pimpl->last_parent_time = DBL_MIN;
+    self->pimpl->minimum_input_node_time = DBL_MAX;
+    for (i = 0; i < tables->edges.num_rows; ++i) {
+        self->pimpl->minimum_input_node_time
+            = TSK_MIN(self->pimpl->minimum_input_node_time,
+                tables->nodes.time[tables->edges.child[i]]);
+    }
 
     /* Now that we have set up the pimpl state,
      * we can let the unsual init happen
@@ -13671,6 +13678,13 @@ tsk_modular_simplifier_add_edge(tsk_modular_simplifier_t *self, double left,
     if (child == TSK_NULL || child >= (tsk_id_t) self->pimpl->num_input_nodes) {
         // FIXME: we don't have good error code for this
         ret = TSK_ERR_NULL_CHILD;
+        goto out;
+    }
+
+    if (self->pimpl->simplifier.input_tables.nodes.time[child]
+        > self->pimpl->minimum_input_node_time) {
+        // TODO: does this mean what I think it means :)
+        ret = TSK_ERR_EDGES_NOT_SORTED_CHILD;
         goto out;
     }
 
