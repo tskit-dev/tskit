@@ -8746,19 +8746,14 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
     tsk_id_t new_child0, new_child1, new_child2;
     tsk_size_t row;
     ret = tsk_table_collection_init(tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
     parse_edges(internal_sample_ex_edges, &tables->edges);
     parse_nodes(internal_sample_ex_nodes, &tables->nodes);
     tables->sequence_length = 10.0;
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_edge_table_init(new_edges, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     *samples = tsk_malloc(3 * sizeof(tsk_id_t));
     CU_ASSERT_TRUE_FATAL(*samples != NULL);
-
-    // We need to cheat, "stealing" edges from the input
-    // table and putting them into the new_edges so that
-    // we can mimic what a "real" implementation needs
-    // to do.
 
     new_child0 = tsk_node_table_add_row(&tables->nodes, 0, -1.0, -1, -1, NULL, 0);
     CU_ASSERT_TRUE_FATAL(new_child0 > 0);
@@ -8773,8 +8768,43 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
         // make all times >= 0.0.
         tables->nodes.time[row] += 1.0;
     }
+    ret = tsk_table_collection_check_integrity(tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
+    /* We need to cheat, "stealing" edges from the input
+     * table and putting them into the new_edges so that
+     * we can mimic what a "real" implementation needs
+     * to do.
+     *
+     * Initial edge fixture:
+     * const char *internal_sample_ex_edges = "2 8  4 0\n"
+     *                                        "0 10 4 2\n"
+     *                                        "0 2  4 3\n"
+     *                                        "8 10 4 3\n"
+     *                                        "0 10 5 1,4\n"
+     *                                        "8 10 6 0,5\n"
+     *                                        "0 2  7 0,5\n"
+     *                                        "2 8  8 3,5\n";
+     * We can rewrite it to make the edge_id easier to read:
+     * "2 8  4 0\n"
+     * "0 10 4 2\n"
+     * "0 2  4 3\n"
+     * "8 10 4 3\n"
+     * "0 10 5 1\n"
+     * "0 10 5 4\n"
+     * "8 10 6 0\n"
+     * "8 10 6 5\n"
+     * "0 2  7 0\n"
+     * "0 2  7 5\n"
+     * "2 8  8 3\n";
+     * "2 8  8 5\n";
+     */
     /* To maintain sanity, transmit non-recombinant genomes */
+    for (row = 0; row < tables->edges.num_rows; ++row) {
+        fprintf(stdout, "%lf %lf %d %d\n", tables->edges.left[row],
+            tables->edges.right[row], tables->edges.parent[row],
+            tables->edges.child[row]);
+    }
     ret = tsk_edge_table_add_row(
         &tables->edges, 0., tables->sequence_length, 0, new_child0, NULL, 0);
     CU_ASSERT_TRUE_FATAL(ret >= 0);
