@@ -13656,10 +13656,6 @@ tsk_modular_simplifier_init(tsk_modular_simplifier_t *self,
      */
     ret = simplifier_init(
         &self->pimpl->simplifier, samples, num_samples, tables, options);
-    if (ret != 0) {
-        goto out;
-    }
-
 out:
     return ret;
 }
