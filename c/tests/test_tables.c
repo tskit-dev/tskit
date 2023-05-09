@@ -8653,9 +8653,9 @@ test_simplify_metadata(void)
  *    / \     /   \
  *   0   1   2     3
  *   |       |
- *   7       8 <- new_parent 1 and 2, resp.
- *   |       |
- *   9       10 <- new child 1 and 2, resp.
+ *   7       8--- <- new_parent 1 and 2, resp.
+ *   |       |  |
+ *   9       10 11 <- new child 1, 2, and 3, resp.
  *
  *   Then, we simplify w.r.to 9 and 10.
  */
@@ -8664,14 +8664,14 @@ make_single_tree_for_testing_modular_simplify(
     tsk_table_collection_t *tables, tsk_edge_table_t *new_edges, tsk_id_t **samples)
 {
     int ret;
-    tsk_id_t new_parent1, new_parent2, new_child1, new_child2;
+    tsk_id_t new_parent1, new_parent2, new_child1, new_child2, new_child3;
     tsk_size_t row;
     ret = tsk_table_collection_init(tables, 0);
     tables->sequence_length = 1.0;
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_edge_table_init(new_edges, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    *samples = tsk_malloc(2 * sizeof(tsk_id_t));
+    *samples = tsk_malloc(3 * sizeof(tsk_id_t));
     CU_ASSERT_TRUE(samples != NULL)
 
     parse_nodes(single_tree_ex_nodes, &tables->nodes);
@@ -8686,6 +8686,8 @@ make_single_tree_for_testing_modular_simplify(
     CU_ASSERT_TRUE_FATAL(new_child1 >= 0);
     new_child2 = tsk_node_table_add_row(&tables->nodes, 0, -2.0, -1, -1, NULL, 0);
     CU_ASSERT_TRUE_FATAL(new_child2 >= 0);
+    new_child3 = tsk_node_table_add_row(&tables->nodes, 0, -2.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(new_child3 >= 0);
 
     for (row = 0; row < tables->nodes.num_rows; ++row) {
         // make all times >= 0.0.
@@ -8705,8 +8707,12 @@ make_single_tree_for_testing_modular_simplify(
     ret = tsk_edge_table_add_row(
         new_edges, 0, tables->sequence_length, new_parent2, new_child2, NULL, 0);
     CU_ASSERT_TRUE_FATAL(ret >= 0);
+    ret = tsk_edge_table_add_row(
+        new_edges, 0, tables->sequence_length, new_parent2, new_child3, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(ret >= 0);
     (*samples)[0] = new_child1;
     (*samples)[1] = new_child2;
+    (*samples)[2] = new_child3;
 }
 
 static void
@@ -8723,7 +8729,6 @@ test_table_collection_modular_simplify_simple_tree(void)
     make_single_tree_for_testing_modular_simplify(&tables, &new_edges, &samples);
     ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 2, 0);
     CU_ASSERT_TRUE_FATAL(ret == 0);
-    CU_ASSERT_EQUAL(new_edges.num_rows, 4);
 
     last_parent = TSK_NULL;
     for (row = 0; row < new_edges.num_rows; ++row) {
@@ -8733,7 +8738,7 @@ test_table_collection_modular_simplify_simple_tree(void)
         if (new_edges.parent[new_edges.num_rows - row - 1] != last_parent) {
             ret = tsk_modular_simplifier_merge_ancestors(&simplifier, last_parent);
             CU_ASSERT_EQUAL_FATAL(ret, 0);
-            last_parent = new_edges.parent[row];
+            last_parent = new_edges.parent[new_edges.num_rows - row - 1];
         }
         CU_ASSERT_FATAL(new_edges.parent[new_edges.num_rows - row - 1] >= 0);
         ret = tsk_modular_simplifier_add_edge(&simplifier,
@@ -8760,6 +8765,55 @@ test_table_collection_modular_simplify_simple_tree(void)
 }
 
 static void
+test_table_collection_modular_simplify_simple_tree_discontiguous_parents(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_edge_table_t new_edges;
+    tsk_modular_simplifier_t simplifier;
+    tsk_id_t *samples;
+    tsk_id_t last_parent;
+    tsk_size_t row;
+    tsk_id_t row_order[5] = { 3, 2, 4, 1, 0 };
+    int failure_code = 0;
+
+    make_single_tree_for_testing_modular_simplify(&tables, &new_edges, &samples);
+    CU_ASSERT_EQUAL_FATAL(new_edges.num_rows, 5);
+    for (row = 0; row < new_edges.num_rows; ++row) {
+        fprintf(stdout, "parent column: %ld %d -> %d\n", row, row_order[row],
+            new_edges.parent[row_order[row]]);
+    }
+    ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 2, 0);
+    CU_ASSERT_TRUE_FATAL(ret == 0);
+
+    last_parent = TSK_NULL;
+
+    // The last 2 new edges have the same parent,
+    // Let's only process one of them in this loop.
+    for (row = 0; row < new_edges.num_rows; ++row) {
+        if (last_parent == TSK_NULL) {
+            last_parent = new_edges.parent[row_order[row]];
+        }
+        if (new_edges.parent[row_order[row]] != last_parent) {
+            ret = tsk_modular_simplifier_merge_ancestors(&simplifier, last_parent);
+            CU_ASSERT_EQUAL_FATAL(ret, 0);
+            last_parent = new_edges.parent[row_order[row]];
+        }
+        CU_ASSERT_FATAL(new_edges.parent[row_order[row]] >= 0);
+        ret = tsk_modular_simplifier_add_edge(&simplifier,
+            new_edges.left[row_order[row]], new_edges.right[row_order[row]],
+            new_edges.parent[row_order[row]], new_edges.child[row_order[row]]);
+        CU_ASSERT_TRUE_FATAL(ret >= 0);
+        if (ret < 0) {
+            failure_code = ret;
+            break;
+        }
+    }
+    CU_ASSERT_TRUE_FATAL(failure_code < 0);
+    CU_ASSERT_EQUAL_FATAL(failure_code, TSK_ERR_EDGES_NONCONTIGUOUS_PARENTS);
+}
+
+static void
 test_table_collection_modular_simplify_simple_tree_add_edges_wrong_birth_order(void)
 {
     int ret;
@@ -8774,7 +8828,6 @@ test_table_collection_modular_simplify_simple_tree_add_edges_wrong_birth_order(v
     make_single_tree_for_testing_modular_simplify(&tables, &new_edges, &samples);
     ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 2, 0);
     CU_ASSERT_TRUE_FATAL(ret == 0);
-    CU_ASSERT_EQUAL(new_edges.num_rows, 4);
 
     last_parent = TSK_NULL;
     for (row = 0; row < new_edges.num_rows; ++row) {
@@ -8819,6 +8872,7 @@ test_table_collection_modular_simplify_simple_tree_add_edges_wrong_birth_order(v
     tsk_modular_simplifier_free(&simplifier);
     tsk_safe_free(samples);
 }
+
 static void
 test_edge_update_invalidates_index(void)
 {
@@ -11784,6 +11838,8 @@ main(int argc, char **argv)
             test_table_collection_simplify_errors },
         { "test_table_collection_modular_simplify_simple_tree",
             test_table_collection_modular_simplify_simple_tree },
+        { "test_table_collection_modular_simplify_simple_tree_discontiguous_parents",
+            test_table_collection_modular_simplify_simple_tree_discontiguous_parents },
         { "test_table_collection_modular_simplify_simple_tree_add_edges_wrong_birth_"
           "order",
             test_table_collection_modular_simplify_simple_tree_add_edges_wrong_birth_order },
