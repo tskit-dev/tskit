@@ -8658,7 +8658,7 @@ test_simplify_metadata(void)
  *   |       |  |
  *   9       10 11 <- new child 1, 2, and 3, resp.
  *
- *   Then, we simplify w.r.to 9 and 10.
+ *   Then, we simplify w.r.to [9, 10, 11].
  */
 static void
 make_single_tree_for_testing_modular_simplify(
