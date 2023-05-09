@@ -8801,8 +8801,10 @@ run_test_modular_simplify_single_tree(tsk_id_t row_order[5], int expected_result
      * Now, we have processed all (child) nodes whose births are
      * MORE RECENT than those in the input tables.
      *
-     * TODO: the init method should check the preconditon
-     * stated above.
+     * TODO: the init method should calculate the minimum
+     * birth time of any child in the input table.
+     * The "edge adder" function should ensure that all
+     * new edges are < (or <= ??) that value.
      */
     ret = tsk_modular_simplifier_finalise(&simplifier, NULL);
     if (ret < 0) {
