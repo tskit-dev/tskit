@@ -8793,7 +8793,7 @@ run_test_modular_simplify_single_tree(tsk_id_t row_order[5], int expected_result
         }
     }
     /* Simplification's internal cleanup.
-     * Shoud NOT be called if above loop errors.
+     * Should NOT be called if above loop errors.
      * We know that not calling it and calling
      * "modular simplifier free" does not leak
      * because valgrind is happy.
