@@ -13670,20 +13670,23 @@ tsk_modular_simplifier_add_edge(tsk_modular_simplifier_t *self, double left,
 {
     int ret = 0;
 
-    if (parent == TSK_NULL || parent >= (tsk_id_t) self->pimpl->num_input_nodes) {
-        // FIXME: we don't have good error code for this
+    if (parent == TSK_NULL) {
         ret = TSK_ERR_NULL_PARENT;
         goto out;
     }
-    if (child == TSK_NULL || child >= (tsk_id_t) self->pimpl->num_input_nodes) {
-        // FIXME: we don't have good error code for this
+    if (child == TSK_NULL) {
         ret = TSK_ERR_NULL_CHILD;
+        goto out;
+    }
+    if (parent >= (tsk_id_t) self->pimpl->num_input_nodes
+        || child >= (tsk_id_t) self->pimpl->num_input_nodes) {
+        ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
         goto out;
     }
 
     if (self->pimpl->simplifier.input_tables.nodes.time[child]
         > self->pimpl->minimum_input_node_time) {
-        // TODO: does this mean what I think it means :)
+        // TODO: does this mean what I think it means?
         ret = TSK_ERR_EDGES_NOT_SORTED_CHILD;
         goto out;
     }
