@@ -13622,6 +13622,7 @@ tsk_modular_simplifier_init(tsk_modular_simplifier_t *self,
     tsk_flags_t options)
 {
     int ret = 0;
+    tsk_size_t i;
     self->pimpl = tsk_malloc(sizeof(tsk_modular_simplifier_impl_t));
     if (self->pimpl == NULL) {
         ret = TSK_ERR_NO_MEMORY;
@@ -13634,6 +13635,9 @@ tsk_modular_simplifier_init(tsk_modular_simplifier_t *self,
     if (self->pimpl->input_nodes == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
+    }
+    for (i = 0; i < tables->nodes.num_rows; ++i) {
+        self->pimpl->input_nodes[i] = TSK_NULL;
     }
     self->pimpl->num_input_nodes = tables->nodes.num_rows;
     self->pimpl->last_parent_processed = -1;
@@ -13679,11 +13683,7 @@ tsk_modular_simplifier_add_edge(tsk_modular_simplifier_t *self, double left,
 
     if (parent != self->pimpl->last_parent_processed
         && self->pimpl->last_parent_processed != TSK_NULL) {
-        fprintf(
-            stdout, "parent stuff: %d %d\n", parent, self->pimpl->last_parent_processed);
         if (self->pimpl->input_nodes[parent] != TSK_NULL) {
-            fprintf(stdout, "parent stuff fail: %d %d\n", parent,
-                self->pimpl->last_parent_processed);
             ret = TSK_ERR_EDGES_NONCONTIGUOUS_PARENTS;
             goto out;
         }

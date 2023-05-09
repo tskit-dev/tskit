@@ -8779,10 +8779,6 @@ test_table_collection_modular_simplify_simple_tree_discontiguous_parents(void)
 
     make_single_tree_for_testing_modular_simplify(&tables, &new_edges, &samples);
     CU_ASSERT_EQUAL_FATAL(new_edges.num_rows, 5);
-    for (row = 0; row < new_edges.num_rows; ++row) {
-        fprintf(stdout, "parent column: %ld %d -> %d\n", row, row_order[row],
-            new_edges.parent[row_order[row]]);
-    }
     ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 2, 0);
     CU_ASSERT_TRUE_FATAL(ret == 0);
 
@@ -8795,7 +8791,6 @@ test_table_collection_modular_simplify_simple_tree_discontiguous_parents(void)
             last_parent = new_edges.parent[row_order[row]];
         }
         if (new_edges.parent[row_order[row]] != last_parent) {
-            fprintf(stdout, "merging %d\n", last_parent);
             ret = tsk_modular_simplifier_merge_ancestors(&simplifier, last_parent);
             CU_ASSERT_EQUAL_FATAL(ret, 0);
             last_parent = new_edges.parent[row_order[row]];
@@ -8804,7 +8799,6 @@ test_table_collection_modular_simplify_simple_tree_discontiguous_parents(void)
         ret = tsk_modular_simplifier_add_edge(&simplifier,
             new_edges.left[row_order[row]], new_edges.right[row_order[row]],
             new_edges.parent[row_order[row]], new_edges.child[row_order[row]]);
-        CU_ASSERT_TRUE_FATAL(ret >= 0);
         if (ret < 0) {
             failure_code = ret;
             break;
