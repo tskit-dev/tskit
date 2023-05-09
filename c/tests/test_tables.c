@@ -8744,6 +8744,7 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
 {
     int ret;
     tsk_id_t new_child0, new_child1, new_child2;
+    tsk_size_t row;
     ret = tsk_table_collection_init(tables, 0);
     parse_edges(internal_sample_ex_edges, &tables->edges);
     parse_nodes(internal_sample_ex_nodes, &tables->nodes);
@@ -8760,6 +8761,13 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
     CU_ASSERT_TRUE_FATAL(new_child1 > 0);
     new_child2 = tsk_node_table_add_row(&tables->nodes, 0, -1.0, -1, -1, NULL, 0);
     CU_ASSERT_TRUE_FATAL(new_child2 > 0);
+
+    for (row = 0; row < tables->nodes.num_rows; ++row) {
+        // for some reason, the fixture sets pop to 0...
+        tables->nodes.population[row] = -1;
+        // make all times >= 0.0.
+        tables->nodes.time[row] += 1.0;
+    }
 
     /* To maintain sanity, transmit non-recombinant genomes */
     ret = tsk_edge_table_add_row(
@@ -9152,8 +9160,9 @@ out:
     tsk_table_collection_free(&tables);
     tsk_table_collection_free(&standard_tables);
     tsk_edge_table_free(&new_edges);
-    tsk_modular_simplifier_free(&simplifier);
+    // tsk_modular_simplifier_free(&simplifier);
     tsk_safe_free(samples);
+    fprintf(stdout, "ret = %d\n", ret);
     CU_ASSERT_EQUAL_FATAL(ret, expected_result);
 }
 
