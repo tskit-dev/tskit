@@ -8755,6 +8755,11 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
     *samples = tsk_malloc(3 * sizeof(tsk_id_t));
     CU_ASSERT_TRUE_FATAL(*samples != NULL);
 
+    // We need to cheat, "stealing" edges from the input
+    // table and putting them into the new_edges so that
+    // we can mimic what a "real" implementation needs
+    // to do.
+
     new_child0 = tsk_node_table_add_row(&tables->nodes, 0, -1.0, -1, -1, NULL, 0);
     CU_ASSERT_TRUE_FATAL(new_child0 > 0);
     new_child1 = tsk_node_table_add_row(&tables->nodes, 0, -1.0, -1, -1, NULL, 0);
