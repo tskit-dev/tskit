@@ -8890,7 +8890,7 @@ test_table_collection_modular_simplify_simple_tree_add_edges_wrong_birth_order(v
 }
 
 static void
-test_table_collection_modular_simplify_add_null_parent_or_child(void)
+test_table_collection_modular_simplify_add_invalid_parent_or_child(void)
 {
     int ret;
     tsk_table_collection_t tables;
@@ -8906,6 +8906,11 @@ test_table_collection_modular_simplify_add_null_parent_or_child(void)
     ret = tsk_modular_simplifier_add_edge(
         &simplifier, 0., 1, new_edges.parent[4], TSK_NULL);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NULL_CHILD);
+    ret = tsk_modular_simplifier_add_edge(&simplifier, 0., 1, 10000, new_edges.child[4]);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    ret = tsk_modular_simplifier_add_edge(
+        &simplifier, 0., 1, new_edges.parent[4], 10000);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
     tsk_safe_free(samples);
     tsk_table_collection_free(&tables);
@@ -11906,8 +11911,8 @@ main(int argc, char **argv)
         { "test_table_collection_modular_simplify_simple_tree_add_edges_wrong_birth_"
           "order",
             test_table_collection_modular_simplify_simple_tree_add_edges_wrong_birth_order },
-        { "test_table_collection_modular_simplify_add_null_parent_or_child",
-            test_table_collection_modular_simplify_add_null_parent_or_child },
+        { "test_table_collection_modular_simplify_add_invalid_parent_or_child",
+            test_table_collection_modular_simplify_add_invalid_parent_or_child },
         { "test_table_collection_modular_simplify_add_child_with_invalid_time",
             test_table_collection_modular_simplify_add_child_with_invalid_time },
         { "test_table_collection_time_units", test_table_collection_time_units },
