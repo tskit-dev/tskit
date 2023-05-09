@@ -8806,6 +8806,11 @@ test_table_collection_modular_simplify_simple_tree_discontiguous_parents(void)
     }
     CU_ASSERT_TRUE_FATAL(failure_code < 0);
     CU_ASSERT_EQUAL_FATAL(failure_code, TSK_ERR_EDGES_NONCONTIGUOUS_PARENTS);
+
+    tsk_table_collection_free(&tables);
+    tsk_edge_table_free(&new_edges);
+    tsk_modular_simplifier_free(&simplifier);
+    tsk_safe_free(samples);
 }
 
 static void
