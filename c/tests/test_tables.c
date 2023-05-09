@@ -24,6 +24,7 @@
 
 #include "testlib.h"
 #include "tskit/core.h"
+#include "tskit/trees.h"
 #include <CUnit/CUnit.h>
 #include <stdio.h>
 #include <tskit/tables.h>
@@ -8722,6 +8723,7 @@ run_test_modular_simplify_single_tree(tsk_id_t row_order[5], int expected_result
     tsk_table_collection_t tables, standard_tables;
     tsk_edge_table_t new_edges;
     tsk_modular_simplifier_t simplifier;
+    tsk_treeseq_t treeseq, standard_treeseq;
     tsk_id_t *samples;
     tsk_id_t last_parent;
     tsk_size_t row;
@@ -8777,10 +8779,30 @@ run_test_modular_simplify_single_tree(tsk_id_t row_order[5], int expected_result
     }
 
     // Now, we can compare various properties of the two table collections
-    fprintf(stdout, "%ld %ld\n", standard_tables.nodes.num_rows, tables.nodes.num_rows);
-    fprintf(stdout, "%ld %ld\n", standard_tables.edges.num_rows, tables.edges.num_rows);
     CU_ASSERT_EQUAL_FATAL(standard_tables.edges.num_rows, tables.edges.num_rows);
     CU_ASSERT_EQUAL_FATAL(standard_tables.nodes.num_rows, tables.nodes.num_rows);
+
+    ret = tsk_table_collection_build_index(&standard_tables, 0);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = tsk_table_collection_build_index(&tables, 0);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = tsk_treeseq_init(&standard_treeseq, &standard_tables, 0);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = tsk_treeseq_init(&treeseq, &tables, 0);
+    if (ret < 0) {
+        goto out;
+    }
+    CU_ASSERT_EQUAL_FATAL(tsk_treeseq_get_num_trees(&standard_treeseq),
+        tsk_treeseq_get_num_trees(&treeseq));
+    tsk_treeseq_free(&standard_treeseq);
+    tsk_treeseq_free(&treeseq);
 
 out:
     tsk_table_collection_free(&tables);
