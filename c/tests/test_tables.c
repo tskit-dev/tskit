@@ -8724,9 +8724,11 @@ run_test_modular_simplify_single_tree(tsk_id_t row_order[5], int expected_result
     tsk_edge_table_t new_edges;
     tsk_modular_simplifier_t simplifier;
     tsk_treeseq_t treeseq, standard_treeseq;
+    tsk_tree_t standard_tree, tree;
     tsk_id_t *samples;
     tsk_id_t last_parent;
     tsk_size_t row;
+    double ttl_time, standard_ttl_time;
     make_single_tree_for_testing_modular_simplify(&tables, &new_edges, &samples);
 
     ret = tsk_table_collection_copy(&tables, &standard_tables, 0);
@@ -8778,6 +8780,8 @@ run_test_modular_simplify_single_tree(tsk_id_t row_order[5], int expected_result
         goto out;
     }
 
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
     // Now, we can compare various properties of the two table collections
     CU_ASSERT_EQUAL_FATAL(standard_tables.edges.num_rows, tables.edges.num_rows);
     CU_ASSERT_EQUAL_FATAL(standard_tables.nodes.num_rows, tables.nodes.num_rows);
@@ -8801,9 +8805,27 @@ run_test_modular_simplify_single_tree(tsk_id_t row_order[5], int expected_result
     }
     CU_ASSERT_EQUAL_FATAL(tsk_treeseq_get_num_trees(&standard_treeseq),
         tsk_treeseq_get_num_trees(&treeseq));
+    ret = tsk_tree_init(&standard_tree, &standard_treeseq, 0);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = tsk_tree_init(&tree, &treeseq, 0);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = tsk_tree_first(&standard_tree);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_TREE_OK);
+    for (ret = tsk_tree_first(&tree); ret == TSK_TREE_OK; ret = tsk_tree_next(&tree)) {
+        tsk_tree_get_total_branch_length(&tree, -1, &ttl_time);
+        tsk_tree_get_total_branch_length(&standard_tree, -1, &standard_ttl_time);
+        CU_ASSERT_TRUE(ttl_time - standard_ttl_time <= 1e-9);
+        tsk_tree_next(&standard_tree);
+    }
     tsk_treeseq_free(&standard_treeseq);
     tsk_treeseq_free(&treeseq);
-
+    tsk_tree_free(&standard_tree);
+    tsk_tree_free(&tree);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 out:
     tsk_table_collection_free(&tables);
     tsk_table_collection_free(&standard_tables);
