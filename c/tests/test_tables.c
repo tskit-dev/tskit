@@ -8941,6 +8941,9 @@ test_table_collection_modular_simplify_add_child_with_invalid_time(void)
     tsk_modular_simplifier_free(&simplifier);
 }
 
+/* This hits part of simplifier intialisation that is
+ * NOT part of table integrity checks
+ */
 static void
 test_table_collection_modular_simplify_bad_samples(void)
 {
