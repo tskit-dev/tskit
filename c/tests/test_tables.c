@@ -8696,19 +8696,19 @@ make_single_tree_for_testing_modular_simplify(
     }
 
     /* record edges */
-    ret = tsk_edge_table_add_row(
+    ret = (tsk_id_t) tsk_edge_table_add_row(
         new_edges, 0, tables->sequence_length, 0, new_parent1, NULL, 0);
     CU_ASSERT_TRUE_FATAL(ret >= 0);
-    ret = tsk_edge_table_add_row(
+    ret = (tsk_id_t) tsk_edge_table_add_row(
         new_edges, 0, tables->sequence_length, 2, new_parent2, NULL, 0);
     CU_ASSERT_TRUE_FATAL(ret >= 0);
-    ret = tsk_edge_table_add_row(
+    ret = (tsk_id_t) tsk_edge_table_add_row(
         new_edges, 0, tables->sequence_length, new_parent1, new_child1, NULL, 0);
     CU_ASSERT_TRUE_FATAL(ret >= 0);
-    ret = tsk_edge_table_add_row(
+    ret = (tsk_id_t) tsk_edge_table_add_row(
         new_edges, 0, tables->sequence_length, new_parent2, new_child2, NULL, 0);
     CU_ASSERT_TRUE_FATAL(ret >= 0);
-    ret = tsk_edge_table_add_row(
+    ret = (tsk_id_t) tsk_edge_table_add_row(
         new_edges, 0, tables->sequence_length, new_parent2, new_child3, NULL, 0);
     CU_ASSERT_TRUE_FATAL(ret >= 0);
     (*samples)[0] = new_child1;
