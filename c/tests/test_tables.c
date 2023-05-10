@@ -8805,13 +8805,13 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
             tables->edges.right[row], tables->edges.parent[row],
             tables->edges.child[row]);
     }
-    ret = tsk_edge_table_add_row(
+    ret = (int) tsk_edge_table_add_row(
         &tables->edges, 0., tables->sequence_length, 0, new_child0, NULL, 0);
     CU_ASSERT_TRUE_FATAL(ret >= 0);
-    ret = tsk_edge_table_add_row(
+    ret = (int) tsk_edge_table_add_row(
         &tables->edges, 0., tables->sequence_length, 1, new_child1, NULL, 0);
     CU_ASSERT_TRUE_FATAL(ret >= 0);
-    ret = tsk_edge_table_add_row(
+    ret = (int) tsk_edge_table_add_row(
         &tables->edges, 0., tables->sequence_length, 3, new_child2, NULL, 0);
     CU_ASSERT_TRUE_FATAL(ret >= 0);
     (*samples)[0] = new_child0;
