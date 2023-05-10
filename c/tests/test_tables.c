@@ -9139,6 +9139,9 @@ run_test_modular_simplify_overlapping_generations(
      * birth time of any child in the input table.
      * The "edge adder" function should ensure that all
      * new edges are < (or <= ??) that value.
+     *
+     * UPDATE: we need to do <= and it must be with respect
+     * to ANY node that is "alive" the last time we simplified.
      */
     ret = tsk_modular_simplifier_finalise(&simplifier, NULL);
     if (ret < 0) {
