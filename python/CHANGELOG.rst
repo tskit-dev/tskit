@@ -15,6 +15,11 @@
 - Add ``keep_rows`` method to table classes to support efficient in-place
   table subsetting (:user:`jeromekelleher`, :pr:`2700`)
 
+**Bugfixes**
+
+- Fix `UnicodeDecodeError` when calling `Variant.alleles` on the `emscripten` platform.
+  (:user:`benjeffery`, :pr:`2754`, :issue:`2737`)
+
 --------------------
 [0.5.4] - 2023-01-13
 --------------------
