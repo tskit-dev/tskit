@@ -578,7 +578,8 @@ make_alleles(tsk_variant_t *variant)
         goto out;
     }
     for (j = 0; j < variant->num_alleles; j++) {
-        item = Py_BuildValue("s#", variant->alleles[j], variant->allele_lengths[j]);
+        item = Py_BuildValue(
+            "s#", variant->alleles[j], (Py_ssize_t) variant->allele_lengths[j]);
         if (item == NULL) {
             Py_DECREF(t);
             goto out;
