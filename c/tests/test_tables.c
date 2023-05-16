@@ -8632,6 +8632,61 @@ test_simplify_metadata(void)
     tsk_table_collection_free(&tables);
 }
 
+typedef struct {
+    tsk_id_t **parent;
+    tsk_id_t **child;
+    double **left;
+    double **right;
+    tsk_size_t max_nodes;
+    tsk_size_t max_edges;
+    tsk_size_t *buffered_edges;
+} fauxbuffer;
+
+static void
+fauxbuffer_init(tsk_size_t max_nodes, tsk_size_t max_edges, fauxbuffer *buffer)
+{
+    tsk_size_t i;
+    buffer->parent = tsk_malloc(max_nodes * sizeof(tsk_id_t *));
+    CU_ASSERT_FATAL(buffer->parent != NULL);
+    buffer->child = tsk_malloc(max_nodes * sizeof(tsk_id_t *));
+    CU_ASSERT_FATAL(buffer->child != NULL);
+    buffer->left = tsk_malloc(max_nodes * sizeof(double *));
+    CU_ASSERT_FATAL(buffer->parent != NULL);
+    buffer->right = tsk_malloc(max_nodes * sizeof(double *));
+    CU_ASSERT_FATAL(buffer->right != NULL);
+
+    buffer->buffered_edges = tsk_malloc(max_nodes * sizeof(tsk_size_t));
+    CU_ASSERT_FATAL(buffer->buffered_edges != NULL);
+
+    for (i = 0; i < max_nodes; ++i) {
+        buffer->parent[i] = tsk_malloc(max_edges * sizeof(tsk_id_t));
+        CU_ASSERT_FATAL(buffer->parent[i] != NULL);
+        buffer->child[i] = tsk_malloc(max_edges * sizeof(tsk_id_t));
+        CU_ASSERT_FATAL(buffer->child[i] != NULL);
+        buffer->left[i] = tsk_malloc(max_edges * sizeof(double));
+        CU_ASSERT_FATAL(buffer->parent[i] != NULL);
+        buffer->right[i] = tsk_malloc(max_edges * sizeof(double));
+        CU_ASSERT_FATAL(buffer->right[i] != NULL);
+        buffer->buffered_edges[i] = 0;
+    }
+    buffer->max_nodes = max_nodes;
+    buffer->max_edges = max_edges;
+}
+
+static void
+fauxbuffer_buffer(
+    tsk_id_t parent, tsk_id_t child, double left, double right, fauxbuffer *buffer)
+{
+    CU_ASSERT_FATAL(parent < (tsk_id_t) buffer->max_nodes);
+    CU_ASSERT_FATAL(buffer->buffered_edges[parent] < buffer->max_edges);
+    buffer->parent[parent][buffer->buffered_edges[parent]] = parent;
+    buffer->child[parent][buffer->buffered_edges[parent]] = child;
+    buffer->left[parent][buffer->buffered_edges[parent]] = left;
+    buffer->right[parent][buffer->buffered_edges[parent]] = right;
+    buffer->buffered_edges[parent] += 1;
+    CU_ASSERT_FATAL(buffer->buffered_edges[parent] < buffer->max_edges);
+}
+
 /*
  * Start with this tree:
  *          6
@@ -8721,6 +8776,10 @@ make_single_tree_for_testing_modular_simplify(
  * to 0/1/3 and then use that as
  * the basis for testing.
  *
+ * Alive nodes will be 0, 1, 2, 3, 4
+ * in order to generated the complexity
+ * we need
+ *
  * 1.20┊         ┊     8   ┊         ┊
  *     ┊         ┊   ┏━┻━┓ ┊         ┊
  * 1.00┊   7     ┊   ┃   ┃ ┊         ┊
@@ -8740,18 +8799,18 @@ make_single_tree_for_testing_modular_simplify(
  */
 static void
 make_overlapping_generations_trees_for_testing_modular_simplify(
-    tsk_table_collection_t *tables, tsk_edge_table_t *new_edges, tsk_id_t **samples)
+    tsk_table_collection_t *tables, fauxbuffer *buffer, tsk_id_t **samples)
 {
     int ret;
     tsk_id_t new_child0, new_child1, new_child2;
-    tsk_size_t row;
+    tsk_size_t row, num_rows_buffered;
     ret = tsk_table_collection_init(tables, 0);
+    double tmax;
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     parse_edges(internal_sample_ex_edges, &tables->edges);
     parse_nodes(internal_sample_ex_nodes, &tables->nodes);
     tables->sequence_length = 10.0;
-    ret = tsk_edge_table_init(new_edges, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    fauxbuffer_init(12, 100, buffer);
     *samples = tsk_malloc(3 * sizeof(tsk_id_t));
     CU_ASSERT_TRUE_FATAL(*samples != NULL);
 
@@ -8770,6 +8829,7 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
     }
     ret = tsk_table_collection_check_integrity(tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tmax = tables->nodes.time[4];
 
     /* We need to cheat, "stealing" edges from the input
      * table and putting them into the new_edges so that
@@ -8799,21 +8859,21 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
      * "2 8  8 3\n";
      * "2 8  8 5\n";
      */
-    /* To maintain sanity, transmit non-recombinant genomes */
+    num_rows_buffered = 0;
     for (row = 0; row < tables->edges.num_rows; ++row) {
+        if (tables->nodes.time[tables->edges.parent[row]] <= tmax) {
+            fauxbuffer_buffer(tables->edges.parent[row], tables->edges.child[row],
+                tables->edges.left[row], tables->edges.right[row], buffer);
+            ++num_rows_buffered;
+        }
         fprintf(stdout, "%lf %lf %d %d\n", tables->edges.left[row],
             tables->edges.right[row], tables->edges.parent[row],
             tables->edges.child[row]);
     }
-    ret = (int) tsk_edge_table_add_row(
-        &tables->edges, 0., tables->sequence_length, 0, new_child0, NULL, 0);
-    CU_ASSERT_TRUE_FATAL(ret >= 0);
-    ret = (int) tsk_edge_table_add_row(
-        &tables->edges, 0., tables->sequence_length, 1, new_child1, NULL, 0);
-    CU_ASSERT_TRUE_FATAL(ret >= 0);
-    ret = (int) tsk_edge_table_add_row(
-        &tables->edges, 0., tables->sequence_length, 3, new_child2, NULL, 0);
-    CU_ASSERT_TRUE_FATAL(ret >= 0);
+    /* To maintain sanity, transmit non-recombinant genomes */
+    fauxbuffer_buffer(0, new_child0, 0., tables->sequence_length, buffer);
+    fauxbuffer_buffer(1, new_child1, 0., tables->sequence_length, buffer);
+    fauxbuffer_buffer(3, new_child2, 0., tables->sequence_length, buffer);
     (*samples)[0] = new_child0;
     (*samples)[1] = new_child1;
     (*samples)[2] = new_child2;
@@ -9050,16 +9110,17 @@ run_test_modular_simplify_overlapping_generations(
 {
     int ret;
     tsk_table_collection_t tables, standard_tables;
-    tsk_edge_table_t new_edges;
+    fauxbuffer buffer;
     tsk_modular_simplifier_t simplifier;
     tsk_treeseq_t treeseq, standard_treeseq;
     tsk_tree_t standard_tree, tree;
     tsk_id_t *samples;
     tsk_id_t last_parent;
-    tsk_size_t row;
+    tsk_size_t row, node, edge;
     double ttl_time, standard_ttl_time;
+
     make_overlapping_generations_trees_for_testing_modular_simplify(
-        &tables, &new_edges, &samples);
+        &tables, &buffer, &samples);
 
     for (row = 0; row < 3; ++row) {
         fprintf(stdout, "%d\n", samples[row]);
@@ -9069,17 +9130,22 @@ run_test_modular_simplify_overlapping_generations(
     if (ret < 0) {
         goto out;
     }
-    ret = tsk_edge_table_append_columns(&standard_tables.edges, new_edges.num_rows,
-        new_edges.left, new_edges.right, new_edges.parent, new_edges.child, NULL, NULL);
-    if (ret < 0) {
-        goto out;
+
+    for (node = 0; node < buffer.max_nodes; ++node) {
+        for (edge = 0; edge < buffer.buffered_edges[node]; ++edge) {
+
+            ret = tsk_edge_table_add_row(&standard_tables.edges, buffer.left[node][edge],
+                buffer.right[node][edge], buffer.parent[node][edge],
+                buffer.child[node][edge], NULL, 0);
+            if (ret < 0) {
+                goto out;
+            }
+        }
     }
     ret = tsk_table_collection_sort(&standard_tables, NULL, 0);
     if (ret < 0) {
         goto out;
     }
-    CU_ASSERT_EQUAL_FATAL(
-        standard_tables.edges.num_rows, tables.edges.num_rows + new_edges.num_rows);
     CU_ASSERT_EQUAL_FATAL(standard_tables.nodes.num_rows, tables.nodes.num_rows);
 
     ret = tsk_table_collection_simplify(&standard_tables, samples, 3, 0, NULL);
@@ -9109,23 +9175,7 @@ run_test_modular_simplify_overlapping_generations(
      * (How edges are sorted is an internal detail
      *  and cannot be used for testing.)
      */
-    while (row < new_edges.num_rows) {
-        last_parent = new_edges.parent[row_order[row]];
-        while (row < new_edges.num_rows
-               && new_edges.parent[row_order[row]] == last_parent) {
-            ret = tsk_modular_simplifier_add_edge(&simplifier,
-                new_edges.left[row_order[row]], new_edges.right[row_order[row]],
-                new_edges.parent[row_order[row]], new_edges.child[row_order[row]]);
-            if (ret < 0) {
-                goto out;
-            }
-            ++row;
-        }
-        ret = tsk_modular_simplifier_merge_ancestors(&simplifier, last_parent);
-        if (ret < 0) {
-            goto out;
-        }
-    }
+
     /* Simplification's internal cleanup.
      * Should NOT be called if above loop errors.
      * We know that not calling it and calling
@@ -9197,8 +9247,6 @@ run_test_modular_simplify_overlapping_generations(
 out:
     tsk_table_collection_free(&tables);
     tsk_table_collection_free(&standard_tables);
-    tsk_edge_table_free(&new_edges);
-    // tsk_modular_simplifier_free(&simplifier);
     tsk_safe_free(samples);
     fprintf(stdout, "ret = %d\n", ret);
     CU_ASSERT_EQUAL_FATAL(ret, expected_result);
