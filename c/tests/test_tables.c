@@ -8803,7 +8803,8 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
 {
     int ret;
     tsk_id_t new_child0, new_child1, new_child2;
-    tsk_size_t row, num_rows_buffered;
+    tsk_size_t row, moved;
+    int last_row_to_lift_over;
     ret = tsk_table_collection_init(tables, 0);
     double tmax;
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -8859,14 +8860,38 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
      * "2 8  8 3\n";
      * "2 8  8 5\n";
      */
-    num_rows_buffered = 0;
+    last_row_to_lift_over = -1;
     for (row = 0; row < tables->edges.num_rows; ++row) {
         if (tables->nodes.time[tables->edges.parent[row]] <= tmax) {
-            fauxbuffer_buffer(tables->edges.parent[row], tables->edges.child[row],
-                tables->edges.left[row], tables->edges.right[row], buffer);
-            ++num_rows_buffered;
+            last_row_to_lift_over = (int) row;
         }
         fprintf(stdout, "%lf %lf %d %d\n", tables->edges.left[row],
+            tables->edges.right[row], tables->edges.parent[row],
+            tables->edges.child[row]);
+    }
+    moved = 0;
+    if (last_row_to_lift_over > -1) {
+        for (row = 0; row <= (tsk_size_t) last_row_to_lift_over; ++row) {
+            fauxbuffer_buffer(
+                tables->edges.parent[(tsk_size_t) last_row_to_lift_over - row],
+                tables->edges.child[(tsk_size_t) last_row_to_lift_over - row],
+                tables->edges.left[(tsk_size_t) last_row_to_lift_over - row],
+                tables->edges.right[(tsk_size_t) last_row_to_lift_over - row], buffer);
+        }
+        for (row = (tsk_size_t) last_row_to_lift_over + 1; row < tables->edges.num_rows;
+             ++row) {
+            tables->edges.left[moved] = tables->edges.left[row];
+            tables->edges.right[moved] = tables->edges.right[row];
+            tables->edges.parent[moved] = tables->edges.parent[row];
+            tables->edges.child[moved] = tables->edges.child[row];
+            moved += 1;
+        }
+    }
+    fprintf(stdout, "lrb=%d, nr=%ld, moved=%ld\n", last_row_to_lift_over,
+        tables->edges.num_rows, moved);
+    tsk_edge_table_truncate(&tables->edges, moved);
+    for (row = 0; row < tables->edges.num_rows; ++row) {
+        fprintf(stdout, "after move: %lf %lf %d %d\n", tables->edges.left[row],
             tables->edges.right[row], tables->edges.parent[row],
             tables->edges.child[row]);
     }
@@ -9115,7 +9140,6 @@ run_test_modular_simplify_overlapping_generations(
     tsk_treeseq_t treeseq, standard_treeseq;
     tsk_tree_t standard_tree, tree;
     tsk_id_t *samples;
-    tsk_id_t last_parent;
     tsk_size_t row, node, edge;
     double ttl_time, standard_ttl_time;
 
@@ -9193,6 +9217,25 @@ run_test_modular_simplify_overlapping_generations(
      * UPDATE: we need to do <= and it must be with respect
      * to ANY node that is "alive" the last time we simplified.
      */
+    for (row = 0; row < 5; ++row) {
+        node = (tsk_size_t) row_order[row];
+        for (edge = 0; edge < buffer.buffered_edges[node]; ++edge) {
+            ret = tsk_modular_simplifier_add_edge(&simplifier,
+                buffer.left[node][buffer.buffered_edges[node] - edge - 1],
+                buffer.right[node][buffer.buffered_edges[node] - edge - 1],
+                buffer.parent[node][buffer.buffered_edges[node] - edge - 1],
+                buffer.child[node][buffer.buffered_edges[node] - edge - 1]);
+            if (ret < 0) {
+                fprintf(stdout, "bad\n");
+                goto out;
+            }
+            ret = tsk_modular_simplifier_merge_ancestors(&simplifier, row_order[row]);
+            if (ret < 0) {
+                fprintf(stdout, "bad2\n");
+                goto out;
+            }
+        }
+    }
     ret = tsk_modular_simplifier_finalise(&simplifier, NULL);
     if (ret < 0) {
         goto out;
@@ -9255,7 +9298,7 @@ out:
 static void
 test_table_collection_modular_simplify_overlapping_generations(void)
 {
-    tsk_id_t row_order[5] = { 2, 1, 0 };
+    tsk_id_t row_order[5] = { 2, 1, 0, 5, 4 };
     run_test_modular_simplify_overlapping_generations(row_order, 0);
 }
 
