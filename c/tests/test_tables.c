@@ -8683,6 +8683,12 @@ fauxbuffer_buffer(
     buffer->child[parent][buffer->buffered_edges[parent]] = child;
     buffer->left[parent][buffer->buffered_edges[parent]] = left;
     buffer->right[parent][buffer->buffered_edges[parent]] = right;
+    fprintf(stdout, "buffered %lf %lf %d %d\n",
+        buffer->left[parent][buffer->buffered_edges[parent]],
+        buffer->right[parent][buffer->buffered_edges[parent]],
+        buffer->parent[parent][buffer->buffered_edges[parent]],
+        buffer->child[parent][buffer->buffered_edges[parent]]);
+
     buffer->buffered_edges[parent] += 1;
     CU_ASSERT_FATAL(buffer->buffered_edges[parent] < buffer->max_edges);
 }
@@ -9199,7 +9205,6 @@ run_test_modular_simplify_overlapping_generations(
     if (ret < 0) {
         goto out;
     }
-    row = 0;
     /* Pseudocode that we are mocking:
      * For each parent of a new edge:
      *   - add that edge to the segment queue.
@@ -9237,7 +9242,14 @@ run_test_modular_simplify_overlapping_generations(
      */
     for (row = 0; row < 5; ++row) {
         node = (tsk_size_t) row_order[row];
+        fprintf(stdout, "processing node %ld\n", node);
         for (edge = 0; edge < buffer.buffered_edges[node]; ++edge) {
+            fprintf(stdout, "copying from buffer %lf %lf %d %d, %ld\n",
+                buffer.left[node][buffer.buffered_edges[node] - edge - 1],
+                buffer.right[node][buffer.buffered_edges[node] - edge - 1],
+                buffer.parent[node][buffer.buffered_edges[node] - edge - 1],
+                buffer.child[node][buffer.buffered_edges[node] - edge - 1], node);
+
             ret = tsk_modular_simplifier_add_edge(&simplifier,
                 buffer.left[node][buffer.buffered_edges[node] - edge - 1],
                 buffer.right[node][buffer.buffered_edges[node] - edge - 1],
@@ -9318,8 +9330,8 @@ out:
 static void
 test_table_collection_modular_simplify_overlapping_generations(void)
 {
-    tsk_id_t row_order[5] = { 2, 1, 0, 5, 4 };
-    run_test_modular_simplify_overlapping_generations(row_order, 0);
+    tsk_id_t input_node_order[5] = { 0, 1, 2, 3, 4 };
+    run_test_modular_simplify_overlapping_generations(input_node_order, 0);
 }
 
 /* This hits part of simplifier intialisation that is
