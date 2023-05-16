@@ -8687,6 +8687,24 @@ fauxbuffer_buffer(
     CU_ASSERT_FATAL(buffer->buffered_edges[parent] < buffer->max_edges);
 }
 
+static void
+fauxbuffer_free(fauxbuffer *buffer)
+{
+    tsk_size_t i;
+
+    for (i = 0; i < buffer->max_nodes; ++i) {
+        tsk_safe_free(buffer->parent[i]);
+        tsk_safe_free(buffer->child[i]);
+        tsk_safe_free(buffer->left[i]);
+        tsk_safe_free(buffer->right[i]);
+    }
+    tsk_safe_free(buffer->parent);
+    tsk_safe_free(buffer->child);
+    tsk_safe_free(buffer->left);
+    tsk_safe_free(buffer->right);
+    tsk_safe_free(buffer->buffered_edges);
+}
+
 /*
  * Start with this tree:
  *          6
@@ -9291,6 +9309,8 @@ out:
     tsk_table_collection_free(&tables);
     tsk_table_collection_free(&standard_tables);
     tsk_safe_free(samples);
+    fauxbuffer_free(&buffer);
+    tsk_modular_simplifier_free(&simplifier);
     fprintf(stdout, "ret = %d\n", ret);
     CU_ASSERT_EQUAL_FATAL(ret, expected_result);
 }
