@@ -8846,7 +8846,7 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
         // make all times >= 0.0.
         tables->nodes.time[row] += 1.0;
     }
-    ret = tsk_table_collection_check_integrity(tables, 0);
+    ret = (int) tsk_table_collection_check_integrity(tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     tmax = tables->nodes.time[4];
 
@@ -9162,9 +9162,9 @@ run_test_modular_simplify_overlapping_generations(
     for (node = 0; node < buffer.max_nodes; ++node) {
         for (edge = 0; edge < buffer.buffered_edges[node]; ++edge) {
 
-            ret = tsk_edge_table_add_row(&standard_tables.edges, buffer.left[node][edge],
-                buffer.right[node][edge], buffer.parent[node][edge],
-                buffer.child[node][edge], NULL, 0);
+            ret = (int) tsk_edge_table_add_row(&standard_tables.edges,
+                buffer.left[node][edge], buffer.right[node][edge],
+                buffer.parent[node][edge], buffer.child[node][edge], NULL, 0);
             if (ret < 0) {
                 goto out;
             }
