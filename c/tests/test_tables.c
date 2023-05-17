@@ -9226,11 +9226,9 @@ run_test_modular_simplify_overlapping_generations(
     for (row = 0; row < 5; ++row) {
         node = (tsk_size_t) row_order[row];
         for (edge = 0; edge < buffer.num_buffered_edges[node]; ++edge) {
-            ret = tsk_modular_simplifier_add_edge(&simplifier,
-                buffer.left[node][buffer.num_buffered_edges[node] - edge - 1],
-                buffer.right[node][buffer.num_buffered_edges[node] - edge - 1],
-                buffer.parent[node][buffer.num_buffered_edges[node] - edge - 1],
-                buffer.child[node][buffer.num_buffered_edges[node] - edge - 1]);
+            ret = tsk_modular_simplifier_add_edge(&simplifier, buffer.left[node][edge],
+                buffer.right[node][edge], buffer.parent[node][edge],
+                buffer.child[node][edge]);
             if (ret < 0) {
                 goto out;
             }
