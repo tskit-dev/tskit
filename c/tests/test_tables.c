@@ -8642,7 +8642,7 @@ typedef struct {
 } fauxbuffer;
 
 static void
-fauxbuffer_init(tsk_size_t max_nodes, tsk_size_t max_edges, fauxbuffer *buffer)
+fauxbuffer_init(tsk_size_t max_nodes, fauxbuffer *buffer)
 {
     tsk_size_t i;
     buffer->parent = tsk_malloc(max_nodes * sizeof(tsk_id_t *));
@@ -8658,14 +8658,10 @@ fauxbuffer_init(tsk_size_t max_nodes, tsk_size_t max_edges, fauxbuffer *buffer)
     CU_ASSERT_FATAL(buffer->num_buffered_edges != NULL);
 
     for (i = 0; i < max_nodes; ++i) {
-        buffer->parent[i] = tsk_malloc(max_edges * sizeof(tsk_id_t));
-        CU_ASSERT_FATAL(buffer->parent[i] != NULL);
-        buffer->child[i] = tsk_malloc(max_edges * sizeof(tsk_id_t));
-        CU_ASSERT_FATAL(buffer->child[i] != NULL);
-        buffer->left[i] = tsk_malloc(max_edges * sizeof(double));
-        CU_ASSERT_FATAL(buffer->parent[i] != NULL);
-        buffer->right[i] = tsk_malloc(max_edges * sizeof(double));
-        CU_ASSERT_FATAL(buffer->right[i] != NULL);
+        buffer->parent[i] = NULL;
+        buffer->child[i] = NULL;
+        buffer->left[i] = NULL;
+        buffer->right[i] = NULL;
         buffer->num_buffered_edges[i] = 0;
     }
     buffer->max_nodes = max_nodes;
@@ -8833,7 +8829,7 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
     parse_edges(internal_sample_ex_edges, &tables->edges);
     parse_nodes(internal_sample_ex_nodes, &tables->nodes);
     tables->sequence_length = 10.0;
-    fauxbuffer_init(12, 100, buffer);
+    fauxbuffer_init(12, buffer);
     *samples = tsk_malloc(3 * sizeof(tsk_id_t));
     CU_ASSERT_TRUE_FATAL(*samples != NULL);
 
