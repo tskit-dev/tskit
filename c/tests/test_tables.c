@@ -9141,6 +9141,9 @@ static void
 run_test_modular_simplify_overlapping_generations(
     tsk_id_t row_order[5], int expected_result)
 {
+    // This testing pattern is pretty ugly for overlapping
+    // generations.
+    CU_ASSERT_FATAL(false);
     int ret;
     tsk_table_collection_t tables, standard_tables;
     fauxbuffer buffer;
