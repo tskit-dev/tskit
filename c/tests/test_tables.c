@@ -8638,8 +8638,7 @@ typedef struct {
     double **left;
     double **right;
     tsk_size_t max_nodes;
-    tsk_size_t max_edges;
-    tsk_size_t *buffered_edges;
+    tsk_size_t *num_buffered_edges;
 } fauxbuffer;
 
 static void
@@ -8655,8 +8654,8 @@ fauxbuffer_init(tsk_size_t max_nodes, tsk_size_t max_edges, fauxbuffer *buffer)
     buffer->right = tsk_malloc(max_nodes * sizeof(double *));
     CU_ASSERT_FATAL(buffer->right != NULL);
 
-    buffer->buffered_edges = tsk_malloc(max_nodes * sizeof(tsk_size_t));
-    CU_ASSERT_FATAL(buffer->buffered_edges != NULL);
+    buffer->num_buffered_edges = tsk_malloc(max_nodes * sizeof(tsk_size_t));
+    CU_ASSERT_FATAL(buffer->num_buffered_edges != NULL);
 
     for (i = 0; i < max_nodes; ++i) {
         buffer->parent[i] = tsk_malloc(max_edges * sizeof(tsk_id_t));
@@ -8667,10 +8666,9 @@ fauxbuffer_init(tsk_size_t max_nodes, tsk_size_t max_edges, fauxbuffer *buffer)
         CU_ASSERT_FATAL(buffer->parent[i] != NULL);
         buffer->right[i] = tsk_malloc(max_edges * sizeof(double));
         CU_ASSERT_FATAL(buffer->right[i] != NULL);
-        buffer->buffered_edges[i] = 0;
+        buffer->num_buffered_edges[i] = 0;
     }
     buffer->max_nodes = max_nodes;
-    buffer->max_edges = max_edges;
 }
 
 static void
@@ -8678,13 +8676,19 @@ fauxbuffer_buffer(
     tsk_id_t parent, tsk_id_t child, double left, double right, fauxbuffer *buffer)
 {
     CU_ASSERT_FATAL(parent < (tsk_id_t) buffer->max_nodes);
-    CU_ASSERT_FATAL(buffer->buffered_edges[parent] < buffer->max_edges);
-    buffer->parent[parent][buffer->buffered_edges[parent]] = parent;
-    buffer->child[parent][buffer->buffered_edges[parent]] = child;
-    buffer->left[parent][buffer->buffered_edges[parent]] = left;
-    buffer->right[parent][buffer->buffered_edges[parent]] = right;
-    buffer->buffered_edges[parent] += 1;
-    CU_ASSERT_FATAL(buffer->buffered_edges[parent] < buffer->max_edges);
+    buffer->num_buffered_edges[parent] += 1;
+    buffer->parent[parent] = tsk_realloc(
+        buffer->parent[parent], buffer->num_buffered_edges[parent] * sizeof(tsk_id_t));
+    buffer->child[parent] = tsk_realloc(
+        buffer->child[parent], buffer->num_buffered_edges[parent] * sizeof(tsk_id_t));
+    buffer->left[parent] = tsk_realloc(
+        buffer->left[parent], buffer->num_buffered_edges[parent] * sizeof(double));
+    buffer->right[parent] = tsk_realloc(
+        buffer->right[parent], buffer->num_buffered_edges[parent] * sizeof(double));
+    buffer->parent[parent][buffer->num_buffered_edges[parent] - 1] = parent;
+    buffer->child[parent][buffer->num_buffered_edges[parent] - 1] = child;
+    buffer->left[parent][buffer->num_buffered_edges[parent] - 1] = left;
+    buffer->right[parent][buffer->num_buffered_edges[parent] - 1] = right;
 }
 
 static void
@@ -8702,7 +8706,7 @@ fauxbuffer_free(fauxbuffer *buffer)
     tsk_safe_free(buffer->child);
     tsk_safe_free(buffer->left);
     tsk_safe_free(buffer->right);
-    tsk_safe_free(buffer->buffered_edges);
+    tsk_safe_free(buffer->num_buffered_edges);
 }
 
 /*
@@ -9160,7 +9164,7 @@ run_test_modular_simplify_overlapping_generations(
     }
 
     for (node = 0; node < buffer.max_nodes; ++node) {
-        for (edge = 0; edge < buffer.buffered_edges[node]; ++edge) {
+        for (edge = 0; edge < buffer.num_buffered_edges[node]; ++edge) {
 
             ret = (int) tsk_edge_table_add_row(&standard_tables.edges,
                 buffer.left[node][edge], buffer.right[node][edge],
@@ -9222,12 +9226,12 @@ run_test_modular_simplify_overlapping_generations(
      */
     for (row = 0; row < 5; ++row) {
         node = (tsk_size_t) row_order[row];
-        for (edge = 0; edge < buffer.buffered_edges[node]; ++edge) {
+        for (edge = 0; edge < buffer.num_buffered_edges[node]; ++edge) {
             ret = tsk_modular_simplifier_add_edge(&simplifier,
-                buffer.left[node][buffer.buffered_edges[node] - edge - 1],
-                buffer.right[node][buffer.buffered_edges[node] - edge - 1],
-                buffer.parent[node][buffer.buffered_edges[node] - edge - 1],
-                buffer.child[node][buffer.buffered_edges[node] - edge - 1]);
+                buffer.left[node][buffer.num_buffered_edges[node] - edge - 1],
+                buffer.right[node][buffer.num_buffered_edges[node] - edge - 1],
+                buffer.parent[node][buffer.num_buffered_edges[node] - edge - 1],
+                buffer.child[node][buffer.num_buffered_edges[node] - edge - 1]);
             if (ret < 0) {
                 goto out;
             }
