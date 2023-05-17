@@ -9143,7 +9143,7 @@ run_test_modular_simplify_overlapping_generations(
 {
     // This testing pattern is pretty ugly for overlapping
     // generations.
-    // CU_ASSERT_FATAL(false);
+    CU_ASSERT_FATAL(false);
     int ret;
     tsk_table_collection_t tables, standard_tables;
     fauxbuffer buffer;
