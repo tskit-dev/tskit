@@ -23,6 +23,7 @@
  * SOFTWARE.
  */
 
+#include "tskit/core.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -13681,9 +13682,8 @@ tsk_modular_simplifier_add_edge(tsk_modular_simplifier_t *self, double left,
     }
 
     if (self->pimpl->simplifier.input_tables.nodes.time[child]
-        > self->pimpl->minimum_input_node_time) {
-        // TODO: does this mean what I think it means?
-        ret = TSK_ERR_EDGES_NOT_SORTED_CHILD;
+        >= self->pimpl->simplifier.input_tables.nodes.time[parent]) {
+        ret = TSK_ERR_BAD_NODE_TIME_ORDERING;
         goto out;
     }
 

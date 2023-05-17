@@ -8683,12 +8683,6 @@ fauxbuffer_buffer(
     buffer->child[parent][buffer->buffered_edges[parent]] = child;
     buffer->left[parent][buffer->buffered_edges[parent]] = left;
     buffer->right[parent][buffer->buffered_edges[parent]] = right;
-    fprintf(stdout, "buffered %lf %lf %d %d\n",
-        buffer->left[parent][buffer->buffered_edges[parent]],
-        buffer->right[parent][buffer->buffered_edges[parent]],
-        buffer->parent[parent][buffer->buffered_edges[parent]],
-        buffer->child[parent][buffer->buffered_edges[parent]]);
-
     buffer->buffered_edges[parent] += 1;
     CU_ASSERT_FATAL(buffer->buffered_edges[parent] < buffer->max_edges);
 }
@@ -8889,9 +8883,6 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
         if (tables->nodes.time[tables->edges.parent[row]] <= tmax) {
             last_row_to_lift_over = (int) row;
         }
-        fprintf(stdout, "%lf %lf %d %d\n", tables->edges.left[row],
-            tables->edges.right[row], tables->edges.parent[row],
-            tables->edges.child[row]);
     }
     moved = 0;
     if (last_row_to_lift_over > -1) {
@@ -8911,14 +8902,7 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
             moved += 1;
         }
     }
-    fprintf(stdout, "lrb=%d, nr=%ld, moved=%ld\n", last_row_to_lift_over,
-        tables->edges.num_rows, moved);
     tsk_edge_table_truncate(&tables->edges, moved);
-    for (row = 0; row < tables->edges.num_rows; ++row) {
-        fprintf(stdout, "after move: %lf %lf %d %d\n", tables->edges.left[row],
-            tables->edges.right[row], tables->edges.parent[row],
-            tables->edges.child[row]);
-    }
     /* To maintain sanity, transmit non-recombinant genomes */
     fauxbuffer_buffer(0, new_child0, 0., tables->sequence_length, buffer);
     fauxbuffer_buffer(1, new_child1, 0., tables->sequence_length, buffer);
@@ -9145,7 +9129,7 @@ test_table_collection_modular_simplify_add_child_with_invalid_time(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_modular_simplifier_add_edge(
         &simplifier, 0., 1, new_edges.parent[4], new_edges.child[4]);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EDGES_NOT_SORTED_CHILD);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_TIME_ORDERING);
 
     tsk_safe_free(samples);
     tsk_table_collection_free(&tables);
@@ -9169,10 +9153,6 @@ run_test_modular_simplify_overlapping_generations(
 
     make_overlapping_generations_trees_for_testing_modular_simplify(
         &tables, &buffer, &samples);
-
-    for (row = 0; row < 3; ++row) {
-        fprintf(stdout, "%d\n", samples[row]);
-    }
 
     ret = tsk_table_collection_copy(&tables, &standard_tables, 0);
     if (ret < 0) {
@@ -9242,26 +9222,17 @@ run_test_modular_simplify_overlapping_generations(
      */
     for (row = 0; row < 5; ++row) {
         node = (tsk_size_t) row_order[row];
-        fprintf(stdout, "processing node %ld\n", node);
         for (edge = 0; edge < buffer.buffered_edges[node]; ++edge) {
-            fprintf(stdout, "copying from buffer %lf %lf %d %d, %ld\n",
-                buffer.left[node][buffer.buffered_edges[node] - edge - 1],
-                buffer.right[node][buffer.buffered_edges[node] - edge - 1],
-                buffer.parent[node][buffer.buffered_edges[node] - edge - 1],
-                buffer.child[node][buffer.buffered_edges[node] - edge - 1], node);
-
             ret = tsk_modular_simplifier_add_edge(&simplifier,
                 buffer.left[node][buffer.buffered_edges[node] - edge - 1],
                 buffer.right[node][buffer.buffered_edges[node] - edge - 1],
                 buffer.parent[node][buffer.buffered_edges[node] - edge - 1],
                 buffer.child[node][buffer.buffered_edges[node] - edge - 1]);
             if (ret < 0) {
-                fprintf(stdout, "bad\n");
                 goto out;
             }
             ret = tsk_modular_simplifier_merge_ancestors(&simplifier, row_order[row]);
             if (ret < 0) {
-                fprintf(stdout, "bad2\n");
                 goto out;
             }
         }
@@ -9323,7 +9294,6 @@ out:
     tsk_safe_free(samples);
     fauxbuffer_free(&buffer);
     tsk_modular_simplifier_free(&simplifier);
-    fprintf(stdout, "ret = %d\n", ret);
     CU_ASSERT_EQUAL_FATAL(ret, expected_result);
 }
 
