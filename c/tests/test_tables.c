@@ -9139,11 +9139,11 @@ test_table_collection_modular_simplify_add_child_with_invalid_time(void)
 
 static void
 run_test_modular_simplify_overlapping_generations(
-    tsk_id_t row_order[5], int expected_result)
+    tsk_id_t node_order_in_buffer[4], int expected_result)
 {
     // This testing pattern is pretty ugly for overlapping
     // generations.
-    CU_ASSERT_FATAL(false);
+    // CU_ASSERT_FATAL(false);
     int ret;
     tsk_table_collection_t tables, standard_tables;
     fauxbuffer buffer;
@@ -9152,10 +9152,20 @@ run_test_modular_simplify_overlapping_generations(
     tsk_tree_t standard_tree, tree;
     tsk_id_t *samples;
     tsk_size_t row, node, edge;
+    int num_nodes_in_buffer = 0;
     double ttl_time, standard_ttl_time;
 
     make_overlapping_generations_trees_for_testing_modular_simplify(
         &tables, &buffer, &samples);
+
+    for (row = 0; row < buffer.max_nodes; ++row) {
+        if (buffer.num_buffered_edges[row] > 0) {
+            fprintf(stdout, "%ld\n", row);
+            ++num_nodes_in_buffer;
+        }
+    }
+    fprintf(stdout, "%d\n", num_nodes_in_buffer);
+    CU_ASSERT_EQUAL_FATAL(num_nodes_in_buffer, 4);
 
     ret = tsk_table_collection_copy(&tables, &standard_tables, 0);
     if (ret < 0) {
@@ -9223,8 +9233,9 @@ run_test_modular_simplify_overlapping_generations(
      * UPDATE: we need to do <= and it must be with respect
      * to ANY node that is "alive" the last time we simplified.
      */
-    for (row = 0; row < 5; ++row) {
-        node = (tsk_size_t) row_order[row];
+    for (row = 0; row < 4; ++row) {
+        node = (tsk_size_t) node_order_in_buffer[row];
+        fprintf(stdout, "node=%ld\n", node);
         for (edge = 0; edge < buffer.num_buffered_edges[node]; ++edge) {
             ret = tsk_modular_simplifier_add_edge(&simplifier, buffer.left[node][edge],
                 buffer.right[node][edge], buffer.parent[node][edge],
@@ -9232,7 +9243,8 @@ run_test_modular_simplify_overlapping_generations(
             if (ret < 0) {
                 goto out;
             }
-            ret = tsk_modular_simplifier_merge_ancestors(&simplifier, row_order[row]);
+            ret = tsk_modular_simplifier_merge_ancestors(
+                &simplifier, node_order_in_buffer[row]);
             if (ret < 0) {
                 goto out;
             }
@@ -9295,14 +9307,23 @@ out:
     tsk_safe_free(samples);
     fauxbuffer_free(&buffer);
     tsk_modular_simplifier_free(&simplifier);
+    fprintf(stdout, "code: %d, expected_result: %d", ret, expected_result);
     CU_ASSERT_EQUAL_FATAL(ret, expected_result);
 }
 
 static void
 test_table_collection_modular_simplify_overlapping_generations(void)
 {
-    tsk_id_t input_node_order[5] = { 0, 1, 2, 3, 4 };
+    tsk_id_t input_node_order[4] = { 0, 1, 3, 4 };
     run_test_modular_simplify_overlapping_generations(input_node_order, 0);
+}
+
+static void
+test_table_collection_modular_simplify_overlapping_generations_parent_time_error(void)
+{
+    tsk_id_t input_node_order[4] = { 0, 1, 0, 4 };
+    run_test_modular_simplify_overlapping_generations(
+        input_node_order, TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
 }
 
 /* This hits part of simplifier intialisation that is
@@ -12328,6 +12349,9 @@ main(int argc, char **argv)
             test_table_collection_modular_simplify_table_integrity_check_fail },
         { "test_table_collection_modular_simplify_overlapping_generations",
             test_table_collection_modular_simplify_overlapping_generations },
+        { "test_table_collection_modular_simplify_overlapping_generations_parent_time_"
+          "error",
+            test_table_collection_modular_simplify_overlapping_generations_parent_time_error },
         { "test_table_collection_time_units", test_table_collection_time_units },
         { "test_table_collection_reference_sequence",
             test_table_collection_reference_sequence },
