@@ -13615,7 +13615,7 @@ typedef struct __tsk_modular_simplifier_impl_t {
     tsk_id_t *input_node_visited;
     tsk_size_t num_input_nodes;
     double last_parent_time;
-    double minimum_input_node_time;
+    /*double minimum_input_node_time;*/
 } tsk_modular_simplifier_impl_t;
 
 int
@@ -13645,12 +13645,22 @@ tsk_modular_simplifier_init(tsk_modular_simplifier_t *self,
     self->pimpl->num_input_nodes = tables->nodes.num_rows;
     self->pimpl->last_parent_processed = -1;
     self->pimpl->last_parent_time = DBL_MIN;
+
+    /* NOTE: the original intent here was to catch
+     * issues where children aren't sorted properly,
+     * but it is clear I didn't get that right.
+     *
+     * Need to write more tests to see if I can
+     * trigger any problems
+     */
+    /*
     self->pimpl->minimum_input_node_time = DBL_MAX;
     for (i = 0; i < tables->edges.num_rows; ++i) {
         self->pimpl->minimum_input_node_time
             = TSK_MIN(self->pimpl->minimum_input_node_time,
                 tables->nodes.time[tables->edges.child[i]]);
     }
+    */
 
     /* Now that we have set up the pimpl state,
      * we can let the unsual init happen
