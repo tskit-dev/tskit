@@ -8985,7 +8985,6 @@ run_test_modular_simplifier(tsk_table_collection_t *tables, tsk_edge_table_t *ne
      */
     for (row = 0; row < len_row_order; ++row) {
         last_parent = new_edges->parent[row_order[row]];
-        fprintf(stdout, "last parent = %d\n", last_parent);
         row_for_parent = 0;
         for (row_for_parent = 0;
              (tsk_size_t) row_order[row] + row_for_parent < new_edges->num_rows
@@ -9026,11 +9025,6 @@ run_test_modular_simplifier(tsk_table_collection_t *tables, tsk_edge_table_t *ne
     if (ret < 0) {
         goto out;
     }
-    // fprintf(stdout, "standard\n");
-    // tsk_table_collection_print_state(&standard_tables, stdout);
-    // fprintf(stdout, "buffered\n");
-    // tsk_table_collection_print_state(&tables, stdout);
-    // CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // Now, we can compare various properties of the two table collections
     CU_ASSERT_EQUAL_FATAL(standard_tables.edges.num_rows, tables->edges.num_rows);
