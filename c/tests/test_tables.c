@@ -8928,6 +8928,16 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
                 buffer.child[row][edge], NULL, 0);
         }
     }
+    fprintf(stdout, "after all this mucking around:");
+    for (row = 0; row < tables->edges.num_rows; ++row) {
+        fprintf(stdout, "in tables: %lf %lf %d %d\n", tables->edges.left[row],
+            tables->edges.right[row], tables->edges.parent[row],
+            tables->edges.child[row]);
+    }
+    for (row = 0; row < new_edges->num_rows; ++row) {
+        fprintf(stdout, "in new_edges: %lf %lf %d %d\n", new_edges->left[row],
+            new_edges->right[row], new_edges->parent[row], new_edges->child[row]);
+    }
 
     (*samples)[0] = new_child0;
     (*samples)[1] = new_child1;
