@@ -8958,6 +8958,10 @@ run_test_modular_simplifier(tsk_table_collection_t *tables, tsk_edge_table_t *ne
         standard_tables.edges.num_rows, tables->edges.num_rows + new_edges->num_rows);
     CU_ASSERT_EQUAL_FATAL(standard_tables.nodes.num_rows, tables->nodes.num_rows);
 
+    ret = tsk_table_collection_simplify(&standard_tables, samples, 3, 0, NULL);
+    if (ret < 0) {
+        goto out;
+    }
     ret = tsk_modular_simplifier_init(&simplifier, tables, samples, len_samples, 0);
     if (ret < 0) {
         goto out;
@@ -8981,6 +8985,7 @@ run_test_modular_simplifier(tsk_table_collection_t *tables, tsk_edge_table_t *ne
      */
     for (row = 0; row < len_row_order; ++row) {
         last_parent = new_edges->parent[row_order[row]];
+        fprintf(stdout, "last parent = %d\n", last_parent);
         row_for_parent = 0;
         for (row_for_parent = 0;
              (tsk_size_t) row_order[row] + row_for_parent < new_edges->num_rows
@@ -9021,7 +9026,6 @@ run_test_modular_simplifier(tsk_table_collection_t *tables, tsk_edge_table_t *ne
     if (ret < 0) {
         goto out;
     }
-
     // fprintf(stdout, "standard\n");
     // tsk_table_collection_print_state(&standard_tables, stdout);
     // fprintf(stdout, "buffered\n");
@@ -9080,190 +9084,42 @@ out:
 }
 
 static void
-run_test_modular_simplify_single_tree(tsk_id_t row_order[5], int expected_result)
+run_test_modular_simplify_single_tree(
+    tsk_id_t *row_order, tsk_size_t len_row_order, int expected_result)
 {
     int ret;
     tsk_table_collection_t tables;
     tsk_edge_table_t new_edges;
-    // tsk_modular_simplifier_t simplifier;
-    // tsk_treeseq_t treeseq, standard_treeseq;
-    // tsk_tree_t standard_tree, tree;
     tsk_id_t *samples;
-    // tsk_id_t last_parent;
-    // tsk_size_t row;
-    // double ttl_time, standard_ttl_time;
     make_single_tree_for_testing_modular_simplify(&tables, &new_edges, &samples);
-
-    ret = run_test_modular_simplifier(&tables, &new_edges, &row_order[0], 5, samples, 3);
+    ret = run_test_modular_simplifier(
+        &tables, &new_edges, row_order, len_row_order, samples, 3);
     tsk_table_collection_free(&tables);
     tsk_edge_table_free(&new_edges);
     CU_ASSERT_EQUAL_FATAL(ret, expected_result);
-
-    //    ret = tsk_table_collection_copy(&tables, &standard_tables, 0);
-    //    if (ret < 0) {
-    //        goto out;
-    //    }
-    //    ret = tsk_edge_table_append_columns(&standard_tables.edges,
-    //    new_edges.num_rows,
-    //        new_edges.left, new_edges.right, new_edges.parent, new_edges.child,
-    //        NULL, NULL);
-    //    if (ret < 0) {
-    //        goto out;
-    //    }
-    //    ret = tsk_table_collection_sort(&standard_tables, NULL, 0);
-    //    if (ret < 0) {
-    //        goto out;
-    //    }
-    //    CU_ASSERT_EQUAL_FATAL(
-    //        standard_tables.edges.num_rows, tables.edges.num_rows +
-    //        new_edges.num_rows);
-    //    CU_ASSERT_EQUAL_FATAL(standard_tables.nodes.num_rows,
-    //    tables.nodes.num_rows);
-    //
-    //    ret = tsk_table_collection_simplify(&standard_tables, samples, 3, 0, NULL);
-    //    if (ret < 0) {
-    //        goto out;
-    //    }
-    //
-    //    ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 3, 0);
-    //    if (ret < 0) {
-    //        goto out;
-    //    }
-    //    row = 0;
-    //    /* Pseudocode that we are mocking:
-    //     * For each parent of a new edge:
-    //     *   - add that edge to the segment queue.
-    //     *   - When done, finalise the queue and merge ancestors.
-    //     *
-    //     * If our buffer is wrong, we will have parents unsorted by time
-    //     * and/or the same parent processed in different loop iterations.
-    //     * Each case is an error that MUST be handled.
-    //     * It is trivial to show that not handling the errors can give rise
-    //     * to invalid table collections / tree sequences.
-    //     * The requirement for error handling must be documented
-    //     *
-    //     * Production code should use an input other than
-    //     * an edge table.
-    //     * (How edges are sorted is an internal detail
-    //     *  and cannot be used for testing.)
-    //     */
-    //    while (row < new_edges.num_rows) {
-    //        last_parent = new_edges.parent[row_order[row]];
-    //        while (row < new_edges.num_rows
-    //               && new_edges.parent[row_order[row]] == last_parent) {
-    //            ret = tsk_modular_simplifier_add_edge(&simplifier,
-    //                new_edges.left[row_order[row]],
-    //                new_edges.right[row_order[row]],
-    //                new_edges.parent[row_order[row]],
-    //                new_edges.child[row_order[row]]);
-    //            if (ret < 0) {
-    //                goto out;
-    //            }
-    //            ++row;
-    //        }
-    //        ret = tsk_modular_simplifier_merge_ancestors(&simplifier, last_parent);
-    //        if (ret < 0) {
-    //            goto out;
-    //        }
-    //    }
-    //    /* Simplification's internal cleanup.
-    //     * Should NOT be called if above loop errors.
-    //     * We know that not calling it and calling
-    //     * "modular simplifier free" does not leak
-    //     * because valgrind is happy.
-    //     *
-    //     * Now, we have processed all (child) nodes whose births are
-    //     * MORE RECENT than those in the input tables.
-    //     *
-    //     * TODO: the init method should calculate the minimum
-    //     * birth time of any child in the input table.
-    //     * The "edge adder" function should ensure that all
-    //     * new edges are < (or <= ??) that value.
-    //     */
-    //    ret = tsk_modular_simplifier_finalise(&simplifier, NULL);
-    //    if (ret < 0) {
-    //        goto out;
-    //    }
-    //
-    //    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    //
-    //    // Now, we can compare various properties of the two table collections
-    //    CU_ASSERT_EQUAL_FATAL(standard_tables.edges.num_rows,
-    //    tables.edges.num_rows);
-    //    CU_ASSERT_EQUAL_FATAL(standard_tables.nodes.num_rows,
-    //    tables.nodes.num_rows);
-    //
-    //    ret = tsk_table_collection_build_index(&standard_tables, 0);
-    //    if (ret < 0) {
-    //        goto out;
-    //    }
-    //    ret = tsk_table_collection_build_index(&tables, 0);
-    //    if (ret < 0) {
-    //        goto out;
-    //    }
-    //
-    //    ret = tsk_treeseq_init(&standard_treeseq, &standard_tables, 0);
-    //    if (ret < 0) {
-    //        goto out;
-    //    }
-    //    ret = tsk_treeseq_init(&treeseq, &tables, 0);
-    //    if (ret < 0) {
-    //        goto out;
-    //    }
-    //    CU_ASSERT_EQUAL_FATAL(tsk_treeseq_get_num_trees(&standard_treeseq),
-    //        tsk_treeseq_get_num_trees(&treeseq));
-    //    ret = tsk_tree_init(&standard_tree, &standard_treeseq, 0);
-    //    if (ret < 0) {
-    //        goto out;
-    //    }
-    //    ret = tsk_tree_init(&tree, &treeseq, 0);
-    //    if (ret < 0) {
-    //        goto out;
-    //    }
-    //    ret = tsk_tree_first(&standard_tree);
-    //    CU_ASSERT_EQUAL_FATAL(ret, TSK_TREE_OK);
-    //    for (ret = tsk_tree_first(&tree); ret == TSK_TREE_OK; ret =
-    //    tsk_tree_next(&tree)) {
-    //        tsk_tree_get_total_branch_length(&tree, -1, &ttl_time);
-    //        tsk_tree_get_total_branch_length(&standard_tree, -1,
-    //        &standard_ttl_time); CU_ASSERT_TRUE(ttl_time - standard_ttl_time <=
-    //        1e-9); tsk_tree_next(&standard_tree);
-    //    }
-    //    tsk_treeseq_free(&standard_treeseq);
-    //    tsk_treeseq_free(&treeseq);
-    //    tsk_tree_free(&standard_tree);
-    //    tsk_tree_free(&tree);
-    //    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    // out:
-    //    tsk_table_collection_free(&tables);
-    //    tsk_table_collection_free(&standard_tables);
-    //    tsk_edge_table_free(&new_edges);
-    //    tsk_modular_simplifier_free(&simplifier);
-    //    tsk_safe_free(samples);
-    //    CU_ASSERT_EQUAL_FATAL(ret, expected_result);
 }
 
 static void
 test_table_collection_modular_simplify_simple_tree(void)
 {
-    tsk_id_t row_order[5] = { 4, 3, 2, 1, 0 };
-    run_test_modular_simplify_single_tree(row_order, 0);
+    tsk_id_t row_order[4] = { 3, 2, 1, 0 };
+    run_test_modular_simplify_single_tree(&row_order[0], 4, 0);
 }
 
 static void
 test_table_collection_modular_simplify_simple_tree_discontiguous_parents(void)
 {
-    tsk_id_t row_order[5] = { 3, 2, 4, 1, 0 };
+    tsk_id_t row_order[4] = { 3, 2, 3, 1 };
     run_test_modular_simplify_single_tree(
-        row_order, TSK_ERR_EDGES_NONCONTIGUOUS_PARENTS);
+        &row_order[0], 4, TSK_ERR_EDGES_NONCONTIGUOUS_PARENTS);
 }
 
 static void
 test_table_collection_modular_simplify_simple_tree_add_edges_wrong_birth_order(void)
 {
-    tsk_id_t row_order[5] = { 0, 1, 2, 3, 4 };
+    tsk_id_t row_order[4] = { 0, 1, 2, 3 };
     run_test_modular_simplify_single_tree(
-        row_order, TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
+        &row_order[0], 4, TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
 }
 
 static void
