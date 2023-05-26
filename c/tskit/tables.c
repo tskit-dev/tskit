@@ -13697,6 +13697,9 @@ tsk_modular_simplifier_add_edge(tsk_modular_simplifier_t *self, double left,
         goto out;
     }
 
+    fprintf(stdout, "parent %d birth time %lf < last parent birth time %lf\n", parent,
+        self->pimpl->simplifier.input_tables.nodes.time[parent],
+        self->pimpl->last_parent_time);
     if (self->pimpl->simplifier.input_tables.nodes.time[parent]
         < self->pimpl->last_parent_time) {
         ret = TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME;

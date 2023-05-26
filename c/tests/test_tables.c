@@ -9224,15 +9224,17 @@ run_test_modular_simplify_overlapping_generations(
         row_for_parent = 0;
         CU_ASSERT_FATAL(last_parent < (tsk_id_t) tables_copy.nodes.num_rows);
         for (row_for_parent = 0;
-             row + row_for_parent < new_edges.num_rows
-             && new_edges.parent[row + row_for_parent] == last_parent;
+             (tsk_size_t) row_order[row] + row_for_parent < new_edges.num_rows
+             && new_edges.parent[(tsk_size_t) row_order[row] + row_for_parent]
+                    == last_parent;
              ++row_for_parent) {
-            CU_ASSERT_FATAL(row + row_for_parent < new_edges.num_rows);
+            CU_ASSERT_FATAL(
+                (tsk_size_t) row_order[row] + row_for_parent < new_edges.num_rows);
             ret = tsk_modular_simplifier_add_edge(&simplifier,
-                new_edges.left[row + row_for_parent],
-                new_edges.right[row + row_for_parent],
-                new_edges.parent[row + row_for_parent],
-                new_edges.child[row + row_for_parent]);
+                new_edges.left[(tsk_size_t) row_order[row] + row_for_parent],
+                new_edges.right[(tsk_size_t) row_order[row] + row_for_parent],
+                new_edges.parent[(tsk_size_t) row_order[row] + row_for_parent],
+                new_edges.child[(tsk_size_t) row_order[row] + row_for_parent]);
             if (ret < 0) {
                 goto out;
             }
