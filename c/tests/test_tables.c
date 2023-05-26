@@ -8891,7 +8891,12 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
     }
     moved = 0;
     if (last_row_to_lift_over > -1) {
-        for (row = 0; row <= (tsk_size_t) last_row_to_lift_over; ++row) {
+        for (row = 0; row < (tsk_size_t) last_row_to_lift_over; ++row) {
+            fprintf(stdout, "copying %lf %lf %d %d into temp buffer\n",
+                tables->edges.left[(tsk_size_t) last_row_to_lift_over - row],
+                tables->edges.right[(tsk_size_t) last_row_to_lift_over - row],
+                tables->edges.parent[(tsk_size_t) last_row_to_lift_over - row],
+                tables->edges.child[(tsk_size_t) last_row_to_lift_over - row]);
             fauxbuffer_buffer(
                 tables->edges.parent[(tsk_size_t) last_row_to_lift_over - row],
                 tables->edges.child[(tsk_size_t) last_row_to_lift_over - row],
@@ -8915,8 +8920,9 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
 
     for (row = 0; row < buffer.max_nodes; ++row) {
         for (edge = 0; edge < buffer.num_buffered_edges[row]; ++edge) {
-            fprintf(stdout, "parent %d child %d\n", buffer.parent[row][edge],
-                buffer.child[row][edge]);
+            fprintf(stdout, "parent %d child %d left %lf right %lf\n",
+                buffer.parent[row][edge], buffer.child[row][edge],
+                buffer.left[row][edge], buffer.right[row][edge]);
             tsk_edge_table_add_row(new_edges, buffer.left[row][edge],
                 buffer.right[row][edge], buffer.parent[row][edge],
                 buffer.child[row][edge], NULL, 0);
@@ -9157,19 +9163,19 @@ test_table_collection_modular_simplify_add_child_with_invalid_time(void)
 
 static void
 run_test_modular_simplify_overlapping_generations(
-    tsk_id_t row_order[3], int expected_result)
+    tsk_id_t row_order[4], int expected_result)
 {
     // This testing pattern is pretty ugly for overlapping
     // generations.
     int ret;
-    tsk_table_collection_t tables, standard_tables;
+    tsk_table_collection_t tables, tables_copy, standard_tables;
     tsk_edge_table_t new_edges;
     tsk_modular_simplifier_t simplifier;
     tsk_treeseq_t treeseq, standard_treeseq;
     tsk_tree_t standard_tree, tree;
     tsk_id_t *samples;
     tsk_id_t last_parent;
-    tsk_size_t row;
+    tsk_size_t row, row_for_parent;
     double ttl_time, standard_ttl_time;
 
     make_overlapping_generations_trees_for_testing_modular_simplify(
@@ -9198,11 +9204,15 @@ run_test_modular_simplify_overlapping_generations(
         goto out;
     }
 
+    ret = tsk_table_collection_copy(&tables, &tables_copy, 0);
+    if (ret < 0) {
+        goto out;
+    }
+
     ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 3, 0);
     if (ret < 0) {
         goto out;
     }
-    row = 0;
     /* Pseudocode that we are mocking:
      * For each parent of a new edge:
      *   - add that edge to the segment queue.
@@ -9220,21 +9230,28 @@ run_test_modular_simplify_overlapping_generations(
      * (How edges are sorted is an internal detail
      *  and cannot be used for testing.)
      */
-    while (row < 3) {
+    for (row = 0; row < 4; ++row) {
         last_parent = new_edges.parent[row_order[row]];
-        fprintf(stdout, "%d %ld", last_parent, tables.nodes.num_rows);
-        // CU_ASSERT_FATAL(last_parent < (tsk_id_t) tables.nodes.num_rows);
-        while (row < new_edges.num_rows
-               && new_edges.parent[row_order[row]] == last_parent) {
+        row_for_parent = 0;
+        fprintf(stdout, "parent %d num nodes %ld\n", last_parent,
+            tables_copy.nodes.num_rows);
+        CU_ASSERT_FATAL(last_parent < (tsk_id_t) tables_copy.nodes.num_rows);
+        for (row_for_parent = 0;
+             row + row_for_parent < new_edges.num_rows
+             && new_edges.parent[row + row_for_parent] == last_parent;
+             ++row_for_parent) {
+            CU_ASSERT_FATAL(row + row_for_parent < new_edges.num_rows);
             ret = tsk_modular_simplifier_add_edge(&simplifier,
-                new_edges.left[row_order[row]], new_edges.right[row_order[row]],
-                new_edges.parent[row_order[row]], new_edges.child[row_order[row]]);
+                new_edges.left[row + row_for_parent],
+                new_edges.right[row + row_for_parent],
+                new_edges.parent[row + row_for_parent],
+                new_edges.child[row + row_for_parent]);
             if (ret < 0) {
                 goto out;
             }
-            ++row;
         }
         ret = tsk_modular_simplifier_merge_ancestors(&simplifier, last_parent);
+        fprintf(stdout, "procesed parent %d\n", last_parent);
         if (ret < 0) {
             goto out;
         }
@@ -9306,25 +9323,26 @@ run_test_modular_simplify_overlapping_generations(
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 out:
     tsk_table_collection_free(&tables);
+    tsk_table_collection_free(&tables_copy);
     tsk_table_collection_free(&standard_tables);
     tsk_safe_free(samples);
     tsk_edge_table_free(&new_edges);
     tsk_modular_simplifier_free(&simplifier);
-    fprintf(stdout, "code: %d, expected_result: %d", ret, expected_result);
+    fprintf(stdout, "code: %d, expected_result: %d\n", ret, expected_result);
     CU_ASSERT_EQUAL_FATAL(ret, expected_result);
 }
 
 static void
 test_table_collection_modular_simplify_overlapping_generations(void)
 {
-    tsk_id_t row_order[3] = { 3, 2, 1 };
+    tsk_id_t row_order[4] = { 0, 1, 2, 3 };
     run_test_modular_simplify_overlapping_generations(row_order, 0);
 }
 
 static void
 test_table_collection_modular_simplify_overlapping_generations_parent_time_error(void)
 {
-    tsk_id_t row_order[4] = { 2, 1, 3 };
+    tsk_id_t row_order[4] = { 2, 1, 0, 3 };
     run_test_modular_simplify_overlapping_generations(
         row_order, TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
 }
