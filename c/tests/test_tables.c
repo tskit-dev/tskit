@@ -9240,8 +9240,6 @@ run_test_modular_simplify_overlapping_generations(
             }
         }
         ret = tsk_modular_simplifier_merge_ancestors(&simplifier, last_parent);
-        fprintf(stdout, "procesed parent %d, time: %lf\n", last_parent,
-            tables_copy.nodes.time[last_parent]);
         if (ret < 0) {
             goto out;
         }
