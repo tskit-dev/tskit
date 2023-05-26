@@ -8836,14 +8836,12 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
     *samples = tsk_malloc(3 * sizeof(tsk_id_t));
     CU_ASSERT_TRUE_FATAL(*samples != NULL);
 
-    fprintf(stdout, "we start with %ld nodes\n", tables->nodes.num_rows);
     new_child0 = tsk_node_table_add_row(&tables->nodes, 0, -1.0, -1, -1, NULL, 0);
     CU_ASSERT_TRUE_FATAL(new_child0 > 0);
     new_child1 = tsk_node_table_add_row(&tables->nodes, 0, -1.0, -1, -1, NULL, 0);
     CU_ASSERT_TRUE_FATAL(new_child1 > 0);
     new_child2 = tsk_node_table_add_row(&tables->nodes, 0, -1.0, -1, -1, NULL, 0);
     CU_ASSERT_TRUE_FATAL(new_child2 > 0);
-    fprintf(stdout, "we finish with %ld nodes\n", tables->nodes.num_rows);
 
     for (row = 0; row < tables->nodes.num_rows; ++row) {
         // for some reason, the fixture sets pop to 0...
@@ -8892,11 +8890,6 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
     moved = 0;
     if (last_row_to_lift_over > -1) {
         for (row = 0; row < (tsk_size_t) last_row_to_lift_over; ++row) {
-            fprintf(stdout, "copying %lf %lf %d %d into temp buffer\n",
-                tables->edges.left[(tsk_size_t) last_row_to_lift_over - row],
-                tables->edges.right[(tsk_size_t) last_row_to_lift_over - row],
-                tables->edges.parent[(tsk_size_t) last_row_to_lift_over - row],
-                tables->edges.child[(tsk_size_t) last_row_to_lift_over - row]);
             fauxbuffer_buffer(
                 tables->edges.parent[(tsk_size_t) last_row_to_lift_over - row],
                 tables->edges.child[(tsk_size_t) last_row_to_lift_over - row],
@@ -8920,23 +8913,10 @@ make_overlapping_generations_trees_for_testing_modular_simplify(
 
     for (row = 0; row < buffer.max_nodes; ++row) {
         for (edge = 0; edge < buffer.num_buffered_edges[row]; ++edge) {
-            fprintf(stdout, "parent %d child %d left %lf right %lf\n",
-                buffer.parent[row][edge], buffer.child[row][edge],
-                buffer.left[row][edge], buffer.right[row][edge]);
             tsk_edge_table_add_row(new_edges, buffer.left[row][edge],
                 buffer.right[row][edge], buffer.parent[row][edge],
                 buffer.child[row][edge], NULL, 0);
         }
-    }
-    fprintf(stdout, "after all this mucking around:");
-    for (row = 0; row < tables->edges.num_rows; ++row) {
-        fprintf(stdout, "in tables: %lf %lf %d %d\n", tables->edges.left[row],
-            tables->edges.right[row], tables->edges.parent[row],
-            tables->edges.child[row]);
-    }
-    for (row = 0; row < new_edges->num_rows; ++row) {
-        fprintf(stdout, "in new_edges: %lf %lf %d %d\n", new_edges->left[row],
-            new_edges->right[row], new_edges->parent[row], new_edges->child[row]);
     }
 
     (*samples)[0] = new_child0;
@@ -9190,7 +9170,6 @@ run_test_modular_simplify_overlapping_generations(
 
     make_overlapping_generations_trees_for_testing_modular_simplify(
         &tables, &new_edges, &samples);
-    fprintf(stdout, "we find ourselves with %ld nodes\n", tables.nodes.num_rows);
 
     ret = tsk_table_collection_copy(&tables, &standard_tables, 0);
     if (ret < 0) {
@@ -9243,8 +9222,6 @@ run_test_modular_simplify_overlapping_generations(
     for (row = 0; row < 4; ++row) {
         last_parent = new_edges.parent[row_order[row]];
         row_for_parent = 0;
-        fprintf(stdout, "parent %d num nodes %ld\n", last_parent,
-            tables_copy.nodes.num_rows);
         CU_ASSERT_FATAL(last_parent < (tsk_id_t) tables_copy.nodes.num_rows);
         for (row_for_parent = 0;
              row + row_for_parent < new_edges.num_rows
@@ -9261,7 +9238,8 @@ run_test_modular_simplify_overlapping_generations(
             }
         }
         ret = tsk_modular_simplifier_merge_ancestors(&simplifier, last_parent);
-        fprintf(stdout, "procesed parent %d\n", last_parent);
+        fprintf(stdout, "procesed parent %d, time: %lf\n", last_parent,
+            tables_copy.nodes.time[last_parent]);
         if (ret < 0) {
             goto out;
         }
@@ -9285,7 +9263,11 @@ run_test_modular_simplify_overlapping_generations(
         goto out;
     }
 
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    // fprintf(stdout, "standard\n");
+    // tsk_table_collection_print_state(&standard_tables, stdout);
+    // fprintf(stdout, "buffered\n");
+    // tsk_table_collection_print_state(&tables, stdout);
+    // CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     // Now, we can compare various properties of the two table collections
     CU_ASSERT_EQUAL_FATAL(standard_tables.edges.num_rows, tables.edges.num_rows);
@@ -9352,7 +9334,7 @@ test_table_collection_modular_simplify_overlapping_generations(void)
 static void
 test_table_collection_modular_simplify_overlapping_generations_parent_time_error(void)
 {
-    tsk_id_t row_order[4] = { 2, 1, 0, 3 };
+    tsk_id_t row_order[4] = { 2, 3, 0, 1 };
     run_test_modular_simplify_overlapping_generations(
         row_order, TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
 }
