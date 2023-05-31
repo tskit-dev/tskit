@@ -90,6 +90,53 @@ edge_buffer_prep_for_simplification(edge_buffer *buffer)
     qsort(buffer->births, (size_t) buffer->size, sizeof(birth), cmp_birth);
 }
 
+/* Overlapping generations are a pain point.
+ * Nodes that are currently "alive" can span an
+ * arbitrary range of ages >= 0.0.
+ * These nodes can have ancestry (edges).
+ * The children of these edges may not be "alive" (e.g.,
+ * cannot be parents).
+ *
+ * We identify the range of such edges in a (simplified)
+ * table collection and lift them over into our buffer.
+ */
+void
+edge_buffer_post_simplification(tsk_id_t *output_samples, tsk_size_t num_output_samples,
+    tsk_table_collection_t *tables, edge_buffer *buffer)
+{
+    /* node times cannot be negative, so this
+     * is a reasonable floor
+     */
+    double max_alive_time = 0.0;
+    int64_t i, last_row_to_lift_over = -1;
+    tsk_size_t moved = 0;
+
+    for (i = 0; i < num_output_samples; ++i) {
+        max_alive_time = TSK_MAX(tables->nodes.time[output_samples[i]], max_alive_time);
+    }
+    for (i = 0; i < tables->edges.num_rows; ++i) {
+        if (tables->nodes.time[tables->edges.parent[i]] <= max_alive_time) {
+            last_row_to_lift_over = (int) i;
+        }
+    }
+    if (last_row_to_lift_over > -1) {
+        for (i = 0; i < (tsk_size_t) last_row_to_lift_over; ++i) {
+            edge_buffer_buffer_birth(tables->edges.left[i], tables->edges.right[i],
+                tables->nodes.time[tables->edges.parent[i]], tables->edges.parent[i],
+                tables->edges.child[i], buffer);
+        }
+        for (i = (tsk_size_t) last_row_to_lift_over + 1; i < tables->edges.num_rows;
+             ++i) {
+            tables->edges.left[moved] = tables->edges.left[i];
+            tables->edges.right[moved] = tables->edges.right[i];
+            tables->edges.parent[moved] = tables->edges.parent[i];
+            tables->edges.child[moved] = tables->edges.child[i];
+            moved += 1;
+        }
+        tsk_edge_table_truncate(&tables->edges, moved);
+    }
+}
+
 void
 edge_buffer_clear(edge_buffer *buffer)
 {
@@ -202,7 +249,9 @@ simulate(
                 alive[j] = idmap[alive[j]];
                 assert(alive[j] != TSK_NULL);
             }
+            /* The order of these next two steps MATTERS */
             edge_buffer_clear(&new_births);
+            edge_buffer_post_simplification(alive, N, tables, &new_births);
         }
     }
     free(buffer);
