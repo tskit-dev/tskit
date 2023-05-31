@@ -117,5 +117,8 @@ if not meson.is_subproject()
       executable('haploid_wright_fisher',
           sources: ['examples/haploid_wright_fisher.c'], 
           link_with: [tskit_lib], dependencies: lib_deps)
+      executable('efficient_forward_simulation',
+          sources: ['examples/efficient_forward_simulation.c'], 
+          link_with: [tskit_lib], dependencies: lib_deps)
     endif
 endif
