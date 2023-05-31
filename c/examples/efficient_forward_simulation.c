@@ -77,7 +77,7 @@ new_edges_buffer_birth(double left, double right, double parent_birth_time,
 void
 new_edges_prep_for_simplification(new_edges *buffer)
 {
-   qsort(buffer->births, (size_t) buffer->size, sizeof(birth), cmp_birth);
+    qsort(buffer->births, (size_t) buffer->size, sizeof(birth), cmp_birth);
 }
 
 void
