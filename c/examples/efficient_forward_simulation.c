@@ -168,6 +168,9 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval)
             check_tsk_error(ret);
             ret = tsk_modular_simplifier_free(&simplifier);
             check_tsk_error(ret);
+            /* For fun/safety/paranoia */
+            ret = tsk_table_collection_check_integrity(tables, TSK_CHECK_EDGE_ORDERING);
+            check_tsk_error(ret);
             printf(" -> (%lld nodes %lld edges)\n", (long long) tables->nodes.num_rows,
                 (long long) tables->edges.num_rows);
             for (j = 0; j < N; j++) {
