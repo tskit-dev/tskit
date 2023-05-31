@@ -8976,7 +8976,8 @@ run_test_modular_simplifier(tsk_table_collection_t *tables, tsk_edge_table_t *ne
      * Each case is an error that MUST be handled.
      * It is trivial to show that not handling the errors can give rise
      * to invalid table collections / tree sequences.
-     * The requirement for error handling must be documented
+     * (TODO: The requirement for error handling must be documented
+     *  in tables.h.)
      *
      * Production code should use an input other than
      * an edge table.
@@ -9015,11 +9016,6 @@ run_test_modular_simplifier(tsk_table_collection_t *tables, tsk_edge_table_t *ne
      *
      * Now, we have processed all (child) nodes whose births are
      * MORE RECENT than those in the input tables.
-     *
-     * TODO: the init method should calculate the minimum
-     * birth time of any child in the input table.
-     * The "edge adder" function should ensure that all
-     * new edges are < (or <= ??) that value.
      */
     ret = tsk_modular_simplifier_finalise(&simplifier, NULL);
     if (ret < 0) {
