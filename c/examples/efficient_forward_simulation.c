@@ -45,7 +45,7 @@ edge_buffer_init(edge_buffer *buffer, tsk_size_t initial_capacity)
         ret = -1;
         goto out;
     }
-    buffer->births = (birth *) malloc(initial_capacity);
+    buffer->births = (birth *) malloc(initial_capacity * sizeof(birth));
     buffer->capacity = initial_capacity;
     buffer->size = 0;
 out:
@@ -57,7 +57,17 @@ edge_buffer_realloc(edge_buffer *buffer)
 {
     if (buffer->size + 1 >= buffer->capacity) {
         buffer->capacity *= 2;
-        buffer->births = (birth *) realloc(buffer->births, buffer->capacity);
+        buffer->births
+            = (birth *) realloc(buffer->births, buffer->capacity * sizeof(birth));
+    }
+}
+
+void
+edge_buffer_free(edge_buffer *buffer)
+{
+    if (buffer->births != NULL) {
+        free(buffer->births);
+        buffer->births = NULL;
     }
 }
 
@@ -180,6 +190,7 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval)
         }
     }
     free(buffer);
+    edge_buffer_free(&new_births);
 }
 
 int
