@@ -204,6 +204,14 @@ simulate(
             do {
                 breakpoint = rand() / (1. + RAND_MAX);
             } while (breakpoint == 0); /* tiny proba of breakpoint being 0 */
+            /* NOTE: invalid left/right values here CANNOT be caught
+             * by tsk_table_collection_check_integrity!
+             * (They are not present in the edge table when the
+             *  simplifier is initialized, and the simplified tables
+             *  will naively process the overlaps, resulting in invalid output.)
+             *
+             * It is therefore a precondition that input edges are okay.
+             */
             edge_buffer_buffer_birth(0., breakpoint, tables->nodes.time[left_parent],
                 left_parent, child, &new_births);
             edge_buffer_buffer_birth(breakpoint, 1.0, tables->nodes.time[right_parent],
