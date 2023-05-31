@@ -142,12 +142,6 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval)
                 left_parent, child, &new_births);
             edge_buffer_buffer_birth(breakpoint, 1.0, tables->nodes.time[right_parent],
                 right_parent, child, &new_births);
-            // ret = tsk_edge_table_add_row(
-            //    &tables->edges, 0, breakpoint, left_parent, child, NULL, 0);
-            // check_tsk_error(ret);
-            // ret = tsk_edge_table_add_row(
-            //    &tables->edges, breakpoint, 1, right_parent, child, NULL, 0);
-            // check_tsk_error(ret);
             children[j] = child;
         }
         if (t % simplify_interval == 0) {
@@ -164,7 +158,6 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval)
                     ret = tsk_modular_simplifier_add_edge(&simplifier,
                         new_births.births[j].left, new_births.births[j].right,
                         new_births.births[j].parent, new_births.births[j].child);
-
                     check_tsk_error(ret);
                     j++;
                 }
@@ -175,12 +168,6 @@ simulate(tsk_table_collection_t *tables, int N, int T, int simplify_interval)
             check_tsk_error(ret);
             ret = tsk_modular_simplifier_free(&simplifier);
             check_tsk_error(ret);
-            /* Note: Edges must be sorted for simplify to work, and we use a brute force
-             * approach of sorting each time here for simplicity. This is inefficient. */
-            // ret = tsk_table_collection_sort(tables, NULL, 0);
-            // check_tsk_error(ret);
-            // ret = tsk_table_collection_simplify(tables, children, N, 0, NULL);
-            // check_tsk_error(ret);
             printf(" -> (%lld nodes %lld edges)\n", (long long) tables->nodes.num_rows,
                 (long long) tables->edges.num_rows);
             for (j = 0; j < N; j++) {
