@@ -47,6 +47,13 @@ class Dataclass:
         """
         return dataclasses.replace(self, **kwargs)
 
+    def asdict(self, **kwargs):
+        """
+        Return a new dict which maps field names to their corresponding values
+        in this dataclass.
+        """
+        return dataclasses.asdict(self, **kwargs)
+
 
 def canonical_json(obj):
     """
