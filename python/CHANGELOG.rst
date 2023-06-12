@@ -1,10 +1,13 @@
 --------------------
-[0.5.X] - 2023-XX-XX
+[0.5.6] - 2023-XX-XX
 --------------------
 
 **Features**
 
 - Add ``TreeSequence.impute_unknown_mutations_time`` method to return an array of mutation times based on the times of associated nodes (:user:`duncanMR`, :pr:`2760`, :issue:`2758`)
+
+- Add ``asdict`` to all dataclasses. These are returned when you access a row or
+  other tree sequence object. (:user:`benjeffery`, :pr:`2759`, :issue:`2719`)
 
 --------------------
 [0.5.5] - 2023-05-17

@@ -140,6 +140,14 @@ class CommonTestsMixin:
             table_5row.add_row(**row)
         return table_5row
 
+    def test_asdict(self, table, test_rows):
+        for table_row, test_row in zip(table, test_rows):
+            for k, v in table_row.asdict().items():
+                if isinstance(v, np.ndarray):
+                    assert np.array_equal(v, test_row[k])
+                else:
+                    assert v == test_row[k]
+
     def test_max_rows_increment(self):
         for bad_value in [-1, -(2**10)]:
             with pytest.raises(ValueError):
