@@ -1,4 +1,12 @@
 --------------------
+[0.5.X] - 2023-XX-XX
+--------------------
+
+**Features**
+
+- Add ``TreeSequence.impute_unknown_mutations_time`` method to return an array of mutation times based on the times of associated nodes (:user:`duncanMR`, :pr:`2760`, :issue:`2758`)
+
+--------------------
 [0.5.5] - 2023-05-17
 --------------------
 
