@@ -8270,6 +8270,7 @@ class TreeSequence:
         :return: A ndarray with shape equal to (num windows, num statistics).
             If there is one sample set and windows=None, a numpy scalar is returned.
         """
+
         # TODO this should be done in C as we'll want to support this method there.
         def tjd_func(sample_set_sizes, flattened, **kwargs):
             n = sample_set_sizes
@@ -8881,6 +8882,36 @@ class TreeSequence:
             blocks_per_window=blocks_per_window,
             span_normalise=span_normalise,
         )
+
+    def impute_unknown_mutations_time(
+        self,
+        method=None,
+    ):
+        """
+        Returns an array of mutation times, where any unknown times are
+        imputed from the times of associated nodes. Not to be confused with
+        :meth:`TableCollection.compute_mutation_times`, which modifies the
+        ``time`` column of the mutations table in place.
+
+        :param str method: The method used to impute the unknown mutation times.
+            Currently only "min" is supported, which uses the time of the node
+            below the mutation as the mutation time. The "min" method can also
+            be specified by ``method=None`` (Default: ``None``).
+        :return: An array of length equal to the number of mutations in the
+            tree sequence.
+        """
+        allowed_methods = ["min"]
+        if method is None:
+            method = "min"
+        if method not in allowed_methods:
+            raise ValueError(
+                f"Mutations time imputation method must be chosen from {allowed_methods}"
+            )
+        if method == "min":
+            mutations_time = self.mutations_time.copy()
+            unknown = tskit.is_unknown_time(mutations_time)
+            mutations_time[unknown] = self.nodes_time[self.mutations_node[unknown]]
+            return mutations_time
 
     ############################################
     #

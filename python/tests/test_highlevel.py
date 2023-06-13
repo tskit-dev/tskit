@@ -2596,6 +2596,35 @@ class TestTreeSequence(HighLevelTestCase):
             ts.indexes_edge_removal_order, tables.indexes.edge_removal_order
         )
 
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_impute_unknown_mutations_time(self, ts):
+        # Tests for method='min'
+        imputed_time = ts.impute_unknown_mutations_time(method="min")
+        mutations = ts.tables.mutations
+        nodes_time = ts.nodes_time
+        table_time = np.zeros(len(mutations))
+
+        for mut_idx, mut in enumerate(mutations):
+            if tskit.is_unknown_time(mut.time):
+                node_time = nodes_time[mut.node]
+                table_time[mut_idx] = node_time
+            else:
+                table_time[mut_idx] = mut.time
+
+        assert np.allclose(imputed_time, table_time, rtol=1e-10, atol=1e-10)
+
+        # Check we have valid times
+        tables = ts.dump_tables()
+        tables.mutations.time = imputed_time
+        tables.sort()
+        tables.tree_sequence()
+
+        # Test for unallowed methods
+        with pytest.raises(
+            ValueError, match="Mutations time imputation method must be chosen"
+        ):
+            ts.impute_unknown_mutations_time(method="foobar")
+
 
 class TestSimplify:
     # This class was factored out of the old TestHighlevel class 2022-12-13,
