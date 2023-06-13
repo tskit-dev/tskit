@@ -14,7 +14,6 @@ commands:
             sudo pip install meson
             pip install numpy==1.18.5
             pip install --user -r python/requirements/CI-complete/requirements.txt
-            ARGO_NET_GIT_FETCH_WITH_CLI=1 pip install twine --user
             # Remove tskit installed by msprime
             pip uninstall tskit -y
             echo 'export PATH=/home/circleci/.local/bin:$PATH' >> $BASH_ENV
@@ -151,23 +150,6 @@ commands:
           flags: python-c-tests
           token: CODECOV_TOKEN
 
-      - run:
-          name: Build Python package
-          command: |
-            cd python
-            rm -fR build
-            python setup.py sdist
-            python setup.py check
-            python -m twine check dist/*.tar.gz
-            python -m venv venv
-            source venv/bin/activate
-            pip install --upgrade setuptools pip wheel
-            python setup.py build_ext
-            python setup.py egg_info
-            python setup.py bdist_wheel
-            pip install dist/*.tar.gz
-            tskit --help
-
 jobs:
   build:
     docker:
@@ -187,6 +169,28 @@ jobs:
           paths:
             - "/home/circleci/.local"
       - compile_and_test
+      - run:
+          name: Install dependencies for wheel test
+          command: |
+            ARGO_NET_GIT_FETCH_WITH_CLI=1 pip install twine --user
+            # Remove tskit installed by msprime
+            pip uninstall tskit -y
+      - run:
+          name: Build Python package
+          command: |
+            cd python
+            rm -fR build
+            python setup.py sdist
+            python setup.py check
+            python -m twine check dist/*.tar.gz
+            python -m venv venv
+            source venv/bin/activate
+            pip install --upgrade setuptools pip wheel
+            python setup.py build_ext
+            python setup.py egg_info
+            python setup.py bdist_wheel
+            pip install dist/*.tar.gz
+            tskit --help
 
   build-32:
     docker:
