@@ -4561,14 +4561,14 @@ class TreeSequence:
             raise ValueError(
                 "max_root_time is not defined in a tree sequence with 0 samples"
             )
-        ret = max(self.node(u).time for u in self.samples())
+        ret = max(self.nodes_time[u] for u in self.samples())
         if self.num_edges > 0:
             # Edges are guaranteed to be listed in parent-time order, so we can get the
             # last one to get the oldest root
             edge = self.edge(self.num_edges - 1)
             # However, we can have situations where there is a sample older than a
             # 'proper' root
-            ret = max(ret, self.node(edge.parent).time)
+            ret = max(ret, self.nodes_time[edge.parent])
         return ret
 
     def migrations(self):
