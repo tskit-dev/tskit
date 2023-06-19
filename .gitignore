@@ -3,4 +3,6 @@ build-gcc
 python/benchmark/*.trees
 python/benchmark/*.json
 python/benchmark/*.html
+.venv
+.env
 
