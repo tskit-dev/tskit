@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2023 Tskit Developers
+# Copyright (c) 2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,8 @@
 """
 Tests for tree distance metrics.
 """
+import itertools
+
 import dendropy
 import msprime
 import pytest
@@ -213,3 +215,45 @@ class TestWithPackages:
         rf1 = trees[0].rf_distance(trees[1])
         rf2 = self.dendropy_rf_distance(trees[0], trees[1])
         assert rf1 == rf2
+
+
+class TestDistanceBetween:
+    @pytest.mark.parametrize(
+        ("u", "v"),
+        itertools.combinations([0, 1, 2, 3], 2),
+    )
+    def test_distance_between_sample(self, u, v):
+        ts = msprime.sim_ancestry(
+            2, sequence_length=10, recombination_rate=0.1, random_seed=42
+        )
+        test_tree = ts.first()
+        assert test_tree.distance_between(u, v) == pytest.approx(
+            ts.diversity([u, v], mode="branch", windows="trees")[0]
+        )
+
+    def test_distance_between_same_node(self):
+        ts = msprime.sim_ancestry(
+            2, sequence_length=10, recombination_rate=0.1, random_seed=42
+        )
+        test_tree = ts.first()
+        assert test_tree.distance_between(0, 0) == 0
+
+    def test_distance_between_nodes(self):
+        # 4.00┊   8       ┊
+        #     ┊ ┏━┻━┓     ┊
+        # 3.00┊ ┃   7     ┊
+        #     ┊ ┃ ┏━┻━┓   ┊
+        # 2.00┊ ┃ ┃   6   ┊
+        #     ┊ ┃ ┃ ┏━┻┓  ┊
+        # 1.00┊ ┃ ┃ ┃  5  ┊
+        #     ┊ ┃ ┃ ┃ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 3 4 ┊
+        #     0           1
+        ts = tskit.Tree.generate_comb(5)
+        assert ts.distance_between(1, 7) == 3.0
+        assert ts.distance_between(6, 8) == 2.0
+
+    def test_distance_between_invalid_nodes(self):
+        ts = tskit.Tree.generate_comb(5)
+        with pytest.raises(ValueError):
+            ts.distance_between(0, 100)

@@ -2989,6 +2989,19 @@ class Tree:
             return math.inf
         return self.depth(u) + self.depth(v) - 2 * self.depth(mrca)
 
+    def distance_between(self, u, v):
+        """
+        Returns the total distance between two nodes in the tree, expressed as
+        the sum of "branch lengths" from both nodes to their most recent common ancestor.
+
+        :param int u: The first node for path length computation.
+        :param int v: The second node for path length computation.
+        :return: The distance between the two nodes, the sum of "branch lengths" .
+        :rtype: float
+        """
+        tmrca = self.tmrca(u, v)
+        return tmrca - self.time(u) + tmrca - self.time(v)
+
     def b1_index(self):
         """
         Returns the
