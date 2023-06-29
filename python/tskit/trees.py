@@ -8000,11 +8000,14 @@ class TreeSequence:
         then the k-th column of output will be
         :math:`\sum_{a,b} W_{ai} W_{bj} C_{ab}`,
         where :math:`W` is the matrix of weights, and :math:`C_{ab}` is the
-        {meth}`.genetic_relatedness` between sample i and sample j.
+        :meth:`genetic_relatedness <.TreeSequence.genetic_relatedness>` between sample
+            a and sample b, summing over all pairs of samples in the tree sequence.
 
-        :param numpy.ndarray W: An array of values with one row for each sample and one
-            column for each set of weights.
-        :param list indexes: A list of 2-tuples, or None.
+        :param numpy.ndarray W: An array of values with one row for each sample node and
+            one column for each set of weights.
+        :param list indexes: A list of 2-tuples, or None (default). Note that if
+            indexes = None, then W must have exactly two columns and this is equivalent
+            to indexes = [(0,1)].
         :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param str mode: A string giving the "type" of the statistic to be computed

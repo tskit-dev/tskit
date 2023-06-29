@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 # Copyright (C) 2016 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -2099,6 +2099,203 @@ class TestSiteGeneticRelatedness(TestGeneticRelatedness, MutatedTopologyExamples
                 / ts.segregating_sites(sample_sets=all_samples, span_normalise=False)
             )
         self.assertArrayAlmostEqual(A, B)
+
+
+############################################
+# Genetic relatedness weighted
+############################################
+
+
+def genetic_relatedness_matrix(ts, sample_sets, windows=None, mode="site"):
+    n = len(sample_sets)
+    indexes = [
+        (n1, n2) for n1, n2 in itertools.combinations_with_replacement(range(n), 2)
+    ]
+    if windows is None:
+        if mode == "node":
+            n_nodes = ts.num_nodes
+            K = np.zeros((n_nodes, n, n))
+            out = ts.genetic_relatedness(
+                sample_sets, indexes, mode=mode, proportion=False, span_normalise=True
+            )
+            for node in range(n_nodes):
+                this_K = np.zeros((n, n))
+                this_K[np.triu_indices(n)] = out[node, :]
+                this_K = this_K + np.triu(this_K, 1).transpose()
+                K[node, :, :] = this_K
+        else:
+            K = np.zeros((n, n))
+            K[np.triu_indices(n)] = ts.genetic_relatedness(
+                sample_sets, indexes, mode=mode, proportion=False, span_normalise=True
+            )
+            K = K + np.triu(K, 1).transpose()
+    else:
+        windows = ts.parse_windows(windows)
+        n_windows = len(windows) - 1
+        out = ts.genetic_relatedness(
+            sample_sets,
+            indexes,
+            mode=mode,
+            windows=windows,
+            proportion=False,
+            span_normalise=True,
+        )
+        if mode == "node":
+            n_nodes = ts.num_nodes
+            K = np.zeros((n_windows, n_nodes, n, n))
+            for win in range(n_windows):
+                for node in range(n_nodes):
+                    K_this = np.zeros((n, n))
+                    K_this[np.triu_indices(n)] = out[win, node, :]
+                    K_this = K_this + np.triu(K_this, 1).transpose()
+                    K[win, node, :, :] = K_this
+        else:
+            K = np.zeros((n_windows, n, n))
+            for win in range(n_windows):
+                K_this = np.zeros((n, n))
+                K_this[np.triu_indices(n)] = out[win, :]
+                K_this = K_this + np.triu(K_this, 1).transpose()
+                K[win, :, :] = K_this
+    return K
+
+
+def genetic_relatedness_weighted(ts, W, indexes, windows=None, mode="site"):
+    W_mean = W.mean(axis=0)
+    W = W - W_mean
+    sample_sets = [[u] for u in ts.samples()]
+    K = genetic_relatedness_matrix(ts, sample_sets, windows, mode)
+    n_indexes = len(indexes)
+    n_nodes = ts.num_nodes
+    if windows is None:
+        if mode == "node":
+            out = np.zeros((n_nodes, n_indexes))
+        else:
+            out = np.zeros(n_indexes)
+    else:
+        windows = ts.parse_windows(windows)
+        n_windows = len(windows) - 1
+        if mode == "node":
+            out = np.zeros((n_windows, n_nodes, n_indexes))
+        else:
+            out = np.zeros((n_windows, n_indexes))
+    for pair in range(n_indexes):
+        i1 = indexes[pair][0]
+        i2 = indexes[pair][1]
+        if windows is None:
+            if mode == "node":
+                for node in range(n_nodes):
+                    this_K = K[node, :, :]
+                    out[node, pair] = W[:, i1] @ this_K @ W[:, i2]
+            else:
+                out[pair] = W[:, i1] @ K @ W[:, i2]
+        else:
+            for win in range(n_windows):
+                if mode == "node":
+                    for node in range(n_nodes):
+                        this_K = K[win, node, :, :]
+                        out[win, node, pair] = W[:, i1] @ this_K @ W[:, i2]
+                else:
+                    this_K = K[win, :, :]
+                    out[win, pair] = W[:, i1] @ this_K @ W[:, i2]
+    return out
+
+
+def example_index_pairs(weights):
+    assert weights.shape[1] >= 2
+    yield [(0, 1)]
+    yield [(1, 0), (0, 1)]
+    if weights.shape[1] > 2:
+        yield [(0, 1), (1, 2), (0, 2)]
+
+
+class TestGeneticRelatednessWeighted(StatsTestCase, WeightStatsMixin):
+
+    # Derived classes define this to get a specific stats mode.
+    mode = None
+
+    def verify_definition(
+        self, ts, W, indexes, windows, summary_func, ts_method, definition
+    ):
+
+        # Determine output_dim of the function
+        M = len(indexes)
+
+        sigma1 = ts.general_stat(
+            W, summary_func, M, windows, mode=self.mode, span_normalise=True
+        )
+        sigma2 = general_stat(
+            ts, W, summary_func, windows, mode=self.mode, span_normalise=True
+        )
+
+        sigma3 = ts_method(
+            W,
+            indexes=indexes,
+            windows=windows,
+            mode=self.mode,
+        )
+        sigma4 = definition(
+            ts,
+            W,
+            indexes=indexes,
+            windows=windows,
+            mode=self.mode,
+        )
+        assert sigma1.shape == sigma2.shape
+        assert sigma1.shape == sigma3.shape
+        assert sigma1.shape == sigma4.shape
+        self.assertArrayAlmostEqual(sigma1, sigma2)
+        self.assertArrayAlmostEqual(sigma1, sigma3)
+        self.assertArrayAlmostEqual(sigma1, sigma4)
+
+    def verify(self, ts):
+        for W, windows in subset_combos(
+            self.example_weights(ts, min_size=2), example_windows(ts), p=0.1
+        ):
+            for indexes in example_index_pairs(W):
+                self.verify_weighted_stat(ts, W, indexes, windows)
+
+    def verify_weighted_stat(self, ts, W, indexes, windows):
+        W_mean = W.mean(axis=0)
+        W = W - W_mean
+        W_sum = W.sum(axis=0)
+        n = W.shape[0]
+
+        def f(x):
+            mx = np.sum(x) / n
+            return np.array(
+                [
+                    (x[i] - W_sum[i] * mx) * (x[j] - W_sum[j] * mx) / 2
+                    for i, j in indexes
+                ]
+            )
+
+        self.verify_definition(
+            ts,
+            W,
+            indexes,
+            windows,
+            f,
+            ts.genetic_relatedness_weighted,
+            genetic_relatedness_weighted,
+        )
+
+
+class TestBranchGeneticRelatednessWeighted(
+    TestGeneticRelatednessWeighted, TopologyExamplesMixin
+):
+    mode = "branch"
+
+
+class TestNodeGeneticRelatednessWeighted(
+    TestGeneticRelatednessWeighted, TopologyExamplesMixin
+):
+    mode = "node"
+
+
+class TestSiteGeneticRelatednessWeighted(
+    TestGeneticRelatednessWeighted, MutatedTopologyExamplesMixin
+):
+    mode = "site"
 
 
 ############################################
