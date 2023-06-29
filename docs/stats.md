@@ -71,6 +71,7 @@ appears beside the listed method.
     * Multi-way
         * {meth}`~TreeSequence.divergence`
         * {meth}`~TreeSequence.genetic_relatedness`
+          {meth}`~TreeSequence.genetic_relatedness_weighted`
         * {meth}`~TreeSequence.f4`
           {meth}`~TreeSequence.f3`
           {meth}`~TreeSequence.f2`
@@ -593,6 +594,12 @@ and boolean expressions (e.g., {math}`(x > 0)`) are interpreted as 0/1.
   where {math}`m = \frac{1}{n}\sum_{k=1}^n x_k` with {math}`n` the total number
   of samples.
 
+`genetic_relatedness_weighted`
+: {math}`f(w_i, w_j, x_i, x_j) = \frac{1}{2}(x_i - w_i m) (x_j - w_j m)`,
+
+  where {math}`m = \frac{1}{n}\sum_{k=1}^n x_k` with {math}`n` the total number
+  of samples, and {math}`w_j = \sum_{k=1}^n W_kj` is the sum of the weights in the {math}`j`th column of the weight matrix.
+  
 `Y2`
 : {math}`f(x_1, x_2) = \frac{x_1 (n_2 - x_2) (n_2 - x_2 - 1)}{n_1 n_2 (n_2 - 1)}`
 
