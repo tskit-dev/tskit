@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 # Copyright (C) 2016 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -6254,3 +6254,128 @@ class TestGeneralStatCallbackErrors:
                 output_dim=1,
                 strict=False,
             )
+
+
+# pbs
+############################################
+
+
+def single_site_pbs(ts, sample_sets, indexes=((0, 1), (0, 2), (1, 2))):
+    """
+    index:
+        the index is,
+        [[foucus_pop,sister_pop], [focus_pop,far_pop], [sister_pop,far_pop]]
+    output:
+        [focus_pbs, sister_pbs, far_pbs]
+    first:
+        Compute single-site Fst, which between two groups x and y,
+        with frequencies p and q is;
+        Fst_xy = 1 - 2 * (p (1-p) + q(1-q)) / ( p(1-p) + q(1-q) + p(1-q) + q(1-p) )
+        or in the multiallelic case,
+        replacing p(1-p) with the sum over alleles of p(1-p),
+        and adjusted for sampling without replacement.
+    then:
+        compute pbs of selected populations:
+            pbs_x = (-math.log(1-Fst_xy, 10) + -math.log(1-Fst_xz, 10) -
+                -math.log(1-Fst_yz, 10)) / 2
+    """
+    # TODO: what to do in this case?
+    if ts.num_sites == 0:
+        out = np.array([np.repeat(np.nan, len(indexes))])
+        return out
+    out = np.zeros((ts.num_sites, len(indexes)))
+    samples = ts.samples()
+    # TODO deal with missing data properly.
+    for j, v in enumerate(ts.variants(isolated_as_missing=False)):
+        for i, (ix, iy) in enumerate(indexes):
+            g = v.genotypes
+            X = sample_sets[ix]
+            Y = sample_sets[iy]
+            gX = [a for k, a in zip(samples, g) if k in X]
+            gY = [a for k, a in zip(samples, g) if k in Y]
+            nX = len(X)
+            nY = len(Y)
+            dX = dY = dXY = 0
+            for a in set(g):
+                fX = np.sum(gX == a)
+                fY = np.sum(gY == a)
+                with suppress_division_by_zero_warning():
+                    dX += fX * (nX - fX) / (nX * (nX - 1))
+                    dY += fY * (nY - fY) / (nY * (nY - 1))
+                    dXY += (fX * (nY - fY) + (nX - fX) * fY) / (2 * nX * nY)
+            with suppress_division_by_zero_warning():
+                out[j][i] = 1 - 2 * (dX + dY) / (dX + dY + 2 * dXY)
+
+    def cal_pbs(arr_0):
+        arr = 1 - arr_0
+        arr[:, 0] = (
+            -np.log10(arr[:, 0]) + np.log10(arr[:, 1]) - np.log10(arr[:, 2])
+        ) / 2
+        arr[:, 1] = (
+            -np.log10(arr[:, 0]) + np.log10(arr[:, 2]) - np.log10(arr[:, 1])
+        ) / 2
+        arr[:, 2] = (
+            -np.log10(arr[:, 1]) + np.log10(arr[:, 2]) - np.log10(arr[:, 0])
+        ) / 2
+        return arr
+
+    pbs = cal_pbs(out)
+    return pbs
+
+
+class Testpbs(StatsTestCase, ThreeWaySampleSetStatsMixin):
+
+    # Derived classes define this to get a specific stats mode.
+    mode = None
+
+    def verify(self, ts):
+        # only check per-site
+        for sample_sets in example_sample_sets(ts, min_size=3):
+            for indexes in example_sample_set_index_pairs(sample_sets):
+                self.verify_persite_pbs(ts, sample_sets, indexes)
+
+    def verify_persite_pbs(self, ts, sample_sets, indexes):
+        sigma1 = ts.pbs(
+            sample_sets,
+            indexes=indexes,
+            windows="sites",
+            mode=self.mode,
+            span_normalise=False,
+        )
+        sigma2 = single_site_pbs(ts, sample_sets, indexes)
+        assert sigma1.shape == sigma2.shape
+        self.assertArrayAlmostEqual(sigma1, sigma2)
+
+
+class pbsInterfaceMixin:
+    def test_interface(self):
+        ts = msprime.simulate(10, mutation_rate=0.0)
+        sample_sets = [[0, 1, 2], [6, 7], [4]]
+        with pytest.raises(ValueError):
+            ts.pbs(sample_sets, mode=self.mode)
+        with pytest.raises(ValueError):
+            ts.pbs(sample_sets, indexes=[(0, 1), (0, 2)], mode=self.mode)
+        with pytest.raises(tskit.LibraryError):
+            ts.pbs(sample_sets, indexes=[(0, 1), (0, 20), (1, 20)])
+        sigma1 = ts.pbs(sample_sets, indexes=[(0, 1), (1, 2), (0, 2)], mode=self.mode)
+        sigma2 = ts.pbs(sample_sets, indexes=[(0, 1), (0, 2), (1, 2)], mode=self.mode)
+        self.assertArrayAlmostEqual(sigma1[..., 0], sigma2[..., 0])
+
+
+class TestSitepbs(Testpbs, MutatedTopologyExamplesMixin, pbsInterfaceMixin):
+    mode = "site"
+
+
+# Since pbs is defined using diversity and divergence and fst, we don't seriously
+# test it for correctness for node and branch, and only test the interface.
+
+
+class TestNodepbs(StatsTestCase, pbsInterfaceMixin):
+    mode = "node"
+
+
+class TestBranchpbs(StatsTestCase, pbsInterfaceMixin):
+    mode = "node"
+
+
+# kk
