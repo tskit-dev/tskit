@@ -3554,6 +3554,164 @@ out:
 }
 
 /* ======================================================== *
+ * tree_position
+ * ======================================================== */
+
+static void
+tsk_tree_position_set_null(tsk_tree_position_t *self)
+{
+    self->index = -1;
+    self->interval.left = 0;
+    self->interval.right = 0;
+}
+
+int
+tsk_tree_position_init(tsk_tree_position_t *self, const tsk_treeseq_t *tree_sequence,
+    tsk_flags_t TSK_UNUSED(options))
+{
+    memset(self, 0, sizeof(*self));
+    self->tree_sequence = tree_sequence;
+    tsk_tree_position_set_null(self);
+    return 0;
+}
+
+int
+tsk_tree_position_free(tsk_tree_position_t *TSK_UNUSED(self))
+{
+    return 0;
+}
+
+int
+tsk_tree_position_print_state(const tsk_tree_position_t *self, FILE *out)
+{
+    fprintf(out, "Tree position state\n");
+    fprintf(out, "index = %d\n", (int) self->index);
+    fprintf(
+        out, "out   = start=%d\tstop=%d\n", (int) self->out.start, (int) self->out.stop);
+    fprintf(
+        out, "in    = start=%d\tstop=%d\n", (int) self->in.start, (int) self->in.stop);
+    return 0;
+}
+
+bool
+tsk_tree_position_next(tsk_tree_position_t *self)
+{
+    const tsk_table_collection_t *tables = self->tree_sequence->tables;
+    const tsk_id_t M = (tsk_id_t) tables->edges.num_rows;
+    const tsk_id_t num_trees = (tsk_id_t) self->tree_sequence->num_trees;
+    const double *restrict left_coords = tables->edges.left;
+    const tsk_id_t *restrict left_order = tables->indexes.edge_insertion_order;
+    const double *restrict right_coords = tables->edges.right;
+    const tsk_id_t *restrict right_order = tables->indexes.edge_removal_order;
+    const double *restrict breakpoints = self->tree_sequence->breakpoints;
+    tsk_id_t j, left_current_index, right_current_index;
+    double left;
+
+    if (self->index == -1) {
+        self->interval.right = 0;
+        self->in.stop = 0;
+        self->out.stop = 0;
+        self->direction = TSK_DIR_FORWARD;
+    }
+
+    if (self->direction == TSK_DIR_FORWARD) {
+        left_current_index = self->in.stop;
+        right_current_index = self->out.stop;
+    } else {
+        left_current_index = self->out.stop + 1;
+        right_current_index = self->in.stop + 1;
+    }
+
+    left = self->interval.right;
+
+    j = right_current_index;
+    self->out.start = j;
+    while (j < M && right_coords[right_order[j]] == left) {
+        j++;
+    }
+    self->out.stop = j;
+    self->out.order = right_order;
+
+    j = left_current_index;
+    self->in.start = j;
+    while (j < M && left_coords[left_order[j]] == left) {
+        j++;
+    }
+    self->in.stop = j;
+    self->in.order = left_order;
+
+    self->direction = TSK_DIR_FORWARD;
+    self->index++;
+    if (self->index == num_trees) {
+        tsk_tree_position_set_null(self);
+    } else {
+        self->interval.left = left;
+        self->interval.right = breakpoints[self->index + 1];
+    }
+    return self->index != -1;
+}
+
+bool
+tsk_tree_position_prev(tsk_tree_position_t *self)
+{
+    const tsk_table_collection_t *tables = self->tree_sequence->tables;
+    const tsk_id_t M = (tsk_id_t) tables->edges.num_rows;
+    const double sequence_length = tables->sequence_length;
+    const tsk_id_t num_trees = (tsk_id_t) self->tree_sequence->num_trees;
+    const double *restrict left_coords = tables->edges.left;
+    const tsk_id_t *restrict left_order = tables->indexes.edge_insertion_order;
+    const double *restrict right_coords = tables->edges.right;
+    const tsk_id_t *restrict right_order = tables->indexes.edge_removal_order;
+    const double *restrict breakpoints = self->tree_sequence->breakpoints;
+    tsk_id_t j, left_current_index, right_current_index;
+    double right;
+
+    if (self->index == -1) {
+        self->index = num_trees;
+        self->interval.left = sequence_length;
+        self->in.stop = M - 1;
+        self->out.stop = M - 1;
+        self->direction = TSK_DIR_REVERSE;
+    }
+
+    if (self->direction == TSK_DIR_REVERSE) {
+        left_current_index = self->out.stop;
+        right_current_index = self->in.stop;
+    } else {
+        left_current_index = self->in.stop - 1;
+        right_current_index = self->out.stop - 1;
+    }
+
+    right = self->interval.left;
+
+    j = left_current_index;
+    self->out.start = j;
+    while (j >= 0 && left_coords[left_order[j]] == right) {
+        j--;
+    }
+    self->out.stop = j;
+    self->out.order = left_order;
+
+    j = right_current_index;
+    self->in.start = j;
+    while (j >= 0 && right_coords[right_order[j]] == right) {
+        j--;
+    }
+    self->in.stop = j;
+    self->in.order = right_order;
+
+    self->index--;
+    self->direction = TSK_DIR_REVERSE;
+    if (self->index == -1) {
+        tsk_tree_position_set_null(self);
+    } else {
+        self->interval.left = breakpoints[self->index];
+        self->interval.right = right;
+    }
+    return self->index != -1;
+}
+
+/* ======================================================== *
  * Tree
  * ======================================================== */
 
