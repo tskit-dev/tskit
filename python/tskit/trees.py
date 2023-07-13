@@ -7996,12 +7996,12 @@ class TreeSequence:
         polarised=False,
     ):
         r"""
-        Computes weighted genetic relatedness: if the k-th pair of indices is (i, j)
+        Computes weighted genetic relatedness. If the k-th pair of indices is (i, j)
         then the k-th column of output will be
         :math:`\sum_{a,b} W_{ai} W_{bj} C_{ab}`,
         where :math:`W` is the matrix of weights, and :math:`C_{ab}` is the
         :meth:`genetic_relatedness <.TreeSequence.genetic_relatedness>` between sample
-            a and sample b, summing over all pairs of samples in the tree sequence.
+        a and sample b, summing over all pairs of samples in the tree sequence.
 
         :param numpy.ndarray W: An array of values with one row for each sample node and
             one column for each set of weights.

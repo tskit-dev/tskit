@@ -4,7 +4,13 @@
 
 **Features**
 
-- Add ``TreeSequence.impute_unknown_mutations_time`` method to return an array of mutation times based on the times of associated nodes (:user:`duncanMR`, :pr:`2760`, :issue:`2758`)
+- Add ``TreeSequence.genetic_relatedness_weighted`` stats method.
+  (:user:`petrelharp`, :user:`brieuclehmann`, :user:`jeromekelleher`,
+  :pr:`2785`, :pr:`1246`)
+
+- Add ``TreeSequence.impute_unknown_mutations_time`` method to return an
+  array of mutation times based on the times of associated nodes
+  (:user:`duncanMR`, :pr:`2760`, :issue:`2758`)
 
 - Add ``asdict`` to all dataclasses. These are returned when you access a row or
   other tree sequence object. (:user:`benjeffery`, :pr:`2759`, :issue:`2719`)
