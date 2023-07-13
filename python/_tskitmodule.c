@@ -13261,6 +13261,64 @@ out:
 }
 
 static PyObject *
+LsHmm_backward_matrix(LsHmm *self, PyObject *args)
+{
+    int err;
+    PyObject *ret = NULL;
+    PyObject *haplotype = NULL;
+    PyObject *forward_norm = NULL;
+    CompressedMatrix *compressed_matrix = NULL;
+    PyArrayObject *haplotype_array = NULL;
+    PyArrayObject *forward_norm_array = NULL;
+    npy_intp *shape, num_sites;
+
+    if (LsHmm_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTuple(args, "OOO!", &haplotype, &forward_norm, &CompressedMatrixType,
+            &compressed_matrix)) {
+        goto out;
+    }
+    num_sites = (npy_intp) tsk_treeseq_get_num_sites(self->tree_sequence->tree_sequence);
+
+    haplotype_array = (PyArrayObject *) PyArray_FROMANY(
+        haplotype, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
+    if (haplotype_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(haplotype_array);
+    if (shape[0] != num_sites) {
+        PyErr_SetString(
+            PyExc_ValueError, "haplotype array must have dimension (num_sites,)");
+        goto out;
+    }
+
+    forward_norm_array = (PyArrayObject *) PyArray_FROMANY(
+        forward_norm, NPY_FLOAT64, 1, 1, NPY_ARRAY_IN_ARRAY);
+    if (forward_norm_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(forward_norm_array);
+    if (shape[0] != num_sites) {
+        PyErr_SetString(
+            PyExc_ValueError, "forward_norm array must have dimension (num_sites,)");
+        goto out;
+    }
+    err = tsk_ls_hmm_backward(self->ls_hmm, PyArray_DATA(haplotype_array),
+        PyArray_DATA(forward_norm_array), compressed_matrix->compressed_matrix,
+        TSK_NO_INIT);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = Py_BuildValue("");
+out:
+    Py_XDECREF(haplotype_array);
+    Py_XDECREF(forward_norm_array);
+    return ret;
+}
+
+static PyObject *
 LsHmm_viterbi_matrix(LsHmm *self, PyObject *args)
 {
     int err;
@@ -13306,6 +13364,10 @@ static PyMethodDef LsHmm_methods[] = {
         .ml_meth = (PyCFunction) LsHmm_forward_matrix,
         .ml_flags = METH_VARARGS,
         .ml_doc = "Returns the tree encoded forward matrix for a given haplotype" },
+    { .ml_name = "backward_matrix",
+        .ml_meth = (PyCFunction) LsHmm_backward_matrix,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Returns the tree encoded backward matrix for a given haplotype" },
     { .ml_name = "viterbi_matrix",
         .ml_meth = (PyCFunction) LsHmm_viterbi_matrix,
         .ml_flags = METH_VARARGS,

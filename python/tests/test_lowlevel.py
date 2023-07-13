@@ -2834,34 +2834,59 @@ class TestLsHmm(LowLevelTestCase):
         m = ts.get_num_sites()
         fm = _tskit.CompressedMatrix(ts)
         vm = _tskit.ViterbiMatrix(ts)
+        norm = np.ones(m)
         ls_hmm = _tskit.LsHmm(ts, np.zeros(m), np.zeros(m))
         for bad_size in [0, m - 1, m + 1, m + 2]:
             bad_array = np.zeros(bad_size, dtype=np.int8)
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match="haplotype array"):
                 ls_hmm.forward_matrix(bad_array, fm)
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match="haplotype array"):
+                ls_hmm.backward_matrix(bad_array, norm, fm)
+            with pytest.raises(ValueError, match="haplotype array"):
                 ls_hmm.viterbi_matrix(bad_array, vm)
         for bad_array in [[0.002], [[], []], None]:
             with pytest.raises(ValueError):
                 ls_hmm.forward_matrix(bad_array, fm)
             with pytest.raises(ValueError):
                 ls_hmm.viterbi_matrix(bad_array, vm)
+            with pytest.raises(ValueError):
+                ls_hmm.backward_matrix(bad_array, norm, fm)
+
+    def test_norm_input(self):
+        ts = self.get_example_tree_sequence()
+        m = ts.get_num_sites()
+        cm = _tskit.CompressedMatrix(ts)
+        h = np.zeros(m, dtype=np.int32)
+        ls_hmm = _tskit.LsHmm(ts, np.zeros(m), np.zeros(m))
+        for bad_size in [0, m - 1, m + 1, m + 2]:
+            bad_array = np.zeros(bad_size)
+            with pytest.raises(ValueError, match="forward_norm array"):
+                ls_hmm.backward_matrix(h, bad_array, cm)
+
+        for bad_array in [[0.002], [[], []], None]:
+            with pytest.raises(ValueError):
+                ls_hmm.backward_matrix(h, bad_array, cm)
 
     def test_output_type_errors(self):
         ts = self.get_example_tree_sequence()
         m = ts.get_num_sites()
         h = np.zeros(m, dtype=np.int8)
+        norm = np.ones(m)
         ls_hmm = _tskit.LsHmm(ts, np.zeros(m), np.zeros(m))
         for bad_type in [ls_hmm, None, m, []]:
             with pytest.raises(TypeError):
                 ls_hmm.forward_matrix(h, bad_type)
             with pytest.raises(TypeError):
                 ls_hmm.viterbi_matrix(h, bad_type)
+            with pytest.raises(TypeError):
+                ls_hmm.backward_matrix(h, norm, bad_type)
 
         other_ts = self.get_example_tree_sequence()
         output = _tskit.CompressedMatrix(other_ts)
         with pytest.raises(_tskit.LibraryError):
             ls_hmm.forward_matrix(h, output)
+        with pytest.raises(_tskit.LibraryError):
+            ls_hmm.backward_matrix(h, norm, output)
         output = _tskit.ViterbiMatrix(other_ts)
         with pytest.raises(_tskit.LibraryError):
             ls_hmm.viterbi_matrix(h, output)
@@ -2910,7 +2935,7 @@ class TestLsHmm(LowLevelTestCase):
                 assert len(item) == 2
                 node, value = item
                 assert 0 <= node < ts.get_num_nodes()
-                assert 0 <= value <= 1
+                assert value >= 0
         for site in [m, m + 1, 2 * m]:
             with pytest.raises(ValueError):
                 output.get_site(site)
@@ -2923,6 +2948,17 @@ class TestLsHmm(LowLevelTestCase):
         rv = ls_hmm.forward_matrix([0 for _ in range(m)], output)
         assert rv is None
         self.verify_compressed_matrix(ts, output)
+
+    def test_backward_matrix(self):
+        ts = self.get_example_tree_sequence()
+        m = ts.get_num_sites()
+        fm = _tskit.CompressedMatrix(ts)
+        bm = _tskit.CompressedMatrix(ts)
+        h = np.zeros(m, dtype=np.int32)
+        ls_hmm = _tskit.LsHmm(ts, np.zeros(m) + 0.1, np.zeros(m) + 0.1)
+        ls_hmm.forward_matrix(h, fm)
+        ls_hmm.backward_matrix(h, fm.normalisation_factor, bm)
+        self.verify_compressed_matrix(ts, bm)
 
     def test_viterbi_matrix(self):
         ts = self.get_example_tree_sequence()

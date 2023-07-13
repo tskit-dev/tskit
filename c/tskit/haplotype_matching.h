@@ -134,6 +134,7 @@ typedef struct _tsk_ls_hmm_t {
     void *output;
 } tsk_ls_hmm_t;
 
+/* TODO constify these APIs */
 int tsk_ls_hmm_init(tsk_ls_hmm_t *self, tsk_treeseq_t *tree_sequence,
     double *recombination_rate, double *mutation_rate, tsk_flags_t options);
 int tsk_ls_hmm_set_precision(tsk_ls_hmm_t *self, unsigned int precision);
@@ -141,11 +142,10 @@ int tsk_ls_hmm_free(tsk_ls_hmm_t *self);
 void tsk_ls_hmm_print_state(tsk_ls_hmm_t *self, FILE *out);
 int tsk_ls_hmm_forward(tsk_ls_hmm_t *self, int32_t *haplotype,
     tsk_compressed_matrix_t *output, tsk_flags_t options);
+int tsk_ls_hmm_backward(tsk_ls_hmm_t *self, int32_t *haplotype,
+    const double *forward_norm, tsk_compressed_matrix_t *output, tsk_flags_t options);
 int tsk_ls_hmm_viterbi(tsk_ls_hmm_t *self, int32_t *haplotype,
     tsk_viterbi_matrix_t *output, tsk_flags_t options);
-int tsk_ls_hmm_run(tsk_ls_hmm_t *self, int32_t *haplotype,
-    int (*next_probability)(tsk_ls_hmm_t *, tsk_id_t, double, bool, tsk_id_t, double *),
-    double (*compute_normalisation_factor)(struct _tsk_ls_hmm_t *), void *output);
 
 int tsk_compressed_matrix_init(tsk_compressed_matrix_t *self,
     tsk_treeseq_t *tree_sequence, tsk_size_t block_size, tsk_flags_t options);
