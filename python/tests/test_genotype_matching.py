@@ -376,10 +376,15 @@ class LsHmmAlgorithm:
                     if st2.tree_node != -1:
                         self.T[self.T_index[st1.tree_node]].value_list[
                             self.T_index[st2.tree_node]
-                        ].inner_summation = (
-                            normalisation_factor_inner[st1.tree_node]
-                            + normalisation_factor_inner[st2.tree_node]
+                        ].inner_summation = self.inner_summation_evaluation(
+                            normalisation_factor_inner,
+                            st1.tree_node,
+                            st2.tree_node,
                         )
+                        # (
+                        #     normalisation_factor_inner[st1.tree_node]
+                        #     + normalisation_factor_inner[st2.tree_node]
+                        # )
 
         for mutation in site.mutations:
             u = mutation.node
@@ -447,6 +452,10 @@ class LsHmmAlgorithm:
                             template_is_het,
                             query_is_het,
                             query_is_missing,
+                            u1,
+                            u2,
+                            # Last two are not used by forward-backward
+                            # but required by Viterbi
                         )
 
                 # This will ensure that allelic_state[:n] is filled
@@ -462,7 +471,9 @@ class LsHmmAlgorithm:
         for mutation in site.mutations:
             allelic_state[mutation.node] = -1
 
-    def process_site(self, site, genotype_state, forwards=True):
+    def process_site(
+        self, site, genotype_state, forwards=True
+    ):  # Note: forwards turned on for Viterbi
         if forwards:
             # Forwards algorithm
             self.update_probabilities(site, genotype_state)
@@ -572,6 +583,8 @@ class LsHmmAlgorithm:
         template_is_het,
         query_is_het,
         query_is_missing,
+        node_1,  # Note: these are only used in Viterbi (node_1 and node_2)
+        node_2,
     ):
         raise NotImplementedError()
 
@@ -648,12 +661,252 @@ class BackwardMatrix(CompressedMatrix):
     """Class representing a compressed forward matrix."""
 
 
+class ViterbiMatrix(CompressedMatrix):
+    """
+    Class representing the compressed Viterbi matrix.
+    """
+
+    def __init__(self, ts):
+        super().__init__(ts)
+        # Tuples containing the site, the pair of nodes in the tree,
+        # and whether recombination is required
+        self.double_recombination_required = [(-1, 0, 0, False)]
+        self.single_recombination_required = [(-1, 0, 0, False)]
+
+    def add_single_recombination_required(self, site, node_s1, node_s2, required):
+        self.single_recombination_required.append((site, node_s1, node_s2, required))
+
+    def add_double_recombination_required(self, site, node_s1, node_s2, required):
+        self.double_recombination_required.append((site, node_s1, node_s2, required))
+
+    def choose_sample_double(self, site_id, tree):
+        max_value = -1
+        u1 = -1
+        u2 = -1
+
+        for node_s1, value_outer in self.value_transitions[site_id]:
+            for value_list in value_outer:
+                value_tmp = value_list
+                if value_tmp.value > max_value:
+                    max_value = value_tmp.value
+                    u1 = node_s1
+                    u2 = value_tmp.tree_node
+
+        assert u1 != -1
+        assert u2 != -1
+
+        transition_nodes = [u_tmp for (u_tmp, _) in self.value_transitions[site_id]]
+
+        while not tree.is_sample(u1):
+            for v in tree.children(u1):
+                if v not in transition_nodes:
+                    u1 = v
+                    break
+            else:
+                raise AssertionError("could not find path")
+
+        while not tree.is_sample(u2):
+            for v in tree.children(u2):
+                if v not in transition_nodes:
+                    u2 = v
+                    break
+            else:
+                raise AssertionError("could not find path")
+
+        return (u1, u2)
+
+    def choose_sample_single(self, site_id, tree, current_nodes):
+        # I want to find which is the max between any choice if I switch just u1,
+        # and any choice if I switch just u2.
+        node_map = {st[0]: st for st in self.value_transitions[site_id]}
+        to_compute = (
+            np.zeros(2, dtype=int) - 1
+        )  # We have two to compute - one for each single switch set of possibilities.
+
+        for i, v in enumerate(current_nodes):  # (u1, u2)
+            while v not in node_map:
+                v = tree.parent(v)
+            to_compute[i] = v
+
+        # Need to go to the (j1 :)th entries, and the (:,j2)the entries,
+        # and pick the best.
+        T_index = np.zeros(self.ts.num_nodes, dtype=int) - 1
+        for j, st in enumerate(self.value_transitions[site_id]):
+            T_index[st[0]] = j
+
+        node_single_switch_maxes = np.zeros(2, dtype=int) - 1
+        single_switch = np.zeros(2) - 1
+
+        for i, node in enumerate(to_compute):
+            value_list = self.value_transitions[site_id][T_index[node]][1]
+            s_inner = 0
+            for st in value_list:
+                j = st.tree_node
+                if j != -1:
+                    max_st = st.value
+                    max_arg = st.tree_node
+                    if max_st > s_inner:
+                        s_inner = max_st
+                        s_arg = max_arg
+            node_single_switch_maxes[i] = s_arg
+            single_switch[i] = s_inner
+
+        if np.argmax(single_switch) == 0:
+            # u1 is fixed, and we switch u2
+            u1 = current_nodes[0]
+            current_nodes = (u1, node_single_switch_maxes[0])
+        else:
+            # u2 is fixed, and we switch u1.
+            u2 = current_nodes[1]
+            current_nodes = (node_single_switch_maxes[1], u2)
+
+        u1 = current_nodes[0]
+        u2 = current_nodes[1]
+
+        # Find the collection of transition nodes to use to descend down the tree
+        transition_nodes = [u for (u, _) in self.value_transitions[site_id]]
+
+        # Traverse down to find a leaves.
+        while not tree.is_sample(u1):
+            for v in tree.children(u1):
+                if v not in transition_nodes:
+                    u1 = v
+                    break
+            else:
+                raise AssertionError("could not find path")
+
+        while not tree.is_sample(u2):
+            for v in tree.children(u2):
+                if v not in transition_nodes:
+                    u2 = v
+                    break
+            else:
+                raise AssertionError("could not find path")
+
+        current_nodes = (u1, u2)
+
+        return current_nodes
+
+    def traceback(self):
+        # Run the traceback.
+        m = self.ts.num_sites
+        match = np.zeros((m, 2), dtype=int)
+
+        single_recombination_tree = (
+            np.zeros((self.ts.num_nodes, self.ts.num_nodes), dtype=int) - 1
+        )
+        double_recombination_tree = (
+            np.zeros((self.ts.num_nodes, self.ts.num_nodes), dtype=int) - 1
+        )
+
+        tree = tskit.Tree(self.ts)
+        tree.last()
+        double_switch = True
+        current_nodes = (-1, -1)
+        current_node_outer = current_nodes[0]
+
+        rr_single_index = len(self.single_recombination_required) - 1
+        rr_double_index = len(self.double_recombination_required) - 1
+
+        for site in reversed(self.ts.sites()):
+            while tree.interval.left > site.position:
+                tree.prev()
+            assert tree.interval.left <= site.position < tree.interval.right
+
+            # Fill in the recombination single tree
+            j_single = rr_single_index
+            # The above starts from the end of all the recombination required
+            # information, and includes all the information for the current site.
+            while self.single_recombination_required[j_single][0] == site.id:
+                u1, u2, required = self.single_recombination_required[j_single][1:]
+                single_recombination_tree[u1, u2] = required
+                j_single -= 1
+
+            # Fill in the recombination double tree
+            j_double = rr_double_index
+            # The above starts from the end of all the recombination required
+            # information, and includes all the information for the current site.
+            while self.double_recombination_required[j_double][0] == site.id:
+                u1, u2, required = self.double_recombination_required[j_double][1:]
+                double_recombination_tree[u1, u2] = required
+                j_double -= 1
+
+            # Note - current nodes are the leaf nodes.
+            if current_node_outer == -1:
+                if double_switch:
+                    current_nodes = self.choose_sample_double(site.id, tree)
+                else:
+                    current_nodes = self.choose_sample_single(
+                        site.id, tree, current_nodes
+                    )
+
+            match[site.id, :] = current_nodes
+
+            # Now traverse up the tree from the current node. The first marked node
+            # we meet tells us whether we need to recombine.
+            current_node_outer = current_nodes[0]
+            u1 = current_node_outer
+            u2 = current_nodes[1]
+
+            # Just need to move up the tree to evaluate u1 and u2.
+            if double_switch:
+                while u1 != -1 and double_recombination_tree[u1, u1] == -1:
+                    u1 = tree.parent(u1)
+
+                while u2 != -1 and double_recombination_tree[u1, u2] == -1:
+                    u2 = tree.parent(u2)
+            else:
+                while u1 != -1 and single_recombination_tree[u1, u1] == -1:
+                    u1 = tree.parent(u1)
+
+                while u2 != -1 and single_recombination_tree[u1, u2] == -1:
+                    u2 = tree.parent(u2)
+
+            assert u1 != -1
+            assert u2 != -1
+
+            if double_recombination_tree[u1, u2] == 1:
+                # Need to double switch at the next site.
+                current_node_outer = -1
+                double_switch = True
+            elif single_recombination_tree[u1, u2] == 1:
+                # Need to single switch at the next site
+                current_node_outer = -1
+                double_switch = False
+
+            # Reset the nodes in the double recombination tree.
+            j = rr_single_index
+            while self.single_recombination_required[j][0] == site.id:
+                u1_tmp, u2_tmp, _ = self.single_recombination_required[j][1:]
+                single_recombination_tree[u1_tmp, u2_tmp] = -1
+                j -= 1
+            rr_single_index = j
+
+            # Reset the nodes in the single recombination tree.
+            j = rr_double_index
+            while self.double_recombination_required[j][0] == site.id:
+                u1_tmp, u2_tmp, _ = self.double_recombination_required[j][1:]
+                double_recombination_tree[u1_tmp, u2_tmp] = -1
+                j -= 1
+            rr_double_index = j
+
+        return match
+
+
 class ForwardAlgorithm(LsHmmAlgorithm):
     """Runs the Li and Stephens forward algorithm."""
 
     def __init__(self, ts, rho, mu, precision=30):
         super().__init__(ts, rho, mu, precision)
         self.output = ForwardMatrix(ts)
+
+    def inner_summation_evaluation(
+        self, normalisation_factor_inner, st1_tree_node, st2_tree_node
+    ):
+        return (
+            normalisation_factor_inner[st1_tree_node]
+            + normalisation_factor_inner[st2_tree_node]
+        )
 
     def compute_normalisation_factor_dict(self):
         s = 0
@@ -681,6 +934,8 @@ class ForwardAlgorithm(LsHmmAlgorithm):
         template_is_het,
         query_is_het,
         query_is_missing,
+        node_1,
+        node_2,
     ):
         rho = self.rho[site_id]
         mu = self.mu[site_id]
@@ -726,6 +981,14 @@ class BackwardAlgorithm(LsHmmAlgorithm):
         super().__init__(ts, rho, mu, precision)
         self.output = BackwardMatrix(ts, normalisation_factor)
 
+    def inner_summation_evaluation(
+        self, normalisation_factor_inner, st1_tree_node, st2_tree_node
+    ):
+        return (
+            normalisation_factor_inner[st1_tree_node]
+            + normalisation_factor_inner[st2_tree_node]
+        )
+
     def compute_normalisation_factor_dict(self):
         s = 0
         for j, st in enumerate(self.T):
@@ -752,6 +1015,8 @@ class BackwardAlgorithm(LsHmmAlgorithm):
         template_is_het,
         query_is_het,
         query_is_missing,
+        node_1,
+        node_2,
     ):
         mu = self.mu[site_id]
         template_is_hom = np.logical_not(template_is_het)
@@ -782,6 +1047,120 @@ class BackwardAlgorithm(LsHmmAlgorithm):
         return p_next * p_e
 
 
+class ViterbiAlgorithm(LsHmmAlgorithm):
+    """
+    Runs the Li and Stephens Viterbi algorithm.
+    """
+
+    def __init__(self, ts, rho, mu, precision=10):
+        super().__init__(ts, rho, mu, precision)
+        self.output = ViterbiMatrix(ts)
+
+    def inner_summation_evaluation(
+        self, normalisation_factor_inner, st1_tree_node, st2_tree_node
+    ):
+        return max(
+            normalisation_factor_inner[st1_tree_node],
+            normalisation_factor_inner[st2_tree_node],
+        )
+
+    def compute_normalisation_factor_dict(self):
+        s = 0
+        for st in self.T:
+            assert st.tree_node != tskit.NULL
+            max_st = self.compute_normalisation_factor_inner_dict(st.tree_node)
+            if max_st > s:
+                s = max_st
+        if s == 0:
+            raise ValueError(
+                "Trying to match non-existent allele with zero mutation rate"
+            )
+        return s
+
+    def compute_normalisation_factor_inner_dict(self, node):
+        s_inner = 0
+        V_previous = self.T[self.T_index[node]].value_list
+        for st in V_previous:
+            j = st.tree_node
+            if j != -1:
+                max_st = st.value
+                if max_st > s_inner:
+                    s_inner = max_st
+
+        return s_inner
+
+    def compute_next_probability_dict(
+        self,
+        site_id,
+        p_last,
+        inner_normalisation_factor,
+        is_match,
+        template_is_het,
+        query_is_het,
+        query_is_missing,
+        node_1,
+        node_2,
+    ):
+        r = self.rho[site_id]
+        mu = self.mu[site_id]
+        n = self.ts.num_samples
+        r_n = r / n
+
+        double_recombination_required = False
+        single_recombination_required = False
+
+        if query_is_missing:
+            p_e = 1
+        else:
+            template_is_hom = np.logical_not(template_is_het)
+            query_is_hom = np.logical_not(query_is_het)
+            equal_both_hom = np.logical_and(
+                np.logical_and(is_match, template_is_hom), query_is_hom
+            )
+            unequal_both_hom = np.logical_and(
+                np.logical_and(np.logical_not(is_match), template_is_hom), query_is_hom
+            )
+            both_het = np.logical_and(template_is_het, query_is_het)
+            ref_hom_obs_het = np.logical_and(template_is_hom, query_is_het)
+            ref_het_obs_hom = np.logical_and(template_is_het, query_is_hom)
+
+            p_e = (
+                equal_both_hom * (1 - mu) ** 2
+                + unequal_both_hom * (mu**2)
+                + ref_hom_obs_het * (2 * mu * (1 - mu))
+                + ref_het_obs_hom * (mu * (1 - mu))
+                + both_het * ((1 - mu) ** 2 + mu**2)
+            )
+
+        no_switch = (1 - r) ** 2 + 2 * (r_n * (1 - r)) + r_n**2
+        single_switch = r_n * (1 - r) + r_n**2
+        double_switch = r_n**2
+
+        V_single_switch = inner_normalisation_factor
+        p_t = p_last * no_switch
+        single_switch_tmp = single_switch * V_single_switch
+
+        if single_switch_tmp > double_switch:
+            # Then single switch is the alternative
+            if p_t < single_switch * V_single_switch:
+                p_t = single_switch * V_single_switch
+                single_recombination_required = True
+        else:
+            # Double switch is the alternative
+            if p_t < double_switch:
+                p_t = double_switch
+                double_recombination_required = True
+
+        self.output.add_single_recombination_required(
+            site_id, node_1, node_2, single_recombination_required
+        )
+        self.output.add_double_recombination_required(
+            site_id, node_1, node_2, double_recombination_required
+        )
+
+        return p_t * p_e
+
+
 def ls_forward_tree(g, ts, rho, mu, precision=30):
     """Forward matrix computation based on a tree sequence."""
     fa = ForwardAlgorithm(ts, rho, mu, precision=precision)
@@ -794,6 +1173,14 @@ def ls_backward_tree(g, ts_mirror, rho, mu, normalisation_factor, precision=30):
         ts_mirror, rho, mu, normalisation_factor, precision=precision
     )
     return ba.run_backward(g)
+
+
+def ls_viterbi_tree(g, ts, rho, mu, precision=30):
+    """
+    Viterbi path computation based on a tree sequence.
+    """
+    va = ViterbiAlgorithm(ts, rho, mu, precision=precision)
+    return va.run_forward(g)
 
 
 class LSBase:
@@ -919,6 +1306,10 @@ class FBAlgorithmBase(LSBase):
     """Base for forwards backwards algorithm tests."""
 
 
+class VitAlgorithmBase(LSBase):
+    """Base for viterbi algoritm tests."""
+
+
 class TestMirroringDipdict(FBAlgorithmBase):
     """Tests that mirroring the tree sequence and running forwards and backwards
     algorithms give the same log-likelihood of observing the data."""
@@ -1036,3 +1427,54 @@ class TestForwardBackwardTree(FBAlgorithmBase):
             self.assertAllClose(B, B_tree)
             self.assertAllClose(F, F_tree)
             self.assertAllClose(ll, ll_tree)
+
+
+class TestTreeViterbiDip(VitAlgorithmBase):
+    """
+    Test that we have the same log-likelihood between tree and matrix
+    implementations
+    """
+
+    def verify(self, ts):
+
+        for n, m, _, s, _, r, mu in self.example_parameters_genotypes(ts):
+            # Note, need to remove the first sample from the ts, and ensure that
+            # invariant sites aren't removed.
+            ts_check, mapping = ts.simplify(
+                range(1, n + 1), filter_sites=False, map_nodes=True
+            )
+            G_check = np.zeros((m, n, n))
+            for i in range(m):
+                G_check[i, :, :] = np.add.outer(
+                    ts_check.genotype_matrix()[i, :], ts_check.genotype_matrix()[i, :]
+                )
+            ts_check = ts.simplify(range(1, n + 1), filter_sites=False)
+            phased_path, ll = ls.viterbi(
+                G_check, s, r, mutation_rate=mu, scale_mutation_based_on_n_alleles=False
+            )
+            path_ll_matrix = ls.path_ll(
+                G_check,
+                s,
+                phased_path,
+                r,
+                mutation_rate=mu,
+                scale_mutation_based_on_n_alleles=False,
+            )
+
+            c_v = ls_viterbi_tree(s[0, :], ts_check, r, mu)
+            ll_tree = np.sum(np.log10(c_v.normalisation_factor))
+
+            # Attempt to get the path
+            path_tree_dict = c_v.traceback()
+            # Work out the likelihood of the proposed path
+            path_ll_tree = ls.path_ll(
+                G_check,
+                s,
+                np.transpose(path_tree_dict),
+                r,
+                mutation_rate=mu,
+                scale_mutation_based_on_n_alleles=False,
+            )
+
+            self.assertAllClose(ll, ll_tree)
+            self.assertAllClose(path_ll_tree, path_ll_matrix)
