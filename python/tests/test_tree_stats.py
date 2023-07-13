@@ -453,7 +453,6 @@ def node_general_stat(
     # contains the location of the last time we updated the output for a node.
     last_update = np.zeros((ts.num_nodes, 1))
     for (t_left, t_right), edges_out, edges_in in ts.edge_diffs():
-
         for edge in edges_out:
             u = edge.child
             v = edge.parent
@@ -980,7 +979,6 @@ class WeightStatsMixin:
             self.verify_weighted_stat(ts, W, windows=windows)
 
     def verify_definition(self, ts, W, windows, summary_func, ts_method, definition):
-
         # general_stat will need an extra column for p
         gW = self.transform_weights(W)
 
@@ -1025,7 +1023,6 @@ class SampleSetStatsMixin:
     def verify_definition(
         self, ts, sample_sets, windows, summary_func, ts_method, definition
     ):
-
         W = np.array([[u in A for A in sample_sets] for u in ts.samples()], dtype=float)
 
         def wrapped_summary_func(x):
@@ -1762,7 +1759,6 @@ def divergence(
 
 
 class TestDivergence(StatsTestCase, TwoWaySampleSetStatsMixin):
-
     # Derived classes define this to get a specific stats mode.
     mode = None
 
@@ -1974,7 +1970,6 @@ def genetic_relatedness(
 
 
 class TestGeneticRelatedness(StatsTestCase, TwoWaySampleSetStatsMixin):
-
     # Derived classes define this to get a specific stats mode.
     mode = None
 
@@ -2035,7 +2030,6 @@ class TestGeneticRelatedness(StatsTestCase, TwoWaySampleSetStatsMixin):
         self.assertArrayAlmostEqual(sigma1, sigma4)
 
     def verify_sample_sets_indexes(self, ts, sample_sets, indexes, windows):
-
         n = np.array([len(x) for x in sample_sets])
         n_total = sum(n)
 
@@ -2209,14 +2203,12 @@ def example_index_pairs(weights):
 
 
 class TestGeneticRelatednessWeighted(StatsTestCase, WeightStatsMixin):
-
     # Derived classes define this to get a specific stats mode.
     mode = None
 
     def verify_definition(
         self, ts, W, indexes, windows, summary_func, ts_method, definition
     ):
-
         # Determine output_dim of the function
         M = len(indexes)
 
@@ -2298,6 +2290,96 @@ class TestSiteGeneticRelatednessWeighted(
     mode = "site"
 
 
+# NOTE: these classes don't follow the same (anti)-patterns as used elsewhere as they
+# were added in several years afterwards.
+
+
+class TestGeneticRelatednessWeightedSimpleExamples:
+    # Values verified against the simple implementations above
+    site_value = 11.12
+    branch_value = 14.72
+
+    def fixture(self):
+        ts = tskit.Tree.generate_balanced(5).tree_sequence
+        # Abitrary weights that give non-zero results
+        W = np.zeros((ts.num_samples, 2))
+        W[0, :] = 1
+        W[1, :] = 2
+        return tsutil.insert_branch_sites(ts), W
+
+    def test_no_arguments_site(self):
+        ts, W = self.fixture()
+        X = ts.genetic_relatedness_weighted(W, mode="site")
+        assert X.shape == tuple()
+        nt.assert_almost_equal(X, self.site_value)
+
+    def test_windows_site(self):
+        ts, W = self.fixture()
+        X = ts.genetic_relatedness_weighted(W, mode="site", windows=[0, 1 - 1e-12, 1])
+        assert X.shape == (2,)
+        nt.assert_almost_equal(X[0], self.site_value)
+        nt.assert_almost_equal(X[1], 0)
+
+    def test_no_arguments_branch(self):
+        ts, W = self.fixture()
+        X = ts.genetic_relatedness_weighted(W, mode="branch")
+        assert X.shape == tuple()
+        nt.assert_almost_equal(X, self.branch_value)
+
+    def test_windows_branch(self):
+        ts, W = self.fixture()
+        X = ts.genetic_relatedness_weighted(W, mode="branch", windows=[0, 0.5, 1])
+        assert X.shape == (2,)
+        nt.assert_almost_equal(X, self.branch_value)
+
+    def test_indexes_1D(self):
+        ts, W = self.fixture()
+        indexes = [0, 1]
+        X = ts.genetic_relatedness_weighted(W, indexes, mode="branch")
+        assert X.shape == tuple()
+        nt.assert_almost_equal(X, self.branch_value)
+
+    def test_indexes_2D(self):
+        ts, W = self.fixture()
+        indexes = [[0, 1]]
+        X = ts.genetic_relatedness_weighted(W, indexes, mode="branch")
+        assert X.shape == (1,)
+        nt.assert_almost_equal(X, self.branch_value)
+
+    def test_indexes_2D_windows(self):
+        ts, W = self.fixture()
+        indexes = [[0, 1], [0, 1]]
+        X = ts.genetic_relatedness_weighted(
+            W, indexes, windows=[0, 0.5, 1], mode="branch"
+        )
+        assert X.shape == (2, 2)
+        nt.assert_almost_equal(X, self.branch_value)
+
+
+class TestGeneticRelatednessWeightedErrors:
+    def ts(self):
+        return tskit.Tree.generate_balanced(3).tree_sequence
+
+    @pytest.mark.parametrize("W", [[0], np.array([0]), np.zeros(100)])
+    def test_bad_weight_size(self, W):
+        with pytest.raises(ValueError, match="First trait dimension"):
+            self.ts().genetic_relatedness_weighted(W)
+
+    @pytest.mark.parametrize("cols", [1, 3])
+    def test_no_indexes_with_non_2_cols(self, cols):
+        ts = self.ts()
+        W = np.zeros((ts.num_samples, cols))
+        with pytest.raises(ValueError, match="Must specify indexes"):
+            ts.genetic_relatedness_weighted(W)
+
+    @pytest.mark.parametrize("indexes", [[], [[0]], [[0, 0, 0]], [[[0], [0], [0]]]])
+    def test_bad_index_shapes(self, indexes):
+        ts = self.ts()
+        W = np.zeros((ts.num_samples, 2))
+        with pytest.raises(ValueError, match="Indexes must be convertable to a 2D"):
+            ts.genetic_relatedness_weighted(W, indexes=indexes)
+
+
 ############################################
 # Fst
 ############################################
@@ -2340,7 +2422,6 @@ def single_site_Fst(ts, sample_sets, indexes):
 
 
 class TestFst(StatsTestCase, TwoWaySampleSetStatsMixin):
-
     # Derived classes define this to get a specific stats mode.
     mode = None
 
@@ -2529,7 +2610,6 @@ def Y2(ts, sample_sets, indexes=None, windows=None, mode="site", span_normalise=
 
 
 class TestY2(StatsTestCase, TwoWaySampleSetStatsMixin):
-
     # Derived classes define this to get a specific stats mode.
     mode = None
 
@@ -2702,7 +2782,6 @@ def Y3(ts, sample_sets, indexes=None, windows=None, mode="site", span_normalise=
 
 
 class TestY3(StatsTestCase, ThreeWaySampleSetStatsMixin):
-
     # Derived classes define this to get a specific stats mode.
     mode = None
 
@@ -2871,7 +2950,6 @@ def f2(ts, sample_sets, indexes=None, windows=None, mode="site", span_normalise=
 
 
 class Testf2(StatsTestCase, TwoWaySampleSetStatsMixin):
-
     # Derived classes define this to get a specific stats mode.
     mode = None
 
@@ -3057,7 +3135,6 @@ def f3(ts, sample_sets, indexes=None, windows=None, mode="site", span_normalise=
 
 
 class Testf3(StatsTestCase, ThreeWaySampleSetStatsMixin):
-
     # Derived classes define this to get a specific stats mode.
     mode = None
 
@@ -3248,7 +3325,6 @@ def f4(ts, sample_sets, indexes=None, windows=None, mode="site", span_normalise=
 
 
 class Testf4(StatsTestCase, FourWaySampleSetStatsMixin):
-
     # Derived classes define this to get a specific stats mode.
     mode = None
 
@@ -3512,7 +3588,6 @@ def branch_allele_frequency_spectrum(
         last_update[u] = right
 
     for (t_left, t_right), edges_out, edges_in in ts.edge_diffs():
-
         for edge in edges_out:
             u = edge.child
             v = edge.parent
@@ -3673,7 +3748,6 @@ def allele_frequency_spectrum(
 
 
 class TestAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
-
     # Derived classes define this to get a specific stats mode.
     mode = None
 
@@ -6003,7 +6077,6 @@ class SpecificTreesTestCase(StatsTestCase):
                 branch_true_diversity_02,
             ],
         ):
-
             self.assertAlmostEqual(diversity(ts, A, mode=mode)[0][0], truth)
             self.assertAlmostEqual(ts.sample_count_stat(A, f, 1, mode=mode)[0], truth)
             self.assertAlmostEqual(ts.diversity(A, mode="branch")[0], truth)

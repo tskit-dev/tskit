@@ -345,6 +345,16 @@ verify_window_errors(tsk_treeseq_t *ts, tsk_flags_t mode)
         ts, 1, W, 1, general_stat_error, NULL, 2, windows, options, sigma);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);
 
+    windows[0] = -1;
+    ret = tsk_treeseq_general_stat(
+        ts, 1, W, 1, general_stat_error, NULL, 2, windows, options, sigma);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);
+
+    windows[1] = -1;
+    ret = tsk_treeseq_general_stat(
+        ts, 1, W, 1, general_stat_error, NULL, 1, windows, options, sigma);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);
+
     windows[0] = 10;
     ret = tsk_treeseq_general_stat(
         ts, 1, W, 1, general_stat_error, NULL, 2, windows, options, sigma);
@@ -438,11 +448,10 @@ verify_node_general_stat_errors(tsk_treeseq_t *ts)
 static void
 verify_one_way_weighted_func_errors(tsk_treeseq_t *ts, one_way_weighted_method *method)
 {
-    // we don't have any specific errors for this function
-    // but we might add some in the future
     int ret;
     tsk_size_t num_samples = tsk_treeseq_get_num_samples(ts);
     double *weights = tsk_malloc(num_samples * sizeof(double));
+    double bad_windows[] = { 0, -1 };
     double result;
     tsk_size_t j;
 
@@ -451,7 +460,10 @@ verify_one_way_weighted_func_errors(tsk_treeseq_t *ts, one_way_weighted_method *
     }
 
     ret = method(ts, 0, weights, 0, NULL, 0, &result);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_STATE_DIMS);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_WEIGHTS);
+
+    ret = method(ts, 1, weights, 1, bad_windows, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);
 
     free(weights);
 }
@@ -460,12 +472,11 @@ static void
 verify_one_way_weighted_covariate_func_errors(
     tsk_treeseq_t *ts, one_way_covariates_method *method)
 {
-    // we don't have any specific errors for this function
-    // but we might add some in the future
     int ret;
     tsk_size_t num_samples = tsk_treeseq_get_num_samples(ts);
     double *weights = tsk_malloc(num_samples * sizeof(double));
     double *covariates = NULL;
+    double bad_windows[] = { 0, -1 };
     double result;
     tsk_size_t j;
 
@@ -474,7 +485,10 @@ verify_one_way_weighted_covariate_func_errors(
     }
 
     ret = method(ts, 0, weights, 0, covariates, 0, NULL, 0, &result);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_STATE_DIMS);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_WEIGHTS);
+
+    ret = method(ts, 1, weights, 0, covariates, 1, bad_windows, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);
 
     free(weights);
 }
@@ -556,6 +570,28 @@ verify_two_way_stat_func_errors(tsk_treeseq_t *ts, general_sample_stat_method *m
     ret = method(ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
         TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLE_SET_INDEX);
+}
+
+static void
+verify_two_way_weighted_stat_func_errors(
+    tsk_treeseq_t *ts, two_way_weighted_method *method)
+{
+    int ret;
+    tsk_id_t indexes[] = { 0, 0, 0, 1 };
+    double bad_windows[] = { -1, -1 };
+    double weights[10];
+    double result[10];
+
+    memset(weights, 0, sizeof(weights));
+
+    ret = method(ts, 2, weights, 2, indexes, 0, NULL, result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = method(ts, 0, weights, 2, indexes, 0, NULL, result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_WEIGHTS);
+
+    ret = method(ts, 2, weights, 2, indexes, 1, bad_windows, result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);
 }
 
 static void
@@ -1505,24 +1541,6 @@ test_paper_ex_genetic_relatedness(void)
 }
 
 static void
-test_paper_ex_genetic_relatedness_weighted(void)
-{
-    tsk_treeseq_t ts;
-    double weights[] = { 1.2, 0.1, 0.0, 0.0, 3.4, 5.0, 1.0, -1.0 };
-    tsk_id_t indexes[] = { 0, 0, 0, 1 };
-    double result[2];
-    int ret;
-
-    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
-        paper_ex_mutations, paper_ex_individuals, NULL, 0);
-
-    ret = tsk_treeseq_genetic_relatedness_weighted(
-        &ts, 2, weights, 2, indexes, 0, NULL, result, TSK_STAT_SITE);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    tsk_treeseq_free(&ts);
-}
-
-static void
 test_paper_ex_genetic_relatedness_errors(void)
 {
     tsk_treeseq_t ts;
@@ -1530,6 +1548,46 @@ test_paper_ex_genetic_relatedness_errors(void)
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_two_way_stat_func_errors(&ts, tsk_treeseq_genetic_relatedness);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_genetic_relatedness_weighted(void)
+{
+    tsk_treeseq_t ts;
+    double weights[] = { 1.2, 0.1, 0.0, 0.0, 3.4, 5.0, 1.0, -1.0 };
+    tsk_id_t indexes[] = { 0, 0, 0, 1 };
+    double result[100];
+    tsk_size_t num_weights;
+    int ret;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
+
+    for (num_weights = 1; num_weights < 3; num_weights++) {
+        ret = tsk_treeseq_genetic_relatedness_weighted(
+            &ts, num_weights, weights, 2, indexes, 0, NULL, result, TSK_STAT_SITE);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_treeseq_genetic_relatedness_weighted(
+            &ts, num_weights, weights, 2, indexes, 0, NULL, result, TSK_STAT_BRANCH);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_treeseq_genetic_relatedness_weighted(
+            &ts, num_weights, weights, 2, indexes, 0, NULL, result, TSK_STAT_NODE);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+    }
+
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_paper_ex_genetic_relatedness_weighted_errors(void)
+{
+    tsk_treeseq_t ts;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
+    verify_two_way_weighted_stat_func_errors(
+        &ts, tsk_treeseq_genetic_relatedness_weighted);
     tsk_treeseq_free(&ts);
 }
 
@@ -2128,6 +2186,8 @@ main(int argc, char **argv)
         { "test_paper_ex_genetic_relatedness", test_paper_ex_genetic_relatedness },
         { "test_paper_ex_genetic_relatedness_weighted",
             test_paper_ex_genetic_relatedness_weighted },
+        { "test_paper_ex_genetic_relatedness_weighted_errors",
+            test_paper_ex_genetic_relatedness_weighted_errors },
         { "test_paper_ex_Y2_errors", test_paper_ex_Y2_errors },
         { "test_paper_ex_Y2", test_paper_ex_Y2 },
         { "test_paper_ex_f2_errors", test_paper_ex_f2_errors },

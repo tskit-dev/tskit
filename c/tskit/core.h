@@ -685,6 +685,10 @@ The TSK_STAT_SPAN_NORMALISE option was passed to a statistic that does
 not support it.
 */
 #define TSK_ERR_STAT_SPAN_NORMALISE_UNSUPPORTED                     -912
+/**
+Insufficient weights were provided.
+*/
+#define TSK_ERR_INSUFFICIENT_WEIGHTS                                -913
 /** @} */
 
 /**

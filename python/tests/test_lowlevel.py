@@ -2153,8 +2153,12 @@ class TwoWayWeightedStatsMixin(StatsInterfaceMixin):
         del params["weights"]
         n = ts.get_num_samples()
 
+        for bad_weight_type in [None, [None, None]]:
+            with pytest.raises(ValueError, match="object of too small depth"):
+                f(weights=bad_weight_type, **params)
+
         for bad_weight_shape in [(n - 1, 1), (n + 1, 1), (0, 3)]:
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match="First dimension must be num_samples"):
                 f(weights=np.ones(bad_weight_shape), **params)
 
     def test_output_dims(self):

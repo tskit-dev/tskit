@@ -2639,6 +2639,10 @@ tsk_treeseq_trait_covariance(const tsk_treeseq_t *self, tsk_size_t num_weights,
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
+    if (num_weights == 0) {
+        ret = TSK_ERR_INSUFFICIENT_WEIGHTS;
+        goto out;
+    }
 
     // center weights
     for (j = 0; j < num_samples; j++) {
@@ -2710,7 +2714,7 @@ tsk_treeseq_trait_correlation(const tsk_treeseq_t *self, tsk_size_t num_weights,
     }
 
     if (num_weights < 1) {
-        ret = TSK_ERR_BAD_STATE_DIMS;
+        ret = TSK_ERR_INSUFFICIENT_WEIGHTS;
         goto out;
     }
 
@@ -2823,7 +2827,7 @@ tsk_treeseq_trait_linear_model(const tsk_treeseq_t *self, tsk_size_t num_weights
     }
 
     if (num_weights < 1) {
-        ret = TSK_ERR_BAD_STATE_DIMS;
+        ret = TSK_ERR_INSUFFICIENT_WEIGHTS;
         goto out;
     }
 
@@ -3069,6 +3073,10 @@ tsk_treeseq_genetic_relatedness_weighted(const tsk_treeseq_t *self,
 
     if (total_weights == NULL || new_weights == NULL) {
         ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    if (num_weights == 0) {
+        ret = TSK_ERR_INSUFFICIENT_WEIGHTS;
         goto out;
     }
 
