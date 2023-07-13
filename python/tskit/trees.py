@@ -7569,10 +7569,11 @@ class TreeSequence:
         span_normalise=True,
         polarised=False,
     ):
+        W = np.asarray(W)
         if indexes is None:
             if W.shape[1] != k:
                 raise ValueError(
-                    "Must specify indexes if there are not exactly {} columsn "
+                    "Must specify indexes if there are not exactly {} columns "
                     "in W.".format(k)
                 )
             indexes = np.arange(k, dtype=np.int32)
@@ -8016,7 +8017,7 @@ class TreeSequence:
             window (defaults to True).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
-        if W.shape[0] != self.num_samples:
+        if len(W) != self.num_samples:
             raise ValueError(
                 "First trait dimension must be equal to number of samples."
             )

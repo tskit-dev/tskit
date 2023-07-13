@@ -475,6 +475,10 @@ tsk_strerror_internal(int err)
                   "statistic. "
                   "(TSK_ERR_STAT_SPAN_NORMALISE_UNSUPPORTED)";
             break;
+        case TSK_ERR_INSUFFICIENT_WEIGHTS:
+            ret = "Insufficient weights provided (at least 1 required). "
+                  "(TSK_ERR_INSUFFICIENT_WEIGHTS)";
+            break;
 
         /* Mutation mapping errors */
         case TSK_ERR_GENOTYPES_ALL_MISSING:
