@@ -997,7 +997,9 @@ class Tree:
         Returns the most recent common ancestor of the specified nodes.
 
         :param int `*args`: input node IDs, must be at least 2.
-        :return: The most recent common ancestor of input nodes.
+        :return: The node ID of the most recent common ancestor of the
+            input nodes, or :data:`tskit.NULL` if the nodes do not share
+            a common ancestor in the tree.
         :rtype: int
         """
         if len(args) < 2:
