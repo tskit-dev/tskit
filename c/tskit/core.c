@@ -1177,3 +1177,101 @@ tsk_avl_tree_int_ordered_nodes(const tsk_avl_tree_int_t *self, tsk_avl_node_int_
     ordered_nodes_traverse(self->head.rlink, 0, out);
     return 0;
 }
+
+// Bit Array implementation. Allows us to store unsigned integers in a compact manner.
+// Currently implemented as an array of 32-bit unsigned integers for ease of counting.
+
+int
+tsk_bit_array_init(tsk_bit_array_t *self, tsk_size_t num_bits, tsk_size_t length)
+{
+    int ret = 0;
+
+    self->size = (num_bits >> TSK_BIT_ARRAY_CHUNK)
+                 + (num_bits % TSK_BIT_ARRAY_NUM_BITS ? 1 : 0);
+    self->data = tsk_calloc(self->size * length, sizeof(*self->data));
+    if (self->data == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+out:
+    return ret;
+}
+
+void
+tsk_bit_array_get_row(const tsk_bit_array_t *self, tsk_size_t row, tsk_bit_array_t *out)
+{
+    out->size = self->size;
+    out->data = self->data + (row * self->size);
+}
+
+void
+tsk_bit_array_intersect(
+    const tsk_bit_array_t *self, const tsk_bit_array_t *other, tsk_bit_array_t *out)
+{
+    for (tsk_size_t i = 0; i < self->size; i++) {
+        out->data[i] = self->data[i] & other->data[i];
+    }
+}
+
+void
+tsk_bit_array_subtract(tsk_bit_array_t *self, const tsk_bit_array_t *other)
+{
+    for (tsk_size_t i = 0; i < self->size; i++) {
+        self->data[i] &= ~(other->data[i]);
+    }
+}
+
+void
+tsk_bit_array_add(tsk_bit_array_t *self, const tsk_bit_array_t *other)
+{
+    for (tsk_size_t i = 0; i < self->size; i++) {
+        self->data[i] |= other->data[i];
+    }
+}
+
+void
+tsk_bit_array_add_bit(tsk_bit_array_t *self, const tsk_bit_array_value_t bit)
+{
+    tsk_bit_array_value_t i = bit >> TSK_BIT_ARRAY_CHUNK;
+    self->data[i] |= (tsk_bit_array_value_t) 1 << (bit - (TSK_BIT_ARRAY_NUM_BITS * i));
+}
+
+bool
+tsk_bit_array_contains(const tsk_bit_array_t *self, const tsk_bit_array_value_t bit)
+{
+    tsk_bit_array_value_t i = bit >> TSK_BIT_ARRAY_CHUNK;
+    return self->data[i]
+           & ((tsk_bit_array_value_t) 1 << (bit - (TSK_BIT_ARRAY_NUM_BITS * i)));
+}
+
+tsk_size_t
+tsk_bit_array_count(const tsk_bit_array_t *self)
+{
+    // Utilizes 12 operations per bit array. NB this only works on 32 bit integers.
+    // Taken from:
+    //   https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
+    // There's a nice breakdown of this algorithm here:
+    //   https://stackoverflow.com/a/109025
+    // Could probably do better with explicit SIMD (instead of SWAR), but not as
+    // portable: https://arxiv.org/pdf/1611.07612.pdf
+    //
+    // There is one solution to explore further, which uses __builtin_popcountll.
+    // This option is relatively simple, but requires a 64 bit bit array and also
+    // involves some compiler flag plumbing (-mpopcnt)
+
+    tsk_bit_array_value_t tmp;
+    tsk_size_t i, count = 0;
+
+    for (i = 0; i < self->size; i++) {
+        tmp = self->data[i] - ((self->data[i] >> 1) & 0x55555555);
+        tmp = (tmp & 0x33333333) + ((tmp >> 2) & 0x33333333);
+        count += (((tmp + (tmp >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
+    }
+    return count;
+}
+
+void
+tsk_bit_array_free(tsk_bit_array_t *self)
+{
+    tsk_safe_free(self->data);
+}

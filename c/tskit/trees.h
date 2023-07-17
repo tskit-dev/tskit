@@ -919,6 +919,15 @@ typedef int general_stat_func_t(tsk_size_t state_dim, const double *state,
 int tsk_treeseq_general_stat(const tsk_treeseq_t *self, tsk_size_t K, const double *W,
     tsk_size_t M, general_stat_func_t *f, void *f_params, tsk_size_t num_windows,
     const double *windows, tsk_flags_t options, double *result);
+// TODO: expose this externally?
+/* int tsk_treeseq_two_locus_general_stat(const tsk_treeseq_t *self, */
+/*     tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes, */
+/*     const tsk_id_t *sample_sets, tsk_size_t result_dim, const tsk_id_t *set_indexes,
+ */
+/*     general_stat_func_t *f, norm_func_t *norm_f, tsk_size_t num_left_windows, */
+/*     const double *left_windows, tsk_size_t num_right_windows, */
+/*     const double *right_windows, tsk_flags_t options, tsk_size_t num_result, */
+/*     double *result); */
 
 /* One way weighted stats */
 
@@ -997,6 +1006,42 @@ int tsk_treeseq_genetic_relatedness(const tsk_treeseq_t *self,
     const tsk_id_t *sample_sets, tsk_size_t num_index_tuples,
     const tsk_id_t *index_tuples, tsk_size_t num_windows, const double *windows,
     tsk_flags_t options, double *result);
+
+int tsk_treeseq_D(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
+    tsk_size_t num_left_windows, const double *left_windows,
+    tsk_size_t num_right_windows, const double *right_windows, tsk_flags_t options,
+    tsk_size_t *result_size, double **result);
+int tsk_treeseq_D2(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
+    tsk_size_t num_left_windows, const double *left_windows,
+    tsk_size_t num_right_windows, const double *right_windows, tsk_flags_t options,
+    tsk_size_t *result_size, double **result);
+int tsk_treeseq_r2(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
+    tsk_size_t num_left_windows, const double *left_windows,
+    tsk_size_t num_right_windows, const double *right_windows, tsk_flags_t options,
+    tsk_size_t *result_size, double **result);
+int tsk_treeseq_D_prime(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
+    tsk_size_t num_left_windows, const double *left_windows,
+    tsk_size_t num_right_windows, const double *right_windows, tsk_flags_t options,
+    tsk_size_t *result_size, double **result);
+int tsk_treeseq_r(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
+    tsk_size_t num_left_windows, const double *left_windows,
+    tsk_size_t num_right_windows, const double *right_windows, tsk_flags_t options,
+    tsk_size_t *result_size, double **result);
+int tsk_treeseq_Dz(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
+    tsk_size_t num_left_windows, const double *left_windows,
+    tsk_size_t num_right_windows, const double *right_windows, tsk_flags_t options,
+    tsk_size_t *result_size, double **result);
+int tsk_treeseq_pi2(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
+    tsk_size_t num_left_windows, const double *left_windows,
+    tsk_size_t num_right_windows, const double *right_windows, tsk_flags_t options,
+    tsk_size_t *result_size, double **result);
 
 /* Three way sample set stats */
 int tsk_treeseq_Y3(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,

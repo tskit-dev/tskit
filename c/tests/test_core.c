@@ -527,6 +527,84 @@ test_avl_random(void)
 }
 
 static void
+test_bit_arrays(void)
+{
+    // NB: This test is only valid for the 32 bit implementation of bit arrays. If we
+    //     were to change the chunk size of a bit array, we'd need to update these tests
+    tsk_bit_array_t arr;
+    tsk_bit_array_init(&arr, 90, 1);
+    for (tsk_bit_array_value_t i = 0; i < 20; i++) {
+        tsk_bit_array_add_bit(&arr, i);
+    }
+    tsk_bit_array_add_bit(&arr, 63);
+    tsk_bit_array_add_bit(&arr, 65);
+
+    // these assertions are only valid for 32-bit values
+    CU_ASSERT_EQUAL_FATAL(arr.data[0], 1048575);
+    CU_ASSERT_EQUAL_FATAL(arr.data[1], 2147483648);
+    CU_ASSERT_EQUAL_FATAL(arr.data[2], 2);
+
+    // verify our assumptions about bit array counting
+    CU_ASSERT_EQUAL_FATAL(tsk_bit_array_count(&arr), 22);
+
+    tsk_bit_array_free(&arr);
+
+    // create a length-2 array with 64 bit capacity
+    tsk_bit_array_init(&arr, 64, 2);
+    tsk_bit_array_t arr_row1, arr_row2;
+
+    // select the first and second row
+    tsk_bit_array_get_row(&arr, 0, &arr_row1);
+    tsk_bit_array_get_row(&arr, 1, &arr_row2);
+
+    // fill the first 50 bits of the first row
+    for (tsk_bit_array_value_t i = 0; i < 50; i++) {
+        tsk_bit_array_add_bit(&arr_row1, i);
+    }
+    // fill bits 20-40 of the second row
+    for (tsk_bit_array_value_t i = 20; i < 40; i++) {
+        tsk_bit_array_add_bit(&arr_row2, i);
+    }
+
+    // verify our assumptions about row selection
+    CU_ASSERT_EQUAL_FATAL(arr.data[0], 4294967295);
+    CU_ASSERT_EQUAL_FATAL(arr.data[1], 262143);
+    CU_ASSERT_EQUAL_FATAL(arr_row1.data[0], 4294967295);
+    CU_ASSERT_EQUAL_FATAL(arr_row1.data[1], 262143);
+
+    CU_ASSERT_EQUAL_FATAL(arr.data[2], 4293918720);
+    CU_ASSERT_EQUAL_FATAL(arr.data[3], 255);
+    CU_ASSERT_EQUAL_FATAL(arr_row2.data[0], 4293918720);
+    CU_ASSERT_EQUAL_FATAL(arr_row2.data[1], 255);
+
+    // subtract the second from the first row, store in first
+    tsk_bit_array_subtract(&arr_row1, &arr_row2);
+
+    // verify our assumptions about subtraction
+    CU_ASSERT_EQUAL_FATAL(arr_row1.data[0], 1048575);
+    CU_ASSERT_EQUAL_FATAL(arr_row1.data[1], 261888);
+
+    tsk_bit_array_t int_result;
+    tsk_bit_array_init(&int_result, 64, 1);
+
+    // their intersection should be zero
+    tsk_bit_array_intersect(&arr_row1, &arr_row2, &int_result);
+    CU_ASSERT_EQUAL_FATAL(int_result.data[0], 0);
+    CU_ASSERT_EQUAL_FATAL(int_result.data[1], 0);
+
+    // now, add them back together, storing back in a
+    tsk_bit_array_add(&arr_row1, &arr_row2);
+
+    // now, their intersection should be the subtracted chunk (20-40)
+    tsk_bit_array_intersect(&arr_row1, &arr_row2, &int_result);
+    CU_ASSERT_EQUAL_FATAL(int_result.data[0], 4293918720);
+    CU_ASSERT_EQUAL_FATAL(int_result.data[1], 255);
+
+    tsk_bit_array_free(&int_result);
+    tsk_bit_array_free(&arr);
+}
+
+static void
 test_meson_version(void)
 {
     char version[100];
@@ -554,6 +632,7 @@ main(int argc, char **argv)
         { "test_avl_sequential", test_avl_sequential },
         { "test_avl_interleaved", test_avl_interleaved },
         { "test_avl_random", test_avl_random },
+        { "test_bit_arrays", test_bit_arrays },
         { "test_meson_version", test_meson_version },
         { NULL, NULL },
     };
