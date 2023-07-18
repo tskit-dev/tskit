@@ -953,7 +953,7 @@ class TestMirroringDipdict(FBAlgorithmBase):
                 np.flip(G_check, axis=0),
                 np.flip(s, axis=1),
                 r_flip,
-                mutation_rate=np.flip(mu),
+                p_mutation=np.flip(mu),
                 scale_mutation_based_on_n_alleles=False,
             )
 
@@ -978,7 +978,7 @@ class TestForwardDipTree(FBAlgorithmBase):
                 )
 
             F, c, ll = ls.forwards(
-                G_check, s, r, mutation_rate=mu, scale_mutation_based_on_n_alleles=False
+                G_check, s, r, p_mutation=mu, scale_mutation_based_on_n_alleles=False
             )
             cm_d = ls_forward_tree(s[0, :], ts_check, r, mu)
             self.assertAllClose(cm_d.decode(), F)
@@ -1004,14 +1004,14 @@ class TestForwardBackwardTree(FBAlgorithmBase):
                 )
 
             F, c, ll = ls.forwards(
-                G_check, s, r, mutation_rate=mu, scale_mutation_based_on_n_alleles=False
+                G_check, s, r, p_mutation=mu, scale_mutation_based_on_n_alleles=False
             )
             B = ls.backwards(
                 G_check,
                 s,
                 c,
                 r,
-                mutation_rate=mu,
+                p_mutation=mu,
                 scale_mutation_based_on_n_alleles=False,
             )
 

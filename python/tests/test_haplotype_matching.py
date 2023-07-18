@@ -455,6 +455,7 @@ class BackwardAlgorithm(ForwardAlgorithm):
     def process_site(self, site, haplotype_state, s):
         # FIXME see nodes in the C code for why we have two calls to
         # compress
+        # https://github.com/tskit-dev/tskit/issues/2803
         self.compress()
         self.output.store_site(
             site.id,
@@ -928,7 +929,7 @@ class TestMirroringHap(FBAlgorithmBase):
                 np.flip(H, axis=0),
                 np.flip(s, axis=1),
                 r_flip,
-                mutation_rate=np.flip(mu),
+                p_mutation=np.flip(mu),
                 scale_mutation_based_on_n_alleles=False,
             )
 
@@ -952,7 +953,7 @@ class TestForwardHapTree(FBAlgorithmBase):
                         H,
                         s,
                         r,
-                        mutation_rate=mu,
+                        p_mutation=mu,
                         scale_mutation_based_on_n_alleles=scale_mutation,
                     )
                 # Note, need to remove the first sample from the ts, and ensure
@@ -977,14 +978,14 @@ class TestForwardBackwardTree(FBAlgorithmBase):
     def verify(self, ts):
         for n, H, s, r, mu in self.example_parameters_haplotypes(ts):
             F, c, ll = ls.forwards(
-                H, s, r, mutation_rate=mu, scale_mutation_based_on_n_alleles=False
+                H, s, r, p_mutation=mu, scale_mutation_based_on_n_alleles=False
             )
             B = ls.backwards(
                 H,
                 s,
                 c,
                 r,
-                mutation_rate=mu,
+                p_mutation=mu,
                 scale_mutation_based_on_n_alleles=False,
             )
 
@@ -1017,7 +1018,7 @@ class TestTreeViterbiHap(VitAlgorithmBase):
     def verify(self, ts):
         for n, H, s, r, mu in self.example_parameters_haplotypes(ts):
             path, ll = ls.viterbi(
-                H, s, r, mutation_rate=mu, scale_mutation_based_on_n_alleles=False
+                H, s, r, p_mutation=mu, scale_mutation_based_on_n_alleles=False
             )
             ts_check = ts.simplify(range(1, n + 1), filter_sites=False)
             cm = ls_viterbi_tree(s[0, :], ts_check, r, mu)
@@ -1032,7 +1033,7 @@ class TestTreeViterbiHap(VitAlgorithmBase):
                 s,
                 path_tree,
                 r,
-                mutation_rate=mu,
+                p_mutation=mu,
                 scale_mutation_based_on_n_alleles=False,
             )
             self.assertAllClose(ll, ll_check)
@@ -1055,7 +1056,7 @@ def check_viterbi(ts, h, recombination=None, mutation=None):
         G,
         h.reshape(1, m),
         recombination,
-        mutation_rate=mutation,
+        p_mutation=mutation,
         scale_mutation_based_on_n_alleles=False,
     )
     assert np.isscalar(ll)
@@ -1073,7 +1074,7 @@ def check_viterbi(ts, h, recombination=None, mutation=None):
         h.reshape(1, m),
         path_tree,
         recombination,
-        mutation_rate=mutation,
+        p_mutation=mutation,
         scale_mutation_based_on_n_alleles=False,
     )
     nt.assert_allclose(ll_check, ll)
@@ -1109,7 +1110,7 @@ def check_forward_matrix(ts, h, recombination=None, mutation=None):
         G,
         h.reshape(1, m),
         recombination,
-        mutation_rate=mutation,
+        p_mutation=mutation,
         scale_mutation_based_on_n_alleles=False,
     )
     assert F.shape == (m, n)
@@ -1154,7 +1155,7 @@ def check_backward_matrix(ts, h, forward_cm, recombination=None, mutation=None):
         h.reshape(1, m),
         forward_cm.normalisation_factor,
         recombination,
-        mutation_rate=mutation,
+        p_mutation=mutation,
         scale_mutation_based_on_n_alleles=False,
     )
 

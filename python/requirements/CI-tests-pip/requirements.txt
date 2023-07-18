@@ -1,4 +1,4 @@
-lshmm==0.0.4
+lshmm==0.0.5
 numpy==1.21.6; python_version < '3.11' # Held at 1.21.6 for Python 3.7 compatibility
 numpy==1.24.1; python_version > '3.10'
 pytest==7.1.3

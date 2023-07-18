@@ -1126,6 +1126,8 @@ tsk_ls_hmm_process_site_backward(tsk_ls_hmm_t *self, const tsk_site_t *site,
      * immediately before calling store_site in order to filter out -1 nodes,
      * and also (crucially) to ensure that the value transitions are listed
      * in preorder, which we rely on later for decoding.
+     *
+     * https://github.com/tskit-dev/tskit/issues/2803
      */
     ret = tsk_ls_hmm_compress(self);
     if (ret != 0) {

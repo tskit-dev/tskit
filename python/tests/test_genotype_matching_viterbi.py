@@ -1055,14 +1055,14 @@ class TestTreeViterbiDip(VitAlgorithmBase):
                 )
             ts_check = ts.simplify(range(1, n + 1), filter_sites=False)
             phased_path, ll = ls.viterbi(
-                G_check, s, r, mutation_rate=mu, scale_mutation_based_on_n_alleles=False
+                G_check, s, r, p_mutation=mu, scale_mutation_based_on_n_alleles=False
             )
             path_ll_matrix = ls.path_ll(
                 G_check,
                 s,
                 phased_path,
                 r,
-                mutation_rate=mu,
+                p_mutation=mu,
                 scale_mutation_based_on_n_alleles=False,
             )
 
@@ -1077,7 +1077,7 @@ class TestTreeViterbiDip(VitAlgorithmBase):
                 s,
                 np.transpose(path_tree_dict),
                 r,
-                mutation_rate=mu,
+                p_mutation=mu,
                 scale_mutation_based_on_n_alleles=False,
             )
 
