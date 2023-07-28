@@ -265,7 +265,7 @@ class RateMap(collections.abc.Mapping):
         :param float x: The position to search.
         :return: The index of the interval containing this point.
         :rtype: int
-        :raises: KeyError if the position is not contained in any of the intervals.
+        :raises KeyError: if the position is not contained in any of the intervals.
         """
         if x < 0 or x >= self.sequence_length:
             raise KeyError(f"Position {x} out of bounds")

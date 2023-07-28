@@ -878,7 +878,7 @@ class Tree:
             from which the tree is taken will have its
             :attr:`~tskit.TreeSequence.sequence_length` equal to ``span``.
         :param: float branch_length: The minimum length of a branch in this tree.
-        :raises: ValueError: If the given rank is out of bounds for trees
+        :raises ValueError: If the given rank is out of bounds for trees
             with ``num_leaves`` leaves.
         """
         rank_tree = combinatorics.RankTree.unrank(num_leaves, rank)
@@ -1600,7 +1600,7 @@ class Tree:
 
         :return: The root node.
         :rtype: int
-        :raises: :class:`ValueError` if this tree contains more than one root.
+        :raises ValueError: if this tree contains more than one root.
         """
         if self.has_multiple_roots:
             raise ValueError("More than one root exists. Use tree.roots instead")
@@ -5211,10 +5211,10 @@ class TreeSequence:
             *Deprecated in 0.3.0. Use ``isolated_as_missing``, but inverting value.
             Will be removed in a future version*
         :rtype: collections.abc.Iterable
-        :raises: TypeError if the ``missing_data_character`` or any of the alleles
+        :raises TypeError: if the ``missing_data_character`` or any of the alleles
             at a site are not a single ascii character.
-        :raises: ValueError
-            if the ``missing_data_character`` exists in one of the alleles
+        :raises ValueError: if the ``missing_data_character`` exists in one of the
+            alleles
         """
         if impute_missing_data is not None:
             warnings.warn(
@@ -5521,10 +5521,9 @@ class TreeSequence:
         :return: An iterator over the alignment strings for specified samples in
             this tree sequence, in the order given in ``samples``.
         :rtype: collections.abc.Iterable
-        :raises: ValueError
-            if any genome coordinate in this tree sequence is not discrete,
-            or if the ``reference_sequence`` is not of the correct length.
-        :raises: TypeError if any of the alleles at a site are not a
+        :raises ValueError: if any genome coordinate in this tree sequence is not
+            discrete, or if the ``reference_sequence`` is not of the correct length.
+        :raises TypeError: if any of the alleles at a site are not a
             single ascii character.
         """
         if not self.discrete_genome:

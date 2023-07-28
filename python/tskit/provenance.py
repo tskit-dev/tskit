@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2020 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 # Copyright (c) 2016-2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -117,7 +117,7 @@ def validate_provenance(provenance):
 
     :param dict provenance: The dictionary representing a JSON document
         to be validated against the schema.
-    :raises: :class:`tskit.ProvenanceValidationError`
+    :raises ProvenanceValidationError: if the schema is not valid.
     """
     schema = get_schema()
     try:
