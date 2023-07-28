@@ -996,7 +996,7 @@ class Tree:
         """
         Returns the most recent common ancestor of the specified nodes.
 
-        :param int `*args`: input node IDs, must be at least 2.
+        :param int `*args`: input node IDs, at least 2 arguments are required.
         :return: The node ID of the most recent common ancestor of the
             input nodes, or :data:`tskit.NULL` if the nodes do not share
             a common ancestor in the tree.
@@ -1015,12 +1015,12 @@ class Tree:
         # Deprecated alias for tmrca
         return self.tmrca(u, v)
 
-    def tmrca(self, u, v):
+    def tmrca(self, *args):
         """
         Returns the time of the most recent common ancestor of the specified
         nodes. This is equivalent to::
 
-            >>> tree.time(tree.mrca(u, v))
+            >>> tree.time(tree.mrca(*args))
 
         .. note::
             If you are using this method to calculate average tmrca values along the
@@ -1031,12 +1031,16 @@ class Tree:
             nodes, for samples at time 0 the resulting statistics will be exactly
             twice the tmrca value.
 
-        :param int u: The first node.
-        :param int v: The second node.
-        :return: The time of the most recent common ancestor of u and v.
+        :param `*args`: input node IDs, at least 2 arguments are required.
+        :return: The time of the most recent common ancestor of all the nodes.
         :rtype: float
+        :raises ValueError: If the nodes do not share a single common ancestor in this
+            tree (i.e., if ``tree.mrca(*args) == tskit.NULL``)
         """
-        return self.get_time(self.get_mrca(u, v))
+        mrca = self.mrca(*args)
+        if mrca == tskit.NULL:
+            raise ValueError(f"Nodes {args} do not share a common ancestor in the tree")
+        return self.get_time(mrca)
 
     def get_parent(self, u):
         # Deprecated alias for parent
