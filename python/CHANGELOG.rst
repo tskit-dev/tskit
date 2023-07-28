@@ -4,6 +4,9 @@
 
 **Features**
 
+- Tree.trmca now accepts >2 nodes and returns nicer errors
+  (:user:`hyanwong`, :pr:2808, :issue:`2801`, :issue:`2070`, :issue:`2611`)
+
 - Add ``TreeSequence.genetic_relatedness_weighted`` stats method.
   (:user:`petrelharp`, :user:`brieuclehmann`, :user:`jeromekelleher`,
   :pr:`2785`, :pr:`1246`)

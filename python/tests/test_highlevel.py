@@ -886,6 +886,10 @@ class TestTreeTraversals:
 
 
 class TestMRCA:
+    """
+    Test both the tree.mrca and tree.tmrca methods.
+    """
+
     t = tskit.Tree.generate_balanced(3)
     #  4
     # ┏━┻┓
@@ -893,35 +897,49 @@ class TestMRCA:
     # ┃ ┏┻┓
     # 0 1 2
 
-    def test_two_or_more_args(self):
-        assert self.t.mrca(2, 1) == 3
-        assert self.t.mrca(0, 1, 2) == 4
+    @pytest.mark.parametrize("args, expected", [((2, 1), 3), ((0, 1, 2), 4)])
+    def test_two_or_more_args(self, args, expected):
+        assert self.t.mrca(*args) == expected
+        assert self.t.tmrca(*args) == self.t.tree_sequence.nodes_time[expected]
 
     def test_less_than_two_args(self):
         with pytest.raises(ValueError):
             self.t.mrca(1)
+        with pytest.raises(ValueError):
+            self.t.tmrca(1)
 
     def test_no_args(self):
         with pytest.raises(ValueError):
             self.t.mrca()
+        with pytest.raises(ValueError):
+            self.t.tmrca()
 
     def test_same_args(self):
         assert self.t.mrca(0, 0, 0, 0) == 0
+        assert self.t.tmrca(0, 0, 0, 0) == self.t.tree_sequence.nodes_time[0]
 
     def test_different_tree_levels(self):
         assert self.t.mrca(0, 3) == 4
+        assert self.t.tmrca(0, 3) == self.t.tree_sequence.nodes_time[4]
 
     def test_out_of_bounds_args(self):
         with pytest.raises(ValueError):
             self.t.mrca(0, 6)
+        with pytest.raises(ValueError):
+            self.t.tmrca(0, 6)
 
     def test_virtual_root_arg(self):
         assert self.t.mrca(0, 5) == 5
+        assert np.isposinf(self.t.tmrca(0, 5))
 
     def test_multiple_roots(self):
         ts = tskit.Tree.generate_balanced(10).tree_sequence
         ts = ts.delete_intervals([ts.first().interval])
         assert ts.first().mrca(*ts.samples()) == tskit.NULL
+        # We decided to raise an error for tmrca here, rather than report inf
+        # see https://github.com/tskit-dev/tskit/issues/2801
+        with pytest.raises(ValueError, match="do not share a common ancestor"):
+            ts.first().tmrca(0, 6)
 
 
 class TestPathLength:
