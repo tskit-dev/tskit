@@ -48,7 +48,7 @@ jobs:
           python -m venv venv
           . venv/bin/activate
           pip install --upgrade pip wheel
-          cat ${{env.REQUIREMENTS}} | sed -e '/^\s*#.*$/d' -e '/^\s*$/d' | xargs -n 1 pip install --no-dependencies          
+          pip install -r ${{env.REQUIREMENTS}}          
 
       - name: Build C module
         if: env.MAKE_TARGET
