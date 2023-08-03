@@ -11,8 +11,9 @@ commands:
             sudo apt-get update
             sudo apt-get install -y ninja-build libcunit1-dev valgrind clang doxygen python3-pip
             # Install meson to the system packages so we can run it as root
+            pip install --upgrade pip wheel
             sudo pip install meson
-            pip install numpy==1.18.5
+            pip install --user numpy #Needed for some build steps in requirements.txt
             pip install --user -r python/requirements/CI-complete/requirements.txt
             # Remove tskit installed by msprime
             pip uninstall tskit -y
@@ -153,7 +154,7 @@ commands:
 jobs:
   build:
     docker:
-      - image: cimg/python:3.7
+      - image: cimg/python:3.10
     working_directory: /home/circleci/tskit
     steps:
       - checkout
@@ -162,10 +163,10 @@ jobs:
           # It's sometimes necessary to nuke the cache, and the simplest
           # way to do it is to change the key. We can increment this
           # version number when we want to do this.
-          key: tskit-{{ .Branch }}-v6
+          key: tskit-{{ .Branch }}-v8
       - setup
       - save_cache:
-          key: tskit-{{ .Branch }}-v6
+          key: tskit-{{ .Branch }}-v8
           paths:
             - "/home/circleci/.local"
       - compile_and_test
@@ -194,20 +195,21 @@ jobs:
 
   build-32:
     docker:
-      - image: tskitimages/testing-32bit:2.0
+      - image: tskitimages/testing-32bit:4.0
     working_directory: /home/circleci/tskit
     steps:
       - checkout
       - run: sudo chown -R circleci:circleci *
       - restore_cache:
-          key: tskit-32-{{ .Branch }}-v7
+          key: tskit-32-{{ .Branch }}-v8
       - setup
       - save_cache:
-          key: tskit-32-{{ .Branch }}-v7
+          key: tskit-32-{{ .Branch }}-v8
           paths:
             - "/home/circleci/.local"
       # We need to install curl for the codecov upload.
-      - run: sudo apt-get install -y curl
+      - run: |
+          sudo apt-get install -y curl wget
       - compile_and_test
 
 workflows:
