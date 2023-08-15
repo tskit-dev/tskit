@@ -263,11 +263,10 @@ verify_mean_descendants(tsk_treeseq_t *ts)
 }
 
 /* Check the divergence matrix by running against the stats API equivalent
- * code. NOTE: this will not always be equal in site mode, because of a slightly
- * different definition wrt to multiple mutations at a site.
+ * code.
  */
 static void
-verify_divergence_matrix(tsk_treeseq_t *ts, tsk_flags_t mode)
+verify_divergence_matrix(tsk_treeseq_t *ts, tsk_flags_t options)
 {
     int ret;
     const tsk_size_t n = tsk_treeseq_get_num_samples(ts);
@@ -285,10 +284,10 @@ verify_divergence_matrix(tsk_treeseq_t *ts, tsk_flags_t mode)
         }
     }
     ret = tsk_treeseq_divergence(
-        ts, n, sample_set_sizes, samples, n * n, index_tuples, 0, NULL, mode, D1);
+        ts, n, sample_set_sizes, samples, n * n, index_tuples, 0, NULL, options, D1);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_treeseq_divergence_matrix(ts, 0, NULL, 0, NULL, mode, D2);
+    ret = tsk_treeseq_divergence_matrix(ts, 0, NULL, 0, NULL, options, D2);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     for (j = 0; j < n; j++) {
@@ -1072,7 +1071,9 @@ test_single_tree_divergence_matrix(void)
     assert_arrays_almost_equal(16, result, D_site);
 
     verify_divergence_matrix(&ts, TSK_STAT_BRANCH);
+    verify_divergence_matrix(&ts, TSK_STAT_BRANCH | TSK_STAT_SPAN_NORMALISE);
     verify_divergence_matrix(&ts, TSK_STAT_SITE);
+    verify_divergence_matrix(&ts, TSK_STAT_SITE | TSK_STAT_SPAN_NORMALISE);
 
     tsk_treeseq_free(&ts);
 }
@@ -1120,7 +1121,9 @@ test_single_tree_divergence_matrix_internal_samples(void)
     assert_arrays_almost_equal(16, result, D);
 
     verify_divergence_matrix(&ts, TSK_STAT_BRANCH);
+    verify_divergence_matrix(&ts, TSK_STAT_BRANCH | TSK_STAT_SPAN_NORMALISE);
     verify_divergence_matrix(&ts, TSK_STAT_SITE);
+    verify_divergence_matrix(&ts, TSK_STAT_SITE | TSK_STAT_SPAN_NORMALISE);
 
     tsk_treeseq_free(&ts);
 }
@@ -1165,8 +1168,10 @@ test_single_tree_divergence_matrix_multi_root(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     assert_arrays_almost_equal(16, result, D_branch);
 
-    verify_divergence_matrix(&ts, TSK_STAT_SITE);
     verify_divergence_matrix(&ts, TSK_STAT_BRANCH);
+    verify_divergence_matrix(&ts, TSK_STAT_BRANCH | TSK_STAT_SPAN_NORMALISE);
+    verify_divergence_matrix(&ts, TSK_STAT_SITE);
+    verify_divergence_matrix(&ts, TSK_STAT_SITE | TSK_STAT_SPAN_NORMALISE);
 
     tsk_treeseq_free(&ts);
 }
@@ -1839,7 +1844,9 @@ test_paper_ex_divergence_matrix(void)
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
 
     verify_divergence_matrix(&ts, TSK_STAT_BRANCH);
+    verify_divergence_matrix(&ts, TSK_STAT_BRANCH | TSK_STAT_SPAN_NORMALISE);
     verify_divergence_matrix(&ts, TSK_STAT_SITE);
+    verify_divergence_matrix(&ts, TSK_STAT_SITE | TSK_STAT_SPAN_NORMALISE);
 
     tsk_treeseq_free(&ts);
 }
@@ -1999,7 +2006,17 @@ test_simplest_divergence_matrix(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     assert_arrays_almost_equal(4, D_branch, result);
 
+    ret = tsk_treeseq_divergence_matrix(
+        &ts, 2, sample_ids, 0, NULL, TSK_STAT_BRANCH | TSK_STAT_SPAN_NORMALISE, result);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    assert_arrays_almost_equal(4, D_branch, result);
+
     ret = tsk_treeseq_divergence_matrix(&ts, 2, sample_ids, 0, NULL, 0, result);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    assert_arrays_almost_equal(4, D_site, result);
+
+    ret = tsk_treeseq_divergence_matrix(
+        &ts, 2, sample_ids, 0, NULL, TSK_STAT_SPAN_NORMALISE, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     assert_arrays_almost_equal(4, D_site, result);
 
@@ -2018,10 +2035,6 @@ test_simplest_divergence_matrix(void)
 
     ret = tsk_treeseq_divergence_matrix(&ts, 0, NULL, 0, NULL, TSK_STAT_NODE, result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSUPPORTED_STAT_MODE);
-
-    ret = tsk_treeseq_divergence_matrix(
-        &ts, 0, NULL, 0, NULL, TSK_STAT_SPAN_NORMALISE, result);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_STAT_SPAN_NORMALISE_UNSUPPORTED);
 
     ret = tsk_treeseq_divergence_matrix(
         &ts, 0, NULL, 0, NULL, TSK_STAT_POLARISED, result);
@@ -2146,7 +2159,9 @@ test_multiroot_divergence_matrix(void)
         multiroot_ex_sites, multiroot_ex_mutations, NULL, NULL, 0);
 
     verify_divergence_matrix(&ts, TSK_STAT_BRANCH);
+    verify_divergence_matrix(&ts, TSK_STAT_BRANCH | TSK_STAT_SPAN_NORMALISE);
     verify_divergence_matrix(&ts, TSK_STAT_SITE);
+    verify_divergence_matrix(&ts, TSK_STAT_SITE | TSK_STAT_SPAN_NORMALISE);
 
     tsk_treeseq_free(&ts);
 }

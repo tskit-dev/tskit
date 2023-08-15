@@ -7784,10 +7784,11 @@ class TreeSequence:
         chunks.append(chunk)
         return chunks
 
-    def _parallelise_divmat_by_tree(self, num_threads, **kwargs):
+    def _parallelise_divmat_by_tree(self, num_threads, span_normalise, **kwargs):
         """
         No windows were specified, so we can chunk up the whole genome by
-        tree, and do a simple sum of the results.
+        tree, and do a simple sum of the results. This means that we have to
+        handle span_normalise specially, though.
         """
 
         def worker(interval):
@@ -7796,7 +7797,10 @@ class TreeSequence:
         work = self._chunk_sequence_by_tree(num_threads)
         with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as pool:
             results = pool.map(worker, work)
-        return sum(results)
+        total = sum(results)
+        if span_normalise:
+            total /= self.sequence_length
+        return total
 
     def _parallelise_divmat_by_window(self, windows, num_threads, **kwargs):
         """
@@ -7852,7 +7856,13 @@ class TreeSequence:
     # NOTE: see older definition of divmat here, which may be useful when documenting
     # this function. See https://github.com/tskit-dev/tskit/issues/2781
     def divergence_matrix(
-        self, *, windows=None, samples=None, num_threads=0, mode=None
+        self,
+        *,
+        windows=None,
+        samples=None,
+        num_threads=0,
+        mode=None,
+        span_normalise=True,
     ):
         windows_specified = windows is not None
         windows = [0, self.sequence_length] if windows is None else windows
@@ -7863,16 +7873,26 @@ class TreeSequence:
         # following the approach in GNN
         if num_threads <= 0:
             D = self._ll_tree_sequence.divergence_matrix(
-                windows, samples=samples, mode=mode
+                windows,
+                samples=samples,
+                mode=mode,
+                span_normalise=span_normalise,
             )
         else:
             if windows_specified:
                 D = self._parallelise_divmat_by_window(
-                    windows, num_threads, samples=samples, mode=mode
+                    windows,
+                    num_threads,
+                    samples=samples,
+                    mode=mode,
+                    span_normalise=span_normalise,
                 )
             else:
                 D = self._parallelise_divmat_by_tree(
-                    num_threads, samples=samples, mode=mode
+                    num_threads,
+                    span_normalise=span_normalise,
+                    samples=samples,
+                    mode=mode,
                 )
 
         if not windows_specified:
