@@ -1537,6 +1537,8 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         assert D.shape == (1, n, n)
         D = ts.divergence_matrix(windows, samples=[0, 1])
         assert D.shape == (1, 2, 2)
+        D = ts.divergence_matrix(windows, samples=[0, 1], span_normalise=True)
+        assert D.shape == (1, 2, 2)
         with pytest.raises(TypeError, match="str"):
             ts.divergence_matrix(windows, span_normalise="xdf")
         with pytest.raises(TypeError):

@@ -7855,6 +7855,12 @@ class TreeSequence:
     #     return A
     # NOTE: see older definition of divmat here, which may be useful when documenting
     # this function. See https://github.com/tskit-dev/tskit/issues/2781
+
+    # NOTE for documentation of num_threads. Need to explain that the
+    # its best to think of as the number of background *worker* threads.
+    # default is to run without any worker threads. If you want to run
+    # with all the cores on the machine, use num_threads=os.cpu_count().
+
     def divergence_matrix(
         self,
         *,
@@ -7865,12 +7871,11 @@ class TreeSequence:
         span_normalise=True,
     ):
         windows_specified = windows is not None
-        windows = [0, self.sequence_length] if windows is None else windows
-
+        windows = self.parse_windows(windows)
         mode = "site" if mode is None else mode
 
-        # NOTE: maybe we want to use a different default for num_threads here, just
-        # following the approach in GNN
+        # FIXME this logic should be merged into __run_windowed_stat if
+        # we generalise the num_threads argument to all stats.
         if num_threads <= 0:
             D = self._ll_tree_sequence.divergence_matrix(
                 windows,
