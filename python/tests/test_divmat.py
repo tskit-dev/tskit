@@ -163,7 +163,7 @@ def span_normalise_windows(D, windows):
 
 def branch_divergence_matrix(ts, windows=None, samples=None, span_normalise=True):
     windows_specified = windows is not None
-    windows = [0, ts.sequence_length] if windows is None else windows
+    windows = ts.parse_windows(windows)
     num_windows = len(windows) - 1
     samples = ts.samples() if samples is None else samples
 
@@ -296,7 +296,7 @@ def group_alleles(genotypes, num_alleles):
 
 def site_divergence_matrix(ts, windows=None, samples=None, span_normalise=True):
     windows_specified = windows is not None
-    windows = [0, ts.sequence_length] if windows is None else windows
+    windows = ts.parse_windows(windows)
     num_windows = len(windows) - 1
     samples = ts.samples() if samples is None else samples
 
@@ -954,6 +954,8 @@ class TestThreadsWindows:
             ([5, 7, 9, 20],),
             ([5.1, 5.2, 5.3, 5.5, 6],),
             ([5.1, 5.2, 6.5],),
+            ("trees",),
+            ("sites",),
         ],
     )
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
@@ -968,6 +970,8 @@ class TestThreadsWindows:
         [
             ([0, 26],),
             (None,),
+            ("trees",),
+            ("sites",),
         ],
     )
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
@@ -984,6 +988,8 @@ class TestThreadsWindows:
             ([50, 75, 95, 100],),
             ([0, 50, 75, 95],),
             (list(range(100)),),
+            ("trees",),
+            ("sites",),
         ],
     )
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
