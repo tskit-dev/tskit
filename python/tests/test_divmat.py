@@ -22,8 +22,6 @@
 """
 Test cases for divergence matrix based pairwise stats
 """
-import collections
-
 import msprime
 import numpy as np
 import pytest
@@ -266,10 +264,19 @@ def stats_api_divergence_matrix(ts, windows=None, samples=None, mode="site"):
     return out
 
 
-def rootward_path(tree, u, v):
-    while u != v:
-        yield u
-        u = tree.parent(u)
+def group_alleles(genotypes, num_alleles):
+    n = genotypes.shape[0]
+    A = np.zeros(n, dtype=int)
+    offsets = np.zeros(num_alleles + 1, dtype=int)
+    k = 0
+    for a in range(num_alleles):
+        offsets[a + 1] = offsets[a]
+        for j in range(n):
+            if genotypes[j] == a:
+                offsets[a + 1] += 1
+                A[k] = j
+                k += 1
+    return A, offsets
 
 
 def site_divergence_matrix(ts, windows=None, samples=None):
@@ -279,42 +286,33 @@ def site_divergence_matrix(ts, windows=None, samples=None):
     samples = ts.samples() if samples is None else samples
 
     n = len(samples)
+    sample_index_map = np.zeros(ts.num_nodes, dtype=int) - 1
+    sample_index_map[samples] = np.arange(n)
     D = np.zeros((num_windows, n, n))
-    tree = tskit.Tree(ts)
+    site_id = 0
+    while site_id < ts.num_sites and ts.sites_position[site_id] < windows[0]:
+        site_id += 1
+
+    # Note we have to use isolated_as_missing here because we're working with
+    # non-sample nodes. There are tricky problems here later with missing data.
+    variant = tskit.Variant(ts, samples=samples, isolated_as_missing=False)
     for i in range(num_windows):
         left = windows[i]
         right = windows[i + 1]
-        tree.seek(left)
-        # Iterate over the trees in this window
-        while tree.interval.left < right and tree.index != -1:
-            span_left = max(tree.interval.left, left)
-            span_right = min(tree.interval.right, right)
-            mutations_per_node = collections.Counter()
-            for site in tree.sites():
-                if span_left <= site.position < span_right:
-                    for mutation in site.mutations:
-                        mutations_per_node[mutation.node] += 1
-            for j in range(n):
-                u = samples[j]
-                for k in range(j + 1, n):
-                    v = samples[k]
-                    w = tree.mrca(u, v)
-                    if w != tskit.NULL:
-                        wu = w
-                        wv = w
-                    else:
-                        wu = local_root(tree, u)
-                        wv = local_root(tree, v)
-                    du = sum(mutations_per_node[x] for x in rootward_path(tree, u, wu))
-                    dv = sum(mutations_per_node[x] for x in rootward_path(tree, v, wv))
-                    # NOTE: we're just accumulating the raw mutation counts, not
-                    # multiplying by span
-                    D[i, j, k] += du + dv
-            tree.next()
-        # Fill out symmetric triangle in the matrix
-        for j in range(n):
-            for k in range(j + 1, n):
-                D[i, k, j] = D[i, j, k]
+        if site_id < ts.num_sites:
+            assert ts.sites_position[site_id] >= left
+        while site_id < ts.num_sites and ts.sites_position[site_id] < right:
+            variant.decode(site_id)
+            X, offsets = group_alleles(variant.genotypes, variant.num_alleles)
+            for j in range(variant.num_alleles):
+                A = X[offsets[j] : offsets[j + 1]]
+                for k in range(j + 1, variant.num_alleles):
+                    B = X[offsets[k] : offsets[k + 1]]
+                    for a in A:
+                        for b in B:
+                            D[i, a, b] += 1
+                            D[i, b, a] += 1
+            site_id += 1
     if not windows_specified:
         D = D[0]
     return D
@@ -359,7 +357,7 @@ class TestExamplesWithAnswer:
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
     def test_single_tree_zero_samples(self, mode):
         ts = tskit.Tree.generate_balanced(2).tree_sequence
-        D = check_divmat(ts, samples=[], mode="site")
+        D = check_divmat(ts, samples=[], mode=mode)
         assert D.shape == (0, 0)
 
     @pytest.mark.parametrize("num_windows", [1, 2, 3, 5])
@@ -367,7 +365,7 @@ class TestExamplesWithAnswer:
     def test_single_tree_zero_samples_windows(self, num_windows, mode):
         ts = tskit.Tree.generate_balanced(2).tree_sequence
         windows = np.linspace(0, ts.sequence_length, num=num_windows + 1)
-        D = check_divmat(ts, samples=[], windows=windows, mode="site")
+        D = check_divmat(ts, samples=[], windows=windows, mode=mode)
         assert D.shape == (num_windows, 0, 0)
 
     @pytest.mark.parametrize("m", [0, 1, 2, 10])
@@ -391,29 +389,17 @@ class TestExamplesWithAnswer:
         )
         np.testing.assert_array_equal(D1, m * D2)
 
-    @pytest.mark.parametrize("m", [0, 1, 2, 10])
-    def test_single_tree_mutations_per_branch(self, m):
-        # 2.00┊    6    ┊
-        #     ┊  ┏━┻━┓  ┊
-        # 1.00┊  4   5  ┊
-        #     ┊ ┏┻┓ ┏┻┓ ┊
-        # 0.00┊ 0 1 2 3 ┊
-        #     0         1
-        ts = tskit.Tree.generate_balanced(4).tree_sequence
-        ts = tsutil.insert_branch_mutations(ts, m)
-        # The stats API will produce a different value here, because
-        # we're just counting up the mutations and not reasoning about
-        # the state of samples at all.
-        D1 = check_divmat(ts, mode="site", compare_stats_api=False)
-        D2 = np.array(
-            [
-                [0.0, 2.0, 4.0, 4.0],
-                [2.0, 0.0, 4.0, 4.0],
-                [4.0, 4.0, 0.0, 2.0],
-                [4.0, 4.0, 2.0, 0.0],
-            ]
-        )
-        np.testing.assert_array_equal(D1, m * D2)
+    @pytest.mark.parametrize("n", [2, 3, 5])
+    def test_single_tree_unique_sample_alleles(self, n):
+        tables = tskit.Tree.generate_balanced(n).tree_sequence.dump_tables()
+        tables.sites.add_row(position=0.5, ancestral_state="0")
+        for j in range(n):
+            tables.mutations.add_row(site=0, node=j, derived_state=f"{j + 1}")
+        ts = tables.tree_sequence()
+        D1 = check_divmat(ts, mode="site")
+        D2 = np.ones((n, n))
+        np.fill_diagonal(D2, 0)
+        np.testing.assert_array_equal(D1, D2)
 
     @pytest.mark.parametrize("L", [0.1, 1, 2, 100])
     def test_single_tree_sequence_length(self, L):
@@ -511,15 +497,8 @@ class TestExamplesWithAnswer:
         #     0         1
         ts = tskit.Tree.generate_balanced(4).tree_sequence
         ts = tsutil.insert_branch_sites(ts)
-        D1 = check_divmat(ts, samples=[0, 0, 1], compare_stats_api=False, mode=mode)
-        D2 = np.array(
-            [
-                [0.0, 0.0, 2.0],
-                [0.0, 0.0, 2.0],
-                [2.0, 2.0, 0.0],
-            ]
-        )
-        np.testing.assert_array_equal(D1, D2)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_DUPLICATE_SAMPLE"):
+            ts.divergence_matrix(samples=[0, 0, 1], mode=mode)
 
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
     def test_single_tree_multiroot(self, mode):
@@ -820,10 +799,6 @@ class TestSuiteExamples:
             np.testing.assert_allclose(D1, D2, atol=atol)
         else:
             assert mode == "site"
-            if np.any(ts.mutations_parent != tskit.NULL):
-                # The stats API computes something slightly different when we have
-                # recurrent mutations, so fall back to the naive version.
-                D2 = site_divergence_matrix(ts, windows=windows, samples=samples)
             np.testing.assert_array_equal(D1, D2)
 
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
@@ -1062,3 +1037,47 @@ class TestChunkWindows:
     def test_bad_chunks(self, num_chunks):
         with pytest.raises(ValueError, match="Number of chunks must be an integer > 0"):
             tskit.TreeSequence._chunk_windows([0, 1], num_chunks)
+
+
+class TestGroupAlleles:
+    @pytest.mark.parametrize(
+        ["G", "num_alleles", "A", "offsets"],
+        [
+            ([0, 1], 2, [0, 1], [0, 1, 2]),
+            ([0, 1], 3, [0, 1], [0, 1, 2, 2]),
+            ([0, 2], 3, [0, 1], [0, 1, 1, 2]),
+            ([1, 0], 2, [1, 0], [0, 1, 2]),
+            ([0, 0, 0, 1, 1, 1], 2, [0, 1, 2, 3, 4, 5], [0, 3, 6]),
+            ([0, 0], 1, [0, 1], [0, 2]),
+            ([2, 2], 3, [0, 1], [0, 0, 0, 2]),
+        ],
+    )
+    def test_examples(self, G, num_alleles, A, offsets):
+        A1, offsets1 = group_alleles(np.array(G), num_alleles)
+        assert list(A) == list(A1)
+        assert list(offsets) == list(offsets1)
+
+    def test_simple_simulation(self):
+        ts = msprime.sim_ancestry(
+            15,
+            ploidy=1,
+            population_size=20,
+            sequence_length=100,
+            recombination_rate=0.01,
+            random_seed=1234,
+        )
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=1234)
+        assert ts.num_mutations > 10
+        for var in ts.variants():
+            A, offsets = group_alleles(var.genotypes, var.num_alleles)
+            allele_samples = [[] for _ in range(var.num_alleles)]
+            for j, a in enumerate(var.genotypes):
+                allele_samples[a].append(j)
+
+            assert len(offsets) == var.num_alleles + 1
+            assert offsets[0] == 0
+            assert offsets[-1] == ts.num_samples
+            assert np.all(np.diff(offsets) >= 0)
+            for j in range(var.num_alleles):
+                a = A[offsets[j] : offsets[j + 1]]
+                assert list(a) == list(allele_samples[j])

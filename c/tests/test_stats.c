@@ -1132,7 +1132,6 @@ test_single_tree_divergence_matrix_multi_root(void)
     int ret;
     double result[16];
     double D_branch[16] = { 0, 2, 3, 3, 2, 0, 3, 3, 3, 3, 0, 4, 3, 3, 4, 0 };
-    double D_site[16] = { 0, 4, 6, 6, 4, 0, 6, 6, 6, 6, 0, 8, 6, 6, 8, 0 };
 
     const char *nodes = "1  0   -1   -1\n"
                         "1  0   -1   -1\n"  /* 2.00┊      5  ┊ */
@@ -1142,7 +1141,7 @@ test_single_tree_divergence_matrix_multi_root(void)
                         "0  2   -1   -1\n"; /*     0 * * * * 1 */
     const char *edges = "0  1   4   0,1\n"
                         "0  1   5   2,3\n";
-    /* Two mutations per branch unit so we get twice branch length value */
+    /* Two mutations per branch */
     const char *sites = "0.1  A\n"
                         "0.2  A\n"
                         "0.3  A\n"
@@ -1166,9 +1165,8 @@ test_single_tree_divergence_matrix_multi_root(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     assert_arrays_almost_equal(16, result, D_branch);
 
-    ret = tsk_treeseq_divergence_matrix(&ts, 0, NULL, 0, NULL, TSK_STAT_SITE, result);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    assert_arrays_almost_equal(16, result, D_site);
+    verify_divergence_matrix(&ts, TSK_STAT_SITE);
+    verify_divergence_matrix(&ts, TSK_STAT_BRANCH);
 
     tsk_treeseq_free(&ts);
 }
@@ -2041,6 +2039,13 @@ test_simplest_divergence_matrix(void)
     ret = tsk_treeseq_divergence_matrix(&ts, 2, sample_ids, 0, NULL, 0, result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
+    sample_ids[0] = 1;
+    ret = tsk_treeseq_divergence_matrix(&ts, 2, sample_ids, 0, NULL, 0, result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
+    ret = tsk_treeseq_divergence_matrix(
+        &ts, 2, sample_ids, 0, NULL, TSK_STAT_BRANCH, result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
+
     tsk_treeseq_free(&ts);
 }
 
@@ -2051,15 +2056,19 @@ test_simplest_divergence_matrix_windows(void)
                         "1  0   0\n"
                         "0  1   0\n";
     const char *edges = "0  1   2   0,1\n";
+    const char *sites = "0.1  A\n"
+                        "0.6  A\n";
+    const char *mutations = "0  0  B  -1\n"
+                            "1  0  B  -1\n";
     tsk_treeseq_t ts;
     tsk_id_t sample_ids[] = { 0, 1 };
     double D_branch[8] = { 0, 1, 1, 0, 0, 1, 1, 0 };
-    double D_site[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    double D_site[8] = { 0, 1, 1, 0, 0, 1, 1, 0 };
     double result[8];
     double windows[] = { 0, 0.5, 1 };
     int ret;
 
-    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
+    tsk_treeseq_from_text(&ts, 1, nodes, edges, NULL, sites, mutations, NULL, NULL, 0);
 
     ret = tsk_treeseq_divergence_matrix(&ts, 2, sample_ids, 2, windows, 0, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -2068,6 +2077,16 @@ test_simplest_divergence_matrix_windows(void)
         &ts, 2, sample_ids, 2, windows, TSK_STAT_BRANCH, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     assert_arrays_almost_equal(8, D_branch, result);
+
+    /* Windows for the second half */
+    ret = tsk_treeseq_divergence_matrix(
+        &ts, 2, sample_ids, 1, windows + 1, TSK_STAT_SITE, result);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    assert_arrays_almost_equal(4, D_site, result);
+    ret = tsk_treeseq_divergence_matrix(
+        &ts, 2, sample_ids, 1, windows + 1, TSK_STAT_BRANCH, result);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    assert_arrays_almost_equal(4, D_branch, result);
 
     ret = tsk_treeseq_divergence_matrix(&ts, 2, sample_ids, 0, windows, 0, result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NUM_WINDOWS);
