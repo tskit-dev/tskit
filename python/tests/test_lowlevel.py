@@ -1532,10 +1532,13 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
     def test_divergence_matrix(self):
         n = 10
         ts = self.get_example_tree_sequence(n, random_seed=12)
-        D = ts.divergence_matrix([0, ts.get_sequence_length()])
+        windows = [0, ts.get_sequence_length()]
+        D = ts.divergence_matrix(windows)
         assert D.shape == (1, n, n)
-        D = ts.divergence_matrix([0, ts.get_sequence_length()], samples=[0, 1])
+        D = ts.divergence_matrix(windows, samples=[0, 1])
         assert D.shape == (1, 2, 2)
+        with pytest.raises(TypeError, match="str"):
+            ts.divergence_matrix(windows, span_normalise="xdf")
         with pytest.raises(TypeError):
             ts.divergence_matrix(windoze=[0, 1])
         with pytest.raises(ValueError, match="at least 2"):

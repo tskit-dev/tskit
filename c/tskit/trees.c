@@ -6809,10 +6809,6 @@ tsk_treeseq_divergence_matrix(const tsk_treeseq_t *self, tsk_size_t num_samples,
         ret = TSK_ERR_STAT_POLARISED_UNSUPPORTED;
         goto out;
     }
-    if (options & TSK_STAT_SPAN_NORMALISE) {
-        ret = TSK_ERR_STAT_SPAN_NORMALISE_UNSUPPORTED;
-        goto out;
-    }
 
     if (windows == NULL) {
         num_windows = 1;
@@ -6855,6 +6851,9 @@ tsk_treeseq_divergence_matrix(const tsk_treeseq_t *self, tsk_size_t num_samples,
     }
     fill_lower_triangle(result, n, num_windows);
 
+    if (options & TSK_STAT_SPAN_NORMALISE) {
+        span_normalise(num_windows, windows, n * n, result);
+    }
 out:
     tsk_safe_free(sample_index_map);
     return ret;

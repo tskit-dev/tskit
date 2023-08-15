@@ -9737,7 +9737,7 @@ static PyObject *
 TreeSequence_divergence_matrix(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
-    static char *kwlist[] = { "windows", "samples", "mode", NULL };
+    static char *kwlist[] = { "windows", "samples", "mode", "span_normalise", NULL };
     PyArrayObject *result_array = NULL;
     PyObject *windows = NULL;
     PyObject *py_samples = Py_None;
@@ -9748,13 +9748,14 @@ TreeSequence_divergence_matrix(TreeSequence *self, PyObject *args, PyObject *kwd
     npy_intp *shape, dims[3];
     tsk_size_t num_samples, num_windows;
     tsk_id_t *samples = NULL;
+    int span_normalise = 0;
     int err;
 
     if (TreeSequence_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(
-            args, kwds, "O|Os", kwlist, &windows, &py_samples, &mode)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|Osi", kwlist, &windows, &py_samples,
+            &mode, &span_normalise)) {
         goto out;
     }
     num_samples = tsk_treeseq_get_num_samples(self->tree_sequence);
@@ -9778,9 +9779,14 @@ TreeSequence_divergence_matrix(TreeSequence *self, PyObject *args, PyObject *kwd
     if (result_array == NULL) {
         goto out;
     }
+
     if (parse_stats_mode(mode, &options) != 0) {
         goto out;
     }
+    if (span_normalise) {
+        options |= TSK_STAT_SPAN_NORMALISE;
+    }
+
     // clang-format off
     Py_BEGIN_ALLOW_THREADS
     err = tsk_treeseq_divergence_matrix(
