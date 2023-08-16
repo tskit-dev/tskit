@@ -802,11 +802,16 @@ parse_sample_sets(PyObject *sample_set_sizes, PyArrayObject **ret_sample_set_siz
     }
     shape = PyArray_DIMS(sample_set_sizes_array);
     num_sample_sets = shape[0];
+
     /* The sum of the lengths in sample_set_sizes must be equal to the length
      * of the sample_sets array */
     sum = 0;
     a = PyArray_DATA(sample_set_sizes_array);
     for (j = 0; j < num_sample_sets; j++) {
+        if (sum + a[j] < sum) {
+            PyErr_SetString(PyExc_ValueError, "Overflow in sample set sizes sum");
+            goto out;
+        }
         sum += a[j];
     }
 
@@ -9777,44 +9782,47 @@ static PyObject *
 TreeSequence_divergence_matrix(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
-    static char *kwlist[] = { "windows", "samples", "mode", "span_normalise", NULL };
-    PyArrayObject *result_array = NULL;
-    PyObject *windows = NULL;
-    PyObject *py_samples = Py_None;
+
+    static char *kwlist[] = { "windows", "sample_set_sizes", "sample_sets", "mode",
+        "span_normalise", NULL };
     char *mode = NULL;
+    PyArrayObject *result_array = NULL;
+    PyObject *py_sample_set_sizes = Py_None;
+    PyObject *py_sample_sets = Py_None;
+    PyObject *py_windows = Py_None;
     PyArrayObject *windows_array = NULL;
-    PyArrayObject *samples_array = NULL;
+    PyArrayObject *sample_set_sizes_array = NULL;
+    PyArrayObject *sample_sets_array = NULL;
     tsk_flags_t options = 0;
-    npy_intp *shape, dims[3];
-    tsk_size_t num_samples, num_windows;
-    tsk_id_t *samples = NULL;
+    npy_intp dims[3];
+    tsk_size_t num_sample_sets = 0;
+    tsk_size_t num_windows = 0;
+    tsk_id_t *sample_sets = NULL;
+    tsk_size_t *sample_set_sizes = NULL;
     int span_normalise = 0;
     int err;
 
     if (TreeSequence_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|Osi", kwlist, &windows, &py_samples,
-            &mode, &span_normalise)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|si", kwlist, &py_windows,
+            &py_sample_set_sizes, &py_sample_sets, &mode, &span_normalise)) {
         goto out;
     }
-    num_samples = tsk_treeseq_get_num_samples(self->tree_sequence);
-    if (py_samples != Py_None) {
-        samples_array = (PyArrayObject *) PyArray_FROMANY(
-            py_samples, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
-        if (samples_array == NULL) {
-            goto out;
-        }
-        shape = PyArray_DIMS(samples_array);
-        samples = PyArray_DATA(samples_array);
-        num_samples = (tsk_size_t) shape[0];
+
+    if (parse_sample_sets(py_sample_set_sizes, &sample_set_sizes_array, py_sample_sets,
+            &sample_sets_array, &num_sample_sets)
+        != 0) {
+        goto out;
     }
-    if (parse_windows(windows, &windows_array, &num_windows) != 0) {
+    sample_set_sizes = PyArray_DATA(sample_set_sizes_array);
+    sample_sets = PyArray_DATA(sample_sets_array);
+    if (parse_windows(py_windows, &windows_array, &num_windows) != 0) {
         goto out;
     }
     dims[0] = num_windows;
-    dims[1] = num_samples;
-    dims[2] = num_samples;
+    dims[1] = num_sample_sets;
+    dims[2] = num_sample_sets;
     result_array = (PyArrayObject *) PyArray_SimpleNew(3, dims, NPY_FLOAT64);
     if (result_array == NULL) {
         goto out;
@@ -9831,7 +9839,7 @@ TreeSequence_divergence_matrix(TreeSequence *self, PyObject *args, PyObject *kwd
     Py_BEGIN_ALLOW_THREADS
     err = tsk_treeseq_divergence_matrix(
         self->tree_sequence,
-        num_samples, samples,
+        num_sample_sets, sample_set_sizes, sample_sets,
         num_windows, PyArray_DATA(windows_array),
         options, PyArray_DATA(result_array));
     Py_END_ALLOW_THREADS
@@ -9845,9 +9853,10 @@ TreeSequence_divergence_matrix(TreeSequence *self, PyObject *args, PyObject *kwd
     ret = (PyObject *) result_array;
     result_array = NULL;
 out:
-    Py_XDECREF(result_array);
+    Py_XDECREF(sample_set_sizes_array);
+    Py_XDECREF(sample_sets_array);
     Py_XDECREF(windows_array);
-    Py_XDECREF(samples_array);
+    Py_XDECREF(result_array);
     return ret;
 }
 

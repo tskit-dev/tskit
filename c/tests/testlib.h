@@ -54,7 +54,16 @@ void parse_individuals(const char *text, tsk_individual_table_t *individual_tabl
 
 void unsort_edges(tsk_edge_table_t *edges, size_t start);
 
-void assert_arrays_almost_equal(tsk_size_t len, double *a, double *b);
+/* Use a macro so we can get line numbers at roughly the right place */
+#define assert_arrays_almost_equal(len, a, b)                                           \
+    {                                                                                   \
+        do {                                                                            \
+            tsk_size_t _j;                                                              \
+            for (_j = 0; _j < len; _j++) {                                              \
+                CU_ASSERT_DOUBLE_EQUAL(a[_j], b[_j], 1e-9);                             \
+            }                                                                           \
+        } while (0);                                                                    \
+    }
 
 extern const char *single_tree_ex_nodes;
 extern const char *single_tree_ex_edges;

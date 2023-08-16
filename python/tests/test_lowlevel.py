@@ -1549,26 +1549,41 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         n = 10
         ts = self.get_example_tree_sequence(n, random_seed=12)
         windows = [0, ts.get_sequence_length()]
-        D = ts.divergence_matrix(windows)
+        ids = np.arange(n, dtype=np.int32)
+        sizes = np.ones(n, dtype=np.uint64)
+        D = ts.divergence_matrix(windows, sizes, ids)
         assert D.shape == (1, n, n)
-        D = ts.divergence_matrix(windows, samples=[0, 1])
+        D = ts.divergence_matrix(windows, sample_set_sizes=[1, 1], sample_sets=[0, 1])
         assert D.shape == (1, 2, 2)
-        D = ts.divergence_matrix(windows, samples=[0, 1], span_normalise=True)
+        D = ts.divergence_matrix(
+            windows, sample_set_sizes=[1, 1], sample_sets=[0, 1], span_normalise=True
+        )
         assert D.shape == (1, 2, 2)
+
+        for bad_node in [-1, -2, 1000]:
+            with pytest.raises(_tskit.LibraryError, match="TSK_ERR_NODE_OUT_OF_BOUNDS"):
+                ts.divergence_matrix(windows, [1, 1], [0, bad_node])
+        with pytest.raises(ValueError, match="Sum of sample_set_sizes"):
+            ts.divergence_matrix(windows, [1, 2], [0, 1])
+        with pytest.raises(ValueError, match="Overflow"):
+            ts.divergence_matrix(windows, [-1, 2], [0])
+
         with pytest.raises(TypeError, match="str"):
-            ts.divergence_matrix(windows, span_normalise="xdf")
+            ts.divergence_matrix(windows, sizes, ids, span_normalise="xdf")
         with pytest.raises(TypeError):
             ts.divergence_matrix(windoze=[0, 1])
         with pytest.raises(ValueError, match="at least 2"):
-            ts.divergence_matrix(windows=[0])
+            ts.divergence_matrix(
+                [0],
+                sizes,
+                ids,
+            )
         with pytest.raises(_tskit.LibraryError, match="BAD_WINDOWS"):
-            ts.divergence_matrix(windows=[-1, 0, 1])
-        with pytest.raises(ValueError):
-            ts.divergence_matrix(windows=[0, 1], samples="sdf")
+            ts.divergence_matrix([-1, 0, 1], sizes, ids)
         with pytest.raises(ValueError, match="Unrecognised stats mode"):
-            ts.divergence_matrix(windows=[0, 1], mode="sdf")
+            ts.divergence_matrix([0, 1], sizes, ids, mode="sdf")
         with pytest.raises(_tskit.LibraryError, match="UNSUPPORTED_STAT_MODE"):
-            ts.divergence_matrix(windows=[0, 1], mode="node")
+            ts.divergence_matrix([0, 1], sizes, ids, mode="node")
 
     def test_load_tables_build_indexes(self):
         for ts in self.get_example_tree_sequences():
