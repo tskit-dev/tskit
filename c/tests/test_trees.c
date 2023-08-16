@@ -8008,9 +8008,10 @@ test_time_uncalibrated(void)
         TSK_STAT_BRANCH | TSK_STAT_ALLOW_TIME_UNCALIBRATED, sigma);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_treeseq_divergence_matrix(&ts2, 0, NULL, 0, NULL, TSK_STAT_BRANCH, result);
+    ret = tsk_treeseq_divergence_matrix(
+        &ts2, 0, NULL, NULL, 0, NULL, TSK_STAT_BRANCH, result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TIME_UNCALIBRATED);
-    ret = tsk_treeseq_divergence_matrix(&ts2, 0, NULL, 0, NULL,
+    ret = tsk_treeseq_divergence_matrix(&ts2, 0, NULL, NULL, 0, NULL,
         TSK_STAT_BRANCH | TSK_STAT_ALLOW_TIME_UNCALIBRATED, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2023 Tskit Developers
+ * Copyright (c) 2019-2024 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -7288,39 +7288,21 @@ sv_tables_mrca(const sv_tables_t *self, tsk_id_t x, tsk_id_t y)
 }
 
 static int
-tsk_treeseq_check_node_bounds(
-    const tsk_treeseq_t *self, tsk_size_t num_nodes, const tsk_id_t *nodes)
-{
-    int ret = 0;
-    tsk_size_t j;
-    tsk_id_t u;
-    const tsk_id_t N = (tsk_id_t) self->tables->nodes.num_rows;
-
-    for (j = 0; j < num_nodes; j++) {
-        u = nodes[j];
-        if (u < 0 || u >= N) {
-            ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
-            goto out;
-        }
-    }
-out:
-    return ret;
-}
-
-static int
-tsk_treeseq_divergence_matrix_branch(const tsk_treeseq_t *self, tsk_size_t num_samples,
-    const tsk_id_t *restrict samples, tsk_size_t num_windows,
+tsk_treeseq_divergence_matrix_branch(const tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, const tsk_size_t *restrict sample_set_sizes,
+    const tsk_id_t *restrict sample_sets, tsk_size_t num_windows,
     const double *restrict windows, tsk_flags_t options, double *restrict result)
 {
     int ret = 0;
     tsk_tree_t tree;
     const double *restrict nodes_time = self->tables->nodes.time;
-    const tsk_size_t n = num_samples;
-    tsk_size_t i, j, k;
+    const tsk_size_t N = num_sample_sets;
+    tsk_size_t i, j, k, offset, sj, sk;
     tsk_id_t u, v, w, u_root, v_root;
     double tu, tv, d, span, left, right, span_left, span_right;
     double *restrict D;
     sv_tables_t sv;
+    tsk_size_t *ss_offsets = tsk_malloc((num_sample_sets + 1) * sizeof(*ss_offsets));
 
     memset(&sv, 0, sizeof(sv));
     ret = tsk_tree_init(&tree, self, 0);
@@ -7331,16 +7313,26 @@ tsk_treeseq_divergence_matrix_branch(const tsk_treeseq_t *self, tsk_size_t num_s
     if (ret != 0) {
         goto out;
     }
-
+    if (ss_offsets == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
     if (self->time_uncalibrated && !(options & TSK_STAT_ALLOW_TIME_UNCALIBRATED)) {
         ret = TSK_ERR_TIME_UNCALIBRATED;
         goto out;
     }
 
+    ss_offsets[0] = 0;
+    offset = 0;
+    for (j = 0; j < N; j++) {
+        offset += sample_set_sizes[j];
+        ss_offsets[j + 1] = offset;
+    }
+
     for (i = 0; i < num_windows; i++) {
         left = windows[i];
         right = windows[i + 1];
-        D = result + i * n * n;
+        D = result + i * N * N;
         ret = tsk_tree_seek(&tree, left, 0);
         if (ret != 0) {
             goto out;
@@ -7350,24 +7342,34 @@ tsk_treeseq_divergence_matrix_branch(const tsk_treeseq_t *self, tsk_size_t num_s
             span_right = TSK_MIN(tree.interval.right, right);
             span = span_right - span_left;
             sv_tables_build(&sv, &tree);
-            for (j = 0; j < n; j++) {
-                u = samples[j];
-                for (k = j + 1; k < n; k++) {
-                    v = samples[k];
-                    w = sv_tables_mrca(&sv, u, v);
-                    if (w != TSK_NULL) {
-                        u_root = w;
-                        v_root = w;
-                    } else {
-                        /* Slow path - only happens for nodes in disconnected
-                         * subtrees in a tree with multiple roots */
-                        u_root = tsk_tree_get_node_root(&tree, u);
-                        v_root = tsk_tree_get_node_root(&tree, v);
+            for (sj = 0; sj < N; sj++) {
+                for (j = ss_offsets[sj]; j < ss_offsets[sj + 1]; j++) {
+                    u = sample_sets[j];
+                    for (sk = sj; sk < N; sk++) {
+                        for (k = ss_offsets[sk]; k < ss_offsets[sk + 1]; k++) {
+                            v = sample_sets[k];
+                            if (u == v) {
+                                /* This case contributes zero to divergence, so
+                                 * short-circuit to save time.
+                                 * TODO is there a better way to do this? */
+                                continue;
+                            }
+                            w = sv_tables_mrca(&sv, u, v);
+                            if (w != TSK_NULL) {
+                                u_root = w;
+                                v_root = w;
+                            } else {
+                                /* Slow path - only happens for nodes in disconnected
+                                 * subtrees in a tree with multiple roots */
+                                u_root = tsk_tree_get_node_root(&tree, u);
+                                v_root = tsk_tree_get_node_root(&tree, v);
+                            }
+                            tu = nodes_time[u_root] - nodes_time[u];
+                            tv = nodes_time[v_root] - nodes_time[v];
+                            d = (tu + tv) * span;
+                            D[sj * N + sk] += d;
+                        }
                     }
-                    tu = nodes_time[u_root] - nodes_time[u];
-                    tv = nodes_time[v_root] - nodes_time[v];
-                    d = (tu + tv) * span;
-                    D[j * n + k] += d;
                 }
             }
             ret = tsk_tree_next(&tree);
@@ -7380,6 +7382,7 @@ tsk_treeseq_divergence_matrix_branch(const tsk_treeseq_t *self, tsk_size_t num_s
 out:
     tsk_tree_free(&tree);
     sv_tables_free(&sv);
+    tsk_safe_free(ss_offsets);
     return ret;
 }
 
@@ -7391,14 +7394,13 @@ out:
 
 static void
 update_site_divergence(const tsk_variant_t *var, const tsk_id_t *restrict A,
-    const tsk_size_t *restrict offsets, double *D)
+    const tsk_size_t *restrict offsets, const tsk_size_t num_sample_sets, double *D)
 
 {
     const tsk_size_t num_alleles = var->num_alleles;
-    const tsk_id_t n = (tsk_id_t) var->num_samples;
-
     tsk_size_t a, b, j, k;
     tsk_id_t u, v;
+    double increment;
 
     for (a = 0; a < num_alleles; a++) {
         for (b = a + 1; b < num_alleles; b++) {
@@ -7409,10 +7411,14 @@ update_site_divergence(const tsk_variant_t *var, const tsk_id_t *restrict A,
                     /* Only increment the upper triangle to (hopefully) improve memory
                      * access patterns */
                     if (u > v) {
-                        v = A[j];
                         u = A[k];
+                        v = A[j];
                     }
-                    D[u * n + v]++;
+                    increment = 1;
+                    if (u == v) {
+                        increment = 2;
+                    }
+                    D[u * (tsk_id_t) num_sample_sets + v] += increment;
                 }
             }
         }
@@ -7441,8 +7447,23 @@ group_alleles(const tsk_variant_t *var, tsk_id_t *restrict A, tsk_size_t *offset
     }
 }
 
+static void
+remap_to_sample_sets(const tsk_size_t num_samples, const tsk_id_t *restrict samples,
+    const tsk_id_t *restrict sample_set_index_map, tsk_id_t *restrict A)
+{
+    tsk_size_t j;
+    tsk_id_t u;
+    for (j = 0; j < num_samples; j++) {
+        u = samples[A[j]];
+        tsk_bug_assert(u >= 0);
+        tsk_bug_assert(sample_set_index_map[u] >= 0);
+        A[j] = sample_set_index_map[u];
+    }
+}
+
 static int
-tsk_treeseq_divergence_matrix_site(const tsk_treeseq_t *self, tsk_size_t num_samples,
+tsk_treeseq_divergence_matrix_site(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_id_t *restrict sample_set_index_map, const tsk_size_t num_samples,
     const tsk_id_t *restrict samples, tsk_size_t num_windows,
     const double *restrict windows, tsk_flags_t TSK_UNUSED(options),
     double *restrict result)
@@ -7460,6 +7481,8 @@ tsk_treeseq_divergence_matrix_site(const tsk_treeseq_t *self, tsk_size_t num_sam
     tsk_size_t *allele_offsets = NULL;
     tsk_variant_t variant;
 
+    /* FIXME it's not clear that using TSK_ISOLATED_NOT_MISSING is
+     * correct here */
     ret = tsk_variant_init(
         &variant, self, samples, num_samples, NULL, TSK_ISOLATED_NOT_MISSING);
     if (ret != 0) {
@@ -7478,7 +7501,7 @@ tsk_treeseq_divergence_matrix_site(const tsk_treeseq_t *self, tsk_size_t num_sam
     for (i = 0; i < num_windows; i++) {
         left = windows[i];
         right = windows[i + 1];
-        D = result + i * num_samples * num_samples;
+        D = result + i * num_sample_sets * num_sample_sets;
 
         if (site_id < num_sites) {
             tsk_bug_assert(sites_position[site_id] >= left);
@@ -7500,7 +7523,8 @@ tsk_treeseq_divergence_matrix_site(const tsk_treeseq_t *self, tsk_size_t num_sam
                 }
             }
             group_alleles(&variant, A, allele_offsets);
-            update_site_divergence(&variant, A, allele_offsets, D);
+            remap_to_sample_sets(num_samples, samples, sample_set_index_map, A);
+            update_site_divergence(&variant, A, allele_offsets, num_sample_sets, D);
             site_id++;
         }
     }
@@ -7512,50 +7536,73 @@ out:
     return ret;
 }
 
+/* Return the mapping from node IDs to the index of the sample set
+ * they belong to, or -1 of none. Error if a node is in more than one
+ * set.
+ */
 static int
-get_sample_index_map(const tsk_size_t num_nodes, const tsk_size_t num_samples,
-    const tsk_id_t *restrict samples, tsk_id_t **ret_sample_index_map)
+get_sample_set_index_map(const tsk_treeseq_t *self, const tsk_size_t num_sample_sets,
+    const tsk_size_t *restrict sample_set_sizes, const tsk_id_t *restrict sample_sets,
+    tsk_size_t *ret_total_samples, tsk_id_t *restrict node_index_map)
 {
     int ret = 0;
-    tsk_size_t j;
+    tsk_size_t i, j, k;
     tsk_id_t u;
-    tsk_id_t *sample_index_map = tsk_malloc(num_nodes * sizeof(*sample_index_map));
-
-    if (sample_index_map == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
-        goto out;
-    }
-    /* Assign the output pointer here so that it will be freed in the case
-     * of an error raised in the input checking */
-    *ret_sample_index_map = sample_index_map;
+    tsk_size_t total_samples = 0;
+    const tsk_size_t num_nodes = self->tables->nodes.num_rows;
+    const tsk_flags_t *restrict node_flags = self->tables->nodes.flags;
 
     for (j = 0; j < num_nodes; j++) {
-        sample_index_map[j] = TSK_NULL;
+        node_index_map[j] = TSK_NULL;
     }
-    for (j = 0; j < num_samples; j++) {
-        u = samples[j];
-        if (sample_index_map[u] != TSK_NULL) {
-            ret = TSK_ERR_DUPLICATE_SAMPLE;
-            goto out;
+    i = 0;
+    for (j = 0; j < num_sample_sets; j++) {
+        total_samples += sample_set_sizes[j];
+        for (k = 0; k < sample_set_sizes[j]; k++) {
+            u = sample_sets[i];
+            i++;
+            if (u < 0 || u >= (tsk_id_t) num_nodes) {
+                ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
+                goto out;
+            }
+            /* Note: we require nodes to be samples because we have to think
+             * about how to normalise by the length of genome that the node
+             * is 'in' the tree for each window otherwise. */
+            if (!(node_flags[u] & TSK_NODE_IS_SAMPLE)) {
+                ret = TSK_ERR_BAD_SAMPLES;
+                goto out;
+            }
+            if (node_index_map[u] != TSK_NULL) {
+                ret = TSK_ERR_DUPLICATE_SAMPLE;
+                goto out;
+            }
+            node_index_map[u] = (tsk_id_t) j;
         }
-        sample_index_map[u] = (tsk_id_t) j;
     }
+    *ret_total_samples = total_samples;
 out:
     return ret;
 }
 
 static void
-fill_lower_triangle(
-    double *restrict result, const tsk_size_t n, const tsk_size_t num_windows)
+fill_lower_triangle_count_normalise(const tsk_size_t num_windows, const tsk_size_t n,
+    const tsk_size_t *set_sizes, double *restrict result)
 {
     tsk_size_t i, j, k;
+    double denom;
     double *restrict D;
 
     /* TODO there's probably a better striding pattern that could be used here */
     for (i = 0; i < num_windows; i++) {
         D = result + i * n * n;
         for (j = 0; j < n; j++) {
+            denom = (double) set_sizes[j] * (double) (set_sizes[j] - 1);
+            if (denom != 0) {
+                D[j * n + j] /= denom;
+            }
             for (k = j + 1; k < n; k++) {
+                denom = (double) set_sizes[j] * (double) set_sizes[k];
+                D[j * n + k] /= denom;
                 D[k * n + j] = D[j * n + k];
             }
         }
@@ -7563,19 +7610,23 @@ fill_lower_triangle(
 }
 
 int
-tsk_treeseq_divergence_matrix(const tsk_treeseq_t *self, tsk_size_t num_samples,
-    const tsk_id_t *samples_in, tsk_size_t num_windows, const double *windows,
-    tsk_flags_t options, double *result)
+tsk_treeseq_divergence_matrix(const tsk_treeseq_t *self, tsk_size_t num_sample_sets_in,
+    const tsk_size_t *sample_set_sizes_in, const tsk_id_t *sample_sets_in,
+    tsk_size_t num_windows, const double *windows, tsk_flags_t options, double *result)
 {
     int ret = 0;
-    const tsk_id_t *samples = self->samples;
-    tsk_size_t n = self->num_samples;
+    tsk_size_t N, total_samples;
+    const tsk_size_t *sample_set_sizes;
+    const tsk_id_t *sample_sets;
+    tsk_size_t *tmp_sample_set_sizes = NULL;
     const double default_windows[] = { 0, self->tables->sequence_length };
     const tsk_size_t num_nodes = self->tables->nodes.num_rows;
     bool stat_site = !!(options & TSK_STAT_SITE);
     bool stat_branch = !!(options & TSK_STAT_BRANCH);
     bool stat_node = !!(options & TSK_STAT_NODE);
-    tsk_id_t *sample_index_map = NULL;
+    tsk_id_t *sample_set_index_map
+        = tsk_malloc(num_nodes * sizeof(*sample_set_index_map));
+    tsk_size_t j;
 
     if (stat_node) {
         ret = TSK_ERR_UNSUPPORTED_STAT_MODE;
@@ -7606,42 +7657,57 @@ tsk_treeseq_divergence_matrix(const tsk_treeseq_t *self, tsk_size_t num_samples,
         }
     }
 
-    if (samples_in != NULL) {
-        samples = samples_in;
-        n = num_samples;
-        ret = tsk_treeseq_check_node_bounds(self, n, samples);
-        if (ret != 0) {
-            goto out;
+    /* If sample_sets is NULL, use self->samples and ignore input
+     * num_sample_sets */
+    sample_sets = sample_sets_in;
+    N = num_sample_sets_in;
+    if (sample_sets_in == NULL) {
+        sample_sets = self->samples;
+        if (sample_set_sizes_in == NULL) {
+            N = self->num_samples;
         }
     }
+    sample_set_sizes = sample_set_sizes_in;
+    /* If sample_set_sizes is NULL, assume its N 1S */
+    if (sample_set_sizes_in == NULL) {
+        tmp_sample_set_sizes = tsk_malloc(N * sizeof(*tmp_sample_set_sizes));
+        if (tmp_sample_set_sizes == NULL) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+        for (j = 0; j < N; j++) {
+            tmp_sample_set_sizes[j] = 1;
+        }
+        sample_set_sizes = tmp_sample_set_sizes;
+    }
 
-    /* NOTE: we're just using this here to check the input for duplicates.
-     */
-    ret = get_sample_index_map(num_nodes, n, samples, &sample_index_map);
+    ret = get_sample_set_index_map(
+        self, N, sample_set_sizes, sample_sets, &total_samples, sample_set_index_map);
     if (ret != 0) {
         goto out;
     }
 
-    tsk_memset(result, 0, num_windows * n * n * sizeof(*result));
+    tsk_memset(result, 0, num_windows * N * N * sizeof(*result));
 
     if (stat_branch) {
-        ret = tsk_treeseq_divergence_matrix_branch(
-            self, n, samples, num_windows, windows, options, result);
+        ret = tsk_treeseq_divergence_matrix_branch(self, N, sample_set_sizes,
+            sample_sets, num_windows, windows, options, result);
     } else {
         tsk_bug_assert(stat_site);
-        ret = tsk_treeseq_divergence_matrix_site(
-            self, n, samples, num_windows, windows, options, result);
+        ret = tsk_treeseq_divergence_matrix_site(self, N, sample_set_index_map,
+            total_samples, sample_sets, num_windows, windows, options, result);
     }
     if (ret != 0) {
         goto out;
     }
-    fill_lower_triangle(result, n, num_windows);
+    fill_lower_triangle_count_normalise(num_windows, N, sample_set_sizes, result);
 
     if (options & TSK_STAT_SPAN_NORMALISE) {
-        span_normalise(num_windows, windows, n * n, result);
+        span_normalise(num_windows, windows, N * N, result);
     }
 out:
-    tsk_safe_free(sample_index_map);
+    tsk_safe_free(sample_set_index_map);
+    tsk_safe_free(tmp_sample_set_sizes);
     return ret;
 }
 

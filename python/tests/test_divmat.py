@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2023 Tskit Developers
+# Copyright (c) 2023-2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,10 @@
 """
 Test cases for divergence matrix based pairwise stats
 """
+import array
+import collections
+import functools
+
 import msprime
 import numpy as np
 import pytest
@@ -161,15 +165,29 @@ def span_normalise_windows(D, windows):
         D[j] /= span
 
 
-def branch_divergence_matrix(ts, windows=None, samples=None, span_normalise=True):
+def sample_set_normalisation(sample_sets):
+    n = len(sample_sets)
+    C = np.zeros((n, n))
+    for j in range(n):
+        C[j, j] = len(sample_sets[j]) * (len(sample_sets[j]) - 1)
+        for k in range(j + 1, n):
+            C[j, k] = len(sample_sets[j]) * len(sample_sets[k])
+            C[k, j] = C[j, k]
+    # Avoid division by zero for singleton samplesets
+    C[C == 0] = 1
+    # print("C = ", C)
+    return C
+
+
+def branch_divergence_matrix(ts, sample_sets=None, windows=None, span_normalise=True):
     windows_specified = windows is not None
     windows = ts.parse_windows(windows)
     num_windows = len(windows) - 1
-    samples = ts.samples() if samples is None else samples
 
-    n = len(samples)
+    n = len(sample_sets)
     D = np.zeros((num_windows, n, n))
     tree = tskit.Tree(ts)
+    C = sample_set_normalisation(sample_sets)
     for i in range(num_windows):
         left = windows[i]
         right = windows[i + 1]
@@ -183,23 +201,33 @@ def branch_divergence_matrix(ts, windows=None, samples=None, span_normalise=True
             # print(f"\ttree {tree.interval} [{span_left}, {span_right})")
             tables = sv_tables_init(tree.parent_array)
             for j in range(n):
-                u = samples[j]
-                for k in range(j + 1, n):
-                    v = samples[k]
-                    w = sv_mrca(u, v, *tables)
-                    assert w == tree.mrca(u, v)
-                    if w != tskit.NULL:
-                        tu = ts.nodes_time[w] - ts.nodes_time[u]
-                        tv = ts.nodes_time[w] - ts.nodes_time[v]
-                    else:
-                        tu = ts.nodes_time[local_root(tree, u)] - ts.nodes_time[u]
-                        tv = ts.nodes_time[local_root(tree, v)] - ts.nodes_time[v]
-                    d = (tu + tv) * span
-                    D[i, j, k] += d
+                for u in sample_sets[j]:
+                    for k in range(j, n):
+                        for v in sample_sets[k]:
+                            # The u=v case here contributes zero, not bothering
+                            # to exclude it.
+                            w = sv_mrca(u, v, *tables)
+                            assert w == tree.mrca(u, v)
+                            if w != tskit.NULL:
+                                tu = ts.nodes_time[w] - ts.nodes_time[u]
+                                tv = ts.nodes_time[w] - ts.nodes_time[v]
+                            else:
+                                tu = (
+                                    ts.nodes_time[local_root(tree, u)]
+                                    - ts.nodes_time[u]
+                                )
+                                tv = (
+                                    ts.nodes_time[local_root(tree, v)]
+                                    - ts.nodes_time[v]
+                                )
+                            d = (tu + tv) * span
+                            D[i, j, k] += d
             tree.next()
-        # Fill out symmetric triangle in the matrix
+        # Fill out symmetric triangle in the matrix, and get average
         for j in range(n):
+            D[i, j, j] /= C[j, j]
             for k in range(j + 1, n):
+                D[i, j, k] /= C[j, k]
                 D[i, k, j] = D[i, j, k]
     if span_normalise:
         span_normalise_windows(D, windows)
@@ -208,44 +236,67 @@ def branch_divergence_matrix(ts, windows=None, samples=None, span_normalise=True
     return D
 
 
-def divergence_matrix(ts, windows=None, samples=None, mode="site", span_normalise=True):
+def divergence_matrix(
+    ts, windows=None, sample_sets=None, samples=None, mode="site", span_normalise=True
+):
     assert mode in ["site", "branch"]
+    if samples is not None and sample_sets is not None:
+        raise ValueError("Cannot specify both")
+    if samples is None and sample_sets is None:
+        samples = ts.samples()
+    if samples is not None:
+        sample_sets = [[u] for u in samples]
+    else:
+        assert sample_sets is not None
+
     if mode == "site":
         return site_divergence_matrix(
-            ts, samples=samples, windows=windows, span_normalise=span_normalise
+            ts, sample_sets, windows=windows, span_normalise=span_normalise
         )
     else:
         return branch_divergence_matrix(
-            ts, samples=samples, windows=windows, span_normalise=span_normalise
+            ts, sample_sets, windows=windows, span_normalise=span_normalise
         )
 
 
-def stats_api_divergence_matrix(
-    ts, windows=None, samples=None, mode="site", span_normalise=True
+def stats_api_divergence_matrix(ts, *args, **kwargs):
+    return stats_api_matrix_method(ts, ts.divergence, *args, **kwargs)
+
+
+def stats_api_genetic_relatedness_matrix(ts, *args, **kwargs):
+    method = functools.partial(ts.genetic_relatedness, proportion=False)
+    return stats_api_matrix_method(ts, method, *args, **kwargs)
+
+
+def stats_api_matrix_method(
+    ts,
+    method,
+    windows=None,
+    samples=None,
+    sample_sets=None,
+    mode="site",
+    span_normalise=True,
 ):
-    samples = ts.samples() if samples is None else samples
+    if samples is not None and sample_sets is not None:
+        raise ValueError("Cannot specify both")
+    if samples is None and sample_sets is None:
+        samples = ts.samples()
+    if samples is not None:
+        sample_sets = [[u] for u in samples]
+    else:
+        assert sample_sets is not None
+
     windows_specified = windows is not None
     windows = [0, ts.sequence_length] if windows is None else list(windows)
     num_windows = len(windows) - 1
 
-    if len(samples) == 0:
+    if len(sample_sets) == 0:
         # FIXME: the code general stat code doesn't seem to handle zero samples
         # case, need to identify MWE and file issue.
         if windows_specified:
             return np.zeros(shape=(num_windows, 0, 0))
         else:
             return np.zeros(shape=(0, 0))
-
-    # Make sure that all the specified samples have the sample flag set, otherwise
-    # the library code will complain
-    tables = ts.dump_tables()
-    flags = tables.nodes.flags
-    # NOTE: this is a shortcut, setting all flags unconditionally to zero, so don't
-    # use this tree sequence outside this method.
-    flags[:] = 0
-    flags[samples] = tskit.NODE_IS_SAMPLE
-    tables.nodes.flags = flags
-    ts = tables.tree_sequence()
 
     # FIXME We have to go through this annoying rigmarole because windows must start and
     # end with 0 and L. We should relax this requirement to just making the windows
@@ -258,10 +309,9 @@ def stats_api_divergence_matrix(
         windows.append(ts.sequence_length)
         drop.append(-1)
 
-    n = len(samples)
-    sample_sets = [[u] for u in samples]
+    n = len(sample_sets)
     indexes = [(i, j) for i in range(n) for j in range(n)]
-    X = ts.divergence(
+    X = method(
         sample_sets,
         indexes=indexes,
         mode=mode,
@@ -271,9 +321,9 @@ def stats_api_divergence_matrix(
     keep = np.ones(len(windows) - 1, dtype=bool)
     keep[drop] = False
     X = X[keep]
+    # Quick hack to get the within singleton sampleset divergence=0
+    X[np.isnan(X)] = 0
     out = X.reshape((X.shape[0], n, n))
-    for D in out:
-        np.fill_diagonal(D, 0)
     if not windows_specified:
         out = out[0]
     return out
@@ -294,16 +344,21 @@ def group_alleles(genotypes, num_alleles):
     return A, offsets
 
 
-def site_divergence_matrix(ts, windows=None, samples=None, span_normalise=True):
+def site_divergence_matrix(ts, sample_sets, *, windows=None, span_normalise=True):
     windows_specified = windows is not None
     windows = ts.parse_windows(windows)
     num_windows = len(windows) - 1
-    samples = ts.samples() if samples is None else samples
 
-    n = len(samples)
-    sample_index_map = np.zeros(ts.num_nodes, dtype=int) - 1
-    sample_index_map[samples] = np.arange(n)
+    n = len(sample_sets)
+    samples = []
+    sample_set_index_map = []
+    for j in range(n):
+        for u in sample_sets[j]:
+            samples.append(u)
+            sample_set_index_map.append(j)
+    C = sample_set_normalisation(sample_sets)
     D = np.zeros((num_windows, n, n))
+
     site_id = 0
     while site_id < ts.num_sites and ts.sites_position[site_id] < windows[0]:
         site_id += 1
@@ -324,10 +379,13 @@ def site_divergence_matrix(ts, windows=None, samples=None, span_normalise=True):
                 for k in range(j + 1, variant.num_alleles):
                     B = X[offsets[k] : offsets[k + 1]]
                     for a in A:
+                        a_set_index = sample_set_index_map[a]
                         for b in B:
-                            D[i, a, b] += 1
-                            D[i, b, a] += 1
+                            b_set_index = sample_set_index_map[b]
+                            D[i, a_set_index, b_set_index] += 1
+                            D[i, b_set_index, a_set_index] += 1
             site_id += 1
+        D[i] /= C
     if span_normalise:
         span_normalise_windows(D, windows)
     if not windows_specified:
@@ -340,27 +398,32 @@ def check_divmat(
     *,
     windows=None,
     samples=None,
+    sample_sets=None,
     span_normalise=True,
     verbosity=0,
     compare_stats_api=True,
     compare_lib=True,
     mode="site",
 ):
-    np.set_printoptions(linewidth=500, precision=4)
+    # print("samples = ", samples, sample_sets)
     # print(ts.draw_text())
     if verbosity > 1:
         print(ts.draw_text())
 
     D1 = divergence_matrix(
-        ts, windows=windows, samples=samples, mode=mode, span_normalise=span_normalise
+        ts,
+        sample_sets=sample_sets,
+        samples=samples,
+        windows=windows,
+        mode=mode,
+        span_normalise=span_normalise,
     )
     if compare_stats_api:
-        # Somethings like duplicate samples aren't worth hacking around for in
-        # stats API.
         D2 = stats_api_divergence_matrix(
             ts,
             windows=windows,
             samples=samples,
+            sample_sets=sample_sets,
             mode=mode,
             span_normalise=span_normalise,
         )
@@ -370,12 +433,24 @@ def check_divmat(
         np.testing.assert_allclose(D1, D2)
         assert D1.shape == D2.shape
     if compare_lib:
+        ids = None
+        if sample_sets is not None:
+            ids = sample_sets
+        if samples is not None:
+            ids = samples
         D3 = ts.divergence_matrix(
-            windows=windows, samples=samples, mode=mode, span_normalise=span_normalise
+            ids,
+            windows=windows,
+            mode=mode,
+            span_normalise=span_normalise,
         )
+        # print()
+        # np.set_printoptions(linewidth=500, precision=4)
+        # print(D1)
         # print(D3)
         assert D1.shape == D3.shape
         np.testing.assert_allclose(D1, D3)
+
     return D1
 
 
@@ -467,6 +542,25 @@ class TestExamplesWithAnswer:
         )
         np.testing.assert_array_equal(D1, D2)
 
+    @pytest.mark.parametrize("mode", DIVMAT_MODES)
+    def test_single_tree_diploid_individuals(self, mode):
+        # 2.00┊    6    ┊
+        #     ┊  ┏━┻━┓  ┊
+        # 1.00┊  4   5  ┊
+        #     ┊ ┏┻┓ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 3 ┊
+        #     0         1
+        ts = tskit.Tree.generate_balanced(4).tree_sequence
+        ts = tsutil.insert_branch_sites(ts)
+        ts = tsutil.insert_individuals(ts, ploidy=2)
+        D1 = check_divmat(
+            ts,
+            sample_sets=[ind.nodes for ind in ts.individuals()],
+            mode=mode,
+        )
+        D2 = np.array([[2.0, 4.0], [4.0, 2.0]])
+        np.testing.assert_array_equal(D1, D2)
+
     @pytest.mark.parametrize("num_windows", [1, 2, 3, 5])
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
     def test_single_tree_gap_at_end(self, num_windows, mode):
@@ -524,14 +618,8 @@ class TestExamplesWithAnswer:
         #     0         1
         ts = tskit.Tree.generate_balanced(4).tree_sequence
         ts = tsutil.insert_branch_sites(ts)
-        D1 = check_divmat(ts, samples=[0, 5], mode=mode)
-        D2 = np.array(
-            [
-                [0.0, 3.0],
-                [3.0, 0.0],
-            ]
-        )
-        np.testing.assert_array_equal(D1, D2)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_BAD_SAMPLES"):
+            ts.divergence_matrix([0, 5], mode=mode)
 
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
     def test_single_tree_duplicate_samples(self, mode):
@@ -544,7 +632,7 @@ class TestExamplesWithAnswer:
         ts = tskit.Tree.generate_balanced(4).tree_sequence
         ts = tsutil.insert_branch_sites(ts)
         with pytest.raises(tskit.LibraryError, match="TSK_ERR_DUPLICATE_SAMPLE"):
-            ts.divergence_matrix(samples=[0, 0, 1], mode=mode)
+            ts.divergence_matrix([0, 0, 1], mode=mode)
 
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
     def test_single_tree_multiroot(self, mode):
@@ -831,14 +919,14 @@ class TestSuiteExamples:
         self,
         ts,
         windows=None,
-        samples=None,
+        sample_sets=None,
         num_threads=0,
         span_normalise=True,
         mode="branch",
     ):
         D1 = ts.divergence_matrix(
+            sample_sets,
             windows=windows,
-            samples=samples,
             num_threads=num_threads,
             mode=mode,
             span_normalise=span_normalise,
@@ -846,11 +934,12 @@ class TestSuiteExamples:
         D2 = stats_api_divergence_matrix(
             ts,
             windows=windows,
-            samples=samples,
+            sample_sets=sample_sets,
             mode=mode,
             span_normalise=span_normalise,
         )
         assert D1.shape == D2.shape
+        # np.set_printoptions(linewidth=500, precision=4)
         # print()
         # print(D1)
         # print(D2)
@@ -866,7 +955,7 @@ class TestSuiteExamples:
             np.testing.assert_allclose(D1, D2, atol=atol)
         else:
             assert mode == "site"
-            np.testing.assert_array_equal(D1, D2)
+            np.testing.assert_allclose(D1, D2)
 
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
@@ -877,7 +966,16 @@ class TestSuiteExamples:
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
     def test_subset_samples(self, ts, mode):
         n = min(ts.num_samples, 2)
-        self.check(ts, samples=ts.samples()[:n], mode=mode)
+        self.check(ts, sample_sets=[[u] for u in ts.samples()[:n]], mode=mode)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    @pytest.mark.parametrize("mode", DIVMAT_MODES)
+    @pytest.mark.parametrize("ploidy", [1, 2, 3])
+    def test_ploidy_sample_sets(self, ts, mode, ploidy):
+        if ts.num_samples >= 2 * ploidy:
+            # Workaround limitations in the stats API
+            sample_sets = np.array_split(ts.samples(), ts.num_samples // ploidy)
+            self.check(ts, sample_sets=sample_sets, mode=mode)
 
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
@@ -899,17 +997,25 @@ class TestSuiteExamples:
 
 
 class TestThreadsNoWindows:
-    def check(self, ts, num_threads, samples=None, mode=None):
-        D1 = ts.divergence_matrix(num_threads=0, samples=samples, mode=mode)
-        D2 = ts.divergence_matrix(num_threads=num_threads, samples=samples, mode=mode)
+    def check(self, ts, num_threads, samples=None, mode=None, span_normalise=True):
+        D1 = ts.divergence_matrix(
+            samples, num_threads=0, mode=mode, span_normalise=span_normalise
+        )
+        D2 = ts.divergence_matrix(
+            samples,
+            num_threads=num_threads,
+            mode=mode,
+            span_normalise=span_normalise,
+        )
         np.testing.assert_array_almost_equal(D1, D2)
 
     @pytest.mark.parametrize("num_threads", [1, 2, 3, 5, 26, 27])
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
-    def test_all_trees(self, num_threads, mode):
+    @pytest.mark.parametrize("span_normalise", [True, False])
+    def test_all_trees(self, num_threads, mode, span_normalise):
         ts = tsutil.all_trees_ts(4)
         assert ts.num_trees == 26
-        self.check(ts, num_threads, mode=mode)
+        self.check(ts, num_threads, mode=mode, span_normalise=span_normalise)
 
     @pytest.mark.parametrize("samples", [None, [0, 1]])
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
@@ -936,11 +1042,9 @@ class TestThreadsNoWindows:
 
 class TestThreadsWindows:
     def check(self, ts, num_threads, *, windows, samples=None, mode=None):
-        D1 = ts.divergence_matrix(
-            num_threads=0, windows=windows, samples=samples, mode=mode
-        )
+        D1 = ts.divergence_matrix(samples, num_threads=0, windows=windows, mode=mode)
         D2 = ts.divergence_matrix(
-            num_threads=num_threads, windows=windows, samples=samples, mode=mode
+            samples, num_threads=num_threads, windows=windows, mode=mode
         )
         np.testing.assert_array_almost_equal(D1, D2)
 
@@ -1155,3 +1259,134 @@ class TestGroupAlleles:
             for j in range(var.num_alleles):
                 a = A[offsets[j] : offsets[j + 1]]
                 assert list(a) == list(allele_samples[j])
+
+
+class TestSampleSetParsing:
+    @pytest.mark.parametrize(
+        ["arg", "flattened", "sizes"],
+        [
+            ([], [], []),
+            ([1], [1], [1]),
+            ([1, 2], [1, 2], [1, 1]),
+            ([[1, 2], [3, 4]], [1, 2, 3, 4], [2, 2]),
+            (((1, 2), (3, 4)), [1, 2, 3, 4], [2, 2]),
+            (np.array([[1, 2], [3, 4]]), [1, 2, 3, 4], [2, 2]),
+            (np.array([1, 2]), [1, 2], [1, 1]),
+            (np.array([1, 2], dtype=np.uint32), [1, 2], [1, 1]),
+            (array.array("i", [1, 2]), [1, 2], [1, 1]),
+            ([[1, 2], [3], [4]], [1, 2, 3, 4], [2, 1, 1]),
+            ([[1], [2]], [1, 2], [1, 1]),
+            ([[1, 1], [2]], [1, 1, 2], [2, 1]),
+        ],
+    )
+    def test_good_args(self, arg, flattened, sizes):
+        f, s = tskit.TreeSequence._parse_stat_matrix_sample_sets(arg)
+        # print(f, s)
+        assert isinstance(f, np.ndarray)
+        assert f.dtype == np.int32
+        assert isinstance(s, np.ndarray)
+        assert s.dtype == np.uint64
+        np.testing.assert_array_equal(f, flattened)
+        np.testing.assert_array_equal(s, sizes)
+
+    @pytest.mark.parametrize(
+        "arg",
+        [
+            ["0", "1"],
+            ["0", 1],
+            [0, "1"],
+            [0, {"a": "b"}],
+        ],
+    )
+    def test_nested_bad_types(self, arg):
+        with pytest.raises(TypeError):
+            tskit.TreeSequence._parse_stat_matrix_sample_sets(arg)
+
+    @pytest.mark.parametrize(
+        "arg",
+        [
+            [[0], [[0, 0]]],
+            [[[0, 0]], [0]],
+            np.array([[[0, 0], [0, 0]]]),
+        ],
+    )
+    def test_nested_arrays(self, arg):
+        with pytest.raises(ValueError):
+            tskit.TreeSequence._parse_stat_matrix_sample_sets(arg)
+
+    @pytest.mark.parametrize("arg", ["", "string", "1", "[1, 2]", b"", "1234"])
+    def test_string_args(self, arg):
+        with pytest.raises(TypeError, match="ID specification cannot be"):
+            tskit.TreeSequence._parse_stat_matrix_sample_sets(arg)
+
+    @pytest.mark.parametrize(
+        "arg",
+        [
+            {},
+            {"a": "b"},
+            collections.Counter(),
+        ],
+    )
+    def test_dict_args(self, arg):
+        with pytest.raises(TypeError, match="ID specification cannot be"):
+            tskit.TreeSequence._parse_stat_matrix_sample_sets(arg)
+
+    @pytest.mark.parametrize(
+        "arg",
+        [
+            0,
+            {0: 1},
+            None,
+            {"a": "b"},
+            np.array([1.1]),
+        ],
+    )
+    def test_bad_arg_types(self, arg):
+        with pytest.raises(TypeError):
+            tskit.TreeSequence._parse_stat_matrix_sample_sets(arg)
+
+
+class TestGeneticRelatednessMatrix:
+    def check(self, ts, mode, *, windows=None, span_normalise=True):
+        G1 = stats_api_genetic_relatedness_matrix(
+            ts, mode=mode, windows=windows, span_normalise=span_normalise
+        )
+        G2 = ts.genetic_relatedness_matrix(
+            mode=mode, windows=windows, span_normalise=span_normalise
+        )
+        np.testing.assert_array_almost_equal(G1, G2)
+
+    @pytest.mark.parametrize("mode", DIVMAT_MODES)
+    def test_single_tree(self, mode):
+        # 2.00┊    6    ┊
+        #     ┊  ┏━┻━┓  ┊
+        # 1.00┊  4   5  ┊
+        #     ┊ ┏┻┓ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 3 ┊
+        #     0         1
+        ts = tskit.Tree.generate_balanced(4).tree_sequence
+        ts = tsutil.insert_branch_sites(ts)
+        self.check(ts, mode)
+
+    @pytest.mark.parametrize("mode", DIVMAT_MODES)
+    def test_single_tree_windows(self, mode):
+        # 2.00┊    6    ┊
+        #     ┊  ┏━┻━┓  ┊
+        # 1.00┊  4   5  ┊
+        #     ┊ ┏┻┓ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 3 ┊
+        #     0         1
+        ts = tskit.Tree.generate_balanced(4).tree_sequence
+        ts = tsutil.insert_branch_sites(ts)
+        self.check(ts, mode, windows=[0, 0.5, 1])
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    @pytest.mark.parametrize("mode", DIVMAT_MODES)
+    def test_suite_defaults(self, ts, mode):
+        self.check(ts, mode=mode)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    @pytest.mark.parametrize("mode", DIVMAT_MODES)
+    @pytest.mark.parametrize("span_normalise", [True, False])
+    def test_suite_span_normalise(self, ts, mode, span_normalise):
+        self.check(ts, mode=mode, span_normalise=span_normalise)

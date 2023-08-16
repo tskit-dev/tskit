@@ -966,16 +966,6 @@ tskit_suite_init(void)
     return CUE_SUCCESS;
 }
 
-void
-assert_arrays_almost_equal(tsk_size_t len, double *a, double *b)
-{
-    tsk_size_t j;
-
-    for (j = 0; j < len; j++) {
-        CU_ASSERT_DOUBLE_EQUAL(a[j], b[j], 1e-9);
-    }
-}
-
 static int
 tskit_suite_cleanup(void)
 {

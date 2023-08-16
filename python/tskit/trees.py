@@ -7876,6 +7876,38 @@ class TreeSequence:
             concurrent.futures.wait(futures)
         return np.vstack([future.result() for future in futures])
 
+    @staticmethod
+    def _parse_stat_matrix_sample_sets(ids):
+        """
+        Returns a flattened list of sets of IDs. If ids is a 1D list,
+        interpret as n one-element sets. Otherwise, it must be a sequence
+        of ID lists.
+        """
+        id_dtype = np.int32
+        size_dtype = np.uint64
+        # Exclude some types that could be specified accidentally, and
+        # we may want to reserve for future use.
+        if isinstance(ids, (str, bytes, collections.abc.Mapping, numbers.Number)):
+            raise TypeError(f"ID specification cannot be a {type(ids)}")
+        if len(ids) == 0:
+            return np.array([], dtype=id_dtype), np.array([], dtype=size_dtype)
+        if isinstance(ids[0], numbers.Number):
+            # Interpret as a 1D array
+            flat = util.safe_np_int_cast(ids, id_dtype)
+            sizes = np.ones(len(flat), dtype=size_dtype)
+        else:
+            set_lists = []
+            sizes = []
+            for id_list in ids:
+                a = util.safe_np_int_cast(id_list, id_dtype)
+                if len(a.shape) != 1:
+                    raise ValueError("ID sets must be 1D integer arrays")
+                set_lists.append(a)
+                sizes.append(len(a))
+            flat = np.hstack(set_lists)
+            sizes = np.array(sizes, dtype=size_dtype)
+        return flat, sizes
+
     # def divergence_matrix(self, sample_sets, windows=None, mode="site"):
     #     """
     #     Finds the mean divergence  between pairs of samples from each set of
@@ -7912,6 +7944,11 @@ class TreeSequence:
     # NOTE: see older definition of divmat here, which may be useful when documenting
     # this function. See https://github.com/tskit-dev/tskit/issues/2781
 
+    # NOTE for documentation of sample_sets. We *must* use samples currently because
+    # the normalisation for non-sample nodes is tricky. Do we normalise by the
+    # total span of the ts where the node is 'present' in the tree? We avoid this
+    # by insisting on sample nodes.
+
     # NOTE for documentation of num_threads. Need to explain that the
     # its best to think of as the number of background *worker* threads.
     # default is to run without any worker threads. If you want to run
@@ -7919,9 +7956,9 @@ class TreeSequence:
 
     def divergence_matrix(
         self,
+        sample_sets=None,
         *,
         windows=None,
-        samples=None,
         num_threads=0,
         mode=None,
         span_normalise=True,
@@ -7930,12 +7967,22 @@ class TreeSequence:
         windows = self.parse_windows(windows)
         mode = "site" if mode is None else mode
 
+        if sample_sets is None:
+            sample_sets = self.samples()
+            flattened_samples = self.samples()
+            sample_set_sizes = np.ones(len(sample_sets), dtype=np.uint32)
+        else:
+            flattened_samples, sample_set_sizes = self._parse_stat_matrix_sample_sets(
+                sample_sets
+            )
+
         # FIXME this logic should be merged into __run_windowed_stat if
         # we generalise the num_threads argument to all stats.
         if num_threads <= 0:
             D = self._ll_tree_sequence.divergence_matrix(
                 windows,
-                samples=samples,
+                sample_sets=flattened_samples,
+                sample_set_sizes=sample_set_sizes,
                 mode=mode,
                 span_normalise=span_normalise,
             )
@@ -7944,7 +7991,8 @@ class TreeSequence:
                 D = self._parallelise_divmat_by_window(
                     windows,
                     num_threads,
-                    samples=samples,
+                    sample_sets=flattened_samples,
+                    sample_set_sizes=sample_set_sizes,
                     mode=mode,
                     span_normalise=span_normalise,
                 )
@@ -7952,7 +8000,8 @@ class TreeSequence:
                 D = self._parallelise_divmat_by_tree(
                     num_threads,
                     span_normalise=span_normalise,
-                    samples=samples,
+                    sample_sets=flattened_samples,
+                    sample_set_sizes=sample_set_sizes,
                     mode=mode,
                 )
 
@@ -8072,6 +8121,40 @@ class TreeSequence:
             out = numerator / denominator
 
         return out
+
+    def genetic_relatedness_matrix(
+        self,
+        sample_sets=None,
+        *,
+        windows=None,
+        num_threads=0,
+        mode=None,
+        span_normalise=True,
+    ):
+        D = self.divergence_matrix(
+            sample_sets,
+            windows=windows,
+            num_threads=num_threads,
+            mode=mode,
+            span_normalise=span_normalise,
+        )
+
+        def _normalise(B):
+            if len(B) == 0:
+                return B
+            K = B + np.mean(B)
+            y = np.mean(B, axis=0)
+            X = y[:, np.newaxis] + y[np.newaxis, :]
+            K -= X
+            # FIXME I don't know what this factor of -2 is about
+            return K / -2
+
+        if windows is None:
+            return _normalise(D)
+        else:
+            for j in range(D.shape[0]):
+                D[j] = _normalise(D[j])
+        return D
 
     def genetic_relatedness_weighted(
         self,
