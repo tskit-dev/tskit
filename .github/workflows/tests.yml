@@ -145,7 +145,7 @@ jobs:
       - name: Remove py311 incompatible tests (lack of numba support for 3.11, needed for lshmm)
         if: matrix.python == '3.11'
         run: |
-          rm python/tests/test_genotype_matching_*
+          rm python/tests/test_*matching*
 
       - name: Run tests
         working-directory: python
