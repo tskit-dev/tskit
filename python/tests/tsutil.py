@@ -1752,6 +1752,11 @@ class TreePosition:
         s += f"out_range: {self.out_range}\n"
         return s
 
+    def assert_equal(self, other):
+        assert self.index == other.index
+        assert self.direction == other.direction
+        assert self.interval == other.interval
+
     def set_null(self):
         self.index = -1
         self.interval.left = 0
@@ -1887,6 +1892,10 @@ class TreePosition:
             j += 1
         self.out_range.stop = j
 
+        if self.index == -1:
+            # No edges, so out_range should be empty
+            self.out_range.start = self.out_range.stop
+
         # The range of edges we need to consider for the new tree
         # must have right coordinate > left
         j = left_current_index
@@ -1903,6 +1912,76 @@ class TreePosition:
         self.out_range.order = right_order
         self.in_range.order = left_order
         self.index = index
+
+    def seek_backward(self, index):
+        # NOTE this is still in development and not fully tested.
+        assert index >= 0
+        M = self.ts.num_edges
+        breakpoints = self.ts.breakpoints(as_array=True)
+        left_coords = self.ts.edges_left
+        left_order = self.ts.indexes_edge_insertion_order
+        right_coords = self.ts.edges_right
+        right_order = self.ts.indexes_edge_removal_order
+
+        if self.index == -1:
+            assert index < self.ts.num_trees
+            self.index = self.ts.num_trees
+            self.interval.left = self.ts.sequence_length
+            self.in_range.stop = M - 1
+            self.out_range.stop = M - 1
+            self.direction = REVERSE
+        else:
+            assert index <= self.index
+
+        if self.direction == REVERSE:
+            left_current_index = self.out_range.stop
+            right_current_index = self.in_range.stop
+        else:
+            left_current_index = self.in_range.stop - 1
+            right_current_index = self.out_range.stop - 1
+
+        self.direction = REVERSE
+        right = breakpoints[index + 1]
+
+        # The range of edges we need consider for removal starts
+        # at the current left index and ends at the first edge
+        # where the left coordinate is equal to the new tree's
+        # right coordinate.
+        j = left_current_index
+        self.out_range.start = j
+        # TODO This could be done with binary search
+        while j >= 0 and left_coords[left_order[j]] >= right:
+            j -= 1
+        self.out_range.stop = j
+
+        if self.index == self.ts.num_trees:
+            # No edges, so out_range should be empty
+            self.out_range.start = self.out_range.stop
+
+        # The range of edges we need to consider for the new tree
+        # must have left coordinate < right
+        j = right_current_index
+        while j >= 0 and left_coords[right_order[j]] >= right:
+            j -= 1
+        self.in_range.start = j
+        # We stop at the first edge with right coordinate < right
+        while j >= 0 and right_coords[right_order[j]] >= right:
+            j -= 1
+        self.in_range.stop = j
+
+        self.interval.right = right
+        self.interval.left = breakpoints[index]
+        self.out_range.order = left_order
+        self.in_range.order = right_order
+        self.index = index
+
+    def step(self, direction):
+        if direction == FORWARD:
+            return self.next()
+        elif direction == REVERSE:
+            return self.prev()
+        else:
+            raise ValueError("Direction must be FORWARD (+1) or REVERSE (-1)")
 
 
 def mean_descendants(ts, reference_sets):
