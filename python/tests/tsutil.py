@@ -201,7 +201,7 @@ def insert_multichar_mutations(ts, seed=1, max_len=10):
 
 
 def insert_random_ploidy_individuals(
-    ts, min_ploidy=0, max_ploidy=5, max_dimension=3, samples_only=False, seed=1
+    ts, min_ploidy=0, max_ploidy=5, max_dimension=3, samples_only=True, seed=1
 ):
     """
     Takes random contiguous subsets of the samples and assigns them to individuals.

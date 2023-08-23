@@ -4625,7 +4625,7 @@ class TestSeekDirection:
     def ts(self):
         return tsutil.all_trees_ts(3)
 
-    def setup(self):
+    def get_tree_pair(self):
         ts = self.ts()
         t1 = tskit.Tree(ts)
         t2 = tskit.Tree(ts)
@@ -4638,7 +4638,7 @@ class TestSeekDirection:
     def test_index_from_different_directions(self, index):
         # Check that we get different orderings of the children arrays
         # for all trees when we go in different directions.
-        t1, t2 = self.setup()
+        t1, t2 = self.get_tree_pair()
         while t1.index != index:
             t1.next()
         while t2.index != index:
@@ -4647,7 +4647,7 @@ class TestSeekDirection:
 
     @pytest.mark.parametrize("position", [0, 1, 2, 3])
     def test_seek_from_null(self, position):
-        t1, t2 = self.setup()
+        t1, t2 = self.get_tree_pair()
         t1.clear()
         t1.seek(position)
         t2.first()
@@ -4656,7 +4656,7 @@ class TestSeekDirection:
 
     @pytest.mark.parametrize("index", range(3))
     def test_seek_next_tree(self, index):
-        t1, t2 = self.setup()
+        t1, t2 = self.get_tree_pair()
         while t1.index != index:
             t1.next()
             t2.next()
@@ -4666,7 +4666,7 @@ class TestSeekDirection:
 
     @pytest.mark.parametrize("index", [3, 2, 1])
     def test_seek_prev_tree(self, index):
-        t1, t2 = self.setup()
+        t1, t2 = self.get_tree_pair()
         while t1.index != index:
             t1.prev()
             t2.prev()
@@ -4675,7 +4675,7 @@ class TestSeekDirection:
         assert_trees_identical(t1, t2)
 
     def test_seek_1_from_0(self):
-        t1, t2 = self.setup()
+        t1, t2 = self.get_tree_pair()
         t1.first()
         t1.next()
         t2.first()
@@ -4683,7 +4683,7 @@ class TestSeekDirection:
         assert_trees_identical(t1, t2)
 
     def test_seek_1_5_from_0(self):
-        t1, t2 = self.setup()
+        t1, t2 = self.get_tree_pair()
         t1.first()
         t1.next()
         t2.first()
@@ -4691,7 +4691,7 @@ class TestSeekDirection:
         assert_trees_identical(t1, t2)
 
     def test_seek_1_5_from_1(self):
-        t1, t2 = self.setup()
+        t1, t2 = self.get_tree_pair()
         for _ in range(2):
             t1.next()
             t2.next()
@@ -4699,13 +4699,13 @@ class TestSeekDirection:
         assert_trees_identical(t1, t2)
 
     def test_seek_3_from_null(self):
-        t1, t2 = self.setup()
+        t1, t2 = self.get_tree_pair()
         t1.last()
         t2.seek(3)
         assert_trees_identical(t1, t2)
 
     def test_seek_3_from_null_prev(self):
-        t1, t2 = self.setup()
+        t1, t2 = self.get_tree_pair()
         t1.last()
         t1.prev()
         t2.seek(3)
@@ -4713,14 +4713,14 @@ class TestSeekDirection:
         assert_trees_identical(t1, t2)
 
     def test_seek_3_from_0(self):
-        t1, t2 = self.setup()
+        t1, t2 = self.get_tree_pair()
         t1.last()
         t2.first()
         t2.seek(3)
         assert_trees_identical(t1, t2)
 
     def test_seek_0_from_3(self):
-        t1, t2 = self.setup()
+        t1, t2 = self.get_tree_pair()
         t1.last()
         t1.first()
         t2.last()
