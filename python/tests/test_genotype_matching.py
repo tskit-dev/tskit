@@ -524,7 +524,6 @@ class LsHmmAlgorithm:
             s = self.output.normalisation_factor[site.id]
             for st1 in self.T:
                 if st1.tree_node != tskit.NULL:
-
                     for st2 in st1.value_list:
                         st2.value = (
                             ((self.rho[site.id] / self.ts.num_samples) ** 2)
@@ -1198,7 +1197,6 @@ class LSBase:
         return e
 
     def example_genotypes(self, ts):
-
         H = ts.genotype_matrix()
         s = H[:, 0].reshape(1, H.shape[0]) + H[:, 1].reshape(1, H.shape[0])
         H = H[:, 2:]
@@ -1247,9 +1245,8 @@ class LSBase:
         rs = [np.zeros(m) + 0.999, np.zeros(m) + 1e-6, np.random.rand(m)]
         mus = [np.zeros(m) + 0.33, np.zeros(m) + 1e-6, np.random.rand(m) * 0.33]
 
-        e = self.genotype_emission(mu, m)
-
-        for s, r, mu in itertools.product(genotypes, rs, mus):
+        s = genotypes[0]
+        for r, mu in itertools.product(rs, mus):
             r[0] = 0
             e = self.genotype_emission(mu, m)
             yield n, m, G, s, e, r, mu
@@ -1267,23 +1264,8 @@ class LSBase:
         assert ts.num_sites > 3
         self.verify(ts)
 
-    def test_simple_n_10_no_recombination_high_mut(self):
-        ts = msprime.simulate(10, recombination_rate=0, mutation_rate=3, random_seed=42)
-        assert ts.num_sites > 3
-        self.verify(ts)
-
-    def test_simple_n_10_no_recombination_higher_mut(self):
-        ts = msprime.simulate(20, recombination_rate=0, mutation_rate=3, random_seed=42)
-        assert ts.num_sites > 3
-        self.verify(ts)
-
     def test_simple_n_6(self):
         ts = msprime.simulate(6, recombination_rate=2, mutation_rate=7, random_seed=42)
-        assert ts.num_sites > 5
-        self.verify(ts)
-
-    def test_simple_n_8(self):
-        ts = msprime.simulate(8, recombination_rate=2, mutation_rate=5, random_seed=42)
         assert ts.num_sites > 5
         self.verify(ts)
 
@@ -1293,10 +1275,33 @@ class LSBase:
         assert ts.num_sites > 5
         self.verify(ts)
 
-    def test_simple_n_16(self):
-        ts = msprime.simulate(16, recombination_rate=2, mutation_rate=5, random_seed=42)
-        assert ts.num_sites > 5
-        self.verify(ts)
+    # FIXME Reducing the number of test cases here as they take a long time to run,
+    # and we will want to refactor the test infrastructure when implementing these
+    # diploid methods in the library.
+
+    # def test_simple_n_10_no_recombination_high_mut(self):
+    #     ts = msprime.simulate(
+    #         10, recombination_rate=0, mutation_rate=3, random_seed=42)
+    #     assert ts.num_sites > 3
+    #     self.verify(ts)
+
+    # def test_simple_n_10_no_recombination_higher_mut(self):
+    #     ts = msprime.simulate(
+    #         20, recombination_rate=0, mutation_rate=3, random_seed=42)
+    #     assert ts.num_sites > 3
+    #     self.verify(ts)
+
+    # def test_simple_n_8(self):
+    #     ts = msprime.simulate(
+    #         8, recombination_rate=2, mutation_rate=5, random_seed=42)
+    #     assert ts.num_sites > 5
+    #     self.verify(ts)
+
+    # def test_simple_n_16(self):
+    #     ts = msprime.simulate(
+    #         16, recombination_rate=2, mutation_rate=5, random_seed=42)
+    #     assert ts.num_sites > 5
+    #     self.verify(ts)
 
     def verify(self, ts):
         raise NotImplementedError()
@@ -1436,7 +1441,6 @@ class TestTreeViterbiDip(VitAlgorithmBase):
     """
 
     def verify(self, ts):
-
         for n, m, _, s, _, r, mu in self.example_parameters_genotypes(ts):
             # Note, need to remove the first sample from the ts, and ensure that
             # invariant sites aren't removed.
@@ -1450,14 +1454,14 @@ class TestTreeViterbiDip(VitAlgorithmBase):
                 )
             ts_check = ts.simplify(range(1, n + 1), filter_sites=False)
             phased_path, ll = ls.viterbi(
-                G_check, s, r, mutation_rate=mu, scale_mutation_based_on_n_alleles=False
+                G_check, s, r, p_mutation=mu, scale_mutation_based_on_n_alleles=False
             )
             path_ll_matrix = ls.path_ll(
                 G_check,
                 s,
                 phased_path,
                 r,
-                mutation_rate=mu,
+                p_mutation=mu,
                 scale_mutation_based_on_n_alleles=False,
             )
 
@@ -1472,7 +1476,7 @@ class TestTreeViterbiDip(VitAlgorithmBase):
                 s,
                 np.transpose(path_tree_dict),
                 r,
-                mutation_rate=mu,
+                p_mutation=mu,
                 scale_mutation_based_on_n_alleles=False,
             )
 
