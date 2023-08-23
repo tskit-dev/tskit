@@ -98,10 +98,6 @@ class StatefulTree:
         old_left, old_right = self.tree_pos.interval
         self.tree_pos.seek_forward(index)
         left, right = self.tree_pos.interval
-        # print()
-        # print("Current interval:", old_left, old_right)
-        # print("New interval:", left, right)
-        # print("index:", index, "out_range:", self.tree_pos.out_range)
         for j in range(self.tree_pos.out_range.start, self.tree_pos.out_range.stop):
             e = self.tree_pos.out_range.order[j]
             e_left = self.ts.edges_left[e]
@@ -113,16 +109,9 @@ class StatefulTree:
                 assert self.parent[c] != -1
                 self.parent[c] = -1
             assert e_left < left
-        # print("index:", index, "in_range:", self.tree_pos.in_range)
         for j in range(self.tree_pos.in_range.start, self.tree_pos.in_range.stop):
             e = self.tree_pos.in_range.order[j]
             if self.ts.edges_left[e] <= left < self.ts.edges_right[e]:
-                # print("keep", j, e, self.ts.edges_left[e], self.ts.edges_right[e])
-                # print(
-                #     "INSERT:",
-                #     self.ts.edge(e),
-                #     self.ts.nodes_time[self.ts.edges_parent[e]],
-                # )
                 c = self.ts.edges_child[e]
                 p = self.ts.edges_parent[e]
                 self.parent[c] = p
@@ -132,12 +121,34 @@ class StatefulTree:
                 # The first and last indexes in the range should always be valid
                 # for the tree.
                 assert a < j < b - 1
-                # print("skip", j, e, self.ts.edges_left[e], self.ts.edges_right[e])
 
     def seek_backward(self, index):
-        # TODO
-        while self.tree_pos.index != index:
-            self.prev()
+        old_left, old_right = self.tree_pos.interval
+        self.tree_pos.seek_backward(index)
+        left, right = self.tree_pos.interval
+        for j in range(self.tree_pos.out_range.start, self.tree_pos.out_range.stop, -1):
+            e = self.tree_pos.out_range.order[j]
+            e_right = self.ts.edges_right[e]
+            # We only need to remove an edge if it's in the current tree, which
+            # can only happen if the edge's right coord is >= the current tree's
+            # right coordinate.
+            if e_right >= old_right:
+                c = self.ts.edges_child[e]
+                assert self.parent[c] != -1
+                self.parent[c] = -1
+            assert e_right > right
+        for j in range(self.tree_pos.in_range.start, self.tree_pos.in_range.stop, -1):
+            e = self.tree_pos.in_range.order[j]
+            if self.ts.edges_right[e] >= right > self.ts.edges_left[e]:
+                c = self.ts.edges_child[e]
+                p = self.ts.edges_parent[e]
+                self.parent[c] = p
+            else:
+                a = self.tree_pos.in_range.start
+                b = self.tree_pos.in_range.stop
+                # The first and last indexes in the range should always be valid
+                # for the tree.
+                assert a > j > b + 1
 
     def iter_backward(self, index):
         while self.tree_pos.index != index:
@@ -267,6 +278,57 @@ def check_forward_back_sweep(ts):
             k -= 1
 
 
+def check_seek_forward_out_range_is_empty(ts, index):
+    tree = StatefulTree(ts)
+    tree.seek_forward(index)
+    assert tree.tree_pos.out_range.start == tree.tree_pos.out_range.stop
+    tree.iter_backward(-1)
+    tree.seek_forward(index)
+    assert tree.tree_pos.out_range.start == tree.tree_pos.out_range.stop
+
+
+def check_seek_backward_out_range_is_empty(ts, index):
+    tree = StatefulTree(ts)
+    tree.seek_backward(index)
+    assert tree.tree_pos.out_range.start == tree.tree_pos.out_range.stop
+    tree.iter_forward(-1)
+    tree.seek_backward(index)
+    assert tree.tree_pos.out_range.start == tree.tree_pos.out_range.stop
+
+
+def check_seek_forward_from_null(ts, index):
+    tree1 = StatefulTree(ts)
+    tree1.seek_forward(index)
+    tree2 = StatefulTree(ts)
+    tree2.iter_forward(index)
+    tree1.assert_equal(tree2)
+
+
+def check_seek_backward_from_null(ts, index):
+    tree1 = StatefulTree(ts)
+    tree1.seek_backward(index)
+    tree2 = StatefulTree(ts)
+    tree2.iter_backward(index)
+    tree1.assert_equal(tree2)
+
+
+def check_seek_forward_from_first(ts, index):
+    tree1 = StatefulTree(ts)
+    tree1.next()
+    tree1.seek_forward(index)
+    tree2 = StatefulTree(ts)
+    tree2.iter_forward(index)
+    tree1.assert_equal(tree2)
+
+
+def check_seek_backward_from_last(ts, index):
+    tree1 = StatefulTree(ts)
+    tree1.prev()
+    tree1.seek_backward(index)
+    tree2 = StatefulTree(ts)
+    tree2.iter_backward(index)
+
+
 class TestDirectionSwitching:
     # 2.00┊       ┊   4   ┊   4   ┊   4   ┊
     #     ┊       ┊ ┏━┻┓  ┊  ┏┻━┓ ┊  ┏┻━┓ ┊
@@ -278,16 +340,22 @@ class TestDirectionSwitching:
     def ts(self):
         return tsutil.all_trees_ts(3)
 
-    @pytest.mark.parametrize("index", [1, 2, 3])
-    def test_forward_to_prev(self, index):
-        tree1 = StatefulTree(self.ts())
+    @pytest.mark.parametrize("index", [0, 1, 2, 3])
+    def test_iter_backward_matches_iter_forward(self, index):
+        ts = self.ts()
+        tree1 = StatefulTree(ts)
         tree1.iter_forward(index)
+        tree2 = StatefulTree(ts)
+        tree2.iter_backward(index)
+        tree1.assert_equal(tree2)
+
+    @pytest.mark.parametrize("index", [1, 2, 3])
+    def test_prev_from_seek_forward(self, index):
+        tree1 = StatefulTree(self.ts())
+        tree1.seek_forward(index)
         tree1.prev()
         tree2 = StatefulTree(self.ts())
-        tree2.iter_forward(index - 1)
-        tree1.assert_equal(tree2)
-        tree2 = StatefulTree(self.ts())
-        tree2.iter_backward(index - 1)
+        tree2.seek_forward(index - 1)
         tree1.assert_equal(tree2)
 
     @pytest.mark.parametrize("index", [1, 2, 3])
@@ -300,49 +368,10 @@ class TestDirectionSwitching:
         tree2.iter_forward(index)
         tree1.assert_equal(tree2)
 
-    @pytest.mark.parametrize("index", [0, 1, 2])
-    def test_backward_to_next(self, index):
-        tree1 = StatefulTree(self.ts())
-        tree1.iter_backward(index)
-        tree1.next()
-        tree2 = StatefulTree(self.ts())
-        tree2.iter_backward(index + 1)
-        tree1.assert_equal(tree2)
-        tree2 = StatefulTree(self.ts())
-        tree2.iter_forward(index + 1)
-        tree1.assert_equal(tree2)
-
-    @pytest.mark.parametrize("index", [1, 2, 3])
-    def test_forward_next_prev(self, index):
-        tree1 = StatefulTree(self.ts())
-        tree1.iter_forward(index)
-        tree1.prev()
-        tree2 = StatefulTree(self.ts())
-        tree2.iter_forward(index - 1)
-        tree1.assert_equal(tree2)
-        tree2 = StatefulTree(self.ts())
-        tree2.iter_backward(index - 1)
-        tree1.assert_equal(tree2)
-
-    @pytest.mark.parametrize("index", [1, 2, 3])
-    def test_seek_forward_next_prev(self, index):
-        tree1 = StatefulTree(self.ts())
-        tree1.iter_forward(index)
-        tree1.prev()
-        tree2 = StatefulTree(self.ts())
-        tree2.seek_forward(index - 1)
-        tree1.assert_equal(tree2)
-        tree2 = StatefulTree(self.ts())
-        tree2.iter_backward(index - 1)
-        tree1.assert_equal(tree2)
-
-    @pytest.mark.parametrize("index", [1, 2, 3])
+    @pytest.mark.parametrize("index", [0, 1, 2, 3])
     def test_seek_forward_from_null(self, index):
-        tree1 = StatefulTree(self.ts())
-        tree1.seek_forward(index)
-        tree2 = StatefulTree(self.ts())
-        tree2.iter_forward(index)
-        tree1.assert_equal(tree2)
+        ts = self.ts()
+        check_seek_forward_from_null(ts, index)
 
     def test_seek_forward_next_null(self):
         tree1 = StatefulTree(self.ts())
@@ -350,6 +379,78 @@ class TestDirectionSwitching:
         tree1.next()
         assert tree1.tree_pos.index == -1
         assert list(tree1.tree_pos.interval) == [0, 0]
+
+    @pytest.mark.parametrize("index", [0, 1, 2])
+    def test_next_from_seek_backward(self, index):
+        tree1 = StatefulTree(self.ts())
+        tree1.seek_backward(index)
+        tree1.next()
+        tree2 = StatefulTree(self.ts())
+        tree2.seek_backward(index + 1)
+        tree1.assert_equal(tree2)
+
+    @pytest.mark.parametrize("index", [0, 1, 2])
+    def test_seek_backward_from_next(self, index):
+        tree1 = StatefulTree(self.ts())
+        tree1.iter_backward(index)
+        tree1.next()
+        tree1.seek_backward(index)
+        tree2 = StatefulTree(self.ts())
+        tree2.iter_backward(index)
+        tree1.assert_equal(tree2)
+
+    @pytest.mark.parametrize("index", [0, 1, 2, 3])
+    def test_seek_backward_from_null(self, index):
+        ts = self.ts()
+        check_seek_backward_from_null(ts, index)
+
+    def test_seek_backward_prev_null(self):
+        tree1 = StatefulTree(self.ts())
+        tree1.seek_backward(0)
+        tree1.prev()
+        assert tree1.tree_pos.index == -1
+        assert list(tree1.tree_pos.interval) == [0, 0]
+
+    @pytest.mark.parametrize("index", [0, 1, 2, 3])
+    def test_seek_forward_out_range_is_empty(self, index):
+        ts = self.ts()
+        check_seek_forward_out_range_is_empty(ts, index)
+
+    @pytest.mark.parametrize("index", [0, 1, 2, 3])
+    def test_seek_backward_out_range_is_empty(self, index):
+        ts = self.ts()
+        check_seek_backward_out_range_is_empty(ts, index)
+
+
+class TestTreePositionStep:
+    def ts(self):
+        return tsutil.all_trees_ts(3)
+
+    @pytest.mark.parametrize("index", [0, 1, 2])
+    def test_tree_position_step_forward(self, index):
+        ts = self.ts()
+        tree1_pos = tsutil.TreePosition(ts)
+        tree1_pos.seek_forward(index)
+        tree1_pos.step(direction=1)
+        tree2_pos = tsutil.TreePosition(ts)
+        tree2_pos.seek_forward(index + 1)
+        tree1_pos.assert_equal(tree2_pos)
+
+    @pytest.mark.parametrize("index", [1, 2, 3])
+    def test_tree_position_step_backward(self, index):
+        ts = self.ts()
+        tree1_pos = tsutil.TreePosition(ts)
+        tree1_pos.seek_backward(index)
+        tree1_pos.step(direction=-1)
+        tree2_pos = tsutil.TreePosition(ts)
+        tree2_pos.seek_backward(index - 1)
+        tree1_pos.assert_equal(tree2_pos)
+
+    def test_tree_position_step_invalid_direction(self):
+        ts = self.ts()
+        # Test for unallowed direction
+        with pytest.raises(ValueError, match="Direction must be FORWARD"):
+            tsutil.TreePosition(ts).step(direction="foo")
 
 
 class TestSeeking:
@@ -361,20 +462,13 @@ class TestSeeking:
 
     @pytest.mark.parametrize("index", range(26))
     def test_seek_forward_from_null(self, index):
-        tree1 = StatefulTree(self.ts())
-        tree1.seek_forward(index)
-        tree2 = StatefulTree(self.ts())
-        tree2.iter_forward(index)
-        tree1.assert_equal(tree2)
+        ts = self.ts()
+        check_seek_forward_from_null(ts, index)
 
     @pytest.mark.parametrize("index", range(1, 26))
     def test_seek_forward_from_first(self, index):
-        tree1 = StatefulTree(self.ts())
-        tree1.next()
-        tree1.seek_forward(index)
-        tree2 = StatefulTree(self.ts())
-        tree2.iter_forward(index)
-        tree1.assert_equal(tree2)
+        ts = self.ts()
+        check_seek_forward_from_first(ts, index)
 
     @pytest.mark.parametrize("index", range(1, 26))
     def test_seek_last_from_index(self, index):
@@ -385,6 +479,36 @@ class TestSeeking:
         tree2 = StatefulTree(ts)
         tree2.prev()
         tree1.assert_equal(tree2)
+
+    @pytest.mark.parametrize("index", range(26))
+    def test_seek_backward_from_null(self, index):
+        ts = self.ts()
+        check_seek_backward_from_null(ts, index)
+
+    @pytest.mark.parametrize("index", range(0, 25))
+    def test_seek_backward_from_last(self, index):
+        ts = self.ts()
+        check_seek_backward_from_last(ts, index)
+
+    @pytest.mark.parametrize("index", range(0, 25))
+    def test_seek_first_from_index(self, index):
+        ts = self.ts()
+        tree1 = StatefulTree(ts)
+        tree1.iter_backward(index)
+        tree1.seek_backward(0)
+        tree2 = StatefulTree(ts)
+        tree2.next()
+        tree1.assert_equal(tree2)
+
+    @pytest.mark.parametrize("index", range(26))
+    def test_seek_forward_out_range_is_empty(self, index):
+        ts = self.ts()
+        check_seek_forward_out_range_is_empty(ts, index)
+
+    @pytest.mark.parametrize("index", range(26))
+    def test_seek_backward_out_range_is_empty(self, index):
+        ts = self.ts()
+        check_seek_backward_out_range_is_empty(ts, index)
 
 
 class TestAllTreesTs:
@@ -416,11 +540,7 @@ class TestManyTreesSimulationExample:
     @pytest.mark.parametrize("index", [1, 5, 10, 50, 100])
     def test_seek_forward_from_null(self, index):
         ts = self.ts()
-        tree1 = StatefulTree(ts)
-        tree1.seek_forward(index)
-        tree2 = StatefulTree(ts)
-        tree2.iter_forward(index)
-        tree1.assert_equal(tree2)
+        check_seek_forward_from_null(ts, index)
 
     @pytest.mark.parametrize("num_trees", [1, 5, 10, 50, 100])
     def test_seek_forward_from_mid(self, num_trees):
@@ -433,6 +553,32 @@ class TestManyTreesSimulationExample:
         tree2 = StatefulTree(ts)
         tree2.iter_forward(dest_index)
         tree1.assert_equal(tree2)
+
+    @pytest.mark.parametrize("index", [1, 5, 10, 50, 100])
+    def test_seek_backward_from_null(self, index):
+        ts = self.ts()
+        check_seek_backward_from_null(ts, index)
+
+    @pytest.mark.parametrize("num_trees", [1, 5, 10, 50, 100])
+    def test_seek_backward_from_mid(self, num_trees):
+        ts = self.ts()
+        start_index = ts.num_trees // 2
+        dest_index = max(start_index - num_trees, 0)
+        tree1 = StatefulTree(ts)
+        tree1.iter_backward(start_index)
+        tree1.seek_backward(dest_index)
+        tree2 = StatefulTree(ts)
+        tree2.iter_backward(dest_index)
+
+    @pytest.mark.parametrize("index", [1, 5, 10, 50, 100])
+    def test_seek_forward_out_range_is_empty(self, index):
+        ts = self.ts()
+        check_seek_forward_out_range_is_empty(ts, index)
+
+    @pytest.mark.parametrize("index", [1, 5, 10, 50, 100])
+    def test_seek_backward_out_range_is_empty(self, index):
+        ts = self.ts()
+        check_seek_backward_out_range_is_empty(ts, index)
 
     def test_forward_full(self):
         check_iters_forward(self.ts())
@@ -453,18 +599,29 @@ class TestSuiteExamples:
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_seek_forward_from_null(self, ts):
         index = ts.num_trees // 2
-        tree1 = StatefulTree(ts)
-        tree1.seek_forward(index)
-        tree2 = StatefulTree(ts)
-        tree2.iter_forward(index)
-        tree1.assert_equal(tree2)
+        check_seek_forward_from_null(ts, index)
 
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_seek_forward_from_first(self, ts):
         index = ts.num_trees - 1
-        tree1 = StatefulTree(ts)
-        tree1.next()
-        tree1.seek_forward(index)
-        tree2 = StatefulTree(ts)
-        tree2.iter_forward(index)
-        tree1.assert_equal(tree2)
+        check_seek_forward_from_first(ts, index)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_seek_backward_from_null(self, ts):
+        index = ts.num_trees // 2
+        check_seek_backward_from_null(ts, index)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_seek_backward_from_last(self, ts):
+        index = 0
+        check_seek_backward_from_last(ts, index)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_seek_forward_out_range_is_empty(self, ts):
+        index = ts.num_trees // 2
+        check_seek_forward_out_range_is_empty(ts, index)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_seek_backward_out_range_is_empty(self, ts):
+        index = ts.num_trees // 2
+        check_seek_backward_out_range_is_empty(ts, index)
