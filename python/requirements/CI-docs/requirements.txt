@@ -6,4 +6,4 @@ sphinx-argparse==0.4.0
 numpy==1.25.1
 svgwrite==1.4.3
 msprime==1.2.0
-tskit-book-theme
+sphinx-book-theme
