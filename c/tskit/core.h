@@ -1009,6 +1009,30 @@ int tsk_memcmp(const void *s1, const void *s2, tsk_size_t size);
 void tsk_set_debug_stream(FILE *f);
 FILE *tsk_get_debug_stream(void);
 
+/* Bit Array functionality */
+
+typedef uint32_t tsk_bit_array_value_t;
+typedef struct {
+    tsk_size_t size;             // Number of chunks per row
+    tsk_bit_array_value_t *data; // Array data
+} tsk_bit_array_t;
+
+#define TSK_BIT_ARRAY_CHUNK 5U
+#define TSK_BIT_ARRAY_NUM_BITS (1U << TSK_BIT_ARRAY_CHUNK)
+
+int tsk_bit_array_init(tsk_bit_array_t *self, tsk_size_t num_bits, tsk_size_t length);
+void tsk_bit_array_free(tsk_bit_array_t *self);
+void tsk_bit_array_get_row(
+    const tsk_bit_array_t *self, tsk_size_t row, tsk_bit_array_t *out);
+void tsk_bit_array_intersect(
+    const tsk_bit_array_t *self, const tsk_bit_array_t *other, tsk_bit_array_t *out);
+void tsk_bit_array_subtract(tsk_bit_array_t *self, const tsk_bit_array_t *other);
+void tsk_bit_array_add(tsk_bit_array_t *self, const tsk_bit_array_t *other);
+void tsk_bit_array_add_bit(tsk_bit_array_t *self, const tsk_bit_array_value_t bit);
+bool tsk_bit_array_contains(
+    const tsk_bit_array_t *self, const tsk_bit_array_value_t bit);
+tsk_size_t tsk_bit_array_count(const tsk_bit_array_t *self);
+
 #ifdef __cplusplus
 }
 #endif
