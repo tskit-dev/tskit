@@ -226,14 +226,16 @@ simulate(
                         right_parent, child, NULL, 0);
                     check_tsk_error(ret);
                 } else {
-                    assert(chunk_left < breakpoint && breakpoint < chunk_right);
+                    assert(chunk_left < breakpoint && breakpoint <= chunk_right);
                     /* Breakpoint is within this chunk so need two edges */
                     ret = tsk_edge_table_add_row(&tcs[k].edges, chunk_left, breakpoint,
                         left_parent, child, NULL, 0);
                     check_tsk_error(ret);
-                    ret = tsk_edge_table_add_row(&tcs[k].edges, breakpoint, chunk_right,
-                        right_parent, child, NULL, 0);
-                    check_tsk_error(ret);
+                    if (breakpoint < chunk_right) {
+                        ret = tsk_edge_table_add_row(&tcs[k].edges, breakpoint, chunk_right,
+                            right_parent, child, NULL, 0);
+                        check_tsk_error(ret);
+                    }
                 }
                 chunk_left = chunk_right;
             }
