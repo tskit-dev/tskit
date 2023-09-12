@@ -13,11 +13,11 @@
     }
 
 static void
-init_tables(tsk_table_collection_t *tcs, int num_chunks)
+init_tables(tsk_table_collection_t *tcs, int num_chroms)
 {
     int j, ret;
 
-    for (j = 0; j < num_chunks; j++) {
+    for (j = 0; j < num_chroms; j++) {
         ret = tsk_table_collection_init(&tcs[j], 0);
         check_tsk_error(ret);
         if (j > 0) {
@@ -27,11 +27,11 @@ init_tables(tsk_table_collection_t *tcs, int num_chunks)
 }
 
 static void
-free_tables(tsk_table_collection_t *tcs, int num_chunks)
+free_tables(tsk_table_collection_t *tcs, int num_chroms)
 {
     int j;
 
-    for (j = 0; j < num_chunks; j++) {
+    for (j = 0; j < num_chroms; j++) {
         if (j > 0) {
             /* Must not double free node table columns. */
             memset(&tcs[j].nodes, 0, sizeof(tcs[j].nodes));
@@ -41,11 +41,11 @@ free_tables(tsk_table_collection_t *tcs, int num_chunks)
 }
 
 static void
-join_tables(tsk_table_collection_t *tcs, int num_chunks)
+join_tables(tsk_table_collection_t *tcs, int num_chroms)
 {
     int j, ret;
 
-    for (j = 1; j < num_chunks; j++) {
+    for (j = 1; j < num_chroms; j++) {
         ret = tsk_edge_table_extend(
             &tcs[0].edges, &tcs[j].edges, tcs[j].edges.num_rows, NULL, 0);
         check_tsk_error(ret);
@@ -89,17 +89,17 @@ simplify_chunk(void *arg)
 }
 
 void
-sort_and_simplify_all(tsk_table_collection_t *tcs, int num_chunks, int *samples, int N)
+sort_and_simplify_all(tsk_table_collection_t *tcs, int num_chroms, int *samples, int N)
 {
     int j, ret;
-    struct chunk_work work[num_chunks];
-    pthread_t threads[num_chunks];
+    struct chunk_work work[num_chroms];
+    pthread_t threads[num_chroms];
 
-    for (j = 1; j < num_chunks; j++) {
+    for (j = 1; j < num_chroms; j++) {
         tcs[j].nodes = tcs[0].nodes;
     }
 
-    for (j = 0; j < num_chunks; j++) {
+    for (j = 0; j < num_chroms; j++) {
         work[j].chunk = j;
         work[j].tc = &tcs[j];
         work[j].samples = samples;
@@ -111,7 +111,7 @@ sort_and_simplify_all(tsk_table_collection_t *tcs, int num_chunks, int *samples,
         }
         /* simplify_chunk((void *) &work[j]); */
     }
-    for (j = 0; j < num_chunks; j++) {
+    for (j = 0; j < num_chroms; j++) {
         ret = pthread_join(threads[j], NULL);
         if (ret != 0) {
             errx(EXIT_FAILURE, "Pthread join failed");
@@ -120,7 +120,7 @@ sort_and_simplify_all(tsk_table_collection_t *tcs, int num_chunks, int *samples,
 }
 
 void
-simplify_tables(tsk_table_collection_t *tcs, int num_chunks, int *samples, int N)
+simplify_tables(tsk_table_collection_t *tcs, int num_chroms, int *samples, int N)
 {
     int j, k, ret;
     const tsk_size_t num_nodes = tcs[0].nodes.num_rows;
@@ -133,7 +133,7 @@ simplify_tables(tsk_table_collection_t *tcs, int num_chunks, int *samples, int N
     }
 
     printf("Simplify %lld nodes\n", (long long) tcs[0].nodes.num_rows);
-    sort_and_simplify_all(tcs, num_chunks, samples, N);
+    sort_and_simplify_all(tcs, num_chroms, samples, N);
 
     for (j = 0; j < num_nodes; j++) {
         delete_nodes[j] = true;
@@ -142,7 +142,7 @@ simplify_tables(tsk_table_collection_t *tcs, int num_chunks, int *samples, int N
         delete_nodes[samples[j]] = false;
     }
 
-    for (j = 0; j < num_chunks; j++) {
+    for (j = 0; j < num_chroms; j++) {
         edge_child = tcs[j].edges.child;
         edge_parent = tcs[j].edges.parent;
         for (k = 0; k < tcs[j].edges.num_rows; k++) {
@@ -154,7 +154,7 @@ simplify_tables(tsk_table_collection_t *tcs, int num_chunks, int *samples, int N
     printf("\tdone: %lld nodes\n", (long long) tcs[0].nodes.num_rows);
 
     /* Remap node references */
-    for (j = 0; j < num_chunks; j++) {
+    for (j = 0; j < num_chroms; j++) {
         edge_child = tcs[j].edges.child;
         edge_parent = tcs[j].edges.parent;
         for (k = 0; k < tcs[j].edges.num_rows; k++) {
@@ -173,10 +173,11 @@ simplify_tables(tsk_table_collection_t *tcs, int num_chunks, int *samples, int N
 
 void
 simulate(
-    tsk_table_collection_t *tcs, int num_chunks, int N, int T, int simplify_interval)
+    tsk_table_collection_t *tcs, int num_chroms, int N, int T, int simplify_interval)
 {
     tsk_id_t *buffer, *parents, *children, child, left_parent, right_parent;
-    double breakpoint, chunk_left, chunk_right;
+    bool left_is_first;
+    double chunk_left, chunk_right;
     int ret, j, t, b, k;
 
     assert(simplify_interval != 0); // leads to division by zero
@@ -184,8 +185,8 @@ simulate(
     if (buffer == NULL) {
         errx(EXIT_FAILURE, "Out of memory");
     }
-    for (k = 0; k < num_chunks; k++) {
-        tcs[k].sequence_length = 1.0;
+    for (k = 0; k < num_chroms; k++) {
+        tcs[k].sequence_length = num_chroms;
     }
     parents = buffer;
     for (j = 0; j < N; j++) {
@@ -209,40 +210,27 @@ simulate(
              */
             left_parent = parents[(size_t)((rand() / (1. + RAND_MAX)) * N)];
             right_parent = parents[(size_t)((rand() / (1. + RAND_MAX)) * N)];
-            do {
-                breakpoint = rand() / (1. + RAND_MAX);
-            } while (breakpoint == 0); /* tiny proba of breakpoint being 0 */
-
-            chunk_left = 0;
-            for (k = 0; k < num_chunks; k++) {
-                chunk_right = (k + 1) / (double) num_chunks;
-                /* FIXME not certain about the boundaries here, check! */
-                if (chunk_right < breakpoint) {
+            left_is_first = rand() < 0.5;
+            chunk_left = 0.0;
+            for (k = 0; k < num_chroms; k++) {
+                chunk_right = chunk_left + rand() / (1. + RAND_MAX);
+                /* a very tiny chance that right and left are equal */
+                if (chunk_right > chunk_left) {
                     ret = tsk_edge_table_add_row(&tcs[k].edges, chunk_left, chunk_right,
-                        left_parent, child, NULL, 0);
+                        left_is_first ? left_parent : right_parent, child, NULL, 0);
                     check_tsk_error(ret);
-                } else if (breakpoint <= chunk_left) {
-                    ret = tsk_edge_table_add_row(&tcs[k].edges, chunk_left, chunk_right,
-                        right_parent, child, NULL, 0);
-                    check_tsk_error(ret);
-                } else {
-                    assert(chunk_left < breakpoint && breakpoint <= chunk_right);
-                    /* Breakpoint is within this chunk so need two edges */
-                    ret = tsk_edge_table_add_row(&tcs[k].edges, chunk_left, breakpoint,
-                        left_parent, child, NULL, 0);
-                    check_tsk_error(ret);
-                    if (breakpoint < chunk_right) {
-                        ret = tsk_edge_table_add_row(&tcs[k].edges, breakpoint, chunk_right,
-                            right_parent, child, NULL, 0);
-                        check_tsk_error(ret);
-                    }
                 }
-                chunk_left = chunk_right;
+                chunk_left += 1.0;
+                if (chunk_right < chunk_left) {
+                    ret = tsk_edge_table_add_row(&tcs[k].edges, chunk_right, chunk_left,
+                        left_is_first ? right_parent : left_parent, child, NULL, 0);
+                    check_tsk_error(ret);
+                }
             }
             children[j] = child;
         }
         if (t % simplify_interval == 0) {
-            simplify_tables(tcs, num_chunks, children, N);
+            simplify_tables(tcs, num_chroms, children, N);
         }
     }
     /* Set the sample flags for final generation */
@@ -255,20 +243,23 @@ simulate(
 int
 main(int argc, char **argv)
 {
-    int ret;
-    const int num_chunks = 8;
-    tsk_table_collection_t tcs[num_chunks];
+//    int ret;
+    int num_chroms;
 
-    if (argc != 6) {
-        errx(EXIT_FAILURE, "usage: N T simplify-interval output seed");
+    if (argc != 7) {
+        errx(EXIT_FAILURE, "usage: N T simplify-interval output seed num-chroms");
     }
+
+    num_chroms = atoi(argv[6]);
+    tsk_table_collection_t tcs[num_chroms];
+
     srand((unsigned) atoi(argv[5]));
-    init_tables(tcs, num_chunks);
-    simulate(tcs, num_chunks, atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
-    join_tables(tcs, num_chunks);
-    ret = tsk_table_collection_dump(&tcs[0], argv[4], 0);
-    check_tsk_error(ret);
-    free_tables(tcs, num_chunks);
+    init_tables(tcs, num_chroms);
+    simulate(tcs, num_chroms, atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
+    join_tables(tcs, num_chroms);
+//    ret = tsk_table_collection_dump(&tcs[0], argv[4], 0);
+//    check_tsk_error(ret);
+    free_tables(tcs, num_chroms);
 
     return 0;
 }
