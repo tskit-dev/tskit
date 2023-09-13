@@ -124,11 +124,11 @@ simplify_tables(tsk_table_collection_t *tcs, int num_chroms, int *samples, int N
 {
     int j, k, ret;
     const tsk_size_t num_nodes = tcs[0].nodes.num_rows;
-    bool *delete_nodes = malloc(num_nodes * sizeof(*delete_nodes));
+    tsk_bool_t *keep_nodes = malloc(num_nodes * sizeof(*keep_nodes));
     tsk_id_t *node_id_map = malloc(num_nodes * sizeof(*node_id_map));
     tsk_id_t *edge_child, *edge_parent;
 
-    if (delete_nodes == NULL || node_id_map == NULL) {
+    if (keep_nodes == NULL || node_id_map == NULL) {
         errx(EXIT_FAILURE, "Out of memory");
     }
 
@@ -136,21 +136,21 @@ simplify_tables(tsk_table_collection_t *tcs, int num_chroms, int *samples, int N
     sort_and_simplify_all(tcs, num_chroms, samples, N);
 
     for (j = 0; j < num_nodes; j++) {
-        delete_nodes[j] = true;
+        keep_nodes[j] = false;
     }
     for (j = 0; j < N; j++) {
-        delete_nodes[samples[j]] = false;
+        keep_nodes[samples[j]] = true;
     }
 
     for (j = 0; j < num_chroms; j++) {
         edge_child = tcs[j].edges.child;
         edge_parent = tcs[j].edges.parent;
         for (k = 0; k < tcs[j].edges.num_rows; k++) {
-            delete_nodes[edge_child[k]] = false;
-            delete_nodes[edge_parent[k]] = false;
+            keep_nodes[edge_child[k]] = true;
+            keep_nodes[edge_parent[k]] = true;
         }
     }
-    tsk_node_table_delete_rows(&tcs[0].nodes, delete_nodes, 0, node_id_map);
+    tsk_node_table_keep_rows(&tcs[0].nodes, keep_nodes, 0, node_id_map);
     printf("\tdone: %lld nodes\n", (long long) tcs[0].nodes.num_rows);
 
     /* Remap node references */
@@ -167,7 +167,7 @@ simplify_tables(tsk_table_collection_t *tcs, int num_chroms, int *samples, int N
     for (j = 0; j < N; j++) {
         samples[j] = node_id_map[samples[j]];
     }
-    free(delete_nodes);
+    free(keep_nodes);
     free(node_id_map);
 }
 
