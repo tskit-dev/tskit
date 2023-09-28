@@ -168,7 +168,8 @@ one individual may have location `[]` and another `[0, 1, 0]`. This could
 therefore be used to store other quantities (e.g., phenotype).
 
 The `parents` column stores the ids of other individuals that are the parents of
-an individual. This column is {ref}`ragged <sec_encoding_ragged_columns>` such that an
+an individual. This can be used to store pedigree information for individuals.
+This column is {ref}`ragged <sec_encoding_ragged_columns>` such that an
 individual can have any number of parents.
 
 The `metadata` column provides a location for client code to store
