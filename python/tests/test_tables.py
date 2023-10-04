@@ -1603,13 +1603,13 @@ class FancyIndexingMixin:
             table[[5.5]]
         with pytest.raises(TypeError, match="Cannot convert"):
             table[[None]]
-        with pytest.raises(TypeError, match="not supported between instances"):
+        with pytest.raises(TypeError, match="not supported|did not contain"):
             table[["foobar"]]
         with pytest.raises(TypeError, match="Index must be integer, slice or iterable"):
             table[5.5]
         with pytest.raises(TypeError, match="Cannot convert to a rectangular array"):
             table[None]
-        with pytest.raises(TypeError, match="not supported between instances"):
+        with pytest.raises(TypeError, match="not supported|did not contain"):
             table["foobar"]
 
 
