@@ -28,37 +28,27 @@ jobs:
 
       - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-
       - name: Install apt deps
         if: env.APTGET
         run: sudo apt-get install -y ${{env.APTGET}}
 
-      - uses: actions/cache@v3
-        id: venv-cache
+      - uses: actions/setup-python@v4
         with:
-          path: venv
-          key: docs-venv-v4-${{ hashFiles(env.REQUIREMENTS) }}
+          python-version: "3.10"
+          cache: 'pip'
 
-      - name: Create venv and install deps (one by one to avoid conflict errors)
-        if: steps.venv-cache.outputs.cache-hit != 'true'
+      - name: Create venv and install deps
         run: |
-          python -m venv venv
-          . venv/bin/activate
           pip install --upgrade pip wheel
           pip install -r ${{env.REQUIREMENTS}}          
 
       - name: Build C module
         if: env.MAKE_TARGET
         run: |
-          . venv/bin/activate
           make $MAKE_TARGET
 
       - name: Build Docs
         run: |
-          . venv/bin/activate
           make -C docs
 
       - name: Trigger docs site rebuild
