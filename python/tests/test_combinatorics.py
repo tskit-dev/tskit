@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2020-2022 Tskit Developers
+# Copyright (c) 2020-2023 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +27,7 @@ import collections
 import io
 import itertools
 import json
+import math
 import random
 
 import msprime
@@ -1057,7 +1058,7 @@ def num_leaf_labelled_binary_trees(n):
 
     https://oeis.org/A005373/
     """
-    return int(np.math.factorial(2 * n - 3) / (2 ** (n - 2) * np.math.factorial(n - 2)))
+    return int(math.factorial(2 * n - 3) / (2 ** (n - 2) * math.factorial(n - 2)))
 
 
 class TestPolytomySplitting:

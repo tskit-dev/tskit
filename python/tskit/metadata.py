@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2020-2022 Tskit Developers
+# Copyright (c) 2020-2023 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -193,7 +193,11 @@ def binary_format_validator(validator, types, instance, schema):
     # generators of exceptions, hence the yielding
 
     # Make sure the normal type validation gets done
-    yield from jsonschema._validators.type(validator, types, instance, schema)
+    try:
+        yield from jsonschema._validators.type(validator, types, instance, schema)
+    except AttributeError:
+        # Needed since jsonschema==4.19.1
+        yield from jsonschema._keywords.type(validator, types, instance, schema)
 
     # Non-composite types must have a binaryFormat
     if validator.is_type(instance, "object"):
@@ -222,7 +226,13 @@ def binary_format_validator(validator, types, instance, schema):
 
 def required_validator(validator, required, instance, schema):
     # Do the normal validation
-    yield from jsonschema._validators.required(validator, required, instance, schema)
+    try:
+        yield from jsonschema._validators.required(
+            validator, required, instance, schema
+        )
+    except AttributeError:
+        # Needed since jsonschema==4.19.1
+        yield from jsonschema._keywords.required(validator, required, instance, schema)
 
     # For struct codec if a property is not required, then it must have a default
     for prop, sub_schema in instance["properties"].items():
