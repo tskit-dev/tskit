@@ -13,3 +13,4 @@ pytest-cov==4.1.0
 pytest-xdist==3.3.1
 tszip==0.2.2
 xmlunittest==0.5.0
+llvmlite==0.39.1
