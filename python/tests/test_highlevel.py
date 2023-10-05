@@ -1238,7 +1238,7 @@ class TestNumpySamples:
 
     def test_samples_example(self):
         tables = tskit.TableCollection(sequence_length=10)
-        time = [np.array(0), 0, np.array([1]), 1, 1, 3, 3.00001, 3.0 - 0.0001, 1 / 3]
+        time = [0, 0, 1, 1, 1, 3, 3.00001, 3.0 - 0.0001, 1 / 3]
         pops = [1, 3, 1, 2, 1, 1, 1, 3, 1]
         for _ in range(max(pops) + 1):
             tables.populations.add_row()
