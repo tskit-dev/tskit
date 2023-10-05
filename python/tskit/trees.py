@@ -8572,7 +8572,7 @@ class TreeSequence:
                 divergences.shape = (divergences.shape[0], 1, divergences.shape[1])
                 diversities.shape = (diversities.shape[0], 1, diversities.shape[1])
 
-            fst = np.repeat(1.0, np.product(divergences.shape))
+            fst = np.repeat(1.0, np.prod(divergences.shape))
             fst.shape = divergences.shape
             for i, (u, v) in enumerate(indexes):
                 denom = (
@@ -9167,7 +9167,7 @@ class TreeSequence:
         return float(
             self.diversity(
                 [samples], windows=[0, self.sequence_length], span_normalise=False
-            )[0]
+            )[0][0]
         )
 
     def get_time(self, u):

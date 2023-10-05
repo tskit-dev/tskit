@@ -813,7 +813,11 @@ class CommonTestsMixin:
 
             for _list_col, offset_col in self.ragged_list_columns:
                 original_offset = np.copy(input_data[offset_col.name])
-                input_data[offset_col.name][0] = -1
+                # As numpy no longer allows conversion of out-of-bounds values, we
+                # explictly cast first.
+                input_data[offset_col.name][0] = np.array(-1).astype(
+                    input_data[offset_col.name].dtype
+                )
                 with pytest.raises(ValueError):
                     t.set_columns(**input_data)
                 input_data[offset_col.name] = np.copy(original_offset)
@@ -828,7 +832,9 @@ class CommonTestsMixin:
                     t.set_columns(**input_data)
                 input_data[offset_col.name] = np.copy(original_offset)
 
-                input_data[offset_col.name][0] = -1
+                input_data[offset_col.name][0] = np.array(-1).astype(
+                    input_data[offset_col.name].dtype
+                )
                 with pytest.raises(ValueError):
                     t.append_columns(**input_data)
                 input_data[offset_col.name] = np.copy(original_offset)

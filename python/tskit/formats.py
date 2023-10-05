@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2021 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 # Copyright (c) 2016-2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -471,6 +471,10 @@ def _dump_legacy_hdf5_v10(tree_sequence, root):
 def _load_legacy_hdf5_v10(root, remove_duplicate_positions=False):
     # We cannot have duplicate positions in v10, so this parameter is ignored
     sequence_length = root.attrs["sequence_length"]
+    try:
+        sequence_length = sequence_length[0]
+    except TypeError:
+        pass
     tables = tskit.TableCollection(sequence_length)
 
     nodes_group = root["nodes"]
