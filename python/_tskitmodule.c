@@ -13254,8 +13254,10 @@ LsHmm_forward_matrix(LsHmm *self, PyObject *args)
             PyExc_ValueError, "haplotype array must have dimension (num_sites,)");
         goto out;
     }
-    err = tsk_ls_hmm_forward(self->ls_hmm, PyArray_DATA(haplotype_array),
-        compressed_matrix->compressed_matrix, TSK_NO_INIT);
+    Py_BEGIN_ALLOW_THREADS err
+        = tsk_ls_hmm_forward(self->ls_hmm, PyArray_DATA(haplotype_array),
+            compressed_matrix->compressed_matrix, TSK_NO_INIT);
+    Py_END_ALLOW_THREADS;
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -13310,9 +13312,10 @@ LsHmm_backward_matrix(LsHmm *self, PyObject *args)
             PyExc_ValueError, "forward_norm array must have dimension (num_sites,)");
         goto out;
     }
-    err = tsk_ls_hmm_backward(self->ls_hmm, PyArray_DATA(haplotype_array),
-        PyArray_DATA(forward_norm_array), compressed_matrix->compressed_matrix,
-        TSK_NO_INIT);
+    Py_BEGIN_ALLOW_THREADS err = tsk_ls_hmm_backward(self->ls_hmm,
+        PyArray_DATA(haplotype_array), PyArray_DATA(forward_norm_array),
+        compressed_matrix->compressed_matrix, TSK_NO_INIT);
+    Py_END_ALLOW_THREADS;
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -13353,8 +13356,9 @@ LsHmm_viterbi_matrix(LsHmm *self, PyObject *args)
             PyExc_ValueError, "haplotype array must have dimension (num_sites,)");
         goto out;
     }
-    err = tsk_ls_hmm_viterbi(self->ls_hmm, PyArray_DATA(haplotype_array),
-        viterbi_matrix->viterbi_matrix, TSK_NO_INIT);
+    Py_BEGIN_ALLOW_THREADS err = tsk_ls_hmm_viterbi(self->ls_hmm,
+        PyArray_DATA(haplotype_array), viterbi_matrix->viterbi_matrix, TSK_NO_INIT);
+    Py_END_ALLOW_THREADS;
     if (err != 0) {
         handle_library_error(err);
         goto out;
