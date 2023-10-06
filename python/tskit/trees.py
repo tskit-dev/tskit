@@ -5660,7 +5660,7 @@ class TreeSequence:
     @property
     def individuals_flags(self):
         """
-        Efficient access to the ``flags`` column in the
+        Efficient access to the bitwise ``flags`` column in the
         :ref:`sec_individual_table_definition` as a numpy array (dtype=np.uint32).
         Equivalent to ``ts.tables.individuals.flags`` (but avoiding the full copy
         of the table data that accessing ``ts.tables`` currently entails).
@@ -5680,7 +5680,7 @@ class TreeSequence:
     @property
     def nodes_flags(self):
         """
-        Efficient access to the ``flags`` column in the
+        Efficient access to the bitwise ``flags`` column in the
         :ref:`sec_node_table_definition` as a numpy array (dtype=np.uint32).
         Equivalent to ``ts.tables.nodes.flags`` (but avoiding the full copy
         of the table data that accessing ``ts.tables`` currently entails).
