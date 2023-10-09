@@ -216,7 +216,10 @@ jobs:
 
   PyPI_Upload:
     runs-on: ubuntu-latest
+    environment: release
     needs: ['windows-test', 'OSX-test', 'manylinux-test']
+    permissions:
+      id-token: write
     steps:
       - name: Download all
         uses: actions/download-artifact@v2
@@ -226,12 +229,9 @@ jobs:
           cp */*.{whl,gz} dist/.
       - name: Publish distribution to Test PyPI
         if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags') && !contains(github.event.ref, 'C_')
-        uses: pypa/gh-action-pypi-publish@master
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ secrets.test_pypi_password }}
           repository_url: https://test.pypi.org/legacy/
       - name: Publish distribution to PRODUCTION PyPI
         if: github.event_name == 'release' && !startsWith(github.event.release.tag_name, 'C_')
-        uses: pypa/gh-action-pypi-publish@master
-        with:
-          password: ${{ secrets.pypi_password }}
+        uses: pypa/gh-action-pypi-publish@release/v1
