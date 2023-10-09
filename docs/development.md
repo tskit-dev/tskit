@@ -71,7 +71,7 @@ an overview of how to contribute a new feature to `tskit`.
 ### Requirements
 
 To develop the Python code you will need a working C compiler and a
-development installation of Python (>= 3.7). On Debian/Ubuntu we can install these
+development installation of Python (>= 3.8). On Debian/Ubuntu we can install these
 with:
 
 ```bash
@@ -429,7 +429,7 @@ $ make
 
 If this has completed successfully you should see a file `_tskit.cpython-XXXXXX.so`
 in the current directory (the suffix depends on your platform and Python version;
-with Python 3.7 on Linux it's `_tskit.cpython-37m-x86_64-linux-gnu.so`).
+with Python 3.11 on Linux it's `_tskit.cpython-311-x86_64-linux-gnu.so`).
 
 To make sure that your development environment is working, run some
 {ref}`tests <sec_development_python_tests>`.
@@ -1050,10 +1050,10 @@ For instance:
 
 ```bash
 > git commit -a -m 'fixed all the things'
-/usr/bin/env: ‘python3.7’: No such file or directory
+/usr/bin/env: ‘python3.8’: No such file or directory
 ```
 
-What the heck? Why is this even looking for python3.7?
+What the heck? Why is this even looking for python3.8?
 This is because of the "pre-commit hook", mentioned above.
 As above, you can proceed by just appending `--no-verify`:
 

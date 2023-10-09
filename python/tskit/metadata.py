@@ -46,9 +46,9 @@ __builtins__object__setattr__ = builtins.object.__setattr__
 
 
 def replace_root_refs(obj):
-    if type(obj) == list:
+    if type(obj) is list:
         return [replace_root_refs(j) for j in obj]
-    elif type(obj) == dict:
+    elif type(obj) is dict:
         ret = {k: replace_root_refs(v) for k, v in obj.items()}
         if ret.get("$ref") == "#":
             ret["$ref"] = "#/definitions/root"
@@ -558,9 +558,9 @@ class StructCodec(AbstractMetadataCodec):
         # we add it here, sadly we can't do this in the metaschema as "default" isn't
         # used by the validator.
         def enforce_fixed_properties(obj):
-            if type(obj) == list:
+            if type(obj) is list:
                 return [enforce_fixed_properties(j) for j in obj]
-            elif type(obj) == dict:
+            elif type(obj) is dict:
                 ret = {k: enforce_fixed_properties(v) for k, v in obj.items()}
                 if "object" in ret.get("type", []):
                     if ret.get("additional_properties"):

@@ -92,7 +92,7 @@ class TestParseFam:
         entry = FamEntry(iid="1")
         for field in fields[n_cols:]:
             entry.__setattr__(field, None)
-        with pytest.raises(
+        with pytest.raises(  # noqa B017
             Exception
         ):  # Have to be non-specific here as numpy 1.23 changed the exception type
             self.get_parsed_fam(entries=[entry])
@@ -137,7 +137,7 @@ class TestParseFam:
 
     def test_empty_sex_value(self):
         entries = [FamEntry(iid="1", sex="")]
-        with pytest.raises(
+        with pytest.raises(  # noqa B017
             Exception
         ):  # Have to be non-specific here as numpy 1.23 changed the exception type
             self.get_parsed_fam(entries=entries)

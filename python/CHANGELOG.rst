@@ -2,6 +2,10 @@
 [0.5.6] - 2023-XX-XX
 --------------------
 
+**Breaking Changes**
+
+- tskit now requires Python 3.8, as Python 3.7 became end-of-life on 2023-06-27
+
 **Features**
 
 - Tree.trmca now accepts >2 nodes and returns nicer errors

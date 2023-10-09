@@ -661,6 +661,7 @@ class Tree:
                 "The sample_counts option is not supported since 0.2.4 "
                 "and is ignored",
                 RuntimeWarning,
+                stacklevel=4,
             )
         if sample_lists:
             options |= _tskit.SAMPLE_LISTS
@@ -1513,6 +1514,7 @@ class Tree:
             "in the topology of the current tree (i.e. reachable from the roots) "
             "use len(tree.preorder()).",
             FutureWarning,
+            stacklevel=4,
         )
         return self.tree_sequence.num_nodes
 
@@ -4121,6 +4123,7 @@ class TreeSequence:
             warnings.warn(
                 "The zlib_compression option is no longer supported and is ignored",
                 RuntimeWarning,
+                stacklevel=4,
             )
         file, local_file = util.convert_file_like_to_open_file(file_or_path, "wb")
         try:
@@ -5226,6 +5229,7 @@ class TreeSequence:
                 " be removed. Use ``isolated_as_missing=False`` instead of"
                 "``impute_missing_data=True``.",
                 FutureWarning,
+                stacklevel=4,
             )
         # Only use impute_missing_data if isolated_as_missing has the default value
         if isolated_as_missing is None:
@@ -5325,6 +5329,7 @@ class TreeSequence:
                 " be removed. Use ``isolated_as_missing=False`` instead of"
                 "``impute_missing_data=True``.",
                 FutureWarning,
+                stacklevel=4,
             )
         # Only use impute_missing_data if isolated_as_missing has the default value
         if isolated_as_missing is None:
@@ -5410,6 +5415,7 @@ class TreeSequence:
                 " be removed. Use ``isolated_as_missing=False`` instead of"
                 "``impute_missing_data=True``.",
                 FutureWarning,
+                stacklevel=4,
             )
         # Only use impute_missing_data if isolated_as_missing has the default value
         if isolated_as_missing is None:
@@ -8205,6 +8211,7 @@ class TreeSequence:
         warnings.warn(
             "This is deprecated: please use trait_linear_model( ) instead.",
             FutureWarning,
+            stacklevel=4,
         )
         return self.trait_linear_model(*args, **kwargs)
 

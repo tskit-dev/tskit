@@ -725,7 +725,6 @@ class AncestorMap:
         return num_edges
 
     def check_state(self):
-
         num_nodes = len(self.A_head)
         for j in range(num_nodes):
             head = self.A_head[j]
@@ -771,7 +770,6 @@ if __name__ == "__main__":
     ts = tskit.load(sys.argv[2])
 
     if class_to_implement == "Simplifier":
-
         samples = list(map(int, sys.argv[3:]))
 
         print("When keep_unary = True:")
@@ -805,7 +803,6 @@ if __name__ == "__main__":
         print(tables.mutations)
 
     elif class_to_implement == "AncestorMap":
-
         samples = sys.argv[3]
         samples = samples.split(",")
         samples = list(map(int, samples))

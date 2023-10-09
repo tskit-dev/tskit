@@ -285,7 +285,6 @@ class TestIbdInterface:
 
 
 class TestIbdTwoSamplesTwoTrees:
-
     # 2
     #             |     3
     # 1      2    |    / \
@@ -339,7 +338,6 @@ class TestIbdTwoSamplesTwoTrees:
 
 
 class TestIbdUnrelatedSamples:
-
     #
     #    2   3
     #    |   |
@@ -347,7 +345,6 @@ class TestIbdUnrelatedSamples:
 
     @tests.cached_example
     def ts(self):
-
         nodes = io.StringIO(
             """\
         id      is_sample   time
