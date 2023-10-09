@@ -4044,7 +4044,7 @@ def test_uninitialised():
     ]
     for cls_name, cls in inspect.getmembers(_tskit):
         if (
-            type(cls) == type
+            isinstance(cls, type)
             and not issubclass(cls, Exception)
             and not issubclass(cls, tuple)
         ):

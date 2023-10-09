@@ -207,7 +207,7 @@ def insert_gap(ts, position, length):
     return tables.tree_sequence()
 
 
-@functools.lru_cache()
+@functools.lru_cache
 def get_gap_examples():
     """
     Returns example tree sequences that contain gaps within the list of
@@ -239,7 +239,7 @@ def get_gap_examples():
     return ret
 
 
-@functools.lru_cache()
+@functools.lru_cache
 def get_internal_samples_examples():
     """
     Returns example tree sequences with internal samples.
@@ -270,7 +270,7 @@ def get_internal_samples_examples():
     return ret
 
 
-@functools.lru_cache()
+@functools.lru_cache
 def get_decapitated_examples():
     """
     Returns example tree sequences in which the oldest edges have been removed.

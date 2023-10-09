@@ -3070,6 +3070,7 @@ class TableCollection(metadata.MetadataProvider):
         warnings.warn(
             "name_map is deprecated; use table_name_map instead",
             FutureWarning,
+            stacklevel=4,
         )
         return self.table_name_map
 
@@ -3437,6 +3438,7 @@ class TableCollection(metadata.MetadataProvider):
             warnings.warn(
                 "filter_zero_mutation_sites is deprecated; use filter_sites instead",
                 FutureWarning,
+                stacklevel=4,
             )
             filter_sites = filter_zero_mutation_sites
         if samples is None:

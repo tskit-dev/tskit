@@ -96,7 +96,6 @@ class TestDeleteOlderExamples:
 
 
 class TestDeleteOlderSimpleTree:
-
     # 2.00┊   4   ┊
     #     ┊ ┏━┻┓  ┊
     # 1.00┊ ┃  3  ┊
@@ -357,7 +356,6 @@ def split_edges_definition(ts, time, *, flags=0, population=None, metadata=None)
 
 
 class TestSplitEdgesSimpleTree:
-
     # 2.00┊   4   ┊
     #     ┊ ┏━┻┓  ┊
     # 1.00┊ ┃  3  ┊
@@ -757,7 +755,6 @@ class TestDecapitateExamples:
 
 
 class TestDecapitateSimpleTree:
-
     # 2.00┊   4   ┊
     #     ┊ ┏━┻┓  ┊
     # 1.00┊ ┃  3  ┊

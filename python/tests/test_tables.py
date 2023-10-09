@@ -1772,7 +1772,6 @@ class TestIndividualTable(*common_tests):
 
 
 class TestNodeTable(*common_tests):
-
     columns = [
         UInt32Column("flags"),
         DoubleColumn("time"),
@@ -1853,7 +1852,6 @@ class TestNodeTable(*common_tests):
 
 
 class TestEdgeTable(*common_tests):
-
     columns = [
         DoubleColumn("left"),
         DoubleColumn("right"),
@@ -3856,13 +3854,13 @@ class TestTableCollection:
             assert set(d1.keys()) == set(d2.keys())
             for k1, v1 in d1.items():
                 v2 = d2[k1]
-                assert type(v1) == type(v2)
-                if type(v1) == dict:
+                assert type(v1) is type(v2)
+                if type(v1) is dict:
                     assert set(v1.keys()) == set(v2.keys())
                     for sk1, sv1 in v1.items():
                         sv2 = v2[sk1]
-                        assert type(sv1) == type(sv2)
-                        if type(sv1) == np.ndarray:
+                        assert type(sv1) is type(sv2)
+                        if isinstance(sv1, np.ndarray):
                             assert np.array_equal(sv1, sv2) or (
                                 np.all(tskit.is_unknown_time(sv1))
                                 and np.all(tskit.is_unknown_time(sv2))
@@ -4172,7 +4170,6 @@ class TestTableCollectionMethodSignatures:
 
 
 class TestTableCollectionMetadata:
-
     metadata_schema = metadata.MetadataSchema(
         {
             "codec": "json",

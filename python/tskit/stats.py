@@ -588,7 +588,6 @@ class CoalescenceTimeDistribution:
         blocks_per_window=None,
         span_normalise=True,
     ):
-
         assert isinstance(ts, trees.TreeSequence)
 
         if sample_sets is None:

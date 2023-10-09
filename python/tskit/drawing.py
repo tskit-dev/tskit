@@ -403,6 +403,7 @@ def draw_tree(
         warnings.warn(
             "tree_height_scale is deprecated; use time_scale instead",
             FutureWarning,
+            stacklevel=4,
         )
     if max_time is None and max_tree_height is not None:
         max_time = max_tree_height
@@ -410,6 +411,7 @@ def draw_tree(
         warnings.warn(
             "max_tree_height is deprecated; use max_time instead",
             FutureWarning,
+            stacklevel=4,
         )
 
     # See tree.draw() for documentation on these arguments.
@@ -1021,6 +1023,7 @@ class SvgTreeSequence(SvgAxisPlot):
             warnings.warn(
                 "max_tree_height is deprecated; use max_time instead",
                 FutureWarning,
+                stacklevel=4,
             )
         if time_scale is None and tree_height_scale is not None:
             time_scale = tree_height_scale
@@ -1028,6 +1031,7 @@ class SvgTreeSequence(SvgAxisPlot):
             warnings.warn(
                 "tree_height_scale is deprecated; use time_scale instead",
                 FutureWarning,
+                stacklevel=4,
             )
         x_lim = check_x_lim(x_lim, max_x=ts.sequence_length)
         ts, self.tree_status, offsets = clip_ts(ts, x_lim[0], x_lim[1], max_num_trees)
@@ -1230,7 +1234,6 @@ class SvgTreeSequence(SvgAxisPlot):
                 self.plotbox.pad_bottom + self.tree_plotbox.pad_bottom,
             )
         else:
-
             # For a treewise plot, the only time the x_transform is used is to apply
             # to tick positions, so simply use positions 0..num_used_breaks for the
             # positions, and a simple transform
@@ -1304,6 +1307,7 @@ class SvgTree(SvgAxisPlot):
             warnings.warn(
                 "max_tree_height is deprecated; use max_time instead",
                 FutureWarning,
+                stacklevel=4,
             )
         if time_scale is None and tree_height_scale is not None:
             time_scale = tree_height_scale
@@ -1311,6 +1315,7 @@ class SvgTree(SvgAxisPlot):
             warnings.warn(
                 "tree_height_scale is deprecated; use time_scale instead",
                 FutureWarning,
+                stacklevel=4,
             )
         if size is None:
             size = (200, 200)

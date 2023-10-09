@@ -1126,7 +1126,7 @@ class RankTree:
 # so we should compute a vector of those results up front instead of using
 # repeated calls to this function.
 # Put an lru_cache on for now as a quick replacement (cuts test time down by 80%)
-@functools.lru_cache()
+@functools.lru_cache
 def num_shapes(n):
     """
     The cardinality of the set of unlabelled trees with n leaves,

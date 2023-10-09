@@ -487,7 +487,7 @@ class TestErrors(TestFileFormat):
         # Cannot read current files.
         ts.dump(self.temp_file)
         # Catch Exception here because h5py throws different exceptions on py2 and py3
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa B017
             tskit.load_legacy(self.temp_file)
 
     def test_no_version_number(self):
