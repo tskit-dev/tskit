@@ -1,5 +1,5 @@
 --------------------
-[0.5.6] - 2023-XX-XX
+[0.5.6] - 2023-10-10
 --------------------
 
 **Breaking Changes**
@@ -21,6 +21,12 @@
 
 - Add ``asdict`` to all dataclasses. These are returned when you access a row or
   other tree sequence object. (:user:`benjeffery`, :pr:`2759`, :issue:`2719`)
+
+**Bugfixes**
+
+- Fix incompatibility with ``jsonschema>4.18.6`` which caused
+  ``AttributeError: module jsonschema has no attribute _validators``
+  (:user:`benjeffery`, :pr:`2844`, :issue:`2840`)
 
 --------------------
 [0.5.5] - 2023-05-17
