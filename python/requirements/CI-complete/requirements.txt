@@ -3,7 +3,7 @@ coverage==7.2.7
 dendropy==4.6.1
 h5py==3.9.0
 kastore==0.3.2
-lshmm==0.0.5
+lshmm==0.0.5; python_version < "3.12" #lshmm requires numba, which has no 312 release
 msgpack==1.0.5
 msprime==1.2.0
 networkx==3.1
@@ -13,4 +13,3 @@ pytest-cov==4.1.0
 pytest-xdist==3.3.1
 tszip==0.2.2
 xmlunittest==0.5.0
-llvmlite==0.39.1
