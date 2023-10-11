@@ -37,6 +37,9 @@ from tests import tsutil
 MISSING = -1
 
 
+# np.set_printoptions(linewidth=1000, precision=3)
+
+
 def check_alleles(alleles, m):
     """
     Checks the specified allele list and returns a list of lists
@@ -509,9 +512,24 @@ class ForwardAlgorithm(LsHmmAlgorithm):
     def compute_normalisation_factor(self):
         d = {st.tree_node: st for st in self.T}
         N = np.zeros(self.ts.num_nodes, dtype=int)
+        node_count = np.zeros(self.ts.num_nodes, dtype=int)
+        if self.match_all_nodes:
+            # When matching all nodes we need to count the full
+            # number of nodes in that subtree
+            for u in self.tree.nodes(order="postorder"):
+                node_count[u] += 1
+                for v in self.tree.children(u):
+                    node_count[u] += node_count[v]
+
+        else:
+            # When matching on samples we just count the samples. This
+            # is a shortcut so we can share the same code below
+            for u in d:
+                node_count[u] = self.tree.num_samples(u)
+
         for u in self.tree.nodes(order="preorder"):
             if u in d:
-                N[u] = self.tree.num_samples(u)
+                N[u] = node_count[u]
                 # Subtract this value from everything above
                 v = self.tree.parent(u)
                 while v != -1 and v not in d:
@@ -701,7 +719,7 @@ class ViterbiMatrix(CompressedMatrix):
     def add_recombination_required(self, site, node, required):
         self.recombination_required.append((site, node, required))
 
-    def choose_sample(self, site_id, tree):
+    def choose_switch_node(self, site_id, tree, match_all_nodes):
         max_value = -1
         u = -1
         for node, value in self.value_transitions[site_id]:
@@ -710,17 +728,18 @@ class ViterbiMatrix(CompressedMatrix):
                 u = node
         assert u != -1
 
-        transition_nodes = [u for (u, _) in self.value_transitions[site_id]]
-        while not tree.is_sample(u):
-            for v in tree.children(u):
-                if v not in transition_nodes:
-                    u = v
-                    break
-            else:
-                raise AssertionError("could not find path")
+        if not match_all_nodes:
+            transition_nodes = [u for (u, _) in self.value_transitions[site_id]]
+            while not tree.is_sample(u):
+                for v in tree.children(u):
+                    if v not in transition_nodes:
+                        u = v
+                        break
+                else:
+                    raise AssertionError("could not find path")
         return u
 
-    def traceback(self):
+    def traceback(self, match_all_nodes=False):
         # Run the traceback.
         m = self.ts.num_sites
         matched = np.zeros(m, dtype=int)
@@ -745,7 +764,9 @@ class ViterbiMatrix(CompressedMatrix):
                 j -= 1
 
             if current_node == -1:
-                current_node = self.choose_sample(site.id, tree)
+                current_node = self.choose_switch_node(
+                    site.id, tree, match_all_nodes=match_all_nodes
+                )
             matched[site.id] = current_node
 
             # Now traverse up the tree from the current node. The first marked node
@@ -1163,7 +1184,13 @@ class TestTreeViterbiHap(VitAlgorithmBase):
 
 # TODO add params to run the various checks
 def check_viterbi(
-    ts, h, recombination=None, mutation=None, match_all_nodes=False, compare_lib=True
+    ts,
+    h,
+    recombination=None,
+    mutation=None,
+    match_all_nodes=False,
+    compare_lib=True,
+    compare_lshmm=None,
 ):
     h = np.array(h).astype(np.int8)
     m = ts.num_sites
@@ -1174,40 +1201,47 @@ def check_viterbi(
         mutation = np.zeros(ts.num_sites)
     precision = 22
 
-    G = ts.genotype_matrix()
-
-    path, ll = ls.viterbi(
-        G,
-        h.reshape(1, m),
-        recombination,
-        p_mutation=mutation,
-        scale_mutation_based_on_n_alleles=False,
-    )
-    assert np.isscalar(ll)
-    # print()
-    # print("ls path = ", path)
+    if compare_lshmm is None:
+        # By default don't compare LSHMM with results from match_all_nodes because
+        # it doesn't support missing data in the ref panel.
+        if match_all_nodes:
+            compare_lshmm = False
+        else:
+            compare_lshmm = True
 
     cm = ls_viterbi_tree(
         h, ts, rho=recombination, mu=mutation, match_all_nodes=match_all_nodes
     )
-
-    # Check that the likelihood of the preferred path is
-    # the same as ll_tree (and ll).
-    path_tree = cm.traceback()
-    ll_check = ls.path_ll(
-        G,
-        h.reshape(1, m),
-        path_tree,
-        recombination,
-        p_mutation=mutation,
-        scale_mutation_based_on_n_alleles=False,
-    )
+    path_tree = cm.traceback(match_all_nodes=match_all_nodes)
+    ll_tree = np.sum(np.log10(cm.normalisation_factor))
+    assert np.isscalar(ll_tree)
     # print(cm)
     # print("path tree = ", path_tree)
 
-    ll_tree = np.sum(np.log10(cm.normalisation_factor))
-    assert np.isscalar(ll_tree)
-    nt.assert_allclose(ll_tree, ll)
+    if compare_lshmm:
+        # Check that the likelihood of the preferred path is
+        # the same as ll_tree (and ll).
+        # Missing haplotypes not supported in lshmm yet
+        G = ts.genotype_matrix()
+        path, ll = ls.viterbi(
+            G,
+            h.reshape(1, m),
+            recombination,
+            p_mutation=mutation,
+            scale_mutation_based_on_n_alleles=False,
+        )
+        assert np.isscalar(ll)
+        # print()
+        # print("ls path = ", path)
+        ll_check = ls.path_ll(
+            G,
+            h.reshape(1, m),
+            path_tree,
+            recombination,
+            p_mutation=mutation,
+            scale_mutation_based_on_n_alleles=False,
+        )
+        nt.assert_allclose(ll_tree, ll)
 
     if compare_lib:
         nt.assert_allclose(ll_check, ll)
@@ -1227,7 +1261,13 @@ def check_viterbi(
 
 # TODO add params to run the various checks
 def check_forward_matrix(
-    ts, h, recombination=None, mutation=None, match_all_nodes=False, compare_lib=True
+    ts,
+    h,
+    recombination=None,
+    mutation=None,
+    match_all_nodes=False,
+    compare_lib=True,
+    compare_lshmm=None,
 ):
     precision = 22
     h = np.array(h).astype(np.int8)
@@ -1239,17 +1279,13 @@ def check_forward_matrix(
     if mutation is None:
         mutation = np.zeros(ts.num_sites)
 
-    G = ts.genotype_matrix()
-    F, c, ll = ls.forwards(
-        G,
-        h.reshape(1, m),
-        recombination,
-        p_mutation=mutation,
-        scale_mutation_based_on_n_alleles=False,
-    )
-    assert F.shape == (m, n)
-    assert c.shape == (m,)
-    assert np.isscalar(ll)
+    if compare_lshmm is None:
+        # By default don't compare LSHMM with results from match_all_nodes because
+        # it doesn't support missing data in the ref panel.
+        if match_all_nodes:
+            compare_lshmm = False
+        else:
+            compare_lshmm = True
 
     cm = ls_forward_tree(
         h,
@@ -1260,12 +1296,26 @@ def check_forward_matrix(
         match_all_nodes=match_all_nodes,
     )
     F2 = cm.decode()
-    # print(F)
-    # print(F2)
-    nt.assert_allclose(F, F2)
-    nt.assert_allclose(c, cm.normalisation_factor)
     ll_tree = np.sum(np.log10(cm.normalisation_factor))
-    nt.assert_allclose(ll_tree, ll)
+
+    if compare_lshmm:
+        G = ts.genotype_matrix()
+        F, c, ll = ls.forwards(
+            G,
+            h.reshape(1, m),
+            recombination,
+            p_mutation=mutation,
+            scale_mutation_based_on_n_alleles=False,
+        )
+        assert F.shape == (m, n)
+        assert c.shape == (m,)
+        assert np.isscalar(ll)
+
+        # print(F)
+        # print(F2)
+        nt.assert_allclose(F, F2)
+        nt.assert_allclose(c, cm.normalisation_factor)
+        nt.assert_allclose(ll_tree, ll)
 
     if compare_lib:
         ll_ts = ts._ll_tree_sequence
@@ -1289,6 +1339,7 @@ def check_backward_matrix(
     mutation=None,
     match_all_nodes=False,
     compare_lib=True,
+    compare_lshmm=None,
 ):
     precision = 22
     h = np.array(h).astype(np.int8)
@@ -1299,15 +1350,13 @@ def check_backward_matrix(
     if mutation is None:
         mutation = np.zeros(ts.num_sites)
 
-    G = ts.genotype_matrix()
-    B = ls.backwards(
-        G,
-        h.reshape(1, m),
-        forward_cm.normalisation_factor,
-        recombination,
-        p_mutation=mutation,
-        scale_mutation_based_on_n_alleles=False,
-    )
+    if compare_lshmm is None:
+        # By default don't compare LSHMM with results from match_all_nodes because
+        # it doesn't support missing data in the ref panel.
+        if match_all_nodes:
+            compare_lshmm = False
+        else:
+            compare_lshmm = True
 
     backward_cm = ls_backward_tree(
         h,
@@ -1318,9 +1367,20 @@ def check_backward_matrix(
         precision=precision,
         match_all_nodes=match_all_nodes,
     )
-    nt.assert_array_equal(
-        backward_cm.normalisation_factor, forward_cm.normalisation_factor
-    )
+
+    if compare_lshmm:
+        G = ts.genotype_matrix()
+        B = ls.backwards(
+            G,
+            h.reshape(1, m),
+            forward_cm.normalisation_factor,
+            recombination,
+            p_mutation=mutation,
+            scale_mutation_based_on_n_alleles=False,
+        )
+        nt.assert_array_equal(
+            backward_cm.normalisation_factor, forward_cm.normalisation_factor
+        )
     if compare_lib:
         ll_ts = ts._ll_tree_sequence
         ls_hmm = _tskit.LsHmm(ll_ts, recombination, mutation, precision=precision)
@@ -1334,18 +1394,23 @@ def check_backward_matrix(
         nt.assert_allclose(B_tree, B_lib)
         nt.assert_allclose(B, B_lib)
 
+    return backward_cm
 
-def add_unique_sample_mutations(ts, start=0):
+
+def add_unique_node_mutations(ts, start=0, nodes=None):
     """
     Adds a mutation for each of the samples at equally spaced locations
     along the genome.
     """
+    if nodes is None:
+        nodes = ts.samples()
     tables = ts.dump_tables()
     L = int(ts.sequence_length)
-    assert L % ts.num_samples == 0
-    gap = L // ts.num_samples
+    n = len(nodes)
+    assert L % n == 0
+    gap = L // n
     x = start
-    for u in ts.samples():
+    for u in nodes:
         site = tables.sites.add_row(position=x, ancestral_state="0")
         tables.mutations.add_row(site=site, derived_state="1", node=u)
         x += gap
@@ -1362,7 +1427,7 @@ class TestSingleBalancedTreeExample:
 
     @staticmethod
     def ts():
-        return add_unique_sample_mutations(
+        return add_unique_node_mutations(
             tskit.Tree.generate_balanced(4, span=8).tree_sequence,
             start=1,
         )
@@ -1432,7 +1497,7 @@ class TestSingleBalancedTreeAllSamplesExample:
         flags = tables.nodes.flags
         flags[:] = 1
         tables.nodes.flags = flags
-        return add_unique_sample_mutations(tables.tree_sequence(), start=1)
+        return add_unique_node_mutations(tables.tree_sequence(), start=1)
 
     @pytest.mark.parametrize(
         ("u", "h"),
@@ -1447,12 +1512,66 @@ class TestSingleBalancedTreeAllSamplesExample:
         ],
     )
     def test_match_sample(self, u, h):
-        np.set_printoptions(linewidth=1000, precision=3)
         ts = self.ts()
-        path = check_viterbi(ts, h, match_all_nodes=True, compare_lib=False)
+        path = check_viterbi(
+            ts, h, match_all_nodes=True, compare_lib=False, compare_lshmm=True
+        )
         nt.assert_array_equal([u] * 7, path)
-        cm = check_forward_matrix(ts, h, match_all_nodes=True, compare_lib=False)
-        check_backward_matrix(ts, h, cm, match_all_nodes=True, compare_lib=False)
+        cm = check_forward_matrix(
+            ts, h, match_all_nodes=True, compare_lib=False, compare_lshmm=True
+        )
+        check_backward_matrix(
+            ts, h, cm, match_all_nodes=True, compare_lib=False, compare_lshmm=True
+        )
+
+
+class TestSingleBalancedTreeAllNodesExample:
+    # 3.00┊    6    ┊
+    #     ┊  ┏━┻━┓  ┊
+    # 2.00┊  4   5  ┊
+    #     ┊ ┏┻┓ ┏┻┓ ┊
+    # 1.00┊ 0 1 2 3 ┊
+    #     0         8
+
+    @staticmethod
+    def ts():
+        tables = tskit.Tree.generate_balanced(4, span=12).tree_sequence.dump_tables()
+        return add_unique_node_mutations(
+            tables.tree_sequence(), start=1, nodes=np.arange(len(tables.nodes) - 1)
+        )
+
+    # def test_match_sample(self, u, h):
+    @pytest.mark.parametrize(
+        ("h", "expected_path"),
+        [
+            # Just samples
+            ([1, 0, 0, 0, 1, 0], [0] * 6),
+            ([0, 1, 0, 0, 1, 0], [1] * 6),
+            ([0, 0, 1, 0, 0, 1], [2] * 6),
+            ([0, 0, 0, 1, 0, 1], [3] * 6),
+            # Switching between samples
+            ([1, 1, 0, 0, 1, 0], [0] + [1] * 5),
+            ([1, 1, 1, 0, 0, 1], [0] + [1] + [2] * 4),
+            # Just internal
+            ([0, 0, 0, 0, 1, 0], [4] * 6),
+            ([0, 0, 0, 0, 0, 1], [5] * 6),
+            ([0, 0, 0, 0, 0, 0], [6] * 6),
+        ],
+    )
+    def test_match_sample(self, h, expected_path):
+        ts = self.ts()
+        path = check_viterbi(
+            ts, h, match_all_nodes=True, compare_lib=False, compare_lshmm=False
+        )
+        nt.assert_array_equal(expected_path, path)
+        cm = check_forward_matrix(
+            ts, h, match_all_nodes=True, compare_lib=False, compare_lshmm=False
+        )
+        print(cm.decode())
+        bm = check_backward_matrix(
+            ts, h, cm, match_all_nodes=True, compare_lib=False, compare_lshmm=False
+        )
+        print(bm.decode())
 
 
 class TestSimulationExamples:
