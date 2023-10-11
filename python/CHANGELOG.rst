@@ -2,7 +2,9 @@
 [0.5.7] - 2023-XX-XX
 --------------------
 
+**Features**
 
+- Add support for Python 3.12 (:user:`benjeffery`, :issue:`2855`, :pr:`2860`)
 
 --------------------
 [0.5.6] - 2023-10-10

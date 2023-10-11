@@ -24,7 +24,6 @@ Python implementation of the Li and Stephens forwards and backwards algorithms.
 """
 import warnings
 
-import lshmm as ls
 import msprime
 import numpy as np
 import numpy.testing as nt
@@ -33,6 +32,15 @@ import pytest
 import _tskit
 import tskit
 from tests import tsutil
+
+# As numba is often delayed after a Python version upgrade, we
+# skip tests if is not available, so that tskit can be released.
+NO_LSHMM = False
+try:
+    import lshmm as ls
+except ModuleNotFoundError:
+    # Raise a warning message
+    NO_LSHMM = True
 
 MISSING = -1
 
@@ -904,6 +912,7 @@ class VitAlgorithmBase(LSBase):
     """Base for viterbi algoritm tests."""
 
 
+@pytest.mark.skipif(NO_LSHMM, reason="Requires lshmm")
 class TestMirroringHap(FBAlgorithmBase):
     """Tests that mirroring the tree sequence and running forwards and backwards
     algorithms gives the same log-likelihood of observing the data."""
@@ -937,6 +946,7 @@ class TestMirroringHap(FBAlgorithmBase):
             self.assertAllClose(ll, ll_tree)
 
 
+@pytest.mark.skipif(NO_LSHMM, reason="Requires lshmm")
 class TestForwardHapTree(FBAlgorithmBase):
     """Tests that the tree algorithm computes the same forward matrix as the
     simple method."""
@@ -971,6 +981,7 @@ class TestForwardHapTree(FBAlgorithmBase):
                 self.assertAllClose(ll, ll_tree)
 
 
+@pytest.mark.skipif(NO_LSHMM, reason="Requires lshmm")
 class TestForwardBackwardTree(FBAlgorithmBase):
     """Tests that the tree algorithm computes the same forward matrix as the
     simple method."""
@@ -1011,6 +1022,7 @@ class TestForwardBackwardTree(FBAlgorithmBase):
             self.assertAllClose(ll, ll_tree)
 
 
+@pytest.mark.skipif(NO_LSHMM, reason="Requires lshmm")
 class TestTreeViterbiHap(VitAlgorithmBase):
     """Test that we have the same log-likelihood between tree and matrix
     implementations"""
@@ -1201,6 +1213,7 @@ def add_unique_sample_mutations(ts, start=0):
     return tables.tree_sequence()
 
 
+@pytest.mark.skipif(NO_LSHMM, reason="Requires lshmm")
 class TestSingleBalancedTreeExample:
     # 3.00┊    6    ┊
     #     ┊  ┏━┻━┓  ┊
@@ -1267,6 +1280,7 @@ class TestSingleBalancedTreeExample:
         check_backward_matrix(ts, h, cm)
 
 
+@pytest.mark.skipif(NO_LSHMM, reason="Requires lshmm")
 class TestSimulationExamples:
     @pytest.mark.parametrize("n", [3, 10, 50])
     @pytest.mark.parametrize("L", [1, 10, 100])

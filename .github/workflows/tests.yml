@@ -60,7 +60,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: [ 3.8, 3.9, "3.11" ]
+        python: [ 3.8, 3.9, "3.12" ]
         os:  [ macos-latest, ubuntu-latest, windows-latest ]
     defaults:
       run:
@@ -83,7 +83,7 @@ jobs:
             /usr/share/miniconda/envs/anaconda-client-env
             ~/osx-conda
             ~/.profile
-          key: ${{ runner.os }}-${{ matrix.python}}-conda-v12-${{ hashFiles('python/requirements/CI-tests-conda/requirements.txt') }}-${{ hashFiles('python/requirements/CI-tests-pip/requirements.txt') }}
+          key: ${{ runner.os }}-${{ matrix.python}}-conda-v13-${{ hashFiles('python/requirements/CI-tests-conda/requirements.txt') }}-${{ hashFiles('python/requirements/CI-tests-pip/requirements.txt') }}
 
       - name: Install Conda
         uses: conda-incubator/setup-miniconda@v2
@@ -141,11 +141,6 @@ jobs:
           source ~/.profile
           conda activate anaconda-client-env
           python setup.py build_ext --inplace
-
-      - name: Remove py311 incompatible tests (lack of numba support for 3.11, needed for lshmm)
-        if: matrix.python == '3.11'
-        run: |
-          rm python/tests/test_*matching*
 
       - name: Run tests
         working-directory: python
