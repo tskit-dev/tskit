@@ -111,6 +111,37 @@ typedef struct {
     tsk_table_collection_t *tables;
 } tsk_treeseq_t;
 
+typedef struct {
+    tsk_id_t index;
+    struct {
+        double left;
+        double right;
+    } interval;
+    struct {
+        tsk_id_t start;
+        tsk_id_t stop;
+        const tsk_id_t *order;
+    } in;
+    struct {
+        tsk_id_t start;
+        tsk_id_t stop;
+        const tsk_id_t *order;
+    } out;
+    tsk_id_t left_current_index;
+    tsk_id_t right_current_index;
+    int direction;
+    const tsk_treeseq_t *tree_sequence;
+} tsk_tree_position_t;
+
+int tsk_tree_position_init(
+    tsk_tree_position_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t options);
+int tsk_tree_position_free(tsk_tree_position_t *self);
+int tsk_tree_position_print_state(const tsk_tree_position_t *self, FILE *out);
+bool tsk_tree_position_next(tsk_tree_position_t *self);
+bool tsk_tree_position_prev(tsk_tree_position_t *self);
+int tsk_tree_position_seek_forward(tsk_tree_position_t *self, tsk_id_t index);
+int tsk_tree_position_seek_backward(tsk_tree_position_t *self, tsk_id_t index);
+
 /**
 @brief A single tree in a tree sequence.
 
@@ -256,6 +287,7 @@ typedef struct {
     int direction;
     tsk_id_t left_index;
     tsk_id_t right_index;
+    tsk_tree_position_t tree_pos;
 } tsk_tree_t;
 
 /****************************************************************************/
@@ -1783,40 +1815,6 @@ bool tsk_tree_equals(const tsk_tree_t *self, const tsk_tree_t *other);
 
 int tsk_diff_iter_init_from_ts(
     tsk_diff_iter_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t options);
-
-/* Temporarily putting this here to avoid problems with doxygen. Will need to
- * move up the file later when it gets incorporated into the tsk_tree_t object.
- */
-typedef struct {
-    tsk_id_t index;
-    struct {
-        double left;
-        double right;
-    } interval;
-    struct {
-        tsk_id_t start;
-        tsk_id_t stop;
-        const tsk_id_t *order;
-    } in;
-    struct {
-        tsk_id_t start;
-        tsk_id_t stop;
-        const tsk_id_t *order;
-    } out;
-    tsk_id_t left_current_index;
-    tsk_id_t right_current_index;
-    int direction;
-    const tsk_treeseq_t *tree_sequence;
-} tsk_tree_position_t;
-
-int tsk_tree_position_init(
-    tsk_tree_position_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t options);
-int tsk_tree_position_free(tsk_tree_position_t *self);
-int tsk_tree_position_print_state(const tsk_tree_position_t *self, FILE *out);
-bool tsk_tree_position_next(tsk_tree_position_t *self);
-bool tsk_tree_position_prev(tsk_tree_position_t *self);
-int tsk_tree_position_seek_forward(tsk_tree_position_t *self, tsk_id_t index);
-int tsk_tree_position_seek_backward(tsk_tree_position_t *self, tsk_id_t index);
 
 #ifdef __cplusplus
 }

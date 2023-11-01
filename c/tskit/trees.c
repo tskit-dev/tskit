@@ -4520,12 +4520,14 @@ tsk_tree_init(tsk_tree_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t 
 {
     int ret = TSK_ERR_NO_MEMORY;
     tsk_size_t num_samples, num_nodes, N;
+    tsk_tree_position_t tree_pos;
 
     tsk_memset(self, 0, sizeof(tsk_tree_t));
     if (tree_sequence == NULL) {
         ret = TSK_ERR_BAD_PARAM_VALUE;
         goto out;
     }
+    tsk_memset(&tree_pos, 0, sizeof(tree_pos));
     num_nodes = tree_sequence->tables->nodes.num_rows;
     num_samples = tree_sequence->num_samples;
     self->num_nodes = num_nodes;
@@ -4534,6 +4536,7 @@ tsk_tree_init(tsk_tree_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t 
     self->samples = tree_sequence->samples;
     self->options = options;
     self->root_threshold = 1;
+    self->tree_pos = tree_pos;
 
     /* Allocate space in the quintuply linked tree for the virtual root */
     N = num_nodes + 1;
@@ -4564,6 +4567,11 @@ tsk_tree_init(tsk_tree_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t 
             || self->next_sample == NULL) {
             goto out;
         }
+    }
+
+    ret = tsk_tree_position_init(&tree_pos, tree_sequence, 0);
+    if (ret != 0) {
+        goto out;
     }
     ret = tsk_tree_clear(self);
 out:
@@ -4613,6 +4621,7 @@ tsk_tree_free(tsk_tree_t *self)
     tsk_safe_free(self->next_sample);
     tsk_safe_free(self->num_children);
     tsk_safe_free(self->edge);
+    tsk_safe_free(self->tree_pos);
     return 0;
 }
 
