@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 # Copyright (C) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -1615,10 +1615,12 @@ class TestDrawSvg(TestDrawSvgBase):
 
     def test_draw_mutations_over_roots(self):
         t = self.get_mutations_over_roots_tree()
-        svg = t.draw()
-        self.verify_basic_svg(svg)
-        svg = t.draw_svg()
-        self.verify_basic_svg(svg)
+        with pytest.warns(UserWarning, match="nodes which are not present"):
+            svg = t.draw()
+            self.verify_basic_svg(svg)
+        with pytest.warns(UserWarning, match="nodes which are not present"):
+            svg = t.draw_svg()
+            self.verify_basic_svg(svg)
 
     def test_draw_unary(self):
         t = self.get_unary_node_tree()
@@ -2742,20 +2744,23 @@ class TestDrawKnownSvg(TestDrawSvgBase):
             svg, "ts_mut_times_logscale.svg", overwrite_viz, width=200 * ts.num_trees
         )
 
-    def test_known_svg_ts_mut_no_edges(self, overwrite_viz, draw_plotbox, caplog):
+    def test_known_svg_ts_mut_no_edges(self, overwrite_viz, draw_plotbox):
         # An example with some muts on axis but not on a visible node
         ts = msprime.simulate(10, random_seed=2, mutation_rate=1)
         tables = ts.dump_tables()
         tables.edges.clear()
         tables.mutations.time = np.full_like(tables.mutations.time, tskit.UNKNOWN_TIME)
         ts_no_edges = tables.tree_sequence()
-        svg = ts_no_edges.draw_svg(debug_box=draw_plotbox)
-        assert "not present in the displayed tree" in caplog.text
-        self.verify_known_svg(
-            svg, "ts_mutations_no_edges.svg", overwrite_viz, width=200 * ts.num_trees
-        )
+        with pytest.warns(UserWarning, match="nodes which are not present"):
+            svg = ts_no_edges.draw_svg(debug_box=draw_plotbox)
+            self.verify_known_svg(
+                svg,
+                "ts_mutations_no_edges.svg",
+                overwrite_viz,
+                width=200 * ts.num_trees,
+            )
 
-    def test_known_svg_ts_timed_mut_no_edges(self, overwrite_viz, draw_plotbox, caplog):
+    def test_known_svg_ts_timed_mut_no_edges(self, overwrite_viz, draw_plotbox):
         # An example with some muts on axis but not on a visible node
         ts = msprime.simulate(10, random_seed=2, mutation_rate=1)
         tables = ts.dump_tables()
@@ -2764,14 +2769,15 @@ class TestDrawKnownSvg(TestDrawSvgBase):
             ts.num_mutations, dtype=tables.mutations.time.dtype
         )
         ts_no_edges = tables.tree_sequence()
-        svg = ts_no_edges.draw_svg(debug_box=draw_plotbox)
-        assert "not present in the displayed tree" in caplog.text
-        self.verify_known_svg(
-            svg,
-            "ts_mutations_timed_no_edges.svg",
-            overwrite_viz,
-            width=200 * ts.num_trees,
-        )
+
+        with pytest.warns(UserWarning, match="nodes which are not present"):
+            svg = ts_no_edges.draw_svg(debug_box=draw_plotbox)
+            self.verify_known_svg(
+                svg,
+                "ts_mutations_timed_no_edges.svg",
+                overwrite_viz,
+                width=200 * ts.num_trees,
+            )
 
     def test_known_svg_ts_multiroot(self, overwrite_viz, draw_plotbox, caplog):
         tables = wf.wf_sim(
