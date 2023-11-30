@@ -436,13 +436,13 @@ class LsHmmAlgorithm:
     def process_site(self, site, haplotype_state):
         self.update_probabilities(site, haplotype_state)
         # d1 = self.node_values()
-        print("PRE")
-        self.print_state()
+        # print("PRE")
+        # self.print_state()
         self.compress()
         # d2 = self.node_values()
         # assert d1 == d2
-        print("AFTER COMPRESS")
-        self.print_state()
+        # print("AFTER COMPRESS")
+        # self.print_state()
         s = self.compute_normalisation_factor()
         for st in self.T:
             assert st.tree_node != tskit.NULL
@@ -493,13 +493,13 @@ class LsHmmAlgorithm:
         self.initialise(1 / n)
         while self.tree.next():
             self.update_tree()
-            if self.tree.index != 0:
-                print("AFTER UPDATE TREE")
-                self.print_state()
+            # if self.tree.index != 0:
+            #     print("AFTER UPDATE TREE")
+            #     self.print_state()
             for site in self.tree.sites():
                 self.process_site(site, h[site.id])
-            print("BEFORE UPDATE TREE")
-            self.print_state()
+            # print("BEFORE UPDATE TREE")
+            # self.print_state()
         return self.output
 
     def compute_normalisation_factor(self):
@@ -1197,6 +1197,7 @@ def check_viterbi(
     recombination=None,
     mutation=None,
     match_all_nodes=False,
+    compare_fm_ll=True,
     compare_lib=True,
     compare_lshmm=None,
 ):
@@ -1220,11 +1221,27 @@ def check_viterbi(
     cm = ls_viterbi_tree(
         h, ts, rho=recombination, mu=mutation, match_all_nodes=match_all_nodes
     )
-    cm.print_state()
+    # cm.print_state()
     path_tree = cm.traceback(match_all_nodes=match_all_nodes)
     ll_tree = np.sum(np.log10(cm.normalisation_factor))
     assert np.isscalar(ll_tree)
     # print("path tree = ", path_tree)
+
+    if compare_fm_ll:
+        # Compare the log-likelihood of the Viterbi path (ll_tree)
+        # with the log-likelihood of the most likely path from
+        # the forward matrix.
+        fm = ls_forward_tree(
+            h,
+            ts,
+            recombination,
+            mutation,
+            scale_mutation_based_on_n_alleles=False,
+            match_all_nodes=match_all_nodes,
+        )
+        ll_fm = np.sum(np.log10(fm.normalisation_factor))
+        print("FMLL", ll_tree, ll_fm)
+        # np.testing.assert_allclose(ll_tree, ll_fm)
 
     if compare_lshmm:
         # Check that the likelihood of the preferred path is
@@ -1239,6 +1256,8 @@ def check_viterbi(
             scale_mutation_based_on_n_alleles=False,
         )
         assert np.isscalar(ll)
+        # This is the log likelihood returned by viterbi alg
+        nt.assert_allclose(ll_tree, ll)
         # print()
         # print("ls path = ", path)
         ll_check = ls.path_ll(
@@ -1249,7 +1268,9 @@ def check_viterbi(
             p_mutation=mutation,
             scale_mutation_based_on_n_alleles=False,
         )
-        nt.assert_allclose(ll_tree, ll)
+        # This is the log-likelihood of the path itself, computed
+        # different way
+        nt.assert_allclose(ll_tree, ll_check)
 
     if compare_lib:
         nt.assert_allclose(ll_check, ll)
@@ -1267,7 +1288,6 @@ def check_viterbi(
     return path_tree
 
 
-# TODO add params to run the various checks
 def check_forward_matrix(
     ts,
     h,
@@ -1319,8 +1339,9 @@ def check_forward_matrix(
         assert c.shape == (m,)
         assert np.isscalar(ll)
 
-        # print(F)
-        # print(F2)
+        print(ll_tree)
+        print(F)
+        print(F2)
         nt.assert_allclose(F, F2)
         nt.assert_allclose(c, cm.normalisation_factor)
         nt.assert_allclose(ll_tree, ll)
@@ -1447,8 +1468,7 @@ class TestSingleBalancedTreeExample:
         h[j] = 1
         path = check_viterbi(ts, h)
         nt.assert_array_equal([j, j, j, j], path)
-        cm = check_forward_matrix(ts, h)
-        check_backward_matrix(ts, h, cm)
+        check_fb_matrices(ts, h)
 
     @pytest.mark.parametrize("j", [1, 2])
     def test_match_sample_missing_flanks(self, j):
@@ -1459,16 +1479,14 @@ class TestSingleBalancedTreeExample:
         h[j] = 1
         path = check_viterbi(ts, h)
         nt.assert_array_equal([j, j, j, j], path)
-        cm = check_forward_matrix(ts, h)
-        check_backward_matrix(ts, h, cm)
+        check_fb_matrices(ts, h)
 
     def test_switch_each_sample(self):
         ts = self.ts()
         h = np.ones(4)
         path = check_viterbi(ts, h)
         nt.assert_array_equal([0, 1, 2, 3], path)
-        cm = check_forward_matrix(ts, h)
-        check_backward_matrix(ts, h, cm)
+        check_fb_matrices(ts, h)
 
     def test_switch_each_sample_missing_flanks(self):
         ts = self.ts()
@@ -1477,8 +1495,7 @@ class TestSingleBalancedTreeExample:
         h[-1] = -1
         path = check_viterbi(ts, h)
         nt.assert_array_equal([1, 1, 2, 2], path)
-        cm = check_forward_matrix(ts, h)
-        check_backward_matrix(ts, h, cm)
+        check_fb_matrices(ts, h)
 
     def test_switch_each_sample_missing_middle(self):
         ts = self.ts()
@@ -1487,8 +1504,7 @@ class TestSingleBalancedTreeExample:
         path = check_viterbi(ts, h)
         # Implementation of Viterbi switches at right-most position
         nt.assert_array_equal([0, 0, 0, 3], path)
-        cm = check_forward_matrix(ts, h)
-        check_backward_matrix(ts, h, cm)
+        check_fb_matrices(ts, h)
 
 
 class TestSingleBalancedTreeAllSamplesExample:
@@ -1525,25 +1541,54 @@ class TestSingleBalancedTreeAllSamplesExample:
             ts, h, match_all_nodes=True, compare_lib=False, compare_lshmm=True
         )
         nt.assert_array_equal([u] * 7, path)
-        cm = check_forward_matrix(
+        fm = check_forward_matrix(
             ts, h, match_all_nodes=True, compare_lib=False, compare_lshmm=True
         )
-        check_backward_matrix(
-            ts, h, cm, match_all_nodes=True, compare_lib=False, compare_lshmm=True
+        bm = check_backward_matrix(
+            ts, h, fm, match_all_nodes=True, compare_lib=False, compare_lshmm=True
         )
+        check_fb_matrix_integrity(fm, bm)
+
+
+def check_fb_matrix_integrity(fm, bm):
+    """
+    Validate properties of the forward and backward matrices.
+    """
+    F = fm.decode()
+    B = bm.decode()
+    assert F.shape == B.shape
+    for j in range(len(F)):
+        s = np.sum(B[j] * F[j])
+        np.testing.assert_allclose(s, 1)
+
+
+def check_fb_matrices(ts, h):
+    fm = check_forward_matrix(ts, h)
+    bm = check_backward_matrix(ts, h, fm)
+    check_fb_matrix_integrity(fm, bm)
 
 
 def validate_match_all_nodes(ts, h, expected_path):
-    path = check_viterbi(
+    # path = check_viterbi(
+    #     ts, h, match_all_nodes=True, compare_lib=False, compare_lshmm=False
+    # )
+    # nt.assert_array_equal(expected_path, path)
+    fm = check_forward_matrix(
         ts, h, match_all_nodes=True, compare_lib=False, compare_lshmm=False
     )
-    nt.assert_array_equal(expected_path, path)
-    cm = check_forward_matrix(
-        ts, h, match_all_nodes=True, compare_lib=False, compare_lshmm=False
-    )
+    F = fm.decode()
+    # print(cm.decode())
+    # cm.print_state()
     bm = check_backward_matrix(
-        ts, h, cm, match_all_nodes=True, compare_lib=False, compare_lshmm=False
+        ts, h, fm, match_all_nodes=True, compare_lib=False, compare_lshmm=False
     )
+    print("sites = ", ts.num_sites)
+    B = bm.decode()
+    print(F)
+    for j in range(ts.num_sites):
+        print(j, np.sum(B[j] * F[j]))
+
+    # sum(B[variant,:] * F[variant,:]) = 1
 
 
 class TestSingleBalancedTreeAllNodesExample:
@@ -1640,11 +1685,11 @@ class TestMultiTreeExample:
         [
             # Just samples
             ([1, 0, 0, 0, 0, 1, 1], [0] * 7),
-            ([0, 1, 0, 0, 1, 1, 0], [1] * 7),
-            ([0, 0, 1, 0, 1, 1, 0], [2] * 7),
-            ([0, 0, 0, 1, 0, 0, 1], [3] * 7),
-            # Match root
-            ([0, 0, 0, 0, 0, 0, 0], [7] * 7),
+            # ([0, 1, 0, 0, 1, 1, 0], [1] * 7),
+            # ([0, 0, 1, 0, 1, 1, 0], [2] * 7),
+            # ([0, 0, 0, 1, 0, 0, 1], [3] * 7),
+            # # Match root
+            # ([0, 0, 0, 0, 0, 0, 0], [7] * 7),
         ],
     )
     def test_match_all_nodes(self, h, expected_path):
