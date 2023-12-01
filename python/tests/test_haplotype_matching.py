@@ -1197,7 +1197,7 @@ def check_viterbi(
     recombination=None,
     mutation=None,
     match_all_nodes=False,
-    compare_fm_ll=True,
+    compare_fm_ll=False,
     compare_lib=True,
     compare_lshmm=None,
 ):
@@ -1231,6 +1231,11 @@ def check_viterbi(
         # Compare the log-likelihood of the Viterbi path (ll_tree)
         # with the log-likelihood of the most likely path from
         # the forward matrix.
+
+        # This is not always true. If the query haplotype is one
+        # of the actual sample haplotypes it is *almost* always
+        # true, but not quite. So, a useful check for development
+        # but not all that useful in general
         fm = ls_forward_tree(
             h,
             ts,
@@ -1240,8 +1245,10 @@ def check_viterbi(
             match_all_nodes=match_all_nodes,
         )
         ll_fm = np.sum(np.log10(fm.normalisation_factor))
-        print("FMLL", ll_tree, ll_fm)
-        # np.testing.assert_allclose(ll_tree, ll_fm)
+        # print()
+        # print("vit ll", ll_tree)
+        # print("FMLL", ll_fm)
+        np.testing.assert_allclose(ll_tree, ll_fm)
 
     if compare_lshmm:
         # Check that the likelihood of the preferred path is
@@ -1339,9 +1346,10 @@ def check_forward_matrix(
         assert c.shape == (m,)
         assert np.isscalar(ll)
 
-        print(ll_tree)
-        print(F)
-        print(F2)
+        # print(ll_tree)
+        # print("lshmm fm ll:", ll)
+        # print(F)
+        # print(F2)
         nt.assert_allclose(F, F2)
         nt.assert_allclose(c, cm.normalisation_factor)
         nt.assert_allclose(ll_tree, ll)
@@ -1725,7 +1733,7 @@ class TestSimulationExamples:
         ts = msprime.simulate(
             n, length=L, recombination_rate=1, mutation_rate=1, random_seed=42
         )
-        h = np.zeros(ts.num_sites, dtype=np.int8)
+        h = ts.genotype_matrix(samples=[0])[:, 0].T
         # NOTE this is a bit slow at the moment but we can disable the Python
         # implementation once testing has been improved on smaller examples.
         # Add ``compare_py=False``to these calls.
