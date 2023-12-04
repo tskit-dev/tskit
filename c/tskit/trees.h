@@ -133,15 +133,6 @@ typedef struct {
     const tsk_treeseq_t *tree_sequence;
 } tsk_tree_position_t;
 
-int tsk_tree_position_init(
-    tsk_tree_position_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t options);
-int tsk_tree_position_free(tsk_tree_position_t *self);
-int tsk_tree_position_print_state(const tsk_tree_position_t *self, FILE *out);
-bool tsk_tree_position_next(tsk_tree_position_t *self);
-bool tsk_tree_position_prev(tsk_tree_position_t *self);
-int tsk_tree_position_seek_forward(tsk_tree_position_t *self, tsk_id_t index);
-int tsk_tree_position_seek_backward(tsk_tree_position_t *self, tsk_id_t index);
-
 /**
 @brief A single tree in a tree sequence.
 
@@ -1815,6 +1806,15 @@ bool tsk_tree_equals(const tsk_tree_t *self, const tsk_tree_t *other);
 
 int tsk_diff_iter_init_from_ts(
     tsk_diff_iter_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t options);
+
+int tsk_tree_position_init(
+    tsk_tree_position_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t options);
+int tsk_tree_position_free(tsk_tree_position_t *self);
+int tsk_tree_position_print_state(const tsk_tree_position_t *self, FILE *out);
+bool tsk_tree_position_next(tsk_tree_position_t *self);
+bool tsk_tree_position_prev(tsk_tree_position_t *self);
+int tsk_tree_position_seek_forward(tsk_tree_position_t *self, tsk_id_t index);
+int tsk_tree_position_seek_backward(tsk_tree_position_t *self, tsk_id_t index);
 
 #ifdef __cplusplus
 }
