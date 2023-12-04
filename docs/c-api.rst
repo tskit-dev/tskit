@@ -796,6 +796,13 @@ Individual errors
 .. doxygengroup:: INDIVIDUAL_ERROR_GROUP
         :content-only:
 
+-------------------
+Extend edges errors
+-------------------
+
+.. doxygengroup:: EXTEND_EDGES_ERROR_GROUP
+        :content-only:
+
 
 .. _sec_c_api_examples:
 

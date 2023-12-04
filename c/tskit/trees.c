@@ -7650,3 +7650,400 @@ out:
     tsk_safe_free(sample_index_map);
     return ret;
 }
+
+/* ======================================================== *
+ * Extend edges
+ * ======================================================== */
+
+typedef struct _edge_list_t {
+    tsk_id_t edge;
+    // the `extended` flags records whether we have decided to extend
+    // this entry to the current tree?
+    bool extended;
+    struct _edge_list_t *next;
+} edge_list_t;
+
+static int
+extend_edges_append_entry(
+    edge_list_t **head, edge_list_t **tail, tsk_blkalloc_t *heap, tsk_id_t edge)
+{
+    int ret = 0;
+    edge_list_t *x = NULL;
+
+    x = tsk_blkalloc_get(heap, sizeof(*x));
+    if (x == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    x->edge = edge;
+    x->extended = false;
+    x->next = NULL;
+
+    if (*tail == NULL) {
+        *head = x;
+    } else {
+        (*tail)->next = x;
+    }
+    *tail = x;
+out:
+    return ret;
+}
+
+static void
+remove_unextended(edge_list_t **head, edge_list_t **tail)
+{
+    edge_list_t *px, *x;
+
+    px = *head;
+    while (px != NULL && !px->extended) {
+        px = px->next;
+    }
+    *head = px;
+    if (px != NULL) {
+        px->extended = false;
+        x = px->next;
+        while (x != NULL) {
+            if (x->extended) {
+                x->extended = false;
+                px->next = x;
+                px = x;
+            }
+            x = x->next;
+        }
+        px->next = NULL;
+    }
+    *tail = px;
+}
+
+static int
+tsk_treeseq_extend_edges_iter(
+    const tsk_treeseq_t *self, int direction, tsk_edge_table_t *edges)
+{
+    // Note: this modifies the edge table, but it does this by (a) removing
+    // some edges, and (b) extending left/right endpoints of others,
+    // while keeping order the same, and so this maintains sortedness
+    // (so, there is no need to sort afterwards).
+    int ret = 0;
+    tsk_id_t tj;
+    tsk_id_t e, e_out, e_in;
+    tsk_id_t c, p, p_in;
+    tsk_blkalloc_t edge_list_heap;
+    double *near_side, *far_side;
+    edge_list_t *edges_in_head, *edges_in_tail;
+    edge_list_t *edges_out_head, *edges_out_tail;
+    edge_list_t *ex_out, *ex_in;
+    double there, left, right;
+    bool forwards = (direction == TSK_DIR_FORWARD);
+    tsk_tree_position_t tree_pos;
+    bool valid;
+    const tsk_table_collection_t *tables = self->tables;
+    const tsk_size_t num_nodes = tables->nodes.num_rows;
+    const tsk_size_t num_edges = tables->edges.num_rows;
+    tsk_id_t *degree = tsk_calloc(num_nodes, sizeof(*degree));
+    tsk_id_t *out_parent = tsk_malloc(num_nodes * sizeof(*out_parent));
+    tsk_bool_t *keep = tsk_calloc(num_edges, sizeof(*keep));
+    bool *not_sample = tsk_malloc(num_nodes * sizeof(*not_sample));
+
+    tsk_memset(&edge_list_heap, 0, sizeof(edge_list_heap));
+    tsk_memset(&tree_pos, 0, sizeof(tree_pos));
+
+    if (keep == NULL || out_parent == NULL || degree == NULL || not_sample == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    tsk_memset(out_parent, 0xff, num_nodes * sizeof(*out_parent));
+
+    ret = tsk_blkalloc_init(&edge_list_heap, 8192);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_tree_position_init(&tree_pos, self, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_edge_table_copy(&tables->edges, edges, TSK_NO_INIT);
+    if (ret != 0) {
+        goto out;
+    }
+
+    for (tj = 0; tj < (tsk_id_t) tables->nodes.num_rows; tj++) {
+        not_sample[tj] = ((tables->nodes.flags[tj] & TSK_NODE_IS_SAMPLE) == 0);
+    }
+
+    if (forwards) {
+        near_side = edges->left;
+        far_side = edges->right;
+    } else {
+        near_side = edges->right;
+        far_side = edges->left;
+    }
+    edges_in_head = NULL;
+    edges_in_tail = NULL;
+    edges_out_head = NULL;
+    edges_out_tail = NULL;
+    e_out = 0; // only to avoid an 'maybe uninitialized' compile warning
+
+    if (forwards) {
+        valid = tsk_tree_position_next(&tree_pos);
+    } else {
+        valid = tsk_tree_position_prev(&tree_pos);
+    }
+
+    while (valid) {
+        left = tree_pos.interval.left;
+        right = tree_pos.interval.right;
+        there = forwards ? right : left;
+
+        // remove entries that aren't being extended/postponed
+        // and update out_parent
+        for (ex_out = edges_out_head; ex_out != NULL; ex_out = ex_out->next) {
+            e = ex_out->edge;
+            out_parent[edges->child[e]] = TSK_NULL;
+        }
+        remove_unextended(&edges_in_head, &edges_in_tail);
+        remove_unextended(&edges_out_head, &edges_out_tail);
+        for (ex_out = edges_out_head; ex_out != NULL; ex_out = ex_out->next) {
+            e = ex_out->edge;
+            out_parent[edges->child[e]] = edges->parent[e];
+        }
+
+        for (tj = tree_pos.out.start; tj != tree_pos.out.stop; tj += direction) {
+            e = tree_pos.out.order[tj];
+            if (out_parent[edges->child[e]] == TSK_NULL) {
+                // add edge to pending_out
+                ret = extend_edges_append_entry(
+                    &edges_out_head, &edges_out_tail, &edge_list_heap, e);
+                if (ret != 0) {
+                    ret = TSK_ERR_NO_MEMORY;
+                    goto out;
+                }
+                out_parent[edges->child[e]] = edges->parent[e];
+            }
+        }
+        for (tj = tree_pos.in.start; tj != tree_pos.in.stop; tj += direction) {
+            e = tree_pos.in.order[tj];
+            // add edge to pending_in
+            ret = extend_edges_append_entry(
+                &edges_in_head, &edges_in_tail, &edge_list_heap, e);
+            if (ret != 0) {
+                ret = TSK_ERR_NO_MEMORY;
+                goto out;
+            }
+        }
+        for (ex_out = edges_out_head; ex_out != NULL; ex_out = ex_out->next) {
+            e_out = ex_out->edge;
+            degree[edges->parent[e_out]] -= 1;
+            degree[edges->child[e_out]] -= 1;
+            tsk_bug_assert(out_parent[edges->child[e_out]] == edges->parent[e_out]);
+        }
+        for (ex_in = edges_in_head; ex_in != NULL; ex_in = ex_in->next) {
+            e_in = ex_in->edge;
+            degree[edges->parent[e_in]] += 1;
+            degree[edges->child[e_in]] += 1;
+        }
+
+        for (ex_in = edges_in_head; ex_in != NULL; ex_in = ex_in->next) {
+            e_in = ex_in->edge;
+            // check whether the parent-child relationship exists in the
+            // sub-forest of edges to be removed:
+            // out_parent[p] != -1 only when it is the bottom of an edge to be
+            // removed, and degree[p] == 0 only if it is not in the new tree
+            c = edges->child[e_in];
+            p = out_parent[c];
+            p_in = edges->parent[e_in];
+            while ((p != TSK_NULL) && (degree[p] == 0) && (p != p_in) && not_sample[p]) {
+                p = out_parent[p];
+            }
+            if (p == p_in) {
+                // we can extend!
+                // But, we might have passed the interval that a
+                // postponed edge in covers, in which case
+                // we should skip postponing the edge in
+                if (far_side[e_in] != there) {
+                    ex_in->extended = true;
+                }
+                near_side[e_in] = there;
+                while (c != p) {
+                    for (ex_out = edges_out_head; ex_out != NULL;
+                         ex_out = ex_out->next) {
+                        e_out = ex_out->edge;
+                        if (edges->child[e_out] == c) {
+                            break;
+                        }
+                    }
+                    tsk_bug_assert(edges->child[e_out] == c);
+                    ex_out->extended = true;
+                    far_side[e_out] = there;
+                    // amend degree: the intermediate
+                    // nodes have 2 edges instead of 0
+                    tsk_bug_assert(degree[c] == 0 || c == edges->child[e_in]);
+                    if (degree[c] == 0) {
+                        degree[c] = 2;
+                    }
+                    c = out_parent[c];
+                }
+            }
+        }
+        if (forwards) {
+            valid = tsk_tree_position_next(&tree_pos);
+        } else {
+            valid = tsk_tree_position_prev(&tree_pos);
+        }
+    }
+
+    for (e = 0; e < (tsk_id_t) num_edges; e++) {
+        keep[e] = edges->left[e] < edges->right[e];
+    }
+    ret = tsk_edge_table_keep_rows(edges, keep, 0, NULL);
+out:
+    tsk_blkalloc_free(&edge_list_heap);
+    tsk_tree_position_free(&tree_pos);
+    tsk_safe_free(degree);
+    tsk_safe_free(out_parent);
+    tsk_safe_free(keep);
+    tsk_safe_free(not_sample);
+    return ret;
+}
+
+static int
+tsk_treeseq_slide_mutation_nodes_up(
+    const tsk_treeseq_t *self, tsk_mutation_table_t *mutations)
+{
+    int ret = 0;
+    double t;
+    tsk_id_t c, p, next_mut;
+    const tsk_table_collection_t *tables = self->tables;
+    const tsk_size_t num_nodes = tables->nodes.num_rows;
+    double *sites_position = tables->sites.position;
+    double *nodes_time = tables->nodes.time;
+    tsk_tree_t tree;
+
+    ret = tsk_tree_init(&tree, self, TSK_NO_SAMPLE_COUNTS);
+    if (ret != 0) {
+        goto out;
+    }
+
+    next_mut = 0;
+    for (ret = tsk_tree_first(&tree); ret == TSK_TREE_OK; ret = tsk_tree_next(&tree)) {
+        while (next_mut < (tsk_id_t) mutations->num_rows
+               && sites_position[mutations->site[next_mut]] < tree.interval.right) {
+            t = mutations->time[next_mut];
+            if (tsk_is_unknown_time(t)) {
+                ret = TSK_ERR_DISALLOWED_UNKNOWN_MUTATION_TIME;
+                goto out;
+            }
+            c = mutations->node[next_mut];
+            tsk_bug_assert(c < (tsk_id_t) num_nodes);
+            p = tree.parent[c];
+            while (p != TSK_NULL && nodes_time[p] <= t) {
+                c = p;
+                p = tree.parent[c];
+            }
+            tsk_bug_assert(nodes_time[c] <= t);
+            mutations->node[next_mut] = c;
+            next_mut++;
+        }
+    }
+    if (ret != 0) {
+        goto out;
+    }
+
+out:
+    tsk_tree_free(&tree);
+
+    return ret;
+}
+
+int TSK_WARN_UNUSED
+tsk_treeseq_extend_edges(const tsk_treeseq_t *self, int max_iter,
+    tsk_flags_t TSK_UNUSED(options), tsk_treeseq_t *output)
+{
+    int ret = 0;
+    tsk_table_collection_t tables;
+    tsk_treeseq_t ts;
+    int iter, j;
+    tsk_size_t last_num_edges;
+    const int direction[] = { TSK_DIR_FORWARD, TSK_DIR_REVERSE };
+
+    tsk_memset(&tables, 0, sizeof(tables));
+    tsk_memset(&ts, 0, sizeof(ts));
+    tsk_memset(output, 0, sizeof(*output));
+
+    if (max_iter <= 0) {
+        ret = TSK_ERR_EXTEND_EDGES_BAD_MAXITER;
+        goto out;
+    }
+    if (tsk_treeseq_get_num_migrations(self) != 0) {
+        ret = TSK_ERR_MIGRATIONS_NOT_SUPPORTED;
+        goto out;
+    }
+
+    /* Note: there is a fair bit of copying of table data in this implementation
+     * currently, as we create a new tree sequence for each iteration, which
+     * takes a full copy of the input tables. We could streamline this by
+     * adding a flag to treeseq_init which says "steal a reference to these
+     * tables and *don't* free them at the end". Then, we would only need
+     * one copy of the full tables, and could pass in a standalone edge
+     * table to use for in-place updating.
+     */
+    ret = tsk_table_collection_copy(self->tables, &tables, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_mutation_table_clear(&tables.mutations);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_treeseq_init(&ts, &tables, 0);
+    if (ret != 0) {
+        goto out;
+    }
+
+    last_num_edges = tsk_treeseq_get_num_edges(&ts);
+    for (iter = 0; iter < max_iter; iter++) {
+        for (j = 0; j < 2; j++) {
+            ret = tsk_treeseq_extend_edges_iter(&ts, direction[j], &tables.edges);
+            if (ret != 0) {
+                goto out;
+            }
+            /* We're done with the current ts now */
+            tsk_treeseq_free(&ts);
+            ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+            if (ret != 0) {
+                goto out;
+            }
+        }
+        if (last_num_edges == tsk_treeseq_get_num_edges(&ts)) {
+            break;
+        }
+        last_num_edges = tsk_treeseq_get_num_edges(&ts);
+    }
+
+    /* Remap mutation nodes */
+    ret = tsk_mutation_table_copy(
+        &self->tables->mutations, &tables.mutations, TSK_NO_INIT);
+    if (ret != 0) {
+        goto out;
+    }
+    /* Note: to allow migrations we'd also have to do this same operation
+     * on the migration nodes; however it's a can of worms because the interval
+     * covering the migration might no longer make sense. */
+    ret = tsk_treeseq_slide_mutation_nodes_up(&ts, &tables.mutations);
+    if (ret != 0) {
+        goto out;
+    }
+    tsk_treeseq_free(&ts);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    if (ret != 0) {
+        goto out;
+    }
+
+    /* Hand ownership of the tree sequence to the calling code */
+    tsk_memcpy(output, &ts, sizeof(ts));
+    tsk_memset(&ts, 0, sizeof(*output));
+out:
+    tsk_treeseq_free(&ts);
+    tsk_table_collection_free(&tables);
+    return ret;
+}

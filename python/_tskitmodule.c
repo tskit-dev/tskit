@@ -8938,6 +8938,46 @@ out:
     return ret;
 }
 
+static PyObject *
+TreeSequence_extend_edges(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    int err;
+    PyObject *ret = NULL;
+    int max_iter;
+    tsk_flags_t options = 0;
+    static char *kwlist[] = { "max_iter", NULL };
+    TreeSequence *output = NULL;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "i", kwlist, &max_iter)) {
+        goto out;
+    }
+
+    output = (TreeSequence *) _PyObject_New((PyTypeObject *) &TreeSequenceType);
+    if (output == NULL) {
+        goto out;
+    }
+    output->tree_sequence = PyMem_Malloc(sizeof(*output->tree_sequence));
+    if (output->tree_sequence == NULL) {
+        PyErr_NoMemory();
+        goto out;
+    }
+
+    err = tsk_treeseq_extend_edges(
+        self->tree_sequence, max_iter, options, output->tree_sequence);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = (PyObject *) output;
+    output = NULL;
+out:
+    Py_XDECREF(output);
+    return ret;
+}
+
 /* Error value returned from summary_func callback if an error occured.
  * This is chosen so that it is not a valid tskit error code and so can
  * never be mistaken for a different error */
@@ -10531,6 +10571,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_split_edges,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Returns a copy of this tree sequence edges split at time t" },
+    { .ml_name = "extend_edges",
+        .ml_meth = (PyCFunction) TreeSequence_extend_edges,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Extends edges, creating unary nodes." },
     { .ml_name = "has_reference_sequence",
         .ml_meth = (PyCFunction) TreeSequence_has_reference_sequence,
         .ml_flags = METH_NOARGS,

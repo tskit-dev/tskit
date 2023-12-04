@@ -914,6 +914,45 @@ int tsk_treeseq_simplify(const tsk_treeseq_t *self, const tsk_id_t *samples,
     tsk_size_t num_samples, tsk_flags_t options, tsk_treeseq_t *output,
     tsk_id_t *node_map);
 
+/**
+@brief Extends edges
+
+Returns a modified tree sequence in which the span covered by ancestral nodes
+is "extended" to regions of the genome according to the following rule:
+If an ancestral segment corresponding to node `n` has parent `p` and
+child `c` on some portion of the genome, and on an adjacent segment of
+genome `p` is the immediate parent of `c`, then `n` is inserted into the
+edge from `p` to `c`. This involves extending the span of the edges
+from `p` to `n` and `n` to `c` and reducing the span of the edge from
+`p` to `c`. Since the latter edge may be removed entirely, this process
+reduces (or at least does not increase) the number of edges in the tree
+sequence. The `node` of certain mutations may also be remapped; to do this
+unambiguously we need to know mutation times. If mutations times are unknown,
+use `tsk_table_collection_compute_mutation_times` first.
+
+The method will not affect any tables except the edge table, or the node
+column in the mutation table.
+
+The method works by iterating over the genome to look for edges that can
+be extended in this way; the maximum number of such iterations is
+controlled by ``max_iter``.
+
+Since this may change which nodes are above
+
+@rst
+
+**Options**: None currently defined.
+@endrst
+
+@param self A pointer to a tsk_treeseq_t object.
+@param max_iter The maximum number of iterations over the tree sequence.
+@param options Bitwise option flags. (UNUSED)
+@param output A pointer to an uninitialised tsk_treeseq_t object.
+@return Return 0 on success or a negative value on failure.
+*/
+int tsk_treeseq_extend_edges(
+    const tsk_treeseq_t *self, int max_iter, tsk_flags_t options, tsk_treeseq_t *output);
+
 /** @} */
 
 int tsk_treeseq_split_edges(const tsk_treeseq_t *self, double time, tsk_flags_t flags,

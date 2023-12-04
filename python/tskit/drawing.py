@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2023 Tskit Developers
 # Copyright (c) 2015-2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -25,7 +25,6 @@ Module responsible for visualisations.
 """
 import collections
 import itertools
-import logging
 import math
 import numbers
 import operator
@@ -1365,9 +1364,11 @@ class SvgTree(SvgAxisPlot):
                     else:
                         unplotted.append(mutation.id + self.offsets.mutation)
         if len(unplotted) > 0:
-            logging.warning(
+            warnings.warn(
                 f"Mutations {unplotted} are above nodes which are not present in the "
-                "displayed tree, so are not plotted on the topology."
+                "displayed tree, so are not plotted on the topology.",
+                UserWarning,
+                stacklevel=2,
             )
         self.left_extent = tree.interval.left
         self.right_extent = tree.interval.right
