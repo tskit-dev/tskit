@@ -77,7 +77,7 @@ sphinx:
           ["c:identifier", "FILE"],
           ["c:identifier", "bool"],
           # This is for the anonymous interval struct embedded in the tsk_tree_t.
-          ["c:identifier", "tsk_tree_t.@1"],
+          ["c:identifier", "tsk_tree_t.@4"],
           ["c:type", "int32_t"],
           ["c:type", "uint32_t"],
           ["c:type", "uint64_t"],
