@@ -4622,6 +4622,11 @@ tsk_tree_init(tsk_tree_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t 
             goto out;
         }
     }
+
+    ret = tsk_tree_position_init(&self->tree_pos, tree_sequence, 0);
+    if (ret != 0) {
+        goto out;
+    }
     ret = tsk_tree_clear(self);
 out:
     return ret;
@@ -4670,6 +4675,7 @@ tsk_tree_free(tsk_tree_t *self)
     tsk_safe_free(self->next_sample);
     tsk_safe_free(self->num_children);
     tsk_safe_free(self->edge);
+    tsk_tree_position_free(&self->tree_pos);
     return 0;
 }
 
