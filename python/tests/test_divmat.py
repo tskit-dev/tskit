@@ -1347,12 +1347,19 @@ class TestSampleSetParsing:
 
 
 class TestGeneticRelatednessMatrix:
-    def check(self, ts, mode, *, windows=None, span_normalise=True):
+    def check(self, ts, mode, *, sample_sets=None, windows=None, span_normalise=True):
         G1 = stats_api_genetic_relatedness_matrix(
-            ts, mode=mode, windows=windows, span_normalise=span_normalise
+            ts,
+            mode=mode,
+            sample_sets=sample_sets,
+            windows=windows,
+            span_normalise=span_normalise,
         )
         G2 = ts.genetic_relatedness_matrix(
-            mode=mode, windows=windows, span_normalise=span_normalise
+            mode=mode,
+            sample_sets=sample_sets,
+            windows=windows,
+            span_normalise=span_normalise,
         )
         np.testing.assert_array_almost_equal(G1, G2)
 
@@ -1367,6 +1374,33 @@ class TestGeneticRelatednessMatrix:
         ts = tskit.Tree.generate_balanced(4).tree_sequence
         ts = tsutil.insert_branch_sites(ts)
         self.check(ts, mode)
+
+    @pytest.mark.parametrize("mode", DIVMAT_MODES)
+    def test_single_tree_sample_sets(self, mode):
+        # 2.00┊    6    ┊
+        #     ┊  ┏━┻━┓  ┊
+        # 1.00┊  4   5  ┊
+        #     ┊ ┏┻┓ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 3 ┊
+        #     0         1
+        ts = tskit.Tree.generate_balanced(4).tree_sequence
+        ts = tsutil.insert_branch_sites(ts)
+        with pytest.raises(ValueError, match="2888"):
+            self.check(ts, mode, sample_sets=[[0, 1], [2, 3]])
+
+    @pytest.mark.parametrize("mode", DIVMAT_MODES)
+    def test_single_tree_single_samples(self, mode):
+        # 2.00┊    6    ┊
+        #     ┊  ┏━┻━┓  ┊
+        # 1.00┊  4   5  ┊
+        #     ┊ ┏┻┓ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 3 ┊
+        #     0         1
+        ts = tskit.Tree.generate_balanced(4).tree_sequence
+        ts = tsutil.insert_branch_sites(ts)
+        self.check(ts, mode, sample_sets=[[0], [1]])
+        self.check(ts, mode, sample_sets=[[0], [2]])
+        self.check(ts, mode, sample_sets=[[0], [1], [2]])
 
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
     def test_single_tree_windows(self, mode):
@@ -1390,3 +1424,12 @@ class TestGeneticRelatednessMatrix:
     @pytest.mark.parametrize("span_normalise", [True, False])
     def test_suite_span_normalise(self, ts, mode, span_normalise):
         self.check(ts, mode=mode, span_normalise=span_normalise)
+
+    @pytest.mark.skip("fix sample sets #2888")
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    @pytest.mark.parametrize("mode", DIVMAT_MODES)
+    @pytest.mark.parametrize("num_sets", [2])  # [[2, 3, 4, 5])
+    def test_suite_sample_sets(self, ts, mode, num_sets):
+        if ts.num_samples >= num_sets:
+            sample_sets = np.array_split(ts.samples(), num_sets)
+            self.check(ts, sample_sets=sample_sets, mode=mode)

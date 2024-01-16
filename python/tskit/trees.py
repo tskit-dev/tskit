@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -8139,6 +8139,15 @@ class TreeSequence:
             span_normalise=span_normalise,
         )
 
+        # FIXME remove this when sample sets bug has been fixed.
+        # https://github.com/tskit-dev/tskit/issues/2888
+        if sample_sets is not None:
+            if any(len(ss) > 1 for ss in sample_sets):
+                raise ValueError(
+                    "Only single entry sample sets allowed for now."
+                    " See https://github.com/tskit-dev/tskit/issues/2888"
+                )
+
         def _normalise(B):
             if len(B) == 0:
                 return B
@@ -8146,7 +8155,8 @@ class TreeSequence:
             y = np.mean(B, axis=0)
             X = y[:, np.newaxis] + y[np.newaxis, :]
             K -= X
-            # FIXME I don't know what this factor of -2 is about
+            # FIXME this factor of 2 works for single-sample sample-sets, but not
+            # otherwise. https://github.com/tskit-dev/tskit/issues/2888
             return K / -2
 
         if windows is None:
