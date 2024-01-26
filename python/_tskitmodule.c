@@ -9861,6 +9861,130 @@ out:
 }
 
 static PyObject *
+TreeSequence_ld_matrix(TreeSequence *self, PyObject *args, PyObject *kwds,
+    two_locus_count_stat_method *method)
+{
+    PyObject *ret = NULL;
+    static char *kwlist[]
+        = { "sample_set_sizes", "sample_sets", "row_sites", "col_sites", "mode", NULL };
+
+    PyObject *row_sites = NULL;
+    PyObject *col_sites = NULL;
+    PyObject *sample_set_sizes = NULL;
+    PyObject *sample_sets = NULL;
+    PyArrayObject *sample_set_sizes_array = NULL;
+    PyArrayObject *sample_sets_array = NULL;
+    PyArrayObject *row_sites_array = NULL;
+    PyArrayObject *col_sites_array = NULL;
+    PyArrayObject *result_matrix = NULL;
+    npy_intp result_shape[3];
+    char *mode = NULL;
+    tsk_size_t num_sample_sets;
+    tsk_flags_t options = 0;
+    int err;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOOs", kwlist, &sample_set_sizes,
+            &sample_sets, &row_sites, &col_sites, &mode)) {
+        goto out;
+    }
+    if (parse_stats_mode(mode, &options) != 0) {
+        goto out;
+    }
+    if (parse_sample_sets(sample_set_sizes, &sample_set_sizes_array, sample_sets,
+            &sample_sets_array, &num_sample_sets)
+        != 0) {
+        goto out;
+    }
+    row_sites_array = (PyArrayObject *) PyArray_FROMANY(
+        row_sites, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
+    if (row_sites_array == NULL) {
+        goto out;
+    }
+    col_sites_array = (PyArrayObject *) PyArray_FROMANY(
+        col_sites, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
+    if (col_sites_array == NULL) {
+        goto out;
+    }
+
+    result_shape[0] = PyArray_DIM(row_sites_array, 0);
+    result_shape[1] = PyArray_DIM(col_sites_array, 0);
+    result_shape[2] = num_sample_sets;
+    result_matrix = (PyArrayObject *) PyArray_ZEROS(3, result_shape, NPY_FLOAT64, 0);
+    if (result_matrix == NULL) {
+        goto out;
+    }
+
+    // clang-format off
+    Py_BEGIN_ALLOW_THREADS
+    err = method(self->tree_sequence, num_sample_sets,
+        PyArray_DATA(sample_set_sizes_array), PyArray_DATA(sample_sets_array),
+        result_shape[0], PyArray_DATA(row_sites_array), result_shape[1],
+        PyArray_DATA(col_sites_array), options, PyArray_DATA(result_matrix));
+    Py_END_ALLOW_THREADS
+        // clang-format on
+
+        if (err != 0)
+    {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = (PyObject *) result_matrix;
+    result_matrix = NULL;
+out:
+    Py_XDECREF(row_sites_array);
+    Py_XDECREF(col_sites_array);
+    Py_XDECREF(sample_set_sizes_array);
+    Py_XDECREF(sample_sets_array);
+    Py_XDECREF(result_matrix);
+    return ret;
+}
+
+static PyObject *
+TreeSequence_D_matrix(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    return TreeSequence_ld_matrix(self, args, kwds, tsk_treeseq_D);
+}
+
+static PyObject *
+TreeSequence_D2_matrix(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    return TreeSequence_ld_matrix(self, args, kwds, tsk_treeseq_D2);
+}
+
+static PyObject *
+TreeSequence_r2_matrix(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    return TreeSequence_ld_matrix(self, args, kwds, tsk_treeseq_r2);
+}
+
+static PyObject *
+TreeSequence_D_prime_matrix(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    return TreeSequence_ld_matrix(self, args, kwds, tsk_treeseq_D_prime);
+}
+
+static PyObject *
+TreeSequence_r_matrix(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    return TreeSequence_ld_matrix(self, args, kwds, tsk_treeseq_r);
+}
+
+static PyObject *
+TreeSequence_Dz_matrix(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    return TreeSequence_ld_matrix(self, args, kwds, tsk_treeseq_Dz);
+}
+
+static PyObject *
+TreeSequence_pi2_matrix(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    return TreeSequence_ld_matrix(self, args, kwds, tsk_treeseq_pi2);
+}
+
+static PyObject *
 TreeSequence_get_num_mutations(TreeSequence *self)
 {
     PyObject *ret = NULL;
@@ -10588,6 +10712,34 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_has_reference_sequence,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns True if the TreeSequence has a reference sequence." },
+    { .ml_name = "D_matrix",
+        .ml_meth = (PyCFunction) TreeSequence_D_matrix,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes the D matrix." },
+    { .ml_name = "D2_matrix",
+        .ml_meth = (PyCFunction) TreeSequence_D2_matrix,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes the D2 matrix." },
+    { .ml_name = "r2_matrix",
+        .ml_meth = (PyCFunction) TreeSequence_r2_matrix,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes the r2 matrix." },
+    { .ml_name = "D_prime_matrix",
+        .ml_meth = (PyCFunction) TreeSequence_D_prime_matrix,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes the D_prime matrix." },
+    { .ml_name = "r_matrix",
+        .ml_meth = (PyCFunction) TreeSequence_r_matrix,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes the r matrix." },
+    { .ml_name = "Dz_matrix",
+        .ml_meth = (PyCFunction) TreeSequence_Dz_matrix,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes the Dz matrix." },
+    { .ml_name = "pi2_matrix",
+        .ml_meth = (PyCFunction) TreeSequence_pi2_matrix,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Computes the pi2 matrix." },
     { NULL } /* Sentinel */
 };
 

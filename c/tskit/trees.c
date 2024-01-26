@@ -2668,21 +2668,17 @@ tsk_treeseq_two_locus_count_stat(const tsk_treeseq_t *self, tsk_size_t num_sampl
         ret = TSK_ERR_MULTIPLE_STAT_MODES;
         goto out;
     }
-    if (state_dim < 1) {
-        ret = TSK_ERR_BAD_STATE_DIMS;
-        goto out;
-    }
     // TODO: impossible until we implement branch/windows
     // if (result_dim < 1) {
     //     ret = TSK_ERR_BAD_RESULT_DIMS;
     //     goto out;
     // }
-
     ret = tsk_treeseq_check_sample_sets(
         self, num_sample_sets, sample_set_sizes, sample_sets);
     if (ret != 0) {
         goto out;
     }
+    tsk_bug_assert(state_dim > 0);
     ret = sample_sets_to_bit_array(
         self, sample_set_sizes, sample_sets, num_sample_sets, &sample_sets_bits);
     if (ret != 0) {
