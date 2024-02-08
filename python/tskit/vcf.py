@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2019-2022 Tskit Developers
+# Copyright (c) 2019-2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -63,6 +63,7 @@ class VcfWriter:
         site_mask,
         sample_mask,
         isolated_as_missing,
+        allow_position_zero,
     ):
         self.tree_sequence = tree_sequence
         self.contig_id = contig_id
@@ -110,6 +111,20 @@ class VcfWriter:
             if not callable(sample_mask):
                 sample_mask = np.array(sample_mask, dtype=bool)
                 self.sample_mask = lambda _: sample_mask
+
+        # The VCF spec does not allow for positions to be 0, so we error if one of the
+        # transformed positions is 0 and allow_position_zero is False.
+        if not allow_position_zero and np.any(
+            self.transformed_positions[~site_mask] == 0
+        ):
+            raise ValueError(
+                "A variant position of 0 was found in the VCF output, this is not "
+                "fully compliant with the VCF spec. If you still wish to write the VCF "
+                'please use the "allow_position_zero" argument to write_vcf. '
+                "Alternatively, you can increment all the positions by one using "
+                '"position_transform = lambda x: 1 + x" or coerce the zero to one with '
+                '"position_transform = lambda x: np.fmax(1, x)"'
+            )
 
     def __make_sample_mapping(self, ploidy, individuals):
         """

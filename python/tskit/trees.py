@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -6175,6 +6175,7 @@ class TreeSequence:
         site_mask=None,
         sample_mask=None,
         isolated_as_missing=None,
+        allow_position_zero=None,
     ):
         """
         Convert the genetic variation data in this tree sequence to Variant
@@ -6301,7 +6302,13 @@ class TreeSequence:
             missing samples (i.e., isolated samples without mutations) is "."
             If False, missing samples will be assigned the ancestral allele.
             See :meth:`.variants` for more information. Default: True.
+        :param bool allow_position_zero: If True allow sites with position zero to be
+            output to the VCF, otherwise if one is present an error will be raised.
+            The VCF spec does not allow for sites at position 0. However, in practise
+            many tools will be fine with this. Default: False.
         """
+        if allow_position_zero is None:
+            allow_position_zero = False
         writer = vcf.VcfWriter(
             self,
             ploidy=ploidy,
@@ -6312,6 +6319,7 @@ class TreeSequence:
             site_mask=site_mask,
             sample_mask=sample_mask,
             isolated_as_missing=isolated_as_missing,
+            allow_position_zero=allow_position_zero,
         )
         writer.write(output)
 
