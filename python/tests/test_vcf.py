@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2016 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -57,7 +57,7 @@ def ts_to_pysam(ts, *args, **kwargs):
     with tempfile.TemporaryDirectory() as temp_dir:
         vcf_path = os.path.join(temp_dir, "file.vcf")
         with open(vcf_path, "w") as f:
-            ts.write_vcf(f, *args, **kwargs)
+            ts.write_vcf(f, *args, **kwargs, allow_position_zero=True)
         yield pysam.VariantFile(vcf_path)
 
 
@@ -349,7 +349,9 @@ class TestInterface:
         tables = ts1.dump_tables()
         tables.individuals.add_row()
         ts2 = tables.tree_sequence()
-        assert ts1.as_vcf() == ts2.as_vcf()
+        assert ts1.as_vcf(allow_position_zero=True) == ts2.as_vcf(
+            allow_position_zero=True
+        )
 
     def test_individuals_no_nodes_as_argument(self):
         ts1 = msprime.simulate(10, mutation_rate=0.1, random_seed=2)
@@ -383,7 +385,7 @@ class TestInterface:
         ts = msprime.sim_ancestry(3, random_seed=2)
         ts = tsutil.insert_branch_sites(ts)
         with pytest.raises(tskit.LibraryError, match="TSK_ERR_DUPLICATE_SAMPLE"):
-            ts.as_vcf(individuals=[0, 0])
+            ts.as_vcf(individuals=[0, 0], allow_position_zero=True)
 
     def test_mixed_sample_non_sample_individuals(self):
         ts = msprime.sim_ancestry(3, random_seed=2)
@@ -400,7 +402,7 @@ class TestInterface:
         ):
             ts.as_vcf()
         # but it's OK if we run without the affected individual
-        assert len(ts.as_vcf(individuals=[1, 2])) > 0
+        assert len(ts.as_vcf(individuals=[1, 2], allow_position_zero=True)) > 0
 
     def test_samples_with_and_without_individuals(self):
         ts = tskit.Tree.generate_balanced(3).tree_sequence
@@ -417,7 +419,7 @@ class TestInterface:
         ):
             ts.as_vcf()
         # But it's OK if explicitly specify that sample
-        assert len(ts.as_vcf(individuals=[0])) > 0
+        assert len(ts.as_vcf(individuals=[0], allow_position_zero=True)) > 0
 
     def test_bad_individuals(self):
         ts = msprime.simulate(10, mutation_rate=0.1, random_seed=2)
@@ -429,7 +431,9 @@ class TestInterface:
 
     def test_ploidy_positional(self):
         ts = msprime.simulate(2, mutation_rate=2, random_seed=1)
-        assert ts.as_vcf(2) == ts.as_vcf(ploidy=2)
+        assert ts.as_vcf(2, allow_position_zero=True) == ts.as_vcf(
+            ploidy=2, allow_position_zero=True
+        )
 
     def test_only_ploidy_positional(self):
         ts = msprime.simulate(2, mutation_rate=2, random_seed=1)
@@ -450,14 +454,14 @@ class TestLimitations:
         for j in range(8):
             tables.mutations.add_row(0, node=j, derived_state=str(j + 1))
         ts = tables.tree_sequence()
-        ts.write_vcf(io.StringIO())
+        ts.write_vcf(io.StringIO(), allow_position_zero=True)
         for j in range(9, 15):
             tables.mutations.add_row(0, node=j, derived_state=str(j))
             ts = tables.tree_sequence()
             with pytest.raises(
                 ValueError, match="More than 9 alleles not currently supported"
             ):
-                ts.write_vcf(io.StringIO())
+                ts.write_vcf(io.StringIO(), allow_position_zero=True)
 
 
 class TestPositionTransformErrors:
@@ -481,6 +485,35 @@ class TestPositionTransformErrors:
         for bad_func in ["", Exception]:
             with pytest.raises(TypeError):
                 ts.write_vcf(io.StringIO(), position_transform=bad_func)
+
+
+class TestZeroPositionErrors:
+    """
+    Tests for handling zero position sites
+    """
+
+    def test_zero_position_error(self):
+        ts = msprime.sim_ancestry(3, random_seed=2, sequence_length=10)
+        ts = msprime.sim_mutations(ts, rate=1, random_seed=2)
+        assert ts.sites_position[0] == 0
+
+        with pytest.raises(ValueError, match="A variant position of 0"):
+            ts.write_vcf(io.StringIO())
+
+        # Should succeed if we allow it, or the site is masked or transformed
+        ts.write_vcf(io.StringIO(), allow_position_zero=True)
+        ts.write_vcf(io.StringIO(), position_transform=lambda pos: [x + 1 for x in pos])
+        mask = np.zeros(ts.num_sites, dtype=bool)
+        mask[0] = True
+        ts.write_vcf(io.StringIO(), site_mask=mask)
+
+    def test_no_position_zero_ok(self):
+        ts = msprime.sim_ancestry(3, random_seed=2, sequence_length=10)
+        ts = msprime.sim_mutations(ts, rate=0.25, random_seed=4)
+        assert ts.num_sites > 0
+        assert ts.sites_position[0] != 0
+        ts.write_vcf(io.StringIO(), allow_position_zero=True)
+        ts.write_vcf(io.StringIO())
 
 
 class TestIndividualNames:
@@ -548,11 +581,15 @@ class TestIndividualNames:
         with pytest.raises(
             TypeError, match="sequence item 0: expected str instance," " NoneType found"
         ):
-            ts.write_vcf(io.StringIO(), individual_names=[None, "b"])
+            ts.write_vcf(
+                io.StringIO(), individual_names=[None, "b"], allow_position_zero=True
+            )
         with pytest.raises(
             TypeError, match="sequence item 0: expected str instance," " bytes found"
         ):
-            ts.write_vcf(io.StringIO(), individual_names=[b"a", "b"])
+            ts.write_vcf(
+                io.StringIO(), individual_names=[b"a", "b"], allow_position_zero=True
+            )
 
 
 def drop_header(s):
@@ -581,7 +618,7 @@ class TestMasking:
     def test_sample_mask_bad_type(self, mask):
         # converting to a bool array is pretty lax in what's allows.
         with pytest.raises(ValueError, match="Sample mask must be"):
-            self.ts().as_vcf(sample_mask=mask)
+            self.ts().as_vcf(sample_mask=mask, allow_position_zero=True)
 
     def test_no_masks(self):
         s = """\
@@ -591,7 +628,7 @@ class TestMasking:
         1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0\t1\t0
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0\t0\t1"""
         expected = textwrap.dedent(s)
-        assert drop_header(self.ts().as_vcf()) == expected
+        assert drop_header(self.ts().as_vcf(allow_position_zero=True)) == expected
 
     def test_no_masks_triploid(self):
         s = """\
@@ -601,7 +638,10 @@ class TestMasking:
         1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0|1|0
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0|0|1"""
         expected = textwrap.dedent(s)
-        assert drop_header(self.ts().as_vcf(ploidy=3)) == expected
+        assert (
+            drop_header(self.ts().as_vcf(ploidy=3, allow_position_zero=True))
+            == expected
+        )
 
     def test_site_0_masked(self):
         s = """\
@@ -610,7 +650,9 @@ class TestMasking:
         1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0\t1\t0
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0\t0\t1"""
         expected = textwrap.dedent(s)
-        actual = self.ts().as_vcf(site_mask=[True, False, False, False])
+        actual = self.ts().as_vcf(
+            site_mask=[True, False, False, False], allow_position_zero=True
+        )
         assert drop_header(actual) == expected
 
     def test_site_0_masked_triploid(self):
@@ -620,7 +662,9 @@ class TestMasking:
         1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0|1|0
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0|0|1"""
         expected = textwrap.dedent(s)
-        actual = self.ts().as_vcf(ploidy=3, site_mask=[True, False, False, False])
+        actual = self.ts().as_vcf(
+            ploidy=3, site_mask=[True, False, False, False], allow_position_zero=True
+        )
         assert drop_header(actual) == expected
 
     def test_site_1_masked(self):
@@ -630,14 +674,18 @@ class TestMasking:
         1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0\t1\t0
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0\t0\t1"""
         expected = textwrap.dedent(s)
-        actual = self.ts().as_vcf(site_mask=[False, True, False, False])
+        actual = self.ts().as_vcf(
+            site_mask=[False, True, False, False], allow_position_zero=True
+        )
         assert drop_header(actual) == expected
 
     def test_all_sites_masked(self):
         s = """\
         #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0\ttsk_1\ttsk_2"""
         expected = textwrap.dedent(s)
-        actual = self.ts().as_vcf(site_mask=[True, True, True, True])
+        actual = self.ts().as_vcf(
+            site_mask=[True, True, True, True], allow_position_zero=True
+        )
         assert drop_header(actual) == expected
 
     def test_all_sites_not_masked(self):
@@ -648,7 +696,9 @@ class TestMasking:
         1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0\t1\t0
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0\t0\t1"""
         expected = textwrap.dedent(s)
-        actual = self.ts().as_vcf(site_mask=[False, False, False, False])
+        actual = self.ts().as_vcf(
+            site_mask=[False, False, False, False], allow_position_zero=True
+        )
         assert drop_header(actual) == expected
 
     @pytest.mark.parametrize(
@@ -663,7 +713,7 @@ class TestMasking:
         1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0\t1\t0
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0\t0\t1"""
         expected = textwrap.dedent(s)
-        actual = self.ts().as_vcf(sample_mask=mask)
+        actual = self.ts().as_vcf(sample_mask=mask, allow_position_zero=True)
         assert drop_header(actual) == expected
 
     @pytest.mark.parametrize(
@@ -677,7 +727,7 @@ class TestMasking:
         1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t.\t1\t0
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t.\t0\t1"""
         expected = textwrap.dedent(s)
-        actual = self.ts().as_vcf(sample_mask=mask)
+        actual = self.ts().as_vcf(sample_mask=mask, allow_position_zero=True)
         assert drop_header(actual) == expected
 
     @pytest.mark.parametrize(
@@ -691,7 +741,7 @@ class TestMasking:
         1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0\t.\t0
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0\t.\t1"""
         expected = textwrap.dedent(s)
-        actual = self.ts().as_vcf(sample_mask=mask)
+        actual = self.ts().as_vcf(sample_mask=mask, allow_position_zero=True)
         assert drop_header(actual) == expected
 
     @pytest.mark.parametrize(
@@ -705,7 +755,7 @@ class TestMasking:
         1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t.\t.\t.
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t.\t.\t."""
         expected = textwrap.dedent(s)
-        actual = self.ts().as_vcf(sample_mask=mask)
+        actual = self.ts().as_vcf(sample_mask=mask, allow_position_zero=True)
         assert drop_header(actual) == expected
 
     def test_all_functional_sample_mask(self):
@@ -722,7 +772,7 @@ class TestMasking:
             return a
 
         expected = textwrap.dedent(s)
-        actual = self.ts().as_vcf(sample_mask=mask)
+        actual = self.ts().as_vcf(sample_mask=mask, allow_position_zero=True)
         assert drop_header(actual) == expected
 
     @pytest.mark.skipif(not _pysam_imported, reason="pysam not available")
@@ -758,7 +808,7 @@ class TestMissingData:
         1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t1\t0\t.
         1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t0\t1\t."""
         expected = textwrap.dedent(s)
-        assert drop_header(self.ts().as_vcf()) == expected
+        assert drop_header(self.ts().as_vcf(allow_position_zero=True)) == expected
 
     def test_isolated_as_missing_true(self):
         s = """\
@@ -766,7 +816,12 @@ class TestMissingData:
         1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t1\t0\t.
         1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t0\t1\t."""
         expected = textwrap.dedent(s)
-        assert drop_header(self.ts().as_vcf(isolated_as_missing=True)) == expected
+        assert (
+            drop_header(
+                self.ts().as_vcf(isolated_as_missing=True, allow_position_zero=True)
+            )
+            == expected
+        )
 
     def test_isolated_as_missing_false(self):
         s = """\
@@ -774,7 +829,12 @@ class TestMissingData:
         1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t1\t0\t0
         1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t0\t1\t0"""
         expected = textwrap.dedent(s)
-        assert drop_header(self.ts().as_vcf(isolated_as_missing=False)) == expected
+        assert (
+            drop_header(
+                self.ts().as_vcf(isolated_as_missing=False, allow_position_zero=True)
+            )
+            == expected
+        )
 
     @pytest.mark.skipif(not _pysam_imported, reason="pysam not available")
     def test_ok_with_pysam(self):
@@ -823,7 +883,7 @@ class TestSampleOptions:
         1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0\t1\t0
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0\t0\t1"""
         expected = textwrap.dedent(s)
-        assert drop_header(ts.as_vcf()) == expected
+        assert drop_header(ts.as_vcf(allow_position_zero=True)) == expected
 
     def test_no_individuals_ploidy_3(self):
         ts = drop_individuals(self.ts())
@@ -834,7 +894,7 @@ class TestSampleOptions:
         1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0|1|0
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0|0|1"""
         expected = textwrap.dedent(s)
-        assert drop_header(ts.as_vcf(ploidy=3)) == expected
+        assert drop_header(ts.as_vcf(ploidy=3, allow_position_zero=True)) == expected
 
     def test_no_individuals_ploidy_3_names(self):
         ts = drop_individuals(self.ts())
@@ -845,7 +905,12 @@ class TestSampleOptions:
         1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0|1|0
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0|0|1"""
         expected = textwrap.dedent(s)
-        assert drop_header(ts.as_vcf(ploidy=3, individual_names="A")) == expected
+        assert (
+            drop_header(
+                ts.as_vcf(ploidy=3, individual_names="A", allow_position_zero=True)
+            )
+            == expected
+        )
 
     def test_defaults(self):
         ts = self.ts()
@@ -856,7 +921,7 @@ class TestSampleOptions:
         1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0|0\t1
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0|1\t0"""
         expected = textwrap.dedent(s)
-        assert drop_header(ts.as_vcf()) == expected
+        assert drop_header(ts.as_vcf(allow_position_zero=True)) == expected
 
     def test_individual_0(self):
         ts = self.ts()
@@ -867,7 +932,10 @@ class TestSampleOptions:
         1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t0|0
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0|1"""
         expected = textwrap.dedent(s)
-        assert drop_header(ts.as_vcf(individuals=[0])) == expected
+        assert (
+            drop_header(ts.as_vcf(individuals=[0], allow_position_zero=True))
+            == expected
+        )
 
     def test_individual_1(self):
         ts = self.ts()
@@ -878,7 +946,10 @@ class TestSampleOptions:
         1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t1
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0"""
         expected = textwrap.dedent(s)
-        assert drop_header(ts.as_vcf(individuals=[1])) == expected
+        assert (
+            drop_header(ts.as_vcf(individuals=[1], allow_position_zero=True))
+            == expected
+        )
 
     def test_reversed(self):
         ts = self.ts()
@@ -889,7 +960,10 @@ class TestSampleOptions:
         1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t1\t0|0
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0\t0|1"""
         expected = textwrap.dedent(s)
-        assert drop_header(ts.as_vcf(individuals=[1, 0])) == expected
+        assert (
+            drop_header(ts.as_vcf(individuals=[1, 0], allow_position_zero=True))
+            == expected
+        )
 
     def test_reversed_names(self):
         ts = self.ts()
@@ -901,6 +975,12 @@ class TestSampleOptions:
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0\t0|1"""
         expected = textwrap.dedent(s)
         assert (
-            drop_header(ts.as_vcf(individuals=[1, 0], individual_names=["A", "B"]))
+            drop_header(
+                ts.as_vcf(
+                    individuals=[1, 0],
+                    individual_names=["A", "B"],
+                    allow_position_zero=True,
+                ),
+            )
             == expected
         )
