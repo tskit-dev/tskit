@@ -2,12 +2,18 @@
 [0.5.7] - 2023-XX-XX
 --------------------
 
+**Breaking Changes**
+
+- The VCF writing methods (`ts.write_vcf`, `ts.as_vcf`) now error if a site with
+  position zero is encountered. The VCF spec does not allow zero position sites.
+  Suppress this error with the `allow_position_zero` argument.
+  (:user:`benjeffery`, :pr:`2901`, :issue:`2838`)
+
 **Features**
 
 - Add ``TreeSequence.extend_edges`` method that extends ancestral haplotypes
   using recombination information, leading to unary nodes in many trees and
   fewer edges. (:user:`petrelharp`, :user:`hfr1tz3`, :user:`avabamf`, :pr:`2651`)
-
 
 --------------------
 [0.5.6] - 2023-10-10

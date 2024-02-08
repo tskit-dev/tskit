@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -137,7 +137,12 @@ def run_fasta(args):
 
 def run_vcf(args):
     tree_sequence = load_tree_sequence(args.tree_sequence)
-    tree_sequence.write_vcf(sys.stdout, ploidy=args.ploidy, contig_id=args.contig_id)
+    tree_sequence.write_vcf(
+        sys.stdout,
+        ploidy=args.ploidy,
+        contig_id=args.contig_id,
+        allow_position_zero=args.allow_position_zero,
+    )
 
 
 def add_tree_sequence_argument(parser):
@@ -222,6 +227,13 @@ def get_tskit_parser():
     )
     parser.add_argument(
         "--contig-id", "-c", type=str, default="1", help="Specify the contig id"
+    )
+    parser.add_argument(
+        "--allow-position-zero",
+        "-0",
+        action="store_true",
+        default=False,
+        help="Allow position 0 sites",
     )
     parser.set_defaults(runner=run_vcf)
 
