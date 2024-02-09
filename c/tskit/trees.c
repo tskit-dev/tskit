@@ -4554,6 +4554,19 @@ tsk_tree_position_prev(tsk_tree_position_t *self)
     return self->index != -1;
 }
 
+bool
+tsk_tree_position_step(tsk_tree_position_t *self, int direction)
+{
+    bool ret = false;
+
+    if (direction == TSK_DIR_FORWARD) {
+        ret = tsk_tree_position_next(self);
+    } else if (direction == TSK_DIR_REVERSE) {
+        ret = tsk_tree_position_prev(self);
+    }
+    return ret;
+}
+
 /* ======================================================== *
  * Tree
  * ======================================================== */
@@ -4818,6 +4831,7 @@ tsk_tree_copy(const tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options)
     dest->sites_length = self->sites_length;
     dest->root_threshold = self->root_threshold;
     dest->num_edges = self->num_edges;
+    dest->tree_pos = self->tree_pos;
 
     tsk_memcpy(dest->parent, self->parent, N * sizeof(*self->parent));
     tsk_memcpy(dest->left_child, self->left_child, N * sizeof(*self->left_child));
@@ -5479,109 +5493,16 @@ tsk_tree_insert_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c, tsk_id_t edge_id)
     }
 }
 
-static int
-tsk_tree_advance(tsk_tree_t *self, int direction, const double *restrict out_breakpoints,
-    const tsk_id_t *restrict out_order, tsk_id_t *out_index,
-    const double *restrict in_breakpoints, const tsk_id_t *restrict in_order,
-    tsk_id_t *in_index)
-{
-    int ret = 0;
-    const int direction_change = direction * (direction != self->direction);
-    tsk_id_t in = *in_index + direction_change;
-    tsk_id_t out = *out_index + direction_change;
-    tsk_id_t k;
-    const tsk_table_collection_t *tables = self->tree_sequence->tables;
-    const double sequence_length = tables->sequence_length;
-    const tsk_id_t num_edges = (tsk_id_t) tables->edges.num_rows;
-    const tsk_id_t *restrict edge_parent = tables->edges.parent;
-    const tsk_id_t *restrict edge_child = tables->edges.child;
-    double x;
-
-    if (direction == TSK_DIR_FORWARD) {
-        x = self->interval.right;
-    } else {
-        x = self->interval.left;
-    }
-    while (out >= 0 && out < num_edges && out_breakpoints[out_order[out]] == x) {
-        tsk_bug_assert(out < num_edges);
-        k = out_order[out];
-        out += direction;
-        tsk_tree_remove_edge(self, edge_parent[k], edge_child[k]);
-    }
-
-    while (in >= 0 && in < num_edges && in_breakpoints[in_order[in]] == x) {
-        k = in_order[in];
-        in += direction;
-        tsk_tree_insert_edge(self, edge_parent[k], edge_child[k], k);
-    }
-
-    self->direction = direction;
-    self->index = self->index + direction;
-    if (direction == TSK_DIR_FORWARD) {
-        self->interval.left = x;
-        self->interval.right = sequence_length;
-        if (out >= 0 && out < num_edges) {
-            self->interval.right
-                = TSK_MIN(self->interval.right, out_breakpoints[out_order[out]]);
-        }
-        if (in >= 0 && in < num_edges) {
-            self->interval.right
-                = TSK_MIN(self->interval.right, in_breakpoints[in_order[in]]);
-        }
-    } else {
-        self->interval.right = x;
-        self->interval.left = 0;
-        if (out >= 0 && out < num_edges) {
-            self->interval.left
-                = TSK_MAX(self->interval.left, out_breakpoints[out_order[out]]);
-        }
-        if (in >= 0 && in < num_edges) {
-            self->interval.left
-                = TSK_MAX(self->interval.left, in_breakpoints[in_order[in]]);
-        }
-    }
-    tsk_bug_assert(self->interval.left < self->interval.right);
-    *out_index = out;
-    *in_index = in;
-    if (tables->sites.num_rows > 0) {
-        self->sites = self->tree_sequence->tree_sites[self->index];
-        self->sites_length = self->tree_sequence->tree_sites_length[self->index];
-    }
-    ret = TSK_TREE_OK;
-    return ret;
-}
-
 int TSK_WARN_UNUSED
 tsk_tree_first(tsk_tree_t *self)
 {
     int ret = TSK_TREE_OK;
-    tsk_table_collection_t *tables = self->tree_sequence->tables;
 
-    self->interval.left = 0;
-    self->index = 0;
-    self->interval.right = tables->sequence_length;
-    self->sites = self->tree_sequence->tree_sites[0];
-    self->sites_length = self->tree_sequence->tree_sites_length[0];
-
-    if (tables->edges.num_rows > 0) {
-        /* TODO this is redundant if this is the first usage of the tree. We
-         * should add a state machine here so we know what state the tree is
-         * in and can take the appropriate actions.
-         */
-        ret = tsk_tree_clear(self);
-        if (ret != 0) {
-            goto out;
-        }
-        self->index = -1;
-        self->left_index = 0;
-        self->right_index = 0;
-        self->direction = TSK_DIR_FORWARD;
-        self->interval.right = 0;
-
-        ret = tsk_tree_advance(self, TSK_DIR_FORWARD, tables->edges.right,
-            tables->indexes.edge_removal_order, &self->right_index, tables->edges.left,
-            tables->indexes.edge_insertion_order, &self->left_index);
+    ret = tsk_tree_clear(self);
+    if (ret != 0) {
+        goto out;
     }
+    ret = tsk_tree_next(self);
 out:
     return ret;
 }
@@ -5590,53 +5511,55 @@ int TSK_WARN_UNUSED
 tsk_tree_last(tsk_tree_t *self)
 {
     int ret = TSK_TREE_OK;
-    const tsk_treeseq_t *ts = self->tree_sequence;
-    const tsk_table_collection_t *tables = ts->tables;
 
-    self->interval.left = 0;
-    self->interval.right = tables->sequence_length;
-    self->index = 0;
-    self->sites = ts->tree_sites[0];
-    self->sites_length = ts->tree_sites_length[0];
-
-    if (tables->edges.num_rows > 0) {
-        /* TODO this is redundant if this is the first usage of the tree. We
-         * should add a state machine here so we know what state the tree is
-         * in and can take the appropriate actions.
-         */
-        ret = tsk_tree_clear(self);
-        if (ret != 0) {
-            goto out;
-        }
-        self->index = (tsk_id_t) tsk_treeseq_get_num_trees(ts);
-        self->left_index = (tsk_id_t) tables->edges.num_rows - 1;
-        self->right_index = (tsk_id_t) tables->edges.num_rows - 1;
-        self->direction = TSK_DIR_REVERSE;
-        self->interval.left = tables->sequence_length;
-        self->interval.right = 0;
-
-        ret = tsk_tree_advance(self, TSK_DIR_REVERSE, tables->edges.left,
-            tables->indexes.edge_insertion_order, &self->left_index, tables->edges.right,
-            tables->indexes.edge_removal_order, &self->right_index);
+    ret = tsk_tree_clear(self);
+    if (ret != 0) {
+        goto out;
     }
+    ret = tsk_tree_prev(self);
 out:
     return ret;
+}
+
+static void
+tsk_tree_update_index_and_interval(tsk_tree_t *self)
+{
+    tsk_table_collection_t *tables = self->tree_sequence->tables;
+
+    self->index = self->tree_pos.index;
+    self->interval.left = self->tree_pos.interval.left;
+    self->interval.right = self->tree_pos.interval.right;
+
+    if (tables->sites.num_rows > 0) {
+        self->sites = self->tree_sequence->tree_sites[self->index];
+        self->sites_length = self->tree_sequence->tree_sites_length[self->index];
+    }
 }
 
 int TSK_WARN_UNUSED
 tsk_tree_next(tsk_tree_t *self)
 {
     int ret = 0;
-    const tsk_treeseq_t *ts = self->tree_sequence;
-    const tsk_table_collection_t *tables = ts->tables;
-    tsk_id_t num_trees = (tsk_id_t) tsk_treeseq_get_num_trees(ts);
+    tsk_table_collection_t *tables = self->tree_sequence->tables;
+    const tsk_id_t *restrict edge_parent = tables->edges.parent;
+    const tsk_id_t *restrict edge_child = tables->edges.child;
+    tsk_id_t j, e;
+    bool valid;
 
-    if (self->index == -1) {
-        ret = tsk_tree_first(self);
-    } else if (self->index < num_trees - 1) {
-        ret = tsk_tree_advance(self, TSK_DIR_FORWARD, tables->edges.right,
-            tables->indexes.edge_removal_order, &self->right_index, tables->edges.left,
-            tables->indexes.edge_insertion_order, &self->left_index);
+    valid = tsk_tree_position_next(&self->tree_pos);
+
+    if (valid) {
+        for (j = self->tree_pos.out.start; j != self->tree_pos.out.stop; j++) {
+            e = self->tree_pos.out.order[j];
+            tsk_tree_remove_edge(self, edge_parent[e], edge_child[e]);
+        }
+
+        for (j = self->tree_pos.in.start; j != self->tree_pos.in.stop; j++) {
+            e = self->tree_pos.in.order[j];
+            tsk_tree_insert_edge(self, edge_parent[e], edge_child[e], e);
+        }
+        ret = TSK_TREE_OK;
+        tsk_tree_update_index_and_interval(self);
     } else {
         ret = tsk_tree_clear(self);
     }
@@ -5647,14 +5570,26 @@ int TSK_WARN_UNUSED
 tsk_tree_prev(tsk_tree_t *self)
 {
     int ret = 0;
-    const tsk_table_collection_t *tables = self->tree_sequence->tables;
+    tsk_table_collection_t *tables = self->tree_sequence->tables;
+    const tsk_id_t *restrict edge_parent = tables->edges.parent;
+    const tsk_id_t *restrict edge_child = tables->edges.child;
+    tsk_id_t j, e;
+    bool valid;
 
-    if (self->index == -1) {
-        ret = tsk_tree_last(self);
-    } else if (self->index > 0) {
-        ret = tsk_tree_advance(self, TSK_DIR_REVERSE, tables->edges.left,
-            tables->indexes.edge_insertion_order, &self->left_index, tables->edges.right,
-            tables->indexes.edge_removal_order, &self->right_index);
+    valid = tsk_tree_position_prev(&self->tree_pos);
+
+    if (valid) {
+        for (j = self->tree_pos.out.start; j != self->tree_pos.out.stop; j--) {
+            e = self->tree_pos.out.order[j];
+            tsk_tree_remove_edge(self, edge_parent[e], edge_child[e]);
+        }
+
+        for (j = self->tree_pos.in.start; j != self->tree_pos.in.stop; j--) {
+            e = self->tree_pos.in.order[j];
+            tsk_tree_insert_edge(self, edge_parent[e], edge_child[e], e);
+        }
+        ret = TSK_TREE_OK;
+        tsk_tree_update_index_and_interval(self);
     } else {
         ret = tsk_tree_clear(self);
     }
@@ -5667,111 +5602,25 @@ tsk_tree_position_in_interval(const tsk_tree_t *self, double x)
     return self->interval.left <= x && x < self->interval.right;
 }
 
-/* NOTE:
- *
- * Notes from Kevin Thornton:
- *
- * This method inserts the edges for an arbitrary tree
- * in linear time and requires no additional memory.
- *
- * During design, the following alternatives were tested
- * (in a combination of rust + C):
- * 1. Indexing edge insertion/removal locations by tree.
- *    The indexing can be done in O(n) time, giving O(1)
- *    access to the first edge in a tree. We can then add
- *    edges to the tree in O(e) time, where e is the number
- *    of edges. This apparoach requires O(n) additional memory
- *    and is only marginally faster than the implementation below.
- * 2. Building an interval tree mapping edge id -> span.
- *    This approach adds a lot of complexity and wasn't any faster
- *    than the indexing described above.
- */
 static int
 tsk_tree_seek_from_null(tsk_tree_t *self, double x, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
-    tsk_size_t edge;
-    tsk_id_t p, c, e, j, k, tree_index;
-    const double L = tsk_treeseq_get_sequence_length(self->tree_sequence);
-    const tsk_treeseq_t *treeseq = self->tree_sequence;
-    const tsk_table_collection_t *tables = treeseq->tables;
-    const tsk_id_t *restrict edge_parent = tables->edges.parent;
-    const tsk_id_t *restrict edge_child = tables->edges.child;
-    const tsk_size_t num_edges = tables->edges.num_rows;
-    const tsk_size_t num_trees = self->tree_sequence->num_trees;
-    const double *restrict edge_left = tables->edges.left;
-    const double *restrict edge_right = tables->edges.right;
-    const double *restrict breakpoints = treeseq->breakpoints;
-    const tsk_id_t *restrict insertion = tables->indexes.edge_insertion_order;
-    const tsk_id_t *restrict removal = tables->indexes.edge_removal_order;
 
-    // NOTE: it may be better to get the
-    // index first and then ask if we are
-    // searching in the first or last 1/2
-    // of trees.
-    j = -1;
-    if (x <= L / 2.0) {
-        for (edge = 0; edge < num_edges; edge++) {
-            e = insertion[edge];
-            if (edge_left[e] > x) {
-                j = (tsk_id_t) edge;
-                break;
-            }
-            if (x >= edge_left[e] && x < edge_right[e]) {
-                p = edge_parent[e];
-                c = edge_child[e];
-                tsk_tree_insert_edge(self, p, c, e);
-            }
-        }
-    } else {
-        for (edge = 0; edge < num_edges; edge++) {
-            e = removal[num_edges - edge - 1];
-            if (edge_right[e] < x) {
-                j = (tsk_id_t)(num_edges - edge - 1);
-                while (j < (tsk_id_t) num_edges && edge_left[insertion[j]] <= x) {
-                    j++;
-                }
-                break;
-            }
-            if (x >= edge_left[e] && x < edge_right[e]) {
-                p = edge_parent[e];
-                c = edge_child[e];
-                tsk_tree_insert_edge(self, p, c, e);
-            }
+    tsk_bug_assert(self->index == -1);
+
+    ret = tsk_tree_next(self);
+    if (ret < 0) {
+        goto out;
+    }
+    while (!tsk_tree_position_in_interval(self, x)) {
+        ret = tsk_tree_next(self);
+        if (ret < 0) {
+            goto out;
         }
     }
-
-    if (j == -1) {
-        j = 0;
-        while (j < (tsk_id_t) num_edges && edge_left[insertion[j]] <= x) {
-            j++;
-        }
-    }
-    k = 0;
-    while (k < (tsk_id_t) num_edges && edge_right[removal[k]] <= x) {
-        k++;
-    }
-
-    /* NOTE: tsk_search_sorted finds the first the first
-     * insertion locatiom >= the query point, which
-     * finds a RIGHT value for queries not at the left edge.
-     */
-    tree_index = (tsk_id_t) tsk_search_sorted(breakpoints, num_trees + 1, x);
-    if (breakpoints[tree_index] > x) {
-        tree_index--;
-    }
-    self->index = tree_index;
-    self->interval.left = breakpoints[tree_index];
-    self->interval.right = breakpoints[tree_index + 1];
-    self->left_index = j;
-    self->right_index = k;
-    self->direction = TSK_DIR_FORWARD;
-    self->num_nodes = tables->nodes.num_rows;
-    if (tables->sites.num_rows > 0) {
-        self->sites = treeseq->tree_sites[self->index];
-        self->sites_length = treeseq->tree_sites_length[self->index];
-    }
-
+    ret = 0;
+out:
     return ret;
 }
 
@@ -5868,6 +5717,7 @@ tsk_tree_clear(tsk_tree_t *self)
     self->interval.right = 0;
     self->num_edges = 0;
     self->index = -1;
+    tsk_tree_position_set_null(&self->tree_pos);
     /* TODO we should profile this method to see if just doing a single loop over
      * the nodes would be more efficient than multiple memsets.
      */

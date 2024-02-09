@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2023 Tskit Developers
+ * Copyright (c) 2019-2024 Tskit Developers
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -310,11 +310,7 @@ tsk_ls_hmm_update_tree(tsk_ls_hmm_t *self, int direction)
     tsk_id_t u, c, p, j, e;
     tsk_value_transition_t *vt;
 
-    if (direction == TSK_DIR_FORWARD) {
-        tsk_tree_position_next(&self->tree_pos);
-    } else {
-        tsk_tree_position_prev(&self->tree_pos);
-    }
+    tsk_tree_position_step(&self->tree_pos, direction);
     tsk_bug_assert(self->tree_pos.index != -1);
     tsk_bug_assert(self->tree_pos.index == self->tree.index);
 
