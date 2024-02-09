@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2023 Tskit Developers
+ * Copyright (c) 2019-2024 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -1850,6 +1850,7 @@ int tsk_tree_position_free(tsk_tree_position_t *self);
 int tsk_tree_position_print_state(const tsk_tree_position_t *self, FILE *out);
 bool tsk_tree_position_next(tsk_tree_position_t *self);
 bool tsk_tree_position_prev(tsk_tree_position_t *self);
+bool tsk_tree_position_step(tsk_tree_position_t *self, int direction);
 int tsk_tree_position_seek_forward(tsk_tree_position_t *self, tsk_id_t index);
 int tsk_tree_position_seek_backward(tsk_tree_position_t *self, tsk_id_t index);
 
