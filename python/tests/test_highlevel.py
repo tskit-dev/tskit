@@ -4645,8 +4645,7 @@ class TestSeekDirection:
             t2.prev()
         assert_same_tree_different_order(t1, t2)
 
-    @pytest.mark.skip("Fails due to temporary seek_from_null implementation")
-    #    @pytest.mark.parametrize("position", [0, 1, 2, 3])
+    @pytest.mark.parametrize("position", [0, 1, 2, 3])
     def test_seek_from_null(self, position):
         t1, t2 = self.get_tree_pair()
         t1.clear()
@@ -4699,7 +4698,6 @@ class TestSeekDirection:
         t2.seek(1.5)
         assert_trees_identical(t1, t2)
 
-    @pytest.mark.skip("Fails due to temporary seek_from_null implementation")
     def test_seek_3_from_null(self):
         t1, t2 = self.get_tree_pair()
         t1.last()
@@ -4748,8 +4746,7 @@ class TestSeekDirection:
             assert t1.index == t2.index
             assert np.all(t1.parent_array == t2.parent_array)
 
-    @pytest.mark.skip("Fails due to temporary seek_from_null implementation")
-    #    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_seek_last_then_prev(self, ts):
         t1 = tskit.Tree(ts)
         t1.seek(ts.sequence_length - 0.00001)
