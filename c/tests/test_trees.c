@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2023 Tskit Developers
+ * Copyright (c) 2019-2024 Tskit Developers
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -182,6 +182,8 @@ verify_tree_pos(const tsk_treeseq_t *ts, tsk_size_t num_trees, tsk_id_t *tree_pa
     const tsk_size_t N = tsk_treeseq_get_num_nodes(ts);
     const tsk_id_t *edges_parent = ts->tables->edges.parent;
     const tsk_id_t *edges_child = ts->tables->edges.child;
+    const double *restrict edges_left = ts->tables->edges.left;
+    const double *restrict edges_right = ts->tables->edges.right;
     tsk_tree_position_t tree_pos;
     tsk_id_t *known_parent;
     tsk_id_t *parent = tsk_malloc(N * sizeof(*parent));
@@ -262,7 +264,62 @@ verify_tree_pos(const tsk_treeseq_t *ts, tsk_size_t num_trees, tsk_id_t *tree_pa
         CU_ASSERT_EQUAL(parent[u], TSK_NULL);
     }
 
-    tsk_tree_position_free(&tree_pos);
+    for (index = 0; index < (tsk_id_t) num_trees; index++) {
+        known_parent = tree_parents + N * (tsk_size_t) index;
+        ret = tsk_tree_position_init(&tree_pos, ts, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+        ret = tsk_tree_position_seek_forward(&tree_pos, index);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(index, tree_pos.index);
+
+        for (j = tree_pos.in.start; j != tree_pos.in.stop; j++) {
+            e = tree_pos.in.order[j];
+            if (edges_left[e] <= tree_pos.interval.left
+                && tree_pos.interval.left < edges_right[e]) {
+                parent[edges_child[e]] = edges_parent[e];
+            }
+        }
+        for (u = 0; u < (tsk_id_t) N; u++) {
+            CU_ASSERT_EQUAL(parent[u], known_parent[u]);
+        }
+
+        tsk_tree_position_free(&tree_pos);
+        for (u = 0; u < (tsk_id_t) N; u++) {
+            parent[u] = TSK_NULL;
+        }
+    }
+
+    valid = tsk_tree_position_next(&tree_pos);
+    CU_ASSERT_FALSE(valid);
+
+    for (index = (tsk_id_t) num_trees - 1; index >= 0; index--) {
+        known_parent = tree_parents + N * (tsk_size_t) index;
+        ret = tsk_tree_position_init(&tree_pos, ts, 0);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+        ret = tsk_tree_position_seek_backward(&tree_pos, index);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        CU_ASSERT_EQUAL(index, tree_pos.index);
+
+        for (j = tree_pos.in.start; j != tree_pos.in.stop; j--) {
+            e = tree_pos.in.order[j];
+            if (edges_right[e] >= tree_pos.interval.right
+                && tree_pos.interval.right > edges_left[e]) {
+                parent[edges_child[e]] = edges_parent[e];
+            }
+        }
+
+        for (u = 0; u < (tsk_id_t) N; u++) {
+            CU_ASSERT_EQUAL(parent[u], known_parent[u]);
+        }
+
+        for (u = 0; u < (tsk_id_t) N; u++) {
+            parent[u] = TSK_NULL;
+        }
+        tsk_tree_position_free(&tree_pos);
+    }
+
     tsk_safe_free(parent);
 }
 
@@ -5350,6 +5407,7 @@ test_single_tree_tree_pos(void)
     CU_ASSERT_EQUAL_FATAL(tree_pos.out.start, 0);
     CU_ASSERT_EQUAL_FATAL(tree_pos.out.stop, 0);
     CU_ASSERT_EQUAL_FATAL(tree_pos.out.order, ts.tables->indexes.edge_removal_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.direction, TSK_DIR_FORWARD);
 
     valid = tsk_tree_position_next(&tree_pos);
     CU_ASSERT_FATAL(!valid);
@@ -5360,6 +5418,7 @@ test_single_tree_tree_pos(void)
     CU_ASSERT_EQUAL_FATAL(tree_pos.out.start, 0);
     CU_ASSERT_EQUAL_FATAL(tree_pos.out.stop, 6);
     CU_ASSERT_EQUAL_FATAL(tree_pos.out.order, ts.tables->indexes.edge_removal_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.direction, TSK_DIR_FORWARD);
 
     valid = tsk_tree_position_prev(&tree_pos);
     CU_ASSERT_FATAL(valid);
@@ -5372,6 +5431,7 @@ test_single_tree_tree_pos(void)
     CU_ASSERT_EQUAL_FATAL(tree_pos.out.start, 5);
     CU_ASSERT_EQUAL_FATAL(tree_pos.out.stop, 5);
     CU_ASSERT_EQUAL_FATAL(tree_pos.out.order, ts.tables->indexes.edge_insertion_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.direction, TSK_DIR_REVERSE);
 
     valid = tsk_tree_position_prev(&tree_pos);
     CU_ASSERT_FATAL(!valid);
@@ -5380,6 +5440,42 @@ test_single_tree_tree_pos(void)
     CU_ASSERT_EQUAL_FATAL(tree_pos.out.start, 5);
     CU_ASSERT_EQUAL_FATAL(tree_pos.out.stop, -1);
     CU_ASSERT_EQUAL_FATAL(tree_pos.out.order, ts.tables->indexes.edge_insertion_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.direction, TSK_DIR_REVERSE);
+
+    ret = tsk_tree_position_seek_forward(&tree_pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL_FATAL(tree_pos.interval.left, 0);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.interval.right, 1);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.start, 0);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.stop, 6);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.order, ts.tables->indexes.edge_insertion_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.start, 0);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.stop, 0);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.order, ts.tables->indexes.edge_removal_order)
+    CU_ASSERT_EQUAL_FATAL(tree_pos.direction, TSK_DIR_FORWARD);
+
+    valid = tsk_tree_position_next(&tree_pos);
+    CU_ASSERT_FATAL(!valid);
+
+    CU_ASSERT_EQUAL_FATAL(tree_pos.index, -1);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.start, 0);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.stop, 6);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.order, ts.tables->indexes.edge_removal_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.direction, TSK_DIR_FORWARD);
+
+    ret = tsk_tree_position_seek_backward(&tree_pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL_FATAL(tree_pos.interval.left, 0);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.interval.right, 1);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.start, 5);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.stop, -1);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.order, ts.tables->indexes.edge_removal_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.start, 5);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.stop, 5);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.order, ts.tables->indexes.edge_insertion_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.direction, TSK_DIR_REVERSE);
 
     tsk_tree_position_free(&tree_pos);
     tsk_treeseq_free(&ts);
@@ -5406,6 +5502,110 @@ test_simple_multi_tree(void)
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_trees(&ts, num_trees, parents);
     verify_edge_array_trees(&ts);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_multi_tree_direction_switching_tree_pos(void)
+{
+    tsk_treeseq_t ts;
+    tsk_tree_position_t tree_pos;
+    bool valid;
+    int ret = 0;
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        paper_ex_mutations, paper_ex_individuals, NULL, 0);
+
+    ret = tsk_tree_position_init(&tree_pos, &ts, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    valid = tsk_tree_position_next(&tree_pos);
+    CU_ASSERT_FATAL(valid);
+
+    CU_ASSERT_EQUAL_FATAL(tree_pos.index, 0);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.interval.left, 0);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.interval.right, 2);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.start, 0);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.stop, 6);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.order, ts.tables->indexes.edge_insertion_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.start, 0);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.stop, 0);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.order, ts.tables->indexes.edge_removal_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.direction, TSK_DIR_FORWARD);
+
+    valid = tsk_tree_position_prev(&tree_pos);
+    CU_ASSERT_FATAL(!valid);
+
+    CU_ASSERT_EQUAL_FATAL(tree_pos.index, -1);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.start, 5);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.stop, -1);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.order, ts.tables->indexes.edge_insertion_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.direction, TSK_DIR_REVERSE);
+
+    valid = tsk_tree_position_prev(&tree_pos);
+    CU_ASSERT_FATAL(valid);
+
+    CU_ASSERT_EQUAL_FATAL(tree_pos.index, 2);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.interval.left, 7);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.interval.right, 10);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.start, 10);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.stop, 4);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.order, ts.tables->indexes.edge_removal_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.start, 10);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.stop, 10);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.order, ts.tables->indexes.edge_insertion_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.direction, TSK_DIR_REVERSE);
+
+    valid = tsk_tree_position_next(&tree_pos);
+    CU_ASSERT_FATAL(!valid);
+
+    CU_ASSERT_EQUAL_FATAL(tree_pos.index, -1);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.start, 5);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.stop, 11);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.order, ts.tables->indexes.edge_removal_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.direction, TSK_DIR_FORWARD);
+
+    ret = tsk_tree_position_seek_forward(&tree_pos, 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL_FATAL(tree_pos.interval.left, 7);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.interval.right, 10);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.start, 0);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.stop, 11);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.order, ts.tables->indexes.edge_insertion_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.start, 5);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.stop, 5);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.order, ts.tables->indexes.edge_removal_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.direction, TSK_DIR_FORWARD);
+
+    ret = tsk_tree_position_seek_backward(&tree_pos, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL_FATAL(tree_pos.index, 0);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.interval.left, 0);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.interval.right, 2);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.start, 4);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.stop, -1);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.order, ts.tables->indexes.edge_removal_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.start, 10);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.stop, 5);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.order, ts.tables->indexes.edge_insertion_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.direction, TSK_DIR_REVERSE);
+
+    ret = tsk_tree_position_seek_forward(&tree_pos, 2);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL_FATAL(tree_pos.index, 2);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.interval.left, 7);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.interval.right, 10);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.start, 6);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.stop, 11);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.in.order, ts.tables->indexes.edge_insertion_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.start, 0);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.stop, 5);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.out.order, ts.tables->indexes.edge_removal_order);
+    CU_ASSERT_EQUAL_FATAL(tree_pos.direction, TSK_DIR_FORWARD);
+
+    tsk_tree_position_free(&tree_pos);
     tsk_treeseq_free(&ts);
 }
 
@@ -8501,6 +8701,8 @@ main(int argc, char **argv)
 
         /* Multi tree tests */
         { "test_simple_multi_tree", test_simple_multi_tree },
+        { "test_multi_tree_direction_switching_tree_pos",
+            test_multi_tree_direction_switching_tree_pos },
         { "test_nonbinary_multi_tree", test_nonbinary_multi_tree },
         { "test_unary_multi_tree", test_unary_multi_tree },
         { "test_internal_sample_multi_tree", test_internal_sample_multi_tree },
