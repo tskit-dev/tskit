@@ -5741,6 +5741,8 @@ tsk_tree_seek_from_null(tsk_tree_t *self, double x, tsk_flags_t TSK_UNUSED(optio
     const tsk_id_t *restrict edge_child = tables->edges.child;
     const double *restrict edge_left = tables->edges.left;
     const double *restrict edge_right = tables->edges.right;
+    double interval_left = self->interval.left;
+    double interval_right = self->interval.right;
     const double *restrict breakpoints = self->tree_sequence->breakpoints;
     const tsk_size_t num_trees = self->tree_sequence->num_trees;
     const double L = tsk_treeseq_get_sequence_length(self->tree_sequence);
@@ -5756,11 +5758,10 @@ tsk_tree_seek_from_null(tsk_tree_t *self, double x, tsk_flags_t TSK_UNUSED(optio
         if (ret != 0) {
             goto out;
         }
-        tsk_tree_update_index_and_interval(self);
+        interval_left = self->tree_pos.interval.left;
         for (j = self->tree_pos.in.start; j != self->tree_pos.in.stop; j++) {
             e = self->tree_pos.in.order[j];
-            if (edge_left[e] <= self->interval.left
-                && self->interval.left < edge_right[e]) {
+            if (edge_left[e] <= interval_left && interval_left < edge_right[e]) {
                 tsk_tree_insert_edge(self, edge_parent[e], edge_child[e], e);
             }
         }
@@ -5769,15 +5770,15 @@ tsk_tree_seek_from_null(tsk_tree_t *self, double x, tsk_flags_t TSK_UNUSED(optio
         if (ret != 0) {
             goto out;
         }
-        tsk_tree_update_index_and_interval(self);
+        interval_right = self->tree_pos.interval.right;
         for (j = self->tree_pos.in.start; j != self->tree_pos.in.stop; j--) {
             e = self->tree_pos.in.order[j];
-            if (edge_right[e] >= self->interval.right
-                && self->interval.right > edge_left[e]) {
+            if (edge_right[e] >= interval_right && interval_right > edge_left[e]) {
                 tsk_tree_insert_edge(self, edge_parent[e], edge_child[e], e);
             }
         }
     }
+    tsk_tree_update_index_and_interval(self);
 out:
     return ret;
 }
