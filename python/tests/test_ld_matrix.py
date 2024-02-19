@@ -1,3 +1,27 @@
+# MIT License
+#
+# Copyright (c) 2023-2024 Tskit Developers
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+"""
+Test cases for two-locus statistics
+"""
 import io
 from itertools import combinations_with_replacement
 from itertools import permutations
@@ -8,10 +32,12 @@ from typing import Generator
 from typing import List
 from typing import Tuple
 
+import msprime
 import numpy as np
 import pytest
 
 import tskit
+from tests.test_highlevel import get_example_tree_sequences
 
 
 class BitSet:
@@ -232,8 +258,8 @@ def check_sites(sites, max_sites):
     :param max_sites: Number of sites in the tree sequence, the upper
                       bound value for site ids.
     """
-    if sites is None or len(sites) == 0:
-        raise ValueError("No sites provided")
+    if len(sites) == 0:
+        return
     i = 0
     for i in range(len(sites) - 1):
         if sites[i] < 0 or sites[i] >= max_sites:
@@ -245,7 +271,7 @@ def check_sites(sites, max_sites):
 
 
 def get_site_row_col_indices(
-    row_sites: List[int], col_sites: List[int]
+    row_sites: np.ndarray, col_sites: np.ndarray
 ) -> Tuple[List[int], List[int], List[int]]:
     """Co-iterate over the row and column sites, keeping a sorted union of
     site values and an index into the unique list of sites for both the row
@@ -362,7 +388,7 @@ def get_allele_samples(
 
 
 def get_mutation_samples(
-    ts: tskit.TreeSequence, sites: List[int]
+    ts: tskit.TreeSequence, sites: List[int], sample_index_map: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray, BitSet]:
     """For a given set of sites, generate a BitSet of all samples posessing
     each allelic state for each site. This includes the ancestral state, along
@@ -408,7 +434,7 @@ def get_mutation_samples(
         for m, mut in enumerate(site.mutations):
             for node in tree.preorder(mut.node):
                 if ts.node(node).is_sample():
-                    mut_samples.add(m, node)
+                    mut_samples.add(m, sample_index_map[node])
         # account for mutation parentage, subtract samples from mutation parents
         num_alleles[site_idx] = get_allele_samples(
             site, site_offset, mut_samples, allele_samples
@@ -507,8 +533,9 @@ def two_site_count_stat(
     num_sample_sets: int,
     sample_set_sizes: np.ndarray,
     sample_sets: BitSet,
-    row_sites: List[int],
-    col_sites: List[int],
+    sample_index_map: np.ndarray,
+    row_sites: np.ndarray,
+    col_sites: np.ndarray,
     polarised: bool,
 ) -> np.ndarray:
     """Outer function that generates the high-level intermediates used in the
@@ -544,7 +571,9 @@ def two_site_count_stat(
     )
 
     sites, row_idx, col_idx = get_site_row_col_indices(row_sites, col_sites)
-    num_alleles, site_offsets, allele_samples = get_mutation_samples(ts, sites)
+    num_alleles, site_offsets, allele_samples = get_mutation_samples(
+        ts, sites, sample_index_map
+    )
 
     for row, row_site in enumerate(row_idx):
         for col, col_site in enumerate(col_idx):
@@ -569,7 +598,7 @@ def two_site_count_stat(
 
 def sample_sets_to_bit_array(
     ts: tskit.TreeSequence, sample_sets: List[List[int]]
-) -> Tuple[np.ndarray, BitSet]:
+) -> Tuple[np.ndarray, np.ndarray, BitSet]:
     """Convert the list of sample ids to a bit array. This function takes
     sample identifiers and maps them to their enumerated integer values, then
     stores these values in a bit array. We produce a BitArray and a numpy
@@ -588,8 +617,11 @@ def sample_sets_to_bit_array(
     sample_index_map = -np.ones(ts.num_nodes, dtype=np.int32)
     sample_set_sizes = np.zeros(len(sample_sets), dtype=np.uint64)
 
-    for i, sample in enumerate(ts.samples()):
-        sample_index_map[sample] = i
+    sample_count = 0
+    for node in ts.nodes():
+        if node.flags & tskit.NODE_IS_SAMPLE:
+            sample_index_map[node.id] = sample_count
+            sample_count += 1
 
     for k, sample_set in enumerate(sample_sets):
         sample_set_sizes[k] = len(sample_set)
@@ -601,7 +633,7 @@ def sample_sets_to_bit_array(
                 raise ValueError(f"Duplicate sample detected: {sample}")
             sample_sets_bits.add(k, sample_index)
 
-    return sample_set_sizes, sample_sets_bits
+    return sample_index_map, sample_set_sizes, sample_sets_bits
 
 
 def two_locus_count_stat(
@@ -635,20 +667,23 @@ def two_locus_count_stat(
     if sample_sets is None:
         sample_sets = [ts.samples()]
     if sites is None:
-        sites = [np.arange(ts.num_sites), np.arange(ts.num_sites)]
+        row_sites = np.arange(ts.num_sites)
+        col_sites = np.arange(ts.num_sites)
+    elif len(sites) == 2:
+        row_sites = np.asarray(sites[0])
+        col_sites = np.asarray(sites[1])
+    elif len(sites) == 1:
+        row_sites = np.asarray(sites[0])
+        col_sites = np.asarray(sites[0])
     else:
-        if len(sites) != 2:
-            raise ValueError(
-                f"Sites must be a length 2 list, got a length {len(sites)} list"
-            )
-        sites[0] = np.asarray(sites[0])
-        sites[1] = np.asarray(sites[1])
+        raise ValueError(
+            f"Sites must be a length 1 or 2 list, got a length {len(sites)} list"
+        )
 
-    row_sites, col_sites = sites
     check_sites(row_sites, ts.num_sites)
     check_sites(col_sites, ts.num_sites)
 
-    ss_sizes, ss_bits = sample_sets_to_bit_array(ts, sample_sets)
+    sample_index_map, ss_sizes, ss_bits = sample_sets_to_bit_array(ts, sample_sets)
 
     result = two_site_count_stat(
         ts,
@@ -657,8 +692,9 @@ def two_locus_count_stat(
         len(ss_sizes),
         ss_sizes,
         ss_bits,
-        sites[0],
-        sites[1],
+        sample_index_map,
+        row_sites,
+        col_sites,
         polarised,
     )
 
@@ -697,6 +733,165 @@ def r2_summary_func(
             result[k] = 0
         else:
             result[k] = (D * D) / denom
+
+
+def D_summary_func(
+    state_dim: int, state: np.ndarray, result: np.ndarray, params: Dict[str, Any]
+) -> None:
+    sample_set_sizes = params["sample_set_sizes"]
+    for k in range(state_dim):
+        n = sample_set_sizes[k]
+        p_AB = state[0, k] / float(n)
+        p_Ab = state[1, k] / float(n)
+        p_aB = state[2, k] / float(n)
+
+        p_A = p_AB + p_Ab
+        p_B = p_AB + p_aB
+
+        result[k] = p_AB - (p_A * p_B)
+
+
+def D2_summary_func(
+    state_dim: int, state: np.ndarray, result: np.ndarray, params: Dict[str, Any]
+) -> None:
+    sample_set_sizes = params["sample_set_sizes"]
+    for k in range(state_dim):
+        n = sample_set_sizes[k]
+        p_AB = state[0, k] / float(n)
+        p_Ab = state[1, k] / float(n)
+        p_aB = state[2, k] / float(n)
+
+        p_A = p_AB + p_Ab
+        p_B = p_AB + p_aB
+
+        result[k] = p_AB - (p_A * p_B)
+        result[k] = result[k] * result[k]
+
+
+def D_prime_summary_func(
+    state_dim: int, state: np.ndarray, result: np.ndarray, params: Dict[str, Any]
+) -> None:
+    sample_set_sizes = params["sample_set_sizes"]
+    for k in range(state_dim):
+        n = sample_set_sizes[k]
+        p_AB = state[0, k] / float(n)
+        p_Ab = state[1, k] / float(n)
+        p_aB = state[2, k] / float(n)
+
+        p_A = p_AB + p_Ab
+        p_B = p_AB + p_aB
+
+        D = p_AB - (p_A * p_B)
+        if D == 0:
+            result[k] = 0
+        elif D > 0:
+            result[k] = D / min(p_A * (1 - p_B), (1 - p_A) * p_B)
+        else:
+            result[k] = D / min(p_A * p_B, (1 - p_A) * (1 - p_B))
+
+
+def r_summary_func(
+    state_dim: int, state: np.ndarray, result: np.ndarray, params: Dict[str, Any]
+) -> None:
+    sample_set_sizes = params["sample_set_sizes"]
+    for k in range(state_dim):
+        n = sample_set_sizes[k]
+        p_AB = state[0, k] / n
+        p_Ab = state[1, k] / n
+        p_aB = state[2, k] / n
+
+        p_A = p_AB + p_Ab
+        p_B = p_AB + p_aB
+
+        D = p_AB - (p_A * p_B)
+        denom = p_A * p_B * (1 - p_A) * (1 - p_B)
+
+        if denom == 0 and D == 0:
+            result[k] = 0
+        else:
+            result[k] = D / np.sqrt(denom)
+
+
+def Dz_summary_func(
+    state_dim: int, state: np.ndarray, result: np.ndarray, params: Dict[str, Any]
+) -> None:
+    sample_set_sizes = params["sample_set_sizes"]
+    for k in range(state_dim):
+        n = sample_set_sizes[k]
+        p_AB = state[0, k] / n
+        p_Ab = state[1, k] / n
+        p_aB = state[2, k] / n
+
+        p_A = p_AB + p_Ab
+        p_B = p_AB + p_aB
+
+        D = p_AB - (p_A * p_B)
+
+        result[k] = D * (1 - 2 * p_A) * (1 - 2 * p_B)
+
+
+def pi2_summary_func(
+    state_dim: int, state: np.ndarray, result: np.ndarray, params: Dict[str, Any]
+) -> None:
+    sample_set_sizes = params["sample_set_sizes"]
+    for k in range(state_dim):
+        n = sample_set_sizes[k]
+        p_AB = state[0, k] / n
+        p_Ab = state[1, k] / n
+        p_aB = state[2, k] / n
+
+        p_A = p_AB + p_Ab
+        p_B = p_AB + p_aB
+
+        result[k] = p_A * (1 - p_A) * p_B * (1 - p_B)
+
+
+SUMMARY_FUNCS = {
+    "r": r_summary_func,
+    "r2": r2_summary_func,
+    "D": D_summary_func,
+    "D2": D2_summary_func,
+    "D_prime": D_prime_summary_func,
+    "pi2": pi2_summary_func,
+    "Dz": Dz_summary_func,
+}
+
+NORM_METHOD = {
+    D_summary_func: norm_total_weighted,
+    D_prime_summary_func: norm_hap_weighted,
+    D2_summary_func: norm_total_weighted,
+    Dz_summary_func: norm_total_weighted,
+    pi2_summary_func: norm_total_weighted,
+    r_summary_func: norm_total_weighted,
+    r2_summary_func: norm_hap_weighted,
+}
+
+POLARIZATION = {
+    D_summary_func: True,
+    D_prime_summary_func: True,
+    D2_summary_func: False,
+    Dz_summary_func: False,
+    pi2_summary_func: False,
+    r_summary_func: True,
+    r2_summary_func: False,
+}
+
+
+def ld_matrix(
+    ts,
+    sample_sets=None,
+    sites=None,
+    stat="r2",
+):
+    summary_func = SUMMARY_FUNCS[stat]
+    return two_locus_count_stat(
+        ts,
+        summary_func,
+        NORM_METHOD[summary_func],
+        POLARIZATION[summary_func],
+        sites=sites,
+        sample_sets=sample_sets,
+    )
 
 
 def get_paper_ex_ts():
@@ -772,7 +967,7 @@ PAPER_EX_TRUTH_MATRIX = np.array(
 # fmt:on
 
 
-def get_all_site_partitions(n):
+def get_matrix_partitions(n):
     """Generate all partitions for square matricies, then combine with replacement
     and return all possible pairs of all partitions.
 
@@ -783,7 +978,7 @@ def get_all_site_partitions(n):
     :returns: combinations of partitions.
     """
     parts = []
-    for part in tskit.combinatorics.rule_asc(3):
+    for part in tskit.combinatorics.rule_asc(n):
         for g in set(permutations(part, len(part))):
             p = []
             i = iter(range(n))
@@ -798,36 +993,100 @@ def get_all_site_partitions(n):
     return combos
 
 
-def assert_slice_allclose(a, b):
-    """Provide two lists of sites to the general stat function, then check to
-    see if the subset matches the slice out of the truth matrix. Raise if
-    arrays not close.
-
-    :param a: row sites.
-    :param b: column sites.
-    """
-    ts = get_paper_ex_ts()
-    np.testing.assert_allclose(
-        two_locus_count_stat(
-            ts, r2_summary_func, norm_hap_weighted, False, sites=[a, b]
-        ),
-        PAPER_EX_TRUTH_MATRIX[a[0] : a[-1] + 1, b[0] : b[-1] + 1],
-    )
-
-
-@pytest.mark.parametrize(
-    # Generate all partitions of the LD matrix that, then pass into test_subset
-    "partition",
-    get_all_site_partitions(len(PAPER_EX_TRUTH_MATRIX)),
-)
-def test_subset(partition):
+# Generate all partitions of the LD matrix, then pass into test_subset
+@pytest.mark.parametrize("partition", get_matrix_partitions(len(PAPER_EX_TRUTH_MATRIX)))
+def test_subset_sites(partition):
     """Given a partition of the truth matrix, check that we can successfully
     compute the LD matrix for that given partition, effectively ensuring that
     our handling of site subsets is correct.
 
-    :param partition: length 2 list of [row_sites, column_sites]. This is a
-                      pytest fixture for a parametrized function.
+    :param partition: length 2 list of [row_sites, column_sites].
     """
     a, b = partition
-    print(a, b)
-    assert_slice_allclose(a, b)
+    ts = get_paper_ex_ts()
+    np.testing.assert_allclose(
+        ld_matrix(ts, sites=partition),
+        PAPER_EX_TRUTH_MATRIX[a[0] : a[-1] + 1, b[0] : b[-1] + 1],
+    )
+    np.testing.assert_equal(
+        ld_matrix(ts, sites=partition), ts.ld_matrix(sites=partition)
+    )
+
+
+@pytest.mark.parametrize("sites", [[0, 1, 2], [1, 2], [0, 1], [0], [1]])
+def test_subset_sites_one_list(sites):
+    """Test the case where we only pass only one list of sites to compute. This
+    should return a square matrix comparing the sites to themselves.
+    """
+    ts = get_paper_ex_ts()
+    np.testing.assert_equal(ld_matrix(ts, sites=[sites]), ts.ld_matrix(sites=[sites]))
+
+
+# Generate all partitions of the samples, producing pairs of sample sets
+@pytest.mark.parametrize(
+    "partition", get_matrix_partitions(get_paper_ex_ts().num_samples)
+)
+def test_sample_sets(partition):
+    """Test all partitions of sample sets, ensuring that we are correctly
+    computing stats for various subsets of the samples in a given tree.
+
+    :param partition: length 2 list of [ss_1, ss_2].
+    """
+    ts = get_paper_ex_ts()
+    np.testing.assert_equal(
+        ld_matrix(ts, sample_sets=partition), ts.ld_matrix(sample_sets=partition)
+    )
+
+
+def test_compare_to_ld_calculator():
+    ts = msprime.sim_ancestry(
+        samples=4, recombination_rate=0.2, sequence_length=10, random_seed=1
+    )
+    ts = msprime.sim_mutations(ts, rate=0.5, random_seed=1, discrete_genome=False)
+    ld_calc = tskit.LdCalculator(ts)
+    np.testing.assert_array_almost_equal(ld_calc.get_r2_matrix(), ts.ld_matrix())
+
+
+@pytest.mark.parametrize("stat", SUMMARY_FUNCS.keys())
+def test_multiallelic_with_back_mutation(stat):
+    ts = msprime.sim_ancestry(
+        samples=4, recombination_rate=0.2, sequence_length=10, random_seed=1
+    )
+    ts = msprime.sim_mutations(ts, rate=0.5, random_seed=1)
+    np.testing.assert_array_equal(ld_matrix(ts, stat=stat), ts.ld_matrix(stat=stat))
+
+
+@pytest.mark.parametrize(
+    "ts",
+    [
+        ts
+        for ts in get_example_tree_sequences()
+        if ts.id not in {"no_samples", "empty_ts"}
+    ],
+)
+@pytest.mark.parametrize("stat", SUMMARY_FUNCS.keys())
+def test_ld_matrix(ts, stat):
+    np.testing.assert_array_equal(ld_matrix(ts, stat=stat), ts.ld_matrix(stat=stat))
+
+
+@pytest.mark.parametrize(
+    "ts",
+    [ts for ts in get_example_tree_sequences() if ts.id in {"no_samples", "empty_ts"}],
+)
+def test_ld_empty_examples(ts):
+    with pytest.raises(ValueError, match="at least one element"):
+        ts.ld_matrix()
+
+
+def test_input_validation():
+    ts = get_paper_ex_ts()
+    with pytest.raises(ValueError, match="Unknown two-locus statistic"):
+        ts.ld_matrix(stat="bad_stat")
+    with pytest.raises(ValueError, match="must be a list of"):
+        ts.ld_matrix(sites=["abc"])
+    with pytest.raises(ValueError, match="must be a list of"):
+        ts.ld_matrix(sites=[1, 2, 3])
+    with pytest.raises(ValueError, match="must be a length 1 or 2 list"):
+        ts.ld_matrix(sites=[[1, 2], [2, 3], [3, 4]])
+    with pytest.raises(ValueError, match="must be a length 1 or 2 list"):
+        ts.ld_matrix(sites=[])

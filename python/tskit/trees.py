@@ -7567,6 +7567,65 @@ class TreeSequence:
                 stat = stat[()]
         return stat
 
+    def __two_locus_sample_set_stat(
+        self,
+        ll_method,
+        sample_sets,
+        sites=None,
+        mode=None,
+    ):
+        if sample_sets is None:
+            sample_sets = self.samples()
+        if sites is not None and any(
+            not hasattr(a, "__getitem__") or isinstance(a, str) for a in sites
+        ):
+            raise ValueError("Sites must be a list of lists, tuples, or ndarrays")
+
+        if sites is None:
+            row_sites = np.arange(self.num_sites, dtype=np.int32)
+            col_sites = np.arange(self.num_sites, dtype=np.int32)
+        elif len(sites) == 2:
+            row_sites, col_sites = sites
+        elif len(sites) == 1:
+            row_sites = col_sites = sites[0]
+        else:
+            raise ValueError(
+                f"Sites must be a length 1 or 2 list, got a length {len(sites)} list"
+            )
+
+        # First try to convert to a 1D numpy array. If we succeed, then we strip off
+        # the corresponding dimension from the output.
+        drop_dimension = False
+        try:
+            sample_sets = np.array(sample_sets, dtype=np.uint64)
+        except ValueError:
+            pass
+        else:
+            # If we've successfully converted sample_sets to a 1D numpy array
+            # of integers then drop the dimension
+            if len(sample_sets.shape) == 1:
+                sample_sets = [sample_sets]
+                drop_dimension = True
+
+        sample_set_sizes = np.array(
+            [len(sample_set) for sample_set in sample_sets], dtype=np.uint32
+        )
+        if np.any(sample_set_sizes == 0):
+            raise ValueError("Sample sets must contain at least one element")
+
+        flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
+
+        result = ll_method(sample_set_sizes, flattened, row_sites, col_sites, mode)
+
+        if drop_dimension:
+            result = result.reshape(result.shape[:2])
+        else:
+            # Orient the data so that the first dimension is the sample set.
+            # With this orientation, we get one LD matrix per sample set.
+            result = result.swapaxes(0, 2).swapaxes(1, 2)
+
+        return result
+
     def __k_way_sample_set_stat(
         self,
         ll_method,
@@ -9281,6 +9340,31 @@ class TreeSequence:
             unknown = tskit.is_unknown_time(mutations_time)
             mutations_time[unknown] = self.nodes_time[self.mutations_node[unknown]]
             return mutations_time
+
+    def ld_matrix(self, sample_sets=None, sites=None, mode="site", stat="r2"):
+        stats = {
+            "D": self._ll_tree_sequence.D_matrix,
+            "D2": self._ll_tree_sequence.D2_matrix,
+            "r2": self._ll_tree_sequence.r2_matrix,
+            "D_prime": self._ll_tree_sequence.D_prime_matrix,
+            "r": self._ll_tree_sequence.r_matrix,
+            "Dz": self._ll_tree_sequence.Dz_matrix,
+            "pi2": self._ll_tree_sequence.pi2_matrix,
+        }
+
+        try:
+            two_locus_stat = stats[stat]
+        except KeyError:
+            raise ValueError(
+                f"Unknown two-locus statistic '{stat}', we support: {list(stats.keys())}"
+            )
+
+        return self.__two_locus_sample_set_stat(
+            two_locus_stat,
+            sample_sets,
+            sites=sites,
+            mode=mode,
+        )
 
     ############################################
     #

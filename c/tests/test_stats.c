@@ -2583,9 +2583,10 @@ test_two_locus_stat_input_errors(void)
     row_sites[0] = 0;
     row_sites[1] = 1;
 
+    // Not an error condition, but we want to record this behavior
     ret = tsk_treeseq_r2(&ts, num_sample_sets, sample_set_sizes, sample_sets, 0, NULL, 0,
         NULL, 0, result);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SITE_POSITION);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     tsk_treeseq_free(&ts);
     tsk_safe_free(row_sites);
