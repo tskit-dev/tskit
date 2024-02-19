@@ -2471,8 +2471,8 @@ get_mutation_samples(const tsk_treeseq_t *ts, const tsk_id_t *sites, tsk_size_t 
             for (n = 0; n < num_nodes; n++) {
                 node = nodes[n];
                 if (flags[node] & TSK_NODE_IS_SAMPLE) {
-                    tsk_bit_array_add_bit(
-                        &mut_samples_row, (tsk_bit_array_value_t) node);
+                    tsk_bit_array_add_bit(&mut_samples_row,
+                        (tsk_bit_array_value_t) ts->sample_index_map[node]);
                 }
             }
         }
@@ -2612,9 +2612,8 @@ check_sites(const tsk_id_t *sites, tsk_size_t num_sites, tsk_size_t num_site_row
     int ret = 0;
     tsk_size_t i;
 
-    if (sites == NULL || num_sites == 0) {
-        ret = TSK_ERR_BAD_SITE_POSITION; // TODO: error should be no sites?
-        goto out;
+    if (num_sites == 0) {
+        return ret; // No need to verify sites if there aren't any
     }
 
     for (i = 0; i < num_sites - 1; i++) {
@@ -3638,9 +3637,10 @@ D_prime_summary_func(tsk_size_t state_dim, const double *state,
         double p_B = p_AB + p_aB;
 
         double D = p_AB - (p_A * p_B);
-        if (D >= 0) {
+        result[j] = 0;
+        if (D > 0) {
             result[j] = D / TSK_MIN(p_A * (1 - p_B), (1 - p_A) * p_B);
-        } else {
+        } else if (D < 0) {
             result[j] = D / TSK_MIN(p_A * p_B, (1 - p_A) * (1 - p_B));
         }
     }
