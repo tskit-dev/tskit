@@ -209,7 +209,6 @@ int
 tsk_ls_hmm_free(tsk_ls_hmm_t *self)
 {
     tsk_tree_free(&self->tree);
-    tsk_tree_position_free(&self->tree_pos);
     tsk_safe_free(self->recombination_rate);
     tsk_safe_free(self->mutation_rate);
     tsk_safe_free(self->recombination_rate);
@@ -247,11 +246,6 @@ tsk_ls_hmm_reset(tsk_ls_hmm_t *self, double value)
     tsk_memset(self->transition_parent, 0xff,
         self->max_transitions * sizeof(*self->transition_parent));
 
-    tsk_tree_position_free(&self->tree_pos);
-    ret = tsk_tree_position_init(&self->tree_pos, self->tree_sequence, 0);
-    if (ret != 0) {
-        goto out;
-    }
     samples = tsk_treeseq_get_samples(self->tree_sequence);
     for (j = 0; j < self->num_samples; j++) {
         u = samples[j];
@@ -260,7 +254,6 @@ tsk_ls_hmm_reset(tsk_ls_hmm_t *self, double value)
         self->transition_index[u] = (tsk_id_t) j;
     }
     self->num_transitions = self->num_samples;
-out:
     return ret;
 }
 
@@ -309,13 +302,11 @@ tsk_ls_hmm_update_tree(tsk_ls_hmm_t *self, int direction)
     tsk_value_transition_t *restrict T = self->transitions;
     tsk_id_t u, c, p, j, e;
     tsk_value_transition_t *vt;
+    tsk_tree_position_t tree_pos;
 
-    tsk_tree_position_step(&self->tree_pos, direction);
-    tsk_bug_assert(self->tree_pos.index != -1);
-    tsk_bug_assert(self->tree_pos.index == self->tree.index);
-
-    for (j = self->tree_pos.out.start; j != self->tree_pos.out.stop; j += direction) {
-        e = self->tree_pos.out.order[j];
+    tree_pos = self->tree.tree_pos;
+    for (j = tree_pos.out.start; j != tree_pos.out.stop; j += direction) {
+        e = tree_pos.out.order[j];
         c = edges_child[e];
         u = c;
         if (T_index[u] == TSK_NULL) {
@@ -333,8 +324,8 @@ tsk_ls_hmm_update_tree(tsk_ls_hmm_t *self, int direction)
         parent[c] = TSK_NULL;
     }
 
-    for (j = self->tree_pos.in.start; j != self->tree_pos.in.stop; j += direction) {
-        e = self->tree_pos.in.order[j];
+    for (j = tree_pos.in.start; j != tree_pos.in.stop; j += direction) {
+        e = tree_pos.in.order[j];
         c = edges_child[e];
         p = edges_parent[e];
         parent[c] = p;

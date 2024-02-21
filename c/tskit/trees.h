@@ -1850,10 +1850,8 @@ int tsk_tree_position_free(tsk_tree_position_t *self);
 int tsk_tree_position_print_state(const tsk_tree_position_t *self, FILE *out);
 bool tsk_tree_position_next(tsk_tree_position_t *self);
 bool tsk_tree_position_prev(tsk_tree_position_t *self);
-bool tsk_tree_position_step(tsk_tree_position_t *self, int direction);
 int tsk_tree_position_seek_forward(tsk_tree_position_t *self, tsk_id_t index);
 int tsk_tree_position_seek_backward(tsk_tree_position_t *self, tsk_id_t index);
-int tsk_tree_position_seek(tsk_tree_position_t *self, double position);
 
 #ifdef __cplusplus
 }
