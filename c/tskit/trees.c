@@ -3597,11 +3597,7 @@ r2_summary_func(tsk_size_t state_dim, const double *state,
         double D = p_AB - (p_A * p_B);
         double denom = p_A * p_B * (1 - p_A) * (1 - p_B);
 
-        if (denom == 0 && D == 0) {
-            result[j] = 0;
-        } else {
-            result[j] = (D * D) / denom;
-        }
+        result[j] = (D * D) / denom;
     }
     return 0;
 }
@@ -3637,8 +3633,8 @@ D_prime_summary_func(tsk_size_t state_dim, const double *state,
         double p_B = p_AB + p_aB;
 
         double D = p_AB - (p_A * p_B);
-        result[j] = 0;
-        if (D > 0) {
+
+        if (D >= 0) {
             result[j] = D / TSK_MIN(p_A * (1 - p_B), (1 - p_A) * p_B);
         } else if (D < 0) {
             result[j] = D / TSK_MIN(p_A * p_B, (1 - p_A) * (1 - p_B));
@@ -3681,11 +3677,7 @@ r_summary_func(tsk_size_t state_dim, const double *state,
         double D = p_AB - (p_A * p_B);
         double denom = p_A * p_B * (1 - p_A) * (1 - p_B);
 
-        if (denom == 0 && D == 0) {
-            result[j] = 0;
-        } else {
-            result[j] = D / sqrt(denom);
-        }
+        result[j] = D / sqrt(denom);
     }
     return 0;
 }
