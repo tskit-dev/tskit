@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2023 Tskit Developers
+ * Copyright (c) 2019-2024 Tskit Developers
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -98,10 +98,6 @@ typedef struct _tsk_ls_hmm_t {
     tsk_size_t num_nodes;
     /* state */
     tsk_tree_t tree;
-    /* NOTE: this tree_position will be redundant once we integrate the top-level
-     * tree class with this.
-     */
-    tsk_tree_position_t tree_pos;
     tsk_id_t *parent;
     /* The probability value transitions on the tree */
     tsk_value_transition_t *transitions;

@@ -4554,19 +4554,6 @@ tsk_tree_position_prev(tsk_tree_position_t *self)
     return self->index != -1;
 }
 
-bool
-tsk_tree_position_step(tsk_tree_position_t *self, int direction)
-{
-    bool ret = false;
-
-    if (direction == TSK_DIR_FORWARD) {
-        ret = tsk_tree_position_next(self);
-    } else if (direction == TSK_DIR_REVERSE) {
-        ret = tsk_tree_position_prev(self);
-    }
-    return ret;
-}
-
 int TSK_WARN_UNUSED
 tsk_tree_position_seek_forward(tsk_tree_position_t *self, tsk_id_t index)
 {
@@ -5674,18 +5661,20 @@ tsk_tree_next(tsk_tree_t *self)
     const tsk_id_t *restrict edge_parent = tables->edges.parent;
     const tsk_id_t *restrict edge_child = tables->edges.child;
     tsk_id_t j, e;
+    tsk_tree_position_t tree_pos;
     bool valid;
 
     valid = tsk_tree_position_next(&self->tree_pos);
+    tree_pos = self->tree_pos;
 
     if (valid) {
-        for (j = self->tree_pos.out.start; j != self->tree_pos.out.stop; j++) {
-            e = self->tree_pos.out.order[j];
+        for (j = tree_pos.out.start; j != tree_pos.out.stop; j++) {
+            e = tree_pos.out.order[j];
             tsk_tree_remove_edge(self, edge_parent[e], edge_child[e]);
         }
 
-        for (j = self->tree_pos.in.start; j != self->tree_pos.in.stop; j++) {
-            e = self->tree_pos.in.order[j];
+        for (j = tree_pos.in.start; j != tree_pos.in.stop; j++) {
+            e = tree_pos.in.order[j];
             tsk_tree_insert_edge(self, edge_parent[e], edge_child[e], e);
         }
         ret = TSK_TREE_OK;
@@ -5704,18 +5693,20 @@ tsk_tree_prev(tsk_tree_t *self)
     const tsk_id_t *restrict edge_parent = tables->edges.parent;
     const tsk_id_t *restrict edge_child = tables->edges.child;
     tsk_id_t j, e;
+    tsk_tree_position_t tree_pos;
     bool valid;
 
     valid = tsk_tree_position_prev(&self->tree_pos);
+    tree_pos = self->tree_pos;
 
     if (valid) {
-        for (j = self->tree_pos.out.start; j != self->tree_pos.out.stop; j--) {
-            e = self->tree_pos.out.order[j];
+        for (j = tree_pos.out.start; j != tree_pos.out.stop; j--) {
+            e = tree_pos.out.order[j];
             tsk_tree_remove_edge(self, edge_parent[e], edge_child[e]);
         }
 
-        for (j = self->tree_pos.in.start; j != self->tree_pos.in.stop; j--) {
-            e = self->tree_pos.in.order[j];
+        for (j = tree_pos.in.start; j != tree_pos.in.stop; j--) {
+            e = tree_pos.in.order[j];
             tsk_tree_insert_edge(self, edge_parent[e], edge_child[e], e);
         }
         ret = TSK_TREE_OK;
@@ -5741,12 +5732,12 @@ tsk_tree_seek_from_null(tsk_tree_t *self, double x, tsk_flags_t TSK_UNUSED(optio
     const tsk_id_t *restrict edge_child = tables->edges.child;
     const double *restrict edge_left = tables->edges.left;
     const double *restrict edge_right = tables->edges.right;
-    double interval_left = self->interval.left;
-    double interval_right = self->interval.right;
+    double interval_left, interval_right;
     const double *restrict breakpoints = self->tree_sequence->breakpoints;
     const tsk_size_t num_trees = self->tree_sequence->num_trees;
     const double L = tsk_treeseq_get_sequence_length(self->tree_sequence);
     tsk_id_t j, e, index;
+    tsk_tree_position_t tree_pos;
 
     index = (tsk_id_t) tsk_search_sorted(breakpoints, num_trees + 1, x);
     if (breakpoints[index] > x) {
@@ -5758,9 +5749,11 @@ tsk_tree_seek_from_null(tsk_tree_t *self, double x, tsk_flags_t TSK_UNUSED(optio
         if (ret != 0) {
             goto out;
         }
-        interval_left = self->tree_pos.interval.left;
-        for (j = self->tree_pos.in.start; j != self->tree_pos.in.stop; j++) {
-            e = self->tree_pos.in.order[j];
+        // Since we are seeking from null, there are no edges to remove
+        tree_pos = self->tree_pos;
+        interval_left = tree_pos.interval.left;
+        for (j = tree_pos.in.start; j != tree_pos.in.stop; j++) {
+            e = tree_pos.in.order[j];
             if (edge_left[e] <= interval_left && interval_left < edge_right[e]) {
                 tsk_tree_insert_edge(self, edge_parent[e], edge_child[e], e);
             }
@@ -5770,9 +5763,10 @@ tsk_tree_seek_from_null(tsk_tree_t *self, double x, tsk_flags_t TSK_UNUSED(optio
         if (ret != 0) {
             goto out;
         }
-        interval_right = self->tree_pos.interval.right;
-        for (j = self->tree_pos.in.start; j != self->tree_pos.in.stop; j--) {
-            e = self->tree_pos.in.order[j];
+        tree_pos = self->tree_pos;
+        interval_right = tree_pos.interval.right;
+        for (j = tree_pos.in.start; j != tree_pos.in.stop; j--) {
+            e = tree_pos.in.order[j];
             if (edge_right[e] >= interval_right && interval_right > edge_left[e]) {
                 tsk_tree_insert_edge(self, edge_parent[e], edge_child[e], e);
             }
@@ -6962,8 +6956,7 @@ out:
 }
 
 static int
-update_kc_incremental(
-    tsk_tree_t *tree, kc_vectors *kc, tsk_tree_position_t *tree_pos, tsk_size_t *depths)
+update_kc_incremental(tsk_tree_t *tree, kc_vectors *kc, tsk_size_t *depths)
 {
     int ret = 0;
     tsk_id_t u, v, e, j;
@@ -6971,14 +6964,11 @@ update_kc_incremental(
     const double *restrict times = tree->tree_sequence->tables->nodes.time;
     const tsk_id_t *restrict edges_child = tree->tree_sequence->tables->edges.child;
     const tsk_id_t *restrict edges_parent = tree->tree_sequence->tables->edges.parent;
-
-    tsk_bug_assert(tree_pos->index == tree->index);
-    tsk_bug_assert(tree_pos->interval.left == tree->interval.left);
-    tsk_bug_assert(tree_pos->interval.right == tree->interval.right);
+    tsk_tree_position_t tree_pos = tree->tree_pos;
 
     /* Update state of detached subtrees */
-    for (j = tree_pos->out.stop - 1; j >= tree_pos->out.start; j--) {
-        e = tree_pos->out.order[j];
+    for (j = tree_pos.out.stop - 1; j >= tree_pos.out.start; j--) {
+        e = tree_pos.out.order[j];
         u = edges_child[e];
         depths[u] = 0;
 
@@ -6992,8 +6982,8 @@ update_kc_incremental(
     }
 
     /* Propagate state change down into reattached subtrees. */
-    for (j = tree_pos->in.stop - 1; j >= tree_pos->in.start; j--) {
-        e = tree_pos->in.order[j];
+    for (j = tree_pos.in.stop - 1; j >= tree_pos.in.start; j--) {
+        e = tree_pos.in.order[j];
         u = edges_child[e];
         v = edges_parent[e];
 
@@ -7026,17 +7016,11 @@ tsk_treeseq_kc_distance(const tsk_treeseq_t *self, const tsk_treeseq_t *other,
     const tsk_treeseq_t *treeseqs[2] = { self, other };
     tsk_tree_t trees[2];
     kc_vectors kcs[2];
-    /* TODO the tree_pos here is redundant because we should be using this interally
-     * in the trees to do the advancing. Once we have converted the tree over to using
-     * tree_pos internally, we can get rid of these tree_pos variables and use
-     * the values stored in the trees themselves */
-    tsk_tree_position_t tree_pos[2];
     tsk_size_t *depths[2];
     int ret = 0;
 
     for (i = 0; i < 2; i++) {
         tsk_memset(&trees[i], 0, sizeof(trees[i]));
-        tsk_memset(&tree_pos[i], 0, sizeof(tree_pos[i]));
         tsk_memset(&kcs[i], 0, sizeof(kcs[i]));
         depths[i] = NULL;
     }
@@ -7049,10 +7033,6 @@ tsk_treeseq_kc_distance(const tsk_treeseq_t *self, const tsk_treeseq_t *other,
     n = (tsk_id_t) self->num_samples;
     for (i = 0; i < 2; i++) {
         ret = tsk_tree_init(&trees[i], treeseqs[i], TSK_SAMPLE_LISTS);
-        if (ret != 0) {
-            goto out;
-        }
-        ret = tsk_tree_position_init(&tree_pos[i], treeseqs[i], 0);
         if (ret != 0) {
             goto out;
         }
@@ -7079,10 +7059,8 @@ tsk_treeseq_kc_distance(const tsk_treeseq_t *self, const tsk_treeseq_t *other,
     if (ret != 0) {
         goto out;
     }
-    tsk_tree_position_next(&tree_pos[0]);
-    tsk_bug_assert(tree_pos[0].index == 0);
 
-    ret = update_kc_incremental(&trees[0], &kcs[0], &tree_pos[0], depths[0]);
+    ret = update_kc_incremental(&trees[0], &kcs[0], depths[0]);
     if (ret != 0) {
         goto out;
     }
@@ -7091,17 +7069,11 @@ tsk_treeseq_kc_distance(const tsk_treeseq_t *self, const tsk_treeseq_t *other,
         if (ret != 0) {
             goto out;
         }
-        tsk_tree_position_next(&tree_pos[1]);
-        tsk_bug_assert(tree_pos[1].index != -1);
 
-        ret = update_kc_incremental(&trees[1], &kcs[1], &tree_pos[1], depths[1]);
+        ret = update_kc_incremental(&trees[1], &kcs[1], depths[1]);
         if (ret != 0) {
             goto out;
         }
-        tsk_bug_assert(trees[0].interval.left == tree_pos[0].interval.left);
-        tsk_bug_assert(trees[0].interval.right == tree_pos[0].interval.right);
-        tsk_bug_assert(trees[1].interval.left == tree_pos[1].interval.left);
-        tsk_bug_assert(trees[1].interval.right == tree_pos[1].interval.right);
         while (trees[0].interval.right < trees[1].interval.right) {
             span = trees[0].interval.right - left;
             total += norm_kc_vectors(&kcs[0], &kcs[1], lambda_) * span;
@@ -7113,9 +7085,7 @@ tsk_treeseq_kc_distance(const tsk_treeseq_t *self, const tsk_treeseq_t *other,
             if (ret != 0) {
                 goto out;
             }
-            tsk_tree_position_next(&tree_pos[0]);
-            tsk_bug_assert(tree_pos[0].index != -1);
-            ret = update_kc_incremental(&trees[0], &kcs[0], &tree_pos[0], depths[0]);
+            ret = update_kc_incremental(&trees[0], &kcs[0], depths[0]);
             if (ret != 0) {
                 goto out;
             }
@@ -7132,7 +7102,6 @@ tsk_treeseq_kc_distance(const tsk_treeseq_t *self, const tsk_treeseq_t *other,
 out:
     for (i = 0; i < 2; i++) {
         tsk_tree_free(&trees[i]);
-        tsk_tree_position_free(&tree_pos[i]);
         kc_vectors_free(&kcs[i]);
         tsk_safe_free(depths[i]);
     }
