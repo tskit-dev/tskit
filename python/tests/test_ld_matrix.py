@@ -22,6 +22,7 @@
 """
 Test cases for two-locus statistics
 """
+import contextlib
 import io
 from itertools import combinations_with_replacement
 from itertools import permutations
@@ -38,6 +39,12 @@ import pytest
 
 import tskit
 from tests.test_highlevel import get_example_tree_sequences
+
+
+@contextlib.contextmanager
+def suppress_division_by_zero_warning():
+    with np.errstate(invalid="ignore", divide="ignore"):
+        yield
 
 
 class BitSet:
@@ -729,9 +736,7 @@ def r2_summary_func(
         D = p_AB - (p_A * p_B)
         denom = p_A * p_B * (1 - p_A) * (1 - p_B)
 
-        if denom == 0 and D == 0:
-            result[k] = 0
-        else:
+        with suppress_division_by_zero_warning():
             result[k] = (D * D) / denom
 
 
@@ -782,12 +787,11 @@ def D_prime_summary_func(
         p_B = p_AB + p_aB
 
         D = p_AB - (p_A * p_B)
-        if D == 0:
-            result[k] = 0
-        elif D > 0:
-            result[k] = D / min(p_A * (1 - p_B), (1 - p_A) * p_B)
-        else:
-            result[k] = D / min(p_A * p_B, (1 - p_A) * (1 - p_B))
+        with suppress_division_by_zero_warning():
+            if D >= 0:
+                result[k] = D / min(p_A * (1 - p_B), (1 - p_A) * p_B)
+            else:
+                result[k] = D / min(p_A * p_B, (1 - p_A) * (1 - p_B))
 
 
 def r_summary_func(
@@ -806,9 +810,7 @@ def r_summary_func(
         D = p_AB - (p_A * p_B)
         denom = p_A * p_B * (1 - p_A) * (1 - p_B)
 
-        if denom == 0 and D == 0:
-            result[k] = 0
-        else:
+        with suppress_division_by_zero_warning():
             result[k] = D / np.sqrt(denom)
 
 

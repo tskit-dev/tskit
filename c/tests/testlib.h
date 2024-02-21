@@ -65,6 +65,22 @@ void unsort_edges(tsk_edge_table_t *edges, size_t start);
         } while (0);                                                                    \
     }
 
+/* Array equality if the arrays contain NaN values
+   NB: the float cast for NaNs is for mingw, which complains without */
+#define assert_arrays_almost_equal_nan(len, a, b)                                       \
+    {                                                                                   \
+        do {                                                                            \
+            tsk_size_t _j;                                                              \
+            for (_j = 0; _j < len; _j++) {                                              \
+                if (isnan((float) a[_j]) || isnan((float) b[_j])) {                     \
+                    CU_ASSERT_EQUAL_FATAL(isnan((float) a[_j]), isnan((float) b[_j]));  \
+                } else {                                                                \
+                    CU_ASSERT_DOUBLE_EQUAL(a[_j], b[_j], 1e-9);                         \
+                }                                                                       \
+            }                                                                           \
+        } while (0);                                                                    \
+    }
+
 extern const char *single_tree_ex_nodes;
 extern const char *single_tree_ex_edges;
 extern const char *single_tree_ex_sites;

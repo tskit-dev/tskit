@@ -2045,10 +2045,10 @@ test_paper_ex_two_site(void)
     double truth_two_sets[18] = { 1, 1, 0.1111111111111111, 0.1111111111111111,
         0.1111111111111111, 0.1111111111111111, 0.1111111111111111, 0.1111111111111111,
         1, 1, 1, 1, 0.1111111111111111, 0.1111111111111111, 1, 1, 1, 1 };
-    double truth_three_sets[27]
-        = { 1, 1, 0, 0.1111111111111111, 0.1111111111111111, 0, 0.1111111111111111,
-              0.1111111111111111, 0, 0.1111111111111111, 0.1111111111111111, 0, 1, 1, 1,
-              1, 1, 1, 0.1111111111111111, 0.1111111111111111, 0, 1, 1, 1, 1, 1, 1 };
+    double truth_three_sets[27] = { 1, 1, NAN, 0.1111111111111111, 0.1111111111111111,
+        NAN, 0.1111111111111111, 0.1111111111111111, NAN, 0.1111111111111111,
+        0.1111111111111111, NAN, 1, 1, 1, 1, 1, 1, 0.1111111111111111,
+        0.1111111111111111, NAN, 1, 1, 1, 1, 1, 1 };
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
@@ -2104,7 +2104,8 @@ test_paper_ex_two_site(void)
         row_sites, num_sites, col_sites, 0, result);
 
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    assert_arrays_almost_equal(result_size * num_sample_sets, result, truth_three_sets);
+    assert_arrays_almost_equal_nan(
+        result_size * num_sample_sets, result, truth_three_sets);
 
     tsk_treeseq_free(&ts);
     tsk_safe_free(row_sites);
