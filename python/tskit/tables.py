@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -3368,7 +3368,7 @@ class TableCollection(metadata.MetadataProvider):
         function and ``u`` is the ID of a node in the input table, then
         ``a[u]`` is the ID of this node in the output table. For any node ``u``
         that is not mapped into the output tables, this mapping will equal
-        ``-1``.
+        ``tskit.NULL`` (``-1``).
 
         Tables operated on by this function must: be sorted (see
         :meth:`TableCollection.sort`), have children be born strictly after their
@@ -3376,6 +3376,18 @@ class TableCollection(metadata.MetadataProvider):
         disjoint. Other than this the tables need not satisfy remaining
         requirements to specify a valid tree sequence (but the resulting tables
         will).
+
+        .. note::
+            To invert the returned ``node_map``, that is, to obtain a reverse
+            mapping from the node ID in the output table to the node ID in
+            the input table, you can use::
+
+                rev_map = np.zeros_like(node_map, shape=simplified_ts.num_nodes)
+                kept = node_map != tskit.NULL
+                rev_map[node_map[kept]] = np.arange(len(node_map))[kept]
+
+            In this case, no elements of the ``rev_map`` array will be set to
+            ``tskit.NULL``.
 
         .. seealso::
             This is identical to :meth:`TreeSequence.simplify` but acts *in place* to
