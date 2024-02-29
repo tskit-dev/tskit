@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2019-2022 Tskit Developers
+# Copyright (c) 2019-2023 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -114,6 +114,8 @@ class Simplifier:
         filter_nodes=True,
         update_sample_flags=True,
     ):
+        # DELETE ME
+        self.parent_edges_processed = 0
         self.ts = ts
         self.n = len(sample)
         self.reduce_to_site_topology = reduce_to_site_topology
@@ -397,6 +399,7 @@ class Simplifier:
         """
         Process all of the edges for a given parent.
         """
+        self.parent_edges_processed += len(edges)
         assert len({e.parent for e in edges}) == 1
         parent = edges[0].parent
         S = []
@@ -535,6 +538,14 @@ class Simplifier:
             offset += 1
         self.sort_offset = offset
 
+    def finalise(self):
+        if self.keep_input_roots:
+            self.insert_input_roots()
+        self.finalise_sites()
+        self.finalise_references()
+        if self.sort_offset != -1:
+            self.tables.sort(edge_start=self.sort_offset)
+
     def simplify(self):
         if self.ts.num_edges > 0:
             all_edges = list(self.ts.edges())
@@ -545,12 +556,7 @@ class Simplifier:
                     edges = []
                 edges.append(e)
             self.process_parent_edges(edges)
-        if self.keep_input_roots:
-            self.insert_input_roots()
-        self.finalise_sites()
-        self.finalise_references()
-        if self.sort_offset != -1:
-            self.tables.sort(edge_start=self.sort_offset)
+        self.finalise()
         ts = self.tables.tree_sequence()
         return ts, self.node_id_map
 

@@ -23,6 +23,7 @@
  * SOFTWARE.
  */
 
+#include "tskit/core.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -13605,5 +13606,151 @@ tsk_diff_iter_next(tsk_diff_iter_t *self, double *ret_left, double *ret_right,
     *ret_right = right;
     /* Set the left coordinate for the next tree */
     self->tree_left = right;
+    return ret;
+}
+
+typedef struct __tsk_modular_simplifier_impl_t {
+    simplifier_t simplifier;
+    tsk_id_t last_parent_processed;
+    tsk_id_t *input_node_visited;
+    tsk_size_t num_input_nodes;
+    double last_parent_time;
+    /*double minimum_input_node_time;*/
+} tsk_modular_simplifier_impl_t;
+
+int
+tsk_modular_simplifier_init(tsk_modular_simplifier_t *self,
+    tsk_table_collection_t *tables, const tsk_id_t *samples, tsk_size_t num_samples,
+    tsk_flags_t options)
+{
+    int ret = 0;
+    tsk_size_t i;
+    self->pimpl = tsk_malloc(sizeof(tsk_modular_simplifier_impl_t));
+    if (self->pimpl == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    /* Have to init this array here b/c the internal simplifier
+     * "steals" input tables"
+     */
+    self->pimpl->input_node_visited
+        = tsk_malloc(tables->nodes.num_rows * sizeof(tsk_id_t));
+    if (self->pimpl->input_node_visited == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    for (i = 0; i < tables->nodes.num_rows; ++i) {
+        self->pimpl->input_node_visited[i] = 0;
+    }
+    self->pimpl->num_input_nodes = tables->nodes.num_rows;
+    self->pimpl->last_parent_processed = -1;
+    self->pimpl->last_parent_time = DBL_MIN;
+
+    /* NOTE: the original intent here was to catch
+     * issues where children aren't sorted properly,
+     * but it is clear I didn't get that right.
+     *
+     * Need to write more tests to see if I can
+     * trigger any problems
+     */
+    /*
+    self->pimpl->minimum_input_node_time = DBL_MAX;
+    for (i = 0; i < tables->edges.num_rows; ++i) {
+        self->pimpl->minimum_input_node_time
+            = TSK_MIN(self->pimpl->minimum_input_node_time,
+                tables->nodes.time[tables->edges.child[i]]);
+    }
+    */
+
+    /* Now that we have set up the pimpl state,
+     * we can let the unsual init happen
+     */
+    ret = simplifier_init(
+        &self->pimpl->simplifier, samples, num_samples, tables, options);
+out:
+    return ret;
+}
+
+int
+tsk_modular_simplifier_add_edge(tsk_modular_simplifier_t *self, double left,
+    double right, tsk_id_t parent, tsk_id_t child)
+{
+    int ret = 0;
+
+    if (parent == TSK_NULL) {
+        ret = TSK_ERR_NULL_PARENT;
+        goto out;
+    }
+    if (child == TSK_NULL) {
+        ret = TSK_ERR_NULL_CHILD;
+        goto out;
+    }
+    if (parent >= (tsk_id_t) self->pimpl->num_input_nodes
+        || child >= (tsk_id_t) self->pimpl->num_input_nodes) {
+        ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
+        goto out;
+    }
+
+    if (self->pimpl->simplifier.input_tables.nodes.time[child]
+        >= self->pimpl->simplifier.input_tables.nodes.time[parent]) {
+        ret = TSK_ERR_BAD_NODE_TIME_ORDERING;
+        goto out;
+    }
+
+    if (self->pimpl->simplifier.input_tables.nodes.time[parent]
+        < self->pimpl->last_parent_time) {
+        ret = TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME;
+        goto out;
+    }
+    self->pimpl->last_parent_time
+        = self->pimpl->simplifier.input_tables.nodes.time[parent];
+
+    if (parent != self->pimpl->last_parent_processed
+        && self->pimpl->last_parent_processed != TSK_NULL) {
+        if (self->pimpl->input_node_visited[parent] != 0) {
+            ret = TSK_ERR_EDGES_NONCONTIGUOUS_PARENTS;
+            goto out;
+        }
+    }
+    ret = simplifier_extract_ancestry(&self->pimpl->simplifier, left, right, child);
+out:
+    return ret;
+}
+
+int
+tsk_modular_simplifier_merge_ancestors(tsk_modular_simplifier_t *self, tsk_id_t parent)
+{
+    int ret = simplifier_merge_ancestors(&self->pimpl->simplifier, parent);
+    if (ret != 0) {
+        goto out;
+    }
+    /* mark this input parent as "seen" */
+    self->pimpl->input_node_visited[parent] = 1;
+    self->pimpl->simplifier.segment_queue_size = 0;
+    self->pimpl->last_parent_processed = parent;
+out:
+    return ret;
+}
+
+int
+tsk_modular_simplifier_finalise(tsk_modular_simplifier_t *self, tsk_id_t *node_map)
+{
+    int ret = 0;
+    simplifier_t *simplifier = &self->pimpl->simplifier;
+    ret = simplifier_run(simplifier, node_map);
+    return ret;
+}
+
+int
+tsk_modular_simplifier_free(tsk_modular_simplifier_t *self)
+{
+    int ret = 0;
+    ret = simplifier_free(&self->pimpl->simplifier);
+    if (ret != 0) {
+        goto out;
+    }
+    tsk_safe_free(self->pimpl->input_node_visited);
+    tsk_safe_free(self->pimpl);
+out:
     return ret;
 }

@@ -24,6 +24,9 @@
 
 #include "testlib.h"
 #include "tskit/core.h"
+#include "tskit/trees.h"
+#include <CUnit/CUnit.h>
+#include <stdio.h>
 #include <tskit/tables.h>
 
 #include <float.h>
@@ -8629,6 +8632,613 @@ test_simplify_metadata(void)
     tsk_table_collection_free(&tables);
 }
 
+typedef struct {
+    tsk_id_t **parent;
+    tsk_id_t **child;
+    double **left;
+    double **right;
+    tsk_size_t max_nodes;
+    tsk_size_t *num_buffered_edges;
+} fauxbuffer;
+
+static void
+fauxbuffer_init(tsk_size_t max_nodes, fauxbuffer *buffer)
+{
+    tsk_size_t i;
+    buffer->parent = tsk_malloc(max_nodes * sizeof(tsk_id_t *));
+    CU_ASSERT_FATAL(buffer->parent != NULL);
+    buffer->child = tsk_malloc(max_nodes * sizeof(tsk_id_t *));
+    CU_ASSERT_FATAL(buffer->child != NULL);
+    buffer->left = tsk_malloc(max_nodes * sizeof(double *));
+    CU_ASSERT_FATAL(buffer->parent != NULL);
+    buffer->right = tsk_malloc(max_nodes * sizeof(double *));
+    CU_ASSERT_FATAL(buffer->right != NULL);
+
+    buffer->num_buffered_edges = tsk_malloc(max_nodes * sizeof(tsk_size_t));
+    CU_ASSERT_FATAL(buffer->num_buffered_edges != NULL);
+
+    for (i = 0; i < max_nodes; ++i) {
+        buffer->parent[i] = NULL;
+        buffer->child[i] = NULL;
+        buffer->left[i] = NULL;
+        buffer->right[i] = NULL;
+        buffer->num_buffered_edges[i] = 0;
+    }
+    buffer->max_nodes = max_nodes;
+}
+
+static void
+fauxbuffer_buffer(
+    tsk_id_t parent, tsk_id_t child, double left, double right, fauxbuffer *buffer)
+{
+    CU_ASSERT_FATAL(parent < (tsk_id_t) buffer->max_nodes);
+    buffer->num_buffered_edges[parent] += 1;
+    buffer->parent[parent] = tsk_realloc(
+        buffer->parent[parent], buffer->num_buffered_edges[parent] * sizeof(tsk_id_t));
+    buffer->child[parent] = tsk_realloc(
+        buffer->child[parent], buffer->num_buffered_edges[parent] * sizeof(tsk_id_t));
+    buffer->left[parent] = tsk_realloc(
+        buffer->left[parent], buffer->num_buffered_edges[parent] * sizeof(double));
+    buffer->right[parent] = tsk_realloc(
+        buffer->right[parent], buffer->num_buffered_edges[parent] * sizeof(double));
+    buffer->parent[parent][buffer->num_buffered_edges[parent] - 1] = parent;
+    buffer->child[parent][buffer->num_buffered_edges[parent] - 1] = child;
+    buffer->left[parent][buffer->num_buffered_edges[parent] - 1] = left;
+    buffer->right[parent][buffer->num_buffered_edges[parent] - 1] = right;
+}
+
+static void
+fauxbuffer_free(fauxbuffer *buffer)
+{
+    tsk_size_t i;
+
+    for (i = 0; i < buffer->max_nodes; ++i) {
+        tsk_safe_free(buffer->parent[i]);
+        tsk_safe_free(buffer->child[i]);
+        tsk_safe_free(buffer->left[i]);
+        tsk_safe_free(buffer->right[i]);
+    }
+    tsk_safe_free(buffer->parent);
+    tsk_safe_free(buffer->child);
+    tsk_safe_free(buffer->left);
+    tsk_safe_free(buffer->right);
+    tsk_safe_free(buffer->num_buffered_edges);
+}
+
+/*
+ * Start with this tree:
+ *          6
+ *         / \
+ *        /   \
+ *       /     \
+ *      /       5
+ *     4       / \
+ *    / \     /   \
+ *   0   1   2     3
+ *
+ *   Add data like a fake forward sim to give:
+ *
+ *          6
+ *         / \
+ *        /   \
+ *       /     \
+ *      /       5
+ *     4       / \
+ *    / \     /   \
+ *   0   1   2     3
+ *   |       |
+ *   7       8--- <- new_parent 1 and 2, resp.
+ *   |       |  |
+ *   9       10 11 <- new child 1, 2, and 3, resp.
+ *
+ *   Then, we simplify w.r.to [9, 10, 11].
+ */
+static void
+make_single_tree_for_testing_modular_simplify(
+    tsk_table_collection_t *tables, tsk_edge_table_t *new_edges, tsk_id_t **samples)
+{
+    int ret;
+    tsk_id_t new_parent1, new_parent2, new_child1, new_child2, new_child3;
+    tsk_size_t row;
+    ret = tsk_table_collection_init(tables, 0);
+    tables->sequence_length = 1.0;
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_init(new_edges, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    *samples = tsk_malloc(3 * sizeof(tsk_id_t));
+    CU_ASSERT_TRUE(samples != NULL)
+
+    parse_nodes(single_tree_ex_nodes, &tables->nodes);
+    parse_edges(single_tree_ex_edges, &tables->edges);
+
+    /* "record new births" into node table */
+    new_parent1 = tsk_node_table_add_row(&tables->nodes, 0, -1.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(new_parent1 >= 0);
+    new_parent2 = tsk_node_table_add_row(&tables->nodes, 0, -1.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(new_parent2 >= 0);
+    new_child1 = tsk_node_table_add_row(&tables->nodes, 0, -2.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(new_child1 >= 0);
+    new_child2 = tsk_node_table_add_row(&tables->nodes, 0, -2.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(new_child2 >= 0);
+    new_child3 = tsk_node_table_add_row(&tables->nodes, 0, -2.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(new_child3 >= 0);
+
+    for (row = 0; row < tables->nodes.num_rows; ++row) {
+        // make all times >= 0.0.
+        tables->nodes.time[row] += 2.0;
+    }
+
+    /* record edges */
+    ret = (int) tsk_edge_table_add_row(
+        new_edges, 0, tables->sequence_length, 0, new_parent1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(ret >= 0);
+    ret = (int) tsk_edge_table_add_row(
+        new_edges, 0, tables->sequence_length, 2, new_parent2, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(ret >= 0);
+    ret = (int) tsk_edge_table_add_row(
+        new_edges, 0, tables->sequence_length, new_parent1, new_child1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(ret >= 0);
+    ret = (int) tsk_edge_table_add_row(
+        new_edges, 0, tables->sequence_length, new_parent2, new_child2, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(ret >= 0);
+    ret = (int) tsk_edge_table_add_row(
+        new_edges, 0, tables->sequence_length, new_parent2, new_child3, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(ret >= 0);
+    (*samples)[0] = new_child1;
+    (*samples)[1] = new_child2;
+    (*samples)[2] = new_child3;
+}
+
+/* This is our starting tree.
+ * We will add additional births
+ * to 0/1/3 and then use that as
+ * the basis for testing.
+ *
+ * Alive nodes will be 0, 1, 2, 3, 4
+ * in order to generated the complexity
+ * we need
+ *
+ * 1.20┊         ┊     8   ┊         ┊
+ *     ┊         ┊   ┏━┻━┓ ┊         ┊
+ * 1.00┊   7     ┊   ┃   ┃ ┊         ┊
+ *     ┊ ┏━┻━┓   ┊   ┃   ┃ ┊         ┊
+ * 0.70┊ ┃   ┃   ┊   ┃   ┃ ┊   6     ┊
+ *     ┊ ┃   ┃   ┊   ┃   ┃ ┊ ┏━┻━┓   ┊
+ * 0.50┊ ┃   5   ┊   5   ┃ ┊ ┃   5   ┊
+ *     ┊ ┃ ┏━┻┓  ┊  ┏┻━┓ ┃ ┊ ┃ ┏━┻┓  ┊
+ * 0.40┊ ┃ ┃  4  ┊  4  ┃ ┃ ┊ ┃ ┃  4  ┊
+ *     ┊ ┃ ┃ ┏┻┓ ┊ ┏┻┓ ┃ ┃ ┊ ┃ ┃ ┏┻┓ ┊
+ * 0.20┊ ┃ ┃ ┃ 3 ┊ ┃ ┃ ┃ 3 ┊ ┃ ┃ ┃ 3 ┊
+ *     ┊ ┃ ┃ ┃   ┊ ┃ ┃ ┃   ┊ ┃ ┃ ┃   ┊
+ * 0.10┊ ┃ 1 2   ┊ ┃ 2 1   ┊ ┃ 1 2   ┊
+ *     ┊ ┃       ┊ ┃       ┊ ┃       ┊
+ * 0.00┊ 0       ┊ 0       ┊ 0       ┊
+ *   0.00      2.00      8.00      10.00
+ */
+static void
+make_overlapping_generations_trees_for_testing_modular_simplify(
+    tsk_table_collection_t *tables, tsk_edge_table_t *new_edges, tsk_id_t **samples)
+{
+    int ret;
+    tsk_id_t new_child0, new_child1, new_child2;
+    tsk_size_t row, moved, edge;
+    int last_row_to_lift_over;
+    fauxbuffer buffer;
+    ret = tsk_table_collection_init(tables, 0);
+    double tmax;
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    parse_edges(internal_sample_ex_edges, &tables->edges);
+    parse_nodes(internal_sample_ex_nodes, &tables->nodes);
+    tables->sequence_length = 10.0;
+    fauxbuffer_init(12, &buffer);
+    ret = tsk_edge_table_init(new_edges, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    *samples = tsk_malloc(3 * sizeof(tsk_id_t));
+    CU_ASSERT_TRUE_FATAL(*samples != NULL);
+
+    new_child0 = tsk_node_table_add_row(&tables->nodes, 0, -1.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(new_child0 > 0);
+    new_child1 = tsk_node_table_add_row(&tables->nodes, 0, -1.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(new_child1 > 0);
+    new_child2 = tsk_node_table_add_row(&tables->nodes, 0, -1.0, -1, -1, NULL, 0);
+    CU_ASSERT_TRUE_FATAL(new_child2 > 0);
+
+    for (row = 0; row < tables->nodes.num_rows; ++row) {
+        // for some reason, the fixture sets pop to 0...
+        tables->nodes.population[row] = -1;
+        // make all times >= 0.0.
+        tables->nodes.time[row] += 1.0;
+    }
+    ret = (int) tsk_table_collection_check_integrity(tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tmax = tables->nodes.time[4];
+
+    /* We need to cheat, "stealing" edges from the input
+     * table and putting them into the new_edges so that
+     * we can mimic what a "real" implementation needs
+     * to do.
+     *
+     * Initial edge fixture:
+     * const char *internal_sample_ex_edges = "2 8  4 0\n"
+     *                                        "0 10 4 2\n"
+     *                                        "0 2  4 3\n"
+     *                                        "8 10 4 3\n"
+     *                                        "0 10 5 1,4\n"
+     *                                        "8 10 6 0,5\n"
+     *                                        "0 2  7 0,5\n"
+     *                                        "2 8  8 3,5\n";
+     * We can rewrite it to make the edge_id easier to read:
+     * "2 8  4 0\n"
+     * "0 10 4 2\n"
+     * "0 2  4 3\n"
+     * "8 10 4 3\n"
+     * "0 10 5 1\n"
+     * "0 10 5 4\n"
+     * "8 10 6 0\n"
+     * "8 10 6 5\n"
+     * "0 2  7 0\n"
+     * "0 2  7 5\n"
+     * "2 8  8 3\n";
+     * "2 8  8 5\n";
+     */
+    last_row_to_lift_over = -1;
+    for (row = 0; row < tables->edges.num_rows; ++row) {
+        if (tables->nodes.time[tables->edges.parent[row]] <= tmax) {
+            last_row_to_lift_over = (int) row;
+        }
+    }
+    moved = 0;
+    if (last_row_to_lift_over > -1) {
+        for (row = 0; row < (tsk_size_t) last_row_to_lift_over; ++row) {
+            fauxbuffer_buffer(
+                tables->edges.parent[(tsk_size_t) last_row_to_lift_over - row],
+                tables->edges.child[(tsk_size_t) last_row_to_lift_over - row],
+                tables->edges.left[(tsk_size_t) last_row_to_lift_over - row],
+                tables->edges.right[(tsk_size_t) last_row_to_lift_over - row], &buffer);
+        }
+        for (row = (tsk_size_t) last_row_to_lift_over + 1; row < tables->edges.num_rows;
+             ++row) {
+            tables->edges.left[moved] = tables->edges.left[row];
+            tables->edges.right[moved] = tables->edges.right[row];
+            tables->edges.parent[moved] = tables->edges.parent[row];
+            tables->edges.child[moved] = tables->edges.child[row];
+            moved += 1;
+        }
+    }
+    tsk_edge_table_truncate(&tables->edges, moved);
+    /* To maintain sanity, transmit non-recombinant genomes */
+    fauxbuffer_buffer(0, new_child0, 0., tables->sequence_length, &buffer);
+    fauxbuffer_buffer(1, new_child1, 0., tables->sequence_length, &buffer);
+    fauxbuffer_buffer(3, new_child2, 0., tables->sequence_length, &buffer);
+
+    for (row = 0; row < buffer.max_nodes; ++row) {
+        for (edge = 0; edge < buffer.num_buffered_edges[row]; ++edge) {
+            tsk_edge_table_add_row(new_edges, buffer.left[row][edge],
+                buffer.right[row][edge], buffer.parent[row][edge],
+                buffer.child[row][edge], NULL, 0);
+        }
+    }
+
+    (*samples)[0] = new_child0;
+    (*samples)[1] = new_child1;
+    (*samples)[2] = new_child2;
+
+    fauxbuffer_free(&buffer);
+}
+
+static int
+run_test_modular_simplifier(tsk_table_collection_t *tables, tsk_edge_table_t *new_edges,
+    tsk_id_t *row_order, tsk_size_t len_row_order, tsk_id_t *samples,
+    tsk_size_t len_samples)
+{
+    int ret;
+    tsk_table_collection_t standard_tables;
+    tsk_modular_simplifier_t simplifier;
+    tsk_treeseq_t treeseq, standard_treeseq;
+    tsk_tree_t standard_tree, tree;
+    tsk_id_t last_parent;
+    tsk_size_t row, row_for_parent;
+    double ttl_time, standard_ttl_time;
+
+    ret = tsk_table_collection_copy(tables, &standard_tables, 0);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = tsk_edge_table_append_columns(&standard_tables.edges, new_edges->num_rows,
+        new_edges->left, new_edges->right, new_edges->parent, new_edges->child, NULL,
+        NULL);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = tsk_table_collection_sort(&standard_tables, NULL, 0);
+    if (ret < 0) {
+        goto out;
+    }
+    CU_ASSERT_EQUAL_FATAL(
+        standard_tables.edges.num_rows, tables->edges.num_rows + new_edges->num_rows);
+    CU_ASSERT_EQUAL_FATAL(standard_tables.nodes.num_rows, tables->nodes.num_rows);
+
+    ret = tsk_table_collection_simplify(&standard_tables, samples, 3, 0, NULL);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = tsk_modular_simplifier_init(&simplifier, tables, samples, len_samples, 0);
+    if (ret < 0) {
+        goto out;
+    }
+    /* Pseudocode that we are mocking:
+     * For each parent of a new edge:
+     *   - add that edge to the segment queue.
+     *   - When done, finalise the queue and merge ancestors.
+     *
+     * If our buffer is wrong, we will have parents unsorted by time
+     * and/or the same parent processed in different loop iterations.
+     * Each case is an error that MUST be handled.
+     * It is trivial to show that not handling the errors can give rise
+     * to invalid table collections / tree sequences.
+     * (TODO: The requirement for error handling must be documented
+     *  in tables.h.)
+     *
+     * Production code should use an input other than
+     * an edge table.
+     * (How edges are sorted is an internal detail
+     *  and cannot be used for testing.)
+     */
+    for (row = 0; row < len_row_order; ++row) {
+        last_parent = new_edges->parent[row_order[row]];
+        row_for_parent = 0;
+        for (row_for_parent = 0;
+             (tsk_size_t) row_order[row] + row_for_parent < new_edges->num_rows
+             && new_edges->parent[(tsk_size_t) row_order[row] + row_for_parent]
+                    == last_parent;
+             ++row_for_parent) {
+            CU_ASSERT_FATAL(
+                (tsk_size_t) row_order[row] + row_for_parent < new_edges->num_rows);
+            ret = tsk_modular_simplifier_add_edge(&simplifier,
+                new_edges->left[(tsk_size_t) row_order[row] + row_for_parent],
+                new_edges->right[(tsk_size_t) row_order[row] + row_for_parent],
+                new_edges->parent[(tsk_size_t) row_order[row] + row_for_parent],
+                new_edges->child[(tsk_size_t) row_order[row] + row_for_parent]);
+            if (ret < 0) {
+                goto out;
+            }
+        }
+        ret = tsk_modular_simplifier_merge_ancestors(&simplifier, last_parent);
+        if (ret < 0) {
+            goto out;
+        }
+    }
+    /* Simplification's internal cleanup.
+     * Should NOT be called if above loop errors.
+     * We know that not calling it and calling
+     * "modular simplifier free" does not leak
+     * because valgrind is happy.
+     *
+     * Now, we have processed all (child) nodes whose births are
+     * MORE RECENT than those in the input tables.
+     */
+    ret = tsk_modular_simplifier_finalise(&simplifier, NULL);
+    if (ret < 0) {
+        goto out;
+    }
+
+    // Now, we can compare various properties of the two table collections
+    CU_ASSERT_EQUAL_FATAL(standard_tables.edges.num_rows, tables->edges.num_rows);
+    CU_ASSERT_EQUAL_FATAL(standard_tables.nodes.num_rows, tables->nodes.num_rows);
+
+    ret = tsk_table_collection_build_index(&standard_tables, 0);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = tsk_table_collection_build_index(tables, 0);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = tsk_treeseq_init(&standard_treeseq, &standard_tables, 0);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = tsk_treeseq_init(&treeseq, tables, 0);
+    if (ret < 0) {
+        goto out;
+    }
+    CU_ASSERT_EQUAL_FATAL(tsk_treeseq_get_num_trees(&standard_treeseq),
+        tsk_treeseq_get_num_trees(&treeseq));
+    ret = tsk_tree_init(&standard_tree, &standard_treeseq, 0);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = tsk_tree_init(&tree, &treeseq, 0);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = tsk_tree_first(&standard_tree);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_TREE_OK);
+    for (ret = tsk_tree_first(&tree); ret == TSK_TREE_OK; ret = tsk_tree_next(&tree)) {
+        tsk_tree_get_total_branch_length(&tree, -1, &ttl_time);
+        tsk_tree_get_total_branch_length(&standard_tree, -1, &standard_ttl_time);
+        CU_ASSERT_TRUE(ttl_time - standard_ttl_time <= 1e-9);
+        tsk_tree_next(&standard_tree);
+    }
+    tsk_treeseq_free(&standard_treeseq);
+    tsk_treeseq_free(&treeseq);
+    tsk_tree_free(&standard_tree);
+    tsk_tree_free(&tree);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+out:
+    tsk_table_collection_free(&standard_tables);
+    tsk_safe_free(samples);
+    tsk_modular_simplifier_free(&simplifier);
+    return ret;
+}
+
+static void
+run_test_modular_simplify_single_tree(
+    tsk_id_t *row_order, tsk_size_t len_row_order, int expected_result)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_edge_table_t new_edges;
+    tsk_id_t *samples;
+    make_single_tree_for_testing_modular_simplify(&tables, &new_edges, &samples);
+    ret = run_test_modular_simplifier(
+        &tables, &new_edges, row_order, len_row_order, samples, 3);
+    tsk_table_collection_free(&tables);
+    tsk_edge_table_free(&new_edges);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_result);
+}
+
+static void
+test_table_collection_modular_simplify_simple_tree(void)
+{
+    tsk_id_t row_order[4] = { 3, 2, 1, 0 };
+    run_test_modular_simplify_single_tree(&row_order[0], 4, 0);
+}
+
+static void
+test_table_collection_modular_simplify_simple_tree_discontiguous_parents(void)
+{
+    tsk_id_t row_order[4] = { 3, 2, 3, 1 };
+    run_test_modular_simplify_single_tree(
+        &row_order[0], 4, TSK_ERR_EDGES_NONCONTIGUOUS_PARENTS);
+}
+
+static void
+test_table_collection_modular_simplify_simple_tree_add_edges_wrong_birth_order(void)
+{
+    tsk_id_t row_order[4] = { 0, 1, 2, 3 };
+    run_test_modular_simplify_single_tree(
+        &row_order[0], 4, TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
+}
+
+static void
+test_table_collection_modular_simplify_add_invalid_parent_or_child(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_edge_table_t new_edges;
+    tsk_modular_simplifier_t simplifier;
+    tsk_id_t *samples;
+    make_single_tree_for_testing_modular_simplify(&tables, &new_edges, &samples);
+    ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 3, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_modular_simplifier_add_edge(
+        &simplifier, 0., 1, TSK_NULL, new_edges.child[4]);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NULL_PARENT);
+    ret = tsk_modular_simplifier_add_edge(
+        &simplifier, 0., 1, new_edges.parent[4], TSK_NULL);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NULL_CHILD);
+    ret = tsk_modular_simplifier_add_edge(&simplifier, 0., 1, 10000, new_edges.child[4]);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    ret = tsk_modular_simplifier_add_edge(
+        &simplifier, 0., 1, new_edges.parent[4], 10000);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    tsk_safe_free(samples);
+    tsk_table_collection_free(&tables);
+    tsk_edge_table_free(&new_edges);
+    tsk_modular_simplifier_free(&simplifier);
+}
+
+static void
+test_table_collection_modular_simplify_add_child_with_invalid_time(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_edge_table_t new_edges;
+    tsk_modular_simplifier_t simplifier;
+    tsk_id_t *samples;
+    make_single_tree_for_testing_modular_simplify(&tables, &new_edges, &samples);
+    /* edit the first child's birth time to be "very wrong" */
+    tables.nodes.time[new_edges.child[4]] = DBL_MAX;
+    ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 3, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_modular_simplifier_add_edge(
+        &simplifier, 0., 1, new_edges.parent[4], new_edges.child[4]);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_TIME_ORDERING);
+
+    tsk_safe_free(samples);
+    tsk_table_collection_free(&tables);
+    tsk_edge_table_free(&new_edges);
+    tsk_modular_simplifier_free(&simplifier);
+}
+
+static void
+run_test_modular_simplify_overlapping_generations(
+    tsk_id_t *row_order, tsk_size_t len_row_order, int expected_result)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_edge_table_t new_edges;
+    tsk_id_t *samples;
+    make_overlapping_generations_trees_for_testing_modular_simplify(
+        &tables, &new_edges, &samples);
+    ret = run_test_modular_simplifier(
+        &tables, &new_edges, row_order, len_row_order, samples, 3);
+    tsk_table_collection_free(&tables);
+    tsk_edge_table_free(&new_edges);
+    CU_ASSERT_EQUAL_FATAL(ret, expected_result);
+}
+
+static void
+test_table_collection_modular_simplify_overlapping_generations(void)
+{
+    tsk_id_t row_order[4] = { 0, 1, 2, 3 };
+    run_test_modular_simplify_overlapping_generations(&row_order[0], 4, 0);
+}
+
+static void
+test_table_collection_modular_simplify_overlapping_generations_parent_time_error(void)
+{
+    tsk_id_t row_order[4] = { 2, 3, 0, 1 };
+    run_test_modular_simplify_overlapping_generations(
+        &row_order[0], 4, TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME);
+}
+
+/* This hits part of simplifier intialisation that is
+ * NOT part of table integrity checks
+ */
+static void
+test_table_collection_modular_simplify_bad_samples(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_edge_table_t new_edges;
+    tsk_modular_simplifier_t simplifier;
+    tsk_id_t *samples;
+    make_single_tree_for_testing_modular_simplify(&tables, &new_edges, &samples);
+    samples[0] = -1;
+    ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 3, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    tsk_safe_free(samples);
+    tsk_table_collection_free(&tables);
+    tsk_edge_table_free(&new_edges);
+    tsk_modular_simplifier_free(&simplifier);
+}
+
+static void
+test_table_collection_modular_simplify_table_integrity_check_fail(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+    tsk_edge_table_t new_edges;
+    tsk_modular_simplifier_t simplifier;
+    tsk_id_t *samples;
+    double temp;
+    make_single_tree_for_testing_modular_simplify(&tables, &new_edges, &samples);
+    temp = tables.nodes.time[4];
+    // now we have a parent/child time violation
+    tables.nodes.time[4] = tables.nodes.time[3];
+    tables.nodes.time[3] = temp;
+    ret = tsk_modular_simplifier_init(&simplifier, &tables, samples, 3, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_TIME_ORDERING);
+    tsk_safe_free(samples);
+    tsk_table_collection_free(&tables);
+    tsk_edge_table_free(&new_edges);
+    tsk_modular_simplifier_free(&simplifier);
+}
+
 static void
 test_edge_update_invalidates_index(void)
 {
@@ -8791,7 +9401,8 @@ test_sort_tables_offsets(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tables, &copy, 0));
 
-    /* Check that sorting would have had no effect as individuals not in default sort*/
+    /* Check that sorting would have had no effect as individuals not in default
+     * sort*/
     ret = tsk_table_collection_sort(&tables, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(&tables, &copy, 0));
@@ -11592,6 +12203,27 @@ main(int argc, char **argv)
         { "test_table_collection_equals_options", test_table_collection_equals_options },
         { "test_table_collection_simplify_errors",
             test_table_collection_simplify_errors },
+        { "test_table_collection_modular_simplify_simple_tree",
+            test_table_collection_modular_simplify_simple_tree },
+        { "test_table_collection_modular_simplify_simple_tree_discontiguous_parents",
+            test_table_collection_modular_simplify_simple_tree_discontiguous_parents },
+        { "test_table_collection_modular_simplify_simple_tree_add_edges_wrong_birth_"
+          "order",
+            test_table_collection_modular_simplify_simple_tree_add_edges_wrong_birth_order },
+        { "test_table_collection_modular_simplify_add_invalid_parent_or_child",
+            test_table_collection_modular_simplify_add_invalid_parent_or_child },
+        { "test_table_collection_modular_simplify_add_child_with_invalid_time",
+            test_table_collection_modular_simplify_add_child_with_invalid_time },
+        { "test_table_collection_modular_simplify_bad_samples",
+            test_table_collection_modular_simplify_bad_samples },
+        { "test_table_collection_modular_simplify_table_integrity_check_fail",
+            test_table_collection_modular_simplify_table_integrity_check_fail },
+        { "test_table_collection_modular_simplify_overlapping_generations",
+            test_table_collection_modular_simplify_overlapping_generations },
+        { "test_table_collection_modular_simplify_overlapping_generations_parent_"
+          "time_"
+          "error",
+            test_table_collection_modular_simplify_overlapping_generations_parent_time_error },
         { "test_table_collection_time_units", test_table_collection_time_units },
         { "test_table_collection_reference_sequence",
             test_table_collection_reference_sequence },
