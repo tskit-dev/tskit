@@ -782,6 +782,11 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length, const char *nod
         }
     }
 
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_compute_mutation_parents(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
     ret = tsk_treeseq_init(ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     /* tsk_treeseq_print_state(ts, stdout); */
     /* printf("ret = %s\n", tsk_strerror(ret)); */
