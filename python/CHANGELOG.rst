@@ -106,6 +106,12 @@
    to ``None``, which is treated as ``True``. Previously, passing ``None``
    would result in an error. (:user:`hyanwong`, :pr:`2609`, :issue:`2608`)
 
+**Features**
+
+ - Variants have a `states()` method that returns the genotypes as an
+   (inefficient) array of strings, rather than integer indexes, to
+   aid comparison of genetic variation (:user:`hyanwong`, :pr:`2617`)
+
 
 --------------------
 [0.5.3] - 2022-10-03
