@@ -4176,7 +4176,7 @@ class TreeSequence:
             tables underlying this tree sequence.
         :rtype: TableCollection
         """
-        return self.dump_tables()
+        return tables.TableCollection(ll_tables=self._ll_tree_sequence.tables)
 
     @property
     def nbytes(self):
