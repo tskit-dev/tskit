@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2023 Tskit Developers
+ * Copyright (c) 2019-2024 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -11026,8 +11026,14 @@ static PyObject *
 Tree_seek(Tree *self, PyObject *args)
 {
     PyObject *ret = NULL;
+    tsk_flags_t options = 0;
+    int enable_skipping = true;
     double position;
     int err;
+
+    if (enable_skipping) {
+        options |= TSK_TREE_SEEK_ENABLE_SKIPPING;
+    }
 
     if (Tree_check_state(self) != 0) {
         goto out;
@@ -11035,7 +11041,7 @@ Tree_seek(Tree *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "d", &position)) {
         goto out;
     }
-    err = tsk_tree_seek(self->tree, position, 0);
+    err = tsk_tree_seek(self->tree, position, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
