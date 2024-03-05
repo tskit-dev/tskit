@@ -6633,7 +6633,47 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-tsk_tree_seek_linear(tsk_tree_t *self, double x, tsk_flags_t TSK_UNUSED(options))
+tsk_tree_seek_linear(tsk_tree_t *self, double x)
+{
+    const double L = tsk_treeseq_get_sequence_length(self->tree_sequence);
+    const double t_l = self->interval.left;
+    const double t_r = self->interval.right;
+    int ret = 0;
+    double distance_left, distance_right;
+
+    if (x < t_l) {
+        /* |-----|-----|========|---------| */
+        /* 0     x    t_l      t_r        L */
+        distance_left = t_l - x;
+        distance_right = L - t_r + x;
+    } else {
+        /* |------|========|------|-------| */
+        /* 0     t_l      t_r     x       L */
+        distance_right = x - t_r;
+        distance_left = t_l + L - x;
+    }
+    if (distance_right <= distance_left) {
+        while (!tsk_tree_position_in_interval(self, x)) {
+            ret = tsk_tree_next(self);
+            if (ret < 0) {
+                goto out;
+            }
+        }
+    } else {
+        while (!tsk_tree_position_in_interval(self, x)) {
+            ret = tsk_tree_prev(self);
+            if (ret < 0) {
+                goto out;
+            }
+        }
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
+static int TSK_WARN_UNUSED
+tsk_tree_seek_skip(tsk_tree_t *self, double x)
 {
     const double t_l = self->interval.left;
     int ret = 0;
@@ -6669,7 +6709,11 @@ tsk_tree_seek(tsk_tree_t *self, double x, tsk_flags_t options)
     if (self->index == -1) {
         ret = tsk_tree_seek_from_null(self, x, options);
     } else {
-        ret = tsk_tree_seek_linear(self, x, options);
+        if (options & TSK_TREE_SEEK_ENABLE_SKIPPING) {
+            ret = tsk_tree_seek_skip(self, x);
+        } else {
+            ret = tsk_tree_seek_linear(self, x);
+        }
     }
 
 out:
