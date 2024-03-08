@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -295,6 +295,22 @@ class TestTskitArgumentParser:
         assert args.tree_sequence == tree_sequence
         assert args.contig_id == expected
 
+    @pytest.mark.parametrize(
+        "flags,expected",
+        (
+            [[], False],
+            [["-0"], True],
+            [["--allow-position-zero"], True],
+        ),
+    )
+    def test_vcf_allow_position_zero(self, flags, expected):
+        parser = cli.get_tskit_parser()
+        cmd = "vcf"
+        tree_sequence = "test.trees"
+        args = parser.parse_args([cmd, tree_sequence, *flags])
+        assert args.tree_sequence == tree_sequence
+        assert args.allow_position_zero == expected
+
     def test_upgrade_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "upgrade"
@@ -372,7 +388,7 @@ class TestTskitArgumentParser:
 
 class TestTskitConversionOutput(unittest.TestCase):
     """
-    Tests the output of msp to ensure it's correct.
+    Tests the output of tskit to ensure it's correct.
     """
 
     @classmethod
@@ -544,14 +560,16 @@ class TestTskitConversionOutput(unittest.TestCase):
 
     def verify_vcf(self, output_vcf):
         with tempfile.TemporaryFile("w+") as f:
-            self._tree_sequence.write_vcf(f)
+            self._tree_sequence.write_vcf(f, allow_position_zero=True)
             f.seek(0)
             vcf = f.read()
         assert output_vcf == vcf
 
     def test_vcf(self):
         cmd = "vcf"
-        stdout, stderr = capture_output(cli.tskit_main, [cmd, self._tree_sequence_file])
+        stdout, stderr = capture_output(
+            cli.tskit_main, [cmd, "-0", self._tree_sequence_file]
+        )
         assert len(stderr) == 0
         self.verify_vcf(stdout)
 
@@ -580,6 +598,22 @@ class TestTskitConversionOutput(unittest.TestCase):
         assert len(stderr) == 0
         ts = tskit.load(self._tree_sequence_file)
         assert len(stdout.splitlines()) > 3 * ts.num_trees
+
+
+class TestVCFZeroPosition:
+    """
+    Tests that we can write VCF files with position 0.
+    """
+
+    def test_zero_position(self, tmp_path):
+        ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
+        ts.dump(tmp_path / "test.trees")
+        with pytest.raises(ValueError):
+            capture_output(cli.tskit_main, ["vcf", str(tmp_path / "test.trees")])
+        stdout, stderr = capture_output(
+            cli.tskit_main, ["vcf", "-0", str(tmp_path / "test.trees")]
+        )
+        assert len(stderr) == 0
 
 
 class TestBadFile:
