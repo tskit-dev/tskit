@@ -69,6 +69,12 @@ class BitSet:
         self.row_len = int(self.row_len)
         self.data = np.zeros(self.row_len * length, dtype=self.DTYPE)
 
+    def copy(self):
+        new = self.__class__.__new__(self.__class__)
+        new.row_len = self.row_len
+        new.data = self.data.copy()
+        return new
+
     def intersect(
         self: "BitSet", self_row: int, other: "BitSet", other_row: int, out: "BitSet"
     ) -> None:
@@ -1100,7 +1106,7 @@ def test_input_validation():
 
 @dataclass
 class TreeState:
-    samples_under_nodes: list[set]  # TODO: bitset
+    node_samples: BitSet
     parents: list[int]
     branch_len: list[float]
     nodes: list[int]
@@ -1116,13 +1122,13 @@ class TreeState:
         if ts is not None:
             self.parents = [tskit.NULL] * ts.num_nodes
             self.nodes = [tskit.NULL] * ts.num_nodes
-            self.samples_under_nodes = [set() for _ in range(ts.num_nodes)]
+            self.node_samples = BitSet(ts.num_samples, ts.num_nodes)
             self.branch_len = [0.0 for _ in range(ts.num_nodes)]
             for s in ts.samples():
-                self.samples_under_nodes[s].add(s)
+                self.node_samples.add(s, s)
 
     def copy(self):
-        new = TreeState()
+        new = self.__class__.__new__(self.__class__)
         for attr, a_type in get_type_hints(self).items():
             if a_type == list[set]:
                 setattr(new, attr, [v.copy() for v in getattr(self, attr)])
@@ -1130,34 +1136,36 @@ class TreeState:
                 setattr(new, attr, getattr(self, attr).copy())
             elif a_type == int:
                 setattr(new, attr, getattr(self, attr))
+            elif a_type == BitSet:
+                setattr(new, attr, getattr(self, attr).copy())
             else:
                 raise ValueError(f"Unknown type encountered in copy: {a_type}")
         return new
 
 
-def get_weights(A, B):
-    w_AB = A & B
-    w_Ab = A - w_AB
-    w_aB = B - w_AB
-    return tuple(map(len, (w_AB, w_Ab, w_aB)))
-
-
-def compute_stat_update(child, r_state, l_state, stat_func, child_samples):
+def compute_stat_update(child, e_child, r_state, l_state, stat_func, num_samples):
     stat = 0
     r_len = r_state.branch_len[child]
+    B_samples = BitSet(num_samples, 1)
+    AB_samples = BitSet(num_samples, 1)
     for n in (n for n, v in enumerate(l_state.nodes) if v != tskit.NULL):
         l_len = l_state.branch_len[n]
-        weights = get_weights(
-            l_state.samples_under_nodes[n],
-            r_state.samples_under_nodes[child],
-        )
-        stat += stat_func(*weights, ts.num_samples) * l_len * r_len
-        if child_samples is not None:
-            weights = get_weights(
-                l_state.samples_under_nodes[n],
-                r_state.samples_under_nodes[child] - child_samples,
-            )
-            stat -= stat_func(*weights, ts.num_samples) * l_len * r_len
+        l_state.node_samples.intersect(n, r_state.node_samples, child, AB_samples)
+        w_AB = AB_samples.count(0)
+        w_A = l_state.node_samples.count(n)
+        w_Ab = w_A - w_AB
+        w_aB = r_state.node_samples.count(child) - w_AB
+        stat += stat_func(w_AB, w_Ab, w_aB, ts.num_samples) * l_len * r_len
+
+        if e_child is not None:
+            B_samples.union(0, r_state.node_samples, child)
+            B_samples.difference(0, r_state.node_samples, e_child)
+            AB_samples.data[:] = 0
+            l_state.node_samples.intersect(n, B_samples, 0, AB_samples)
+            w_AB = AB_samples.count(0)
+            w_Ab = w_A - w_AB
+            w_aB = B_samples.count(0) - w_AB
+            stat -= stat_func(w_AB, w_Ab, w_aB, ts.num_samples) * l_len * r_len
     return stat
 
 
@@ -1185,15 +1193,15 @@ def compute_stat(
         e_child = child = ts.edges_child[e]
         e_parent = parent = ts.edges_parent[e]
 
-        child_samples = None
+        adjust = None
         while parent != tskit.NULL:
             stat -= compute_stat_update(
-                child, r_state, l_state, stat_func, child_samples
+                child, adjust, r_state, l_state, stat_func, ts.num_samples
             )
-            child_samples = r_state.samples_under_nodes[e_child]
+            adjust = e_child
             child = parent
             parent = r_state.parents[parent]
-        child_samples = None
+        adjust = None
 
         child = e_child
         parent = e_parent
@@ -1201,7 +1209,7 @@ def compute_stat(
         r_state.branch_len[child] = 0
         r_state.nodes[child] = tskit.NULL
         while parent != tskit.NULL:
-            r_state.samples_under_nodes[parent] -= r_state.samples_under_nodes[child]
+            r_state.node_samples.difference(parent, r_state.node_samples, child)
             parent = r_state.parents[parent]
         r_state.parents[child] = tskit.NULL
 
@@ -1220,20 +1228,20 @@ def compute_stat(
         r_state.nodes[child] = 1
         r_state.parents[child] = parent
         while parent != tskit.NULL:
-            r_state.samples_under_nodes[parent] |= r_state.samples_under_nodes[child]
+            r_state.node_samples.union(parent, r_state.node_samples, child)
             parent = r_state.parents[parent]
 
         child = e_child
         parent = e_parent
-        child_samples = None
+        adjust = None
         while parent != tskit.NULL:
             stat += compute_stat_update(
-                child, r_state, l_state, stat_func, child_samples
+                child, adjust, r_state, l_state, stat_func, ts.num_samples
             )
-            child_samples = r_state.samples_under_nodes[e_child]
+            adjust = e_child
             child = parent
             parent = r_state.parents[parent]
-        child_samples = None
+        adjust = None
 
     r_state.t_right = ts.sequence_length
     if r_state.tj < ts.num_edges:
