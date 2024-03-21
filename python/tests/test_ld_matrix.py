@@ -1112,8 +1112,9 @@ class TreeState:
     store the current valid interval for the tree, indexes into the branch
     diffs, branch lengths, nodes, and samples underneath nodes.
     """
-    node_samples: BitSet # samples that exist under a given node, this is a
-                         # bitset with a row for each node. It is n samples wide.
+
+    node_samples: BitSet  # samples that exist under a given node, this is a
+    # bitset with a row for each node. It is n samples wide.
     parents: list[int]  # parent node of a given node (connected by an edge)
     branch_len: list[float]  # length of the branch above a particular child node
     nodes: list[int]  # nodes that exist in the current tree (1=yes, -1=no)
@@ -1418,7 +1419,7 @@ def branch_matrix(ts, stat_func):
             # store tree 1 as the lefthand state for the next iteration. We must
             # also store the stat, which contains updated LD from trees up until
             # this point.
-            if tmp == None:
+            if tmp is None:
                 tmp_stat = stat
                 tmp = r_state.copy()
         # We store the focal tree as the starting point for the next row in the
@@ -1478,7 +1479,7 @@ def combine(samples):
         (i, j, k, l)
         for i, j in combinations(samples, 2)
         for k in range(len(samples))
-        for l in range(k + 1, len(samples))
+        for l in range(k + 1, len(samples))  # noqa: E741
         if i != k and j != k and l != i and l != j
     ]
     return ij, ijk, ijkl
@@ -1508,7 +1509,6 @@ if __name__ == "__main__":
     # Compute LD from some reasonably complex tree sequences and compare to the
     # McVean method for D2, Dz, and pi2. Validate that the output is identical
     # (barring numerical precision differences).
-    import msprime
     nreps = 500
     reps = msprime.sim_ancestry(
         samples=15,
