@@ -1106,29 +1106,38 @@ def test_input_validation():
 
 @dataclass
 class TreeState:
-    node_samples: BitSet
-    parents: list[int]
-    branch_len: list[float]
-    nodes: list[int]
+    """
+    Class for storing tree state from one iteration to the next. NB this is a
+    skeleton of what the tree object stores, with a couple of modifications. We
+    store the current valid interval for the tree, indexes into the branch
+    diffs, branch lengths, nodes, and samples underneath nodes.
+    """
+    node_samples: BitSet # samples that exist under a given node, this is a
+                         # bitset with a row for each node. It is n samples wide.
+    parents: list[int]  # parent node of a given node (connected by an edge)
+    branch_len: list[float]  # length of the branch above a particular child node
+    nodes: list[int]  # nodes that exist in the current tree (1=yes, -1=no)
 
-    tj: int = 0
-    tk: int = 0
-    t_left: int = 0
-    t_right: int = 0
-    tree_index: int = tskit.NULL
-    total_branch_len: int = 0
+    tj: int = 0  # index of the edges_in array
+    tk: int = 0  # index of the edges_out array
+    t_left: int = 0  # start of the inverval for which the current tree is valid
+    t_right: int = 0  # end of the inverval for which the current tree is valid
+    tree_index: int = tskit.NULL  # index of the current valid tree
+    total_branch_len: int = 0  # cumulative branch length for the current tree
 
-    def __init__(self, ts=None):
-        if ts is not None:
-            self.parents = [tskit.NULL] * ts.num_nodes
-            self.nodes = [tskit.NULL] * ts.num_nodes
-            self.node_samples = BitSet(ts.num_samples, ts.num_nodes)
-            self.branch_len = [0.0 for _ in range(ts.num_nodes)]
-            for s in ts.samples():
-                self.node_samples.add(s, s)
+    def __init__(self, ts):
+        self.parents = [tskit.NULL] * ts.num_nodes
+        self.nodes = [tskit.NULL] * ts.num_nodes
+        self.node_samples = BitSet(ts.num_samples, ts.num_nodes)
+        self.branch_len = [0.0 for _ in range(ts.num_nodes)]
+        # Each sample node is initialized with its corresponding sample under it.
+        for s in ts.samples():
+            self.node_samples.add(s, s)
 
     def copy(self):
+        # Avoid calling __init__ in the new TreeState object
         new = self.__class__.__new__(self.__class__)
+        # List all attributes and copy the values into the new object
         for attr, a_type in get_type_hints(self).items():
             if a_type == list[set]:
                 setattr(new, attr, [v.copy() for v in getattr(self, attr)])
@@ -1144,6 +1153,24 @@ class TreeState:
 
 
 def compute_stat_update(child, e_child, r_state, l_state, stat_func, num_samples):
+    """Compute a given two-locus statistic for a single subset of the righthand
+    tree, relative to all subsets of the lefthand tree. We perform this
+    operation for all samples on the lowest edge of a path up the tree. For
+    subsequent parent edges, we adjust the statistic by performing the opposite
+    operation for the samples we're not modifying.
+
+    i.e. if we're adding two samples ({3, 4}) to a node, if the parent node
+    contains {1, 2}, we first add the two-locus statistic for {1, 2, 3, 4}, then
+    subtract the stat for {1, 2}.
+
+    :Param child: child of the edge we're modifying
+    :param e_child: child of the lowest edge in the path up the tree
+    :param r_state: TreeState for the righthand tree (being modified)
+    :param l_state: TreeState for the lefthand tree (constant)
+    :param stat_func: Function used to compute the two-locus statistic
+    :param num_samples: Number of samples in the tree sequence
+    :returns: The change to the statistic, given a single edge update in the tree
+    """
     stat = 0
     r_len = r_state.branch_len[child]
     B_samples = BitSet(num_samples, 1)
@@ -1155,7 +1182,7 @@ def compute_stat_update(child, e_child, r_state, l_state, stat_func, num_samples
         w_A = l_state.node_samples.count(n)
         w_Ab = w_A - w_AB
         w_aB = r_state.node_samples.count(child) - w_AB
-        stat += stat_func(w_AB, w_Ab, w_aB, ts.num_samples) * l_len * r_len
+        stat += stat_func(w_AB, w_Ab, w_aB, num_samples) * l_len * r_len
 
         if e_child is not None:
             B_samples.union(0, r_state.node_samples, child)
@@ -1165,13 +1192,37 @@ def compute_stat_update(child, e_child, r_state, l_state, stat_func, num_samples
             w_AB = AB_samples.count(0)
             w_Ab = w_A - w_AB
             w_aB = B_samples.count(0) - w_AB
-            stat -= stat_func(w_AB, w_Ab, w_aB, ts.num_samples) * l_len * r_len
+            stat -= stat_func(w_AB, w_Ab, w_aB, num_samples) * l_len * r_len
     return stat
 
 
-def compute_stat(
-    ts, stat_func, stat, l_state=None, r_state=None, print_=False, print_nz=False
-):
+def compute_stat(ts, stat_func, stat, l_state=None, r_state=None):
+    """Step between trees in a tree sequence, updating our two-locus statistic
+    as we add or remove edges. Since we're computing statistics for two loci, we
+    have a focal tree that remains constant, and a tree that is updated to
+    represent the tree we're comparing to. The lefthand tree is held constant
+    and the righthand tree is modified. The statistic is updated as we add and
+    remove branches, and when we reach the point where the righthand tree is
+    fully updated, the statistic will have been updated to the two-locus
+    statistic between both trees.
+
+    For instance, if we pass in the l_state for tree 0 and the r_state for tree
+    0, we will update the r_state until r_state contains the information for
+    tree 1. Then, the statistic will represent the LD between tree 1 and tree 2.
+
+    Currenty, iteration happens in the forward direction.
+
+    :param ts: The underlying tree sequence object that we're iterating across.
+    :param stat_func: A function that computes the two locus statistic, given
+                      haplotype counts.
+    :param stat: The two-locus statistic computed between two trees.
+    :param l_state: The lefthand, constant state
+    :param r_state: The righthand, mutated state
+    :returns: A tuple containing the statistic between the two trees after
+              branch updates and the righthand tree state.
+    """
+    # If we haven't specified either the left or right state, zero initialize
+    # the state.
     if l_state is None:
         l_state = TreeState(ts)
     if r_state is None:
@@ -1181,9 +1232,13 @@ def compute_stat(
     edges_out = ts.indexes_edge_removal_order
     edges_in = ts.indexes_edge_insertion_order
 
+    # Perform a bit of bounds checking to ensure we're not passing in an invalid
+    # state object
     assert (
         r_state.tj < ts.num_edges or r_state.t_left < ts.sequence_length
     ), "out of bounds"
+
+    # Iterate along the edge removals until we've reached the next tree.
     while (
         r_state.tk < ts.num_edges
         and ts.edges_right[edges_out[r_state.tk]] == r_state.t_left
@@ -1193,6 +1248,12 @@ def compute_stat(
         e_child = child = ts.edges_child[e]
         e_parent = parent = ts.edges_parent[e]
 
+        # Remove the LD contributed by the samples we're about to remove. When
+        # we walk up the tree to propagate these changes to parents of the
+        # removed edge, we need to add back in the LD contributed by samples
+        # that aren't removed. The "adjust" variable stores the child node that
+        # contains the removed samples. We only want to perform this adjustment
+        # *after* the first iteration.
         adjust = None
         while parent != tskit.NULL:
             stat -= compute_stat_update(
@@ -1203,16 +1264,21 @@ def compute_stat(
             parent = r_state.parents[parent]
         adjust = None
 
+        # Reset the child and parent nodes to the edge being removed, update
+        # tree metadata
         child = e_child
         parent = e_parent
         r_state.total_branch_len -= r_state.branch_len[child]
         r_state.branch_len[child] = 0
         r_state.nodes[child] = tskit.NULL
+        # Remove the samples under the child node of the edge we're
+        # removing. Then, propagate this change upward to all parent edges.
         while parent != tskit.NULL:
             r_state.node_samples.difference(parent, r_state.node_samples, child)
             parent = r_state.parents[parent]
         r_state.parents[child] = tskit.NULL
 
+    # Iterate along the edge insertions until we've reached the next tree.
     while (
         r_state.tj < ts.num_edges
         and ts.edges_left[edges_in[r_state.tj]] == r_state.t_left
@@ -1227,10 +1293,20 @@ def compute_stat(
         r_state.total_branch_len += r_len
         r_state.nodes[child] = 1
         r_state.parents[child] = parent
+        # Add the samples under the child node of the edge we're adding to the
+        # parent node, propagating this change to all nodes connected to the
+        # parent of the added edge.
         while parent != tskit.NULL:
             r_state.node_samples.union(parent, r_state.node_samples, child)
             parent = r_state.parents[parent]
 
+        # Add the LD contributed by the samples we've just added. When we walk
+        # up the tree to propagate these changes to parents of the added edge,
+        # we need to remove the LD contributed by samples that were already
+        # there (because we're adding the LD of the union of extant and added
+        # samples)A The "adjust" variable stores the child node that contains
+        # the added samples. We only want to perform this adjustment *after* the
+        # first iteration.
         child = e_child
         parent = e_parent
         adjust = None
@@ -1243,16 +1319,29 @@ def compute_stat(
             parent = r_state.parents[parent]
         adjust = None
 
+    # Determine the right bound of the righthand tree.
     r_state.t_right = ts.sequence_length
     if r_state.tj < ts.num_edges:
         r_state.t_right = min(r_state.t_right, ts.edges_left[edges_in[r_state.tj]])
     if r_state.tk < ts.num_edges:
         r_state.t_right = min(r_state.t_right, ts.edges_right[edges_out[r_state.tk]])
 
-    # set the lefthand bound
+    # Set the lefthand bound and increment the tree index. The metadata for the
+    # righthand tree has now been fully incremented.
     r_state.t_left = r_state.t_right
     r_state.tree_index += 1
     return stat, r_state
+
+
+# Unbiased estimators of pi2, dz, and d2. These are derived in Ragsdale 2019
+# (https://doi.org/10.1093/molbev/msz265) and can be used in place of the method
+# outlined by McVean 2002. The reason for using haplotype counts in the branch
+# methods is that we can compute statistics that cannot be represented by tMRCA
+# covariance. With these unbiased estimators, we still reproduce the values
+# estimated with tMRCA covariance.
+
+# TODO: update these summary functions to have the same function signature as
+#       the summary functions defined above.
 
 
 def pi2_unbiased(w_AB, w_Ab, w_aB, n):
@@ -1287,53 +1376,104 @@ def d2_unbiased(w_AB, w_Ab, w_aB, n):
 
 
 def branch_matrix(ts, stat_func):
+    """Compute a tree X tree LD matrix by walking along the tree sequence and
+    computing haplotype counts. This method incrementally adds and removes
+    branches from a tree sequence and updates the stat based on sample additions
+    and removals. We bifurcate the tree with a given branch on each locus and
+    intersect the samples under each branch to produce haplotype counts. We
+    output a full LD matrix for the entire tree sequence.
+
+    :param ts: Tree sequence to gather data from.
+    :param stat_func: Function to compute a two-locus statistic from haplotype
+                      counts.
+    :returns: Pairwise branch LD matrix for an entire tree sequence.
+
+    """
     result = np.zeros((ts.num_trees, ts.num_trees), dtype=np.float64)
 
     stat = 0
+    # Initialize the lefthand, focal tree state by adding all edges. The stat
+    # should still be 0 here.
     stat, l_state = compute_stat(ts, stat_func, stat)
+    # Zero initialize the righthand tree.
     r_state = TreeState(ts)
-    tmp = None
+    tmp = None  # Tmp tree will be used for swapping below.
     tmp_stat = None
 
     for _ in range(ts.num_trees):
+        # Compute the stat between the left and right state, advancing the right
+        # state to the SAME tree that the lefthand tree represents. If we start
+        # at tree 0 and tree -1, we end up at tree 0 and tree 0, etc.
         stat, r_state = compute_stat(ts, stat_func, stat, l_state, r_state)
         result[l_state.tree_index, r_state.tree_index] = stat
+        # Continue to advance the righthand tree until we hit the end of the
+        # tree sequence, computing the stat for the rest of the upper triangle
+        # of the LD matrix.
         while r_state.tj < ts.num_edges or r_state.t_left < ts.sequence_length:
             stat, r_state = compute_stat(ts, stat_func, stat, l_state, r_state)
             result[l_state.tree_index, r_state.tree_index] = stat
+            # After the first iteration of this loop, we store the tmp state to
+            # be used as the lefthand tree in the next iteration. If we had just
+            # computed the two-locus statistic between tree 0 and tree 1, we
+            # store tree 1 as the lefthand state for the next iteration. We must
+            # also store the stat, which contains updated LD from trees up until
+            # this point.
             if tmp == None:
                 tmp_stat = stat
                 tmp = r_state.copy()
-        r_state = l_state.copy()  # TODO is this copy necessary?
+        # We store the focal tree as the starting point for the next row in the
+        # LD matrix. Remember that in order to compute the association between
+        # tree 1 and tree 1, we need the righthand state to *start* at tree 0.
+        r_state = l_state.copy()
+        # Reset the tmp variable to be used after the first operation in the
+        # next loop.
         if tmp is not None:
-            l_state = tmp.copy()  # TODO is this copy necessary?
+            l_state = tmp.copy()
             stat = tmp_stat
         tmp = None
 
+    # Reflect the upper triangle of the LD matrix to the lower triangle.
     tri_idx = np.tril_indices(len(result), k=-1)
     result[tri_idx] = result.T[tri_idx]
     return result
 
 
-def compute_D2_I(ts, x, y, ij, ijk, ijkl):
-    T_x = ts.tables.nodes.time[x.root]
-    T_y = ts.tables.nodes.time[y.root]
-    E_ijij = np.mean([(T_x - x.tmrca(i, j)) * (T_y - y.tmrca(i, j)) for i, j in ij])
-    E_ijik = np.mean([(T_x - x.tmrca(i, j)) * (T_y - y.tmrca(i, k)) for i, j, k in ijk])
-    E_ijkl = np.mean(
-        [(T_x - x.tmrca(i, j)) * (T_y - y.tmrca(k, l)) for i, j, k, l in ijkl]
-    )
-    D2 = E_ijij - 2 * E_ijik + E_ijkl
-    return D2
+# What follows is an implementation of two-locus statistics as described in
+# McVean 2002 (https://doi.org/10.1093/genetics/162.2.987). We compute the
+# covariance between coalescent times to produce expectations of coalescent
+# times between three sampling patterns of samples. These expectations can be
+# compined to produce D2, Dz, and pi2. These are for testing and to demonstrate
+# conceptual parity between our method and McVean's method.
+
+
+def compute_D2(x, y, ij, ijk, ijkl):
+    E_ijij = np.mean([x.tmrca(i, j) * y.tmrca(i, j) for i, j in ij])
+    E_ijik = np.mean([x.tmrca(i, j) * y.tmrca(i, k) for i, j, k in ijk])
+    E_ijkl = np.mean([x.tmrca(i, j) * y.tmrca(k, l) for i, j, k, l in ijkl])
+    return E_ijij - 2 * E_ijik + E_ijkl
+
+
+def compute_Dz(x, y, ij, ijk, ijkl):
+    E_ijik = np.mean([x.tmrca(i, j) * y.tmrca(i, k) for i, j, k in ijk])
+    E_ijkl = np.mean([x.tmrca(i, j) * y.tmrca(k, l) for i, j, k, l in ijkl])
+    return 4 * (E_ijik - E_ijkl)
+
+
+def compute_pi2(x, y, ij, ijk, ijkl):
+    E_ijkl = np.mean([x.tmrca(i, j) * y.tmrca(k, l) for i, j, k, l in ijkl])
+    return E_ijkl
 
 
 def combine(samples):
+    # All combinations where i != j
     ij = list(combinations(samples, 2))
+    # All combinations where i != {j,k} and j != k
     ijk = [
         (i, j, k)
         for i, j, k in product(samples, repeat=3)
         if i != k and i != j and j != k
     ]
+    # All combinations where i != {k,l} and j != {k,l}
     ijkl = [
         (i, j, k, l)
         for i, j in combinations(samples, 2)
@@ -1344,11 +1484,20 @@ def combine(samples):
     return ij, ijk, ijkl
 
 
-def naive_matrix(ts):
+def naive_matrix(ts, stat_func):
+    """Compute a tree x tree LD matrix for a given tree sequence and two-locus
+    statistic. This produces a matrix of LD that is generated from the
+    covariance in gene genealogies, as described in McVean 2002.
+
+    :param ts: Tree sequence to gather data from.
+    :param stat_func: Function to compute a two-locus statistic from two
+                      materialized trees and sample combinations.
+    :returns: Pairwise branch LD matrix for an entire tree sequence.
+    """
     result = np.zeros((ts.num_trees, ts.num_trees), dtype=np.float64)
     ij, ijk, ijkl = combine(ts.samples())
     for i, j in combinations_with_replacement(range(ts.num_trees), 2):
-        val = compute_D2_I(ts, ts.at_index(i), ts.at_index(j), ij, ijk, ijkl)
+        val = stat_func(ts.at_index(i), ts.at_index(j), ij, ijk, ijkl)
         result[i, j] = val
     tri_idx = np.tril_indices(len(result), k=-1)
     result[tri_idx] = result.T[tri_idx]
@@ -1356,25 +1505,34 @@ def naive_matrix(ts):
 
 
 if __name__ == "__main__":
+    # Compute LD from some reasonably complex tree sequences and compare to the
+    # McVean method for D2, Dz, and pi2. Validate that the output is identical
+    # (barring numerical precision differences).
     import msprime
+    nreps = 500
+    reps = msprime.sim_ancestry(
+        samples=15,
+        # samples=20,
+        # samples=5,
+        ploidy=1,
+        sequence_length=100,
+        # recombination_rate=0.001,
+        num_replicates=nreps,
+        recombination_rate=0.01,
+        random_seed=1,
+    )
 
-    nsim = 0
-    seed = 1
-    while nsim < 500:
-        ts = msprime.sim_ancestry(
-            samples=15,
-            # samples=20,
-            # samples=5,
-            ploidy=1,
-            sequence_length=100,
-            # recombination_rate=0.001,
-            recombination_rate=0.01,
-            random_seed=seed,
-        )
+    for i, ts in enumerate(reps):
+        print(f"=======\t\trep={i}/{nreps} ({(i+1)/nreps * 100:.01f}%)\t=======")
 
-        print(f"======= seed={seed}, nsim={nsim}, ntrees={ts.num_trees} =======")
         a = branch_matrix(ts, d2_unbiased)
-        b = naive_matrix(ts)
+        b = naive_matrix(ts, compute_D2)
         np.testing.assert_allclose(a, b)
-        nsim += 1
-        seed += 1
+
+        a = branch_matrix(ts, dz_unbiased)
+        b = naive_matrix(ts, compute_Dz)
+        np.testing.assert_allclose(a, b)
+
+        a = branch_matrix(ts, pi2_unbiased)
+        b = naive_matrix(ts, compute_pi2)
+        np.testing.assert_allclose(a, b)
