@@ -1115,9 +1115,9 @@ class TreeState:
 
     node_samples: BitSet  # samples that exist under a given node, this is a
     # bitset with a row for each node. It is n samples wide.
-    parents: list[int]  # parent node of a given node (connected by an edge)
-    branch_len: list[float]  # length of the branch above a particular child node
-    nodes: list[int]  # nodes that exist in the current tree (1=yes, -1=no)
+    parents: List[int]  # parent node of a given node (connected by an edge)
+    branch_len: List[float]  # length of the branch above a particular child node
+    nodes: List[int]  # nodes that exist in the current tree (1=yes, -1=no)
 
     tj: int = 0  # index of the edges_in array
     tk: int = 0  # index of the edges_out array
@@ -1140,9 +1140,9 @@ class TreeState:
         new = self.__class__.__new__(self.__class__)
         # List all attributes and copy the values into the new object
         for attr, a_type in get_type_hints(self).items():
-            if a_type == list[set]:
+            if a_type == List[set]:
                 setattr(new, attr, [v.copy() for v in getattr(self, attr)])
-            elif a_type in {list[float], list[int]}:
+            elif a_type in {List[float], List[int]}:
                 setattr(new, attr, getattr(self, attr).copy())
             elif a_type == int:
                 setattr(new, attr, getattr(self, attr))
