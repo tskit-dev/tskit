@@ -24,12 +24,16 @@ Test cases for two-locus statistics
 """
 import contextlib
 import io
+from dataclasses import dataclass
+from itertools import combinations
 from itertools import combinations_with_replacement
 from itertools import permutations
+from itertools import product
 from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Generator
+from typing import get_type_hints
 from typing import List
 from typing import Tuple
 
@@ -1092,3 +1096,277 @@ def test_input_validation():
         ts.ld_matrix(sites=[[1, 2], [2, 3], [3, 4]])
     with pytest.raises(ValueError, match="must be a length 1 or 2 list"):
         ts.ld_matrix(sites=[])
+
+
+@dataclass
+class TreeState:
+    samples_under_nodes: list[set]  # TODO: bitset
+    parents: list[int]
+    branch_len: list[float]
+    nodes: list[int]
+
+    tj: int = 0
+    tk: int = 0
+    t_left: int = 0
+    t_right: int = 0
+    tree_index: int = tskit.NULL
+    total_branch_len: int = 0
+
+    def __init__(self, ts=None):
+        if ts is not None:
+            self.parents = [tskit.NULL] * ts.num_nodes
+            self.nodes = [tskit.NULL] * ts.num_nodes
+            self.samples_under_nodes = [set() for _ in range(ts.num_nodes)]
+            self.branch_len = [0.0 for _ in range(ts.num_nodes)]
+            for s in ts.samples():
+                self.samples_under_nodes[s].add(s)
+
+    def copy(self):
+        new = TreeState()
+        for attr, a_type in get_type_hints(self).items():
+            if a_type == list[set]:
+                setattr(new, attr, [v.copy() for v in getattr(self, attr)])
+            elif a_type in {list[float], list[int]}:
+                setattr(new, attr, getattr(self, attr).copy())
+            elif a_type == int:
+                setattr(new, attr, getattr(self, attr))
+            else:
+                raise ValueError(f"Unknown type encountered in copy: {a_type}")
+        return new
+
+
+def get_weights(A, B):
+    w_AB = A & B
+    w_Ab = A - w_AB
+    w_aB = B - w_AB
+    return tuple(map(len, (w_AB, w_Ab, w_aB)))
+
+
+def compute_stat_update(child, r_state, l_state, stat_func, child_samples):
+    stat = 0
+    r_len = r_state.branch_len[child]
+    for n in (n for n, v in enumerate(l_state.nodes) if v != tskit.NULL):
+        l_len = l_state.branch_len[n]
+        weights = get_weights(
+            l_state.samples_under_nodes[n],
+            r_state.samples_under_nodes[child],
+        )
+        stat += stat_func(*weights, ts.num_samples) * l_len * r_len
+        if child_samples is not None:
+            weights = get_weights(
+                l_state.samples_under_nodes[n],
+                r_state.samples_under_nodes[child] - child_samples,
+            )
+            stat -= stat_func(*weights, ts.num_samples) * l_len * r_len
+    return stat
+
+
+def compute_stat(
+    ts, stat_func, stat, l_state=None, r_state=None, print_=False, print_nz=False
+):
+    if l_state is None:
+        l_state = TreeState(ts)
+    if r_state is None:
+        r_state = TreeState(ts)
+
+    time = ts.tables.nodes.time
+    edges_out = ts.indexes_edge_removal_order
+    edges_in = ts.indexes_edge_insertion_order
+
+    assert (
+        r_state.tj < ts.num_edges or r_state.t_left < ts.sequence_length
+    ), "out of bounds"
+    while (
+        r_state.tk < ts.num_edges
+        and ts.edges_right[edges_out[r_state.tk]] == r_state.t_left
+    ):
+        e = edges_out[r_state.tk]
+        r_state.tk += 1
+        e_child = child = ts.edges_child[e]
+        e_parent = parent = ts.edges_parent[e]
+
+        child_samples = None
+        while parent != tskit.NULL:
+            stat -= compute_stat_update(
+                child, r_state, l_state, stat_func, child_samples
+            )
+            child_samples = r_state.samples_under_nodes[e_child]
+            child = parent
+            parent = r_state.parents[parent]
+        child_samples = None
+
+        child = e_child
+        parent = e_parent
+        r_state.total_branch_len -= r_state.branch_len[child]
+        r_state.branch_len[child] = 0
+        r_state.nodes[child] = tskit.NULL
+        while parent != tskit.NULL:
+            r_state.samples_under_nodes[parent] -= r_state.samples_under_nodes[child]
+            parent = r_state.parents[parent]
+        r_state.parents[child] = tskit.NULL
+
+    while (
+        r_state.tj < ts.num_edges
+        and ts.edges_left[edges_in[r_state.tj]] == r_state.t_left
+    ):
+        e = edges_in[r_state.tj]
+        r_state.tj += 1
+        e_child = child = ts.edges_child[e]
+        e_parent = parent = ts.edges_parent[e]
+
+        r_len = time[parent] - time[child]
+        r_state.branch_len[child] = r_len
+        r_state.total_branch_len += r_len
+        r_state.nodes[child] = 1
+        r_state.parents[child] = parent
+        while parent != tskit.NULL:
+            r_state.samples_under_nodes[parent] |= r_state.samples_under_nodes[child]
+            parent = r_state.parents[parent]
+
+        child = e_child
+        parent = e_parent
+        child_samples = None
+        while parent != tskit.NULL:
+            stat += compute_stat_update(
+                child, r_state, l_state, stat_func, child_samples
+            )
+            child_samples = r_state.samples_under_nodes[e_child]
+            child = parent
+            parent = r_state.parents[parent]
+        child_samples = None
+
+    r_state.t_right = ts.sequence_length
+    if r_state.tj < ts.num_edges:
+        r_state.t_right = min(r_state.t_right, ts.edges_left[edges_in[r_state.tj]])
+    if r_state.tk < ts.num_edges:
+        r_state.t_right = min(r_state.t_right, ts.edges_right[edges_out[r_state.tk]])
+
+    # set the lefthand bound
+    r_state.t_left = r_state.t_right
+    r_state.tree_index += 1
+    return stat, r_state
+
+
+def pi2_unbiased(w_AB, w_Ab, w_aB, n):
+    w_ab = n - (w_AB + w_Ab + w_aB)
+    return (1 / (n * (n - 1) * (n - 2) * (n - 3))) * (
+        ((w_AB + w_Ab) * (w_aB + w_ab) * (w_AB + w_aB) * (w_Ab + w_ab))
+        - ((w_AB * w_ab) * (w_AB + w_ab + (3 * w_Ab) + (3 * w_aB) - 1))
+        - ((w_Ab * w_aB) * (w_Ab + w_aB + (3 * w_AB) + (3 * w_ab) - 1))
+    )
+
+
+def dz_unbiased(w_AB, w_Ab, w_aB, n):
+    w_ab = n - (w_AB + w_Ab + w_aB)
+    return (1 / (n * (n - 1) * (n - 2) * (n - 3))) * (
+        (
+            ((w_AB * w_ab) - (w_Ab * w_aB))
+            * (w_aB + w_ab - w_AB - w_Ab)
+            * (w_Ab + w_ab - w_AB - w_aB)
+        )
+        - ((w_AB * w_ab) * (w_AB + w_ab - w_Ab - w_aB - 2))
+        - ((w_Ab * w_aB) * (w_Ab + w_aB - w_AB - w_ab - 2))
+    )
+
+
+def d2_unbiased(w_AB, w_Ab, w_aB, n):
+    w_ab = n - (w_AB + w_Ab + w_aB)
+    return (1 / (n * (n - 1) * (n - 2) * (n - 3))) * (
+        ((w_aB**2) * (w_Ab - 1) * w_Ab)
+        + ((w_ab - 1) * w_ab * (w_AB - 1) * w_AB)
+        - (w_aB * w_Ab * (w_Ab + (2 * w_ab * w_AB) - 1))
+    )
+
+
+def branch_matrix(ts, stat_func):
+    result = np.zeros((ts.num_trees, ts.num_trees), dtype=np.float64)
+
+    stat = 0
+    stat, l_state = compute_stat(ts, stat_func, stat)
+    r_state = TreeState(ts)
+    tmp = None
+    tmp_stat = None
+
+    for _ in range(ts.num_trees):
+        stat, r_state = compute_stat(ts, stat_func, stat, l_state, r_state)
+        result[l_state.tree_index, r_state.tree_index] = stat
+        while r_state.tj < ts.num_edges or r_state.t_left < ts.sequence_length:
+            stat, r_state = compute_stat(ts, stat_func, stat, l_state, r_state)
+            result[l_state.tree_index, r_state.tree_index] = stat
+            if tmp == None:
+                tmp_stat = stat
+                tmp = r_state.copy()
+        r_state = l_state.copy()  # TODO is this copy necessary?
+        if tmp is not None:
+            l_state = tmp.copy()  # TODO is this copy necessary?
+            stat = tmp_stat
+        tmp = None
+
+    tri_idx = np.tril_indices(len(result), k=-1)
+    result[tri_idx] = result.T[tri_idx]
+    return result
+
+
+def compute_D2_I(ts, x, y, ij, ijk, ijkl):
+    T_x = ts.tables.nodes.time[x.root]
+    T_y = ts.tables.nodes.time[y.root]
+    E_ijij = np.mean([(T_x - x.tmrca(i, j)) * (T_y - y.tmrca(i, j)) for i, j in ij])
+    E_ijik = np.mean([(T_x - x.tmrca(i, j)) * (T_y - y.tmrca(i, k)) for i, j, k in ijk])
+    E_ijkl = np.mean(
+        [(T_x - x.tmrca(i, j)) * (T_y - y.tmrca(k, l)) for i, j, k, l in ijkl]
+    )
+    D2 = E_ijij - 2 * E_ijik + E_ijkl
+    return D2
+
+
+def combine(samples):
+    ij = list(combinations(samples, 2))
+    ijk = [
+        (i, j, k)
+        for i, j, k in product(samples, repeat=3)
+        if i != k and i != j and j != k
+    ]
+    ijkl = [
+        (i, j, k, l)
+        for i, j in combinations(samples, 2)
+        for k in range(len(samples))
+        for l in range(k + 1, len(samples))
+        if i != k and j != k and l != i and l != j
+    ]
+    return ij, ijk, ijkl
+
+
+def naive_matrix(ts):
+    result = np.zeros((ts.num_trees, ts.num_trees), dtype=np.float64)
+    ij, ijk, ijkl = combine(ts.samples())
+    for i, j in combinations_with_replacement(range(ts.num_trees), 2):
+        val = compute_D2_I(ts, ts.at_index(i), ts.at_index(j), ij, ijk, ijkl)
+        result[i, j] = val
+    tri_idx = np.tril_indices(len(result), k=-1)
+    result[tri_idx] = result.T[tri_idx]
+    return result
+
+
+if __name__ == "__main__":
+    import msprime
+
+    nsim = 0
+    seed = 1
+    while nsim < 500:
+        ts = msprime.sim_ancestry(
+            samples=15,
+            # samples=20,
+            # samples=5,
+            ploidy=1,
+            sequence_length=100,
+            # recombination_rate=0.001,
+            recombination_rate=0.01,
+            random_seed=seed,
+        )
+
+        print(f"======= seed={seed}, nsim={nsim}, ntrees={ts.num_trees} =======")
+        a = branch_matrix(ts, d2_unbiased)
+        b = naive_matrix(ts)
+        np.testing.assert_allclose(a, b)
+        nsim += 1
+        seed += 1
