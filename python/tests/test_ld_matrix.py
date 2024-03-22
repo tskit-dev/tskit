@@ -1174,10 +1174,15 @@ def compute_stat_update(child, e_child, r_state, l_state, stat_func, num_samples
     """
     stat = 0
     r_len = r_state.branch_len[child]
+    # Initialize empty length-1 bitsets for storing haplotype counting
+    # intermediates
     B_samples = BitSet(num_samples, 1)
     AB_samples = BitSet(num_samples, 1)
+    # Iterate over every node (effectively every edge, metadata is addressed by
+    # node) in the fixed tree, computing pairwise stats with the focal edge.
     for n in (n for n, v in enumerate(l_state.nodes) if v != tskit.NULL):
         l_len = l_state.branch_len[n]
+        # Samples under the focal edge and the current fixed tree node are AB samples.
         l_state.node_samples.intersect(n, r_state.node_samples, child, AB_samples)
         w_AB = AB_samples.count(0)
         w_A = l_state.node_samples.count(n)
@@ -1185,9 +1190,13 @@ def compute_stat_update(child, e_child, r_state, l_state, stat_func, num_samples
         w_aB = r_state.node_samples.count(child) - w_AB
         stat += stat_func(w_AB, w_Ab, w_aB, num_samples) * l_len * r_len
 
+        # If we've begun our walk up the parents of the current edge removal, we
+        # must adjust the statistic for samples that were already present before
+        # addition or that remain after removal.
         if e_child is not None:
             B_samples.union(0, r_state.node_samples, child)
             B_samples.difference(0, r_state.node_samples, e_child)
+            # Zero out the bit array so that we can reuse it
             AB_samples.data[:] = 0
             l_state.node_samples.intersect(n, B_samples, 0, AB_samples)
             w_AB = AB_samples.count(0)
