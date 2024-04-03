@@ -617,6 +617,9 @@ install directly from  GitHub requires you to specify `subdirectory=python`.)
   programs (e.g., pip versus installing locally from source)! In python,
   `tskit.__file__` will tell you the location of the package that is being
   used.
+- Installation of development version is not supported in Windows. Windows
+  users should try using a Linux envronment by using
+  [WSL](https://learn.microsoft.com/windows/wsl/), for example.
 
 
 (sec_development_c)=
