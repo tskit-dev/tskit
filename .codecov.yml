@@ -1,18 +1,23 @@
+codecov:
+  require_ci_to_pass: false
 comment:
   layout: "diff, flags, files"
 coverage:
-  require_ci_to_pass: false
   status:
     project:
       python-tests:
         target: 95%
-        flags: python-tests
+        flags:
+          - python-tests
       python-c-tests:
         target: 85%
-        flags: python-c-tests
+        flags:
+          - python-c-tests
       c-tests:
         target: 85%
-        flags: c-tests
+        flags:
+          - c-tests
       lwt-tests:
         target: 85%
-        flags: lwt-tests
+        flags:
+          - lwt-tests
