@@ -9328,8 +9328,8 @@ class TreeSequence:
             sequence windows to compute the statistic in, or None.
         :param bool span_normalise: Whether to divide the result by the span of
             the window (defaults to True).
-        :param time_windows: Either a string "nodes" or an increasing
-            list of breakpoints between time intervals.
+        :param time_windows: Either "nodes" or an increasing list of
+            breakpoints between time intervals.
         """
 
         if sample_sets is None:
