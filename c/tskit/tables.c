@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2023 Tskit Developers
+ * Copyright (c) 2019-2024 Tskit Developers
  * Copyright (c) 2017-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -78,6 +78,14 @@ typedef struct {
     tsk_size_t num_rows;
 } write_table_ragged_col_t;
 
+static bool
+uncovered_function(void)
+{
+    int a = 0;
+    assert(a == 0);
+    return a;
+}
+
 /* Returns true if adding the specified number of rows would result in overflow.
  * Tables can support indexes from 0 to TSK_MAX_ID, and therefore could have at most
  * TSK_MAX_ID + 1 rows. However we limit to TSK_MAX_ID rows so that counts of rows
@@ -86,6 +94,7 @@ static bool
 check_table_overflow(tsk_size_t current_size, tsk_size_t additional_rows)
 {
     tsk_size_t max_val = TSK_MAX_ID;
+    uncovered_function();
     return additional_rows > max_val || current_size > (max_val - additional_rows);
 }
 

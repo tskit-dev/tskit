@@ -60,6 +60,12 @@ class NOTSET(metaclass=NotSetMeta):
     pass
 
 
+def uncovered_function():
+    if True:
+        pass
+    return "This function is not covered by the tests"
+
+
 @metadata.lazy_decode()
 @dataclass(**dataclass_options)
 class IndividualTableRow(util.Dataclass):
