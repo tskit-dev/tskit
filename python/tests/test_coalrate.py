@@ -34,8 +34,8 @@ import tskit
 
 def naive_pair_coalescence_counts(ts, sample_set_0, sample_set_1):
     """
-    Count pairwise coalescences tree by tree, by enumerating nodes in each
-    tree. For a binary node, the number of pairs of samples that coalesce in a
+    Count pairwise coalescences tree by tree, by enumerating nodes in each tree.
+    For a binary node, the number of pairs of samples that coalesce in a
     given node is the product of the number of samples subtended by the left
     and right child. For higher arities, the count is summed over all possible
     pairs of children.
