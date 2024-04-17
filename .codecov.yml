@@ -2,6 +2,8 @@ codecov:
   require_ci_to_pass: false
 comment:
   layout: "diff, flags, files"
+fixes:
+  - "tskit/::python/tskit/"
 flag_management:
   individual_flags:
     - name: python-tests
@@ -12,7 +14,7 @@ flag_management:
           target: 95%
     - name: python-c-tests
       paths:
-        - python/tskit/_tskitmodule.c
+        - python/_tskitmodule.c
       statuses:
         - type: project
           target: 85%
