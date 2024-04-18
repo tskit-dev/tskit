@@ -3,4 +3,5 @@
 *.egg-info
 build
 .*.swp
+.*.swo
 */.ipynb_checkpoints

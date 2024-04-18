@@ -694,6 +694,14 @@ not support it.
 Insufficient weights were provided.
 */
 #define TSK_ERR_INSUFFICIENT_WEIGHTS                                -913
+/**
+The node output map contains a value less than TSK_NULL.
+*/
+#define TSK_ERR_BAD_NODE_OUTPUT_MAP                                 -914
+/**
+Maximum index in node output map does not match output dimension.
+*/
+#define TSK_ERR_BAD_NODE_OUTPUT_MAP_DIM                             -915
 /** @} */
 
 /**
