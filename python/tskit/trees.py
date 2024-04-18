@@ -9379,8 +9379,7 @@ class TreeSequence:
             raise ValueError("Window breaks must be strictly increasing")
 
         if isinstance(time_windows, str) and time_windows == "nodes":
-            nodes_map = np.arange(self.num_nodes)
-            output_size = self.num_nodes
+            node_output_map = np.arange(self.num_nodes, dtype=np.int32)
         else:
             if not (isinstance(time_windows, np.ndarray) and time_windows.size > 1):
                 raise ValueError("Time windows must be an array of breakpoints")
@@ -9388,108 +9387,21 @@ class TreeSequence:
                 raise ValueError("Time windows must be strictly increasing")
             if self.time_units == tskit.TIME_UNITS_UNCALIBRATED:
                 raise ValueError("Time windows require calibrated node times")
-            nodes_map = np.searchsorted(time_windows, self.nodes_time, side="right") - 1
-            nodes_oob = np.logical_or(nodes_map < 0, nodes_map >= time_windows.size)
-            nodes_map[nodes_oob] = tskit.NULL
-            output_size = time_windows.size - 1
+            node_output_map = np.digitize(self.nodes_time, time_windows) - 1
+            node_output_map[node_output_map == time_windows.size - 1] = tskit.NULL
+            node_output_map = node_output_map.astype(np.int32)
 
-        num_nodes = self.num_nodes
-        num_edges = self.num_edges
-        num_windows = windows.size - 1
-        num_sample_sets = len(sample_sets)
-        num_indexes = len(indexes)
+        sample_set_sizes = np.array([len(s) for s in sample_sets], dtype=np.uint32)
+        sample_sets = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
 
-        edges_child = self.edges_child
-        edges_parent = self.edges_parent
-        insert_index = self.indexes_edge_insertion_order
-        remove_index = self.indexes_edge_removal_order
-        insert_position = self.edges_left[insert_index]
-        remove_position = self.edges_right[remove_index]
-        sequence_length = self.sequence_length
-
-        windows_span = np.zeros(num_windows)
-        nodes_parent = np.full(num_nodes, tskit.NULL)
-        nodes_sample = np.zeros((num_nodes, num_sample_sets))
-        coalescing_pairs = np.zeros((num_windows, output_size, num_indexes))
-
-        for i, s in enumerate(sample_sets):
-            nodes_sample[s, i] = 1
-        sample_counts = nodes_sample.copy()
-        position = 0.0
-        w, a, b = 0, 0, 0
-        while position < sequence_length:
-            remainder = sequence_length - position
-
-            while b < num_edges and remove_position[b] == position:  # edges out
-                e = remove_index[b]
-                p = edges_parent[e]
-                c = edges_child[e]
-                nodes_parent[c] = tskit.NULL
-                inside = sample_counts[c]
-                while p != tskit.NULL:
-                    u = nodes_map[p]
-                    if u != tskit.NULL:
-                        outside = sample_counts[p] - sample_counts[c] - nodes_sample[p]
-                        for i, (j, k) in enumerate(indexes):
-                            weight = inside[j] * outside[k] + inside[k] * outside[j]
-                            coalescing_pairs[w, u, i] -= weight * remainder
-                    c, p = p, nodes_parent[p]
-                p = edges_parent[e]
-                while p != tskit.NULL:
-                    sample_counts[p] -= inside
-                    p = nodes_parent[p]
-                b += 1
-
-            while a < num_edges and insert_position[a] == position:  # edges in
-                e = insert_index[a]
-                p = edges_parent[e]
-                c = edges_child[e]
-                nodes_parent[c] = p
-                inside = sample_counts[c]
-                while p != tskit.NULL:
-                    sample_counts[p] += inside
-                    p = nodes_parent[p]
-                p = edges_parent[e]
-                while p != tskit.NULL:
-                    u = nodes_map[p]
-                    if u != tskit.NULL:
-                        outside = sample_counts[p] - sample_counts[c] - nodes_sample[p]
-                        for i, (j, k) in enumerate(indexes):
-                            weight = inside[j] * outside[k] + inside[k] * outside[j]
-                            coalescing_pairs[w, u, i] += weight * remainder
-                    c, p = p, nodes_parent[p]
-                a += 1
-
-            position = sequence_length
-            if b < num_edges:
-                position = min(position, remove_position[b])
-            if a < num_edges:
-                position = min(position, insert_position[a])
-
-            while w < num_windows and windows[w + 1] <= position:  # flush window
-                windows_span[w] -= position - windows[w + 1]
-                if w + 1 < num_windows:
-                    windows_span[w + 1] += position - windows[w + 1]
-                remainder = sequence_length - windows[w + 1]
-                for c, p in enumerate(nodes_parent):
-                    u = nodes_map[p]
-                    if p == tskit.NULL or u == tskit.NULL:
-                        continue
-                    inside = sample_counts[c]
-                    outside = sample_counts[p] - sample_counts[c] - nodes_sample[p]
-                    for i, (j, k) in enumerate(indexes):
-                        weight = inside[j] * outside[k] + inside[k] * outside[j]
-                        coalescing_pairs[w, u, i] -= weight * remainder / 2
-                        if w + 1 < num_windows:
-                            coalescing_pairs[w + 1, u, i] += weight * remainder / 2
-                w += 1
-
-        for i, (j, k) in enumerate(indexes):
-            if j == k:
-                coalescing_pairs[:, :, i] /= 2
-        if span_normalise:
-            for w, s in enumerate(np.diff(windows)):
-                coalescing_pairs[w] /= s
+        coalescing_pairs = self.ll_tree_sequence.pair_coalescence_counts(
+            sample_sets=sample_sets,
+            sample_set_sizes=sample_set_sizes,
+            windows=windows,
+            indexes=indexes,
+            node_output_map=node_output_map,
+            span_normalise=span_normalise,
+        )
 
         if drop_right_dimension:
             coalescing_pairs = coalescing_pairs[..., 0]

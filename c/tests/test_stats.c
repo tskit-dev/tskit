@@ -304,6 +304,94 @@ verify_divergence_matrix(tsk_treeseq_t *ts, tsk_flags_t options)
     }
 }
 
+/* Check coalescence counts against naive implementation */
+static void
+verify_pair_coalescence_counts(tsk_treeseq_t *ts, tsk_flags_t options)
+{
+    int ret;
+    const tsk_size_t n = tsk_treeseq_get_num_samples(ts);
+    const tsk_size_t N = tsk_treeseq_get_num_nodes(ts);
+    const tsk_size_t T = tsk_treeseq_get_num_trees(ts);
+    const tsk_id_t *samples = tsk_treeseq_get_samples(ts);
+    const double *breakpoints = tsk_treeseq_get_breakpoints(ts);
+    const tsk_size_t P = 2;
+    const tsk_size_t I = P * (P + 1) / 2;
+    tsk_id_t sample_sets[n];
+    tsk_size_t sample_set_sizes[P];
+    tsk_id_t index_tuples[2 * I];
+    tsk_id_t node_output_map[N];
+    tsk_size_t dim = T * N * I;
+    double C1[dim];
+    tsk_size_t i, j, k;
+
+    for (i = 0; i < n; i++) {
+        sample_sets[i] = samples[i];
+    }
+
+    for (i = 0; i < P; i++) {
+        sample_set_sizes[i] = 0;
+    }
+    for (j = 0; j < n; j++) {
+        i = j / (n / P);
+        sample_set_sizes[i]++;
+    }
+
+    for (j = 0, i = 0; j < P; j++) {
+        for (k = j; k < P; k++) {
+            index_tuples[i++] = (tsk_id_t) j;
+            index_tuples[i++] = (tsk_id_t) k;
+        }
+    }
+
+    for (i = 0; i < N; i++) {
+        node_output_map[i] = (tsk_id_t) i;
+    }
+
+    ret = tsk_treeseq_pair_coalescence_stat(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, N, node_output_map, options, C1);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    /* TODO: test against naive pairs per node per tree */
+
+    /* cover errors */
+    double bad_breakpoints[2] = { breakpoints[1], 0.0 };
+    ret = tsk_treeseq_pair_coalescence_stat(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, 1, bad_breakpoints, N, node_output_map, options, C1);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);
+
+    index_tuples[0] = (tsk_id_t) P;
+    ret = tsk_treeseq_pair_coalescence_stat(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, 1, breakpoints, N, node_output_map, options, C1);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLE_SET_INDEX);
+    index_tuples[0] = 0;
+
+    tsk_size_t tmp = sample_set_sizes[0];
+    sample_set_sizes[0] = 0;
+    ret = tsk_treeseq_pair_coalescence_stat(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, 1, breakpoints, N, node_output_map, options, C1);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EMPTY_SAMPLE_SET);
+    sample_set_sizes[0] = tmp;
+
+    sample_sets[1] = 0;
+    ret = tsk_treeseq_pair_coalescence_stat(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, 1, breakpoints, N, node_output_map, options, C1);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
+    sample_sets[1] = 1;
+
+    ret = tsk_treeseq_pair_coalescence_stat(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, 1, breakpoints, N - 1, node_output_map, options, C1);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_OUTPUT_MAP_DIM);
+
+    ret = tsk_treeseq_pair_coalescence_stat(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, 1, breakpoints, 0, node_output_map, options, C1);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_OUTPUT_MAP_DIM);
+
+    node_output_map[0] = -2;
+    ret = tsk_treeseq_pair_coalescence_stat(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, 1, breakpoints, N, node_output_map, options, C1);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_OUTPUT_MAP);
+    node_output_map[0] = 0;
+}
+
 typedef struct {
     int call_count;
     int error_on;
@@ -2786,6 +2874,19 @@ test_multiroot_divergence_matrix(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_pair_coalescence_counts(void)
+{
+    tsk_treeseq_t ts;
+    tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges, NULL,
+        nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL, 0);
+    verify_pair_coalescence_counts(&ts, TSK_STAT_NODE);
+    verify_pair_coalescence_counts(&ts, TSK_STAT_NODE | TSK_STAT_SPAN_NORMALISE);
+    verify_pair_coalescence_counts(&ts, 0);
+    verify_pair_coalescence_counts(&ts, TSK_STAT_SPAN_NORMALISE);
+    tsk_treeseq_free(&ts);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -2883,6 +2984,8 @@ main(int argc, char **argv)
         { "test_simplest_divergence_matrix_internal_sample",
             test_simplest_divergence_matrix_internal_sample },
         { "test_multiroot_divergence_matrix", test_multiroot_divergence_matrix },
+
+        { "test_pair_coalescence_counts", test_pair_coalescence_counts },
 
         { NULL, NULL },
     };

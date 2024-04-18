@@ -4204,3 +4204,125 @@ def test_uninitialised():
 def test_constants():
     assert _tskit.TIME_UNITS_UNKNOWN == "unknown"
     assert _tskit.TIME_UNITS_UNCALIBRATED == "uncalibrated"
+
+
+class TestPairCoalescenceErrors:
+    def example_ts(self, sample_size=10):
+        ts = msprime.sim_ancestry(
+            sample_size,
+            sequence_length=1e4,
+            recombination_rate=1e-8,
+            random_seed=1,
+            population_size=1e4,
+        )
+        return ts.ll_tree_sequence
+
+    @staticmethod
+    def pair_coalescence_counts(
+        ts,
+        sample_sets=None,
+        sample_set_sizes=None,
+        indexes=None,
+        windows=None,
+        node_output_map=None,
+        span_normalise=False,
+    ):
+        n = ts.get_num_samples()
+        N = ts.get_num_nodes()
+        if sample_sets is None:
+            sample_sets = np.arange(n, dtype=np.int32)
+        if sample_set_sizes is None:
+            sample_set_sizes = [n // 2, n - n // 2]
+        if indexes is None:
+            pairs = itertools.combinations_with_replacement(
+                range(len(sample_set_sizes)), 2
+            )
+            indexes = [(i, j) for i, j in pairs]
+        if windows is None:
+            windows = np.array([0, 0.5, 1.0]) * ts.get_sequence_length()
+        if node_output_map is None:
+            node_output_map = np.arange(N, dtype=np.int32)
+        return ts.pair_coalescence_counts(
+            sample_sets=sample_sets,
+            sample_set_sizes=sample_set_sizes,
+            windows=windows,
+            indexes=indexes,
+            node_output_map=node_output_map,
+            span_normalise=span_normalise,
+        )
+
+    def test_output_dims(self):
+        ts = self.example_ts()
+        coal = self.pair_coalescence_counts(ts)
+        dim = (2, ts.get_num_nodes(), 3)
+        assert coal.shape == dim
+        coal = self.pair_coalescence_counts(ts, span_normalise=True)
+        assert coal.shape == dim
+
+    @pytest.mark.parametrize("bad_node", [-1, -2, 1000])
+    def test_c_tsk_err_node_out_of_bounds(self, bad_node):
+        ts = self.example_ts()
+        ids = np.arange(ts.get_num_samples(), dtype=np.int32)
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_NODE_OUT_OF_BOUNDS"):
+            self.pair_coalescence_counts(
+                ts, sample_sets=np.append(ids[:-1], bad_node).astype(np.int32)
+            )
+
+    def test_c_tsk_err_bad_windows(self):
+        ts = self.example_ts()
+        L = ts.get_sequence_length()
+        with pytest.raises(_tskit.LibraryError, match="BAD_WINDOWS"):
+            self.pair_coalescence_counts(ts, windows=[-1.0, L])
+
+    def test_c_tsk_err_bad_node_output_map(self):
+        ts = self.example_ts()
+        node_output_map = np.arange(ts.get_num_nodes(), dtype=np.int32)
+        node_output_map[0] = -10
+        with pytest.raises(_tskit.LibraryError, match="BAD_NODE_OUTPUT_MAP"):
+            self.pair_coalescence_counts(ts, node_output_map=node_output_map)
+
+    @pytest.mark.parametrize("bad_index", [-1, 10])
+    def test_c_tsk_err_bad_sample_set_index(self, bad_index):
+        ts = self.example_ts()
+        with pytest.raises(_tskit.LibraryError, match="BAD_SAMPLE_SET_INDEX"):
+            self.pair_coalescence_counts(ts, indexes=[(0, bad_index)])
+
+    @pytest.mark.parametrize("bad_ss_size", [-1, 1000])
+    def test_cpy_bad_sample_sets(self, bad_ss_size):
+        ts = self.example_ts()
+        with pytest.raises(
+            (ValueError, OverflowError),
+            match="Sum of sample_set_sizes|Overflow|out of bounds",
+        ):
+            self.pair_coalescence_counts(
+                ts, sample_set_sizes=[bad_ss_size, ts.get_num_samples()]
+            )
+
+    def test_cpy_bad_parse_inputs(self):
+        ts = self.example_ts()
+        with pytest.raises(TypeError, match="str"):
+            self.pair_coalescence_counts(ts, span_normalise="foo")
+
+    def test_cpy_bad_windows(self):
+        ts = self.example_ts()
+        with pytest.raises(ValueError, match="at least 2"):
+            self.pair_coalescence_counts(ts, windows=[0.0])
+
+    @pytest.mark.parametrize("indexes", [[(0, 0, 0)], np.zeros((0, 2), dtype=np.int32)])
+    def test_cpy_bad_indexes(self, indexes):
+        ts = self.example_ts()
+        with pytest.raises(ValueError, match="k x 2 array"):
+            self.pair_coalescence_counts(ts, indexes=indexes)
+        with pytest.raises(ValueError, match="too small depth"):
+            self.pair_coalescence_counts(ts, indexes=np.ravel(indexes))
+
+    def test_cpy_bad_node_output_map(self):
+        ts = self.example_ts()
+        num_nodes = ts.get_num_nodes()
+        node_output_map = np.full(num_nodes, tskit.NULL, dtype=np.int32)
+        with pytest.raises(ValueError, match="null values for all nodes"):
+            self.pair_coalescence_counts(ts, node_output_map=node_output_map)
+        with pytest.raises(ValueError, match="a value per node"):
+            self.pair_coalescence_counts(ts, node_output_map=node_output_map[:-1])
+        with pytest.raises(TypeError, match="cast array data"):
+            self.pair_coalescence_counts(ts, node_output_map=np.zeros(num_nodes))
