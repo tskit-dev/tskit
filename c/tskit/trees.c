@@ -2834,9 +2834,6 @@ tsk_treeseq_update_branch_afs(const tsk_treeseq_t *self, tsk_id_t u, double righ
     }
 
     if (0 < all_samples && all_samples < self->num_samples) {
-        if (!polarised) {
-            x *= 0.5;
-        }
         afs_size = result_dims[num_sample_sets];
         afs = result + afs_size * window_index;
         for (k = 0; k < num_sample_sets; k++) {
