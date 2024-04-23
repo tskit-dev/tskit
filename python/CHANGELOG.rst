@@ -8,6 +8,12 @@
   using recombination information, leading to unary nodes in many trees and
   fewer edges. (:user:`petrelharp`, :user:`hfr1tz3`, :user:`avabamf`, :pr:`2651`)
 
+**Bugfixes**
+
+- Fix to the folded, expected allele frequency spectrum (i.e.,
+  `TreeSequence.allele_frequency_spectrum(mode="branch", polarised=False)`,
+  which was half as big as it should have been. (:user:`petrelharp`,
+  :user:`nspope`, :pr:`2933`)
 
 --------------------
 [0.5.6] - 2023-10-10
