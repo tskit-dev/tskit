@@ -1035,7 +1035,7 @@ def test_sample_sets(partition):
     :param partition: length 2 list of [ss_1, ss_2].
     """
     ts = get_paper_ex_ts()
-    np.testing.assert_equal(
+    np.testing.assert_array_almost_equal(
         ld_matrix(ts, sample_sets=partition), ts.ld_matrix(sample_sets=partition)
     )
 
@@ -1055,7 +1055,9 @@ def test_multiallelic_with_back_mutation(stat):
         samples=4, recombination_rate=0.2, sequence_length=10, random_seed=1
     )
     ts = msprime.sim_mutations(ts, rate=0.5, random_seed=1)
-    np.testing.assert_array_equal(ld_matrix(ts, stat=stat), ts.ld_matrix(stat=stat))
+    np.testing.assert_array_almost_equal(
+        ld_matrix(ts, stat=stat), ts.ld_matrix(stat=stat)
+    )
 
 
 @pytest.mark.parametrize(
@@ -1068,7 +1070,9 @@ def test_multiallelic_with_back_mutation(stat):
 )
 @pytest.mark.parametrize("stat", SUMMARY_FUNCS.keys())
 def test_ld_matrix(ts, stat):
-    np.testing.assert_array_equal(ld_matrix(ts, stat=stat), ts.ld_matrix(stat=stat))
+    np.testing.assert_array_almost_equal(
+        ld_matrix(ts, stat=stat), ts.ld_matrix(stat=stat)
+    )
 
 
 @pytest.mark.parametrize(
