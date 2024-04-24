@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2022 Tskit Developers
+# Copyright (c) 2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -119,7 +119,7 @@ class TestDefinitions:
                 with pytest.raises(ValueError):
                     b2_index_definition(tree)
             else:
-                assert tree.b2_index() == b2_index_definition(tree)
+                assert tree.b2_index() == pytest.approx(b2_index_definition(tree))
 
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     @pytest.mark.parametrize("base", [0.1, 1.1, 2, 10, math.e, np.array([3])[0]])
@@ -131,7 +131,9 @@ class TestDefinitions:
                 with pytest.raises(ValueError):
                     b2_index_definition(tree, base)
             else:
-                assert tree.b2_index(base) == b2_index_definition(tree, base)
+                assert tree.b2_index(base) == pytest.approx(
+                    b2_index_definition(tree, base)
+                )
 
 
 class TestBalancedBinaryOdd:

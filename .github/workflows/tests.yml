@@ -74,19 +74,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Install OSX libs
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install libxml2 libxslt
+
       - name: Cache conda and dependencies
         id: cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
-          path: |
-            c:\Miniconda\envs\anaconda-client-env
-            /usr/share/miniconda/envs/anaconda-client-env
-            ~/osx-conda
-            ~/.profile
-          key: ${{ runner.os }}-${{ matrix.python}}-conda-v12-${{ hashFiles('python/requirements/CI-tests-conda/requirements.txt') }}-${{ hashFiles('python/requirements/CI-tests-pip/requirements.txt') }}
+          path: ${{ env.CONDA }}/envs
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ matrix.python}}-conda-v1-${{ hashFiles('python/requirements/CI-tests-conda/requirements.txt') }}-${{ hashFiles('python/requirements/CI-tests-pip/requirements.txt') }}
 
       - name: Install Conda
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v3
         if: steps.cache.outputs.cache-hit != 'true'
         with:
           activate-environment: anaconda-client-env
@@ -94,7 +95,6 @@ jobs:
           channels: conda-forge
           channel-priority: strict
           auto-update-conda: true
-          use-only-tar-bz2: true
 
       - name: Fix windows symlinks
         working-directory: python
@@ -123,17 +123,8 @@ jobs:
         run: |
           pip install setuptools==57.5.0 #v58 broke some deps https://setuptools.pypa.io/en/latest/history.html#v58-0-0
           pip install -r python/requirements/CI-tests-pip/requirements.txt
-
-      - name: Fix OSX Cache Write #OSX Won't let the cache restore due to file perms
-        if: steps.cache.outputs.cache-hit != 'true' && matrix.os == 'macos-latest'
-        run: |
-          cp -r /usr/local/miniconda/envs/anaconda-client-env ~/osx-conda
-
-      - name: Fix OSX Cache Restore
-        if: steps.cache.outputs.cache-hit == 'true' && matrix.os == 'macos-latest'
-        run: |
-          mkdir -p /usr/local/miniconda/envs
-          sudo cp -r ~/osx-conda /usr/local/miniconda/envs/anaconda-client-env
+          # Remove tskit installed by conda
+          pip uninstall -y tskit
 
       - name: Build module
         working-directory: python
