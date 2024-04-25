@@ -11,7 +11,6 @@ from tests.test_highlevel import get_example_tree_sequences
 # ↑ See https://github.com/tskit-dev/tskit/issues/1804 for when
 # we can remove this.
 
-
 def extend_edges(ts, max_iter=10):
     tables = ts.dump_tables()
     mutations = tables.mutations.copy()
@@ -210,6 +209,540 @@ def _extend(ts, forwards=True):
     edges.keep_rows(keep)
     return edges
 
+'''
+Here is our new `extend_paths` algorithm. 
+This handles some other tricker cases we want the 
+`extend_edges` algorithm to succeed on.
+This algorithm can also extend edges, however
+its convergence is now not monotonically decreasing;
+this makes convergence INCREDIBLY SLOW.
+We think that we can combine `extend_paths` and `extend_edges`
+in a piece-meal way to speed up this convergence, but this requires 
+further testing.
+'''
+def merge_edge_paths(edges_in, in_parent, out_parent, degree, not_sample, ts, edges):
+    # We want a list (or dict) of all longest edge paths
+    # from out tree and in tree
+    paths = list()
+    path_check = np.full(ts.num_nodes, True, dtype = bool)
+    for ex_in in edges_in:
+        e_in = ex_in[0]
+        c = edges[e_in].child
+        if path_check[c] == False:
+            continue
+        p_in = edges[e_in].parent
+        p_out = out_parent[c]
+        ipp = [c]
+        opp = [c]
+        path = []
+        if p_in != tskit.NULL and path_check[p_in]:
+            ipp.append(p_in)
+        if p_out != tskit.NULL and path_check[p_out]:
+            opp.append(p_out)
+        while p_out != tskit.NULL and degree[p_out] == 0 and not_sample[p_out] and path_check[p_out]:
+            opp.append(p_out)
+            p_out = out_parent[p_out]
+        if p_out != tskit.NULL and path_check[p_out]:
+            opp.append(p_out)
+        while p_in != tskit.NULL and degree[p_in] < 3 and not_sample[p_in] and path_check[p_in]:
+            ipp.append(p_in)
+            p_in = in_parent[p_in]
+        if p_in != tskit.NULL and path_check[p_in]:
+            ipp.append(p_in)
+        assert (-1 not in ipp) and (-1 not in opp)
+        # build the path list:
+        if (ipp[-1] == opp[-1]):
+            path = list(set(ipp + opp))
+            path.sort(key = lambda x: ts.tables.nodes.time[x])
+            path_check[path[:-1]] = False
+            paths.append(path)
+            # print('path_check', path_check[path])
+            # print('out path', opp)
+            # print('in path', ipp)
+            # print('path', path)
+        if (ipp[-1] != opp[-1]):
+            common_nodes, ipp_ind, opp_ind = np.intersect1d(ipp, opp, return_indices = True)
+            common_nodes, ipp_ind, opp_ind = list(common_nodes), list(ipp_ind), list(opp_ind)
+            if len(common_nodes) > 1:
+                common_nodes.sort(key = lambda x: ts.tables.nodes.time[x])
+                oldest_node = common_nodes[-1]
+                ipp_ind.sort(key = lambda x: ts.tables.nodes.time[ipp[x]])
+                opp_ind.sort(key = lambda x: ts.tables.nodes.time[opp[x]])
+                ipp_last_ind = ipp_ind[-1]
+                opp_last_ind = opp_ind[-1]
+                ipp = ipp[:ipp_last_ind+1]
+                opp = opp[:opp_last_ind+1]
+                path = list(set(ipp + opp))
+                path.sort(key = lambda x: ts.tables.nodes.time[x])
+                path_check[path[:-1]] = False
+                paths.append(path)
+                # print('pathcheck', path_check[path])
+                # print('out path', opp)
+                # print('in path', ipp)
+                # print('path', path)
+    return paths
+
+def _extend_paths(ts, forwards=True):
+    # `degree` will record the degree of each node in the tree we'd get if
+    # we removed all `out` edges and added all `in` edges
+    degree = np.full(ts.num_nodes, 0, dtype="int")
+    # `out_parent` will record the sub-forest of edges-to-be-removed
+    out_parent = np.full(ts.num_nodes, -1, dtype="int")
+    # `in_parent` will record the sub-forest of edges-to-be-added
+    in_parent = np.full(ts.num_nodes, -1, dtype="int")
+    keep = np.full(ts.num_edges, True, dtype=bool)
+    not_sample = [not n.is_sample() for n in ts.nodes()]
+    nodes = ts.tables.nodes.copy()
+    edges = ts.tables.edges.copy()
+    node_times = ts.tables.nodes.time.copy()
+    nodes_edge = np.full(ts.num_nodes, -1, dtype="int")
+    # "here" will be left if fowards else right;
+    # and "there" is the other
+    new_left = edges.left.copy()
+    new_right = edges.right.copy()
+    if forwards:
+        direction = 1
+        # in C we can just modify these in place, but in
+        # python they are (silently) immutable
+        near_side = new_left
+        far_side = new_right
+    else:
+        direction = -1
+        near_side = new_right
+        far_side = new_left
+    edges_out = []
+    edges_in = []
+
+    tree_pos = TreePosition(ts)
+    if forwards:
+        valid = tree_pos.next()
+    else:
+        valid = tree_pos.prev()
+    while valid:
+        # print(f'--------{forwards}----------')
+        left, right = tree_pos.interval
+        # print('-----------',left, right,'----------')
+        here = left if forwards else right
+        there = right if forwards else left
+        
+        # Clear out non-extended or postponed edges:
+        # Note: maintaining out_parent is a bit tricky, because
+        # if an edge from p->c has been extended, entirely replacing
+        # another edge from p'->c, then both edges may be in edges_out,
+        # and we only want to include the *first* one.
+        for e, _ in edges_out:
+            out_parent[edges.child[e]] = -1
+        tmp = []
+        for e, x in edges_out:
+            if x:
+                tmp.append([e, False])
+        edges_out = tmp
+        tmp = []
+        for e, x in edges_in:
+            if x:
+                tmp.append([e, False])
+        edges_in = tmp
+
+        for e, _ in edges_out:
+            out_parent[edges.child[e]] = edges.parent[e]
+        for e, _ in edges_in:
+            in_parent[edges.child[e]] = edges.parent[e]
+
+        for j in range(tree_pos.out_range.start, tree_pos.out_range.stop, direction):
+            e = tree_pos.out_range.order[j]
+            nodes_edge[edges.child[e]] = tskit.NULL
+            if out_parent[edges.child[e]] == -1:
+                edges_out.append([e, False])
+                out_parent[edges.child[e]] = edges.parent[e]
+
+        for j in range(tree_pos.in_range.start, tree_pos.in_range.stop, direction):
+            e = tree_pos.in_range.order[j]
+            edges_in.append([e, False])
+            in_parent[edges.child[e]] = edges.parent[e]
+            nodes_edge[edges.child[e]] = e
+            
+        for e, _ in edges_out:
+            degree[edges.parent[e]] -= 1
+            degree[edges.child[e]] -= 1
+            #print('Edges Out:: child', edges.child[e],'parent', edges.parent[e])
+        for e, _ in edges_in:
+            degree[edges.parent[e]] += 1
+            degree[edges.child[e]] += 1
+
+        # validate out_parent array
+        for c, p in enumerate(out_parent):
+            foundit = False
+            for e, _ in edges_out:
+                if edges.child[e] == c:
+                    assert edges.parent[e] == p
+                    foundit = True
+                    break
+            assert foundit == (p != -1)
+        assert np.all(degree >= 0), print('degree', degree)
+        added_edges = 0
+        edge_paths = merge_edge_paths(edges_in, in_parent, out_parent, degree, not_sample, ts, edges)
+        for path in edge_paths:
+            for j in range(len(path)-1):
+                child = path[j]
+                new_parent = path[j+1]
+                old_edge = nodes_edge[child]
+                # print('old edge id', nodes_edge[310])
+                # print('should be', edges[718])
+                # print('old_parent', edges[old_edge].parent)
+                # print('new_parent', new_parent)
+                if old_edge != tskit.NULL:
+                    old_parent = edges[old_edge].parent
+                if old_edge == tskit.NULL:
+                    old_parent = tskit.NULL
+                    degree[child] += 2
+                if new_parent == old_parent:
+                    assert degree[old_parent] == degree[new_parent], print(degree[old_parent], degree[new_parent])
+                    assert degree[child] > 0, print(degree[child])
+                    # this is an edge already in the tree
+                    # do nothing
+                    # print('old edge id', old_edge)
+                    # print('old edge', edges[old_edge])
+                    continue
+                if new_parent != old_parent:
+                    # check if our new edge is in edges_out 
+                    # hence it should be extended
+                    # find the edge
+                    for ex_out in edges_out:
+                        ex_out = ex_out
+                        e_out = ex_out[0]
+                        found_it = False
+                        if edges[e_out].child == child and edges[e_out].parent == new_parent:
+                            found_it = True
+                            # print(child, new_parent, 'extend edge')
+                            break
+                    if found_it:
+                        ex_out[1] = True
+                        far_side[e_out] = there
+                        if (e_out != old_edge) and (old_edge != tskit.NULL):
+                            near_side[old_edge] = there
+                        nodes_edge[child] = e_out
+                        # print('e_out', e_out)
+                        # print(edges[e_out])
+                        if degree[child] == 0:
+                            degree[child] += 2
+                        if degree[new_parent] == 0:
+                            degree[new_parent] += 2
+                        if degree[new_parent] != 0:
+                            degree[new_parent] += 1
+                        if degree[child] != 0:
+                            degree[child] += 1
+                    # if edge is not in edges_out
+                    # it is new and should be added to 
+                    # the edge table
+                    if not found_it:
+                        edges.add_row(parent = new_parent, child = child, left = left, right = right)
+                        # print(child, new_parent, 'new edge')
+                        # print(edges[-1])
+                        added_edges += 1
+                        if old_edge != tskit.NULL:
+                            near_side[old_edge] = there
+                        if forwards:
+                            near_side = np.append(near_side, [left])
+                            far_side = np.append(far_side, [right])
+                            new_left = near_side
+                            new_right = far_side
+                        if not forwards:
+                            near_side = np.append(near_side, [right])
+                            far_side = np.append(far_side, [left])
+                            new_left = far_side
+                            new_right = near_side
+                        if degree[new_parent] == 0:
+                            degree[new_parent] += 2
+                        if degree[new_parent] != 0:
+                            degree[new_parent] += 1
+                        if degree[child] == 0:
+                            degree[child] += 2
+                        if degree[child] != 0:
+                            degree[child] += 1
+        # Update keep
+        if added_edges > 0:
+            keep = np.concatenate([keep,np.full(added_edges, True, dtype = bool)]) # add as many as there are founds.
+        assert len(keep) == edges.num_rows, print('keep', len(keep), 'num edges', edges.num_rows)
+        # print(edges[keep])
+        # print('near side', near_side)
+        # print('far_side', far_side)
+        # end of loop, next tree
+        if forwards:
+            valid = tree_pos.next()
+        else:
+            valid = tree_pos.prev()
+
+    for j in range(edges.num_rows):
+        left = new_left[j]
+        right = new_right[j]
+        if left < right:
+            edges[j] = edges[j].replace(left=left, right=right)
+        else:
+            keep[j] = False
+    edges.keep_rows(keep)
+    return edges
+
+def extend_paths(ts, max_iter=10):
+    tables = ts.dump_tables()
+    mutations = tables.mutations.copy()
+    tables.mutations.clear()
+
+    last_num_edges = ts.num_edges
+    for _ in range(max_iter):
+        for forwards in [True, False]:
+            edges = _extend_paths(ts, forwards=forwards)
+            tables.edges.replace_with(edges)
+            tables.sort()
+            # print(tables.edges)
+            # for e in tables.edges:
+            #     mask = [(k.parent == e.parent and k.child == e.child) for k in tables.edges]
+            #     print( tables.edges[mask])
+            #     print('%%%%%%%%%%%%%%%%%%%%%%%%%')
+            tables.build_index()
+            print(tables.edges.num_rows)
+            ts = tables.tree_sequence()
+            # print('############################')
+        if ts.num_edges == last_num_edges:
+            break
+        else:
+            last_num_edges = ts.num_edges
+
+    tables = ts.dump_tables()
+    mutations = _slide_mutation_nodes_up(ts, mutations)
+    tables.mutations.replace_with(mutations)
+    tables.edges.squash()
+    ts = tables.tree_sequence()
+
+    return ts
+
+class TestExtendPaths:
+    """
+    Test the 'extend_paths' method.
+    """
+    def test_example1():
+        # 15.00|         |   13    |         |
+        #      |         |    |    |         |
+        # 12.00|   10    |   10    |    10   |
+        #      |  +-+-+  |  +-+-+  |   +-+-+ |
+        # 10.00|  8   |  |  |   |  |   8   | |
+        #      |  |   |  |  |   |  |  ++-+ | |
+        # 8.00 |  |   |  | 11  12  |  |  | | |
+        #      |  |   |  |  |   |  |  |  | | |
+        # 6.00 |  |   |  |  7   |  |  |  | | |
+        #      |  |   |  |  |   |  |  |  | | |
+        # 4.00 |  6   9  |  |   |  |  |  | | |
+        #      |  |   |  |  |   |  |  |  | | |
+        # 1.00 |  4   5  |  4   5  |  4  | 5 |
+        #      | +++ +++ | +++ +++ | +++ | | |
+        # 0.00 | 0 1 2 3 | 0 1 2 3 | 0 1 2 3 |
+        #      0         3         6         9
+        node_times = {
+            0: 0,
+            1: 0,
+            2: 0,
+            3: 0,
+            4: 1,
+            5: 1,
+            6: 4,
+            7: 6,
+            8: 10,
+            9: 4,
+            10: 12,
+            11: 8,
+            12: 8,
+            13: 15
+        }
+        # (p,c,l,r)
+        edges = [
+            (4,0,0,9),
+            (4,1,0,9),
+            (5,2,0,6),
+            (5,3,0,9),
+            (6,4,0,3),
+            (9,5,0,3),
+            (7,4,3,6),
+            (11,7,3,6),
+            (12,5,3,6),
+            (8,2,6,9),
+            (8,4,6,9),
+            (8,6,0,3),
+            (10,5,6,9),
+            (10,8,0,3),
+            (10,8,6,9),
+            (10,9,0,3),
+            (10,11,3,6),
+            (10,12,3,6),
+            (13, 10, 3, 6)
+        ]
+        extended_path_edges = [(4, 0, 0.0, 9.0),
+                               (4, 1, 0.0, 9.0),
+                               (5, 2, 0.0, 6.0),
+                               (5, 3, 0.0, 9.0),
+                               (6, 4, 0.0, 9.0),
+                               (9, 5, 0.0, 9.0),
+                               (7, 6, 0.0, 9.0),
+                               (11, 7, 0.0, 9.0),
+                               (12, 9, 0.0, 9.0),
+                               (8, 2, 6.0, 9.0),
+                               (8, 11, 0.0, 9.0),
+                               (10, 8, 0.0, 6.0),
+                               (10, 8, 6.0, 9.0),
+                               (10, 12, 0.0, 9.0),
+                               (13, 10, 3.0, 6.0)
+                              ]
+        samples = list(np.arange(4))
+        tables = tskit.TableCollection(sequence_length=9)
+        for (n,t,) in node_times.items():
+            flags = tskit.NODE_IS_SAMPLE if n in samples else 0
+            tables.nodes.add_row(time=t, flags=flags)
+        for p, c, l, r in edges:
+            tables.edges.add_row(parent=p, child=c, left=l, right=r)
+        ts = tables.tree_sequence()
+        tables.edges.clear()
+        for p, c, l, r in extended_path_edges:
+            tables.edges.add_row(parent=p, child=c, left=l, right=r)
+        ets = tables.tree_sequence()
+        assert ts.num_edges == 19
+        assert ets.num_edges == 15
+        return ts, ets
+    
+    def test_example2():
+        # 12.00|                     |          21         |                     |
+        #      |                     |      +----+-----+   |                     |
+        # 11.00|            20       |      |          |   |            20       |
+        #      |        +----+---+   |      |          |   |        +----+---+   |
+        # 10.00|        |       19   |      |         19   |        |       19   |
+        #      |        |       ++-+ |      |        +-+-+ |        |       ++-+ |
+        # 9.00 |       18       |  | |     18        |   | |       18       |  | |
+        #      |     +--+--+    |  | |   +--+--+     |   | |     +--+--+    |  | |
+        # 8.00 |     |     |    |  | |   |     |     |   | |    17     |    |  | |
+        #      |     |     |    |  | |   |     |     |   | |   +-+-+   |    |  | |
+        # 7.00 |     |     |   16  | |   |     |    16   | |   |   |   |    |  | |
+        #      |     |     |   +++ | |   |     |   +-++  | |   |   |   |    |  | |
+        # 6.00 |    15     |   | | | |   |     |   |  |  | |   |   |   |    |  | |
+        #      |   +-+-+   |   | | | |   |     |   |  |  | |   |   |   |    |  | |
+        # 5.00 |   |   |  14   | | | |   |    14   |  |  | |   |   |  14    |  | |
+        #      |   |   |  ++-+ | | | |   |    ++-+ |  |  | |   |   |  ++-+  |  | |
+        # 4.00 |  13   |  |  | | | | |  13    |  | |  |  | |  13   |  |  |  |  | |
+        #      |  ++-+ |  |  | | | | |  ++-+  |  | |  |  | |  ++-+ |  |  |  |  | |
+        # 3.00 |  |  | |  |  | | | | |  |  |  |  | | 12  | |  |  | |  |  | 12  | |
+        #      |  |  | |  |  | | | | |  |  |  |  | | +++ | |  |  | |  |  | +++ | |
+        # 2.00 | 11  | |  |  | | | | | 11  |  |  | | | | | | 11  | |  |  | | | | |
+        #      | +++ | |  |  | | | | | +++ |  |  | | | | | | +++ | |  |  | | | | |
+        # 1.00 | | | | | 10  | | | | | | | | 10  | | | | | | | | | | 10  | | | | |
+        #      | | | | | +++ | | | | | | | | +++ | | | | | | | | | | +++ | | | | |
+        # 0.00 | 0 7 4 9 2 5 6 1 3 8 | 0 7 4 2 5 6 1 3 9 8 | 0 7 4 1 2 5 6 3 9 8 |
+        #      0                     3                     6                     9
+        node_times = {
+            0: 0,
+            1: 0,
+            2: 0,
+            3: 0,
+            4: 0,
+            5: 0,
+            6: 0,
+            7: 0,
+            8: 0,
+            9: 0,
+            10: 1,
+            11: 2,
+            12: 3,
+            13: 4,
+            14: 5,
+            15: 6,
+            16: 7,
+            17: 8,
+            18: 9,
+            19: 10,
+            20: 11,
+            21: 12
+        }
+        # (p,c,l,r)
+        edges = [
+            (10,2,0,9),
+            (10,5,0,9),
+            (11,0,0,9),
+            (11,7,0,9),
+            (12,3,3,9),
+            (12,9,3,9),
+            (13,4,0,9),
+            (13,11,0,9),
+            (14,6,0,9),
+            (14,10,0,9),
+            (15,9,0,3),
+            (15,13,0,3),
+            (16,1,0,6),
+            (16,3,0,3),
+            (16,12,3,6),
+            (17,1,6,9),
+            (17,13,6,9),
+            (18,13,3,6),
+            (18,14,0,9),
+            (18,15,0,3),
+            (18,17,6,9),
+            (19,8,0,9),
+            (19,12,6,9),
+            (19,16,0,6),
+            (20,18,0,3),
+            (20,18,6,9),
+            (20,19,0,3),
+            (20,19,6,9),
+            (21,18,3,6),
+            (21,19,3,6),
+        ]
+        extended_path_edges = [(10, 2, 0.0, 9.0),
+             (10, 5, 0.0, 9.0),
+             (11, 0, 0.0, 9.0),
+             (11, 7, 0.0, 9.0),
+             (12, 3, 0.0, 9.0),
+             (12, 9, 3.0, 9.0),
+             (13, 4, 0.0, 9.0),
+             (13, 11, 0.0, 9.0),
+             (14, 6, 0.0, 9.0),
+             (14, 10, 0.0, 9.0),
+             (15, 9, 0.0, 3.0),
+             (15, 13, 0.0, 9.0),
+             (16, 1, 0.0, 6.0),
+             (16, 12, 0.0, 9.0),
+             (17, 1, 6.0, 9.0),
+             (17, 15, 0.0, 9.0),
+             (18, 14, 0.0, 9.0),
+             (18, 17, 0.0, 9.0),
+             (19, 8, 0.0, 9.0),
+             (19, 16, 0.0, 9.0),
+             (20, 18, 0.0, 3.0),
+             (20, 18, 6.0, 9.0),
+             (20, 19, 0.0, 3.0),
+             (20, 19, 6.0, 9.0),
+             (21, 18, 3.0, 6.0),
+             (21, 19, 3.0, 6.0)
+            ]
+        samples = list(np.arange(10))
+        tables = tskit.TableCollection(sequence_length=9)
+        for (n,t,) in node_times.items():
+            flags = tskit.NODE_IS_SAMPLE if n in samples else 0
+            tables.nodes.add_row(time=t, flags=flags)
+        for p, c, l, r in edges:
+            tables.edges.add_row(parent=p, child=c, left=l, right=r)
+        ts = tables.tree_sequence()
+        tables.edges.clear()
+        for p, c, l, r in extended_path_edges:
+            tables.edges.add_row(parent=p, child=c, left=l, right=r)
+        ets = tables.tree_sequence()
+        assert ts.num_edges == 30
+        assert ets.num_edges == 26
+        return ts, ets
+
+    def verify_extend_paths(self, ts, max_iter = 10):
+        ets = extend_paths(ts, max_iter = max_iter)
+        assert np.all(ts.genotype_matrix() == ets.genotype_matrix())
+        assert ts.num_nodes == ets.num_nodes
+        assert ts.num_samples == ets.num_samples
+        t = ts.simplify().tables
+        et = ets.simplfy().tables
+        assert et.tables.assert_equals(t, ignore_provenacnce = True)
+
+    def
 
 class TestExtendEdges:
     """
