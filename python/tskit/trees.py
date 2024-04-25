@@ -6921,25 +6921,24 @@ class TreeSequence:
         tables.delete_older(time)
         return tables.tree_sequence()
 
-    def extend_edges(self, max_iter=10):
+    def extend_haplotypes(self, max_iter=10):
         """
         Returns a new tree sequence in which the span covered by ancestral nodes
         is "extended" to regions of the genome according to the following rule:
-        If an ancestral segment corresponding to node `n` has parent `p` and
-        child `c` on some portion of the genome, and on an adjacent segment of
-        genome `p` is the immediate parent of `c`, then `n` is inserted into the
-        edge from `p` to `c`. This involves extending the span of the edges
-        from `p` to `n` and `n` to `c` and reducing the span of the edge from
-        `p` to `c`. However, any edges whose child node is a sample will not
-        be modified.
+        If an ancestral segment corresponding to node `n` has ancestor `p` and
+        descendant `c` on some portion of the genome, and on an adjacent segment of
+        genome `p` is still an ancestor of `c`, then `n` is inserted into the
+        path from `p` to `c`. For instance, if `p` is the parent of `n` and `n`
+        is the parent of `c`, then the span of the edges from `p` to `n` and
+        `n` to `c` are extended, and the span of the edge from `p` to `c` is
+        reduced. Thus, the ancestral haplotype represented by `n` is extended
+        to a longer span of the genome. However, any edges whose child node is
+        a sample are not modified.
 
-        Since some edges may be removed entirely, this process reduces (or at
-        least does not increase) the number of edges in the tree sequence.
+        Since some edges may be removed entirely, this process usually reduces
+        the number of edges in the tree sequence.
 
-        *Note:* this is a somewhat experimental operation, and is probably not
-        what you are looking for.
-
-        The method works by iterating over the genome to look for edges that can
+        The method works by iterating over the genome to look for paths that can
         be extended in this way; the maximum number of such iterations is
         controlled by ``max_iter``.
 
@@ -6949,11 +6948,13 @@ class TreeSequence:
         be that distinct recombined segments were passed down separately from
         `p` to `c`).
 
-        If an edge that a mutation falls on is split by this operation, the
-        mutation's node may need to be moved. This is only unambiguous if the
-        mutation's time is known, so the method requires known mutation times.
-        See :meth:`.impute_unknown_mutations_time` if mutation times are
-        not known.
+        In the example above, if there was a mutation on the node above `c`
+        older than the time of `n` in the span into which `n` was extended,
+        then the mutation will now occur above `n`. So, this operation may change
+        mutations' nodes (but will not affect genotypes).  This is only
+        unambiguous if the mutation's time is known, so the method requires
+        known mutation times.  See :meth:`.impute_unknown_mutations_time` if
+        mutation times are not known.
 
         The method will not affect the marginal trees (so, if the original tree
         sequence was simplified, then following up with `simplify` will recover
@@ -6968,7 +6969,7 @@ class TreeSequence:
         :rtype: tskit.TreeSequence
         """
         max_iter = int(max_iter)
-        ll_ts = self._ll_tree_sequence.extend_edges(max_iter)
+        ll_ts = self._ll_tree_sequence.extend_haplotypes(max_iter)
         return TreeSequence(ll_ts)
 
     def subset(

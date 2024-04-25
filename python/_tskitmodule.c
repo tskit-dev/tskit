@@ -8944,7 +8944,7 @@ out:
 }
 
 static PyObject *
-TreeSequence_extend_edges(TreeSequence *self, PyObject *args, PyObject *kwds)
+TreeSequence_extend_haplotypes(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     int err;
     PyObject *ret = NULL;
@@ -8970,7 +8970,7 @@ TreeSequence_extend_edges(TreeSequence *self, PyObject *args, PyObject *kwds)
         goto out;
     }
 
-    err = tsk_treeseq_extend_edges(
+    err = tsk_treeseq_extend_haplotypes(
         self->tree_sequence, max_iter, options, output->tree_sequence);
     if (err != 0) {
         handle_library_error(err);
@@ -11200,10 +11200,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_split_edges,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Returns a copy of this tree sequence edges split at time t" },
-    { .ml_name = "extend_edges",
-        .ml_meth = (PyCFunction) TreeSequence_extend_edges,
+    { .ml_name = "extend_haplotypes",
+        .ml_meth = (PyCFunction) TreeSequence_extend_haplotypes,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
-        .ml_doc = "Extends edges, creating unary nodes." },
+        .ml_doc = "Extends ancestral haplotypes, creating unary nodes." },
     { .ml_name = "has_reference_sequence",
         .ml_meth = (PyCFunction) TreeSequence_has_reference_sequence,
         .ml_flags = METH_NOARGS,

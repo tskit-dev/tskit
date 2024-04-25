@@ -1496,21 +1496,28 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             ts.load_tables(tables)
             assert ts.get_time_units() == value
 
-    def test_extend_edges_bad_args(self):
+    def test_extend_haplotypes(self):
+        ts = self.get_example_tree_sequence(6)
+        ets2 = ts.extend_haplotypes(2)
+        ets4 = ts.extend_haplotypes(4)
+        assert ets2.get_num_nodes() == ts.get_num_nodes()
+        assert ets4.get_num_nodes() == ts.get_num_nodes()
+
+    def test_extend_haplotypes_bad_args(self):
         ts1 = self.get_example_tree_sequence(10)
         with pytest.raises(TypeError):
-            ts1.extend_edges()
+            ts1.extend_haplotypes()
         with pytest.raises(TypeError, match="an integer"):
-            ts1.extend_edges("sdf")
+            ts1.extend_haplotypes("sdf")
         with pytest.raises(_tskit.LibraryError, match="positive"):
-            ts1.extend_edges(0)
+            ts1.extend_haplotypes(0)
         with pytest.raises(_tskit.LibraryError, match="positive"):
-            ts1.extend_edges(-1)
+            ts1.extend_haplotypes(-1)
         tsm = self.get_example_migration_tree_sequence()
         with pytest.raises(
             _tskit.LibraryError, match="TSK_ERR_MIGRATIONS_NOT_SUPPORTED"
         ):
-            tsm.extend_edges(1)
+            tsm.extend_haplotypes(1)
 
     @pytest.mark.parametrize(
         "stat_method_name",

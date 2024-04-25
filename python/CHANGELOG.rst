@@ -26,9 +26,10 @@
 
 **Features**
 
-- Add ``TreeSequence.extend_edges`` method that extends ancestral haplotypes
+- Add ``TreeSequence.extend_haplotypes`` method that extends ancestral haplotypes
   using recombination information, leading to unary nodes in many trees and
-  fewer edges. (:user:`petrelharp`, :user:`hfr1tz3`, :user:`avabamf`, :pr:`2651`)
+  fewer edges. (:user:`petrelharp`, :user:`hfr1tz3`, :user: `nspope`,
+  :user:`avabamf`, :pr:`2651`, :pr:`2938`)
 
 - Add ``Table.drop_metadata`` to make clearing metadata from tables easy.
   (:user:`jeromekelleher`, :pr:`2944`)
