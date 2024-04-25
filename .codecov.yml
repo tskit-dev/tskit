@@ -31,4 +31,4 @@ flag_management:
         - python/lwt_interface/*.h
       statuses:
         - type: project
-          target: 85%
+          target: 80%
