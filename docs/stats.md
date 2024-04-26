@@ -543,7 +543,7 @@ Here is a bit more discussion of how to use these.
 Many statistics calculated from genome sequence treat all alleles on equal footing,
 as one must without knowledge of the ancestral state and sequence of mutations that produced the data.
 Separating out the *ancestral* allele (e.g., as inferred using an outgroup)
-is known as *polarisiation*.
+is known as *polarisation*.
 For instance, in the allele frequency spectrum, a site with alleles at 20% and 80% frequency
 is no different than another whose alleles are at 80% and 20%,
 unless we know in each case which allele is ancestral,
