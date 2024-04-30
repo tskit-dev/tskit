@@ -523,16 +523,16 @@ def compute_general_two_site_stat_result(
                 weights[1, k] = w_A - w_AB  # w_Ab
                 weights[2, k] = w_B - w_AB  # w_aB
 
-                func(state_dim, weights, result_tmp, params)
+            func(state_dim, weights, result_tmp, params)
 
-                norm_func(
-                    state_dim,
-                    weights,
-                    num_row_alleles - polarised_val,
-                    num_col_alleles - polarised_val,
-                    norm,
-                    params,
-                )
+            norm_func(
+                state_dim,
+                weights,
+                num_row_alleles - polarised_val,
+                num_col_alleles - polarised_val,
+                norm,
+                params,
+            )
 
             for k in range(state_dim):
                 result[k] += result_tmp[k] * norm[k]
@@ -576,7 +576,6 @@ def two_site_count_stat(
                       ancestral state.
     :returns: 3D array of results, dimensions (sample_sets, row_sites, col_sites).
     """
-    state_dim = len(sample_set_sizes)
     params = {"sample_set_sizes": sample_set_sizes}
     result = np.zeros(
         (num_sample_sets, len(row_sites), len(col_sites)), dtype=np.float64
@@ -596,7 +595,7 @@ def two_site_count_stat(
                 num_alleles[col_site],
                 ts.num_samples,
                 allele_samples,
-                state_dim,
+                num_sample_sets,
                 sample_sets,
                 func,
                 norm_func,
@@ -611,9 +610,7 @@ def two_site_count_stat(
 def two_branch_count_stat(
     ts: tskit.TreeSequence,
     func: Callable[[int, np.ndarray, np.ndarray, Dict[str, Any]], None],
-    norm_func: Callable[  # No need for norm func, biallelic
-        [int, np.ndarray, int, int, np.ndarray, Dict[str, Any]], None
-    ],
+    norm_func,  # TODO: might need for polarisation
     num_sample_sets: int,
     sample_set_sizes: np.ndarray,
     sample_sets: BitSet,  # TODO: implement sample sets
@@ -645,44 +642,49 @@ def two_branch_count_stat(
                       ancestral state.
     :returns: 3D array of results, dimensions (sample_sets, row_sites, col_sites).
     """
-    # state_dim = len(sample_set_sizes)
-    # params = {"sample_set_sizes": sample_set_sizes}
+    params = {"sample_set_sizes": sample_set_sizes}
     result = np.zeros(
         (num_sample_sets, len(row_sites), len(col_sites)), dtype=np.float64
     )
-    # These stats require at least 4 samples in the tree
-    if ts.num_samples < 4:
-        return result
 
     # TODO: get_pos_row_col_indices?
     # sites, row_idx, col_idx = get_site_row_col_indices(row_sites, col_sites)
 
-    stat = 0
-    l_state = TreeState(ts)  # State is initialized at tree -1
-    r_state = TreeState(ts)
+    stat = np.zeros(num_sample_sets, dtype=np.float64)
+    # State is initialized at tree -1
+    l_state = TreeState(ts, sample_sets, num_sample_sets, sample_index_map)
+    r_state = TreeState(ts, sample_sets, num_sample_sets, sample_index_map)
     tmp = None  # Tmp tree will be used for swapping below.
     tmp_stat = None
 
     # Advance the fixed (left) tree state by adding all edges. Stat will be 0
-    stat, l_state = compute_stat(ts, func, stat, l_state, TreeState(ts))
+    stat, l_state = compute_branch_stat(
+        ts, func, stat, params, num_sample_sets, l_state, r_state
+    )
+    # We reset the R state to proceed after obtaining the l_state
+    r_state = TreeState(ts, sample_sets, num_sample_sets, sample_index_map)
     for i in range(ts.num_trees):
         # Compute the stat between the left and right state, advancing the right
         # state to the SAME tree that the lefthand tree represents. If we start
         # at tree 0 and tree -1, we end up at tree 0 and tree 0, etc.
-        stat, r_state = compute_stat(ts, func, stat, l_state, r_state)
-        # TODO: sample sets
-        result[0, l_state.pos.index, r_state.pos.index] = stat
+        stat, r_state = compute_branch_stat(
+            ts, func, stat, params, num_sample_sets, l_state, r_state
+        )
+        for k in range(num_sample_sets):
+            result[k, l_state.pos.index, r_state.pos.index] = stat[k]
         # Continue to advance the righthand tree until we hit the end of the
         # tree sequence, computing the stat for the rest of the upper triangle
         # of the LD matrix.
         for _ in range(i, ts.num_trees - 1):
-            stat, r_state = compute_stat(ts, func, stat, l_state, r_state)
-            # TODO: sample sets
-            result[0, l_state.pos.index, r_state.pos.index] = stat
+            stat, r_state = compute_branch_stat(
+                ts, func, stat, params, num_sample_sets, l_state, r_state
+            )
+            for k in range(num_sample_sets):
+                result[k, l_state.pos.index, r_state.pos.index] = stat[k]
             # After the first iteration of this loop, we store the r_state and
             # stat to be used as the lefthand tree in the next iteration.
             if tmp is None:
-                tmp_stat = stat
+                tmp_stat = stat.copy()
                 tmp = deepcopy(r_state)
         # We store the focal tree as the starting point for the next row in the
         # LD matrix. Remember that in order to compute the association between
@@ -690,13 +692,13 @@ def two_branch_count_stat(
         r_state = deepcopy(l_state)
         if tmp is not None:
             l_state = deepcopy(tmp)
-            stat = tmp_stat
+            stat = tmp_stat.copy()
         tmp = None
 
     # Reflect the upper triangle of the LD matrix to the lower triangle.
-    tril_idx = np.tril_indices(len(result[0]), k=-1)
-    # TODO: sample sets
-    tril_idx = (np.zeros(len(tril_idx[0]), dtype=int), *tril_idx)
+    tril_idx = np.tril_indices(ts.num_trees, k=-1)
+    tril_idx = (np.arange(num_sample_sets), *tril_idx)
+    # Transpose the last two dimensions of the lower triangle to get upper
     result[tril_idx] = result[tril_idx[0], tril_idx[2], tril_idx[1]]
     return result
 
@@ -809,10 +811,10 @@ def two_locus_count_stat(
             ts,
             summary_func,
             None,
-            1,
-            [ts.num_samples],
-            None,
-            None,
+            len(ss_sizes),
+            ss_sizes,
+            ss_bits,
+            sample_index_map,
             range(ts.num_trees),
             range(ts.num_trees),
             False,
@@ -974,35 +976,62 @@ def pi2_summary_func(
 #       the summary functions defined above.
 
 
-def pi2_unbiased(w_AB, w_Ab, w_aB, n):
-    w_ab = n - (w_AB + w_Ab + w_aB)
-    return (1 / (n * (n - 1) * (n - 2) * (n - 3))) * (
-        ((w_AB + w_Ab) * (w_aB + w_ab) * (w_AB + w_aB) * (w_Ab + w_ab))
-        - ((w_AB * w_ab) * (w_AB + w_ab + (3 * w_Ab) + (3 * w_aB) - 1))
-        - ((w_Ab * w_aB) * (w_Ab + w_aB + (3 * w_AB) + (3 * w_ab) - 1))
-    )
+def pi2_unbiased(
+    state_dim: int, state: np.ndarray, result: np.ndarray, params: Dict[str, Any]
+):
+    sample_set_sizes = params["sample_set_sizes"]
+    for k in range(state_dim):
+        n = sample_set_sizes[k]
+        w_AB = state[0, k]
+        w_Ab = state[1, k]
+        w_aB = state[2, k]
+        w_ab = n - (w_AB + w_Ab + w_aB)
+        with suppress_division_by_zero_warning():
+            result[k] = (1 / (n * (n - 1) * (n - 2) * (n - 3))) * (
+                ((w_AB + w_Ab) * (w_aB + w_ab) * (w_AB + w_aB) * (w_Ab + w_ab))
+                - ((w_AB * w_ab) * (w_AB + w_ab + (3 * w_Ab) + (3 * w_aB) - 1))
+                - ((w_Ab * w_aB) * (w_Ab + w_aB + (3 * w_AB) + (3 * w_ab) - 1))
+            )
 
 
-def dz_unbiased(w_AB, w_Ab, w_aB, n):
-    w_ab = n - (w_AB + w_Ab + w_aB)
-    return (1 / (n * (n - 1) * (n - 2) * (n - 3))) * (
-        (
-            ((w_AB * w_ab) - (w_Ab * w_aB))
-            * (w_aB + w_ab - w_AB - w_Ab)
-            * (w_Ab + w_ab - w_AB - w_aB)
-        )
-        - ((w_AB * w_ab) * (w_AB + w_ab - w_Ab - w_aB - 2))
-        - ((w_Ab * w_aB) * (w_Ab + w_aB - w_AB - w_ab - 2))
-    )
+def dz_unbiased(
+    state_dim: int, state: np.ndarray, result: np.ndarray, params: Dict[str, Any]
+):
+    sample_set_sizes = params["sample_set_sizes"]
+    for k in range(state_dim):
+        n = sample_set_sizes[k]
+        w_AB = state[0, k]
+        w_Ab = state[1, k]
+        w_aB = state[2, k]
+        w_ab = n - (w_AB + w_Ab + w_aB)
+        with suppress_division_by_zero_warning():
+            result[k] = (1 / (n * (n - 1) * (n - 2) * (n - 3))) * (
+                (
+                    ((w_AB * w_ab) - (w_Ab * w_aB))
+                    * (w_aB + w_ab - w_AB - w_Ab)
+                    * (w_Ab + w_ab - w_AB - w_aB)
+                )
+                - ((w_AB * w_ab) * (w_AB + w_ab - w_Ab - w_aB - 2))
+                - ((w_Ab * w_aB) * (w_Ab + w_aB - w_AB - w_ab - 2))
+            )
 
 
-def d2_unbiased(w_AB, w_Ab, w_aB, n):
-    w_ab = n - (w_AB + w_Ab + w_aB)
-    return (1 / (n * (n - 1) * (n - 2) * (n - 3))) * (
-        ((w_aB**2) * (w_Ab - 1) * w_Ab)
-        + ((w_ab - 1) * w_ab * (w_AB - 1) * w_AB)
-        - (w_aB * w_Ab * (w_Ab + (2 * w_ab * w_AB) - 1))
-    )
+def d2_unbiased(
+    state_dim: int, state: np.ndarray, result: np.ndarray, params: Dict[str, Any]
+):
+    sample_set_sizes = params["sample_set_sizes"]
+    for k in range(state_dim):
+        n = sample_set_sizes[k]
+        w_AB = state[0, k]
+        w_Ab = state[1, k]
+        w_aB = state[2, k]
+        w_ab = n - (w_AB + w_Ab + w_aB)
+        with suppress_division_by_zero_warning():
+            result[k] = (1 / (n * (n - 1) * (n - 2) * (n - 3))) * (
+                ((w_aB**2) * (w_Ab - 1) * w_Ab)
+                + ((w_ab - 1) * w_ab * (w_AB - 1) * w_AB)
+                - (w_aB * w_Ab * (w_Ab + (2 * w_ab * w_AB) - 1))
+            )
 
 
 SUMMARY_FUNCS = {
@@ -1278,18 +1307,39 @@ class TreeState:
     parent: np.ndarray  # parent node of a given node (connected by an edge)
     branch_len: np.ndarray  # length of the branch above a particular child node
     node_samples: BitSet  # samples that exist under a given node, this is a
-    # bitset with a row for each node.
+    # bitset with a row for each node and sample set. Rows are grouped by node,
+    # for example:
+    # node sample_set
+    # 0    0
+    # 0    1
+    # 1    0
+    # 1    1
 
-    def __init__(self, ts):
+    def __init__(self, ts, sample_sets, num_sample_sets, sample_index_map):
         self.pos = tsutil.TreePosition(ts)
         self.parent = -np.ones(ts.num_nodes, dtype=np.int64)
         self.branch_len = np.zeros(ts.num_nodes, dtype=np.float64)
-        self.node_samples = BitSet(ts.num_samples, ts.num_nodes)
-        for s in ts.samples():
-            self.node_samples.add(s, s)
+        self.node_samples = BitSet(ts.num_samples, ts.num_nodes * num_sample_sets)
+        # Create a bit array to store all samples under each node for each sample set.
+        # We initialize with the samples under the sample nodes.
+        for n in range(ts.num_nodes):
+            for k in range(num_sample_sets):
+                if sample_sets.contains(k, sample_index_map[n]):
+                    self.node_samples.add((num_sample_sets * n) + k, n)
 
 
-def compute_stat_update(c, child_samples, A_state, B_state, stat_func, num_samples):
+def compute_branch_stat_update(
+    c,
+    child_samples,
+    A_state,
+    B_state,
+    state_dim,
+    sign,
+    stat_func,
+    num_samples,
+    result,
+    params,
+):
     """Compute an update to the two-locus statistic for a single subset of the
     tree being modified, relative to all subsets of the fixed tree. We perform
     this operation for all samples edge being modified. For subsequent parent
@@ -1304,44 +1354,68 @@ def compute_stat_update(c, child_samples, A_state, B_state, stat_func, num_sampl
     :param child_samples: Samples under the edge being added/removed
     :param A_state: State for the tree contributing to the A samples (fixed)
     :param A_state: State for the tree contributing to the B samples (modified)
+    :param state_dim: Number of sample sets.
+    :param sign: The sign of the update
     :param stat_func: Function used to compute the two-locus statistic
     :param num_samples: Number of samples in the tree sequence
-    :returns: The change to the statistic, given a single edge update in the tree
+    :param result: Vector of LD results, length of number of sample sets
+    :param params: Params of summary function.
     """
-    stat = 0
-    b_len = B_state.branch_len[c]
+    b_len = B_state.branch_len[c] * sign
     if b_len == 0:
-        return stat
+        return result
+
     AB_samples = BitSet(num_samples, 1)
     node_samples_tmp = BitSet(num_samples, 1)
+    weights = np.zeros((3, state_dim), dtype=np.int64)
+    result_tmp = np.zeros(state_dim, np.float64)
 
     for n in np.where(A_state.branch_len > 0)[0]:
         a_len = A_state.branch_len[n]
-        # Samples under the modified edge and the current fixed tree node are AB
-        A_state.node_samples.intersect(n, B_state.node_samples, c, AB_samples)
-        w_AB = AB_samples.count(0)
-        w_A = A_state.node_samples.count(n)
-        w_Ab = w_A - w_AB
-        w_aB = B_state.node_samples.count(c) - w_AB
-        stat += stat_func(w_AB, w_Ab, w_aB, num_samples) * a_len * b_len
+        for k in range(state_dim):
+            row = (state_dim * n) + k
+            c_row = (state_dim * c) + k
+            # Samples under the modified edge and the current fixed tree node are AB
+            A_state.node_samples.intersect(row, B_state.node_samples, c_row, AB_samples)
+
+            w_AB = AB_samples.count(0)
+            w_A = A_state.node_samples.count(row)
+            w_B = B_state.node_samples.count(c_row)
+
+            weights[0, k] = w_AB
+            weights[1, k] = w_A - w_AB  # w_Ab
+            weights[2, k] = w_B - w_AB  # w_aB
+
+        stat_func(state_dim, weights, result_tmp, params)
+        for k in range(state_dim):
+            result[k] += result_tmp[k] * a_len * b_len
 
         # If we've begun our walk up the parents of the current edge removal, we
         # must adjust the statistic for samples that were already present before
         # addition or that remain after removal.
         if child_samples is not None:
-            node_samples_tmp.union(0, B_state.node_samples, c)
-            node_samples_tmp.difference(0, child_samples, 0)
-            AB_samples.data[:] = 0
-            # Zero out the bitset so that we can reuse it
-            A_state.node_samples.intersect(n, node_samples_tmp, 0, AB_samples)
-            w_AB = AB_samples.count(0)
-            w_Ab = w_A - w_AB
-            w_aB = node_samples_tmp.count(0) - w_AB
-            stat -= stat_func(w_AB, w_Ab, w_aB, num_samples) * a_len * b_len
-    return stat
+            for k in range(state_dim):
+                row = (state_dim * n) + k
+                c_row = (state_dim * c) + k
+                node_samples_tmp.union(0, B_state.node_samples, c_row)
+                node_samples_tmp.difference(0, child_samples, k)
+                AB_samples.data[:] = 0  # Zero out the bitset so that we can reuse it
+                A_state.node_samples.intersect(row, node_samples_tmp, 0, AB_samples)
+
+                w_AB = AB_samples.count(0)
+                w_A = A_state.node_samples.count(row)
+                w_B = node_samples_tmp.count(0)
+
+                weights[0, k] = w_AB
+                weights[1, k] = w_A - w_AB  # w_Ab
+                weights[2, k] = w_B - w_AB  # w_aB
+
+            stat_func(state_dim, weights, result_tmp, params)
+            for k in range(state_dim):
+                result[k] -= result_tmp[k] * a_len * b_len
 
 
-def compute_stat(ts, stat_func, stat, l_state, r_state):
+def compute_branch_stat(ts, stat_func, stat, params, state_dim, l_state, r_state):
     """Step between trees in a tree sequence, updating our two-locus statistic
     as we add or remove edges. Since we're computing statistics for two loci, we
     have a focal tree that remains constant, and a tree that is updated to
@@ -1361,8 +1435,10 @@ def compute_stat(ts, stat_func, stat, l_state, r_state):
     :param stat_func: A function that computes the two locus statistic, given
                       haplotype counts.
     :param stat: The two-locus statistic computed between two trees.
-    :param l_state: The lefthand, constant state
-    :param r_state: The righthand, mutated state
+    :param params: Params of summary function.
+    :param state_dim: Number of sample sets.
+    :param l_state: The lefthand constant state
+    :param r_state: The righthand state to be updated
     :returns: A tuple containing the statistic between the two trees after
               branch updates and the righthand tree state.
     """
@@ -1372,12 +1448,14 @@ def compute_stat(ts, stat_func, stat, l_state, r_state):
     # data is not valid until the end of this function.
     assert r_pos.next(), "out of bounds"
 
-    child_samples = BitSet(ts.num_samples, 1)
+    child_samples = BitSet(ts.num_samples, state_dim)
     for e in r_pos.out_range.order[r_pos.out_range.start : r_pos.out_range.stop]:
         p = r_pos.ts.edges_parent[e]
         c = r_pos.ts.edges_child[e]
         child_samples.data[:] = 0
-        child_samples.union(0, r_state.node_samples, c)  # samples removed by this edge
+        for k in range(state_dim):
+            c_row = (state_dim * c) + k
+            child_samples.union(k, r_state.node_samples, c_row)
 
         # Remove the LD contributed by the samples under removed edges. When
         # we walk up the tree to propagate these changes to parents of the
@@ -1386,17 +1464,30 @@ def compute_stat(ts, stat_func, stat, l_state, r_state):
         # branch as we propagate changes upward
         in_parent = None
         while p != tskit.NULL:
-            stat -= compute_stat_update(
-                c, in_parent, l_state, r_state, stat_func, ts.num_samples
+            compute_branch_stat_update(
+                c,
+                in_parent,
+                l_state,
+                r_state,
+                state_dim,
+                -1,
+                stat_func,
+                ts.num_samples,
+                stat,
+                params,
             )
             if in_parent is not None:
                 # remove samples from the parents of the branch being removed
                 # we remove the child node after the first iteration
-                r_state.node_samples.difference(c, child_samples, 0)
+                for k in range(state_dim):
+                    c_row = (state_dim * c) + k
+                    r_state.node_samples.difference(c_row, child_samples, k)
             in_parent = child_samples
             c = p
             p = r_state.parent[p]
-        r_state.node_samples.difference(c, child_samples, 0)
+        for k in range(state_dim):
+            c_row = (state_dim * c) + k
+            r_state.node_samples.difference(c_row, child_samples, k)
 
         # reset to the child of the edge being removed.
         c = ts.edges_child[e]
@@ -1407,7 +1498,9 @@ def compute_stat(ts, stat_func, stat, l_state, r_state):
         p = r_pos.ts.edges_parent[e]
         c = r_pos.ts.edges_child[e]
         child_samples.data[:] = 0
-        child_samples.union(0, r_state.node_samples, c)  # samples added by this edge
+        for k in range(state_dim):
+            c_row = (state_dim * c) + k
+            child_samples.union(k, r_state.node_samples, c_row)
         r_state.branch_len[c] = time[p] - time[c]
         r_state.parent[c] = p
 
@@ -1417,9 +1510,20 @@ def compute_stat(ts, stat_func, stat, l_state, r_state):
         # there
         in_parent = None
         while p != tskit.NULL:
-            r_state.node_samples.union(p, child_samples, 0)
-            stat += compute_stat_update(
-                c, in_parent, l_state, r_state, stat_func, ts.num_samples
+            for k in range(state_dim):
+                p_row = (state_dim * p) + k
+                r_state.node_samples.union(p_row, child_samples, k)
+            compute_branch_stat_update(
+                c,
+                in_parent,
+                l_state,
+                r_state,
+                state_dim,
+                +1,
+                stat_func,
+                ts.num_samples,
+                stat,
+                params,
             )
             in_parent = child_samples
             c = p
@@ -1436,22 +1540,51 @@ def compute_stat(ts, stat_func, stat, l_state, r_state):
 # conceptual parity between our method and McVean's method.
 
 
+def tmrca(tr, x, y):
+    """
+    Mirror the functionality in the branch two-locus stats. We want to compute
+    the contribution of each subset of samples. If there is no most recent common
+    ancestor, we walk up the tree and find each sample's individual MRCA (which
+    as written is realy just the root of the tree). This is to work around the case
+    of empty, gapped, and decapitated trees.
+    """
+    try:
+        # First, we try to get the tmrca
+        return tr.tmrca(x, y)
+    except ValueError as e:
+        # If we cannot, crawl up as far as the sample is connected
+        x_mrca, y_mrca = -1, -1
+        if "not share a common ancestor" not in str(e):
+            raise e
+        for r in tr.roots:
+            if x in set(tr.samples(r)):
+                x_mrca = r
+            if y in set(tr.samples(r)):
+                y_mrca = r
+        if x_mrca == -1 or y_mrca == -1:
+            raise ValueError
+        return (tr.time(x_mrca) + tr.time(y_mrca)) / 2
+
+
 def compute_D2(x, y, ij, ijk, ijkl):
     E_ijij = 0
     E_ijik = 0
     E_ijkl = 0
+    if len(ij) == 0 or len(ijk) == 0 or len(ijkl) == 0:
+        # this method requires at least 4 samples
+        return float("nan")
     for i, j in ij:
         i_time = x.time(i)
         j_time = x.time(j)
-        avg_time = (i_time + j_time) / 2
-        E_ijij += (x.tmrca(i, j) - avg_time) * (y.tmrca(i, j) - avg_time)
+        ij_time = (i_time + j_time) / 2
+        E_ijij += (tmrca(x, i, j) - ij_time) * (tmrca(y, i, j) - ij_time)
     for i, j, k in ijk:
         i_time = x.time(i)
         j_time = x.time(j)
         k_time = x.time(k)
         ij_time = (i_time + j_time) / 2
         ik_time = (i_time + k_time) / 2
-        E_ijik += (x.tmrca(i, j) - ij_time) * (y.tmrca(i, k) - ik_time)
+        E_ijik += (tmrca(x, i, j) - ij_time) * (tmrca(y, i, k) - ik_time)
     for i, j, k, l in ijkl:
         i_time = x.time(i)
         j_time = x.time(j)
@@ -1459,7 +1592,7 @@ def compute_D2(x, y, ij, ijk, ijkl):
         l_time = x.time(l)
         ij_time = (i_time + j_time) / 2
         kl_time = (k_time + l_time) / 2
-        E_ijkl += (x.tmrca(i, j) - ij_time) * (y.tmrca(k, l) - kl_time)
+        E_ijkl += (tmrca(x, i, j) - ij_time) * (tmrca(y, k, l) - kl_time)
     E_ijij = E_ijij / len(ij)
     E_ijik = E_ijik / len(ijk)
     E_ijkl = E_ijkl / len(ijkl)
@@ -1469,13 +1602,16 @@ def compute_D2(x, y, ij, ijk, ijkl):
 def compute_Dz(x, y, ij, ijk, ijkl):
     E_ijik = 0
     E_ijkl = 0
+    if len(ijk) == 0 or len(ijkl) == 0:
+        # this method requires at least 4 samples
+        return float("nan")
     for i, j, k in ijk:
         i_time = x.time(i)
         j_time = x.time(j)
         k_time = x.time(k)
         ij_time = (i_time + j_time) / 2
         ik_time = (i_time + k_time) / 2
-        E_ijik += (x.tmrca(i, j) - ij_time) * (y.tmrca(i, k) - ik_time)
+        E_ijik += (tmrca(x, i, j) - ij_time) * (tmrca(y, i, k) - ik_time)
     for i, j, k, l in ijkl:
         i_time = x.time(i)
         j_time = x.time(j)
@@ -1483,7 +1619,7 @@ def compute_Dz(x, y, ij, ijk, ijkl):
         l_time = x.time(l)
         ij_time = (i_time + j_time) / 2
         kl_time = (k_time + l_time) / 2
-        E_ijkl += (x.tmrca(i, j) - ij_time) * (y.tmrca(k, l) - kl_time)
+        E_ijkl += (tmrca(x, i, j) - ij_time) * (tmrca(y, k, l) - kl_time)
     E_ijik = E_ijik / len(ijk)
     E_ijkl = E_ijkl / len(ijkl)
     return 4 * (E_ijik - E_ijkl)
@@ -1491,6 +1627,9 @@ def compute_Dz(x, y, ij, ijk, ijkl):
 
 def compute_pi2(x, y, ij, ijk, ijkl):
     E_ijkl = 0
+    if len(ijkl) == 0:
+        # this method requires at least 4 samples
+        return float("nan")
     for i, j, k, l in ijkl:
         i_time = x.time(i)
         j_time = x.time(j)
@@ -1498,7 +1637,7 @@ def compute_pi2(x, y, ij, ijk, ijkl):
         l_time = x.time(l)
         ij_time = (i_time + j_time) / 2
         kl_time = (k_time + l_time) / 2
-        E_ijkl += (x.tmrca(i, j) - ij_time) * (y.tmrca(k, l) - kl_time)
+        E_ijkl += (tmrca(x, i, j) - ij_time) * (tmrca(y, k, l) - kl_time)
     E_ijkl = E_ijkl / len(ijkl)
     return E_ijkl
 
@@ -1523,7 +1662,7 @@ def combine(samples):
     return ij, ijk, ijkl
 
 
-def naive_matrix(ts, stat_func):
+def naive_matrix(ts, stat_func, sample_set=None):
     """Compute a tree x tree LD matrix for a given tree sequence and two-locus
     statistic. This produces a matrix of LD that is generated from the
     covariance in gene genealogies, as described in McVean 2002.
@@ -1535,9 +1674,7 @@ def naive_matrix(ts, stat_func):
     """
     result = np.zeros((ts.num_trees, ts.num_trees), dtype=np.float64)
     # These stats require at least 4 samples in the tree
-    if ts.num_samples < 4:
-        return result
-    ij, ijk, ijkl = combine(ts.samples())
+    ij, ijk, ijkl = combine(sample_set or ts.samples())
     for i, j in combinations_with_replacement(range(ts.num_trees), 2):
         val = stat_func(ts.at_index(i), ts.at_index(j), ij, ijk, ijkl)
         result[i, j] = val
@@ -1563,6 +1700,7 @@ def naive_matrix(ts, stat_func):
             "n=2_m=32_rho=0.5",
             "bottleneck_n=10_mutated",
             "rev_node_order",
+            "decapitate",
         }
     ],
 )
@@ -1576,4 +1714,44 @@ def naive_matrix(ts, stat_func):
 def test_branch_ld_matrix(ts, stat, stat_func):
     np.testing.assert_array_almost_equal(
         ld_matrix(ts, stat=stat, mode="branch"), naive_matrix(ts, stat_func)
+    )
+
+
+def get_test_branch_sample_set_test_cases():
+    p_dict = {ps.id: ps for ps in get_example_tree_sequences()}
+    return [
+        pytest.param(
+            p_dict["n=100_m=1_rho=0"].values[0],
+            [[51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67]],
+            id="n=100_m=1_rho=0",
+        ),
+        pytest.param(
+            p_dict["all_nodes_samples"].values[0],
+            [[2, 4, 5, 6]],
+            id="all_nodes_samples",
+        ),
+        pytest.param(
+            p_dict["bottleneck_n=10_mutated"].values[0],
+            [[1, 2, 4, 9]],
+            id="bottleneck_n=10_mutated",
+        ),
+        pytest.param(
+            p_dict["multichar"].values[0], [[10, 11, 12, 13, 14, 15]], id="multichar"
+        ),
+        pytest.param(p_dict["gap_at_end"].values[0], [[1, 3, 5, 8]], id="gap_at_end"),
+    ]
+
+
+@pytest.mark.parametrize("ts,sample_set", get_test_branch_sample_set_test_cases())
+@pytest.mark.parametrize(
+    "stat,stat_func",
+    zip(
+        ["d2_unbiased", "dz_unbiased", "pi2_unbiased"],
+        [compute_D2, compute_Dz, compute_pi2],
+    ),
+)
+def test_branch_ld_matrix_sample_sets(ts, sample_set, stat, stat_func):
+    np.testing.assert_array_almost_equal(
+        ld_matrix(ts, stat=stat, mode="branch", sample_sets=sample_set),
+        naive_matrix(ts, stat_func, sample_set[0]),
     )
