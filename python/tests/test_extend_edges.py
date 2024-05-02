@@ -313,7 +313,7 @@ def _extend_paths(ts, forwards=True):
     edges_out = []
     edges_in = []
 
-    tree_pos = TreePosition(ts)
+    tree_pos = tsutil.TreePosition(ts)
     if forwards:
         valid = tree_pos.next()
     else:
@@ -511,6 +511,7 @@ def extend_paths(ts, max_iter=10):
     mutations = _slide_mutation_nodes_up(ts, mutations)
     tables.mutations.replace_with(mutations)
     tables.edges.squash()
+    tables.sort()
     ts = tables.tree_sequence()
 
     return ts
@@ -519,7 +520,7 @@ class TestExtendPaths:
     """
     Test the 'extend_paths' method.
     """
-    def test_example1():
+    def get_example1(self):
         # 15.00|         |   13    |         |
         #      |         |    |    |         |
         # 12.00|   10    |   10    |    10   |
@@ -585,8 +586,7 @@ class TestExtendPaths:
                                (12, 9, 0.0, 9.0),
                                (8, 2, 6.0, 9.0),
                                (8, 11, 0.0, 9.0),
-                               (10, 8, 0.0, 6.0),
-                               (10, 8, 6.0, 9.0),
+                               (10, 8, 0.0, 9.0),
                                (10, 12, 0.0, 9.0),
                                (13, 10, 3.0, 6.0)
                               ]
@@ -603,10 +603,10 @@ class TestExtendPaths:
             tables.edges.add_row(parent=p, child=c, left=l, right=r)
         ets = tables.tree_sequence()
         assert ts.num_edges == 19
-        assert ets.num_edges == 15
+        assert ets.num_edges == 14
         return ts, ets
     
-    def test_example2():
+    def get_example2(self):
         # 12.00|                     |          21         |                     |
         #      |                     |      +----+-----+   |                     |
         # 11.00|            20       |      |          |   |            20       |
@@ -739,10 +739,22 @@ class TestExtendPaths:
         assert ts.num_nodes == ets.num_nodes
         assert ts.num_samples == ets.num_samples
         t = ts.simplify().tables
-        et = ets.simplfy().tables
-        assert et.tables.assert_equals(t, ignore_provenacnce = True)
+        et = ets.simplify().tables
+        et.assert_equals(t, ignore_provenance = True)
 
-    def
+    def test_example1(self):
+        ts, ets = self.get_example1()
+        test_ets = extend_paths(ts)
+        test_ets.tables.assert_equals(ets.tables,
+                               ignore_provenance = True)
+        self.verify_extend_paths(ts)
+
+    def test_example2(self):
+        ts, ets = self.get_example2()
+        test_ets = extend_paths(ts)
+        test_ets.tables.assert_equals(ets.tables,
+                                      ignore_provenance = True)
+        self.verify_extend_paths(ts)
 
 class TestExtendEdges:
     """
