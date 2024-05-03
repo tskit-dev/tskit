@@ -794,6 +794,20 @@ class MetadataTable(BaseTable):
             )
         return out
 
+    def drop_metadata(self, *, keep_schema=False):
+        """
+        Drops all metadata in this table. By default, the schema is also cleared,
+        except if ``keep_schema`` is True.
+
+        :param bool keep_schema: True if the current schema should be kept intact.
+        """
+        data = self.asdict()
+        data["metadata"] = []
+        data["metadata_offset"][:] = 0
+        self.set_columns(**data)
+        if not keep_schema:
+            self.metadata_schema = metadata.MetadataSchema.null()
+
 
 class IndividualTable(MetadataTable):
     """

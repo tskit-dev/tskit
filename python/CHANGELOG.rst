@@ -8,6 +8,9 @@
   using recombination information, leading to unary nodes in many trees and
   fewer edges. (:user:`petrelharp`, :user:`hfr1tz3`, :user:`avabamf`, :pr:`2651`)
 
+- Add ``Table.drop_metadata`` to make clearing metadata from tables easy.
+  (:user:`jeromekelleher`, :pr:`2944`)
+
 **Bugfixes**
 
 - Fix to the folded, expected allele frequency spectrum (i.e.,
