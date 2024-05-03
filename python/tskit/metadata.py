@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2020-2023 Tskit Developers
+# Copyright (c) 2020-2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -263,18 +263,18 @@ struct_meta_schema["properties"]["binaryFormat"] = {
     "type": "string",
     "pattern": r"^([cbB\?hHiIlLqQfd]|\d*[spx])$",
 }
-struct_meta_schema["definitions"]["root"]["properties"][
-    "binaryFormat"
-] = struct_meta_schema["properties"]["binaryFormat"]
+struct_meta_schema["definitions"]["root"]["properties"]["binaryFormat"] = (
+    struct_meta_schema["properties"]["binaryFormat"]
+)
 # arrayLengthFormat matches regex and has default
 struct_meta_schema["properties"]["arrayLengthFormat"] = {
     "type": "string",
     "pattern": r"^[BHILQ]$",
     "default": "L",
 }
-struct_meta_schema["definitions"]["root"]["properties"][
-    "arrayLengthFormat"
-] = struct_meta_schema["properties"]["arrayLengthFormat"]
+struct_meta_schema["definitions"]["root"]["properties"]["arrayLengthFormat"] = (
+    struct_meta_schema["properties"]["arrayLengthFormat"]
+)
 # index is numeric
 struct_meta_schema["properties"]["index"] = {"type": "number"}
 struct_meta_schema["definitions"]["root"]["properties"]["index"] = struct_meta_schema[
@@ -285,14 +285,14 @@ struct_meta_schema["properties"]["stringEncoding"] = {
     "type": "string",
     "default": "utf-8",
 }
-struct_meta_schema["definitions"]["root"]["properties"][
-    "stringEncoding"
-] = struct_meta_schema["properties"]["stringEncoding"]
+struct_meta_schema["definitions"]["root"]["properties"]["stringEncoding"] = (
+    struct_meta_schema["properties"]["stringEncoding"]
+)
 # nullTerminated is a boolean
 struct_meta_schema["properties"]["nullTerminated"] = {"type": "boolean"}
-struct_meta_schema["definitions"]["root"]["properties"][
-    "nullTerminated"
-] = struct_meta_schema["properties"]["nullTerminated"]
+struct_meta_schema["definitions"]["root"]["properties"]["nullTerminated"] = (
+    struct_meta_schema["properties"]["nullTerminated"]
+)
 # noLengthEncodingExhaustBuffer is a boolean
 struct_meta_schema["properties"]["noLengthEncodingExhaustBuffer"] = {"type": "boolean"}
 struct_meta_schema["definitions"]["root"]["properties"][

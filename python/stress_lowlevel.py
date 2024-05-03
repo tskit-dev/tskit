@@ -1,7 +1,3 @@
-"""
-Code to stress the low-level API as much as possible to expose
-any memory leaks or error handling issues.
-"""
 import curses
 import os
 import random
@@ -12,6 +8,11 @@ import tracemalloc
 from contextlib import redirect_stdout
 
 import pytest
+
+"""
+Code to stress the low-level API as much as possible to expose
+any memory leaks or error handling issues.
+"""
 
 
 def main(stdscr):

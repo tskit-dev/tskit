@@ -366,9 +366,9 @@ class LsHmmAlgorithm:
 
         for st1 in T:
             if st1.tree_node != -1:
-                normalisation_factor_inner[
-                    st1.tree_node
-                ] = self.compute_normalisation_factor_inner_dict(st1.tree_node)
+                normalisation_factor_inner[st1.tree_node] = (
+                    self.compute_normalisation_factor_inner_dict(st1.tree_node)
+                )
 
         for st1 in T:
             if st1.tree_node != -1:
@@ -506,9 +506,9 @@ class LsHmmAlgorithm:
 
             for st1 in self.T:
                 if st1.tree_node != -1:
-                    normalisation_factor_inner[
-                        st1.tree_node
-                    ] = self.compute_normalisation_factor_inner_dict(st1.tree_node)
+                    normalisation_factor_inner[st1.tree_node] = (
+                        self.compute_normalisation_factor_inner_dict(st1.tree_node)
+                    )
 
             for st1 in self.T:
                 if st1.tree_node != -1:

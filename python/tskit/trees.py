@@ -4283,9 +4283,11 @@ class TreeSequence:
                         name.capitalize(),
                         table.num_rows,
                         util.naturalsize(table.nbytes),
-                        "Yes"
-                        if hasattr(table, "metadata") and len(table.metadata) > 0
-                        else "No",
+                        (
+                            "Yes"
+                            if hasattr(table, "metadata") and len(table.metadata) > 0
+                            else "No"
+                        ),
                     ]
                 ]
             )
