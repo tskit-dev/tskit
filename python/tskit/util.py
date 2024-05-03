@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -457,10 +457,12 @@ def unicode_table(
 def html_table(rows, *, header):
     headers = "".join(f"<th>{h}</th>" for h in header)
     rows = (
-        f'<td style="text-align: center;" colspan="{len(headers)}"><em>{row[11:]}'
-        f" rows skipped (tskit.set_print_options)</em></td>"
-        if "__skipped__" in row
-        else "".join(f"<td>{cell}</td>" for cell in row)
+        (
+            f'<td style="text-align: center;" colspan="{len(headers)}"><em>{row[11:]}'
+            f" rows skipped (tskit.set_print_options)</em></td>"
+            if "__skipped__" in row
+            else "".join(f"<td>{cell}</td>" for cell in row)
+        )
         for row in rows
     )
     rows = "".join(f"<tr>{row}</tr>\n" for row in rows)

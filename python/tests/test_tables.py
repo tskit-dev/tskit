@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -102,12 +102,20 @@ class CommonTestsMixin:
         cols = self.make_input_data(num_rows)
         return [
             {
-                col: data[j]
-                if len(data) == num_rows
-                else (
-                    bytes(data[cols[f"{col}_offset"][j] : cols[f"{col}_offset"][j + 1]])
-                    if "metadata" in col
-                    else data[cols[f"{col}_offset"][j] : cols[f"{col}_offset"][j + 1]]
+                col: (
+                    data[j]
+                    if len(data) == num_rows
+                    else (
+                        bytes(
+                            data[
+                                cols[f"{col}_offset"][j] : cols[f"{col}_offset"][j + 1]
+                            ]
+                        )
+                        if "metadata" in col
+                        else data[
+                            cols[f"{col}_offset"][j] : cols[f"{col}_offset"][j + 1]
+                        ]
+                    )
                 )
                 for col, data in cols.items()
                 if "offset" not in col

@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2021-2022 Tskit Developers
+# Copyright (c) 2021-2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -356,9 +356,11 @@ def dump_text(
                 ).format(
                     site=mutation.site,
                     node=mutation.node,
-                    time="unknown"
-                    if util.is_unknown_time(mutation.time)
-                    else mutation.time,
+                    time=(
+                        "unknown"
+                        if util.is_unknown_time(mutation.time)
+                        else mutation.time
+                    ),
                     derived_state=mutation.derived_state,
                     parent=mutation.parent,
                     metadata=metadata,

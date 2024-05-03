@@ -1,6 +1,3 @@
-"""
-Tests of IBD finding algorithms.
-"""
 import collections
 import io
 import itertools
@@ -14,6 +11,10 @@ import tests.ibd as ibd
 import tests.test_wright_fisher as wf
 import tskit
 from tests.test_highlevel import get_example_tree_sequences
+
+"""
+Tests of IBD finding algorithms.
+"""
 
 
 # ↑ See https://github.com/tskit-dev/tskit/issues/1804 for when
