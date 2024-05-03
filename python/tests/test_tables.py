@@ -919,6 +919,25 @@ class MetadataTestsMixin:
             )
             assert metadatas == unpacked_metadatas
 
+    def test_drop_metadata(self):
+        for num_rows in [1, 10, 100]:
+            input_data = self.make_input_data(num_rows)
+            table_no_meta = self.table_class()
+            table_with_meta = self.table_class()
+            table_with_meta.set_columns(**input_data)
+            if not getattr(self, "metadata_mandatory", False):
+                del input_data["metadata"]
+                del input_data["metadata_offset"]
+            else:
+                # Have to do this slightly circular way for the population
+                # table because it requires metadata.
+                input_data["metadata"] = []
+                input_data["metadata_offset"][:] = 0
+            table_no_meta.set_columns(**input_data)
+            assert not table_no_meta.equals(table_with_meta)
+            table_with_meta.drop_metadata()
+            table_no_meta.assert_equals(table_with_meta)
+
     def test_optional_metadata(self):
         if not getattr(self, "metadata_mandatory", False):
             for num_rows in [0, 10, 100]:
@@ -981,6 +1000,28 @@ class MetadataTestsMixin:
             "metadata_schema, not <class 'dict'>",
         ):
             table.metadata_schema = {}
+
+    def test_drop_metadata_with_schema(self):
+        table = self.table_class()
+        table.metadata_schema = metadata.MetadataSchema.permissive_json()
+        data = self.input_data_for_add_row()
+        data["metadata"] = {"a": "dict"}
+        table.add_row(**data)
+        assert table[0].metadata == {"a": "dict"}
+        table.drop_metadata()
+        assert table.metadata_schema == metadata.MetadataSchema.null()
+        assert table[0].metadata == b""
+
+    def test_drop_metadata_keep_schema(self):
+        table = self.table_class()
+        table.metadata_schema = metadata.MetadataSchema.permissive_json()
+        data = self.input_data_for_add_row()
+        data["metadata"] = {"a": "dict"}
+        table.add_row(**data)
+        assert table[0].metadata == {"a": "dict"}
+        table.drop_metadata(keep_schema=True)
+        assert table.metadata_schema == metadata.MetadataSchema.permissive_json()
+        assert table[0].metadata == {}
 
     def test_default_metadata_schema(self):
         # Default should allow bytes as in pre-exisiting code

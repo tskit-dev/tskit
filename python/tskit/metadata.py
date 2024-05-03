@@ -722,6 +722,14 @@ class MetadataSchema:
         """
         return MetadataSchema({"codec": "json"})
 
+    @staticmethod
+    def null():
+        """
+        The null schema which defines no properties and results in raw bytes
+        being returned on accessing metadata column.
+        """
+        return MetadataSchema(None)
+
 
 # Often many replicate tree sequences are processed with identical schemas, so cache them
 @functools.lru_cache(maxsize=128)
@@ -734,7 +742,7 @@ def parse_metadata_schema(encoded_schema: str) -> MetadataSchema:
     :return: A subclass of AbstractMetadataSchema.
     """
     if encoded_schema == "":
-        return MetadataSchema(schema=None)
+        return MetadataSchema.null()
     else:
         try:
             decoded = json.loads(
