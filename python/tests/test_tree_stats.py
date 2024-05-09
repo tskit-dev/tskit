@@ -569,6 +569,59 @@ class StatsTestCase:
     def sum_f(self, ts, k=1):
         return lambda x: np.array([sum(x) * (sum(x) < 2 * ts.num_samples)] * k)
 
+    def four_taxa_test_case(self):
+        #
+        # 1.0          7
+        # 0.7         / \                                    6
+        #            /   \                                  / \
+        # 0.5       /     5              5                 /   5
+        #          /     / \            / \__             /   / \
+        # 0.4     /     8   \          8     4           /   8   \
+        #        /     / \   \        / \   / \         /   / \   \
+        # 0.0   0     1   3   2      1   3 0   2       0   1   3   2
+        #          (0.0, 0.2),        (0.2, 0.8),       (0.8, 2.5)
+
+        nodes = io.StringIO(
+            """\
+        id      is_sample   time
+        0       1           0
+        1       1           0
+        2       1           0
+        3       1           0
+        4       0           0.4
+        5       0           0.5
+        6       0           0.7
+        7       0           1.0
+        8       0           0.4
+        """
+        )
+        edges = io.StringIO(
+            """\
+        left    right   parent  child
+        0.0     2.5     8       1,3
+        0.2     0.8     4       0,2
+        0.0     0.2     5       8,2
+        0.2     0.8     5       8,4
+        0.8     2.5     5       8,2
+        0.8     2.5     6       0,5
+        0.0     0.2     7       0,5
+        """
+        )
+        sites = io.StringIO(
+            """\
+        id  position    ancestral_state
+        """
+        )
+        mutations = io.StringIO(
+            """\
+        site    node    derived_state   parent
+        """
+        )
+        ts = tskit.load_text(
+            nodes=nodes, edges=edges, sites=sites, mutations=mutations, strict=False
+        )
+        return ts
+
 
 class TopologyExamplesMixin:
     """
@@ -6147,6 +6200,7 @@ class SpecificTreesTestCase(StatsTestCase):
         #          (0.0, 0.2),        (0.2, 0.8),       (0.8, 2.5)
 
         # f4(0, 1, 2, 3): (0 -> 1)(2 -> 3)
+        ts = self.four_taxa_test_case()
         branch_true_f4_0123 = (0.1 * 0.2 + (0.1 + 0.1) * 0.6 + 0.1 * 1.7) / 2.5
         windows = [0.0, 0.4, 2.5]
         branch_true_f4_0123_windowed = np.array(
@@ -6177,46 +6231,6 @@ class SpecificTreesTestCase(StatsTestCase):
                     / (2.5 - 0.4)
                 ],
             ]
-        )
-
-        nodes = io.StringIO(
-            """\
-        id      is_sample   time
-        0       1           0
-        1       1           0
-        2       1           0
-        3       1           0
-        4       0           0.4
-        5       0           0.5
-        6       0           0.7
-        7       0           1.0
-        8       0           0.4
-        """
-        )
-        edges = io.StringIO(
-            """\
-        left    right   parent  child
-        0.0     2.5     8       1,3
-        0.2     0.8     4       0,2
-        0.0     0.2     5       8,2
-        0.2     0.8     5       8,4
-        0.8     2.5     5       8,2
-        0.8     2.5     6       0,5
-        0.0     0.2     7       0,5
-        """
-        )
-        sites = io.StringIO(
-            """\
-        id  position    ancestral_state
-        """
-        )
-        mutations = io.StringIO(
-            """\
-        site    node    derived_state   parent
-        """
-        )
-        ts = tskit.load_text(
-            nodes=nodes, edges=edges, sites=sites, mutations=mutations, strict=False
         )
 
         mode = "branch"
@@ -6893,3 +6907,27 @@ class TestGeneralStatCallbackErrors:
                 output_dim=1,
                 strict=False,
             )
+
+
+class TestTimeWindows(StatsTestCase):
+    def test_four_taxa_test_case(self):
+        # 1.0          7
+        # 0.7         / \                                    6
+        #            /   \                                  / \
+        # 0.5       /     5              5                 /   5
+        #          /     / \            / \__             /   / \
+        # 0.4     /     8   \          8     4           /   8   \
+        #        /     / \   \        / \   / \         /   / \   \
+        # 0.0   0     1   3   2      1   3 0   2       0   1   3   2
+        #          (0.0, 0.2),        (0.2, 0.8),       (0.8, 2.5)
+        ts = self.four_taxa_test_case()
+        true_x = np.array(
+            [
+                0.2 * (1.5 + 0.8)
+                + (0.8 - 0.2) * (1.0 + 0.8)
+                + (2.5 - 0.8) * (1.5 + 0.8),
+                0.2 * 1.0 + 0 + (2.5 - 0.8) * 0.4,
+            ]
+        )
+        x = ts.segregating_sites(time_windows=[0, 0.5, 2.0], span_normalise=False)
+        self.assertArrayAlmostEqual(x, true_x)
