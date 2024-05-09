@@ -7961,12 +7961,32 @@ class TreeSequence:
                 )
         return np.array(windows)
 
+    def parse_time_windows(self, time_windows):
+        if time_windows is None:
+            time_windows = [0.0, math.inf]
+        return np.array(time_windows)
+
     def __run_windowed_stat(self, windows, method, *args, **kwargs):
-        strip_dim = windows is None
+        strip_win = windows is None
         windows = self.parse_windows(windows)
         stat = method(*args, **kwargs, windows=windows)
-        if strip_dim:
+        if strip_win:
             stat = stat[0]
+        return stat
+
+    # only for temporary tw version
+    def __run_windowed_stat_tw(self, windows, time_windows, method, *args, **kwargs):
+        strip_win = windows is None
+        strip_timewin = time_windows is None
+        windows = self.parse_windows(windows)
+        time_windows = self.parse_time_windows(time_windows)
+        stat = method(*args, **kwargs, windows=windows, time_windows=time_windows)
+        if strip_win and strip_timewin:
+            stat = stat[0, 0, :]
+        elif strip_win:
+            stat = stat[0, :, :]
+        elif strip_timewin:
+            stat = stat[:, 0, :]
         return stat
 
     def __one_way_sample_set_stat(
@@ -7974,13 +7994,13 @@ class TreeSequence:
         ll_method,
         sample_sets,
         windows=None,
+        time_windows=None,
         mode=None,
         span_normalise=True,
         polarised=False,
     ):
         if sample_sets is None:
             sample_sets = self.samples()
-
         # First try to convert to a 1D numpy array. If it is, then we strip off
         # the corresponding dimension from the output.
         drop_dimension = False
@@ -7994,7 +8014,6 @@ class TreeSequence:
             if len(sample_sets.shape) == 1:
                 sample_sets = [sample_sets]
                 drop_dimension = True
-
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32
         )
@@ -8002,18 +8021,33 @@ class TreeSequence:
             raise ValueError("Sample sets must contain at least one element")
 
         flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
-        stat = self.__run_windowed_stat(
-            windows,
-            ll_method,
-            sample_set_sizes,
-            flattened,
-            mode=mode,
-            span_normalise=span_normalise,
-            polarised=polarised,
-        )
+        # this next line is temporary, while time windows are implemented
+        # in other methods
+        use_tw = ll_method.__name__ == "allele_frequency_spectrum"
+        if use_tw:
+            stat = self.__run_windowed_stat_tw(
+                windows,
+                time_windows,
+                ll_method,
+                sample_set_sizes,
+                flattened,
+                mode=mode,
+                span_normalise=span_normalise,
+                polarised=polarised,
+            )
+        else:
+            stat = self.__run_windowed_stat(
+                windows,
+                ll_method,
+                sample_set_sizes,
+                flattened,
+                mode=mode,
+                span_normalise=span_normalise,
+                polarised=polarised,
+            )
         if drop_dimension:
             stat = stat.reshape(stat.shape[:-1])
-            if stat.shape == () and windows is None:
+            if stat.shape == () and windows is None and time_windows is None:
                 stat = stat[()]
         return stat
 
@@ -9467,7 +9501,12 @@ class TreeSequence:
         return self.trait_linear_model(*args, **kwargs)
 
     def trait_linear_model(
-        self, W, Z=None, windows=None, mode="site", span_normalise=True
+        self,
+        W,
+        Z=None,
+        windows=None,
+        mode="site",
+        span_normalise=True,
     ):
         """
         Finds the relationship between trait and genotype after accounting for
@@ -9609,6 +9648,7 @@ class TreeSequence:
         self,
         sample_sets=None,
         windows=None,
+        time_windows=None,
         mode="site",
         span_normalise=True,
         polarised=False,
@@ -9647,7 +9687,10 @@ class TreeSequence:
             entry in each AFS array (i.e., ``afs[0]``), but in ``afs[1]``.
 
         If ``sample_sets`` is None (the default), the allele frequency spectrum
-        for all samples in the tree sequence is returned.
+        for all samples in the tree sequence is returned. For convenience, if
+        there is only a single sample set, the outer list may be omitted (so that,
+        unlike other statistics, ``sample_sets=[0,1,2]`` is equivalent to
+        ``sample_sets=[[0,1,2]]``).
 
         If more than one sample set is specified, the **joint** allele frequency
         spectrum within windows is returned. For example, if we set
@@ -9689,7 +9732,7 @@ class TreeSequence:
         are above exactly one sample of `S0` and two samples of `S1`.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
-            groups of samples to compute the joint allele frequency
+            groups of samples to compute the joint allele frequency.
         :param list windows: An increasing list of breakpoints between windows
             along the genome.
         :param str mode: A string giving the "type" of the statistic to be computed
@@ -9703,10 +9746,22 @@ class TreeSequence:
         """
         if sample_sets is None:
             sample_sets = [self.samples()]
+        try:
+            # this also happens in __one_way_sample_set_stat, but we need to do
+            # slightly different pre-processing here to allow for the case that
+            # sample sets is a single list of IDs (for most stats, this would mean
+            # dropping a dimension, but not for the AFS)
+            sample_sets = np.array(sample_sets, dtype=np.uint64)
+        except ValueError:
+            pass
+        else:
+            if len(sample_sets.shape) == 1:
+                sample_sets = [sample_sets]
         return self.__one_way_sample_set_stat(
             self._ll_tree_sequence.allele_frequency_spectrum,
             sample_sets,
             windows=windows,
+            time_windows=time_windows,
             mode=mode,
             span_normalise=span_normalise,
             polarised=polarised,

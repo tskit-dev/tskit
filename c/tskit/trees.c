@@ -1256,6 +1256,33 @@ out:
     return ret;
 }
 
+static int
+tsk_treeseq_check_time_windows(tsk_size_t num_windows, const double *windows)
+{
+    // This does not check the last window ends at infinity,
+    // which is required for some time window functions.
+    int ret = TSK_ERR_BAD_TIME_WINDOWS;
+    tsk_size_t j;
+
+    if (num_windows < 1) {
+        ret = TSK_ERR_BAD_TIME_WINDOWS_DIM;
+        goto out;
+    }
+
+    if (windows[0] != 0.0) {
+        goto out;
+    }
+
+    for (j = 0; j < num_windows; j++) {
+        if (windows[j] >= windows[j + 1]) {
+            goto out;
+        }
+    }
+    ret = 0;
+out:
+    return ret;
+}
+
 /* TODO make these functions more consistent in how the arguments are ordered */
 
 static inline void
@@ -3507,49 +3534,57 @@ out:
     return ret;
 }
 
-static int TSK_WARN_UNUSED
+static void
 tsk_treeseq_update_branch_afs(const tsk_treeseq_t *self, tsk_id_t u, double right,
-    const double *restrict branch_length, double *restrict last_update,
-    const double *counts, tsk_size_t num_sample_sets, tsk_size_t window_index,
+    double *restrict last_update, const double *restrict time, tsk_id_t *restrict parent,
+    tsk_size_t *restrict coordinate, const double *counts, tsk_size_t num_sample_sets,
+    tsk_size_t num_time_windows, const double *time_windows, tsk_size_t window_index,
     const tsk_size_t *result_dims, tsk_flags_t options, double *result)
 {
-    int ret = 0;
     tsk_size_t afs_size;
     tsk_size_t k;
+    tsk_size_t time_window_index;
     double *afs;
-    tsk_size_t *coordinate = tsk_malloc(num_sample_sets * sizeof(*coordinate));
     bool polarised = !!(options & TSK_STAT_POLARISED);
     const double *count_row = GET_2D_ROW(counts, num_sample_sets + 1, u);
-    double x = (right - last_update[u]) * branch_length[u];
+    double x = 0;
+    double t_u, t_v;
+    double tw_branch_length = 0;
     const tsk_size_t all_samples = (tsk_size_t) count_row[num_sample_sets];
-
-    if (coordinate == NULL) {
-        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
-        goto out;
-    }
-
-    if (0 < all_samples && all_samples < self->num_samples) {
-        afs_size = result_dims[num_sample_sets];
-        afs = result + afs_size * window_index;
-        for (k = 0; k < num_sample_sets; k++) {
-            coordinate[k] = (tsk_size_t) count_row[k];
+    if (parent[u] != TSK_NULL) {
+        t_u = time[u];
+        t_v = time[parent[u]];
+        if (0 < all_samples && all_samples < self->num_samples) {
+            time_window_index = 0;
+            afs_size = result_dims[num_sample_sets];
+            while (time_window_index < num_time_windows
+                   && time_windows[time_window_index] < t_v) {
+                afs = result
+                      + afs_size * (window_index * num_time_windows + time_window_index);
+                for (k = 0; k < num_sample_sets; k++) {
+                    coordinate[k] = (tsk_size_t) count_row[k];
+                }
+                if (!polarised) {
+                    fold(coordinate, result_dims, num_sample_sets);
+                }
+                tw_branch_length
+                    = TSK_MAX(0.0, TSK_MIN(time_windows[time_window_index + 1], t_v)
+                                       - TSK_MAX(time_windows[time_window_index], t_u));
+                x = (right - last_update[u]) * tw_branch_length;
+                increment_nd_array_value(
+                    afs, num_sample_sets, result_dims, coordinate, x);
+                time_window_index++;
+            }
         }
-        if (!polarised) {
-            fold(coordinate, result_dims, num_sample_sets);
-        }
-        increment_nd_array_value(afs, num_sample_sets, result_dims, coordinate, x);
     }
     last_update[u] = right;
-out:
-    tsk_safe_free(coordinate);
-    return ret;
 }
 
 static int
 tsk_treeseq_branch_allele_frequency_spectrum(const tsk_treeseq_t *self,
     tsk_size_t num_sample_sets, double *counts, tsk_size_t num_windows,
-    const double *windows, const tsk_size_t *result_dims, tsk_flags_t options,
-    double *result)
+    const double *windows, tsk_size_t num_time_windows, const double *time_windows,
+    const tsk_size_t *result_dims, tsk_flags_t options, double *result)
 {
     int ret = 0;
     tsk_id_t u, v;
@@ -3567,6 +3602,7 @@ tsk_treeseq_branch_allele_frequency_spectrum(const tsk_treeseq_t *self,
     tsk_id_t *restrict parent = tsk_malloc(num_nodes * sizeof(*parent));
     double *restrict last_update = tsk_calloc(num_nodes, sizeof(*last_update));
     double *restrict branch_length = tsk_calloc(num_nodes, sizeof(*branch_length));
+    tsk_size_t *restrict coordinate = tsk_malloc(num_sample_sets * sizeof(*coordinate));
     tsk_id_t tj, tk, h;
     double t_left, t_right, w_right;
     const tsk_size_t K = num_sample_sets + 1;
@@ -3576,7 +3612,7 @@ tsk_treeseq_branch_allele_frequency_spectrum(const tsk_treeseq_t *self,
         goto out;
     }
 
-    if (parent == NULL || last_update == NULL) {
+    if (parent == NULL || last_update == NULL || coordinate == NULL) {
         ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
@@ -3594,19 +3630,13 @@ tsk_treeseq_branch_allele_frequency_spectrum(const tsk_treeseq_t *self,
             tk++;
             u = edge_child[h];
             v = edge_parent[h];
-            ret = tsk_treeseq_update_branch_afs(self, u, t_left, branch_length,
-                last_update, counts, num_sample_sets, window_index, result_dims, options,
-                result);
-            if (ret != 0) {
-                goto out;
-            }
+            tsk_treeseq_update_branch_afs(self, u, t_left, last_update, node_time,
+                parent, coordinate, counts, num_sample_sets, num_time_windows,
+                time_windows, window_index, result_dims, options, result);
             while (v != TSK_NULL) {
-                ret = tsk_treeseq_update_branch_afs(self, v, t_left, branch_length,
-                    last_update, counts, num_sample_sets, window_index, result_dims,
-                    options, result);
-                if (ret != 0) {
-                    goto out;
-                }
+                tsk_treeseq_update_branch_afs(self, v, t_left, last_update, node_time,
+                    parent, coordinate, counts, num_sample_sets, num_time_windows,
+                    time_windows, window_index, result_dims, options, result);
                 update_state(counts, K, v, u, -1);
                 v = parent[v];
             }
@@ -3622,12 +3652,9 @@ tsk_treeseq_branch_allele_frequency_spectrum(const tsk_treeseq_t *self,
             parent[u] = v;
             branch_length[u] = node_time[v] - node_time[u];
             while (v != TSK_NULL) {
-                ret = tsk_treeseq_update_branch_afs(self, v, t_left, branch_length,
-                    last_update, counts, num_sample_sets, window_index, result_dims,
-                    options, result);
-                if (ret != 0) {
-                    goto out;
-                }
+                tsk_treeseq_update_branch_afs(self, v, t_left, last_update, node_time,
+                    parent, coordinate, counts, num_sample_sets, num_time_windows,
+                    time_windows, window_index, result_dims, options, result);
                 update_state(counts, K, v, u, +1);
                 v = parent[v];
             }
@@ -3646,12 +3673,9 @@ tsk_treeseq_branch_allele_frequency_spectrum(const tsk_treeseq_t *self,
             /* Flush the contributions of all nodes to the current window */
             for (u = 0; u < (tsk_id_t) num_nodes; u++) {
                 tsk_bug_assert(last_update[u] < w_right);
-                ret = tsk_treeseq_update_branch_afs(self, u, w_right, branch_length,
-                    last_update, counts, num_sample_sets, window_index, result_dims,
-                    options, result);
-                if (ret != 0) {
-                    goto out;
-                }
+                tsk_treeseq_update_branch_afs(self, u, w_right, last_update, node_time,
+                    parent, coordinate, counts, num_sample_sets, num_time_windows,
+                    time_windows, window_index, result_dims, options, result);
             }
             window_index++;
         }
@@ -3669,6 +3693,9 @@ out:
     if (branch_length != NULL) {
         free(branch_length);
     }
+    if (coordinate != NULL) {
+        free(coordinate);
+    }
     return ret;
 }
 
@@ -3676,13 +3703,15 @@ int
 tsk_treeseq_allele_frequency_spectrum(const tsk_treeseq_t *self,
     tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes,
     const tsk_id_t *sample_sets, tsk_size_t num_windows, const double *windows,
-    tsk_flags_t options, double *result)
+    tsk_size_t num_time_windows, const double *time_windows, tsk_flags_t options,
+    double *result)
 {
     int ret = 0;
     bool stat_site = !!(options & TSK_STAT_SITE);
     bool stat_branch = !!(options & TSK_STAT_BRANCH);
     bool stat_node = !!(options & TSK_STAT_NODE);
     const double default_windows[] = { 0, self->tables->sequence_length };
+    const double default_time_windows[] = { 0, INFINITY };
     const tsk_size_t num_nodes = self->tables->nodes.num_rows;
     const tsk_size_t K = num_sample_sets + 1;
     tsk_size_t j, k, l, afs_size;
@@ -3692,7 +3721,6 @@ tsk_treeseq_allele_frequency_spectrum(const tsk_treeseq_t *self,
      * reuse code from the general_stats code paths. */
     double *counts = NULL;
     double *count_row;
-
     if (stat_node) {
         ret = tsk_trace_error(TSK_ERR_UNSUPPORTED_STAT_MODE);
         goto out;
@@ -3716,13 +3744,27 @@ tsk_treeseq_allele_frequency_spectrum(const tsk_treeseq_t *self,
             goto out;
         }
     }
+    if (time_windows == NULL) {
+        num_time_windows = 1;
+        time_windows = default_time_windows;
+    } else {
+        ret = tsk_treeseq_check_time_windows(num_time_windows, time_windows);
+        if (ret != 0) {
+            goto out;
+        }
+        // Site mode does not support time windows
+        if (stat_site && !(time_windows[0] == 0.0 && isinf((float) time_windows[1]))) {
+            ret = TSK_ERR_UNSUPPORTED_STAT_MODE;
+            goto out;
+        }
+    }
     ret = tsk_treeseq_check_sample_sets(
         self, num_sample_sets, sample_set_sizes, sample_sets);
     if (ret != 0) {
         goto out;
     }
 
-    /* the last element of result_dims stores the total size of the dimenensions */
+    /* the last element of result_dims stores the total size of the dimensions */
     result_dims = tsk_malloc((num_sample_sets + 1) * sizeof(*result_dims));
     counts = tsk_calloc(num_nodes * K, sizeof(*counts));
     if (counts == NULL || result_dims == NULL) {
@@ -3751,19 +3793,20 @@ tsk_treeseq_allele_frequency_spectrum(const tsk_treeseq_t *self,
         count_row[num_sample_sets] = 1;
     }
     result_dims[num_sample_sets] = (tsk_size_t) afs_size;
+    tsk_memset(result, 0, num_windows * num_time_windows * afs_size * sizeof(*result));
 
-    tsk_memset(result, 0, num_windows * afs_size * sizeof(*result));
     if (stat_site) {
         ret = tsk_treeseq_site_allele_frequency_spectrum(self, num_sample_sets,
             sample_set_sizes, counts, num_windows, windows, result_dims, options,
             result);
     } else {
         ret = tsk_treeseq_branch_allele_frequency_spectrum(self, num_sample_sets, counts,
-            num_windows, windows, result_dims, options, result);
+            num_windows, windows, num_time_windows, time_windows, result_dims, options,
+            result);
     }
 
     if (options & TSK_STAT_SPAN_NORMALISE) {
-        span_normalise(num_windows, windows, afs_size, result);
+        span_normalise(num_windows, windows, afs_size * num_time_windows, result);
     }
 out:
     tsk_safe_free(counts);
@@ -10178,7 +10221,7 @@ check_coalescence_rate_time_windows(const tsk_treeseq_t *self,
         timepoint = time_windows[i + 1];
     }
     if (timepoint != INFINITY) {
-        ret = tsk_trace_error(TSK_ERR_BAD_TIME_WINDOWS);
+        ret = tsk_trace_error(TSK_ERR_BAD_TIME_WINDOWS_END);
         goto out;
     }
     /* all sample times align with start of first time window */

@@ -746,13 +746,17 @@ Sample times do not all equal the start of first time window
 */
 #define TSK_ERR_BAD_SAMPLE_PAIR_TIMES                               -923
 /**
-Time windows are not strictly increasing ending at infinity
+Time windows are not strictly increasing
 */
 #define TSK_ERR_BAD_TIME_WINDOWS                                    -924
 /**
+Time windows do not end at infinity
+*/
+#define TSK_ERR_BAD_TIME_WINDOWS_END                                -925
+/**
 Node time does not fall within assigned time window
 */
-#define TSK_ERR_BAD_NODE_TIME_WINDOW                                -925
+#define TSK_ERR_BAD_NODE_TIME_WINDOW                                -926
 /** @} */
 
 /**
