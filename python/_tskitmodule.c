@@ -9178,7 +9178,8 @@ parse_windows(
     }
     shape = PyArray_DIMS(windows_array);
     if (shape[0] < 2) {
-        PyErr_SetString(PyExc_ValueError, "Windows array must have at least 2 elements");
+        PyErr_SetString(
+            PyExc_ValueError, "Windows arrays must have at least 2 elements");
         goto out;
     }
     num_windows = shape[0] - 1;
@@ -9534,29 +9535,30 @@ TreeSequence_allele_frequency_spectrum(
     TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
-    static char *kwlist[] = { "sample_set_sizes", "sample_sets", "windows", "mode",
-        "span_normalise", "polarised", NULL };
+    static char *kwlist[] = { "sample_set_sizes", "sample_sets", "windows",
+        "time_windows", "mode", "span_normalise", "polarised", NULL };
     PyObject *sample_set_sizes = NULL;
     PyObject *sample_sets = NULL;
     PyObject *windows = NULL;
+    PyObject *time_windows = NULL;
     char *mode = NULL;
     PyArrayObject *sample_set_sizes_array = NULL;
     PyArrayObject *sample_sets_array = NULL;
     PyArrayObject *windows_array = NULL;
+    PyArrayObject *time_windows_array = NULL;
     PyArrayObject *result_array = NULL;
     tsk_size_t *sizes;
     npy_intp *shape = NULL;
-    tsk_size_t k, num_windows, num_sample_sets;
+    tsk_size_t k, num_windows, num_time_windows, num_sample_sets;
     tsk_flags_t options = 0;
     int polarised = 0;
     int span_normalise = 1;
     int err;
-
     if (TreeSequence_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|sii", kwlist, &sample_set_sizes,
-            &sample_sets, &windows, &mode, &span_normalise, &polarised)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOO|sii", kwlist, &sample_set_sizes,
+            &sample_sets, &windows, &time_windows, &mode, &span_normalise, &polarised)) {
         goto out;
     }
     if (parse_stats_mode(mode, &options) != 0) {
@@ -9576,24 +9578,29 @@ TreeSequence_allele_frequency_spectrum(
     if (parse_windows(windows, &windows_array, &num_windows) != 0) {
         goto out;
     }
-
-    shape = PyMem_Malloc((num_sample_sets + 1) * sizeof(*shape));
+    if (parse_windows(time_windows, &time_windows_array, &num_time_windows) != 0) {
+        goto out;
+    }
+    // dimensions are: time windows, genome windows, one for each sample set
+    shape = PyMem_Malloc((2 + num_sample_sets) * sizeof(*shape));
     if (shape == NULL) {
         goto out;
     }
     sizes = PyArray_DATA(sample_set_sizes_array);
     shape[0] = num_windows;
+    shape[1] = num_time_windows;
     for (k = 0; k < num_sample_sets; k++) {
-        shape[k + 1] = 1 + sizes[k];
+        shape[2 + k] = 1 + sizes[k];
     }
     result_array
-        = (PyArrayObject *) PyArray_SimpleNew(1 + num_sample_sets, shape, NPY_FLOAT64);
+        = (PyArrayObject *) PyArray_SimpleNew(2 + num_sample_sets, shape, NPY_FLOAT64);
     if (result_array == NULL) {
         goto out;
     }
     err = tsk_treeseq_allele_frequency_spectrum(self->tree_sequence, num_sample_sets,
         PyArray_DATA(sample_set_sizes_array), PyArray_DATA(sample_sets_array),
-        num_windows, PyArray_DATA(windows_array), options, PyArray_DATA(result_array));
+        num_windows, PyArray_DATA(windows_array), num_time_windows,
+        PyArray_DATA(time_windows_array), options, PyArray_DATA(result_array));
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -9605,6 +9612,7 @@ out:
     Py_XDECREF(sample_set_sizes_array);
     Py_XDECREF(sample_sets_array);
     Py_XDECREF(windows_array);
+    Py_XDECREF(time_windows_array);
     Py_XDECREF(result_array);
     return ret;
 }

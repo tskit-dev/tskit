@@ -2318,6 +2318,29 @@ class StatsInterfaceMixin:
             with pytest.raises(_tskit.LibraryError):
                 f(windows=bad_window, **params)
 
+    def test_time_window_errors(self):
+        ts, f, params = self.get_example()
+        if "time_windows" in params:
+            del params["time_windows"]
+
+            for bad_time_windows in [[], [0]]:
+                with pytest.raises(ValueError, match="must have at least 2"):
+                    f(
+                        time_windows=bad_time_windows,
+                        **params,
+                    )
+            bad_time_windows = [
+                [-1, np.inf],
+                [0, 0, np.inf],
+                [0, 10, 5, np.inf],
+                [0, np.inf, np.inf],
+            ]
+            for bad_time_window in bad_time_windows:
+                with pytest.raises(
+                    _tskit.LibraryError, match="TSK_ERR_BAD_TIME_WINDOWS"
+                ):
+                    f(time_windows=bad_time_window, **params)
+
     def test_polarisation(self):
         ts, f, params = self.get_example()
         with pytest.raises(TypeError):
@@ -2501,12 +2524,10 @@ class OneWaySampleStatsMixin(SampleSetMixin):
 
     def test_polarised(self):
         # TODO move this to the top level.
-        ts, method = self.get_method()
-        samples = ts.get_samples()
-        n = len(samples)
-        windows = [0, ts.get_sequence_length()]
-        method([n], samples, windows, polarised=True)
-        method([n], samples, windows, polarised=False)
+        ts, method, params = self.get_example()
+        out_u = method(**params, polarised=True)
+        out_p = method(**params, polarised=False)
+        assert np.all(out_u.shape == out_p.shape)
 
 
 class TestDiversity(LowLevelTestCase, OneWaySampleStatsMixin):
@@ -2578,37 +2599,73 @@ class TestAlleleFrequencySpectrum(LowLevelTestCase, OneWaySampleStatsMixin):
         ts = self.get_example_tree_sequence()
         return ts, ts.allele_frequency_spectrum
 
-    def test_basic_example(self):
+    def get_example(self):
+        # temporary duplicate from OneWaySampleStatsMixin to include time windows
+        ts, method = self.get_method()
+        params = {
+            "sample_set_sizes": [ts.get_num_samples()],
+            "sample_sets": ts.get_samples(),
+            "windows": [0, ts.get_sequence_length()],
+            "time_windows": [0, np.inf],
+        }
+        return ts, method, params
+
+    @pytest.mark.parametrize("mode", ["site", "branch"])
+    def test_basic_example(self, mode):
         ts = self.get_example_tree_sequence()
         n = ts.get_num_samples()
         result = ts.allele_frequency_spectrum(
-            [n], ts.get_samples(), [0, ts.get_sequence_length()]
+            [n],
+            ts.get_samples(),
+            [0, ts.get_sequence_length()],
+            time_windows=[0, np.inf],
+            mode=mode,
         )
-        assert result.shape == (1, n + 1)
+        assert result.shape == (1, 1, n + 1)
         result = ts.allele_frequency_spectrum(
-            [n], ts.get_samples(), [0, ts.get_sequence_length()], polarised=True
+            [n],
+            ts.get_samples(),
+            [0, ts.get_sequence_length()],
+            time_windows=[0, np.inf],
+            mode=mode,
+            polarised=True,
         )
-        assert result.shape == (1, n + 1)
+        assert result.shape == (1, 1, n + 1)
 
-    def test_output_dims(self):
+    @pytest.mark.parametrize("mode", ["site", "branch"])
+    def test_output_dims(self, mode):
         ts = self.get_example_tree_sequence()
         samples = ts.get_samples()
         L = ts.get_sequence_length()
         n = len(samples)
+        time_windows = [0, np.inf]
 
-        for mode in ["site", "branch"]:
-            for s in [[n], [n - 2, 2], [n - 4, 2, 2], [1] * n]:
-                s = np.array(s, dtype=np.uint32)
-                windows = [0, L]
-                for windows in [[0, L], [0, L / 2, L], np.linspace(0, L, num=10)]:
-                    jafs = ts.allele_frequency_spectrum(
-                        s, samples, windows, mode=mode, polarised=True
-                    )
-                    assert jafs.shape == tuple([len(windows) - 1] + list(s + 1))
-                    jafs = ts.allele_frequency_spectrum(
-                        s, samples, windows, mode=mode, polarised=False
-                    )
-                    assert jafs.shape == tuple([len(windows) - 1] + list(s + 1))
+        for s in [[n], [n - 2, 2], [n - 4, 2, 2], [1] * n]:
+            s = np.array(s, dtype=np.uint32)
+            windows = [0, L]
+            for windows in [[0, L], [0, L / 2, L], np.linspace(0, L, num=10)]:
+                jafs = ts.allele_frequency_spectrum(
+                    s,
+                    samples,
+                    windows,
+                    mode=mode,
+                    time_windows=time_windows,
+                    polarised=True,
+                )
+                assert jafs.shape == tuple(
+                    [len(windows) - 1] + [len(time_windows) - 1] + list(s + 1)
+                )
+                jafs = ts.allele_frequency_spectrum(
+                    s,
+                    samples,
+                    windows,
+                    mode=mode,
+                    time_windows=time_windows,
+                    polarised=False,
+                )
+                assert jafs.shape == tuple(
+                    [len(windows) - 1] + [len(time_windows) - 1] + list(s + 1)
+                )
 
     def test_node_mode_not_supported(self):
         ts = self.get_example_tree_sequence()
@@ -2618,6 +2675,7 @@ class TestAlleleFrequencySpectrum(LowLevelTestCase, OneWaySampleStatsMixin):
                 ts.get_samples(),
                 [0, ts.get_sequence_length()],
                 mode="node",
+                time_windows=[0, np.inf],
             )
 
 
@@ -5133,6 +5191,8 @@ class TestPairCoalescenceRatesErrors:
         ts = self.example_ts()
         with pytest.raises(_tskit.LibraryError, match="TSK_ERR_BAD_TIME_WINDOWS"):
             self.pair_coalescence_rates(ts, time_windows=np.array([np.inf, 0.0]))
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_BAD_TIME_WINDOWS_END"):
+            self.pair_coalescence_rates(ts, time_windows=np.array([0.0, 10.0]))
 
     def test_c_tsk_err_bad_node_time_window(self):
         ts = self.example_ts()

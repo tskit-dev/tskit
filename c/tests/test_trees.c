@@ -5543,9 +5543,9 @@ test_unary_multi_tree(void)
 {
     // clang-format off
     tsk_id_t parents[] = {
-        6, 5, 7, 5, TSK_NULL, 6, 8, 8, TSK_NULL,
-        6, 5, 4, 4, 5, 6, 8, TSK_NULL, TSK_NULL,
-        7, 5, 4, 4, 5, 7, TSK_NULL, TSK_NULL, TSK_NULL,
+        6, 5, 7, 5, TSK_NULL, 6, 8, 8, TSK_NULL, 5,
+        6, 5, 4, 4, 5, 6, 8, TSK_NULL, TSK_NULL, 5,
+        7, 5, 4, 4, 5, 7, TSK_NULL, TSK_NULL, TSK_NULL, 5,
     };
     // clang-format on
     tsk_treeseq_t ts;
@@ -8026,13 +8026,13 @@ test_time_uncalibrated(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_treeseq_allele_frequency_spectrum(
-        &ts2, 2, sample_set_sizes, samples, 0, NULL, TSK_STAT_SITE, result);
+        &ts2, 2, sample_set_sizes, samples, 0, NULL, 0, NULL, TSK_STAT_SITE, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_treeseq_allele_frequency_spectrum(
-        &ts2, 2, sample_set_sizes, samples, 0, NULL, TSK_STAT_BRANCH, result);
+        &ts2, 2, sample_set_sizes, samples, 0, NULL, 0, NULL, TSK_STAT_BRANCH, result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TIME_UNCALIBRATED);
     ret = tsk_treeseq_allele_frequency_spectrum(&ts2, 2, sample_set_sizes, samples, 0,
-        NULL, TSK_STAT_BRANCH | TSK_STAT_ALLOW_TIME_UNCALIBRATED, result);
+        NULL, 0, NULL, TSK_STAT_BRANCH | TSK_STAT_ALLOW_TIME_UNCALIBRATED, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     sigma = tsk_calloc(tsk_treeseq_get_num_nodes(&ts2), sizeof(double));
