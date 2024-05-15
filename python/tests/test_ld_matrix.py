@@ -24,7 +24,6 @@ Test cases for two-locus statistics
 """
 import contextlib
 import io
-from copy import deepcopy
 from dataclasses import dataclass
 from itertools import combinations
 from itertools import combinations_with_replacement
@@ -255,31 +254,30 @@ def norm_total_weighted(
         result[k] = 1 / (n_a * n_b)
 
 
-def check_sites(sites, max_sites):
-    """Validate the specified site ids.
+def check_order_bounds_dups(values, max_value):
+    """Validate the specified values.
 
-    We require that sites are:
+    We require that values are:
 
-    1) Within the boundaries of available sites in the tree sequence
+    1) Within the boundaries of the max value in the tree sequence
     2) Sorted
     3) Non-repeating
 
     Raises an exception if any error is found.
 
-    :param sites: 1d array of sites to validate.
-    :param max_sites: Number of sites in the tree sequence, the upper
-                      bound value for site ids.
+    :param sites: 1d array of values to validate.
+    :param max_sites: The upper bound for the provided values.
     """
-    if len(sites) == 0:
+    if len(values) == 0:
         return
     i = 0
-    for i in range(len(sites) - 1):
-        if sites[i] < 0 or sites[i] >= max_sites:
-            raise ValueError(f"Site out of bounds: {sites[i]}")
-        if sites[i] >= sites[i + 1]:
-            raise ValueError(f"Sites not sorted: {sites[i], sites[i + 1]}")
-    if sites[-1] < 0 or sites[-1] >= max_sites:
-        raise ValueError(f"Site out of bounds: {sites[i + 1]}")
+    for i in range(len(values) - 1):
+        if values[i] < 0 or values[i] >= max_value:
+            raise ValueError(f"Value out of bounds: {values[i]}")
+        if values[i] >= values[i + 1]:
+            raise ValueError(f"Value not sorted: {values[i], values[i + 1]}")
+    if values[-1] < 0 or values[-1] >= max_value:
+        raise ValueError(f"Value out of bounds: {values[i + 1]}")
 
 
 def get_site_row_col_indices(
@@ -607,16 +605,39 @@ def two_site_count_stat(
     return result
 
 
+def get_index_repeats(indices):
+    """In a list of indices, find the repeat values. The first value
+    is offset by the first index and ranges to the last index.
+    For instance, [4, 4, 5, 6, 8] becomes [2, 1, 1, 0, 1].
+    The list must be sorted and ordered.
+
+    :param indices: List of indices to count
+    :returns: Counts of index repeats
+    """
+    counts = np.zeros(indices[-1] - indices[0] + 1, dtype=np.int32)
+    idx = indices[0]
+    count = 1
+    for i in range(1, len(indices)):
+        if indices[i] == indices[i - 1]:
+            count += 1
+        else:
+            counts[idx - indices[0]] = count
+            count = 1
+            idx = indices[i]
+    counts[idx - indices[0]] = count
+    return counts
+
+
 def two_branch_count_stat(
     ts: tskit.TreeSequence,
     func: Callable[[int, np.ndarray, np.ndarray, Dict[str, Any]], None],
     norm_func,  # TODO: might need for polarisation
     num_sample_sets: int,
     sample_set_sizes: np.ndarray,
-    sample_sets: BitSet,  # TODO: implement sample sets
+    sample_sets: BitSet,
     sample_index_map: np.ndarray,
-    row_sites: np.ndarray,  # TODO: positions
-    col_sites: np.ndarray,  # TODO: positions
+    row_trees: np.ndarray,
+    col_trees: np.ndarray,
     polarised: bool,  # TODO: polarisation
 ) -> np.ndarray:
     """
@@ -624,8 +645,9 @@ def two_branch_count_stat(
     computing haplotype counts. This method incrementally adds and removes
     branches from a tree sequence and updates the stat based on sample additions
     and removals. We bifurcate the tree with a given branch on each locus and
-    intersect the samples under each branch to produce haplotype counts. We
-    output a full LD matrix for the entire tree sequence.
+    intersect the samples under each branch to produce haplotype counts. It
+    is possible to subset the output matrix with genomic positions. Positions
+    lying on the same tree will receive the same LD value in the output matrix.
 
     :param ts: Tree sequence to gather data from.
     :param func: Function used to compute each two-locus statistic.
@@ -636,70 +658,48 @@ def two_branch_count_stat(
                         consider these samples in our computations, resulting
                         in stats that are computed on subsets of the samples
                         on the tree sequence.
-    :param row_sites: Sites contained in the rows of the output matrix.
-    :param col_sites: Sites contained in the columns of the output matrix.
+    :param row_trees: Trees contained in the rows of the output matrix (repeats ok)
+    :param col_trees: Trees contained in the rows of the output matrix (repeats ok)
     :param polarised: If true, skip the computation of the statistic for the
                       ancestral state.
     :returns: 3D array of results, dimensions (sample_sets, row_sites, col_sites).
     """
     params = {"sample_set_sizes": sample_set_sizes}
     result = np.zeros(
-        (num_sample_sets, len(row_sites), len(col_sites)), dtype=np.float64
+        (num_sample_sets, len(row_trees), len(col_trees)), dtype=np.float64
     )
-
-    # TODO: get_pos_row_col_indices?
-    # sites, row_idx, col_idx = get_site_row_col_indices(row_sites, col_sites)
+    row_repeats = get_index_repeats(row_trees)
+    col_repeats = get_index_repeats(col_trees)
 
     stat = np.zeros(num_sample_sets, dtype=np.float64)
     # State is initialized at tree -1
     l_state = TreeState(ts, sample_sets, num_sample_sets, sample_index_map)
     r_state = TreeState(ts, sample_sets, num_sample_sets, sample_index_map)
-    tmp = None  # Tmp tree will be used for swapping below.
-    tmp_stat = None
 
-    # Advance the fixed (left) tree state by adding all edges. Stat will be 0
-    stat, l_state = compute_branch_stat(
-        ts, func, stat, params, num_sample_sets, l_state, r_state
-    )
-    # We reset the R state to proceed after obtaining the l_state
-    r_state = TreeState(ts, sample_sets, num_sample_sets, sample_index_map)
-    for i in range(ts.num_trees):
-        # Compute the stat between the left and right state, advancing the right
-        # state to the SAME tree that the lefthand tree represents. If we start
-        # at tree 0 and tree -1, we end up at tree 0 and tree 0, etc.
-        stat, r_state = compute_branch_stat(
-            ts, func, stat, params, num_sample_sets, l_state, r_state
+    # Even if we're skipping trees, we must iterate over the range to keep the
+    # running total of the statistic consistent.
+    row = 0
+    for r in range(row_trees[-1] + 1 - row_trees[0]):
+        # zero out stat and r_state at the beginning of each row
+        stat = np.zeros_like(stat)
+        r_state = TreeState(ts, sample_sets, num_sample_sets, sample_index_map)
+        l_state.advance(r + row_trees[0])
+        # use null TreeState to advance l_state, conveniently we just zerod r_state
+        _, l_state = compute_branch_stat(
+            ts, func, stat, params, num_sample_sets, r_state, l_state
         )
-        for k in range(num_sample_sets):
-            result[k, l_state.pos.index, r_state.pos.index] = stat[k]
-        # Continue to advance the righthand tree until we hit the end of the
-        # tree sequence, computing the stat for the rest of the upper triangle
-        # of the LD matrix.
-        for _ in range(i, ts.num_trees - 1):
+        col = 0
+        for c in range(col_trees[-1] + 1 - col_trees[0]):
+            r_state.advance(c + col_trees[0])
             stat, r_state = compute_branch_stat(
                 ts, func, stat, params, num_sample_sets, l_state, r_state
             )
-            for k in range(num_sample_sets):
-                result[k, l_state.pos.index, r_state.pos.index] = stat[k]
-            # After the first iteration of this loop, we store the r_state and
-            # stat to be used as the lefthand tree in the next iteration.
-            if tmp is None:
-                tmp_stat = stat.copy()
-                tmp = deepcopy(r_state)
-        # We store the focal tree as the starting point for the next row in the
-        # LD matrix. Remember that in order to compute the association between
-        # tree 1 and tree 1, we need the righthand state to *start* at tree 0.
-        r_state = deepcopy(l_state)
-        if tmp is not None:
-            l_state = deepcopy(tmp)
-            stat = tmp_stat.copy()
-        tmp = None
-
-    # Reflect the upper triangle of the LD matrix to the lower triangle.
-    tril_idx = np.tril_indices(ts.num_trees, k=-1)
-    tril_idx = (np.arange(num_sample_sets), *tril_idx)
-    # Transpose the last two dimensions of the lower triangle to get upper
-    result[tril_idx] = result[tril_idx[0], tril_idx[2], tril_idx[1]]
+            # Fill in repeated values for all sample sets
+            for i in range(row_repeats[r]):
+                for j in range(col_repeats[c]):
+                    result[:, i + row, j + col] = stat
+            col += col_repeats[c]
+        row += row_repeats[r]
     return result
 
 
@@ -743,6 +743,27 @@ def sample_sets_to_bit_array(
     return sample_index_map, sample_set_sizes, sample_sets_bits
 
 
+def positions_to_tree_indices(bp, positions):
+    """Given a set of breakpoints and positions, provide an array of tree
+    indices that correspond with positions. We have already validated that the
+    bounds of the positions are correct and that they are sorted, and
+    deduplicated.
+
+    :param bp: Breakpoints of the tree sequence
+    :param positions: Positions to search over
+    :returns: Array of tree indices
+    """
+    tree_idx = 0
+    tree_indices = -np.ones_like(positions, dtype=np.int32)
+
+    for i in range(len(positions)):
+        while bp[tree_idx + 1] <= positions[i]:
+            tree_idx += 1
+        tree_indices[i] = tree_idx
+
+    return tree_indices
+
+
 def two_locus_count_stat(
     ts,
     summary_func,
@@ -750,12 +771,11 @@ def two_locus_count_stat(
     polarised,
     mode,
     sites=None,
+    positions=None,
     sample_sets=None,
 ):
     """Outer wrapper for two site general stat functionality. Perform some input
     validation, get the site index and allele state, then compute the LD matrix.
-
-    TODO: implement mode switching for branch stats
 
     :param ts: Tree sequence to gather data from.
     :param summary_func: Function used to compute each two-locus statistic.
@@ -764,6 +784,8 @@ def two_locus_count_stat(
     :param polarised: If true, skip the computation of the statistic for the
                       ancestral state.
     :param sites: List of two lists containing [row_sites, column_sites].
+    :param positions: List of two lists containing [row_positions, col_positions],
+                      which are genomic positions to compute LD on.
     :param sample_sets: List of lists of samples to compute stats for. We will
                         only consider these samples in our computations,
                         resulting in stats that are computed on subsets of the
@@ -774,26 +796,27 @@ def two_locus_count_stat(
     """
     if sample_sets is None:
         sample_sets = [ts.samples()]
-    if sites is None:
-        row_sites = np.arange(ts.num_sites)
-        col_sites = np.arange(ts.num_sites)
-    elif len(sites) == 2:
-        row_sites = np.asarray(sites[0])
-        col_sites = np.asarray(sites[1])
-    elif len(sites) == 1:
-        row_sites = np.asarray(sites[0])
-        col_sites = np.asarray(sites[0])
-    else:
-        raise ValueError(
-            f"Sites must be a length 1 or 2 list, got a length {len(sites)} list"
-        )
-
-    check_sites(row_sites, ts.num_sites)
-    check_sites(col_sites, ts.num_sites)
 
     sample_index_map, ss_sizes, ss_bits = sample_sets_to_bit_array(ts, sample_sets)
 
     if mode == "site":
+        if positions is not None:
+            raise ValueError("Cannot specify positions in site mode")
+        if sites is None:
+            row_sites = np.arange(ts.num_sites, dtype=np.int32)
+            col_sites = np.arange(ts.num_sites, dtype=np.int32)
+        elif len(sites) == 2:
+            row_sites = np.asarray(sites[0])
+            col_sites = np.asarray(sites[1])
+        elif len(sites) == 1:
+            row_sites = np.asarray(sites[0])
+            col_sites = row_sites
+        else:
+            raise ValueError(
+                f"Sites must be a length 1 or 2 list, got a length {len(sites)} list"
+            )
+        check_order_bounds_dups(row_sites, ts.num_sites)
+        check_order_bounds_dups(col_sites, ts.num_sites)
         result = two_site_count_stat(
             ts,
             summary_func,
@@ -807,6 +830,31 @@ def two_locus_count_stat(
             polarised,
         )
     elif mode == "branch":
+        if sites is not None:
+            raise ValueError("Cannot specify sites in branch mode")
+        if positions is None:
+            row_trees = np.arange(ts.num_trees, dtype=np.int32)
+            col_trees = np.arange(ts.num_trees, dtype=np.int32)
+        elif len(positions) == 2:
+            breakpoints = ts.breakpoints(as_array=True)
+            row_positions = np.asarray(positions[0])
+            col_positions = np.asarray(positions[1])
+            check_order_bounds_dups(row_positions, breakpoints[-1])
+            check_order_bounds_dups(col_positions, breakpoints[-1])
+            row_trees = positions_to_tree_indices(breakpoints, row_positions)
+            col_trees = positions_to_tree_indices(breakpoints, col_positions)
+        elif len(positions) == 1:
+            breakpoints = ts.breakpoints(as_array=True)
+            row_positions = np.asarray(positions[0])
+            col_positions = row_positions
+            check_order_bounds_dups(row_positions, breakpoints[-1])
+            row_trees = positions_to_tree_indices(breakpoints, row_positions)
+            col_trees = row_trees
+        else:
+            raise ValueError(
+                "Positions must be a length 1 or 2 list, "
+                f"got a length {len(positions)} list"
+            )
         result = two_branch_count_stat(
             ts,
             summary_func,
@@ -815,8 +863,8 @@ def two_locus_count_stat(
             ss_sizes,
             ss_bits,
             sample_index_map,
-            range(ts.num_trees),
-            range(ts.num_trees),
+            row_trees,
+            col_trees,
             False,
         )
     else:
@@ -1074,7 +1122,7 @@ POLARIZATION = {
 }
 
 
-def ld_matrix(ts, sample_sets=None, sites=None, stat="r2", mode="site"):
+def ld_matrix(ts, sample_sets=None, sites=None, positions=None, stat="r2", mode="site"):
     summary_func = SUMMARY_FUNCS[stat]
     return two_locus_count_stat(
         ts,
@@ -1083,6 +1131,7 @@ def ld_matrix(ts, sample_sets=None, sites=None, stat="r2", mode="site"):
         POLARIZATION[summary_func],
         mode,
         sites=sites,
+        positions=positions,
         sample_sets=sample_sets,
     )
 
@@ -1157,6 +1206,11 @@ PAPER_EX_TRUTH_MATRIX = np.array(
      [0.11111111, 1.0,        1.0],  # noqa: E241
      [0.11111111, 1.0,        1.0]]  # noqa: E241
 )
+PAPER_EX_BRANCH_TRUTH_MATRIX = np.array(
+    [[ 1.06666667e-03, -1.26666667e-04, -1.26666667e-04],  # noqa: E241,E201
+     [-1.26666667e-04,  6.01666667e-05,  6.01666667e-05],  # noqa: E241
+     [-1.26666667e-04,  6.01666667e-05,  6.01666667e-05]]  # noqa: E241
+)
 # fmt:on
 
 
@@ -1206,6 +1260,49 @@ def test_subset_sites(partition):
     )
 
 
+@pytest.mark.parametrize(
+    "partition", get_matrix_partitions(len(PAPER_EX_BRANCH_TRUTH_MATRIX))
+)
+def test_subset_positions(partition):
+    """Given a partition of the truth matrix, check that we can successfully
+    compute the LD matrix for that given partition, effectively ensuring that
+    our handling of positions is correct. We use the midpoint inside of the
+    tree interval as the position for a particular tree.
+
+    :param partition: length 2 list of [row_positions, column_positions].
+    """
+    a, b = partition
+    ts = get_paper_ex_ts()
+    bp = ts.breakpoints(as_array=True)
+    mid = (bp[1:] + bp[:-1]) / 2
+    np.testing.assert_allclose(
+        ld_matrix(ts, mode="branch", stat="d2_unbiased", positions=[mid[a], mid[b]]),
+        PAPER_EX_BRANCH_TRUTH_MATRIX[a[0] : a[-1] + 1, b[0] : b[-1] + 1],
+    )
+
+
+@pytest.mark.parametrize(
+    "positions,truth",
+    [
+        ([0, 1, 2, 3, 4, 5, 6, 7, 8], [0, 1, 2, 3, 4, 5, 6, 7, 8]),
+        ([0], [0]),
+        ([8], [8]),
+        ([1], [1]),
+        ([1, 2, 3], [1, 2, 3]),
+        ([], []),
+    ],
+)
+def test_positions_to_tree_indices(positions, truth):
+    breakpoints = np.arange(10, dtype=np.float64)
+    np.testing.assert_equal(positions_to_tree_indices(breakpoints, positions), truth)
+
+
+def test_bad_positions():
+    with pytest.raises(IndexError, match="out of bounds"):
+        breakpoints = np.arange(10, dtype=np.float64)
+        positions_to_tree_indices(breakpoints, breakpoints)
+
+
 @pytest.mark.parametrize("sites", [[0, 1, 2], [1, 2], [0, 1], [0], [1]])
 def test_subset_sites_one_list(sites):
     """Test the case where we only pass only one list of sites to compute. This
@@ -1213,6 +1310,61 @@ def test_subset_sites_one_list(sites):
     """
     ts = get_paper_ex_ts()
     np.testing.assert_equal(ld_matrix(ts, sites=[sites]), ts.ld_matrix(sites=[sites]))
+
+
+@pytest.mark.parametrize("tree_index", [[0, 1, 2], [1, 2], [0, 1], [0], [1]])
+def test_subset_positions_one_list(tree_index):
+    """Test the case where we only pass only one list of positions to compute. This
+    should return a square matrix comparing the positions to themselves.
+    """
+    ts = get_paper_ex_ts()
+    bp = ts.breakpoints(as_array=True)
+    mid = (bp[1:] + bp[:-1]) / 2
+    np.testing.assert_allclose(
+        ld_matrix(ts, mode="branch", stat="d2_unbiased", positions=[mid[tree_index]]),
+        PAPER_EX_BRANCH_TRUTH_MATRIX[
+            tree_index[0] : tree_index[-1] + 1, tree_index[0] : tree_index[-1] + 1
+        ],
+    )
+
+
+@pytest.mark.parametrize(
+    "tree_index",
+    [
+        ([0, 0, 1, 2], [1, 2]),
+        ([0, 0, 0, 2], [0, 2]),
+        ([1, 1, 1], [1]),
+        ([2, 2], [1]),
+        ([0, 2, 2, 2], [0, 0, 0]),
+        ([0, 0, 0, 1, 1, 1, 2, 2, 2], [0, 0, 0, 1, 1, 1, 2, 2, 2]),
+    ],
+)
+def test_repeated_position_elements(tree_index):
+    """Test that we repeat positions in the LD matrix when we have multiple positions
+    that overlap the same tree when specifying positions in branch mode.
+    """
+    ts = get_paper_ex_ts()
+    l, r = tree_index
+    bp = ts.breakpoints(as_array=True)
+    val, count = np.unique(l, return_counts=True)
+    l_pos = np.hstack(
+        [np.linspace(bp[v], bp[v + 1], count[i] + 2)[1:-1] for i, v in enumerate(val)]
+    )
+    val, count = np.unique(r, return_counts=True)
+    r_pos = np.hstack(
+        [np.linspace(bp[v], bp[v + 1], count[i] + 2)[1:-1] for i, v in enumerate(val)]
+    )
+    assert (positions_to_tree_indices(bp, l_pos) == l).all()
+    assert (positions_to_tree_indices(bp, r_pos) == r).all()
+
+    truth = PAPER_EX_BRANCH_TRUTH_MATRIX[
+        [i for i, _ in product(l, r)], [i for _, i in product(l, r)]
+    ].reshape(len(l), len(r))
+
+    np.testing.assert_allclose(
+        truth,
+        ld_matrix(ts, mode="branch", stat="d2_unbiased", positions=[l_pos, r_pos]),
+    )
 
 
 # Generate all partitions of the samples, producing pairs of sample sets
@@ -1314,6 +1466,8 @@ class TreeState:
     # 0    1
     # 1    0
     # 1    1
+    edges_out: List[int]  # list of edges removed during iteration
+    edges_in: List[int]  # list of edges added during iteration
 
     def __init__(self, ts, sample_sets, num_sample_sets, sample_index_map):
         self.pos = tsutil.TreePosition(ts)
@@ -1326,6 +1480,54 @@ class TreeState:
             for k in range(num_sample_sets):
                 if sample_sets.contains(k, sample_index_map[n]):
                     self.node_samples.add((num_sample_sets * n) + k, n)
+        # these are empty for the uninitialized state (index = -1)
+        self.edges_in = []
+        self.edges_out = []
+
+    def advance(self, index):
+        """
+        Advance tree to next tree position. If the tree is still uninitialized,
+        seeks may be performed to an arbitrary position. Since we need to
+        compute stats over contiguous ranges of trees, once we've seeked to a
+        position, we step forward by one tree. Finally, we set `edges_in` and
+        `edges_out` to be consumed by the downstream stats function.
+
+        :param index: Tree index to advance to
+        """
+
+        # if initialized or seeking to the first position from the beginning, jump
+        # forward one tree
+        if self.pos.index != tskit.NULL or index == 0:
+            if index != 0:
+                assert index == self.pos.index + 1, "only one step allowed"
+            assert self.pos.next(), "out of bounds"
+            edges_out = [
+                self.pos.out_range.order[j]
+                for j in range(self.pos.out_range.start, self.pos.out_range.stop)
+            ]
+            edges_in = [
+                self.pos.in_range.order[j]
+                for j in range(self.pos.in_range.start, self.pos.in_range.stop)
+            ]
+            self.edges_out = edges_out
+            self.edges_in = edges_in
+            return
+
+        # if uninitialized (no current position), and seeking to an arbitrary point
+        # in the tree, use seek_forward
+        edges_out, edges_in = [], []
+        self.pos.seek_forward(index)
+        left = self.pos.interval.left
+        # since we're starting from an uninitialized tree, we only add edges
+        for j in range(self.pos.in_range.start, self.pos.in_range.stop):
+            e = self.pos.in_range.order[j]
+            # skip over edges that are not in the current tree
+            if self.pos.ts.edges_left[e] <= left < self.pos.ts.edges_right[e]:
+                edges_in.append(e)
+
+        self.edges_out = edges_out
+        self.edges_in = edges_in
+        return
 
 
 def compute_branch_stat_update(
@@ -1443,15 +1645,11 @@ def compute_branch_stat(ts, stat_func, stat, params, state_dim, l_state, r_state
               branch updates and the righthand tree state.
     """
     time = ts.tables.nodes.time
-    r_pos = r_state.pos
-    # Iterate the right tree position to the next tree. The rest of the r_state
-    # data is not valid until the end of this function.
-    assert r_pos.next(), "out of bounds"
 
     child_samples = BitSet(ts.num_samples, state_dim)
-    for e in r_pos.out_range.order[r_pos.out_range.start : r_pos.out_range.stop]:
-        p = r_pos.ts.edges_parent[e]
-        c = r_pos.ts.edges_child[e]
+    for e in r_state.edges_out:
+        p = ts.edges_parent[e]
+        c = ts.edges_child[e]
         child_samples.data[:] = 0
         for k in range(state_dim):
             c_row = (state_dim * c) + k
@@ -1494,9 +1692,9 @@ def compute_branch_stat(ts, stat_func, stat, params, state_dim, l_state, r_state
         r_state.branch_len[c] = 0
         r_state.parent[c] = tskit.NULL
 
-    for e in r_pos.in_range.order[r_pos.in_range.start : r_pos.in_range.stop]:
-        p = r_pos.ts.edges_parent[e]
-        c = r_pos.ts.edges_child[e]
+    for e in r_state.edges_in:
+        p = ts.edges_parent[e]
+        c = ts.edges_child[e]
         child_samples.data[:] = 0
         for k in range(state_dim):
             c_row = (state_dim * c) + k
