@@ -145,40 +145,57 @@ def windowed_tree_stat(ts, stat, windows, span_normalise=True):
 
 
 def naive_branch_general_stat(
-    ts, w, f, windows=None, polarised=False, span_normalise=True
+    ts, w, f, windows=None, time_windows=None, polarised=False, span_normalise=True
 ):
     # NOTE: does not behave correctly for unpolarised stats
     # with non-ancestral material.
     if windows is None:
         windows = [0.0, ts.sequence_length]
+    drop_time_windows = time_windows is None
+    if time_windows is None:
+        time_windows = [0.0, np.inf]
     n, k = w.shape
+    tw = len(time_windows) - 1
     # hack to determine m
     m = len(f(w[0]))
     total = np.sum(w, axis=0)
 
-    sigma = np.zeros((ts.num_trees, m))
-    for tree in ts.trees():
-        x = np.zeros((ts.num_nodes, k))
-        x[ts.samples()] = w
-        for u in tree.nodes(order="postorder"):
-            for v in tree.children(u):
-                x[u] += x[v]
-        if polarised:
-            s = sum(tree.branch_length(u) * f(x[u]) for u in tree.nodes())
+    sigma = np.zeros((ts.num_trees, tw, m))
+    for j, upper_time in enumerate(time_windows[1:]):
+        if np.isfinite(upper_time):
+            decap_ts = ts.decapitate(upper_time)
         else:
-            s = sum(
-                tree.branch_length(u) * (f(x[u]) + f(total - x[u]))
-                for u in tree.nodes()
-            )
-        sigma[tree.index] = s * tree.span
+            decap_ts = ts
+        assert np.all(list(ts.samples()) == list(decap_ts.samples()))
+        for tree in decap_ts.trees():
+            x = np.zeros((decap_ts.num_nodes, k))
+            x[decap_ts.samples()] = w
+            for u in tree.nodes(order="postorder"):
+                for v in tree.children(u):
+                    x[u] += x[v]
+            if polarised:
+                s = sum(tree.branch_length(u) * f(x[u]) for u in tree.nodes())
+            else:
+                s = sum(
+                    tree.branch_length(u) * (f(x[u]) + f(total - x[u]))
+                    for u in tree.nodes()
+                )
+            sigma[tree.index, j, :] = s * tree.span
+    for j in range(1, len(time_windows) - 1):
+        sigma[:, j, :] = sigma[:, j, :] - sigma[:, j - 1, :]
     if isinstance(windows, str) and windows == "trees":
         # need to average across the windows
         if span_normalise:
             for j, tree in enumerate(ts.trees()):
                 sigma[j] /= tree.span
-        return sigma
+        out = sigma
     else:
-        return windowed_tree_stat(ts, sigma, windows, span_normalise=span_normalise)
+        out = windowed_tree_stat(ts, sigma, windows, span_normalise=span_normalise)
+    if drop_time_windows:
+        # beware: this assumes the first dimension is windows
+        assert out.shape[1] == 1
+        out = out[:, 0]
+    return out
 
 
 def branch_general_stat(
@@ -6911,23 +6928,37 @@ class TestGeneralStatCallbackErrors:
 
 class TestTimeWindows(StatsTestCase):
     def test_four_taxa_test_case(self):
-        # 1.0          7
-        # 0.7         / \                                    6
-        #            /   \                                  / \
-        # 0.5       /     5              5                 /   5
-        #          /     / \            / \__             /   / \
-        # 0.4     /     8   \          8     4           /   8   \
-        #        /     / \   \        / \   / \         /   / \   \
-        # 0.0   0     1   3   2      1   3 0   2       0   1   3   2
-        #          (0.0, 0.2),        (0.2, 0.8),       (0.8, 2.5)
+        # 1.00┊   7     ┊         ┊         ┊
+        #     ┊ ┏━┻━┓   ┊         ┊         ┊
+        # 0.70┊ ┃   ┃   ┊         ┊   6     ┊
+        #     ┊ ┃   ┃   ┊         ┊ ┏━┻━┓   ┊
+        # 0.50┊ ┃   5   ┊    5    ┊ ┃   5   ┊
+        #     ┊ ┃  ┏┻━┓ ┊  ┏━┻━┓  ┊ ┃  ┏┻━┓ ┊
+        # 0.40┊ ┃  8  ┃ ┊  4   8  ┊ ┃  8  ┃ ┊
+        #     ┊ ┃ ┏┻┓ ┃ ┊ ┏┻┓ ┏┻┓ ┊ ┃ ┏┻┓ ┃ ┊
+        # 0.00┊ 0 1 3 2 ┊ 0 2 1 3 ┊ 0 1 3 2 ┊
+        #   0.00      0.20      0.80      2.50
         ts = self.four_taxa_test_case()
         true_x = np.array(
             [
-                0.2 * (1.5 + 0.8)
-                + (0.8 - 0.2) * (1.0 + 0.8)
-                + (2.5 - 0.8) * (1.5 + 0.8),
-                0.2 * 1.0 + 0 + (2.5 - 0.8) * 0.4,
+                [
+                    [
+                        0.2 * (1 + 0.5 + 0.4)
+                        + (0.8 - 0.2) * (1 + 0.8)
+                        + (2.5 - 0.8) * (1.0 + 0.5 + 0.4)
+                    ],
+                    [0.2 * 1.0 + 0 + (2.5 - 0.8) * 0.4],
+                ]
             ]
         )
-        x = ts.segregating_sites(time_windows=[0, 0.5, 2.0], span_normalise=False)
+
+        n = ts.num_samples
+
+        def f(x):
+            return (x > 0) * (1 - x / n)
+
+        W = np.ones((ts.num_samples, 1))
+        x = naive_branch_general_stat(
+            ts, W, f, time_windows=[0, 0.5, 2.0], span_normalise=False
+        )
         self.assertArrayAlmostEqual(x, true_x)
