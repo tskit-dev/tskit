@@ -11,6 +11,7 @@ from tests.test_highlevel import get_example_tree_sequences
 # ↑ See https://github.com/tskit-dev/tskit/issues/1804 for when
 # we can remove this.
 
+
 def extend_edges(ts, max_iter=10):
     tables = ts.dump_tables()
     mutations = tables.mutations.copy()
@@ -209,22 +210,25 @@ def _extend(ts, forwards=True):
     edges.keep_rows(keep)
     return edges
 
-'''
-Here is our new `extend_paths` algorithm. 
-This handles some other tricker cases we want the 
+
+"""
+Here is our new `extend_paths` algorithm.
+This handles some other tricker cases we want the
 `extend_edges` algorithm to succeed on.
 This algorithm can also extend edges, however
 its convergence is now not monotonically decreasing;
 this makes convergence INCREDIBLY SLOW.
 We think that we can combine `extend_paths` and `extend_edges`
-in a piece-meal way to speed up this convergence, but this requires 
+in a piece-meal way to speed up this convergence, but this requires
 further testing.
-'''
+"""
+
+
 def merge_edge_paths(edges_in, in_parent, out_parent, degree, not_sample, ts, edges):
     # We want a list (or dict) of all longest edge paths
     # from out tree and in tree
     paths = list()
-    path_check = np.full(ts.num_nodes, True, dtype = bool)
+    path_check = np.full(ts.num_nodes, True, dtype=bool)
     for ex_in in edges_in:
         e_in = ex_in[0]
         c = edges[e_in].child
@@ -239,41 +243,57 @@ def merge_edge_paths(edges_in, in_parent, out_parent, degree, not_sample, ts, ed
             ipp.append(p_in)
         if p_out != tskit.NULL and path_check[p_out]:
             opp.append(p_out)
-        while p_out != tskit.NULL and degree[p_out] == 0 and not_sample[p_out] and path_check[p_out]:
+        while (
+            p_out != tskit.NULL
+            and degree[p_out] == 0
+            and not_sample[p_out]
+            and path_check[p_out]
+        ):
             opp.append(p_out)
             p_out = out_parent[p_out]
         if p_out != tskit.NULL and path_check[p_out]:
             opp.append(p_out)
-        while p_in != tskit.NULL and degree[p_in] < 3 and not_sample[p_in] and path_check[p_in]:
+        while (
+            p_in != tskit.NULL
+            and degree[p_in] < 3
+            and not_sample[p_in]
+            and path_check[p_in]
+        ):
             ipp.append(p_in)
             p_in = in_parent[p_in]
         if p_in != tskit.NULL and path_check[p_in]:
             ipp.append(p_in)
         assert (-1 not in ipp) and (-1 not in opp)
         # build the path list:
-        if (ipp[-1] == opp[-1]):
+        if ipp[-1] == opp[-1]:
             path = list(set(ipp + opp))
-            path.sort(key = lambda x: ts.tables.nodes.time[x])
+            path.sort(key=lambda x: ts.tables.nodes.time[x])
             path_check[path[:-1]] = False
             paths.append(path)
             # print('path_check', path_check[path])
             # print('out path', opp)
             # print('in path', ipp)
             # print('path', path)
-        if (ipp[-1] != opp[-1]):
-            common_nodes, ipp_ind, opp_ind = np.intersect1d(ipp, opp, return_indices = True)
-            common_nodes, ipp_ind, opp_ind = list(common_nodes), list(ipp_ind), list(opp_ind)
+        if ipp[-1] != opp[-1]:
+            common_nodes, ipp_ind, opp_ind = np.intersect1d(
+                ipp, opp, return_indices=True
+            )
+            common_nodes, ipp_ind, opp_ind = (
+                list(common_nodes),
+                list(ipp_ind),
+                list(opp_ind),
+            )
             if len(common_nodes) > 1:
-                common_nodes.sort(key = lambda x: ts.tables.nodes.time[x])
+                common_nodes.sort(key=lambda x: ts.tables.nodes.time[x])
                 oldest_node = common_nodes[-1]
-                ipp_ind.sort(key = lambda x: ts.tables.nodes.time[ipp[x]])
-                opp_ind.sort(key = lambda x: ts.tables.nodes.time[opp[x]])
+                ipp_ind.sort(key=lambda x: ts.tables.nodes.time[ipp[x]])
+                opp_ind.sort(key=lambda x: ts.tables.nodes.time[opp[x]])
                 ipp_last_ind = ipp_ind[-1]
                 opp_last_ind = opp_ind[-1]
-                ipp = ipp[:ipp_last_ind+1]
-                opp = opp[:opp_last_ind+1]
+                ipp = ipp[: ipp_last_ind + 1]
+                opp = opp[: opp_last_ind + 1]
                 path = list(set(ipp + opp))
-                path.sort(key = lambda x: ts.tables.nodes.time[x])
+                path.sort(key=lambda x: ts.tables.nodes.time[x])
                 path_check[path[:-1]] = False
                 paths.append(path)
                 # print('pathcheck', path_check[path])
@@ -281,6 +301,7 @@ def merge_edge_paths(edges_in, in_parent, out_parent, degree, not_sample, ts, ed
                 # print('in path', ipp)
                 # print('path', path)
     return paths
+
 
 def _extend_paths(ts, forwards=True):
     # `degree` will record the degree of each node in the tree we'd get if
@@ -324,7 +345,7 @@ def _extend_paths(ts, forwards=True):
         # print('-----------',left, right,'----------')
         here = left if forwards else right
         there = right if forwards else left
-        
+
         # Clear out non-extended or postponed edges:
         # Note: maintaining out_parent is a bit tricky, because
         # if an edge from p->c has been extended, entirely replacing
@@ -360,11 +381,11 @@ def _extend_paths(ts, forwards=True):
             edges_in.append([e, False])
             in_parent[edges.child[e]] = edges.parent[e]
             nodes_edge[edges.child[e]] = e
-            
+
         for e, _ in edges_out:
             degree[edges.parent[e]] -= 1
             degree[edges.child[e]] -= 1
-            #print('Edges Out:: child', edges.child[e],'parent', edges.parent[e])
+            # print('Edges Out:: child', edges.child[e],'parent', edges.parent[e])
         for e, _ in edges_in:
             degree[edges.parent[e]] += 1
             degree[edges.child[e]] += 1
@@ -378,13 +399,15 @@ def _extend_paths(ts, forwards=True):
                     foundit = True
                     break
             assert foundit == (p != -1)
-        assert np.all(degree >= 0), print('degree', degree)
+        assert np.all(degree >= 0), print("degree", degree)
         added_edges = 0
-        edge_paths = merge_edge_paths(edges_in, in_parent, out_parent, degree, not_sample, ts, edges)
+        edge_paths = merge_edge_paths(
+            edges_in, in_parent, out_parent, degree, not_sample, ts, edges
+        )
         for path in edge_paths:
-            for j in range(len(path)-1):
+            for j in range(len(path) - 1):
                 child = path[j]
-                new_parent = path[j+1]
+                new_parent = path[j + 1]
                 old_edge = nodes_edge[child]
                 # print('old edge id', nodes_edge[310])
                 # print('should be', edges[718])
@@ -396,7 +419,9 @@ def _extend_paths(ts, forwards=True):
                     old_parent = tskit.NULL
                     degree[child] += 2
                 if new_parent == old_parent:
-                    assert degree[old_parent] == degree[new_parent], print(degree[old_parent], degree[new_parent])
+                    assert degree[old_parent] == degree[new_parent], print(
+                        degree[old_parent], degree[new_parent]
+                    )
                     assert degree[child] > 0, print(degree[child])
                     # this is an edge already in the tree
                     # do nothing
@@ -404,14 +429,17 @@ def _extend_paths(ts, forwards=True):
                     # print('old edge', edges[old_edge])
                     continue
                 if new_parent != old_parent:
-                    # check if our new edge is in edges_out 
+                    # check if our new edge is in edges_out
                     # hence it should be extended
                     # find the edge
                     for ex_out in edges_out:
                         ex_out = ex_out
                         e_out = ex_out[0]
                         found_it = False
-                        if edges[e_out].child == child and edges[e_out].parent == new_parent:
+                        if (
+                            edges[e_out].child == child
+                            and edges[e_out].parent == new_parent
+                        ):
                             found_it = True
                             # print(child, new_parent, 'extend edge')
                             break
@@ -432,10 +460,12 @@ def _extend_paths(ts, forwards=True):
                         if degree[child] != 0:
                             degree[child] += 1
                     # if edge is not in edges_out
-                    # it is new and should be added to 
+                    # it is new and should be added to
                     # the edge table
                     if not found_it:
-                        edges.add_row(parent = new_parent, child = child, left = left, right = right)
+                        edges.add_row(
+                            parent=new_parent, child=child, left=left, right=right
+                        )
                         # print(child, new_parent, 'new edge')
                         # print(edges[-1])
                         added_edges += 1
@@ -461,8 +491,12 @@ def _extend_paths(ts, forwards=True):
                             degree[child] += 1
         # Update keep
         if added_edges > 0:
-            keep = np.concatenate([keep,np.full(added_edges, True, dtype = bool)]) # add as many as there are founds.
-        assert len(keep) == edges.num_rows, print('keep', len(keep), 'num edges', edges.num_rows)
+            keep = np.concatenate(
+                [keep, np.full(added_edges, True, dtype=bool)]
+            )  # add as many as there are founds.
+        assert len(keep) == edges.num_rows, print(
+            "keep", len(keep), "num edges", edges.num_rows
+        )
         # print(edges[keep])
         # print('near side', near_side)
         # print('far_side', far_side)
@@ -481,6 +515,7 @@ def _extend_paths(ts, forwards=True):
             keep[j] = False
     edges.keep_rows(keep)
     return edges
+
 
 def extend_paths(ts, max_iter=10):
     tables = ts.dump_tables()
@@ -516,10 +551,57 @@ def extend_paths(ts, max_iter=10):
 
     return ts
 
+
+def _path_pairs(tree):
+    for c in tree.postorder():
+        p = tree.parent(c)
+        while p != tskit.NULL:
+            yield (c, p)
+            p = tree.parent(p)
+
+
+def _path_up(c, p, tree):
+    # path from c up to p in tree, not including c or p
+    c = tree.parent(c)
+    while c != p and c != tskit.NULL:
+        yield c
+        c = tree.parent(c)
+    assert c == p
+
+
+def _path_overlaps(c, p, tree1, tree2):
+    for n in _path_up(c, p, tree1):
+        if n in tree2.nodes():
+            return True
+    return False
+
+
+def assert_not_extendable(ts):
+    right_tree = ts.first()
+    for tree in ts.trees():
+        if tree.index + 1 >= ts.num_trees:
+            break
+        for c, p in _path_pairs(tree):
+            right_tree.seek_index(tree.index + 1)
+            extendable = (
+                p != tree.parent(c)
+                and c in right_tree.nodes(p)
+                and p in right_tree.nodes()
+                and (not _path_overlaps(c, p, tree, right_tree))
+                and (not _path_overlaps(c, p, right_tree, tree))
+            )
+            if extendable:
+                print("------------>", c, p)
+                print(tree.draw_text())
+                print(right_tree.draw_text())
+            assert not extendable
+
+
 class TestExtendPaths:
     """
     Test the 'extend_paths' method.
     """
+
     def get_example1(self):
         # 15.00|         |   13    |         |
         #      |         |    |    |         |
@@ -551,48 +633,52 @@ class TestExtendPaths:
             10: 12,
             11: 8,
             12: 8,
-            13: 15
+            13: 15,
         }
         # (p,c,l,r)
         edges = [
-            (4,0,0,9),
-            (4,1,0,9),
-            (5,2,0,6),
-            (5,3,0,9),
-            (6,4,0,3),
-            (9,5,0,3),
-            (7,4,3,6),
-            (11,7,3,6),
-            (12,5,3,6),
-            (8,2,6,9),
-            (8,4,6,9),
-            (8,6,0,3),
-            (10,5,6,9),
-            (10,8,0,3),
-            (10,8,6,9),
-            (10,9,0,3),
-            (10,11,3,6),
-            (10,12,3,6),
-            (13, 10, 3, 6)
+            (4, 0, 0, 9),
+            (4, 1, 0, 9),
+            (5, 2, 0, 6),
+            (5, 3, 0, 9),
+            (6, 4, 0, 3),
+            (9, 5, 0, 3),
+            (7, 4, 3, 6),
+            (11, 7, 3, 6),
+            (12, 5, 3, 6),
+            (8, 2, 6, 9),
+            (8, 4, 6, 9),
+            (8, 6, 0, 3),
+            (10, 5, 6, 9),
+            (10, 8, 0, 3),
+            (10, 8, 6, 9),
+            (10, 9, 0, 3),
+            (10, 11, 3, 6),
+            (10, 12, 3, 6),
+            (13, 10, 3, 6),
         ]
-        extended_path_edges = [(4, 0, 0.0, 9.0),
-                               (4, 1, 0.0, 9.0),
-                               (5, 2, 0.0, 6.0),
-                               (5, 3, 0.0, 9.0),
-                               (6, 4, 0.0, 9.0),
-                               (9, 5, 0.0, 9.0),
-                               (7, 6, 0.0, 9.0),
-                               (11, 7, 0.0, 9.0),
-                               (12, 9, 0.0, 9.0),
-                               (8, 2, 6.0, 9.0),
-                               (8, 11, 0.0, 9.0),
-                               (10, 8, 0.0, 9.0),
-                               (10, 12, 0.0, 9.0),
-                               (13, 10, 3.0, 6.0)
-                              ]
+        extended_path_edges = [
+            (4, 0, 0.0, 9.0),
+            (4, 1, 0.0, 9.0),
+            (5, 2, 0.0, 6.0),
+            (5, 3, 0.0, 9.0),
+            (6, 4, 0.0, 9.0),
+            (9, 5, 0.0, 9.0),
+            (7, 6, 0.0, 9.0),
+            (11, 7, 0.0, 9.0),
+            (12, 9, 0.0, 9.0),
+            (8, 2, 6.0, 9.0),
+            (8, 11, 0.0, 9.0),
+            (10, 8, 0.0, 9.0),
+            (10, 12, 0.0, 9.0),
+            (13, 10, 3.0, 6.0),
+        ]
         samples = list(np.arange(4))
         tables = tskit.TableCollection(sequence_length=9)
-        for (n,t,) in node_times.items():
+        for (
+            n,
+            t,
+        ) in node_times.items():
             flags = tskit.NODE_IS_SAMPLE if n in samples else 0
             tables.nodes.add_row(time=t, flags=flags)
         for p, c, l, r in edges:
@@ -605,7 +691,7 @@ class TestExtendPaths:
         assert ts.num_edges == 19
         assert ets.num_edges == 14
         return ts, ets
-    
+
     def get_example2(self):
         # 12.00|                     |          21         |                     |
         #      |                     |      +----+-----+   |                     |
@@ -655,71 +741,75 @@ class TestExtendPaths:
             18: 9,
             19: 10,
             20: 11,
-            21: 12
+            21: 12,
         }
         # (p,c,l,r)
         edges = [
-            (10,2,0,9),
-            (10,5,0,9),
-            (11,0,0,9),
-            (11,7,0,9),
-            (12,3,3,9),
-            (12,9,3,9),
-            (13,4,0,9),
-            (13,11,0,9),
-            (14,6,0,9),
-            (14,10,0,9),
-            (15,9,0,3),
-            (15,13,0,3),
-            (16,1,0,6),
-            (16,3,0,3),
-            (16,12,3,6),
-            (17,1,6,9),
-            (17,13,6,9),
-            (18,13,3,6),
-            (18,14,0,9),
-            (18,15,0,3),
-            (18,17,6,9),
-            (19,8,0,9),
-            (19,12,6,9),
-            (19,16,0,6),
-            (20,18,0,3),
-            (20,18,6,9),
-            (20,19,0,3),
-            (20,19,6,9),
-            (21,18,3,6),
-            (21,19,3,6),
+            (10, 2, 0, 9),
+            (10, 5, 0, 9),
+            (11, 0, 0, 9),
+            (11, 7, 0, 9),
+            (12, 3, 3, 9),
+            (12, 9, 3, 9),
+            (13, 4, 0, 9),
+            (13, 11, 0, 9),
+            (14, 6, 0, 9),
+            (14, 10, 0, 9),
+            (15, 9, 0, 3),
+            (15, 13, 0, 3),
+            (16, 1, 0, 6),
+            (16, 3, 0, 3),
+            (16, 12, 3, 6),
+            (17, 1, 6, 9),
+            (17, 13, 6, 9),
+            (18, 13, 3, 6),
+            (18, 14, 0, 9),
+            (18, 15, 0, 3),
+            (18, 17, 6, 9),
+            (19, 8, 0, 9),
+            (19, 12, 6, 9),
+            (19, 16, 0, 6),
+            (20, 18, 0, 3),
+            (20, 18, 6, 9),
+            (20, 19, 0, 3),
+            (20, 19, 6, 9),
+            (21, 18, 3, 6),
+            (21, 19, 3, 6),
         ]
-        extended_path_edges = [(10, 2, 0.0, 9.0),
-             (10, 5, 0.0, 9.0),
-             (11, 0, 0.0, 9.0),
-             (11, 7, 0.0, 9.0),
-             (12, 3, 0.0, 9.0),
-             (12, 9, 3.0, 9.0),
-             (13, 4, 0.0, 9.0),
-             (13, 11, 0.0, 9.0),
-             (14, 6, 0.0, 9.0),
-             (14, 10, 0.0, 9.0),
-             (15, 9, 0.0, 3.0),
-             (15, 13, 0.0, 9.0),
-             (16, 1, 0.0, 6.0),
-             (16, 12, 0.0, 9.0),
-             (17, 1, 6.0, 9.0),
-             (17, 15, 0.0, 9.0),
-             (18, 14, 0.0, 9.0),
-             (18, 17, 0.0, 9.0),
-             (19, 8, 0.0, 9.0),
-             (19, 16, 0.0, 9.0),
-             (20, 18, 0.0, 3.0),
-             (20, 18, 6.0, 9.0),
-             (20, 19, 0.0, 3.0),
-             (20, 19, 6.0, 9.0),
-             (21, 18, 3.0, 6.0),
-             (21, 19, 3.0, 6.0)
-            ]
+        extended_path_edges = [
+            (10, 2, 0.0, 9.0),
+            (10, 5, 0.0, 9.0),
+            (11, 0, 0.0, 9.0),
+            (11, 7, 0.0, 9.0),
+            (12, 3, 0.0, 9.0),
+            (12, 9, 3.0, 9.0),
+            (13, 4, 0.0, 9.0),
+            (13, 11, 0.0, 9.0),
+            (14, 6, 0.0, 9.0),
+            (14, 10, 0.0, 9.0),
+            (15, 9, 0.0, 3.0),
+            (15, 13, 0.0, 9.0),
+            (16, 1, 0.0, 6.0),
+            (16, 12, 0.0, 9.0),
+            (17, 1, 6.0, 9.0),
+            (17, 15, 0.0, 9.0),
+            (18, 14, 0.0, 9.0),
+            (18, 17, 0.0, 9.0),
+            (19, 8, 0.0, 9.0),
+            (19, 16, 0.0, 9.0),
+            (20, 18, 0.0, 3.0),
+            (20, 18, 6.0, 9.0),
+            (20, 19, 0.0, 3.0),
+            (20, 19, 6.0, 9.0),
+            (21, 18, 3.0, 6.0),
+            (21, 19, 3.0, 6.0),
+        ]
         samples = list(np.arange(10))
         tables = tskit.TableCollection(sequence_length=9)
-        for (n,t,) in node_times.items():
+        for (
+            n,
+            t,
+        ) in node_times.items():
             flags = tskit.NODE_IS_SAMPLE if n in samples else 0
             tables.nodes.add_row(time=t, flags=flags)
         for p, c, l, r in edges:
@@ -733,35 +823,34 @@ class TestExtendPaths:
         assert ets.num_edges == 26
         return ts, ets
 
-    def verify_extend_paths(self, ts, max_iter = 10):
-        ets = extend_paths(ts, max_iter = max_iter)
+    def verify_extend_paths(self, ts, max_iter=10):
+        ets = extend_paths(ts, max_iter=max_iter)
         assert np.all(ts.genotype_matrix() == ets.genotype_matrix())
         assert ts.num_nodes == ets.num_nodes
         assert ts.num_samples == ets.num_samples
         t = ts.simplify().tables
         et = ets.simplify().tables
-        et.assert_equals(t, ignore_provenance = True)
+        et.assert_equals(t, ignore_provenance=True)
 
     def test_example1(self):
         ts, ets = self.get_example1()
         test_ets = extend_paths(ts)
-        test_ets.tables.assert_equals(ets.tables,
-                               ignore_provenance = True)
+        test_ets.tables.assert_equals(ets.tables, ignore_provenance=True)
         self.verify_extend_paths(ts)
 
     def test_example2(self):
         ts, ets = self.get_example2()
         test_ets = extend_paths(ts)
-        test_ets.tables.assert_equals(ets.tables,
-                                      ignore_provenance = True)
+        test_ets.tables.assert_equals(ets.tables, ignore_provenance=True)
         self.verify_extend_paths(ts)
+
 
 class TestExtendEdges:
     """
     Test the 'extend edges' method
     """
 
-    def verify_extend_edges(self, ts, max_iter=10):
+    def verify_extend_edges(self, ts, max_iter=10, complete=True):
         # This can still fail for various weird examples:
         # for instance, if adjacent trees have
         # a <- b <- c <- d and a <- d (where say b was
@@ -776,6 +865,9 @@ class TestExtendEdges:
         t = ts.simplify().tables
         et = ets.simplify().tables
         t.assert_equals(et, ignore_provenance=True)
+        if complete:
+            assert_not_extendable(ets)
+
         old_edges = {}
         for e in ts.edges():
             k = (e.parent, e.child)
@@ -1120,7 +1212,7 @@ class TestExtendEdges:
         ts = tables.tree_sequence()
         ets = ts.extend_edges()
         for _, t, et in ts.coiterate(ets):
-            print("----")
+            print("----", t.index, t.interval)
             print(t.draw(format="ascii"))
             print(et.draw(format="ascii"))
         etables = ets.tables
@@ -1135,7 +1227,7 @@ class TestExtendEdges:
         tables.sort()
         tables.simplify()
         ts = msprime.sim_mutations(tables.tree_sequence(), rate=0.01, random_seed=888)
-        self.verify_extend_edges(ts, max_iter=1)
+        self.verify_extend_edges(ts, max_iter=1, complete=False)
         self.verify_extend_edges(ts)
 
     def test_wright_fisher_unsimplified(self):
@@ -1150,7 +1242,7 @@ class TestExtendEdges:
         tables.sort()
         tables.simplify()
         ts = msprime.sim_mutations(tables.tree_sequence(), rate=0.01, random_seed=888)
-        self.verify_extend_edges(ts, max_iter=1)
+        self.verify_extend_edges(ts, max_iter=1, complete=False)
         self.verify_extend_edges(ts)
 
     # This one fails sometimes but just because our verification can't handle
