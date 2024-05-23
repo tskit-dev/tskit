@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2021 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2016-2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,6 +23,7 @@
 """
 Tests for phylogenetics export functions, newick, nexus, FASTA etc.
 """
+
 import functools
 import io
 import textwrap
@@ -47,9 +48,7 @@ from tests.test_highlevel import get_example_tree_sequences
 
 @functools.lru_cache(maxsize=100)
 def alignment_example(sequence_length, include_reference=True):
-    ts = msprime.sim_ancestry(
-        samples=5, sequence_length=sequence_length, random_seed=123
-    )
+    ts = msprime.sim_ancestry(samples=5, sequence_length=sequence_length, random_seed=123)
     ts = msprime.sim_mutations(ts, rate=0.1, random_seed=1234)
     tables = ts.dump_tables()
     if include_reference:
@@ -299,9 +298,7 @@ class TestNexusIncludeSections:
             END;
             """
         )
-        assert expected == self.ts().as_nexus(
-            reference_sequence=ref, include_trees=False
-        )
+        assert expected == self.ts().as_nexus(reference_sequence=ref, include_trees=False)
 
     def test_nexus_no_alignments(self):
         expected = textwrap.dedent(
@@ -501,9 +498,7 @@ class TestFractionalBranchLengths:
 
     def test_c_and_py_output_equal(self):
         t = self.tree()
-        assert t.as_newick() == t.as_newick(
-            node_labels={u: f"n{u}" for u in t.samples()}
-        )
+        assert t.as_newick() == t.as_newick(node_labels={u: f"n{u}" for u in t.samples()})
 
     def test_as_newick_precision_3(self):
         s = "(n0:0.667,(n1:0.333,n2:0.333):0.333);"
@@ -938,7 +933,7 @@ class TestFloatTimeTreeSequence:
               TREE t0^2 = [&R] (n0:3.25000000000000000,(n1:2.00000000000000000,n2:2.00000000000000000):1.25000000000000000);
               TREE t2^10 = [&R] (n1:2.00000000000000000,(n0:1.00000000000000000,n2:1.00000000000000000):1.00000000000000000);
             END;
-            """  # noqa: B950
+            """  # noqa: E501
         )
         assert ts.as_nexus() == expected
 
@@ -1009,7 +1004,7 @@ class TestFloatPositionTreeSequence:
               TREE t0.00000000000000000^2.50000000000000000 = [&R] (n0:3,(n1:2,n2:2):1);
               TREE t2.50000000000000000^10.00000000000000000 = [&R] (n1:2,(n0:1,n2:1):1);
             END;
-            """  # noqa: B950
+            """
         )
         assert ts.as_nexus() == expected
 
@@ -1389,8 +1384,7 @@ class TestDendropyMissingReference:
                     )
                 else:
                     assert (
-                        a[j].state_denomination
-                        == dendropy.StateAlphabet.AMBIGUOUS_STATE
+                        a[j].state_denomination == dendropy.StateAlphabet.AMBIGUOUS_STATE
                     )
 
     def test_fasta(self):

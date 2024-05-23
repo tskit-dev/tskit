@@ -14,8 +14,9 @@ from si_prefix import si_format
 
 tskit_dir = Path(__file__).parent.parent
 sys.path.append(str(tskit_dir))
-import tskit  # noqa: E402
 import msprime  # noqa: E402
+
+import tskit  # noqa: E402
 
 with open("config.yaml") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)

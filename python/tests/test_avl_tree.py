@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2021 Tskit Developers
+# Copyright (c) 2021-2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,7 @@ https://commandlinefanatic.com/cgi-bin/showarticle.cgi?article=art070
 Note there is a bug in that Python translation which is missing
 P.B = 0 at the end of A9.
 """
+
 from __future__ import annotations
 
 import dataclasses
@@ -35,7 +36,6 @@ from typing import Any
 
 import numpy as np
 import pytest
-
 
 # The nodes of the tree are assumed to contain KEY, LLINK, and RLINK fields.
 # We also have a new field

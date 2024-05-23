@@ -22,6 +22,7 @@
 """
 Classes for metadata decoding, encoding and validation
 """
+
 from __future__ import annotations
 
 import abc
@@ -34,8 +35,7 @@ import pprint
 import struct
 import types
 from itertools import islice
-from typing import Any
-from typing import Mapping
+from typing import Any, Mapping
 
 import jsonschema
 
@@ -46,9 +46,9 @@ __builtins__object__setattr__ = builtins.object.__setattr__
 
 
 def replace_root_refs(obj):
-    if type(obj) is list:
+    if type(obj) is list:  # noqa: E721
         return [replace_root_refs(j) for j in obj]
-    elif type(obj) is dict:
+    elif type(obj) is dict:  # noqa: E721
         ret = {k: replace_root_refs(v) for k, v in obj.items()}
         if ret.get("$ref") == "#":
             ret["$ref"] = "#/definitions/root"
@@ -87,11 +87,11 @@ class AbstractMetadataCodec(metaclass=abc.ABCMeta):
         raise NotImplementedError  # pragma: no cover
 
     @classmethod
-    def modify_schema(self, schema: Mapping) -> Mapping:
+    def modify_schema(cls, schema: Mapping) -> Mapping:
         return schema
 
     @classmethod
-    def is_schema_trivial(self, schema: Mapping) -> bool:
+    def is_schema_trivial(cls, schema: Mapping) -> bool:
         return False
 
     @abc.abstractmethod
@@ -121,9 +121,9 @@ def register_metadata_codec(
 
 
 class JSONCodec(AbstractMetadataCodec):
-    def default_validator(validator, types, instance, schema):
+    def default_validator(self, types, instance, schema):
         # For json codec defaults must be at the top level
-        if validator.is_type(instance, "object"):
+        if self.is_type(instance, "object"):
             for v in instance.get("properties", {}).values():
                 for v2 in v.get("properties", {}).values():
                     if "default" in v2:
@@ -137,7 +137,7 @@ class JSONCodec(AbstractMetadataCodec):
     )
 
     @classmethod
-    def is_schema_trivial(self, schema: Mapping) -> bool:
+    def is_schema_trivial(cls, schema: Mapping) -> bool:
         return len(schema.get("properties", {})) == 0
 
     def __init__(self, schema: Mapping[str, Any]) -> None:
@@ -159,7 +159,7 @@ class JSONCodec(AbstractMetadataCodec):
         except TypeError as e:
             raise exceptions.MetadataEncodingError(
                 f"Could not encode metadata of type {str(e).split()[3]}"
-            )
+            ) from None
 
     def decode(self, encoded: bytes) -> Any:
         if len(encoded) == 0:
@@ -227,9 +227,7 @@ def binary_format_validator(validator, types, instance, schema):
 def required_validator(validator, required, instance, schema):
     # Do the normal validation
     try:
-        yield from jsonschema._validators.required(
-            validator, required, instance, schema
-        )
+        yield from jsonschema._validators.required(validator, required, instance, schema)
     except AttributeError:
         # Needed since jsonschema==4.19.1
         yield from jsonschema._keywords.required(validator, required, instance, schema)
@@ -404,8 +402,7 @@ class StructCodec(AbstractMetadataCodec):
             else:
                 buffer = iter(buffer)
                 return {
-                    key: sub_decoder(buffer)
-                    for key, sub_decoder in sub_decoders.items()
+                    key: sub_decoder(buffer) for key, sub_decoder in sub_decoders.items()
                 }
 
         return decode_object_or_null
@@ -417,9 +414,9 @@ class StructCodec(AbstractMetadataCodec):
         encoding = sub_schema.get("stringEncoding", "utf-8")
         null_terminated = sub_schema.get("nullTerminated", False)
         if not null_terminated:
-            return lambda buffer: struct.unpack(f, bytes(islice(buffer, size)))[
-                0
-            ].decode(encoding)
+            return lambda buffer: struct.unpack(f, bytes(islice(buffer, size)))[0].decode(
+                encoding
+            )
         else:
 
             def decode_string(buffer):
@@ -484,7 +481,7 @@ class StructCodec(AbstractMetadataCodec):
                     raise ValueError(
                         "Couldn't pack array size - it is likely too long"
                         " for the specified arrayLengthFormat"
-                    )
+                    ) from None
                 return packed_length + b"".join(element_encoder(ele) for ele in array)
 
             return array_encode_with_length
@@ -558,9 +555,9 @@ class StructCodec(AbstractMetadataCodec):
         # we add it here, sadly we can't do this in the metaschema as "default" isn't
         # used by the validator.
         def enforce_fixed_properties(obj):
-            if type(obj) is list:
+            if type(obj) is list:  # noqa: E721
                 return [enforce_fixed_properties(j) for j in obj]
-            elif type(obj) is dict:
+            elif type(obj) is dict:  # noqa: E721
                 ret = {k: enforce_fixed_properties(v) for k, v in obj.items()}
                 if "object" in ret.get("type", []):
                     if ret.get("additional_properties"):
@@ -641,8 +638,8 @@ class MetadataSchema:
             except KeyError:
                 raise exceptions.MetadataSchemaValidationError(
                     f"Unrecognised metadata codec '{schema['codec']}'. "
-                    f"Valid options are {str(list(codec_registry.keys()))}."
-                )
+                    f"Valid options are {list(codec_registry.keys())!s}."
+                ) from None
             # Codecs can modify the schema, for example to set defaults as the validator
             # does not.
             schema = codec_cls.modify_schema(schema)
@@ -749,7 +746,9 @@ def parse_metadata_schema(encoded_schema: str) -> MetadataSchema:
                 encoded_schema, object_pairs_hook=collections.OrderedDict
             )
         except json.decoder.JSONDecodeError:
-            raise ValueError(f"Metadata schema is not JSON, found {encoded_schema}")
+            raise ValueError(
+                f"Metadata schema is not JSON, found {encoded_schema}"
+            ) from None
         return MetadataSchema(decoded)
 
 
@@ -784,9 +783,7 @@ def lazy_decode(own_init=False):
 
             # Intercept the init to record the decoder
             def new_init(self, *args, metadata_decoder=None, **kwargs):
-                __builtins__object__setattr__(
-                    self, "_metadata_decoder", metadata_decoder
-                )
+                __builtins__object__setattr__(self, "_metadata_decoder", metadata_decoder)
                 wrapped_init(self, *args, **kwargs)
 
             cls.__init__ = new_init

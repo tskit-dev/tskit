@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2021 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (C) 2016 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,6 +23,7 @@
 """
 Test cases for stats calculations in tskit.
 """
+
 import contextlib
 import io
 
@@ -197,7 +198,7 @@ class TestLdSingleTree:
         tables.mutations.add_row(site=2, node=0, derived_state="G")
         return tables.tree_sequence()
 
-    @pytest.mark.parametrize(["a", "b", "expected"], [(0, 0, 1), (0, 1, 1), (0, 2, 1)])
+    @pytest.mark.parametrize(("a", "b", "expected"), [(0, 0, 1), (0, 1, 1), (0, 2, 1)])
     def test_r2(self, a, b, expected):
         ts = self.ts()
         A = get_r2_matrix(ts)
@@ -612,8 +613,8 @@ def set_partitions(collection):
         first = collection[0]
         for smaller in set_partitions(collection[1:]):
             for n, subset in enumerate(smaller):
-                yield smaller[:n] + [[first] + subset] + smaller[n + 1 :]
-            yield [[first]] + smaller
+                yield smaller[:n] + [[first, *subset]] + smaller[n + 1 :]
+            yield [[first], *smaller]
 
 
 def naive_mean_descendants(ts, reference_sets):
@@ -1358,7 +1359,6 @@ class TestWindowedGenealogicalNearestNeighbours(TestGenealogicalNearestNeighbour
         ts = self.get_two_tree_ts()
         sample_sets = [[0, 1], [2]]
         focal = [0]
-        np.random.seed(5)
         windows = ts.sequence_length * np.array([0.2, 0.4, 0.6, 0.8, 1])
         windows.sort()
         windows[0] = 0.0

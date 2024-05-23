@@ -22,20 +22,13 @@
 """
 Test cases for two-locus statistics
 """
+
 import contextlib
 import io
 from copy import deepcopy
 from dataclasses import dataclass
-from itertools import combinations
-from itertools import combinations_with_replacement
-from itertools import permutations
-from itertools import product
-from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Generator
-from typing import List
-from typing import Tuple
+from itertools import combinations, combinations_with_replacement, permutations, product
+from typing import Any, Callable, Dict, Generator, List, Tuple
 
 import msprime
 import numpy as np
@@ -577,9 +570,7 @@ def two_site_count_stat(
     :returns: 3D array of results, dimensions (sample_sets, row_sites, col_sites).
     """
     params = {"sample_set_sizes": sample_set_sizes}
-    result = np.zeros(
-        (num_sample_sets, len(row_sites), len(col_sites)), dtype=np.float64
-    )
+    result = np.zeros((num_sample_sets, len(row_sites), len(col_sites)), dtype=np.float64)
 
     sites, row_idx, col_idx = get_site_row_col_indices(row_sites, col_sites)
     num_alleles, site_offsets, allele_samples = get_mutation_samples(
@@ -643,9 +634,7 @@ def two_branch_count_stat(
     :returns: 3D array of results, dimensions (sample_sets, row_sites, col_sites).
     """
     params = {"sample_set_sizes": sample_set_sizes}
-    result = np.zeros(
-        (num_sample_sets, len(row_sites), len(col_sites)), dtype=np.float64
-    )
+    result = np.zeros((num_sample_sets, len(row_sites), len(col_sites)), dtype=np.float64)
 
     # TODO: get_pos_row_col_indices?
     # sites, row_idx, col_idx = get_site_row_col_indices(row_sites, col_sites)
@@ -1153,9 +1142,9 @@ def get_paper_ex_ts():
 # fmt:off
 # true r2 values for the tree sequence from the tskit paper
 PAPER_EX_TRUTH_MATRIX = np.array(
-    [[1.0,        0.11111111, 0.11111111],  # noqa: E241
-     [0.11111111, 1.0,        1.0],  # noqa: E241
-     [0.11111111, 1.0,        1.0]]  # noqa: E241
+    [[1.0,        0.11111111, 0.11111111],
+     [0.11111111, 1.0,        1.0],
+     [0.11111111, 1.0,        1.0]]
 )
 # fmt:on
 
@@ -1201,9 +1190,7 @@ def test_subset_sites(partition):
         ld_matrix(ts, sites=partition),
         PAPER_EX_TRUTH_MATRIX[a[0] : a[-1] + 1, b[0] : b[-1] + 1],
     )
-    np.testing.assert_equal(
-        ld_matrix(ts, sites=partition), ts.ld_matrix(sites=partition)
-    )
+    np.testing.assert_equal(ld_matrix(ts, sites=partition), ts.ld_matrix(sites=partition))
 
 
 @pytest.mark.parametrize("sites", [[0, 1, 2], [1, 2], [0, 1], [0], [1]])
@@ -1562,7 +1549,7 @@ def tmrca(tr, x, y):
             if y in set(tr.samples(r)):
                 y_mrca = r
         if x_mrca == -1 or y_mrca == -1:
-            raise ValueError
+            raise ValueError from e
         return (tr.time(x_mrca) + tr.time(y_mrca)) / 2
 
 
@@ -1656,7 +1643,7 @@ def combine(samples):
         (i, j, samples[k], samples[l])
         for i, j in combinations(samples, 2)
         for k in range(len(samples))
-        for l in range(k + 1, len(samples))  # noqa: E741
+        for l in range(k + 1, len(samples))
         if i != samples[k] and j != samples[k] and samples[l] != i and samples[l] != j
     ]
     return ij, ijk, ijkl
@@ -1705,7 +1692,7 @@ def naive_matrix(ts, stat_func, sample_set=None):
     ],
 )
 @pytest.mark.parametrize(
-    "stat,stat_func",
+    ("stat", "stat_func"),
     zip(
         ["d2_unbiased", "dz_unbiased", "pi2_unbiased"],
         [compute_D2, compute_Dz, compute_pi2],
@@ -1742,9 +1729,9 @@ def get_test_branch_sample_set_test_cases():
     ]
 
 
-@pytest.mark.parametrize("ts,sample_set", get_test_branch_sample_set_test_cases())
+@pytest.mark.parametrize(("ts", "sample_set"), get_test_branch_sample_set_test_cases())
 @pytest.mark.parametrize(
-    "stat,stat_func",
+    ("stat", "stat_func"),
     zip(
         ["d2_unbiased", "dz_unbiased", "pi2_unbiased"],
         [compute_D2, compute_Dz, compute_pi2],

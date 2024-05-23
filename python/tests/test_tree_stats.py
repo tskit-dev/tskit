@@ -23,6 +23,7 @@
 """
 Test cases for generalized statistic computation.
 """
+
 import collections
 import contextlib
 import functools
@@ -39,8 +40,6 @@ import tests.test_wright_fisher as wf
 import tests.tsutil as tsutil
 import tskit
 import tskit.exceptions as exceptions
-
-np.random.seed(5)
 
 
 def cached_np(func):
@@ -68,18 +67,19 @@ def subset_combos(*args, p=0.5, min_tests=3):
     # random set is run each time. Ensures that at least min_tests are run.
     # Uncomment this line to run all tests (takes about an hour):
     # p = 1.0
+    rng = np.random.default_rng(42)
     num_tests = 0
     skipped_tests = []
     # total_tests = 0
     for x in itertools.product(*args):
         # total_tests = total_tests + 1
-        if np.random.uniform() < p:
+        if rng.uniform() < p:
             num_tests += num_tests + 1
             yield x
         elif len(skipped_tests) < min_tests:
             skipped_tests.append(x)
-        elif np.random.uniform() < 0.1:
-            skipped_tests[np.random.randint(min_tests)] = x
+        elif rng.uniform() < 0.1:
+            skipped_tests[rng.integers(min_tests)] = x
     while num_tests < min_tests:
         yield skipped_tests.pop()
         num_tests = num_tests + 1
@@ -165,8 +165,7 @@ def naive_branch_general_stat(
             s = sum(tree.branch_length(u) * f(x[u]) for u in tree.nodes())
         else:
             s = sum(
-                tree.branch_length(u) * (f(x[u]) + f(total - x[u]))
-                for u in tree.nodes()
+                tree.branch_length(u) * (f(x[u]) + f(total - x[u])) for u in tree.nodes()
             )
         sigma[tree.index] = s * tree.span
     if isinstance(windows, str) and windows == "trees":
@@ -288,9 +287,7 @@ def windowed_sitewise_stat(ts, sigma, windows, span_normalise=True):
     return A
 
 
-def naive_site_general_stat(
-    ts, W, f, windows=None, polarised=False, span_normalise=True
-):
+def naive_site_general_stat(ts, W, f, windows=None, polarised=False, span_normalise=True):
     n, K = W.shape
     # Hack to determine M
     M = len(f(W[0]))
@@ -359,9 +356,7 @@ def site_general_stat(
         while site_index < len(sites) and sites.position[site_index] < right:
             assert left <= sites.position[site_index]
             ancestral_state = sites[site_index].ancestral_state
-            allele_state = collections.defaultdict(
-                functools.partial(np.zeros, state_dim)
-            )
+            allele_state = collections.defaultdict(functools.partial(np.zeros, state_dim))
             allele_state[ancestral_state][:] = total_weight
             while (
                 mutation_index < len(mutations)
@@ -399,9 +394,7 @@ def site_general_stat(
 ##############################
 
 
-def naive_node_general_stat(
-    ts, W, f, windows=None, polarised=False, span_normalise=True
-):
+def naive_node_general_stat(ts, W, f, windows=None, polarised=False, span_normalise=True):
     windows = ts.parse_windows(windows)
     n, K = W.shape
     M = f(W[0]).shape[0]
@@ -480,9 +473,7 @@ def node_general_stat(
             w_right = windows[window_index + 1]
             # Flush the contribution of all nodes to the current window.
             for u in range(ts.num_nodes):
-                result[window_index, u] += (w_right - last_update[u]) * current_values[
-                    u
-                ]
+                result[window_index, u] += (w_right - last_update[u]) * current_values[u]
                 last_update[u] = w_right
             window_index += 1
 
@@ -607,7 +598,7 @@ class TopologyExamplesMixin:
         ts = tables.tree_sequence()
         self.verify(ts)
 
-    @pytest.mark.slow
+    @pytest.mark.slow()
     def test_wright_fisher_initial_generation(self):
         tables = wf.wf_sim(
             6, 5, seed=3, deep_history=True, initial_generation_samples=True, num_loci=2
@@ -892,7 +883,8 @@ def example_sample_sets(ts, min_size=1):
     number of sample sets returned in each example must be at least min_size
     """
     samples = ts.samples()
-    np.random.shuffle(samples)
+    rng = np.random.default_rng(42)
+    rng.shuffle(samples)
     splits = np.array_split(samples, min_size)
     yield splits
     yield [[s] for s in samples]
@@ -953,16 +945,16 @@ class WeightStatsMixin:
         """
         Generate a series of example weights from the specfied tree sequence.
         """
-        np.random.seed(46)
+        rng = np.random.default_rng(46)
         for k in [min_size, min_size + 1, min_size + 10]:
             W = 1.0 + np.zeros((ts.num_samples, k))
             W[0, :] = 2.0
             yield W
             for j in range(k):
-                W[:, j] = np.random.exponential(1, ts.num_samples)
+                W[:, j] = rng.exponential(1, ts.num_samples)
             yield W
             for j in range(k):
-                W[:, j] = np.random.normal(0, 1, ts.num_samples)
+                W[:, j] = rng.normal(0, 1, ts.num_samples)
             yield W
 
     def transform_weights(self, W):
@@ -996,9 +988,7 @@ class WeightStatsMixin:
                 ts, gW, wrapped_summary_func, windows, mode=self.mode, span_normalise=sn
             )
             sigma3 = ts_method(W, windows=windows, mode=self.mode, span_normalise=sn)
-            sigma4 = definition(
-                ts, W, windows=windows, mode=self.mode, span_normalise=sn
-            )
+            sigma4 = definition(ts, W, windows=windows, mode=self.mode, span_normalise=sn)
 
             assert sigma1.shape == sigma2.shape
             assert sigma1.shape == sigma3.shape
@@ -1071,9 +1061,7 @@ class KWaySampleSetStatsMixin(SampleSetStatsMixin):
         M = len(wrapped_summary_func(W[0]))
         sigma1 = ts.general_stat(W, wrapped_summary_func, M, windows, mode=self.mode)
         sigma2 = general_stat(ts, W, wrapped_summary_func, windows, mode=self.mode)
-        sigma3 = ts_method(
-            sample_sets, indexes=indexes, windows=windows, mode=self.mode
-        )
+        sigma3 = ts_method(sample_sets, indexes=indexes, windows=windows, mode=self.mode)
         sigma4 = definition(
             ts, sample_sets, indexes=indexes, windows=windows, mode=self.mode
         )
@@ -2004,8 +1992,7 @@ class TestGeneticRelatedness(StatsTestCase, TwoWaySampleSetStatsMixin):
                 / denom
             )
             sigma2 = (
-                general_stat(ts, W, wrapped_summary_func, windows, mode=self.mode)
-                / denom
+                general_stat(ts, W, wrapped_summary_func, windows, mode=self.mode) / denom
             )
         sigma3 = ts_method(
             sample_sets,
@@ -2255,10 +2242,7 @@ class TestGeneticRelatednessWeighted(StatsTestCase, WeightStatsMixin):
         def f(x):
             mx = np.sum(x) / n
             return np.array(
-                [
-                    (x[i] - W_sum[i] * mx) * (x[j] - W_sum[j] * mx) / 2
-                    for i, j in indexes
-                ]
+                [(x[i] - W_sum[i] * mx) * (x[j] - W_sum[j] * mx) / 2 for i, j in indexes]
             )
 
         self.verify_definition(
@@ -3110,8 +3094,7 @@ def node_f3(ts, sample_sets, indexes, windows=None, span_normalise=True):
                         + (tA - nA) * (tA - nA - 1) * nB * nC
                     )
                     SS[u] -= (
-                        nA * nC * (tA - nA) * (tB - nB)
-                        + (tA - nA) * (tC - nC) * nA * nB
+                        nA * nC * (tA - nA) * (tB - nB) + (tA - nA) * (tC - nC) * nA * nB
                     )
                 S += SS * (min(end, t1.interval.right) - max(begin, t1.interval.left))
             with suppress_division_by_zero_warning():
@@ -3297,12 +3280,10 @@ def node_f4(ts, sample_sets, indexes, windows=None, span_normalise=True):
                     nD = t4.num_tracked_samples(u)
                     # ac|bd - ad|bc
                     SS[u] += (
-                        nA * nC * (tB - nB) * (tD - nD)
-                        + (tA - nA) * (tC - nC) * nB * nD
+                        nA * nC * (tB - nB) * (tD - nD) + (tA - nA) * (tC - nC) * nB * nD
                     )
                     SS[u] -= (
-                        nA * nD * (tB - nB) * (tC - nC)
-                        + (tA - nA) * (tD - nD) * nB * nC
+                        nA * nD * (tB - nB) * (tC - nC) + (tA - nA) * (tD - nD) * nB * nC
                     )
                 S += SS * (min(end, t1.interval.right) - max(begin, t1.interval.left))
             with suppress_division_by_zero_warning():
@@ -3409,9 +3390,7 @@ class TestFold:
 
     def test_examples(self):
         A = np.arange(12)
-        Af = np.array(
-            [11.0, 11.0, 11.0, 11.0, 11.0, 11.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        )
+        Af = np.array([11.0, 11.0, 11.0, 11.0, 11.0, 11.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
         assert np.all(foldit(A) == Af)
 
@@ -3472,7 +3451,7 @@ def naive_site_allele_frequency_spectrum(
     windows = ts.parse_windows(windows)
     num_windows = len(windows) - 1
     out_dim = [1 + len(sample_set) for sample_set in sample_sets]
-    out = np.zeros([num_windows] + out_dim)
+    out = np.zeros([num_windows, *out_dim])
     G = ts.genotype_matrix(isolated_as_missing=False)
     samples = ts.samples()
     # Indexes of the samples within the sample sets into the samples array.
@@ -3527,14 +3506,12 @@ def naive_branch_allele_frequency_spectrum(
     windows = ts.parse_windows(windows)
     num_windows = len(windows) - 1
     out_dim = [1 + len(sample_set) for sample_set in sample_sets]
-    out = np.zeros([num_windows] + out_dim)
+    out = np.zeros([num_windows, *out_dim])
     for j in range(num_windows):
         begin = windows[j]
         end = windows[j + 1]
         S = np.zeros(out_dim)
-        trees = [
-            next(ts.trees(tracked_samples=sample_set)) for sample_set in sample_sets
-        ]
+        trees = [next(ts.trees(tracked_samples=sample_set)) for sample_set in sample_sets]
         t = trees[0]
         while True:
             tr_len = min(end, t.interval.right) - max(begin, t.interval.left)
@@ -3590,7 +3567,7 @@ def branch_allele_frequency_spectrum(
     out_dim = [1 + len(sample_set) for sample_set in sample_sets]
     time = ts.tables.nodes.time
 
-    result = np.zeros([num_windows] + out_dim)
+    result = np.zeros([num_windows, *out_dim])
     # Number of nodes in sample_set j ancestral to each node u.
     count = np.zeros((ts.num_nodes, num_sample_sets + 1), dtype=np.uint32)
     for j in range(num_sample_sets):
@@ -3610,7 +3587,7 @@ def branch_allele_frequency_spectrum(
             c = count[u, :num_sample_sets]
             if not polarised:
                 c = fold(c, out_dim)
-            index = tuple([window_index] + list(c))
+            index = tuple([window_index, *list(c)])
             result[index] += x
         last_update[u] = right
 
@@ -3673,9 +3650,9 @@ def site_allele_frequency_spectrum(
     num_windows = windows.shape[0] - 1
     out_dim = [1 + len(sample_set) for sample_set in sample_sets]
 
-    result = np.zeros([num_windows] + out_dim)
+    result = np.zeros([num_windows, *out_dim])
     # Add an extra sample set to count across all samples
-    sample_sets = list(sample_sets) + [ts.samples()]
+    sample_sets = [*list(sample_sets), ts.samples()]
     # Number of nodes in sample_set j ancestral to each node u.
     count = np.zeros((ts.num_nodes, len(sample_sets)), dtype=np.uint32)
     for j in range(len(sample_sets)):
@@ -3786,9 +3763,7 @@ class TestAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
         self.assertArrayEqual(a1, a2)
         for windows in [None, (0, L), (0, L / 2, L)]:
             a1 = ts.allele_frequency_spectrum(mode=self.mode, windows=windows)
-            a2 = ts.allele_frequency_spectrum(
-                [samples], mode=self.mode, windows=windows
-            )
+            a2 = ts.allele_frequency_spectrum([samples], mode=self.mode, windows=windows)
             self.assertArrayEqual(a1, a2)
         for polarised in [True, False]:
             a1 = ts.allele_frequency_spectrum(mode=self.mode, polarised=polarised)
@@ -3810,9 +3785,7 @@ class TestAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
         # print(ts.draw_text())
         # print("sample_sets = ", sample_sets)
         windows = ts.parse_windows(windows)
-        for span_normalise, polarised in itertools.product(
-            [True, False], [True, False]
-        ):
+        for span_normalise, polarised in itertools.product([True, False], [True, False]):
             sfs1 = naive_allele_frequency_spectrum(
                 ts,
                 sample_sets,
@@ -3975,7 +3948,7 @@ class TestSampleSets(StatsTestCase):
 
     def test_duplicate_samples(self):
         ts = self.get_example_ts()
-        for bad_set in [[1, 1], [1, 2, 1], list(range(10)) + [9]]:
+        for bad_set in [[1, 1], [1, 2, 1], [*list(range(10)), 9]]:
             with pytest.raises(exceptions.LibraryError):
                 ts.diversity([bad_set])
             with pytest.raises(exceptions.LibraryError):
@@ -4007,10 +3980,10 @@ class TestSampleSets(StatsTestCase):
             ts.sample_count_stat([[ts.num_samples]], self.identity_f(ts), 1)
 
     def test_span_normalise(self):
-        np.random.seed(92)
+        rng = np.random.default_rng(92)
         ts = self.get_example_ts()
         sample_sets = [[0, 1], [2, 3, 4], [5, 6]]
-        windows = ts.sequence_length * np.random.uniform(size=10)
+        windows = ts.sequence_length * rng.uniform(size=10)
         windows.sort()
         windows[0] = 0.0
         windows[-1] = ts.sequence_length
@@ -4693,14 +4666,14 @@ class TraitCovarianceMixin:
             ts.trait_correlation(W[1:, :])
 
 
-@pytest.mark.slow
+@pytest.mark.slow()
 class TestBranchTraitCovariance(
     TestTraitCovariance, TopologyExamplesMixin, TraitCovarianceMixin
 ):
     mode = "branch"
 
 
-@pytest.mark.slow
+@pytest.mark.slow()
 class TestNodeTraitCovariance(
     TestTraitCovariance, TopologyExamplesMixin, TraitCovarianceMixin
 ):
@@ -4871,9 +4844,7 @@ class TestTraitCorrelation(TestTraitCovariance):
             else:
                 return x[:-1] * 0.0
 
-        self.verify_definition(
-            ts, W, windows, f, ts.trait_correlation, trait_correlation
-        )
+        self.verify_definition(ts, W, windows, f, ts.trait_correlation, trait_correlation)
 
     def test_errors(self):
         ts = self.get_example_ts()
@@ -4915,14 +4886,14 @@ class TraitCorrelationMixin:
         self.verify_standardising(ts, trait_correlation, ts.trait_correlation)
 
 
-@pytest.mark.slow
+@pytest.mark.slow()
 class TestBranchTraitCorrelation(
     TestTraitCorrelation, TopologyExamplesMixin, TraitCorrelationMixin
 ):
     mode = "branch"
 
 
-@pytest.mark.slow
+@pytest.mark.slow()
 class TestNodeTraitCorrelation(
     TestTraitCorrelation, TopologyExamplesMixin, TraitCorrelationMixin
 ):
@@ -5109,7 +5080,7 @@ class TestTraitLinearModel(StatsTestCase, WeightStatsMixin):
         return ts
 
     def example_covariates(self, ts):
-        np.random.seed(999)
+        rng = np.random.default_rng(999)
         N = ts.num_samples
         for k in [1, 2, 5]:
             k = min(k, ts.num_samples)
@@ -5117,7 +5088,7 @@ class TestTraitLinearModel(StatsTestCase, WeightStatsMixin):
             Z[1, :] = np.arange(k, 2 * k)
             yield Z
             for j in range(k):
-                Z[:, j] = np.random.normal(0, 1, N)
+                Z[:, j] = rng.normal(0, 1, N)
             yield Z
 
     def transform_weights(self, W, Z):
@@ -5249,14 +5220,14 @@ class TraitLinearModelMixin:
             ts.trait_regression(W, Z=Z, mode=self.mode)
 
 
-@pytest.mark.slow
+@pytest.mark.slow()
 class TestBranchTraitLinearModel(
     TestTraitLinearModel, TopologyExamplesMixin, TraitLinearModelMixin
 ):
     mode = "branch"
 
 
-@pytest.mark.slow
+@pytest.mark.slow()
 class TestNodeTraitLinearModel(
     TestTraitLinearModel, TopologyExamplesMixin, TraitLinearModelMixin
 ):
@@ -5290,7 +5261,7 @@ class SampleSetStatTestCase(StatsTestCase):
         for sample_set in sample_sets:
             windows = [
                 k * ts.sequence_length / 20
-                for k in [0] + sorted(self.rng.sample(range(1, 20), 4)) + [20]
+                for k in [0, *sorted(self.rng.sample(range(1, 20), 4)), 20]
             ]
             win_args = [
                 {"begin": windows[i], "end": windows[i + 1]}
@@ -5375,9 +5346,7 @@ class BranchSampleSetStatsTestCase(SampleSetStatTestCase):
 
     def get_ts(self):
         for N in [12, 15, 20]:
-            yield msprime.simulate(
-                N, random_seed=self.random_seed, recombination_rate=10
-            )
+            yield msprime.simulate(N, random_seed=self.random_seed, recombination_rate=10)
 
     @pytest.mark.skip(reason="Skipping SFS.")
     def test_sfs_interface(self):
@@ -5636,9 +5605,7 @@ class SpecificTreesTestCase(StatsTestCase):
         def f(x):
             return np.array(
                 [
-                    float(
-                        ((x[0] == 1) and (x[1] == 0)) or ((x[0] == 0) and (x[1] == 2))
-                    )
+                    float(((x[0] == 1) and (x[1] == 0)) or ((x[0] == 0) and (x[1] == 2)))
                     / 2.0
                 ]
             )
@@ -5741,9 +5708,7 @@ class SpecificTreesTestCase(StatsTestCase):
         )
         self.assertArrayAlmostEqual(py_r, ts_r)
         self.assertArrayAlmostEqual(true_cov, py_r * (geno_var[:, np.newaxis] ** 2))
-        self.assertArrayAlmostEqual(
-            true_cor, ts_r * geno_var[:, np.newaxis] / trait_var
-        )
+        self.assertArrayAlmostEqual(true_cor, ts_r * geno_var[:, np.newaxis] / trait_var)
 
     def test_case_odds_and_ends(self):
         # Tests having (a) the first site after the first window, and
@@ -5891,9 +5856,7 @@ class SpecificTreesTestCase(StatsTestCase):
         self.assertAlmostEqual(0.0, f4(ts, A, [(0, 1, 2, 3)], mode=mode)[0])
         self.assertAlmostEqual(0.0, ts.f4(A, mode=mode))
         A = [[0, 2], [1, 3]]
-        self.assertAlmostEqual(
-            branch_true_f2_02_13, f2(ts, A, [(0, 1)], mode=mode)[0][0]
-        )
+        self.assertAlmostEqual(branch_true_f2_02_13, f2(ts, A, [(0, 1)], mode=mode)[0][0])
         self.assertAlmostEqual(branch_true_f2_02_13, ts.f2(A, mode=mode))
 
         # diversity
@@ -6112,9 +6075,7 @@ class SpecificTreesTestCase(StatsTestCase):
         def f(x):
             return np.array(
                 [
-                    float(
-                        ((x[0] == 1) and (x[1] == 0)) or ((x[0] == 0) and (x[1] == 2))
-                    )
+                    float(((x[0] == 1) and (x[1] == 0)) or ((x[0] == 0) and (x[1] == 2)))
                     / 2.0
                 ]
             )
@@ -6445,9 +6406,7 @@ class TestOutputDimensions(StatsTestCase):
             self.assertArrayEqual(x, y)
 
         mode = "node"
-        x = method(
-            [A, B, C], indexes=[[0, 1, 2], [0, 2, 1]], windows=windows, mode=mode
-        )
+        x = method([A, B, C], indexes=[[0, 1, 2], [0, 2, 1]], windows=windows, mode=mode)
         # Three windows, N nodes and 2 triples
         assert x.shape == (3, N, 2)
 

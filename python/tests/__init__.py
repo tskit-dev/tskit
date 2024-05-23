@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
 import base64
 
 import tskit
+
 from . import tsutil
 from .simplify import *  # NOQA
 
@@ -195,9 +196,7 @@ class PythonTreeSequence:
             pt.left = left
             pt.right = right
             # Add in all the sites
-            pt.site_list = [
-                site for site in self._sites if left <= site.position < right
-            ]
+            pt.site_list = [site for site in self._sites if left <= site.position < right]
             yield pt
             pt.index += 1
         pt.index = -1

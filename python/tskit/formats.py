@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2016-2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -24,6 +24,7 @@
 Module responsible for converting tree sequence files from older
 formats.
 """
+
 import datetime
 import json
 import logging
@@ -231,7 +232,7 @@ def get_h5py():
         raise ImportError(
             "Legacy formats require h5py. Install via `pip install h5py`"
             " or `conda install h5py`"
-        )
+        ) from None
     return h5py
 
 
@@ -326,7 +327,7 @@ def _dump_legacy_hdf5_v3(tree_sequence, root):
     trees = root.create_group("trees")
     # Get the breakpoints from the records.
     left = [cr.left for cr in tree_sequence.records()]
-    breakpoints = np.unique(left + [tree_sequence.sequence_length])
+    breakpoints = np.unique([*left, tree_sequence.sequence_length])
     trees.create_dataset(
         "breakpoints", (len(breakpoints),), data=breakpoints, dtype=float
     )
@@ -349,12 +350,8 @@ def _dump_legacy_hdf5_v3(tree_sequence, root):
     records_group.create_dataset("left", (length,), data=left, dtype="u4")
     records_group.create_dataset("right", (length,), data=right, dtype="u4")
     records_group.create_dataset("node", (length,), data=node, dtype="u4")
-    records_group.create_dataset(
-        "num_children", (length,), data=num_children, dtype="u4"
-    )
-    records_group.create_dataset(
-        "children", (len(children),), data=children, dtype="u4"
-    )
+    records_group.create_dataset("num_children", (length,), data=num_children, dtype="u4")
+    records_group.create_dataset("children", (len(children),), data=children, dtype="u4")
 
     indexes_group = trees.create_group("indexes")
     left_index = sorted(range(length), key=lambda j: (left[j], time[j]))
@@ -362,9 +359,7 @@ def _dump_legacy_hdf5_v3(tree_sequence, root):
     indexes_group.create_dataset(
         "insertion_order", (length,), data=left_index, dtype="u4"
     )
-    indexes_group.create_dataset(
-        "removal_order", (length,), data=right_index, dtype="u4"
-    )
+    indexes_group.create_dataset("removal_order", (length,), data=right_index, dtype="u4")
 
     nodes_group = trees.create_group("nodes")
     population = np.zeros(tree_sequence.num_nodes, dtype="u4")
@@ -455,9 +450,7 @@ def _dump_legacy_hdf5_v10(tree_sequence, root):
     _add_dataset(mutations, "node", tables.mutations.node)
     _add_dataset(mutations, "parent", tables.mutations.parent)
     _add_dataset(mutations, "derived_state", tables.mutations.derived_state)
-    _add_dataset(
-        mutations, "derived_state_offset", tables.mutations.derived_state_offset
-    )
+    _add_dataset(mutations, "derived_state_offset", tables.mutations.derived_state_offset)
     _add_dataset(mutations, "metadata", tables.mutations.metadata)
     _add_dataset(mutations, "metadata_offset", tables.mutations.metadata_offset)
 

@@ -23,6 +23,7 @@
 """
 Test cases for the low level C interface to tskit.
 """
+
 import collections
 import gc
 import inspect
@@ -37,7 +38,6 @@ import pytest
 
 import _tskit
 import tskit
-
 
 NON_UTF8_STRING = "\ud861\udd37"
 
@@ -151,7 +151,7 @@ class LowLevelTestCase:
 
 
 class MetadataTestMixin:
-    metadata_tables = [
+    metadata_tables = (
         "node",
         "edge",
         "site",
@@ -159,7 +159,7 @@ class MetadataTestMixin:
         "migration",
         "individual",
         "population",
-    ]
+    )
 
 
 class TestTableCollection(LowLevelTestCase):
@@ -509,9 +509,9 @@ class TestIbd:
         with pytest.raises(SystemError):
             result.print_state()
         with pytest.raises(SystemError):
-            result.num_segments
+            result.num_segments  # noqa: B018
         with pytest.raises(SystemError):
-            result.total_span
+            result.total_span  # noqa: B018
         with pytest.raises(SystemError):
             result.get_keys()
 
@@ -530,7 +530,7 @@ class TestIbd:
         with pytest.raises(_tskit.IdentityPairsNotStoredError):
             result.get_keys()
         with pytest.raises(_tskit.IdentityPairsNotStoredError):
-            result.num_pairs
+            result.num_pairs  # noqa: B018
         with pytest.raises(_tskit.IdentityPairsNotStoredError):
             result.get(0, 1)
 
@@ -543,11 +543,11 @@ class TestIbd:
         assert seglist.num_segments == 1
         assert seglist.total_span == 1
         with pytest.raises(_tskit.IdentitySegmentsNotStoredError):
-            seglist.node
+            seglist.node  # noqa: B018
         with pytest.raises(_tskit.IdentitySegmentsNotStoredError):
-            seglist.left
+            seglist.left  # noqa: B018
         with pytest.raises(_tskit.IdentitySegmentsNotStoredError):
-            seglist.right
+            seglist.right  # noqa: B018
 
     def test_within_all_pairs(self):
         ts = msprime.simulate(10, random_seed=1)
@@ -737,7 +737,7 @@ class TestTableMethods:
 
     @pytest.mark.parametrize("table_name", tskit.TABLE_NAMES)
     @pytest.mark.parametrize(
-        ["row_indexes", "expected_rows"],
+        ("row_indexes", "expected_rows"),
         [
             ([0], [0]),
             ([4] * 1000, [4] * 1000),
@@ -750,9 +750,7 @@ class TestTableMethods:
             (range(2, -1, -1), [2, 1, 0]),
         ],
     )
-    def test_table_extend_types(
-        self, ts_fixture, table_name, row_indexes, expected_rows
-    ):
+    def test_table_extend_types(self, ts_fixture, table_name, row_indexes, expected_rows):
         table = getattr(ts_fixture.tables, table_name)
         assert len(table) >= 5
         ll_table = table.ll_table
@@ -806,13 +804,11 @@ class TestTableMethods:
     def test_individual_table_keep_rows_ref_error(self):
         table = _tskit.IndividualTable()
         table.add_row(parents=[2])
-        with pytest.raises(
-            _tskit.LibraryError, match="TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS"
-        ):
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_INDIVIDUAL_OUT_OF_BOUNDS"):
             table.keep_rows([True])
 
     @pytest.mark.parametrize(
-        ["table_name", "column_name"],
+        ("table_name", "column_name"),
         [
             (t, c)
             for t in tskit.TABLE_NAMES
@@ -1098,9 +1094,7 @@ class TestTableMethodsErrors:
 
         modify_indexes = tc.indexes
         modify_indexes["edge_insertion_order"] = np.arange(42, 42 + 18, dtype=np.int32)
-        modify_indexes["edge_removal_order"] = np.arange(
-            4242, 4242 + 18, dtype=np.int32
-        )
+        modify_indexes["edge_removal_order"] = np.arange(4242, 4242 + 18, dtype=np.int32)
         tc.indexes = modify_indexes
         assert np.array_equal(
             tc.indexes["edge_insertion_order"], np.arange(42, 42 + 18, dtype=np.int32)
@@ -1148,9 +1142,7 @@ class TestTableMethodsErrors:
             ):
                 tc.indexes = d
 
-        tc = msprime.simulate(
-            10, recombination_rate=10, random_seed=42
-        ).tables._ll_tables
+        tc = msprime.simulate(10, recombination_rate=10, random_seed=42).tables._ll_tables
         modify_indexes = tc.indexes
         shape = modify_indexes["edge_insertion_order"].shape
         modify_indexes["edge_insertion_order"] = np.zeros(shape, dtype=np.int32)
@@ -1176,7 +1168,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
     Tests for the low-level interface for the TreeSequence.
     """
 
-    ARRAY_NAMES = [
+    ARRAY_NAMES = (
         "individuals_flags",
         "nodes_time",
         "nodes_flags",
@@ -1199,7 +1191,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         "migrations_time",
         "indexes_edge_insertion_order",
         "indexes_edge_removal_order",
-    ]
+    )
 
     def setUp(self):
         fd, self.temp_file = tempfile.mkstemp(prefix="msp_ll_ts_")
@@ -1507,9 +1499,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         with pytest.raises(_tskit.LibraryError, match="positive"):
             ts1.extend_edges(-1)
         tsm = self.get_example_migration_tree_sequence()
-        with pytest.raises(
-            _tskit.LibraryError, match="TSK_ERR_MIGRATIONS_NOT_SUPPORTED"
-        ):
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_MIGRATIONS_NOT_SUPPORTED"):
             tsm.extend_edges(1)
 
     @pytest.mark.parametrize(
@@ -1546,75 +1536,65 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         assert a.shape == (10, 10, 1)
 
         # CPython API errors
+        bad_sample_sets = np.array([], dtype=np.int32)
         with pytest.raises(ValueError, match="Sum of sample_set_sizes"):
-            bad_sample_sets = np.array([], dtype=np.int32)
             stat_method(sample_set_sizes, bad_sample_sets, row_sites, col_sites, mode)
+        bad_sample_sets = np.array(ts.get_samples(), dtype=np.uint32)
         with pytest.raises(TypeError, match="cast array data"):
-            bad_sample_sets = np.array(ts.get_samples(), dtype=np.uint32)
             stat_method(sample_set_sizes, bad_sample_sets, row_sites, col_sites, mode)
         with pytest.raises(ValueError, match="Unrecognised stats mode"):
             stat_method(sample_set_sizes, sample_sets, row_sites, col_sites, "bla")
         with pytest.raises(TypeError, match="at most"):
-            stat_method(
-                sample_set_sizes, sample_sets, row_sites, col_sites, mode, "abc"
-            )
+            stat_method(sample_set_sizes, sample_sets, row_sites, col_sites, mode, "abc")
+        bad_sites = ["abadsite", 0, 3, 2]
         with pytest.raises(ValueError, match="invalid literal"):
-            bad_sites = ["abadsite", 0, 3, 2]
             stat_method(sample_set_sizes, sample_sets, bad_sites, col_sites, mode)
+        bad_sites = [None, 0, 3, 2]
         with pytest.raises(TypeError):
-            bad_sites = [None, 0, 3, 2]
             stat_method(sample_set_sizes, sample_sets, bad_sites, col_sites, mode)
+        bad_sites = [{}, 0, 3, 2]
         with pytest.raises(TypeError):
-            bad_sites = [{}, 0, 3, 2]
             stat_method(sample_set_sizes, sample_sets, bad_sites, col_sites, mode)
+        bad_sites = np.array([0, 1, 2], dtype=np.uint32)
         with pytest.raises(TypeError, match="Cannot cast array data"):
-            bad_sites = np.array([0, 1, 2], dtype=np.uint32)
             stat_method(sample_set_sizes, sample_sets, bad_sites, col_sites, mode)
+        bad_sites = ["abadsite", 0, 3, 2]
         with pytest.raises(ValueError, match="invalid literal"):
-            bad_sites = ["abadsite", 0, 3, 2]
             stat_method(sample_set_sizes, sample_sets, row_sites, bad_sites, mode)
+        bad_sites = [None, 0, 3, 2]
+        bad_sites = [None, 0, 3, 2]
         with pytest.raises(TypeError):
-            bad_sites = [None, 0, 3, 2]
             stat_method(sample_set_sizes, sample_sets, row_sites, bad_sites, mode)
+        bad_sites = [{}, 0, 3, 2]
         with pytest.raises(TypeError):
-            bad_sites = [{}, 0, 3, 2]
             stat_method(sample_set_sizes, sample_sets, row_sites, bad_sites, mode)
+        bad_sites = np.array([0, 1, 2], dtype=np.uint32)
         with pytest.raises(TypeError, match="Cannot cast array data"):
-            bad_sites = np.array([0, 1, 2], dtype=np.uint32)
             stat_method(sample_set_sizes, sample_sets, row_sites, bad_sites, mode)
+
         # C API errors
+        bad_sites = np.array([1, 0, 2], dtype=np.int32)
         with pytest.raises(tskit.LibraryError, match="TSK_ERR_UNSORTED_SITES"):
-            bad_sites = np.array([1, 0, 2], dtype=np.int32)
             stat_method(sample_set_sizes, sample_sets, bad_sites, col_sites, mode)
+        bad_sites = np.array([1, 0, 2], dtype=np.int32)
         with pytest.raises(tskit.LibraryError, match="TSK_ERR_UNSORTED_SITES"):
-            bad_sites = np.array([1, 0, 2], dtype=np.int32)
             stat_method(sample_set_sizes, sample_sets, row_sites, bad_sites, mode)
-        with pytest.raises(
-            _tskit.LibraryError, match="TSK_ERR_INSUFFICIENT_SAMPLE_SETS"
-        ):
-            bad_sample_sets = np.array([], dtype=np.int32)
-            bad_sample_set_sizes = np.array([], dtype=np.uint32)
-            stat_method(
-                bad_sample_set_sizes, bad_sample_sets, row_sites, col_sites, mode
-            )
+        bad_sample_sets = np.array([], dtype=np.int32)
+        bad_sample_set_sizes = np.array([], dtype=np.uint32)
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_INSUFFICIENT_SAMPLE_SETS"):
+            stat_method(bad_sample_set_sizes, bad_sample_sets, row_sites, col_sites, mode)
+        bad_sample_sets = np.array([], dtype=np.int32)
+        bad_sample_set_sizes = np.array([0], dtype=np.uint32)
         with pytest.raises(_tskit.LibraryError, match="TSK_ERR_EMPTY_SAMPLE_SET"):
-            bad_sample_sets = np.array([], dtype=np.int32)
-            bad_sample_set_sizes = np.array([0], dtype=np.uint32)
-            stat_method(
-                bad_sample_set_sizes, bad_sample_sets, row_sites, col_sites, mode
-            )
+            stat_method(bad_sample_set_sizes, bad_sample_sets, row_sites, col_sites, mode)
+        bad_sample_sets = np.array([1000], dtype=np.int32)
+        bad_sample_set_sizes = np.array([1], dtype=np.uint32)
         with pytest.raises(_tskit.LibraryError, match="TSK_ERR_NODE_OUT_OF_BOUNDS"):
-            bad_sample_sets = np.array([1000], dtype=np.int32)
-            bad_sample_set_sizes = np.array([1], dtype=np.uint32)
-            stat_method(
-                bad_sample_set_sizes, bad_sample_sets, row_sites, col_sites, mode
-            )
+            stat_method(bad_sample_set_sizes, bad_sample_sets, row_sites, col_sites, mode)
+        bad_sample_sets = np.array([2, 2], dtype=np.int32)
+        bad_sample_set_sizes = np.array([2], dtype=np.uint32)
         with pytest.raises(_tskit.LibraryError, match="TSK_ERR_DUPLICATE_SAMPLE"):
-            bad_sample_sets = np.array([2, 2], dtype=np.int32)
-            bad_sample_set_sizes = np.array([2], dtype=np.uint32)
-            stat_method(
-                bad_sample_set_sizes, bad_sample_sets, row_sites, col_sites, mode
-            )
+            stat_method(bad_sample_set_sizes, bad_sample_sets, row_sites, col_sites, mode)
         with pytest.raises(_tskit.LibraryError, match="TSK_ERR_UNSUPPORTED_STAT_MODE"):
             stat_method(sample_set_sizes, sample_sets, row_sites, col_sites, "branch")
 
@@ -1720,9 +1700,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             assert tables4.has_index()
 
     def test_clear_table(self, ts_fixture):
-        tables = _tskit.TableCollection(
-            sequence_length=ts_fixture.get_sequence_length()
-        )
+        tables = _tskit.TableCollection(sequence_length=ts_fixture.get_sequence_length())
         ts_fixture.ll_tree_sequence.dump_tables(tables)
         tables.clear()
         data_tables = [t for t in tskit.TABLE_NAMES if t != "provenances"]
@@ -2182,11 +2160,11 @@ class TestAlleleFrequencySpectrum(LowLevelTestCase, OneWaySampleStatsMixin):
                     jafs = ts.allele_frequency_spectrum(
                         s, samples, windows, mode=mode, polarised=True
                     )
-                    assert jafs.shape == tuple([len(windows) - 1] + list(s + 1))
+                    assert jafs.shape == tuple([len(windows) - 1, *list(s + 1)])
                     jafs = ts.allele_frequency_spectrum(
                         s, samples, windows, mode=mode, polarised=False
                     )
-                    assert jafs.shape == tuple([len(windows) - 1] + list(s + 1))
+                    assert jafs.shape == tuple([len(windows) - 1, *list(s + 1)])
 
     def test_node_mode_not_supported(self):
         ts = self.get_example_tree_sequence()
@@ -2245,9 +2223,7 @@ class TwoWaySampleStatsMixin(SampleSetMixin):
         assert div.shape == (1, N, 1)
         div = method([2, 2, n - 4], samples, [[0, 1], [1, 2]], windows, mode=mode)
         assert div.shape == (1, N, 2)
-        div = method(
-            [2, 2, n - 4], samples, [[0, 1], [1, 2], [0, 1]], windows, mode=mode
-        )
+        div = method([2, 2, n - 4], samples, [[0, 1], [1, 2], [0, 1]], windows, mode=mode)
         assert div.shape == (1, N, 3)
 
     def test_set_index_errors(self):
@@ -2653,7 +2629,10 @@ class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):
         for bad_array in [[1, 1], range(10)]:
             with pytest.raises(ValueError):
                 ts.general_stat(
-                    W, lambda x: bad_array, 1, ts.get_breakpoints()  # noqa:B023
+                    W,
+                    lambda x, bad_array=bad_array: bad_array,
+                    1,
+                    ts.get_breakpoints(),
                 )
         with pytest.raises(ValueError):
             ts.general_stat(W, lambda x: [1], 2, ts.get_breakpoints())
@@ -2662,7 +2641,10 @@ class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):
         for bad_array in [["sdf"], 0, "w4", None]:
             with pytest.raises(ValueError):
                 ts.general_stat(
-                    W, lambda x: bad_array, 1, ts.get_breakpoints()  # noqa:B023
+                    W,
+                    lambda x, bad_array=bad_array: bad_array,
+                    1,
+                    ts.get_breakpoints(),
                 )
 
 
@@ -2829,9 +2811,7 @@ class TestVariant(LowLevelTestCase):
         alleles = variant.alleles
         site_id = variant.site_id
         variant.decode(1)
-        with pytest.raises(
-            tskit.LibraryError, match="Can't decode a copy of a variant"
-        ):
+        with pytest.raises(tskit.LibraryError, match="Can't decode a copy of a variant"):
             variant2.decode(1)
         assert site_id == variant2.site_id
         assert alleles == variant2.alleles
@@ -3119,7 +3099,7 @@ class TestTree(LowLevelTestCase):
     Tests on the low-level tree interface.
     """
 
-    ARRAY_NAMES = [
+    ARRAY_NAMES = (
         "parent",
         "left_child",
         "right_child",
@@ -3127,7 +3107,7 @@ class TestTree(LowLevelTestCase):
         "right_sib",
         "num_children",
         "edge",
-    ]
+    )
 
     def test_options(self):
         ts = self.get_example_tree_sequence()

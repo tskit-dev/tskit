@@ -48,9 +48,7 @@ def _slide_mutation_nodes_up(ts, mutations):
     mut = 0
     for tree in ts.trees():
         _, right = tree.interval
-        while (
-            mut < mutations.num_rows and ts.sites_position[mutations.site[mut]] < right
-        ):
+        while mut < mutations.num_rows and ts.sites_position[mutations.site[mut]] < right:
             t = mutations.time[mut]
             c = mutations.node[mut]
             p = tree.parent(c)
@@ -282,11 +280,7 @@ class TestExtendEdges:
                     else:
                         this_chains = chains[j]
                     for a, b, c in this_chains:
-                        if (
-                            a in tt.nodes()
-                            and tt.parent(a) == c
-                            and b not in tt.nodes()
-                        ):
+                        if a in tt.nodes() and tt.parent(a) == c and b not in tt.nodes():
                             # the relationship a <- b <- c should still be in the tree,
                             # although maybe they aren't direct parent-offspring
                             # UNLESS we've got an ambiguous case, where on the opposite
@@ -345,9 +339,7 @@ class TestExtendEdges:
         tables.populations.add_row()
         tables.migrations.add_row(0, 1, 0, 0, 1, 0)
         ts = tables.tree_sequence()
-        with pytest.raises(
-            _tskit.LibraryError, match="TSK_ERR_MIGRATIONS_NOT_SUPPORTED"
-        ):
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_MIGRATIONS_NOT_SUPPORTED"):
             _ = ts.extend_edges()
 
     def test_unknown_times(self):

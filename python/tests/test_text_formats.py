@@ -22,6 +22,7 @@
 """
 Test cases for converting fam file to tskit
 """
+
 import dataclasses
 import tempfile
 from dataclasses import asdict

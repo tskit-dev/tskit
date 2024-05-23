@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@ but should be imported into another test module that imports a
 compiled module exporting the LightweightTableCollection class.
 See the test_example_c_module file for an example.
 """
+
 import copy
 
 import kastore
@@ -98,7 +99,7 @@ def full_ts():
 
 # The ts above is used for the whole test session, but our tests need fresh tables to
 # modify
-@pytest.fixture
+@pytest.fixture()
 def tables(full_ts):
     return full_ts.dump_tables()
 
@@ -183,9 +184,7 @@ class TestRoundTrip:
                     {
                         "codec": "struct",
                         "type": "object",
-                        "properties": {
-                            table: {"type": "string", "binaryFormat": "50p"}
-                        },
+                        "properties": {table: {"type": "string", "binaryFormat": "50p"}},
                     }
                 )
 
@@ -459,9 +458,7 @@ class TestRequiredAndOptionalColumns:
             out[table_name][col_name], np.zeros(table_len, dtype=np.int32) - 1
         )
 
-    def verify_offset_pair(
-        self, tables, table_len, table_name, col_name, required=False
-    ):
+    def verify_offset_pair(self, tables, table_len, table_name, col_name, required=False):
         offset_col = col_name + "_offset"
 
         if not required:
@@ -544,9 +541,7 @@ class TestRequiredAndOptionalColumns:
         self.verify_offset_pair(
             tables, len(tables.individuals), "individuals", "location"
         )
-        self.verify_offset_pair(
-            tables, len(tables.individuals), "individuals", "parents"
-        )
+        self.verify_offset_pair(tables, len(tables.individuals), "individuals", "parents")
         self.verify_offset_pair(
             tables, len(tables.individuals), "individuals", "metadata"
         )
@@ -578,9 +573,7 @@ class TestRequiredAndOptionalColumns:
         self.verify_required_columns(
             tables, "migrations", ["left", "right", "node", "source", "dest", "time"]
         )
-        self.verify_offset_pair(
-            tables, len(tables.migrations), "migrations", "metadata"
-        )
+        self.verify_offset_pair(tables, len(tables.migrations), "migrations", "metadata")
         self.verify_optional_column(tables, len(tables.nodes), "nodes", "individual")
         self.verify_metadata_schema(tables, "migrations")
 
@@ -674,9 +667,7 @@ class TestRequiredAndOptionalColumns:
         assert get_refseq(d).is_null()
 
         # All empty strings is the same thing
-        d["reference_sequence"] = dict(
-            data="", url="", metadata_schema="", metadata=b""
-        )
+        d["reference_sequence"] = dict(data="", url="", metadata_schema="", metadata=b"")
         assert get_refseq(d).is_null()
 
         del refseq_dict["metadata_schema"]  # handled above

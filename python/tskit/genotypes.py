@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -291,9 +291,7 @@ class Variant:
         if remove_missing:
             total -= self.num_missing
         if total == 0:
-            logging.warning(
-                "No non-missing samples at this site, frequencies undefined"
-            )
+            logging.warning("No non-missing samples at this site, frequencies undefined")
         return {
             allele: count / total if total > 0 else np.nan
             for allele, count in self.counts().items()
@@ -349,7 +347,7 @@ class Variant:
             "has_missing_data": self.has_missing_data,
             "isolated_as_missing": self.isolated_as_missing,
         }
-        return f"Variant({repr(d)})"
+        return f"Variant({d!r})"
 
 
 #

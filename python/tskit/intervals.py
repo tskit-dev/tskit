@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2023 Tskit Developers
+# Copyright (c) 2024 Tskit Developers
 # Copyright (C) 2020-2021 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -24,6 +24,7 @@
 """
 Utilities for working with intervals and interval maps.
 """
+
 from __future__ import annotations
 
 import collections.abc
@@ -355,9 +356,7 @@ class RateMap(collections.abc.Mapping):
         return headers, rows
 
     def __str__(self):
-        header, rows = self._text_header_and_rows(
-            limit=tskit._print_options["max_lines"]
-        )
+        header, rows = self._text_header_and_rows(limit=tskit._print_options["max_lines"])
         table = util.unicode_table(
             rows=rows,
             header=header,
@@ -366,13 +365,11 @@ class RateMap(collections.abc.Mapping):
         return table
 
     def _repr_html_(self):
-        header, rows = self._text_header_and_rows(
-            limit=tskit._print_options["max_lines"]
-        )
+        header, rows = self._text_header_and_rows(limit=tskit._print_options["max_lines"])
         return util.html_table(rows, header=header)
 
     def __repr__(self):
-        return f"RateMap(position={repr(self.position)}, rate={repr(self.rate)})"
+        return f"RateMap(position={self.position!r}, rate={self.rate!r})"
 
     #
     # Methods for building rate maps.
@@ -386,7 +383,7 @@ class RateMap(collections.abc.Mapping):
         # no need for copying.
         return RateMap(position=self.position, rate=self.rate)
 
-    def slice(self, left=None, right=None, *, trim=False) -> RateMap:  # noqa: A003
+    def slice(self, left=None, right=None, *, trim=False) -> RateMap:
         """
         Returns a subset of this rate map in the specified interval.
 

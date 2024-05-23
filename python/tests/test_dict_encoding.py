@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2020 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -23,13 +23,14 @@
 Test cases for the low-level dictionary encoding used to move
 data around in C.
 """
+
 import pathlib
 import pickle
 
-import _tskit
 import lwt_interface.dict_encoding_testlib
-import tskit
 
+import _tskit
+import tskit
 
 lwt_interface.dict_encoding_testlib.lwt_module = _tskit
 # Bring the tests defined in dict_encoding_testlib into the current namespace

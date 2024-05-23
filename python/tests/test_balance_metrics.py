@@ -22,6 +22,7 @@
 """
 Tests for tree balance/imbalance metrics.
 """
+
 import math
 
 import numpy as np

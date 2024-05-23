@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2021-2022 Tskit Developers
+# Copyright (c) 2021-2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
 """
 Tests for reference sequence support.
 """
+
 import pytest
 
 import tskit
@@ -81,9 +82,7 @@ class TestTablesProperties:
 
     def test_asdict_reference_metadata(self):
         tables = tskit.TableCollection(1)
-        tables.reference_sequence.metadata_schema = (
-            tskit.MetadataSchema.permissive_json()
-        )
+        tables.reference_sequence.metadata_schema = tskit.MetadataSchema.permissive_json()
         tables.reference_sequence.metadata = {"a": "ABCDEF"}
         d = tables.asdict()["reference_sequence"]
         assert d["data"] == ""
@@ -113,9 +112,7 @@ class TestTablesProperties:
 
     def test_fromdict_reference_metadata(self):
         tables = tskit.TableCollection(1)
-        tables.reference_sequence.metadata_schema = (
-            tskit.MetadataSchema.permissive_json()
-        )
+        tables.reference_sequence.metadata_schema = tskit.MetadataSchema.permissive_json()
         tables.reference_sequence.metadata = {"a": "ABCDEF"}
         tables = tskit.TableCollection.fromdict(tables.asdict())
         assert tables.has_reference_sequence()
@@ -133,9 +130,7 @@ class TestTablesProperties:
 
     def test_fromdict_all_values_empty(self):
         d = tskit.TableCollection(1).asdict()
-        d["reference_sequence"] = dict(
-            data="", url="", metadata_schema="", metadata=b""
-        )
+        d["reference_sequence"] = dict(data="", url="", metadata_schema="", metadata=b"")
         tables = tskit.TableCollection.fromdict(d)
         assert not tables.has_reference_sequence()
 
@@ -275,9 +270,7 @@ class TestTreeSequenceProperties:
         tables.reference_sequence.data = "abc"
         ts = tables.tree_sequence()
         with pytest.raises(AttributeError, match="read-only"):
-            ts.reference_sequence.metadata_schema = (
-                tskit.MetadataSchema.permissive_json()
-            )
+            ts.reference_sequence.metadata_schema = tskit.MetadataSchema.permissive_json()
 
     def test_write_object_fails(self, ts_fixture):
         tables = tskit.TableCollection(1)

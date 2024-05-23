@@ -24,6 +24,7 @@
 Module for ranking and unranking trees. Trees are considered only
 leaf-labelled and unordered, so order of children does not influence equality.
 """
+
 import collections
 import functools
 import heapq
@@ -268,9 +269,7 @@ def generate_balanced(
         raise ValueError("The arity must be at least 2")
 
     root = TreeNode.balanced_tree(range(num_leaves), arity)
-    tables = root.as_tables(
-        num_leaves=num_leaves, span=span, branch_length=branch_length
-    )
+    tables = root.as_tables(num_leaves=num_leaves, span=span, branch_length=branch_length)
 
     if record_provenance:
         # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
@@ -297,9 +296,7 @@ def generate_random_binary(
 
     rng = random.Random(random_seed)
     root = TreeNode.random_binary_tree(range(num_leaves), rng)
-    tables = root.as_tables(
-        num_leaves=num_leaves, span=span, branch_length=branch_length
-    )
+    tables = root.as_tables(num_leaves=num_leaves, span=span, branch_length=branch_length)
 
     if record_provenance:
         # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
@@ -1035,11 +1032,11 @@ class RankTree:
             k = first.num_leaves
             min_label = labels[0]
             for first_other_labels in itertools.combinations(labels[1:], k - 1):
-                first_labels = [min_label] + list(first_other_labels)
+                first_labels = [min_label, *list(first_other_labels)]
                 rest_labels = set_minus(labels, first_labels)
                 for labeled_first in RankTree.all_labellings(first, first_labels):
                     for labeled_rest in RankTree.label_tree_group(rest, rest_labels):
-                        yield [labeled_first] + labeled_rest
+                        yield [labeled_first, *labeled_rest]
 
     def _newick(self):
         if self.is_leaf():
@@ -1320,9 +1317,7 @@ def group_label_ranks(rank, child_group, labels):
         num_t_labellings = rank_tree.num_labellings()
         rest_trees = child_group[i + 1 :]
         num_rest_assignments = num_assignments_in_group(rest_trees)
-        num_rest_labellings = num_rest_assignments * (
-            num_t_labellings ** len(rest_trees)
-        )
+        num_rest_labellings = num_rest_assignments * (num_t_labellings ** len(rest_trees))
         num_labellings_per_label_comb = num_t_labellings * num_rest_labellings
 
         comb_rank = rank // num_labellings_per_label_comb
@@ -1331,7 +1326,7 @@ def group_label_ranks(rank, child_group, labels):
         rank %= num_rest_labellings
 
         min_label = labels[0]
-        t_labels = [min_label] + Combination.unrank(comb_rank, labels[1:], k - 1)
+        t_labels = [min_label, *Combination.unrank(comb_rank, labels[1:], k - 1)]
         labels = set_minus(labels, t_labels)
 
         child_labels.append(t_labels)

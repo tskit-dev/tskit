@@ -23,9 +23,11 @@
 """
 Convert tree sequences to VCF.
 """
+
 import numpy as np
 
 import tskit
+
 from . import provenance
 
 
@@ -87,9 +89,7 @@ class VcfWriter:
             position_transform(tree_sequence.tables.sites.position), dtype=int
         )
         if self.transformed_positions.shape != (tree_sequence.num_sites,):
-            raise ValueError(
-                "Position transform must return an array of the same length"
-            )
+            raise ValueError("Position transform must return an array of the same length")
         self.contig_length = max(
             1, int(position_transform([tree_sequence.sequence_length])[0])
         )
@@ -193,12 +193,8 @@ class VcfWriter:
         print("##fileformat=VCFv4.2", file=output)
         print(f"##source=tskit {provenance.__version__}", file=output)
         print('##FILTER=<ID=PASS,Description="All filters passed">', file=output)
-        print(
-            f"##contig=<ID={self.contig_id},length={self.contig_length}>", file=output
-        )
-        print(
-            '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">', file=output
-        )
+        print(f"##contig=<ID={self.contig_id},length={self.contig_length}>", file=output)
+        print('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">', file=output)
         vcf_samples = "\t".join(self.individual_names)
         print(
             "#CHROM",

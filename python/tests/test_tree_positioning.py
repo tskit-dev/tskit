@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2023 Tskit Developers
+# Copyright (c) 2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,7 @@
 Tests for tree iterator schemes. Mostly used to develop the incremental
 iterator infrastructure.
 """
+
 import msprime
 import numpy as np
 import pytest
@@ -58,7 +59,7 @@ class StatefulTree:
         assert self.tree_pos.index == other.tree_pos.index
         assert self.tree_pos.interval == other.tree_pos.interval
 
-    def next(self):  # NOQA: A003
+    def next(self):
         valid = self.tree_pos.next()
         if valid:
             for j in range(self.tree_pos.out_range.start, self.tree_pos.out_range.stop):
@@ -81,9 +82,7 @@ class StatefulTree:
                 e = self.tree_pos.out_range.order[j]
                 c = self.ts.edges_child[e]
                 self.parent[c] = -1
-            for j in range(
-                self.tree_pos.in_range.start, self.tree_pos.in_range.stop, -1
-            ):
+            for j in range(self.tree_pos.in_range.start, self.tree_pos.in_range.stop, -1):
                 e = self.tree_pos.in_range.order[j]
                 c = self.ts.edges_child[e]
                 p = self.ts.edges_parent[e]

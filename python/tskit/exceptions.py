@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2021 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,13 +23,16 @@
 """
 Exceptions defined in tskit.
 """
-from _tskit import FileFormatError  # noqa: F401
-from _tskit import IdentityPairsNotStoredError  # noqa: F401
-from _tskit import IdentitySegmentsNotStoredError  # noqa: F401
-from _tskit import LibraryError  # noqa: F401
-from _tskit import TskitException  # noqa: F401
-from _tskit import VersionTooNewError  # noqa: F401
-from _tskit import VersionTooOldError  # noqa: F401
+
+from _tskit import (
+    FileFormatError,  # noqa: F401
+    IdentityPairsNotStoredError,  # noqa: F401
+    IdentitySegmentsNotStoredError,  # noqa: F401
+    LibraryError,  # noqa: F401
+    TskitException,
+    VersionTooNewError,  # noqa: F401
+    VersionTooOldError,  # noqa: F401
+)
 
 
 class DuplicatePositionsError(TskitException):

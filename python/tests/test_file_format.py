@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2016-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,6 +23,7 @@
 """
 Test cases for tskit's file format.
 """
+
 import json
 import os
 import sys
@@ -633,9 +634,7 @@ class TestDumpFormat(TestFileFormat):
 
         assert np.array_equal(tables.metadata, b"".join(store["metadata"]))
         assert np.array_equal(tables.individuals.flags, store["individuals/flags"])
-        assert np.array_equal(
-            tables.individuals.location, store["individuals/location"]
-        )
+        assert np.array_equal(tables.individuals.location, store["individuals/location"])
         assert np.array_equal(
             tables.individuals.location_offset, store["individuals/location_offset"]
         )
@@ -643,9 +642,7 @@ class TestDumpFormat(TestFileFormat):
         assert np.array_equal(
             tables.individuals.parents_offset, store["individuals/parents_offset"]
         )
-        assert np.array_equal(
-            tables.individuals.metadata, store["individuals/metadata"]
-        )
+        assert np.array_equal(tables.individuals.metadata, store["individuals/metadata"])
         assert np.array_equal(
             tables.individuals.metadata_offset, store["individuals/metadata_offset"]
         )
@@ -749,9 +746,7 @@ class TestDumpFormat(TestFileFormat):
             store["mutations/metadata_schema"].astype("U")
         )
 
-        assert np.array_equal(
-            tables.populations.metadata, store["populations/metadata"]
-        )
+        assert np.array_equal(tables.populations.metadata, store["populations/metadata"])
         assert np.array_equal(
             tables.populations.metadata_offset, store["populations/metadata_offset"]
         )
@@ -988,9 +983,7 @@ class TestFileFormatErrors(TestFileFormat):
                 data = dict(all_data)
                 del data[key]
                 kastore.dump(data, self.temp_file)
-                with pytest.raises(
-                    (exceptions.FileFormatError, exceptions.LibraryError)
-                ):
+                with pytest.raises((exceptions.FileFormatError, exceptions.LibraryError)):
                     tskit.load(self.temp_file)
 
     def test_missing_fields(self):
@@ -1000,9 +993,7 @@ class TestFileFormatErrors(TestFileFormat):
         ts.dump(self.temp_file)
         with kastore.load(self.temp_file) as store:
             all_data = dict(store)
-        table_cols = [
-            colname for colname in all_data.keys() if colname.startswith(table)
-        ]
+        table_cols = [colname for colname in all_data.keys() if colname.startswith(table)]
         # Remove all the 'offset' columns
         for col in list(table_cols):
             if col.endswith("_offset"):
@@ -1293,9 +1284,7 @@ class TestSkipReferenceSequence:
         save_path = tmp_path / "tmp.trees"
         ts_fixture.dump(save_path)
         with open(save_path, "rb") as f:
-            tables_no_refseq = tskit.TableCollection.load(
-                f, skip_reference_sequence=True
-            )
+            tables_no_refseq = tskit.TableCollection.load(f, skip_reference_sequence=True)
         tables = ts_fixture.tables
         assert not tables_no_refseq.equals(tables)
         assert tables_no_refseq.equals(tables, ignore_reference_sequence=True)

@@ -22,6 +22,7 @@
 """
 Module responsible for computing various statistics on tree sequences.
 """
+
 import sys
 import threading
 
@@ -52,9 +53,7 @@ class LdCalculator:
 
     def __init__(self, tree_sequence):
         self._tree_sequence = tree_sequence
-        self._ll_ld_calculator = _tskit.LdCalculator(
-            tree_sequence.get_ll_tree_sequence()
-        )
+        self._ll_ld_calculator = _tskit.LdCalculator(tree_sequence.get_ll_tree_sequence())
         # To protect low-level C code, only one method may execute on the
         # low-level objects at one time.
         self._instance_lock = threading.Lock()

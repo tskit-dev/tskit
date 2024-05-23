@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2015-2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,6 +23,7 @@
 """
 Module responsible for visualisations.
 """
+
 import collections
 import itertools
 import math
@@ -30,17 +31,14 @@ import numbers
 import operator
 import warnings
 from dataclasses import dataclass
-from typing import List
-from typing import Mapping
-from typing import Union
+from typing import List, Mapping, Union
 
 import numpy as np
 import svgwrite
 
 import tskit
 import tskit.util as util
-from _tskit import NODE_IS_SAMPLE
-from _tskit import NULL
+from _tskit import NODE_IS_SAMPLE, NULL
 
 LEFT = "left"
 RIGHT = "right"
@@ -57,6 +55,7 @@ OMIT_MIDDLE = 8
 @dataclass
 class Offsets:
     "Used when x_lim set, and displayed ts has been cut down by keep_intervals"
+
     tree: int = 0
     site: int = 0
     mutation: int = 0
@@ -65,6 +64,7 @@ class Offsets:
 @dataclass(frozen=True)
 class Timescaling:
     "Class used to transform the time axis"
+
     max_time: float
     min_time: float
     plot_min: float
@@ -132,9 +132,7 @@ def check_min_time(min_time, allow_numeric=True):
     if allow_numeric:
         is_numeric = isinstance(min_time, numbers.Real)
         if min_time not in ["tree", "ts"] and not is_numeric:
-            raise ValueError(
-                "min_time must be a numeric value or one of 'tree' or 'ts'"
-            )
+            raise ValueError("min_time must be a numeric value or one of 'tree' or 'ts'")
     else:
         if min_time not in ["tree", "ts"]:
             raise ValueError("min_time must be 'tree' or 'ts'")
@@ -156,9 +154,7 @@ def check_format(format):  # noqa A002
     supported_formats = ["svg", "ascii", "unicode"]
     if fmt not in supported_formats:
         raise ValueError(
-            "Unknown format '{}'. Supported formats are {}".format(
-                format, supported_formats
-            )
+            f"Unknown format '{format}'. Supported formats are {supported_formats}"
         )
     return fmt
 
@@ -212,7 +208,7 @@ def check_x_lim(x_lim, max_x):
         if x_lim[0] is not None and x_lim[1] is not None and x_lim[0] >= x_lim[1]:
             raise ValueError("x_lim[0] must be less than x_lim[1]")
     except TypeError:
-        raise TypeError("x_lim parameters must be numeric")
+        raise TypeError("x_lim parameters must be numeric") from None
     return x_lim
 
 
@@ -322,9 +318,9 @@ def clip_ts(ts, x_min, x_max, max_num_trees=None):
         num_start_trees = max_num_trees // 2 + (1 if max_num_trees % 2 else 0)
         num_end_trees = max_num_trees // 2
         assert num_start_trees + num_end_trees == max_num_trees
-        tree_status[
-            (first_tree + num_start_trees) : (last_tree - num_end_trees + 1)
-        ] = (OMIT | OMIT_MIDDLE)
+        tree_status[(first_tree + num_start_trees) : (last_tree - num_end_trees + 1)] = (
+            OMIT | OMIT_MIDDLE
+        )
 
     return ts, tree_status, offsets
 
@@ -373,9 +369,7 @@ def edge_and_sample_nodes(ts, omit_regions=None):
         for left, right in use_regions:
             used_edges = edges[np.logical_and(edges.left >= left, edges.right < right)]
             ids = np.concatenate((ids, used_edges.child, used_edges.parent))
-    return np.unique(
-        np.concatenate((ids, np.where(ts.nodes_flags & NODE_IS_SAMPLE)[0]))
-    )
+    return np.unique(np.concatenate((ids, np.where(ts.nodes_flags & NODE_IS_SAMPLE)[0])))
 
 
 def draw_tree(
@@ -755,9 +749,7 @@ class SvgAxisPlot(SvgPlot):
             left = self.y_axis_offset  # Override user-provided, so y-axis is at x=0
         self.plotbox.set_padding(top, left, bottom, right)
         if self.debug_box:
-            self.root_groups["debug"] = self.dwg_base.add(
-                self.drawing.g(class_="debug")
-            )
+            self.root_groups["debug"] = self.dwg_base.add(self.drawing.g(class_="debug"))
             self.plotbox.draw(self.drawing, self.root_groups["debug"])
 
     def get_axes(self):
@@ -846,9 +838,7 @@ class SvgAxisPlot(SvgPlot):
                             transform=f"translate({rnd(x)} {y})",
                         )
                     )
-                    site.add(
-                        dwg.line((0, 0), (0, rnd(-tick_length_upper)), class_="sym")
-                    )
+                    site.add(dwg.line((0, 0), (0, rnd(-tick_length_upper)), class_="sym"))
                     for i, m in enumerate(reversed(mutations)):
                         mutation_class = f"mut m{m.id + self.offsets.mutation}"
                         if m.id in self.mutations_outside_tree:
@@ -908,9 +898,7 @@ class SvgAxisPlot(SvgPlot):
                 )
                 if gridlines:
                     tick.add(
-                        dwg.line(
-                            (0, 0), (rnd(self.plotbox.right - x), 0), class_="grid"
-                        )
+                        dwg.line((0, 0), (rnd(self.plotbox.right - x), 0), class_="grid")
                     )
                 tick.add(dwg.line((0, 0), (rnd(-tick_length_left), 0)))
                 self.add_text_in_group(
@@ -1384,9 +1372,7 @@ class SvgTree(SvgAxisPlot):
             mutation_nodes = mut_t.node[focal_mutations]
             mutation_positions = ts.tables.sites.position[mut_t.site][focal_mutations]
             mutation_ids = np.arange(ts.num_mutations, dtype=int)[focal_mutations]
-            for m_id, node, pos in zip(
-                mutation_ids, mutation_nodes, mutation_positions
-            ):
+            for m_id, node, pos in zip(mutation_ids, mutation_nodes, mutation_positions):
                 curr_edge = node_edges[node]
                 if curr_edge >= 0:
                     if (
@@ -1403,9 +1389,7 @@ class SvgTree(SvgAxisPlot):
                         self.right_extent = max(self.right_extent, pos)
             if self.right_extent != tree.interval.right:
                 # Use nextafter so extent of plotting incorporates the mutation
-                self.right_extent = np.nextafter(
-                    self.right_extent, self.right_extent + 1
-                )
+                self.right_extent = np.nextafter(self.right_extent, self.right_extent + 1)
         # attributes for symbols
         half_symbol_size = f"{rnd(symbol_size / 2):g}"
         symbol_size = f"{rnd(symbol_size):g}"
@@ -1439,9 +1423,10 @@ class SvgTree(SvgAxisPlot):
                 m = mutation.id + self.offsets.mutation
                 # We need to offset the mutation symbol so that it's centred
                 self.mutation_attrs[m] = {
-                    "d": "M -{0},-{0} l {1},{1} M -{0},{0} l {1},-{1}".format(
-                        half_symbol_size, symbol_size
-                    )
+                    "d": f"M -{half_symbol_size},-{half_symbol_size} "
+                    f"l {symbol_size},{symbol_size} "
+                    f"M -{half_symbol_size},{half_symbol_size} "
+                    f"l {symbol_size},-{symbol_size}"
                 }
                 if mutation_attrs is not None and m in mutation_attrs:
                     self.mutation_attrs[m].update(mutation_attrs[m])
@@ -1830,9 +1815,7 @@ class TextTreeSequence:
         if position_label_format is None:
             position_scale_labels = create_tick_labels(tick_labels)
         else:
-            position_scale_labels = [
-                position_label_format.format(x) for x in tick_labels
-            ]
+            position_scale_labels = [position_label_format.format(x) for x in tick_labels]
 
         time = ts.tables.nodes.time
         time_scale_labels = [

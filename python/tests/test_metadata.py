@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,6 +23,7 @@
 """
 Tests for metadata handling.
 """
+
 import collections
 import io
 import json
@@ -88,8 +89,7 @@ class TestMetadataHdf5RoundTrip(unittest.TestCase):
         tables = ts.dump_tables()
         # For each node, we create some Python metadata that can be pickled
         metadata = [
-            {"one": j, "two": 2 * j, "three": list(range(j))}
-            for j in range(ts.num_nodes)
+            {"one": j, "two": 2 * j, "three": list(range(j))} for j in range(ts.num_nodes)
         ]
         encoded, offset = tskit.pack_bytes(list(map(pickle.dumps, metadata)))
         tables.nodes.set_columns(
@@ -211,9 +211,7 @@ class TestLoadTextMetadata:
         2   0           1   !@#$%^&*()
         """
         )
-        n = tskit.parse_nodes(
-            nodes, strict=False, encoding="utf8", base64_metadata=False
-        )
+        n = tskit.parse_nodes(nodes, strict=False, encoding="utf8", base64_metadata=False)
         expected = ["abc", "XYZ+", "!@#$%^&*()"]
         for a, b in zip(expected, n):
             assert a.encode("utf8") == b.metadata
@@ -227,9 +225,7 @@ class TestLoadTextMetadata:
         0.8 G   !@#$%^&*()
         """
         )
-        s = tskit.parse_sites(
-            sites, strict=False, encoding="utf8", base64_metadata=False
-        )
+        s = tskit.parse_sites(sites, strict=False, encoding="utf8", base64_metadata=False)
         expected = ["abc", "XYZ+", "!@#$%^&*()"]
         for a, b in zip(expected, s):
             assert a.encode("utf8") == b.metadata
@@ -265,7 +261,8 @@ class TestLoadTextMetadata:
             assert a.encode("utf8") == b.metadata
 
     @pytest.mark.parametrize(
-        "base64_metadata,expected", [(True, ["pop", "gen"]), (False, ["cG9w", "Z2Vu"])]
+        ("base64_metadata", "expected"),
+        [(True, ["pop", "gen"]), (False, ["cG9w", "Z2Vu"])],
     )
     def test_migrations(self, base64_metadata, expected):
         migrations = io.StringIO(
@@ -522,9 +519,7 @@ class TestJSONCodec:
         ms = tskit.MetadataSchema(schema)
         assert ms.decode_row(b"") == {"number": 5}
         assert ms.decode_row(ms.validate_and_encode_row({})) == {"number": 5}
-        assert ms.decode_row(ms.validate_and_encode_row({"number": 42})) == {
-            "number": 42
-        }
+        assert ms.decode_row(ms.validate_and_encode_row({"number": 42})) == {"number": 42}
 
     def test_nested_default_error(self):
         schema = {

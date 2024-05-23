@@ -22,6 +22,7 @@
 """
 Module responsible for various utility functions used in other modules.
 """
+
 import dataclasses
 import io
 import itertools
@@ -115,10 +116,10 @@ def safe_np_int_cast(int_array, dtype, copy=False):
     except TypeError:
         if int_array.dtype == np.dtype("O"):
             # this occurs e.g. if we're passed a list of lists of different lengths
-            raise TypeError("Cannot convert to a rectangular array.")
+            raise TypeError("Cannot convert to a rectangular array.") from None
         bounds = np.iinfo(dtype)
         if np.any(int_array < bounds.min) or np.any(int_array > bounds.max):
-            raise OverflowError(f"Cannot convert safely to {dtype} type")
+            raise OverflowError(f"Cannot convert safely to {dtype} type") from None
         if int_array.dtype.kind == "i" and np.dtype(dtype).kind == "u":
             # Allow casting from int to unsigned int, since we have checked bounds
             casting = "unsafe"
@@ -336,7 +337,7 @@ def obj_to_collapsed_html(d, name=None, open_depth=0):
     opened = "open" if open_depth > 0 else ""
     open_depth -= 1
     name = str(name) + ":" if name is not None else ""
-    if type(d) is dict:
+    if isinstance(d, dict):
         return f"""
                 <div>
                   <span class="tskit-details-label">{name}</span>
@@ -347,7 +348,7 @@ def obj_to_collapsed_html(d, name=None, open_depth=0):
                   </details>
                 </div>
                 """
-    elif type(d) is list:
+    elif isinstance(d, list):
         return f"""
                 <div>
                   <span class="tskit-details-label">{name}</span>
@@ -401,7 +402,7 @@ def unicode_table(
     :rtype: str
     """
     if header is not None:
-        all_rows = [header] + rows
+        all_rows = [header, *rows]
     else:
         all_rows = rows
     widths = [
@@ -554,7 +555,7 @@ def tree_sequence_html(ts):
                 </div>
               </div>
             </div>
-            """  # noqa: B950
+            """  # noqa: E501
 
 
 def tree_html(tree):
@@ -565,7 +566,8 @@ def tree_html(tree):
                 .tskit-table tbody tr td {{padding: 0.5em 0.5em;}}
                 .tskit-table tbody tr td:first-of-type {{text-align: left;}}
                 .tskit-details-label {{vertical-align: top; padding-right:5px;}}
-                .tskit-table-set {{display: inline-flex;flex-wrap: wrap;margin: -12px 0 0 -12px;width: calc(100% + 12px);}}
+                .tskit-table-set {{display: inline-flex;flex-wrap: wrap;
+                    margin: -12px 0 0 -12px;width: calc(100% + 12px);}}
                 .tskit-table-set-table {{margin: 12px 0 0 12px;}}
                 details {{display: inline-block;}}
                 summary {{cursor: pointer; outline: 0; display: list-item;}}
@@ -594,7 +596,7 @@ def tree_html(tree):
                 </div>
               </div>
             </div>
-            """  # noqa: B950
+            """  # noqa: E501
 
 
 def variant_html(variant):
@@ -614,7 +616,8 @@ def variant_html(variant):
                 .tskit-table tbody tr td {{padding: 0.5em 0.5em;}}
                 .tskit-table tbody tr td:first-of-type {{text-align: left;}}
                 .tskit-details-label {{vertical-align: top; padding-right:5px;}}
-                .tskit-table-set {{display: inline-flex;flex-wrap: wrap;margin: -12px 0 0 -12px;width: calc(100% + 12px);}}
+                .tskit-table-set {{display: inline-flex;flex-wrap: wrap;
+                    margin: -12px 0 0 -12px;width: calc(100% + 12px);}}
                 .tskit-table-set-table {{margin: 12px 0 0 12px;}}
                 details {{display: inline-block;}}
                 summary {{cursor: pointer; outline: 0; display: list-item;}}
@@ -625,13 +628,16 @@ def variant_html(variant):
                     <thead>
                     <tr>
                         <th style="padding:0;line-height:21px;">
-                        <img style="height: 32px;display: inline-block;padding: 3px 5px 3px 0;" src="{url_tskit_logo}"/>
-                        <a target="_blank" href="{url_variant_class_doc}"> {class_type} </a>
+                        <img style="height: 32px;display: inline-block;
+                            padding: 3px 5px 3px 0;" src="{url_tskit_logo}"/>
+                        <a target="_blank" href="{url_variant_class_doc}">
+                            {class_type}
+                        </a>
                         </th>
                     </tr>
                     </thead>
                     <tbody>
-        """  # noqa: B950
+        """
 
     html_body_tail = """
                     </tbody>
@@ -642,8 +648,6 @@ def variant_html(variant):
         """
 
     try:
-        variant.site
-
         site_id = variant.site.id
         site_position = variant.site.position
         num_samples = len(variant.samples)
@@ -683,7 +687,7 @@ def variant_html(variant):
         return (
             html_body_head
             + f"""
-                        <tr><td>Error</td><td>{str(err)}</td></tr>
+                        <tr><td>Error</td><td>{err!s}</td></tr>
             """
             + html_body_tail
         )
@@ -772,7 +776,7 @@ def raise_known_file_format_errors(open_file, existing_exception):
         header = open_file.read(4)
     except io.UnsupportedOperation:
         # If we can't seek, we can't sniff the file.
-        raise existing_exception
+        raise existing_exception from None
     if header == b"\x89HDF":
         raise tskit.FileFormatError(
             "The specified file appears to be in HDF5 format. This file "

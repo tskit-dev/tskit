@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
 """
 Tests for functions in util.py
 """
+
 import collections
 import itertools
 import math
@@ -112,7 +113,7 @@ class TestNumpyArrayCasting:
     Tests that the safe_np_int_cast() function works.
     """
 
-    dtypes_to_test = [np.int32, np.uint32, np.int8, np.uint8]
+    dtypes_to_test = (np.int32, np.uint32, np.int8, np.uint8)
 
     def test_basic_arrays(self):
         # Simple array
@@ -354,7 +355,7 @@ class TestArrayPacking:
 
 
 @pytest.mark.parametrize(
-    "value, expected",
+    ("value", "expected"),
     [
         (0, "0 Bytes"),
         (1, "1 Byte"),
@@ -373,7 +374,7 @@ def test_naturalsize(value, expected):
 
 
 @pytest.mark.parametrize(
-    "obj, expected",
+    ("obj", "expected"),
     [
         (0, "Test:0"),
         (

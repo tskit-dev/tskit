@@ -23,6 +23,7 @@
 """
 Test cases for the high level interface to tskit.
 """
+
 import collections
 import dataclasses
 import decimal
@@ -627,8 +628,8 @@ class TestTreeTraversals:
         assert f(q, order="inorder") == [0, 7, 1, q, 2, 8, 3, 4, 9, 5, 6]
         assert f(q, order="levelorder") == [q, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
         assert f(q, order="breadthfirst") == [q, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6]
-        assert f(q, order="timeasc") == list(range(10)) + [q]
-        assert f(q, order="timedesc") == [q] + list(reversed(range(10)))
+        assert f(q, order="timeasc") == [*list(range(10)), q]
+        assert f(q, order="timedesc") == [q, *list(reversed(range(10)))]
         assert f(q, order="minlex_postorder") == [0, 1, 7, 2, 3, 8, 4, 5, 6, 9, q]
 
         assert f(9, order="preorder") == [9, 4, 5, 6]
@@ -728,7 +729,7 @@ class TestTreeTraversals:
         assert minlex == [0, 2, 10, 9, 11, 5, 13, 1, 8, 14, 3, 7, 12, 4, 6]
 
     @pytest.mark.parametrize(
-        ["order", "expected"],
+        ("order", "expected"),
         [
             ("preorder", [[9, 6, 2, 3, 7, 4, 5, 0, 1], [10, 4, 8, 5, 0, 1, 6, 2, 3]]),
             ("inorder", [[2, 6, 3, 9, 4, 7, 0, 5, 1], [4, 10, 0, 5, 1, 8, 2, 6, 3]]),
@@ -897,7 +898,7 @@ class TestMRCA:
     # ┃ ┏┻┓
     # 0 1 2
 
-    @pytest.mark.parametrize("args, expected", [((2, 1), 3), ((0, 1, 2), 4)])
+    @pytest.mark.parametrize(("args", "expected"), [((2, 1), 3), ((0, 1, 2), 4)])
     def test_two_or_more_args(self, args, expected):
         assert self.t.mrca(*args) == expected
         assert self.t.tmrca(*args) == self.t.tree_sequence.nodes_time[expected]
@@ -1137,10 +1138,10 @@ class HighLevelTestCase:
             if len(roots) == 0:
                 assert st1.root == tskit.NULL
             elif len(roots) == 1:
-                assert st1.root == list(roots)[0]
+                assert st1.root == next(iter(roots))
             else:
                 with pytest.raises(ValueError):
-                    st1.root
+                    st1.root  # noqa: B018
             assert st2 == st1
             assert not (st2 != st1)
             left, right = st1.get_interval()
@@ -1489,7 +1490,7 @@ class TestTreeSequence(HighLevelTestCase):
         assert pi1 >= 0.0
         assert not math.isnan(pi1)
 
-    @pytest.mark.slow
+    @pytest.mark.slow()
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_pairwise_diversity(self, ts):
         self.verify_pairwise_diversity(ts)
@@ -1705,7 +1706,7 @@ class TestTreeSequence(HighLevelTestCase):
         for kwargs in [{}, {"tracked_samples": ts.samples()}]:
             t1 = ts.first(**kwargs)
             t2 = next(ts.trees())
-            assert not (t1 is t2)
+            assert t1 is not t2
             assert t1.parent_dict == t2.parent_dict
             assert t1.index == 0
             if "tracked_samples" in kwargs:
@@ -1715,7 +1716,7 @@ class TestTreeSequence(HighLevelTestCase):
 
             t1 = ts.last(**kwargs)
             t2 = next(reversed(ts.trees()))
-            assert not (t1 is t2)
+            assert t1 is not t2
             assert t1.parent_dict == t2.parent_dict
             assert t1.index == ts.num_trees - 1
             if "tracked_samples" in kwargs:
@@ -2067,7 +2068,7 @@ class TestTreeSequence(HighLevelTestCase):
     def test_at_index(self, ts):
         for kwargs in [{}, {"tracked_samples": ts.samples()}]:
             tree_list = ts.aslist(**kwargs)
-            for index in list(range(ts.num_trees)) + [-1]:
+            for index in [*list(range(ts.num_trees)), -1]:
                 t1 = tree_list[index]
                 t2 = ts.at_index(index, **kwargs)
                 assert t1 == t2
@@ -2141,9 +2142,7 @@ class TestTreeSequence(HighLevelTestCase):
         tables.drop_index()
 
         # Tables not in tc not rebuilt as per default, so error
-        with pytest.raises(
-            _tskit.LibraryError, match="Table collection must be indexed"
-        ):
+        with pytest.raises(_tskit.LibraryError, match="Table collection must be indexed"):
             assert tskit.TreeSequence.load_tables(tables).dump_tables().has_index()
 
         # Tables not in tc, but rebuilt
@@ -2282,7 +2281,7 @@ class TestTreeSequence(HighLevelTestCase):
         assert t1.equals(t2, ignore_ts_metadata=True, ignore_provenance=True)
 
         t1 = modify(t1, lambda tc: tc.provenances.clear())
-        t2 = modify(t2, lambda tc: setattr(tc, "metadata", t1.metadata))  # noqa: B010
+        t2 = modify(t2, lambda tc: setattr(tc, "metadata", t1.metadata))
         assert t1.equals(t2)
         assert t2.equals(t1)
 
@@ -2394,9 +2393,7 @@ class TestTreeSequence(HighLevelTestCase):
         for j in range(2):
             t.nodes.add_row(time=j, individual=0)
         ts = t.tree_sequence()
-        with pytest.raises(
-            _tskit.LibraryError, match="TSK_ERR_INDIVIDUAL_TIME_MISMATCH"
-        ):
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_INDIVIDUAL_TIME_MISMATCH"):
             _ = ts.individuals_time
 
     @pytest.mark.parametrize("n", [1, 10])
@@ -2719,13 +2716,9 @@ class TestSimplify:
 
     def verify_simplify_equality(self, ts, sample):
         for filter_sites in [False, True]:
-            s1, node_map1 = ts.simplify(
-                sample, map_nodes=True, filter_sites=filter_sites
-            )
+            s1, node_map1 = ts.simplify(sample, map_nodes=True, filter_sites=filter_sites)
             t1 = s1.dump_tables()
-            s2, node_map2 = simplify_tree_sequence(
-                ts, sample, filter_sites=filter_sites
-            )
+            s2, node_map2 = simplify_tree_sequence(ts, sample, filter_sites=filter_sites)
             t2 = s2.dump_tables()
             assert s1.num_samples == len(sample)
             assert s2.num_samples == len(sample)
@@ -2777,7 +2770,7 @@ class TestSimplify:
     # TODO this test needs to be broken up into discrete bits, so that we can
     # test them independently. A way of getting a random-ish subset of samples
     # from the pytest param would be useful.
-    @pytest.mark.slow
+    @pytest.mark.slow()
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_simplify(self, ts):
         # Can't simplify edges with metadata
@@ -3047,7 +3040,7 @@ class TestTreeSequenceMethodSignatures:
 
 
 class TestTreeSequenceMetadata:
-    metadata_tables = [
+    metadata_tables = (
         "node",
         "edge",
         "site",
@@ -3055,7 +3048,7 @@ class TestTreeSequenceMetadata:
         "migration",
         "individual",
         "population",
-    ]
+    )
     metadata_schema = tskit.MetadataSchema(
         {
             "codec": "json",
@@ -3126,27 +3119,23 @@ class TestTreeSequenceMetadata:
             assert repr(getattr(tables, f"{table}s").metadata_schema) == repr(schema)
             for other_table in self.metadata_tables:
                 if other_table != table:
-                    assert (
-                        repr(getattr(tables, f"{other_table}s").metadata_schema) == ""
-                    )
+                    assert repr(getattr(tables, f"{other_table}s").metadata_schema) == ""
             # Check via tree-sequence API
             new_ts = tskit.TreeSequence.load_tables(tables)
             assert repr(getattr(new_ts.table_metadata_schemas, table)) == repr(schema)
             for other_table in self.metadata_tables:
                 if other_table != table:
-                    assert (
-                        repr(getattr(new_ts.table_metadata_schemas, other_table)) == ""
-                    )
+                    assert repr(getattr(new_ts.table_metadata_schemas, other_table)) == ""
             # Can't set schema via this API
             with pytest.raises(AttributeError):
                 new_ts.table_metadata_schemas = {}
-                # or modify the schema tuple return object
-                with pytest.raises(dataclasses.exceptions.FrozenInstanceError):
-                    setattr(
-                        new_ts.table_metadata_schemas,
-                        table,
-                        tskit.MetadataSchema({"codec": "json"}),
-                    )
+            # or modify the schema tuple return object
+            with pytest.raises(dataclasses.FrozenInstanceError):
+                setattr(
+                    new_ts.table_metadata_schemas,
+                    table,
+                    tskit.MetadataSchema({"codec": "json"}),
+                )
 
     def test_table_metadata_round_trip_via_row_getters(self):
         # A tree sequence with all entities
@@ -3378,9 +3367,7 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
             else:
                 assert repr(mutation.metadata) == splits[5]
 
-    def verify_individuals_format(
-        self, ts, individuals_file, precision, base64_metadata
-    ):
+    def verify_individuals_format(self, ts, individuals_file, precision, base64_metadata):
         """
         Verifies that the individuals we output have the correct form.
         """
@@ -3408,9 +3395,7 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
             else:
                 assert repr(individual.metadata) == splits[4]
 
-    def verify_populations_format(
-        self, ts, populations_file, precision, base64_metadata
-    ):
+    def verify_populations_format(self, ts, populations_file, precision, base64_metadata):
         """
         Verifies that the populations we output have the correct form.
         """
@@ -3730,9 +3715,7 @@ class TestTree(HighLevelTestCase):
             ╟───────────────────┼─────────╢
             ║Total Branch Length│[0-9\. ]*║
             ╚═══════════════════╧═════════╝
-        """[
-                    1:
-                ]
+        """[1:]
             ),
             str(t),
         )
@@ -4037,7 +4020,7 @@ class TestTree(HighLevelTestCase):
         # Deprecated and will be removed
         t1 = self.get_tree()
         with pytest.warns(FutureWarning, match="Tree.tree_sequence.num_nodes"):
-            t1.num_nodes
+            t1.num_nodes  # noqa: B018
 
     def test_seek_index(self):
         ts = msprime.simulate(10, recombination_rate=3, length=5, random_seed=42)
@@ -4433,7 +4416,7 @@ class TestSiblings:
         assert 7 == t.virtual_root
         assert t.siblings(7) == tuple()
 
-    @pytest.mark.parametrize("flag,expected", [(0, ()), (1, (2,))])
+    @pytest.mark.parametrize(("flag", "expected"), [(0, ()), (1, (2,))])
     def test_isolated_node(self, flag, expected):
         tables = tskit.Tree.generate_balanced(2, arity=2).tree_sequence.dump_tables()
         tables.nodes.add_row(flags=flag)  # Add node 3
@@ -5160,8 +5143,8 @@ class TestTreeSequenceGetSite:
 
     @pytest.mark.parametrize("position", [0, 2.999999999, 5.000000001, 9])
     def test_position_not_found(self, position):
+        ts = self.get_example_ts_discrete_coordinates()
         with pytest.raises(ValueError, match=r"There is no site at position"):
-            ts = self.get_example_ts_discrete_coordinates()
             ts.site(position=position)
 
     @pytest.mark.parametrize(
@@ -5177,36 +5160,36 @@ class TestTreeSequenceGetSite:
         ts.site(position=position)
 
     def test_position_not_scalar(self):
+        ts = self.get_example_ts_discrete_coordinates()
         with pytest.raises(
             ValueError, match="Position must be provided as a scalar value."
         ):
-            ts = self.get_example_ts_discrete_coordinates()
             ts.site(position=[1, 4, 8])
 
     @pytest.mark.parametrize("position", [-1, 10, 11])
     def test_position_out_of_bounds(self, position):
+        ts = self.get_example_ts_discrete_coordinates()
         with pytest.raises(
             ValueError,
             match="Position is beyond the coordinates defined by sequence length.",
         ):
-            ts = self.get_example_ts_discrete_coordinates()
             ts.site(position=position)
 
     def test_query_position_siteless_ts(self):
+        ts = self.get_example_ts_without_sites()
         with pytest.raises(ValueError, match=r"There is no site at position"):
-            ts = self.get_example_ts_without_sites()
             ts.site(position=1)
 
     def test_site_id_and_position_are_none(self):
+        ts = self.get_example_ts_discrete_coordinates()
         with pytest.raises(TypeError, match="Site id or position must be provided."):
-            ts = self.get_example_ts_discrete_coordinates()
             ts.site(None, position=None)
 
     def test_site_id_and_position_are_specified(self):
+        ts = self.get_example_ts_discrete_coordinates()
         with pytest.raises(
             TypeError, match="Only one of site id or position needs to be provided."
         ):
-            ts = self.get_example_ts_discrete_coordinates()
             ts.site(0, position=3)
 
 
@@ -5247,7 +5230,7 @@ class TestNumLineages:
     # 0.00┊ 0 1 2 3 4 5 6 7 8 ┊
     #     0                   1
     @pytest.mark.parametrize(
-        ["t", "expected"],
+        ("t", "expected"),
         [
             (-0.00001, 0),
             (0, 9),
@@ -5272,7 +5255,7 @@ class TestNumLineages:
     # 0.00┊ 0 1 2 3 4 5 6 7 8 ┊
     #     0                   1
     @pytest.mark.parametrize(
-        ["t", "expected"],
+        ("t", "expected"),
         [
             (-0.00001, 0),
             (0, 9),
@@ -5308,13 +5291,12 @@ class TestNumLineages:
     # 0.00┊       3 4 ┊
     #     0           1
     @pytest.mark.parametrize(
-        ["t", "expected"],
+        ("t", "expected"),
         [
             (-0.00001, 0),
             (0, 2),
             (1, 2),
             (2, 2),
-            (3, 2),
             (3, 2),
             (4, 0),
         ],
@@ -5331,7 +5313,7 @@ class TestNumLineages:
         assert tree.num_lineages(t) == expected
 
     @pytest.mark.parametrize(
-        ["t", "expected"],
+        ("t", "expected"),
         [
             (-0.00001, 0),
             (0, 0),

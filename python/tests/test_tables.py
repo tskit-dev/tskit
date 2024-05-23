@@ -24,6 +24,7 @@
 Test cases for the low-level tables used to transfer information
 between simulations and the tree sequence.
 """
+
 import dataclasses
 import io
 import json
@@ -107,14 +108,10 @@ class CommonTestsMixin:
                     if len(data) == num_rows
                     else (
                         bytes(
-                            data[
-                                cols[f"{col}_offset"][j] : cols[f"{col}_offset"][j + 1]
-                            ]
+                            data[cols[f"{col}_offset"][j] : cols[f"{col}_offset"][j + 1]]
                         )
                         if "metadata" in col
-                        else data[
-                            cols[f"{col}_offset"][j] : cols[f"{col}_offset"][j + 1]
-                        ]
+                        else data[cols[f"{col}_offset"][j] : cols[f"{col}_offset"][j + 1]]
                     )
                 )
                 for col, data in cols.items()
@@ -123,7 +120,7 @@ class CommonTestsMixin:
             for j in range(num_rows)
         ]
 
-    @pytest.fixture
+    @pytest.fixture()
     def test_rows(self, scope="session"):
         test_rows = self.make_transposed_input_data(10)
         # Annoyingly we have to tweak some types as once added to a row and then put in
@@ -134,14 +131,14 @@ class CommonTestsMixin:
                     test_rows[n][col] = bytes(test_rows[n][col]).decode("ascii")
         return test_rows
 
-    @pytest.fixture
+    @pytest.fixture()
     def table(self, test_rows):
         table = self.table_class()
         for row in test_rows:
             table.add_row(**row)
         return table
 
-    @pytest.fixture
+    @pytest.fixture()
     def table_5row(self, test_rows):
         table_5row = self.table_class()
         for row in test_rows[:5]:
@@ -571,13 +568,9 @@ class CommonTestsMixin:
             for list_col, offset_col in self.ragged_list_columns:
                 offset = getattr(table, offset_col.name)
                 assert offset.shape == (num_rows + 1,)
-                assert np.array_equal(
-                    input_data[offset_col.name][: num_rows + 1], offset
-                )
+                assert np.array_equal(input_data[offset_col.name][: num_rows + 1], offset)
                 list_data = getattr(table, list_col.name)
-                assert np.array_equal(
-                    list_data, input_data[list_col.name][: offset[-1]]
-                )
+                assert np.array_equal(list_data, input_data[list_col.name][: offset[-1]])
                 used.add(offset_col.name)
                 used.add(list_col.name)
             for name, data in input_data.items():
@@ -914,9 +907,7 @@ class MetadataTestsMixin:
             input_data["metadata"] = metadata
             input_data["metadata_offset"] = metadata_offset
             table.set_columns(**input_data)
-            unpacked_metadatas = tskit.unpack_bytes(
-                table.metadata, table.metadata_offset
-            )
+            unpacked_metadatas = tskit.unpack_bytes(table.metadata, table.metadata_offset)
             assert metadatas == unpacked_metadatas
 
     def test_drop_metadata(self):
@@ -1101,8 +1092,7 @@ class MetadataTestsMixin:
             del input_data["metadata_offset"]
             metadata_column = [self.metadata_example_data() for _ in range(num_rows)]
             encoded_metadata_column = [
-                table.metadata_schema.validate_and_encode_row(r)
-                for r in metadata_column
+                table.metadata_schema.validate_and_encode_row(r) for r in metadata_column
             ]
             packed_metadata, metadata_offset = tskit.util.pack_bytes(
                 encoded_metadata_column
@@ -1235,9 +1225,7 @@ class MetadataTestsMixin:
         # does this more elegantly
         has_default = default_value != 9999
         if has_default:
-            md_vec = table.metadata_vector(
-                key, default_value=default_value, dtype=dtype
-            )
+            md_vec = table.metadata_vector(key, default_value=default_value, dtype=dtype)
         else:
             md_vec = table.metadata_vector(key, dtype=dtype)
         assert isinstance(md_vec, np.ndarray)
@@ -1254,7 +1242,7 @@ class MetadataTestsMixin:
                 else:
                     md = default_value
                     break
-            assert np.all(np.cast[dtype](md) == x)
+            assert np.all(np.asarray(md, dtype=dtype) == x)
 
     def test_metadata_vector_errors(self):
         table = self.table_class()
@@ -1319,9 +1307,7 @@ class MetadataTestsMixin:
         assert np.all(np.equal(md_vec, [d["abc"] for d in metadata_list]))
         # now automated ones
         for dtype in [None, "int", "float", "object"]:
-            self.verify_metadata_vector(
-                table, key="abc", dtype=dtype, default_value=9999
-            )
+            self.verify_metadata_vector(table, key="abc", dtype=dtype, default_value=9999)
             self.verify_metadata_vector(
                 table, key=["abc"], dtype=dtype, default_value=9999
             )
@@ -1361,9 +1347,7 @@ class MetadataTestsMixin:
         # now some automated ones
         for dtype in [None, "int", "float", "object"]:
             self.verify_metadata_vector(table, key="abc", dtype=dtype, default_value=-1)
-            self.verify_metadata_vector(
-                table, key=["abc"], dtype=dtype, default_value=-1
-            )
+            self.verify_metadata_vector(table, key=["abc"], dtype=dtype, default_value=-1)
             self.verify_metadata_vector(table, key=["x"], dtype=dtype, default_value=-1)
             self.verify_metadata_vector(
                 table, key=["b", "c"], dtype=dtype, default_value=-1
@@ -1677,24 +1661,22 @@ common_tests = [
 
 
 class TestIndividualTable(*common_tests):
-    columns = [UInt32Column("flags")]
-    ragged_list_columns = [
+    columns = (UInt32Column("flags"),)
+    ragged_list_columns = (
         (DoubleColumn("location"), UInt32Column("location_offset")),
         (Int32Column("parents"), UInt32Column("parents_offset")),
         (CharColumn("metadata"), UInt32Column("metadata_offset")),
-    ]
-    string_colnames = []
-    binary_colnames = ["metadata"]
-    input_parameters = [("max_rows_increment", 0)]
-    equal_len_columns = [["flags"]]
+    )
+    string_colnames = ()
+    binary_colnames = ("metadata",)
+    input_parameters = (("max_rows_increment", 0),)
+    equal_len_columns = (("flags",),)
     table_class = tskit.IndividualTable
 
     def test_simple_example(self):
         t = tskit.IndividualTable()
         t.add_row(flags=0, location=[], parents=[], metadata=b"123")
-        t.add_row(
-            flags=1, location=(0, 1, 2, 3), parents=(4, 5, 6, 7), metadata=b"\xf0"
-        )
+        t.add_row(flags=1, location=(0, 1, 2, 3), parents=(4, 5, 6, 7), metadata=b"\xf0")
         s = str(t)
         assert len(s) > 0
         assert len(t) == 2
@@ -1821,17 +1803,17 @@ class TestIndividualTable(*common_tests):
 
 
 class TestNodeTable(*common_tests):
-    columns = [
+    columns = (
         UInt32Column("flags"),
         DoubleColumn("time"),
         Int32Column("individual"),
         Int32Column("population"),
-    ]
-    ragged_list_columns = [(CharColumn("metadata"), UInt32Column("metadata_offset"))]
-    string_colnames = []
-    binary_colnames = ["metadata"]
-    input_parameters = [("max_rows_increment", 0)]
-    equal_len_columns = [["time", "flags", "population"]]
+    )
+    ragged_list_columns = ((CharColumn("metadata"), UInt32Column("metadata_offset")),)
+    string_colnames = ()
+    binary_colnames = ("metadata",)
+    input_parameters = (("max_rows_increment", 0),)
+    equal_len_columns = (("time", "flags", "population"),)
     table_class = tskit.NodeTable
 
     def test_simple_example(self):
@@ -1901,17 +1883,17 @@ class TestNodeTable(*common_tests):
 
 
 class TestEdgeTable(*common_tests):
-    columns = [
+    columns = (
         DoubleColumn("left"),
         DoubleColumn("right"),
         Int32Column("parent"),
         Int32Column("child"),
-    ]
-    equal_len_columns = [["left", "right", "parent", "child"]]
-    string_colnames = []
-    binary_colnames = ["metadata"]
-    ragged_list_columns = [(CharColumn("metadata"), UInt32Column("metadata_offset"))]
-    input_parameters = [("max_rows_increment", 0)]
+    )
+    equal_len_columns = (("left", "right", "parent", "child"),)
+    string_colnames = ()
+    binary_colnames = ("metadata",)
+    ragged_list_columns = ((CharColumn("metadata"), UInt32Column("metadata_offset")),)
+    input_parameters = (("max_rows_increment", 0),)
     table_class = tskit.EdgeTable
 
     def test_simple_example(self):
@@ -1948,15 +1930,15 @@ class TestEdgeTable(*common_tests):
 
 
 class TestSiteTable(*common_tests):
-    columns = [DoubleColumn("position")]
-    ragged_list_columns = [
+    columns = (DoubleColumn("position"),)
+    ragged_list_columns = (
         (CharColumn("ancestral_state"), UInt32Column("ancestral_state_offset")),
         (CharColumn("metadata"), UInt32Column("metadata_offset")),
-    ]
-    equal_len_columns = [["position"]]
-    string_colnames = ["ancestral_state"]
-    binary_colnames = ["metadata"]
-    input_parameters = [("max_rows_increment", 0)]
+    )
+    equal_len_columns = (("position",),)
+    string_colnames = ("ancestral_state",)
+    binary_colnames = ("metadata",)
+    input_parameters = (("max_rows_increment", 0),)
     table_class = tskit.SiteTable
 
     def test_simple_example(self):
@@ -1994,29 +1976,27 @@ class TestSiteTable(*common_tests):
             table = self.table_class()
             table.set_columns(**input_data)
             ancestral_states = [tsutil.random_strings(10) for _ in range(num_rows)]
-            ancestral_state, ancestral_state_offset = tskit.pack_strings(
-                ancestral_states
-            )
+            ancestral_state, ancestral_state_offset = tskit.pack_strings(ancestral_states)
             table.packset_ancestral_state(ancestral_states)
             assert np.array_equal(table.ancestral_state, ancestral_state)
             assert np.array_equal(table.ancestral_state_offset, ancestral_state_offset)
 
 
 class TestMutationTable(*common_tests):
-    columns = [
+    columns = (
         Int32Column("site"),
         Int32Column("node"),
         DoubleColumn("time"),
         Int32Column("parent"),
-    ]
-    ragged_list_columns = [
+    )
+    ragged_list_columns = (
         (CharColumn("derived_state"), UInt32Column("derived_state_offset")),
         (CharColumn("metadata"), UInt32Column("metadata_offset")),
-    ]
-    equal_len_columns = [["site", "node", "time"]]
-    string_colnames = ["derived_state"]
-    binary_colnames = ["metadata"]
-    input_parameters = [("max_rows_increment", 0)]
+    )
+    equal_len_columns = (("site", "node", "time"),)
+    string_colnames = ("derived_state",)
+    binary_colnames = ("metadata",)
+    input_parameters = (("max_rows_increment", 0),)
     table_class = tskit.MutationTable
 
     def test_simple_example(self):
@@ -2097,19 +2077,19 @@ class TestMutationTable(*common_tests):
 
 
 class TestMigrationTable(*common_tests):
-    columns = [
+    columns = (
         DoubleColumn("left"),
         DoubleColumn("right"),
         Int32Column("node"),
         Int32Column("source"),
         Int32Column("dest"),
         DoubleColumn("time"),
-    ]
-    ragged_list_columns = [(CharColumn("metadata"), UInt32Column("metadata_offset"))]
-    string_colnames = []
-    binary_colnames = ["metadata"]
-    input_parameters = [("max_rows_increment", 0)]
-    equal_len_columns = [["left", "right", "node", "source", "dest", "time"]]
+    )
+    ragged_list_columns = ((CharColumn("metadata"), UInt32Column("metadata_offset")),)
+    string_colnames = ()
+    binary_colnames = ("metadata",)
+    input_parameters = (("max_rows_increment", 0),)
+    equal_len_columns = (("left", "right", "node", "source", "dest", "time"),)
     table_class = tskit.MigrationTable
 
     def test_simple_example(self):
@@ -2148,15 +2128,15 @@ class TestMigrationTable(*common_tests):
 
 
 class TestProvenanceTable(CommonTestsMixin, AssertEqualsMixin):
-    columns = []
-    ragged_list_columns = [
+    columns = ()
+    ragged_list_columns = (
         (CharColumn("timestamp"), UInt32Column("timestamp_offset")),
         (CharColumn("record"), UInt32Column("record_offset")),
-    ]
-    equal_len_columns = [[]]
-    string_colnames = ["record", "timestamp"]
-    binary_colnames = []
-    input_parameters = [("max_rows_increment", 0)]
+    )
+    equal_len_columns = ((),)
+    string_colnames = ("record", "timestamp")
+    binary_colnames = ()
+    input_parameters = (("max_rows_increment", 0),)
     table_class = tskit.ProvenanceTable
 
     def test_simple_example(self):
@@ -2200,12 +2180,12 @@ class TestProvenanceTable(CommonTestsMixin, AssertEqualsMixin):
 
 class TestPopulationTable(*common_tests):
     metadata_mandatory = True
-    columns = []
-    ragged_list_columns = [(CharColumn("metadata"), UInt32Column("metadata_offset"))]
-    equal_len_columns = [[]]
-    string_colnames = []
-    binary_colnames = ["metadata"]
-    input_parameters = [("max_rows_increment", 0)]
+    columns = ()
+    ragged_list_columns = ((CharColumn("metadata"), UInt32Column("metadata_offset")),)
+    equal_len_columns = ((),)
+    string_colnames = ()
+    binary_colnames = ("metadata",)
+    input_parameters = (("max_rows_increment", 0),)
     table_class = tskit.PopulationTable
 
     def test_simple_example(self):
@@ -2238,9 +2218,7 @@ class TestTableCollectionIndexes:
     def test_index(self):
         i = np.arange(20)
         r = np.arange(20)[::-1]
-        index = tskit.TableCollectionIndexes(
-            edge_insertion_order=i, edge_removal_order=r
-        )
+        index = tskit.TableCollectionIndexes(edge_insertion_order=i, edge_removal_order=r)
         assert np.array_equal(index.edge_insertion_order, i)
         assert np.array_equal(index.edge_removal_order, r)
         d = index.asdict()
@@ -2876,9 +2854,7 @@ class TestMutationTimeErrors:
     def test_older_than_node_above(self):
         ts = msprime.simulate(5, mutation_rate=1, random_seed=42)
         tables = ts.dump_tables()
-        tables.mutations.time = (
-            np.ones(len(tables.mutations.time), dtype=np.float64) * 42
-        )
+        tables.mutations.time = np.ones(len(tables.mutations.time), dtype=np.float64) * 42
         with pytest.raises(
             _tskit.LibraryError,
             match="A mutation's time must be < the parent node of the edge on which it"
@@ -2890,9 +2866,7 @@ class TestMutationTimeErrors:
         ts = msprime.simulate(
             10, random_seed=42, mutation_rate=0.0, recombination_rate=1.0
         )
-        ts = tsutil.jukes_cantor(
-            ts, num_sites=10, mu=1, multiple_per_node=False, seed=42
-        )
+        ts = tsutil.jukes_cantor(ts, num_sites=10, mu=1, multiple_per_node=False, seed=42)
         tables = ts.dump_tables()
         assert sum(tables.mutations.parent != -1) != 0
         # Make all times the node time
@@ -2912,9 +2886,7 @@ class TestMutationTimeErrors:
         ts = msprime.simulate(
             10, random_seed=42, mutation_rate=0.0, recombination_rate=1.0
         )
-        ts = tsutil.jukes_cantor(
-            ts, num_sites=10, mu=1, multiple_per_node=False, seed=42
-        )
+        ts = tsutil.jukes_cantor(ts, num_sites=10, mu=1, multiple_per_node=False, seed=42)
         tables = ts.dump_tables()
         tables.compute_mutation_times()
         assert sum(tables.mutations.parent != -1) != 0
@@ -2973,9 +2945,7 @@ class TestMutationTimeErrors:
         ts = msprime.simulate(
             10, random_seed=42, mutation_rate=0.0, recombination_rate=1.0
         )
-        ts = tsutil.jukes_cantor(
-            ts, num_sites=10, mu=1, multiple_per_node=False, seed=42
-        )
+        ts = tsutil.jukes_cantor(ts, num_sites=10, mu=1, multiple_per_node=False, seed=42)
         tables = ts.dump_tables()
         tables.compute_mutation_times()
         tables.sort()
@@ -3904,7 +3874,7 @@ class TestTableCollection:
             for k1, v1 in d1.items():
                 v2 = d2[k1]
                 assert type(v1) is type(v2)
-                if type(v1) is dict:
+                if type(v1) is dict:  # noqa: E721
                     assert set(v1.keys()) == set(v2.keys())
                     for sk1, sv1 in v1.items():
                         sv2 = v2[sk1]
@@ -4013,12 +3983,8 @@ class TestEqualityOptions:
         t1 = ts_fixture.dump_tables()
         t2 = t1.copy()
         t1.assert_equals(t2)
-        t1.migrations.add_row(
-            0, 1, source=0, dest=1, node=0, time=0, metadata={"a": "a"}
-        )
-        t2.migrations.add_row(
-            0, 1, source=0, dest=1, node=0, time=0, metadata={"a": "b"}
-        )
+        t1.migrations.add_row(0, 1, source=0, dest=1, node=0, time=0, metadata={"a": "a"})
+        t2.migrations.add_row(0, 1, source=0, dest=1, node=0, time=0, metadata={"a": "b"})
         assert not t1.migrations.equals(t2.migrations)
         assert not t1.equals(t2)
         assert t1.migrations.equals(t2.migrations, ignore_metadata=True)
@@ -4058,11 +4024,11 @@ class TestEqualityOptions:
 
 
 class TestTableCollectionAssertEquals:
-    @pytest.fixture
+    @pytest.fixture()
     def t1(self, ts_fixture):
         return ts_fixture.dump_tables()
 
-    @pytest.fixture
+    @pytest.fixture()
     def t2(self, ts_fixture):
         return ts_fixture.dump_tables()
 
@@ -4104,9 +4070,7 @@ class TestTableCollectionAssertEquals:
         t2.metadata = {"foo": "bar"}
         with pytest.raises(
             AssertionError,
-            match=re.escape(
-                "Metadata differs: self=Test metadata other={'foo': 'bar'}"
-            ),
+            match=re.escape("Metadata differs: self=Test metadata other={'foo': 'bar'}"),
         ):
             t1.assert_equals(t2)
         t1.assert_equals(t2, ignore_metadata=True)
@@ -4829,9 +4793,7 @@ class TestUnionTables(unittest.TestCase):
             random_seed=seed,
         )
         ts = tsutil.add_random_metadata(ts, seed)
-        ts = tsutil.insert_random_ploidy_individuals(
-            ts, max_ploidy=1, samples_only=True
-        )
+        ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=1, samples_only=True)
         return ts
 
     def get_wf_example(self, N, T, seed):
@@ -4841,9 +4803,7 @@ class TestUnionTables(unittest.TestCase):
         ts = ts.simplify()
         ts = tsutil.jukes_cantor(ts, 1, 10, seed=seed)
         ts = tsutil.add_random_metadata(ts, seed)
-        ts = tsutil.insert_random_ploidy_individuals(
-            ts, max_ploidy=2, samples_only=True
-        )
+        ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=2, samples_only=True)
         return ts
 
     def split_example(self, ts, T):
@@ -4978,13 +4938,9 @@ class TestUnionTables(unittest.TestCase):
                 assert np.sum(i2.parents == tskit.NULL) == np.sum(
                     iu.parents == tskit.NULL
                 )
-                md2 = [
-                    ts2.individual(p).metadata for p in i2.parents if p != tskit.NULL
-                ]
+                md2 = [ts2.individual(p).metadata for p in i2.parents if p != tskit.NULL]
                 md2u = [indivs21[md] for md in md2]
-                mdu = [
-                    tsu.individual(p).metadata for p in iu.parents if p != tskit.NULL
-                ]
+                mdu = [tsu.individual(p).metadata for p in iu.parents if p != tskit.NULL]
                 assert set(md2u) == set(mdu)
             else:
                 # the individual *should* be there, but by a different name
@@ -5072,9 +5028,7 @@ class TestUnionTables(unittest.TestCase):
         )
         tables_copy = tables.copy()
         tables.union(other, node_mapping)
-        uni_other_dict = json.loads(tables.provenances[-1].record)["parameters"][
-            "other"
-        ]
+        uni_other_dict = json.loads(tables.provenances[-1].record)["parameters"]["other"]
         recovered_prov_table = tskit.ProvenanceTable()
         assert len(uni_other_dict["timestamp"]) == len(uni_other_dict["record"])
         for timestamp, record in zip(
