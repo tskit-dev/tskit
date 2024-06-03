@@ -380,7 +380,7 @@ As an example here is a schema using the `struct` codec which could apply, for e
 to the individuals in a tree sequence:
 
 ```python
-schema = metadata.MetadataSchema(
+schema = tskit.MetadataSchema(
     {
         "codec": "struct",
         "type": "object",
