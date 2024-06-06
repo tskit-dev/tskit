@@ -23,6 +23,7 @@
 """
 Test cases for VCF output in tskit.
 """
+
 import contextlib
 import io
 import math
@@ -62,6 +63,7 @@ def ts_to_pysam(ts, *args, **kwargs):
 
 
 def example_individuals(ts, ploidy=1):
+    rng = np.random.default_rng(42)
     if ts.num_individuals == 0:
         yield None, ts.num_samples / ploidy
     else:
@@ -70,7 +72,7 @@ def example_individuals(ts, ploidy=1):
     if ts.num_individuals > 3:
         n = ts.num_individuals - 2
         yield list(range(n)), n
-        yield 2 + np.random.choice(np.arange(n), n, replace=False), n
+        yield 2 + rng.choice(np.arange(n), n, replace=False), n
 
 
 def legacy_write_vcf(tree_sequence, output, ploidy, contig_id):
@@ -189,9 +191,7 @@ class ExamplesMixin:
 
     def test_simple_infinite_sites_random_ploidy(self):
         ts = msprime.simulate(10, mutation_rate=1, random_seed=2)
-        ts = tsutil.insert_random_ploidy_individuals(
-            ts, min_ploidy=1, samples_only=True
-        )
+        ts = tsutil.insert_random_ploidy_individuals(ts, min_ploidy=1, samples_only=True)
         assert ts.num_sites > 2
         self.verify(ts)
 
@@ -211,9 +211,7 @@ class ExamplesMixin:
     def test_simple_jukes_cantor_random_ploidy(self):
         ts = msprime.simulate(10, random_seed=2)
         ts = tsutil.jukes_cantor(ts, num_sites=10, mu=1, seed=2)
-        ts = tsutil.insert_random_ploidy_individuals(
-            ts, min_ploidy=1, samples_only=True
-        )
+        ts = tsutil.insert_random_ploidy_individuals(ts, min_ploidy=1, samples_only=True)
         self.verify(ts)
 
     def test_single_tree_multichar_mutations(self):
@@ -639,8 +637,7 @@ class TestMasking:
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0|0|1"""
         expected = textwrap.dedent(s)
         assert (
-            drop_header(self.ts().as_vcf(ploidy=3, allow_position_zero=True))
-            == expected
+            drop_header(self.ts().as_vcf(ploidy=3, allow_position_zero=True)) == expected
         )
 
     def test_site_0_masked(self):
@@ -933,8 +930,7 @@ class TestSampleOptions:
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0|1"""
         expected = textwrap.dedent(s)
         assert (
-            drop_header(ts.as_vcf(individuals=[0], allow_position_zero=True))
-            == expected
+            drop_header(ts.as_vcf(individuals=[0], allow_position_zero=True)) == expected
         )
 
     def test_individual_1(self):
@@ -947,8 +943,7 @@ class TestSampleOptions:
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0"""
         expected = textwrap.dedent(s)
         assert (
-            drop_header(ts.as_vcf(individuals=[1], allow_position_zero=True))
-            == expected
+            drop_header(ts.as_vcf(individuals=[1], allow_position_zero=True)) == expected
         )
 
     def test_reversed(self):

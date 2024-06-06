@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2020-2023 Tskit Developers
+# Copyright (c) 2020-2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,7 @@
 """
 Test cases for combinatorial algorithms.
 """
+
 import collections
 import io
 import itertools
@@ -38,8 +39,7 @@ import tests.test_wright_fisher as wf
 import tskit
 import tskit.combinatorics as comb
 from tests import test_stats
-from tskit.combinatorics import Rank
-from tskit.combinatorics import RankTree
+from tskit.combinatorics import Rank, RankTree
 
 
 class TestCombination:
@@ -1315,12 +1315,8 @@ class TestPolytomySplitting:
         tables = tskit.Tree.generate_star(3).tree_sequence.dump_tables()
         site = tables.sites.add_row(position=0.5, ancestral_state="0")
         branch_length = np.nextafter(1, 0)
-        tables.mutations.add_row(
-            site=site, time=branch_length, node=0, derived_state="1"
-        )
-        tables.mutations.add_row(
-            site=site, time=branch_length, node=1, derived_state="1"
-        )
+        tables.mutations.add_row(site=site, time=branch_length, node=0, derived_state="1")
+        tables.mutations.add_row(site=site, time=branch_length, node=1, derived_state="1")
         tree = tables.tree_sequence().first()
         with pytest.raises(
             tskit.LibraryError,
@@ -1344,7 +1340,7 @@ class TestPolytomySplitting:
         split_tree = tree.split_polytomies(random_seed=14, tracked_samples=[0, 1])
         assert split_tree.num_tracked_samples() == 2
 
-    @pytest.mark.slow
+    @pytest.mark.slow()
     @pytest.mark.parametrize("n", [3, 4, 5])
     def test_all_topologies(self, n):
         N = num_leaf_labelled_binary_trees(n)
@@ -1490,7 +1486,7 @@ class TestGenerateRandomBinary(TreeGeneratorTestBase):
     def method(self, n, **kwargs):
         return tskit.Tree.generate_random_binary(n, random_seed=53, **kwargs)
 
-    @pytest.mark.slow
+    @pytest.mark.slow()
     @pytest.mark.parametrize("n", [3, 4, 5])
     def test_all_topologies(self, n):
         N = num_leaf_labelled_binary_trees(n)
@@ -1523,7 +1519,7 @@ class TestGenerateComb(TreeGeneratorTestBase):
     method_name = "generate_comb"
 
     # Hard-code in some pre-computed ranks for the comb(n) tree.
-    @pytest.mark.parametrize(["n", "rank"], [(2, 0), (3, 1), (4, 3), (5, 8), (6, 20)])
+    @pytest.mark.parametrize(("n", "rank"), [(2, 0), (3, 1), (4, 3), (5, 8), (6, 20)])
     def test_unrank_equal(self, n, rank):
         for extra_params in [{}, {"span": 2.5}, {"branch_length": 3}]:
             ts = tskit.Tree.generate_comb(n, **extra_params).tree_sequence

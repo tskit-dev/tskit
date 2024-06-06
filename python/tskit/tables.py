@@ -24,6 +24,7 @@
 """
 Tree sequence IO via the tables API.
 """
+
 import collections.abc
 import dataclasses
 import datetime
@@ -33,9 +34,7 @@ import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import reduce
-from typing import Dict
-from typing import Optional
-from typing import Union
+from typing import Dict, Optional, Union
 
 import numpy as np
 
@@ -260,9 +259,7 @@ class MutationTableRow(util.Dataclass):
             and self.metadata == other.metadata
             and (
                 self.time == other.time
-                or (
-                    util.is_unknown_time(self.time) and util.is_unknown_time(other.time)
-                )
+                or (util.is_unknown_time(self.time) and util.is_unknown_time(other.time))
             )
         )
 
@@ -346,7 +343,7 @@ class BaseTable:
     """
 
     # The list of columns in the table. Must be set by subclasses.
-    column_names = []
+    column_names = tuple()
 
     def __init__(self, ll_table, row_class):
         self.ll_table = ll_table
@@ -691,8 +688,7 @@ class BaseTable:
     def _columns_all_integer(self, *colnames):
         # For displaying floating point values without loads of decimal places
         return all(
-            np.all(getattr(self, col) == np.floor(getattr(self, col)))
-            for col in colnames
+            np.all(getattr(self, col) == np.floor(getattr(self, col))) for col in colnames
         )
 
 
@@ -843,7 +839,7 @@ class IndividualTable(MetadataTable):
     :vartype metadata_schema: tskit.MetadataSchema
     """
 
-    column_names = [
+    column_names = (
         "flags",
         "location",
         "location_offset",
@@ -851,7 +847,7 @@ class IndividualTable(MetadataTable):
         "parents_offset",
         "metadata",
         "metadata_offset",
-    ]
+    )
 
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
@@ -870,13 +866,9 @@ class IndividualTable(MetadataTable):
                 location_str = ", ".join(map(str, row.location))
                 parents_str = ", ".join(map(str, row.parents))
                 rows.append(
-                    "{}\t{}\t{}\t{}\t{}".format(
-                        j,
-                        row.flags,
-                        location_str,
-                        parents_str,
-                        util.render_metadata(row.metadata),
-                    ).split("\t")
+                    f"{j}\t{row.flags}\t{location_str}\t{parents_str}\t{util.render_metadata(row.metadata)}".split(
+                        "\t"
+                    )
                 )
         return headers, rows
 
@@ -1117,14 +1109,14 @@ class NodeTable(MetadataTable):
     :vartype metadata_schema: tskit.MetadataSchema
     """
 
-    column_names = [
+    column_names = (
         "time",
         "flags",
         "population",
         "individual",
         "metadata",
         "metadata_offset",
-    ]
+    )
 
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
@@ -1311,14 +1303,14 @@ class EdgeTable(MetadataTable):
     :vartype metadata_schema: tskit.MetadataSchema
     """
 
-    column_names = [
+    column_names = (
         "left",
         "right",
         "parent",
         "child",
         "metadata",
         "metadata_offset",
-    ]
+    )
 
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
@@ -1524,7 +1516,7 @@ class MigrationTable(MetadataTable):
     :vartype metadata_schema: tskit.MetadataSchema
     """
 
-    column_names = [
+    column_names = (
         "left",
         "right",
         "node",
@@ -1533,7 +1525,7 @@ class MigrationTable(MetadataTable):
         "time",
         "metadata",
         "metadata_offset",
-    ]
+    )
 
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
@@ -1740,13 +1732,13 @@ class SiteTable(MetadataTable):
     :vartype metadata_schema: tskit.MetadataSchema
     """
 
-    column_names = [
+    column_names = (
         "position",
         "ancestral_state",
         "ancestral_state_offset",
         "metadata",
         "metadata_offset",
-    ]
+    )
 
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
@@ -1953,7 +1945,7 @@ class MutationTable(MetadataTable):
     :vartype metadata_schema: tskit.MetadataSchema
     """
 
-    column_names = [
+    column_names = (
         "site",
         "node",
         "time",
@@ -1962,7 +1954,7 @@ class MutationTable(MetadataTable):
         "parent",
         "metadata",
         "metadata_offset",
-    ]
+    )
 
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
@@ -2225,7 +2217,7 @@ class PopulationTable(MetadataTable):
     :vartype metadata_schema: tskit.MetadataSchema
     """
 
-    column_names = ["metadata", "metadata_offset"]
+    column_names = ("metadata", "metadata_offset")
 
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
@@ -2340,7 +2332,7 @@ class ProvenanceTable(BaseTable):
     :vartype timestamp_offset: numpy.ndarray, dtype=np.uint32
     """
 
-    column_names = ["record", "record_offset", "timestamp", "timestamp_offset"]
+    column_names = ("record", "record_offset", "timestamp", "timestamp_offset")
 
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
@@ -2361,9 +2353,7 @@ class ProvenanceTable(BaseTable):
         ret = False
         if type(other) is type(self):
             ret = bool(
-                self.ll_table.equals(
-                    other.ll_table, ignore_timestamps=ignore_timestamps
-                )
+                self.ll_table.equals(other.ll_table, ignore_timestamps=ignore_timestamps)
             )
         return ret
 
@@ -2610,7 +2600,7 @@ class IdentitySegmentList(collections.abc.Iterable, collections.abc.Sized):
         )
 
     def __repr__(self):
-        return f"IdentitySegmentList({repr(list(self))})"
+        return f"IdentitySegmentList({list(self)!r})"
 
     def __eq__(self, other):
         if not isinstance(other, IdentitySegmentList):
@@ -2787,7 +2777,7 @@ class ReferenceSequence(metadata.MetadataProvider):
     # FIXME This is a shortcut, we want to put the values in explicitly
     # here to get more control over how they are displayed.
     def __repr__(self):
-        return f"ReferenceSequence({repr(self.asdict())})"
+        return f"ReferenceSequence({self.asdict()!r})"
 
     @property
     def data(self) -> str:
@@ -3254,8 +3244,7 @@ class TableCollection(metadata.MetadataProvider):
 
         if self.time_units != other.time_units:
             raise AssertionError(
-                f"Time units differs: self={self.time_units} "
-                f"other={other.time_units}"
+                f"Time units differs: self={self.time_units} " f"other={other.time_units}"
             )
 
         if self.sequence_length != other.sequence_length:
@@ -3322,7 +3311,7 @@ class TableCollection(metadata.MetadataProvider):
         self._ll_tables.fromdict(state)
 
     @classmethod
-    def fromdict(self, tables_dict):
+    def fromdict(cls, tables_dict):
         ll_tc = _tskit.TableCollection()
         ll_tc.fromdict(tables_dict)
         return TableCollection(ll_tables=ll_tc)
@@ -3667,9 +3656,7 @@ class TableCollection(metadata.MetadataProvider):
         :param bool remove_unreferenced: Whether to remove unreferenced sites,
             individuals, and populations (default=True).
         """
-        remove_unreferenced = (
-            True if remove_unreferenced is None else remove_unreferenced
-        )
+        remove_unreferenced = True if remove_unreferenced is None else remove_unreferenced
         self._ll_tables.canonicalise(remove_unreferenced=remove_unreferenced)
         # TODO add provenance
 
@@ -3841,9 +3828,7 @@ class TableCollection(metadata.MetadataProvider):
                 self.sites.position >= s, self.sites.position < e
             )
             keep_sites = np.logical_or(keep_sites, curr_keep_sites)
-            keep_edges = np.logical_not(
-                np.logical_or(edges.right <= s, edges.left >= e)
-            )
+            keep_edges = np.logical_not(np.logical_or(edges.right <= s, edges.left >= e))
             metadata, metadata_offset = keep_with_offset(
                 keep_edges, edges.metadata, edges.metadata_offset
             )
@@ -4093,12 +4078,8 @@ class TableCollection(metadata.MetadataProvider):
             that are not referred to by any retained entries in the tables should
             be removed (default: True). See the description for details.
         """
-        reorder_populations = (
-            True if reorder_populations is None else reorder_populations
-        )
-        remove_unreferenced = (
-            True if remove_unreferenced is None else remove_unreferenced
-        )
+        reorder_populations = True if reorder_populations is None else reorder_populations
+        remove_unreferenced = True if remove_unreferenced is None else remove_unreferenced
         nodes = util.safe_np_int_cast(nodes, np.int32)
         self._ll_tables.subset(
             nodes,

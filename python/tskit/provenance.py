@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2016-2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -24,6 +24,7 @@
 Common provenance methods used to determine the state and versions
 of various dependencies and the OS.
 """
+
 import json
 import os.path
 import platform
@@ -32,6 +33,7 @@ import jsonschema
 
 import _tskit
 import tskit.exceptions as exceptions
+
 from . import _version
 
 __version__ = _version.tskit_version

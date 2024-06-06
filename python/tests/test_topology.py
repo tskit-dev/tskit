@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2016-2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,6 +23,7 @@
 """
 Test cases for the supported topological variations and operations.
 """
+
 import functools
 import io
 import itertools
@@ -2282,7 +2283,7 @@ class TestRedundantBreakpoints(TopologyTestCase):
         trees = [t.parent_dict for t in ts_redundant.trees()]
         assert len(trees) == 2
         assert trees[0] == trees[1]
-        assert [t.parent_dict for t in ts.trees()][0] == trees[0]
+        assert next(t.parent_dict for t in ts.trees()) == trees[0]
 
     def test_many_trees(self):
         ts = msprime.simulate(20, recombination_rate=5, random_seed=self.random_seed)
@@ -2297,8 +2298,7 @@ class TestRedundantBreakpoints(TopologyTestCase):
         comparisons = 0
         for t in ts.trees():
             while (
-                redundant_t is not None
-                and redundant_t.interval.right <= t.interval.right
+                redundant_t is not None and redundant_t.interval.right <= t.interval.right
             ):
                 assert t.parent_dict == redundant_t.parent_dict
                 comparisons += 1
@@ -5352,9 +5352,7 @@ class TestSimplify(SimplifyTestBase):
         0       0       0               0
         """
         )
-        ts = tskit.load_text(
-            nodes, edges, sites=sites, mutations=mutations, strict=False
-        )
+        ts = tskit.load_text(nodes, edges, sites=sites, mutations=mutations, strict=False)
         assert ts.sample_size == 1
         assert ts.num_trees == 1
         assert ts.num_sites == 1
@@ -5393,9 +5391,7 @@ class TestSimplify(SimplifyTestBase):
         0       0       1               1
         """
         )
-        ts = tskit.load_text(
-            nodes, edges, sites=sites, mutations=mutations, strict=False
-        )
+        ts = tskit.load_text(nodes, edges, sites=sites, mutations=mutations, strict=False)
         assert ts.sample_size == 1
         assert ts.num_trees == 1
         assert ts.num_sites == 1
@@ -5811,9 +5807,7 @@ class TestSimplifyKeepInputRoots(SimplifyTestBase, ExampleTopologyMixin):
                         assert left <= position < right
                         new_site = new_sites[position]
                         # We assume the metadata contains a unique key for each mutation.
-                        new_mutations = {
-                            mut.metadata: mut for mut in new_site.mutations
-                        }
+                        new_mutations = {mut.metadata: mut for mut in new_site.mutations}
                         # Just make sure the metadata is actually unique.
                         assert len(new_mutations) == len(new_site.mutations)
                         input_site = input_sites[position]
@@ -5912,10 +5906,8 @@ class TestSimplifyFilterNodes:
         if resample_size is None:
             samples = None
         else:
-            np.random.seed(42)
-            samples = np.sort(
-                np.random.choice(ts_in.num_nodes, resample_size, replace=False)
-            )
+            rng = np.random.default_rng(42)
+            samples = np.sort(rng.choice(ts_in.num_nodes, resample_size, replace=False))
 
         for ts in (ts_in, self.reverse_node_indexes(ts_in)):
             filtered, n_map = do_simplify(
@@ -5933,9 +5925,7 @@ class TestSimplifyFilterNodes:
 
             # Check that edges are identical to the normal simplify(),
             # with the normal "simplify" having altered IDs
-            simplified, node_map = ts.simplify(
-                samples=samples, map_nodes=True, **kwargs
-            )
+            simplified, node_map = ts.simplify(samples=samples, map_nodes=True, **kwargs)
             simplified_edges = {e for e in simplified.tables.edges}
             filtered_edges = {
                 e.replace(parent=node_map[e.parent], child=node_map[e.child])
@@ -6005,9 +5995,7 @@ class TestSimplifyFilterNodes:
     @pytest.mark.parametrize("resample_size", [None, 10])
     def test_with_metadata(self, ts_fixture_for_simplify, resample_size):
         assert ts_fixture_for_simplify.num_nodes > 10
-        self.verify_nodes_unchanged(
-            ts_fixture_for_simplify, resample_size=resample_size
-        )
+        self.verify_nodes_unchanged(ts_fixture_for_simplify, resample_size=resample_size)
 
     @pytest.mark.parametrize("resample_size", [None, 7])
     def test_complex_ts_with_unary(self, resample_size):
@@ -6666,9 +6654,7 @@ class TestMutationTime:
     def verify_times(self, ts):
         tables = ts.tables
         # Clear out the existing mutations as they come from msprime
-        tables.mutations.time = np.full(
-            tables.mutations.time.shape, -1, dtype=np.float64
-        )
+        tables.mutations.time = np.full(tables.mutations.time.shape, -1, dtype=np.float64)
         assert np.all(tables.mutations.time == -1)
         # Compute times with C method and dumb python method
         tables.compute_mutation_times()
@@ -6730,9 +6716,7 @@ class TestMutationTime:
         tables = ts.tables
         python_time = tsutil.compute_mutation_times(ts)
         assert np.allclose(python_time, tables.mutations.time, rtol=1e-15, atol=1e-15)
-        tables.mutations.time = np.full(
-            tables.mutations.time.shape, -1, dtype=np.float64
-        )
+        tables.mutations.time = np.full(tables.mutations.time.shape, -1, dtype=np.float64)
         assert np.all(tables.mutations.time == -1)
         tables.compute_mutation_times()
         assert np.allclose(python_time, tables.mutations.time, rtol=1e-15, atol=1e-15)
@@ -6969,9 +6953,7 @@ class TestSampleLists(ExampleTopologyMixin):
             # The python implementation here doesn't maintain roots
             np.testing.assert_array_equal(tree1.parent, tree2.parent_array[:-1])
             np.testing.assert_array_equal(tree1.left_child, tree2.left_child_array[:-1])
-            np.testing.assert_array_equal(
-                tree1.right_child, tree2.right_child_array[:-1]
-            )
+            np.testing.assert_array_equal(tree1.right_child, tree2.right_child_array[:-1])
         assert right == ts.sequence_length
 
 
@@ -7049,9 +7031,7 @@ class RootThreshold(ExampleTopologyMixin):
             assert tree_py.left_child[-1] == tree_lib.left_root
             np.testing.assert_array_equal(tree_py.parent, tree_lib.parent_array)
             np.testing.assert_array_equal(tree_py.left_child, tree_lib.left_child_array)
-            np.testing.assert_array_equal(
-                tree_py.right_child, tree_lib.right_child_array
-            )
+            np.testing.assert_array_equal(tree_py.right_child, tree_lib.right_child_array)
             np.testing.assert_array_equal(tree_py.left_sib, tree_lib.left_sib_array)
             np.testing.assert_array_equal(tree_py.right_sib, tree_lib.right_sib_array)
             np.testing.assert_array_equal(
@@ -7066,9 +7046,7 @@ class RootThreshold(ExampleTopologyMixin):
             # except for the extra node and the details of the sib arrays.
             np.testing.assert_array_equal(tree_py.parent[:-1], tree_leg.parent)
             np.testing.assert_array_equal(tree_py.left_child[:-1], tree_leg.left_child)
-            np.testing.assert_array_equal(
-                tree_py.right_child[:-1], tree_leg.right_child
-            )
+            np.testing.assert_array_equal(tree_py.right_child[:-1], tree_leg.right_child)
             # The sib arrays are identical except for root nodes.
             for u in range(ts.num_nodes):
                 if u not in roots:
@@ -7346,9 +7324,7 @@ def squash_edges(ts):
     last_e = edges[0]
     for e in edges[1:]:
         condition = (
-            e.parent != last_e.parent
-            or e.child != last_e.child
-            or e.left != last_e.right
+            e.parent != last_e.parent or e.child != last_e.child or e.left != last_e.right
         )
         if condition:
             squashed.append(last_e)
@@ -7549,9 +7525,7 @@ class TestReduceTopology:
         self.verify(ts)
 
     def test_large_recombination(self):
-        ts = msprime.simulate(
-            25, random_seed=12, recombination_rate=5, mutation_rate=15
-        )
+        ts = msprime.simulate(25, random_seed=12, recombination_rate=5, mutation_rate=15)
         self.verify(ts)
 
     def test_no_recombination(self):
@@ -7611,8 +7585,8 @@ class TestSearchSorted:
         a = np.array(a)
         start, end = a[0], a[-1]
         # Check random values.
-        np.random.seed(43)
-        for v in np.random.uniform(start, end, 10):
+        rng = np.random.default_rng(43)
+        for v in rng.uniform(start, end, 10):
             assert search_sorted(a, v) == np.searchsorted(a, v)
         # Check equal values.
         for v in a:
@@ -7630,27 +7604,27 @@ class TestSearchSorted:
             self.verify(-1 * np.arange(j)[::-1])
 
     def test_random_unit_interval(self):
-        np.random.seed(143)
+        rng = np.random.default_rng(143)
         for size in range(1, 100):
-            a = np.random.random(size=size)
+            a = rng.random(size=size)
             a.sort()
             self.verify(a)
 
     def test_random_interval(self):
-        np.random.seed(143)
+        rng = np.random.default_rng(143)
         for _ in range(10):
-            interval = np.random.random(2) * 10
+            interval = rng.random(2) * 10
             interval.sort()
-            a = np.random.uniform(*interval, size=100)
+            a = rng.uniform(*interval, size=100)
             a.sort()
             self.verify(a)
 
     def test_random_negative(self):
-        np.random.seed(143)
+        rng = np.random.default_rng(143)
         for _ in range(10):
-            interval = np.random.random(2) * 5
+            interval = rng.random(2) * 5
             interval.sort()
-            a = -1 * np.random.uniform(*interval, size=100)
+            a = -1 * rng.uniform(*interval, size=100)
             a.sort()
             self.verify(a)
 
@@ -7912,9 +7886,7 @@ class TestKeepIntervals(TopologyTestCase):
         yield [(0.25 * L, 0.5 * L)]
         yield [(0.25 * L, 0.5 * L), (0.75 * L, 0.8 * L)]
 
-    def do_keep_intervals(
-        self, tables, intervals, simplify=True, record_provenance=True
-    ):
+    def do_keep_intervals(self, tables, intervals, simplify=True, record_provenance=True):
         t1 = tables.copy()
         simple_keep_intervals(t1, intervals, simplify, record_provenance)
         t2 = tables.copy()
@@ -7986,9 +7958,7 @@ class TestKeepIntervals(TopologyTestCase):
                 self.do_keep_intervals(tables, intervals, simplify, rec_prov)
 
     def test_regular_intervals(self):
-        ts = msprime.simulate(
-            3, random_seed=1234, recombination_rate=2, mutation_rate=2
-        )
+        ts = msprime.simulate(3, random_seed=1234, recombination_rate=2, mutation_rate=2)
         tables = ts.tables
         eps = 0.0125
         for num_intervals in range(2, 10):
@@ -8132,9 +8102,7 @@ class TestKeepDeleteIntervalsExamples:
     def test_ts_single_tree_keep_middle(self):
         ts = msprime.simulate(10, random_seed=2)
         ts_keep = ts.keep_intervals([[0.25, 0.5]], record_provenance=False)
-        ts_delete = ts.delete_intervals(
-            [[0, 0.25], [0.5, 1.0]], record_provenance=False
-        )
+        ts_delete = ts.delete_intervals([[0, 0.25], [0.5, 1.0]], record_provenance=False)
         assert ts_keep == ts_delete
 
     def test_ts_single_tree_delete_middle(self):
@@ -8312,23 +8280,17 @@ class TestTrim(unittest.TestCase):
         self.verify_ltrim(ts, ts.ltrim())
 
     def test_ltrim_many_trees(self):
-        ts = msprime.simulate(
-            10, recombination_rate=10, mutation_rate=12, random_seed=2
-        )
+        ts = msprime.simulate(10, recombination_rate=10, mutation_rate=12, random_seed=2)
         ts = self.clear_left_mutate(ts, 0.5, 10)
         self.verify_ltrim(ts, ts.ltrim())
 
     def test_ltrim_many_trees_left_min(self):
-        ts = msprime.simulate(
-            10, recombination_rate=10, mutation_rate=12, random_seed=2
-        )
+        ts = msprime.simulate(10, recombination_rate=10, mutation_rate=12, random_seed=2)
         ts = self.clear_left_mutate(ts, sys.float_info.min, 10)
         self.verify_ltrim(ts, ts.ltrim())
 
     def test_ltrim_many_trees_left_epsilon(self):
-        ts = msprime.simulate(
-            10, recombination_rate=10, mutation_rate=12, random_seed=2
-        )
+        ts = msprime.simulate(10, recombination_rate=10, mutation_rate=12, random_seed=2)
         ts = self.clear_left_mutate(ts, sys.float_info.epsilon, 0)
         self.verify_ltrim(ts, ts.ltrim())
 
@@ -8374,23 +8336,17 @@ class TestTrim(unittest.TestCase):
         self.verify_rtrim(ts, ts.rtrim())
 
     def test_rtrim_many_trees(self):
-        ts = msprime.simulate(
-            10, recombination_rate=10, mutation_rate=12, random_seed=2
-        )
+        ts = msprime.simulate(10, recombination_rate=10, mutation_rate=12, random_seed=2)
         ts = self.clear_right_mutate(ts, 0.5, 10)
         self.verify_rtrim(ts, ts.rtrim())
 
     def test_rtrim_many_trees_left_min(self):
-        ts = msprime.simulate(
-            10, recombination_rate=10, mutation_rate=12, random_seed=2
-        )
+        ts = msprime.simulate(10, recombination_rate=10, mutation_rate=12, random_seed=2)
         ts = self.clear_right_mutate(ts, sys.float_info.min, 10)
         self.verify_rtrim(ts, ts.rtrim())
 
     def test_rtrim_many_trees_left_epsilon(self):
-        ts = msprime.simulate(
-            10, recombination_rate=10, mutation_rate=12, random_seed=2
-        )
+        ts = msprime.simulate(10, recombination_rate=10, mutation_rate=12, random_seed=2)
         ts = self.clear_right_mutate(ts, sys.float_info.epsilon, 0)
         self.verify_rtrim(ts, ts.rtrim())
 
@@ -8406,9 +8362,7 @@ class TestTrim(unittest.TestCase):
         self.assertAlmostEqual(trimmed_ts.sequence_length, 0.5)
         assert trimmed_ts.num_sites == 2
         assert trimmed_ts.num_mutations == 5  # We should have deleted 4
-        assert (
-            np.max(trimmed_ts.tables.edges.right) == trimmed_ts.tables.sequence_length
-        )
+        assert np.max(trimmed_ts.tables.edges.right) == trimmed_ts.tables.sequence_length
         self.verify_rtrim(ts, trimmed_ts)
 
     def test_rtrim_migrations(self):
@@ -8425,9 +8379,7 @@ class TestTrim(unittest.TestCase):
         assert trimmed_ts.num_mutations == 3
         assert trimmed_ts.num_sites == 1
         assert np.min(trimmed_ts.tables.edges.left) == 0
-        assert (
-            np.max(trimmed_ts.tables.edges.right) == trimmed_ts.tables.sequence_length
-        )
+        assert np.max(trimmed_ts.tables.edges.right) == trimmed_ts.tables.sequence_length
 
     def test_trims_no_effect(self):
         # Deleting from middle should have no effect on any trim function

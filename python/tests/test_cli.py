@@ -23,6 +23,7 @@
 """
 Test cases for the command line interfaces to tskit
 """
+
 import io
 import os
 import sys
@@ -36,10 +37,11 @@ import pytest
 
 import tskit
 import tskit.cli as cli
+
 from . import tsutil
 
 
-class TestException(Exception):
+class TestException(Exception):  # noqa: N818
     __test__ = False
     """
     Custom exception we can throw for testing.
@@ -52,8 +54,7 @@ def capture_output(func, *args, **kwargs):
     tuple (stdout, stderr) as strings.
     """
     buffer_class = io.BytesIO
-    if sys.version_info[0] == 3:
-        buffer_class = io.StringIO
+    buffer_class = io.StringIO
     stdout = sys.stdout
     sys.stdout = buffer_class()
     stderr = sys.stderr
@@ -264,12 +265,12 @@ class TestTskitArgumentParser:
         assert args.wrap == 50
 
     @pytest.mark.parametrize(
-        "flags,expected",
-        (
-            [[], None],
-            [["-P", "2"], 2],
-            [["--ploidy", "5"], 5],
-        ),
+        ("flags", "expected"),
+        [
+            ([], None),
+            (["-P", "2"], 2),
+            (["--ploidy", "5"], 5),
+        ],
     )
     def test_vcf_ploidy(self, flags, expected):
         parser = cli.get_tskit_parser()
@@ -280,12 +281,12 @@ class TestTskitArgumentParser:
         assert args.ploidy == expected
 
     @pytest.mark.parametrize(
-        "flags,expected",
-        (
-            [[], "1"],
-            [["-c", "chrX"], "chrX"],
-            [["--contig-id", "chr20"], "chr20"],
-        ),
+        ("flags", "expected"),
+        [
+            ([], "1"),
+            (["-c", "chrX"], "chrX"),
+            (["--contig-id", "chr20"], "chr20"),
+        ],
     )
     def test_vcf_contig_id(self, flags, expected):
         parser = cli.get_tskit_parser()
@@ -296,12 +297,12 @@ class TestTskitArgumentParser:
         assert args.contig_id == expected
 
     @pytest.mark.parametrize(
-        "flags,expected",
-        (
-            [[], False],
-            [["-0"], True],
-            [["--allow-position-zero"], True],
-        ),
+        ("flags", "expected"),
+        [
+            ([], False),
+            (["-0"], True),
+            (["--allow-position-zero"], True),
+        ],
     )
     def test_vcf_allow_position_zero(self, flags, expected):
         parser = cli.get_tskit_parser()
@@ -408,9 +409,7 @@ class TestTskitConversionOutput(unittest.TestCase):
         cls._tree_sequence = tsutil.insert_random_ploidy_individuals(
             ts, samples_only=True
         )
-        fd, cls._tree_sequence_file = tempfile.mkstemp(
-            prefix="tsk_cli", suffix=".trees"
-        )
+        fd, cls._tree_sequence_file = tempfile.mkstemp(prefix="tsk_cli", suffix=".trees")
         os.close(fd)
         cls._tree_sequence.dump(cls._tree_sequence_file)
 

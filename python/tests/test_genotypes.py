@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2019-2023 Tskit Developers
+# Copyright (c) 2019-2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
 """
 Test cases for generating genotypes/haplotypes.
 """
+
 import itertools
 import logging
 import random
@@ -107,9 +108,7 @@ class TestGetAncestralHaplotypes:
         self.verify(ts)
 
     def test_many_trees(self):
-        ts = msprime.simulate(
-            8, recombination_rate=10, mutation_rate=10, random_seed=234
-        )
+        ts = msprime.simulate(8, recombination_rate=10, mutation_rate=10, random_seed=234)
         assert ts.num_trees > 1
         assert ts.num_sites > 1
         self.verify(ts)
@@ -668,7 +667,7 @@ class TestLimitInterval:
             assert v.alleles == test_variant.alleles
 
     @pytest.mark.parametrize(
-        ["left", "expected"],
+        ("left", "expected"),
         [
             (None, [0, 1, 2, 3, 4]),
             (0, [0, 1, 2, 3, 4]),
@@ -690,7 +689,7 @@ class TestLimitInterval:
         assert positions == expected
 
     @pytest.mark.parametrize(
-        ["right", "expected"],
+        ("right", "expected"),
         [
             (None, [0, 1, 2, 3, 4]),
             (5, [0, 1, 2, 3, 4]),
@@ -913,9 +912,7 @@ class TestHaplotypeGenerator:
             h = list(ts.haplotypes(isolated_as_missing=False, impute_missing_data=True))
         assert h == ["A", "A"]
         with pytest.warns(FutureWarning):
-            h = list(
-                ts.haplotypes(isolated_as_missing=False, impute_missing_data=False)
-            )
+            h = list(ts.haplotypes(isolated_as_missing=False, impute_missing_data=False))
         assert h == ["A", "A"]
 
     def test_restrict_samples(self):
@@ -967,9 +964,7 @@ class TestUserAlleles:
         alleles = ("0", "1", "2", "xxxxx")
         G2 = ts.genotype_matrix(alleles=alleles)
         assert np.array_equal(G1, G2)
-        for v1, v2 in itertools.zip_longest(
-            ts.variants(), ts.variants(alleles=alleles)
-        ):
+        for v1, v2 in itertools.zip_longest(ts.variants(), ts.variants(alleles=alleles)):
             assert v2.alleles == alleles
             assert v1.site == v2.site
             assert np.array_equal(v1.genotypes, v2.genotypes)
@@ -981,9 +976,7 @@ class TestUserAlleles:
         alleles = ("A", "B", "C", "0", "1")
         G2 = ts.genotype_matrix(alleles=alleles)
         assert np.array_equal(G1 + 3, G2)
-        for v1, v2 in itertools.zip_longest(
-            ts.variants(), ts.variants(alleles=alleles)
-        ):
+        for v1, v2 in itertools.zip_longest(ts.variants(), ts.variants(alleles=alleles)):
             assert v2.alleles == alleles
             assert v1.site == v2.site
             assert np.array_equal(v1.genotypes + 3, v2.genotypes)
@@ -997,9 +990,7 @@ class TestUserAlleles:
         index = np.where(G1 == 1)
         G1[index] = 2
         assert np.array_equal(G1, G2)
-        for v1, v2 in itertools.zip_longest(
-            ts.variants(), ts.variants(alleles=alleles)
-        ):
+        for v1, v2 in itertools.zip_longest(ts.variants(), ts.variants(alleles=alleles)):
             assert v2.alleles == alleles
             assert v1.site == v2.site
             g = np.array(v1.genotypes)
@@ -1015,9 +1006,7 @@ class TestUserAlleles:
         assert ts.num_sites > 2
         alleles = tskit.ALLELES_ACGT
         G = ts.genotype_matrix(alleles=alleles)
-        for v1, v2 in itertools.zip_longest(
-            ts.variants(), ts.variants(alleles=alleles)
-        ):
+        for v1, v2 in itertools.zip_longest(ts.variants(), ts.variants(alleles=alleles)):
             assert v2.alleles == alleles
             assert v1.site == v2.site
             h1 = "".join(v1.alleles[g] for g in v1.genotypes)
@@ -1091,9 +1080,7 @@ class TestUserAllelesRoundTrip:
     """
 
     def verify(self, ts, alleles):
-        for v1, v2 in itertools.zip_longest(
-            ts.variants(), ts.variants(alleles=alleles)
-        ):
+        for v1, v2 in itertools.zip_longest(ts.variants(), ts.variants(alleles=alleles)):
             h1 = [v1.alleles[g] for g in v1.genotypes]
             h2 = [v2.alleles[g] for g in v2.genotypes]
             assert h1 == h2
@@ -1534,9 +1521,7 @@ class TestMissingDataExample:
     @pytest.mark.skip("Missing data in alignments: #1896")
     def test_alignments_impute_missing(self):
         ref = "N" * 10
-        A = list(
-            self.ts().alignments(reference_sequence=ref, isolated_as_missing=False)
-        )
+        A = list(self.ts().alignments(reference_sequence=ref, isolated_as_missing=False))
         assert A[0] == "NNGNNNNNNT"
         assert A[1] == "NNANNNNNNC"
         assert A[2] == "NNANNNNNNC"
@@ -1570,9 +1555,7 @@ class TestMissingDataExample:
     @pytest.mark.skip("Missing data in alignments: #1896")
     def test_alignments_reference_sequence_missing_data_char(self):
         ref = "0123456789"
-        A = list(
-            self.ts().alignments(reference_sequence=ref, missing_data_character="Q")
-        )
+        A = list(self.ts().alignments(reference_sequence=ref, missing_data_character="Q"))
         assert A[0] == "01G345678T"
         assert A[1] == "01A345678C"
         assert A[2] == "01A345678C"
@@ -1658,9 +1641,7 @@ class TestMissingDataExample:
             END;
             """
         )
-        assert expected == self.ts().as_nexus(
-            reference_sequence=ref, include_trees=False
-        )
+        assert expected == self.ts().as_nexus(reference_sequence=ref, include_trees=False)
 
     @pytest.mark.skip("Missing data in alignments: #1896")
     def test_nexus_reference_sequence_missing_data_char(self):
@@ -1816,13 +1797,13 @@ class TestAlignmentsErrors:
         with pytest.raises(ValueError, match="shorter than"):
             list(ts.alignments(reference_sequence=ref))
 
-    @pytest.mark.parametrize("ref", ["À", "┃", "α"])
+    @pytest.mark.parametrize("ref", ["À", "┃", "α"])  # noqa: RUF001
     def test_non_ascii_references(self, ref):
         ts = self.simplest_ts()
         with pytest.raises(UnicodeEncodeError):
             list(ts.alignments(reference_sequence=ref))
 
-    @pytest.mark.parametrize("ref", ["À", "┃", "α"])
+    @pytest.mark.parametrize("ref", ["À", "┃", "α"])  # noqa: RUF001
     def test_non_ascii_embedded_references(self, ref):
         tables = tskit.TableCollection(1)
         tables.nodes.add_row(flags=1, time=0)
@@ -1831,7 +1812,7 @@ class TestAlignmentsErrors:
         with pytest.raises(UnicodeEncodeError):
             list(ts.alignments())
 
-    @pytest.mark.parametrize("missing_data_char", ["À", "┃", "α"])
+    @pytest.mark.parametrize("missing_data_char", ["À", "┃", "α"])  # noqa: RUF001
     def test_non_ascii_missing_data_char(self, missing_data_char):
         ts = self.simplest_ts()
         with pytest.raises(UnicodeEncodeError):
@@ -1899,7 +1880,7 @@ class TestAlignmentExamples:
 # Tests for allele_remap
 #
 @pytest.mark.parametrize(
-    "alleles_from, alleles_to, allele_map",
+    ("alleles_from", "alleles_to", "allele_map"),
     [
         # Case 1: alleles_to is longer than alleles_from.
         (
@@ -1957,8 +1938,8 @@ class TestAlignmentExamples:
         ),
         # Case 10: Lists contain unicode characters.
         (
-            ["\u1F1E8", "\u1F1EC"],
-            ["\u1F1EC", "\u1F1E8", "\u1F1E6", "\u1F1F3"],
+            ["\u1f1e8", "\u1f1eC"],
+            ["\u1f1eC", "\u1f1e8", "\u1f1e6", "\u1f1f3"],
             np.array([1, 0], dtype="uint32"),
         ),
     ],
@@ -1987,14 +1968,14 @@ class TestVariant:
         variant = tskit.Variant(ts_fixture)
         assert variant.index == tskit.NULL
         with pytest.raises(ValueError, match="not yet been decoded"):
-            variant.site
+            variant.site  # noqa: B018
         assert variant.alleles == ()
         with pytest.raises(ValueError, match="not yet been decoded"):
             assert variant.genotypes
         assert not variant.has_missing_data
         assert variant.num_alleles == 0
         with pytest.raises(ValueError, match="not yet been decoded"):
-            variant.position
+            variant.position  # noqa: B018
         assert np.array_equal(variant.samples, np.array(ts_fixture.samples()))
 
     def test_variant_decode(self, ts_fixture):
@@ -2040,9 +2021,7 @@ class TestVariant:
         tables.sites.add_row(position=0.6, ancestral_state="AS1")
         tables.mutations.add_row(site=0, derived_state="DS0_0", node=0)
         tables.mutations.add_row(site=0, derived_state="DS0_3", node=3)
-        tables.mutations.add_row(
-            site=1, derived_state="DS1", node=simple_tree.parent(0)
-        )
+        tables.mutations.add_row(site=1, derived_state="DS1", node=simple_tree.parent(0))
         ts = tables.tree_sequence()
         variant_0 = next(ts.variants())
         freqs = variant_0.frequencies()
@@ -2166,9 +2145,7 @@ class TestVariant:
                 ╟─+┼─+╢
                 ║Isolated as missing\s*│\s*True║
                 ╚═+╧═+╝
-                """[
-                    1:
-                ]
+                """[1:]
             ),
             str(v),
         )
@@ -2219,7 +2196,8 @@ class TestVariant:
     def test_variant_repr(self, ts_fixture):
         v = next(ts_fixture.variants())
         str_rep = repr(v)
-        assert len(str_rep) > 0 and len(str_rep) < 10000
+        assert len(str_rep) > 0
+        assert len(str_rep) < 10000
         assert re.search(r"\AVariant", str_rep)
         assert re.search(rf"\'site\': Site\(id={v.site.id}", str_rep)
         assert re.search(rf"position={v.position}", str_rep)

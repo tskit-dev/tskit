@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2019-2023 Tskit Developers
+# Copyright (c) 2019-2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
 """
 Python implementation of the Li and Stephens forwards and backwards algorithms.
 """
+
 import warnings
 
 import lshmm as ls
@@ -162,9 +163,7 @@ class LsHmmAlgorithm:
             optimal_set[u, value_count == max_value_count] = 1
 
         optimal_set = np.zeros((tree.tree_sequence.num_nodes, len(values)), dtype=int)
-        t_node_time = [
-            -1 if st.tree_node == -1 else tree.time(st.tree_node) for st in T
-        ]
+        t_node_time = [-1 if st.tree_node == -1 else tree.time(st.tree_node) for st in T]
         order = np.argsort(t_node_time)
         for j in order:
             st = T[j]
@@ -258,9 +257,7 @@ class LsHmmAlgorithm:
                     u = parent[u]
                     assert u != -1
                 T_index[edge.child] = len(T)
-                T.append(
-                    ValueTransition(tree_node=edge.child, value=T[T_index[u]].value)
-                )
+                T.append(ValueTransition(tree_node=edge.child, value=T[T_index[u]].value))
             parent[edge.child] = -1
 
         for j in range(
@@ -284,7 +281,8 @@ class LsHmmAlgorithm:
                 while T_index[u] == -1:
                     u = parent[u]
                     assert u != -1
-            assert T_index[u] != -1 and T_index[edge.child] != -1
+            assert T_index[u] != -1
+            assert T_index[edge.child] != -1
             if T[T_index[u]].value == T[T_index[edge.child]].value:
                 st = T[T_index[edge.child]]
                 # Mark the lower ValueTransition as unused.
@@ -333,9 +331,7 @@ class LsHmmAlgorithm:
                 while allelic_state[v] == -1:
                     v = tree.parent(v)
                     assert v != -1
-                match = (
-                    haplotype_state == MISSING or haplotype_state == allelic_state[v]
-                )
+                match = haplotype_state == MISSING or haplotype_state == allelic_state[v]
                 # Note that the node u is used only by Viterbi
                 st.value = self.compute_next_probability(site.id, st.value, match, u)
 
@@ -772,7 +768,6 @@ class LSBase:
     def example_parameters_haplotypes(self, ts, seed=42):
         """Returns an iterator over combinations of haplotype,
         recombination and mutation rates."""
-        np.random.seed(seed)
         H, haplotypes = self.example_haplotypes(ts)
         n = H.shape[1]
         m = ts.get_num_sites()
@@ -789,8 +784,9 @@ class LSBase:
         # We'll be refactoring all this to use pytest anyway, so let's not
         # worry too much about coverage for now.
         # # Mixture of random and extremes
-        # rs = [np.zeros(m) + 0.999, np.zeros(m) + 1e-6, np.random.rand(m)]
-        # mus = [np.zeros(m) + 0.33, np.zeros(m) + 1e-6, np.random.rand(m) * 0.33]
+        # rng = np.random.default_rng(seed)
+        # rs = [np.zeros(m) + 0.999, np.zeros(m) + 1e-6, rng.random(m)]
+        # mus = [np.zeros(m) + 0.33, np.zeros(m) + 1e-6, rng.random(m) * 0.33]
 
         # import itertools
         # for s, r, mu in itertools.product(haplotypes, rs, mus):
@@ -804,9 +800,7 @@ class LSBase:
     # Define a bunch of very small tree-sequences for testing a collection
     # of parameters on
     def test_simple_n_10_no_recombination(self):
-        ts = msprime.simulate(
-            10, recombination_rate=0, mutation_rate=0.5, random_seed=42
-        )
+        ts = msprime.simulate(10, recombination_rate=0, mutation_rate=0.5, random_seed=42)
         assert ts.num_sites > 3
         self.verify(ts)
 

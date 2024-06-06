@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2021 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2016-2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,6 +23,7 @@
 """
 Test cases for threading enabled aspects of the API.
 """
+
 import platform
 import threading
 
@@ -58,9 +59,7 @@ class TestLdCalculatorReplicates:
     num_test_sites = 25
 
     def get_tree_sequence(self):
-        ts = msprime.simulate(
-            20, mutation_rate=10, recombination_rate=10, random_seed=8
-        )
+        ts = msprime.simulate(20, mutation_rate=10, recombination_rate=10, random_seed=8)
         return tsutil.subsample_sites(ts, self.num_test_sites)
 
     def test_get_r2_multiple_instances(self):
@@ -142,9 +141,7 @@ class TestLdCalculatorReplicates:
 # Temporarily skipping these on Windows and OSX See
 # https://github.com/tskit-dev/tskit/issues/344
 # https://github.com/tskit-dev/tskit/issues/1041
-@pytest.mark.skipif(
-    IS_WINDOWS or IS_OSX, reason="Can't test thread support on Windows."
-)
+@pytest.mark.skipif(IS_WINDOWS or IS_OSX, reason="Can't test thread support on Windows.")
 class TestTables:
     """
     Tests to ensure that attempts to access tables in threads correctly
@@ -153,9 +150,7 @@ class TestTables:
 
     def get_tables(self):
         # TODO include migrations here.
-        ts = msprime.simulate(
-            100, mutation_rate=10, recombination_rate=10, random_seed=8
-        )
+        ts = msprime.simulate(100, mutation_rate=10, recombination_rate=10, random_seed=8)
         return ts.tables
 
     def run_multiple_writers(self, writer, num_writers=32):

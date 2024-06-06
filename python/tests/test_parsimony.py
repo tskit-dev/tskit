@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2019-2022 Tskit Developers
+# Copyright (c) 2019-2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
 """
 Tests for the tree parsimony methods.
 """
+
 import dataclasses
 import io
 import itertools
@@ -33,7 +34,6 @@ import pytest
 
 import tests.tsutil as tsutil
 import tskit
-
 
 INF = np.inf
 
@@ -373,9 +373,7 @@ class TestSankoff:
             [[0, 2.5, 1, 2.5], [2.5, 0, 2.5, 1], [1, 2.5, 0, 2.5], [2.5, 1, 2.5, 0]]
         )
         S = sankoff_score(tree, genotypes, cost_matrix)
-        ancestral_state, transitions = reconstruct_states(
-            tree, genotypes, S, cost_matrix
-        )
+        ancestral_state, transitions = reconstruct_states(tree, genotypes, S, cost_matrix)
         assert {2: 1, 4: 2, 0: 1} == transitions
         assert 0 == ancestral_state
 
@@ -384,9 +382,7 @@ class TestSankoff:
         assert ts.num_sites > 5
         tree = ts.first()
         for variant in ts.variants():
-            ancestral_state, transitions = sankoff_map_mutations(
-                tree, variant.genotypes
-            )
+            ancestral_state, transitions = sankoff_map_mutations(tree, variant.genotypes)
             assert len(transitions) == 1
             assert ancestral_state == 0
             assert transitions[variant.site.mutations[0].node] == 1
@@ -576,6 +572,7 @@ class TestParsimonyRoundTrip(TestParsimonyBase):
     def verify(self, ts):
         G = ts.genotype_matrix(isolated_as_missing=False)
         alleles = [v.alleles for v in ts.variants()]
+        rng = np.random.default_rng(42)
         for randomize_ancestral_states in [False, True]:
             tables = ts.dump_tables()
             tables.sites.clear()
@@ -587,7 +584,7 @@ class TestParsimonyRoundTrip(TestParsimonyBase):
                         num_alleles = len(alleles[site.id])
                         if alleles[site.id][-1] is None:
                             num_alleles -= 1
-                        fixed_anc_state = np.random.randint(num_alleles)
+                        fixed_anc_state = rng.integers(num_alleles)
                     ancestral_state, mutations = self.do_map_mutations(
                         tree,
                         G[site.id],
@@ -838,9 +835,7 @@ class TestParsimonyMissingData(TestParsimonyBase):
         for j in range(n):
             genotypes = np.zeros(n, dtype=np.int8) - 1
             genotypes[j] = 0
-            ancestral_state, transitions = self.do_map_mutations(
-                tree, genotypes, alleles
-            )
+            ancestral_state, transitions = self.do_map_mutations(tree, genotypes, alleles)
             assert ancestral_state == "0"
             assert len(transitions) == 0
 
@@ -852,9 +847,7 @@ class TestParsimonyMissingData(TestParsimonyBase):
         for j in range(n):
             genotypes = np.zeros(n, dtype=np.int8) - 1
             genotypes[j] = 0
-            ancestral_state, transitions = self.do_map_mutations(
-                tree, genotypes, alleles
-            )
+            ancestral_state, transitions = self.do_map_mutations(tree, genotypes, alleles)
             assert ancestral_state == "0"
             assert len(transitions) == 0
 

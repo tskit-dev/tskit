@@ -24,6 +24,7 @@
 """
 Command line utilities for tskit.
 """
+
 import argparse
 import json
 import os
@@ -122,9 +123,8 @@ def run_provenances(args):
         for provenance in tree_sequence.provenances():
             d = json.loads(provenance.record)
             print(
-                "id={}, timestamp={}, record={}".format(
-                    provenance.id, provenance.timestamp, json.dumps(d, indent=4)
-                )
+                f"id={provenance.id}, timestamp={provenance.timestamp}, "
+                f"record={json.dumps(d, indent=4)}"
             )
     else:
         tree_sequence.dump_text(provenances=sys.stdout)
@@ -183,9 +183,7 @@ def get_tskit_parser():
     )
     parser.set_defaults(runner=run_trees)
 
-    parser = subparsers.add_parser(
-        "upgrade", help="Upgrade legacy tree sequence files."
-    )
+    parser = subparsers.add_parser("upgrade", help="Upgrade legacy tree sequence files.")
     parser.add_argument(
         "source", help="The source tskit tree sequence file in legacy format"
     )

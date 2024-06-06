@@ -22,6 +22,7 @@
 """
 Test cases for table transformation operations like trim(), decapitate, etc.
 """
+
 import decimal
 import fractions
 import io

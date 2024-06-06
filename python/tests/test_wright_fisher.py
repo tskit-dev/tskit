@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2021 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (C) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,6 +23,7 @@
 """
 Test various functions using messy tables output by a forwards-time simulator.
 """
+
 import itertools
 import random
 
@@ -403,9 +404,7 @@ class TestSimulation:
         tables = ts.tables
         assert tables.sites.num_rows > 0
         assert tables.mutations.num_rows > 0
-        samples = np.where(tables.nodes.flags == tskit.NODE_IS_SAMPLE)[0].astype(
-            np.int32
-        )
+        samples = np.where(tables.nodes.flags == tskit.NODE_IS_SAMPLE)[0].astype(np.int32)
         tables.sort()
         tables.simplify(samples)
         assert tables.nodes.num_rows > 0
@@ -585,10 +584,10 @@ class TestSimplify:
     @pytest.mark.parametrize("ts", wf_sims)
     @pytest.mark.parametrize("nsamples", [2, 5])
     def test_simplify_keep_unary(self, ts, nsamples):
-        np.random.seed(123)
+        rng = np.random.default_rng(123)
         ts = tsutil.mark_metadata(ts, "nodes")
         sub_samples = random.sample(list(ts.samples()), min(nsamples, ts.num_samples))
-        random_nodes = np.random.choice(ts.num_nodes, ts.num_nodes // 2)
+        random_nodes = rng.choice(ts.num_nodes, ts.num_nodes // 2, replace=False)
         ts = tsutil.insert_individuals(ts, random_nodes)
         ts = tsutil.mark_metadata(ts, "individuals")
 

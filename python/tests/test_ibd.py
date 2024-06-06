@@ -750,7 +750,7 @@ class TestIbdPolytomies:
             (1, 3): [tskit.IdentitySegment(0.3, 1, 4)],
             (2, 3): [tskit.IdentitySegment(0.3, 1, 5)],
         }
-        (ibd_segs, true_segs)
+        assert_ibd_equal(ibd_segs, true_segs)
 
     def test_input_within(self):
         ibd_segs = ibd_segments(self.ts(), within=[0, 1, 2])
@@ -1122,12 +1122,12 @@ class TestIdentitySegmentsList:
 
     def test_str(self):
         result = self.example_ts.ibd_segments(store_segments=True)
-        seglist = list(result.values())[0]
+        seglist = next(iter(result.values()))
         assert str(seglist).startswith("IdentitySegmentList")
 
     def test_repr(self):
         result = self.example_ts.ibd_segments(store_segments=True)
-        seglist = list(result.values())[0]
+        seglist = next(iter(result.values()))
         assert repr(seglist).startswith("IdentitySegmentList([IdentitySegment")
 
     def test_eq_semantics(self):

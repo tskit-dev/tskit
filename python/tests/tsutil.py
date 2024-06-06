@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (C) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,6 +23,7 @@
 """
 A collection of utilities to edit and construct tree sequences.
 """
+
 import collections
 import dataclasses
 import functools
@@ -399,13 +400,11 @@ def add_random_metadata(ts, seed=1, max_length=10):
     to the nodes, sites and mutations.
     """
     tables = ts.dump_tables()
-    np.random.seed(seed)
+    rng = np.random.default_rng(seed)
 
-    length = np.random.randint(0, max_length, ts.num_nodes)
+    length = rng.integers(0, max_length, ts.num_nodes)
     offset = np.cumsum(np.hstack(([0], length)), dtype=np.uint32)
-    # Older versions of numpy didn't have a dtype argument for randint, so
-    # must use astype instead.
-    metadata = np.random.randint(-127, 127, offset[-1]).astype(np.int8)
+    metadata = rng.integers(-127, 127, offset[-1], dtype=np.int8)
     nodes = tables.nodes
     nodes.set_columns(
         flags=nodes.flags,
@@ -416,9 +415,9 @@ def add_random_metadata(ts, seed=1, max_length=10):
         individual=nodes.individual,
     )
 
-    length = np.random.randint(0, max_length, ts.num_sites)
+    length = rng.integers(0, max_length, ts.num_sites)
     offset = np.cumsum(np.hstack(([0], length)), dtype=np.uint32)
-    metadata = np.random.randint(-127, 127, offset[-1]).astype(np.int8)
+    metadata = rng.integers(-127, 127, offset[-1], dtype=np.int8)
     sites = tables.sites
     sites.set_columns(
         position=sites.position,
@@ -428,9 +427,9 @@ def add_random_metadata(ts, seed=1, max_length=10):
         metadata=metadata,
     )
 
-    length = np.random.randint(0, max_length, ts.num_mutations)
+    length = rng.integers(0, max_length, ts.num_mutations)
     offset = np.cumsum(np.hstack(([0], length)), dtype=np.uint32)
-    metadata = np.random.randint(-127, 127, offset[-1]).astype(np.int8)
+    metadata = rng.integers(-127, 127, offset[-1], dtype=np.int8)
     mutations = tables.mutations
     mutations.set_columns(
         site=mutations.site,
@@ -443,9 +442,9 @@ def add_random_metadata(ts, seed=1, max_length=10):
         metadata=metadata,
     )
 
-    length = np.random.randint(0, max_length, ts.num_individuals)
+    length = rng.integers(0, max_length, ts.num_individuals)
     offset = np.cumsum(np.hstack(([0], length)), dtype=np.uint32)
-    metadata = np.random.randint(-127, 127, offset[-1]).astype(np.int8)
+    metadata = rng.integers(-127, 127, offset[-1], dtype=np.int8)
     individuals = tables.individuals
     individuals.set_columns(
         flags=individuals.flags,
@@ -457,12 +456,11 @@ def add_random_metadata(ts, seed=1, max_length=10):
         metadata=metadata,
     )
 
-    length = np.random.randint(0, max_length, ts.num_populations)
+    length = rng.integers(0, max_length, ts.num_populations)
     offset = np.cumsum(np.hstack(([0], length)), dtype=np.uint32)
-    metadata = np.random.randint(-127, 127, offset[-1]).astype(np.int8)
+    metadata = rng.integers(-127, 127, offset[-1], dtype=np.int8)
     populations = tables.populations
     populations.set_columns(metadata_offset=offset, metadata=metadata)
-
     add_provenance(tables.provenances, "add_random_metadata")
     ts = tables.tree_sequence()
     return ts
@@ -829,9 +827,7 @@ def compute_mutation_times(ts):
         end_time = nodes[edges[edge_idx].parent].time
         duration = end_time - start_time
         for i, mut_idx in enumerate(edge_mutations):
-            times[mut_idx] = end_time - (
-                duration * ((i + 1) / (len(edge_mutations) + 1))
-            )
+            times[mut_idx] = end_time - (duration * ((i + 1) / (len(edge_mutations) + 1)))
 
     # Mutations not on a edge (i.e. above a root) get given their node's time
     for i in range(len(mutations)):
@@ -1762,7 +1758,7 @@ class TreePosition:
         self.interval.left = 0
         self.interval.right = 0
 
-    def next(self):  # NOQA: A003
+    def next(self):
         M = self.ts.num_edges
         breakpoints = self.ts.breakpoints(as_array=True)
         left_coords = self.ts.edges_left
@@ -1857,7 +1853,8 @@ class TreePosition:
 
     def seek_forward(self, index):
         # NOTE this is still in development and not fully tested.
-        assert index >= self.index and index < self.ts.num_trees
+        assert index >= self.index
+        assert index < self.ts.num_trees
         M = self.ts.num_edges
         breakpoints = self.ts.breakpoints(as_array=True)
         left_coords = self.ts.edges_left

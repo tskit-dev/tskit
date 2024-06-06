@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2020-2022 Tskit Developers
+# Copyright (c) 2020-2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
 """
 Python implementation of the IBD-finding algorithms.
 """
+
 import argparse
 import collections
 
@@ -46,9 +47,7 @@ class Segment:
         self.next = next_seg
 
     def __str__(self):
-        s = "({}-{}->{}:next={})".format(
-            self.left, self.right, self.node, repr(self.next)
-        )
+        s = f"({self.left}-{self.right}->{self.node}:next={self.next!r})"
         return s
 
     def __repr__(self):

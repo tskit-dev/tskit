@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2022 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@ msprime.simulate generates a tree_sequence object if the num_replicates argument
 is not used but an iterator over tree_sequences if the num_replicates argument
 is used.
 """
+
 import collections
 import itertools
 import os

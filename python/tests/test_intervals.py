@@ -24,6 +24,7 @@
 """
 Test cases for the intervals module.
 """
+
 import decimal
 import fractions
 import gzip
@@ -113,14 +114,14 @@ class TestRateMapErrors:
 
 
 class TestGetRateAllKnown:
-    examples = [
+    examples = (
         tskit.RateMap(position=[0, 1], rate=[0]),
         tskit.RateMap(position=[0, 1], rate=[0.1]),
         tskit.RateMap(position=[0, 1, 2], rate=[0.1, 0.2]),
         tskit.RateMap(position=[0, 1, 2], rate=[0, 0.2]),
         tskit.RateMap(position=[0, 1, 2], rate=[0.1, 1e-6]),
         tskit.RateMap(position=range(100), rate=range(99)),
-    ]
+    )
 
     @pytest.mark.parametrize("rate_map", examples)
     def test_get_rate_mid(self, rate_map):
@@ -145,7 +146,7 @@ class TestGetRateAllKnown:
 
 
 class TestOperations:
-    examples = [
+    examples = (
         tskit.RateMap.uniform(sequence_length=1, rate=0),
         tskit.RateMap.uniform(sequence_length=1, rate=0.1),
         tskit.RateMap(position=[0, 1, 2], rate=[0.1, 0.2]),
@@ -156,7 +157,7 @@ class TestOperations:
         tskit.RateMap(position=[0, 1, 2], rate=[np.nan, 0]),
         tskit.RateMap(position=[0, 1, 2], rate=[0, np.nan]),
         tskit.RateMap(position=[0, 1, 2, 3], rate=[0, np.nan, 1]),
-    ]
+    )
 
     @pytest.mark.parametrize("rate_map", examples)
     def test_num_intervals(self, rate_map):
@@ -639,8 +640,8 @@ class TestSlice:
         )
         b = a.slice(left=50 * np.pi)
         assert a.sequence_length == b.sequence_length
-        assert_array_equal([0, 50 * np.pi] + list(a.position[1:]), b.position)
-        assert_array_equal([np.nan] + list(a.rate), b.rate)
+        assert_array_equal([0, 50 * np.pi, *list(a.position[1:])], b.position)
+        assert_array_equal([np.nan, *list(a.rate)], b.rate)
 
     def test_slice_trim_left(self):
         a = tskit.RateMap(position=[0, 100, 200, 300, 400], rate=[1, 2, 3, 4])

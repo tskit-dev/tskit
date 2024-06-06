@@ -22,6 +22,7 @@
 """
 Module responsible for working with text format data.
 """
+
 import base64
 
 import numpy as np
@@ -73,7 +74,7 @@ def parse_fam(fam_file):
     )
     for plink_fid, plink_iid, pat, mat, sex in individuals:
         sex = int(sex)
-        if not (sex in range(3)):
+        if sex not in range(3):
             raise ValueError(
                 "Sex must be one of the following: 0 (unknown), 1 (male), 2 (female)"
             )
@@ -382,13 +383,11 @@ def dump_text(
             location = ",".join(map(str, individual.location))
             parents = ",".join(map(str, individual.parents))
             row = (
-                "{id}\t" "{flags}\t" "{location}\t" "{parents}\t" "{metadata}"
-            ).format(
-                id=individual.id,
-                flags=individual.flags,
-                location=location,
-                parents=parents,
-                metadata=metadata,
+                f"{individual.id}\t"
+                f"{individual.flags}\t"
+                f"{location}\t"
+                f"{parents}\t"
+                f"{metadata}"
             )
             print(row, file=individuals)
 
@@ -396,7 +395,7 @@ def dump_text(
         print("id", "metadata", sep="\t", file=populations)
         for population in ts.populations():
             metadata = text_metadata(base64_metadata, encoding, population)
-            row = ("{id}\t" "{metadata}").format(id=population.id, metadata=metadata)
+            row = f"{population.id}\t" f"{metadata}"
             print(row, file=populations)
 
     if migrations is not None:
@@ -414,31 +413,21 @@ def dump_text(
         for migration in ts.migrations():
             metadata = text_metadata(base64_metadata, encoding, migration)
             row = (
-                "{left}\t"
-                "{right}\t"
-                "{node}\t"
-                "{source}\t"
-                "{dest}\t"
-                "{time}\t"
-                "{metadata}\t"
-            ).format(
-                left=migration.left,
-                right=migration.right,
-                node=migration.node,
-                source=migration.source,
-                dest=migration.dest,
-                time=migration.time,
-                metadata=metadata,
+                f"{migration.left}\t"
+                f"{migration.right}\t"
+                f"{migration.node}\t"
+                f"{migration.source}\t"
+                f"{migration.dest}\t"
+                f"{migration.time}\t"
+                f"{metadata}\t"
             )
             print(row, file=migrations)
 
     if provenances is not None:
         print("id", "timestamp", "record", sep="\t", file=provenances)
         for provenance in ts.provenances():
-            row = ("{id}\t" "{timestamp}\t" "{record}\t").format(
-                id=provenance.id,
-                timestamp=provenance.timestamp,
-                record=provenance.record,
+            row = (
+                f"{provenance.id}\t" f"{provenance.timestamp}\t" f"{provenance.record}\t"
             )
             print(row, file=provenances)
 

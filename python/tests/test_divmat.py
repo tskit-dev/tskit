@@ -22,6 +22,7 @@
 """
 Test cases for divergence matrix based pairwise stats
 """
+
 import array
 import collections
 import functools
@@ -212,14 +213,8 @@ def branch_divergence_matrix(ts, sample_sets=None, windows=None, span_normalise=
                                 tu = ts.nodes_time[w] - ts.nodes_time[u]
                                 tv = ts.nodes_time[w] - ts.nodes_time[v]
                             else:
-                                tu = (
-                                    ts.nodes_time[local_root(tree, u)]
-                                    - ts.nodes_time[u]
-                                )
-                                tv = (
-                                    ts.nodes_time[local_root(tree, v)]
-                                    - ts.nodes_time[v]
-                                )
+                                tu = ts.nodes_time[local_root(tree, u)] - ts.nodes_time[u]
+                                tv = ts.nodes_time[local_root(tree, v)] - ts.nodes_time[v]
                             d = (tu + tv) * span
                             D[i, j, k] += d
             tree.next()
@@ -303,7 +298,7 @@ def stats_api_matrix_method(
     # contiguous, so that we just look at specific sections of the genome.
     drop = []
     if windows[0] != 0:
-        windows = [0] + windows
+        windows = [0, *windows]
         drop.append(0)
     if windows[-1] != ts.sequence_length:
         windows.append(ts.sequence_length)
@@ -656,9 +651,7 @@ class TestExamplesWithAnswer:
         )
         np.testing.assert_array_equal(D1, D2)
 
-    @pytest.mark.parametrize(
-        ["left", "right"], [(0, 10), (1, 3), (3.25, 3.75), (5, 10)]
-    )
+    @pytest.mark.parametrize(("left", "right"), [(0, 10), (1, 3), (3.25, 3.75), (5, 10)])
     def test_single_tree_interval(self, left, right):
         # 2.00┊    6    ┊
         #     ┊  ┏━┻━┓  ┊
@@ -667,9 +660,7 @@ class TestExamplesWithAnswer:
         # 0.00┊ 0 1 2 3 ┊
         #     0         1
         ts = tskit.Tree.generate_balanced(4, span=10).tree_sequence
-        D1 = check_divmat(
-            ts, windows=[left, right], mode="branch", span_normalise=False
-        )
+        D1 = check_divmat(ts, windows=[left, right], mode="branch", span_normalise=False)
         D2 = np.array(
             [
                 [0.0, 2.0, 4.0, 4.0],
@@ -725,19 +716,20 @@ class TestExamples:
         check_divmat(ts, windows=interval, mode=mode, span_normalise=span_normalise)
 
     @pytest.mark.parametrize(
-        ["windows"],
+        "windows",
         [
-            ([0, 26],),
-            ([0, 1, 2],),
-            (list(range(27)),),
-            ([5, 7, 9, 20],),
-            ([5.1, 5.2, 5.3, 5.5, 6],),
-            ([5.1, 5.2, 6.5],),
+            [0, 26],
+            [0, 1, 2],
+            list(range(27)),
+            [5, 7, 9, 20],
+            [5.1, 5.2, 5.3, 5.5, 6],
+            [5.1, 5.2, 6.5],
         ],
     )
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
     @pytest.mark.parametrize("span_normalise", [True, False])
     def test_all_trees_windows(self, windows, mode, span_normalise):
+        print(windows)
         ts = tsutil.all_trees_ts(4)
         ts = tsutil.insert_branch_sites(ts)
         assert ts.sequence_length == 26
@@ -768,9 +760,7 @@ class TestExamples:
             random_seed=seed,
         )
         assert ts.num_trees >= 2
-        ts = msprime.sim_mutations(
-            ts, rate=0.1, discrete_genome=False, random_seed=seed
-        )
+        ts = msprime.sim_mutations(ts, rate=0.1, discrete_genome=False, random_seed=seed)
         assert ts.num_mutations > 1
         check_divmat(ts, verbosity=0, mode=mode)
 
@@ -1050,16 +1040,16 @@ class TestThreadsWindows:
 
     @pytest.mark.parametrize("num_threads", [1, 2, 3, 5, 26, 27])
     @pytest.mark.parametrize(
-        ["windows"],
+        "windows",
         [
-            ([0, 26],),
-            ([0, 1, 2],),
-            (list(range(27)),),
-            ([5, 7, 9, 20],),
-            ([5.1, 5.2, 5.3, 5.5, 6],),
-            ([5.1, 5.2, 6.5],),
-            ("trees",),
-            ("sites",),
+            [0, 26],
+            [0, 1, 2],
+            list(range(27)),
+            [5, 7, 9, 20],
+            [5.1, 5.2, 5.3, 5.5, 6],
+            [5.1, 5.2, 6.5],
+            "trees",
+            "sites",
         ],
     )
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
@@ -1070,12 +1060,12 @@ class TestThreadsWindows:
 
     @pytest.mark.parametrize("samples", [None, [0, 1]])
     @pytest.mark.parametrize(
-        ["windows"],
+        "windows",
         [
-            ([0, 26],),
-            (None,),
-            ("trees",),
-            ("sites",),
+            [0, 26],
+            None,
+            "trees",
+            "sites",
         ],
     )
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
@@ -1085,15 +1075,15 @@ class TestThreadsWindows:
 
     @pytest.mark.parametrize("num_threads", range(1, 5))
     @pytest.mark.parametrize(
-        ["windows"],
+        "windows",
         [
-            ([0, 100],),
-            ([0, 50, 75, 95, 100],),
-            ([50, 75, 95, 100],),
-            ([0, 50, 75, 95],),
-            (list(range(100)),),
-            ("trees",),
-            ("sites",),
+            [0, 100],
+            [0, 50, 75, 95, 100],
+            [50, 75, 95, 100],
+            [0, 50, 75, 95],
+            list(range(100)),
+            "trees",
+            "sites",
         ],
     )
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
@@ -1120,7 +1110,7 @@ class TestChunkByTree:
     # These are based on what we get from np.array_split, there's nothing
     # particularly critical about exactly how we portion things up.
     @pytest.mark.parametrize(
-        ["num_chunks", "expected"],
+        ("num_chunks", "expected"),
         [
             (1, [[0, 26]]),
             (2, [[0, 13], [13, 26]]),
@@ -1135,7 +1125,7 @@ class TestChunkByTree:
         np.testing.assert_equal(actual, expected)
 
     @pytest.mark.parametrize(
-        ["num_chunks", "expected"],
+        ("num_chunks", "expected"),
         [
             (1, [[0, 4]]),
             (2, [[0, 2], [2, 4]]),
@@ -1153,7 +1143,7 @@ class TestChunkByTree:
 
     @pytest.mark.parametrize("span", [1, 2, 5, 0.3])
     @pytest.mark.parametrize(
-        ["num_chunks", "expected"],
+        ("num_chunks", "expected"),
         [
             (1, [[0, 4]]),
             (2, [[0, 2], [2, 4]]),
@@ -1198,7 +1188,7 @@ class TestChunkWindows:
     # These are based on what we get from np.array_split, there's nothing
     # particularly critical about exactly how we portion things up.
     @pytest.mark.parametrize(
-        ["windows", "num_chunks", "expected"],
+        ("windows", "num_chunks", "expected"),
         [
             ([0, 10], 1, [[0, 10]]),
             ([0, 10], 2, [[0, 10]]),
@@ -1219,7 +1209,7 @@ class TestChunkWindows:
 
 class TestGroupAlleles:
     @pytest.mark.parametrize(
-        ["G", "num_alleles", "A", "offsets"],
+        ("G", "num_alleles", "A", "offsets"),
         [
             ([0, 1], 2, [0, 1], [0, 1, 2]),
             ([0, 1], 3, [0, 1], [0, 1, 2, 2]),
@@ -1263,7 +1253,7 @@ class TestGroupAlleles:
 
 class TestSampleSetParsing:
     @pytest.mark.parametrize(
-        ["arg", "flattened", "sizes"],
+        ("arg", "flattened", "sizes"),
         [
             ([], [], []),
             ([1], [1], [1]),

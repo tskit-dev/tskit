@@ -300,9 +300,7 @@ class LsHmmAlgorithm:
                             st.value_list.append(
                                 InternalValueTransition(
                                     tree_node=edge.parent,
-                                    value=st.value_list.copy()[
-                                        T_index[edge.child]
-                                    ].value,
+                                    value=st.value_list.copy()[T_index[edge.child]].value,
                                 )
                             )
             else:
@@ -310,7 +308,8 @@ class LsHmmAlgorithm:
                 while T_index[u] == -1:
                     u = parent[u]
                     assert u != -1
-            assert T_index[u] != -1 and T_index[edge.child] != -1
+            assert T_index[u] != -1
+            assert T_index[edge.child] != -1
             if (
                 T[T_index[u]].value_list == T[T_index[edge.child]].value_list
             ):  # DEV: is this fine?
@@ -526,8 +525,7 @@ class LsHmmAlgorithm:
                 if st1.tree_node != tskit.NULL:
                     for st2 in st1.value_list:
                         st2.value = (
-                            ((self.rho[site.id] / self.ts.num_samples) ** 2)
-                            * b_last_sum
+                            ((self.rho[site.id] / self.ts.num_samples) ** 2) * b_last_sum
                             + (1 - self.rho[site.id])
                             * (self.rho[site.id] / self.ts.num_samples)
                             * st2.inner_summation
@@ -1168,9 +1166,7 @@ def ls_forward_tree(g, ts, rho, mu, precision=30):
 
 def ls_backward_tree(g, ts_mirror, rho, mu, normalisation_factor, precision=30):
     """Backward matrix computation based on a tree sequence."""
-    ba = BackwardAlgorithm(
-        ts_mirror, rho, mu, normalisation_factor, precision=precision
-    )
+    ba = BackwardAlgorithm(ts_mirror, rho, mu, normalisation_factor, precision=precision)
     return ba.run_backward(g)
 
 
@@ -1226,7 +1222,7 @@ class LSBase:
         return H, G, genotypes
 
     def example_parameters_genotypes(self, ts, seed=42):
-        np.random.seed(seed)
+        rng = np.random.default_rng(seed)
         H, G, genotypes = self.example_genotypes(ts)
         n = H.shape[1]
         m = ts.get_num_sites()
@@ -1242,8 +1238,8 @@ class LSBase:
             yield n, m, G, s, e, r, mu
 
         # Mixture of random and extremes
-        rs = [np.zeros(m) + 0.999, np.zeros(m) + 1e-6, np.random.rand(m)]
-        mus = [np.zeros(m) + 0.33, np.zeros(m) + 1e-6, np.random.rand(m) * 0.33]
+        rs = [np.zeros(m) + 0.999, np.zeros(m) + 1e-6, rng.random(m)]
+        mus = [np.zeros(m) + 0.33, np.zeros(m) + 1e-6, rng.random(m) * 0.33]
 
         s = genotypes[0]
         for r, mu in itertools.product(rs, mus):
@@ -1258,9 +1254,7 @@ class LSBase:
     # Define a bunch of very small tree-sequences for testing a collection of
     # parameters on
     def test_simple_n_10_no_recombination(self):
-        ts = msprime.simulate(
-            10, recombination_rate=0, mutation_rate=0.5, random_seed=42
-        )
+        ts = msprime.simulate(10, recombination_rate=0, mutation_rate=0.5, random_seed=42)
         assert ts.num_sites > 3
         self.verify(ts)
 

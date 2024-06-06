@@ -22,6 +22,7 @@
 """
 Test cases for coalescence rate calculation in tskit.
 """
+
 import itertools
 
 import msprime
@@ -627,9 +628,7 @@ class TestCoalescingPairsUsage:
     def test_oor_windows(self):
         ts = self.example_ts()
         with pytest.raises(ValueError, match="must be sequence boundary"):
-            ts.pair_coalescence_counts(
-                windows=np.array([0.0, 2.0]) * ts.sequence_length
-            )
+            ts.pair_coalescence_counts(windows=np.array([0.0, 2.0]) * ts.sequence_length)
 
     def test_unsorted_windows(self):
         ts = self.example_ts()
@@ -700,16 +699,12 @@ class TestCoalescingPairsUsage:
         implm = ts.pair_coalescence_counts(sample_sets=ss, windows=None, indexes=None)
         assert implm.shape == (ts.num_nodes,)
         windows = np.linspace(0.0, ts.sequence_length, 2)
-        implm = ts.pair_coalescence_counts(
-            sample_sets=ss, windows=windows, indexes=None
-        )
+        implm = ts.pair_coalescence_counts(sample_sets=ss, windows=windows, indexes=None)
         assert implm.shape == (1, ts.num_nodes)
         indexes = [(0, 1)]
         implm = ts.pair_coalescence_counts(
             sample_sets=ss, windows=windows, indexes=indexes
         )
         assert implm.shape == (1, ts.num_nodes, 1)
-        implm = ts.pair_coalescence_counts(
-            sample_sets=ss, windows=None, indexes=indexes
-        )
+        implm = ts.pair_coalescence_counts(sample_sets=ss, windows=None, indexes=indexes)
         assert implm.shape == (ts.num_nodes, 1)
