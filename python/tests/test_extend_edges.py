@@ -599,7 +599,8 @@ def _path_overlaps(c, p, tree1, tree2):
 
 
 def _paths_mergeable(c, p, tree1, tree2):
-    # checks that the nodes between c and p in each are disjoint
+    # checks that the nodes between c and p in each tree
+    # are not present in the other tree
     # and their sets of times are disjoint
     nodes1 = set(tree1.nodes())
     nodes2 = set(tree2.nodes())
@@ -701,13 +702,12 @@ def _naive_pass(ts, direction):
         # print(this_tree.draw_text())
         # print(next_tree.draw_text())
         for c, p in _path_pairs(this_tree):
-            if p != this_tree.parent(c) and c in next_tree.nodes(p):
-                if (
-                    c in next_tree.nodes(p)
-                    and p in next_tree.nodes()
-                    and _paths_mergeable(c, p, this_tree, next_tree)
-                ):
-                    extendable.append((c, p, list(_path_up(c, p, this_tree))))
+            if (
+                p != this_tree.parent(c)
+                and c in next_tree.nodes(p)
+                and _paths_mergeable(c, p, this_tree, next_tree)
+            ):
+                extendable.append((c, p, list(_path_up(c, p, this_tree))))
         # print("extending to", extendable)
         ts = _extend_nodes(ts, next_tree.interval, extendable)
         assert num_trees == ts.num_trees
@@ -725,6 +725,10 @@ def naive_extend_paths(ts, max_iter=10):
 
 
 class TestExtendThings:
+    """
+    Common utilities in the two classes below.
+    """
+
     def verify_simplify_equality(self, ts, ets):
         assert np.all(ts.genotype_matrix() == ets.genotype_matrix())
         assert ts.num_nodes == ets.num_nodes
