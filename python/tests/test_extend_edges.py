@@ -468,7 +468,7 @@ def _extend_paths(ts, forwards=True):
                             parent=new_parent, child=child, left=left, right=right
                         )
                         nodes_edge[child] = edges.num_rows
-                        edges_out.append([edges.num_rows, True)
+                        edges_out.append([edges.num_rows - 1, True)
                         # print(child, new_parent, 'new edge')
                         # print(edges[-1])
                         added_edges += 1
