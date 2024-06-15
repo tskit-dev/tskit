@@ -20,7 +20,7 @@ dependencies:
   - msprime>=1.0.0
   - networkx
   - ninja
-  - numpy
+  - numpy<2
   - packaging
   - pip
   - portion
