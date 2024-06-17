@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (C) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -2284,7 +2284,7 @@ def all_fields_ts(edge_metadata=True, migrations=True):
     tables.reference_sequence.url = "http://example.com/a_reference"
 
     # Add some more rows to provenance to have enough for testing.
-    for _ in range(3):
-        tables.provenances.add_row(record="A")
+    for i in range(3):
+        tables.provenances.add_row(record="A", timestamp=str(i))
 
     return tables.tree_sequence()
