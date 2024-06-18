@@ -89,6 +89,13 @@ class Interval(NamedTuple):
         """
         return self.right - self.left
 
+    @property
+    def mid(self) -> float | int:
+        """
+        The middle point of this interval, simply ``left+(right-left)/2``.
+        """
+        return self.left + (self.right - self.left) / 2
+
 
 class EdgeDiff(NamedTuple):
     interval: Interval
@@ -1685,6 +1692,19 @@ class Tree:
         :rtype: float
         """
         return self.interval.span
+
+    @property
+    def mid(self):
+        """
+        Returns the midpoint of the genomic interval that this tree represents
+        the history of. This is defined as :math:`(l + (r - l) / 2)`, where
+        :math:`(l, r)` is the genomic interval returned by
+        :attr:`~Tree.interval`.
+
+        :return: The genomic distance covered by this tree.
+        :rtype: float
+        """
+        return self.interval.mid
 
     def get_sample_size(self):
         # Deprecated alias for self.sample_size
