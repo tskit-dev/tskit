@@ -4009,6 +4009,7 @@ class TestTree(HighLevelTestCase):
         assert t1.get_parent_dict() == t1.parent_dict
         assert t1.get_total_branch_length() == t1.total_branch_length
         assert t1.span == t1.interval.right - t1.interval.left
+        assert t1.mid == t1.interval.left + (t1.interval.right - t1.interval.left) / 2
         # node properties
         root = t1.get_root()
         for node in t1.nodes():
@@ -4130,6 +4131,9 @@ class TestTree(HighLevelTestCase):
             assert tree.interval.right == pytest.approx(breakpoints[i + 1])
             assert tree.interval.span == pytest.approx(
                 breakpoints[i + 1] - breakpoints[i]
+            )
+            assert tree.interval.mid == pytest.approx(
+                breakpoints[i] + (breakpoints[i + 1] - breakpoints[i]) / 2
             )
 
     def verify_tree_arrays(self, tree):

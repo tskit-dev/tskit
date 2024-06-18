@@ -37,6 +37,10 @@
 - Add the ``centre`` option to ``TreeSequence.genetic_relatedness`` and
   ``TreeSequence.genetic_relatedness_weighted``.
 
+- Add ``Interval.mid`` and ``Tree.mid`` properties to return the midpoint of the interval.
+  (:user:`currocam`, :pr:`2960`)
+
+
 --------------------
 [0.5.7] - 2024-06-17
 --------------------
@@ -54,7 +58,7 @@
   `TreeSequence.allele_frequency_spectrum(mode="branch", polarised=False)`,
   which was half as big as it should have been. (:user:`petrelharp`,
   :user:`nspope`, :pr:`2933`)
-  
+
 --------------------
 [0.5.6] - 2023-10-10
 --------------------
