@@ -303,6 +303,20 @@ def merge_edge_paths(edges_in, in_parent, out_parent, degree, not_sample, ts, ed
     return paths
 
 
+def _add_edge(
+    edges, near_side, far_side, nodes_edge, forwards, parent, child, left, right
+):
+    new_id = edges.add_row(parent=parent, child=child, left=left, right=right)
+    nodes_edge[child] = new_id
+    if forwards:
+        near_side.append(left)
+        far_side.append(right)
+    if not forwards:
+        near_side.append(right)
+        far_side.append(left)
+    return new_id
+
+
 def _extend_paths(ts, forwards=True):
     # `degree` will record the degree of each node in the tree we'd get if
     # we removed all `out` edges and added all `in` edges
@@ -313,9 +327,7 @@ def _extend_paths(ts, forwards=True):
     in_parent = np.full(ts.num_nodes, -1, dtype="int")
     keep = np.full(ts.num_edges, True, dtype=bool)
     not_sample = [not n.is_sample() for n in ts.nodes()]
-    nodes = ts.tables.nodes.copy()
     edges = ts.tables.edges.copy()
-    node_times = ts.tables.nodes.time.copy()
     nodes_edge = np.full(ts.num_nodes, -1, dtype="int")
     # "here" will be left if fowards else right;
     # and "there" is the other
@@ -325,12 +337,12 @@ def _extend_paths(ts, forwards=True):
         direction = 1
         # in C we can just modify these in place, but in
         # python they are (silently) immutable
-        near_side = new_left
-        far_side = new_right
+        near_side = list(new_left)
+        far_side = list(new_right)
     else:
         direction = -1
-        near_side = new_right
-        far_side = new_left
+        near_side = list(new_right)
+        far_side = list(new_left)
     edges_out = []
     edges_in = []
 
@@ -343,7 +355,6 @@ def _extend_paths(ts, forwards=True):
         # print(f'--------{forwards}----------')
         left, right = tree_pos.interval
         # print('-----------',left, right,'----------')
-        here = left if forwards else right
         there = right if forwards else left
 
         # Clear out non-extended or postponed edges:
@@ -444,61 +455,49 @@ def _extend_paths(ts, forwards=True):
                         far_side[e_out] = there
                         if (e_out != old_edge) and (old_edge != tskit.NULL):
                             near_side[old_edge] = there
-                            if near_side[old_edge] != far_side[old_edge]
-                                edges_in.append([old_edge, True])
                         nodes_edge[child] = e_out
                         # print('e_out', e_out)
                         # print(edges[e_out])
-                        if degree[child] == 0:
-                            degree[child] += 2
-                        if degree[new_parent] == 0:
-                            degree[new_parent] += 2
-                        if degree[new_parent] != 0:
-                            degree[new_parent] += 1
-                        '''Do we need this? Probably can delete'
-                        Changing parents should not
-                        change degree of child'''
-                        if degree[child] != 0:
-                            degree[child] += 1
                     # if edge is not in edges_out
                     # it is new and should be added to
                     # the edge table
                     if not found_it:
-                        edges.add_row(
-                            parent=new_parent, child=child, left=left, right=right
+                        new_id = _add_edge(
+                            edges,
+                            near_side,
+                            far_side,
+                            nodes_edge,
+                            forwards,
+                            new_parent,
+                            child,
+                            left,
+                            right,
                         )
-                        nodes_edge[child] = edges.num_rows
-                        edges_out.append([edges.num_rows - 1, True)
-                        # print(child, new_parent, 'new edge')
-                        # print(edges[-1])
+                        edges_out.append([new_id, True])
                         added_edges += 1
                         if old_edge != tskit.NULL:
                             near_side[old_edge] = there
                             if near_side[old_edge] != far_side[old_edge]:
-                                edges_in.append([old_edge, True])
-                        if forwards:
-                            near_side = np.append(near_side, [left])
-                            far_side = np.append(far_side, [right])
-                            new_left = near_side
-                            new_right = far_side
-                        if not forwards:
-                            near_side = np.append(near_side, [right])
-                            far_side = np.append(far_side, [left])
-                            new_left = far_side
-                            new_right = near_side
-                        ''' These degree statements could be moved
-                            outside the `if foundit/else` statements
-                            as they should be the same for both cases.
-                        '''
-                        if degree[new_parent] == 0:
-                            degree[new_parent] += 2
-                        if degree[new_parent] != 0:
-                            degree[new_parent] += 1
-                        if degree[child] == 0:
-                            degree[child] += 2
-                        'same comment as above, should delete?'
-                        if degree[child] != 0:
-                            degree[child] += 1
+                                old_edge_object = edges[old_edge]
+                                new_id = _add_edge(
+                                    edges,
+                                    near_side,
+                                    far_side,
+                                    nodes_edge,
+                                    forwards,
+                                    parent=old_edge_object.parent,
+                                    child=old_edge_object.child,
+                                    left=old_edge_object.left,
+                                    right=old_edge_object.right,
+                                )
+                                edges_in.append([new_id, True])
+                                added_edges += 1
+                    if degree[new_parent] == 0:
+                        degree[new_parent] += 2
+                    if degree[new_parent] != 0:
+                        degree[new_parent] += 1
+                    if degree[child] == 0:
+                        degree[child] += 2
         # Update keep
         if added_edges > 0:
             keep = np.concatenate(
@@ -516,6 +515,12 @@ def _extend_paths(ts, forwards=True):
         else:
             valid = tree_pos.prev()
 
+    if forwards:
+        new_left = np.array(near_side)
+        new_right = np.array(far_side)
+    else:
+        new_right = np.array(near_side)
+        new_left = np.array(far_side)
     for j in range(edges.num_rows):
         left = new_left[j]
         right = new_right[j]
@@ -538,13 +543,7 @@ def extend_paths(ts, max_iter=10):
             edges = _extend_paths(ts, forwards=forwards)
             tables.edges.replace_with(edges)
             tables.sort()
-            # print(tables.edges)
-            # for e in tables.edges:
-            #     mask = [(k.parent == e.parent and k.child == e.child) for k in tables.edges]
-            #     print( tables.edges[mask])
-            #     print('%%%%%%%%%%%%%%%%%%%%%%%%%')
             tables.build_index()
-            # print(tables.edges.num_rows)
             ts = tables.tree_sequence()
             # print('############################')
         if ts.num_edges == last_num_edges:
@@ -560,28 +559,13 @@ def extend_paths(ts, max_iter=10):
     ts = tables.tree_sequence()
 
     return ts
-'''
+
+
+"""
 Total extend is a combination of extend_paths and
 extend_edges. This is solely to speed up computation time.
 Note that extend_first value will yield a different TS.
-'''
-def total_extend(ts, max_iter, extend_first = True):
-    last_num_edges = ts.num_edges
-    if extend_first is True:
-        extension = [ext_edges, ext_paths]
-    if extend_first is False:
-        extension = [ext_paths, ext_edges]
-    for _ in range(max_iter):
-        for e in extension:
-            ts = e(ts, max_iter)
-            # print(ts.num_edges)
-        if ts.num_edges == last_num_edges:
-            break
-        if ts.num_edges != last_num_edges:
-            last_num_edges = ts.num_edges
-            # print('swap')
-
-    return ts
+"""
 
 
 def _path_pairs(tree):
@@ -768,6 +752,14 @@ class TestExtendThings:
         t = ts.simplify().tables
         et = ets.simplify().tables
         et.assert_equals(t, ignore_provenance=True)
+
+    def naive_verify(self, ts):
+        ets = naive_extend_paths(ts)
+        for i, t, et in ts.coiterate(ets):
+            print("---------------", i)
+            print(t.draw_text())
+            print(et.draw_text())
+        self.verify_simplify_equality(ts, ets)
 
 
 class TestExtendPaths(TestExtendThings):
@@ -1005,26 +997,28 @@ class TestExtendPaths(TestExtendThings):
         test_ets = extend_paths(ts)
         test_ets.tables.assert_equals(ets.tables, ignore_provenance=True)
         self.verify_extend_paths(ts)
+        self.naive_verify(ts)
 
     def test_example2(self):
         ts, ets = self.get_example2()
         test_ets = extend_paths(ts)
         test_ets.tables.assert_equals(ets.tables, ignore_provenance=True)
         self.verify_extend_paths(ts)
+        self.naive_verify(ts)
+
+    @pytest.mark.parametrize("seed", [3, 4, 5])
+    def test_wf(self, seed):
+        tables = wf.wf_sim(N=6, ngens=20, num_loci=100, deep_history=False, seed=seed)
+        tables.sort()
+        ts = tables.tree_sequence()
+        self.verify_extend_paths(ts)
+        self.naive_verify(ts)
 
 
 class TestExtendEdges(TestExtendThings):
     """
     Test the 'extend edges' method
     """
-
-    def naive_verify(self, ts):
-        ets = naive_extend_paths(ts)
-        for i, t, et in ts.coiterate(ets):
-            print("---------------", i)
-            print(t.draw_text())
-            print(et.draw_text())
-        self.verify_simplify_equality(ts, ets)
 
     def verify_extend_edges(self, ts, max_iter=10, complete=True):
         # This can still fail for various weird examples:
