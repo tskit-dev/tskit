@@ -144,6 +144,7 @@ def windowed_tree_stat(ts, stat, windows, span_normalise=True):
     return A
 
 
+# Timewindows test
 def naive_branch_general_stat(
     ts, w, f, windows=None, time_windows=None, polarised=False, span_normalise=True
 ):
@@ -196,6 +197,42 @@ def naive_branch_general_stat(
         assert out.shape[1] == 1
         out = out[:, 0]
     return out
+
+
+# Previous version without tw
+# def naive_branch_general_stat(
+#     ts, w, f, windows=None, polarised=False, span_normalise=True
+# ):
+#     if windows is None:
+#         windows = [0.0, ts.sequence_length]
+#     n, k = w.shape
+#     # hack to determine m
+#     m = len(f(w[0]))
+#     total = np.sum(w, axis=0)
+
+#     sigma = np.zeros((ts.num_trees, m))
+#     for tree in ts.trees():
+#         x = np.zeros((ts.num_nodes, k))
+#         x[ts.samples()] = w
+#         for u in tree.nodes(order="postorder"):
+#             for v in tree.children(u):
+#                 x[u] += x[v]
+#         if polarised:
+#             s = sum(tree.branch_length(u) * f(x[u]) for u in tree.nodes())
+#         else:
+#             s = sum(
+#                 tree.branch_length(u) * (f(x[u]) + f(total - x[u]))
+#                 for u in tree.nodes()
+#             )
+#         sigma[tree.index] = s * tree.span
+#     if isinstance(windows, str) and windows == "trees":
+#         # need to average across the windows
+#         if span_normalise:
+#             for j, tree in enumerate(ts.trees()):
+#                 sigma[j] /= tree.span
+#         return sigma
+#     else:
+#         return windowed_tree_stat(ts, sigma, windows, span_normalise=span_normalise)
 
 
 def branch_general_stat(
@@ -3802,7 +3839,12 @@ class TestFold:
 
 
 def naive_site_allele_frequency_spectrum(
-    ts, sample_sets, windows=None, polarised=False, span_normalise=True
+    ts,
+    sample_sets,
+    windows=None,
+    time_windows=None,
+    polarised=False,
+    span_normalise=True,
 ):
     """
     The joint allele frequency spectrum for sites.
@@ -3856,48 +3898,147 @@ def naive_site_allele_frequency_spectrum(
     return out
 
 
+# def naive_branch_allele_frequency_spectrum(
+#     ts, sample_sets, windows=None, polarised=False, span_normalise=True
+# ):
+#     """
+#     The joint allele frequency spectrum for branches.
+#     """
+#     windows = ts.parse_windows(windows)
+#     num_windows = len(windows) - 1
+#     out_dim = [1 + len(sample_set) for sample_set in sample_sets]
+#     out = np.zeros([num_windows] + out_dim)
+#     for j in range(num_windows):
+#         begin = windows[j]
+#         end = windows[j + 1]
+#         S = np.zeros(out_dim)
+#         trees = [
+#             next(ts.trees(tracked_samples=sample_set)) for sample_set in sample_sets
+#         ]
+#         t = trees[0]
+#         while True:
+#             tr_len = min(end, t.interval.right) - max(begin, t.interval.left)
+#             if tr_len > 0:
+#                 for node in t.nodes():
+#                     if 0 < t.num_samples(node) < ts.num_samples:
+#                         x = [tree.num_tracked_samples(node) for tree in trees]
+#                         # Note x must be a tuple for indexing to work
+#                         if not polarised:
+#                             x = fold(x, out_dim)
+#                         S[tuple(x)] += t.branch_length(node) * tr_len
+
+#             # Advance the trees
+#             more = [tree.next() for tree in trees]
+#             assert len(set(more)) == 1
+#             if not more[0]:
+#                 break
+#         if span_normalise:
+#             S /= end - begin
+#         out[j, :] = S
+#     return out
+
+
+# time windows version
 def naive_branch_allele_frequency_spectrum(
-    ts, sample_sets, windows=None, polarised=False, span_normalise=True
+    ts,
+    sample_sets,
+    windows=None,
+    time_windows=None,
+    polarised=False,
+    span_normalise=True,
 ):
     """
     The joint allele frequency spectrum for branches.
     """
+    drop_windows = windows is None
+    if windows is None:
+        windows = [0.0, ts.sequence_length]
+    drop_time_windows = time_windows is None
+    if time_windows is None:
+        time_windows = [0.0, np.inf]
     windows = ts.parse_windows(windows)
     num_windows = len(windows) - 1
+    num_time_windows = len(time_windows) - 1
     out_dim = [1 + len(sample_set) for sample_set in sample_sets]
     out = np.zeros([num_windows] + out_dim)
+    # print(out.shape)
+    out = np.zeros([num_windows] + [num_time_windows] + out_dim)
+    #    print(out)
+    #    print(out.shape)
     for j in range(num_windows):
         begin = windows[j]
         end = windows[j + 1]
-        S = np.zeros(out_dim)
-        trees = [
-            next(ts.trees(tracked_samples=sample_set)) for sample_set in sample_sets
-        ]
-        t = trees[0]
-        while True:
-            tr_len = min(end, t.interval.right) - max(begin, t.interval.left)
-            if tr_len > 0:
-                for node in t.nodes():
-                    if 0 < t.num_samples(node) < ts.num_samples:
-                        x = [tree.num_tracked_samples(node) for tree in trees]
-                        # Note x must be a tuple for indexing to work
-                        if not polarised:
-                            x = fold(x, out_dim)
-                        S[tuple(x)] += t.branch_length(node) * tr_len
+        for k, upper_time in enumerate(time_windows[1:]):
+            # print("TIME WINDOW=", upper_time)
+            S = np.zeros(out_dim)
 
-            # Advance the trees
-            more = [tree.next() for tree in trees]
-            assert len(set(more)) == 1
-            if not more[0]:
-                break
-        if span_normalise:
-            S /= end - begin
-        out[j, :] = S
+            if np.isfinite(upper_time):
+                decap_ts = ts.decapitate(upper_time)
+            else:
+                decap_ts = ts
+            assert np.all(list(ts.samples()) == list(decap_ts.samples()))
+
+            trees = [
+                next(decap_ts.trees(tracked_samples=sample_set))
+                for sample_set in sample_sets
+            ]
+            t = trees[0]
+            while True:
+                tr_len = min(end, t.interval.right) - max(begin, t.interval.left)
+                if tr_len > 0:
+                    for node in t.nodes():
+                        if 0 < t.num_samples(node) < decap_ts.num_samples:
+                            x = [tree.num_tracked_samples(node) for tree in trees]
+                            if not polarised:
+                                x = fold(x, out_dim)
+                            # Note x must be a tuple for indexing to work
+                            # print(t.draw_text())
+                            print(
+                                "tr_len",
+                                tr_len,
+                                "\nnode",
+                                node,
+                                "\nnum_samples under node=",
+                                t.num_samples(node),
+                                "\nSFS bin =",
+                                x,
+                                "\nseq len",
+                                tr_len,
+                                "\nbr len",
+                                t.branch_length(node),
+                                "\nbranch len * seq len",
+                                t.branch_length(node) * tr_len,
+                            )
+                            S[tuple(x)] += t.branch_length(node) * tr_len
+
+                # Advance the trees
+                more = [tree.next() for tree in trees]
+                assert len(set(more)) == 1
+                if not more[0]:
+                    break
+            if span_normalise:
+                S /= end - begin
+            out[j, k, :] = S
+
+    if drop_time_windows:
+        # beware: this assumes the first dimension is windows
+        assert out.shape[1] == 1
+        out = out[:, 0]
+    elif drop_windows:
+        # drop windows dim if only using time windows
+        out = out[0]
+        # assert out.shape[0] == 1
     return out
 
 
 def naive_allele_frequency_spectrum(
-    ts, sample_sets, windows=None, polarised=False, mode="site", span_normalise=True
+    ts,
+    sample_sets,
+    windows=None,
+    time_windows=None,
+    polarised=False,
+    mode="site",
+    span_normalise=True,
 ):
     """
     Naive definition of the generalised site frequency spectrum.
@@ -3910,6 +4051,7 @@ def naive_allele_frequency_spectrum(
         ts,
         sample_sets,
         windows=windows,
+        time_windows=time_windows,
         polarised=polarised,
         span_normalise=span_normalise,
     )
@@ -6926,7 +7068,7 @@ class TestGeneralStatCallbackErrors:
             )
 
 
-class TestTimeWindows(StatsTestCase):
+class TestTimeWindows(TestBranchAlleleFrequencySpectrum):
     def test_four_taxa_test_case(self):
         # 1.00┊   7     ┊         ┊         ┊
         #     ┊ ┏━┻━┓   ┊         ┊         ┊
@@ -6962,3 +7104,189 @@ class TestTimeWindows(StatsTestCase):
             ts, W, f, time_windows=[0, 0.5, 2.0], span_normalise=False
         )
         self.assertArrayAlmostEqual(x, true_x)
+
+    def four_taxa_test_case(self):
+        #
+        # 1.0          7
+        # 0.7         / \                                    6
+        #            /   \                                  / \
+        # 0.5       /     5              5                 /   5
+        #          /     / \            / \__             /   / \
+        # 0.4     /     8   \          8     4           /   8   \
+        #        /     / \   \        / \   / \         /   / \   \
+        # 0.0   0     1   3   2      1   3 0   2       0   1   3   2
+        #          (0.0, 0.2),        (0.2, 0.8),       (0.8, 2.5)
+
+        nodes = io.StringIO(
+            """\
+     id      is_sample   time
+     0       1           0
+     1       1           0
+     2       1           0
+     3       1           0
+     4       0           0.4
+     5       0           0.5
+     6       0           0.7
+     7       0           1.0
+     8       0           0.40
+     """
+        )
+        edges = io.StringIO(
+            """\
+     left    right   parent  child
+     0.0     2.5     8       1,3
+     0.2     0.8     4       0,2
+     0.0     0.2     5       8,2
+     0.2     0.8     5       8,4
+     0.8     2.5     5       8,2
+     0.8     2.5     6       0,5
+     0.0     0.2     7       0,5
+     """
+        )
+        sites = io.StringIO(
+            """\
+        id  position    ancestral_state
+        0   0.05        0
+        1   0.3         0
+        2   0.9         0
+        """
+        )
+        mutations = io.StringIO(
+            """\
+        site    node    derived_state   parent
+        0       0       1               -1
+        0       0       2               0
+        0       0       0               1
+        0       1       2               -1
+        1       1       1               -1
+        1       2       1               -1
+        2       3       1               -1
+        2       1       2               6
+        2       2       3               6
+        """
+        )
+        ts = tskit.load_text(
+            nodes=nodes, edges=edges, sites=sites, mutations=mutations, strict=False
+        )
+        return ts
+
+    def test_afs_branch(self):
+        """Tests for the Allele Frequency Spectrum stat
+        using time windows under branch mode.
+        """
+        #
+        # 1.0          7
+        # 0.7         / \                                    6
+        #            /   \                                  / \
+        # 0.5       /     5              5                 /   5
+        #          /     / \            / \__             /   / \
+        # 0.4     /     8   \          8     4           /   8   \
+        #        /     / \   \        / \   / \         /   / \   \
+        # 0.0   0     1   3   2      1   3 0   2       0   1   3   2
+        #          (0.0, 0.2),        (0.2, 0.8),       (0.8, 2.5)
+
+        ts = self.four_taxa_test_case()
+        print(ts)
+
+        self.mode = "branch"
+
+        sfs1 = naive_allele_frequency_spectrum(
+            ts,
+            sample_sets=[[0, 1, 2, 3]],
+            mode=self.mode,
+            polarised=True,
+            span_normalise=False,
+        )
+        sfs1_w = naive_allele_frequency_spectrum(
+            ts,
+            sample_sets=[[0, 1, 2, 3]],
+            windows=[0, 0.2, 2.5],
+            mode=self.mode,
+            polarised=True,
+            span_normalise=False,
+        )
+
+        sfs1_w_tw = naive_allele_frequency_spectrum(
+            ts,
+            sample_sets=[[0, 1, 2, 3]],
+            windows=[0, 0.2, 2.5],
+            time_windows=[0, 0.5, 0.8, 1],
+            mode=self.mode,
+            polarised=True,
+            span_normalise=False,
+        )
+
+        sfs1_tws = naive_allele_frequency_spectrum(
+            ts,
+            sample_sets=[[0, 1, 2, 3]],
+            time_windows=[0, 0.5, 0.8, 1],
+            mode=self.mode,
+            polarised=True,
+            span_normalise=False,
+        )
+        sfs1_tw_05 = naive_allele_frequency_spectrum(
+            ts,
+            sample_sets=[[0, 1, 2, 3]],
+            time_windows=[0, 0.5],
+            mode=self.mode,
+            polarised=True,
+            span_normalise=False,
+        )
+        ts_decap_05 = ts.decapitate(0.5)
+        sfs1_decap_05 = naive_allele_frequency_spectrum(
+            ts_decap_05,
+            sample_sets=[[0, 1, 2, 3]],
+            mode=self.mode,
+            polarised=True,
+            span_normalise=False,
+        )
+
+        sfs = [
+            [
+                # bin 0
+                0,
+                # bin 1
+                (0.4 + 0.4 + 0.5 + 1) * 0.2
+                + (0.4 + 0.4 + 0.4 + 0.4) * 0.6
+                + (0.7 + 0.4 + 0.4 + 0.5) * 1.7,
+                # bin 2
+                (0.1) * 0.2 + (0.1 + 0.1) * 0.6 + (0.1) * 1.7,
+                # bin 3
+                (0.5) * 0.2 + (0.2) * 1.7,
+                # bin 4
+                0,
+            ]
+        ]
+
+        sfs_05 = [
+            [
+                # bin 0
+                0,
+                # bin 1
+                (0.5 + 0.4 + 0.4 + 0.5) * 0.2
+                + (0.4 + 0.4 + 0.4 + 0.4) * 0.6
+                + (0.4 + 0.4 + 0.5 + 0.5) * 1.7,
+                # bin 2
+                (0.1) * 0.2 + (0.1 + 0.1) * 0.6 + (0.1) * 1.7,
+                # bin 3, no nodes are present anymore at time 0.5
+                0,
+                # bin 4
+                0,
+            ]
+        ]
+
+        # try on simple example computed "by hand"
+        # if the modified function still works as expected
+        self.assertArrayAlmostEqual(sfs, sfs1)
+        # try if time_windows before t=0.5 is
+        # like sfs on a previously decapted ts before t=0.5
+        self.assertArrayAlmostEqual(sfs1_tw_05, sfs1_decap_05)
+        # try if sfs by hand before t=0.5 is
+        # equivalent to time_windows before t=0.5
+        self.assertArrayAlmostEqual(sfs_05, sfs1_tw_05)
+
+        # Warning: when using Windows and TimeWindows,
+        # the output has three dimensions
+        print("sfs1_w", sfs1_w)
+        print("sfs1_w_tw", sfs1_w_tw)
+        print("sfs1_tws", sfs1_tws)
