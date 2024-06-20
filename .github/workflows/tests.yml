@@ -60,7 +60,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: [ 3.8, 3.9, "3.11" ]
+        python: [ 3.9, 3.12 ]
         os:  [ macos-latest, ubuntu-latest, windows-latest ]
     defaults:
       run:
@@ -121,7 +121,6 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         shell: bash -l {0}
         run: |
-          pip install setuptools==57.5.0 #v58 broke some deps https://setuptools.pypa.io/en/latest/history.html#v58-0-0
           pip install -r python/requirements/CI-tests-pip/requirements.txt
           # Remove tskit installed by conda
           pip uninstall -y tskit
@@ -132,11 +131,6 @@ jobs:
           source ~/.profile
           conda activate anaconda-client-env
           python setup.py build_ext --inplace
-
-      - name: Remove py311 incompatible tests (lack of numba support for 3.11, needed for lshmm)
-        if: matrix.python == '3.11'
-        run: |
-          rm python/tests/test_*matching*
 
       - name: Run tests
         working-directory: python

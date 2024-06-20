@@ -1671,7 +1671,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
                 ts.divergence_matrix(windows, [1, 1], [0, bad_node])
         with pytest.raises(ValueError, match="Sum of sample_set_sizes"):
             ts.divergence_matrix(windows, [1, 2], [0, 1])
-        with pytest.raises(ValueError, match="Overflow"):
+        with pytest.raises((ValueError, OverflowError), match="Overflow|out of bounds"):
             ts.divergence_matrix(windows, [-1, 2], [0])
 
         with pytest.raises(TypeError, match="str"):
@@ -3321,23 +3321,19 @@ class TestTree(LowLevelTestCase):
                 )
         for bad_sample in [10**6, -1e6]:
             with pytest.raises(ValueError):
-                # Implicit conversion to integers using __int__ is deprecated
-                with pytest.deprecated_call():
-                    _tskit.Tree(
-                        ts,
-                        options=options,
-                        tracked_samples=[bad_sample],
-                    )
+                _tskit.Tree(
+                    ts,
+                    options=options,
+                    tracked_samples=[bad_sample],
+                )
             with pytest.raises(ValueError):
-                with pytest.deprecated_call():
-                    _tskit.Tree(
-                        ts,
-                        options=options,
-                        tracked_samples=[1, bad_sample],
-                    )
+                _tskit.Tree(
+                    ts,
+                    options=options,
+                    tracked_samples=[1, bad_sample],
+                )
             with pytest.raises(ValueError):
-                with pytest.deprecated_call():
-                    _tskit.Tree(ts, tracked_samples=[1, bad_sample, 1])
+                _tskit.Tree(ts, tracked_samples=[1, bad_sample, 1])
 
     def test_while_loop_semantics(self):
         for ts in self.get_example_tree_sequences():

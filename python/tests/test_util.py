@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -196,8 +196,7 @@ class TestNumpyArrayCasting:
                 # On some platforms and Python / numpy versions, a ValueError
                 # occurs instead
                 with pytest.raises((TypeError, ValueError)):
-                    with pytest.deprecated_call():
-                        util.safe_np_int_cast(bad_input, dtype)
+                    util.safe_np_int_cast(bad_input, dtype)
 
 
 class TestIntervalOps:

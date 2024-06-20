@@ -1254,7 +1254,7 @@ class MetadataTestsMixin:
                 else:
                     md = default_value
                     break
-            assert np.all(np.cast[dtype](md) == x)
+            assert np.all(np.asarray(md, dtype=dtype) == x)
 
     def test_metadata_vector_errors(self):
         table = self.table_class()
@@ -1396,9 +1396,7 @@ class AssertEqualsMixin:
             table2.metadata_schema = tskit.MetadataSchema({"codec": "json"})
             with pytest.raises(
                 AssertionError,
-                match=f"{type(table_5row).__name__} metadata schemas differ: self=None "
-                f"other=OrderedDict([('codec', "
-                "'json')])",
+                match=f"{type(table_5row).__name__} metadata schemas differ:",
             ):
                 table_5row.assert_equals(table2)
             table_5row.assert_equals(table2, ignore_metadata=True)
@@ -4091,10 +4089,7 @@ class TestTableCollectionAssertEquals:
         t2.metadata_schema = tskit.MetadataSchema(None)
         with pytest.raises(
             AssertionError,
-            match=re.escape(
-                "Metadata schemas differ: self=OrderedDict([('codec', 'json')]) "
-                "other=None"
-            ),
+            match=re.escape("Metadata schemas differ"),
         ):
             t1.assert_equals(t2)
         t1.assert_equals(t2, ignore_metadata=True)
@@ -4140,10 +4135,7 @@ class TestTableCollectionAssertEquals:
             table.metadata_schema = tskit.MetadataSchema(None)
             with pytest.raises(
                 AssertionError,
-                match=re.escape(
-                    f"{type(table).__name__} metadata schemas differ: "
-                    f"self=OrderedDict([('codec', 'json')]) other=None"
-                ),
+                match=re.escape(f"{type(table).__name__} metadata schemas differ:"),
             ):
                 t1.assert_equals(t2)
             t1.assert_equals(t2, ignore_metadata=True)
@@ -4201,10 +4193,7 @@ class TestTableCollectionAssertEquals:
         t2.reference_sequence.clear()
         with pytest.raises(
             AssertionError,
-            match=re.escape(
-                "Metadata schemas differ: "
-                "self=OrderedDict([('codec', 'json')]) other=None"
-            ),
+            match=re.escape("Metadata schemas differ"),
         ):
             t1.assert_equals(t2)
         t1.assert_equals(t2, ignore_reference_sequence=True)
