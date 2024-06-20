@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -3184,23 +3184,19 @@ class TestTree(LowLevelTestCase):
                 )
         for bad_sample in [10**6, -1e6]:
             with pytest.raises(ValueError):
-                # Implicit conversion to integers using __int__ is deprecated
-                with pytest.deprecated_call():
-                    _tskit.Tree(
-                        ts,
-                        options=options,
-                        tracked_samples=[bad_sample],
-                    )
+                _tskit.Tree(
+                    ts,
+                    options=options,
+                    tracked_samples=[bad_sample],
+                )
             with pytest.raises(ValueError):
-                with pytest.deprecated_call():
-                    _tskit.Tree(
-                        ts,
-                        options=options,
-                        tracked_samples=[1, bad_sample],
-                    )
+                _tskit.Tree(
+                    ts,
+                    options=options,
+                    tracked_samples=[1, bad_sample],
+                )
             with pytest.raises(ValueError):
-                with pytest.deprecated_call():
-                    _tskit.Tree(ts, tracked_samples=[1, bad_sample, 1])
+                _tskit.Tree(ts, tracked_samples=[1, bad_sample, 1])
 
     def test_while_loop_semantics(self):
         for ts in self.get_example_tree_sequences():

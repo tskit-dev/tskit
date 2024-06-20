@@ -183,16 +183,12 @@ jobs:
           command: |
             cd python
             rm -fR build
-            python setup.py sdist
-            python setup.py check
-            python -m twine check dist/*.tar.gz
+            python -m pip install build
             python -m venv venv
-            source venv/bin/activate
-            pip install --upgrade setuptools pip wheel
-            python setup.py build_ext
-            python setup.py egg_info
-            python setup.py bdist_wheel
-            pip install dist/*.tar.gz
+            python -m build --sdist
+            python -m twine check dist/*.tar.gz
+            python -m build --wheel
+            pip install dist/*.whl
             tskit --help
 
   build-32:
@@ -218,6 +214,7 @@ workflows:
   test:
     jobs:
       - build
-      - build-32
+      #Temporarily disabled due avoid compiling numpy on 32bit
+      # - build-32
 
 

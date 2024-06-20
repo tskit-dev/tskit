@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2019-2022 Tskit Developers
+# Copyright (c) 2019-2024 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -157,7 +157,9 @@ class Simplifier:
             if self.update_sample_flags:
                 flags = self.tables.nodes.flags
                 # Zero out other sample flags
-                flags = np.bitwise_and(flags, ~tskit.NODE_IS_SAMPLE)
+                flags = np.bitwise_and(
+                    flags, np.uint32(~tskit.NODE_IS_SAMPLE & 0xFFFFFFFF)
+                )
                 flags[sample] |= tskit.NODE_IS_SAMPLE
                 self.tables.nodes.flags = flags.astype(np.uint32)
 

@@ -1280,7 +1280,7 @@ def site_segregating_sites(ts, sample_sets, windows=None, span_normalise=True):
         haps = ts.genotype_matrix(isolated_as_missing=False)
         site_positions = [x.position for x in ts.sites()]
         for i, X in enumerate(sample_sets):
-            X_index = np.where(np.in1d(samples, X))[0]
+            X_index = np.where(np.isin(samples, X))[0]
             for k in range(ts.num_sites):
                 if (site_positions[k] >= begin) and (site_positions[k] < end):
                     num_alleles = len(set(haps[k, X_index]))
@@ -1428,7 +1428,7 @@ def site_tajimas_d(ts, sample_sets, windows=None):
             nn = n[i]
             S = 0
             T = 0
-            X_index = np.where(np.in1d(samples, X))[0]
+            X_index = np.where(np.isin(samples, X))[0]
             for k in range(ts.num_sites):
                 if (site_positions[k] >= begin) and (site_positions[k] < end):
                     hX = haps[k, X_index]
@@ -4571,7 +4571,7 @@ def branch_trait_covariance(ts, W, windows=None, span_normalise=True):
                     has_trees = True
                 SS = 0
                 for u in range(ts.num_nodes):
-                    below = np.in1d(samples, list(tr.samples(u)))
+                    below = np.isin(samples, list(tr.samples(u)))
                     branch_length = tr.branch_length(u)
                     SS += covsq(w, below) * branch_length
                 S += SS * (min(end, tr.interval.right) - max(begin, tr.interval.left))
@@ -4606,7 +4606,7 @@ def node_trait_covariance(ts, W, windows=None, span_normalise=True):
                     break
                 SS = np.zeros(ts.num_nodes)
                 for u in range(ts.num_nodes):
-                    below = np.in1d(samples, list(tr.samples(u)))
+                    below = np.isin(samples, list(tr.samples(u)))
                     SS[u] += covsq(w, below)
                 S += SS * (min(end, tr.interval.right) - max(begin, tr.interval.left))
             out[j, :, i] = S
@@ -4782,7 +4782,7 @@ def branch_trait_correlation(ts, W, windows=None, span_normalise=True):
                     has_trees = True
                 SS = 0
                 for u in range(ts.num_nodes):
-                    below = np.in1d(samples, list(tr.samples(u)))
+                    below = np.isin(samples, list(tr.samples(u)))
                     p = np.mean(below)
                     if p > 0 and p < 1:
                         branch_length = tr.branch_length(u)
@@ -4823,7 +4823,7 @@ def node_trait_correlation(ts, W, windows=None, span_normalise=True):
                     break
                 SS = np.zeros(ts.num_nodes)
                 for u in range(ts.num_nodes):
-                    below = np.in1d(samples, list(tr.samples(u)))
+                    below = np.isin(samples, list(tr.samples(u)))
                     p = np.mean(below)
                     if p > 0 and p < 1:
                         # SS[u] += sum(w[below])**2 / 2
@@ -5046,7 +5046,7 @@ def branch_trait_linear_model(ts, W, Z, windows=None, span_normalise=True):
                     has_trees = True
                 SS = 0
                 for u in range(ts.num_nodes):
-                    below = np.in1d(samples, list(tr.samples(u)))
+                    below = np.isin(samples, list(tr.samples(u)))
                     branch_length = tr.branch_length(u)
                     SS += linear_model(w, below, Z) * branch_length
                 S += SS * (min(end, tr.interval.right) - max(begin, tr.interval.left))
@@ -5081,7 +5081,7 @@ def node_trait_linear_model(ts, W, Z, windows=None, span_normalise=True):
                     break
                 SS = np.zeros(ts.num_nodes)
                 for u in range(ts.num_nodes):
-                    below = np.in1d(samples, list(tr.samples(u)))
+                    below = np.isin(samples, list(tr.samples(u)))
                     SS[u] += linear_model(w, below, Z)
                 S += SS * (min(end, tr.interval.right) - max(begin, tr.interval.left))
             out[j, :, i] = S

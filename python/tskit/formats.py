@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2016-2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -150,9 +150,9 @@ def _load_legacy_hdf5_v2(root, remove_duplicate_positions):
     population[cr_node] = cr_population
     if "samples" in root:
         samples_group = root["samples"]
-        population[:sample_size] = samples_group["population"]
+        population[:sample_size] = np.array(samples_group["population"], copy=True)
         if "time" in samples_group:
-            time[:sample_size] = samples_group["time"]
+            time[:sample_size] = np.array(samples_group["time"], copy=True)
     tables.nodes.set_columns(flags=flags, population=population, time=time)
     _set_populations(tables)
 
