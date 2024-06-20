@@ -37,7 +37,8 @@ issue for a specific bug or feature request.
 We warmly welcome contributions from the community. Raise an issue if you have an
 idea you'd like to work on, or submit a PR for comments and help.
 
-The base `tskit` library provides both a Python and C API. A Rust API is provided in the
+The base `tskit` library provides both a [Python](https://tskit.dev/tskit/docs/latest/python-api.html)
+and [C](https://tskit.dev/tskit/docs/latest/c-api.html) API. A Rust API is provided in the
 [tskit-rust](https://github.com/tskit-dev/tskit-rust) repository.
 
 
