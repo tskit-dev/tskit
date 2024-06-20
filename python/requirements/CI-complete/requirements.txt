@@ -3,7 +3,7 @@ coverage==7.2.7
 dendropy==4.6.1
 h5py==3.9.0
 kastore==0.3.2
-lshmm==0.0.5
+lshmm==0.0.8
 msgpack==1.0.5
 msprime==1.2.0
 networkx==3.1
