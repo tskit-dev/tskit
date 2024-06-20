@@ -333,11 +333,12 @@ class LsHmmAlgorithm:
                 while allelic_state[v] == -1:
                     v = tree.parent(v)
                     assert v != -1
-                match = (
-                    haplotype_state == MISSING or haplotype_state == allelic_state[v]
-                )
+                match = haplotype_state == allelic_state[v]
+                is_query_missing = haplotype_state == MISSING
                 # Note that the node u is used only by Viterbi
-                st.value = self.compute_next_probability(site.id, st.value, match, u)
+                st.value = self.compute_next_probability(
+                    site.id, st.value, match, is_query_missing, u
+                )
 
         # Unset the states
         allelic_state[tree.root] = -1
@@ -404,7 +405,9 @@ class LsHmmAlgorithm:
     def compute_normalisation_factor(self):
         raise NotImplementedError()
 
-    def compute_next_probability(self, site_id, p_last, is_match, node):
+    def compute_next_probability(
+        self, site_id, p_last, is_match, is_query_missing, node
+    ):
         raise NotImplementedError()
 
 
@@ -435,10 +438,15 @@ class ForwardAlgorithm(LsHmmAlgorithm):
             s += self.N[j] * st.value
         return s
 
-    def compute_next_probability(self, site_id, p_last, is_match, node):
+    def compute_next_probability(
+        self, site_id, p_last, is_match, is_query_missing, node
+    ):
         rho = self.rho[site_id]
         n = self.ts.num_samples
-        p_e = self.compute_emission_proba(site_id, is_match)
+        if is_query_missing:
+            p_e = 1.0
+        else:
+            p_e = self.compute_emission_proba(site_id, is_match)
         p_t = p_last * (1 - rho) + rho / n
         return p_t * p_e
 
@@ -448,8 +456,13 @@ class BackwardAlgorithm(ForwardAlgorithm):
     The Li and Stephens backward algorithm.
     """
 
-    def compute_next_probability(self, site_id, p_next, is_match, node):
-        p_e = self.compute_emission_proba(site_id, is_match)
+    def compute_next_probability(
+        self, site_id, p_next, is_match, is_query_missing, node
+    ):
+        if is_query_missing:
+            p_e = 1.0
+        else:
+            p_e = self.compute_emission_proba(site_id, is_match)
         return p_next * p_e
 
     def process_site(self, site, haplotype_state, s):
@@ -515,7 +528,9 @@ class ViterbiAlgorithm(LsHmmAlgorithm):
             )
         return max_st.value
 
-    def compute_next_probability(self, site_id, p_last, is_match, node):
+    def compute_next_probability(
+        self, site_id, p_last, is_match, is_query_missing, node
+    ):
         rho = self.rho[site_id]
         n = self.ts.num_samples
 
@@ -529,7 +544,11 @@ class ViterbiAlgorithm(LsHmmAlgorithm):
             recombination_required = True
         self.output.add_recombination_required(site_id, node, recombination_required)
 
-        p_e = self.compute_emission_proba(site_id, is_match)
+        if is_query_missing:
+            p_e = 1.0
+        else:
+            p_e = self.compute_emission_proba(site_id, is_match)
+
         return p_t * p_e
 
 
@@ -679,12 +698,12 @@ class ViterbiMatrix(CompressedMatrix):
 
 def get_site_alleles(ts, h, alleles):
     if alleles is None:
-        n_alleles = np.int8(
-            [
-                len(np.unique(np.append(ts.genotype_matrix()[j, :], h[j])))
-                for j in range(ts.num_sites)
-            ]
-        )
+        n_alleles = np.zeros(ts.num_sites, dtype=np.int8) - 1
+        for j in range(ts.num_sites):
+            uniq_alleles = np.unique(np.append(ts.genotype_matrix()[j, :], h[j]))
+            uniq_alleles = uniq_alleles[uniq_alleles != MISSING]
+            n_alleles[j] = len(uniq_alleles)
+        assert np.all(n_alleles > 0)
         alleles = tskit.ALLELES_ACGT
         if len(set(alleles).intersection(next(ts.variants()).alleles)) == 0:
             alleles = tskit.ALLELES_01
@@ -925,12 +944,15 @@ class TestMirroringHap(FBAlgorithmBase):
             self.assertAllClose(ll_tree, ll_mirror_tree)
 
             # Ensure that the decoded matrices are the same
+            flipped_H = np.flip(H, axis=0)
+            flipped_s = np.flip(s, axis=1)
             F_mirror_matrix, c, ll = ls.forwards(
-                np.flip(H, axis=0),
-                np.flip(s, axis=1),
-                r_flip,
-                p_mutation=np.flip(mu),
-                scale_mutation_based_on_n_alleles=False,
+                reference_panel=flipped_H,
+                query=flipped_s,
+                ploidy=1,
+                prob_recombination=r_flip,
+                prob_mutation=np.flip(mu),
+                scale_mutation_rate=False,
             )
 
             self.assertAllClose(F_mirror_matrix, cm_mirror.decode())
@@ -950,11 +972,12 @@ class TestForwardHapTree(FBAlgorithmBase):
                     # Passed a vector of mutation rates, but rescaling each mutation
                     # rate conditional on the number of alleles
                     F, c, ll = ls.forwards(
-                        H,
-                        s,
-                        r,
-                        p_mutation=mu,
-                        scale_mutation_based_on_n_alleles=scale_mutation,
+                        reference_panel=H,
+                        query=s,
+                        ploidy=1,
+                        prob_recombination=r,
+                        prob_mutation=mu,
+                        scale_mutation_rate=scale_mutation,
                     )
                 # Note, need to remove the first sample from the ts, and ensure
                 # that invariant sites aren't removed.
@@ -978,15 +1001,21 @@ class TestForwardBackwardTree(FBAlgorithmBase):
     def verify(self, ts):
         for n, H, s, r, mu in self.example_parameters_haplotypes(ts):
             F, c, ll = ls.forwards(
-                H, s, r, p_mutation=mu, scale_mutation_based_on_n_alleles=False
+                reference_panel=H,
+                query=s,
+                ploidy=1,
+                prob_recombination=r,
+                prob_mutation=mu,
+                scale_mutation_rate=False,
             )
             B = ls.backwards(
-                H,
-                s,
-                c,
-                r,
-                p_mutation=mu,
-                scale_mutation_based_on_n_alleles=False,
+                reference_panel=H,
+                query=s,
+                ploidy=1,
+                normalisation_factor_from_forward=c,
+                prob_recombination=r,
+                prob_mutation=mu,
+                scale_mutation_rate=False,
             )
 
             # Note, need to remove the first sample from the ts, and ensure that
@@ -1018,7 +1047,12 @@ class TestTreeViterbiHap(VitAlgorithmBase):
     def verify(self, ts):
         for n, H, s, r, mu in self.example_parameters_haplotypes(ts):
             path, ll = ls.viterbi(
-                H, s, r, p_mutation=mu, scale_mutation_based_on_n_alleles=False
+                reference_panel=H,
+                query=s,
+                ploidy=1,
+                prob_recombination=r,
+                prob_mutation=mu,
+                scale_mutation_rate=False,
             )
             ts_check = ts.simplify(range(1, n + 1), filter_sites=False)
             cm = ls_viterbi_tree(s[0, :], ts_check, r, mu)
@@ -1028,13 +1062,14 @@ class TestTreeViterbiHap(VitAlgorithmBase):
             # Now, need to ensure that the likelihood of the preferred path is
             # the same as ll_tree (and ll).
             path_tree = cm.traceback()
-            ll_check = ls.path_ll(
-                H,
-                s,
-                path_tree,
-                r,
-                p_mutation=mu,
-                scale_mutation_based_on_n_alleles=False,
+            ll_check = ls.path_loglik(
+                reference_panel=H,
+                query=s,
+                ploidy=1,
+                path=path_tree,
+                prob_recombination=r,
+                prob_mutation=mu,
+                scale_mutation_rate=False,
             )
             self.assertAllClose(ll, ll_check)
 
@@ -1051,13 +1086,15 @@ def check_viterbi(ts, h, recombination=None, mutation=None):
     precision = 22
 
     G = ts.genotype_matrix()
+    s = h.reshape(1, m)
 
     path, ll = ls.viterbi(
-        G,
-        h.reshape(1, m),
-        recombination,
-        p_mutation=mutation,
-        scale_mutation_based_on_n_alleles=False,
+        reference_panel=G,
+        query=s,
+        ploidy=1,
+        prob_recombination=recombination,
+        prob_mutation=mutation,
+        scale_mutation_rate=False,
     )
     assert np.isscalar(ll)
 
@@ -1069,13 +1106,14 @@ def check_viterbi(ts, h, recombination=None, mutation=None):
     # Check that the likelihood of the preferred path is
     # the same as ll_tree (and ll).
     path_tree = cm.traceback()
-    ll_check = ls.path_ll(
-        G,
-        h.reshape(1, m),
-        path_tree,
-        recombination,
-        p_mutation=mutation,
-        scale_mutation_based_on_n_alleles=False,
+    ll_check = ls.path_loglik(
+        reference_panel=G,
+        query=s,
+        ploidy=1,
+        path=path_tree,
+        prob_recombination=recombination,
+        prob_mutation=mutation,
+        scale_mutation_rate=False,
     )
     nt.assert_allclose(ll_check, ll)
 
@@ -1106,12 +1144,15 @@ def check_forward_matrix(ts, h, recombination=None, mutation=None):
         mutation = np.zeros(ts.num_sites)
 
     G = ts.genotype_matrix()
+    s = h.reshape(1, m)
+
     F, c, ll = ls.forwards(
-        G,
-        h.reshape(1, m),
-        recombination,
-        p_mutation=mutation,
-        scale_mutation_based_on_n_alleles=False,
+        reference_panel=G,
+        query=s,
+        ploidy=1,
+        prob_recombination=recombination,
+        prob_mutation=mutation,
+        scale_mutation_rate=False,
     )
     assert F.shape == (m, n)
     assert c.shape == (m,)
@@ -1150,13 +1191,16 @@ def check_backward_matrix(ts, h, forward_cm, recombination=None, mutation=None):
         mutation = np.zeros(ts.num_sites)
 
     G = ts.genotype_matrix()
+    s = h.reshape(1, m)
+
     B = ls.backwards(
-        G,
-        h.reshape(1, m),
-        forward_cm.normalisation_factor,
-        recombination,
-        p_mutation=mutation,
-        scale_mutation_based_on_n_alleles=False,
+        reference_panel=G,
+        query=s,
+        ploidy=1,
+        normalisation_factor_from_forward=forward_cm.normalisation_factor,
+        prob_recombination=recombination,
+        prob_mutation=mutation,
+        scale_mutation_rate=False,
     )
 
     backward_cm = ls_backward_tree(

@@ -4,6 +4,7 @@ import itertools
 import lshmm as ls
 import msprime
 import numpy as np
+import pytest
 
 import tskit
 
@@ -1257,6 +1258,7 @@ class LSBase:
 
     # Define a bunch of very small tree-sequences for testing a collection of
     # parameters on
+    @pytest.mark.skip(reason="No plans to implement diploid LS HMM yet.")
     def test_simple_n_10_no_recombination(self):
         ts = msprime.simulate(
             10, recombination_rate=0, mutation_rate=0.5, random_seed=42
@@ -1264,11 +1266,13 @@ class LSBase:
         assert ts.num_sites > 3
         self.verify(ts)
 
+    @pytest.mark.skip(reason="No plans to implement diploid LS HMM yet.")
     def test_simple_n_6(self):
         ts = msprime.simulate(6, recombination_rate=2, mutation_rate=7, random_seed=42)
         assert ts.num_sites > 5
         self.verify(ts)
 
+    @pytest.mark.skip(reason="No plans to implement diploid LS HMM yet.")
     def test_simple_n_8_high_recombination(self):
         ts = msprime.simulate(8, recombination_rate=20, mutation_rate=5, random_seed=42)
         assert ts.num_trees > 15
@@ -1326,11 +1330,10 @@ class TestMirroringDipdict(FBAlgorithmBase):
             ts_check, mapping = ts.simplify(
                 range(1, n + 1), filter_sites=False, map_nodes=True
             )
+            H_check = ts_check.genotype_matrix()
             G_check = np.zeros((m, n, n))
             for i in range(m):
-                G_check[i, :, :] = np.add.outer(
-                    ts_check.genotype_matrix()[i, :], ts_check.genotype_matrix()[i, :]
-                )
+                G_check[i, :, :] = np.add.outer(H_check[i, :], H_check[i, :])
 
             cm_d = ls_forward_tree(s[0, :], ts_check, r, mu)
             ll_tree = np.sum(np.log10(cm_d.normalisation_factor))
@@ -1345,12 +1348,16 @@ class TestMirroringDipdict(FBAlgorithmBase):
             self.assertAllClose(ll_tree, ll_mirror_tree_dict)
 
             # Ensure that the decoded matrices are the same
+            flipped_H_check = np.flip(H_check, axis=0)
+            flipped_s = np.flip(s, axis=1)
+
             F_mirror_matrix, c, ll = ls.forwards(
-                np.flip(G_check, axis=0),
-                np.flip(s, axis=1),
-                r_flip,
-                p_mutation=np.flip(mu),
-                scale_mutation_based_on_n_alleles=False,
+                flipped_H_check,
+                flipped_s,
+                ploidy=2,
+                prob_recombination=r_flip,
+                prob_mutation=np.flip(mu),
+                scale_mutation_rate=False,
             )
 
             self.assertAllClose(F_mirror_matrix, cm_mirror.decode())
@@ -1367,14 +1374,18 @@ class TestForwardDipTree(FBAlgorithmBase):
             ts_check, mapping = ts.simplify(
                 range(1, n + 1), filter_sites=False, map_nodes=True
             )
+            H_check = ts_check.genotype_matrix()
             G_check = np.zeros((m, n, n))
             for i in range(m):
-                G_check[i, :, :] = np.add.outer(
-                    ts_check.genotype_matrix()[i, :], ts_check.genotype_matrix()[i, :]
-                )
+                G_check[i, :, :] = np.add.outer(H_check[i, :], H_check[i, :])
 
             F, c, ll = ls.forwards(
-                G_check, s, r, p_mutation=mu, scale_mutation_based_on_n_alleles=False
+                reference_panel=H_check,
+                query=s,
+                ploidy=2,
+                prob_recombination=r,
+                prob_mutation=mu,
+                scale_mutation_rate=False,
             )
             cm_d = ls_forward_tree(s[0, :], ts_check, r, mu)
             self.assertAllClose(cm_d.decode(), F)
@@ -1393,22 +1404,27 @@ class TestForwardBackwardTree(FBAlgorithmBase):
             ts_check, mapping = ts.simplify(
                 range(1, n + 1), filter_sites=False, map_nodes=True
             )
+            H_check = ts_check.genotype_matrix()
             G_check = np.zeros((m, n, n))
             for i in range(m):
-                G_check[i, :, :] = np.add.outer(
-                    ts_check.genotype_matrix()[i, :], ts_check.genotype_matrix()[i, :]
-                )
+                G_check[i, :, :] = np.add.outer(H_check[i, :], H_check[i, :])
 
             F, c, ll = ls.forwards(
-                G_check, s, r, p_mutation=mu, scale_mutation_based_on_n_alleles=False
+                reference_panel=H_check,
+                query=s,
+                ploidy=2,
+                prob_recombination=r,
+                prob_mutation=mu,
+                scale_mutation_rate=False,
             )
             B = ls.backwards(
-                G_check,
-                s,
-                c,
-                r,
-                p_mutation=mu,
-                scale_mutation_based_on_n_alleles=False,
+                reference_panel=H_check,
+                query=s,
+                ploidy=2,
+                normalisation_factor_from_forward=c,
+                prob_recombination=r,
+                prob_mutation=mu,
+                scale_mutation_rate=False,
             )
 
             # Note, need to remove the first sample from the ts, and ensure that
@@ -1447,22 +1463,28 @@ class TestTreeViterbiDip(VitAlgorithmBase):
             ts_check, mapping = ts.simplify(
                 range(1, n + 1), filter_sites=False, map_nodes=True
             )
+            H_check = ts_check.genotype_matrix()
             G_check = np.zeros((m, n, n))
             for i in range(m):
-                G_check[i, :, :] = np.add.outer(
-                    ts_check.genotype_matrix()[i, :], ts_check.genotype_matrix()[i, :]
-                )
+                G_check[i, :, :] = np.add.outer(H_check[i, :], H_check[i, :])
             ts_check = ts.simplify(range(1, n + 1), filter_sites=False)
+
             phased_path, ll = ls.viterbi(
-                G_check, s, r, p_mutation=mu, scale_mutation_based_on_n_alleles=False
+                reference_panel=H_check,
+                query=s,
+                ploidy=2,
+                prob_recombination=r,
+                prob_mutation=mu,
+                scale_mutation_rate=False,
             )
-            path_ll_matrix = ls.path_ll(
-                G_check,
-                s,
-                phased_path,
-                r,
-                p_mutation=mu,
-                scale_mutation_based_on_n_alleles=False,
+            path_ll_matrix = ls.path_loglik(
+                reference_panel=H_check,
+                query=s,
+                ploidy=2,
+                path=phased_path,
+                prob_recombination=r,
+                prob_mutation=mu,
+                scale_mutation_rate=False,
             )
 
             c_v = ls_viterbi_tree(s[0, :], ts_check, r, mu)
@@ -1471,13 +1493,14 @@ class TestTreeViterbiDip(VitAlgorithmBase):
             # Attempt to get the path
             path_tree_dict = c_v.traceback()
             # Work out the likelihood of the proposed path
-            path_ll_tree = ls.path_ll(
-                G_check,
-                s,
-                np.transpose(path_tree_dict),
-                r,
-                p_mutation=mu,
-                scale_mutation_based_on_n_alleles=False,
+            path_ll_tree = ls.path_loglik(
+                reference_panel=H_check,
+                query=s,
+                ploidy=2,
+                path=np.transpose(path_tree_dict),
+                prob_recombination=r,
+                prob_mutation=mu,
+                scale_mutation_rate=False,
             )
 
             self.assertAllClose(ll, ll_tree)
