@@ -18,13 +18,16 @@
 - Add ``Table.drop_metadata`` to make clearing metadata from tables easy.
   (:user:`jeromekelleher`, :pr:`2944`)
 
+- Add ``Interval.mid`` and ``Tree.mid`` properties to return the midpoint of the interval.
+  (:user:`currocam`, :pr:`2960`)
+
 **Bugfixes**
 
 - Fix to the folded, expected allele frequency spectrum (i.e.,
   `TreeSequence.allele_frequency_spectrum(mode="branch", polarised=False)`,
   which was half as big as it should have been. (:user:`petrelharp`,
   :user:`nspope`, :pr:`2933`)
-  
+
 --------------------
 [0.5.6] - 2023-10-10
 --------------------
