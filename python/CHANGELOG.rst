@@ -1,13 +1,6 @@
 --------------------
-[0.5.7] - 2023-XX-XX
+[0.5.8] - 2024-XX-XX
 --------------------
-
-**Breaking Changes**
-
-- The VCF writing methods (`ts.write_vcf`, `ts.as_vcf`) now error if a site with
-  position zero is encountered. The VCF spec does not allow zero position sites.
-  Suppress this error with the `allow_position_zero` argument.
-  (:user:`benjeffery`, :pr:`2901`, :issue:`2838`)
 
 **Features**
 
@@ -17,6 +10,18 @@
 
 - Add ``Table.drop_metadata`` to make clearing metadata from tables easy.
   (:user:`jeromekelleher`, :pr:`2944`)
+
+
+--------------------
+[0.5.7] - 2024-06-17
+--------------------
+
+**Breaking Changes**
+
+- The VCF writing methods (`ts.write_vcf`, `ts.as_vcf`) now error if a site with
+  position zero is encountered. The VCF spec does not allow zero position sites.
+  Suppress this error with the `allow_position_zero` argument.
+  (:user:`benjeffery`, :pr:`2901`, :issue:`2838`)
 
 **Bugfixes**
 
