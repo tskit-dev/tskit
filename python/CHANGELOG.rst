@@ -1,5 +1,5 @@
 --------------------
-[0.5.8] - 2024-XX-XX
+[0.5.9] - 2024-XX-XX
 --------------------
 
 **Features**
@@ -10,6 +10,13 @@
 
 - Add ``Table.drop_metadata`` to make clearing metadata from tables easy.
   (:user:`jeromekelleher`, :pr:`2944`)
+
+
+--------------------
+[0.5.8] - 2024-06-27
+--------------------
+
+- Add support for numpy 2 (:user:`jeromekelleher`, :user:`benjeffery`, :pr:`2964`)
 
 
 --------------------
