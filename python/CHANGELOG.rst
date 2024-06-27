@@ -1,5 +1,5 @@
 --------------------
-[0.5.8] - 2024-XX-XX
+[0.5.9] - 2024-XX-XX
 --------------------
 
 **Breaking Changes**
@@ -39,6 +39,13 @@
 
 - Add ``Interval.mid`` and ``Tree.mid`` properties to return the midpoint of the interval.
   (:user:`currocam`, :pr:`2960`)
+
+
+--------------------
+[0.5.8] - 2024-06-27
+--------------------
+
+- Add support for numpy 2 (:user:`jeromekelleher`, :user:`benjeffery`, :pr:`2964`)
 
 
 --------------------
