@@ -464,7 +464,7 @@ class TestCoalescingPairsSimulated:
         """
         t = self.example_ts().dump_tables()
         ss0 = np.flatnonzero(t.nodes.population == 0)
-        remove = np.in1d(t.edges.child, ss0)
+        remove = np.isin(t.edges.child, ss0)
         assert np.any(remove)
         t.edges.set_columns(
             left=t.edges.left[~remove],

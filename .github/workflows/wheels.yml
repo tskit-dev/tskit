@@ -15,7 +15,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        python: [3.8, 3.9, "3.10", 3.11]
+        python: [3.9, "3.10", 3.11, 3.12]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,21 +25,11 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Install deps
         run: |
-          # Upgrade pip to get bdist_wheel
-          pip install --upgrade pip
-          pip install setuptools wheel
-          # Instead of letting setup.py install a newer numpy we install it here
-          # using the oldest supported version for ABI compatibility
-          pip install oldest-supported-numpy
-      - name: Build C extension
-        run: |
-          cd python
-          python -VV
-          python setup.py build_ext --inplace
+          pip install build
       - name: Build Wheel
         run: |
           cd python
-          python setup.py bdist_wheel
+          python -m build --wheel
       - name: Delocate to bundle dynamic libs
         run: |
           cd python
@@ -55,7 +45,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        python: [3.8, 3.9, "3.10", 3.11]
+        python: [3.9, "3.10", 3.11, 3.12]
         wordsize: [64]
     steps:
       - name: Checkout
@@ -66,12 +56,8 @@ jobs:
         shell: bash
         run: |
           set -ex
-          ${PYTHON} -m pip install --upgrade pip
-          ${PYTHON} -m pip install setuptools wheel
-          # Instead of letting setup.py install a newer numpy we install it here
-          # using the oldest supported version for ABI compatibility
-          ${PYTHON} -m pip install oldest-supported-numpy
-      - name: Build C Extension
+          ${PYTHON} -m pip install build
+      - name: Build Wheel
         env:
           PYTHON: "py -${{ matrix.python }}-${{ matrix.wordsize }}"
         shell: bash
@@ -86,15 +72,7 @@ jobs:
           cp -r --dereference ../c/subprojects lib/.
           cp -r --dereference ../c/tskit lib/.
           cp ../c/tskit.h lib/.
-          ${PYTHON} setup.py build_ext --inplace
-      - name: Build Wheel
-        env:
-          PYTHON: "py -${{ matrix.python }}-${{ matrix.wordsize }}"
-        shell: bash
-        run: |
-          set -ex
-          cd python
-          ${PYTHON} setup.py bdist_wheel
+          ${PYTHON} -m build --wheel
       - name: Upload Wheels
         uses: actions/upload-artifact@v4
         with:
@@ -107,16 +85,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.8
+      - name: Set up Python 3.9
         uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: 3.9
 
       - name: Build sdist
         shell: bash
         run: |
           cd python
-          python setup.py sdist
+          python -m pip install build
+          python -m build --sdist
 
       - name: Upload sdist
         uses: actions/upload-artifact@v4
@@ -140,7 +119,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        python: [3.8, 3.9, "3.10", 3.11]
+        python: [3.9, "3.10", 3.11, 3.12]
     steps:
       - name: Download wheels
         uses: actions/download-artifact@v4
@@ -162,7 +141,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        python: [3.8, 3.9, "3.10", 3.11]
+        python: [3.9, "3.10", 3.11, 3.12]
         wordsize: [64]
     steps:
       - name: Download wheels
@@ -186,17 +165,17 @@ jobs:
     needs: ['manylinux']
     strategy:
       matrix:
-        python: [3.8, 3.9, "3.10", 3.11]
+        python: [3.9, "3.10", 3.11, 3.12]
         include:
 
-          - python: 3.8
-            wheel: cp38
           - python: 3.9
             wheel: cp39
           - python: "3.10"
             wheel: cp310
           - python: 3.11
             wheel: cp311
+          - python: 3.12
+            wheel: cp312
     steps:
       - name: Download wheels
         uses: actions/download-artifact@v4

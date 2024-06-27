@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "numpy>=2.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tskit"
+dynamic = ["version"]
+authors = [
+    {name = "Tskit Developers", email = "admin@tskit.dev"},
+]
+description = "The tree sequence toolkit."
+readme = "README.rst"
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: C",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Other Environment",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+keywords = [
+    "population genetics",
+    "tree sequence",
+    "ancestral recombination graph",
+    "evolutionary tree",
+    "statistical genetics",
+    "phylogenetics",
+    "tskit",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "jsonschema>=3.0.0",
+    "numpy>=1.23.5",
+    "svgwrite>=1.1.10",
+]
+
+[project.urls]
+Homepage = "https://tskit.dev/tskit"
+Documentation = "https://tskit.dev/tskit/docs/stable"
+Changelog = "https://tskit.dev/tskit/docs/stable/changelogs.html"
+"Bug Tracker" = "https://github.com/tskit-dev/tskit/issues"
+GitHub = "https://github.com/tskit-dev/tskit/"
+
+[project.scripts]
+tskit = "tskit.cli:tskit_main"
+
+[tool.setuptools]
+packages = ["tskit"]
+
+[tool.setuptools.dynamic]
+version = {attr = "tskit._version.tskit_version"}
+
+[tool.pytest.ini_options]
+addopts = "-n 4"
+testpaths = ["tests"]
