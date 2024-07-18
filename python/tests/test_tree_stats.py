@@ -3993,19 +3993,21 @@ def branch_allele_frequency_spectrum(
     tree_index = 0
 
     def update_result(window_index, u, right):
-        for k_tw, _ in enumerate(time_windows[:-1]):
-            if 0 < count[u, -1] < ts.num_samples:
-                # t_v = branch_length[u] + time[u]
-                t_v = time[parent[u]]
-                tw_branch_length = min(time_windows[k_tw + 1], t_v) - max(
-                    time_windows[0], time[u]
-                )
-                x = (right - last_update[u]) * tw_branch_length
-                c = count[u, :num_sample_sets]
-                if not polarised:
-                    c = fold(c, out_dim)
-                index = tuple([window_index] + [k_tw] + list(c))
-                result[index] += x
+        if parent[u] != -1:
+            for k_tw, _ in enumerate(time_windows[:-1]):
+                if 0 < count[u, -1] < ts.num_samples:
+                    # t_v = branch_length[u] + time[u]
+                    assert parent[u] != -1
+                    t_v = time[parent[u]]
+                    tw_branch_length = min(time_windows[k_tw + 1], t_v) - max(
+                        time_windows[0], time[u]
+                    )
+                    x = (right - last_update[u]) * tw_branch_length
+                    c = count[u, :num_sample_sets]
+                    if not polarised:
+                        c = fold(c, out_dim)
+                    index = tuple([window_index] + [k_tw] + list(c))
+                    result[index] += x
         last_update[u] = right
 
     for (t_left, t_right), edges_out, edges_in in ts.edge_diffs():
@@ -4023,12 +4025,12 @@ def branch_allele_frequency_spectrum(
         for edge in edges_in:
             u = edge.child
             v = edge.parent
-            parent[u] = v
             # branch_length[u] = time[v] - time[u]
             while v != -1:
                 update_result(window_index, v, t_left)
                 count[v] += count[u]
                 v = parent[v]
+            parent[u] = edge.parent
 
         # Update the windows
         while window_index < num_windows and windows[window_index + 1] <= t_right:
