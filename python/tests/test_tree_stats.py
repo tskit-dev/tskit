@@ -195,7 +195,7 @@ def naive_branch_general_stat(
     else:
         out = windowed_tree_stat(ts, sigma, windows, span_normalise=span_normalise)
     if drop_time_windows:
-        assert out.shape[1] == 3
+        assert out.ndim == 3
         out = out[:, 0]
     return out
 
