@@ -1492,6 +1492,41 @@ class Tree:
         """
         return bool(self._ll_tree.is_descendant(u, v))
 
+    def is_recip_monophyletic(self, pop_groups = []):
+        """
+        Returns True if the tree is reciprocally monophyletic, as defined Standford's
+        definition : https://xtrees.stanford.edu/reciprocal-monophyly. This function 
+        relies on the following logic : if each population's MRCA's children are the
+        same as the population's leaves, all populations are reciprocally monophyletic.
+        The :math:`pop_groups` parameter allows population groupings, for cases where
+        two separate populations in the tree file must be analysed as a single one.
+
+        :param list[list(int)] pop_groups: two-dimensional list of population groupings
+        :return: True if :math:`self` is a reciprocally monophyletic
+        :rtype: bool
+        """
+        import pandas as pd
+
+        leaves_by_pop = pd.DataFrame(columns=['nodes']) # This will be the list of leaves per population
+        for root in self.roots :
+            for leaf in self.leaves() :
+                current_pop = self.get_population(leaf)
+                if current_pop not in leaves_by_pop.index :
+                    leaves_by_pop.loc[current_pop] = set() # Create a new entry for the population
+                    # Set type is important here because it is unordered, so when comparing the list of nodes, order isn't important
+                leaves_by_pop.loc[current_pop, 'nodes'].add(leaf)
+
+        # Allows for population grouping if necessary
+        for pop_group in pop_groups :
+            leaves_by_pop.loc[pop_group[0], 'nodes'] = leaves_by_pop.loc[pop_group[0], 'nodes'].union(leaves_by_pop.loc[pop_group[1], 'nodes'])
+            leaves_by_pop.pop(pop_group[1], inplace=True)
+        
+        leaves_by_pop['mrca'] = leaves_by_pop['nodes'].apply(lambda x: self.mrca(*x)) # Identify the MRCA of the population's leaves
+        leaves_by_pop['toplevelChildren'] = leaves_by_pop['mrca'].apply(lambda x: set(self.leaves(x))) # Identify the MRCA's children
+                    
+        # If each population's MRCA's children are the same as the population's leaves, all populations are reciprocally monophyletic
+        return (leaves_by_pop['nodes'] == leaves_by_pop['toplevelChildren']).all()
+
     @property
     def num_nodes(self):
         """
