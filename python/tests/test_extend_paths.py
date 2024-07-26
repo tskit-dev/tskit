@@ -1,15 +1,16 @@
-import msprime
+# import msprime
 import numpy as np
 import pytest
 
-import _tskit
 import tests.test_wright_fisher as wf
 import tskit
 from tests import tsutil
-from tests.test_highlevel import get_example_tree_sequences
+
+# from tests.test_highlevel import get_example_tree_sequences
 
 # ↑ See https://github.com/tskit-dev/tskit/issues/1804 for when
 # we can remove this.
+
 
 def _slide_mutation_nodes_up(ts, mutations):
     # adjusts mutations' nodes to place each mutation on the correct edge given
@@ -46,6 +47,7 @@ def _slide_mutation_nodes_up(ts, mutations):
 
     return new_mutations
 
+
 """
 Here is our new `extend_paths` algorithm.
 This handles some other tricker cases we want the
@@ -58,11 +60,14 @@ in a piece-meal way to speed up this convergence, but this requires
 further testing.
 """
 
-def _build_degree(edges, node_edge):
-    degree = np.zeros(nodes_edges.size)
+
+def _build_degree(edges, nodes_edge):
+    degree = np.zeros(nodes_edge.size)
     for n, e in enumerate(nodes_edge):
-        if e == tskit.NULL: continue
+        if e == tskit.NULL:
+            continue
         p, c = edges.parent[e], edges.child[e]
+        assert n == c
         degree[p] += 1
         degree[c] += 1
     return degree
@@ -142,9 +147,7 @@ def merge_edge_paths(edges_in, in_parent, out_parent, degree, not_sample, ts, ed
     return paths
 
 
-def _add_edge(
-    edges, near_side, far_side, forwards, parent, child, left, right
-):
+def _add_edge(edges, near_side, far_side, forwards, parent, child, left, right):
     new_id = edges.add_row(parent=parent, child=child, left=left, right=right)
     if forwards:
         near_side.append(left)
@@ -266,7 +269,7 @@ def _extend_paths(ts, forwards=True):
                 old_edge = nodes_edge[child]
                 if old_edge != tskit.NULL:
                     old_parent = edges[old_edge].parent
-                    assert degree[child] > 0, print(child, 'has degree', degree[child])
+                    assert degree[child] > 0, print(child, "has degree", degree[child])
                 if old_edge == tskit.NULL:
                     old_parent = tskit.NULL
 
@@ -277,7 +280,7 @@ def _extend_paths(ts, forwards=True):
                     assert degree[old_parent] == degree[new_parent], print(
                         degree[old_parent], degree[new_parent]
                     )
-                    assert degree[child] > 0, print(child, 'has degree', degree[child])
+                    assert degree[child] > 0, print(child, "has degree", degree[child])
                     continue
                 # If (j+1, j) not in previous tree
                 # Determine if we should extend edges
@@ -361,7 +364,7 @@ def _extend_paths(ts, forwards=True):
                                             parent=old_edge_object.parent,
                                             child=old_edge_object.child,
                                             left=old_edge_object.left,
-                                            right=there
+                                            right=there,
                                         )
                                     edges_in.append([split_id, True])
                                     added_edges += 1
@@ -423,13 +426,6 @@ def extend_paths(ts, max_iter=10):
     ts = tables.tree_sequence()
 
     return ts
-
-
-"""
-Total extend is a combination of extend_paths and
-extend_edges. This is solely to speed up computation time.
-Note that extend_first value will yield a different TS.
-"""
 
 
 def _path_pairs(tree):
@@ -877,36 +873,3 @@ class TestExtendPaths(TestExtendThings):
         ts = tables.tree_sequence()
         self.verify_extend_paths(ts)
         self.naive_verify(ts)
-
-class TestExamples:
-    """
-    Compare the ts method with local implementation.
-    """
-
-    def check(self, ts):
-        if np.any(tskit.is_unknown_time(ts.mutations_time)):
-            tables = ts.dump_tables()
-            tables.compute_mutation_times()
-            ts = tables.tree_sequence()
-        py_ts = extend_edges(ts)
-        lib_ts = ts.extend_edges()
-        lib_ts.tables.assert_equals(py_ts.tables)
-        assert np.all(ts.genotype_matrix() == lib_ts.genotype_matrix())
-        sts = ts.simplify()
-        lib_sts = lib_ts.simplify()
-        lib_sts.tables.assert_equals(sts.tables, ignore_provenance=True)
-
-    @pytest.mark.parametrize("ts", get_example_tree_sequences())
-    def test_suite_examples_defaults(self, ts):
-        if ts.num_migrations == 0:
-            self.check(ts)
-        else:
-            with pytest.raises(
-                _tskit.LibraryError, match="TSK_ERR_MIGRATIONS_NOT_SUPPORTED"
-            ):
-                _ = ts.extend_edges()
-
-    @pytest.mark.parametrize("n", [3, 4, 5])
-    def test_all_trees_ts(self, n):
-        ts = tsutil.all_trees_ts(n)
-        self.check(ts)
