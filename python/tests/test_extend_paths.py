@@ -110,10 +110,11 @@ def _check_state(pos, edges, degree, nodes_edge, near_side, far_side, num_nodes)
 
 
 def merge_edge_paths(
-    edges_in, in_parent, out_parent, new_degree, old_degree, not_sample, ts, edges
+    edges_in, in_parent, out_parent, in_degree, out_degree, not_sample, ts, edges
 ):
     # We want a list of all longest edge paths with shared endpoints but
-    # disjoint intermediate nodes from in_parent and out_parent
+    # disjoint intermediate nodes from in_parent and out_parent.
+    # Does NOT modify its arguments.
     paths = list()
     not_checked = np.full(ts.num_nodes, True, dtype=bool)
     for e_in, _ in edges_in:
@@ -126,7 +127,7 @@ def merge_edge_paths(
         opp = [c]
         while (
             p_out != tskit.NULL
-            and new_degree[p_out] == 0
+            and in_degree[p_out] == 0
             and not_sample[p_out]
             and not_checked[p_out]
         ):
@@ -136,7 +137,7 @@ def merge_edge_paths(
             opp.append(p_out)
         while (
             p_in != tskit.NULL
-            and new_degree[p_in] < 3
+            and in_degree[p_in] < 3
             and not_sample[p_in]
             and not_checked[p_in]
         ):
@@ -200,22 +201,22 @@ def _extend_paths(ts, forwards=True):
     - out_parent: the forest induced by edges_out, a subset of out_tree
     - edges_in: edges to be added to out_tree to get in_tree
     - in_parent: the forest induced by edges_in, a subset of in_tree
-    - new_degree: the negree of each node in in_tree
-    - new_nodes_edge: for each node, the edge above it in in_tree
-    - old_degree: the negree of each node in out_tree
-    - old_nodes_edge: for each node, the edge above it in out_tree
+    - in_degree: the negree of each node in in_tree
+    - in_nodes_edge: for each node, the edge above it in in_tree
+    - out_degree: the negree of each node in out_tree
+    - out_nodes_edge: for each node, the edge above it in out_tree
     Except: each of edges_in and edges_out is of the form e, x, and the
     label x=True if the edge is postponed to the next segment: in other words,
     these edges don't count as beign part of edges_in and edges_out.
     """
-    old_degree = np.full(ts.num_nodes, 0, dtype="int")
-    new_degree = np.full(ts.num_nodes, 0, dtype="int")
+    out_degree = np.full(ts.num_nodes, 0, dtype="int")
+    in_degree = np.full(ts.num_nodes, 0, dtype="int")
     out_parent = np.full(ts.num_nodes, -1, dtype="int")
     in_parent = np.full(ts.num_nodes, -1, dtype="int")
     not_sample = [not n.is_sample() for n in ts.nodes()]
     edges = ts.tables.edges.copy()
-    new_nodes_edge = np.full(ts.num_nodes, -1, dtype="int")
-    old_nodes_edge = np.full(ts.num_nodes, -1, dtype="int")
+    in_nodes_edge = np.full(ts.num_nodes, -1, dtype="int")
+    out_nodes_edge = np.full(ts.num_nodes, -1, dtype="int")
     new_left = edges.left.copy()
     new_right = edges.right.copy()
     if forwards:
@@ -255,7 +256,7 @@ def _extend_paths(ts, forwards=True):
                 if near_side[e] != here:
                     tmp.append([e, False])
             else:
-                old_nodes_edge[edges.child[e]] = tskit.NULL
+                out_nodes_edge[edges.child[e]] = tskit.NULL
         edges_out = tmp
         tmp = []
         for e, x in edges_in:
@@ -265,19 +266,19 @@ def _extend_paths(ts, forwards=True):
                 if far_side[e] != here:
                     tmp.append([e, False])
             else:
-                old_nodes_edge[edges.child[e]] = e
+                out_nodes_edge[edges.child[e]] = e
         edges_in = tmp
 
         for e, _ in edges_out:
             out_parent[edges.child[e]] = edges.parent[e]
-            new_nodes_edge[edges.child[e]] = tskit.NULL
+            in_nodes_edge[edges.child[e]] = tskit.NULL
 
         for j in range(tree_pos.out_range.start, tree_pos.out_range.stop, direction):
             e = tree_pos.out_range.order[j]
             if out_parent[edges.child[e]] == -1:
                 edges_out.append([e, False])
                 out_parent[edges.child[e]] = edges.parent[e]
-                new_nodes_edge[edges.child[e]] = tskit.NULL
+                in_nodes_edge[edges.child[e]] = tskit.NULL
 
         for j in range(tree_pos.in_range.start, tree_pos.in_range.stop, direction):
             e = tree_pos.in_range.order[j]
@@ -285,18 +286,18 @@ def _extend_paths(ts, forwards=True):
 
         for e, _ in edges_in:
             in_parent[edges.child[e]] = edges.parent[e]
-            new_nodes_edge[edges.child[e]] = e
+            in_nodes_edge[edges.child[e]] = e
 
-        new_degree = _build_degree(edges, new_nodes_edge)
-        # TODO: do we use old_nodes_edge for anything except building old_degree?
-        # If not, we can just update old_degree directly above... EXCEPT
+        in_degree = _build_degree(edges, in_nodes_edge)
+        # TODO: do we use out_nodes_edge for anything except building out_degree?
+        # If not, we can just update out_degree directly above... EXCEPT
         # for duplicated edges appended to edges_in.
-        old_degree = _build_degree(edges, old_nodes_edge)
+        out_degree = _build_degree(edges, out_nodes_edge)
         _check_state(
             (here + there) / 2,
             edges,
-            new_degree,
-            new_nodes_edge,
+            in_degree,
+            in_nodes_edge,
             near_side,
             far_side,
             ts.num_nodes,
@@ -307,19 +308,21 @@ def _extend_paths(ts, forwards=True):
             edges_in,
             in_parent,
             out_parent,
-            new_degree,
-            old_degree,
+            in_degree,
+            out_degree,
             not_sample,
             ts,
             edges,
         )
+        next_edges_out = []
+        next_edges_in = []
         for path in edge_paths:
             # For each node in the path
             # Consider edge (j+1, j)
             for j in range(len(path) - 1):
                 child = path[j]
                 new_parent = path[j + 1]
-                old_edge = new_nodes_edge[child]
+                old_edge = in_nodes_edge[child]
                 if old_edge != tskit.NULL:
                     old_parent = edges[old_edge].parent
                 if old_edge == tskit.NULL:
@@ -334,6 +337,7 @@ def _extend_paths(ts, forwards=True):
                 if new_parent != old_parent:
                     # check if our new edge is in edges_out
                     # hence it should be extended
+                    ## found_it = (out_parent[child] == new_parent)
                     # find the edge
                     for ex_out in edges_out:
                         e_out = ex_out[0]
@@ -349,12 +353,19 @@ def _extend_paths(ts, forwards=True):
                     # already an edge above this node, it must have been in edges in,
                     # so needs to be postponed coming in until the next tree
                     if found_it:
+                        ## e_out = out_nodes_edge[child]
+                        ## assert edges.child[e_out] == child
+                        ## assert edges.parent[e_out] == new_parent
+                        for ex_out in edges_out:
+                            if e_out == ex_out[0]:
+                                break
+                        assert e_out == ex_out[0]
                         ex_out[1] = True
                         if old_edge != tskit.NULL:
                             edges_in.append([old_edge, True])
                         # if old_edge == tskit.NULL:
-                        #     new_degree[child] += 2
-                        new_nodes_edge[child] = e_out
+                        #     in_degree[child] += 2
+                        in_nodes_edge[child] = e_out
 
                     # if edge is not in edges_out
                     # it is new and should be added to the edge table
@@ -369,12 +380,12 @@ def _extend_paths(ts, forwards=True):
                             left,
                             right,
                         )
-                        new_nodes_edge[child] = new_id
+                        in_nodes_edge[child] = new_id
                         edges_out.append([new_id, True])
                         if old_edge != tskit.NULL:
                             edges_in.append([old_edge, True])
-                            # new_degree[child] -= 1
-                            # new_degree[old_parent] -= 1
+                            # in_degree[child] -= 1
+                            # in_degree[old_parent] -= 1
         # end of loop, next tree
         if forwards:
             valid = tree_pos.next()
