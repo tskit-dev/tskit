@@ -117,7 +117,7 @@ def merge_edge_paths(
     # Does NOT modify its arguments.
     paths = list()
     not_checked = np.full(ts.num_nodes, True, dtype=bool)
-    for e_in in edges_in:
+    for e_in, _ in edges_in:
         c = edges[e_in].child
         if not_checked[c] is False:
             continue
@@ -231,8 +231,6 @@ def _extend_paths(ts, forwards=True):
         far_side = list(new_left)
     edges_out = []
     edges_in = []
-    edges_out_next = []
-    edges_in_next = []
 
     tree_pos = tsutil.TreePosition(ts)
     if forwards:
@@ -250,45 +248,45 @@ def _extend_paths(ts, forwards=True):
         # if an edge from p->c has been extended, entirely replacing
         # another edge from p'->c, then both edges may be in edges_out,
         # and we only want to include the *first* one.
-        # TODO: we could do away with tmp if we move the updating of near/far_side to where
-        # we put things in edges_in_next/out.
         tmp = []
-        for e in edges_out:
+        for e, x in edges_out:
             last_parent[edges.child[e]] = -1
-            last_nodes_edge[edges.child[e]] = tskit.NULL
-        for e in edges_out_next:
-            last_nodes_edge[edges.child[e]] = e
-            far_side[e] = here
-            if near_side[e] != here:
-                tmp.append(e)
+            last_nodes_edge[edges.child[e]] = -1
+            if x:
+                far_side[e] = here
+                if near_side[e] != here:
+                    tmp.append([e, False])
+            else:
+                last_nodes_edge[edges.child[e]] = tskit.NULL
         edges_out = tmp
         tmp = []
-        for e in edges_in:
-            next_parent[edges.child[e]] = -1
+        for e, x in edges_in:
+            last_parent[edges.child[e]] = tskit.NULL
             last_nodes_edge[edges.child[e]] = e
-        for e in edges_in_next:
-            last_nodes_edge[edges.child[e]] = tskit.NULL
-            near_side[e] = here
-            if far_side[e] != here:
-                tmp.append(e)
+            if x:
+                near_side[e] = here
+                if far_side[e] != here:
+                    tmp.append([e, False])
+            else:
+                last_nodes_edge[edges.child[e]] = e
         edges_in = tmp
 
-        for e in edges_out:
+        for e, _ in edges_out:
             last_parent[edges.child[e]] = edges.parent[e]
             next_nodes_edge[edges.child[e]] = tskit.NULL
 
         for j in range(tree_pos.out_range.start, tree_pos.out_range.stop, direction):
             e = tree_pos.out_range.order[j]
             if last_parent[edges.child[e]] == -1:
-                edges_out.append(e)
+                edges_out.append([e, False])
                 last_parent[edges.child[e]] = edges.parent[e]
                 next_nodes_edge[edges.child[e]] = tskit.NULL
 
         for j in range(tree_pos.in_range.start, tree_pos.in_range.stop, direction):
             e = tree_pos.in_range.order[j]
-            edges_in.append(e)
+            edges_in.append([e, False])
 
-        for e in edges_in:
+        for e, _ in edges_in:
             next_parent[edges.child[e]] = edges.parent[e]
             next_nodes_edge[edges.child[e]] = e
 
@@ -306,8 +304,8 @@ def _extend_paths(ts, forwards=True):
             far_side,
             ts.num_nodes,
         )
-        _check_parent(next_parent, edges, edges_in, ts.num_nodes)
-        _check_parent(last_parent, edges, edges_out, ts.num_nodes)
+        _check_parent(next_parent, edges, [j for j, _ in edges_in], ts.num_nodes)
+        _check_parent(last_parent, edges, [j for j, _ in edges_out], ts.num_nodes)
         edge_paths = merge_edge_paths(
             edges_in,
             next_parent,
@@ -318,8 +316,6 @@ def _extend_paths(ts, forwards=True):
             ts,
             edges,
         )
-        edges_out_next = []
-        edges_in_next = []
         for path in edge_paths:
             # For each node in the path
             # Consider edge (j+1, j)
@@ -343,7 +339,8 @@ def _extend_paths(ts, forwards=True):
                     # hence it should be extended
                     ### found_it = (last_parent[child] == new_parent)
                     # find the edge
-                    for e_out in edges_out:
+                    for ex_out in edges_out:
+                        e_out = ex_out[0]
                         found_it = False
                         if (
                             edges[e_out].child == child
@@ -361,10 +358,12 @@ def _extend_paths(ts, forwards=True):
                         assert edges.child[e_out] == child
                         assert edges.parent[e_out] == new_parent
                         assert e_out in edges_out
-                        ## ex_out[1] = True
-                        edges_out_next.append(e_out)
+                        ex_out[1] = True
+                        edges_out.append(e_out)
                         if old_edge != tskit.NULL:
-                            edges_in_next.append(old_edge)
+                            for ex_in in edges_in:
+                                if ex_in[0] == old_edge:
+                                    ex_in[1] = True
                         # if old_edge == tskit.NULL:
                         #     next_degree[child] += 2
                         next_nodes_edge[child] = e_out
@@ -383,9 +382,9 @@ def _extend_paths(ts, forwards=True):
                             right,
                         )
                         next_nodes_edge[child] = new_id
-                        edges_out_next.append(new_id)
+                        edges_out.append([new_id, True])
                         if old_edge != tskit.NULL:
-                            edges_in_next.append(old_edge)
+                            edges_in.append(old_edge)
                             # next_degree[child] -= 1
                             # next_degree[old_parent] -= 1
         # end of loop, next tree
@@ -395,10 +394,12 @@ def _extend_paths(ts, forwards=True):
             valid = tree_pos.prev()
 
     # clean-up from last interval
-    for e in edges_out_next:
-        far_side[e] = there
-    for e in edges_in_next:
-        near_side[e] = there
+    for e, x in edges_out:
+        if x:
+            far_side[e] = there
+    for e, x in edges_in:
+        if x:
+            near_side[e] = there
 
     if forwards:
         new_left = np.array(near_side)
