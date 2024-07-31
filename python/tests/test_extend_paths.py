@@ -1,4 +1,4 @@
-# import msprime
+import msprime
 import numpy as np
 import pytest
 
@@ -445,34 +445,18 @@ def _extend_paths(ts, forwards=True):
                     # this is an edge already in the tree; do nothing
                     continue
                 # If (j+1, j) not in previous tree
-                # Determine if we should extend edges
-                # or create a new edge
                 if new_parent != old_parent:
-                    # check if our new edge is in edges_out
-                    # hence it should be extended
-                    ### found_it = (parent_out[child] == new_parent)
-                    # find the edge
-                    for ex_out in edges_out:
-                        e_out = ex_out[0]
-                        found_it = False
-                        if (
-                            edges[e_out].child == child
-                            and edges[e_out].parent == new_parent
-                            and not ex_out[1]
-                        ):
-                            found_it = True
-                            break
-                    # Extend edge_out into current tree;
-                    # since we are not adding a new edge we know that if there is
-                    # already an edge above this node, it must have been in edges in,
-                    # so needs to be postponed coming in until the next tree
-                    assert found_it == (parent_out[child] == new_parent)
-                    if found_it:
-                        assert e_out == last_nodes_edge[child]
+                    # if our new edge is in edges_out, it should be extended
+                    edge_exists = (parent_out[child] == new_parent)
+                    if edge_exists:
+                        e_out = last_nodes_edge[child]
                         assert edges.child[e_out] == child
                         assert edges.parent[e_out] == new_parent
                         far_side[e_out] = there
                         assert near_side[e_out] != far_side[e_out]
+                        for ex_out in edges_out:
+                            if ex_out[0] == e_out:
+                                break
                         ex_out[1] = True
                         # if old_edge == tskit.NULL:
                         #     next_degree[child] += 2
@@ -488,6 +472,9 @@ def _extend_paths(ts, forwards=True):
                             right,
                         )
                         edges_out.append([e_out, True])
+                    # If we're replacing the edge above this node, it must be in edges_in;
+                    # note that this assertion excludes the case that we're interrupting an existing edge.
+                    assert (next_nodes_edge[child] == tskit.NULL) or (next_nodes_edge[child] in [e for e, _ in edges_in])
                     next_nodes_edge[child] = e_out
                     parent_out[child] = tskit.NULL
                     if old_edge != tskit.NULL:
