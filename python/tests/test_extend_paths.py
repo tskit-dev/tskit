@@ -157,11 +157,6 @@ def merge_edge_paths(
         if p_in != tskit.NULL and not_checked[p_in]:
             ipp.append(p_in)
         # build the path list:
-        if ipp[-1] == opp[-1]:
-            path = list(set(ipp + opp))
-            path.sort(key=lambda x: ts.nodes_time[x])
-            not_checked[path[:-1]] = False
-            paths.append(path)
         if ipp[-1] != opp[-1]:
             common_nodes, ipp_ind, opp_ind = np.intersect1d(
                 ipp, opp, return_indices=True
@@ -171,22 +166,23 @@ def merge_edge_paths(
                 list(ipp_ind),
                 list(opp_ind),
             )
-            if len(common_nodes) > 1:
-                common_nodes.sort(key=lambda x: ts.nodes_time[x])
-                ipp_ind.sort(key=lambda x: ts.nodes_time[ipp[x]])
-                opp_ind.sort(key=lambda x: ts.nodes_time[opp[x]])
-                ipp_last_ind = ipp_ind[-1]
-                opp_last_ind = opp_ind[-1]
-                ipp = ipp[: ipp_last_ind + 1]
-                opp = opp[: opp_last_ind + 1]
-                path = list(set(ipp + opp))
-                path.sort(key=lambda x: ts.nodes_time[x])
-                not_checked[path[:-1]] = False
-                paths.append(path)
-                # print('pathcheck', not_checked[path])
-                # print('out path', opp)
-                # print('in path', ipp)
-                # print('path', path)
+            if len(common_nodes) <= 1:
+                continue
+            common_nodes.sort(key=lambda x: ts.nodes_time[x])
+            ipp_ind.sort(key=lambda x: ts.nodes_time[ipp[x]])
+            opp_ind.sort(key=lambda x: ts.nodes_time[opp[x]])
+            ipp_last_ind = ipp_ind[-1]
+            opp_last_ind = opp_ind[-1]
+            ipp = ipp[: ipp_last_ind + 1]
+            opp = opp[: opp_last_ind + 1]
+        path = list(set(ipp + opp))
+        path_times = [ts.nodes_time[x] for x in path]
+        if len(path_times) == len(set(path_times)):
+            path.sort(key=lambda x: ts.nodes_time[x])
+            not_checked[path[:-1]] = False
+            paths.append(path)
+            print("path", path)
+            print("times", [ts.node(n).time for n in path])
     return paths
 
 
@@ -1068,11 +1064,12 @@ class TestExtendPaths(TestExtendThings):
         )
         self.verify_extend_paths(ts)
 
-    # TODO: include seed 5; it has time conflicts
-    @pytest.mark.parametrize("seed", [3, 4, 6])
+    @pytest.mark.parametrize("seed", [3, 4, 5, 6])
     def test_wf(self, seed):
         tables = wf.wf_sim(N=6, ngens=9, num_loci=100, deep_history=False, seed=seed)
         tables.sort()
         ts = tables.tree_sequence().simplify()
+        for t in ts.trees():
+            print(t.draw(format="ascii"))
         self.verify_extend_paths(ts)
         self.naive_verify(ts)
