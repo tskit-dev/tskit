@@ -125,64 +125,64 @@ def merge_edge_paths(
 ):
     # We want a list of all longest edge paths with shared endpoints but
     # disjoint intermediate nodes from parent_in and parent_out.
+    # Furthermore, all intermediate nodes on these paths should be disjoint.
     # Does NOT modify its arguments.
     paths = list()
-    not_checked = np.full(ts.num_nodes, True, dtype=bool)
+    in_path = np.full(ts.num_nodes, False, dtype=bool)
     for e_in, _ in edges_in:
         c = edges[e_in].child
-        if not_checked[c] is False:
+        if last_degree[c] == 0:
             continue
-        p_in = edges[e_in].parent
+        # build path in edges_out
         p_out = parent_out[c]
-        ipp = [c]
         opp = [c]
         while (
             p_out != tskit.NULL
             and next_degree[p_out] == 0
             and not_sample[p_out]
-            and not_checked[p_out]
+            and not in_path[p_out]
         ):
             opp.append(p_out)
             p_out = parent_out[p_out]
-        if p_out != tskit.NULL and not_checked[p_out]:
-            opp.append(p_out)
+        opp.append(p_out)
+        # build path in edges_in
+        p_in = parent_in[c]
+        ipp = [c]
         while (
             p_in != tskit.NULL
             and last_degree[p_in] == 0
             and not_sample[p_in]
-            and not_checked[p_in]
+            and not in_path[p_in]
         ):
             ipp.append(p_in)
             p_in = parent_in[p_in]
-        if p_in != tskit.NULL and not_checked[p_in]:
-            ipp.append(p_in)
-        # build the path list:
-        if ipp[-1] != opp[-1]:
-            common_nodes, ipp_ind, opp_ind = np.intersect1d(
-                ipp, opp, return_indices=True
-            )
-            common_nodes, ipp_ind, opp_ind = (
-                list(common_nodes),
-                list(ipp_ind),
-                list(opp_ind),
-            )
-            if len(common_nodes) <= 1:
-                continue
-            common_nodes.sort(key=lambda x: ts.nodes_time[x])
-            ipp_ind.sort(key=lambda x: ts.nodes_time[ipp[x]])
-            opp_ind.sort(key=lambda x: ts.nodes_time[opp[x]])
-            ipp_last_ind = ipp_ind[-1]
-            opp_last_ind = opp_ind[-1]
-            ipp = ipp[: ipp_last_ind + 1]
-            opp = opp[: opp_last_ind + 1]
-        path = list(set(ipp + opp))
-        path_times = [ts.nodes_time[x] for x in path]
-        if len(path_times) == len(set(path_times)):
-            path.sort(key=lambda x: ts.nodes_time[x])
-            not_checked[path[:-1]] = False
-            paths.append(path)
-            print("path", path)
-            print("times", [ts.node(n).time for n in path])
+        ipp.append(p_in)
+        if p_in == p_out and p_in != tskit.NULL:
+            # we have a path that is extendable # as long as
+            # the node times are disjoint
+            extendable = True
+            path = [c]
+            n_in = parent_in[c]
+            n_out = parent_out[c]
+            while n_in != p_in or n_out != p_out:
+                t_in = ts.nodes_time[n_in]
+                t_out = ts.nodes_time[n_out]
+                if t_in == t_out:
+                    # abort!
+                    extendable = False
+                    break
+                elif t_in < t_out:
+                    path.append(n_in)
+                    in_path[n_in] = True
+                    n_in = parent_in[n_in]
+                else:
+                    path.append(n_out)
+                    in_path[n_out] = True
+                    n_out = parent_out[n_out]
+            if extendable:
+                assert n_in == p_in and n_out == p_out
+                path.append(p_in)
+                paths.append(path)
     return paths
 
 
@@ -1074,7 +1074,5 @@ class TestExtendPaths(TestExtendThings):
         tables = wf.wf_sim(N=6, ngens=9, num_loci=100, deep_history=False, seed=seed)
         tables.sort()
         ts = tables.tree_sequence().simplify()
-        for t in ts.trees():
-            print(t.draw(format="ascii"))
         self.verify_extend_paths(ts)
         self.naive_verify(ts)
