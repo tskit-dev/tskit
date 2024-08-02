@@ -148,7 +148,7 @@ def merge_edge_paths(
             opp.append(p_out)
         while (
             p_in != tskit.NULL
-            and next_degree[p_in] < 3
+            and last_degree[p_in] == 0
             and not_sample[p_in]
             and not_checked[p_in]
         ):
@@ -721,6 +721,11 @@ class TestExtendThings:
         assert ts.num_samples == ets.num_samples
         t = ts.simplify().tables
         et = ets.simplify().tables
+        print("----- simplify equality -----------")
+        for u, a, b in ts.simplify().coiterate(ets.simplify()):
+            print(f"... {u} ...")
+            print(a.draw_text())
+            print(b.draw_text())
         et.assert_equals(t, ignore_provenance=True)
 
     def naive_verify(self, ts):
