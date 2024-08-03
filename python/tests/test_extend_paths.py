@@ -2,11 +2,11 @@ import msprime
 import numpy as np
 import pytest
 
+import _tskit
 import tests.test_wright_fisher as wf
 import tskit
 from tests import tsutil
-
-# from tests.test_highlevel import get_example_tree_sequences
+from tests.test_highlevel import get_example_tree_sequences
 
 # ↑ See https://github.com/tskit-dev/tskit/issues/1804 for when
 # we can remove this.
@@ -721,11 +721,6 @@ class TestExtendThings:
         assert ts.num_samples == ets.num_samples
         t = ts.simplify().tables
         et = ets.simplify().tables
-        print("----- simplify equality -----------")
-        for u, a, b in ts.simplify().coiterate(ets.simplify()):
-            print(f"... {u} ...")
-            print(a.draw_text())
-            print(b.draw_text())
         et.assert_equals(t, ignore_provenance=True)
 
     def naive_verify(self, ts):
@@ -964,68 +959,125 @@ class TestExtendPaths(TestExtendThings):
         return ts, ets
 
     def get_example3(self):
-        # 12.00|         |         |         |         |         |         |         |         |         |
-        #      |         |         |         |         |         |         |         |         |         |
-        # 11.00|  12     |   12    |    12   |    12   |   12    |         |         |         |         |
-        #      | +-+-+   |  +-+-+  |   +-+-+ |     |   |    |    |         |         |         |         |
-        # 10.00| |   |   |  |   |  |   |   | |     |   |    |    |   11    |  11     |  11     |  11     |
-        #      | |   |   |  |   |  |   |   | |     |   |    |    |    |    |   |     | +-+-+   | +-+-+   |
-        # 9.00 | |  10   |  |  10  |  10   | |    10   |   10    |   10    |  10     | |  10   | |  10   |
-        #      | |   |   |  |   |  |   |   | |   +-+-+ |  +-+-+  |  +-+-+  | +-+-+   | |   |   | |   |   |
-        # 8.00 | |   |   |  |   |  |   |   | |   |   | |  |   |  |  |   |  | |   |   | |   |   | |   |   |
-        #      | |   |   |  |   |  |   |   | |   |   | |  |   |  |  |   |  | |   |   | |   |   | |   |   |
-        # 7.00 | 8   |   |  8   |  |   |   8 |   |   8 |  |   8  |  |   8  | |   8   | |   8   | |   8   |
-        #      | |   |   |  |   |  |   |   | |   |   | |  |  +++ |  |  +++ | |  ++-+ | |  ++-+ | |   |   |
-        # 6.00 | |   7   |  |   7  |   7   | |   7   | |  7  | | |  7  | | | 7  |  | | 7  |  | | 7   |   |
-        #      | | +-+-+ |  |  +++ | +-+-+ | | +-+-+ | | +++ | | | +++ | | | |  |  | | |  |  | | |   |   |
-        # 5.00 | | | | 6 |  |  | 6 | | | 6 | | | | 6 | | | | | 6 | | | | 6 | |  |  6 | |  |  6 | |   6   |
-        #      | | | | | |  |  | | | | | | | | | | | | | | | | | | | | | | | |  |  | | |  |  | | |  ++-+ |
-        # 4.00 | 5 | | | |  5  | | | | | | 5 | | | | 5 | | | 5 | | | | 5 | | |  5  | | |  5  | | |  |  | |
-        #      | | | | | | +++ | | | | | | | | | | | | | | | | | | | | | | | |  |  | | |  |  | | |  |  | |
-        # 3.00 | | | | | | | 4 | | | | | | 4 | | | | 4 | | | 4 | | | | 4 | | |  4  | | |  4  | | |  4  | |
-        #      | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | +++ | | | +++ | | | +++ | |
-        # 0.00 | 0 1 2 3 | 0 1 2 3 | 0 2 3 1 | 0 2 3 1 | 0 2 1 3 | 0 2 1 3 | 0 1 2 3 | 0 1 2 3 | 0 1 2 3 |
-        #      0         1         2         3         4         5         6         7         8        10
-        (x1, x2, x3, x4, x5, x6, x7, x8) = (1, 2, 3, 4, 5, 6, 7, 8)
-        edges = [  # c, p, l, r
-            (0, 5, 0, x2),
-            (0, 7, x2, x6),
-            (0, 10, x6, x8),
-            (1, 7, 0, x1),
-            (1, 4, x1, x8),
-            (2, 4, x5, x8),
-            (2, 7, 0, x5),
-            (3, 6, 0, x8),
-            (4, 5, x1, x7),
-            (4, 6, x7, x8),
-            (5, 8, 0, x7),
-            (6, 7, 0, x4),
-            (6, 8, x4, x8),
-            (7, 9, 0, x6),
-            (8, 9, x3, x8),
-            (8, 11, 0, x3),
-            (9, 10, x6, x8),
-            (9, 11, 0, x3),
+        # Here is the full tree; extend edges should be able to
+        # recover all unary nodes after simplification:
+        #
+        #       9         9         9          9
+        #     +-+-+    +--+--+  +---+---+  +-+-+--+
+        #     8   |    8     |  8   |   |  8 | |  |
+        #     |   |  +-+-+   |  |   |   |  | | |  |
+        #     7   |  |   7   |  |   7   |  | | |  7
+        #   +-+-+ |  | +-++  |  | +-++  |  | | |  |
+        #   6   | |  | |  6  |  | |  6  |  | | |  6
+        # +-++  | |  | |  |  |  | |  |  |  | | |  |
+        # 1  0  2 3  1 2  0  3  1 2  0  3  1 2 3  0
+        #   +++          +++        +++          +++
+        #   4 5          4 5        4 5          4 5
+        #
+        samples = [0, 1, 2, 3, 4, 5]
+        node_times = [1, 1, 1, 1, 0, 0, 2, 3, 4, 5]
+        # (p, c, l, r)
+        edges = [
+            (0, 4, 0, 10),
+            (0, 5, 0, 10),
+            (6, 0, 0, 10),
+            (6, 1, 0, 3),
+            (7, 2, 0, 7),
+            (7, 6, 0, 10),
+            (8, 1, 3, 10),
+            (8, 7, 0, 5),
+            (9, 2, 7, 10),
+            (9, 3, 0, 10),
+            (9, 7, 5, 10),
+            (9, 8, 0, 10),
         ]
-        tables = tskit.TableCollection(sequence_length=x8)
-        for _ in range(4):
-            n = tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
-
-        while n < 11:
-            n = tables.nodes.add_row(time=n)
-
-        for c, p, l, r in edges:
-            tables.edges.add_row(child=c, parent=p, left=l, right=r)
-
-        tables.sort()
-        ets = tables.tree_sequence()
-        ts = ets.simplify()
-        assert ts.num_nodes == ets.num_nodes
-        return ts, ets
+        tables = tskit.TableCollection(sequence_length=10)
+        for n, t in enumerate(node_times):
+            flags = tskit.NODE_IS_SAMPLE if n in samples else 0
+            tables.nodes.add_row(time=t, flags=flags)
+        for p, c, l, r in edges:
+            tables.edges.add_row(parent=p, child=c, left=l, right=r)
+        ts = tables.tree_sequence()
+        return ts
 
     def verify_extend_paths(self, ts, max_iter=10):
         ets = extend_paths(ts, max_iter=max_iter)
         self.verify_simplify_equality(ts, ets)
+
+    def test_runs(self):
+        ts = msprime.simulate(5, mutation_rate=1.0, random_seed=126)
+        self.verify_extend_paths(ts)
+        self.naive_verify(ts)
+
+    @pytest.mark.skip("TODO")
+    def test_migrations_disallowed(self):
+        ts = msprime.simulate(5, mutation_rate=1.0, random_seed=126)
+        tables = ts.dump_tables()
+        tables.populations.add_row()
+        tables.populations.add_row()
+        tables.migrations.add_row(0, 1, 0, 0, 1, 0)
+        ts = tables.tree_sequence()
+        with pytest.raises(
+            _tskit.LibraryError, match="TSK_ERR_MIGRATIONS_NOT_SUPPORTED"
+        ):
+            _ = ts.extend_paths()
+
+    @pytest.mark.skip("TODO")
+    def test_unknown_times(self):
+        ts = msprime.simulate(5, mutation_rate=1.0, random_seed=126)
+        tables = ts.dump_tables()
+        tables.mutations.clear()
+        for mut in ts.mutations():
+            tables.mutations.append(mut.replace(time=tskit.UNKNOWN_TIME))
+        ts = tables.tree_sequence()
+        with pytest.raises(
+            _tskit.LibraryError, match="TSK_ERR_DISALLOWED_UNKNOWN_MUTATION_TIME"
+        ):
+            _ = ts.extend_paths()
+
+    @pytest.mark.skip("TODO")
+    def test_max_iter(self):
+        ts = msprime.simulate(5, random_seed=126)
+        with pytest.raises(_tskit.LibraryError, match="positive"):
+            ets = ts.extend_paths(max_iter=0)
+        with pytest.raises(_tskit.LibraryError, match="positive"):
+            ets = ts.extend_paths(max_iter=-1)
+        ets = ts.extend_paths(max_iter=1)
+        et = ets.extend_paths(max_iter=1).dump_tables()
+        eet = ets.extend_paths(max_iter=2).dump_tables()
+        eet.assert_equals(et)
+
+    def test_very_simple(self):
+        samples = [0]
+        node_times = [0, 1, 2, 3]
+        # (p, c, l, r)
+        edges = [
+            (1, 0, 0, 1),
+            (2, 0, 1, 2),
+            (2, 1, 0, 1),
+            (3, 0, 2, 3),
+            (3, 2, 0, 2),
+        ]
+        correct_edges = [
+            (1, 0, 0, 3),
+            (2, 1, 0, 3),
+            (3, 2, 0, 3),
+        ]
+        tables = tskit.TableCollection(sequence_length=3)
+        for n, t in enumerate(node_times):
+            flags = tskit.NODE_IS_SAMPLE if n in samples else 0
+            tables.nodes.add_row(time=t, flags=flags)
+        for p, c, l, r in edges:
+            tables.edges.add_row(parent=p, child=c, left=l, right=r)
+        ts = tables.tree_sequence()
+        ets = extend_paths(ts)
+        etables = ets.tables
+        correct_tables = etables.copy()
+        etables.edges.clear()
+        for p, c, l, r in correct_edges:
+            etables.edges.add_row(parent=p, child=c, left=l, right=r)
+        etables.assert_equals(correct_tables, ignore_provenance=True)
+        self.naive_verify(ts)
 
     def test_example1(self):
         ts, ets = self.get_example1()
@@ -1041,19 +1093,64 @@ class TestExtendPaths(TestExtendThings):
         self.verify_extend_paths(ts)
         self.naive_verify(ts)
 
-    @pytest.mark.skip("FIXME: too much un-inferrable stuff still")
     def test_example3(self):
-        ts, ets = self.get_example3()
-        test_ets = naive_extend_paths(ts)
-        for (
-            x,
-            t,
-            et,
-        ) in ets.coiterate(test_ets):
-            print("--------------", x)
-            print(t.draw(format="ascii"))
-            print(et.draw(format="ascii"))
-        test_ets.tables.assert_equals(ets.tables, ignore_provenance=True)
+        ts = self.get_example3()
+        sts = ts.simplify()
+        assert ts.num_edges == 12
+        assert sts.num_edges == 16
+        ts.tables.assert_equals(extend_paths(sts).tables, ignore_provenance=True)
+        self.naive_verify(ts)
+
+    def test_internal_samples(self):
+        # Now we should have the same but not extend 5 (where * is):
+        #
+        #    6         6      6         6
+        #  +-+-+     +-+-+  +-+-+     +-+-+
+        #  7   *     7   *  7   8     7   8
+        #  |   |    ++-+ |  | +-++    |   |
+        #  4   5    4  | *  4 |  5    4   5
+        # +++ +++  +++ | |  | | +++  +++ +++
+        # 0 1 2 3  0 1 2 3  0 1 2 3  0 1 2 3
+        #
+        node_times = {
+            0: 0,
+            1: 0,
+            2: 0,
+            3: 0,
+            4: 1.0,
+            5: 1.0,
+            6: 3.0,
+            7: 2.0,
+            8: 2.0,
+        }
+        # (p, c, l, r)
+        edges = [
+            (4, 0, 0, 10),
+            (4, 1, 0, 5),
+            (4, 1, 7, 10),
+            (5, 2, 0, 2),
+            (5, 2, 5, 10),
+            (5, 3, 0, 2),
+            (5, 3, 5, 10),
+            (7, 2, 2, 5),
+            (7, 4, 0, 10),
+            (8, 1, 5, 7),
+            (8, 5, 5, 10),
+            (6, 3, 2, 5),
+            (6, 5, 0, 2),
+            (6, 7, 0, 10),
+            (6, 8, 5, 10),
+        ]
+        tables = tskit.TableCollection(sequence_length=10)
+        samples = [0, 1, 2, 3, 5]
+        for n, t in node_times.items():
+            flags = tskit.NODE_IS_SAMPLE if n in samples else 0
+            tables.nodes.add_row(time=t, flags=flags)
+        for p, c, l, r in edges:
+            tables.edges.add_row(parent=p, child=c, left=l, right=r)
+        ts = tables.tree_sequence()
+        ets = extend_paths(ts)
+        ets.tables.assert_equals(tables)
         self.verify_extend_paths(ts)
         self.naive_verify(ts)
 
@@ -1067,7 +1164,8 @@ class TestExtendPaths(TestExtendThings):
             random_seed=12,
             rcombination_rate=1e-8,
         )
-        self.verify_extend_paths(ts)
+        ets = extend_paths(ts)
+        self.verify_simplify_equality(ts, ets)
 
     @pytest.mark.parametrize("seed", [3, 4, 5, 6])
     def test_wf(self, seed):
@@ -1076,3 +1174,38 @@ class TestExtendPaths(TestExtendThings):
         ts = tables.tree_sequence().simplify()
         self.verify_extend_paths(ts)
         self.naive_verify(ts)
+
+
+@pytest.mark.skip("TODO")
+class TestExamples:
+    """
+    Compare the ts method with local implementation.
+    """
+
+    def check(self, ts):
+        if np.any(tskit.is_unknown_time(ts.mutations_time)):
+            tables = ts.dump_tables()
+            tables.compute_mutation_times()
+            ts = tables.tree_sequence()
+        py_ts = extend_paths(ts)
+        lib_ts = ts.extend_paths()
+        lib_ts.tables.assert_equals(py_ts.tables)
+        assert np.all(ts.genotype_matrix() == lib_ts.genotype_matrix())
+        sts = ts.simplify()
+        lib_sts = lib_ts.simplify()
+        lib_sts.tables.assert_equals(sts.tables, ignore_provenance=True)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_suite_examples_defaults(self, ts):
+        if ts.num_migrations == 0:
+            self.check(ts)
+        else:
+            with pytest.raises(
+                _tskit.LibraryError, match="TSK_ERR_MIGRATIONS_NOT_SUPPORTED"
+            ):
+                _ = ts.extend_paths()
+
+    @pytest.mark.parametrize("n", [3, 4, 5])
+    def test_all_trees_ts(self, n):
+        ts = tsutil.all_trees_ts(n)
+        self.check(ts)
