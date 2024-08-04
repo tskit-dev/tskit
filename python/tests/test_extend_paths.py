@@ -164,7 +164,6 @@ class PathExtender:
         direction = 1 if self.forwards else -1
         tmp = []
         for e, x in self.edges_out:
-            print(":::", e, len(self.edges.child))
             self.parent_out[self.edges.child[e]] = tskit.NULL
             if x > 0:
                 tmp.append([e, 0])
@@ -259,71 +258,56 @@ class PathExtender:
         self.check_parent(self.parent_in, [j for j, x in self.edges_in if x == 0])
         self.check_parent(self.parent_out, [j for j, x in self.edges_out if x == 0])
 
-    def merge_edge_paths(self):
-        # We want a list of all longest edge paths with shared endpoints but
-        # disjoint intermediate nodes from parent_in and parent_out.
-        # Furthermore, all intermediate nodes on these paths should be disjoint.
-        # Does NOT modify its arguments.
-        paths = list()
-        in_path = np.full(self.ts.num_nodes, False, dtype=bool)
-        for e_in, _ in self.edges_in:
-            c = self.edges[e_in].child
-            if self.last_degree[c] == 0:
-                continue
-            # build path in edges_out
-            p_out = self.parent_out[c]
-            opp = [c]
-            while (
-                p_out != tskit.NULL
-                and self.next_degree[p_out] == 0
-                and self.not_sample[p_out]
-                and not in_path[p_out]
-            ):
-                opp.append(p_out)
-                p_out = self.parent_out[p_out]
-            opp.append(p_out)
-            # build path in edges_in
-            p_in = self.parent_in[c]
-            ipp = [c]
-            while (
-                p_in != tskit.NULL
-                and self.last_degree[p_in] == 0
-                and self.not_sample[p_in]
-                and not in_path[p_in]
-            ):
-                ipp.append(p_in)
-                p_in = self.parent_in[p_in]
-            ipp.append(p_in)
-            if p_in == p_out and p_in != tskit.NULL:
-                # we have a path that is extendable # as long as
-                # the node times are disjoint
-                extendable = True
-                path = [c]
-                n_in = self.parent_in[c]
-                n_out = self.parent_out[c]
-                while n_in != p_in or n_out != p_out:
-                    t_in = self.ts.nodes_time[n_in]
-                    t_out = self.ts.nodes_time[n_out]
-                    if t_in == t_out:
-                        # abort!
-                        extendable = False
+    def add_or_extend_edge(self, child, new_parent, left, right):
+        print(f"add or extend: {child} -> {new_parent}")
+        there = right if self.forwards else left
+        old_edge = self.next_nodes_edge[child]
+        if old_edge != tskit.NULL:
+            old_parent = self.edges.parent[old_edge]
+        else:
+            old_parent = tskit.NULL
+        if new_parent != old_parent:
+            # if our new edge is in edges_out, it should be extended
+            if self.parent_out[child] == new_parent:
+                print("extend edge: ", child, new_parent)
+                e_out = self.last_nodes_edge[child]
+                assert self.edges.child[e_out] == child
+                assert self.edges.parent[e_out] == new_parent
+                self.far_side[e_out] = there
+                assert self.near_side[e_out] != self.far_side[e_out]
+                for ex_out in self.edges_out:
+                    if ex_out[0] == e_out:
                         break
-                    elif t_in < t_out:
-                        path.append(n_in)
-                        in_path[n_in] = True
-                        n_in = self.parent_in[n_in]
-                    else:
-                        path.append(n_out)
-                        in_path[n_out] = True
-                        n_out = self.parent_out[n_out]
-                if extendable:
-                    assert n_in == p_in and n_out == p_out
-                    path.append(p_in)
-                    paths.append(path)
-        return paths
+                assert ex_out[0] == e_out
+                ex_out[1] = 1
+            else:
+                print("   new edge: ", child, new_parent)
+                e_out = self.add_edge(new_parent, child, left, right)
+                self.edges_out.append([e_out, 2])
+            # If we're replacing the edge above this node, it must be in edges_in;
+            # note that this assertion excludes the case that we're interrupting
+            # an existing edge.
+            assert (self.next_nodes_edge[child] == tskit.NULL) or (
+                self.next_nodes_edge[child] in [e for e, _ in self.edges_in]
+            )
+            self.next_nodes_edge[child] = e_out
+            self.next_degree[child] += 1
+            self.next_degree[new_parent] += 1
+            self.parent_out[child] = tskit.NULL
+            if old_edge != tskit.NULL:
+                for ex_in in self.edges_in:
+                    if ex_in[0] == old_edge and (ex_in[1] == 0):
+                        self.near_side[ex_in[0]] = there
+                        if self.far_side[ex_in[0]] != there:
+                            ex_in[1] = 1
+                        self.next_nodes_edge[child] = tskit.NULL
+                        self.next_degree[child] -= 1
+                        self.next_degree[self.parent_in[child]] -= 1
+                        self.parent_in[child] = tskit.NULL
 
     def add_edge(self, parent, child, left, right):
         new_id = self.edges.add_row(parent=parent, child=child, left=left, right=right)
+        # note this appending should not be necessary in C
         if self.forwards:
             self.near_side.append(left)
             self.far_side.append(right)
@@ -332,59 +316,61 @@ class PathExtender:
             self.far_side.append(left)
         return new_id
 
-    def add_path(self, path, left, right):
-        there = right if self.forwards else left
-        for j in range(len(path) - 1):
-            child = path[j]
-            new_parent = path[j + 1]
-            old_edge = self.next_nodes_edge[child]
-            if old_edge != tskit.NULL:
-                old_parent = self.edges[old_edge].parent
+    def mergeable(self, c):
+        # returns True if the paths in parent_in and parent_out
+        # up through nodes that aren't in the other tree
+        # end at the same place and don't have conflicting times
+        p_out = self.parent_out[c]
+        p_in = self.parent_in[c]
+        t_in = self.ts.nodes_time[p_in]
+        t_out = self.ts.nodes_time[p_out]
+        while (
+            p_out != tskit.NULL
+            and self.next_degree[p_out] == 0
+            and self.not_sample[p_out]
+        ) or (
+            p_in != tskit.NULL and self.last_degree[p_in] == 0 and self.not_sample[p_in]
+        ):
+            if t_in == t_out:
+                break
+            elif t_in < t_out:
+                p_in = self.parent_in[p_in]
+                t_in = self.ts.nodes_time[p_in]
             else:
-                old_parent = tskit.NULL
-            # Do nothing if (j+1,j) exists in both trees
-            if new_parent == old_parent:
-                # this is an edge already in the tree; do nothing
-                continue
-            # If (j+1, j) not in previous tree
-            if new_parent != old_parent:
-                # if our new edge is in edges_out, it should be extended
-                edge_exists = self.parent_out[child] == new_parent
-                if edge_exists:
-                    e_out = self.last_nodes_edge[child]
-                    assert self.edges.child[e_out] == child
-                    assert self.edges.parent[e_out] == new_parent
-                    self.far_side[e_out] = there
-                    assert self.near_side[e_out] != self.far_side[e_out]
-                    for ex_out in self.edges_out:
-                        if ex_out[0] == e_out:
-                            break
-                    ex_out[1] = 1
-                    # if old_edge == tskit.NULL:
-                    #     next_degree[child] += 2
-                else:
-                    e_out = self.add_edge(new_parent, child, left, right)
-                    self.edges_out.append([e_out, 2])
-                # If we're replacing the edge above this node, it must be in edges_in;
-                # note that this assertion excludes the case that we're interrupting
-                # an existing edge.
-                assert (self.next_nodes_edge[child] == tskit.NULL) or (
-                    self.next_nodes_edge[child] in [e for e, _ in self.edges_in]
-                )
-                self.next_nodes_edge[child] = e_out
-                self.next_degree[child] += 1
-                self.next_degree[new_parent] += 1
-                self.parent_out[child] = tskit.NULL
-                if old_edge != tskit.NULL:
-                    for ex_in in self.edges_in:
-                        if ex_in[0] == old_edge and (ex_in[1] == 0):
-                            self.near_side[ex_in[0]] = there
-                            if self.far_side[ex_in[0]] != there:
-                                ex_in[1] = 1
-                            self.next_nodes_edge[child] = tskit.NULL
-                            self.next_degree[child] -= 1
-                            self.next_degree[self.parent_in[child]] -= 1
-                            self.parent_in[child] = tskit.NULL
+                p_out = self.parent_out[p_out]
+                t_out = self.ts.nodes_time[p_out]
+        return p_in == p_out and p_in != tskit.NULL
+
+    def merge_paths(self, c, left, right):
+        p_out = self.parent_out[c]
+        p_in = self.parent_in[c]
+        t_in = self.ts.nodes_time[p_in]
+        t_out = self.ts.nodes_time[p_out]
+        child = c
+        while (t_in != t_out) and (
+            (
+                p_out != tskit.NULL
+                and self.next_degree[p_out] == 0
+                and self.not_sample[p_out]
+            )
+            or (
+                p_in != tskit.NULL
+                and self.last_degree[p_in] == 0
+                and self.not_sample[p_in]
+            )
+        ):
+            if t_in < t_out:
+                self.add_or_extend_edge(child, p_in, left, right)
+                child = p_in
+                p_in = self.parent_in[p_in]
+                t_in = self.ts.nodes_time[p_in]
+            else:
+                self.add_or_extend_edge(child, p_out, left, right)
+                child = p_out
+                p_out = self.parent_out[p_out]
+                t_out = self.ts.nodes_time[p_out]
+        assert p_out == p_in
+        self.add_or_extend_edge(child, p_out, left, right)
 
     def extend_paths(self):
         tree_pos = tsutil.TreePosition(self.ts)
@@ -395,16 +381,19 @@ class PathExtender:
         while valid:
             left, right = tree_pos.interval
             print(
-                f'--------{"forwards" if self.forwards else "reverse"},'
+                f'--------{"forwards" if self.forwards else "reverse"}, '
                 f"{left}, {right}----------"
             )
             # there = right if self.forwards else left
             here = left if self.forwards else right
             self.next_tree(tree_pos)
             self.check_state(here)
-            edge_paths = self.merge_edge_paths()
-            for path in edge_paths:
-                self.add_path(path, left, right)
+            for e_in, _ in self.edges_in:
+                c = self.edges[e_in].child
+                assert self.next_degree[c] > 0
+                if self.last_degree[c] > 0:
+                    if self.mergeable(c):
+                        self.merge_paths(c, left, right)
             # end of loop, next tree
             if self.forwards:
                 valid = tree_pos.next()
@@ -435,11 +424,16 @@ def extend_paths(ts, max_iter=10):
     last_num_edges = ts.num_edges
     for _ in range(max_iter):
         for forwards in [True, False]:
+            for t in ts.trees():
+                print("------", t.interval)
+                print(t.draw_text())
             extender = PathExtender(ts, forwards=forwards)
             extender.extend_paths()
             tables.edges.replace_with(extender.edges)
             tables.sort()
             tables.build_index()
+            print(";;;;", forwards, _, "now:", tables.edges.num_rows)
+            print(tables.edges)
             ts = tables.tree_sequence()
         if ts.num_edges == last_num_edges:
             break
@@ -991,9 +985,11 @@ class TestExtendPaths(TestExtendThings):
         ets = extend_paths(ts)
         etables = ets.tables
         correct_tables = etables.copy()
-        etables.edges.clear()
+        correct_tables.edges.clear()
         for p, c, l, r in correct_edges:
-            etables.edges.add_row(parent=p, child=c, left=l, right=r)
+            correct_tables.edges.add_row(parent=p, child=c, left=l, right=r)
+        print(etables.edges)
+        print(correct_tables.edges)
         etables.assert_equals(correct_tables, ignore_provenance=True)
         self.naive_verify(ts)
 
