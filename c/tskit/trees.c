@@ -8151,8 +8151,8 @@ out:
  * ======================================================== */
 
 static int
-check_node_output_map(const tsk_size_t num_nodes, const tsk_size_t num_outputs,
-    const tsk_id_t *node_output_map)
+check_node_bin_map(
+    const tsk_size_t num_nodes, const tsk_size_t num_bins, const tsk_id_t *node_bin_map)
 {
     int ret = 0;
     tsk_id_t max_index, index;
@@ -8160,21 +8160,32 @@ check_node_output_map(const tsk_size_t num_nodes, const tsk_size_t num_outputs,
 
     max_index = TSK_NULL;
     for (i = 0; i < num_nodes; i++) {
-        index = node_output_map[i];
+        index = node_bin_map[i];
         if (index < TSK_NULL) {
-            ret = TSK_ERR_BAD_NODE_OUTPUT_MAP;
+            ret = TSK_ERR_BAD_NODE_BIN_MAP;
             goto out;
         }
         if (index > max_index) {
             max_index = index;
         }
     }
-    if (num_outputs < 1 || (tsk_id_t) num_outputs != max_index + 1) {
-        ret = TSK_ERR_BAD_NODE_OUTPUT_MAP_DIM;
+    if (num_bins < 1 || (tsk_id_t) num_bins != max_index + 1) {
+        ret = TSK_ERR_BAD_NODE_BIN_MAP_DIM;
         goto out;
     }
 out:
     return ret;
+}
+
+static inline void
+TRANSPOSE_2D(tsk_size_t rows, tsk_size_t cols, const double *source, double *dest)
+{
+    tsk_size_t i, j;
+    for (i = 0; i < rows; ++i) {
+        for (j = 0; j < cols; ++j) {
+            dest[j * rows + i] = source[i * cols + j];
+        }
+    }
 }
 
 static inline void
@@ -8201,37 +8212,44 @@ int
 tsk_treeseq_pair_coalescence_stat(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
     const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
     tsk_size_t num_set_indexes, const tsk_id_t *set_indexes, tsk_size_t num_windows,
-    const double *windows, tsk_size_t num_outputs, const tsk_id_t *node_output_map,
-    tsk_flags_t options, double *result)
+    const double *windows, tsk_size_t num_bins, const tsk_id_t *node_bin_map,
+    pair_coalescence_stat_func_t *summary_func, tsk_size_t summary_func_dim,
+    void *summary_func_args, tsk_flags_t options, double *result)
 {
     int ret = 0;
-    double left, right, remaining_span, window_span;
+    double left, right, remaining_span, window_span, x, t;
     tsk_id_t e, p, c, u, v, w, i, j;
     tsk_size_t num_samples;
     tsk_tree_position_t tree_pos;
     const tsk_table_collection_t *tables = self->tables;
     const tsk_size_t num_nodes = tables->nodes.num_rows;
+    const double *restrict nodes_time = self->tables->nodes.time;
     const double sequence_length = tables->sequence_length;
+    const tsk_size_t num_outputs = summary_func_dim;
 
     /* buffers */
     bool *visited = NULL;
     tsk_id_t *nodes_sample_set = NULL;
     tsk_id_t *nodes_parent = NULL;
+    double *coalescing_pairs = NULL;
+    double *coalescence_time = NULL;
     double *nodes_sample = NULL;
     double *sample_count = NULL;
-    double *coalescing_pairs = NULL;
-    double *nodes_weight = NULL;
+    double *bin_weight = NULL;
+    double *bin_values = NULL;
+    double *pair_count = NULL;
     double *outside = NULL;
-    double *count = NULL;
 
     /* row pointers */
     double *inside = NULL;
     double *weight = NULL;
+    double *values = NULL;
     double *output = NULL;
     double *above = NULL;
     double *below = NULL;
     double *state = NULL;
     double *pairs = NULL;
+    double *times = NULL;
 
     tsk_memset(&tree_pos, 0, sizeof(tree_pos));
 
@@ -8249,7 +8267,7 @@ tsk_treeseq_pair_coalescence_stat(const tsk_treeseq_t *self, tsk_size_t num_samp
     if (ret != 0) {
         goto out;
     }
-    ret = check_node_output_map(num_nodes, num_outputs, node_output_map);
+    ret = check_node_bin_map(num_nodes, num_bins, node_bin_map);
     if (ret != 0) {
         goto out;
     }
@@ -8266,22 +8284,24 @@ tsk_treeseq_pair_coalescence_stat(const tsk_treeseq_t *self, tsk_size_t num_samp
         goto out;
     }
 
-    /* initialize internal state */
     visited = tsk_malloc(num_nodes * sizeof(*visited));
+    outside = tsk_malloc(num_sample_sets * sizeof(*outside));
     nodes_parent = tsk_malloc(num_nodes * sizeof(*nodes_parent));
     nodes_sample = tsk_calloc(num_nodes * num_sample_sets, sizeof(*nodes_sample));
     sample_count = tsk_malloc(num_nodes * num_sample_sets * sizeof(*sample_count));
-    outside = tsk_malloc(num_sample_sets * sizeof(*outside));
-    count = tsk_malloc(num_set_indexes * sizeof(*count));
-    coalescing_pairs
-        = tsk_calloc(num_outputs * num_set_indexes, sizeof(*coalescing_pairs));
-    nodes_weight = tsk_malloc(num_outputs * num_set_indexes * sizeof(*nodes_weight));
+    coalescing_pairs = tsk_calloc(num_bins * num_set_indexes, sizeof(*coalescing_pairs));
+    coalescence_time = tsk_calloc(num_bins * num_set_indexes, sizeof(*coalescence_time));
+    bin_weight = tsk_malloc(num_bins * num_set_indexes * sizeof(*bin_weight));
+    bin_values = tsk_malloc(num_bins * num_set_indexes * sizeof(*bin_values));
+    pair_count = tsk_malloc(num_set_indexes * sizeof(*pair_count));
     if (nodes_parent == NULL || nodes_sample == NULL || sample_count == NULL
-        || coalescing_pairs == NULL || nodes_weight == NULL || outside == NULL
-        || count == NULL || visited == NULL) {
+        || coalescing_pairs == NULL || bin_weight == NULL || bin_values == NULL
+        || outside == NULL || pair_count == NULL || visited == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
+
+    /* initialize internal state */
     for (c = 0; c < (tsk_id_t) num_nodes; c++) {
         i = nodes_sample_set[c];
         if (i != TSK_NULL) {
@@ -8316,24 +8336,27 @@ tsk_treeseq_pair_coalescence_stat(const tsk_treeseq_t *self, tsk_size_t num_samp
             c = tables->edges.child[e];
             nodes_parent[c] = TSK_NULL;
             inside = GET_2D_ROW(sample_count, num_sample_sets, c);
-            while (p != TSK_NULL) {
-                v = node_output_map[p];
+            while (p != TSK_NULL) { /* downdate statistic */
+                v = node_bin_map[p];
+                t = nodes_time[p];
                 if (v != TSK_NULL) {
                     above = GET_2D_ROW(sample_count, num_sample_sets, p);
                     below = GET_2D_ROW(sample_count, num_sample_sets, c);
                     state = GET_2D_ROW(nodes_sample, num_sample_sets, p);
                     pairs = GET_2D_ROW(coalescing_pairs, num_set_indexes, v);
                     pair_coalescence_count(num_set_indexes, set_indexes, num_sample_sets,
-                        above, below, state, inside, outside, count);
+                        above, below, state, inside, outside, pair_count);
                     for (i = 0; i < (tsk_id_t) num_set_indexes; i++) {
-                        pairs[i] -= count[i] * remaining_span;
+                        x = pair_count[i] * remaining_span;
+                        pairs[i] -= x;
+                        times[i] -= t * x;
                     }
                 }
                 c = p;
                 p = nodes_parent[c];
             }
             p = tables->edges.parent[e];
-            while (p != TSK_NULL) {
+            while (p != TSK_NULL) { /* downdate state */
                 above = GET_2D_ROW(sample_count, num_sample_sets, p);
                 for (i = 0; i < (tsk_id_t) num_sample_sets; i++) {
                     above[i] -= inside[i];
@@ -8348,7 +8371,7 @@ tsk_treeseq_pair_coalescence_stat(const tsk_treeseq_t *self, tsk_size_t num_samp
             c = tables->edges.child[e];
             nodes_parent[c] = p;
             inside = GET_2D_ROW(sample_count, num_sample_sets, c);
-            while (p != TSK_NULL) {
+            while (p != TSK_NULL) { /* update state */
                 above = GET_2D_ROW(sample_count, num_sample_sets, p);
                 for (i = 0; i < (tsk_id_t) num_sample_sets; i++) {
                     above[i] += inside[i];
@@ -8356,17 +8379,21 @@ tsk_treeseq_pair_coalescence_stat(const tsk_treeseq_t *self, tsk_size_t num_samp
                 p = nodes_parent[p];
             }
             p = tables->edges.parent[e];
-            while (p != TSK_NULL) {
-                v = node_output_map[p];
+            while (p != TSK_NULL) { /* update statistic */
+                v = node_bin_map[p];
+                t = nodes_time[p];
                 if (v != TSK_NULL) {
                     above = GET_2D_ROW(sample_count, num_sample_sets, p);
                     below = GET_2D_ROW(sample_count, num_sample_sets, c);
                     state = GET_2D_ROW(nodes_sample, num_sample_sets, p);
                     pairs = GET_2D_ROW(coalescing_pairs, num_set_indexes, v);
+                    times = GET_2D_ROW(coalescence_time, num_set_indexes, v);
                     pair_coalescence_count(num_set_indexes, set_indexes, num_sample_sets,
-                        above, below, state, inside, outside, count);
+                        above, below, state, inside, outside, pair_count);
                     for (i = 0; i < (tsk_id_t) num_set_indexes; i++) {
-                        pairs[i] += count[i] * remaining_span;
+                        x = pair_count[i] * remaining_span;
+                        pairs[i] += x;
+                        times[i] += t * x;
                     }
                 }
                 c = p;
@@ -8376,27 +8403,36 @@ tsk_treeseq_pair_coalescence_stat(const tsk_treeseq_t *self, tsk_size_t num_samp
 
         /* flush windows */
         while (w < (tsk_id_t) num_windows && windows[w + 1] <= right) {
-            remaining_span = sequence_length - windows[w + 1];
-            tsk_memcpy(nodes_weight, coalescing_pairs,
-                num_outputs * num_set_indexes * sizeof(*nodes_weight));
+            TRANSPOSE_2D(num_bins, num_set_indexes, coalescing_pairs, bin_weight);
+            TRANSPOSE_2D(num_bins, num_set_indexes, coalescence_time, bin_values);
             tsk_memset(coalescing_pairs, 0,
-                num_outputs * num_set_indexes * sizeof(*coalescing_pairs));
-            for (j = 0; j < (tsk_id_t) num_samples; j++) { /* traverse subtree */
+                num_bins * num_set_indexes * sizeof(*coalescing_pairs));
+            tsk_memset(coalescence_time, 0,
+                num_bins * num_set_indexes * sizeof(*coalescence_time));
+            remaining_span = sequence_length - windows[w + 1];
+            for (j = 0; j < (tsk_id_t) num_samples; j++) { /* truncate at tree */
                 c = sample_sets[j];
                 p = nodes_parent[c];
                 while (!visited[c] && p != TSK_NULL) {
-                    v = node_output_map[p];
+                    v = node_bin_map[p];
+                    t = nodes_time[p];
                     if (v != TSK_NULL) {
                         above = GET_2D_ROW(sample_count, num_sample_sets, p);
                         below = GET_2D_ROW(sample_count, num_sample_sets, c);
                         state = GET_2D_ROW(nodes_sample, num_sample_sets, p);
                         pairs = GET_2D_ROW(coalescing_pairs, num_set_indexes, v);
-                        weight = GET_2D_ROW(nodes_weight, num_set_indexes, v);
+                        times = GET_2D_ROW(coalescence_time, num_set_indexes, v);
                         pair_coalescence_count(num_set_indexes, set_indexes,
-                            num_sample_sets, above, below, state, below, outside, count);
+                            num_sample_sets, above, below, state, below, outside,
+                            pair_count);
                         for (i = 0; i < (tsk_id_t) num_set_indexes; i++) {
-                            pairs[i] += count[i] * remaining_span / 2;
-                            weight[i] -= count[i] * remaining_span / 2;
+                            weight = GET_2D_ROW(bin_weight, num_bins, i);
+                            values = GET_2D_ROW(bin_values, num_bins, i);
+                            x = pair_count[i] * remaining_span / 2;
+                            pairs[i] += x;
+                            times[i] += t * x;
+                            weight[v] -= x;
+                            values[v] -= t * x;
                         }
                     }
                     visited[c] = true;
@@ -8404,7 +8440,7 @@ tsk_treeseq_pair_coalescence_stat(const tsk_treeseq_t *self, tsk_size_t num_samp
                     p = nodes_parent[c];
                 }
             }
-            for (j = 0; j < (tsk_id_t) num_samples; j++) {
+            for (j = 0; j < (tsk_id_t) num_samples; j++) { /* reset tree */
                 c = sample_sets[j];
                 p = nodes_parent[c];
                 while (visited[c] && p != TSK_NULL) {
@@ -8413,40 +8449,70 @@ tsk_treeseq_pair_coalescence_stat(const tsk_treeseq_t *self, tsk_size_t num_samp
                     p = nodes_parent[c];
                 }
             }
-            if (options & TSK_STAT_SPAN_NORMALISE) {
+            for (i = 0; i < (tsk_id_t) num_set_indexes; i++) { /* normalise values */
+                weight = GET_2D_ROW(bin_weight, num_bins, i);
+                values = GET_2D_ROW(bin_values, num_bins, i);
+                for (v = 0; v < (tsk_id_t) num_bins; v++) {
+                    values[v] /= weight[v];
+                }
+            }
+            if (options & TSK_STAT_SPAN_NORMALISE) { /* normalise weights */
                 window_span = windows[w + 1] - windows[w];
-                for (v = 0; v < (tsk_id_t) num_outputs; v++) {
-                    weight = GET_2D_ROW(nodes_weight, num_set_indexes, v);
-                    for (i = 0; i < (tsk_id_t) num_set_indexes; i++) {
-                        weight[i] /= window_span;
+                for (i = 0; i < (tsk_id_t) num_set_indexes; i++) {
+                    weight = GET_2D_ROW(bin_weight, num_bins, i);
+                    for (v = 0; v < (tsk_id_t) num_bins; v++) {
+                        weight[v] /= window_span;
                     }
                 }
             }
-            // TODO:
-            // for (i = 0; i < (tsk_id_t) num_set_indexes; i++) {
-            //     reduce(i, col, nodes_weight, &result[w * row_dim * col_dim])
-            // };
-            for (v = 0; v < (tsk_id_t) num_outputs; v++) {
+            for (i = 0; i < (tsk_id_t) num_set_indexes; i++) { /* summarise bins */
+                weight = GET_2D_ROW(bin_weight, num_bins, i);
+                values = GET_2D_ROW(bin_values, num_bins, i);
                 output = GET_3D_ROW(
-                    result, num_outputs, num_set_indexes, (tsk_size_t) w, v);
-                weight = GET_2D_ROW(nodes_weight, num_set_indexes, v);
-                for (i = 0; i < (tsk_id_t) num_set_indexes; i++) {
-                    output[i] = weight[i];
+                    result, num_set_indexes, num_outputs, (tsk_size_t) w, i);
+                ret = summary_func(
+                    num_bins, weight, values, num_outputs, output, summary_func_args);
+                if (ret != 0) {
+                    goto out;
                 }
-            }
+            };
             w += 1;
         }
     }
 out:
     tsk_tree_position_free(&tree_pos);
     tsk_safe_free(nodes_sample_set);
+    tsk_safe_free(coalescing_pairs);
+    tsk_safe_free(coalescence_time);
     tsk_safe_free(nodes_parent);
     tsk_safe_free(nodes_sample);
     tsk_safe_free(sample_count);
-    tsk_safe_free(coalescing_pairs);
-    tsk_safe_free(nodes_weight);
+    tsk_safe_free(bin_weight);
+    tsk_safe_free(bin_values);
+    tsk_safe_free(pair_count);
     tsk_safe_free(visited);
     tsk_safe_free(outside);
-    tsk_safe_free(count);
     return ret;
+}
+
+static int
+pair_coalescence_weights(tsk_size_t TSK_UNUSED(input_dim), const double *weight,
+    const double *TSK_UNUSED(values), tsk_size_t output_dim, double *output,
+    void *TSK_UNUSED(params))
+{
+    int ret = 0;
+    tsk_memcpy(output, weight, output_dim * sizeof(*output));
+    return ret;
+}
+
+int
+tsk_treeseq_pair_coalescence_counts(const tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes,
+    const tsk_id_t *sample_sets, tsk_size_t num_set_indexes, const tsk_id_t *set_indexes,
+    tsk_size_t num_windows, const double *windows, tsk_size_t num_bins,
+    const tsk_id_t *node_bin_map, tsk_flags_t options, double *result)
+{
+    return tsk_treeseq_pair_coalescence_stat(self, num_sample_sets, sample_set_sizes,
+        sample_sets, num_set_indexes, set_indexes, num_windows, windows, num_bins,
+        node_bin_map, pair_coalescence_weights, num_bins, NULL, options, result);
 }

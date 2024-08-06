@@ -103,9 +103,9 @@ def _pair_coalescence_stat(
         if not (min(s) >= 0 and max(s) < ts.num_nodes):
             raise ValueError("Sample is out of bounds")
 
-    drop_right_dimension = False
+    drop_middle_dimension = False
     if indexes is None:
-        drop_right_dimension = True
+        drop_middle_dimension = True
         if len(sample_sets) == 1:
             indexes = [(0, 0)]
         elif len(sample_sets) == 2:
@@ -255,10 +255,11 @@ def _pair_coalescence_stat(
                 )
             w += 1
 
-    if drop_right_dimension:
-        output = output[..., 0]
+    output = output.transpose(0, 2, 1)
+    if drop_middle_dimension:
+        output = output.squeeze(1)
     if drop_left_dimension:
-        output = output[0]
+        output = output.squeeze(0)
 
     return output
 
@@ -293,7 +294,7 @@ def proto_pair_coalescence_counts(
     events within time intervals (if an array of breakpoints is supplied)
     rather than for individual nodes (the default).
 
-    The output array has dimension `(windows, nodes, indexes)` with
+    The output array has dimension `(windows, indexes, nodes)` with
     dimensions dropped when the corresponding argument is set to None.
 
     :param list sample_sets: A list of lists of Node IDs, specifying the
@@ -558,9 +559,9 @@ class TestCoalescingPairsOneTree:
         indexes = [(0, 0), (0, 1), (1, 1)]
         implm = ts.pair_coalescence_counts(sample_sets=[ss0, ss1], indexes=indexes)
         check = np.full(implm.shape, np.nan)
-        check[:, 0] = np.array([0.0] * 8 + [0, 0, 1, 5, 0, 0])
-        check[:, 1] = np.array([0.0] * 8 + [0, 0, 0, 0, 4, 12])
-        check[:, 2] = np.array([0.0] * 8 + [1, 2, 0, 0, 0, 3])
+        check[0] = np.array([0.0] * 8 + [0, 0, 1, 5, 0, 0])
+        check[1] = np.array([0.0] * 8 + [0, 0, 0, 0, 4, 12])
+        check[2] = np.array([0.0] * 8 + [1, 2, 0, 0, 0, 3])
         np.testing.assert_allclose(implm, check)
         # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(
@@ -715,9 +716,9 @@ class TestCoalescingPairsTwoTree:
             sample_sets=[[0, 1], [2, 3]], indexes=indexes, span_normalise=False
         )
         check = np.empty(implm.shape)
-        check[:, 0] = np.array([0] * 4 + [0, 0, 0, 1 * L])
-        check[:, 1] = np.array([0] * 4 + [1 * (L - S), 1 * (L - S), 2 * S, 2 * L])
-        check[:, 2] = np.array([0] * 4 + [0, 1 * L, 0, 0])
+        check[0] = np.array([0] * 4 + [0, 0, 0, 1 * L])
+        check[1] = np.array([0] * 4 + [1 * (L - S), 1 * (L - S), 2 * S, 2 * L])
+        check[2] = np.array([0] * 4 + [0, 1 * L, 0, 0])
         np.testing.assert_allclose(implm, check)
         # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(
@@ -864,13 +865,13 @@ class TestCoalescingPairsSimulated:
         implm = ts.pair_coalescence_counts(
             sample_sets=[ss0, ss1], indexes=idx, windows=windows, span_normalise=False
         )
-        dim = (windows.size - 1, ts.num_nodes, len(idx))
+        dim = (windows.size - 1, len(idx), ts.num_nodes)
         check = np.full(dim, np.nan)
         for w, (a, b) in enumerate(zip(windows[:-1], windows[1:])):
             tsw = ts.keep_intervals(np.array([[a, b]]), simplify=False)
-            check[w, :, 0] = naive_pair_coalescence_counts(tsw, ss0, ss1)
-            check[w, :, 1] = naive_pair_coalescence_counts(tsw, ss1, ss1) / 2
-            check[w, :, 2] = naive_pair_coalescence_counts(tsw, ss0, ss0) / 2
+            check[w, 0] = naive_pair_coalescence_counts(tsw, ss0, ss1)
+            check[w, 1] = naive_pair_coalescence_counts(tsw, ss1, ss1) / 2
+            check[w, 2] = naive_pair_coalescence_counts(tsw, ss0, ss0) / 2
         np.testing.assert_allclose(implm, check)
         # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(
@@ -1258,12 +1259,12 @@ class TestCoalescingPairsUsage:
             sample_sets=ss, windows=windows, indexes=None
         )
         assert implm.shape == (1, ts.num_nodes)
-        indexes = [(0, 1)]
+        indexes = [(0, 1), (1, 1)]
         implm = ts.pair_coalescence_counts(
             sample_sets=ss, windows=windows, indexes=indexes
         )
-        assert implm.shape == (1, ts.num_nodes, 1)
+        assert implm.shape == (1, 2, ts.num_nodes)
         implm = ts.pair_coalescence_counts(
             sample_sets=ss, windows=None, indexes=indexes
         )
-        assert implm.shape == (ts.num_nodes, 1)
+        assert implm.shape == (2, ts.num_nodes)

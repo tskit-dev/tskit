@@ -1124,11 +1124,20 @@ int tsk_treeseq_divergence_matrix(const tsk_treeseq_t *self, tsk_size_t num_samp
     tsk_size_t num_windows, const double *windows, tsk_flags_t options, double *result);
 
 /* Coalescence rates */
+typedef int pair_coalescence_stat_func_t(tsk_size_t input_dim, const double *atoms,
+    const double *weights, tsk_size_t result_dim, double *result, void *params);
 int tsk_treeseq_pair_coalescence_stat(const tsk_treeseq_t *self,
     tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes,
     const tsk_id_t *sample_sets, tsk_size_t num_set_indexes, const tsk_id_t *set_indexes,
-    tsk_size_t num_windows, const double *windows, tsk_size_t num_outputs,
-    const tsk_id_t *node_output_map, tsk_flags_t options, double *result);
+    tsk_size_t num_windows, const double *windows, tsk_size_t num_bins,
+    const tsk_id_t *node_bin_map, pair_coalescence_stat_func_t *summary_func,
+    tsk_size_t summary_func_dim, void *summary_func_args, tsk_flags_t options,
+    double *result);
+int tsk_treeseq_pair_coalescence_counts(const tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes,
+    const tsk_id_t *sample_sets, tsk_size_t num_set_indexes, const tsk_id_t *set_indexes,
+    tsk_size_t num_windows, const double *windows, tsk_size_t num_bins,
+    const tsk_id_t *node_bin_map, tsk_flags_t options, double *result);
 
 /****************************************************************************/
 /* Tree */

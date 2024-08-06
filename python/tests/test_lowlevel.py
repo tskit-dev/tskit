@@ -4224,7 +4224,7 @@ class TestPairCoalescenceErrors:
         sample_set_sizes=None,
         indexes=None,
         windows=None,
-        node_output_map=None,
+        node_bin_map=None,
         span_normalise=False,
     ):
         n = ts.get_num_samples()
@@ -4240,24 +4240,33 @@ class TestPairCoalescenceErrors:
             indexes = [(i, j) for i, j in pairs]
         if windows is None:
             windows = np.array([0, 0.5, 1.0]) * ts.get_sequence_length()
-        if node_output_map is None:
-            node_output_map = np.arange(N, dtype=np.int32)
+        if node_bin_map is None:
+            node_bin_map = np.arange(N, dtype=np.int32)
         return ts.pair_coalescence_counts(
             sample_sets=sample_sets,
             sample_set_sizes=sample_set_sizes,
             windows=windows,
             indexes=indexes,
-            node_output_map=node_output_map,
+            node_bin_map=node_bin_map,
             span_normalise=span_normalise,
         )
 
     def test_output_dims(self):
         ts = self.example_ts()
         coal = self.pair_coalescence_counts(ts)
-        dim = (2, ts.get_num_nodes(), 3)
+        dim = (2, 3, ts.get_num_nodes())
         assert coal.shape == dim
         coal = self.pair_coalescence_counts(ts, span_normalise=True)
         assert coal.shape == dim
+
+    def test_node_shuffle(self):
+        rng = np.random.default_rng(1024)
+        ts = self.example_ts()
+        coal = self.pair_coalescence_counts(ts)
+        node_bin_map = np.arange(ts.get_num_nodes(), dtype=np.int32)
+        rng.shuffle(node_bin_map)
+        coal_shuffle = self.pair_coalescence_counts(ts, node_bin_map=node_bin_map)
+        np.testing.assert_allclose(coal_shuffle[..., node_bin_map], coal)
 
     @pytest.mark.parametrize("bad_node", [-1, -2, 1000])
     def test_c_tsk_err_node_out_of_bounds(self, bad_node):
@@ -4274,12 +4283,12 @@ class TestPairCoalescenceErrors:
         with pytest.raises(_tskit.LibraryError, match="BAD_WINDOWS"):
             self.pair_coalescence_counts(ts, windows=[-1.0, L])
 
-    def test_c_tsk_err_bad_node_output_map(self):
+    def test_c_tsk_err_bad_node_bin_map(self):
         ts = self.example_ts()
-        node_output_map = np.arange(ts.get_num_nodes(), dtype=np.int32)
-        node_output_map[0] = -10
-        with pytest.raises(_tskit.LibraryError, match="BAD_NODE_OUTPUT_MAP"):
-            self.pair_coalescence_counts(ts, node_output_map=node_output_map)
+        node_bin_map = np.arange(ts.get_num_nodes(), dtype=np.int32)
+        node_bin_map[0] = -10
+        with pytest.raises(_tskit.LibraryError, match="BAD_NODE_BIN_MAP"):
+            self.pair_coalescence_counts(ts, node_bin_map=node_bin_map)
 
     @pytest.mark.parametrize("bad_index", [-1, 10])
     def test_c_tsk_err_bad_sample_set_index(self, bad_index):
@@ -4316,13 +4325,13 @@ class TestPairCoalescenceErrors:
         with pytest.raises(ValueError, match="too small depth"):
             self.pair_coalescence_counts(ts, indexes=np.ravel(indexes))
 
-    def test_cpy_bad_node_output_map(self):
+    def test_cpy_bad_node_bin_map(self):
         ts = self.example_ts()
         num_nodes = ts.get_num_nodes()
-        node_output_map = np.full(num_nodes, tskit.NULL, dtype=np.int32)
+        node_bin_map = np.full(num_nodes, tskit.NULL, dtype=np.int32)
         with pytest.raises(ValueError, match="null values for all nodes"):
-            self.pair_coalescence_counts(ts, node_output_map=node_output_map)
+            self.pair_coalescence_counts(ts, node_bin_map=node_bin_map)
         with pytest.raises(ValueError, match="a value per node"):
-            self.pair_coalescence_counts(ts, node_output_map=node_output_map[:-1])
+            self.pair_coalescence_counts(ts, node_bin_map=node_bin_map[:-1])
         with pytest.raises(TypeError, match="cast array data"):
-            self.pair_coalescence_counts(ts, node_output_map=np.zeros(num_nodes))
+            self.pair_coalescence_counts(ts, node_bin_map=np.zeros(num_nodes))

@@ -319,9 +319,9 @@ verify_pair_coalescence_counts(tsk_treeseq_t *ts, tsk_flags_t options)
     tsk_id_t sample_sets[n];
     tsk_size_t sample_set_sizes[P];
     tsk_id_t index_tuples[2 * I];
-    tsk_id_t node_output_map[N];
+    tsk_id_t node_bin_map[N];
     tsk_size_t dim = T * N * I;
-    double C1[dim];
+    double C[dim];
     tsk_size_t i, j, k;
 
     for (i = 0; i < n; i++) {
@@ -343,53 +343,67 @@ verify_pair_coalescence_counts(tsk_treeseq_t *ts, tsk_flags_t options)
         }
     }
 
+    /* test various bin assignments */
     for (i = 0; i < N; i++) {
-        node_output_map[i] = (tsk_id_t) i;
+        node_bin_map[i] = ((tsk_id_t) i) % 8;
     }
-
-    ret = tsk_treeseq_pair_coalescence_stat(ts, P, sample_set_sizes, sample_sets, I,
-        index_tuples, T, breakpoints, N, node_output_map, options, C1);
+    ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, 8, node_bin_map, options, C);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    /* TODO: test against naive pairs per node per tree */
+
+    for (i = 0; i < N; i++) {
+        node_bin_map[i] = i < N / 2 ? ((tsk_id_t) i) : TSK_NULL;
+    }
+    ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, N / 2, node_bin_map, options, C);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    for (i = 0; i < N; i++) {
+        node_bin_map[i] = (tsk_id_t) i;
+    }
+    ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, N, node_bin_map, options, C);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    /* TODO: compare against naive pairs per node per tree */
 
     /* cover errors */
     double bad_breakpoints[2] = { breakpoints[1], 0.0 };
-    ret = tsk_treeseq_pair_coalescence_stat(ts, P, sample_set_sizes, sample_sets, I,
-        index_tuples, 1, bad_breakpoints, N, node_output_map, options, C1);
+    ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, 1, bad_breakpoints, N, node_bin_map, options, C);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);
 
     index_tuples[0] = (tsk_id_t) P;
-    ret = tsk_treeseq_pair_coalescence_stat(ts, P, sample_set_sizes, sample_sets, I,
-        index_tuples, 1, breakpoints, N, node_output_map, options, C1);
+    ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, 1, breakpoints, N, node_bin_map, options, C);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLE_SET_INDEX);
     index_tuples[0] = 0;
 
     tsk_size_t tmp = sample_set_sizes[0];
     sample_set_sizes[0] = 0;
-    ret = tsk_treeseq_pair_coalescence_stat(ts, P, sample_set_sizes, sample_sets, I,
-        index_tuples, 1, breakpoints, N, node_output_map, options, C1);
+    ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, 1, breakpoints, N, node_bin_map, options, C);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EMPTY_SAMPLE_SET);
     sample_set_sizes[0] = tmp;
 
     sample_sets[1] = 0;
-    ret = tsk_treeseq_pair_coalescence_stat(ts, P, sample_set_sizes, sample_sets, I,
-        index_tuples, 1, breakpoints, N, node_output_map, options, C1);
+    ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, 1, breakpoints, N, node_bin_map, options, C);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
     sample_sets[1] = 1;
 
-    ret = tsk_treeseq_pair_coalescence_stat(ts, P, sample_set_sizes, sample_sets, I,
-        index_tuples, 1, breakpoints, N - 1, node_output_map, options, C1);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_OUTPUT_MAP_DIM);
+    ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, 1, breakpoints, N - 1, node_bin_map, options, C);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_BIN_MAP_DIM);
 
-    ret = tsk_treeseq_pair_coalescence_stat(ts, P, sample_set_sizes, sample_sets, I,
-        index_tuples, 1, breakpoints, 0, node_output_map, options, C1);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_OUTPUT_MAP_DIM);
+    ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, 1, breakpoints, 0, node_bin_map, options, C);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_BIN_MAP_DIM);
 
-    node_output_map[0] = -2;
-    ret = tsk_treeseq_pair_coalescence_stat(ts, P, sample_set_sizes, sample_sets, I,
-        index_tuples, 1, breakpoints, N, node_output_map, options, C1);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_OUTPUT_MAP);
-    node_output_map[0] = 0;
+    node_bin_map[0] = -2;
+    ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, 1, breakpoints, N, node_bin_map, options, C);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_BIN_MAP);
+    node_bin_map[0] = 0;
 }
 
 typedef struct {
@@ -2880,8 +2894,6 @@ test_pair_coalescence_counts(void)
     tsk_treeseq_t ts;
     tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges, NULL,
         nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL, 0);
-    verify_pair_coalescence_counts(&ts, TSK_STAT_NODE);
-    verify_pair_coalescence_counts(&ts, TSK_STAT_NODE | TSK_STAT_SPAN_NORMALISE);
     verify_pair_coalescence_counts(&ts, 0);
     verify_pair_coalescence_counts(&ts, TSK_STAT_SPAN_NORMALISE);
     tsk_treeseq_free(&ts);

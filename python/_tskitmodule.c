@@ -9861,30 +9861,30 @@ out:
 }
 
 static int
-parse_node_output_map(PyObject *node_output_map, PyArrayObject **ret_array,
-    tsk_size_t *ret_num_outputs, tsk_size_t num_nodes)
+parse_node_bin_map(PyObject *node_bin_map, PyArrayObject **ret_array,
+    tsk_size_t *ret_num_bins, tsk_size_t num_nodes)
 {
     int ret = -1;
-    npy_int32 num_outputs = 0;
-    PyArrayObject *node_output_map_array = NULL;
+    npy_int32 num_bins = 0;
+    PyArrayObject *node_bin_map_array = NULL;
     npy_intp *shape;
     npy_int32 *data;
     npy_int32 max_index;
     tsk_size_t i;
 
-    node_output_map_array = (PyArrayObject *) PyArray_FROMANY(
-        node_output_map, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
-    if (node_output_map_array == NULL) {
+    node_bin_map_array = (PyArrayObject *) PyArray_FROMANY(
+        node_bin_map, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
+    if (node_bin_map_array == NULL) {
         goto out;
     }
-    shape = PyArray_DIMS(node_output_map_array);
+    shape = PyArray_DIMS(node_bin_map_array);
     if ((tsk_size_t) shape[0] != num_nodes) {
-        PyErr_SetString(PyExc_ValueError, "Node output map must have a value per node");
+        PyErr_SetString(PyExc_ValueError, "Node-to-bin map must have a value per node");
         goto out;
     }
 
     max_index = TSK_NULL;
-    data = PyArray_DATA(node_output_map_array);
+    data = PyArray_DATA(node_bin_map_array);
     for (i = 0; i < num_nodes; i++) {
         if (data[i] > max_index) {
             max_index = data[i];
@@ -9892,14 +9892,14 @@ parse_node_output_map(PyObject *node_output_map, PyArrayObject **ret_array,
     }
     if (max_index == TSK_NULL) {
         PyErr_SetString(
-            PyExc_ValueError, "Node output map has null values for all nodes");
+            PyExc_ValueError, "Node-to-bin map has null values for all nodes");
         goto out;
     }
-    num_outputs = 1 + max_index;
+    num_bins = 1 + max_index;
     ret = 0;
 out:
-    *ret_num_outputs = (tsk_size_t) num_outputs;
-    *ret_array = node_output_map_array;
+    *ret_num_bins = (tsk_size_t) num_bins;
+    *ret_array = node_bin_map_array;
     return ret;
 }
 
@@ -9937,15 +9937,15 @@ TreeSequence_pair_coalescence_counts(TreeSequence *self, PyObject *args, PyObjec
     PyObject *ret = NULL;
 
     static char *kwlist[] = { "windows", "sample_set_sizes", "sample_sets", "indexes",
-        "node_output_map", "span_normalise", NULL };
+        "node_bin_map", "span_normalise", NULL };
     PyObject *py_sample_set_sizes = Py_None;
     PyObject *py_sample_sets = Py_None;
     PyObject *py_windows = Py_None;
-    PyObject *py_node_output_map = Py_None;
+    PyObject *py_node_bin_map = Py_None;
     PyObject *py_indexes = Py_None;
     PyArrayObject *result_array = NULL;
     PyArrayObject *windows_array = NULL;
-    PyArrayObject *node_output_map_array = NULL;
+    PyArrayObject *node_bin_map_array = NULL;
     PyArrayObject *indexes_array = NULL;
     PyArrayObject *sample_set_sizes_array = NULL;
     PyArrayObject *sample_sets_array = NULL;
@@ -9954,7 +9954,7 @@ TreeSequence_pair_coalescence_counts(TreeSequence *self, PyObject *args, PyObjec
     tsk_size_t num_indexes = 0;
     tsk_size_t num_sample_sets = 0;
     tsk_size_t num_windows = 0;
-    tsk_size_t num_outputs = 0;
+    tsk_size_t num_bins = 0;
     int span_normalise = 0;
     int err;
 
@@ -9962,7 +9962,7 @@ TreeSequence_pair_coalescence_counts(TreeSequence *self, PyObject *args, PyObjec
         goto out;
     }
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOOO|i", kwlist, &py_windows,
-            &py_sample_set_sizes, &py_sample_sets, &py_indexes, &py_node_output_map,
+            &py_sample_set_sizes, &py_sample_sets, &py_indexes, &py_node_bin_map,
             &span_normalise)) {
         goto out;
     }
@@ -9977,7 +9977,7 @@ TreeSequence_pair_coalescence_counts(TreeSequence *self, PyObject *args, PyObjec
     if (parse_set_indexes(py_indexes, &indexes_array, &num_indexes, 2) != 0) {
         goto out;
     }
-    if (parse_node_output_map(py_node_output_map, &node_output_map_array, &num_outputs,
+    if (parse_node_bin_map(py_node_bin_map, &node_bin_map_array, &num_bins,
             tsk_treeseq_get_num_nodes(self->tree_sequence))
         != 0) {
         goto out;
@@ -9987,18 +9987,18 @@ TreeSequence_pair_coalescence_counts(TreeSequence *self, PyObject *args, PyObjec
     }
 
     dims[0] = (npy_intp) num_windows;
-    dims[1] = (npy_intp) num_outputs;
-    dims[2] = (npy_intp) num_indexes;
+    dims[1] = (npy_intp) num_indexes;
+    dims[2] = (npy_intp) num_bins;
     result_array = (PyArrayObject *) PyArray_SimpleNew(3, dims, NPY_FLOAT64);
     if (result_array == NULL) {
         goto out;
     }
 
-    err = tsk_treeseq_pair_coalescence_stat(self->tree_sequence, num_sample_sets,
+    err = tsk_treeseq_pair_coalescence_counts(self->tree_sequence, num_sample_sets,
         PyArray_DATA(sample_set_sizes_array), PyArray_DATA(sample_sets_array),
         num_indexes, PyArray_DATA(indexes_array), num_windows,
-        PyArray_DATA(windows_array), num_outputs, PyArray_DATA(node_output_map_array),
-        options, PyArray_DATA(result_array));
+        PyArray_DATA(windows_array), num_bins, PyArray_DATA(node_bin_map_array), options,
+        PyArray_DATA(result_array));
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -10010,7 +10010,7 @@ out:
     Py_XDECREF(sample_sets_array);
     Py_XDECREF(windows_array);
     Py_XDECREF(indexes_array);
-    Py_XDECREF(node_output_map_array);
+    Py_XDECREF(node_bin_map_array);
     Py_XDECREF(result_array);
     return ret;
 }
