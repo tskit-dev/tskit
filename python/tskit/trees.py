@@ -9328,7 +9328,7 @@ class TreeSequence:
         events within time intervals (if an array of breakpoints is supplied)
         rather than for individual nodes (the default).
 
-        The output array has dimension `(windows, nodes, indexes)` with
+        The output array has dimension `(windows, indexes, nodes)` with
         dimensions dropped when the corresponding argument is set to None.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
@@ -9350,9 +9350,9 @@ class TreeSequence:
             if not (min(s) >= 0 and max(s) < self.num_nodes):
                 raise ValueError("Sample is out of bounds")
 
-        drop_right_dimension = False
+        drop_middle_dimension = False
         if indexes is None:
-            drop_right_dimension = True
+            drop_middle_dimension = True
             if len(sample_sets) == 1:
                 indexes = [(0, 0)]
             elif len(sample_sets) == 2:
@@ -9379,7 +9379,7 @@ class TreeSequence:
             raise ValueError("Window breaks must be strictly increasing")
 
         if isinstance(time_windows, str) and time_windows == "nodes":
-            node_output_map = np.arange(self.num_nodes, dtype=np.int32)
+            node_bin_map = np.arange(self.num_nodes, dtype=np.int32)
         else:
             if not (isinstance(time_windows, np.ndarray) and time_windows.size > 1):
                 raise ValueError("Time windows must be an array of breakpoints")
@@ -9387,9 +9387,9 @@ class TreeSequence:
                 raise ValueError("Time windows must be strictly increasing")
             if self.time_units == tskit.TIME_UNITS_UNCALIBRATED:
                 raise ValueError("Time windows require calibrated node times")
-            node_output_map = np.digitize(self.nodes_time, time_windows) - 1
-            node_output_map[node_output_map == time_windows.size - 1] = tskit.NULL
-            node_output_map = node_output_map.astype(np.int32)
+            node_bin_map = np.digitize(self.nodes_time, time_windows) - 1
+            node_bin_map[node_bin_map == time_windows.size - 1] = tskit.NULL
+            node_bin_map = node_bin_map.astype(np.int32)
 
         sample_set_sizes = np.array([len(s) for s in sample_sets], dtype=np.uint32)
         sample_sets = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
@@ -9399,14 +9399,14 @@ class TreeSequence:
             sample_set_sizes=sample_set_sizes,
             windows=windows,
             indexes=indexes,
-            node_output_map=node_output_map,
+            node_bin_map=node_bin_map,
             span_normalise=span_normalise,
         )
 
-        if drop_right_dimension:
-            coalescing_pairs = coalescing_pairs[..., 0]
+        if drop_middle_dimension:
+            coalescing_pairs = np.squeeze(coalescing_pairs, axis=1)
         if drop_left_dimension:
-            coalescing_pairs = coalescing_pairs[0]
+            coalescing_pairs = np.squeeze(coalescing_pairs, axis=0)
 
         return coalescing_pairs
 
