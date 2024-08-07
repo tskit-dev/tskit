@@ -4206,7 +4206,7 @@ def test_constants():
     assert _tskit.TIME_UNITS_UNCALIBRATED == "uncalibrated"
 
 
-class TestPairCoalescenceErrors:
+class TestPairCoalescenceCountsErrors:
     def example_ts(self, sample_size=10):
         ts = msprime.sim_ancestry(
             sample_size,
@@ -4226,6 +4226,7 @@ class TestPairCoalescenceErrors:
         windows=None,
         node_bin_map=None,
         span_normalise=False,
+        pair_normalise=False,
     ):
         n = ts.get_num_samples()
         N = ts.get_num_nodes()
@@ -4249,6 +4250,7 @@ class TestPairCoalescenceErrors:
             indexes=indexes,
             node_bin_map=node_bin_map,
             span_normalise=span_normalise,
+            pair_normalise=pair_normalise,
         )
 
     def test_output_dims(self):
@@ -4257,6 +4259,8 @@ class TestPairCoalescenceErrors:
         dim = (2, 3, ts.get_num_nodes())
         assert coal.shape == dim
         coal = self.pair_coalescence_counts(ts, span_normalise=True)
+        assert coal.shape == dim
+        coal = self.pair_coalescence_counts(ts, pair_normalise=True)
         assert coal.shape == dim
 
     def test_node_shuffle(self):
@@ -4335,3 +4339,128 @@ class TestPairCoalescenceErrors:
             self.pair_coalescence_counts(ts, node_bin_map=node_bin_map[:-1])
         with pytest.raises(TypeError, match="cast array data"):
             self.pair_coalescence_counts(ts, node_bin_map=np.zeros(num_nodes))
+
+
+class TestPairCoalescenceQuantilesErrors:
+    def example_ts(self, sample_size=10):
+        ts = msprime.sim_ancestry(
+            sample_size,
+            sequence_length=1e4,
+            recombination_rate=1e-8,
+            random_seed=1,
+            population_size=1e4,
+        )
+        return ts.ll_tree_sequence
+
+    @staticmethod
+    def pair_coalescence_quantiles(
+        ts,
+        quantiles=None,
+        sample_sets=None,
+        sample_set_sizes=None,
+        indexes=None,
+        windows=None,
+        node_bin_map=None,
+    ):
+        n = ts.get_num_samples()
+        if quantiles is None:
+            quantiles = np.linspace(0, 1, 4)
+        if sample_sets is None:
+            sample_sets = np.arange(n, dtype=np.int32)
+        if sample_set_sizes is None:
+            sample_set_sizes = [n // 2, n - n // 2]
+        if indexes is None:
+            pairs = itertools.combinations_with_replacement(
+                range(len(sample_set_sizes)), 2
+            )
+            indexes = [(i, j) for i, j in pairs]
+        if windows is None:
+            windows = np.array([0, 0.5, 1.0]) * ts.get_sequence_length()
+        if node_bin_map is None:
+            _, node_bin_map = np.unique(ts.nodes_time, return_inverse=True)
+            node_bin_map = node_bin_map.astype(np.int32)
+        return ts.pair_coalescence_quantiles(
+            sample_sets=sample_sets,
+            sample_set_sizes=sample_set_sizes,
+            windows=windows,
+            indexes=indexes,
+            node_bin_map=node_bin_map,
+            quantiles=quantiles,
+        )
+
+    def test_output_dims(self):
+        ts = self.example_ts()
+        coal = self.pair_coalescence_quantiles(ts)
+        dim = (2, 3, 4)
+        assert coal.shape == dim
+
+    @pytest.mark.parametrize("quantiles", [[1.0, 0.0], [-1.0], [2.0]])
+    def test_c_tsk_err_bad_quantiles(self, quantiles):
+        ts = self.example_ts()
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_BAD_QUANTILES"):
+            self.pair_coalescence_quantiles(ts, quantiles=quantiles)
+
+    def test_c_tsk_err_unsorted_times(self):
+        ts = self.example_ts()
+        _, node_bin_map = np.unique(ts.nodes_time, return_inverse=True)
+        node_bin_map = node_bin_map[::-1]
+        node_bin_map = node_bin_map.astype(np.int32)
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_UNSORTED_TIMES"):
+            self.pair_coalescence_quantiles(ts, node_bin_map=node_bin_map)
+
+    @pytest.mark.parametrize("bad_ss_size", [-1, 1000])
+    def test_cpy_bad_sample_sets(self, bad_ss_size):
+        ts = self.example_ts()
+        with pytest.raises(
+            (ValueError, OverflowError),
+            match="Sum of sample_set_sizes|Overflow|out of bounds",
+        ):
+            self.pair_coalescence_quantiles(
+                ts, sample_set_sizes=[bad_ss_size, ts.get_num_samples()]
+            )
+
+    def test_cpy_bad_windows(self):
+        ts = self.example_ts()
+        with pytest.raises(ValueError, match="at least 2"):
+            self.pair_coalescence_quantiles(ts, windows=[0.0])
+
+    @pytest.mark.parametrize("indexes", [[(0, 0, 0)], np.zeros((0, 2), dtype=np.int32)])
+    def test_cpy_bad_indexes(self, indexes):
+        ts = self.example_ts()
+        with pytest.raises(ValueError, match="k x 2 array"):
+            self.pair_coalescence_quantiles(ts, indexes=indexes)
+        with pytest.raises(ValueError, match="too small depth"):
+            self.pair_coalescence_quantiles(ts, indexes=np.ravel(indexes))
+
+    def test_cpy_bad_node_bin_map(self):
+        ts = self.example_ts()
+        num_nodes = ts.get_num_nodes()
+        node_bin_map = np.full(num_nodes, tskit.NULL, dtype=np.int32)
+        with pytest.raises(ValueError, match="null values for all nodes"):
+            self.pair_coalescence_quantiles(ts, node_bin_map=node_bin_map)
+        with pytest.raises(ValueError, match="a value per node"):
+            self.pair_coalescence_quantiles(ts, node_bin_map=node_bin_map[:-1])
+        with pytest.raises(TypeError, match="cast array data"):
+            self.pair_coalescence_quantiles(ts, node_bin_map=np.zeros(num_nodes))
+
+    def test_cpy_bad_quantiles(self):
+        ts = self.example_ts()
+        quantiles = np.zeros(0)
+        with pytest.raises(ValueError, match="at least one quantile"):
+            self.pair_coalescence_quantiles(ts, quantiles=quantiles)
+        quantiles = np.zeros((3, 3))
+        with pytest.raises(ValueError, match="object too deep"):
+            self.pair_coalescence_quantiles(ts, quantiles=quantiles)
+
+    def test_cpy_bad_inputs(self):
+        ts = self.example_ts()
+        with pytest.raises(TypeError, match="at most 6 keyword"):
+            ts.pair_coalescence_quantiles(
+                sample_sets=None,
+                sample_set_sizes=None,
+                windows=None,
+                quantiles=None,
+                indexes=None,
+                node_bin_map=None,
+                foo="bar",
+            )

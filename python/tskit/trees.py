@@ -9306,6 +9306,7 @@ class TreeSequence:
         indexes=None,
         windows=None,
         span_normalise=True,
+        pair_normalise=False,
         time_windows="nodes",
     ):
         """
@@ -9315,7 +9316,7 @@ class TreeSequence:
         The number of coalescing pairs may be calculated within or between the
         non-overlapping lists of samples contained in `sample_sets`. In the
         latter case, pairs are counted if they have exactly one member in each
-        of two sample sets. If `sample_sets` is omitted, a single group
+        of two sample sets. If `sample_sets` is omitted, a single set
         containing all samples is assumed.
 
         The argument `indexes` may be used to specify which pairs of sample
@@ -9338,6 +9339,8 @@ class TreeSequence:
             sequence windows to compute the statistic in, or None.
         :param bool span_normalise: Whether to divide the result by the span of
             the window (defaults to True).
+        :param bool pair_normalise: Whether to divide the result by the total
+            number of pairs for a given index (defaults to False).
         :param time_windows: Either a string "nodes" or an increasing
             list of breakpoints between time intervals.
         """
@@ -9401,6 +9404,7 @@ class TreeSequence:
             indexes=indexes,
             node_bin_map=node_bin_map,
             span_normalise=span_normalise,
+            pair_normalise=pair_normalise,
         )
 
         if drop_middle_dimension:
@@ -9409,6 +9413,84 @@ class TreeSequence:
             coalescing_pairs = np.squeeze(coalescing_pairs, axis=0)
 
         return coalescing_pairs
+
+    def pair_coalescence_quantiles(
+        self,
+        quantiles,
+        sample_sets=None,
+        indexes=None,
+        windows=None,
+    ):
+        """
+        Estimate quantiles of pair coalescence times by inverting the empirical
+        CDF. This is equivalent to the "inverted_cdf" method of
+        `numpy.quantile` applied to node times, with weights proportional to
+        the number of coalescing pairs per node (averaged over trees, see
+        `TreeSequence.pair_coalescence_counts`).
+
+        Quantiles of pair coalescence times may be calculated within or
+        between the non-overlapping lists of samples contained in `sample_sets`. In
+        the latter case, pairs are counted if they have exactly one member in each
+        of two sample sets. If `sample_sets` is omitted, a single set containing
+        all samples is assumed.
+
+        The argument `indexes` may be used to specify which pairs of sample sets to
+        compute coalescences between, and in what order. If `indexes=None`, then
+        `indexes` is assumed to equal `[(0,0)]` for a single sample set and
+        `[(0,1)]` for two sample sets. For more than two sample sets, `indexes`
+        must be explicitly passed.
+
+        The output array has dimension `(windows, indexes, quantiles)` with
+        dimensions dropped when the corresponding argument is set to None.
+
+        :param quantiles: A list of increasing breakpoints between [0, 1].
+        :param list sample_sets: A list of lists of Node IDs, specifying the
+            groups of nodes to compute the statistic with, or None.
+        :param list indexes: A list of 2-tuples, or None.
+        :param list windows: An increasing list of breakpoints between the
+            sequence windows to compute the statistic in, or None.
+        """
+
+        if sample_sets is None:
+            sample_sets = [list(self.samples())]
+
+        drop_middle_dimension = False
+        if indexes is None:
+            drop_middle_dimension = True
+            if len(sample_sets) == 1:
+                indexes = [(0, 0)]
+            elif len(sample_sets) == 2:
+                indexes = [(0, 1)]
+            else:
+                raise ValueError(
+                    "Must specify indexes if there are more than two sample sets"
+                )
+
+        drop_left_dimension = False
+        if windows is None:
+            drop_left_dimension = True
+            windows = np.array([0.0, self.sequence_length])
+
+        sample_set_sizes = np.array([len(s) for s in sample_sets], dtype=np.uint32)
+        sample_sets = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
+        _, node_bin_map = np.unique(self.nodes_time, return_inverse=True)
+        node_bin_map = util.safe_np_int_cast(node_bin_map, np.int32)
+
+        coalescence_times = self.ll_tree_sequence.pair_coalescence_quantiles(
+            sample_sets=sample_sets,
+            sample_set_sizes=sample_set_sizes,
+            windows=windows,
+            indexes=indexes,
+            node_bin_map=node_bin_map,
+            quantiles=quantiles,
+        )
+
+        if drop_middle_dimension:
+            coalescence_times = np.squeeze(coalescence_times, axis=1)
+        if drop_left_dimension:
+            coalescence_times = np.squeeze(coalescence_times, axis=0)
+
+        return coalescence_times
 
     def impute_unknown_mutations_time(
         self,
