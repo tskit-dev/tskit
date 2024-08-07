@@ -7750,14 +7750,14 @@ out:
 }
 
 /* ======================================================== *
- * Extend edges
+ * Extend edges and paths
  * ======================================================== */
 
 typedef struct _edge_list_t {
     tsk_id_t edge;
     // the `extended` flags records whether we have decided to extend
     // this entry to the current tree?
-    bool extended;
+    int extended;
     struct _edge_list_t *next;
 } edge_list_t;
 
@@ -7775,7 +7775,7 @@ extend_edges_append_entry(
     }
 
     x->edge = edge;
-    x->extended = false;
+    x->extended = 0;
     x->next = NULL;
 
     if (*tail == NULL) {
@@ -7794,7 +7794,7 @@ remove_unextended(edge_list_t **head, edge_list_t **tail)
     edge_list_t *px, *x;
 
     px = *head;
-    while (px != NULL && !px->extended) {
+    while (px != NULL && px->extended == 0) {
         px = px->next;
     }
     *head = px;
@@ -7802,8 +7802,8 @@ remove_unextended(edge_list_t **head, edge_list_t **tail)
         px->extended = false;
         x = px->next;
         while (x != NULL) {
-            if (x->extended) {
-                x->extended = false;
+            if (x->extended > 0) {
+                x->extended = 0;
                 px->next = x;
                 px = x;
             }
@@ -7812,6 +7812,16 @@ remove_unextended(edge_list_t **head, edge_list_t **tail)
         px->next = NULL;
     }
     *tail = px;
+}
+
+static void
+edge_list_set_extended(edge_list_t **head, tsk_id_t edge_id)
+{
+    while (*head != NULL && (*head)->edge != edge_id) {
+        // skip
+    }
+    tsk_bug_assert(*head != NULL && (*head)->edge == edge_id);
+    (*head)->extended = 1;
 }
 
 static int
@@ -8102,6 +8112,465 @@ tsk_treeseq_extend_edges(const tsk_treeseq_t *self, int max_iter,
     for (iter = 0; iter < max_iter; iter++) {
         for (j = 0; j < 2; j++) {
             ret = tsk_treeseq_extend_edges_iter(&ts, direction[j], &tables.edges);
+            if (ret != 0) {
+                goto out;
+            }
+            /* We're done with the current ts now */
+            tsk_treeseq_free(&ts);
+            ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+            if (ret != 0) {
+                goto out;
+            }
+        }
+        if (last_num_edges == tsk_treeseq_get_num_edges(&ts)) {
+            break;
+        }
+        last_num_edges = tsk_treeseq_get_num_edges(&ts);
+    }
+
+    /* Remap mutation nodes */
+    ret = tsk_mutation_table_copy(
+        &self->tables->mutations, &tables.mutations, TSK_NO_INIT);
+    if (ret != 0) {
+        goto out;
+    }
+    /* Note: to allow migrations we'd also have to do this same operation
+     * on the migration nodes; however it's a can of worms because the interval
+     * covering the migration might no longer make sense. */
+    ret = tsk_treeseq_slide_mutation_nodes_up(&ts, &tables.mutations);
+    if (ret != 0) {
+        goto out;
+    }
+    tsk_treeseq_free(&ts);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    if (ret != 0) {
+        goto out;
+    }
+
+    /* Hand ownership of the tree sequence to the calling code */
+    tsk_memcpy(output, &ts, sizeof(ts));
+    tsk_memset(&ts, 0, sizeof(*output));
+out:
+    tsk_treeseq_free(&ts);
+    tsk_table_collection_free(&tables);
+    return ret;
+}
+
+typedef struct {
+    const tsk_treeseq_t *ts;
+    tsk_edge_table_t edges;
+    int direction;
+    tsk_id_t *last_degree, *next_degree;
+    tsk_id_t *last_nodes_edge, *next_nodes_edge;
+    tsk_id_t *parent_out, *parent_in;
+    bool *not_sample;
+    double *near_side, *far_side;
+    edge_list_t **edges_out_head, **edges_out_tail;
+    edge_list_t **edges_in_head, **edges_in_tail;
+    tsk_blkalloc_t *edge_list_heap;
+} path_extender_t;
+
+static int
+path_extender_init(path_extender_t *self, const tsk_treeseq_t *ts, int direction)
+{
+    int ret = 0;
+    tsk_id_t tj;
+    tsk_size_t num_nodes = tsk_treeseq_get_num_nodes(ts);
+    bool forwards = (direction == TSK_DIR_FORWARD);
+
+    tsk_memset(self, 0, sizeof(path_extender_t));
+
+    self->ts = ts;
+    tsk_edge_table_copy(&ts->tables->edges, &self->edges, 0);
+
+    if (forwards) {
+        self->direction = 1;
+        self->near_side = self->edges.left;
+        self->far_side = self->edges.right;
+    }
+
+    self->edges_in_head = NULL;
+    self->edges_in_tail = NULL;
+    self->edges_out_head = NULL;
+    self->edges_out_tail = NULL;
+
+    ret = tsk_blkalloc_init(self->edge_list_heap, 8192);
+    if (ret != 0) {
+        goto out;
+    }
+
+    self->last_degree = tsk_calloc(num_nodes, sizeof(*self->last_degree));
+    self->next_degree = tsk_calloc(num_nodes, sizeof(*self->next_degree));
+    self->last_nodes_edge = tsk_malloc(num_nodes * sizeof(*self->last_nodes_edge));
+    self->next_nodes_edge = tsk_malloc(num_nodes * sizeof(*self->next_nodes_edge));
+    self->parent_out = tsk_malloc(num_nodes * sizeof(*self->parent_out));
+    self->parent_in = tsk_malloc(num_nodes * sizeof(*self->parent_in));
+    bool *not_sample = tsk_malloc(num_nodes * sizeof(*not_sample));
+
+    if (self->last_degree == NULL || self->next_degree == NULL
+        || self->last_nodes_edge == NULL || self->next_nodes_edge == NULL
+        || self->parent_out == NULL || self->parent_in == NULL
+        || self->not_sample == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    tsk_memset(self->last_nodes_edge, 0xff, num_nodes * sizeof(*self->last_nodes_edge));
+    tsk_memset(self->next_nodes_edge, 0xff, num_nodes * sizeof(*self->next_nodes_edge));
+    tsk_memset(self->parent_out, 0xff, num_nodes * sizeof(*self->parent_out));
+    tsk_memset(self->parent_in, 0xff, num_nodes * sizeof(*self->parent_in));
+
+    for (tj = 0; tj < (tsk_id_t) ts->tables->nodes.num_rows; tj++) {
+        not_sample[tj] = ((ts->tables->nodes.flags[tj] & TSK_NODE_IS_SAMPLE) == 0);
+    }
+
+out:
+    return ret;
+}
+
+static int
+path_extender_free(path_extender_t *self)
+{
+    tsk_blkalloc_free(self->edge_list_heap);
+    tsk_edge_table_free(&self->edges);
+    tsk_safe_free(self->last_degree);
+    tsk_safe_free(self->next_degree);
+    tsk_safe_free(self->last_nodes_edge);
+    tsk_safe_free(self->next_nodes_edge);
+    tsk_safe_free(self->parent_out);
+    tsk_safe_free(self->parent_in);
+    return 0;
+}
+
+static int
+path_extender_next_tree(path_extender_t *self, tsk_tree_position_t *tree_pos)
+{
+    int ret = 0;
+    tsk_id_t tj, e;
+    edge_list_t *ex_out, *ex_in;
+
+    for (ex_out = *self->edges_out_head; ex_out != NULL; ex_out = ex_out->next) {
+        e = ex_out->edge;
+        self->parent_out[self->edges.child[e]] = TSK_NULL;
+        if (ex_out->extended > 1) {
+            // this is needed to catch newly-created edges
+            self->last_nodes_edge[self->edges.child[e]] = e;
+            self->last_degree[self->edges.child[e]] += 1;
+            self->last_degree[self->edges.parent[e]] += 1;
+        } else if (self->near_side[e] != self->far_side[e]) {
+            self->last_nodes_edge[self->edges.child[e]] = TSK_NULL;
+            self->last_degree[self->edges.child[e]] -= 1;
+            self->last_degree[self->edges.parent[e]] -= 1;
+        }
+    }
+    remove_unextended(self->edges_out_head, self->edges_out_tail);
+    for (ex_in = *self->edges_in_head; ex_in != NULL; ex_in = ex_in->next) {
+        e = ex_in->edge;
+        self->parent_in[self->edges.child[e]] = TSK_NULL;
+        if (ex_in->extended == 0 && self->near_side[e] != self->far_side[e]) {
+            self->last_nodes_edge[self->edges.child[e]] = e;
+            self->last_degree[self->edges.child[e]] += 1;
+            self->last_degree[self->edges.parent[e]] += 1;
+        }
+    }
+    remove_unextended(self->edges_in_head, self->edges_in_tail);
+
+    // done cleanup from last tree transition;
+    // now we set the state up for this tree transition
+    for (tj = tree_pos->out.start; tj != tree_pos->out.stop; tj += self->direction) {
+        e = tree_pos->out.order[tj];
+        if (self->parent_out[self->edges.child[e]] == TSK_NULL
+            && self->near_side[e] != self->far_side[e]) {
+            ret = extend_edges_append_entry(
+                self->edges_out_head, self->edges_out_tail, self->edge_list_heap, e);
+            if (ret != 0) {
+                ret = TSK_ERR_NO_MEMORY;
+                goto out;
+            }
+        }
+    }
+    for (ex_out = *self->edges_out_head; ex_out != NULL; ex_out = ex_out->next) {
+        e = ex_out->edge;
+        self->parent_out[self->edges.child[e]] = self->edges.parent[e];
+        self->next_nodes_edge[self->edges.child[e]] = TSK_NULL;
+        self->next_degree[self->edges.child[e]] -= 1;
+        self->next_degree[self->edges.parent[e]] -= 1;
+    }
+
+    for (tj = tree_pos->in.start; tj != tree_pos->in.stop; tj += self->direction) {
+        e = tree_pos->in.order[tj];
+        // add edge to pending_in
+        ret = extend_edges_append_entry(
+            self->edges_in_head, self->edges_in_tail, self->edge_list_heap, e);
+        if (ret != 0) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+    }
+    for (ex_in = *self->edges_in_head; ex_in != NULL; ex_in = ex_in->next) {
+        e = ex_in->edge;
+        self->parent_in[self->edges.child[e]] = self->edges.parent[e];
+        self->next_nodes_edge[self->edges.child[e]] = e;
+        self->next_degree[self->edges.child[e]] += 1;
+        self->next_degree[self->edges.parent[e]] += 1;
+    }
+
+out:
+    return ret;
+}
+
+static int
+path_extender_add_or_extend_edge(path_extender_t *self, tsk_id_t new_parent,
+    tsk_id_t child, double left, double right)
+{
+    int ret = 0;
+    double there;
+    tsk_id_t old_edge, e_out, old_parent;
+    edge_list_t *ex_in;
+    tsk_id_t e_in;
+    bool forwards = (self->direction == TSK_DIR_FORWARD);
+
+    there = forwards ? right : left;
+    old_edge = self->next_nodes_edge[child];
+    if (old_edge != TSK_NULL) {
+        old_parent = self->edges.parent[old_edge];
+    } else {
+        old_parent = TSK_NULL;
+    }
+    if (new_parent != old_parent) {
+        // if our new edge is in edges_out, it should be extended
+        e_out = self->last_nodes_edge[child];
+        self->far_side[e_out] = there;
+        edge_list_set_extended(self->edges_out_head, e_out);
+    } else {
+        e_out = tsk_edge_table_add_row(
+            &self->edges, left, right, new_parent, child, NULL, 0);
+        ret = extend_edges_append_entry(
+            self->edges_in_head, self->edges_in_tail, self->edge_list_heap, e_out);
+        if (ret != 0) {
+            ret = TSK_ERR_NO_MEMORY;
+            goto out;
+        }
+    }
+    self->next_nodes_edge[child] = e_out;
+    self->next_degree[child] += 1;
+    self->next_degree[new_parent] += 1;
+    self->parent_out[child] = TSK_NULL;
+    if (old_edge != TSK_NULL) {
+        for (ex_in = *self->edges_in_head; ex_in != NULL; ex_in = ex_in->next) {
+            e_in = ex_in->edge;
+            if (e_in == old_edge && (ex_in->extended == 0)) {
+                self->near_side[e_in] = there;
+                if (self->far_side[e_in] != there) {
+                    ex_in->extended = 1;
+                }
+                self->next_nodes_edge[child] = TSK_NULL;
+                self->next_degree[child] -= 1;
+                self->next_degree[self->parent_in[child]] -= 1;
+                self->parent_in[child] = TSK_NULL;
+            }
+        }
+    }
+out:
+    return ret;
+}
+
+static bool
+path_extender_mergeable(path_extender_t *self, tsk_id_t c)
+{
+    // returns True if the paths in parent_in and parent_out
+    // up through nodes that aren't in the other tree
+    // end at the same place and don't have conflicting times
+    tsk_id_t p_in, p_out;
+    double t_in, t_out;
+
+    p_out = self->parent_out[c];
+    p_in = self->parent_in[c];
+    t_out = self->ts->tables->nodes.time[p_out];
+    t_in = self->ts->tables->nodes.time[p_in];
+    while (
+        (p_out != TSK_NULL && self->next_degree[p_out] == 0 && self->not_sample[p_out])
+        || (p_in != TSK_NULL && self->last_degree[p_in] == 0
+               && self->not_sample[p_in])) {
+        if (t_in == t_out) {
+            break;
+        } else if (t_in < t_out) {
+            p_in = self->parent_in[p_in];
+            t_in = self->ts->tables->nodes.time[p_in];
+        } else {
+            p_out = self->parent_out[p_out];
+            t_out = self->ts->tables->nodes.time[p_out];
+        }
+    }
+    return (p_in == p_out) && (p_in != TSK_NULL);
+}
+
+static int
+path_extender_merge_paths(path_extender_t *self, tsk_id_t c, double left, double right)
+{
+    int ret = 0;
+    tsk_id_t p_in, p_out, child;
+    double t_in, t_out;
+
+    p_out = self->parent_out[c];
+    p_in = self->parent_in[c];
+    t_out = self->ts->tables->nodes.time[p_out];
+    t_in = self->ts->tables->nodes.time[p_in];
+    child = c;
+    while ((t_in != t_out)
+           && ((p_out != TSK_NULL && self->next_degree[p_out] == 0
+                   && self->not_sample[p_out])
+                  || (p_in != TSK_NULL && self->last_degree[p_in] == 0
+                         && self->not_sample[p_in]))) {
+        if (t_in < t_out) {
+            ret = path_extender_add_or_extend_edge(self, p_in, child, left, right);
+            if (ret != 0) {
+                goto out;
+            }
+            child = p_in;
+            p_in = self->parent_in[p_in];
+            t_in = self->ts->tables->nodes.time[p_in];
+        } else {
+            ret = path_extender_add_or_extend_edge(self, p_out, child, left, right);
+            if (ret != 0) {
+                goto out;
+            }
+            child = p_out;
+            p_out = self->parent_out[p_out];
+            t_out = self->ts->tables->nodes.time[p_out];
+        }
+    }
+    tsk_bug_assert(p_out == p_in);
+    ret = path_extender_add_or_extend_edge(self, p_out, child, left, right);
+    if (ret != 0) {
+        goto out;
+    }
+out:
+    return ret;
+}
+
+static int
+path_extender_extend_paths(path_extender_t *self)
+{
+    int ret = 0;
+    bool valid;
+    double left, right;
+    tsk_tree_position_t tree_pos;
+    edge_list_t *ex_in;
+    tsk_id_t e_in, c, e;
+    tsk_size_t num_edges = tsk_treeseq_get_num_edges(self->ts);
+    tsk_bool_t *keep = tsk_calloc(num_edges, sizeof(*keep));
+    if (keep == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    tsk_memset(&tree_pos, 0, sizeof(tree_pos));
+    ret = tsk_tree_position_init(&tree_pos, self->ts, 0);
+    if (ret != 0) {
+        goto out;
+    }
+
+    if (self->direction == TSK_DIR_FORWARD) {
+        valid = tsk_tree_position_next(&tree_pos);
+    } else {
+        valid = tsk_tree_position_prev(&tree_pos);
+    }
+
+    while (valid) {
+        left = tree_pos.interval.left;
+        right = tree_pos.interval.right;
+        path_extender_next_tree(self, &tree_pos);
+        for (ex_in = *self->edges_in_head; ex_in != NULL; ex_in = ex_in->next) {
+            e_in = ex_in->edge;
+            c = self->edges.child[e_in];
+            if (self->last_degree[c] > 0 && path_extender_mergeable(self, c)) {
+                path_extender_merge_paths(self, c, left, right);
+            }
+        }
+        if (self->direction == TSK_DIR_FORWARD) {
+            valid = tsk_tree_position_next(&tree_pos);
+        } else {
+            valid = tsk_tree_position_prev(&tree_pos);
+        }
+    }
+    for (e = 0; e < (tsk_id_t) num_edges; e++) {
+        keep[e] = self->edges.left[e] < self->edges.right[e];
+    }
+    ret = tsk_edge_table_keep_rows(&self->edges, keep, 0, NULL);
+out:
+    return ret;
+}
+
+static int
+extend_paths_iter(const tsk_treeseq_t *self, int direction)
+{
+    int ret = 0;
+    path_extender_t path_extender;
+    tsk_memset(&path_extender, 0, sizeof(path_extender));
+    ret = path_extender_init(&path_extender, self, direction);
+    if (ret != 0) {
+        goto out;
+    }
+
+    path_extender_extend_paths(&path_extender);
+
+    ret = path_extender_free(&path_extender);
+    if (ret != 0) {
+        goto out;
+    }
+out:
+    return ret;
+}
+
+int TSK_WARN_UNUSED
+tsk_treeseq_extend_paths(const tsk_treeseq_t *self, int max_iter,
+    tsk_flags_t TSK_UNUSED(options), tsk_treeseq_t *output)
+{
+    int ret = 0;
+    tsk_table_collection_t tables;
+    tsk_treeseq_t ts;
+    int iter, j;
+    tsk_size_t last_num_edges;
+    const int direction[] = { TSK_DIR_FORWARD, TSK_DIR_REVERSE };
+
+    tsk_memset(&tables, 0, sizeof(tables));
+    tsk_memset(&ts, 0, sizeof(ts));
+    tsk_memset(output, 0, sizeof(*output));
+
+    if (max_iter <= 0) {
+        ret = TSK_ERR_EXTEND_EDGES_BAD_MAXITER;
+        goto out;
+    }
+    if (tsk_treeseq_get_num_migrations(self) != 0) {
+        ret = TSK_ERR_MIGRATIONS_NOT_SUPPORTED;
+        goto out;
+    }
+
+    /* Note: there is a fair bit of copying of table data in this implementation
+     * currently, as we create a new tree sequence for each iteration, which
+     * takes a full copy of the input tables. We could streamline this by
+     * adding a flag to treeseq_init which says "steal a reference to these
+     * tables and *don't* free them at the end". Then, we would only need
+     * one copy of the full tables, and could pass in a standalone edge
+     * table to use for in-place updating.
+     */
+    ret = tsk_table_collection_copy(self->tables, &tables, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_mutation_table_clear(&tables.mutations);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_treeseq_init(&ts, &tables, 0);
+    if (ret != 0) {
+        goto out;
+    }
+
+    last_num_edges = tsk_treeseq_get_num_edges(&ts);
+    for (iter = 0; iter < max_iter; iter++) {
+        for (j = 0; j < 2; j++) {
+            ret = extend_paths_iter(&ts, direction[j]);
             if (ret != 0) {
                 goto out;
             }

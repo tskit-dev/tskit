@@ -8414,7 +8414,7 @@ test_split_edges_errors(void)
 }
 
 static void
-test_extend_edges_simple(void)
+test_extend_paths_simple(void)
 {
     int ret;
     tsk_treeseq_t ts, ets;
@@ -8429,7 +8429,7 @@ test_extend_edges_simple(void)
                             "1    1     1  -1  0.5\n";
 
     tsk_treeseq_from_text(&ts, 10, nodes, edges, NULL, sites, mutations, NULL, NULL, 0);
-    ret = tsk_treeseq_extend_edges(&ts, 10, 0, &ets);
+    ret = tsk_treeseq_extend_paths(&ts, 10, 0, &ets);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, ets.tables, 0));
     tsk_treeseq_free(&ts);
@@ -8438,7 +8438,7 @@ test_extend_edges_simple(void)
 }
 
 static void
-test_extend_edges_errors(void)
+test_extend_paths_errors(void)
 {
     int ret;
     tsk_treeseq_t ts, ets;
@@ -8458,19 +8458,19 @@ test_extend_edges_errors(void)
                              "0  10  0  1  0  1.5\n";
 
     tsk_treeseq_from_text(&ts, 10, nodes, edges, NULL, sites, mutations, NULL, NULL, 0);
-    ret = tsk_treeseq_extend_edges(&ts, -2, 0, &ets);
+    ret = tsk_treeseq_extend_paths(&ts, -2, 0, &ets);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EXTEND_EDGES_BAD_MAXITER);
     tsk_treeseq_free(&ts);
 
     tsk_treeseq_from_text(
         &ts, 10, nodes, edges, migrations, sites, mutations, NULL, NULL, 0);
-    ret = tsk_treeseq_extend_edges(&ts, 10, 0, &ets);
+    ret = tsk_treeseq_extend_paths(&ts, 10, 0, &ets);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATIONS_NOT_SUPPORTED);
     tsk_treeseq_free(&ts);
 
     tsk_treeseq_from_text(
         &ts, 10, nodes, edges, NULL, sites, mutations_no_time, NULL, NULL, 0);
-    ret = tsk_treeseq_extend_edges(&ts, 10, 0, &ets);
+    ret = tsk_treeseq_extend_paths(&ts, 10, 0, &ets);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DISALLOWED_UNKNOWN_MUTATION_TIME);
     tsk_treeseq_free(&ts);
 
@@ -8503,7 +8503,7 @@ assert_equal_except_edges_and_mutation_nodes(
 }
 
 static void
-test_extend_edges(void)
+test_extend_paths(void)
 {
     int ret, max_iter;
     tsk_treeseq_t ts, ets;
@@ -8556,14 +8556,14 @@ test_extend_edges(void)
     tsk_treeseq_from_text(&ts, 10, nodes, edges, NULL, sites, mutations, NULL, NULL, 0);
 
     for (max_iter = 1; max_iter < 10; max_iter++) {
-        ret = tsk_treeseq_extend_edges(&ts, max_iter, 0, &ets);
+        ret = tsk_treeseq_extend_paths(&ts, max_iter, 0, &ets);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         assert_equal_except_edges_and_mutation_nodes(&ts, &ets);
         CU_ASSERT_TRUE(ets.tables->edges.num_rows >= 12);
         tsk_treeseq_free(&ets);
     }
 
-    ret = tsk_treeseq_extend_edges(&ts, 10, 0, &ets);
+    ret = tsk_treeseq_extend_paths(&ts, 10, 0, &ets);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ets.tables->nodes.num_rows, 9);
     CU_ASSERT_EQUAL_FATAL(ets.tables->edges.num_rows, 12);
@@ -8793,9 +8793,9 @@ main(int argc, char **argv)
         { "test_split_edges_no_populations", test_split_edges_no_populations },
         { "test_split_edges_populations", test_split_edges_populations },
         { "test_split_edges_errors", test_split_edges_errors },
-        { "test_extend_edges_simple", test_extend_edges_simple },
-        { "test_extend_edges_errors", test_extend_edges_errors },
-        { "test_extend_edges", test_extend_edges },
+        { "test_extend_paths_simple", test_extend_paths_simple },
+        { "test_extend_paths_errors", test_extend_paths_errors },
+        { "test_extend_paths", test_extend_paths },
         { "test_init_take_ownership_no_edge_metadata",
             test_init_take_ownership_no_edge_metadata },
         { NULL, NULL },

@@ -258,8 +258,7 @@ class PathExtender:
         self.check_parent(self.parent_in, [j for j, x in self.edges_in if x == 0])
         self.check_parent(self.parent_out, [j for j, x in self.edges_out if x == 0])
 
-    def add_or_extend_edge(self, child, new_parent, left, right):
-        print(f"add or extend: {child} -> {new_parent}")
+    def add_or_extend_edge(self, new_parent, child, left, right):
         there = right if self.forwards else left
         old_edge = self.next_nodes_edge[child]
         if old_edge != tskit.NULL:
@@ -322,8 +321,8 @@ class PathExtender:
         # end at the same place and don't have conflicting times
         p_out = self.parent_out[c]
         p_in = self.parent_in[c]
-        t_in = self.ts.nodes_time[p_in]
         t_out = self.ts.nodes_time[p_out]
+        t_in = self.ts.nodes_time[p_in]
         while (
             p_out != tskit.NULL
             and self.next_degree[p_out] == 0
@@ -360,17 +359,17 @@ class PathExtender:
             )
         ):
             if t_in < t_out:
-                self.add_or_extend_edge(child, p_in, left, right)
+                self.add_or_extend_edge(p_in, child, left, right)
                 child = p_in
                 p_in = self.parent_in[p_in]
                 t_in = self.ts.nodes_time[p_in]
             else:
-                self.add_or_extend_edge(child, p_out, left, right)
+                self.add_or_extend_edge(p_out, child, left, right)
                 child = p_out
                 p_out = self.parent_out[p_out]
                 t_out = self.ts.nodes_time[p_out]
         assert p_out == p_in
-        self.add_or_extend_edge(child, p_out, left, right)
+        self.add_or_extend_edge(p_out, child, left, right)
 
     def extend_paths(self):
         tree_pos = tsutil.TreePosition(self.ts)
@@ -389,7 +388,7 @@ class PathExtender:
             self.next_tree(tree_pos)
             self.check_state(here)
             for e_in, _ in self.edges_in:
-                c = self.edges[e_in].child
+                c = self.edges.child[e_in]
                 assert self.next_degree[c] > 0
                 if self.last_degree[c] > 0:
                     if self.mergeable(c):

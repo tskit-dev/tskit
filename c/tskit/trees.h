@@ -952,6 +952,8 @@ Since this may change which nodes are above
 */
 int tsk_treeseq_extend_edges(
     const tsk_treeseq_t *self, int max_iter, tsk_flags_t options, tsk_treeseq_t *output);
+int tsk_treeseq_extend_paths(
+    const tsk_treeseq_t *self, int max_iter, tsk_flags_t options, tsk_treeseq_t *output);
 
 /** @} */
 
