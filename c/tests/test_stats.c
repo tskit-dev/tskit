@@ -304,7 +304,7 @@ verify_divergence_matrix(tsk_treeseq_t *ts, tsk_flags_t options)
     }
 }
 
-/* Check coalescence counts against naive implementation */
+/* Check coalescence counts */
 static void
 verify_pair_coalescence_counts(tsk_treeseq_t *ts, tsk_flags_t options)
 {
@@ -404,6 +404,112 @@ verify_pair_coalescence_counts(tsk_treeseq_t *ts, tsk_flags_t options)
         index_tuples, 1, breakpoints, N, node_bin_map, options, C);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_BIN_MAP);
     node_bin_map[0] = 0;
+}
+
+/* Check coalescence quantiles */
+static void
+verify_pair_coalescence_quantiles(tsk_treeseq_t *ts)
+{
+    int ret;
+    const tsk_size_t n = tsk_treeseq_get_num_samples(ts);
+    const tsk_size_t N = tsk_treeseq_get_num_nodes(ts);
+    const tsk_size_t T = tsk_treeseq_get_num_trees(ts);
+    const tsk_id_t *samples = tsk_treeseq_get_samples(ts);
+    const double *breakpoints = tsk_treeseq_get_breakpoints(ts);
+    const double *nodes_time = ts->tables->nodes.time;
+    const double max_time = ts->max_time;
+    const tsk_size_t P = 2;
+    const tsk_size_t Q = 5;
+    const tsk_size_t B = 4;
+    const tsk_size_t I = P * (P + 1) / 2;
+    double quantiles[] = { 0.0, 0.25, 0.5, 0.75, 1.0 };
+    double epochs[] = { 0.0, max_time / 4, max_time / 2, max_time, INFINITY };
+    tsk_id_t sample_sets[n];
+    tsk_size_t sample_set_sizes[P];
+    tsk_id_t index_tuples[2 * I];
+    tsk_id_t node_bin_map[N];
+    tsk_size_t dim = T * Q * I;
+    double C[dim];
+    tsk_size_t i, j, k;
+
+    for (i = 0; i < N; i++) {
+        node_bin_map[i] = TSK_NULL;
+        for (j = 0; j < B; j++) {
+            if (nodes_time[i] >= epochs[j] && nodes_time[i] < epochs[j + 1]) {
+                node_bin_map[i] = (tsk_id_t) j;
+            }
+        }
+    }
+
+    for (i = 0; i < n; i++) {
+        sample_sets[i] = samples[i];
+    }
+
+    for (i = 0; i < P; i++) {
+        sample_set_sizes[i] = 0;
+    }
+    for (j = 0; j < n; j++) {
+        i = j / (n / P);
+        sample_set_sizes[i]++;
+    }
+
+    for (j = 0, i = 0; j < P; j++) {
+        for (k = j; k < P; k++) {
+            index_tuples[i++] = (tsk_id_t) j;
+            index_tuples[i++] = (tsk_id_t) k;
+        }
+    }
+
+    ret = tsk_treeseq_pair_coalescence_quantiles(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, B, node_bin_map, Q, quantiles, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    /* TODO: compare against naive quantiles per tree */
+
+    quantiles[Q - 1] = 0.9;
+    ret = tsk_treeseq_pair_coalescence_quantiles(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, B, node_bin_map, Q, quantiles, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    quantiles[Q - 1] = 1.0;
+    /* TODO: compare against naive quantiles per tree */
+
+    /* cover errors */
+    quantiles[0] = -1.0;
+    ret = tsk_treeseq_pair_coalescence_quantiles(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, B, node_bin_map, Q, quantiles, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_QUANTILES);
+    quantiles[0] = 0.0;
+
+    quantiles[Q - 1] = 2.0;
+    ret = tsk_treeseq_pair_coalescence_quantiles(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, B, node_bin_map, Q, quantiles, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_QUANTILES);
+    quantiles[Q - 1] = 1.0;
+
+    quantiles[1] = 0.0;
+    quantiles[0] = 0.25;
+    ret = tsk_treeseq_pair_coalescence_quantiles(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, B, node_bin_map, Q, quantiles, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_QUANTILES);
+    quantiles[0] = 0.0;
+    quantiles[1] = 0.25;
+
+    for (i = 0; i < N; i++) {
+        if (node_bin_map[i] == 0) {
+            node_bin_map[i] = 2;
+        } else if (node_bin_map[i] == 2) {
+            node_bin_map[i] = 0;
+        }
+    }
+    ret = tsk_treeseq_pair_coalescence_quantiles(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, B, node_bin_map, Q, quantiles, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_TIMES);
+    for (i = 0; i < N; i++) {
+        if (node_bin_map[i] == 0) {
+            node_bin_map[i] = 2;
+        } else if (node_bin_map[i] == 2) {
+            node_bin_map[i] = 0;
+        }
+    }
 }
 
 typedef struct {
@@ -2896,6 +3002,19 @@ test_pair_coalescence_counts(void)
         nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL, 0);
     verify_pair_coalescence_counts(&ts, 0);
     verify_pair_coalescence_counts(&ts, TSK_STAT_SPAN_NORMALISE);
+    verify_pair_coalescence_counts(&ts, TSK_STAT_PAIR_NORMALISE);
+    verify_pair_coalescence_counts(
+        &ts, TSK_STAT_SPAN_NORMALISE | TSK_STAT_PAIR_NORMALISE);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_pair_coalescence_quantiles(void)
+{
+    tsk_treeseq_t ts;
+    tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges, NULL,
+        nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL, 0);
+    verify_pair_coalescence_quantiles(&ts);
     tsk_treeseq_free(&ts);
 }
 
@@ -2998,6 +3117,7 @@ main(int argc, char **argv)
         { "test_multiroot_divergence_matrix", test_multiroot_divergence_matrix },
 
         { "test_pair_coalescence_counts", test_pair_coalescence_counts },
+        { "test_pair_coalescence_quantiles", test_pair_coalescence_quantiles },
 
         { NULL, NULL },
     };

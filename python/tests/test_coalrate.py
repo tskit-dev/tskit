@@ -35,40 +35,81 @@ from tests import tsutil
 # --- prototype --- #
 
 
-def _pair_coalescence_counts_identity(
+def _pair_coalescence_weights(
     coalescing_pairs,
     nodes_time,
-    nodes_order,
 ):
     return coalescing_pairs
+
+
+def _pair_coalescence_rates(
+    coalescing_pairs,
+    nodes_time,
+    time_windows,
+    extend_terminal=False,  # TODO
+):
+    """
+    Estimate pair coalescence rate from empirical CDF. `coalescing_pairs` and
+    `nodes_time` are assumed to have been aggregated into time bins (by
+    summation/averaging respectively). The terminal bin(s) use a different
+    estimator (the mean time since the start of the first terminal bin).
+    """
+    assert time_windows.size - 1 == coalescing_pairs.size
+    assert time_windows.size - 1 == nodes_time.size
+    assert np.all(np.diff(time_windows) > 0)
+    assert np.isfinite(time_windows[0])
+    assert time_windows[-1] == np.inf
+    coalescence_rate = np.full(time_windows.size - 1, np.nan)
+    max_time = -np.inf
+    for t in nodes_time:
+        if np.isfinite(t):
+            assert t > max_time  # check sorted
+            max_time = t
+    assert np.isfinite(max_time)
+    out_of_bounds = False
+    coalesced = 0.0
+    for i, (a, b) in enumerate(zip(time_windows[:-1], time_windows[1:])):
+        assert 0.0 <= coalescing_pairs[i] <= 1.0
+        # NOTE: high risk of FP error if max_time == b
+        assert not np.isclose(max_time, b)
+        out_of_bounds |= a <= max_time < b
+        if out_of_bounds:
+            coalescence_rate[i] = 1 / (nodes_time[i] - a)
+            if not extend_terminal:
+                break
+        else:
+            rate = -np.log(1 - coalescing_pairs[i] / (1 - coalesced)) / (b - a)
+            assert rate >= 0
+            coalescence_rate[i] = abs(rate)
+        coalesced += coalescing_pairs[i]
+    return coalescence_rate
 
 
 def _pair_coalescence_quantiles(
     coalescing_pairs,
     nodes_time,
-    nodes_order,
     quantiles,
 ):
     """
     Estimate `quantiles` of the distribution of `nodes_time` weighted by
-    `coalescing_pairs`, by inverting the empirical CDF. `nodes_order`
-    should sort nodes into ascending time order.
+    `coalescing_pairs`, by inverting the empirical CDF. Nodes are assumed
+    to be sorted in ascending time order.
     """
-    assert nodes_time.size == coalescing_pairs.size == nodes_order.size
+    assert nodes_time.size == coalescing_pairs.size
     assert np.all(np.diff(quantiles) > 0)
     assert np.all(np.logical_and(0 <= quantiles, quantiles <= 1))
     num_nodes = coalescing_pairs.size
     num_quantiles = quantiles.size
-    total_mass = coalescing_pairs.sum()
     output = np.full(num_quantiles, np.nan)
     i, j = 0, 0
-    ecdf = 0.0
+    coalesced = 0.0
+    time = -np.inf
     while i < num_nodes:
-        mass = coalescing_pairs[nodes_order[i]] / total_mass
-        if mass > 0:
-            ecdf += mass
-            time = nodes_time[nodes_order[i]]
-            while j < num_quantiles and quantiles[j] <= ecdf:
+        if coalescing_pairs[i] > 0:
+            coalesced += coalescing_pairs[i]
+            assert nodes_time[i] > time
+            time = nodes_time[i]
+            while j < num_quantiles and quantiles[j] <= coalesced:
                 output[j] = time
                 j += 1
         i += 1
@@ -87,13 +128,12 @@ def _pair_coalescence_stat(
     windows=None,
     time_windows=None,
     span_normalise=True,
+    pair_normalise=False,
 ):
     """
     Apply `summary_func(node_weights, node_times, node_order, **summary_func_kwargs)` to
     the empirical distribution of pair coalescence times for each index / window.
     """
-
-    # TODO: the logic with time_windows and summary_func is not quite worked out
 
     if sample_sets is None:
         sample_sets = [list(ts.samples())]
@@ -154,7 +194,6 @@ def _pair_coalescence_stat(
     edges_child = ts.edges_child
     edges_parent = ts.edges_parent
     nodes_time = ts.nodes_time
-    nodes_order = np.argsort(nodes_time)
     sequence_length = ts.sequence_length
     output_size = summary_func_dim
     samples = np.concatenate(sample_sets)
@@ -162,9 +201,19 @@ def _pair_coalescence_stat(
     nodes_parent = np.full(num_nodes, tskit.NULL)
     nodes_sample = np.zeros((num_nodes, num_sample_sets))
     nodes_weight = np.zeros((num_time_windows, num_indexes))
+    nodes_values = np.zeros((num_time_windows, num_indexes))
     coalescing_pairs = np.zeros((num_time_windows, num_indexes))
+    coalescence_time = np.zeros((num_time_windows, num_indexes))
     output = np.zeros((num_windows, output_size, num_indexes))
     visited = np.full(num_nodes, False)
+
+    total_pairs = np.zeros(num_indexes)
+    sizes = [len(s) for s in sample_sets]
+    for i, (j, k) in enumerate(indexes):
+        if j == k:
+            total_pairs[i] = sizes[j] * (sizes[k] - 1) / 2
+        else:
+            total_pairs[i] = sizes[j] * sizes[k]
 
     for i, s in enumerate(sample_sets):  # initialize
         nodes_sample[s, i] = 1
@@ -186,6 +235,7 @@ def _pair_coalescence_stat(
             inside = sample_counts[c]
             while p != tskit.NULL:
                 u = nodes_map[p]
+                t = nodes_time[p]
                 if u != tskit.NULL:
                     outside = sample_counts[p] - sample_counts[c] - nodes_sample[p]
                     for i, (j, k) in enumerate(indexes):
@@ -193,6 +243,7 @@ def _pair_coalescence_stat(
                         if j != k:
                             weight += inside[k] * outside[j]
                         coalescing_pairs[u, i] -= weight * remainder
+                        coalescence_time[u, i] -= weight * remainder * t
                 c, p = p, nodes_parent[p]
             p = edges_parent[e]
             while p != tskit.NULL:
@@ -211,6 +262,7 @@ def _pair_coalescence_stat(
             p = edges_parent[e]
             while p != tskit.NULL:
                 u = nodes_map[p]
+                t = nodes_time[p]
                 if u != tskit.NULL:
                     outside = sample_counts[p] - sample_counts[c] - nodes_sample[p]
                     for i, (j, k) in enumerate(indexes):
@@ -218,16 +270,20 @@ def _pair_coalescence_stat(
                         if j != k:
                             weight += inside[k] * outside[j]
                         coalescing_pairs[u, i] += weight * remainder
+                        coalescence_time[u, i] += weight * remainder * t
                 c, p = p, nodes_parent[p]
 
         while w < num_windows and windows[w + 1] <= right:  # flush window
             remainder = sequence_length - windows[w + 1]
             nodes_weight[:] = coalescing_pairs[:]
+            nodes_values[:] = coalescence_time[:]
             coalescing_pairs[:] = 0.0
+            coalescence_time[:] = 0.0
             for c in samples:
                 p = nodes_parent[c]
                 while not visited[c] and p != tskit.NULL:
                     u = nodes_map[p]
+                    t = nodes_time[p]
                     if u != tskit.NULL:
                         inside = sample_counts[c]
                         outside = sample_counts[p] - sample_counts[c] - nodes_sample[p]
@@ -235,8 +291,11 @@ def _pair_coalescence_stat(
                             weight = inside[j] * outside[k]
                             if j != k:
                                 weight += inside[k] * outside[j]
-                            nodes_weight[u, i] -= weight * remainder / 2
-                            coalescing_pairs[u, i] += weight * remainder / 2
+                            x = weight * remainder / 2
+                            nodes_weight[u, i] -= x
+                            nodes_values[u, i] -= t * x
+                            coalescing_pairs[u, i] += x
+                            coalescence_time[u, i] += t * x
                     visited[c] = True
                     p, c = nodes_parent[p], p
             for c in samples:
@@ -244,13 +303,18 @@ def _pair_coalescence_stat(
                 while visited[c] and p != tskit.NULL:
                     visited[c] = False
                     p, c = nodes_parent[p], p
+            for i in range(num_indexes):  # normalise values
+                nonzero = nodes_weight[:, i] > 0
+                nodes_values[nonzero, i] /= nodes_weight[nonzero, i]
+                nodes_values[~nonzero, i] = np.nan
             if span_normalise:
                 nodes_weight /= windows[w + 1] - windows[w]
+            if pair_normalise:
+                nodes_weight /= total_pairs[np.newaxis, :]
             for i in range(num_indexes):  # apply function to empirical distribution
                 output[w, :, i] = summary_func(
                     nodes_weight[:, i],
-                    nodes_time,
-                    nodes_order,
+                    nodes_values[:, i],
                     **summary_func_kwargs,
                 )
             w += 1
@@ -270,6 +334,7 @@ def proto_pair_coalescence_counts(
     indexes=None,
     windows=None,
     span_normalise=True,
+    pair_normalise=False,
     time_windows="nodes",
 ):
     """
@@ -304,12 +369,12 @@ def proto_pair_coalescence_counts(
         sequence windows to compute the statistic in, or None.
     :param bool span_normalise: Whether to divide the result by the span of
         the window (defaults to True).
+    :param bool pair_normalise: Whether to divide the result by the total
+        number of pairs for a given index (defaults to False).
     :param time_windows: Either a string "nodes" or an increasing
         list of breakpoints between time intervals.
     """
 
-    summary_func = _pair_coalescence_counts_identity
-    summary_func_kwargs = {}
     if isinstance(time_windows, str) and time_windows == "nodes":
         summary_func_dim = ts.num_nodes
     else:
@@ -321,6 +386,9 @@ def proto_pair_coalescence_counts(
             raise ValueError("Time windows require calibrated node times")
         summary_func_dim = time_windows.size - 1
 
+    summary_func = _pair_coalescence_weights
+    summary_func_kwargs = {}
+
     return _pair_coalescence_stat(
         ts,
         summary_func=summary_func,
@@ -331,6 +399,80 @@ def proto_pair_coalescence_counts(
         windows=windows,
         time_windows=time_windows,
         span_normalise=span_normalise,
+        pair_normalise=pair_normalise,
+    )
+
+
+def proto_pair_coalescence_rates(
+    ts,
+    time_windows,
+    sample_sets=None,
+    indexes=None,
+    windows=None,
+    fill_terminal=False,  # TODO
+):
+    """
+    Prototype for ts.pair_coalescence_rates.
+
+    TODO docstring
+
+    Calculate the number of coalescing sample pairs per node, summed over
+    trees and weighted by tree span.
+
+    The number of coalescing pairs may be calculated within or between the
+    non-overlapping lists of samples contained in `sample_sets`. In the
+    latter case, pairs are counted if they have exactly one member in each
+    of two sample sets. If `sample_sets` is omitted, a single group
+    containing all samples is assumed.
+
+    The argument `indexes` may be used to specify which pairs of sample
+    sets to compute the statistic between, and in what order. If
+    `indexes=None`, then `indexes` is assumed to equal `[(0,0)]` for a
+    single sample set and `[(0,1)]` for two sample sets. For more than two
+    sample sets, `indexes` must be explicitly passed.
+
+    The argument `time_windows` may be used to count coalescence
+    events within time intervals (if an array of breakpoints is supplied)
+    rather than for individual nodes (the default).
+
+    The output array has dimension `(windows, indexes, nodes)` with
+    dimensions dropped when the corresponding argument is set to None.
+
+    :param list sample_sets: A list of lists of Node IDs, specifying the
+        groups of nodes to compute the statistic with, or None.
+    :param list indexes: A list of 2-tuples, or None.
+    :param list windows: An increasing list of breakpoints between the
+        sequence windows to compute the statistic in, or None.
+    :param bool span_normalise: Whether to divide the result by the span of
+        the window (defaults to True).
+    :param bool pair_normalise: Whether to divide the result by the total
+        number of pairs for a given index (defaults to False).
+    :param time_windows: Either a string "nodes" or an increasing
+        list of breakpoints between time intervals.
+    """
+
+    if not (isinstance(time_windows, np.ndarray) and time_windows.size > 1):
+        raise ValueError("Time windows must be an array of breakpoints")
+    if not np.all(np.diff(time_windows) > 0):
+        raise ValueError("Time windows must be strictly increasing")
+    if ts.time_units == tskit.TIME_UNITS_UNCALIBRATED:
+        raise ValueError("Time windows require calibrated node times")
+
+    summary_func = _pair_coalescence_rates
+    summary_func_dim = time_windows.size - 1
+    summary_func_kwargs = {"time_windows": time_windows}
+
+    return _pair_coalescence_stat(
+        ts,
+        summary_func=summary_func,
+        summary_func_dim=summary_func_dim,
+        summary_func_kwargs=summary_func_kwargs,
+        sample_sets=sample_sets,
+        indexes=indexes,
+        windows=windows,
+        time_windows=time_windows,
+        span_normalise=True,
+        pair_normalise=True,
     )
 
 
@@ -347,7 +489,8 @@ def proto_pair_coalescence_quantiles(
     Estimate quantiles of pair coalescence times by inverting the empirical
     CDF. This is equivalent to the "inverted_cdf" method of `numpy.quantile`
     applied to node times, with weights proportional to the number of
-    coalescing pairs per node (averaged over trees).
+    coalescing pairs per node (averaged over trees). The weights are calculated
+    using `pair_coalescence_counts`.
 
     Quantiles of pair coalescence times may be calculated within or
     between the non-overlapping lists of samples contained in `sample_sets`. In
@@ -361,7 +504,7 @@ def proto_pair_coalescence_quantiles(
     `[(0,1)]` for two sample sets. For more than two sample sets, `indexes`
     must be explicitly passed.
 
-    The output array has dimension `(quantiles, nodes, indexes)` with
+    The output array has dimension `(windows, indexes, quantiles)` with
     dimensions dropped when the corresponding argument is set to None.
 
     :param quantiles: A list of breakpoints between [0, 1].
@@ -380,6 +523,9 @@ def proto_pair_coalescence_quantiles(
     summary_func = _pair_coalescence_quantiles
     summary_func_dim = quantiles.size
     summary_func_kwargs = {"quantiles": quantiles}
+    time_windows = np.append(
+        np.unique(ts.nodes_time), np.inf
+    )  # sort nodes in time order
 
     return _pair_coalescence_stat(
         ts,
@@ -389,8 +535,9 @@ def proto_pair_coalescence_quantiles(
         sample_sets=sample_sets,
         indexes=indexes,
         windows=windows,
-        time_windows="nodes",
+        time_windows=time_windows,
         span_normalise=True,
+        pair_normalise=True,
     )
 
 
@@ -422,7 +569,7 @@ def naive_pair_coalescence_counts(ts, sample_set_0, sample_set_1):
     return output
 
 
-def _numpy_weighted_quantile(atoms, weights, quantiles):
+def _numpy_weighted_quantile(values, weights, quantiles):
     """
     Requires numpy 2.0. Enforcing `weights > 0` avoids odd behaviour where
     numpy assigns the 0th quantile to the sample minimum, even if this minimum
@@ -430,11 +577,40 @@ def _numpy_weighted_quantile(atoms, weights, quantiles):
     """
     assert np.all(weights >= 0.0)
     return np.quantile(
-        atoms[weights > 0],
+        values[weights > 0],
         quantiles,
         weights=weights[weights > 0] / weights.sum(),
         method="inverted_cdf",
     )
+
+
+def _numpy_hazard_rate(values, weights, breaks):
+    """
+    Estimate hazard rate from empirical CDF over intervals
+    """
+    assert np.all(weights >= 0)
+    assert np.all(np.diff(breaks) >= 0)
+    assert np.isfinite(breaks[0])  # should equal sample time
+    assert ~np.isfinite(breaks[-1])
+    assert np.sum(weights) <= 1.0 + 1e-4
+    values = values[weights > 0]
+    weights = weights[weights > 0]
+    assert breaks[0] < np.min(values)
+    max_value = np.max(values)
+    rates = np.full(breaks.size - 1, np.nan)
+    for i, (a, b) in enumerate(zip(breaks[:-1], breaks[1:])):
+        if a < max_value <= b:  # terminal window
+            keep = values >= a
+            mean = np.sum(values[keep] * weights[keep]) / np.sum(weights[keep])
+            rates[i] = 1.0 / (mean - a)
+            break
+        else:
+            wa = np.sum(weights[values < a])
+            wb = np.sum(weights[values < b])
+            rates[i] = np.log(1 - (wb - wa) / (1 - wa)) / (b - a)
+            assert rates[i] <= 0.0
+            rates[i] = abs(rates[i])
+    return rates
 
 
 def convert_to_nonsuccinct(ts):
@@ -640,6 +816,43 @@ class TestCoalescingPairsOneTree:
         )
         np.testing.assert_allclose(proto, check)
 
+    def test_pair_normalise(self):
+        ts = self.example_ts()
+        ss0 = np.flatnonzero(ts.nodes_population == 0)
+        ss1 = np.flatnonzero(ts.nodes_population == 1)
+        indexes = [(0, 0), (0, 1), (1, 1)]
+        implm = ts.pair_coalescence_counts(
+            sample_sets=[ss0, ss1],
+            indexes=indexes,
+            pair_normalise=True,
+        )
+        check = np.full(implm.shape, np.nan)
+        check[0] = np.array([0.0] * 8 + [0, 0, 1, 5, 0, 0])
+        check[1] = np.array([0.0] * 8 + [0, 0, 0, 0, 4, 12])
+        check[2] = np.array([0.0] * 8 + [1, 2, 0, 0, 0, 3])
+        total_pairs = np.array([6, 16, 6])
+        check /= total_pairs[:, np.newaxis]
+        np.testing.assert_allclose(implm, check)
+        # TODO: remove with prototype
+        proto = proto_pair_coalescence_counts(
+            ts,
+            sample_sets=[ss0, ss1],
+            indexes=indexes,
+            pair_normalise=True,
+        )
+        np.testing.assert_allclose(proto, check)
+
+    def test_multiple_roots(self):
+        ts = self.example_ts().decapitate(6.0)
+        implm = ts.pair_coalescence_counts(pair_normalise=True)
+        total_pairs = ts.num_samples * (ts.num_samples - 1) / 2
+        check = np.array([0.0] * 8 + [1, 2, 1, 5, 0, 0, 0, 0])
+        check /= total_pairs
+        np.testing.assert_allclose(implm, check)
+        # TODO: remove with prototype
+        proto = proto_pair_coalescence_counts(ts, pair_normalise=True)
+        np.testing.assert_allclose(proto, check)
+
 
 class TestCoalescingPairsTwoTree:
     """
@@ -815,6 +1028,47 @@ class TestCoalescingPairsTwoTree:
         np.testing.assert_allclose(proto[0], check_0)
         np.testing.assert_allclose(proto[1], check_1)
 
+    def test_pair_normalise(self):
+        L, S = 200, 100
+        ts = self.example_ts(S, L)
+        indexes = [(0, 0), (0, 1), (1, 1)]
+        implm = ts.pair_coalescence_counts(
+            sample_sets=[[0, 1], [2, 3]],
+            indexes=indexes,
+            span_normalise=False,
+            pair_normalise=True,
+        )
+        check = np.empty(implm.shape)
+        check[0] = np.array([0] * 4 + [0, 0, 0, 1 * L])
+        check[1] = np.array([0] * 4 + [1 * (L - S), 1 * (L - S), 2 * S, 2 * L])
+        check[2] = np.array([0] * 4 + [0, 1 * L, 0, 0])
+        total_pairs = np.array([1, 4, 1])
+        check /= total_pairs[:, np.newaxis]
+        np.testing.assert_allclose(implm, check)
+        # TODO: remove with prototype
+        proto = proto_pair_coalescence_counts(
+            ts,
+            sample_sets=[[0, 1], [2, 3]],
+            indexes=indexes,
+            span_normalise=False,
+            pair_normalise=True,
+        )
+        np.testing.assert_allclose(proto, check)
+
+    def test_multiple_roots(self):
+        L, S = 200, 100
+        ts = self.example_ts(S, L).decapitate(2.0)
+        implm = ts.pair_coalescence_counts(pair_normalise=True, span_normalise=False)
+        total_pairs = ts.num_samples * (ts.num_samples - 1) / 2
+        check = np.array([0.0] * 4 + [1 * (L - S), 2 * (L - S) + 1 * S, 0, 0, 0, 0])
+        check /= total_pairs
+        np.testing.assert_allclose(implm, check)
+        # TODO: remove with prototype
+        proto = proto_pair_coalescence_counts(
+            ts, pair_normalise=True, span_normalise=False
+        )
+        np.testing.assert_allclose(proto, check)
+
 
 class TestCoalescingPairsSimulated:
     """
@@ -920,7 +1174,7 @@ class TestCoalescingPairsSimulated:
         self._check_total_pairs(ts, windows)
         self._check_subset_pairs(ts, windows)
 
-    def test_missing_roots(self):
+    def test_multiple_roots(self):
         """
         test case where all trees have multiple roots
         """
@@ -976,6 +1230,23 @@ class TestCoalescingPairsSimulated:
         np.testing.assert_allclose(implm, check)
         # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(ts, windows=windows, span_normalise=False)
+        np.testing.assert_allclose(proto, check)
+
+    def test_pair_normalise(self):
+        ts = self.example_ts()
+        windows = np.array([0.0, 0.33, 1.0]) * ts.sequence_length
+        window_size = np.diff(windows)
+        total_pairs = ts.num_samples * (ts.num_samples - 1) / 2
+        implm = ts.pair_coalescence_counts(
+            windows=windows, span_normalise=False, pair_normalise=True
+        )
+        check = ts.pair_coalescence_counts(windows=windows) * window_size[:, np.newaxis]
+        check /= total_pairs
+        np.testing.assert_allclose(implm, check)
+        # TODO: remove with prototype
+        proto = proto_pair_coalescence_counts(
+            ts, windows=windows, span_normalise=False, pair_normalise=True
+        )
         np.testing.assert_allclose(proto, check)
 
     def test_internal_nodes_are_samples(self):
@@ -1106,51 +1377,6 @@ class TestCoalescingPairsSimulated:
         np.testing.assert_allclose(proto, check)
 
 
-@pytest.mark.skip("Not implemented")
-class TestQuantileReduction:
-    """
-    Test quantile reduction
-    """
-
-    @tests.cached_example
-    def example_ts(self):
-        n = 10
-        model = msprime.BetaCoalescent(alpha=1.5)  # polytomies
-        tables = msprime.sim_ancestry(
-            samples=n,
-            recombination_rate=1e-8,
-            sequence_length=1e6,
-            population_size=1e4,
-            random_seed=1024,
-            model=model,
-        ).dump_tables()
-        tables.populations.add_row(metadata={"name": "foo", "description": "bar"})
-        tables.nodes.population = np.repeat(
-            [0, 1, tskit.NULL], [n, n, tables.nodes.num_rows - 2 * n]
-        ).astype("int32")
-        ts = tables.tree_sequence()
-        assert ts.num_trees > 1
-        return ts
-
-    def test_quantiles(self):
-        ts = self.example_ts()
-        quantiles = np.linspace(0, 1, 10)
-        weights = ts.pair_coalescence_counts()
-        check = _numpy_weighted_quantile(ts.nodes_time, weights, quantiles)
-        # TODO: switch to TreeSequence method
-        implm = proto_pair_coalescence_quantiles(ts, quantiles=quantiles)
-        np.testing.assert_allclose(implm, check)
-
-    def test_boundary_quantiles(self):
-        ts = self.example_ts()
-        weights = ts.pair_coalescence_counts()
-        quantiles = np.unique(weights / np.sum(weights))
-        check = _numpy_weighted_quantile(ts.nodes_time, weights, quantiles)
-        # TODO: switch to TreeSequence method
-        implm = proto_pair_coalescence_quantiles(ts, quantiles=quantiles)
-        np.testing.assert_allclose(implm, check)
-
-
 class TestCoalescingPairsUsage:
     """
     Test invalid inputs
@@ -1268,3 +1494,143 @@ class TestCoalescingPairsUsage:
             sample_sets=ss, windows=None, indexes=indexes
         )
         assert implm.shape == (2, ts.num_nodes)
+
+
+class TestPairCoalescenceQuantiles:
+    """
+    Test quantile reduction
+    """
+
+    @tests.cached_example
+    def example_ts(self):
+        n = 10
+        model = msprime.BetaCoalescent(alpha=1.5)  # polytomies
+        tables = msprime.sim_ancestry(
+            samples=n,
+            recombination_rate=1e-8,
+            sequence_length=1e6,
+            population_size=1e4,
+            random_seed=1024,
+            model=model,
+        ).dump_tables()
+        tables.populations.add_row(metadata={"name": "foo", "description": "bar"})
+        tables.nodes.population = np.repeat(
+            [0, 1, tskit.NULL], [n, n, tables.nodes.num_rows - 2 * n]
+        ).astype("int32")
+        ts = tables.tree_sequence()
+        assert ts.num_trees > 1
+        return ts
+
+    def test_quantiles(self):
+        ts = self.example_ts()
+        quantiles = np.linspace(0, 1, 10)
+        weights = ts.pair_coalescence_counts()
+        check = _numpy_weighted_quantile(ts.nodes_time, weights, quantiles)
+        implm = ts.pair_coalescence_quantiles(quantiles)
+        np.testing.assert_allclose(implm, check)
+        # TODO: remove with prototype
+        proto = proto_pair_coalescence_quantiles(ts, quantiles=quantiles)
+        np.testing.assert_allclose(proto, check)
+
+    def test_windows(self):
+        ts = self.example_ts()
+        quantiles = np.linspace(0, 1, 10)
+        windows = np.array([0, 0.5, 1.0]) * ts.sequence_length
+        implm = ts.pair_coalescence_quantiles(quantiles, windows=windows)
+        weights = ts.pair_coalescence_counts(windows=windows)
+        check = np.empty_like(implm)
+        for i, w in enumerate(weights):
+            check[i] = _numpy_weighted_quantile(ts.nodes_time, w, quantiles)
+        np.testing.assert_allclose(implm, check)
+
+    def test_sample_sets(self):
+        ts = self.example_ts()
+        sample_sets = [
+            np.flatnonzero(ts.nodes_population[: ts.num_samples] == i) for i in range(2)
+        ]
+        quantiles = np.linspace(0, 1, 10)
+        indexes = [(0, 1)]
+        implm = ts.pair_coalescence_quantiles(
+            quantiles, sample_sets=sample_sets, indexes=indexes
+        )
+        weights = ts.pair_coalescence_counts(sample_sets=sample_sets, indexes=indexes)
+        check = _numpy_weighted_quantile(ts.nodes_time, weights.flatten(), quantiles)
+        np.testing.assert_allclose(implm.flatten(), check)
+        # check default
+        implm = ts.pair_coalescence_quantiles(quantiles, sample_sets=sample_sets)
+        np.testing.assert_allclose(implm, check)
+
+    def test_observations_are_quantiles(self):
+        """
+        case where quantiles fall on observations
+        """
+        ts = self.example_ts()
+        weights = ts.pair_coalescence_counts()
+        quantiles = np.unique(weights / np.sum(weights))
+        check = _numpy_weighted_quantile(ts.nodes_time, weights, quantiles)
+        implm = ts.pair_coalescence_quantiles(quantiles)
+        np.testing.assert_allclose(implm, check)
+
+    def test_errors(self):
+        ts = self.example_ts()
+        sample_sets = [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+        quantiles = np.linspace(0, 1, 10)
+        with pytest.raises(ValueError, match="more than two sample sets"):
+            ts.pair_coalescence_quantiles(quantiles, sample_sets=sample_sets)
+
+
+class TestPairCoalescenceRates:
+    """
+    Test coalescence rate calculation
+    """
+
+    @tests.cached_example
+    def example_ts(self):
+        n = 10
+        tables = msprime.sim_ancestry(
+            samples=n,
+            recombination_rate=1e-8,
+            sequence_length=1e6,
+            population_size=1e4,
+            random_seed=1025,
+        ).dump_tables()
+        tables.populations.add_row(metadata={"name": "foo", "description": "bar"})
+        tables.nodes.population = np.repeat(
+            [0, 1, tskit.NULL], [n, n, tables.nodes.num_rows - 2 * n]
+        ).astype("int32")
+        ts = tables.tree_sequence()
+        assert ts.num_trees > 1
+        return ts
+
+    def test_simulated(self):
+        ts = self.example_ts()
+        quantiles = np.linspace(0, 1, 5)
+        weights = ts.pair_coalescence_counts(pair_normalise=True)
+        breaks = _numpy_weighted_quantile(ts.nodes_time, weights, quantiles)
+        breaks[0], breaks[-1] = 0.0, np.inf
+        check = _numpy_hazard_rate(ts.nodes_time, weights, breaks)
+        implm = proto_pair_coalescence_rates(ts, time_windows=breaks)
+        np.testing.assert_allclose(implm, check)
+
+    def test_windowed(self):
+        ts = self.example_ts()
+        quantiles = np.linspace(0, 1, 5)
+        weights = ts.pair_coalescence_counts(pair_normalise=True)
+        breaks = _numpy_weighted_quantile(ts.nodes_time, weights, quantiles)
+        breaks[0], breaks[-1] = 0.0, np.inf
+        windows = np.linspace(0, ts.sequence_length, 4)
+        implm = proto_pair_coalescence_rates(ts, time_windows=breaks, windows=windows)
+        check = np.empty_like(implm)
+        weights = ts.pair_coalescence_counts(pair_normalise=True, windows=windows)
+        for i, w in enumerate(weights):
+            check[i] = _numpy_hazard_rate(ts.nodes_time, w, breaks)
+        np.testing.assert_allclose(implm, check)
+
+    def test_truncated(self):
+        ts = self.example_ts()
+        max_time = np.max(ts.nodes_time)
+        breaks = np.array([0.0, 0.5, 1.0, 2, np.inf]) * np.ceil(max_time)
+        weights = ts.pair_coalescence_counts(pair_normalise=True)
+        check = _numpy_hazard_rate(ts.nodes_time, weights, breaks)
+        implm = proto_pair_coalescence_rates(ts, time_windows=breaks)
+        np.testing.assert_allclose(implm, check)
