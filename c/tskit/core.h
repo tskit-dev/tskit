@@ -702,6 +702,14 @@ The node bin map contains a value less than TSK_NULL.
 Maximum index in node bin map does not match output dimension.
 */
 #define TSK_ERR_BAD_NODE_BIN_MAP_DIM                                -915
+/**
+The vector of quantiles is out of bounds or in nonascending order.
+*/
+#define TSK_ERR_BAD_QUANTILES                                       -916
+/**
+Times are not in ascending order
+*/
+#define TSK_ERR_UNSORTED_TIMES                                      -917
 /** @} */
 
 /**
