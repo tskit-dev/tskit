@@ -334,10 +334,10 @@ class PathExtender:
                 break
             elif t_in < t_out:
                 p_in = self.parent_in[p_in]
-                t_in = self.ts.nodes_time[p_in]
+                t_in = np.inf if p_in == tskit.NULL else self.ts.nodes_time[p_in]
             else:
                 p_out = self.parent_out[p_out]
-                t_out = self.ts.nodes_time[p_out]
+                t_out = np.inf if p_out == tskit.NULL else self.ts.nodes_time[p_out]
         return p_in == p_out and p_in != tskit.NULL
 
     def merge_paths(self, c, left, right):
@@ -908,8 +908,87 @@ class TestExtendPaths(TestExtendThings):
             tables.nodes.add_row(time=t, flags=flags)
         for p, c, l, r in edges:
             tables.edges.add_row(parent=p, child=c, left=l, right=r)
+        ets = tables.tree_sequence()
+        ts = ets.simplify()
+        assert ts.num_edges == 16
+        assert ets.num_edges == 12
+        return ts, ets
+
+    def get_example4(self):
+        # 7 and 8 should be extended to the whole sequence
+        #
+        #    6          6      6         6
+        #  +-+-+      +-+-+  +-+-+     +-+-+
+        #  |   |      7   |  |   8     |   |
+        #  |   |     ++-+ |  | +-++    |   |
+        #  4   5     4  | |  4 |  5    4   5
+        # +++ +++   +++ | |  | | +++  +++ +++
+        # 0 1 2 3   0 1 2 3  0 1 2 3  0 1 2 3
+        node_times = (0, 0, 0, 0, 1, 1, 3, 2, 2)
+        samples = (0, 1, 2, 3)
+        # (p, c, l, r)
+        extended_edges = [
+            (4, 0, 0, 10),
+            (4, 1, 0, 5),
+            (4, 1, 7, 10),
+            (5, 2, 0, 2),
+            (5, 2, 5, 10),
+            (5, 3, 0, 10),
+            (7, 2, 2, 5),
+            (7, 4, 0, 10),
+            (8, 1, 5, 7),
+            (8, 5, 0, 10),
+            (6, 7, 0, 10),
+            (6, 8, 0, 10),
+        ]
+        edges = [
+            (4, 0, 0, 10),
+            (4, 1, 0, 5),
+            (4, 1, 7, 10),
+            (5, 2, 0, 2),
+            (5, 2, 5, 10),
+            (5, 3, 0, 2),
+            (5, 3, 5, 10),
+            (7, 2, 2, 5),
+            (7, 4, 2, 5),
+            (8, 1, 5, 7),
+            (8, 5, 5, 7),
+            (6, 3, 2, 5),
+            (6, 4, 0, 2),
+            (6, 4, 5, 10),
+            (6, 5, 0, 2),
+            (6, 5, 7, 10),
+            (6, 7, 2, 5),
+            (6, 8, 5, 7),
+        ]
+        tables = tskit.TableCollection(sequence_length=10)
+        tables.sort()
+        for n, t in enumerate(node_times):
+            flags = tskit.NODE_IS_SAMPLE if n in samples else 0
+            tables.nodes.add_row(time=t, flags=flags)
+        for p, c, l, r in edges:
+            tables.edges.add_row(parent=p, child=c, left=l, right=r)
         ts = tables.tree_sequence()
-        return ts
+        tables.edges.clear()
+        for p, c, l, r in extended_edges:
+            tables.edges.add_row(parent=p, child=c, left=l, right=r)
+        ets = tables.tree_sequence()
+        assert ts.num_edges == 18
+        assert ets.num_edges == 12
+        return ts, ets
+
+    def get_example(self, j):
+        if j == 1:
+            ts, ets = self.get_example1()
+        elif j == 2:
+            ts, ets = self.get_example2()
+        elif j == 3:
+            ts, ets = self.get_example3()
+        elif j == 4:
+            ts, ets = self.get_example4()
+        else:
+            raise ValueError
+        return ts, ets
 
     def verify_extend_paths(self, ts, max_iter=10):
         ets = extend_paths(ts, max_iter=max_iter)
@@ -992,26 +1071,16 @@ class TestExtendPaths(TestExtendThings):
         etables.assert_equals(correct_tables, ignore_provenance=True)
         self.naive_verify(ts)
 
-    def test_example1(self):
-        ts, ets = self.get_example1()
+    @pytest.mark.parametrize("j", [1, 2, 3, 4])
+    def test_example(self, j):
+        ts, ets = self.get_example(j)
         test_ets = extend_paths(ts)
+        for x, t, et in ts.coiterate(test_ets):
+            print("------", x)
+            print(t.draw_text())
+            print(et.draw_text())
         test_ets.tables.assert_equals(ets.tables, ignore_provenance=True)
         self.verify_extend_paths(ts)
-        self.naive_verify(ts)
-
-    def test_example2(self):
-        ts, ets = self.get_example2()
-        test_ets = extend_paths(ts)
-        test_ets.tables.assert_equals(ets.tables, ignore_provenance=True)
-        self.verify_extend_paths(ts)
-        self.naive_verify(ts)
-
-    def test_example3(self):
-        ts = self.get_example3()
-        sts = ts.simplify()
-        assert ts.num_edges == 12
-        assert sts.num_edges == 16
-        ts.tables.assert_equals(extend_paths(sts).tables, ignore_provenance=True)
         self.naive_verify(ts)
 
     def test_internal_samples(self):
@@ -1066,19 +1135,6 @@ class TestExtendPaths(TestExtendThings):
         ets.tables.assert_equals(tables)
         self.verify_extend_paths(ts)
         self.naive_verify(ts)
-
-    @pytest.mark.skip("TODO: this one apparently has a split edge (on windows anyhow).")
-    def test_example_split_edge(self):
-        ts = msprime.sim_ancestry(
-            100,
-            population_size=1000,
-            sequence_length=1e6,
-            coalescing_segments_only=False,
-            random_seed=12,
-            rcombination_rate=1e-8,
-        )
-        ets = extend_paths(ts)
-        self.verify_simplify_equality(ts, ets)
 
     @pytest.mark.parametrize("seed", [3, 4, 5, 6])
     def test_wf(self, seed):
