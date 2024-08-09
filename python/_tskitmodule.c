@@ -9937,7 +9937,7 @@ TreeSequence_pair_coalescence_counts(TreeSequence *self, PyObject *args, PyObjec
     PyObject *ret = NULL;
 
     static char *kwlist[] = { "windows", "sample_set_sizes", "sample_sets", "indexes",
-        "node_bin_map", "span_normalise", NULL };
+        "node_bin_map", "span_normalise", "pair_normalise", NULL };
     PyObject *py_sample_set_sizes = Py_None;
     PyObject *py_sample_sets = Py_None;
     PyObject *py_windows = Py_None;
@@ -9956,14 +9956,15 @@ TreeSequence_pair_coalescence_counts(TreeSequence *self, PyObject *args, PyObjec
     tsk_size_t num_windows = 0;
     tsk_size_t num_bins = 0;
     int span_normalise = 0;
+    int pair_normalise = 0;
     int err;
 
     if (TreeSequence_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOOO|i", kwlist, &py_windows,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOOO|ii", kwlist, &py_windows,
             &py_sample_set_sizes, &py_sample_sets, &py_indexes, &py_node_bin_map,
-            &span_normalise)) {
+            &span_normalise, &pair_normalise)) {
         goto out;
     }
     if (parse_sample_sets(py_sample_set_sizes, &sample_set_sizes_array, py_sample_sets,
@@ -9984,6 +9985,9 @@ TreeSequence_pair_coalescence_counts(TreeSequence *self, PyObject *args, PyObjec
     }
     if (span_normalise) {
         options |= TSK_STAT_SPAN_NORMALISE;
+    }
+    if (pair_normalise) {
+        options |= TSK_STAT_PAIR_NORMALISE;
     }
 
     dims[0] = (npy_intp) num_windows;
@@ -10011,6 +10015,122 @@ out:
     Py_XDECREF(windows_array);
     Py_XDECREF(indexes_array);
     Py_XDECREF(node_bin_map_array);
+    Py_XDECREF(result_array);
+    return ret;
+}
+
+static int
+parse_quantiles(
+    PyObject *quantiles, PyArrayObject **ret_array, tsk_size_t *ret_num_quantiles)
+{
+    int ret = -1;
+    tsk_size_t num_quantiles = 0;
+    PyArrayObject *quantiles_array = NULL;
+    npy_intp *shape;
+
+    quantiles_array = (PyArrayObject *) PyArray_FROMANY(
+        quantiles, NPY_FLOAT64, 1, 1, NPY_ARRAY_IN_ARRAY);
+    if (quantiles_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(quantiles_array);
+    if (shape[0] < 1) {
+        PyErr_SetString(PyExc_ValueError, "Must supply at least one quantile.");
+        goto out;
+    }
+    num_quantiles = (tsk_size_t) shape[0];
+    ret = 0;
+out:
+    *ret_num_quantiles = num_quantiles;
+    *ret_array = quantiles_array;
+    return ret;
+}
+
+static PyObject *
+TreeSequence_pair_coalescence_quantiles(
+    TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+
+    static char *kwlist[] = { "windows", "sample_set_sizes", "sample_sets", "indexes",
+        "node_bin_map", "quantiles", NULL };
+    PyObject *py_sample_set_sizes = Py_None;
+    PyObject *py_sample_sets = Py_None;
+    PyObject *py_windows = Py_None;
+    PyObject *py_node_bin_map = Py_None;
+    PyObject *py_indexes = Py_None;
+    PyObject *py_quantiles = Py_None;
+    PyArrayObject *result_array = NULL;
+    PyArrayObject *windows_array = NULL;
+    PyArrayObject *node_bin_map_array = NULL;
+    PyArrayObject *indexes_array = NULL;
+    PyArrayObject *quantiles_array = NULL;
+    PyArrayObject *sample_set_sizes_array = NULL;
+    PyArrayObject *sample_sets_array = NULL;
+    npy_intp dims[3];
+    tsk_flags_t options = 0;
+    tsk_size_t num_indexes = 0;
+    tsk_size_t num_sample_sets = 0;
+    tsk_size_t num_windows = 0;
+    tsk_size_t num_bins = 0;
+    tsk_size_t num_quantiles = 0;
+    int err;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOOOO", kwlist, &py_windows,
+            &py_sample_set_sizes, &py_sample_sets, &py_indexes, &py_node_bin_map,
+            &py_quantiles)) {
+        goto out;
+    }
+    if (parse_sample_sets(py_sample_set_sizes, &sample_set_sizes_array, py_sample_sets,
+            &sample_sets_array, &num_sample_sets)
+        != 0) {
+        goto out;
+    }
+    if (parse_windows(py_windows, &windows_array, &num_windows) != 0) {
+        goto out;
+    }
+    if (parse_set_indexes(py_indexes, &indexes_array, &num_indexes, 2) != 0) {
+        goto out;
+    }
+    if (parse_node_bin_map(py_node_bin_map, &node_bin_map_array, &num_bins,
+            tsk_treeseq_get_num_nodes(self->tree_sequence))
+        != 0) {
+        goto out;
+    }
+    if (parse_quantiles(py_quantiles, &quantiles_array, &num_quantiles) != 0) {
+        goto out;
+    }
+
+    dims[0] = (npy_intp) num_windows;
+    dims[1] = (npy_intp) num_indexes;
+    dims[2] = (npy_intp) num_quantiles;
+    result_array = (PyArrayObject *) PyArray_SimpleNew(3, dims, NPY_FLOAT64);
+    if (result_array == NULL) {
+        goto out;
+    }
+
+    err = tsk_treeseq_pair_coalescence_quantiles(self->tree_sequence, num_sample_sets,
+        PyArray_DATA(sample_set_sizes_array), PyArray_DATA(sample_sets_array),
+        num_indexes, PyArray_DATA(indexes_array), num_windows,
+        PyArray_DATA(windows_array), num_bins, PyArray_DATA(node_bin_map_array),
+        num_quantiles, PyArray_DATA(quantiles_array), options,
+        PyArray_DATA(result_array));
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = (PyObject *) result_array;
+    result_array = NULL;
+out:
+    Py_XDECREF(sample_set_sizes_array);
+    Py_XDECREF(sample_sets_array);
+    Py_XDECREF(windows_array);
+    Py_XDECREF(indexes_array);
+    Py_XDECREF(node_bin_map_array);
+    Py_XDECREF(quantiles_array);
     Py_XDECREF(result_array);
     return ret;
 }
@@ -10859,6 +10979,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_pair_coalescence_counts,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Computes the number of coalescing pairs per node." },
+    { .ml_name = "pair_coalescence_quantiles",
+        .ml_meth = (PyCFunction) TreeSequence_pair_coalescence_quantiles,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Estimates quantiles of pair coalescence times." },
     { .ml_name = "split_edges",
         .ml_meth = (PyCFunction) TreeSequence_split_edges,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,

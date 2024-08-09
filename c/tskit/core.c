@@ -494,6 +494,13 @@ tsk_strerror_internal(int err)
             ret = "Maximum index in node-to-bin map does not match "
                   "output dimension. (TSK_ERR_BAD_NODE_BIN_MAP_DIM)";
             break;
+        case TSK_ERR_BAD_QUANTILES:
+            ret = "Quantiles must be between 0 and 1 (inclusive) "
+                  "and strictly increasing. (TSK_ERR_BAD_QUANTILES)";
+            break;
+        case TSK_ERR_UNSORTED_TIMES:
+            ret = "Times must be strictly increasing. (TSK_ERR_UNSORTED_TIMES)";
+            break;
 
         /* Mutation mapping errors */
         case TSK_ERR_GENOTYPES_ALL_MISSING:
