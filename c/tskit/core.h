@@ -370,6 +370,11 @@ One of the rows in the retained table refers to a row that has been
 deleted.
 */
 #define TSK_ERR_KEEP_ROWS_MAP_TO_DELETED                            -212
+/**
+A genomic position was less than zero or greater equal to the sequence
+length
+*/
+#define TSK_ERR_POSITION_OUT_OF_BOUNDS                              -213
 
 /** @} */
 
@@ -710,6 +715,22 @@ The vector of quantiles is out of bounds or in nonascending order.
 Times are not in ascending order
 */
 #define TSK_ERR_UNSORTED_TIMES                                      -917
+/*
+The provided positions are not provided in strictly increasing order
+*/
+#define TSK_ERR_STAT_UNSORTED_POSITIONS                             -918
+/**
+The provided positions are not unique
+*/
+#define TSK_ERR_STAT_DUPLICATE_POSITIONS                            -919
+/**
+The provided sites are not provided in strictly increasing position order
+*/
+#define TSK_ERR_STAT_UNSORTED_SITES                                 -920
+/**
+The provided sites are not unique
+*/
+#define TSK_ERR_STAT_DUPLICATE_SITES                                -921
 /** @} */
 
 /**

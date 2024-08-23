@@ -226,6 +226,9 @@ tsk_strerror_internal(int err)
             ret = "One of the kept rows in the table refers to a deleted row. "
                   "(TSK_ERR_KEEP_ROWS_MAP_TO_DELETED)";
             break;
+        case TSK_ERR_POSITION_OUT_OF_BOUNDS:
+            ret = "Position out of bounds. (TSK_ERR_POSITION_OUT_OF_BOUNDS)";
+            break;
 
         /* Edge errors */
         case TSK_ERR_NULL_PARENT:
@@ -500,6 +503,24 @@ tsk_strerror_internal(int err)
             break;
         case TSK_ERR_UNSORTED_TIMES:
             ret = "Times must be strictly increasing. (TSK_ERR_UNSORTED_TIMES)";
+            break;
+
+        /* Two locus errors */
+        case TSK_ERR_STAT_UNSORTED_POSITIONS:
+            ret = "The provided positions are not sorted in strictly increasing "
+                  "order. (TSK_ERR_STAT_UNSORTED_POSITIONS)";
+            break;
+        case TSK_ERR_STAT_DUPLICATE_POSITIONS:
+            ret = "The provided positions contain duplicates. "
+                  "(TSK_ERR_STAT_DUPLICATE_POSITIONS)";
+            break;
+        case TSK_ERR_STAT_UNSORTED_SITES:
+            ret = "The provided sites are not sorted in strictly increasing position "
+                  "order. (TSK_ERR_STAT_UNSORTED_SITES)";
+            break;
+        case TSK_ERR_STAT_DUPLICATE_SITES:
+            ret = "The provided sites contain duplicated entries. "
+                  "(TSK_ERR_STAT_DUPLICATE_SITES)";
             break;
 
         /* Mutation mapping errors */

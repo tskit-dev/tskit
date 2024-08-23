@@ -7576,31 +7576,53 @@ class TreeSequence:
                 stat = stat[()]
         return stat
 
+    def parse_sites(self, sites):
+        row_sites, col_sites = None, None
+        if sites is not None:
+            if any(not hasattr(a, "__getitem__") or isinstance(a, str) for a in sites):
+                raise ValueError("Sites must be a list of lists, tuples, or ndarrays")
+            if len(sites) == 2:
+                row_sites, col_sites = sites
+            elif len(sites) == 1:
+                row_sites = col_sites = sites[0]
+            else:
+                raise ValueError(
+                    f"Sites must be a length 1 or 2 list, got a length {len(sites)} list"
+                )
+        return row_sites, col_sites
+
+    def parse_positions(self, positions):
+        row_positions, col_positions = None, None
+        if positions is not None:
+            if any(
+                not hasattr(a, "__getitem__") or isinstance(a, str) for a in positions
+            ):
+                raise ValueError(
+                    "Positions must be a list of lists, tuples, or ndarrays"
+                )
+            if len(positions) == 2:
+                row_positions, col_positions = positions
+            elif len(positions) == 1:
+                row_positions = col_positions = positions[0]
+            else:
+                raise ValueError(
+                    "Positions must be a length 1 or 2 list, "
+                    f"got a length {len(positions)} list"
+                )
+        return row_positions, col_positions
+
     def __two_locus_sample_set_stat(
         self,
         ll_method,
         sample_sets,
         sites=None,
+        positions=None,
         mode=None,
     ):
         if sample_sets is None:
             sample_sets = self.samples()
-        if sites is not None and any(
-            not hasattr(a, "__getitem__") or isinstance(a, str) for a in sites
-        ):
-            raise ValueError("Sites must be a list of lists, tuples, or ndarrays")
-
-        if sites is None:
-            row_sites = np.arange(self.num_sites, dtype=np.int32)
-            col_sites = np.arange(self.num_sites, dtype=np.int32)
-        elif len(sites) == 2:
-            row_sites, col_sites = sites
-        elif len(sites) == 1:
-            row_sites = col_sites = sites[0]
-        else:
-            raise ValueError(
-                f"Sites must be a length 1 or 2 list, got a length {len(sites)} list"
-            )
+        row_sites, col_sites = self.parse_sites(sites)
+        row_positions, col_positions = self.parse_positions(positions)
 
         # First try to convert to a 1D numpy array. If we succeed, then we strip off
         # the corresponding dimension from the output.
@@ -7624,7 +7646,15 @@ class TreeSequence:
 
         flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
 
-        result = ll_method(sample_set_sizes, flattened, row_sites, col_sites, mode)
+        result = ll_method(
+            sample_set_sizes,
+            flattened,
+            row_sites,
+            col_sites,
+            row_positions,
+            col_positions,
+            mode,
+        )
 
         if drop_dimension:
             result = result.reshape(result.shape[:2])
@@ -9522,7 +9552,9 @@ class TreeSequence:
             mutations_time[unknown] = self.nodes_time[self.mutations_node[unknown]]
             return mutations_time
 
-    def ld_matrix(self, sample_sets=None, sites=None, mode="site", stat="r2"):
+    def ld_matrix(
+        self, sample_sets=None, sites=None, positions=None, mode="site", stat="r2"
+    ):
         stats = {
             "D": self._ll_tree_sequence.D_matrix,
             "D2": self._ll_tree_sequence.D2_matrix,
@@ -9531,6 +9563,9 @@ class TreeSequence:
             "r": self._ll_tree_sequence.r_matrix,
             "Dz": self._ll_tree_sequence.Dz_matrix,
             "pi2": self._ll_tree_sequence.pi2_matrix,
+            "Dz_unbiased": self._ll_tree_sequence.Dz_unbiased_matrix,
+            "D2_unbiased": self._ll_tree_sequence.D2_unbiased_matrix,
+            "pi2_unbiased": self._ll_tree_sequence.pi2_unbiased_matrix,
         }
 
         try:
@@ -9544,6 +9579,7 @@ class TreeSequence:
             two_locus_stat,
             sample_sets,
             sites=sites,
+            positions=positions,
             mode=mode,
         )
 
