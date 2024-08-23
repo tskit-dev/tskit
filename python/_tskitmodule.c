@@ -9448,10 +9448,11 @@ TreeSequence_allele_frequency_spectrum(
     PyArrayObject *sample_set_sizes_array = NULL;
     PyArrayObject *sample_sets_array = NULL;
     PyArrayObject *windows_array = NULL;
+    PyArrayObject *time_windows_array = NULL;
     PyArrayObject *result_array = NULL;
     tsk_size_t *sizes;
     npy_intp *shape = NULL;
-    tsk_size_t k, num_windows, num_sample_sets;
+    tsk_size_t k, num_windows, num_time_windows, num_sample_sets;
     tsk_flags_t options = 0;
     int polarised = 0;
     int span_normalise = 1;
@@ -9498,7 +9499,8 @@ TreeSequence_allele_frequency_spectrum(
     }
     err = tsk_treeseq_allele_frequency_spectrum(self->tree_sequence, num_sample_sets,
         PyArray_DATA(sample_set_sizes_array), PyArray_DATA(sample_sets_array),
-        num_windows, PyArray_DATA(windows_array), options, PyArray_DATA(result_array));
+        num_windows, PyArray_DATA(windows_array), num_time_windows,
+        PyArray_DATA(time_windows_array), options, PyArray_DATA(result_array));
     if (err != 0) {
         handle_library_error(err);
         goto out;
