@@ -25,7 +25,6 @@ Test cases for two-locus statistics
 import contextlib
 import io
 from dataclasses import dataclass
-from itertools import combinations
 from itertools import combinations_with_replacement
 from itertools import permutations
 from itertools import product
@@ -631,14 +630,14 @@ def get_index_repeats(indices):
 def two_branch_count_stat(
     ts: tskit.TreeSequence,
     func: Callable[[int, np.ndarray, np.ndarray, Dict[str, Any]], None],
-    norm_func,  # TODO: might need for polarisation
+    norm_func,
     num_sample_sets: int,
     sample_set_sizes: np.ndarray,
     sample_sets: BitSet,
     sample_index_map: np.ndarray,
     row_trees: np.ndarray,
     col_trees: np.ndarray,
-    polarised: bool,  # TODO: polarisation
+    polarised: bool,
 ) -> np.ndarray:
     """
     Compute a tree X tree LD matrix by walking along the tree sequence and
@@ -1090,8 +1089,8 @@ SUMMARY_FUNCS = {
     "D_prime": D_prime_summary_func,
     "pi2": pi2_summary_func,
     "Dz": Dz_summary_func,
-    "d2_unbiased": d2_unbiased,
-    "dz_unbiased": dz_unbiased,
+    "D2_unbiased": d2_unbiased,
+    "Dz_unbiased": dz_unbiased,
     "pi2_unbiased": pi2_unbiased,
 }
 
@@ -1103,9 +1102,9 @@ NORM_METHOD = {
     pi2_summary_func: norm_total_weighted,
     r_summary_func: norm_total_weighted,
     r2_summary_func: norm_hap_weighted,
-    d2_unbiased: None,
-    dz_unbiased: None,
-    pi2_unbiased: None,
+    d2_unbiased: norm_total_weighted,
+    dz_unbiased: norm_total_weighted,
+    pi2_unbiased: norm_total_weighted,
 }
 
 POLARIZATION = {
@@ -1276,7 +1275,11 @@ def test_subset_positions(partition):
     bp = ts.breakpoints(as_array=True)
     mid = (bp[1:] + bp[:-1]) / 2
     np.testing.assert_allclose(
-        ld_matrix(ts, mode="branch", stat="d2_unbiased", positions=[mid[a], mid[b]]),
+        ld_matrix(ts, mode="branch", stat="D2_unbiased", positions=[mid[a], mid[b]]),
+        PAPER_EX_BRANCH_TRUTH_MATRIX[a[0] : a[-1] + 1, b[0] : b[-1] + 1],
+    )
+    np.testing.assert_allclose(
+        ts.ld_matrix(mode="branch", stat="D2_unbiased", positions=[mid[a], mid[b]]),
         PAPER_EX_BRANCH_TRUTH_MATRIX[a[0] : a[-1] + 1, b[0] : b[-1] + 1],
     )
 
@@ -1321,7 +1324,13 @@ def test_subset_positions_one_list(tree_index):
     bp = ts.breakpoints(as_array=True)
     mid = (bp[1:] + bp[:-1]) / 2
     np.testing.assert_allclose(
-        ld_matrix(ts, mode="branch", stat="d2_unbiased", positions=[mid[tree_index]]),
+        ld_matrix(ts, mode="branch", stat="D2_unbiased", positions=[mid[tree_index]]),
+        PAPER_EX_BRANCH_TRUTH_MATRIX[
+            tree_index[0] : tree_index[-1] + 1, tree_index[0] : tree_index[-1] + 1
+        ],
+    )
+    np.testing.assert_allclose(
+        ts.ld_matrix(mode="branch", stat="D2_unbiased", positions=[mid[tree_index]]),
         PAPER_EX_BRANCH_TRUTH_MATRIX[
             tree_index[0] : tree_index[-1] + 1, tree_index[0] : tree_index[-1] + 1
         ],
@@ -1363,7 +1372,11 @@ def test_repeated_position_elements(tree_index):
 
     np.testing.assert_allclose(
         truth,
-        ld_matrix(ts, mode="branch", stat="d2_unbiased", positions=[l_pos, r_pos]),
+        ld_matrix(ts, mode="branch", stat="D2_unbiased", positions=[l_pos, r_pos]),
+    )
+    np.testing.assert_allclose(
+        truth,
+        ts.ld_matrix(mode="branch", stat="D2_unbiased", positions=[l_pos, r_pos]),
     )
 
 
@@ -1378,7 +1391,7 @@ def test_sample_sets(partition):
     :param partition: length 2 list of [ss_1, ss_2].
     """
     ts = get_paper_ex_ts()
-    np.testing.assert_array_almost_equal(
+    np.testing.assert_allclose(
         ld_matrix(ts, sample_sets=partition), ts.ld_matrix(sample_sets=partition)
     )
 
@@ -1394,7 +1407,7 @@ def test_compare_to_ld_calculator():
 
 @pytest.mark.parametrize(
     "stat",
-    sorted(SUMMARY_FUNCS.keys() - {"d2_unbiased", "dz_unbiased", "pi2_unbiased"}),
+    sorted(SUMMARY_FUNCS.keys()),
 )
 def test_multiallelic_with_back_mutation(stat):
     ts = msprime.sim_ancestry(
@@ -1417,7 +1430,7 @@ def test_multiallelic_with_back_mutation(stat):
 # TODO: port unbiased summary functions
 @pytest.mark.parametrize(
     "stat",
-    sorted(SUMMARY_FUNCS.keys() - {"d2_unbiased", "dz_unbiased", "pi2_unbiased"}),
+    sorted(SUMMARY_FUNCS.keys()),
 )
 def test_ld_matrix(ts, stat):
     np.testing.assert_array_almost_equal(
@@ -1432,12 +1445,15 @@ def test_ld_matrix(ts, stat):
 def test_ld_empty_examples(ts):
     with pytest.raises(ValueError, match="at least one element"):
         ts.ld_matrix()
+    with pytest.raises(ValueError, match="at least one element"):
+        ts.ld_matrix(mode="branch")
 
 
 def test_input_validation():
     ts = get_paper_ex_ts()
     with pytest.raises(ValueError, match="Unknown two-locus statistic"):
         ts.ld_matrix(stat="bad_stat")
+
     with pytest.raises(ValueError, match="must be a list of"):
         ts.ld_matrix(sites=["abc"])
     with pytest.raises(ValueError, match="must be a list of"):
@@ -1445,7 +1461,18 @@ def test_input_validation():
     with pytest.raises(ValueError, match="must be a length 1 or 2 list"):
         ts.ld_matrix(sites=[[1, 2], [2, 3], [3, 4]])
     with pytest.raises(ValueError, match="must be a length 1 or 2 list"):
+        ts.ld_matrix(sites=[[1, 2], [2, 3], [3, 4]])
+    with pytest.raises(ValueError, match="must be a length 1 or 2 list"):
         ts.ld_matrix(sites=[])
+
+    with pytest.raises(ValueError, match="must be a list of"):
+        ts.ld_matrix(positions=["abc"], mode="branch")
+    with pytest.raises(ValueError, match="must be a list of"):
+        ts.ld_matrix(positions=[1.0, 2.0, 3.0], mode="branch")
+    with pytest.raises(ValueError, match="must be a length 1 or 2 list"):
+        ts.ld_matrix(positions=[[1.0, 2.0], [2.0, 3.0], [3.0, 4.0]], mode="branch")
+    with pytest.raises(ValueError, match="must be a length 1 or 2 list"):
+        ts.ld_matrix(positions=[], mode="branch")
 
 
 @dataclass
@@ -1479,7 +1506,9 @@ class TreeState:
         for n in range(ts.num_nodes):
             for k in range(num_sample_sets):
                 if sample_sets.contains(k, sample_index_map[n]):
-                    self.node_samples.add((num_sample_sets * n) + k, n)
+                    self.node_samples.add(
+                        (num_sample_sets * n) + k, sample_index_map[n]
+                    )
         # these are empty for the uninitialized state (index = -1)
         self.edges_in = []
         self.edges_out = []
@@ -1730,188 +1759,51 @@ def compute_branch_stat(ts, stat_func, stat, params, state_dim, l_state, r_state
     return stat, r_state
 
 
-# What follows is an implementation of two-locus statistics as described in
-# McVean 2002 (https://doi.org/10.1093/genetics/162.2.987). We compute the
-# covariance between coalescent times to produce expectations of coalescent
-# times between three sampling patterns of samples. These expectations can be
-# compined to produce D2, Dz, and pi2. These are for testing and to demonstrate
-# conceptual parity between our method and McVean's method.
-
-
-def tmrca(tr, x, y):
-    """
-    Mirror the functionality in the branch two-locus stats. We want to compute
-    the contribution of each subset of samples. If there is no most recent common
-    ancestor, we walk up the tree and find each sample's individual MRCA (which
-    as written is realy just the root of the tree). This is to work around the case
-    of empty, gapped, and decapitated trees.
-    """
-    try:
-        # First, we try to get the tmrca
-        return tr.tmrca(x, y)
-    except ValueError as e:
-        # If we cannot, crawl up as far as the sample is connected
-        x_mrca, y_mrca = -1, -1
-        if "not share a common ancestor" not in str(e):
-            raise e
-        for r in tr.roots:
-            if x in set(tr.samples(r)):
-                x_mrca = r
-            if y in set(tr.samples(r)):
-                y_mrca = r
-        if x_mrca == -1 or y_mrca == -1:
-            raise ValueError
-        return (tr.time(x_mrca) + tr.time(y_mrca)) / 2
-
-
-def compute_D2(x, y, ij, ijk, ijkl):
-    E_ijij = 0
-    E_ijik = 0
-    E_ijkl = 0
-    if len(ij) == 0 or len(ijk) == 0 or len(ijkl) == 0:
-        # this method requires at least 4 samples
-        return float("nan")
-    for i, j in ij:
-        i_time = x.time(i)
-        j_time = x.time(j)
-        ij_time = (i_time + j_time) / 2
-        E_ijij += (tmrca(x, i, j) - ij_time) * (tmrca(y, i, j) - ij_time)
-    for i, j, k in ijk:
-        i_time = x.time(i)
-        j_time = x.time(j)
-        k_time = x.time(k)
-        ij_time = (i_time + j_time) / 2
-        ik_time = (i_time + k_time) / 2
-        E_ijik += (tmrca(x, i, j) - ij_time) * (tmrca(y, i, k) - ik_time)
-    for i, j, k, l in ijkl:
-        i_time = x.time(i)
-        j_time = x.time(j)
-        k_time = x.time(k)
-        l_time = x.time(l)
-        ij_time = (i_time + j_time) / 2
-        kl_time = (k_time + l_time) / 2
-        E_ijkl += (tmrca(x, i, j) - ij_time) * (tmrca(y, k, l) - kl_time)
-    E_ijij = E_ijij / len(ij)
-    E_ijik = E_ijik / len(ijk)
-    E_ijkl = E_ijkl / len(ijkl)
-    return E_ijij - 2 * E_ijik + E_ijkl
-
-
-def compute_Dz(x, y, ij, ijk, ijkl):
-    E_ijik = 0
-    E_ijkl = 0
-    if len(ijk) == 0 or len(ijkl) == 0:
-        # this method requires at least 4 samples
-        return float("nan")
-    for i, j, k in ijk:
-        i_time = x.time(i)
-        j_time = x.time(j)
-        k_time = x.time(k)
-        ij_time = (i_time + j_time) / 2
-        ik_time = (i_time + k_time) / 2
-        E_ijik += (tmrca(x, i, j) - ij_time) * (tmrca(y, i, k) - ik_time)
-    for i, j, k, l in ijkl:
-        i_time = x.time(i)
-        j_time = x.time(j)
-        k_time = x.time(k)
-        l_time = x.time(l)
-        ij_time = (i_time + j_time) / 2
-        kl_time = (k_time + l_time) / 2
-        E_ijkl += (tmrca(x, i, j) - ij_time) * (tmrca(y, k, l) - kl_time)
-    E_ijik = E_ijik / len(ijk)
-    E_ijkl = E_ijkl / len(ijkl)
-    return 4 * (E_ijik - E_ijkl)
-
-
-def compute_pi2(x, y, ij, ijk, ijkl):
-    E_ijkl = 0
-    if len(ijkl) == 0:
-        # this method requires at least 4 samples
-        return float("nan")
-    for i, j, k, l in ijkl:
-        i_time = x.time(i)
-        j_time = x.time(j)
-        k_time = x.time(k)
-        l_time = x.time(l)
-        ij_time = (i_time + j_time) / 2
-        kl_time = (k_time + l_time) / 2
-        E_ijkl += (tmrca(x, i, j) - ij_time) * (tmrca(y, k, l) - kl_time)
-    E_ijkl = E_ijkl / len(ijkl)
-    return E_ijkl
-
-
-def combine(samples):
-    # All combinations where i != j
-    ij = list(combinations(samples, 2))
-    # All combinations where i != {j,k} and j != k
-    ijk = [
-        (i, j, k)
-        for i, j, k in product(samples, repeat=3)
-        if i != k and i != j and j != k
-    ]
-    # All combinations where i != {k,l} and j != {k,l}
-    ijkl = [
-        (i, j, samples[k], samples[l])
-        for i, j in combinations(samples, 2)
-        for k in range(len(samples))
-        for l in range(k + 1, len(samples))  # noqa: E741
-        if i != samples[k] and j != samples[k] and samples[l] != i and samples[l] != j
-    ]
-    return ij, ijk, ijkl
-
-
-def naive_matrix(ts, stat_func, sample_set=None):
-    """Compute a tree x tree LD matrix for a given tree sequence and two-locus
-    statistic. This produces a matrix of LD that is generated from the
-    covariance in gene genealogies, as described in McVean 2002.
-
-    :param ts: Tree sequence to gather data from.
-    :param stat_func: Function to compute a two-locus statistic from two
-                      materialized trees and sample combinations.
-    :returns: Pairwise branch LD matrix for an entire tree sequence.
-    """
-    result = np.zeros((ts.num_trees, ts.num_trees), dtype=np.float64)
-    # These stats require at least 4 samples in the tree
-    ij, ijk, ijkl = combine(sample_set or ts.samples())
-    for i, j in combinations_with_replacement(range(ts.num_trees), 2):
-        val = stat_func(ts.at_index(i), ts.at_index(j), ij, ijk, ijkl)
-        result[i, j] = val
-    tri_idx = np.tril_indices(len(result), k=-1)
-    result[tri_idx] = result.T[tri_idx]
-    return result
-
-
 @pytest.mark.parametrize(
     "ts",
     [
         ts
         for ts in get_example_tree_sequences()
-        # no_samples and empty_ts aren't handled here.
         if ts.id
-        in {
-            # We only perform tests on a useful subset of the example trees due to
-            # runtime constraints of the naive McVean implementation. We plan to expand
-            # coverage to more examples after implementing the C version
-            "all_nodes_samples",
-            "internal_nodes_samples",
-            "mixed_internal_leaf_samples",
-            "n=2_m=32_rho=0.5",
-            "bottleneck_n=10_mutated",
-            "rev_node_order",
-            "decapitate",
+        not in {
+            "no_samples",
+            "empty_ts",
+            # We must skip these cases so that tests run in a reasonable
+            # amount of time. To get more complete testing, these filters
+            # can be commented out. (runtime ~1hr)
+            "gap_0",
+            "gap_0.1",
+            "gap_0.5",
+            "gap_0.75",
+            "n=2_m=32_rho=0",
+            "n=10_m=1_rho=0",
+            "n=10_m=1_rho=0.1",
+            "n=10_m=2_rho=0",
+            "n=10_m=2_rho=0.1",
+            "n=10_m=32_rho=0",
+            "n=10_m=32_rho=0.1",
+            "n=10_m=32_rho=0.5",
+            # we keep one n=100 case to ensure bit arrays are working
+            "n=100_m=1_rho=0.1",
+            "n=100_m=1_rho=0.5",
+            "n=100_m=2_rho=0",
+            "n=100_m=2_rho=0.1",
+            "n=100_m=2_rho=0.5",
+            "n=100_m=32_rho=0",
+            "n=100_m=32_rho=0.1",
+            "n=100_m=32_rho=0.5",
+            "all_fields",
+            "back_mutations",
+            "multichar",
+            "multichar_no_metadata",
+            "bottleneck_n=100_mutated",
         }
     ],
 )
-@pytest.mark.parametrize(
-    "stat,stat_func",
-    zip(
-        ["d2_unbiased", "dz_unbiased", "pi2_unbiased"],
-        [compute_D2, compute_Dz, compute_pi2],
-    ),
-)
-def test_branch_ld_matrix(ts, stat, stat_func):
+@pytest.mark.parametrize("stat", sorted(SUMMARY_FUNCS.keys()))
+def test_branch_ld_matrix(ts, stat):
     np.testing.assert_array_almost_equal(
-        ld_matrix(ts, stat=stat, mode="branch"), naive_matrix(ts, stat_func)
+        ts.ld_matrix(stat=stat, mode="branch"), ld_matrix(ts, stat=stat, mode="branch")
     )
 
 
@@ -1933,23 +1825,16 @@ def get_test_branch_sample_set_test_cases():
             [[1, 2, 4, 9]],
             id="bottleneck_n=10_mutated",
         ),
-        pytest.param(
-            p_dict["multichar"].values[0], [[10, 11, 12, 13, 14, 15]], id="multichar"
-        ),
         pytest.param(p_dict["gap_at_end"].values[0], [[1, 3, 5, 8]], id="gap_at_end"),
     ]
 
 
 @pytest.mark.parametrize("ts,sample_set", get_test_branch_sample_set_test_cases())
-@pytest.mark.parametrize(
-    "stat,stat_func",
-    zip(
-        ["d2_unbiased", "dz_unbiased", "pi2_unbiased"],
-        [compute_D2, compute_Dz, compute_pi2],
-    ),
-)
-def test_branch_ld_matrix_sample_sets(ts, sample_set, stat, stat_func):
+@pytest.mark.parametrize("stat", sorted(SUMMARY_FUNCS.keys()))
+def test_branch_ld_matrix_sample_sets(ts, sample_set, stat):
     np.testing.assert_array_almost_equal(
-        ld_matrix(ts, stat=stat, mode="branch", sample_sets=sample_set),
-        naive_matrix(ts, stat_func, sample_set[0]),
+        np.expand_dims(
+            ld_matrix(ts, stat=stat, mode="branch", sample_sets=sample_set), axis=0
+        ),
+        ts.ld_matrix(stat=stat, mode="branch", sample_sets=sample_set),
     )

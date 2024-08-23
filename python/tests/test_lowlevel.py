@@ -1522,101 +1522,173 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             "r_matrix",
             "Dz_matrix",
             "pi2_matrix",
+            "D2_unbiased_matrix",
+            "Dz_unbiased_matrix",
+            "pi2_unbiased_matrix",
         ],
     )
     def test_ld_matrix(self, stat_method_name):
         ts = self.get_example_tree_sequence(10)
         stat_method = getattr(ts, stat_method_name)
 
-        mode = "site"
-        sample_sets = ts.get_samples()
-        sample_set_sizes = np.array([len(sample_sets)], dtype=np.uint32)
+        ss = ts.get_samples()  # sample sets
+        ss_sizes = np.array([len(ss)], dtype=np.uint32)
         row_sites = np.arange(ts.get_num_sites(), dtype=np.int32)
         col_sites = row_sites
+        row_pos = ts.get_breakpoints()[:-1]
+        col_pos = row_pos
+        row_pos_list = list(map(float, ts.get_breakpoints()[:-1]))
+        col_pos_list = row_pos_list
         row_sites_list = list(range(ts.get_num_sites()))
         col_sites_list = row_sites_list
 
         # happy path
-        a = stat_method(sample_set_sizes, sample_sets, row_sites, col_sites, mode)
+        a = stat_method(ss_sizes, ss, row_sites, col_sites, None, None, "site")
         assert a.shape == (10, 10, 1)
-
         a = stat_method(
-            sample_set_sizes, sample_sets, row_sites_list, col_sites_list, mode
+            ss_sizes, ss, row_sites_list, col_sites_list, None, None, "site"
         )
         assert a.shape == (10, 10, 1)
+        a = stat_method(ss_sizes, ss, None, None, None, None, "site")
+        assert a.shape == (10, 10, 1)
+
+        a = stat_method(ss_sizes, ss, None, None, row_pos, col_pos, "branch")
+        assert a.shape == (2, 2, 1)
+        a = stat_method(ss_sizes, ss, None, None, row_pos_list, col_pos_list, "branch")
+        assert a.shape == (2, 2, 1)
+        a = stat_method(ss_sizes, ss, None, None, None, None, "branch")
+        assert a.shape == (2, 2, 1)
 
         # CPython API errors
         with pytest.raises(ValueError, match="Sum of sample_set_sizes"):
-            bad_sample_sets = np.array([], dtype=np.int32)
-            stat_method(sample_set_sizes, bad_sample_sets, row_sites, col_sites, mode)
+            bad_ss = np.array([], dtype=np.int32)
+            stat_method(ss_sizes, bad_ss, row_sites, col_sites, None, None, "site")
         with pytest.raises(TypeError, match="cast array data"):
-            bad_sample_sets = np.array(ts.get_samples(), dtype=np.uint32)
-            stat_method(sample_set_sizes, bad_sample_sets, row_sites, col_sites, mode)
+            bad_ss = np.array(ts.get_samples(), dtype=np.uint32)
+            stat_method(ss_sizes, bad_ss, row_sites, col_sites, None, None, "site")
         with pytest.raises(ValueError, match="Unrecognised stats mode"):
-            stat_method(sample_set_sizes, sample_sets, row_sites, col_sites, "bla")
+            stat_method(ss_sizes, ss, row_sites, col_sites, None, None, "bla")
         with pytest.raises(TypeError, match="at most"):
-            stat_method(
-                sample_set_sizes, sample_sets, row_sites, col_sites, mode, "abc"
-            )
+            stat_method(ss_sizes, ss, row_sites, col_sites, None, None, "site", "abc")
         with pytest.raises(ValueError, match="invalid literal"):
             bad_sites = ["abadsite", 0, 3, 2]
-            stat_method(sample_set_sizes, sample_sets, bad_sites, col_sites, mode)
+            stat_method(ss_sizes, ss, bad_sites, col_sites, None, None, "site")
         with pytest.raises(TypeError):
             bad_sites = [None, 0, 3, 2]
-            stat_method(sample_set_sizes, sample_sets, bad_sites, col_sites, mode)
+            stat_method(ss_sizes, ss, bad_sites, col_sites, None, None, "site")
         with pytest.raises(TypeError):
             bad_sites = [{}, 0, 3, 2]
-            stat_method(sample_set_sizes, sample_sets, bad_sites, col_sites, mode)
+            stat_method(ss_sizes, ss, bad_sites, col_sites, None, None, "site")
         with pytest.raises(TypeError, match="Cannot cast array data"):
             bad_sites = np.array([0, 1, 2], dtype=np.uint32)
-            stat_method(sample_set_sizes, sample_sets, bad_sites, col_sites, mode)
+            stat_method(ss_sizes, ss, bad_sites, col_sites, None, None, "site")
         with pytest.raises(ValueError, match="invalid literal"):
             bad_sites = ["abadsite", 0, 3, 2]
-            stat_method(sample_set_sizes, sample_sets, row_sites, bad_sites, mode)
+            stat_method(ss_sizes, ss, row_sites, bad_sites, None, None, "site")
         with pytest.raises(TypeError):
             bad_sites = [None, 0, 3, 2]
-            stat_method(sample_set_sizes, sample_sets, row_sites, bad_sites, mode)
+            stat_method(ss_sizes, ss, row_sites, bad_sites, None, None, "site")
         with pytest.raises(TypeError):
             bad_sites = [{}, 0, 3, 2]
-            stat_method(sample_set_sizes, sample_sets, row_sites, bad_sites, mode)
+            stat_method(ss_sizes, ss, row_sites, bad_sites, None, None, "site")
         with pytest.raises(TypeError, match="Cannot cast array data"):
             bad_sites = np.array([0, 1, 2], dtype=np.uint32)
-            stat_method(sample_set_sizes, sample_sets, row_sites, bad_sites, mode)
+            stat_method(ss_sizes, ss, row_sites, bad_sites, None, None, "site")
+        with pytest.raises(ValueError):
+            bad_pos = ["abadpos", 0.1, 0.2, 2.0]
+            stat_method(ss_sizes, ss, None, None, bad_pos, col_pos, "branch")
+        with pytest.raises(TypeError):
+            bad_pos = [{}, 0.1, 0.2, 2.0]
+            stat_method(ss_sizes, ss, None, None, bad_pos, col_pos, "branch")
+        with pytest.raises(ValueError):
+            bad_pos = ["abadpos", 0, 3, 2]
+            stat_method(ss_sizes, ss, None, None, row_pos, bad_pos, "branch")
+        with pytest.raises(TypeError):
+            bad_pos = [{}, 0, 3, 2]
+            stat_method(ss_sizes, ss, None, None, row_pos, bad_pos, "branch")
+        with pytest.raises(ValueError, match="Cannot specify sites in branch mode"):
+            stat_method(ss_sizes, ss, row_sites, col_sites, None, None, "branch")
+        with pytest.raises(ValueError, match="Cannot specify positions in site mode"):
+            stat_method(ss_sizes, ss, None, None, row_pos, col_pos, "site")
         # C API errors
-        with pytest.raises(tskit.LibraryError, match="TSK_ERR_UNSORTED_SITES"):
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_UNSORTED_SITES"):
             bad_sites = np.array([1, 0, 2], dtype=np.int32)
-            stat_method(sample_set_sizes, sample_sets, bad_sites, col_sites, mode)
-        with pytest.raises(tskit.LibraryError, match="TSK_ERR_UNSORTED_SITES"):
+            stat_method(ss_sizes, ss, bad_sites, col_sites, None, None, "site")
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_UNSORTED_SITES"):
             bad_sites = np.array([1, 0, 2], dtype=np.int32)
-            stat_method(sample_set_sizes, sample_sets, row_sites, bad_sites, mode)
+            stat_method(ss_sizes, ss, row_sites, bad_sites, None, None, "site")
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_SITES"):
+            bad_sites = np.array([1, 1, 2], dtype=np.int32)
+            stat_method(ss_sizes, ss, bad_sites, col_sites, None, None, "site")
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_SITES"):
+            bad_sites = np.array([1, 1, 2], dtype=np.int32)
+            stat_method(ss_sizes, ss, row_sites, bad_sites, None, None, "site")
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_SITE_OUT_OF_BOUNDS"):
+            bad_sites = np.array([-1, 0, 2], dtype=np.int32)
+            stat_method(ss_sizes, ss, bad_sites, col_sites, None, None, "site")
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_SITE_OUT_OF_BOUNDS"):
+            bad_sites = np.array([-1, 0, 2], dtype=np.int32)
+            stat_method(ss_sizes, ss, row_sites, bad_sites, None, None, "site")
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_UNSORTED_POSITIONS"):
+            bad_pos = np.array([0.7, 0, 0.8], dtype=np.float64)
+            stat_method(ss_sizes, ss, None, None, bad_pos, col_pos, "branch")
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_UNSORTED_POSITIONS"):
+            bad_pos = np.array([0.7, 0, 0.8], dtype=np.float64)
+            stat_method(ss_sizes, ss, None, None, row_pos, bad_pos, "branch")
+        with pytest.raises(
+            tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_POSITIONS"
+        ):
+            bad_pos = np.array([0.7, 0.7, 0.8], dtype=np.float64)
+            stat_method(ss_sizes, ss, None, None, bad_pos, col_pos, "branch")
+        with pytest.raises(
+            tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_POSITIONS"
+        ):
+            bad_pos = np.array([0.7, 0.7, 0.8], dtype=np.float64)
+            stat_method(ss_sizes, ss, None, None, row_pos, bad_pos, "branch")
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_POSITION_OUT_OF_BOUNDS"):
+            bad_pos = np.array([-0.1, 0.7, 0.8], dtype=np.float64)
+            stat_method(ss_sizes, ss, None, None, bad_pos, col_pos, "branch")
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_POSITION_OUT_OF_BOUNDS"):
+            bad_pos = np.array([-0.1, 0.7, 0.8], dtype=np.float64)
+            stat_method(ss_sizes, ss, None, None, row_pos, bad_pos, "branch")
         with pytest.raises(
             _tskit.LibraryError, match="TSK_ERR_INSUFFICIENT_SAMPLE_SETS"
         ):
-            bad_sample_sets = np.array([], dtype=np.int32)
-            bad_sample_set_sizes = np.array([], dtype=np.uint32)
-            stat_method(
-                bad_sample_set_sizes, bad_sample_sets, row_sites, col_sites, mode
-            )
+            bad_ss = np.array([], dtype=np.int32)
+            bad_ss_sizes = np.array([], dtype=np.uint32)
+            stat_method(bad_ss_sizes, bad_ss, row_sites, col_sites, None, None, "site")
+        with pytest.raises(
+            _tskit.LibraryError, match="TSK_ERR_INSUFFICIENT_SAMPLE_SETS"
+        ):
+            bad_ss = np.array([], dtype=np.int32)
+            bad_ss_sizes = np.array([], dtype=np.uint32)
+            stat_method(bad_ss_sizes, bad_ss, None, None, row_pos, col_pos, "branch")
         with pytest.raises(_tskit.LibraryError, match="TSK_ERR_EMPTY_SAMPLE_SET"):
-            bad_sample_sets = np.array([], dtype=np.int32)
-            bad_sample_set_sizes = np.array([0], dtype=np.uint32)
-            stat_method(
-                bad_sample_set_sizes, bad_sample_sets, row_sites, col_sites, mode
-            )
+            bad_ss = np.array([], dtype=np.int32)
+            bad_ss_sizes = np.array([0], dtype=np.uint32)
+            stat_method(bad_ss_sizes, bad_ss, row_sites, col_sites, None, None, "site")
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_EMPTY_SAMPLE_SET"):
+            bad_ss = np.array([], dtype=np.int32)
+            bad_ss_sizes = np.array([0], dtype=np.uint32)
+            stat_method(bad_ss_sizes, bad_ss, None, None, row_pos, col_pos, "branch")
         with pytest.raises(_tskit.LibraryError, match="TSK_ERR_NODE_OUT_OF_BOUNDS"):
-            bad_sample_sets = np.array([1000], dtype=np.int32)
-            bad_sample_set_sizes = np.array([1], dtype=np.uint32)
-            stat_method(
-                bad_sample_set_sizes, bad_sample_sets, row_sites, col_sites, mode
-            )
+            bad_ss = np.array([1000], dtype=np.int32)
+            bad_ss_sizes = np.array([1], dtype=np.uint32)
+            stat_method(bad_ss_sizes, bad_ss, row_sites, col_sites, None, None, "site")
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_NODE_OUT_OF_BOUNDS"):
+            bad_ss = np.array([1000], dtype=np.int32)
+            bad_ss_sizes = np.array([1], dtype=np.uint32)
+            stat_method(bad_ss_sizes, bad_ss, None, None, row_pos, col_pos, "branch")
         with pytest.raises(_tskit.LibraryError, match="TSK_ERR_DUPLICATE_SAMPLE"):
-            bad_sample_sets = np.array([2, 2], dtype=np.int32)
-            bad_sample_set_sizes = np.array([2], dtype=np.uint32)
-            stat_method(
-                bad_sample_set_sizes, bad_sample_sets, row_sites, col_sites, mode
-            )
+            bad_ss = np.array([2, 2], dtype=np.int32)
+            bad_ss_sizes = np.array([2], dtype=np.uint32)
+            stat_method(bad_ss_sizes, bad_ss, row_sites, col_sites, None, None, "site")
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_DUPLICATE_SAMPLE"):
+            bad_ss = np.array([2, 2], dtype=np.int32)
+            bad_ss_sizes = np.array([2], dtype=np.uint32)
+            stat_method(bad_ss_sizes, bad_ss, None, None, row_pos, col_pos, "branch")
         with pytest.raises(_tskit.LibraryError, match="TSK_ERR_UNSUPPORTED_STAT_MODE"):
-            stat_method(sample_set_sizes, sample_sets, row_sites, col_sites, "branch")
+            stat_method(ss_sizes, ss, col_sites, row_sites, None, None, "node")
 
     def test_kc_distance_errors(self):
         ts1 = self.get_example_tree_sequence(10)
