@@ -9522,6 +9522,106 @@ class TreeSequence:
 
         return coalescence_times
 
+    def pair_coalescence_rates(
+        self,
+        time_windows,
+        sample_sets=None,
+        indexes=None,
+        windows=None,
+    ):
+        """
+        Estimate the rate at which pairs of samples coalesce within time
+        windows, using the empirical cumulative distribution function (ecdf) of
+        pair coalescence times.  Assuming that pair coalescence events follow a
+        nonhomogeneous Poisson process, the empirical rate for a time window
+        :math:`[a, b)` where :math:`ecdf(b) < 1` is,
+
+        ..math:
+
+            log(1 - \\frac{ecdf(b) - ecdf(a)}{1 - ecdf(a)}) / (a - b)
+
+        If the last coalescence event is within :math:`[a, b)`, so that
+        :math:`ecdf(b) = 1`, then an estimate of the empirical rate is
+
+        ..math:
+
+            (\\mathbb{E}[t | t > a] - a)^{-1}
+
+        where :math:`\\mathbb{E}[t | t < a]` is the average pair coalescence time
+        conditional on coalescence after the start of the last epoch.
+
+        The first breakpoint in `time_windows` must start at the age of the
+        samples, and the last must end at infinity. In the output array, any
+        time windows that do not contain coalescence events will have `NaN`
+        values.
+
+        Pair coalescence rates may be calculated within or between the
+        non-overlapping lists of samples contained in `sample_sets`. In the
+        latter case, pairs are counted if they have exactly one member in each
+        of two sample sets. If `sample_sets` is omitted, a single group
+        containing all samples is assumed.
+
+        The argument `indexes` may be used to specify which pairs of sample
+        sets to compute the statistic between, and in what order. If
+        `indexes=None`, then `indexes` is assumed to equal `[(0,0)]` for a
+        single sample set and `[(0,1)]` for two sample sets. For more than two
+        sample sets, `indexes` must be explicitly passed.
+
+        The output array has dimension `(windows, indexes, time_windows)` with
+        dimensions dropped when the corresponding argument is set to None.
+
+        :param time_windows: An increasing list of breakpoints between time
+            intervals, starting at the age of the samples and ending at
+            infinity.
+        :param list sample_sets: A list of lists of Node IDs, specifying the
+            groups of nodes to compute the statistic with, or None.
+        :param list indexes: A list of 2-tuples, or None.
+        :param list windows: An increasing list of breakpoints between the
+            sequence windows to compute the statistic in, or None.
+        """
+
+        if sample_sets is None:
+            sample_sets = [list(self.samples())]
+
+        drop_middle_dimension = False
+        if indexes is None:
+            drop_middle_dimension = True
+            if len(sample_sets) == 1:
+                indexes = [(0, 0)]
+            elif len(sample_sets) == 2:
+                indexes = [(0, 1)]
+            else:
+                raise ValueError(
+                    "Must specify indexes if there are more than two sample sets"
+                )
+
+        drop_left_dimension = False
+        if windows is None:
+            drop_left_dimension = True
+            windows = np.array([0.0, self.sequence_length])
+
+        sample_set_sizes = np.array([len(s) for s in sample_sets], dtype=np.uint32)
+        sample_sets = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
+        node_bin_map = np.digitize(self.nodes_time, time_windows) - 1
+        node_bin_map[node_bin_map == time_windows.size - 1] = tskit.NULL
+        node_bin_map = node_bin_map.astype(np.int32)
+
+        coalescence_rates = self.ll_tree_sequence.pair_coalescence_rates(
+            sample_sets=sample_sets,
+            sample_set_sizes=sample_set_sizes,
+            windows=windows,
+            indexes=indexes,
+            node_bin_map=node_bin_map,
+            time_windows=time_windows,
+        )
+
+        if drop_middle_dimension:
+            coalescence_rates = np.squeeze(coalescence_rates, axis=1)
+        if drop_left_dimension:
+            coalescence_rates = np.squeeze(coalescence_rates, axis=0)
+
+        return coalescence_rates
+
     def impute_unknown_mutations_time(
         self,
         method=None,

@@ -10135,6 +10135,121 @@ out:
     return ret;
 }
 
+static int
+parse_time_windows(
+    PyObject *time_windows, PyArrayObject **ret_array, tsk_size_t *ret_num_time_windows)
+{
+    int ret = -1;
+    tsk_size_t num_time_windows = 0;
+    PyArrayObject *time_windows_array = NULL;
+    npy_intp *shape;
+
+    time_windows_array = (PyArrayObject *) PyArray_FROMANY(
+        time_windows, NPY_FLOAT64, 1, 1, NPY_ARRAY_IN_ARRAY);
+    if (time_windows_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(time_windows_array);
+    if (shape[0] < 2) {
+        PyErr_SetString(PyExc_ValueError, "Must supply at least two breakpoints.");
+        goto out;
+    }
+    num_time_windows = (tsk_size_t) shape[0] - 1;
+    ret = 0;
+out:
+    *ret_num_time_windows = num_time_windows;
+    *ret_array = time_windows_array;
+    return ret;
+}
+
+static PyObject *
+TreeSequence_pair_coalescence_rates(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+
+    static char *kwlist[] = { "windows", "sample_set_sizes", "sample_sets", "indexes",
+        "node_bin_map", "time_windows", NULL };
+    PyObject *py_sample_set_sizes = Py_None;
+    PyObject *py_sample_sets = Py_None;
+    PyObject *py_windows = Py_None;
+    PyObject *py_node_bin_map = Py_None;
+    PyObject *py_indexes = Py_None;
+    PyObject *py_time_windows = Py_None;
+    PyArrayObject *result_array = NULL;
+    PyArrayObject *windows_array = NULL;
+    PyArrayObject *node_bin_map_array = NULL;
+    PyArrayObject *indexes_array = NULL;
+    PyArrayObject *time_windows_array = NULL;
+    PyArrayObject *sample_set_sizes_array = NULL;
+    PyArrayObject *sample_sets_array = NULL;
+    npy_intp dims[3];
+    tsk_flags_t options = 0;
+    tsk_size_t num_indexes = 0;
+    tsk_size_t num_sample_sets = 0;
+    tsk_size_t num_windows = 0;
+    tsk_size_t num_bins = 0;
+    tsk_size_t num_time_windows = 0;
+    int err;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOOOO", kwlist, &py_windows,
+            &py_sample_set_sizes, &py_sample_sets, &py_indexes, &py_node_bin_map,
+            &py_time_windows)) {
+        goto out;
+    }
+    if (parse_sample_sets(py_sample_set_sizes, &sample_set_sizes_array, py_sample_sets,
+            &sample_sets_array, &num_sample_sets)
+        != 0) {
+        goto out;
+    }
+    if (parse_windows(py_windows, &windows_array, &num_windows) != 0) {
+        goto out;
+    }
+    if (parse_set_indexes(py_indexes, &indexes_array, &num_indexes, 2) != 0) {
+        goto out;
+    }
+    if (parse_node_bin_map(py_node_bin_map, &node_bin_map_array, &num_bins,
+            tsk_treeseq_get_num_nodes(self->tree_sequence))
+        != 0) {
+        goto out;
+    }
+    if (parse_time_windows(py_time_windows, &time_windows_array, &num_time_windows)
+        != 0) {
+        goto out;
+    }
+
+    dims[0] = (npy_intp) num_windows;
+    dims[1] = (npy_intp) num_indexes;
+    dims[2] = (npy_intp) num_time_windows;
+    result_array = (PyArrayObject *) PyArray_SimpleNew(3, dims, NPY_FLOAT64);
+    if (result_array == NULL) {
+        goto out;
+    }
+
+    err = tsk_treeseq_pair_coalescence_rates(self->tree_sequence, num_sample_sets,
+        PyArray_DATA(sample_set_sizes_array), PyArray_DATA(sample_sets_array),
+        num_indexes, PyArray_DATA(indexes_array), num_windows,
+        PyArray_DATA(windows_array), num_time_windows, PyArray_DATA(node_bin_map_array),
+        PyArray_DATA(time_windows_array), options, PyArray_DATA(result_array));
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = (PyObject *) result_array;
+    result_array = NULL;
+out:
+    Py_XDECREF(sample_set_sizes_array);
+    Py_XDECREF(sample_sets_array);
+    Py_XDECREF(windows_array);
+    Py_XDECREF(indexes_array);
+    Py_XDECREF(node_bin_map_array);
+    Py_XDECREF(time_windows_array);
+    Py_XDECREF(result_array);
+    return ret;
+}
+
 static PyArrayObject *
 parse_sites(TreeSequence *self, PyObject *sites, npy_intp *out_dim)
 {
@@ -11066,6 +11181,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_pair_coalescence_quantiles,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Estimates quantiles of pair coalescence times." },
+    { .ml_name = "pair_coalescence_rates",
+        .ml_meth = (PyCFunction) TreeSequence_pair_coalescence_rates,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Estimates rate of pair coalescence within time intervals." },
     { .ml_name = "split_edges",
         .ml_meth = (PyCFunction) TreeSequence_split_edges,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,

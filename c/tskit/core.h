@@ -704,7 +704,7 @@ The node bin map contains a value less than TSK_NULL.
 */
 #define TSK_ERR_BAD_NODE_BIN_MAP                                    -914
 /**
-Maximum index in node bin map does not match output dimension.
+Maximum index in node bin map is greater than output dimension.
 */
 #define TSK_ERR_BAD_NODE_BIN_MAP_DIM                                -915
 /**
@@ -731,6 +731,22 @@ The provided sites are not provided in strictly increasing position order
 The provided sites are not unique
 */
 #define TSK_ERR_STAT_DUPLICATE_SITES                                -921
+/**
+The number of time windows is zero
+*/
+#define TSK_ERR_BAD_TIME_WINDOWS_DIM                                -922
+/**
+Sample times do not all equal the start of first time window
+*/
+#define TSK_ERR_BAD_SAMPLE_PAIR_TIMES                               -923
+/**
+Time windows are not strictly increasing ending at infinity
+*/
+#define TSK_ERR_BAD_TIME_WINDOWS                                    -924
+/**
+Node time does not fall within assigned time window
+*/
+#define TSK_ERR_BAD_NODE_TIME_WINDOW                                -925
 /** @} */
 
 /**

@@ -512,6 +512,125 @@ verify_pair_coalescence_quantiles(tsk_treeseq_t *ts)
     }
 }
 
+/* Check coalescence rates */
+static void
+verify_pair_coalescence_rates(tsk_treeseq_t *ts)
+{
+    int ret;
+    const tsk_size_t n = tsk_treeseq_get_num_samples(ts);
+    const tsk_size_t N = tsk_treeseq_get_num_nodes(ts);
+    const tsk_size_t T = tsk_treeseq_get_num_trees(ts);
+    const tsk_id_t *samples = tsk_treeseq_get_samples(ts);
+    const double *breakpoints = tsk_treeseq_get_breakpoints(ts);
+    const double *nodes_time = ts->tables->nodes.time;
+    const double max_time = ts->max_time;
+    const tsk_size_t P = 2;
+    const tsk_size_t B = 5;
+    const tsk_size_t I = P * (P + 1) / 2;
+    double epochs[]
+        = { 0.0, max_time / 4, max_time / 2, max_time, max_time * 2, INFINITY };
+    tsk_id_t sample_sets[n];
+    tsk_size_t sample_set_sizes[P];
+    tsk_id_t index_tuples[2 * I];
+    tsk_id_t node_bin_map[N];
+    tsk_id_t empty_node_bin_map[N];
+    tsk_size_t dim = T * B * I;
+    double C[dim];
+    tsk_size_t i, j, k;
+
+    for (i = 0; i < N; i++) {
+        node_bin_map[i] = TSK_NULL;
+        for (j = 0; j < B; j++) {
+            if (nodes_time[i] >= epochs[j] && nodes_time[i] < epochs[j + 1]) {
+                node_bin_map[i] = (tsk_id_t) j;
+            }
+        }
+        empty_node_bin_map[i] = TSK_NULL;
+    }
+
+    for (i = 0; i < n; i++) {
+        sample_sets[i] = samples[i];
+    }
+
+    for (i = 0; i < P; i++) {
+        sample_set_sizes[i] = 0;
+    }
+    for (j = 0; j < n; j++) {
+        i = j / (n / P);
+        sample_set_sizes[i]++;
+    }
+
+    for (j = 0, i = 0; j < P; j++) {
+        for (k = j; k < P; k++) {
+            index_tuples[i++] = (tsk_id_t) j;
+            index_tuples[i++] = (tsk_id_t) k;
+        }
+    }
+
+    ret = tsk_treeseq_pair_coalescence_rates(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, B, node_bin_map, epochs, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    /* TODO: compare against naive coalescence rates per tree */
+
+    node_bin_map[0] = TSK_NULL;
+    ret = tsk_treeseq_pair_coalescence_rates(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, B, node_bin_map, epochs, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    node_bin_map[0] = 0;
+
+    ret = tsk_treeseq_pair_coalescence_rates(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, B, empty_node_bin_map, epochs, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    /* cover errors */
+    ret = tsk_treeseq_pair_coalescence_rates(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, 0, node_bin_map, epochs, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_TIME_WINDOWS_DIM);
+
+    epochs[0] = epochs[1] / 2;
+    ret = tsk_treeseq_pair_coalescence_rates(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, B, node_bin_map, epochs, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLE_PAIR_TIMES);
+    epochs[0] = 0.0;
+
+    epochs[2] = epochs[1];
+    ret = tsk_treeseq_pair_coalescence_rates(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, B, node_bin_map, epochs, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_TIME_WINDOWS);
+    epochs[2] = max_time / 2;
+
+    epochs[B] = DBL_MAX;
+    ret = tsk_treeseq_pair_coalescence_rates(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, B, node_bin_map, epochs, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_TIME_WINDOWS);
+    epochs[B] = INFINITY;
+
+    node_bin_map[0] = (tsk_id_t) B;
+    ret = tsk_treeseq_pair_coalescence_rates(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, B, node_bin_map, epochs, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_BIN_MAP_DIM);
+    node_bin_map[0] = 0;
+
+    node_bin_map[0] = (tsk_id_t)(B - 1);
+    ret = tsk_treeseq_pair_coalescence_rates(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, B, node_bin_map, epochs, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_TIME_WINDOW);
+    node_bin_map[0] = 0;
+
+    node_bin_map[N - 1] = 0;
+    ret = tsk_treeseq_pair_coalescence_rates(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, B, node_bin_map, epochs, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_TIME_WINDOW);
+    node_bin_map[N - 1] = 3;
+
+    tsk_size_t tmp = sample_set_sizes[0];
+    sample_set_sizes[0] = 0;
+    ret = tsk_treeseq_pair_coalescence_rates(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, B, node_bin_map, epochs, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EMPTY_SAMPLE_SET);
+    sample_set_sizes[0] = tmp;
+}
+
 typedef struct {
     int call_count;
     int error_on;
@@ -3323,6 +3442,16 @@ test_pair_coalescence_quantiles(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_pair_coalescence_rates(void)
+{
+    tsk_treeseq_t ts;
+    tsk_treeseq_from_text(&ts, 100, nonbinary_ex_nodes, nonbinary_ex_edges, NULL,
+        nonbinary_ex_sites, nonbinary_ex_mutations, NULL, NULL, 0);
+    verify_pair_coalescence_rates(&ts);
+    tsk_treeseq_free(&ts);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -3425,6 +3554,7 @@ main(int argc, char **argv)
 
         { "test_pair_coalescence_counts", test_pair_coalescence_counts },
         { "test_pair_coalescence_quantiles", test_pair_coalescence_quantiles },
+        { "test_pair_coalescence_rates", test_pair_coalescence_rates },
 
         { NULL, NULL },
     };
