@@ -8874,7 +8874,7 @@ check_node_bin_map(
             max_index = index;
         }
     }
-    if (num_bins < 1 || (tsk_id_t) num_bins != max_index + 1) {
+    if (num_bins < 1 || (tsk_id_t) num_bins < max_index + 1) {
         ret = TSK_ERR_BAD_NODE_BIN_MAP_DIM;
         goto out;
     }
@@ -9256,6 +9256,7 @@ pair_coalescence_quantiles(tsk_size_t input_dim, const double *weight,
     j = 0;
     coalesced = 0.0;
     timepoint = -INFINITY;
+    /* TODO: may be more efficient to use a binary search */
     for (i = 0; i < input_dim; i++) {
         if (weight[i] > 0) {
             coalesced += weight[i];
@@ -9313,6 +9314,124 @@ tsk_treeseq_pair_coalescence_quantiles(const tsk_treeseq_t *self,
         sample_sets, num_set_indexes, set_indexes, num_windows, windows, num_bins,
         node_bin_map, pair_coalescence_quantiles, num_quantiles, params, options,
         result);
+    if (ret != 0) {
+        goto out;
+    }
+out:
+    return ret;
+}
+
+static int
+pair_coalescence_rates(tsk_size_t input_dim, const double *weight, const double *values,
+    tsk_size_t output_dim, double *output, void *params)
+{
+    int ret = 0;
+    double coalesced, rate, waiting_time, a, b;
+    double *time_windows = (double *) params;
+    tsk_id_t i, j;
+    tsk_bug_assert(input_dim == output_dim);
+    for (j = (tsk_id_t) output_dim; j > 0; j--) { /* find last window with data */
+        if (weight[j - 1] == 0) {
+            output[j - 1] = NAN; /* TODO: should fill value be zero instead? */
+        } else {
+            break;
+        }
+    }
+    coalesced = 0.0;
+    for (i = 0; i < j; i++) {
+        tsk_bug_assert(weight[i] >= 0 && weight[i] <= 1);
+        a = time_windows[i];
+        b = time_windows[i + 1];
+        if (i + 1 == j) {
+            waiting_time = values[i] < a ? 0.0 : values[i] - a;
+            rate = 1 / waiting_time;
+        } else {
+            rate = log(1 - weight[i] / (1 - coalesced)) / (a - b);
+        }
+        output[i] = rate > 0 ? rate : 0;
+        coalesced += weight[i];
+    }
+    return ret;
+}
+
+static int
+check_coalescence_rate_time_windows(const tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes,
+    const tsk_id_t *sample_sets, tsk_size_t num_time_windows,
+    const tsk_id_t *node_time_window, const double *time_windows)
+{
+    int ret = 0;
+    double timepoint;
+    const double *nodes_time = self->tables->nodes.time;
+    tsk_size_t num_nodes = self->tables->nodes.num_rows;
+    tsk_id_t i, j, k;
+    tsk_id_t n;
+    if (num_time_windows == 0) {
+        ret = TSK_ERR_BAD_TIME_WINDOWS_DIM;
+        goto out;
+    }
+    /* time windows are sorted */
+    timepoint = time_windows[0];
+    for (i = 0; i < (tsk_id_t) num_time_windows; i++) {
+        if (time_windows[i + 1] <= timepoint) {
+            ret = TSK_ERR_BAD_TIME_WINDOWS;
+            goto out;
+        }
+        timepoint = time_windows[i + 1];
+    }
+    if (timepoint != INFINITY) {
+        ret = TSK_ERR_BAD_TIME_WINDOWS;
+        goto out;
+    }
+    /* all sample times align with start of first time window */
+    k = 0;
+    for (i = 0; i < (tsk_id_t) num_sample_sets; i++) {
+        for (j = 0; j < (tsk_id_t) sample_set_sizes[i]; j++) {
+            n = sample_sets[k++];
+            if (nodes_time[n] != time_windows[0]) {
+                ret = TSK_ERR_BAD_SAMPLE_PAIR_TIMES;
+                goto out;
+            }
+        }
+    }
+    /* nodes are correctly assigned to time windows */
+    for (i = 0; i < (tsk_id_t) num_nodes; i++) {
+        j = node_time_window[i];
+        if (j < 0) {
+            continue;
+        }
+        if (j >= (tsk_id_t) num_time_windows) {
+            ret = TSK_ERR_BAD_NODE_BIN_MAP_DIM;
+            goto out;
+        }
+        if (nodes_time[i] < time_windows[j] || nodes_time[i] >= time_windows[j + 1]) {
+            ret = TSK_ERR_BAD_NODE_TIME_WINDOW;
+            goto out;
+        }
+    }
+out:
+    return ret;
+}
+
+int
+tsk_treeseq_pair_coalescence_rates(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
+    const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
+    tsk_size_t num_set_indexes, const tsk_id_t *set_indexes, tsk_size_t num_windows,
+    const double *windows, tsk_size_t num_time_windows, const tsk_id_t *node_time_window,
+    double *time_windows, tsk_flags_t options, double *result)
+{
+    int ret = 0;
+    void *params = (void *) time_windows;
+    ret = check_coalescence_rate_time_windows(self, num_sample_sets, sample_set_sizes,
+        sample_sets, num_time_windows, node_time_window, time_windows);
+    if (ret != 0) {
+        goto out;
+    }
+    options |= TSK_STAT_SPAN_NORMALISE | TSK_STAT_PAIR_NORMALISE;
+    ret = tsk_treeseq_pair_coalescence_stat(self, num_sample_sets, sample_set_sizes,
+        sample_sets, num_set_indexes, set_indexes, num_windows, windows,
+        num_time_windows, node_time_window, pair_coalescence_rates, num_time_windows,
+        params, options, result);
     if (ret != 0) {
         goto out;
     }

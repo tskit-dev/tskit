@@ -46,7 +46,6 @@ def _pair_coalescence_rates(
     coalescing_pairs,
     nodes_time,
     time_windows,
-    extend_terminal=False,  # TODO
 ):
     """
     Estimate pair coalescence rate from empirical CDF. `coalescing_pairs` and
@@ -59,24 +58,18 @@ def _pair_coalescence_rates(
     assert np.all(np.diff(time_windows) > 0)
     assert np.isfinite(time_windows[0])
     assert time_windows[-1] == np.inf
-    coalescence_rate = np.full(time_windows.size - 1, np.nan)
-    max_time = -np.inf
-    for t in nodes_time:
-        if np.isfinite(t):
-            assert t > max_time  # check sorted
-            max_time = t
-    assert np.isfinite(max_time)
-    out_of_bounds = False
+    num_time_windows = time_windows.size - 1
+    coalescence_rate = np.full(num_time_windows, np.nan)
     coalesced = 0.0
-    for i, (a, b) in enumerate(zip(time_windows[:-1], time_windows[1:])):
+    for j in np.arange(num_time_windows, 0, -1):  # find last window containing nodes
+        if not np.isnan(nodes_time[j - 1]):
+            break
+    for i in range(j):
+        a, b = time_windows[i : i + 2]
         assert 0.0 <= coalescing_pairs[i] <= 1.0
-        # NOTE: high risk of FP error if max_time == b
-        assert not np.isclose(max_time, b)
-        out_of_bounds |= a <= max_time < b
-        if out_of_bounds:
+        if i + 1 == j:
             coalescence_rate[i] = 1 / (nodes_time[i] - a)
-            if not extend_terminal:
-                break
+            break
         else:
             rate = -np.log(1 - coalescing_pairs[i] / (1 - coalesced)) / (b - a)
             assert rate >= 0
@@ -409,17 +402,33 @@ def proto_pair_coalescence_rates(
     sample_sets=None,
     indexes=None,
     windows=None,
-    fill_terminal=False,  # TODO
 ):
-    """
+    r"""
     Prototype for ts.pair_coalescence_rates.
 
-    TODO docstring
+    Estimate the rate at which pairs of samples coalesce within time windows,
+    from the empirical CDF of pair coalescence times.  Assuming that pair
+    coalescence events follow a nonhomogeneous Poisson process, the empirical
+    rate for a time window :math:`[a, b)` where `ecdf(b) < 1` is,
 
-    Calculate the number of coalescing sample pairs per node, summed over
-    trees and weighted by tree span.
+    ..math:
 
-    The number of coalescing pairs may be calculated within or between the
+        log(1 - \frac{ecdf(b) - ecdf(a)}{1 - ecdf(a)}) / (a - b)
+
+    If the last coalescence event is within `[a, b)` so that `ecdf(b) = 1`, then
+    an estimate of the empirical rate is
+
+    ..math:
+
+        (\mathbb{E}[t | t > a] - a)^{-1}
+
+    where :math:`\mathbb{E}[t | t < a]` is the average pair coalescence time
+    conditional on coalescence after the start of the last epoch.
+
+    The first breakpoint in `time_windows` must start at the age of the
+    samples, and the last must end at infinity.
+
+    Pair coalescence rates may be calculated within or between the
     non-overlapping lists of samples contained in `sample_sets`. In the
     latter case, pairs are counted if they have exactly one member in each
     of two sample sets. If `sample_sets` is omitted, a single group
@@ -431,25 +440,19 @@ def proto_pair_coalescence_rates(
     single sample set and `[(0,1)]` for two sample sets. For more than two
     sample sets, `indexes` must be explicitly passed.
 
-    The argument `time_windows` may be used to count coalescence
-    events within time intervals (if an array of breakpoints is supplied)
-    rather than for individual nodes (the default).
-
-    The output array has dimension `(windows, indexes, nodes)` with
+    The output array has dimension `(windows, indexes, time_windows)` with
     dimensions dropped when the corresponding argument is set to None.
 
+    :param time_windows: An increasing list of breakpoints between time
+        intervals, starting at the age of the samples and ending at
+        infinity.
     :param list sample_sets: A list of lists of Node IDs, specifying the
         groups of nodes to compute the statistic with, or None.
     :param list indexes: A list of 2-tuples, or None.
     :param list windows: An increasing list of breakpoints between the
         sequence windows to compute the statistic in, or None.
-    :param bool span_normalise: Whether to divide the result by the span of
-        the window (defaults to True).
-    :param bool pair_normalise: Whether to divide the result by the total
-        number of pairs for a given index (defaults to False).
-    :param time_windows: Either a string "nodes" or an increasing
-        list of breakpoints between time intervals.
     """
+    # TODO^^^
 
     if not (isinstance(time_windows, np.ndarray) and time_windows.size > 1):
         raise ValueError("Time windows must be an array of breakpoints")
@@ -592,7 +595,7 @@ def _numpy_hazard_rate(values, weights, breaks):
     assert np.all(np.diff(breaks) >= 0)
     assert np.isfinite(breaks[0])  # should equal sample time
     assert ~np.isfinite(breaks[-1])
-    assert np.sum(weights) <= 1.0 + 1e-4
+    assert np.sum(weights) < 1.0 or np.isclose(np.sum(weights), 1.0)
     values = values[weights > 0]
     weights = weights[weights > 0]
     assert breaks[0] < np.min(values)
@@ -1581,7 +1584,7 @@ class TestPairCoalescenceQuantiles:
 
 class TestPairCoalescenceRates:
     """
-    Test coalescence rate calculation
+    Test coalescence rate reduction
     """
 
     @tests.cached_example
@@ -1609,7 +1612,7 @@ class TestPairCoalescenceRates:
         breaks = _numpy_weighted_quantile(ts.nodes_time, weights, quantiles)
         breaks[0], breaks[-1] = 0.0, np.inf
         check = _numpy_hazard_rate(ts.nodes_time, weights, breaks)
-        implm = proto_pair_coalescence_rates(ts, time_windows=breaks)
+        implm = ts.pair_coalescence_rates(breaks)
         np.testing.assert_allclose(implm, check)
 
     def test_windowed(self):
@@ -1619,7 +1622,7 @@ class TestPairCoalescenceRates:
         breaks = _numpy_weighted_quantile(ts.nodes_time, weights, quantiles)
         breaks[0], breaks[-1] = 0.0, np.inf
         windows = np.linspace(0, ts.sequence_length, 4)
-        implm = proto_pair_coalescence_rates(ts, time_windows=breaks, windows=windows)
+        implm = ts.pair_coalescence_rates(breaks, windows=windows)
         check = np.empty_like(implm)
         weights = ts.pair_coalescence_counts(pair_normalise=True, windows=windows)
         for i, w in enumerate(weights):
@@ -1632,5 +1635,47 @@ class TestPairCoalescenceRates:
         breaks = np.array([0.0, 0.5, 1.0, 2, np.inf]) * np.ceil(max_time)
         weights = ts.pair_coalescence_counts(pair_normalise=True)
         check = _numpy_hazard_rate(ts.nodes_time, weights, breaks)
-        implm = proto_pair_coalescence_rates(ts, time_windows=breaks)
+        implm = ts.pair_coalescence_rates(breaks)
         np.testing.assert_allclose(implm, check)
+
+    def test_empty(self):
+        ts = self.example_ts()
+        i = ts.num_nodes // 2
+        assert ts.nodes_time[i] < ts.nodes_time[i + 1]
+        empty_time_window = [
+            ts.nodes_time[i] * 0.75 + ts.nodes_time[i + 1] * 0.25,
+            ts.nodes_time[i] * 0.25 + ts.nodes_time[i + 1] * 0.75,
+        ]
+        max_time = np.max(ts.nodes_time)
+        breaks = np.array([0.0, *empty_time_window, max_time + 1, max_time + 2, np.inf])
+        weights = ts.pair_coalescence_counts(pair_normalise=True)
+        check = _numpy_hazard_rate(ts.nodes_time, weights, breaks)
+        implm = ts.pair_coalescence_rates(breaks)
+        np.testing.assert_allclose(implm, check)
+
+    def test_single(self):
+        ts = self.example_ts()
+        breaks = np.array([0.0, np.inf])
+        indexes = [(0, 0)]
+        weights = ts.pair_coalescence_counts(pair_normalise=True)
+        check = _numpy_hazard_rate(ts.nodes_time, weights, breaks).reshape(-1, 1)
+        implm = ts.pair_coalescence_rates(breaks, indexes=indexes)
+        np.testing.assert_allclose(implm, check)
+
+    def test_indexes(self):
+        ts = self.example_ts()
+        breaks = np.array([0.0, np.inf])
+        sample_sets = [[0, 1, 2], [3, 4, 5]]
+        weights = ts.pair_coalescence_counts(
+            sample_sets=sample_sets, pair_normalise=True
+        )
+        check = _numpy_hazard_rate(ts.nodes_time, weights, breaks)
+        implm = ts.pair_coalescence_rates(breaks, sample_sets=sample_sets)
+        np.testing.assert_allclose(implm, check)
+
+    def test_errors(self):
+        ts = self.example_ts()
+        sample_sets = [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+        time_windows = np.array([0, np.inf])
+        with pytest.raises(ValueError, match="more than two sample sets"):
+            ts.pair_coalescence_rates(time_windows, sample_sets=sample_sets)

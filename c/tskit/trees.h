@@ -1168,6 +1168,12 @@ int tsk_treeseq_pair_coalescence_quantiles(const tsk_treeseq_t *self,
     tsk_size_t num_windows, const double *windows, tsk_size_t num_bins,
     const tsk_id_t *node_bin_map, tsk_size_t num_quantiles, double *quantiles,
     tsk_flags_t options, double *result);
+int tsk_treeseq_pair_coalescence_rates(const tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes,
+    const tsk_id_t *sample_sets, tsk_size_t num_set_indexes, const tsk_id_t *set_indexes,
+    tsk_size_t num_windows, const double *windows, tsk_size_t num_time_windows,
+    const tsk_id_t *node_time_window, double *time_windows, tsk_flags_t options,
+    double *result);
 
 /****************************************************************************/
 /* Tree */

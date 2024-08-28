@@ -494,7 +494,7 @@ tsk_strerror_internal(int err)
                   "(TSK_ERR_BAD_NODE_BIN_MAP)";
             break;
         case TSK_ERR_BAD_NODE_BIN_MAP_DIM:
-            ret = "Maximum index in node-to-bin map does not match "
+            ret = "Maximum index in node-to-bin map is greater than the "
                   "output dimension. (TSK_ERR_BAD_NODE_BIN_MAP_DIM)";
             break;
         case TSK_ERR_BAD_QUANTILES:
@@ -503,6 +503,21 @@ tsk_strerror_internal(int err)
             break;
         case TSK_ERR_UNSORTED_TIMES:
             ret = "Times must be strictly increasing. (TSK_ERR_UNSORTED_TIMES)";
+            break;
+        case TSK_ERR_BAD_TIME_WINDOWS_DIM:
+            ret = "Must have at least one time window. (TSK_ERR_BAD_TIME_WINDOWS_DIM)";
+            break;
+        case TSK_ERR_BAD_SAMPLE_PAIR_TIMES:
+            ret = "All sample times must be equal to the start of first time window. "
+                  "(TSK_ERR_BAD_SAMPLE_PAIR_TIMES)";
+            break;
+        case TSK_ERR_BAD_TIME_WINDOWS:
+            ret = "Time windows must be strictly increasing and end at infinity. "
+                  "(TSK_ERR_BAD_TIME_WINDOWS)";
+            break;
+        case TSK_ERR_BAD_NODE_TIME_WINDOW:
+            ret = "Node time does not fall within assigned time window. "
+                  "(TSK_ERR_BAD_NODE_TIME_WINDOW)";
             break;
 
         /* Two locus errors */

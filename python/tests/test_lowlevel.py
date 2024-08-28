@@ -4536,3 +4536,136 @@ class TestPairCoalescenceQuantilesErrors:
                 node_bin_map=None,
                 foo="bar",
             )
+
+
+class TestPairCoalescenceRatesErrors:
+    def example_ts(self, sample_size=10):
+        ts = msprime.sim_ancestry(
+            sample_size,
+            sequence_length=1e4,
+            recombination_rate=1e-8,
+            random_seed=1,
+            population_size=1e4,
+        )
+        return ts.ll_tree_sequence
+
+    @staticmethod
+    def pair_coalescence_rates(
+        ts,
+        time_windows=None,
+        sample_sets=None,
+        sample_set_sizes=None,
+        indexes=None,
+        windows=None,
+        node_bin_map=None,
+    ):
+        n = ts.get_num_samples()
+        if time_windows is None:
+            time_windows = np.array([0.0, np.mean(ts.nodes_time), np.inf])
+        if sample_sets is None:
+            sample_sets = np.arange(n, dtype=np.int32)
+        if sample_set_sizes is None:
+            sample_set_sizes = [n // 2, n - n // 2]
+        if indexes is None:
+            pairs = itertools.combinations_with_replacement(
+                range(len(sample_set_sizes)), 2
+            )
+            indexes = [(i, j) for i, j in pairs]
+        if windows is None:
+            windows = np.array([0, 0.5, 1.0]) * ts.get_sequence_length()
+        if node_bin_map is None:
+            node_bin_map = np.digitize(ts.nodes_time, time_windows) - 1
+            node_bin_map[node_bin_map == time_windows.size - 1] = tskit.NULL
+            node_bin_map = node_bin_map.astype(np.int32)
+        return ts.pair_coalescence_rates(
+            sample_sets=sample_sets,
+            sample_set_sizes=sample_set_sizes,
+            windows=windows,
+            indexes=indexes,
+            node_bin_map=node_bin_map,
+            time_windows=time_windows,
+        )
+
+    def test_output_dims(self):
+        ts = self.example_ts()
+        coal = self.pair_coalescence_rates(ts)
+        dim = (2, 3, 2)
+        assert coal.shape == dim
+
+    def test_c_tsk_err_bad_time_windows(self):
+        ts = self.example_ts()
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_BAD_TIME_WINDOWS"):
+            self.pair_coalescence_rates(ts, time_windows=np.array([np.inf, 0.0]))
+
+    def test_c_tsk_err_bad_node_time_window(self):
+        ts = self.example_ts()
+        node_bin_map = np.zeros(ts.nodes_time.size, dtype=np.int32)
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_BAD_NODE_TIME_WINDOW"):
+            self.pair_coalescence_rates(ts, node_bin_map=node_bin_map)
+
+    def test_c_tsk_err_bad_sample_pair_times(self):
+        ts = self.example_ts()
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_BAD_SAMPLE_PAIR_TIMES"):
+            self.pair_coalescence_rates(ts, time_windows=np.array([-1.0, np.inf]))
+
+    @pytest.mark.parametrize("bad_ss_size", [-1, 1000])
+    def test_cpy_bad_sample_sets(self, bad_ss_size):
+        ts = self.example_ts()
+        with pytest.raises(
+            (ValueError, OverflowError),
+            match="Sum of sample_set_sizes|Overflow|out of bounds",
+        ):
+            self.pair_coalescence_rates(
+                ts, sample_set_sizes=[bad_ss_size, ts.get_num_samples()]
+            )
+
+    def test_cpy_bad_windows(self):
+        ts = self.example_ts()
+        with pytest.raises(ValueError, match="at least 2"):
+            self.pair_coalescence_rates(ts, windows=[0.0])
+
+    @pytest.mark.parametrize("indexes", [[(0, 0, 0)], np.zeros((0, 2), dtype=np.int32)])
+    def test_cpy_bad_indexes(self, indexes):
+        ts = self.example_ts()
+        with pytest.raises(ValueError, match="k x 2 array"):
+            self.pair_coalescence_rates(ts, indexes=indexes)
+        with pytest.raises(ValueError, match="too small depth"):
+            self.pair_coalescence_rates(ts, indexes=np.ravel(indexes))
+
+    def test_cpy_bad_node_bin_map(self):
+        ts = self.example_ts()
+        num_nodes = ts.get_num_nodes()
+        node_bin_map = np.full(num_nodes, tskit.NULL, dtype=np.int32)
+        with pytest.raises(ValueError, match="null values for all nodes"):
+            self.pair_coalescence_rates(ts, node_bin_map=node_bin_map)
+        with pytest.raises(ValueError, match="a value per node"):
+            self.pair_coalescence_rates(ts, node_bin_map=node_bin_map[:-1])
+        with pytest.raises(TypeError, match="cast array data"):
+            self.pair_coalescence_rates(ts, node_bin_map=np.zeros(num_nodes))
+
+    def test_cpy_bad_time_windows(self):
+        ts = self.example_ts()
+        time_windows = np.zeros(1)
+        node_bin_map = np.zeros(ts.nodes_time.size, dtype=np.int32)
+        with pytest.raises(ValueError, match="at least two breakpoints"):
+            self.pair_coalescence_rates(
+                ts, time_windows=time_windows, node_bin_map=node_bin_map
+            )
+        time_windows = np.zeros((3, 3))
+        with pytest.raises(ValueError, match="object too deep"):
+            self.pair_coalescence_rates(
+                ts, time_windows=time_windows, node_bin_map=node_bin_map
+            )
+
+    def test_cpy_bad_inputs(self):
+        ts = self.example_ts()
+        with pytest.raises(TypeError, match="at most 6 keyword"):
+            ts.pair_coalescence_rates(
+                sample_sets=None,
+                sample_set_sizes=None,
+                windows=None,
+                quantiles=None,
+                indexes=None,
+                node_bin_map=None,
+                foo="bar",
+            )
