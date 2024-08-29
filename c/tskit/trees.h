@@ -54,6 +54,9 @@ extern "C" {
 #define TSK_STAT_ALLOW_TIME_UNCALIBRATED (1 << 12)
 #define TSK_STAT_PAIR_NORMALISE          (1 << 13)
 
+/* Stat-specific options */
+#define TSK_STAT_NONCENTRED         (1 << 12)
+
 /* Options for map_mutations */
 #define TSK_MM_FIXED_ANCESTRAL_STATE (1 << 0)
 

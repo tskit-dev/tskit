@@ -556,6 +556,25 @@ associated with each allele; but if polarised, then the ancestral allele is left
 For branch or node statistics, summary functions are applied to the total weight or number of samples
 below, and above each branch or node; if polarised, then only the weight below is used.
 
+(sec_stats_strictness)=
+
+### Strictness, and which branches count?
+
+Most statistics are not be affected by invariant sites,
+and hence do not depend on any part of the tree that is not ancestral to any of the sample sets.
+However, some statistics are different: for instance, {meth}`TreeSequence.genetic_relatedness`
+with `centre=False` (and `polarised=True`, the default for that method)
+adds up for a pair of samples the total number of alleles (or total area of branches) that is
+either ancestral to both samples *or ancestral to neither*.
+So, it depends on what else is in the tree sequence.
+(For this reason, we don't recommend actually *using* this combination of options for genetic
+relatedness.)
+
+In terms of the summary function {math}`f(x)`, "not affected by invariant sites" translates to
+{math}`f(0) = f(n) = 0`, where {math}`n` is the vector of sample set sizes.
+By default, {meth}`TreeSequence.general_stat` checks if the summary function satisfies this condition,
+and throws an error if not; this check can be disabled by setting `strict=False`.
+
 
 (sec_stats_summary_functions)=
 
@@ -772,4 +791,3 @@ do not have this property (since both are ratios of statistics that do have this
 The {meth}`~TreeSequence.genealogical_nearest_neighbours` statistic is not based on branch
 lengths, but on topologies. therefore it currently has a slightly different interface to
 the other single site statistics. This may be revised in the future.
-

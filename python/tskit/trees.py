@@ -30,6 +30,7 @@ import builtins
 import collections
 import concurrent.futures
 import functools
+import inspect
 import io
 import itertools
 import math
@@ -7675,6 +7676,7 @@ class TreeSequence:
         mode=None,
         span_normalise=True,
         polarised=False,
+        centre=True,
     ):
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32
@@ -7710,6 +7712,7 @@ class TreeSequence:
             mode=mode,
             span_normalise=span_normalise,
             polarised=polarised,
+            centre=centre,
         )
         if drop_dimension:
             stat = stat.reshape(stat.shape[:-1])
@@ -8115,8 +8118,9 @@ class TreeSequence:
         windows=None,
         mode="site",
         span_normalise=True,
-        polarised=False,
+        polarised=True,
         proportion=True,
+        centre=True,
     ):
         """
         Computes genetic relatedness between (and within) pairs of
@@ -8135,44 +8139,70 @@ class TreeSequence:
         What is computed depends on ``mode``:
 
         "site"
-            Number of pairwise allelic matches in the window between two
+            Frequency of pairwise allelic matches in the window between two
             sample sets relative to the rest of the sample sets. To be precise,
             let `m(u,v)` denote the total number of alleles shared between
-            nodes `u` and `v`, and let `m(I,J)` be the sum of `m(u,v)` over all
-            nodes `u` in sample set `I` and `v` in sample set `J`. Let `S` and
-            `T` be independently chosen sample sets. Then, for sample sets `I`
-            and `J`, this computes `E[m(I,J) - m(I,S) - m(J,T) + m(S,T)]`.
+            nodes `u` and `v`, and let `m(I,J)` be the average of `m(u,v)` over
+            all nodes `u` in sample set `I` and `v` in sample set `J`. Let `S`
+            and `T` be independently chosen sample sets. Then, for sample sets
+            `I` and `J`, this computes `E[m(I,J) - m(I,S) - m(J,T) + m(S,T)]`
+            if centre=True (the default), or `E[m(I,J)]` if centre=False.
             This can also be seen as the covariance of a quantitative trait
             determined by additive contributions from the genomes in each
-            sample set. Let each allele be associated with an effect drawn from
-            a `N(0,1/2)` distribution, and let the trait value of a sample set
-            be the sum of its allele effects. Then, this computes the covariance
-            between the trait values of two sample sets. For example, to
-            compute covariance between the traits of diploid individuals, each
-            sample set would be the pair of genomes of each individual; if
-            ``proportion=True``, this then corresponds to :math:`K_{c0}` in
-            `Speed & Balding (2014) <https://www.nature.com/articles/nrg3821>`_.
+            sample set. Let each derived allele be associated with an effect
+            drawn from a `N(0,1)` distribution, and let the trait value of a
+            sample set be the sum of its allele effects. Then, this computes
+            the covariance between the trait values of two sample sets. For
+            example, to compute covariance between the traits of diploid
+            individuals, each sample set would be the pair of genomes of each
+            individual; if ``proportion=True``, this then corresponds to
+            :math:`K_{c0}` in
+            `Speed & Balding (2014) <https://www.nature.com/articles/nrg3821>`_
+            multiplied by four.
 
         "branch"
-            Total area of branches in the window ancestral to pairs of samples
+            Average area of branches in the window ancestral to pairs of samples
             in two sample sets relative to the rest of the sample sets. To be
             precise, let `B(u,v)` denote the total area of all branches
-            ancestral to nodes `u` and `v`, and let `B(I,J)` be the sum of
+            ancestral to nodes `u` and `v`, and let `B(I,J)` be the average of
             `B(u,v)` over all nodes `u` in sample set `I` and `v` in sample set
             `J`. Let `S` and `T` be two independently chosen sample sets. Then
             for sample sets `I` and `J`, this computes
-            `E[B(I,J) - B(I,S) - B(J,T) + B(S,T)]`.
+            `E[B(I,J) - B(I,S) - B(J,T) + B(S,T)]` if centre=True (the default),
+            or `E[B(I,J)]` if centre=False.
 
         "node"
             For each node, the proportion of the window over which pairs of
             samples in two sample sets are descendants, relative to the rest of
             the sample sets. To be precise, for each node `n`, let `N(u,v)`
             denote the proportion of the window over which samples `u` and `v`
-            are descendants of `n`, and let and let `N(I,J)` be the sum of
+            are descendants of `n`, and let and let `N(I,J)` be the average of
             `N(u,v)` over all nodes `u` in sample set `I` and `v` in sample set
             `J`. Let `S` and `T` be two independently chosen sample sets. Then
             for sample sets `I` and `J`, this computes
-            `E[N(I,J) - N(I,S) - N(J,T) + N(S,T)]`.
+            `E[N(I,J) - N(I,S) - N(J,T) + N(S,T)]` if centre=True (the default),
+            or `E[N(I,J)]` if centre=False.
+
+        *Note:* The default for this statistic - unlike most other statistics - is
+        ``polarised=True``. Using the default value ``centre=True``, setting
+        ``polarised=False`` will only multiply the result by a factor of two
+        for branch-mode, or site-mode if all sites are biallelic. (With
+        multiallelic sites the difference is more complicated.) The uncentred
+        and unpolarised value is probably not what you are looking for: for
+        instance, the unpolarised, uncentred site statistic between two samples
+        counts the number of alleles inherited by both *and* the number of
+        alleles inherited by neither of the two samples.
+
+        *Note:* Some authors
+        (see `Speed & Balding (2014) <https://www.nature.com/articles/nrg3821>`_)
+        compute relatedness between `I` and `J` as the total number of all pairwise
+        allelic matches between `I` and `J`, rather than the frequency,
+        which would define `m(I,J)` as the sum of `m(u,v)` rather than the average
+        in the definition of "site" relatedness above. If every sample set is the
+        samples of a :math:`k`-ploid individual, this would simply multiply the
+        result by :math:`k^2`. However, this definition would make the result not
+        useful as a summary statistic of typical relatedness for larger sample
+        sets.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of nodes to compute the statistic with.
@@ -8189,23 +8219,16 @@ class TreeSequence:
             that are segregating between *any* of the samples of *any* of the
             sample sets (rather than segregating between all of the samples of
             the tree sequence).
+        :param bool polarised: Whether to leave the ancestral state out of computations:
+            see :ref:`sec_stats` for more details. Defaults to True.
+        :param bool centre: Defaults to True. Whether to 'centre' the result, as
+            described above (the usual definition is centred).
         :return: A ndarray with shape equal to (num windows, num statistics).
             If there is one pair of sample sets and windows=None, a numpy scalar is
             returned.
         """
-        if proportion:
-            # TODO this should be done in C also
-            all_samples = list({u for s in sample_sets for u in s})
-            denominator = self.segregating_sites(
-                sample_sets=[all_samples],
-                windows=windows,
-                mode=mode,
-                span_normalise=span_normalise,
-            )
-        else:
-            denominator = 1
 
-        numerator = self.__k_way_sample_set_stat(
+        out = self.__k_way_sample_set_stat(
             self._ll_tree_sequence.genetic_relatedness,
             2,
             sample_sets,
@@ -8214,9 +8237,25 @@ class TreeSequence:
             mode=mode,
             span_normalise=span_normalise,
             polarised=polarised,
+            centre=centre,
         )
-        with np.errstate(divide="ignore", invalid="ignore"):
-            out = numerator / denominator
+        if proportion:
+            # TODO this should be done in C also
+            all_samples = np.array(list({u for s in sample_sets for u in s}))
+            denominator = self.segregating_sites(
+                sample_sets=all_samples,
+                windows=windows,
+                mode=mode,
+                span_normalise=span_normalise,
+            )
+            # the shapes of out and denominator should be the same except that
+            # out may have an extra dimension if indexes is not None
+            if indexes is not None and not isinstance(denominator, float):
+                oshape = list(out.shape)
+                oshape[-1] = 1
+                denominator = denominator.reshape(oshape)
+            with np.errstate(divide="ignore", invalid="ignore"):
+                out /= denominator
 
         return out
 
@@ -8807,11 +8846,19 @@ class TreeSequence:
         # around with indexes and samples sets twice.
 
         def fst_func(sample_set_sizes, flattened, indexes, **kwargs):
-            diversities = self._ll_tree_sequence.diversity(
-                sample_set_sizes, flattened, **kwargs
-            )
             divergences = self._ll_tree_sequence.divergence(
                 sample_set_sizes, flattened, indexes, **kwargs
+            )
+            # HACK since diversity doesn't take the `centred` argument
+            diversity_args = inspect.getfullargspec(self.diversity).args
+            remove_args = []
+            for a in kwargs:
+                if a not in diversity_args:
+                    remove_args.append(a)
+            for a in remove_args:
+                _ = kwargs.pop(a, None)
+            diversities = self._ll_tree_sequence.diversity(
+                sample_set_sizes, flattened, **kwargs
             )
 
             orig_shape = divergences.shape

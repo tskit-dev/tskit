@@ -9560,7 +9560,7 @@ TreeSequence_k_way_stat_method(TreeSequence *self, PyObject *args, PyObject *kwd
 {
     PyObject *ret = NULL;
     static char *kwlist[] = { "sample_set_sizes", "sample_sets", "indexes", "windows",
-        "mode", "span_normalise", "polarised", NULL };
+        "mode", "span_normalise", "polarised", "centre", NULL };
     PyObject *sample_set_sizes = NULL;
     PyObject *sample_sets = NULL;
     PyObject *indexes = NULL;
@@ -9576,13 +9576,15 @@ TreeSequence_k_way_stat_method(TreeSequence *self, PyObject *args, PyObject *kwd
     char *mode = NULL;
     int span_normalise = true;
     int polarised = false;
+    int centre = true;
     int err;
 
     if (TreeSequence_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOO|sii", kwlist, &sample_set_sizes,
-            &sample_sets, &indexes, &windows, &mode, &span_normalise, &polarised)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOO|siii", kwlist, &sample_set_sizes,
+            &sample_sets, &indexes, &windows, &mode, &span_normalise, &polarised,
+            &centre)) {
         goto out;
     }
     if (parse_stats_mode(mode, &options) != 0) {
@@ -9593,6 +9595,10 @@ TreeSequence_k_way_stat_method(TreeSequence *self, PyObject *args, PyObject *kwd
     }
     if (polarised) {
         options |= TSK_STAT_POLARISED;
+    }
+    if (!centre) {
+        // only currently used by genetic_relatedness
+        options |= TSK_STAT_NONCENTRED;
     }
     if (parse_sample_sets(sample_set_sizes, &sample_set_sizes_array, sample_sets,
             &sample_sets_array, &num_sample_sets)
