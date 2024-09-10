@@ -9652,7 +9652,7 @@ TreeSequence_k_way_weighted_stat_method(TreeSequence *self, PyObject *args,
 {
     PyObject *ret = NULL;
     static char *kwlist[] = { "weights", "indexes", "windows", "mode", "span_normalise",
-        "polarised", NULL };
+        "polarised", "centre", NULL };
     PyObject *weights = NULL;
     PyObject *indexes = NULL;
     PyObject *windows = NULL;
@@ -9666,13 +9666,14 @@ TreeSequence_k_way_weighted_stat_method(TreeSequence *self, PyObject *args,
     char *mode = NULL;
     int span_normalise = true;
     int polarised = false;
+    int centre = true;
     int err;
 
     if (TreeSequence_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|sii", kwlist, &weights, &indexes,
-            &windows, &mode, &span_normalise, &polarised)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|siii", kwlist, &weights, &indexes,
+            &windows, &mode, &span_normalise, &polarised, &centre)) {
         goto out;
     }
     if (parse_stats_mode(mode, &options) != 0) {
@@ -9683,6 +9684,10 @@ TreeSequence_k_way_weighted_stat_method(TreeSequence *self, PyObject *args,
     }
     if (polarised) {
         options |= TSK_STAT_POLARISED;
+    }
+    if (!centre) {
+        // only currently used by genetic_relatedness_weighted
+        options |= TSK_STAT_NONCENTRED;
     }
     if (parse_windows(windows, &windows_array, &num_windows) != 0) {
         goto out;

@@ -607,18 +607,30 @@ and boolean expressions (e.g., {math}`(x > 0)`) are interpreted as 0/1.
   For an unpolarized statistic with biallelic loci, this calculates
   {math}`p_1 (1-p_2) + (1 - p_1) p_2`.
 
-`genetic_relatedness`
-: {math}`f(x_i, x_j) = \frac{1}{2}(x_i - m)(x_j - m)`,
+`genetic_relatedness, centre=False`
+: {math}`f(x_i, x_j) = (x_i / n_i) (x_j / n_j)`,
 
   where {math}`m = \frac{1}{n}\sum_{k=1}^n x_k` with {math}`n` the total number
   of samples.
 
-`genetic_relatedness_weighted`
-: {math}`f(w_i, w_j, x_i, x_j) = \frac{1}{2}(x_i - w_i m) (x_j - w_j m)`,
+`genetic_relatedness, centre=True`
+: {math}`f(x_i, x_j) = (x_i / n_i - m)(x_j / n_j - m)`,
 
   where {math}`m = \frac{1}{n}\sum_{k=1}^n x_k` with {math}`n` the total number
-  of samples, and {math}`w_j = \sum_{k=1}^n W_kj` is the sum of the weights in the {math}`j`th column of the weight matrix.
-  
+  of sample sets.
+
+`genetic_relatedness_weighted, centre=True`
+: {math}`f(w_i, w_j, x_i, x_j) = (x_i - w_i p) (x_j - w_j p)`,
+
+  where {math}`p` is the proportion of all samples below the focal node,
+  and {math}`w_j = \sum_{k=1}^n W_{kj}` is the sum of the weights in the {math}`j`th column of the weight matrix.
+
+`genetic_relatedness_weighted, centre=False`
+: {math}`f(w_i, w_j, x_i, x_j) = x_i x_j`,
+
+  where {math}`p` is the proportion of all samples below the focal node,
+  and {math}`w_j = \sum_{k=1}^n W_{kj}` is the sum of the weights in the {math}`j`th column of the weight matrix.
+
 `Y2`
 : {math}`f(x_1, x_2) = \frac{x_1 (n_2 - x_2) (n_2 - x_2 - 1)}{n_1 n_2 (n_2 - 1)}`
 

@@ -7730,6 +7730,7 @@ class TreeSequence:
         mode=None,
         span_normalise=True,
         polarised=False,
+        centre=True,
     ):
         W = np.asarray(W)
         if indexes is None:
@@ -7757,6 +7758,7 @@ class TreeSequence:
             mode=mode,
             span_normalise=span_normalise,
             polarised=polarised,
+            centre=centre,
         )
         if drop_dimension:
             stat = stat.reshape(stat.shape[:-1])
@@ -8311,6 +8313,7 @@ class TreeSequence:
         mode="site",
         span_normalise=True,
         polarised=False,
+        centre=True,
     ):
         r"""
         Computes weighted genetic relatedness. If the k-th pair of indices is (i, j)
@@ -8331,6 +8334,10 @@ class TreeSequence:
             (defaults to "site").
         :param bool span_normalise: Whether to divide the result by the span of the
             window (defaults to True).
+        :param bool polarised: Whether to leave the ancestral state out of computations:
+            see :ref:`sec_stats` for more details. Defaults to True.
+        :param bool centre: Defaults to True. Whether to 'centre' the result, as
+            described above (the usual definition is centred).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         if len(W) != self.num_samples:
@@ -8346,6 +8353,7 @@ class TreeSequence:
             mode=mode,
             span_normalise=span_normalise,
             polarised=polarised,
+            centre=centre,
         )
 
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
