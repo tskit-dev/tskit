@@ -1350,7 +1350,7 @@ class TestGeneticRelatednessMatrix:
     def check(self, ts, mode, *, sample_sets=None, windows=None, span_normalise=True):
         # These are *only* expected to be the same
         # under infinite-sites mutations
-        if np.any([len(s.mutations) > 1 for s in ts.sites()]):
+        if mode == "site" and np.any([len(s.mutations) > 1 for s in ts.sites()]):
             ts = msprime.sim_mutations(
                 ts,
                 rate=100 / ts.segregating_sites(mode="branch", span_normalise=False),

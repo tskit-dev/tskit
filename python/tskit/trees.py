@@ -8270,6 +8270,45 @@ class TreeSequence:
         mode=None,
         span_normalise=True,
     ):
+        """
+        Computes the full matrix of pairwise genetic relatedness values
+        between (and within) pairs of sets of nodes from ``sample_sets``.
+        *Warning:* this does not compute exactly the same thing as
+        {meth}`.genetic_relatedness`: see below for more details.
+
+        If `mode="branch"`, then the value obtained is the same as that from
+        {meth}`.genetic_relatedness`, using the options `centre=True` and
+        `proportion=False`. The same is true if `mode="site"` and all sites have
+        at most one mutation.
+
+        However, if some sites have more than one mutation, the value may differ.
+        The reason is that this function (for efficiency) computes relatedness
+        using the {meth}`.divergence_matrix` method and the following relationship.
+        "Relatedness" measures the number of *shared* alleles (or branches),
+        while "divergence" measures the number of *non-shared* alleles (or branches).
+        Let {math}`T_i` be the total distance from sample {math}`i` up to the root;
+        then if {math}`D_{ij}` is the divergence between {math}`i` and {math}`j`
+        and {math}`R_{ij}` is the relatedness between {math}`i` and {math}`j`, then
+        {math}`T_i + T_j = D_{ij} + 2 R_{ij}.``
+        So, for any samples {math}`I`, {math}`J`, {math}`S`, {math}`T`
+        (that may now be random choices),
+        {math}`R_{IJ}-R_{IS}-R_{JT}+R_{ST} = (D_{IJ}-D_{IS}-D_{JT}+D_{ST})/ (-2)`.
+        Note, however, that this relationship only holds for `mode="site"`
+        if we can treat "number of differing alleles" as distances on the tree;
+        this is not necessarily the case in the presence of multiple mutations.
+
+        :param list sample_sets: A list of lists of Node IDs, specifying the
+            groups of nodes to compute the statistic with.
+        :param list windows: An increasing list of breakpoints between the windows
+            to compute the statistic in.
+        :param str mode: A string giving the "type" of the statistic to be computed
+            (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True). Has no effect if ``proportion`` is True.
+        :return: A ndarray with shape equal to (num windows, num statistics).
+            If there is one pair of sample sets and windows=None, a numpy scalar is
+            returned.
+        """
         D = self.divergence_matrix(
             sample_sets,
             windows=windows,

@@ -1956,6 +1956,18 @@ test_paper_ex_genetic_relatedness_weighted(void)
         ret = tsk_treeseq_genetic_relatedness_weighted(
             &ts, num_weights, weights, 2, indexes, 0, NULL, result, TSK_STAT_NODE);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_treeseq_genetic_relatedness_weighted(
+            &ts, num_weights, weights, 2, indexes, 0, NULL, result,
+            TSK_STAT_SITE | TSK_STAT_NONCENTRED);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_treeseq_genetic_relatedness_weighted(
+            &ts, num_weights, weights, 2, indexes, 0, NULL, result,
+            TSK_STAT_BRANCH | TSK_STAT_NONCENTRED);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
+        ret = tsk_treeseq_genetic_relatedness_weighted(
+            &ts, num_weights, weights, 2, indexes, 0, NULL, result,
+            TSK_STAT_NODE | TSK_STAT_NONCENTRED);
+        CU_ASSERT_EQUAL_FATAL(ret, 0);
     }
 
     tsk_treeseq_free(&ts);
