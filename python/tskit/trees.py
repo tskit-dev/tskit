@@ -30,7 +30,6 @@ import builtins
 import collections
 import concurrent.futures
 import functools
-import inspect
 import io
 import itertools
 import math
@@ -8153,14 +8152,14 @@ class TreeSequence:
             determined by additive contributions from the genomes in each
             sample set. Let each derived allele be associated with an effect
             drawn from a `N(0,1)` distribution, and let the trait value of a
-            sample set be the sum of its allele effects. Then, this computes
-            the covariance between the trait values of two sample sets. For
-            example, to compute covariance between the traits of diploid
+            sample be the sum of its allele effects. Then, this computes
+            the covariance between the average trait values of two sample sets.
+            For example, to compute covariance between the traits of diploid
             individuals, each sample set would be the pair of genomes of each
-            individual; if ``proportion=True``, this then corresponds to
-            :math:`K_{c0}` in
-            `Speed & Balding (2014) <https://www.nature.com/articles/nrg3821>`_
-            multiplied by four.
+            individual, with the trait being the average of the two genomes.
+            If ``proportion=True``, this then corresponds to :math:`K_{c0}` in
+            `Speed & Balding (2014) <https://www.nature.com/articles/nrg3821>`_,
+            multiplied by four (see below).
 
         "branch"
             Average area of branches in the window ancestral to pairs of samples
@@ -8274,28 +8273,36 @@ class TreeSequence:
         Computes the full matrix of pairwise genetic relatedness values
         between (and within) pairs of sets of nodes from ``sample_sets``.
         *Warning:* this does not compute exactly the same thing as
-        {meth}`.genetic_relatedness`: see below for more details.
+        :meth:`.genetic_relatedness`: see below for more details.
 
         If `mode="branch"`, then the value obtained is the same as that from
-        {meth}`.genetic_relatedness`, using the options `centre=True` and
+        :meth:`.genetic_relatedness`, using the options `centre=True` and
         `proportion=False`. The same is true if `mode="site"` and all sites have
         at most one mutation.
 
         However, if some sites have more than one mutation, the value may differ.
         The reason is that this function (for efficiency) computes relatedness
-        using the {meth}`.divergence_matrix` method and the following relationship.
+        using :meth:`.divergence` and the following relationship.
         "Relatedness" measures the number of *shared* alleles (or branches),
         while "divergence" measures the number of *non-shared* alleles (or branches).
-        Let {math}`T_i` be the total distance from sample {math}`i` up to the root;
-        then if {math}`D_{ij}` is the divergence between {math}`i` and {math}`j`
-        and {math}`R_{ij}` is the relatedness between {math}`i` and {math}`j`, then
-        {math}`T_i + T_j = D_{ij} + 2 R_{ij}.``
-        So, for any samples {math}`I`, {math}`J`, {math}`S`, {math}`T`
+        Let :math:`T_i` be the total distance from sample :math:`i` up to the root;
+        then if :math:`D_{ij}` is the divergence between :math:`i` and :math:`j`
+        and :math:`R_{ij}` is the relatedness between :math:`i` and :math:`j`, then
+        :math:`T_i + T_j = D_{ij} + 2 R_{ij}.`
+        So, for any samples :math:`I`, :math:`J`, :math:`S`, :math:`T`
         (that may now be random choices),
-        {math}`R_{IJ}-R_{IS}-R_{JT}+R_{ST} = (D_{IJ}-D_{IS}-D_{JT}+D_{ST})/ (-2)`.
+        :math:`R_{IJ}-R_{IS}-R_{JT}+R_{ST} = (D_{IJ}-D_{IS}-D_{JT}+D_{ST})/ (-2)`.
         Note, however, that this relationship only holds for `mode="site"`
         if we can treat "number of differing alleles" as distances on the tree;
         this is not necessarily the case in the presence of multiple mutations.
+
+        Another caveat in the above relationship between :math:`R` and :math:`D`
+        is that :meth:`.divergence` of a sample set to itself does not include
+        the "self" comparisons (so as to provide an unbiased estimator of a
+        population quantity), while the usual definition of genetic relatedness
+        *does* include such comparisons (to provide, for instance, an appropriate
+        value for prospective results beginning with only a given set of
+        individuals).
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of nodes to compute the statistic with.
@@ -8317,24 +8324,20 @@ class TreeSequence:
             span_normalise=span_normalise,
         )
 
-        # FIXME remove this when sample sets bug has been fixed.
-        # https://github.com/tskit-dev/tskit/issues/2888
-        if sample_sets is not None:
-            if any(len(ss) > 1 for ss in sample_sets):
-                raise ValueError(
-                    "Only single entry sample sets allowed for now."
-                    " See https://github.com/tskit-dev/tskit/issues/2888"
-                )
+        if sample_sets is None:
+            n = np.ones(self.num_samples)
+        else:
+            n = np.array([len(x) for x in sample_sets])
 
         def _normalise(B):
             if len(B) == 0:
                 return B
+            # correct for lack of self comparisons in divergence
+            np.fill_diagonal(B, np.diag(B) * (n - 1) / n)
             K = B + np.mean(B)
             y = np.mean(B, axis=0)
             X = y[:, np.newaxis] + y[np.newaxis, :]
             K -= X
-            # FIXME this factor of 2 works for single-sample sample-sets, but not
-            # otherwise. https://github.com/tskit-dev/tskit/issues/2888
             return K / -2
 
         if windows is None:
@@ -8355,12 +8358,16 @@ class TreeSequence:
         centre=True,
     ):
         r"""
-        Computes weighted genetic relatedness. If the k-th pair of indices is (i, j)
-        then the k-th column of output will be
+        Computes weighted genetic relatedness. If the :math:`k` th pair of indices
+        is (i, j) then the :math:`k` th column of output will be
         :math:`\sum_{a,b} W_{ai} W_{bj} C_{ab}`,
         where :math:`W` is the matrix of weights, and :math:`C_{ab}` is the
         :meth:`genetic_relatedness <.TreeSequence.genetic_relatedness>` between sample
         a and sample b, summing over all pairs of samples in the tree sequence.
+
+        *Note:* the genetic relatedness matrix :math:`C` here is as returned by
+        :meth:`.genetic_relatedness`, rather than by :meth:`.genetic_relatedness_matrix`
+        (see the latter's documentation for the difference).
 
         :param numpy.ndarray W: An array of values with one row for each sample node and
             one column for each set of weights.
@@ -8892,20 +8899,35 @@ class TreeSequence:
         # two-way stats and (b) it's a bit more efficient because we're not messing
         # around with indexes and samples sets twice.
 
-        def fst_func(sample_set_sizes, flattened, indexes, **kwargs):
+        def fst_func(
+            sample_set_sizes,
+            flattened,
+            indexes,
+            windows,
+            mode,
+            span_normalise,
+            polarised,
+            centre,
+        ):
+            # note: this is kinda hacky - polarised and centre are not used here -
+            # but this seems necessary to use our __k_way_sample_set_stat framework
             divergences = self._ll_tree_sequence.divergence(
-                sample_set_sizes, flattened, indexes, **kwargs
+                sample_set_sizes,
+                flattened,
+                indexes=indexes,
+                windows=windows,
+                mode=mode,
+                span_normalise=span_normalise,
+                polarised=polarised,
+                centre=centre,
             )
-            # HACK since diversity doesn't take the `centred` argument
-            diversity_args = inspect.getfullargspec(self.diversity).args
-            remove_args = []
-            for a in kwargs:
-                if a not in diversity_args:
-                    remove_args.append(a)
-            for a in remove_args:
-                _ = kwargs.pop(a, None)
             diversities = self._ll_tree_sequence.diversity(
-                sample_set_sizes, flattened, **kwargs
+                sample_set_sizes,
+                flattened,
+                windows=windows,
+                mode=mode,
+                span_normalise=span_normalise,
+                polarised=polarised,
             )
 
             orig_shape = divergences.shape

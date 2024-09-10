@@ -1306,7 +1306,7 @@ tsk_treeseq_branch_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
     }
 
     if (parent == NULL || branch_length == NULL || state == NULL || running_sum == NULL
-        || summary == NULL) {
+        || summary == NULL || zero_state == NULL || zero_summary == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }

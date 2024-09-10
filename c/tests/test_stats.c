@@ -869,7 +869,8 @@ verify_one_way_stat_func_errors(tsk_treeseq_t *ts, one_way_sample_stat_method *m
 }
 
 static void
-verify_two_way_stat_func_errors(tsk_treeseq_t *ts, general_sample_stat_method *method)
+verify_two_way_stat_func_errors(
+    tsk_treeseq_t *ts, general_sample_stat_method *method, tsk_flags_t options)
 {
     int ret;
     tsk_id_t samples[] = { 0, 1, 2, 3 };
@@ -878,30 +879,30 @@ verify_two_way_stat_func_errors(tsk_treeseq_t *ts, general_sample_stat_method *m
     double result;
 
     ret = method(ts, 0, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
-        TSK_STAT_SITE, &result);
+        options | TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
     ret = method(ts, 1, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
-        TSK_STAT_SITE, &result);
+        options | TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
 
     ret = method(ts, 2, sample_set_sizes, samples, 0, set_indexes, 0, NULL,
-        TSK_STAT_SITE, &result);
+        options | TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_INDEX_TUPLES);
 
     set_indexes[0] = -1;
     ret = method(ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
-        TSK_STAT_SITE, &result);
+        options | TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLE_SET_INDEX);
     set_indexes[0] = 0;
     set_indexes[1] = 2;
     ret = method(ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
-        TSK_STAT_SITE, &result);
+        options | TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLE_SET_INDEX);
 }
 
 static void
 verify_two_way_weighted_stat_func_errors(
-    tsk_treeseq_t *ts, two_way_weighted_method *method)
+    tsk_treeseq_t *ts, two_way_weighted_method *method, tsk_flags_t options)
 {
     int ret;
     tsk_id_t indexes[] = { 0, 0, 0, 1 };
@@ -911,13 +912,17 @@ verify_two_way_weighted_stat_func_errors(
 
     memset(weights, 0, sizeof(weights));
 
-    ret = method(ts, 2, weights, 2, indexes, 0, NULL, result, 0);
+    ret = method(ts, 2, weights, 2, indexes, 0, NULL, result, options);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = method(ts, 0, weights, 2, indexes, 0, NULL, result, 0);
+    ret = method(ts, 2, weights, 2, indexes, 0, NULL, result,
+        options | TSK_STAT_SITE | TSK_STAT_NODE);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MULTIPLE_STAT_MODES);
+
+    ret = method(ts, 0, weights, 2, indexes, 0, NULL, result, options);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_WEIGHTS);
 
-    ret = method(ts, 2, weights, 2, indexes, 1, bad_windows, result, 0);
+    ret = method(ts, 2, weights, 2, indexes, 1, bad_windows, result, options);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);
 }
 
@@ -1866,7 +1871,7 @@ test_paper_ex_divergence_errors(void)
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
-    verify_two_way_stat_func_errors(&ts, tsk_treeseq_divergence);
+    verify_two_way_stat_func_errors(&ts, tsk_treeseq_divergence, 0);
     tsk_treeseq_free(&ts);
 }
 
@@ -1929,7 +1934,11 @@ test_paper_ex_genetic_relatedness_errors(void)
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
-    verify_two_way_stat_func_errors(&ts, tsk_treeseq_genetic_relatedness);
+    verify_two_way_stat_func_errors(&ts, tsk_treeseq_genetic_relatedness, 0);
+    verify_two_way_stat_func_errors(
+        &ts, tsk_treeseq_genetic_relatedness, TSK_STAT_NONCENTRED);
+    verify_two_way_stat_func_errors(
+        &ts, tsk_treeseq_genetic_relatedness, TSK_STAT_POLARISED);
     tsk_treeseq_free(&ts);
 }
 
@@ -1956,17 +1965,14 @@ test_paper_ex_genetic_relatedness_weighted(void)
         ret = tsk_treeseq_genetic_relatedness_weighted(
             &ts, num_weights, weights, 2, indexes, 0, NULL, result, TSK_STAT_NODE);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
-        ret = tsk_treeseq_genetic_relatedness_weighted(
-            &ts, num_weights, weights, 2, indexes, 0, NULL, result,
-            TSK_STAT_SITE | TSK_STAT_NONCENTRED);
+        ret = tsk_treeseq_genetic_relatedness_weighted(&ts, num_weights, weights, 2,
+            indexes, 0, NULL, result, TSK_STAT_SITE | TSK_STAT_NONCENTRED);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
-        ret = tsk_treeseq_genetic_relatedness_weighted(
-            &ts, num_weights, weights, 2, indexes, 0, NULL, result,
-            TSK_STAT_BRANCH | TSK_STAT_NONCENTRED);
+        ret = tsk_treeseq_genetic_relatedness_weighted(&ts, num_weights, weights, 2,
+            indexes, 0, NULL, result, TSK_STAT_BRANCH | TSK_STAT_NONCENTRED);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
-        ret = tsk_treeseq_genetic_relatedness_weighted(
-            &ts, num_weights, weights, 2, indexes, 0, NULL, result,
-            TSK_STAT_NODE | TSK_STAT_NONCENTRED);
+        ret = tsk_treeseq_genetic_relatedness_weighted(&ts, num_weights, weights, 2,
+            indexes, 0, NULL, result, TSK_STAT_NODE | TSK_STAT_NONCENTRED);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
     }
 
@@ -1981,7 +1987,11 @@ test_paper_ex_genetic_relatedness_weighted_errors(void)
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
     verify_two_way_weighted_stat_func_errors(
-        &ts, tsk_treeseq_genetic_relatedness_weighted);
+        &ts, tsk_treeseq_genetic_relatedness_weighted, 0);
+    verify_two_way_weighted_stat_func_errors(
+        &ts, tsk_treeseq_genetic_relatedness_weighted, TSK_STAT_NONCENTRED);
+    verify_two_way_weighted_stat_func_errors(
+        &ts, tsk_treeseq_genetic_relatedness_weighted, TSK_STAT_POLARISED);
     tsk_treeseq_free(&ts);
 }
 
@@ -1992,7 +2002,7 @@ test_paper_ex_Y2_errors(void)
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
-    verify_two_way_stat_func_errors(&ts, tsk_treeseq_Y2);
+    verify_two_way_stat_func_errors(&ts, tsk_treeseq_Y2, 0);
     tsk_treeseq_free(&ts);
 }
 
@@ -2030,7 +2040,7 @@ test_paper_ex_f2_errors(void)
 
     tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
         paper_ex_mutations, paper_ex_individuals, NULL, 0);
-    verify_two_way_stat_func_errors(&ts, tsk_treeseq_f2);
+    verify_two_way_stat_func_errors(&ts, tsk_treeseq_f2, 0);
     tsk_treeseq_free(&ts);
 }
 

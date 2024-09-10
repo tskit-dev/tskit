@@ -215,7 +215,6 @@ def branch_general_stat(
 
     for u in range(ts.num_nodes):
         summary[u] = polarised_summary(u)
-        # print("u0", u, summary[u])
 
     window_index = 0
     for (t_left, t_right), edges_out, edges_in in ts.edge_diffs():
@@ -2021,8 +2020,8 @@ class TestGeneticRelatedness(StatsTestCase, TwoWaySampleSetStatsMixin):
         ts_method,
         definition,
         proportion,
-        centre=True,
         polarised=True,
+        centre=True,
     ):
         def wrapped_summary_func(x):
             with suppress_division_by_zero_warning():
@@ -2327,8 +2326,8 @@ def genetic_relatedness_matrix(
                 mode=mode,
                 proportion=False,
                 span_normalise=True,
-                centre=centre,
                 polarised=polarised,
+                centre=centre,
             )
             for node in range(n_nodes):
                 this_K = np.zeros((n, n))
@@ -2357,8 +2356,8 @@ def genetic_relatedness_matrix(
             windows=windows,
             proportion=False,
             span_normalise=True,
-            centre=centre,
             polarised=polarised,
+            centre=centre,
         )
         if mode == "node":
             n_nodes = ts.num_nodes
@@ -2380,7 +2379,7 @@ def genetic_relatedness_matrix(
 
 
 def genetic_relatedness_weighted(
-    ts, W, indexes, windows=None, mode="site", centre=True, polarised=True
+    ts, W, indexes, windows=None, mode="site", polarised=True, centre=True
 ):
     if centre:
         W_mean = W.mean(axis=0)
@@ -2446,8 +2445,8 @@ class TestGeneticRelatednessWeighted(StatsTestCase, WeightStatsMixin):
         summary_func,
         ts_method,
         definition,
-        centre=True,
         polarised=True,
+        centre=True,
     ):
         # Determine output_dim of the function
         M = len(indexes)
@@ -2477,8 +2476,8 @@ class TestGeneticRelatednessWeighted(StatsTestCase, WeightStatsMixin):
             indexes=indexes,
             windows=windows,
             mode=self.mode,
-            centre=centre,
             polarised=polarised,
+            centre=centre,
         )
         sigma4 = definition(
             ts,
@@ -2486,8 +2485,8 @@ class TestGeneticRelatednessWeighted(StatsTestCase, WeightStatsMixin):
             indexes=indexes,
             windows=windows,
             mode=self.mode,
-            centre=centre,
             polarised=polarised,
+            centre=centre,
         )
         assert sigma1.shape == sigma2.shape
         assert sigma1.shape == sigma3.shape
