@@ -364,7 +364,6 @@ verify_pair_coalescence_counts(tsk_treeseq_t *ts, tsk_flags_t options)
     ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
         index_tuples, T, breakpoints, N, node_bin_map, options, C);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    /* TODO: compare against naive pairs per node per tree */
 
     /* cover errors */
     double bad_breakpoints[2] = { breakpoints[1], 0.0 };
@@ -428,12 +427,15 @@ verify_pair_coalescence_quantiles(tsk_treeseq_t *ts)
     tsk_size_t sample_set_sizes[P];
     tsk_id_t index_tuples[2 * I];
     tsk_id_t node_bin_map[N];
+    tsk_id_t node_bin_map_empty[N];
+    tsk_id_t node_bin_map_shuff[N];
     tsk_size_t dim = T * Q * I;
     double C[dim];
     tsk_size_t i, j, k;
 
     for (i = 0; i < N; i++) {
-        node_bin_map[i] = TSK_NULL;
+        node_bin_map_empty[i] = TSK_NULL;
+        node_bin_map_shuff[i] = (tsk_id_t)(i % B);
         for (j = 0; j < B; j++) {
             if (nodes_time[i] >= epochs[j] && nodes_time[i] < epochs[j + 1]) {
                 node_bin_map[i] = (tsk_id_t) j;
@@ -463,14 +465,16 @@ verify_pair_coalescence_quantiles(tsk_treeseq_t *ts)
     ret = tsk_treeseq_pair_coalescence_quantiles(ts, P, sample_set_sizes, sample_sets, I,
         index_tuples, T, breakpoints, B, node_bin_map, Q, quantiles, 0, C);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    /* TODO: compare against naive quantiles per tree */
 
     quantiles[Q - 1] = 0.9;
     ret = tsk_treeseq_pair_coalescence_quantiles(ts, P, sample_set_sizes, sample_sets, I,
         index_tuples, T, breakpoints, B, node_bin_map, Q, quantiles, 0, C);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     quantiles[Q - 1] = 1.0;
-    /* TODO: compare against naive quantiles per tree */
+
+    ret = tsk_treeseq_pair_coalescence_quantiles(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, B, node_bin_map_empty, Q, quantiles, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* cover errors */
     quantiles[0] = -1.0;
@@ -493,23 +497,17 @@ verify_pair_coalescence_quantiles(tsk_treeseq_t *ts)
     quantiles[0] = 0.0;
     quantiles[1] = 0.25;
 
-    for (i = 0; i < N; i++) {
-        if (node_bin_map[i] == 0) {
-            node_bin_map[i] = 2;
-        } else if (node_bin_map[i] == 2) {
-            node_bin_map[i] = 0;
-        }
-    }
+    ts->tables->nodes.time[N - 1] = -1.0;
+    ret = tsk_treeseq_pair_coalescence_quantiles(ts, P, sample_set_sizes, sample_sets, I,
+        index_tuples, T, breakpoints, B, node_bin_map_shuff, Q, quantiles, 0, C);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_TIMES);
+    ts->tables->nodes.time[N - 1] = max_time;
+
+    node_bin_map[0] = (tsk_id_t) B;
     ret = tsk_treeseq_pair_coalescence_quantiles(ts, P, sample_set_sizes, sample_sets, I,
         index_tuples, T, breakpoints, B, node_bin_map, Q, quantiles, 0, C);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_TIMES);
-    for (i = 0; i < N; i++) {
-        if (node_bin_map[i] == 0) {
-            node_bin_map[i] = 2;
-        } else if (node_bin_map[i] == 2) {
-            node_bin_map[i] = 0;
-        }
-    }
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_BIN_MAP_DIM);
+    node_bin_map[0] = 0;
 }
 
 /* Check coalescence rates */
@@ -570,7 +568,6 @@ verify_pair_coalescence_rates(tsk_treeseq_t *ts)
     ret = tsk_treeseq_pair_coalescence_rates(ts, P, sample_set_sizes, sample_sets, I,
         index_tuples, T, breakpoints, B, node_bin_map, epochs, 0, C);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    /* TODO: compare against naive coalescence rates per tree */
 
     node_bin_map[0] = TSK_NULL;
     ret = tsk_treeseq_pair_coalescence_rates(ts, P, sample_set_sizes, sample_sets, I,
