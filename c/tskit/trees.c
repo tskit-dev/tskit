@@ -9298,10 +9298,12 @@ check_sorted_node_bin_map(
     const double *nodes_time = self->tables->nodes.time;
     double last;
     tsk_id_t i, j;
-    double *max_time = NULL;
-    double *min_time = NULL;
-    min_time = tsk_malloc(num_bins * sizeof(*min_time));
-    max_time = tsk_malloc(num_bins * sizeof(*max_time));
+    double *min_time = tsk_malloc(num_bins * sizeof(*min_time));
+    double *max_time = tsk_malloc(num_bins * sizeof(*max_time));
+    if (min_time == NULL || max_time == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
     for (j = 0; j < (tsk_id_t) num_bins; j++) {
         min_time[j] = TSK_UNKNOWN_TIME;
         max_time[j] = TSK_UNKNOWN_TIME;
