@@ -556,6 +556,26 @@ associated with each allele; but if polarised, then the ancestral allele is left
 For branch or node statistics, summary functions are applied to the total weight or number of samples
 below, and above each branch or node; if polarised, then only the weight below is used.
 
+(sec_stats_strictness)=
+
+### Strictness, and which branches count?
+
+Most statistics are not affected by invariant sites,
+and hence do not depend on any part of the tree that is not ancestral to any of the sample sets.
+However, some statistics are different: for instance, 
+given a pair of samples, {meth}`TreeSequence.genetic_relatedness`
+with `centre=False` (and `polarised=True`, the default for that method)
+adds up the total number of alleles (or total area of branches) that is
+either ancestral to both samples *or ancestral to neither*.
+So, it depends on what else is in the tree sequence.
+(For this reason, we don't recommend actually *using* this combination of options for genetic
+relatedness.)
+
+In terms of the summary function {math}`f(x)`, "not affected by invariant sites" translates to
+{math}`f(0) = f(n) = 0`, where {math}`n` is the vector of sample set sizes.
+By default, {meth}`TreeSequence.general_stat` checks if the summary function satisfies this condition,
+and throws an error if not; this check can be disabled by setting `strict=False`.
+
 
 (sec_stats_summary_functions)=
 
@@ -585,21 +605,34 @@ and boolean expressions (e.g., {math}`(x > 0)`) are interpreted as 0/1.
 
   unless the two indices are the same, when the diversity function is used.
 
-  For an unpolarized statistic with biallelic loci, this calculates
+  For an unpolarised statistic with biallelic loci, this calculates
   {math}`p_1 (1-p_2) + (1 - p_1) p_2`.
 
-`genetic_relatedness`
-: {math}`f(x_i, x_j) = \frac{1}{2}(x_i - m)(x_j - m)`,
+`genetic_relatedness, centre=True`
+: {math}`f(x_i, x_j) = (x_i / n_i - m)(x_j / n_j - m)`,
 
   where {math}`m = \frac{1}{n}\sum_{k=1}^n x_k` with {math}`n` the total number
-  of samples.
+  of sample sets.
+  For a polarised statistic (the default) with biallelic loci, this calculates
+  {math}`(p_1 - \bar{p}) (p_2 - \bar{p})`, where {math}`\bar{p}` is the average
+  derived allele frequency across sample sets.
 
-`genetic_relatedness_weighted`
-: {math}`f(w_i, w_j, x_i, x_j) = \frac{1}{2}(x_i - w_i m) (x_j - w_j m)`,
+`genetic_relatedness, centre=False`
+: {math}`f(x_i, x_j) = (x_i / n_i) (x_j / n_j)`.
 
-  where {math}`m = \frac{1}{n}\sum_{k=1}^n x_k` with {math}`n` the total number
-  of samples, and {math}`w_j = \sum_{k=1}^n W_kj` is the sum of the weights in the {math}`j`th column of the weight matrix.
-  
+  For an polarised statistic (the default) with biallelic loci, this calculates
+  {math}`p_1 p_2`.
+
+`genetic_relatedness_weighted, centre=True`
+: {math}`f(w_i, w_j, x_i, x_j) = (x_i - w_i p) (x_j - w_j p)`,
+
+  where {math}`p` is the proportion of all samples below the focal node,
+  and {math}`w_j = \sum_{k=1}^n W_{kj}` is the sum of the weights in the {math}`j`th column of the weight matrix.
+
+`genetic_relatedness_weighted, centre=False`
+: {math}`f(w_i, w_j, x_i, x_j) = x_i x_j`.
+
+
 `Y2`
 : {math}`f(x_1, x_2) = \frac{x_1 (n_2 - x_2) (n_2 - x_2 - 1)}{n_1 n_2 (n_2 - 1)}`
 
@@ -772,4 +805,3 @@ do not have this property (since both are ratios of statistics that do have this
 The {meth}`~TreeSequence.genealogical_nearest_neighbours` statistic is not based on branch
 lengths, but on topologies. therefore it currently has a slightly different interface to
 the other single site statistics. This may be revised in the future.
-

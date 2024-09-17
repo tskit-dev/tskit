@@ -1095,3 +1095,39 @@ See the {meth}`TreeSequence.variants` method and {class}`Variant` class for
 more information on how missing data is represented in variant data.
 
 
+(sec_gotchas)=
+
+## Possibly surprising consequences of the data model
+
+This is a section of miscellaneous issues that might trip even an experienced user up,
+also known as "gotchas".
+The current examples are quite uncommon, so can be ignored for most purposes,
+but the list may be expanded in the future.
+
+### Unrelated material
+
+Usually, all parts of a tree sequence are ancestral to at least one sample,
+since that's essentially the definition of a sample: the genomes that
+we're describing the ancestry of.
+However, in some cases there will be portions of the tree sequence from which
+no samples inherit - notably, the result of a forwards simulation that has
+not been simplified.
+In fact, if the simulation has not coalesced,
+one can have entire portions of some marginal tree that are
+unrelated to any of the samples
+(for instance, an individual in the initial generation of the simulation
+that had no offspring).
+This can lead to a gotcha:
+the *roots* of a tree are defined to be only those roots *reachable from the samples*
+(and, furthermore, reachable from at least `root_threshold` samples;
+see {meth}`TreeSequence.trees`).
+So, our unlucky ancestor would not appear in the list of `roots`, even though
+if we drew all the relationships provided by the tree sequence,
+they'd definitely be a root.
+Furthermore, only nodes *reachable from a root* are included in the
+{meth}`Tree.nodes`. So, if you iterate over all the nodes in each marginal tree,
+you won't see those parts of the tree sequence that are unrelated to the samples.
+If you need to get those, too, you could either
+work with the {meth}`TreeSequence.edge_diffs` directly,
+or iterate over all nodes (instead of over {meth}`Tree.nodes`).
+

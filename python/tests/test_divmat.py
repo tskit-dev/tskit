@@ -1348,6 +1348,16 @@ class TestSampleSetParsing:
 
 class TestGeneticRelatednessMatrix:
     def check(self, ts, mode, *, sample_sets=None, windows=None, span_normalise=True):
+        # These are *only* expected to be the same
+        # under infinite-sites mutations
+        if mode == "site" and np.any([len(s.mutations) > 1 for s in ts.sites()]):
+            ts = msprime.sim_mutations(
+                ts,
+                rate=100 / ts.segregating_sites(mode="branch", span_normalise=False),
+                random_seed=123,
+                discrete_genome=False,
+                keep=False,
+            )
         G1 = stats_api_genetic_relatedness_matrix(
             ts,
             mode=mode,
@@ -1385,8 +1395,7 @@ class TestGeneticRelatednessMatrix:
         #     0         1
         ts = tskit.Tree.generate_balanced(4).tree_sequence
         ts = tsutil.insert_branch_sites(ts)
-        with pytest.raises(ValueError, match="2888"):
-            self.check(ts, mode, sample_sets=[[0, 1], [2, 3]])
+        self.check(ts, mode, sample_sets=[[0, 1], [2, 3]])
 
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
     def test_single_tree_single_samples(self, mode):
@@ -1425,7 +1434,6 @@ class TestGeneticRelatednessMatrix:
     def test_suite_span_normalise(self, ts, mode, span_normalise):
         self.check(ts, mode=mode, span_normalise=span_normalise)
 
-    @pytest.mark.skip("fix sample sets #2888")
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
     @pytest.mark.parametrize("num_sets", [2])  # [[2, 3, 4, 5])

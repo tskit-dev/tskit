@@ -1297,6 +1297,8 @@ tsk_treeseq_branch_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
     double *state = tsk_calloc(num_nodes * state_dim, sizeof(*state));
     double *summary = tsk_calloc(num_nodes * result_dim, sizeof(*summary));
     double *running_sum = tsk_calloc(result_dim, sizeof(*running_sum));
+    double *zero_state = tsk_calloc(state_dim, sizeof(*zero_state));
+    double *zero_summary = tsk_calloc(result_dim, sizeof(*zero_state));
 
     if (self->time_uncalibrated && !(options & TSK_STAT_ALLOW_TIME_UNCALIBRATED)) {
         ret = TSK_ERR_TIME_UNCALIBRATED;
@@ -1304,12 +1306,21 @@ tsk_treeseq_branch_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
     }
 
     if (parent == NULL || branch_length == NULL || state == NULL || running_sum == NULL
-        || summary == NULL) {
+        || summary == NULL || zero_state == NULL || zero_summary == NULL) {
         ret = TSK_ERR_NO_MEMORY;
         goto out;
     }
     tsk_memset(parent, 0xff, num_nodes * sizeof(*parent));
 
+    /* If f is not strict, we may need to set conditions for non-sample nodes as well. */
+    ret = f(state_dim, zero_state, result_dim, zero_summary, f_params);
+    if (ret != 0) {
+        goto out;
+    }
+    for (j = 0; j < num_nodes; j++) { // we could skip this if zero_summary is zero
+        summary_u = GET_2D_ROW(summary, result_dim, j);
+        tsk_memcpy(summary_u, zero_summary, result_dim * sizeof(*zero_summary));
+    }
     /* Set the initial conditions */
     for (j = 0; j < self->num_samples; j++) {
         u = self->samples[j];
@@ -1322,6 +1333,7 @@ tsk_treeseq_branch_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
             goto out;
         }
     }
+
     tsk_memset(result, 0, num_windows * result_dim * sizeof(*result));
 
     /* Iterate over the trees */
@@ -1425,6 +1437,8 @@ out:
     tsk_safe_free(state);
     tsk_safe_free(summary);
     tsk_safe_free(running_sum);
+    tsk_safe_free(zero_state);
+    tsk_safe_free(zero_summary);
     return ret;
 }
 
@@ -2072,6 +2086,7 @@ typedef struct {
 } sample_count_stat_params_t;
 
 typedef struct {
+    tsk_size_t num_samples;
     double *total_weights;
     const tsk_id_t *index_tuples;
 } indexed_weight_stat_params_t;
@@ -4542,21 +4557,39 @@ genetic_relatedness_summary_func(tsk_size_t state_dim, const double *state,
     tsk_id_t i, j;
     tsk_size_t k;
     double sumx = 0;
-    double sumn = 0;
     double meanx, ni, nj;
 
     for (k = 0; k < state_dim; k++) {
-        sumx += x[k];
-        sumn += (double) args.sample_set_sizes[k];
+        sumx += x[k] / (double) args.sample_set_sizes[k];
     }
 
-    meanx = sumx / sumn;
+    meanx = sumx / (double) state_dim;
     for (k = 0; k < result_dim; k++) {
         i = args.set_indexes[2 * k];
         j = args.set_indexes[2 * k + 1];
         ni = (double) args.sample_set_sizes[i];
         nj = (double) args.sample_set_sizes[j];
-        result[k] = (x[i] - ni * meanx) * (x[j] - nj * meanx) / 2;
+        result[k] = (x[i] / ni - meanx) * (x[j] / nj - meanx);
+    }
+    return 0;
+}
+
+static int
+genetic_relatedness_noncentred_summary_func(tsk_size_t TSK_UNUSED(state_dim),
+    const double *state, tsk_size_t result_dim, double *result, void *params)
+{
+    sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
+    const double *x = state;
+    tsk_id_t i, j;
+    tsk_size_t k;
+    double ni, nj;
+
+    for (k = 0; k < result_dim; k++) {
+        i = args.set_indexes[2 * k];
+        j = args.set_indexes[2 * k + 1];
+        ni = (double) args.sample_set_sizes[i];
+        nj = (double) args.sample_set_sizes[j];
+        result[k] = x[i] * x[j] / (ni * nj);
     }
     return 0;
 }
@@ -4572,9 +4605,16 @@ tsk_treeseq_genetic_relatedness(const tsk_treeseq_t *self, tsk_size_t num_sample
     if (ret != 0) {
         goto out;
     }
-    ret = tsk_treeseq_sample_count_stat(self, num_sample_sets, sample_set_sizes,
-        sample_sets, num_index_tuples, index_tuples, genetic_relatedness_summary_func,
-        num_windows, windows, options, result);
+    if (!(options & TSK_STAT_NONCENTRED)) {
+        ret = tsk_treeseq_sample_count_stat(self, num_sample_sets, sample_set_sizes,
+            sample_sets, num_index_tuples, index_tuples,
+            genetic_relatedness_summary_func, num_windows, windows, options, result);
+    } else {
+        ret = tsk_treeseq_sample_count_stat(self, num_sample_sets, sample_set_sizes,
+            sample_sets, num_index_tuples, index_tuples,
+            genetic_relatedness_noncentred_summary_func, num_windows, windows, options,
+            result);
+    }
 out:
     return ret;
 }
@@ -4587,15 +4627,32 @@ genetic_relatedness_weighted_summary_func(tsk_size_t state_dim, const double *st
     const double *x = state;
     tsk_id_t i, j;
     tsk_size_t k;
-    double meanx, ni, nj;
+    double pn, ni, nj;
 
-    meanx = state[state_dim - 1] / args.total_weights[state_dim - 1];
+    pn = state[state_dim - 1];
     for (k = 0; k < result_dim; k++) {
         i = args.index_tuples[2 * k];
         j = args.index_tuples[2 * k + 1];
         ni = args.total_weights[i];
         nj = args.total_weights[j];
-        result[k] = (x[i] - ni * meanx) * (x[j] - nj * meanx) / 2;
+        result[k] = (x[i] - ni * pn) * (x[j] - nj * pn);
+    }
+    return 0;
+}
+
+static int
+genetic_relatedness_weighted_noncentred_summary_func(tsk_size_t TSK_UNUSED(state_dim),
+    const double *state, tsk_size_t result_dim, double *result, void *params)
+{
+    indexed_weight_stat_params_t args = *(indexed_weight_stat_params_t *) params;
+    const double *x = state;
+    tsk_id_t i, j;
+    tsk_size_t k;
+
+    for (k = 0; k < result_dim; k++) {
+        i = args.index_tuples[2 * k];
+        j = args.index_tuples[2 * k + 1];
+        result[k] = x[i] * x[j];
     }
     return 0;
 }
@@ -4633,17 +4690,26 @@ tsk_treeseq_genetic_relatedness_weighted(const tsk_treeseq_t *self,
             new_row[k] = row[k];
             total_weights[k] += row[k];
         }
-        new_row[num_weights] = 1.0;
+        new_row[num_weights] = 1.0 / (double) num_samples;
     }
-    total_weights[num_weights] = (double) num_samples;
+    total_weights[num_weights] = 1.0;
 
     args.total_weights = total_weights;
     args.index_tuples = index_tuples;
-    ret = tsk_treeseq_general_stat(self, num_weights + 1, new_weights, num_index_tuples,
-        genetic_relatedness_weighted_summary_func, &args, num_windows, windows, options,
-        result);
-    if (ret != 0) {
-        goto out;
+    if (!(options & TSK_STAT_NONCENTRED)) {
+        ret = tsk_treeseq_general_stat(self, num_weights + 1, new_weights,
+            num_index_tuples, genetic_relatedness_weighted_summary_func, &args,
+            num_windows, windows, options, result);
+        if (ret != 0) {
+            goto out;
+        }
+    } else {
+        ret = tsk_treeseq_general_stat(self, num_weights + 1, new_weights,
+            num_index_tuples, genetic_relatedness_weighted_noncentred_summary_func,
+            &args, num_windows, windows, options, result);
+        if (ret != 0) {
+            goto out;
+        }
     }
 
 out:

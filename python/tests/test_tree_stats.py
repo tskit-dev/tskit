@@ -67,14 +67,14 @@ def subset_combos(*args, p=0.5, min_tests=3):
     # of them, using this function, below. If we don't set a seed, a different
     # random set is run each time. Ensures that at least min_tests are run.
     # Uncomment this line to run all tests (takes about an hour):
-    # p = 1.0
+    p = 1.0
     num_tests = 0
     skipped_tests = []
     # total_tests = 0
     for x in itertools.product(*args):
         # total_tests = total_tests + 1
         if np.random.uniform() < p:
-            num_tests += num_tests + 1
+            num_tests += 1
             yield x
         elif len(skipped_tests) < min_tests:
             skipped_tests.append(x)
@@ -82,7 +82,7 @@ def subset_combos(*args, p=0.5, min_tests=3):
             skipped_tests[np.random.randint(min_tests)] = x
     while num_tests < min_tests:
         yield skipped_tests.pop()
-        num_tests = num_tests + 1
+        num_tests += 1
     # print("tests", num_tests)
     assert num_tests >= min_tests
 
@@ -147,6 +147,8 @@ def windowed_tree_stat(ts, stat, windows, span_normalise=True):
 def naive_branch_general_stat(
     ts, w, f, windows=None, polarised=False, span_normalise=True
 ):
+    # NOTE: does not behave correctly for unpolarised stats
+    # with non-ancestral material.
     if windows is None:
         windows = [0.0, ts.sequence_length]
     n, k = w.shape
@@ -211,7 +213,7 @@ def branch_general_stat(
             s += summary_func(total_weight - state[u])
         return s
 
-    for u in ts.samples():
+    for u in range(ts.num_nodes):
         summary[u] = polarised_summary(u)
 
     window_index = 0
@@ -1794,14 +1796,19 @@ class TestSiteDivergence(TestDivergence, MutatedTopologyExamplesMixin):
 
 
 def site_genetic_relatedness(
-    ts, sample_sets, indexes, windows=None, span_normalise=True, proportion=True
+    ts,
+    sample_sets,
+    indexes,
+    windows=None,
+    span_normalise=True,
+    polarised=True,
+    proportion=True,
+    centre=True,
 ):
+    if windows is None:
+        windows = [0.0, ts.sequence_length]
     out = np.zeros((len(windows) - 1, len(indexes)))
-    samples = [u for u in ts.samples()]
-    all_samples = list({u for s in sample_sets for u in s})
-    sample_ind = [samples.index(x) for x in all_samples]
-    haps = ts.genotype_matrix(isolated_as_missing=False).T
-    haps = haps[sample_ind]
+    all_samples = np.array(list({u for s in sample_sets for u in s}))
     denom = np.ones(len(windows))
     if proportion:
         denom = ts.segregating_sites(
@@ -1810,42 +1817,50 @@ def site_genetic_relatedness(
             mode="site",
             span_normalise=span_normalise,
         )
-    alleles = np.unique(haps)
     for j in range(len(windows) - 1):
         begin = windows[j]
         end = windows[j + 1]
-        site_positions = [x.position for x in ts.sites()]
-        for i, (ix, iy) in enumerate(indexes):
-            X = sample_sets[ix]
-            Y = sample_sets[iy]
-            S = 0
+        for vv in zip(
+            *[
+                ts.variants(left=begin, right=end, samples=x, isolated_as_missing=False)
+                for x in sample_sets
+            ]
+        ):
+            ancestral_state = vv[0].site.ancestral_state
+            alleles = vv[0].alleles
+            ff = [v.frequencies() for v in vv]
             for a in alleles:
-                this_haps = haps == a
-                haps_mean = this_haps.mean(axis=0)
-                haps_centered = this_haps - haps_mean
-                for k in range(ts.num_sites):
-                    if (site_positions[k] >= begin) and (site_positions[k] < end):
-                        for x in X:
-                            x_index = np.where(all_samples == x)[0][0]
-                            for y in Y:
-                                y_index = np.where(all_samples == y)[0][0]
-                                S += (
-                                    haps_centered[x_index][k]
-                                    * haps_centered[y_index][k]
-                                    / 2
-                                )
+                mean_f = sum([f[a] for f in ff]) / len(ff)
+                for i, (ix, iy) in enumerate(indexes):
+                    fx = ff[ix][a]
+                    fy = ff[iy][a]
+                    if not (polarised and a == ancestral_state):
+                        if centre:
+                            out[j][i] += (fx - mean_f) * (fy - mean_f)
+                        else:
+                            out[j][i] += fx * fy
+        for i in range(len(indexes)):
             with np.errstate(invalid="ignore", divide="ignore"):
-                out[j][i] = S / denom[j]
+                out[j][i] /= denom[j]
             if span_normalise:
                 out[j][i] /= end - begin
     return out
 
 
 def branch_genetic_relatedness(
-    ts, sample_sets, indexes, windows=None, span_normalise=True, proportion=True
+    ts,
+    sample_sets,
+    indexes,
+    windows=None,
+    span_normalise=True,
+    polarised=True,
+    proportion=True,
+    centre=True,
 ):
+    if windows is None:
+        windows = [0.0, ts.sequence_length]
     out = np.zeros((len(windows) - 1, len(indexes)))
-    all_samples = list({u for s in sample_sets for u in s})
+    all_samples = np.array(list({u for s in sample_sets for u in s}))
     denom = np.ones(len(windows))
     if proportion:
         denom = ts.segregating_sites(
@@ -1862,26 +1877,30 @@ def branch_genetic_relatedness(
                 continue
             if tr.interval.left >= end:
                 break
-            branches = [(c, tr.parent(c)) for c in tr.nodes()]
             span = min(end, tr.interval.right) - max(begin, tr.interval.left)
-            for B in branches:
-                v = B[0]
+            # iterating over tr.nodes will miss nodes unreachable from samples
+            for v in range(ts.num_nodes):
                 area = tr.branch_length(v) * span
-                haps = np.zeros(len(all_samples))
-                for x, u in enumerate(all_samples):
-                    haps[x] = int(tr.is_descendant(u, v))
-                haps_mean = haps.mean()
-                haps_centered = haps - haps_mean
+                freqs = [
+                    sum([tr.is_descendant(u, v) for u in x]) / len(x)
+                    for x in sample_sets
+                ]
+                mean_freq = sum(freqs) / len(freqs)
                 for i, (ix, iy) in enumerate(indexes):
-                    X = sample_sets[ix]
-                    Y = sample_sets[iy]
-                    for x in X:
-                        x_index = np.where(all_samples == x)[0][0]
-                        for y in Y:
-                            y_index = np.where(all_samples == y)[0][0]
+                    fx = freqs[ix]
+                    fy = freqs[iy]
+                    if centre:
+                        out[j][i] += area * (fx - mean_freq) * (fy - mean_freq)
+                        if not polarised:
                             out[j][i] += (
-                                area * haps_centered[x_index] * haps_centered[y_index]
+                                area
+                                * (1 - fx - (1 - mean_freq))
+                                * (1 - fy - (1 - mean_freq))
                             )
+                    else:
+                        out[j][i] += area * fx * fy
+                        if not polarised:
+                            out[j][i] += area * (1 - fx) * (1 - fy)
         for i in range(len(indexes)):
             with np.errstate(invalid="ignore", divide="ignore"):
                 out[j][i] /= denom[j]
@@ -1891,10 +1910,19 @@ def branch_genetic_relatedness(
 
 
 def node_genetic_relatedness(
-    ts, sample_sets, indexes, windows=None, span_normalise=True, proportion=True
+    ts,
+    sample_sets,
+    indexes,
+    windows=None,
+    span_normalise=True,
+    proportion=True,
+    centre=True,
+    polarised=True,
 ):
+    if windows is None:
+        windows = [0.0, ts.sequence_length]
     out = np.zeros((len(windows) - 1, ts.num_nodes, len(indexes)))
-    all_samples = list({u for s in sample_sets for u in s})
+    all_samples = np.array(list({u for s in sample_sets for u in s}))
     denom = np.ones((len(windows), ts.num_nodes))
     if proportion:
         denom = ts.segregating_sites(
@@ -1907,27 +1935,32 @@ def node_genetic_relatedness(
         begin = windows[j]
         end = windows[j + 1]
         for tr in ts.trees():
-            span = min(end, tr.interval.right) - max(begin, tr.interval.left)
             if tr.interval.right <= begin:
                 continue
             if tr.interval.left >= end:
                 break
-            for v in tr.nodes():
-                haps = np.zeros(len(all_samples))
-                for x, u in enumerate(all_samples):
-                    haps[x] = int(tr.is_descendant(u, v))
-                haps_mean = haps.mean()
-                haps_centered = haps - haps_mean
+            span = min(end, tr.interval.right) - max(begin, tr.interval.left)
+            for v in range(ts.num_nodes):
+                freqs = [
+                    sum([tr.is_descendant(u, v) for u in x]) / len(x)
+                    for x in sample_sets
+                ]
+                mean_freq = sum(freqs) / len(freqs)
                 for i, (ix, iy) in enumerate(indexes):
-                    X = sample_sets[ix]
-                    Y = sample_sets[iy]
-                    for x in X:
-                        x_index = np.where(all_samples == x)[0][0]
-                        for y in Y:
-                            y_index = np.where(all_samples == y)[0][0]
+                    fx = freqs[ix]
+                    fy = freqs[iy]
+                    if centre:
+                        out[j][v][i] += span * (fx - mean_freq) * (fy - mean_freq)
+                        if not polarised:
                             out[j][v][i] += (
-                                haps_centered[x_index] * haps_centered[y_index] * span
+                                span
+                                * (1 - fx - (1 - mean_freq))
+                                * (1 - fy - (1 - mean_freq))
                             )
+                    else:
+                        out[j][v][i] += span * fx * fy
+                        if not polarised:
+                            out[j][v][i] += span * (1 - fx) * (1 - fy)
         for i in range(len(indexes)):
             for v in ts.nodes():
                 iV = v.id
@@ -1946,6 +1979,8 @@ def genetic_relatedness(
     mode="site",
     span_normalise=True,
     proportion=True,
+    centre=True,
+    polarised=True,
 ):
     """
     Computes genetic relatedness between two random choices from x
@@ -1965,7 +2000,9 @@ def genetic_relatedness(
         indexes=indexes,
         windows=windows,
         span_normalise=span_normalise,
+        polarised=polarised,
         proportion=proportion,
+        centre=centre,
     )
 
 
@@ -1983,6 +2020,8 @@ class TestGeneticRelatedness(StatsTestCase, TwoWaySampleSetStatsMixin):
         ts_method,
         definition,
         proportion,
+        polarised=True,
+        centre=True,
     ):
         def wrapped_summary_func(x):
             with suppress_division_by_zero_warning():
@@ -2000,46 +2039,72 @@ class TestGeneticRelatedness(StatsTestCase, TwoWaySampleSetStatsMixin):
 
         with np.errstate(divide="ignore", invalid="ignore"):
             sigma1 = (
-                ts.general_stat(W, wrapped_summary_func, M, windows, mode=self.mode)
+                ts.general_stat(
+                    W,
+                    wrapped_summary_func,
+                    M,
+                    windows,
+                    mode=self.mode,
+                    strict=centre,
+                    polarised=polarised,
+                )
                 / denom
             )
-            sigma2 = (
-                general_stat(ts, W, wrapped_summary_func, windows, mode=self.mode)
-                / denom
-            )
-        sigma3 = ts_method(
+        sigma2 = ts_method(
             sample_sets,
             indexes=indexes,
             windows=windows,
             mode=self.mode,
             proportion=proportion,
+            centre=centre,
+            polarised=polarised,
         )
-        sigma4 = definition(
+        sigma3 = definition(
             ts,
             sample_sets,
             indexes=indexes,
             windows=windows,
             mode=self.mode,
             proportion=proportion,
+            centre=centre,
+            polarised=polarised,
         )
         assert sigma1.shape == sigma2.shape
         assert sigma1.shape == sigma3.shape
-        assert sigma1.shape == sigma4.shape
         self.assertArrayAlmostEqual(sigma1, sigma2)
         self.assertArrayAlmostEqual(sigma1, sigma3)
-        self.assertArrayAlmostEqual(sigma1, sigma4)
 
     def verify_sample_sets_indexes(self, ts, sample_sets, indexes, windows):
         n = np.array([len(x) for x in sample_sets])
-        n_total = sum(n)
 
-        def f(x):
-            mx = np.sum(x) / n_total
-            return np.array(
-                [(x[i] - n[i] * mx) * (x[j] - n[j] * mx) / 2 for i, j in indexes]
-            )
+        def f_noncentred(x):
+            p = x / n
+            return np.array([p[i] * p[j] for i, j in indexes])
+
+        def f_centred(x):
+            p = x / n
+            mp = np.mean(p)
+            return np.array([(p[i] - mp) * (p[j] - mp) for i, j in indexes])
 
         for proportion in [True, False]:
+            self.verify_definition(
+                ts,
+                sample_sets,
+                indexes,
+                windows,
+                f_centred,
+                ts.genetic_relatedness,
+                genetic_relatedness,
+                proportion,
+            )
+
+        for centre, polarised in [
+            (True, True),
+            (False, True),
+            (True, False),
+            (False, False),
+        ]:
+            f = f_centred if centre else f_noncentred
             self.verify_definition(
                 ts,
                 sample_sets,
@@ -2048,12 +2113,156 @@ class TestGeneticRelatedness(StatsTestCase, TwoWaySampleSetStatsMixin):
                 f,
                 ts.genetic_relatedness,
                 genetic_relatedness,
-                proportion,
+                proportion=False,
+                centre=centre,
+                polarised=polarised,
             )
+
+    @pytest.mark.parametrize("proportion", [None, True, False])
+    def test_shapes(self, proportion):
+        # exclude this test in the parent class
+        if self.mode is None:
+            return
+        ts = msprime.sim_ancestry(
+            8,
+            random_seed=1,
+            end_time=10,
+            sequence_length=10,
+            population_size=10,
+            recombination_rate=0.02,
+        )
+        ts = msprime.sim_mutations(ts, rate=0.01, random_seed=2)
+        x = ts.genetic_relatedness(
+            sample_sets=[[0, 1, 2], [3]],
+            indexes=None,
+            windows=None,
+            mode=self.mode,
+            proportion=proportion,
+        )
+        if self.mode == "node":
+            assert x.shape == (ts.num_nodes,)
+        else:
+            assert x.shape == ()
+        x = ts.genetic_relatedness(
+            sample_sets=[[0, 1, 2], [3]],
+            indexes=[(0, 1)],
+            windows=None,
+            mode=self.mode,
+            proportion=proportion,
+        )
+        if self.mode == "node":
+            assert x.shape == (ts.num_nodes, 1)
+        else:
+            assert x.shape == (1,)
+        x = ts.genetic_relatedness(
+            sample_sets=[[0, 1, 2], [3]],
+            indexes=[(0, 1)],
+            windows=[0, 10],
+            mode=self.mode,
+            proportion=proportion,
+        )
+        if self.mode == "node":
+            assert x.shape == (1, ts.num_nodes, 1)
+        else:
+            assert x.shape == (1, 1)
+        x = ts.genetic_relatedness(
+            sample_sets=[[0, 1, 2], [3]],
+            indexes=[(0, 1)],
+            windows=[0, 5, 10],
+            mode=self.mode,
+            proportion=proportion,
+        )
+        if self.mode == "node":
+            assert x.shape == (2, ts.num_nodes, 1)
+        else:
+            assert x.shape == (2, 1)
+        x = ts.genetic_relatedness(
+            sample_sets=[[0, 1, 2], [3]],
+            indexes=None,
+            windows=[0, 5, 10],
+            mode=self.mode,
+            proportion=proportion,
+        )
+        if self.mode == "node":
+            assert x.shape == (2, ts.num_nodes)
+        else:
+            assert x.shape == (2,)
+        x = ts.genetic_relatedness(
+            sample_sets=[[0, 1, 2], [3], [4, 5]],
+            indexes=[(0, 1), (1, 2)],
+            windows=[0, 5, 9, 10],
+            mode=self.mode,
+            proportion=proportion,
+        )
+        if self.mode == "node":
+            assert x.shape == (3, ts.num_nodes, 2)
+        else:
+            assert x.shape == (3, 2)
+        x = ts.genetic_relatedness(
+            sample_sets=[[0, 1, 2], [3], [4, 5]],
+            indexes=[(0, 1), (1, 2)],
+            windows=None,
+            mode=self.mode,
+            proportion=proportion,
+        )
+        if self.mode == "node":
+            assert x.shape == (ts.num_nodes, 2)
+        else:
+            assert x.shape == (2,)
 
 
 class TestBranchGeneticRelatedness(TestGeneticRelatedness, TopologyExamplesMixin):
     mode = "branch"
+
+    @pytest.mark.parametrize("polarised", [True, False])
+    def test_simple_tree_noncentred(self, polarised):
+        # 2.00┊   4   ┊
+        #     ┊ ┏━┻┓  ┊
+        # 1.00┊ ┃  3  ┊
+        #     ┊ ┃ ┏┻┓ ┊
+        # 0.00┊ 0 1 2 ┊
+        #     0       1
+        ts = tskit.Tree.generate_balanced(3).tree_sequence
+        indexes = [(0, 0), (0, 1), (1, 1), (1, 2), (2, 2)]
+        sample_sets = [[0], [1], [2]]
+        if polarised:
+            A = np.array(
+                [
+                    2,  # (0, 0)
+                    0,  # (0, 1)
+                    2,  # (1, 1)
+                    1,  # (1, 2),
+                    2,  # (2, 2)
+                ]
+            )
+        else:
+            A = np.array(
+                [
+                    (2 + 3),  # (0, 0)
+                    (0 + 1),  # (0, 1)
+                    (2 + 3),  # (1, 1)
+                    (1 + 2),  # (1, 2),
+                    (2 + 3),  # (2, 2)
+                ]
+            )
+        B = branch_genetic_relatedness(
+            ts,
+            sample_sets=sample_sets,
+            indexes=indexes,
+            polarised=polarised,
+            proportion=False,
+            centre=False,
+        ).squeeze()
+        C = ts.genetic_relatedness(
+            sample_sets=sample_sets,
+            indexes=indexes,
+            mode="branch",
+            polarised=polarised,
+            proportion=False,
+            centre=False,
+        ).squeeze()
+        self.assertArrayAlmostEqual(A, B)
+        self.assertArrayAlmostEqual(A, C)
 
 
 class TestNodeGeneticRelatedness(TestGeneticRelatedness, TopologyExamplesMixin):
@@ -2092,7 +2301,7 @@ class TestSiteGeneticRelatedness(TestGeneticRelatedness, MutatedTopologyExamples
                 @ (G_centered[y1] + G_centered[y2])
                 / ts.segregating_sites(sample_sets=all_samples, span_normalise=False)
             )
-        self.assertArrayAlmostEqual(A, B)
+        self.assertArrayAlmostEqual(4 * A, B)
 
 
 ############################################
@@ -2100,7 +2309,9 @@ class TestSiteGeneticRelatedness(TestGeneticRelatedness, MutatedTopologyExamples
 ############################################
 
 
-def genetic_relatedness_matrix(ts, sample_sets, windows=None, mode="site"):
+def genetic_relatedness_matrix(
+    ts, sample_sets, windows=None, mode="site", polarised=True, centre=True
+):
     n = len(sample_sets)
     indexes = [
         (n1, n2) for n1, n2 in itertools.combinations_with_replacement(range(n), 2)
@@ -2110,7 +2321,13 @@ def genetic_relatedness_matrix(ts, sample_sets, windows=None, mode="site"):
             n_nodes = ts.num_nodes
             K = np.zeros((n_nodes, n, n))
             out = ts.genetic_relatedness(
-                sample_sets, indexes, mode=mode, proportion=False, span_normalise=True
+                sample_sets,
+                indexes,
+                mode=mode,
+                proportion=False,
+                span_normalise=True,
+                polarised=polarised,
+                centre=centre,
             )
             for node in range(n_nodes):
                 this_K = np.zeros((n, n))
@@ -2120,7 +2337,13 @@ def genetic_relatedness_matrix(ts, sample_sets, windows=None, mode="site"):
         else:
             K = np.zeros((n, n))
             K[np.triu_indices(n)] = ts.genetic_relatedness(
-                sample_sets, indexes, mode=mode, proportion=False, span_normalise=True
+                sample_sets,
+                indexes,
+                mode=mode,
+                proportion=False,
+                span_normalise=True,
+                centre=centre,
+                polarised=polarised,
             )
             K = K + np.triu(K, 1).transpose()
     else:
@@ -2133,6 +2356,8 @@ def genetic_relatedness_matrix(ts, sample_sets, windows=None, mode="site"):
             windows=windows,
             proportion=False,
             span_normalise=True,
+            polarised=polarised,
+            centre=centre,
         )
         if mode == "node":
             n_nodes = ts.num_nodes
@@ -2153,11 +2378,16 @@ def genetic_relatedness_matrix(ts, sample_sets, windows=None, mode="site"):
     return K
 
 
-def genetic_relatedness_weighted(ts, W, indexes, windows=None, mode="site"):
-    W_mean = W.mean(axis=0)
-    W = W - W_mean
+def genetic_relatedness_weighted(
+    ts, W, indexes, windows=None, mode="site", polarised=True, centre=True
+):
+    if centre:
+        W_mean = W.mean(axis=0)
+        W = W - W_mean
     sample_sets = [[u] for u in ts.samples()]
-    K = genetic_relatedness_matrix(ts, sample_sets, windows, mode)
+    K = genetic_relatedness_matrix(
+        ts, sample_sets, windows=windows, mode=mode, centre=centre, polarised=polarised
+    )
     n_indexes = len(indexes)
     n_nodes = ts.num_nodes
     if windows is None:
@@ -2207,16 +2437,38 @@ class TestGeneticRelatednessWeighted(StatsTestCase, WeightStatsMixin):
     mode = None
 
     def verify_definition(
-        self, ts, W, indexes, windows, summary_func, ts_method, definition
+        self,
+        ts,
+        W,
+        indexes,
+        windows,
+        summary_func,
+        ts_method,
+        definition,
+        polarised=True,
+        centre=True,
     ):
         # Determine output_dim of the function
         M = len(indexes)
 
         sigma1 = ts.general_stat(
-            W, summary_func, M, windows, mode=self.mode, span_normalise=True
+            W,
+            summary_func,
+            M,
+            windows,
+            mode=self.mode,
+            span_normalise=True,
+            strict=centre,
+            polarised=polarised,
         )
         sigma2 = general_stat(
-            ts, W, summary_func, windows, mode=self.mode, span_normalise=True
+            ts,
+            W,
+            summary_func,
+            windows,
+            mode=self.mode,
+            span_normalise=True,
+            polarised=polarised,
         )
 
         sigma3 = ts_method(
@@ -2224,6 +2476,8 @@ class TestGeneticRelatednessWeighted(StatsTestCase, WeightStatsMixin):
             indexes=indexes,
             windows=windows,
             mode=self.mode,
+            polarised=polarised,
+            centre=centre,
         )
         sigma4 = definition(
             ts,
@@ -2231,6 +2485,8 @@ class TestGeneticRelatednessWeighted(StatsTestCase, WeightStatsMixin):
             indexes=indexes,
             windows=windows,
             mode=self.mode,
+            polarised=polarised,
+            centre=centre,
         )
         assert sigma1.shape == sigma2.shape
         assert sigma1.shape == sigma3.shape
@@ -2247,29 +2503,38 @@ class TestGeneticRelatednessWeighted(StatsTestCase, WeightStatsMixin):
                 self.verify_weighted_stat(ts, W, indexes, windows)
 
     def verify_weighted_stat(self, ts, W, indexes, windows):
-        W_mean = W.mean(axis=0)
-        W = W - W_mean
-        W_sum = W.sum(axis=0)
         n = W.shape[0]
+        K = W.shape[1]
+        WW = np.column_stack([W, np.ones(n) / n])
+        W_sum = WW.sum(axis=0)
 
-        def f(x):
-            mx = np.sum(x) / n
+        def f_noncentred(x):
+            return np.array([x[i] * x[j] for i, j in indexes])
+
+        def f_centred(x):
+            pn = x[K]
             return np.array(
-                [
-                    (x[i] - W_sum[i] * mx) * (x[j] - W_sum[j] * mx) / 2
-                    for i, j in indexes
-                ]
+                [(x[i] - W_sum[i] * pn) * (x[j] - W_sum[j] * pn) for i, j in indexes]
             )
 
-        self.verify_definition(
-            ts,
-            W,
-            indexes,
-            windows,
-            f,
-            ts.genetic_relatedness_weighted,
-            genetic_relatedness_weighted,
-        )
+        for centre, polarised in [
+            (True, True),
+            (False, True),
+            (True, False),
+            (False, False),
+        ]:
+            f = f_centred if centre else f_noncentred
+            self.verify_definition(
+                ts,
+                WW,
+                indexes,
+                windows,
+                f,
+                ts.genetic_relatedness_weighted,
+                genetic_relatedness_weighted,
+                centre=centre,
+                polarised=polarised,
+            )
 
 
 class TestBranchGeneticRelatednessWeighted(
@@ -2296,8 +2561,8 @@ class TestSiteGeneticRelatednessWeighted(
 
 class TestGeneticRelatednessWeightedSimpleExamples:
     # Values verified against the simple implementations above
-    site_value = 11.12
-    branch_value = 14.72
+    site_value = 22.24
+    branch_value = 29.44
 
     def fixture(self):
         ts = tskit.Tree.generate_balanced(5).tree_sequence
@@ -3344,9 +3609,6 @@ class Testf4(StatsTestCase, FourWaySampleSetStatsMixin):
 
         self.verify_definition(ts, sample_sets, indexes, windows, f, ts.f4, f4)
 
-    def verify_interface(self, ts):
-        self.verify_interface_method(ts.f4)
-
 
 class TestBranchf4(Testf4, TopologyExamplesMixin):
     mode = "branch"
@@ -4305,6 +4567,64 @@ class TestGeneralBranchStats(StatsTestCase):
             sigma = self.compare_general_stat(ts, W, f, windows, polarised=polarised)
             assert sigma.shape == (10, W.shape[1])
             assert np.all(sigma == 0)
+
+    def test_nonstrict_nonancestral_material(self):
+        # 0 is a sample, 1 is not
+        #
+        # 2.00┊  2  ┊ 2 ┊  2  ┊
+        #     ┊ ┏┻┓ ┊ ┃ ┊ ┏┻┓ ┊
+        # 1.00┊ ┃ 1 ┊ 1 ┊ ┃ 1 ┊
+        #     ┊ ┃   ┊ ┃ ┊ ┃   ┊
+        # 0.00┊ 0   ┊ 0 ┊ 0   ┊
+        #     0     1   2     3
+
+        tables = tskit.TableCollection(sequence_length=3)
+
+        node_times = [0, 1, 2]
+        samples = [0]
+        for n, t in enumerate(node_times):
+            tables.nodes.add_row(
+                time=t, flags=tskit.NODE_IS_SAMPLE if n in samples else 0
+            )
+
+        # p, c, l, r
+        edges = [
+            (1, 0, 1, 2),
+            (2, 0, 0, 1),
+            (2, 0, 2, 3),
+            (2, 1, 0, 3),
+        ]
+        for p, c, l, r in edges:
+            tables.edges.add_row(parent=p, child=c, left=l, right=r)
+
+        # this makes it so 'site' mode counts branches
+        for x in range(int(tables.sequence_length)):
+            for n in range(tables.nodes.num_rows - 1):
+                offset = n / tables.nodes.num_rows
+                s = tables.sites.add_row(position=x + offset, ancestral_state="0")
+                tables.mutations.add_row(site=s, node=n, derived_state="1")
+
+        ts = tables.tree_sequence()
+
+        def f(x):
+            return x
+
+        for polarised, mode, answer in [
+            (True, "branch", 6),
+            (True, "site", 4),
+            (False, "branch", 8),
+            (False, "site", 6),
+        ]:
+            (stat,) = ts.sample_count_stat(
+                [[0]],
+                f,
+                1,
+                strict=False,
+                span_normalise=False,
+                polarised=polarised,
+                mode=mode,
+            )
+            assert stat == answer
 
 
 class TestGeneralSiteStats(StatsTestCase):

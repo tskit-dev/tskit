@@ -2602,6 +2602,24 @@ class TestGeneticRelatedness(LowLevelTestCase, TwoWaySampleStatsMixin):
         ts = self.get_example_tree_sequence()
         return ts, ts.genetic_relatedness
 
+    def test_options(self):
+        ts, _, params = self.get_example()
+        x = ts.genetic_relatedness(**params)
+        new_params = params.copy()
+        new_params["centre"] = False
+        y = ts.genetic_relatedness(**new_params)
+        assert x.shape == y.shape
+        new_params["polarised"] = False
+        y = ts.genetic_relatedness(**new_params)
+        assert x.shape == y.shape
+        del new_params["centre"]
+        y = ts.genetic_relatedness(**new_params)
+        assert x.shape == y.shape
+
+        del new_params["indexes"]
+        with pytest.raises(ValueError, match="object of too small depth"):
+            ts.genetic_relatedness(**new_params, indexes="foo")
+
 
 class TestY3(LowLevelTestCase, ThreeWaySampleStatsMixin):
     def get_method(self):
@@ -2625,6 +2643,27 @@ class TestWeightedGeneticRelatedness(LowLevelTestCase, TwoWayWeightedStatsMixin)
     def get_method(self):
         ts = self.get_example_tree_sequence()
         return ts, ts.genetic_relatedness_weighted
+
+    def test_options(self):
+        ts, _, params = self.get_example()
+        x = ts.genetic_relatedness_weighted(**params)
+
+        new_params = params.copy()
+        new_params["centre"] = False
+        y = ts.genetic_relatedness_weighted(**new_params)
+        assert x.shape == y.shape
+        new_params["polarised"] = False
+        y = ts.genetic_relatedness_weighted(**new_params)
+        assert x.shape == y.shape
+        del new_params["centre"]
+        y = ts.genetic_relatedness_weighted(**new_params)
+        assert x.shape == y.shape
+
+        del new_params["weights"]
+        with pytest.raises(ValueError, match="First dimension"):
+            ts.genetic_relatedness_weighted(
+                **new_params, weights=np.ones((ts.get_num_samples() + 2, 1))
+            )
 
 
 class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):

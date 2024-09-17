@@ -7675,6 +7675,7 @@ class TreeSequence:
         mode=None,
         span_normalise=True,
         polarised=False,
+        centre=True,
     ):
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32
@@ -7710,6 +7711,7 @@ class TreeSequence:
             mode=mode,
             span_normalise=span_normalise,
             polarised=polarised,
+            centre=centre,
         )
         if drop_dimension:
             stat = stat.reshape(stat.shape[:-1])
@@ -7727,6 +7729,7 @@ class TreeSequence:
         mode=None,
         span_normalise=True,
         polarised=False,
+        centre=True,
     ):
         W = np.asarray(W)
         if indexes is None:
@@ -7754,6 +7757,7 @@ class TreeSequence:
             mode=mode,
             span_normalise=span_normalise,
             polarised=polarised,
+            centre=centre,
         )
         if drop_dimension:
             stat = stat.reshape(stat.shape[:-1])
@@ -8115,8 +8119,9 @@ class TreeSequence:
         windows=None,
         mode="site",
         span_normalise=True,
-        polarised=False,
+        polarised=True,
         proportion=True,
+        centre=True,
     ):
         """
         Computes genetic relatedness between (and within) pairs of
@@ -8135,44 +8140,70 @@ class TreeSequence:
         What is computed depends on ``mode``:
 
         "site"
-            Number of pairwise allelic matches in the window between two
+            Frequency of pairwise allelic matches in the window between two
             sample sets relative to the rest of the sample sets. To be precise,
             let `m(u,v)` denote the total number of alleles shared between
-            nodes `u` and `v`, and let `m(I,J)` be the sum of `m(u,v)` over all
-            nodes `u` in sample set `I` and `v` in sample set `J`. Let `S` and
-            `T` be independently chosen sample sets. Then, for sample sets `I`
-            and `J`, this computes `E[m(I,J) - m(I,S) - m(J,T) + m(S,T)]`.
+            nodes `u` and `v`, and let `m(I,J)` be the average of `m(u,v)` over
+            all nodes `u` in sample set `I` and `v` in sample set `J`. Let `S`
+            and `T` be independently chosen sample sets. Then, for sample sets
+            `I` and `J`, this computes `E[m(I,J) - m(I,S) - m(J,T) + m(S,T)]`
+            if centre=True (the default), or `E[m(I,J)]` if centre=False.
             This can also be seen as the covariance of a quantitative trait
             determined by additive contributions from the genomes in each
-            sample set. Let each allele be associated with an effect drawn from
-            a `N(0,1/2)` distribution, and let the trait value of a sample set
-            be the sum of its allele effects. Then, this computes the covariance
-            between the trait values of two sample sets. For example, to
-            compute covariance between the traits of diploid individuals, each
-            sample set would be the pair of genomes of each individual; if
-            ``proportion=True``, this then corresponds to :math:`K_{c0}` in
-            `Speed & Balding (2014) <https://www.nature.com/articles/nrg3821>`_.
+            sample set. Let each derived allele be associated with an effect
+            drawn from a `N(0,1)` distribution, and let the trait value of a
+            sample be the sum of its allele effects. Then, this computes
+            the covariance between the average trait values of two sample sets.
+            For example, to compute covariance between the traits of diploid
+            individuals, each sample set would be the pair of genomes of each
+            individual, with the trait being the average of the two genomes.
+            If ``proportion=True``, this then corresponds to :math:`K_{c0}` in
+            `Speed & Balding (2014) <https://www.nature.com/articles/nrg3821>`_,
+            multiplied by four (see below).
 
         "branch"
-            Total area of branches in the window ancestral to pairs of samples
+            Average area of branches in the window ancestral to pairs of samples
             in two sample sets relative to the rest of the sample sets. To be
             precise, let `B(u,v)` denote the total area of all branches
-            ancestral to nodes `u` and `v`, and let `B(I,J)` be the sum of
+            ancestral to nodes `u` and `v`, and let `B(I,J)` be the average of
             `B(u,v)` over all nodes `u` in sample set `I` and `v` in sample set
             `J`. Let `S` and `T` be two independently chosen sample sets. Then
             for sample sets `I` and `J`, this computes
-            `E[B(I,J) - B(I,S) - B(J,T) + B(S,T)]`.
+            `E[B(I,J) - B(I,S) - B(J,T) + B(S,T)]` if centre=True (the default),
+            or `E[B(I,J)]` if centre=False.
 
         "node"
             For each node, the proportion of the window over which pairs of
             samples in two sample sets are descendants, relative to the rest of
             the sample sets. To be precise, for each node `n`, let `N(u,v)`
             denote the proportion of the window over which samples `u` and `v`
-            are descendants of `n`, and let and let `N(I,J)` be the sum of
+            are descendants of `n`, and let and let `N(I,J)` be the average of
             `N(u,v)` over all nodes `u` in sample set `I` and `v` in sample set
             `J`. Let `S` and `T` be two independently chosen sample sets. Then
             for sample sets `I` and `J`, this computes
-            `E[N(I,J) - N(I,S) - N(J,T) + N(S,T)]`.
+            `E[N(I,J) - N(I,S) - N(J,T) + N(S,T)]` if centre=True (the default),
+            or `E[N(I,J)]` if centre=False.
+
+        *Note:* The default for this statistic - unlike most other statistics - is
+        ``polarised=True``. Using the default value ``centre=True``, setting
+        ``polarised=False`` will only multiply the result by a factor of two
+        for branch-mode, or site-mode if all sites are biallelic. (With
+        multiallelic sites the difference is more complicated.) The uncentred
+        and unpolarised value is probably not what you are looking for: for
+        instance, the unpolarised, uncentred site statistic between two samples
+        counts the number of alleles inherited by both *and* the number of
+        alleles inherited by neither of the two samples.
+
+        *Note:* Some authors
+        (see `Speed & Balding (2014) <https://www.nature.com/articles/nrg3821>`_)
+        compute relatedness between `I` and `J` as the total number of all pairwise
+        allelic matches between `I` and `J`, rather than the frequency,
+        which would define `m(I,J)` as the sum of `m(u,v)` rather than the average
+        in the definition of "site" relatedness above. If every sample set is the
+        samples of a :math:`k`-ploid individual, this would simply multiply the
+        result by :math:`k^2`. However, this definition would make the result not
+        useful as a summary statistic of typical relatedness for larger sample
+        sets.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of nodes to compute the statistic with.
@@ -8189,23 +8220,16 @@ class TreeSequence:
             that are segregating between *any* of the samples of *any* of the
             sample sets (rather than segregating between all of the samples of
             the tree sequence).
+        :param bool polarised: Whether to leave the ancestral state out of computations:
+            see :ref:`sec_stats` for more details. Defaults to True.
+        :param bool centre: Defaults to True. Whether to 'centre' the result, as
+            described above (the usual definition is centred).
         :return: A ndarray with shape equal to (num windows, num statistics).
             If there is one pair of sample sets and windows=None, a numpy scalar is
             returned.
         """
-        if proportion:
-            # TODO this should be done in C also
-            all_samples = list({u for s in sample_sets for u in s})
-            denominator = self.segregating_sites(
-                sample_sets=[all_samples],
-                windows=windows,
-                mode=mode,
-                span_normalise=span_normalise,
-            )
-        else:
-            denominator = 1
 
-        numerator = self.__k_way_sample_set_stat(
+        out = self.__k_way_sample_set_stat(
             self._ll_tree_sequence.genetic_relatedness,
             2,
             sample_sets,
@@ -8214,9 +8238,25 @@ class TreeSequence:
             mode=mode,
             span_normalise=span_normalise,
             polarised=polarised,
+            centre=centre,
         )
-        with np.errstate(divide="ignore", invalid="ignore"):
-            out = numerator / denominator
+        if proportion:
+            # TODO this should be done in C also
+            all_samples = np.array(list({u for s in sample_sets for u in s}))
+            denominator = self.segregating_sites(
+                sample_sets=all_samples,
+                windows=windows,
+                mode=mode,
+                span_normalise=span_normalise,
+            )
+            # the shapes of out and denominator should be the same except that
+            # out may have an extra dimension if indexes is not None
+            if indexes is not None and not isinstance(denominator, float):
+                oshape = list(out.shape)
+                oshape[-1] = 1
+                denominator = denominator.reshape(oshape)
+            with np.errstate(divide="ignore", invalid="ignore"):
+                out /= denominator
 
         return out
 
@@ -8229,6 +8269,53 @@ class TreeSequence:
         mode=None,
         span_normalise=True,
     ):
+        """
+        Computes the full matrix of pairwise genetic relatedness values
+        between (and within) pairs of sets of nodes from ``sample_sets``.
+        *Warning:* this does not compute exactly the same thing as
+        :meth:`.genetic_relatedness`: see below for more details.
+
+        If `mode="branch"`, then the value obtained is the same as that from
+        :meth:`.genetic_relatedness`, using the options `centre=True` and
+        `proportion=False`. The same is true if `mode="site"` and all sites have
+        at most one mutation.
+
+        However, if some sites have more than one mutation, the value may differ.
+        The reason is that this function (for efficiency) computes relatedness
+        using :meth:`.divergence` and the following relationship.
+        "Relatedness" measures the number of *shared* alleles (or branches),
+        while "divergence" measures the number of *non-shared* alleles (or branches).
+        Let :math:`T_i` be the total distance from sample :math:`i` up to the root;
+        then if :math:`D_{ij}` is the divergence between :math:`i` and :math:`j`
+        and :math:`R_{ij}` is the relatedness between :math:`i` and :math:`j`, then
+        :math:`T_i + T_j = D_{ij} + 2 R_{ij}.`
+        So, for any samples :math:`I`, :math:`J`, :math:`S`, :math:`T`
+        (that may now be random choices),
+        :math:`R_{IJ}-R_{IS}-R_{JT}+R_{ST} = (D_{IJ}-D_{IS}-D_{JT}+D_{ST})/ (-2)`.
+        Note, however, that this relationship only holds for `mode="site"`
+        if we can treat "number of differing alleles" as distances on the tree;
+        this is not necessarily the case in the presence of multiple mutations.
+
+        Another caveat in the above relationship between :math:`R` and :math:`D`
+        is that :meth:`.divergence` of a sample set to itself does not include
+        the "self" comparisons (so as to provide an unbiased estimator of a
+        population quantity), while the usual definition of genetic relatedness
+        *does* include such comparisons (to provide, for instance, an appropriate
+        value for prospective results beginning with only a given set of
+        individuals).
+
+        :param list sample_sets: A list of lists of Node IDs, specifying the
+            groups of nodes to compute the statistic with.
+        :param list windows: An increasing list of breakpoints between the windows
+            to compute the statistic in.
+        :param str mode: A string giving the "type" of the statistic to be computed
+            (defaults to "site").
+        :param bool span_normalise: Whether to divide the result by the span of the
+            window (defaults to True). Has no effect if ``proportion`` is True.
+        :return: A ndarray with shape equal to (num windows, num statistics).
+            If there is one pair of sample sets and windows=None, a numpy scalar is
+            returned.
+        """
         D = self.divergence_matrix(
             sample_sets,
             windows=windows,
@@ -8237,24 +8324,20 @@ class TreeSequence:
             span_normalise=span_normalise,
         )
 
-        # FIXME remove this when sample sets bug has been fixed.
-        # https://github.com/tskit-dev/tskit/issues/2888
-        if sample_sets is not None:
-            if any(len(ss) > 1 for ss in sample_sets):
-                raise ValueError(
-                    "Only single entry sample sets allowed for now."
-                    " See https://github.com/tskit-dev/tskit/issues/2888"
-                )
+        if sample_sets is None:
+            n = np.ones(self.num_samples)
+        else:
+            n = np.array([len(x) for x in sample_sets])
 
         def _normalise(B):
             if len(B) == 0:
                 return B
+            # correct for lack of self comparisons in divergence
+            np.fill_diagonal(B, np.diag(B) * (n - 1) / n)
             K = B + np.mean(B)
             y = np.mean(B, axis=0)
             X = y[:, np.newaxis] + y[np.newaxis, :]
             K -= X
-            # FIXME this factor of 2 works for single-sample sample-sets, but not
-            # otherwise. https://github.com/tskit-dev/tskit/issues/2888
             return K / -2
 
         if windows is None:
@@ -8272,14 +8355,19 @@ class TreeSequence:
         mode="site",
         span_normalise=True,
         polarised=False,
+        centre=True,
     ):
         r"""
-        Computes weighted genetic relatedness. If the k-th pair of indices is (i, j)
-        then the k-th column of output will be
+        Computes weighted genetic relatedness. If the :math:`k` th pair of indices
+        is (i, j) then the :math:`k` th column of output will be
         :math:`\sum_{a,b} W_{ai} W_{bj} C_{ab}`,
         where :math:`W` is the matrix of weights, and :math:`C_{ab}` is the
         :meth:`genetic_relatedness <.TreeSequence.genetic_relatedness>` between sample
         a and sample b, summing over all pairs of samples in the tree sequence.
+
+        *Note:* the genetic relatedness matrix :math:`C` here is as returned by
+        :meth:`.genetic_relatedness`, rather than by :meth:`.genetic_relatedness_matrix`
+        (see the latter's documentation for the difference).
 
         :param numpy.ndarray W: An array of values with one row for each sample node and
             one column for each set of weights.
@@ -8292,6 +8380,10 @@ class TreeSequence:
             (defaults to "site").
         :param bool span_normalise: Whether to divide the result by the span of the
             window (defaults to True).
+        :param bool polarised: Whether to leave the ancestral state out of computations:
+            see :ref:`sec_stats` for more details. Defaults to True.
+        :param bool centre: Defaults to True. Whether to 'centre' the result, as
+            described above (the usual definition is centred).
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         if len(W) != self.num_samples:
@@ -8307,6 +8399,7 @@ class TreeSequence:
             mode=mode,
             span_normalise=span_normalise,
             polarised=polarised,
+            centre=centre,
         )
 
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
@@ -8806,12 +8899,35 @@ class TreeSequence:
         # two-way stats and (b) it's a bit more efficient because we're not messing
         # around with indexes and samples sets twice.
 
-        def fst_func(sample_set_sizes, flattened, indexes, **kwargs):
-            diversities = self._ll_tree_sequence.diversity(
-                sample_set_sizes, flattened, **kwargs
-            )
+        def fst_func(
+            sample_set_sizes,
+            flattened,
+            indexes,
+            windows,
+            mode,
+            span_normalise,
+            polarised,
+            centre,
+        ):
+            # note: this is kinda hacky - polarised and centre are not used here -
+            # but this seems necessary to use our __k_way_sample_set_stat framework
             divergences = self._ll_tree_sequence.divergence(
-                sample_set_sizes, flattened, indexes, **kwargs
+                sample_set_sizes,
+                flattened,
+                indexes=indexes,
+                windows=windows,
+                mode=mode,
+                span_normalise=span_normalise,
+                polarised=polarised,
+                centre=centre,
+            )
+            diversities = self._ll_tree_sequence.diversity(
+                sample_set_sizes,
+                flattened,
+                windows=windows,
+                mode=mode,
+                span_normalise=span_normalise,
+                polarised=polarised,
             )
 
             orig_shape = divergences.shape

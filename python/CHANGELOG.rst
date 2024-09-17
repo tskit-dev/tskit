@@ -2,6 +2,28 @@
 [0.5.8] - 2024-XX-XX
 --------------------
 
+**Breaking Changes**
+
+- The definition of ``TreeSequence.genetic_relatedness`` and
+  ``TreeSequence.genetic_relatedness_weighted`` are changed
+  to *average* over sample sets, rather than summing over them.
+  For computation with diploid sample sets, this will change the result
+  by a factor of four; for larger sample sets it will now produce
+  sensible values that are comparable between sample sets of different sizes.
+  The default for these methods is also changed to ``polarised=True``,
+  but the output is unchanged for ``centre=True`` (the default).
+  See the documentation for these methods for more discussion.
+  (:user:`petrelharp`, :user:`mmosmond`, :pr:`1623`)
+
+**Bugfixes**
+
+- Fix to ``TreeSequence.genetic_relatedness`` with ``indexes=None`` and
+  ``proportion=True``. (:user:`petrelharp`, :issue:`2984`, :pr:`1623`)
+
+- Fix to ``TreeSequence.general_stat`` when using non-strict summary functions
+  in the presence of non-ancestral material (very rare).
+  (:user:`petrelharp`, :issue:`2983`, :pr:`1623`)
+
 **Features**
 
 - Add ``TreeSequence.extend_edges`` method that extends ancestral haplotypes
@@ -11,6 +33,8 @@
 - Add ``Table.drop_metadata`` to make clearing metadata from tables easy.
   (:user:`jeromekelleher`, :pr:`2944`)
 
+- Add the ``centre`` option to ``TreeSequence.genetic_relatedness`` and
+  ``TreeSequence.genetic_relatedness_weighted``.
 
 --------------------
 [0.5.7] - 2024-06-17
