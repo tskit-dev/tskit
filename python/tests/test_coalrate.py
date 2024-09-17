@@ -1395,46 +1395,32 @@ class TestCoalescingPairsUsage:
             random_seed=1024,
         )
 
-    def test_oor_windows(self):
+    def test_bad_windows(self):
         ts = self.example_ts()
-        with pytest.raises(ValueError, match="must be sequence boundary"):
+        with pytest.raises(ValueError, match="too small depth"):
+            ts.pair_coalescence_counts(windows="whatever")
+        with pytest.raises(ValueError, match="must have at least 2 elements"):
+            ts.pair_coalescence_counts(windows=[0.0])
+        with pytest.raises(tskit.LibraryError, match="must be increasing list"):
+            ts.pair_coalescence_counts(
+                windows=np.array([0.0, 0.3, 0.2, 1.0]) * ts.sequence_length
+            )
+        with pytest.raises(tskit.LibraryError, match="must be increasing list"):
             ts.pair_coalescence_counts(
                 windows=np.array([0.0, 2.0]) * ts.sequence_length
             )
 
-    def test_unsorted_windows(self):
+    def test_bad_sample_sets(self):
         ts = self.example_ts()
-        with pytest.raises(ValueError, match="must be strictly increasing"):
-            ts.pair_coalescence_counts(
-                windows=np.array([0.0, 0.3, 0.2, 1.0]) * ts.sequence_length
-            )
-
-    def test_bad_windows(self):
-        ts = self.example_ts()
-        with pytest.raises(ValueError, match="must be an array of breakpoints"):
-            ts.pair_coalescence_counts(windows="whatever")
-        with pytest.raises(ValueError, match="must be an array of breakpoints"):
-            ts.pair_coalescence_counts(windows=np.array([0.0]))
-
-    def test_empty_sample_sets(self):
-        ts = self.example_ts()
-        with pytest.raises(ValueError, match="contain at least one element"):
-            ts.pair_coalescence_counts(sample_sets=[[0, 1, 2], []])
-
-    def test_oob_sample_sets(self):
-        ts = self.example_ts()
-        with pytest.raises(ValueError, match="is out of bounds"):
+        with pytest.raises(tskit.LibraryError, match="out of bounds"):
             ts.pair_coalescence_counts(sample_sets=[[0, ts.num_nodes]])
 
-    def test_nonbinary_indexes(self):
+    def test_bad_indexes(self):
         ts = self.example_ts()
-        with pytest.raises(ValueError, match="must be length two"):
-            ts.pair_coalescence_counts(indexes=[(0, 0, 0)])
-
-    def test_oob_indexes(self):
-        ts = self.example_ts()
-        with pytest.raises(ValueError, match="is out of bounds"):
+        with pytest.raises(tskit.LibraryError, match="out of bounds"):
             ts.pair_coalescence_counts(indexes=[(0, 1)])
+        with pytest.raises(ValueError, match="must be a k x 2 array"):
+            ts.pair_coalescence_counts(indexes=[(0, 0, 0)])
 
     def test_no_indexes(self):
         ts = self.example_ts()
@@ -1455,17 +1441,16 @@ class TestCoalescingPairsUsage:
         with pytest.raises(ValueError, match="require calibrated node times"):
             ts.pair_coalescence_counts(time_windows=np.array([0.0, np.inf]))
 
-    def test_bad_time_windows(self):
+    @pytest.mark.parametrize("time_windows", [[], [0.0], [[0.0, 1.0]], "whatever"])
+    def test_bad_time_windows(self, time_windows):
         ts = self.example_ts()
-        with pytest.raises(ValueError, match="must be an array of breakpoints"):
-            ts.pair_coalescence_counts(time_windows="whatever")
-        with pytest.raises(ValueError, match="must be an array of breakpoints"):
-            ts.pair_coalescence_counts(time_windows=np.array([0.0]))
+        with pytest.raises(ValueError, match="too small depth"):
+            ts.pair_coalescence_counts(time_windows="time_windows")
 
     def test_unsorted_time_windows(self):
         ts = self.example_ts()
         time_windows = np.array([0.0, 12.0, 6.0, np.inf])
-        with pytest.raises(ValueError, match="must be strictly increasing"):
+        with pytest.raises(ValueError, match="monotonically increasing or decreasing"):
             ts.pair_coalescence_counts(time_windows=time_windows)
 
     def test_empty_time_windows(self):
@@ -1580,6 +1565,10 @@ class TestPairCoalescenceQuantiles:
         quantiles = np.linspace(0, 1, 10)
         with pytest.raises(ValueError, match="more than two sample sets"):
             ts.pair_coalescence_quantiles(quantiles, sample_sets=sample_sets)
+        tables = ts.dump_tables()
+        tables.time_units = tskit.TIME_UNITS_UNCALIBRATED
+        with pytest.raises(ValueError, match="require calibrated node times"):
+            tables.tree_sequence().pair_coalescence_quantiles(quantiles=np.array([0.5]))
 
 
 class TestPairCoalescenceRates:
@@ -1679,3 +1668,9 @@ class TestPairCoalescenceRates:
         time_windows = np.array([0, np.inf])
         with pytest.raises(ValueError, match="more than two sample sets"):
             ts.pair_coalescence_rates(time_windows, sample_sets=sample_sets)
+        tables = ts.dump_tables()
+        tables.time_units = tskit.TIME_UNITS_UNCALIBRATED
+        with pytest.raises(ValueError, match="require calibrated node times"):
+            tables.tree_sequence().pair_coalescence_rates(
+                time_windows=np.array([0.0, np.inf])
+            )

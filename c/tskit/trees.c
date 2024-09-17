@@ -9255,15 +9255,10 @@ pair_coalescence_quantiles(tsk_size_t input_dim, const double *weight,
     tsk_size_t i, j;
     j = 0;
     coalesced = 0.0;
-    timepoint = -INFINITY;
-    /* TODO: may be more efficient to use a binary search */
+    timepoint = TSK_UNKNOWN_TIME;
     for (i = 0; i < input_dim; i++) {
         if (weight[i] > 0) {
             coalesced += weight[i];
-            if (values[i] <= timepoint) {
-                ret = TSK_ERR_UNSORTED_TIMES;
-                goto out;
-            }
             timepoint = values[i];
             while (j < output_dim && quantiles[j] <= coalesced) {
                 output[j] = timepoint;
@@ -9274,7 +9269,6 @@ pair_coalescence_quantiles(tsk_size_t input_dim, const double *weight,
     if (quantiles[output_dim - 1] == 1.0) {
         output[output_dim - 1] = timepoint;
     }
-out:
     return ret;
 }
 
@@ -9284,7 +9278,7 @@ check_quantiles(const tsk_size_t num_quantiles, const double *quantiles)
     int ret = 0;
     tsk_size_t i;
     double last = -INFINITY;
-    for (i = 0; i < num_quantiles; ++i) {
+    for (i = 0; i < num_quantiles; i++) {
         if (quantiles[i] <= last || quantiles[i] < 0.0 || quantiles[i] > 1.0) {
             ret = TSK_ERR_BAD_QUANTILES;
             goto out;
@@ -9292,6 +9286,55 @@ check_quantiles(const tsk_size_t num_quantiles, const double *quantiles)
         last = quantiles[i];
     }
 out:
+    return ret;
+}
+
+static int
+check_sorted_node_bin_map(
+    const tsk_treeseq_t *self, tsk_size_t num_bins, const tsk_id_t *node_bin_map)
+{
+    int ret = 0;
+    tsk_size_t num_nodes = self->tables->nodes.num_rows;
+    const double *nodes_time = self->tables->nodes.time;
+    double last;
+    tsk_id_t i, j;
+    double *min_time = tsk_malloc(num_bins * sizeof(*min_time));
+    double *max_time = tsk_malloc(num_bins * sizeof(*max_time));
+    if (min_time == NULL || max_time == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    for (j = 0; j < (tsk_id_t) num_bins; j++) {
+        min_time[j] = TSK_UNKNOWN_TIME;
+        max_time[j] = TSK_UNKNOWN_TIME;
+    }
+    for (i = 0; i < (tsk_id_t) num_nodes; i++) {
+        j = node_bin_map[i];
+        if (j < 0 || j >= (tsk_id_t) num_bins) {
+            continue;
+        }
+        if (tsk_is_unknown_time(max_time[j]) || nodes_time[i] > max_time[j]) {
+            max_time[j] = nodes_time[i];
+        }
+        if (tsk_is_unknown_time(min_time[j]) || nodes_time[i] < min_time[j]) {
+            min_time[j] = nodes_time[i];
+        }
+    }
+    last = -INFINITY;
+    for (j = 0; j < (tsk_id_t) num_bins; j++) {
+        if (tsk_is_unknown_time(min_time[j])) {
+            continue;
+        }
+        if (min_time[j] < last) {
+            ret = TSK_ERR_UNSORTED_TIMES;
+            goto out;
+        } else {
+            last = max_time[j];
+        }
+    }
+out:
+    tsk_safe_free(min_time);
+    tsk_safe_free(max_time);
     return ret;
 }
 
@@ -9306,6 +9349,10 @@ tsk_treeseq_pair_coalescence_quantiles(const tsk_treeseq_t *self,
     int ret = 0;
     void *params = (void *) quantiles;
     ret = check_quantiles(num_quantiles, quantiles);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = check_sorted_node_bin_map(self, num_bins, node_bin_map);
     if (ret != 0) {
         goto out;
     }

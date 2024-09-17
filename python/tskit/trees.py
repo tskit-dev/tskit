@@ -9377,11 +9377,6 @@ class TreeSequence:
 
         if sample_sets is None:
             sample_sets = [list(self.samples())]
-        for s in sample_sets:
-            if len(s) == 0:
-                raise ValueError("Sample sets must contain at least one element")
-            if not (min(s) >= 0 and max(s) < self.num_nodes):
-                raise ValueError("Sample is out of bounds")
 
         drop_middle_dimension = False
         if indexes is None:
@@ -9394,30 +9389,15 @@ class TreeSequence:
                 raise ValueError(
                     "Must specify indexes if there are more than two sample sets"
                 )
-        for i in indexes:
-            if not len(i) == 2:
-                raise ValueError("Sample set indexes must be length two")
-            if not (min(i) >= 0 and max(i) < len(sample_sets)):
-                raise ValueError("Sample set index is out of bounds")
 
         drop_left_dimension = False
         if windows is None:
             drop_left_dimension = True
             windows = np.array([0.0, self.sequence_length])
-        if not (isinstance(windows, np.ndarray) and windows.size > 1):
-            raise ValueError("Windows must be an array of breakpoints")
-        if not (windows[0] == 0.0 and windows[-1] == self.sequence_length):
-            raise ValueError("First and last window breaks must be sequence boundary")
-        if not np.all(np.diff(windows) > 0):
-            raise ValueError("Window breaks must be strictly increasing")
 
         if isinstance(time_windows, str) and time_windows == "nodes":
             node_bin_map = np.arange(self.num_nodes, dtype=np.int32)
         else:
-            if not (isinstance(time_windows, np.ndarray) and time_windows.size > 1):
-                raise ValueError("Time windows must be an array of breakpoints")
-            if not np.all(np.diff(time_windows) > 0):
-                raise ValueError("Time windows must be strictly increasing")
             if self.time_units == tskit.TIME_UNITS_UNCALIBRATED:
                 raise ValueError("Time windows require calibrated node times")
             node_bin_map = np.digitize(self.nodes_time, time_windows) - 1
@@ -9495,6 +9475,9 @@ class TreeSequence:
                 raise ValueError(
                     "Must specify indexes if there are more than two sample sets"
                 )
+
+        if self.time_units == tskit.TIME_UNITS_UNCALIBRATED:
+            raise ValueError("Pair coalescence quantiles require calibrated node times")
 
         drop_left_dimension = False
         if windows is None:
@@ -9594,6 +9577,9 @@ class TreeSequence:
                 raise ValueError(
                     "Must specify indexes if there are more than two sample sets"
                 )
+
+        if self.time_units == tskit.TIME_UNITS_UNCALIBRATED:
+            raise ValueError("Pair coalescence rates require calibrated node times")
 
         drop_left_dimension = False
         if windows is None:
