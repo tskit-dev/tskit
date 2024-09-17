@@ -560,11 +560,12 @@ below, and above each branch or node; if polarised, then only the weight below i
 
 ### Strictness, and which branches count?
 
-Most statistics are not be affected by invariant sites,
+Most statistics are not affected by invariant sites,
 and hence do not depend on any part of the tree that is not ancestral to any of the sample sets.
-However, some statistics are different: for instance, {meth}`TreeSequence.genetic_relatedness`
+However, some statistics are different: for instance, 
+given a pair of samples, {meth}`TreeSequence.genetic_relatedness`
 with `centre=False` (and `polarised=True`, the default for that method)
-adds up for a pair of samples the total number of alleles (or total area of branches) that is
+adds up the total number of alleles (or total area of branches) that is
 either ancestral to both samples *or ancestral to neither*.
 So, it depends on what else is in the tree sequence.
 (For this reason, we don't recommend actually *using* this combination of options for genetic
@@ -604,7 +605,7 @@ and boolean expressions (e.g., {math}`(x > 0)`) are interpreted as 0/1.
 
   unless the two indices are the same, when the diversity function is used.
 
-  For an unpolarized statistic with biallelic loci, this calculates
+  For an unpolarised statistic with biallelic loci, this calculates
   {math}`p_1 (1-p_2) + (1 - p_1) p_2`.
 
 `genetic_relatedness, centre=True`
@@ -612,8 +613,9 @@ and boolean expressions (e.g., {math}`(x > 0)`) are interpreted as 0/1.
 
   where {math}`m = \frac{1}{n}\sum_{k=1}^n x_k` with {math}`n` the total number
   of sample sets.
-  For an polarised statistic (the default) with biallelic loci, this calculates
-  {math}`(p_1 - \bar{p}) (p_2 - \bar{p})`.
+  For a polarised statistic (the default) with biallelic loci, this calculates
+  {math}`(p_1 - \bar{p}) (p_2 - \bar{p})`, where {math}`\bar{p}` is the average
+  derived allele frequency across sample sets.
 
 `genetic_relatedness, centre=False`
 : {math}`f(x_i, x_j) = (x_i / n_i) (x_j / n_j)`.
