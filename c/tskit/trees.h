@@ -917,18 +917,18 @@ int tsk_treeseq_simplify(const tsk_treeseq_t *self, const tsk_id_t *samples,
     tsk_id_t *node_map);
 
 /**
-@brief Extends edges
+@brief Extends haplotypes
 
-Returns a modified tree sequence in which the span covered by ancestral nodes
+Returns a new tree sequence in which the span covered by ancestral nodes
 is "extended" to regions of the genome according to the following rule:
-If an ancestral segment corresponding to node `n` has parent `p` and
-child `c` on some portion of the genome, and on an adjacent segment of
-genome `p` is the immediate parent of `c`, then `n` is inserted into the
-edge from `p` to `c`. This involves extending the span of the edges
-from `p` to `n` and `n` to `c` and reducing the span of the edge from
-`p` to `c`. Since the latter edge may be removed entirely, this process
-reduces (or at least does not increase) the number of edges in the tree
-sequence. The `node` of certain mutations may also be remapped; to do this
+If an ancestral segment corresponding to node `n` has ancestor `p` and
+descendant `c` on some portion of the genome, and on an adjacent segment of
+genome `p` is still an ancestor of `c`, then `n` is inserted into the
+path from `p` to `c`. For instance, if `p` is the parent of `n` and `n`
+is the parent of `c`, then the span of the edges from `p` to `n` and
+`n` to `c` are extended, and the span of the edge from `p` to `c` is
+reduced. However, any edges whose child node is a sample are not
+modified.  The `node` of certain mutations may also be remapped; to do this
 unambiguously we need to know mutation times. If mutations times are unknown,
 use `tsk_table_collection_compute_mutation_times` first.
 
@@ -938,8 +938,6 @@ column in the mutation table.
 The method works by iterating over the genome to look for edges that can
 be extended in this way; the maximum number of such iterations is
 controlled by ``max_iter``.
-
-Since this may change which nodes are above
 
 @rst
 
@@ -952,7 +950,7 @@ Since this may change which nodes are above
 @param output A pointer to an uninitialised tsk_treeseq_t object.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_treeseq_extend_edges(
+int tsk_treeseq_extend_haplotypes(
     const tsk_treeseq_t *self, int max_iter, tsk_flags_t options, tsk_treeseq_t *output);
 
 /** @} */

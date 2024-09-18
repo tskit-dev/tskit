@@ -8414,7 +8414,7 @@ test_split_edges_errors(void)
 }
 
 static void
-test_extend_edges_simple(void)
+test_extend_haplotypes_simple(void)
 {
     int ret;
     tsk_treeseq_t ts, ets;
@@ -8429,16 +8429,16 @@ test_extend_edges_simple(void)
                             "1    1     1  -1  0.5\n";
 
     tsk_treeseq_from_text(&ts, 10, nodes, edges, NULL, sites, mutations, NULL, NULL, 0);
-    ret = tsk_treeseq_extend_edges(&ts, 10, 0, &ets);
+    ret = tsk_treeseq_extend_haplotypes(&ts, 10, 0, &ets);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, ets.tables, 0));
+    CU_ASSERT_TRUE_FATAL(tsk_table_collection_equals(ts.tables, ets.tables, 0));
     tsk_treeseq_free(&ts);
 
     tsk_treeseq_free(&ets);
 }
 
 static void
-test_extend_edges_errors(void)
+test_extend_haplotypes_errors(void)
 {
     int ret;
     tsk_treeseq_t ts, ets;
@@ -8458,19 +8458,19 @@ test_extend_edges_errors(void)
                              "0  10  0  1  0  1.5\n";
 
     tsk_treeseq_from_text(&ts, 10, nodes, edges, NULL, sites, mutations, NULL, NULL, 0);
-    ret = tsk_treeseq_extend_edges(&ts, -2, 0, &ets);
+    ret = tsk_treeseq_extend_haplotypes(&ts, -2, 0, &ets);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EXTEND_EDGES_BAD_MAXITER);
     tsk_treeseq_free(&ts);
 
     tsk_treeseq_from_text(
         &ts, 10, nodes, edges, migrations, sites, mutations, NULL, NULL, 0);
-    ret = tsk_treeseq_extend_edges(&ts, 10, 0, &ets);
+    ret = tsk_treeseq_extend_haplotypes(&ts, 10, 0, &ets);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MIGRATIONS_NOT_SUPPORTED);
     tsk_treeseq_free(&ts);
 
     tsk_treeseq_from_text(
         &ts, 10, nodes, edges, NULL, sites, mutations_no_time, NULL, NULL, 0);
-    ret = tsk_treeseq_extend_edges(&ts, 10, 0, &ets);
+    ret = tsk_treeseq_extend_haplotypes(&ts, 10, 0, &ets);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DISALLOWED_UNKNOWN_MUTATION_TIME);
     tsk_treeseq_free(&ts);
 
@@ -8503,17 +8503,21 @@ assert_equal_except_edges_and_mutation_nodes(
 }
 
 static void
-test_extend_edges(void)
+test_extend_haplotypes(void)
 {
-    int ret, max_iter;
+    int ret = 0;
+    int max_iter = 10;
     tsk_treeseq_t ts, ets;
-    /* 7 and 8 should be extended to the whole sequence
+    FILE *tmp = fopen(_tmp_file_name, "w");
+
+    /* 7 and 8 should be extended to the whole sequence;
+     * also 5 to the second tree (where x's are)
 
        6          6      6         6
      +-+-+      +-+-+  +-+-+     +-+-+
-     |   |      7   |  |   8     |   |
+     |   |      7   x  x   8     x   x
      |   |     ++-+ |  | +-++    |   |
-     4   5     4  | |  4 |  5    4   5
+     4   5     4  | x  4 |  5    4   5
     +++ +++   +++ | |  | | +++  +++ +++
     0 1 2 3   0 1 2 3  0 1 2 3  0 1 2 3
     */
@@ -8550,26 +8554,144 @@ test_extend_edges(void)
                         "9.0  0\n";
     const char *mutations = "0    4     1  -1  2.5\n"
                             "0    4     2   0  1.5\n"
-                            "1    5     1  -1  2.5\n"
-                            "1    5     2   2  1.5\n";
+                            "1    6     3  -1  3.5\n"
+                            "1    5     1   2  2.5\n"
+                            "1    5     2   3  1.5\n";
 
     tsk_treeseq_from_text(&ts, 10, nodes, edges, NULL, sites, mutations, NULL, NULL, 0);
 
     for (max_iter = 1; max_iter < 10; max_iter++) {
-        ret = tsk_treeseq_extend_edges(&ts, max_iter, 0, &ets);
+        ret = tsk_treeseq_extend_haplotypes(&ts, max_iter, 0, &ets);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
         assert_equal_except_edges_and_mutation_nodes(&ts, &ets);
         CU_ASSERT_TRUE(ets.tables->edges.num_rows >= 12);
         tsk_treeseq_free(&ets);
     }
 
-    ret = tsk_treeseq_extend_edges(&ts, 10, 0, &ets);
+    ret = tsk_treeseq_extend_haplotypes(&ts, max_iter, 0, &ets);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(ets.tables->nodes.num_rows, 9);
     CU_ASSERT_EQUAL_FATAL(ets.tables->edges.num_rows, 12);
+    assert_equal_except_edges_and_mutation_nodes(&ts, &ets);
+    tsk_treeseq_free(&ets);
+
+    tsk_set_debug_stream(tmp);
+    ret = tsk_treeseq_extend_haplotypes(&ts, max_iter, TSK_DEBUG, &ets);
+    tsk_set_debug_stream(stdout);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(ftell(tmp) > 0);
+    tsk_treeseq_free(&ets);
+
+    fclose(tmp);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_extend_haplotypes_conflicting_times(void)
+{
+    int ret;
+    int max_iter = 10;
+    tsk_treeseq_t ts, ets;
+    /*
+      3.00┊ 3 ┊ 4 ┊
+          ┊ ┃ ┊ ┃ ┊
+      2.00┊ ┃ ┊ 2 ┊
+          ┊ ┃ ┊ ┃ ┊
+      1.00┊ 1 ┊ ┃ ┊
+          ┊ ┃ ┊ ┃ ┊
+      0.00┊ 0 ┊ 0 ┊
+          0   2   4
+    */
+
+    const char *nodes = "1  0.0     -1   -1\n"
+                        "0  1.0     -1   -1\n"
+                        "0  2.0     -1   -1\n"
+                        "0  3.0     -1   -1\n"
+                        "0  3.0     -1   -1\n";
+    // l, r, p, c
+    const char *edges = "0.0   2.0   1  0\n"
+                        "2.0   4.0   2  0\n"
+                        "0.0   2.0   3  1\n"
+                        "2.0   4.0   4  2\n";
+
+    tsk_treeseq_from_text(&ts, 4, nodes, edges, NULL, NULL, NULL, NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ts.tables->edges.num_rows, 4);
+
+    ret = tsk_treeseq_extend_haplotypes(&ts, max_iter, 0, &ets);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ts.tables, ets.tables, 0));
     tsk_treeseq_free(&ets);
 
     tsk_treeseq_free(&ts);
+}
+
+static void
+test_extend_haplotypes_new_edge(void)
+{
+    int ret;
+    int max_iter = 10;
+    tsk_treeseq_t ts, ets, ref_ts;
+    /*  This is an example where new edges are added
+     *  on both forwards and back passes
+      4.00┊   ┊ 4 ┊ 4 ┊ 4 ┊
+          ┊   ┊ ┃ ┊ ┃ ┊ ┃ ┊
+      3.00┊ 2 ┊ ┃ ┊ 2 ┊ 2 ┊
+          ┊ ┃ ┊ ┃ ┊ ┃ ┊ ┃ ┊
+      2.00┊ ┃ ┊ 3 ┊ ┃ ┊ 3 ┊
+          ┊ ┃ ┊ ┃ ┊ ┃ ┊ ┃ ┊
+      1.00┊ 1 ┊ ┃ ┊ ┃ ┊ ┃ ┊
+          ┊ ┃ ┊ ┃ ┊ ┃ ┊ ┃ ┊
+      0.00┊ 0 ┊ 0 ┊ 0 ┊ 0 ┊
+          0   2   4   6   8
+    */
+
+    const char *nodes = "1  0.0     -1   -1\n"
+                        "0  1.0     -1   -1\n"
+                        "0  3.0     -1   -1\n"
+                        "0  2.0     -1   -1\n"
+                        "0  4.0     -1   -1\n";
+    // l, r, p, c
+    const char *edges = "0.0   2.0   1  0\n"
+                        "2.0   4.0   3  0\n"
+                        "6.0   8.0   3  0\n"
+                        "4.0   5.0   2  0\n"
+                        "5.0   6.0   2  0\n"
+                        "0.0   2.0   2  1\n"
+                        "6.0   7.0   2  3\n"
+                        "7.0   8.0   2  3\n"
+                        "4.0   8.0   4  2\n"
+                        "2.0   4.0   4  3\n";
+    const char *ext_edges = "0.0   8.0   1  0\n"
+                            "0.0   8.0   3  1\n"
+                            "0.0   8.0   2  3\n"
+                            "2.0   8.0   4  2\n";
+    const char *sites = "3.0  0\n";
+    // s, n , ds, t
+    const char *mutations = "0    4     5  -1  4.5\n"
+                            "0    3     4   0  3.5\n"
+                            "0    3     3   1  2.5\n"
+                            "0    0     2   2  1.5\n"
+                            "0    0     1   3  0.5\n";
+    const char *ext_mutations = "0    4     5  -1  4.5\n"
+                                "0    2     4   0  3.5\n"
+                                "0    3     3   1  2.5\n"
+                                "0    1     2   2  1.5\n"
+                                "0    0     1   3  0.5\n";
+
+    tsk_treeseq_from_text(&ts, 8, nodes, edges, NULL, sites, mutations, NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ts.tables->edges.num_rows, 10);
+    tsk_treeseq_from_text(
+        &ref_ts, 8, nodes, ext_edges, NULL, sites, ext_mutations, NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ref_ts.tables->edges.num_rows, 4);
+
+    ret = tsk_treeseq_extend_haplotypes(&ts, max_iter, 0, &ets);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    assert_equal_except_edges_and_mutation_nodes(&ts, &ets);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(ets.tables, ref_ts.tables, 0));
+    tsk_treeseq_free(&ets);
+
+    tsk_treeseq_free(&ts);
+    tsk_treeseq_free(&ref_ts);
 }
 
 static void
@@ -8793,9 +8915,12 @@ main(int argc, char **argv)
         { "test_split_edges_no_populations", test_split_edges_no_populations },
         { "test_split_edges_populations", test_split_edges_populations },
         { "test_split_edges_errors", test_split_edges_errors },
-        { "test_extend_edges_simple", test_extend_edges_simple },
-        { "test_extend_edges_errors", test_extend_edges_errors },
-        { "test_extend_edges", test_extend_edges },
+        { "test_extend_haplotypes_simple", test_extend_haplotypes_simple },
+        { "test_extend_haplotypes_errors", test_extend_haplotypes_errors },
+        { "test_extend_haplotypes", test_extend_haplotypes },
+        { "test_extend_haplotypes_new_edge", test_extend_haplotypes_new_edge },
+        { "test_extend_haplotypes_conflicting_times",
+            test_extend_haplotypes_conflicting_times },
         { "test_init_take_ownership_no_edge_metadata",
             test_init_take_ownership_no_edge_metadata },
         { NULL, NULL },

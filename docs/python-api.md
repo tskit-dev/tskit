@@ -268,7 +268,7 @@ which perform the same actions but modify the {class}`TableCollection` in place.
   TreeSequence.trim
   TreeSequence.split_edges
   TreeSequence.decapitate
-  TreeSequence.extend_edges
+  TreeSequence.extend_haplotypes
 ```
 
 (sec_python_api_tree_sequences_ibd)=
