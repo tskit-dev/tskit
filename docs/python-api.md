@@ -323,6 +323,7 @@ Single site
       TreeSequence.genealogical_nearest_neighbours
       TreeSequence.genetic_relatedness
       TreeSequence.genetic_relatedness_weighted
+      TreeSequence.genetic_relatedness_vector
       TreeSequence.general_stat
       TreeSequence.segregating_sites
       TreeSequence.sample_count_stat
