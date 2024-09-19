@@ -9371,7 +9371,7 @@ tsk_treeseq_pair_coalescence_stat(const tsk_treeseq_t *self, tsk_size_t num_samp
     tsk_memset(&tree_pos, 0, sizeof(tree_pos));
 
     /* check inputs */
-    ret = tsk_treeseq_check_windows(self, num_windows, windows, options);
+    ret = tsk_treeseq_check_windows(self, num_windows, windows, TSK_REQUIRE_FULL_SPAN);
     if (ret != 0) {
         goto out;
     }
