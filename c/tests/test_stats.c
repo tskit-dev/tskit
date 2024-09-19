@@ -373,34 +373,34 @@ verify_pair_coalescence_counts(tsk_treeseq_t *ts, tsk_flags_t options)
 
     index_tuples[0] = (tsk_id_t) P;
     ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
-        index_tuples, 1, breakpoints, N, node_bin_map, options, C);
+        index_tuples, T, breakpoints, N, node_bin_map, options, C);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SAMPLE_SET_INDEX);
     index_tuples[0] = 0;
 
     tsk_size_t tmp = sample_set_sizes[0];
     sample_set_sizes[0] = 0;
     ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
-        index_tuples, 1, breakpoints, N, node_bin_map, options, C);
+        index_tuples, T, breakpoints, N, node_bin_map, options, C);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_EMPTY_SAMPLE_SET);
     sample_set_sizes[0] = tmp;
 
     sample_sets[1] = 0;
     ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
-        index_tuples, 1, breakpoints, N, node_bin_map, options, C);
+        index_tuples, T, breakpoints, N, node_bin_map, options, C);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
     sample_sets[1] = 1;
 
     ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
-        index_tuples, 1, breakpoints, N - 1, node_bin_map, options, C);
+        index_tuples, T, breakpoints, N - 1, node_bin_map, options, C);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_BIN_MAP_DIM);
 
     ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
-        index_tuples, 1, breakpoints, 0, node_bin_map, options, C);
+        index_tuples, T, breakpoints, 0, node_bin_map, options, C);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_BIN_MAP_DIM);
 
     node_bin_map[0] = -2;
     ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
-        index_tuples, 1, breakpoints, N, node_bin_map, options, C);
+        index_tuples, T, breakpoints, N, node_bin_map, options, C);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_BIN_MAP);
     node_bin_map[0] = 0;
 }

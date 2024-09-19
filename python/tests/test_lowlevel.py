@@ -4402,8 +4402,8 @@ class TestPairCoalescenceCountsErrors:
     def test_c_tsk_err_bad_windows(self):
         ts = self.example_ts()
         L = ts.get_sequence_length()
-        with pytest.raises(_tskit.LibraryError, match="BAD_WINDOWS"):
-            self.pair_coalescence_counts(ts, windows=[-1.0, L])
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_BAD_WINDOWS"):
+            self.pair_coalescence_counts(ts, windows=[1.0, L])
 
     def test_c_tsk_err_bad_node_bin_map(self):
         ts = self.example_ts()
@@ -4525,6 +4525,11 @@ class TestPairCoalescenceQuantilesErrors:
         node_bin_map = node_bin_map.astype(np.int32)
         with pytest.raises(_tskit.LibraryError, match="TSK_ERR_UNSORTED_TIMES"):
             self.pair_coalescence_quantiles(ts, node_bin_map=node_bin_map)
+
+    def test_c_tsk_err_bad_windows(self):
+        ts = self.example_ts()
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_BAD_WINDOWS"):
+            self.pair_coalescence_quantiles(ts, windows=[1.0, ts.get_sequence_length()])
 
     @pytest.mark.parametrize("bad_ss_size", [-1, 1000])
     def test_cpy_bad_sample_sets(self, bad_ss_size):
@@ -4654,6 +4659,11 @@ class TestPairCoalescenceRatesErrors:
         with pytest.raises(_tskit.LibraryError, match="TSK_ERR_BAD_SAMPLE_PAIR_TIMES"):
             self.pair_coalescence_rates(ts, time_windows=np.array([-1.0, np.inf]))
 
+    def test_c_tsk_err_bad_windows(self):
+        ts = self.example_ts()
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_BAD_WINDOWS"):
+            self.pair_coalescence_rates(ts, windows=[1.0, ts.get_sequence_length()])
+
     @pytest.mark.parametrize("bad_ss_size", [-1, 1000])
     def test_cpy_bad_sample_sets(self, bad_ss_size):
         ts = self.example_ts()
@@ -4664,11 +4674,6 @@ class TestPairCoalescenceRatesErrors:
             self.pair_coalescence_rates(
                 ts, sample_set_sizes=[bad_ss_size, ts.get_num_samples()]
             )
-
-    def test_cpy_bad_windows(self):
-        ts = self.example_ts()
-        with pytest.raises(ValueError, match="at least 2"):
-            self.pair_coalescence_rates(ts, windows=[0.0])
 
     @pytest.mark.parametrize("indexes", [[(0, 0, 0)], np.zeros((0, 2), dtype=np.int32)])
     def test_cpy_bad_indexes(self, indexes):
