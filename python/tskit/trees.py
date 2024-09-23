@@ -7637,6 +7637,7 @@ class TreeSequence:
         # Note: need to make sure windows is a string or we try to compare the
         # target with a numpy array elementwise.
         if windows is None:
+            # initiate default spanning windows
             windows = [0.0, self.sequence_length]
         elif isinstance(windows, str):
             if windows == "trees":
@@ -7658,12 +7659,31 @@ class TreeSequence:
                 )
         return np.array(windows)
 
+    def parse_time_windows(self, time_windows):
+        """Time windows intitialization"""
+        if time_windows is None:
+            time_windows = [0.0, math.inf]
+        return np.array(time_windows)
+
     def __run_windowed_stat(self, windows, method, *args, **kwargs):
-        strip_dim = windows is None
+        strip_win = windows is None
         windows = self.parse_windows(windows)
         stat = method(*args, **kwargs, windows=windows)
-        if strip_dim:
+        if strip_win:
             stat = stat[0]
+        return stat
+
+    # only for temporary tw version
+    def __run_windowed_stat_tw(self, windows, time_windows, method, *args, **kwargs):
+        strip_win = windows is None
+        strip_timewin = time_windows is None
+        windows = self.parse_windows(windows)
+        time_windows = self.parse_time_windows(time_windows)
+        stat = method(*args, **kwargs, windows=windows, time_windows=time_windows)
+        if strip_win:
+            stat = stat[0, :, :]
+        elif strip_timewin:
+            stat = stat[:, 0, :]
         return stat
 
     def __one_way_sample_set_stat(
@@ -7710,7 +7730,62 @@ class TreeSequence:
         )
         if drop_dimension:
             stat = stat.reshape(stat.shape[:-1])
+            # TODO: Write test for this
             if stat.shape == () and windows is None:
+                stat = stat[()]
+        return stat
+
+    # only for temporary tw version
+    def __one_way_sample_set_stat_tw(
+        self,
+        ll_method,
+        sample_sets,
+        windows=None,
+        time_windows=None,
+        mode=None,
+        span_normalise=True,
+        polarised=False,
+    ):
+        if sample_sets is None:
+            sample_sets = self.samples()
+
+        # First try to convert to a 1D numpy array. If it is, then we strip off
+        # the corresponding dimension from the output.
+        drop_dimension = False
+        try:
+            sample_sets = np.array(sample_sets, dtype=np.uint64)
+        except ValueError:
+            pass
+        else:
+            # If we've successfully converted sample_sets to a 1D numpy array
+            # of integers then drop the dimension
+            if len(sample_sets.shape) == 1:
+                sample_sets = [sample_sets]
+                drop_dimension = True
+
+        sample_set_sizes = np.array(
+            [len(sample_set) for sample_set in sample_sets], dtype=np.uint32
+        )
+        if np.any(sample_set_sizes == 0):
+            raise ValueError("Sample sets must contain at least one element")
+
+        flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
+        stat = self.__run_windowed_stat_tw(
+            windows,
+            time_windows,
+            ll_method,
+            sample_set_sizes,
+            flattened,
+            mode=mode,
+            span_normalise=span_normalise,
+            polarised=polarised,
+        )
+        if drop_dimension:
+            stat = stat.reshape(stat.shape[:-1])
+            # TODO: Write test for this
+            if (stat.shape == () and windows is None) or (
+                stat.shape == () and time_windows is None
+            ):
                 stat = stat[()]
         return stat
 
@@ -7810,6 +7885,7 @@ class TreeSequence:
         sample_sets,
         indexes=None,
         windows=None,
+        time_windows=None,
         mode=None,
         span_normalise=True,
         polarised=False,
@@ -7842,6 +7918,7 @@ class TreeSequence:
             )
         stat = self.__run_windowed_stat(
             windows,
+            time_windows,
             ll_method,
             sample_set_sizes,
             flattened,
@@ -7864,6 +7941,7 @@ class TreeSequence:
         W,
         indexes=None,
         windows=None,
+        time_windows=None,
         mode=None,
         span_normalise=True,
         polarised=False,
@@ -7889,6 +7967,7 @@ class TreeSequence:
             )
         stat = self.__run_windowed_stat(
             windows,
+            time_windows,
             ll_method,
             W,
             indexes,
@@ -8922,6 +9001,7 @@ class TreeSequence:
         self,
         sample_sets=None,
         windows=None,
+        time_windows=None,
         mode="site",
         span_normalise=True,
         polarised=False,
@@ -9016,10 +9096,11 @@ class TreeSequence:
         """
         if sample_sets is None:
             sample_sets = [self.samples()]
-        return self.__one_way_sample_set_stat(
+        return self.__one_way_sample_set_stat_tw(
             self._ll_tree_sequence.allele_frequency_spectrum,
             sample_sets,
             windows=windows,
+            time_windows=time_windows,
             mode=mode,
             span_normalise=span_normalise,
             polarised=polarised,

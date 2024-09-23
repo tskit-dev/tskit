@@ -9077,7 +9077,7 @@ parse_windows(
     npy_intp *shape;
 
     windows_array = (PyArrayObject *) PyArray_FROMANY(
-        windows, NPY_FLOAT64, 1, 1, NPY_ARRAY_IN_ARRAY);
+				      windows, NPY_FLOAT64, 1, 1, NPY_ARRAY_IN_ARRAY);
     if (windows_array == NULL) {
         goto out;
     }
@@ -9094,6 +9094,7 @@ out:
     *ret_windows_array = windows_array;
     return ret;
 }
+
 
 static PyArrayObject *
 TreeSequence_allocate_results_array(
@@ -9439,12 +9440,13 @@ TreeSequence_allele_frequency_spectrum(
     TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
-    static char *kwlist[] = { "sample_set_sizes", "sample_sets", "windows", "mode",
+    static char *kwlist[] = { "sample_set_sizes", "sample_sets", "windows", "time_windows", "mode",
         "span_normalise", "polarised", NULL };
     PyObject *sample_set_sizes = NULL;
     PyObject *sample_sets = NULL;
     PyObject *windows = NULL;
-    char *mode = NULL;
+    PyObject *time_windows = NULL;
+    char *mode = "NULL";
     PyArrayObject *sample_set_sizes_array = NULL;
     PyArrayObject *sample_sets_array = NULL;
     PyArrayObject *windows_array = NULL;
@@ -9457,12 +9459,11 @@ TreeSequence_allele_frequency_spectrum(
     int polarised = 0;
     int span_normalise = 1;
     int err;
-
     if (TreeSequence_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOO|sii", kwlist, &sample_set_sizes,
-            &sample_sets, &windows, &mode, &span_normalise, &polarised)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOO|sii", kwlist, &sample_set_sizes,
+	&sample_sets, &windows, &time_windows, &mode, &span_normalise, &polarised)) {
         goto out;
     }
     if (parse_stats_mode(mode, &options) != 0) {
@@ -9482,18 +9483,21 @@ TreeSequence_allele_frequency_spectrum(
     if (parse_windows(windows, &windows_array, &num_windows) != 0) {
         goto out;
     }
-
-    shape = PyMem_Malloc((num_sample_sets + 1) * sizeof(*shape));
+    if (parse_windows(time_windows, &time_windows_array, &num_time_windows) != 0) {
+        goto out;
+    }
+    shape = PyMem_Malloc((num_sample_sets + 1 + 1) * sizeof(*shape));
     if (shape == NULL) {
         goto out;
     }
     sizes = PyArray_DATA(sample_set_sizes_array);
     shape[0] = num_windows;
+    shape[1] = num_time_windows;
     for (k = 0; k < num_sample_sets; k++) {
-        shape[k + 1] = 1 + sizes[k];
+        shape[k + 1 + 1] = 1 + sizes[k];
     }
     result_array
-        = (PyArrayObject *) PyArray_SimpleNew(1 + num_sample_sets, shape, NPY_FLOAT64);
+        = (PyArrayObject *) PyArray_SimpleNew(1 + 1 + num_sample_sets, shape, NPY_FLOAT64);
     if (result_array == NULL) {
         goto out;
     }
@@ -9512,6 +9516,7 @@ out:
     Py_XDECREF(sample_set_sizes_array);
     Py_XDECREF(sample_sets_array);
     Py_XDECREF(windows_array);
+    Py_XDECREF(time_windows_array);
     Py_XDECREF(result_array);
     return ret;
 }

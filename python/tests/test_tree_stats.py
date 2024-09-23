@@ -4008,6 +4008,7 @@ def branch_allele_frequency_spectrum(
                         c = fold(c, out_dim)
                     index = tuple([window_index] + [k_tw] + list(c))
                     result[index] += x
+                    # print(f"x={x}, index={index}")
         last_update[u] = right
 
     for (t_left, t_right), edges_out, edges_in in ts.edge_diffs():
@@ -7268,3 +7269,6 @@ class TestTimeWindows(TestBranchAlleleFrequencySpectrum):
         # dimensions are dim1: windows ; dim2: time_windows ;
         # dim3-or-more: num_sample_sets
         assert sfs1_w_tw.ndim == 3
+
+        # print(sfs1_w_tw, sfs1_w_tw.shape)
+        # print(sfs1_tws, sfs1_tws.shape)
