@@ -1,5 +1,5 @@
 --------------------
-[0.5.8] - 2024-XX-XX
+[0.5.9] - 2024-XX-XX
 --------------------
 
 **Breaking Changes**
@@ -24,6 +24,9 @@
   in the presence of non-ancestral material (very rare).
   (:user:`petrelharp`, :issue:`2983`, :pr:`1623`)
 
+- Printing ``tskit.MetadataSchema(schema=None)`` now shows ``"Null_schema"`` rather
+  than ``None``, to avoid confusion (:user:`hyanwong`, :pr:`2720`)
+
 **Features**
 
 - Add ``TreeSequence.extend_haplotypes`` method that extends ancestral haplotypes
@@ -39,6 +42,13 @@
 
 - Add ``Interval.mid`` and ``Tree.mid`` properties to return the midpoint of the interval.
   (:user:`currocam`, :pr:`2960`)
+
+
+--------------------
+[0.5.8] - 2024-06-27
+--------------------
+
+- Add support for numpy 2 (:user:`jeromekelleher`, :user:`benjeffery`, :pr:`2964`)
 
 
 --------------------
@@ -103,8 +113,7 @@
 - Add ``__repr__`` for variants to return a string representation of the raw data
   without spewing megabytes of text (:user:`chriscrsmith`, :pr:`2695`, :issue:`2694`)
 
-- Add ``keep_rows`` method to table classes to support efficient in-place
-  table subsetting (:user:`jeromekelleher`, :pr:`2700`)
+**Breaking Changes**
 
 **Bugfixes**
 
