@@ -1396,7 +1396,7 @@ class AssertEqualsMixin:
             table2.metadata_schema = tskit.MetadataSchema({"codec": "json"})
             with pytest.raises(
                 AssertionError,
-                match=f"{type(table_5row).__name__} metadata schemas differ:",
+                match=f"{type(table_5row).__name__} metadata schemas differ: ",
             ):
                 table_5row.assert_equals(table2)
             table_5row.assert_equals(table2, ignore_metadata=True)
@@ -4089,7 +4089,7 @@ class TestTableCollectionAssertEquals:
         t2.metadata_schema = tskit.MetadataSchema(None)
         with pytest.raises(
             AssertionError,
-            match=re.escape("Metadata schemas differ"),
+            match=re.escape("Metadata schemas differ:"),
         ):
             t1.assert_equals(t2)
         t1.assert_equals(t2, ignore_metadata=True)
@@ -4193,7 +4193,7 @@ class TestTableCollectionAssertEquals:
         t2.reference_sequence.clear()
         with pytest.raises(
             AssertionError,
-            match=re.escape("Metadata schemas differ"),
+            match=re.escape("Metadata schemas differ: "),
         ):
             t1.assert_equals(t2)
         t1.assert_equals(t2, ignore_reference_sequence=True)
