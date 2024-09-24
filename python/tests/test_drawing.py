@@ -2213,12 +2213,12 @@ class TestDrawSvg(TestDrawSvgBase):
 
     def test_y_axis_noticks(self):
         tree = msprime.simulate(4, random_seed=2).first()
-        svg = tree.draw_svg(y_label="Time", y_ticks=[])
+        svg = tree.draw_svg(y_axis=True, y_label="Time", y_ticks=[])
         svg_no_css = svg[svg.find("</style>") :]
         assert svg_no_css.count("axes") == 1
         assert svg_no_css.count("x-axis") == 0
         assert svg_no_css.count("y-axis") == 1
-        assert svg_no_css.count("tick") == 0
+        assert svg_no_css.count('"tick"') == 0
 
     def test_symbol_size(self):
         tree = msprime.simulate(4, random_seed=2, mutation_rate=8).first()
@@ -2834,7 +2834,7 @@ class TestDrawKnownSvg(TestDrawSvgBase):
                 width=200 * ts.num_trees,
             )
 
-    def test_known_svg_ts_multiroot(self, overwrite_viz, draw_plotbox, caplog):
+    def test_known_svg_ts_multiroot(self, overwrite_viz, draw_plotbox):
         tables = wf.wf_sim(
             6,
             5,
@@ -2856,14 +2856,14 @@ class TestDrawKnownSvg(TestDrawSvgBase):
         )
         assert "Time ago (generations)" in svg
 
-    def test_known_svg_ts_xlim(self, overwrite_viz, draw_plotbox, caplog):
+    def test_known_svg_ts_xlim(self, overwrite_viz, draw_plotbox):
         ts = self.get_simple_ts()
-        svg = ts.draw_svg(x_lim=[0.051, 0.9])
+        svg = ts.draw_svg(x_lim=[0.051, 0.9], debug_box=draw_plotbox)
         num_trees = sum(1 for b in ts.breakpoints() if 0.051 <= b < 0.9) + 1
         self.verify_known_svg(svg, "ts_x_lim.svg", overwrite_viz, width=200 * num_trees)
 
     @pytest.mark.skipif(IS_WINDOWS, reason="Msprime gives different result on Windows")
-    def test_known_max_num_trees(self, overwrite_viz, draw_plotbox, caplog):
+    def test_known_max_num_trees(self, overwrite_viz, draw_plotbox):
         max_trees = 5
         ts = msprime.sim_ancestry(
             3, sequence_length=100, recombination_rate=0.1, random_seed=1
@@ -2877,13 +2877,14 @@ class TestDrawKnownSvg(TestDrawSvgBase):
             x_lim=(first_break + 0.1, ts.sequence_length - 0.1),
             y_axis=True,
             time_scale="log_time",
+            debug_box=draw_plotbox,
         )
         self.verify_known_svg(
             svg, "ts_max_trees.svg", overwrite_viz, width=200 * (max_trees + 1)
         )
 
     @pytest.mark.skipif(IS_WINDOWS, reason="Msprime gives different result on Windows")
-    def test_known_max_num_trees_treewise(self, overwrite_viz, draw_plotbox, caplog):
+    def test_known_max_num_trees_treewise(self, overwrite_viz, draw_plotbox):
         max_trees = 5
         ts = msprime.sim_ancestry(
             3, sequence_length=100, recombination_rate=0.1, random_seed=1
@@ -2896,6 +2897,7 @@ class TestDrawKnownSvg(TestDrawSvgBase):
             x_lim=(first_break + 0.1, ts.sequence_length - 0.1),
             y_axis=True,
             x_scale="treewise",
+            debug_box=draw_plotbox,
         )
         self.verify_known_svg(
             svg, "ts_max_trees_treewise.svg", overwrite_viz, width=200 * (max_trees + 1)
