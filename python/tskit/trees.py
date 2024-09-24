@@ -1900,9 +1900,11 @@ class Tree:
             do not plot a Y axis.
         :param str y_label: Place a label to the left of the plot. If ``None`` (default)
             and there is a Y axis,  create and place an appropriate label.
-        :param list y_ticks: A list of Y values at which to plot tickmarks (``[]``
-            gives no tickmarks). If ``None``, plot one tickmark for each unique
-            node value.
+        :param Union[list, dict] y_ticks: A list of Y values at which to plot
+            tickmarks, or a dictionary mapping Y values to labels (``[]`` gives no
+            tickmarks). If ``None`` (default), plot one tickmark for each unique node
+            value. Note that if ``time_scale="rank"``, the Y values refer to the
+            zero-based rank of the plotted nodes, rather than the node time itself.
         :param bool y_gridlines: Whether to plot horizontal lines behind the tree
             at each y tickmark.
         :param bool all_edge_mutations: The edge on which a mutation occurs may span
@@ -7273,9 +7275,11 @@ class TreeSequence:
             do not plot a Y axis.
         :param str y_label: Place a label to the left of the plot. If ``None`` (default)
             and there is a Y axis, create and place an appropriate label.
-        :param list y_ticks: A list of Y values at which to plot tickmarks (``[]``
-            gives no tickmarks). If ``None``, plot one tickmark for each unique
-            node value.
+        :param Union[list, dict] y_ticks: A list of Y values at which to plot
+            tickmarks, or a dictionary mapping Y values to labels (``[]`` gives no
+            tickmarks). If ``None`` (default), plot one tickmark for each unique node
+            value. Note that if ``time_scale="rank"``, the Y values refer to the
+            zero-based rank of the plotted nodes, rather than the node time itself.
         :param bool y_gridlines: Whether to plot horizontal lines behind the tree
             at each y tickmark.
         :param bool omit_sites: If True, omit sites and mutations from the drawing.
