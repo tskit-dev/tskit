@@ -2220,6 +2220,25 @@ class TestDrawSvg(TestDrawSvgBase):
         assert svg_no_css.count("y-axis") == 1
         assert svg_no_css.count('"tick"') == 0
 
+    def test_y_axis_tick_warning(sefl, caplog):
+        tree = msprime.simulate(4, random_seed=2).first()
+        upper = int(tree.time(tree.root))
+        with caplog.at_level(logging.WARNING):
+            tree.draw_svg(
+                y_axis=True,
+                y_label="Time",
+                y_ticks={upper + 100: "above", upper / 3: "inside"},
+            )
+            assert (
+                f"Ticks {{{upper+100}: 'above'}} lie outside the plotted axis"
+                in caplog.text
+            )
+        with caplog.at_level(logging.WARNING):
+            tree.draw_svg(
+                y_axis=True, y_label="Time", y_ticks={upper / 2: "inside", -1: "below"}
+            )
+            assert "Ticks {-1: 'below'} lie outside the plotted axis" in caplog.text
+
     def test_symbol_size(self):
         tree = msprime.simulate(4, random_seed=2, mutation_rate=8).first()
         sz = 24

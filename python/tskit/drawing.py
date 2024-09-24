@@ -25,6 +25,7 @@ Module responsible for visualisations.
 """
 import collections
 import itertools
+import logging
 import math
 import numbers
 import operator
@@ -919,12 +920,13 @@ class SvgAxisPlot(SvgPlot):
         if self.y_axis:
             y_axis.add(dwg.line((x, rnd(lower)), (x, rnd(upper)), class_="ax-line"))
             ticks_group = y_axis.add(dwg.g(class_="ticks"))
+            tick_outside_axis = {}
             for y, label in ticks.items():
+                y_pos = self.timescaling.transform(y)
+                if y_pos > lower or y_pos < upper:  # nb lower > upper in SVG coords
+                    tick_outside_axis[y] = label
                 tick = ticks_group.add(
-                    dwg.g(
-                        class_="tick",
-                        transform=f"translate({x} {rnd(self.timescaling.transform(y))})",
-                    )
+                    dwg.g(class_="tick", transform=f"translate({x} {rnd(y_pos)})")
                 )
                 if gridlines:
                     tick.add(
@@ -940,6 +942,10 @@ class SvgAxisPlot(SvgPlot):
                     pos=(rnd(-tick_length_left - 1), 0),
                     class_="lab",
                     text_anchor="end",
+                )
+            if len(tick_outside_axis) > 0:
+                logging.warning(
+                    f"Ticks {tick_outside_axis} lie outside the plotted axis"
                 )
 
     def shade_background(
