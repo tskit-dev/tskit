@@ -2976,12 +2976,15 @@ class Tree:
 
     def path_length(self, u, v):
         """
-        Returns the path length between two nodes
-        (i.e., the number of edges between two nodes in this tree).
+        Returns a count of the number of edges between two nodes in this tree.
         If the two nodes have a most recent common ancestor, then this is defined as
         ``tree.depth(u) + tree.depth(v) - 2 * tree.depth(tree.mrca(u, v))``. If the nodes
         do not have an MRCA (i.e., they are in disconnected subtrees) the path length
         is infinity.
+
+        .. note:: This counts the number of "hops" between two nodes. To find the branch
+            length distance between them, in units of time (i.e. the sum of edge lengths
+            that separate two nodes) use the :meth:`.distance_between` method instead.
 
         .. seealso:: See also the :meth:`.depth` method
 
