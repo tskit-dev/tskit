@@ -2937,6 +2937,37 @@ class Tree:
         """
         return self._ll_tree.get_kc_distance(other._ll_tree, lambda_)
 
+    def _get_sample_sets(self):
+        ret = {}
+        for u in self.nodes(order="postorder"):
+            u_sample_set = set()
+            if self.is_sample(u):
+                u_sample_set.add(u)
+            for v in self.children(u):
+                u_sample_set |= ret[v]
+            ret[u] = frozenset(u_sample_set)
+        return ret
+
+    def rf_distance(self, other):
+        """
+        Returns the Robinson-Foulds distance between the specified pair of trees.
+
+        .. seealso::
+            See `Robinson & Foulds (1981)
+            <https://doi.org/10.1016/0025-5564(81)90043-2>`_ for more details.
+
+        :param Tree other: The other tree to compare to.
+        :return: The computed Robinson-Foulds distance between this tree and other.
+        :rtype: int
+        """
+        if self.num_roots != 1 or other.num_roots != 1:
+            raise ValueError("Trees must have a single root")
+
+        s1 = set(self._get_sample_sets().values())
+        s2 = set(other._get_sample_sets().values())
+
+        return len(s1.symmetric_difference(s2))
+
     def path_length(self, u, v):
         """
         Returns the path length between two nodes
