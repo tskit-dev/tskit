@@ -730,7 +730,7 @@ class SvgAxisPlot(SvgPlot):
             if time_scale == "rank":
                 y_label = "Node time"
             else:
-                y_label = "Time"
+                y_label = "Time ago"
             if ts.time_units != tskit.TIME_UNITS_UNKNOWN:
                 y_label += f" ({ts.time_units})"
         self.x_label = x_label

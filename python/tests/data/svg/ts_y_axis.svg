@@ -97,7 +97,7 @@
 			</g>
 			<g class="y-axis">
 				<g class="title" transform="translate(0 65.7)">
-					<text class="lab" text-anchor="middle" transform="translate(11) rotate(-90)">Time (generations)</text>
+					<text class="lab" text-anchor="middle" transform="translate(11) rotate(-90)">Time ago (generations)</text>
 				</g>
 				<line class="ax-line" x1="56.8" x2="56.8" y1="121.4" y2="10"/>
 				<g class="ticks">

@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (C) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -2697,7 +2697,7 @@ class TestDrawKnownSvg(TestDrawSvgBase):
         tables.time_units = "generations"
         ts = tables.tree_sequence()
         svg = ts.draw_svg(y_axis=True, debug_box=draw_plotbox)
-        assert "Time (generations)" in svg
+        assert "Time ago (generations)" in svg
         self.verify_known_svg(
             svg, "ts_y_axis.svg", overwrite_viz, width=200 * ts.num_trees
         )
@@ -2799,7 +2799,7 @@ class TestDrawKnownSvg(TestDrawSvgBase):
         self.verify_known_svg(
             svg, "ts_multiroot.svg", overwrite_viz, width=200 * ts.num_trees
         )
-        assert "Time (generations)" in svg
+        assert "Time ago (generations)" in svg
 
     def test_known_svg_ts_xlim(self, overwrite_viz, draw_plotbox, caplog):
         ts = self.get_simple_ts()
