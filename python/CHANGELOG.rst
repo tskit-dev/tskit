@@ -52,6 +52,9 @@
 - Add provenance information to the HTML notebook representation of a tree sequence.
   (:user:`benjeffery`, :pr:`3001`)
 
+- The ``.draw_svg()`` methods can add annotated genomic regions (e.g. genes) to the
+  x-axis. (:user:`hyanwong`, :pr:`3002`)
+
 --------------------
 [0.5.8] - 2024-06-27
 --------------------

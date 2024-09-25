@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2015-2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -665,6 +665,7 @@ class SvgAxisPlot(SvgPlot):
     standard_style = (
         ".background path {fill: #808080; fill-opacity: 0}"
         ".background path:nth-child(odd) {fill-opacity: .1}"
+        ".x-regions rect {fill: yellow; stroke: black; opacity: 0.5}"  # opaque 4 overlap
         ".axes {font-size: 14px}"
         ".x-axis .tick .lab {font-weight: bold; dominant-baseline: hanging}"
         ".axes, .tree {font-size: 14px; text-anchor: middle}"
@@ -773,11 +774,14 @@ class SvgAxisPlot(SvgPlot):
         tick_length_upper=None,  # If None, use the same as tick_length_lower
         site_muts=None,  # A dict of site id => mutation to plot as ticks on the x axis
         alternate_dash_positions=None,  # Where to alternate the axis from solid to dash
+        x_regions=None,  # A dict of (left, right):label items to place in boxes
     ):
-        if not self.x_axis and not self.x_label:
+        if not self.x_axis:
             return
         if alternate_dash_positions is None:
             alternate_dash_positions = np.array([])
+        if x_regions is None:
+            x_regions = {}
         dwg = self.drawing
         axes = self.get_axes()
         x_axis = axes.add(dwg.g(class_="x-axis"))
@@ -791,82 +795,98 @@ class SvgAxisPlot(SvgPlot):
                 transform="translate(0 -11)",
                 text_anchor="middle",
             )
-        if self.x_axis:
-            if tick_length_upper is None:
-                tick_length_upper = tick_length_lower
-            y = rnd(self.plotbox.max_y - self.x_axis_offset)
-            dash_locs = np.concatenate(
-                (
-                    [self.plotbox.left],
-                    self.x_transform(alternate_dash_positions),
-                    [self.plotbox.right],
+        if len(x_regions) > 0:
+            regions_group = x_axis.add(dwg.g(class_="x-regions"))
+            for i, ((left, right), label) in enumerate(x_regions.items()):
+                if not (0 <= left < right <= self.ts.sequence_length):
+                    raise ValueError(
+                        f"Invalid coordinates ({left} to {right}) for x-axis region"
+                    )
+                x1 = self.x_transform(left)
+                x2 = self.x_transform(right)
+                y = self.plotbox.max_y - self.x_axis_offset
+                region = regions_group.add(dwg.g(class_=f"r{i}"))
+                region.add(
+                    dwg.rect((x1, y), (x2 - x1, self.line_height), class_="r{i}")
+                )
+                self.add_text_in_group(
+                    label,
+                    region,
+                    pos=((x2 + x1) / 2, y + self.line_height / 2),
+                    class_="lab",
+                    text_anchor="middle",
+                )
+        if tick_length_upper is None:
+            tick_length_upper = tick_length_lower
+        y = rnd(self.plotbox.max_y - self.x_axis_offset)
+        dash_locs = np.concatenate(
+            (
+                [self.plotbox.left],
+                self.x_transform(alternate_dash_positions),
+                [self.plotbox.right],
+            )
+        )
+        for i, (x1, x2) in enumerate(zip(dash_locs[:-1], dash_locs[1:])):
+            x_axis.add(
+                dwg.line(
+                    (rnd(x1), y),
+                    (rnd(x2), y),
+                    class_="ax-skip" if i % 2 else "ax-line",
                 )
             )
-            for i, (x1, x2) in enumerate(zip(dash_locs[:-1], dash_locs[1:])):
-                x_axis.add(
-                    dwg.line(
-                        (rnd(x1), y),
-                        (rnd(x2), y),
-                        class_="ax-skip" if i % 2 else "ax-line",
+        if tick_positions is not None:
+            if tick_labels is None or isinstance(tick_labels, np.ndarray):
+                if tick_labels is None:
+                    tick_labels = tick_positions
+                tick_labels = create_tick_labels(tick_labels)  # format integers
+
+            upper_length = -tick_length_upper if site_muts is None else 0
+            ticks_group = x_axis.add(dwg.g(class_="ticks"))
+            for pos, lab in itertools.zip_longest(tick_positions, tick_labels):
+                tick = ticks_group.add(
+                    dwg.g(
+                        class_="tick",
+                        transform=f"translate({rnd(self.x_transform(pos))} {y})",
                     )
                 )
-            if tick_positions is not None:
-                if tick_labels is None or isinstance(tick_labels, np.ndarray):
-                    if tick_labels is None:
-                        tick_labels = tick_positions
-                    tick_labels = create_tick_labels(tick_labels)  # format integers
-
-                upper_length = -tick_length_upper if site_muts is None else 0
-                ticks_group = x_axis.add(dwg.g(class_="ticks"))
-                for pos, lab in itertools.zip_longest(tick_positions, tick_labels):
-                    tick = ticks_group.add(
-                        dwg.g(
-                            class_="tick",
-                            transform=f"translate({rnd(self.x_transform(pos))} {y})",
+                tick.add(dwg.line((0, rnd(upper_length)), (0, rnd(tick_length_lower))))
+                self.add_text_in_group(
+                    lab,
+                    tick,
+                    class_="lab",
+                    # place origin at the bottom of the tick plus a single px space
+                    pos=(0, tick_length_lower + 1),
+                )
+        if not self.omit_sites and site_muts is not None:
+            # Add sites as vertical lines with overlaid mutations as upper chevrons
+            for s_id, mutations in site_muts.items():
+                s = self.ts.site(s_id)
+                x = self.x_transform(s.position)
+                site = x_axis.add(
+                    dwg.g(
+                        class_=f"site s{s.id + self.offsets.site}",
+                        transform=f"translate({rnd(x)} {y})",
+                    )
+                )
+                site.add(dwg.line((0, 0), (0, rnd(-tick_length_upper)), class_="sym"))
+                for i, m in enumerate(reversed(mutations)):
+                    mutation_class = f"mut m{m.id + self.offsets.mutation}"
+                    if m.id in self.mutations_outside_tree:
+                        mutation_class += " extra"
+                    mut = dwg.g(class_=mutation_class)
+                    h = -i * 4 - 1.5
+                    w = tick_length_upper / 4
+                    mut.add(
+                        dwg.polyline(
+                            [
+                                (rnd(w), rnd(h - 2 * w)),
+                                (0, rnd(h)),
+                                (rnd(-w), rnd(h - 2 * w)),
+                            ],
+                            class_="sym",
                         )
                     )
-                    tick.add(
-                        dwg.line((0, rnd(upper_length)), (0, rnd(tick_length_lower)))
-                    )
-                    self.add_text_in_group(
-                        lab,
-                        tick,
-                        class_="lab",
-                        # place origin at the bottom of the tick plus a single px space
-                        pos=(0, tick_length_lower + 1),
-                    )
-            if not self.omit_sites and site_muts is not None:
-                # Add sites as vertical lines with overlaid mutations as upper chevrons
-                for s_id, mutations in site_muts.items():
-                    s = self.ts.site(s_id)
-                    x = self.x_transform(s.position)
-                    site = x_axis.add(
-                        dwg.g(
-                            class_=f"site s{s.id + self.offsets.site}",
-                            transform=f"translate({rnd(x)} {y})",
-                        )
-                    )
-                    site.add(
-                        dwg.line((0, 0), (0, rnd(-tick_length_upper)), class_="sym")
-                    )
-                    for i, m in enumerate(reversed(mutations)):
-                        mutation_class = f"mut m{m.id + self.offsets.mutation}"
-                        if m.id in self.mutations_outside_tree:
-                            mutation_class += " extra"
-                        mut = dwg.g(class_=mutation_class)
-                        h = -i * 4 - 1.5
-                        w = tick_length_upper / 4
-                        mut.add(
-                            dwg.polyline(
-                                [
-                                    (rnd(w), rnd(h - 2 * w)),
-                                    (0, rnd(h)),
-                                    (rnd(-w), rnd(h - 2 * w)),
-                                ],
-                                class_="sym",
-                            )
-                        )
-                        site.add(mut)
+                    site.add(mut)
 
     def draw_y_axis(
         self,
@@ -1002,7 +1022,8 @@ class SvgTreeSequence(SvgAxisPlot):
         x_label,
         y_label,
         y_ticks,
-        y_gridlines,
+        x_regions=None,
+        y_gridlines=None,
         x_lim=None,
         max_time=None,
         min_time=None,
@@ -1116,6 +1137,7 @@ class SvgTreeSequence(SvgAxisPlot):
             skipbreaks,
             tick_length_lower=self.default_tick_length,  # TODO - parameterize
             tick_length_upper=self.default_tick_length_site,  # TODO - parameterize
+            x_regions=x_regions,
         )
         y_low = self.tree_plotbox.bottom
         if y_axis is not None:
@@ -1181,6 +1203,7 @@ class SvgTreeSequence(SvgAxisPlot):
         tree_is_used,
         breaks,
         skipbreaks,
+        x_regions,
         tick_length_lower=SvgAxisPlot.default_tick_length,
         tick_length_upper=SvgAxisPlot.default_tick_length_site,
     ):
@@ -1243,6 +1266,8 @@ class SvgTreeSequence(SvgAxisPlot):
 
             site_muts = None  # It doesn't make sense to plot sites for "treewise" plots
             tick_length_upper = None  # No sites plotted, so use the default upper tick
+            if x_regions is not None and len(x_regions) > 0:
+                raise ValueError("x_regions are not supported for treewise plots")
 
             # NB: no background shading needed if x_scale is "treewise"
 
@@ -1258,6 +1283,7 @@ class SvgTreeSequence(SvgAxisPlot):
             tick_length_upper=tick_length_upper,
             site_muts=site_muts,
             alternate_dash_positions=skipregion_pos,
+            x_regions=x_regions,
         )
 
 
@@ -1286,6 +1312,7 @@ class SvgTree(SvgAxisPlot):
         y_axis=None,
         x_label=None,
         y_label=None,
+        x_regions=None,
         y_ticks=None,
         y_gridlines=None,
         all_edge_mutations=None,
@@ -1478,6 +1505,7 @@ class SvgTree(SvgAxisPlot):
             tick_length_lower=tick_length_lower,
             tick_length_upper=tick_length_upper,
             site_muts=site_muts,
+            x_regions=x_regions,
         )
         if y_ticks is None:
             y_ticks = {h: ts.node(u).time for u, h in self.node_height.items()}

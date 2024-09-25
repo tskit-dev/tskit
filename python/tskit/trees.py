@@ -1811,6 +1811,7 @@ class Tree:
         symbol_size=None,
         x_axis=None,
         x_label=None,
+        x_regions=None,
         y_axis=None,
         y_label=None,
         y_ticks=None,
@@ -1890,6 +1891,10 @@ class Tree:
             plot an X axis.
         :param str x_label: Place a label under the plot. If ``None`` (default) and
             there is an X axis, create and place an appropriate label.
+        :param dict x_regions: A dictionary mapping (left, right) tuples to names. This
+            draws a box, labelled with the name, on the X axis between the left and
+            right positions, and can be used for annotating genomic regions (e.g.
+            genes) on the X axis. If ``None`` (default) do not plot any regions.
         :param bool y_axis: Should the plot have an Y axis line, showing time (or
             ranked node time if ``time_scale="rank"``). If ``None`` (default)
             do not plot a Y axis.
@@ -1935,6 +1940,7 @@ class Tree:
             symbol_size=symbol_size,
             x_axis=x_axis,
             x_label=x_label,
+            x_regions=x_regions,
             y_axis=y_axis,
             y_label=y_label,
             y_ticks=y_ticks,
@@ -7178,6 +7184,7 @@ class TreeSequence:
         x_axis=None,
         x_label=None,
         x_lim=None,
+        x_regions=None,
         y_axis=None,
         y_label=None,
         y_ticks=None,
@@ -7254,6 +7261,10 @@ class TreeSequence:
             information discarded: this means that mutations outside the interval will
             not be shown. To force display of the entire tree sequence, including empty
             flanking regions, specify ``x_lim=[0, ts.sequence_length]``.
+        :param dict x_regions: A dictionary mapping (left, right) tuples to names. This
+            draws a box, labelled with the name, on the X axis between the left and
+            right positions, and can be used for annotating genomic regions (e.g.
+            genes) on the X axis. If ``None`` (default) do not plot any regions.
         :param bool y_axis: Should the plot have an Y axis line, showing time (or
             ranked node time if ``time_scale="rank"``. If ``None`` (default)
             do not plot a Y axis.
@@ -7307,6 +7318,7 @@ class TreeSequence:
             x_axis=x_axis,
             x_label=x_label,
             x_lim=x_lim,
+            x_regions=x_regions,
             y_axis=y_axis,
             y_label=y_label,
             y_ticks=y_ticks,
