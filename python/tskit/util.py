@@ -28,6 +28,7 @@ import itertools
 import json
 import numbers
 import os
+import textwrap
 from typing import Union
 
 import numpy as np
@@ -323,43 +324,65 @@ def naturalsize(value):
     return (format_ + " %s") % ((base * bytes_ / unit), s)
 
 
-def obj_to_collapsed_html(d, name=None, open_depth=0):
+def obj_to_collapsed_html(d, name=None, open_depth=0, max_items=30, max_item_len=100):
     """
     Recursively make an HTML representation of python objects.
 
     :param str name: Name for this object
     :param int open_depth: By default sub-sections are collapsed. If this number is
         non-zero the first layers up to open_depth will be opened.
+    :param int max_items: Maximum number of items to display per collection
     :return: The HTML as a string
     :rtype: str
     """
     opened = "open" if open_depth > 0 else ""
     open_depth -= 1
-    name = str(name) + ":" if name is not None else ""
-    if type(d) is dict:
+    name = f"{str(name)}:" if name is not None else ""
+    if isinstance(d, dict):
+        items = list(d.items())
+        more = len(items) - max_items
+        display_items = items[:max_items] if more > 0 else items
+        inner_html = "".join(
+            f"{obj_to_collapsed_html(val, key, open_depth, max_items)}<br/>"
+            for key, val in display_items
+        )
+        if more > 0:
+            inner_html += f"... and {more} more"
         return f"""
-                <div>
-                  <span class="tskit-details-label">{name}</span>
-                  <details {opened}>
+            <div>
+                <span class="tskit-details-label">{name}</span>
+                <details {opened}>
                     <summary>dict</summary>
-                    {"".join(f"{obj_to_collapsed_html(val, key, open_depth)}<br/>"
-                             for key, val in d.items())}
-                  </details>
-                </div>
-                """
-    elif type(d) is list:
+                    {inner_html}
+                </details>
+            </div>
+            """
+    elif isinstance(d, list):
+        items = d
+        more = len(items) - max_items
+        display_items = items[:max_items] if more > 0 else items
+        inner_html = "".join(
+            f"{obj_to_collapsed_html(val, None, open_depth, max_items)}<br/>"
+            for val in display_items
+        )
+        if more > 0:
+            inner_html += f"... and {more} more"
         return f"""
-                <div>
-                  <span class="tskit-details-label">{name}</span>
-                  <details {opened}>
+            <div>
+                <span class="tskit-details-label">{name}</span>
+                <details {opened}>
                     <summary>list</summary>
-                    {"".join(f"{obj_to_collapsed_html(val, None, open_depth)}<br/>"
-                             for val in d)}
-                  </details>
-                </div>
-                """
+                    {inner_html}
+                </details>
+            </div>
+            """
     else:
-        return f"{name} {d}"
+        d_str = str(d)
+        if len(d_str) > max_item_len:
+            d_str = d_str[:max_item_len] + "..."
+        d_str = textwrap.fill(d_str, width=30)
+        d_str = d_str.replace("\n", "<br/>")
+        return f"{name} {d_str}"
 
 
 def truncate_string_end(string, length):
