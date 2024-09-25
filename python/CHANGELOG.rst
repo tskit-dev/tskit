@@ -49,6 +49,9 @@
 - Edges now have an ``.interval`` attribute returning a ``tskit.Interval`` object.
   (:user:`hyanwong`, :pr:`2531`)
 
+- Add provenance information to the HTML notebook representation of a tree sequence.
+  (:user:`benjeffery`, :pr:`3001`)
+
 --------------------
 [0.5.8] - 2024-06-27
 --------------------

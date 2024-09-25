@@ -2190,11 +2190,22 @@ class TestTreeSequence(HighLevelTestCase):
         html = ts._repr_html_()
         # Parse to check valid
         ElementTree.fromstring(html)
-        assert len(html) > 4300
+        assert len(html) > 5000
         assert f"<tr><td>Trees</td><td>{ts.num_trees}</td></tr>" in html
         assert f"<tr><td>Time Units</td><td>{ts.time_units}</td></tr>" in html
         for table in ts.tables.table_name_map:
             assert f"<td>{table.capitalize()}</td>" in html
+        if ts.num_provenances > 0:
+            assert (
+                f"<td>{json.loads(ts.provenance(0).record)['software']['name']}</td>"
+                in html
+            )
+
+    def test_bad_provenance(self, ts_fixture):
+        tables = ts_fixture.dump_tables()
+        tables.provenances.add_row("bad", "bad")
+        ts = tables.tree_sequence()
+        assert "Could not parse provenance" in ts._repr_html_()
 
     def test_html_repr_limit(self, ts_fixture):
         tables = ts_fixture.tables
