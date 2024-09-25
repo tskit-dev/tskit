@@ -2256,12 +2256,12 @@ class TestDrawSvg(TestDrawSvgBase):
             # SVG should just be a row of 10 sample nodes
             svg = ts.draw_svg(time_scale=time_scale, x_lim=[0, ts.sequence_length])
             self.verify_basic_svg(svg)
-            assert svg.count("rect") == 10  # Sample nodes are rectangles
-            assert svg.count('path class="edge"') == 0
+            assert svg.count("<rect") == 10  # Sample nodes are rectangles
+            assert svg.count('<path class="edge"') == 0
         svg = ts.draw_svg(force_root_branch=True, x_lim=[0, ts.sequence_length])
         self.verify_basic_svg(svg)
-        assert svg.count("rect") == 10
-        assert svg.count('path class="edge"') == 10
+        assert svg.count("<rect") == 10
+        assert svg.count('<path class="edge"') == 10
 
     def test_no_edges_with_muts(self):
         # If there is a mutation above a sample, the root branches should be there too
@@ -2274,7 +2274,7 @@ class TestDrawSvg(TestDrawSvgBase):
         assert ts.num_mutations > 0  # Should have some singletons
         svg = ts.draw_svg()
         self.verify_basic_svg(svg)
-        assert svg.count("rect") == 10
+        assert svg.count("<rect") == 10
         assert svg.count('<path class="edge"') == 10
         assert svg.count('<path class="sym"') == ts.num_mutations
         assert svg.count('<line class="sym"') == ts.num_sites
@@ -2466,6 +2466,61 @@ class TestDrawSvg(TestDrawSvgBase):
         site_strings_in_stylesheet = svg.count(".site")
         assert svg.count("site") - site_strings_in_stylesheet == num_sites
         self.verify_basic_svg(svg, width=200 * (max_trees + 1))
+
+    def test_nodraw_x_axis(self):
+        ts = msprime.sim_ancestry(
+            1, sequence_length=100, recombination_rate=0.1, random_seed=1
+        )
+        svg = ts.first().draw_svg(x_axis=False, y_axis=False)
+        assert 'class="x-axis"' not in svg
+
+    def test_x_regions_ts(self):
+        ts = msprime.sim_ancestry(
+            3, sequence_length=100, recombination_rate=0.1, random_seed=1
+        )
+        regions = [(0, 10), (9, 20), (50, 90)]
+        svg = ts.draw_svg(
+            x_regions={r: f"reg{'ABC'[i]}" for i, r in enumerate(regions)}
+        )
+        self.verify_basic_svg(svg, width=200 * ts.num_trees)
+        assert svg.count("x-regions") == 2  # one in stylesheet, one in svg
+        assert svg.count("r0") == 1
+        assert svg.count("r1") == 1
+        assert svg.count("r2") == 1
+        assert svg.count("r3") == 0
+        assert svg.count("regA") == 1
+        assert svg.count("regB") == 1
+        assert svg.count("regC") == 1
+        # "rect" string present for 6 samples in each tree + 3 regions + 1 in stylesheet
+        assert svg.count("rect") == 6 * ts.num_trees + 3 + 1
+
+    def test_x_regions_tree(self):
+        ts = msprime.sim_ancestry(
+            3, sequence_length=100, recombination_rate=0.1, random_seed=1
+        )
+        svg = ts.first().draw_svg(x_regions={(0, 10): "💩"})
+        assert svg.count("💩") == 0
+        svg = ts.first().draw_svg(x_axis=True, x_regions={(0, 10): "💩"})
+        assert svg.count("💩") == 1
+
+    def test_unsupported_x_regions(self):
+        ts = msprime.sim_ancestry(
+            1, sequence_length=100, recombination_rate=0.1, random_seed=1
+        )
+        ts.draw_svg(x_scale="treewise")
+        with pytest.raises(ValueError, match="not supported for treewise"):
+            ts.draw_svg(x_scale="treewise", x_regions={(0, 1): "bad"})
+
+    def test_bad_x_regions(self):
+        ts = msprime.sim_ancestry(
+            1, sequence_length=100, recombination_rate=0.1, random_seed=1
+        )
+        with pytest.raises(ValueError, match="Invalid coordinates"):
+            ts.draw_svg(x_regions={(-1, 1): "bad"})
+        with pytest.raises(ValueError, match="Invalid coordinates"):
+            ts.draw_svg(x_regions={(0, ts.sequence_length + 1): "bad"})
+        with pytest.raises(ValueError, match="Invalid coordinates"):
+            ts.draw_svg(x_regions={(1, 0): "bad"})
 
 
 class TestDrawKnownSvg(TestDrawSvgBase):
