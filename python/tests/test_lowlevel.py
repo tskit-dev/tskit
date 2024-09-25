@@ -2673,6 +2673,112 @@ class TestWeightedGeneticRelatedness(LowLevelTestCase, TwoWayWeightedStatsMixin)
             )
 
 
+class TestGeneticRelatednessVector(LowLevelTestCase):
+    def get_example(self, num_weights=2):
+        ts = self.get_example_tree_sequence()
+        num_samples = ts.get_num_samples()
+        params = {
+            "weights": np.linspace(0, 1, num_weights * num_samples).reshape(
+                (num_samples, num_weights)
+            ),
+            "windows": [0, ts.get_sequence_length()],
+        }
+        return ts, params
+
+    @pytest.mark.parametrize("mode", ["branch"])
+    @pytest.mark.parametrize("num_weights", [1, 3])
+    def test_basic_example(self, mode, num_weights):
+        ts, params = self.get_example(num_weights)
+        ns = ts.get_num_samples()
+        result = ts.genetic_relatedness_vector(
+            params["weights"], params["windows"], mode, True, True
+        )
+        assert result.shape == (1, ns, num_weights)
+        result = ts.genetic_relatedness_vector(
+            params["weights"], params["windows"], mode, True, False
+        )
+        assert result.shape == (1, ns, num_weights)
+        result = ts.genetic_relatedness_vector(
+            params["weights"], params["windows"], mode, False, True
+        )
+        assert result.shape == (1, ns, num_weights)
+
+    def test_bad_args(self):
+        ts, params = self.get_example()
+        for mode in ("", "abc"):
+            with pytest.raises(ValueError, match="stats mode"):
+                ts.genetic_relatedness_vector(
+                    params["weights"], params["windows"], mode, True, True
+                )
+        for mode in (None, []):
+            with pytest.raises(TypeError):
+                ts.genetic_relatedness_vector(
+                    params["weights"], params["windows"], mode, True, True
+                )
+        with pytest.raises(TypeError):
+            ts.genetic_relatedness_vector(
+                params["weights"], params["windows"], "branch", "yes", True
+            )
+        with pytest.raises(TypeError):
+            ts.genetic_relatedness_vector(
+                params["weights"], params["windows"], "branch", True, "no"
+            )
+
+    @pytest.mark.parametrize("mode", ["site", "node"])
+    def test_modes_not_supported(self, mode):
+        ts, params = self.get_example()
+        with pytest.raises(_tskit.LibraryError):
+            ts.genetic_relatedness_vector(
+                params["weights"], params["windows"], mode, True, True
+            )
+
+    @pytest.mark.parametrize("mode", ["branch"])
+    def test_bad_weights(self, mode):
+        ts, params = self.get_example()
+        del params["weights"]
+        ns = ts.get_num_samples()
+        for bad_weight_type in [None, [None, None]]:
+            with pytest.raises(ValueError, match="object of too small depth"):
+                ts.genetic_relatedness_vector(
+                    weights=bad_weight_type, mode=mode, **params
+                )
+        for bad_weight_shape in [(ns - 1, 1), (ns + 1, 1), (0, 3)]:
+            with pytest.raises(ValueError, match="First dimension must be num_samples"):
+                ts.genetic_relatedness_vector(
+                    weights=np.ones(bad_weight_shape), mode=mode, **params
+                )
+
+    def test_window_errors(self):
+        ts, params = self.get_example()
+        del params["windows"]
+        for bad_array in ["asdf", None, [[[[]], [[]]]], np.zeros((10, 3, 4))]:
+            with pytest.raises(ValueError):
+                ts.genetic_relatedness_vector(
+                    windows=bad_array, mode="branch", **params
+                )
+
+        for bad_windows in [[], [0]]:
+            with pytest.raises(ValueError):
+                ts.genetic_relatedness_vector(
+                    windows=bad_windows, mode="branch", **params
+                )
+        L = ts.get_sequence_length()
+        bad_windows = [
+            [L, 0],
+            [0.1, L],
+            [-1, L],
+            [0, L + 0.1],
+            [0, 0.1, 0.1, L],
+            [0, -1, L],
+            [0, 0.1, 0.05, 0.2, L],
+        ]
+        for bad_window in bad_windows:
+            with pytest.raises(_tskit.LibraryError):
+                ts.genetic_relatedness_vector(
+                    windows=bad_window, mode="branch", **params
+                )
+
+
 class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):
     """
     Tests for the general stats interface.

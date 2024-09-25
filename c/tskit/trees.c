@@ -9896,3 +9896,370 @@ tsk_treeseq_pair_coalescence_rates(const tsk_treeseq_t *self, tsk_size_t num_sam
 out:
     return ret;
 }
+
+/* ======================================================== *
+ * Relatedness matrix-vector product
+ * ======================================================== */
+
+typedef struct {
+    const tsk_treeseq_t *ts;
+    tsk_size_t num_weights;
+    const double *weights;
+    tsk_size_t num_windows;
+    const double *windows;
+    tsk_flags_t options;
+    double *result;
+    /* tree */
+    double tree_left;
+    tsk_size_t num_nodes;
+    tsk_id_t *parent;
+    double *x;
+    double *w;
+    double *v;
+} tsk_matvec_calculator_t;
+
+static void
+tsk_matvec_calculator_print_state(const tsk_matvec_calculator_t *self, FILE *out)
+{
+    tsk_id_t j;
+    tsk_size_t num_samples = tsk_treeseq_get_num_samples(self->ts);
+
+    fprintf(out, "Matvec state:\n");
+    fprintf(out, "options = %d\n", self->options);
+    fprintf(out, "tree_left = %f\n", self->tree_left);
+    fprintf(out, "samples = %lld: [", (long long) num_samples);
+    fprintf(out, "]\n");
+    fprintf(out, "node\tparent\tx\tv\tw");
+    fprintf(out, "\n");
+
+    for (j = 0; j < (tsk_id_t) self->num_nodes; j++) {
+        fprintf(out, "%lld\t", (long long) j);
+        fprintf(out, "%lld\t%g\t%g\t%g\n", (long long) self->parent[j], self->x[j],
+            self->v[j], self->w[j]);
+    }
+}
+
+static int
+tsk_matvec_calculator_init(tsk_matvec_calculator_t *self, const tsk_treeseq_t *ts,
+    tsk_size_t num_weights, const double *weights, tsk_size_t num_windows,
+    const double *windows, tsk_flags_t options, double *result)
+{
+    int ret = 0;
+    tsk_size_t num_samples = tsk_treeseq_get_num_samples(ts);
+    const tsk_size_t num_nodes = ts->tables->nodes.num_rows;
+    const double *row;
+    double *new_row;
+    tsk_size_t k;
+    tsk_id_t u, j;
+    double *weight_means = tsk_malloc(num_weights * sizeof(*weight_means));
+
+    self->ts = ts;
+    self->tree_left = 0.0;
+    self->num_weights = num_weights;
+    self->weights = weights;
+    self->num_windows = num_windows;
+    self->windows = windows;
+    self->options = options;
+    self->result = result;
+    self->num_nodes = num_nodes;
+
+    self->parent = tsk_malloc(num_nodes * sizeof(*self->parent));
+    self->x = tsk_calloc(num_nodes, sizeof(*self->x));
+    self->v = tsk_calloc(num_nodes * num_weights, sizeof(*self->v));
+    self->w = tsk_calloc(num_nodes * num_weights, sizeof(*self->w));
+
+    if (self->parent == NULL || self->x == NULL || self->w == NULL || self->v == NULL
+        || weight_means == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    tsk_memset(result, 0, num_windows * num_samples * num_weights * sizeof(*result));
+    tsk_memset(self->parent, TSK_NULL, num_nodes * sizeof(*self->parent));
+
+    for (k = 0; k < num_weights; k++) {
+        weight_means[k] = 0.0;
+    }
+    if (!(options & TSK_STAT_NONCENTRED)) {
+        for (j = 0; j < (tsk_id_t) num_samples; j++) {
+            row = GET_2D_ROW(weights, num_weights, j);
+            for (k = 0; k < num_weights; k++) {
+                weight_means[k] += row[k];
+            }
+        }
+        for (k = 0; k < num_weights; k++) {
+            weight_means[k] /= (double) num_samples;
+        }
+    }
+
+    for (j = 0; j < (tsk_id_t) num_samples; j++) {
+        u = ts->samples[j];
+        row = GET_2D_ROW(weights, num_weights, j);
+        new_row = GET_2D_ROW(self->w, num_weights, u);
+        for (k = 0; k < num_weights; k++) {
+            new_row[k] = row[k] - weight_means[k];
+        }
+    }
+out:
+    tsk_safe_free(weight_means);
+    return ret;
+}
+
+static int
+tsk_matvec_calculator_free(tsk_matvec_calculator_t *self)
+{
+    tsk_safe_free(self->parent);
+    tsk_safe_free(self->x);
+    tsk_safe_free(self->w);
+    tsk_safe_free(self->v);
+
+    /* Make this safe for multiple free calls */
+    memset(self, 0, sizeof(*self));
+    return 0;
+}
+
+static inline void
+tsk_matvec_calculator_add_z(tsk_id_t u, tsk_id_t p, const double tree_left,
+    double *restrict x, const tsk_size_t num_weights, double *restrict w,
+    double *restrict v, const double *restrict nodes_time)
+{
+    double t, span;
+    tsk_size_t j;
+    double *restrict v_row, *restrict w_row;
+
+    if (p != TSK_NULL) {
+        t = nodes_time[p] - nodes_time[u];
+        span = tree_left - x[u];
+        // do this: self->v[u] += t * span * self->w[u];
+        w_row = GET_2D_ROW(w, num_weights, u);
+        v_row = GET_2D_ROW(v, num_weights, u);
+        for (j = 0; j < num_weights; j++) {
+            v_row[j] += t * span * w_row[j];
+        }
+    }
+    x[u] = tree_left;
+}
+
+static void
+tsk_matvec_calculator_adjust_path_up(
+    tsk_matvec_calculator_t *self, tsk_id_t p, tsk_id_t c, double sign)
+{
+    tsk_size_t j;
+    double *p_row, *c_row;
+    const tsk_id_t *restrict parent = self->parent;
+    const double tree_left = self->tree_left;
+    double *restrict x = self->x;
+    const tsk_size_t num_weights = self->num_weights;
+    double *restrict w = self->w;
+    double *restrict v = self->v;
+    const double *restrict nodes_time = self->ts->tables->nodes.time;
+
+    // sign = -1 for removing edges, +1 for adding
+    while (p != TSK_NULL) {
+        tsk_matvec_calculator_add_z(
+            p, parent[p], tree_left, x, num_weights, w, v, nodes_time);
+        // do this: self->v[c] -= sign * self->v[p];
+        p_row = GET_2D_ROW(v, num_weights, p);
+        c_row = GET_2D_ROW(v, num_weights, c);
+        for (j = 0; j < num_weights; j++) {
+            c_row[j] -= sign * p_row[j];
+        }
+        // do this: self->w[p] += sign * self->w[c];
+        p_row = GET_2D_ROW(w, num_weights, p);
+        c_row = GET_2D_ROW(w, num_weights, c);
+        for (j = 0; j < num_weights; j++) {
+            p_row[j] += sign * c_row[j];
+        }
+        p = parent[p];
+    }
+}
+
+static void
+tsk_matvec_calculator_remove_edge(tsk_matvec_calculator_t *self, tsk_id_t p, tsk_id_t c)
+{
+    tsk_id_t *parent = self->parent;
+    const double tree_left = self->tree_left;
+    double *restrict x = self->x;
+    const tsk_size_t num_weights = self->num_weights;
+    double *restrict w = self->w;
+    double *restrict v = self->v;
+    const double *restrict nodes_time = self->ts->tables->nodes.time;
+
+    tsk_matvec_calculator_add_z(
+        c, parent[c], tree_left, x, num_weights, w, v, nodes_time);
+    parent[c] = TSK_NULL;
+    tsk_matvec_calculator_adjust_path_up(self, p, c, -1);
+}
+
+static void
+tsk_matvec_calculator_insert_edge(tsk_matvec_calculator_t *self, tsk_id_t p, tsk_id_t c)
+{
+    tsk_id_t *parent = self->parent;
+
+    tsk_matvec_calculator_adjust_path_up(self, p, c, +1);
+    self->x[c] = self->tree_left;
+    parent[c] = p;
+}
+
+static int
+tsk_matvec_calculator_write_output(tsk_matvec_calculator_t *self, double *restrict y)
+{
+    int ret = 0;
+    tsk_id_t u;
+    tsk_size_t j, k;
+    tsk_size_t n = tsk_treeseq_get_num_samples(self->ts);
+    const tsk_size_t num_weights = self->num_weights;
+    const double tree_left = self->tree_left;
+    double *u_row, *out_row;
+    double *out_means = tsk_malloc(num_weights * sizeof(*out_means));
+    const tsk_id_t *restrict parent = self->parent;
+    const double *restrict nodes_time = self->ts->tables->nodes.time;
+    double *restrict x = self->x;
+    double *restrict w = self->w;
+    double *restrict v = self->v;
+    const tsk_id_t *restrict samples = self->ts->samples;
+
+    if (out_means == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+
+    for (j = 0; j < n; j++) {
+        out_row = GET_2D_ROW(y, num_weights, j);
+        u = samples[j];
+        while (u != TSK_NULL) {
+            if (x[u] != tree_left) {
+                tsk_matvec_calculator_add_z(
+                    u, parent[u], tree_left, x, num_weights, w, v, nodes_time);
+            }
+            u_row = GET_2D_ROW(v, num_weights, u);
+            for (k = 0; k < num_weights; k++) {
+                out_row[k] += u_row[k];
+            }
+            u = parent[u];
+        }
+    }
+
+    if (!(self->options & TSK_STAT_NONCENTRED)) {
+        for (k = 0; k < num_weights; k++) {
+            out_means[k] = 0.0;
+        }
+        for (j = 0; j < n; j++) {
+            out_row = GET_2D_ROW(y, num_weights, j);
+            for (k = 0; k < num_weights; k++) {
+                out_means[k] += out_row[k];
+            }
+        }
+        for (k = 0; k < num_weights; k++) {
+            out_means[k] /= (double) n;
+        }
+        for (j = 0; j < n; j++) {
+            out_row = GET_2D_ROW(y, num_weights, j);
+            for (k = 0; k < num_weights; k++) {
+                out_row[k] -= out_means[k];
+            }
+        }
+    }
+    /* zero out v */
+    tsk_memset(self->v, 0, self->num_nodes * num_weights * sizeof(*self->v));
+out:
+    tsk_safe_free(out_means);
+    return ret;
+}
+
+static int
+tsk_matvec_calculator_run(tsk_matvec_calculator_t *self)
+{
+    int ret = 0;
+    tsk_size_t j, k, m;
+    tsk_id_t e, p, c;
+    tsk_size_t n = tsk_treeseq_get_num_samples(self->ts);
+    double tree_right;
+    const double sequence_length = self->ts->tables->sequence_length;
+    const tsk_size_t num_edges = self->ts->tables->edges.num_rows;
+    const tsk_id_t *restrict I = self->ts->tables->indexes.edge_insertion_order;
+    const tsk_id_t *restrict O = self->ts->tables->indexes.edge_removal_order;
+    const double *restrict edge_right = self->ts->tables->edges.right;
+    const double *restrict edge_left = self->ts->tables->edges.left;
+    const tsk_id_t *restrict edge_child = self->ts->tables->edges.child;
+    const tsk_id_t *restrict edge_parent = self->ts->tables->edges.parent;
+    double *restrict out;
+
+    j = 0;
+    k = 0;
+    m = 0;
+    tree_right = sequence_length;
+
+    while (
+        m < self->num_windows && k < num_edges && self->tree_left <= sequence_length) {
+        while (k < num_edges && edge_right[O[k]] == self->tree_left) {
+            e = O[k];
+            p = edge_parent[e];
+            c = edge_child[e];
+            tsk_matvec_calculator_remove_edge(self, p, c);
+            k++;
+        }
+        while (j < num_edges && edge_left[I[j]] == self->tree_left) {
+            e = I[j];
+            p = edge_parent[e];
+            c = edge_child[e];
+            tsk_matvec_calculator_insert_edge(self, p, c);
+            self->x[c] = self->tree_left;
+            j++;
+        }
+        tree_right = self->windows[m + 1];
+        if (j < num_edges) {
+            tree_right = TSK_MIN(tree_right, edge_left[I[j]]);
+        }
+        if (k < num_edges) {
+            tree_right = TSK_MIN(tree_right, edge_right[O[k]]);
+        }
+        self->tree_left = tree_right;
+        if (self->tree_left == self->windows[m + 1]) {
+            out = GET_2D_ROW(self->result, self->num_weights * n, m);
+            tsk_matvec_calculator_write_output(self, out);
+            m += 1;
+        }
+        if (self->options & TSK_DEBUG) {
+            tsk_matvec_calculator_print_state(self, tsk_get_debug_stream());
+        }
+    }
+
+    /* out: */
+    return ret;
+}
+
+int
+tsk_treeseq_genetic_relatedness_vector(const tsk_treeseq_t *self, tsk_size_t num_weights,
+    const double *weights, tsk_size_t num_windows, const double *windows, double *result,
+    tsk_flags_t options)
+{
+    int ret = 0;
+    bool stat_site = !!(options & TSK_STAT_SITE);
+    bool stat_node = !!(options & TSK_STAT_NODE);
+    tsk_matvec_calculator_t calc;
+
+    memset(&calc, 0, sizeof(calc));
+
+    if (stat_node || stat_site) {
+        ret = TSK_ERR_UNSUPPORTED_STAT_MODE;
+        goto out;
+    }
+    ret = tsk_treeseq_check_windows(self, num_windows, windows, TSK_REQUIRE_FULL_SPAN);
+    if (ret != 0) {
+        goto out;
+    }
+
+    ret = tsk_matvec_calculator_init(
+        &calc, self, num_weights, weights, num_windows, windows, options, result);
+    if (ret != 0) {
+        goto out;
+    }
+    if (options & TSK_DEBUG) {
+        tsk_matvec_calculator_print_state(&calc, tsk_get_debug_stream());
+    }
+    ret = tsk_matvec_calculator_run(&calc);
+out:
+    tsk_matvec_calculator_free(&calc);
+    return ret;
+}
