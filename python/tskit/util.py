@@ -23,6 +23,8 @@
 Module responsible for various utility functions used in other modules.
 """
 import dataclasses
+import datetime
+import html
 import io
 import itertools
 import json
@@ -382,7 +384,7 @@ def obj_to_collapsed_html(d, name=None, open_depth=0, max_items=30, max_item_len
             d_str = d_str[:max_item_len] + "..."
         d_str = textwrap.fill(d_str, width=30)
         d_str = d_str.replace("\n", "<br/>")
-        return f"{name} {d_str}"
+        return f"{name} {html.escape(str(d_str))}"
 
 
 def truncate_string_end(string, length):
@@ -514,21 +516,53 @@ def html_table(rows, *, header):
 def tree_sequence_html(ts):
     table_rows = "".join(
         f"""
-                  <tr>
-                    <td>{name.capitalize()}</td>
-                      <td>{table.num_rows}</td>
-                      <td>{naturalsize(table.nbytes)}</td>
-                      <td style="text-align: center;">
-                        {'✅' if hasattr(table, "metadata") and len(table.metadata) > 0
-        else ''}
-                      </td>
-                    </tr>
-                """
+            <tr>
+                <td>{name.capitalize()}</td>
+                <td>{table.num_rows}</td>
+                <td>{naturalsize(table.nbytes)}</td>
+                <td style="text-align: center;">
+                    {'✅' if hasattr(table, "metadata") and len(table.metadata) > 0
+                     else ''}
+                </td>
+            </tr>
+        """
         for name, table in ts.tables.table_name_map.items()
     )
+
+    provenance_rows = ""
+    for prov in reversed(ts.provenances()):
+        try:
+            timestamp = datetime.datetime.fromisoformat(prov.timestamp).strftime(
+                "%A, %B %d, %Y at %I:%M:%S %p"
+            )
+            record = json.loads(prov.record)
+            software_name = record.get("software", {}).get("name", "Unknown")
+            software_version = record.get("software", {}).get("version", "Unknown")
+            command = record.get("parameters", {}).get("command", "Unknown")
+            details = obj_to_collapsed_html(record, None, 0)
+            provenance_rows += f"""
+                <tr>
+                    <td>{timestamp}</td>
+                    <td>{software_name}</td>
+                    <td>{software_version}</td>
+                    <td>{command}</td>
+                    <td>
+                        <details>
+                            <summary>Details</summary>
+                            {details}
+                        </details>
+                    </td>
+                </tr>
+            """
+        except Exception as e:
+            provenance_rows += (
+                f"""Could not parse provenance record: """
+                f"""{e.__class__.__name__} {str(e)}"""
+            )
+
     return f"""
-            <div>
-              <style>
+        <div>
+            <style>
                 .tskit-table thead tr th {{text-align: left;padding: 0.5em 0.5em;}}
                 .tskit-table tbody tr td {{padding: 0.5em 0.5em;}}
                 .tskit-table tbody tr td:first-of-type {{text-align: left;}}
@@ -537,47 +571,64 @@ def tree_sequence_html(ts):
                 .tskit-table-set-table {{margin: 12px 0 0 12px;}}
                 details {{display: inline-block;}}
                 summary {{cursor: pointer; outline: 0; display: list-item;}}
-              </style>
-              <div class="tskit-table-set">
+            </style>
+            <div class="tskit-table-set">
                 <div class="tskit-table-set-table">
-                  <table class="tskit-table">
-                    <thead>
-                      <tr>
-                        <th style="padding:0;line-height:21px;">
-                          <img style="height: 32px;display: inline-block;padding: 3px 5px 3px 0;" src="https://raw.githubusercontent.com/tskit-dev/administrative/main/tskit_logo.svg"/>
-                          <a target="_blank" href="https://tskit.dev/tskit/docs/latest/python-api.html#the-treesequence-class"> Tree Sequence </a>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr><td>Trees</td><td>{ts.num_trees}</td></tr>
-                      <tr><td>Sequence Length</td><td>{ts.sequence_length}</td></tr>
-                      <tr><td>Time Units</td><td>{ts.time_units}</td></tr>
-                      <tr><td>Sample Nodes</td><td>{ts.num_samples}</td></tr>
-                      <tr><td>Total Size</td><td>{naturalsize(ts.nbytes)}</td></tr>
-                      <tr>
-                        <td>Metadata</td><td style="text-align: left;">{obj_to_collapsed_html(ts.metadata, None, 1) if len(ts.tables.metadata_bytes) > 0 else "No Metadata"}</td></tr>
-                    </tbody>
-                  </table>
+                    <table class="tskit-table">
+                        <thead>
+                            <tr>
+                                <th style="padding:0;line-height:21px;">
+                                    <img style="height: 32px;display: inline-block;padding: 3px 5px 3px 0;" src="https://raw.githubusercontent.com/tskit-dev/administrative/main/tskit_logo.svg"/>
+                                    <a target="_blank" href="https://tskit.dev/tskit/docs/latest/python-api.html#the-treesequence-class"> Tree Sequence </a>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Trees</td><td>{ts.num_trees}</td></tr>
+                            <tr><td>Sequence Length</td><td>{ts.sequence_length}</td></tr>
+                            <tr><td>Time Units</td><td>{ts.time_units}</td></tr>
+                            <tr><td>Sample Nodes</td><td>{ts.num_samples}</td></tr>
+                            <tr><td>Total Size</td><td>{naturalsize(ts.nbytes)}</td></tr>
+                            <tr>
+                                <td>Metadata</td><td style="text-align: left;">{obj_to_collapsed_html(ts.metadata, None, 1) if len(ts.tables.metadata_bytes) > 0 else "No Metadata"}</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
                 <div class="tskit-table-set-table">
-                  <table class="tskit-table">
-                    <thead>
-                      <tr>
-                        <th style="line-height:21px;">Table</th>
-                        <th>Rows</th>
-                        <th>Size</th>
-                        <th>Has Metadata</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                    {table_rows}
-                    </tbody>
-                  </table>
+                    <table class="tskit-table">
+                        <thead>
+                            <tr>
+                                <th style="line-height:21px;">Table</th>
+                                <th>Rows</th>
+                                <th>Size</th>
+                                <th>Has Metadata</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {table_rows}
+                        </tbody>
+                    </table>
                 </div>
-              </div>
+                <div class="tskit-table-set-table">
+                    <table class="tskit-table">
+                        <thead>
+                            <tr>
+                                <th>Provenance Timestamp</th>
+                                <th>Software Name</th>
+                                <th>Version</th>
+                                <th>Command</th>
+                                <th>Full record</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {provenance_rows}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            """  # noqa: B950
+        </div>
+    """  # noqa: B950
 
 
 def tree_html(tree):
