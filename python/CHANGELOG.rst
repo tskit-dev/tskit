@@ -27,6 +27,9 @@
 - Printing ``tskit.MetadataSchema(schema=None)`` now shows ``"Null_schema"`` rather
   than ``None``, to avoid confusion (:user:`hyanwong`, :pr:`2720`)
 
+- Limit output HTML when a tree sequence is displayed that has a large amount of metadata.
+  (:user:`benjeffery`, :pr:`2999`)
+
 **Features**
 
 - Add ``TreeSequence.extend_haplotypes`` method that extends ancestral haplotypes

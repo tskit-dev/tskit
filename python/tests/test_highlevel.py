@@ -2196,6 +2196,15 @@ class TestTreeSequence(HighLevelTestCase):
         for table in ts.tables.table_name_map:
             assert f"<td>{table.capitalize()}</td>" in html
 
+    def test_html_repr_limit(self, ts_fixture):
+        tables = ts_fixture.tables
+        d = {n: n for n in range(50)}
+        d[0] = "N" * 200
+        tables.metadata = d
+        ts = tables.tree_sequence()
+        assert "... and 20 more" in ts._repr_html_()
+        assert "NN..." in ts._repr_html_()
+
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_str(self, ts):
         s = str(ts)
