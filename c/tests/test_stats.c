@@ -2024,6 +2024,12 @@ test_empty_genetic_relatedness_vector(void)
         &ts, num_weights, weights, 1, windows, result, TSK_STAT_NONCENTRED);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
+    windows[0] = 0.5 * tsk_treeseq_get_sequence_length(&ts);
+    windows[1] = 0.75 * tsk_treeseq_get_sequence_length(&ts);
+    ret = tsk_treeseq_genetic_relatedness_vector(
+        &ts, num_weights, weights, 1, windows, result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
     tsk_treeseq_free(&ts);
     free(weights);
     free(result);
@@ -2055,6 +2061,15 @@ verify_genetic_relatedness_vector(
         }
     }
 
+    ret = tsk_treeseq_genetic_relatedness_vector(
+        ts, num_weights, weights, num_windows, windows, result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    windows[0] = windows[1] / 2;
+    if (num_windows > 1) {
+        windows[num_windows - 1]
+            = windows[num_windows - 2] + (L / (double) (2 * num_windows));
+    }
     ret = tsk_treeseq_genetic_relatedness_vector(
         ts, num_weights, weights, num_windows, windows, result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -2135,7 +2150,7 @@ test_paper_ex_genetic_relatedness_vector_errors(void)
         &ts, 1, weights, 2, windows, result, TSK_STAT_BRANCH);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);
 
-    windows[0] = 10;
+    windows[0] = 12;
     ret = tsk_treeseq_genetic_relatedness_vector(
         &ts, 1, weights, 2, windows, result, TSK_STAT_BRANCH);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);

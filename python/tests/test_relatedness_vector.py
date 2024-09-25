@@ -27,6 +27,7 @@ import numpy as np
 import pytest
 
 import tskit
+from tests import tsutil
 from tests.test_highlevel import get_example_tree_sequences
 
 # ↑ See https://github.com/tskit-dev/tskit/issues/1804 for when
@@ -50,9 +51,8 @@ class RelatednessVector:
         edges_right,
         edges_parent,
         edges_child,
-        edge_insertion_order,
-        edge_removal_order,
         sequence_length,
+        tree_pos,
         verbosity=0,
         internal_checks=False,
         centre=True,
@@ -67,12 +67,11 @@ class RelatednessVector:
         self.edges_right = edges_right
         self.edges_parent = edges_parent
         self.edges_child = edges_child
-        self.edge_insertion_order = edge_insertion_order
-        self.edge_removal_order = edge_removal_order
         self.sequence_length = sequence_length
         self.nodes_time = nodes_time
         self.samples = samples
-        self.position = 0.0
+        self.tree_pos = tree_pos
+        self.position = windows[0]
         self.x = np.zeros(N, dtype=np.float64)
         self.w = np.zeros((N, self.num_weights), dtype=np.float64)
         self.v = np.zeros((N, self.num_weights), dtype=np.float64)
@@ -92,6 +91,8 @@ class RelatednessVector:
     def print_state(self, msg=""):
         num_nodes = len(self.parent)
         print(f"..........{msg}................")
+        print("tree_pos:")
+        print(self.tree_pos)
         print(f"position = {self.position}")
         for j in range(num_nodes):
             st = f"{self.nodes_time[j]}"
@@ -225,38 +226,51 @@ class RelatednessVector:
 
     def run(self):
         M = self.edges_left.shape[0]
-        in_order = self.edge_insertion_order
-        out_order = self.edge_removal_order
         edges_left = self.edges_left
         edges_right = self.edges_right
         edges_parent = self.edges_parent
         edges_child = self.edges_child
+        tree_pos = self.tree_pos
+        in_order = tree_pos.in_range.order
+        out_order = tree_pos.out_range.order
         num_windows = len(self.windows) - 1
         out = np.zeros((num_windows,) + self.sample_weights.shape)
 
-        j = 0
-        k = 0
         m = 0
-        self.position = 0
+        self.position = self.windows[0]
 
-        while m < num_windows and k < M and self.position <= self.sequence_length:
-            while k < M and edges_right[out_order[k]] == self.position:
-                p = edges_parent[out_order[k]]
-                c = edges_child[out_order[k]]
-                self.remove_edge(p, c)
-                k += 1
-            while j < M and edges_left[in_order[j]] == self.position:
-                p = edges_parent[in_order[j]]
-                c = edges_child[in_order[j]]
+        # seek to first window
+        for j in range(tree_pos.in_range.start, tree_pos.in_range.stop, 1):
+            e = in_order[j]
+            if edges_left[e] <= self.position and self.position < edges_right[e]:
+                p = edges_parent[e]
+                c = edges_child[e]
                 self.insert_edge(p, c)
-                assert self.parent[p] == tskit.NULL or self.x[p] == self.position
-                j += 1
-            right = self.windows[m + 1]
-            if j < M:
-                right = min(right, edges_left[in_order[j]])
-            if k < M:
-                right = min(right, edges_right[out_order[k]])
-            self.position = right
+
+        valid = tree_pos.next()
+        j = tree_pos.in_range.start - 1
+        k = tree_pos.out_range.start - 1
+        while m < num_windows:
+            if valid and self.position == tree_pos.interval.left:
+                for k in range(tree_pos.out_range.start, tree_pos.out_range.stop, 1):
+                    e = out_order[k]
+                    p = edges_parent[e]
+                    c = edges_child[e]
+                    self.remove_edge(p, c)
+                for j in range(tree_pos.in_range.start, tree_pos.in_range.stop, 1):
+                    e = in_order[j]
+                    p = edges_parent[e]
+                    c = edges_child[e]
+                    self.insert_edge(p, c)
+                    assert self.parent[p] == tskit.NULL or self.x[p] == self.position
+                valid = tree_pos.next()
+            next_position = self.windows[m + 1]
+            if j + 1 < M:
+                next_position = min(next_position, edges_left[in_order[j + 1]])
+            if k + 1 < M:
+                next_position = min(next_position, edges_right[out_order[k + 1]])
+            assert self.position < next_position
+            self.position = next_position
             if self.position == self.windows[m + 1]:
                 out[m] = self.write_output()
                 m = m + 1
@@ -276,6 +290,14 @@ def relatedness_vector(ts, sample_weights, windows=None, **kwargs):
     drop_dimension = windows is None
     if drop_dimension:
         windows = [0, ts.sequence_length]
+
+    tree_pos = tsutil.TreePosition(ts)
+    breakpoints = np.fromiter(ts.breakpoints(), dtype="float")
+    index = np.searchsorted(breakpoints, windows[0])
+    if breakpoints[index] > windows[0]:
+        index -= 1
+    tree_pos.seek_forward(index)
+
     rv = RelatednessVector(
         sample_weights,
         windows,
@@ -286,9 +308,8 @@ def relatedness_vector(ts, sample_weights, windows=None, **kwargs):
         edges_right=ts.edges_right,
         edges_parent=ts.edges_parent,
         edges_child=ts.edges_child,
-        edge_insertion_order=ts.indexes_edge_insertion_order,
-        edge_removal_order=ts.indexes_edge_removal_order,
         sequence_length=ts.sequence_length,
+        tree_pos=tree_pos,
         **kwargs,
     )
     out = rv.run()
@@ -299,16 +320,27 @@ def relatedness_vector(ts, sample_weights, windows=None, **kwargs):
 
 
 def relatedness_matrix(ts, windows, centre):
+    use_windows = windows
+    drop_first = windows is not None and windows[0] > 0
+    if drop_first:
+        use_windows = np.concatenate([[0], np.array(use_windows)])
+    drop_last = windows is not None and windows[-1] < ts.sequence_length
+    if drop_last:
+        use_windows = np.concatenate([np.array(use_windows), [ts.sequence_length]])
     Sigma = ts.genetic_relatedness(
         sample_sets=[[i] for i in ts.samples()],
         indexes=[(i, j) for i in range(ts.num_samples) for j in range(ts.num_samples)],
-        windows=windows,
+        windows=use_windows,
         mode="branch",
         span_normalise=False,
         proportion=False,
         centre=centre,
     )
     if windows is not None:
+        if drop_first:
+            Sigma = Sigma[1:]
+        if drop_last:
+            Sigma = Sigma[:-1]
         shape = (len(windows) - 1, ts.num_samples, ts.num_samples)
     else:
         shape = (ts.num_samples, ts.num_samples)
@@ -358,6 +390,10 @@ def check_relatedness_vector(
     rng = np.random.default_rng(seed=seed)
     if num_windows == 0:
         windows = None
+    elif num_windows % 2 == 0:
+        windows = np.linspace(
+            0.2 * ts.sequence_length, 0.8 * ts.sequence_length, num_windows + 1
+        )
     else:
         windows = np.linspace(0, ts.sequence_length, num_windows + 1)
     for k in range(n):
@@ -408,7 +444,7 @@ class TestExamples:
     @pytest.mark.parametrize("n", [2, 3, 5])
     @pytest.mark.parametrize("seed", range(1, 4))
     @pytest.mark.parametrize("centre", (True, False))
-    @pytest.mark.parametrize("num_windows", (0, 1, 2))
+    @pytest.mark.parametrize("num_windows", (0, 1, 2, 3))
     def test_small_internal_checks(self, n, seed, centre, num_windows):
         ts = msprime.sim_ancestry(
             n,
@@ -418,12 +454,14 @@ class TestExamples:
             random_seed=seed,
         )
         assert ts.num_trees >= 2
-        check_relatedness_vector(ts, internal_checks=True, centre=centre)
+        check_relatedness_vector(
+            ts, num_windows=num_windows, internal_checks=True, centre=centre
+        )
 
     @pytest.mark.parametrize("n", [2, 3, 5, 15])
     @pytest.mark.parametrize("seed", range(1, 5))
     @pytest.mark.parametrize("centre", (True, False))
-    @pytest.mark.parametrize("num_windows", (0, 1, 3))
+    @pytest.mark.parametrize("num_windows", (0, 1, 2, 3))
     def test_simple_sims(self, n, seed, centre, num_windows):
         ts = msprime.sim_ancestry(
             n,
@@ -437,6 +475,31 @@ class TestExamples:
         check_relatedness_vector(
             ts, num_windows=num_windows, centre=centre, verbosity=0
         )
+
+    def test_simple_sims_windows(self):
+        L = 100
+        ts = msprime.sim_ancestry(
+            5,
+            ploidy=1,
+            population_size=20,
+            sequence_length=L,
+            recombination_rate=0.01,
+            random_seed=345,
+        )
+        assert ts.num_trees >= 2
+        W = np.linspace(0, 1, 2 * ts.num_samples).reshape((ts.num_samples, 2))
+        kwargs = {"centre": False, "mode": "branch"}
+        total = ts.genetic_relatedness_vector(W, **kwargs)
+        for windows in [[0, L], [0, L / 3, L / 2, L]]:
+            pieces = ts.genetic_relatedness_vector(W, windows=windows, **kwargs)
+            np.testing.assert_allclose(total, pieces.sum(axis=0), atol=1e-13)
+            assert len(pieces) == len(windows) - 1
+            for k in range(len(pieces)):
+                piece = ts.genetic_relatedness_vector(
+                    W, windows=windows[k : k + 2], **kwargs
+                )
+                assert piece.shape[0] == 1
+                np.testing.assert_allclose(piece[0], pieces[k], atol=1e-13)
 
     @pytest.mark.parametrize("n", [2, 3, 5, 15])
     @pytest.mark.parametrize("centre", (True, False))
@@ -456,7 +519,7 @@ class TestExamples:
 
     @pytest.mark.parametrize("seed", range(1, 5))
     @pytest.mark.parametrize("centre", (True, False))
-    @pytest.mark.parametrize("num_windows", (0, 1, 2))
+    @pytest.mark.parametrize("num_windows", (0, 1, 2, 3))
     def test_one_internal_sample_sims(self, seed, centre, num_windows):
         ts = msprime.sim_ancestry(
             10,
@@ -476,7 +539,7 @@ class TestExamples:
         check_relatedness_vector(ts, num_windows=num_windows, centre=centre)
 
     @pytest.mark.parametrize("centre", (True, False))
-    @pytest.mark.parametrize("num_windows", (0, 1, 2))
+    @pytest.mark.parametrize("num_windows", (0, 1, 2, 3))
     def test_missing_flanks(self, centre, num_windows):
         ts = msprime.sim_ancestry(
             2,

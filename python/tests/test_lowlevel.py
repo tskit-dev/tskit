@@ -2765,12 +2765,10 @@ class TestGeneticRelatednessVector(LowLevelTestCase):
         L = ts.get_sequence_length()
         bad_windows = [
             [L, 0],
-            [0.1, L],
             [-1, L],
             [0, L + 0.1],
             [0, 0.1, 0.1, L],
             [0, -1, L],
-            [0, 0.1, 0.05, 0.2, L],
         ]
         for bad_window in bad_windows:
             with pytest.raises(_tskit.LibraryError):
