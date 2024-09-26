@@ -22,7 +22,6 @@
 """
 Module responsible for various utility functions used in other modules.
 """
-import collections
 import dataclasses
 import datetime
 import html
@@ -564,19 +563,10 @@ def tree_sequence_html(ts):
                 f"""Could not parse provenance record: """
                 f"""{e.__class__.__name__} {str(e)}"""
             )
-    extra_summary = collections.Counter()
-    for prov in extra_provenances:
-        try:
-            record = json.loads(prov.record)
-            software_name = record.get("software", {}).get("name", "Unknown")
-            command = record.get("parameters", {}).get("command", "Unknown")
-            extra_summary.update([f"{software_name} {command}"])
-        except Exception:
-            extra_summary.update(["Error parsing provenance record"])
-    for command, count in extra_summary.most_common():
+    if len(extra_provenances) > 0:
         provenance_rows += f"""
             <tr>
-                <td colspan="5"><i>... {count} {command}</i></td>
+                <td colspan="5"><i>... {len(extra_provenances)} more</i></td>
             </tr>
         """
     md = (
