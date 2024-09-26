@@ -2207,6 +2207,13 @@ class TestTreeSequence(HighLevelTestCase):
         ts = tables.tree_sequence()
         assert "Could not parse provenance" in ts._repr_html_()
 
+    def test_provenance_summary_html(self, ts_fixture):
+        tables = ts_fixture.tables
+        for _ in range(20):
+            # Add a row with isotimestamp
+            tables.provenances.add_row("foo", "bar")
+        assert "... 15 more" in tables.tree_sequence()._repr_html_()
+
     def test_html_repr_limit(self, ts_fixture):
         tables = ts_fixture.tables
         d = {n: n for n in range(50)}
