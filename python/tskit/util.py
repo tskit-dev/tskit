@@ -22,6 +22,7 @@
 """
 Module responsible for various utility functions used in other modules.
 """
+import collections
 import dataclasses
 import datetime
 import html
@@ -394,7 +395,7 @@ def truncate_string_end(string, length):
     """
     if len(string) <= length:
         return string
-    return f"{string[:length-3]}..."
+    return f"{string[:length - 3]}..."
 
 
 def render_metadata(md, length=40):
@@ -444,7 +445,7 @@ def unicode_table(
     if header is not None:
         out += [
             f"╔{'╤'.join('═' * w for w in widths)}╗\n",
-            f"║{'│'.join(cell.ljust(w) for cell,w in zip(header,widths))}║\n",
+            f"║{'│'.join(cell.ljust(w) for cell, w in zip(header, widths))}║\n",
             f"╠{'╪'.join('═' * w for w in widths)}╣\n",
         ]
     last_skipped = False
@@ -530,10 +531,14 @@ def tree_sequence_html(ts):
     )
 
     provenance_rows = ""
-    for prov in reversed(ts.provenances()):
+    provenances = list(ts.provenances())
+    # Detail the most recent 10 provenances, and collapse the rest
+    display_provenances = provenances[-10:]
+    extra_provenances = provenances[0:-10]
+    for prov in reversed(display_provenances):
         try:
             timestamp = datetime.datetime.fromisoformat(prov.timestamp).strftime(
-                "%A, %B %d, %Y at %I:%M:%S %p"
+                "%d %B, %Y at %I:%M:%S %p"
             )
             record = json.loads(prov.record)
             software_name = record.get("software", {}).get("name", "Unknown")
@@ -559,7 +564,26 @@ def tree_sequence_html(ts):
                 f"""Could not parse provenance record: """
                 f"""{e.__class__.__name__} {str(e)}"""
             )
-
+    extra_summary = collections.Counter()
+    for prov in extra_provenances:
+        try:
+            record = json.loads(prov.record)
+            software_name = record.get("software", {}).get("name", "Unknown")
+            command = record.get("parameters", {}).get("command", "Unknown")
+            extra_summary.update([f"{software_name} {command}"])
+        except Exception:
+            extra_summary.update(["Error parsing provenance record"])
+    for command, count in extra_summary.most_common():
+        provenance_rows += f"""
+            <tr>
+                <td colspan="5"><i>... {count} {command}</i></td>
+            </tr>
+        """
+    md = (
+        obj_to_collapsed_html(ts.metadata, None, 1)
+        if len(ts.tables.metadata_bytes) > 0
+        else "No Metadata"
+    )
     return f"""
         <div>
             <style>
@@ -590,7 +614,7 @@ def tree_sequence_html(ts):
                             <tr><td>Sample Nodes</td><td>{ts.num_samples}</td></tr>
                             <tr><td>Total Size</td><td>{naturalsize(ts.nbytes)}</td></tr>
                             <tr>
-                                <td>Metadata</td><td style="text-align: left;">{obj_to_collapsed_html(ts.metadata, None, 1) if len(ts.tables.metadata_bytes) > 0 else "No Metadata"}</td>
+                                <td>Metadata</td><td style="text-align: left;">{md}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -739,7 +763,7 @@ def variant_html(variant):
             + "\n".join(
                 [
                     f"""<tr><td>Samples with Allele {'missing' if k is None
-                        else "'" + k + "'"}</td><td>"""
+                                                     else "'" + k + "'"}</td><td>"""
                     + f"{counts[k]}"
                     + " "
                     + f"({freqs[k] * 100:.2g}%)"
