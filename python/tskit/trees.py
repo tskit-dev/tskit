@@ -7858,10 +7858,20 @@ class TreeSequence:
         mode=None,
         span_normalise=True,
         centre=True,
+        nodes=None,
     ):
         W = np.asarray(W)
         if len(W.shape) == 1:
             W = W.reshape(W.shape[0], 1)
+        if nodes is None:
+            nodes = list(self.samples())
+        else:
+            if centre:
+                raise ValueError("If `nodes` is provided, must have centre=False.")
+        try:
+            nodes = util.safe_np_int_cast(nodes, np.int32)
+        except Exception:
+            raise ValueError("Could not interpret `nodes` as a list of node IDs.")
         stat = self.__run_windowed_stat(
             windows,
             ll_method,
@@ -7869,6 +7879,7 @@ class TreeSequence:
             mode=mode,
             span_normalise=span_normalise,
             centre=centre,
+            nodes=nodes,
         )
         return stat
 
@@ -8518,19 +8529,30 @@ class TreeSequence:
         mode="site",
         span_normalise=True,
         centre=True,
+        nodes=None,
     ):
         r"""
         Computes the product of the genetic relatedness matrix and a vector of weights
         (one per sample). The output is a (num windows) x (num samples) x (num weights)
-        array whose :math:`(i,j)`-th element is :math:`\sum_{b} W_{bj} C_{ib}`,
+        array whose :math:`(w,i,j)`-th element is :math:`\sum_{b} W_{bj} C_{ib}`,
         where :math:`W` is the matrix of weights, and :math:`C_{ab}` is the
         :meth:`genetic_relatedness <.TreeSequence.genetic_relatedness>` between sample
-        a and sample b, and the sum is over all samples in the tree sequence.
-        Like other statistics, if windows is None, the first dimension in the output is
-        dropped.
+        `a` and sample `b` in window `w`, and the sum is over all samples in the tree
+        sequence.  Like other statistics, if windows is None, the first dimension in
+        the output is dropped.
 
         The relatedness used here corresponds to `polarised=True`; no unpolarised option
         is available for this method.
+
+        Optionally, you may provide a list of focal nodes that modifies the behavior
+        as follows. If `nodes` is a list of `n` node IDs (that do not need to be
+        samples), then the output will have dimension (num windows) x n x (num weights),
+        and the matrix :math:`C` used in the definition above is the rectangular matrix
+        with :math:`C_{ij}` the relatedness between `nodes[i]` and `samples[j]`. This
+        can only be used with `centre=False`; if relatedness between uncentred nodes
+        and centred samples is desired, then simply subtract column means from `W` first.
+        The default is `nodes=None`, which is equivalent to setting `nodes` equal to
+        `ts.samples()`.
 
         :param numpy.ndarray W: An array of values with one row for each sample node and
             one column for each set of weights.
@@ -8542,6 +8564,8 @@ class TreeSequence:
             window (defaults to True).
         :param bool centre: Whether to use the *centred* relatedness matrix or not:
             see :meth:`genetic_relatedness <.TreeSequence.genetic_relatedness>`.
+        :param list nodes: Optionally, a list of focal nodes as described above
+            (default: None).
         :return: A ndarray with shape equal to (num windows, num samples, num weights),
             or (num samples, num weights) if windows is None.
         """
@@ -8549,6 +8573,7 @@ class TreeSequence:
             raise ValueError(
                 "First weight dimension must be equal to number of samples."
             )
+
         out = self.__weighted_vector_stat(
             self._ll_tree_sequence.genetic_relatedness_vector,
             W,
@@ -8556,6 +8581,7 @@ class TreeSequence:
             mode=mode,
             span_normalise=span_normalise,
             centre=centre,
+            nodes=nodes,
         )
         return out
 

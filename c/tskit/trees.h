@@ -1028,12 +1028,14 @@ int tsk_treeseq_genetic_relatedness_weighted(const tsk_treeseq_t *self,
 /* One way weighted stats with vector output */
 
 typedef int weighted_vector_method(const tsk_treeseq_t *self, tsk_size_t num_weights,
-    const double *weights, tsk_size_t num_windows, const double *windows, double *result,
+    const double *weights, tsk_size_t num_windows, const double *windows,
+    tsk_size_t num_focal_nodes, const tsk_id_t *focal_nodes, double *result,
     tsk_flags_t options);
 
 int tsk_treeseq_genetic_relatedness_vector(const tsk_treeseq_t *self,
     tsk_size_t num_weights, const double *weights, tsk_size_t num_windows,
-    const double *windows, double *result, tsk_flags_t options);
+    const double *windows, tsk_size_t num_focal_nodes, const tsk_id_t *focal_nodes,
+    double *result, tsk_flags_t options);
 
 /* One way sample set stats */
 

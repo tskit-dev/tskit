@@ -2682,6 +2682,7 @@ class TestGeneticRelatednessVector(LowLevelTestCase):
                 (num_samples, num_weights)
             ),
             "windows": [0, ts.get_sequence_length()],
+            "nodes": list(ts.get_samples()),
         }
         return ts, params
 
@@ -2690,18 +2691,38 @@ class TestGeneticRelatednessVector(LowLevelTestCase):
     def test_basic_example(self, mode, num_weights):
         ts, params = self.get_example(num_weights)
         ns = ts.get_num_samples()
-        result = ts.genetic_relatedness_vector(
-            params["weights"], params["windows"], mode, True, True
-        )
-        assert result.shape == (1, ns, num_weights)
-        result = ts.genetic_relatedness_vector(
-            params["weights"], params["windows"], mode, True, False
-        )
-        assert result.shape == (1, ns, num_weights)
-        result = ts.genetic_relatedness_vector(
-            params["weights"], params["windows"], mode, False, True
-        )
-        assert result.shape == (1, ns, num_weights)
+        params["mode"] = mode
+        for a, b in ([True, True], [True, False], [False, True]):
+            params["span_normalise"] = a
+            params["centre"] = b
+            result = ts.genetic_relatedness_vector(**params)
+            assert result.shape == (1, ns, num_weights)
+
+    @pytest.mark.parametrize("mode", ["branch"])
+    def test_good_nodes(self, mode):
+        num_weights = 2
+        ts, params = self.get_example(num_weights)
+        params["mode"] = mode
+        for nodes in [
+            list(ts.get_samples())[:3],
+            list(ts.get_samples())[:1],
+            [0, ts.get_num_nodes() - 1],
+        ]:
+            params["nodes"] = nodes
+            result = ts.genetic_relatedness_vector(**params)
+            assert result.shape == (1, len(nodes), num_weights)
+
+    def test_bad_nodes(self):
+        ts, params = self.get_example()
+        params["mode"] = "branch"
+        for nodes in ["abc", [[1, 2]]]:
+            params["nodes"] = nodes
+            with pytest.raises(ValueError, match="desired array"):
+                ts.genetic_relatedness_vector(**params)
+        for nodes in [[-1, 3], [3, 2 * ts.get_num_nodes()]]:
+            params["nodes"] = nodes
+            with pytest.raises(_tskit.LibraryError, match="TSK_ERR_NODE_OUT_OF_BOUNDS"):
+                ts.genetic_relatedness_vector(**params)
 
     def test_bad_args(self):
         ts, params = self.get_example()
@@ -2727,10 +2748,9 @@ class TestGeneticRelatednessVector(LowLevelTestCase):
     @pytest.mark.parametrize("mode", ["site", "node"])
     def test_modes_not_supported(self, mode):
         ts, params = self.get_example()
+        params["mode"] = mode
         with pytest.raises(_tskit.LibraryError):
-            ts.genetic_relatedness_vector(
-                params["weights"], params["windows"], mode, True, True
-            )
+            ts.genetic_relatedness_vector(**params)
 
     @pytest.mark.parametrize("mode", ["branch"])
     def test_bad_weights(self, mode):
