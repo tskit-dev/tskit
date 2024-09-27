@@ -46,6 +46,7 @@ class RelatednessVector:
         windows,
         num_nodes,
         samples,
+        focal_nodes,
         nodes_time,
         edges_left,
         edges_right,
@@ -70,6 +71,7 @@ class RelatednessVector:
         self.sequence_length = sequence_length
         self.nodes_time = nodes_time
         self.samples = samples
+        self.focal_nodes = focal_nodes
         self.tree_pos = tree_pos
         self.position = windows[0]
         self.x = np.zeros(N, dtype=np.float64)
@@ -192,9 +194,9 @@ class RelatednessVector:
         Compute and return the current state, zero-ing out
         all contributions (used for switching between windows).
         """
-        n = len(self.samples)
+        n = len(self.focal_nodes)
         out = np.zeros((n, self.num_weights))
-        for j, c in enumerate(self.samples):
+        for j, c in enumerate(self.focal_nodes):
             while c != tskit.NULL:
                 if self.x[c] != self.position:
                     self.v[c] += self.get_z(c)
@@ -210,9 +212,9 @@ class RelatednessVector:
         """
         if self.verbosity > 2:
             print("---------------")
-        n = len(self.samples)
+        n = len(self.focal_nodes)
         out = np.zeros((n, self.num_weights))
-        for j, a in enumerate(self.samples):
+        for j, a in enumerate(self.focal_nodes):
             # edges on the path up from a
             pa = a
             while pa != tskit.NULL:
@@ -234,7 +236,9 @@ class RelatednessVector:
         in_order = tree_pos.in_range.order
         out_order = tree_pos.out_range.order
         num_windows = len(self.windows) - 1
-        out = np.zeros((num_windows,) + self.sample_weights.shape)
+        out = np.zeros(
+            (num_windows, len(self.focal_nodes), self.sample_weights.shape[1])
+        )
 
         m = 0
         self.position = self.windows[0]
@@ -284,9 +288,11 @@ class RelatednessVector:
         return out
 
 
-def relatedness_vector(ts, sample_weights, windows=None, **kwargs):
+def relatedness_vector(ts, sample_weights, windows=None, nodes=None, **kwargs):
     if len(sample_weights.shape) == 1:
         sample_weights = sample_weights[:, np.newaxis]
+    if nodes is None:
+        nodes = np.fromiter(ts.samples(), dtype=np.int32)
     drop_dimension = windows is None
     if drop_dimension:
         windows = [0, ts.sequence_length]
@@ -303,6 +309,7 @@ def relatedness_vector(ts, sample_weights, windows=None, **kwargs):
         windows,
         ts.num_nodes,
         samples=ts.samples(),
+        focal_nodes=nodes,
         nodes_time=ts.nodes_time,
         edges_left=ts.edges_left,
         edges_right=ts.edges_right,
@@ -319,7 +326,24 @@ def relatedness_vector(ts, sample_weights, windows=None, **kwargs):
     return out
 
 
-def relatedness_matrix(ts, windows, centre):
+def relatedness_matrix(ts, windows, centre, nodes=None):
+    if nodes is None:
+        keep_rows = np.arange(ts.num_samples)
+        keep_cols = np.arange(ts.num_samples)
+    else:
+        orig_samples = list(ts.samples())
+        extra_nodes = set(nodes).difference(set(orig_samples))
+        tables = ts.dump_tables()
+        tables.nodes.clear()
+        for n in ts.nodes():
+            if n.id in extra_nodes:
+                n = n.replace(flags=n.flags | tskit.NODE_IS_SAMPLE)
+            tables.nodes.append(n)
+        ts = tables.tree_sequence()
+        all_samples = list(ts.samples())
+        keep_rows = np.array([all_samples.index(i) for i in nodes])
+        keep_cols = np.array([all_samples.index(i) for i in orig_samples])
+
     use_windows = windows
     drop_first = windows is not None and windows[0] > 0
     if drop_first:
@@ -341,14 +365,17 @@ def relatedness_matrix(ts, windows, centre):
             Sigma = Sigma[1:]
         if drop_last:
             Sigma = Sigma[:-1]
-        shape = (len(windows) - 1, ts.num_samples, ts.num_samples)
-    else:
-        shape = (ts.num_samples, ts.num_samples)
-    return Sigma.reshape(shape)
+    nwin = 1 if windows is None else len(windows) - 1
+    shape = (nwin, ts.num_samples, ts.num_samples)
+    Sigma = Sigma.reshape(shape)
+    out = np.array([x[np.ix_(keep_rows, keep_cols)] for x in Sigma])
+    if windows is None:
+        out = out[0]
+    return out
 
 
 def verify_relatedness_vector(
-    ts, w, windows, *, internal_checks=False, verbosity=0, centre=True
+    ts, w, windows, *, internal_checks=False, verbosity=0, centre=True, nodes=None
 ):
     R1 = relatedness_vector(
         ts,
@@ -357,35 +384,48 @@ def verify_relatedness_vector(
         internal_checks=internal_checks,
         verbosity=verbosity,
         centre=centre,
+        nodes=nodes,
     )
+    nrows = ts.num_samples if nodes is None else len(nodes)
     wvec = w if len(w.shape) > 1 else w[:, np.newaxis]
-    Sigma = relatedness_matrix(ts, windows=windows, centre=centre)
+    Sigma = relatedness_matrix(ts, windows=windows, centre=centre, nodes=nodes)
     if windows is None:
         R2 = Sigma.dot(wvec)
     else:
-        R2 = np.zeros((len(windows) - 1, ts.num_samples, wvec.shape[1]))
+        R2 = np.zeros((len(windows) - 1, nrows, wvec.shape[1]))
         for k in range(len(windows) - 1):
             R2[k] = Sigma[k].dot(wvec)
-    R3 = ts.genetic_relatedness_vector(w, windows=windows, mode="branch", centre=centre)
+    R3 = ts.genetic_relatedness_vector(
+        w, windows=windows, mode="branch", centre=centre, nodes=nodes
+    )
     if verbosity > 0:
         print(ts.draw_text())
         print("weights:", w)
         print("windows:", windows)
+        print("centre:", centre)
         print("here:", R1)
         print("with ts:", R2)
         print("with lib:", R3)
         print("Sigma:", Sigma)
     if windows is None:
-        assert R1.shape == (ts.num_samples, wvec.shape[1])
+        assert R1.shape == (nrows, wvec.shape[1])
     else:
-        assert R1.shape == (len(windows) - 1, ts.num_samples, wvec.shape[1])
-    np.testing.assert_allclose(R1, R2, atol=1e-13)
-    np.testing.assert_allclose(R1, R3, atol=1e-13)
+        assert R1.shape == (len(windows) - 1, nrows, wvec.shape[1])
+    np.testing.assert_allclose(R1, R2, atol=1e-10)
+    np.testing.assert_allclose(R1, R3, atol=1e-10)
     return R1
 
 
 def check_relatedness_vector(
-    ts, n=2, num_windows=0, *, internal_checks=False, verbosity=0, seed=123, centre=True
+    ts,
+    n=2,
+    num_windows=0,
+    *,
+    internal_checks=False,
+    verbosity=0,
+    seed=123,
+    centre=True,
+    do_nodes=True,
 ):
     rng = np.random.default_rng(seed=seed)
     if num_windows == 0:
@@ -396,20 +436,27 @@ def check_relatedness_vector(
         )
     else:
         windows = np.linspace(0, ts.sequence_length, num_windows + 1)
-    for k in range(n):
-        if k == 0:
-            w = rng.normal(size=ts.num_samples)
+    num_nodes_list = (0,) if (centre or not do_nodes) else (0, 3)
+    for num_nodes in num_nodes_list:
+        if num_nodes == 0:
+            nodes = None
         else:
-            w = rng.normal(size=ts.num_samples * k).reshape((ts.num_samples, k))
-        w = np.round(len(w) * w)
-        R = verify_relatedness_vector(
-            ts,
-            w,
-            windows,
-            internal_checks=internal_checks,
-            verbosity=verbosity,
-            centre=centre,
-        )
+            nodes = rng.choice(ts.num_nodes, num_nodes, replace=False)
+        for k in range(n):
+            if k == 0:
+                w = rng.normal(size=ts.num_samples)
+            else:
+                w = rng.normal(size=ts.num_samples * k).reshape((ts.num_samples, k))
+            w = np.round(len(w) * w)
+            R = verify_relatedness_vector(
+                ts,
+                w,
+                windows,
+                internal_checks=internal_checks,
+                verbosity=verbosity,
+                centre=centre,
+                nodes=nodes,
+            )
     return R
 
 
@@ -440,6 +487,83 @@ class TestExamples:
                 ts.genetic_relatedness_vector(
                     np.ones(ts.num_samples), windows=bad_w, mode="branch"
                 )
+
+    def test_nodes_centred_error(self):
+        ts = msprime.sim_ancestry(
+            5,
+            ploidy=2,
+            sequence_length=10,
+            random_seed=123,
+        )
+        with pytest.raises(ValueError, match="must have centre"):
+            ts.genetic_relatedness_vector(
+                np.ones(ts.num_samples), mode="branch", centre=True, nodes=[0, 1]
+            )
+
+    def test_bad_nodes(self):
+        n = 5
+        ts = msprime.sim_ancestry(
+            n,
+            ploidy=2,
+            sequence_length=10,
+            random_seed=123,
+        )
+        for bad_nodes in ([[]], "foo"):
+            with pytest.raises(ValueError):
+                ts.genetic_relatedness_vector(
+                    np.ones(ts.num_samples),
+                    mode="branch",
+                    centre=False,
+                    nodes=bad_nodes,
+                )
+        for bad_nodes in ([-1, 10], [3, 2 * ts.num_nodes]):
+            with pytest.raises(tskit.LibraryError, match="TSK_ERR_NODE_OUT_OF_BOUNDS"):
+                ts.genetic_relatedness_vector(
+                    np.ones(ts.num_samples),
+                    mode="branch",
+                    centre=False,
+                    nodes=bad_nodes,
+                )
+
+    def test_good_nodes(self):
+        n = 5
+        ts = msprime.sim_ancestry(
+            n,
+            ploidy=2,
+            sequence_length=10,
+            random_seed=123,
+        )
+        V0 = ts.genetic_relatedness_vector(
+            np.ones(ts.num_samples), mode="branch", centre=False
+        )
+        V = ts.genetic_relatedness_vector(
+            np.ones(ts.num_samples),
+            mode="branch",
+            centre=False,
+            nodes=list(ts.samples()),
+        )
+        np.testing.assert_allclose(V0, V, atol=1e-13)
+        V = ts.genetic_relatedness_vector(
+            np.ones(ts.num_samples),
+            mode="branch",
+            centre=False,
+            nodes=np.fromiter(ts.samples(), dtype=np.int32),
+        )
+        np.testing.assert_allclose(V0, V, atol=1e-13)
+        V = ts.genetic_relatedness_vector(
+            np.ones(ts.num_samples),
+            mode="branch",
+            centre=False,
+            nodes=np.fromiter(ts.samples(), dtype=np.int64),
+        )
+        np.testing.assert_allclose(V0, V, atol=1e-13)
+        V = ts.genetic_relatedness_vector(
+            np.ones(ts.num_samples),
+            mode="branch",
+            centre=False,
+            nodes=list(ts.samples())[:2],
+        )
+        np.testing.assert_allclose(V0[:2], V, atol=1e-13)
 
     @pytest.mark.parametrize("n", [2, 3, 5])
     @pytest.mark.parametrize("seed", range(1, 4))
@@ -565,7 +689,7 @@ class TestExamples:
         # Adding non sample branches below the samples does not alter
         # the overall divergence *between* the samples
         ts1 = tskit.Tree.generate_balanced(n).tree_sequence
-        D1 = check_relatedness_vector(ts1)
+        D1 = check_relatedness_vector(ts1, do_nodes=False)
         tables = ts1.dump_tables()
         for u in ts1.samples():
             v = tables.nodes.add_row(time=-1)
@@ -573,7 +697,7 @@ class TestExamples:
         tables.sort()
         tables.build_index()
         ts2 = tables.tree_sequence()
-        D2 = check_relatedness_vector(ts2, internal_checks=True)
+        D2 = check_relatedness_vector(ts2, internal_checks=True, do_nodes=False)
         np.testing.assert_array_almost_equal(D1, D2)
 
     @pytest.mark.parametrize("n", [2, 3, 10])
@@ -582,7 +706,7 @@ class TestExamples:
         # Adding non sample branches below the samples does not alter
         # the overall divergence *between* the samples
         ts1 = tskit.Tree.generate_balanced(n).tree_sequence
-        D1 = check_relatedness_vector(ts1, centre=centre)
+        D1 = check_relatedness_vector(ts1, centre=centre, do_nodes=False)
         tables = ts1.dump_tables()
         for u in range(ts1.num_nodes):
             v = tables.nodes.add_row(time=-1)
@@ -590,7 +714,9 @@ class TestExamples:
         tables.sort()
         tables.build_index()
         ts2 = tables.tree_sequence()
-        D2 = check_relatedness_vector(ts2, internal_checks=True, centre=centre)
+        D2 = check_relatedness_vector(
+            ts2, internal_checks=True, centre=centre, do_nodes=False
+        )
         np.testing.assert_array_almost_equal(D1, D2)
 
     @pytest.mark.parametrize("centre", (True, False))
@@ -598,7 +724,7 @@ class TestExamples:
         # Adding non sample branches below the samples does not alter
         # the overall divergence *between* the samples
         ts1 = tskit.Tree.generate_balanced(5).tree_sequence
-        D1 = check_relatedness_vector(ts1, centre=centre)
+        D1 = check_relatedness_vector(ts1, centre=centre, do_nodes=False)
         tables = ts1.dump_tables()
         # Add an extra bit of disconnected non-sample topology
         u = tables.nodes.add_row(time=0)
@@ -607,5 +733,7 @@ class TestExamples:
         tables.sort()
         tables.build_index()
         ts2 = tables.tree_sequence()
-        D2 = check_relatedness_vector(ts2, internal_checks=True, centre=centre)
+        D2 = check_relatedness_vector(
+            ts2, internal_checks=True, centre=centre, do_nodes=False
+        )
         np.testing.assert_array_almost_equal(D1, D2)

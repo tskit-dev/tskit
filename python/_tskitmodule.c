@@ -9652,14 +9652,17 @@ TreeSequence_weighted_stat_vector_method(
 {
     PyObject *ret = NULL;
     static char *kwlist[]
-        = { "weights", "windows", "mode", "span_normalise", "centre", NULL };
+        = { "weights", "windows", "mode", "span_normalise", "centre", "nodes", NULL };
     PyObject *weights = NULL;
     PyObject *windows = NULL;
+    PyObject *focal_nodes = NULL;
     PyArrayObject *weights_array = NULL;
     PyArrayObject *windows_array = NULL;
     PyArrayObject *result_array = NULL;
+    PyArrayObject *focal_nodes_array = NULL;
     tsk_size_t num_windows;
-    npy_intp *w_shape, result_shape[3];
+    tsk_size_t num_focal_nodes;
+    npy_intp *focal_nodes_shape, *w_shape, result_shape[3];
     tsk_flags_t options = 0;
     tsk_size_t num_samples;
     char *mode = NULL;
@@ -9670,8 +9673,8 @@ TreeSequence_weighted_stat_vector_method(
     if (TreeSequence_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|sii", kwlist, &weights, &windows,
-            &mode, &span_normalise, &centre)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|siiO", kwlist, &weights, &windows,
+            &mode, &span_normalise, &centre, &focal_nodes)) {
         goto out;
     }
     if (parse_stats_mode(mode, &options) != 0) {
@@ -9697,16 +9700,24 @@ TreeSequence_weighted_stat_vector_method(
         PyErr_SetString(PyExc_ValueError, "First dimension must be num_samples");
         goto out;
     }
+    focal_nodes_array = (PyArrayObject *) PyArray_FROMANY(
+        focal_nodes, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
+    if (focal_nodes_array == NULL) {
+        goto out;
+    }
+    focal_nodes_shape = PyArray_DIMS(focal_nodes_array);
+    num_focal_nodes = focal_nodes_shape[0];
 
     result_shape[0] = num_windows;
-    result_shape[1] = num_samples;
+    result_shape[1] = num_focal_nodes;
     result_shape[2] = w_shape[1];
     result_array = (PyArrayObject *) PyArray_SimpleNew(3, result_shape, NPY_FLOAT64);
     if (result_array == NULL) {
         goto out;
     }
     err = method(self->tree_sequence, w_shape[1], PyArray_DATA(weights_array),
-        num_windows, PyArray_DATA(windows_array), PyArray_DATA(result_array), options);
+        num_windows, PyArray_DATA(windows_array), num_focal_nodes,
+        PyArray_DATA(focal_nodes_array), PyArray_DATA(result_array), options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -9716,6 +9727,7 @@ TreeSequence_weighted_stat_vector_method(
 out:
     Py_XDECREF(weights_array);
     Py_XDECREF(windows_array);
+    Py_XDECREF(focal_nodes_array);
     Py_XDECREF(result_array);
     return ret;
 }
