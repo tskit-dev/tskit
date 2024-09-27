@@ -30,6 +30,9 @@
 - Limit output HTML when a tree sequence is displayed that has a large amount of metadata.
   (:user:`benjeffery`, :pr:`2999`)
 
+- Fix warning in `draw_svg` to use correct warnings module.
+  (:user:`duncanMR`, :issue:`2870`, :pr:`2871`)
+
 **Features**
 
 - Add ``TreeSequence.extend_haplotypes`` method that extends ancestral haplotypes
