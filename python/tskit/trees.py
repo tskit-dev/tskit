@@ -2976,7 +2976,7 @@ class Tree:
 
     def path_length(self, u, v):
         """
-        Returns a count of the number of edges between two nodes in this tree.
+        Returns the number of edges on the path in this tree between the two nodes.
         If the two nodes have a most recent common ancestor, then this is defined as
         ``tree.depth(u) + tree.depth(v) - 2 * tree.depth(tree.mrca(u, v))``. If the nodes
         do not have an MRCA (i.e., they are in disconnected subtrees) the path length
