@@ -29,14 +29,12 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - name: Setup Mambaforge
+      - name: Setup Conda
         uses: conda-incubator/setup-miniconda@v3
         with:
-          miniforge-variant: Mambaforge
           miniforge-version: latest
           activate-environment: tskit-docs-env
-          use-mamba: true
-
+          
       - name: Cache Conda env
         uses: actions/cache@v4
         with:
