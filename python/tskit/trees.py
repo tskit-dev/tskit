@@ -1804,6 +1804,8 @@ class Tree:
         max_tree_height=None,
         node_labels=None,
         mutation_labels=None,
+        node_titles=None,
+        mutation_titles=None,
         root_svg_attributes=None,
         style=None,
         order=None,
@@ -1869,6 +1871,14 @@ class Tree:
             mutations (specified by ID) that are present in the map; any mutations
             not present will not have a label.
         :type mutation_labels: dict(int, str)
+        :param dict(int, str) node_titles: If specified, add a ``<title>`` string to
+            symbols for each node (specified by ID) present in this map. SVG visualizers
+            such as web browsers will commonly display this string on mousing over the
+            node symbol.
+        :param dict(int, str) mutation_titles: If specified, add a ``<title>`` string to
+            symbols for each mutation (specified by ID) present in this map. SVG
+            visualizers such as web browsers will commonly display this string on
+            mousing over the mutation symbol in the tree and (if show) on the x axis.
         :param dict root_svg_attributes: Additional attributes, such as an id, that will
             be embedded in the root ``<svg>`` tag of the generated drawing.
         :param str style: A
@@ -1935,6 +1945,8 @@ class Tree:
             max_tree_height=max_tree_height,
             node_labels=node_labels,
             mutation_labels=mutation_labels,
+            node_titles=node_titles,
+            mutation_titles=mutation_titles,
             root_svg_attributes=root_svg_attributes,
             style=style,
             order=order,
@@ -7181,6 +7193,8 @@ class TreeSequence:
         tree_height_scale=None,
         node_labels=None,
         mutation_labels=None,
+        node_titles=None,
+        mutation_titles=None,
         root_svg_attributes=None,
         style=None,
         order=None,
@@ -7235,7 +7249,14 @@ class TreeSequence:
         :param mutation_labels: If specified, show custom labels for the
             mutations (specified by ID) that are present in the map; any mutations
             not present will not have a label.
-        :type mutation_labels: dict(int, str)
+        :param dict(int, str) node_titles: If specified, add a ``<title>`` string to
+            symbols for each node (specified by ID) present in this map. SVG visualizers
+            such as web browsers will commonly display this string on mousing over
+            node symbol.
+        :param dict(int, str) mutation_titles: If specified, add a ``<title>`` string to
+            symbols for each mutation (specified by ID) present in this map. SVG
+            visualizers such as web browsers will commonly display this string on
+            mousing over the mutation symbol in the tree and (if show) on the x axis.
         :param dict root_svg_attributes: Additional attributes, such as an id, that will
             be embedded in the root ``<svg>`` tag of the generated drawing.
         :param str style: A `css string <https://www.w3.org/TR/CSS21/syndata.htm>`_
@@ -7317,6 +7338,8 @@ class TreeSequence:
             tree_height_scale=tree_height_scale,
             node_labels=node_labels,
             mutation_labels=mutation_labels,
+            node_titles=node_titles,
+            mutation_titles=mutation_titles,
             root_svg_attributes=root_svg_attributes,
             style=style,
             order=order,

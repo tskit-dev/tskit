@@ -2486,6 +2486,19 @@ class TestDrawSvg(TestDrawSvgBase):
         assert svg.count("site") - site_strings_in_stylesheet == num_sites
         self.verify_basic_svg(svg, width=200 * (max_trees + 1))
 
+    def test_draw_tree_symbol_titles(self):
+        tree = self.get_binary_tree()
+        assert tree.tree_sequence.num_mutations > 0
+        svg = tree.draw_svg(
+            node_titles={u: f"NODE{u}$" for u in tree.nodes()},
+            mutation_titles={m.id: f"MUT{m.id}$" for m in tree.mutations()},
+        )
+        for u in tree.nodes():
+            assert svg.count(f"<title>NODE{u}$</title>") == 1
+        for m in tree.mutations():
+            assert svg.count(f"<title>MUT{m.id}$</title>") == 1
+        self.verify_basic_svg(svg)
+
     def test_nodraw_x_axis(self):
         ts = msprime.sim_ancestry(
             1, sequence_length=100, recombination_rate=0.1, random_seed=1
@@ -2807,6 +2820,26 @@ class TestDrawKnownSvg(TestDrawSvgBase):
         assert svg.count('class="mut ') == ts.num_mutations * 2
         self.verify_known_svg(
             svg, "ts_mut_times.svg", overwrite_viz, width=200 * ts.num_trees
+        )
+
+    def test_known_svg_ts_titles(self, overwrite_viz, draw_plotbox):
+        ts = self.get_simple_ts(use_mutation_times=True)
+        svg = ts.draw_svg(
+            node_titles={nd.id: f"NoDe{nd.id}!" for nd in ts.nodes()},
+            mutation_titles={m.id: f"MuT{m.id}!" for m in ts.mutations()},
+            debug_box=draw_plotbox,
+        )
+        for nd in ts.nodes():
+            if nd.is_sample():
+                assert svg.count(f"<title>NoDe{nd.id}!</title>") == ts.num_trees
+            else:
+                assert f"<title>NoDe{nd.id}!</title>" in svg
+        for m in ts.mutations():
+            assert (
+                svg.count(f"<title>MuT{m.id}!</title>") == 2
+            )  # 1 on tree, 1 on x-axis
+        self.verify_known_svg(
+            svg, "ts_mut_times_titles.svg", overwrite_viz, width=200 * ts.num_trees
         )
 
     def test_known_svg_ts_mutation_times_logscale(self, overwrite_viz, draw_plotbox):

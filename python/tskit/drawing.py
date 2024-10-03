@@ -710,6 +710,7 @@ class SvgAxisPlot(SvgPlot):
         debug_box=None,
         omit_sites=None,
         canvas_size=None,
+        mutation_titles=None,
     ):
         super().__init__(
             size,
@@ -739,6 +740,7 @@ class SvgAxisPlot(SvgPlot):
         self.y_label = y_label
         self.offsets = Offsets() if offsets is None else offsets
         self.omit_sites = omit_sites
+        self.mutation_titles = {} if mutation_titles is None else mutation_titles
         self.mutations_outside_tree = set()  # mutations in here get an additional class
 
     def set_spacing(self, top=0, left=0, bottom=0, right=0):
@@ -877,7 +879,8 @@ class SvgAxisPlot(SvgPlot):
                     mut = dwg.g(class_=mutation_class)
                     h = -i * 4 - 1.5
                     w = tick_length_upper / 4
-                    mut.add(
+                    # Chevron symbol
+                    symbol = mut.add(
                         dwg.polyline(
                             [
                                 (rnd(w), rnd(h - 2 * w)),
@@ -887,6 +890,8 @@ class SvgAxisPlot(SvgPlot):
                             class_="sym",
                         )
                     )
+                    if m.id in self.mutation_titles:
+                        symbol.set_desc(title=self.mutation_titles[m.id])
                     site.add(mut)
 
     def draw_y_axis(
@@ -1038,6 +1043,8 @@ class SvgTreeSequence(SvgAxisPlot):
         edge_attrs=None,
         node_label_attrs=None,
         mutation_label_attrs=None,
+        node_titles=None,
+        mutation_titles=None,
         tree_height_scale=None,
         max_tree_height=None,
         max_num_trees=None,
@@ -1086,6 +1093,7 @@ class SvgTreeSequence(SvgAxisPlot):
             x_label=x_label,
             y_label=y_label,
             offsets=offsets,
+            mutation_titles=mutation_titles,
             **kwargs,
         )
         x_scale = check_x_scale(x_scale)
@@ -1111,6 +1119,8 @@ class SvgTreeSequence(SvgAxisPlot):
                         time_scale=time_scale,
                         node_labels=node_labels,
                         mutation_labels=mutation_labels,
+                        node_titles=node_titles,
+                        mutation_titles=mutation_titles,
                         order=order,
                         force_root_branch=force_root_branch,
                         symbol_size=symbol_size,
@@ -1309,6 +1319,8 @@ class SvgTree(SvgAxisPlot):
         max_tree_height=None,
         node_labels=None,
         mutation_labels=None,
+        node_titles=None,
+        mutation_titles=None,
         root_svg_attributes=None,
         style=None,
         order=None,
@@ -1383,6 +1395,8 @@ class SvgTree(SvgAxisPlot):
         self.node_label_attrs = {}
         self.mutation_attrs = {}
         self.mutation_label_attrs = {}
+        self.node_titles = {} if node_titles is None else node_titles
+        self.mutation_titles = {} if mutation_titles is None else mutation_titles
         self.mutations_over_roots = False
         # mutations collected per node
         nodes = set(tree.nodes())
@@ -1809,7 +1823,9 @@ class SvgTree(SvgAxisPlot):
                 # revealable if we want to flag the path below a mutation
                 mut_group.add(dwg.line(end=(0, -rnd(dy))))
                 # Symbols
-                mut_group.add(dwg.path(**self.mutation_attrs[mutation_id]))
+                symbol = mut_group.add(dwg.path(**self.mutation_attrs[mutation_id]))
+                if mutation_id in self.mutation_titles:
+                    symbol.set_desc(title=self.mutation_titles[mutation_id])
                 # Labels
                 if u == left_child[tree.parent(u)]:
                     mut_label_class = "lft"
@@ -1824,9 +1840,11 @@ class SvgTree(SvgAxisPlot):
             # Add node symbol + label next (visually above the edge subtending this node)
             # Symbols
             if self.tree.is_sample(u):
-                curr_svg_group.add(dwg.rect(**self.node_attrs[u]))
+                symbol = curr_svg_group.add(dwg.rect(**self.node_attrs[u]))
             else:
-                curr_svg_group.add(dwg.circle(**self.node_attrs[u]))
+                symbol = curr_svg_group.add(dwg.circle(**self.node_attrs[u]))
+            if u in self.node_titles:
+                symbol.set_desc(title=self.node_titles[u])
             # Labels
             node_lab_attr = self.node_label_attrs[u]
             if tree.is_leaf(u):
