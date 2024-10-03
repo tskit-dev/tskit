@@ -55,6 +55,10 @@
 - The ``.draw_svg()`` methods can add annotated genomic regions (e.g. genes) to the
   x-axis. (:user:`hyanwong`, :pr:`3002`)
 
+- Added a ``node_titles`` and a ``mutation_titles`` parameter to ``.draw_svg()`` methods
+  which assigns a string to node and mutation symbols, commonly shown on mouseover. This
+  can reduce label clutter while retaining useful info (:user:`hyanwong`, :pr:`3007`)
+
 --------------------
 [0.5.8] - 2024-06-27
 --------------------
