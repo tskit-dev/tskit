@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2024 Tskit Developers
+# Copyright (c) 2025 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -460,7 +460,7 @@ def check_relatedness_vector(
     return R
 
 
-class TestExamples:
+class TestRelatednessVector:
 
     def test_bad_weights(self):
         n = 5
@@ -737,3 +737,438 @@ class TestExamples:
             ts2, internal_checks=True, centre=centre, do_nodes=False
         )
         np.testing.assert_array_almost_equal(D1, D2)
+
+
+def pca(ts, windows, centre, samples=None, individuals=None):
+    assert samples is None or individuals is None
+    if samples is None:
+        ii = np.arange(ts.num_samples)
+    else:
+        all_samples = ts.samples()
+        ii = np.searchsorted(all_samples, samples)
+    drop_dimension = windows is None
+    if drop_dimension:
+        windows = [0, ts.sequence_length]
+    Sigma = relatedness_matrix(ts=ts, windows=windows, centre=False)[:, ii, :][:, :, ii]
+    if individuals is not None:
+        ni = len(individuals)
+        J = np.zeros((ts.num_samples, ni))
+        for k, i in enumerate(individuals):
+            nn = ts.individual(i).nodes
+            for j in nn:
+                J[j, k] = 1 / len(nn)
+        Sigma = np.matmul(J.T, np.matmul(Sigma, J))
+    if centre:
+        n = Sigma.shape[-1]
+        P = np.eye(n) - 1 / n
+        Sigma = np.matmul(P, np.matmul(Sigma, P))
+    U, S, _ = np.linalg.svd(Sigma, hermitian=True)
+    if drop_dimension:
+        U = U[0]
+        S = S[0]
+    return U, S
+
+
+def allclose_up_to_sign(x, y, **kwargs):
+    # check if two vectors are the same up to sign
+    x_const = np.isclose(np.std(x), 0)
+    y_const = np.isclose(np.std(y), 0)
+    if x_const or y_const:
+        if np.allclose(x, 0):
+            r = 1.0
+        else:
+            r = np.mean(x / y)
+    else:
+        r = np.sign(np.corrcoef(x, y)[0, 1])
+    return np.allclose(x, r * y, **kwargs)
+
+
+def assert_pcs_equal(U, D, U_full, D_full, rtol=1e-5, atol=1e-8):
+    # check that the PCs in U, D occur in U_full, D_full
+    # accounting for sign and ordering
+    assert len(D) <= len(D_full)
+    assert U.shape[0] == U_full.shape[0]
+    assert U.shape[1] == len(D)
+    for k in range(len(D)):
+        u = U[:, k]
+        d = D[k]
+        (ii,) = np.where(np.isclose(D_full, d, rtol=rtol, atol=atol))
+        assert len(ii) > 0, f"{k}th singular value {d} not found in {D_full}."
+        found_it = False
+        for i in ii:
+            if allclose_up_to_sign(u, U_full[:, i], rtol=rtol, atol=atol):
+                found_it = True
+                break
+        assert found_it, f"{k}th singular vector {u} not found in {U_full}."
+
+
+class TestPCA:
+
+    def verify_pca(
+        self,
+        ts,
+        num_windows,
+        num_components,
+        centre,
+        samples=None,
+        individuals=None,
+        **kwargs,
+    ):
+        assert samples is None or individuals is None
+        if num_windows == 0:
+            windows = None
+        elif num_windows % 2 == 0:
+            windows = np.linspace(
+                0.2 * ts.sequence_length, 0.8 * ts.sequence_length, num_windows + 1
+            )
+        else:
+            windows = np.linspace(0, ts.sequence_length, num_windows + 1)
+        if samples is not None:
+            num_rows = len(samples)
+        elif individuals is not None:
+            num_rows = len(individuals)
+        else:
+            num_rows = ts.num_samples
+        num_oversamples = kwargs.get(
+            "num_oversamples", min(num_rows - num_components, 10)
+        )
+        pca_res = ts.pca(
+            windows=windows,
+            samples=samples,
+            individuals=individuals,
+            num_components=num_components,
+            centre=centre,
+            random_seed=1238,
+            **kwargs,
+        )
+        if windows is None:
+            assert pca_res.factors.shape == (num_rows, num_components)
+            assert pca_res.eigenvalues.shape == (num_components,)
+            assert pca_res.range_sketch.shape == (
+                num_rows,
+                num_components + num_oversamples,
+            )
+            assert pca_res.error_bound.shape == ()
+        else:
+            assert pca_res.factors.shape == (num_windows, num_rows, num_components)
+            assert pca_res.eigenvalues.shape == (num_windows, num_components)
+            assert pca_res.range_sketch.shape == (
+                num_windows,
+                num_rows,
+                num_components + num_oversamples,
+            )
+            assert pca_res.error_bound.shape == (num_windows,)
+        U, D = pca(
+            ts=ts,
+            windows=windows,
+            centre=centre,
+            samples=samples,
+            individuals=individuals,
+        )
+        if windows is None:
+            np.testing.assert_allclose(
+                pca_res.eigenvalues, D[:num_components], atol=1e-8
+            )
+            assert_pcs_equal(pca_res.factors, pca_res.eigenvalues, U, D)
+        else:
+            for w in range(num_windows):
+                np.testing.assert_allclose(
+                    pca_res.eigenvalues[w], D[w, :num_components], atol=1e-8
+                )
+                assert_pcs_equal(pca_res.factors[w], pca_res.eigenvalues[w], U[w], D[w])
+
+    def test_bad_windows(self):
+        ts = msprime.sim_ancestry(
+            3,
+            sequence_length=10,
+            random_seed=123,
+        )
+        for bad_w in ([], [1]):
+            with pytest.raises(ValueError, match="at least one window"):
+                ts.pca(num_components=2, windows=bad_w)
+        for bad_w in ([1, 0], [-3, 10]):
+            with pytest.raises(tskit.LibraryError, match="TSK_ERR_BAD_WINDOWS"):
+                ts.pca(num_components=2, windows=bad_w)
+
+    def test_bad_params(self):
+        ts = msprime.sim_ancestry(
+            3,
+            sequence_length=10,
+            random_seed=123,
+        )
+        _ = ts.pca(num_components=3)
+        with pytest.raises(ValueError, match="Number of components"):
+            ts.pca(num_components=ts.num_samples + 1)
+        with pytest.raises(ValueError, match="Number of components"):
+            ts.pca(num_components=4, samples=[0, 1, 2])
+        with pytest.raises(ValueError, match="Number of components"):
+            ts.pca(num_components=4, individuals=[0, 1])
+        with pytest.raises(ValueError, match="num_components \\+ num_oversamples"):
+            ts.pca(num_components=2, num_oversamples=ts.num_samples)
+        with pytest.raises(ValueError, match="Cannot specify both num_over"):
+            ts.pca(
+                num_components=2,
+                num_oversamples=2,
+                range_sketch=np.zeros((ts.num_samples, 4)),
+            )
+        with pytest.raises(ValueError, match="iterated_power should be"):
+            ts.pca(num_components=3, iterated_power=-1)
+        with pytest.raises(ValueError, match="iterated_power should be"):
+            ts.pca(num_components=3, iterated_power=0)
+        with pytest.raises(ValueError, match="iterated_power should be"):
+            ts.pca(num_components=3, iterated_power="bac")
+        with pytest.raises(ValueError, match="iterated_power should be"):
+            ts.pca(num_components=3, iterated_power=[])
+
+    def test_bad_range_sketch(self):
+        ts = msprime.sim_ancestry(
+            3,
+            sequence_length=10,
+            random_seed=123,
+        )
+        nc = 2
+        # too few rows
+        Q = np.zeros((ts.num_samples - 1, ts.num_samples))
+        with pytest.raises(ValueError, match="Incorrect shape of range"):
+            ts.pca(num_components=nc, range_sketch=Q)
+        # too many rows
+        Q = np.zeros((ts.num_samples + 1, ts.num_samples))
+        with pytest.raises(ValueError, match="Incorrect shape of range"):
+            ts.pca(num_components=nc, range_sketch=Q)
+        # too few columns
+        Q = np.zeros((ts.num_samples, nc - 1))
+        with pytest.raises(ValueError, match="must have at least as many"):
+            ts.pca(num_components=nc, range_sketch=Q)
+        # too many columns
+        Q = np.zeros((ts.num_samples, nc + ts.num_samples))
+        with pytest.raises(ValueError, match="must be less than"):
+            ts.pca(num_components=nc, range_sketch=Q)
+        # not enough dimensions
+        Q = np.zeros((ts.num_samples,))
+        with pytest.raises(ValueError, match="Incorrect shape of range"):
+            ts.pca(num_components=nc, range_sketch=Q)
+        # not enough dimensions, with windows
+        Q = np.zeros((ts.num_samples, nc + 2))
+        with pytest.raises(ValueError, match="Incorrect shape of range"):
+            ts.pca(num_components=nc, windows=[0, 10], range_sketch=Q)
+        # not enough windows
+        Q = np.zeros((ts.num_samples, 1, nc + 2))
+        with pytest.raises(ValueError, match="Incorrect shape of range"):
+            ts.pca(num_components=nc, windows=[0, 5, 10], range_sketch=Q)
+
+    def test_indivs_and_samples(self):
+        ts = msprime.sim_ancestry(
+            3,
+            ploidy=2,
+            sequence_length=10,
+            random_seed=123,
+        )
+        with pytest.raises(ValueError, match="Samples and individuals"):
+            ts.pca(num_components=2, samples=[0, 1, 2, 3], individuals=[0, 1, 2])
+
+    def test_modes(self):
+        ts = msprime.sim_ancestry(
+            3,
+            sequence_length=10,
+            random_seed=123,
+        )
+        for bad_mode in ("site", "node"):
+            with pytest.raises(
+                tskit.LibraryError, match="TSK_ERR_UNSUPPORTED_STAT_MODE"
+            ):
+                ts.pca(num_components=2, mode=bad_mode)
+
+    @pytest.mark.parametrize("n", [2, 3, 5, 15])
+    @pytest.mark.parametrize("centre", (True, False))
+    @pytest.mark.parametrize("num_windows", (0, 1, 2, 3))
+    @pytest.mark.parametrize("num_components", (1, 3))
+    def test_simple_sims(self, n, centre, num_windows, num_components):
+        ploidy = 2
+        nc = min(num_components, n * ploidy)
+        ts = msprime.sim_ancestry(
+            n,
+            ploidy=ploidy,
+            population_size=20,
+            sequence_length=100,
+            recombination_rate=0.01,
+            random_seed=12345,
+        )
+        kwargs = {}
+        # with n=15 and the default of 5 iterations, the relative tolerance on
+        # the eigenvectors is only 1e-4; so, up this:
+        if n > 10:
+            kwargs["iterated_power"] = 10
+        self.verify_pca(
+            ts, num_windows=num_windows, num_components=nc, centre=centre, **kwargs
+        )
+
+    def test_range_sketch(self):
+        n = 10
+        ploidy = 2
+        ts = msprime.sim_ancestry(
+            n,
+            ploidy=2,
+            sequence_length=100,
+            random_seed=123,
+        )
+        nc, no = 2, 3
+        # should work as long as columns are linearly independent
+        range_sketch = np.linspace(0, 1, n * ploidy * (nc + no)).reshape(
+            (n * ploidy, nc + no)
+        )
+        pca_res0 = ts.pca(num_components=nc)
+        pca_res1 = ts.pca(
+            num_components=nc, range_sketch=range_sketch, iterated_power=20
+        )
+        assert_pcs_equal(
+            pca_res0.factors,
+            pca_res0.eigenvalues,
+            pca_res1.factors,
+            pca_res1.eigenvalues,
+        )
+        # check we can recycle previously returned sketches
+        pca_res_1 = ts.pca(num_components=nc, range_sketch=None)
+        for _ in range(20):
+            pca_res_1 = ts.pca(num_components=nc, range_sketch=pca_res_1.range_sketch)
+        assert_pcs_equal(
+            pca_res0.factors,
+            pca_res0.eigenvalues,
+            pca_res1.factors,
+            pca_res1.eigenvalues,
+        )
+
+    def test_iterated_power(self):
+        n = 10
+        ploidy = 2
+        ts = msprime.sim_ancestry(
+            n,
+            ploidy=2,
+            sequence_length=100,
+            random_seed=123,
+        )
+        nc, no = 2, 3
+        range_sketch = np.linspace(0, 1, n * ploidy * (nc + no)).reshape(
+            (n * ploidy, nc + no)
+        )
+        pca_res0 = ts.pca(
+            num_components=nc, range_sketch=range_sketch, iterated_power=5
+        )
+        pca_res1 = ts.pca(
+            num_components=nc, range_sketch=range_sketch, iterated_power=1
+        )
+        for _ in range(4):
+            pca_res1 = ts.pca(
+                num_components=nc, range_sketch=pca_res1.range_sketch, iterated_power=1
+            )
+        assert_pcs_equal(
+            pca_res0.factors,
+            pca_res0.eigenvalues,
+            pca_res1.factors,
+            pca_res1.eigenvalues,
+        )
+
+    def test_seed(self):
+        ts = msprime.sim_ancestry(
+            4,
+            ploidy=2,
+            sequence_length=100,
+            random_seed=345,
+        )
+        pc1 = ts.pca(num_components=3, random_seed=123)
+        pc2 = ts.pca(num_components=3, random_seed=123)
+        assert np.all(pc1.factors == pc2.factors)
+        assert np.all(pc1.eigenvalues == pc2.eigenvalues)
+        assert np.all(pc1.range_sketch == pc2.range_sketch)
+        assert np.all(pc1.error_bound == pc2.error_bound)
+
+    @pytest.mark.parametrize("centre", (True, False))
+    @pytest.mark.parametrize("num_windows", (0, 2))
+    def test_samples(self, centre, num_windows):
+        ploidy = 2
+        ts = msprime.sim_ancestry(
+            20,
+            ploidy=ploidy,
+            population_size=20,
+            sequence_length=100,
+            recombination_rate=0.01,
+            random_seed=12345,
+        )
+        samples = [3, 0, 2, 5, 6, 15, 12]
+        self.verify_pca(
+            ts,
+            num_windows=num_windows,
+            num_components=5,
+            centre=centre,
+            samples=samples,
+        )
+
+    @pytest.mark.parametrize("centre", (True, False))
+    def test_individuals_matches_samples(self, centre):
+        # ploidy 1 individuals should be the same as samples
+        ploidy = 1
+        ts = msprime.sim_ancestry(
+            20,
+            ploidy=ploidy,
+            population_size=20,
+            sequence_length=100,
+            recombination_rate=0.01,
+            random_seed=12345,
+        )
+        individuals = [3, 0, 2, 5, 6, 15, 12]
+        for i in individuals:
+            assert ts.individual(i).nodes == [
+                i,
+            ]
+        pci = pca(
+            ts, windows=[0, ts.sequence_length], centre=centre, samples=individuals
+        )
+        pcs = pca(
+            ts, windows=[0, ts.sequence_length], centre=centre, individuals=individuals
+        )
+        tspci = ts.pca(
+            num_components=5, centre=centre, samples=individuals, random_seed=456
+        )
+        tspcs = ts.pca(
+            num_components=5, centre=centre, individuals=individuals, random_seed=456
+        )
+        assert np.all(pci[0] == pcs[0])
+        assert np.all(pci[1] == pcs[1])
+        assert np.all(tspci.factors == tspcs.factors)
+        assert np.all(tspci.eigenvalues == tspcs.eigenvalues)
+        pci = ts.pca(
+            num_components=5,
+            windows=[0, 50, 100],
+            centre=centre,
+            samples=individuals,
+            random_seed=456,
+        )
+        pcs = ts.pca(
+            num_components=5,
+            windows=[0, 50, 100],
+            centre=centre,
+            individuals=individuals,
+            random_seed=456,
+        )
+        assert np.all(pci.factors == pcs.factors)
+        assert np.all(pci.eigenvalues == pcs.eigenvalues)
+
+    @pytest.mark.parametrize("centre", (True, False))
+    @pytest.mark.parametrize("num_windows", (0, 2))
+    @pytest.mark.parametrize("ploidy", (1, 2, 3))
+    def test_individuals(self, centre, num_windows, ploidy):
+        ts = msprime.sim_ancestry(
+            20,
+            ploidy=ploidy,
+            population_size=20,
+            sequence_length=100,
+            recombination_rate=0.01,
+            random_seed=12345,
+        )
+        individuals = [3, 0, 2, 5, 6, 15, 12]
+        self.verify_pca(
+            ts,
+            num_windows=num_windows,
+            num_components=5,
+            centre=centre,
+            individuals=individuals,
+        )

@@ -1590,3 +1590,9 @@ Also see the {ref}`sec_python_api_metadata` summary.
     :members:
     :private-members: _repr_svg_
 ```
+
+#### The {class}`PCAResult` class
+```{eval-rst}
+.. autoclass:: PCAResult
+	:members:
+```
