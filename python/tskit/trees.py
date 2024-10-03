@@ -40,6 +40,7 @@ from typing import Any
 from typing import NamedTuple
 
 import numpy as np
+import scipy.sparse
 
 import _tskit
 import tskit
@@ -8592,6 +8593,156 @@ class TreeSequence:
         )
         return out
 
+    def pca(
+            self,
+            n_components: int = 10,
+            iterated_power: int = 3,
+            n_oversamples: int = 10,
+            indices: np.ndarray = None,
+            centre: bool = True,
+            windows = None,
+            random_state: np.random.Generator = None,
+            ):
+        """
+        Run randomized singular value decomposition (rSVD) to obtain principal components.
+        API partially adopted from `scikit-learn`: 
+        https://scikit-learn.org/dev/modules/generated/sklearn.decomposition.PCA.html
+
+        :param int n_components: Number of principal components
+        :param int iterated_power: Number of power iteration of range finder
+        :param int n_oversamples: Number of additional test vectors
+        :param np.ndarray indices: Indcies of individuals to perform rSVD
+        :param bool centre: Centre the genetic relatedness matrix
+        :param windows: ???
+        :param np.random.Generator random_state: Random number generator
+        """
+
+        def _rand_pow_range_finder(
+                operator: Callable,
+                operator_dim: int,
+                rank: int,
+                depth: int,
+                num_vectors: int,
+                rng: np.random.Generator,
+                ) -> np.ndarray:
+            """
+            Algorithm 9 in https://arxiv.org/pdf/2002.01387
+            """
+            assert num_vectors >= rank > 0
+            test_vectors = rng.normal(size=(operator_dim, num_vectors))
+            Q = test_vectors
+            for i in range(depth):
+                Q = np.linalg.qr(Q).Q
+                Q = operator(Q)
+            Q = np.linalg.qr(Q).Q
+            return Q[:, :rank]
+
+        def _rand_svd(
+                operator: Callable,
+                operator_dim: int,
+                rank: int,
+                depth: int,
+                num_vectors: int,
+                rng: np.random.Generator,
+                ) -> (np.ndarray, np.ndarray, np.ndarray):
+            """
+            Algorithm 8 in https://arxiv.org/pdf/2002.01387
+            """
+            assert num_vectors >= rank > 0
+            Q = _rand_pow_range_finder(
+                    operator,
+                    operator_dim,
+                    num_vectors,
+                    depth,
+                    num_vectors,
+                    rng
+                    )
+            C = operator(Q).T
+            U_hat, D, V = np.linalg.svd(C, full_matrices=False)
+            U = Q @ U_hat
+            return U[:,:rank], D[:rank], V[:rank]
+
+        def _genetic_relatedness_vector(
+                ts: tskit.Treesequence,
+                arr: np.ndarray,
+                rows: np.ndarray,
+                cols: np.ndarray,
+                centre: bool = False,
+                windows = None,
+                ) -> np.ndarray:
+            """
+            Wrapper around `tskit.TreeSequence.genetic_relatedness_vector` to support centering in respect to individuals.
+            Multiplies an array to the genetic relatedness matrix of :class:`tskit.TreeSequence`.
+
+            :param tskit.TreeSequence ts: A tree sequence.
+            :param numpy.ndarray arr: The array to multiply. Either a vector or a matrix.
+            :param numpy.ndarray rows: Index of rows of the genetic relatedness matrix to be selected.
+            :param numpy.ndarray cols: Index of cols of the genetic relatedness matrix to be selected. The size should match the row length of `arr`.
+            :param bool centre: Centre the genetic relatedness matrix. Centering happens respect to the `rows` and `cols`. 
+            :param windows: An increasing list of breakpoints between the windows to compute the genetic relatedness matrix in.
+            :return: An array that is the matrix-array product of the genetic relatedness matrix and the array. 
+            :rtype: `np.ndarray`
+            """
+            
+            # maps samples to individuals
+            def sample_individual_sparray(ts: tskit.TreeSequence) -> scipy.sparse.sparray:
+                samples_individual = ts.nodes_individual[ts.samples()]
+                return scipy.sparse.csr_array(
+                        (
+                            np.ones(ts.num_samples),
+                            (np.arange(ts.num_samples), samples_individual)
+                        ),
+                        shape=(ts.num_samples, ts.num_individuals)
+                    )
+            
+            # maps values in idx to num_individuals
+            def individual_idx_sparray(n: int, idx: np.ndarray) -> scipy.sparse.sparray:
+                return scipy.sparse.csr_array(
+                        (
+                            np.ones(idx.size),
+                            (idx, np.arange(idx.size))
+                        ),
+                        shape=(n, idx.size)
+                    )
+                                
+            assert cols.size == arr.shape[0], "Dimension mismatch"
+            # centering
+            x = arr - arr.mean(axis=0) if centre else arr # centering within index in rows
+            x = individual_idx_sparray(ts.num_individuals, cols).dot(x)
+            x = sample_individual_sparray(ts).dot(x)
+            x = ts.genetic_relatedness_vector(W=x, windows=windows, mode="branch", centre=False)
+            x = sample_individual_sparray(ts).T.dot(x)
+            x = individual_idx_sparray(ts.num_individuals, rows).T.dot(x)
+            x = x - x.mean(axis=0) if centre else x # centering within index in cols
+
+            return x
+
+
+        if indices is None: indices = np.array([i.id for i in self.individuals()])
+        if random_state is None: random_state = np.random.default_rng()
+        
+        def _G(x):
+            return _genetic_relatedness_vector(
+                    self.ts,
+                    x,
+                    indices,
+                    indices,
+                    centre,
+                    windows
+                    )
+
+        U, D, _ = _rand_svd(
+                operator=_G,
+                operator_dim=indices.size,
+                rank=n_components,
+                depth=iterated_power,
+                num_vectors=n_components+n_oversamples,
+                rng=random_state
+                )
+
+        return U, D
+
+
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
         """
         Computes the mean squared covariances between each of the columns of ``W``
@@ -10171,3 +10322,4 @@ def write_ms(
                         )
             else:
                 print(file=output)
+
