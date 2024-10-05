@@ -1504,8 +1504,8 @@ class SvgTree(SvgAxisPlot):
                 add_class(self.mutation_label_attrs[m], "lab")
 
         self.set_spacing(top=10, left=20, bottom=15, right=20)
-        self.assign_y_coordinates(max_time, min_time, force_root_branch)
         self.assign_x_coordinates()
+        self.assign_y_coordinates(max_time, min_time, force_root_branch)
         tick_length_lower = self.default_tick_length  # TODO - parameterize
         tick_length_upper = self.default_tick_length_site  # TODO - parameterize
         if all_edge_mutations:
@@ -1676,31 +1676,34 @@ class SvgTree(SvgAxisPlot):
         ) - self.timescaling.transform(self.timescaling.max_time + root_branch_len)
 
     def assign_x_coordinates(self):
-        num_leaves = len(list(self.tree.leaves()))
-        x_scale = self.plotbox.width / num_leaves
-        node_x_coord_map = {}
-        leaf_x = self.plotbox.left + x_scale / 2
-        for root in self.tree.roots:
-            for u in self.tree.nodes(root, order=self.traversal_order):
-                if self.tree.is_leaf(u):
-                    node_x_coord_map[u] = leaf_x
-                    leaf_x += x_scale
-                else:
-                    child_coords = [node_x_coord_map[c] for c in self.tree.children(u)]
-                    if len(child_coords) == 1:
-                        node_x_coord_map[u] = child_coords[0]
-                    else:
-                        a = min(child_coords)
-                        b = max(child_coords)
-                        node_x_coord_map[u] = a + (b - a) / 2
-        self.node_x_coord_map = node_x_coord_map
-        # Transform is not for nodes but for genome positions
+        # Set up transformation for genome positions
         self.x_transform = lambda x: (
             (x - self.left_extent)
             / (self.right_extent - self.left_extent)
             * self.plotbox.width
             + self.plotbox.left
         )
+        # Set up x positions for nodes
+        node_x_coord = {}
+        leaf_x = 0  # First leaf starts at x=1, to give some space between Y axis & leaf
+        for root in self.tree.roots:
+            for u in self.tree.nodes(root, order=self.traversal_order):
+                if self.tree.is_leaf(u):
+                    leaf_x += 1
+                    node_x_coord[u] = leaf_x
+                else:
+                    child_coords = [node_x_coord[c] for c in self.tree.children(u)]
+                    if len(child_coords) == 1:
+                        node_x_coord[u] = child_coords[0]
+                    else:
+                        a = min(child_coords)
+                        b = max(child_coords)
+                        node_x_coord[u] = a + (b - a) / 2
+        # Now rescale to the plot width: leaf_x is the maximum value of the last leaf
+        if len(node_x_coord) > 0:
+            scale = self.plotbox.width / leaf_x
+            lft = self.plotbox.left - scale / 2
+        self.node_x_coord = {k: lft + v * scale for k, v in node_x_coord.items()}
 
     def info_classes(self, focal_node_id):
         """
@@ -1741,9 +1744,9 @@ class SvgTree(SvgAxisPlot):
 
     def draw_tree(self):
         dwg = self.drawing
-        node_x_coord_map = self.node_x_coord_map
-        node_y_coord_map = {
-            u: self.timescaling.transform(h) for u, h in self.node_height.items()
+        node_coords = {
+            u: np.array([x, self.timescaling.transform(self.node_height[u])])
+            for u, x in self.node_x_coord.items()
         }
         tree = self.tree
         left_child = get_left_child(tree, self.traversal_order)
@@ -1751,18 +1754,17 @@ class SvgTree(SvgAxisPlot):
         # Iterate over nodes, adding groups to reflect the tree hierarchy
         stack = []
         for u in tree.roots:
+            x, y = node_coords[u]
             grp = dwg.g(
                 class_=" ".join(self.info_classes(u)),
-                transform=f"translate({rnd(node_x_coord_map[u])} "
-                f"{rnd(node_y_coord_map[u])})",
+                transform=f"translate({rnd(x)} {rnd(y)})",
             )
             stack.append((u, self.get_plotbox().add(grp)))
         while len(stack) > 0:
             u, curr_svg_group = stack.pop()
-            pu = node_x_coord_map[u], node_y_coord_map[u]
+            pu = node_coords[u]
             for focal in tree.children(u):
-                fx = node_x_coord_map[focal] - pu[0]
-                fy = node_y_coord_map[focal] - pu[1]
+                fx, fy = node_coords[focal] - pu
                 new_svg_group = curr_svg_group.add(
                     dwg.g(
                         class_=" ".join(self.info_classes(focal)),
@@ -1777,9 +1779,7 @@ class SvgTree(SvgAxisPlot):
             # Add edge first => on layer underneath anything else
             if v != NULL:
                 add_class(self.edge_attrs[u], "edge")
-                pv = node_x_coord_map[v], node_y_coord_map[v]
-                dx = pv[0] - pu[0]
-                dy = pv[1] - pu[1]
+                dx, dy = node_coords[v] - pu
                 path = dwg.path(
                     [("M", o), ("V", rnd(dy)), ("H", rnd(dx))], **self.edge_attrs[u]
                 )
@@ -1792,15 +1792,13 @@ class SvgTree(SvgAxisPlot):
                         mutation = self.node_mutations[u][0]  # Oldest on this branch
                         root_branch_l = max(
                             root_branch_l,
-                            node_y_coord_map[u]
-                            - self.timescaling.transform(mutation.time),
+                            pu[1] - self.timescaling.transform(mutation.time),
                         )
                     path = dwg.path(
                         [("M", o), ("V", rnd(-root_branch_l)), ("H", 0)],
                         **self.edge_attrs[u],
                     )
                     curr_svg_group.add(path)
-                pv = (pu[0], pu[1] - root_branch_l)
 
             # Add mutation symbols + labels
             for mutation in self.node_mutations[u]:
