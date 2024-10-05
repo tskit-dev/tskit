@@ -618,7 +618,7 @@ class Provenance(util.Dataclass):
 
 class Tree:
     """
-    A single tree in a :class:`TreeSequence`. Please see the
+    A single tree in a :class:`TreeSequence`. See the
     :ref:`tutorials:sec_processing_trees` section for information
     on how efficiently access trees sequentially or obtain a list
     of individual trees in a tree sequence.
@@ -1315,7 +1315,7 @@ class Tree:
         The ID of the virtual root in this tree. This is equal to
         :attr:`TreeSequence.num_nodes`.
 
-        Please see the :ref:`tree roots <sec_data_model_tree_roots>`
+        See the :ref:`tree roots <sec_data_model_tree_roots>`
         section for more details.
         """
         return self._ll_tree.get_virtual_root()
@@ -6415,7 +6415,7 @@ class TreeSequence:
         """
         Writes the :meth:`.alignments` for this tree sequence to file in
         `FASTA <https://en.wikipedia.org/wiki/FASTA_format>`__ format.
-        Please see the :meth:`.alignments` method for details on how
+        See the :meth:`.alignments` method for details on how
         reference sequences are handled.
 
         Alignments are returned for the
@@ -6549,7 +6549,7 @@ class TreeSequence:
               TREE t0^10 = [&R] (n0:2,(n1:1,n2:1):1);
             END;
 
-        Please see the :meth:`.alignments` method for details on how
+        See the :meth:`.alignments` method for details on how
         reference sequences are handled.
 
         .. note:: Note the default ``missing_data_character`` for this method
@@ -7896,8 +7896,8 @@ class TreeSequence:
         `Nei and Li (1979) <https://doi.org/10.1073/pnas.76.10.5269>`_
         (equation 22), so it is sometimes called called "Nei's pi"
         (but also sometimes "Tajima's pi").
-        Please see the :ref:`summary functions <sec_stats_summary_functions>`
-        section on the exact definition of the calculated statistic.
+        See the :ref:`summary functions <sec_stats_summary_functions>`
+        section for mathemathical details of this statistic.
 
         See the :ref:`one-way statistics <sec_stats_sample_sets_one_way>`
         section for details on how the ``sample_sets`` argument is interpreted
@@ -7961,8 +7961,8 @@ class TreeSequence:
         :math:`\pi_{XY}`. Note that the mean pairwise nucleotide diversity of a
         sample set to itself (computed by passing an index of the form (j,j))
         is its :meth:`diversity <.TreeSequence.diversity>` (see the note below).
-        Please see the :ref:`summary functions <sec_stats_summary_functions>`
-        section on the exact definition of the calculated statistic.
+        See the :ref:`summary functions <sec_stats_summary_functions>`
+        section for mathemathical details of this statistic.
 
         Operates on ``k = 2`` sample sets at a time; see the
         :ref:`multi-way statistics <sec_stats_sample_sets_multi_way>`
@@ -8249,10 +8249,10 @@ class TreeSequence:
         """
         Computes genetic relatedness between (and within) pairs of
         sets of nodes from ``sample_sets``.
-        Please see the :ref:`summary functions <sec_stats_summary_functions>`
-        section on the exact definition of the calculated statistic.
+        See the :ref:`summary functions <sec_stats_summary_functions>`
+        section for mathemathical details of this statistic.
 
-        Operates on ``k = 2`` sample sets at a time; please see the
+        Operates on ``k = 2`` sample sets at a time; see the
         :ref:`multi-way statistics <sec_stats_sample_sets_multi_way>`
         section for details on how the ``sample_sets`` and ``indexes`` arguments are
         interpreted and how they interact with the dimensions of the output array.
@@ -8485,8 +8485,8 @@ class TreeSequence:
     ):
         r"""
         Computes weighted genetic relatedness.
-        Please see the :ref:`summary functions <sec_stats_summary_functions>`
-        section on the exact definition of the calculated statistic.
+        See the :ref:`summary functions <sec_stats_summary_functions>`
+        section for mathemathical details of this statistic.
 
         If the :math:`k` th pair of indices is (i, j),
         then the :math:`k` th column of output will be
@@ -8605,8 +8605,8 @@ class TreeSequence:
         weights corresponding to entries of `g` that are `1`. Since weights sum to
         zero, this is also equal to the sum of weights whose entries of `g` are 0.
         So, :math:`cov(g,w)^2 = ((\\sum_i g_i w_i)^2 + (\\sum_i (1-g_i) w_i)^2)/2`.
-        Please see the :ref:`summary functions <sec_stats_summary_functions>`
-        section on the exact definition of the calculated statistic.
+        See the :ref:`summary functions <sec_stats_summary_functions>`
+        section for mathemathical details of this statistic.
 
         Operates on all samples in the tree sequence.
         See the :ref:`statistics interface <sec_stats_interface>` section for details on
@@ -8669,8 +8669,8 @@ class TreeSequence:
         :meth:`trait_covariance <.TreeSequence.trait_covariance>`,
         but divided by :math:`p (1-p)`, where `p` is the proportion of samples
         inheriting from the allele, branch, or node in question.
-        Please see the :ref:`summary functions <sec_stats_summary_functions>`
-        section on the exact definition of the calculated statistic.
+        See the :ref:`summary functions <sec_stats_summary_functions>`
+        section for mathemathical details of this statistic.
 
         Operates on all samples in the tree sequence.
         See the :ref:`statistics interface <sec_stats_interface>` section for details on
@@ -8764,8 +8764,8 @@ class TreeSequence:
         then this returns the number :math:`b_1^2`. If :math:`g` lies in the linear span
         of the columns of :math:`Z`, then :math:`b_1` is set to 0. To fit the
         linear model without covariates (only the intercept), set `Z = None`.
-        Please see the :ref:`summary functions <sec_stats_summary_functions>`
-        section on the exact definition of the calculated statistic.
+        See the :ref:`summary functions <sec_stats_summary_functions>`
+        section for mathemathical details of this statistic.
 
         Operates on all samples in the tree sequence.
         See the :ref:`statistics interface <sec_stats_interface>` section for details on
@@ -8840,8 +8840,8 @@ class TreeSequence:
         """
         Computes the density of segregating sites for each of the sets of nodes
         from ``sample_sets``, and related quantities.
-        Please see the :ref:`summary functions <sec_stats_summary_functions>`
-        section on the exact definition of the calculated statistic.
+        See the :ref:`summary functions <sec_stats_summary_functions>`
+        section for mathemathical details of this statistic.
 
         See the :ref:`one-way statistics <sec_stats_sample_sets_one_way>`
         section for details on how the ``sample_sets`` argument is interpreted
@@ -8923,7 +8923,7 @@ class TreeSequence:
         ``afs[2]``, and so on. The zeroth entry counts alleles or branches not
         seen in the samples but that are polymorphic among the rest of the samples
         of the tree sequence; likewise, the last entry counts alleles fixed in
-        the sample set but polymorphic in the entire set of samples. Please see
+        the sample set but polymorphic in the entire set of samples. See
         the :ref:`sec_tutorial_afs_zeroth_entry` for an illustration.
 
         .. warning:: Please note that singletons are **not** counted in the initial
@@ -9015,7 +9015,7 @@ class TreeSequence:
             c = h**2 + g
 
         Operates on ``k = 1`` sample sets at a time.
-        Please see the :ref:`one-way statistics <sec_stats_sample_sets_one_way>`
+        See the :ref:`one-way statistics <sec_stats_sample_sets_one_way>`
         section for details on how the ``sample_sets`` argument is interpreted
         and how it interacts with the dimensions of the output array.
         See the :ref:`statistics interface <sec_stats_interface>` section for details on
@@ -9072,7 +9072,7 @@ class TreeSequence:
 
             Fst = 1 - 2 * (d(X) + d(Y)) / (d(X) + 2 * d(X, Y) + d(Y))
 
-        Operates on ``k = 2`` sample sets at a time; please see the
+        Operates on ``k = 2`` sample sets at a time; see the
         :ref:`multi-way statistics <sec_stats_sample_sets_multi_way>`
         section for details on how the ``sample_sets`` and ``indexes`` arguments are
         interpreted and how they interact with the dimensions of the output array.
@@ -9171,10 +9171,10 @@ class TreeSequence:
     ):
         """
         Computes the 'Y' statistic between triples of sets of nodes from ``sample_sets``.
-        Please see the :ref:`summary functions <sec_stats_summary_functions>`
-        section on the exact definition of the calculated statistic.
+        See the :ref:`summary functions <sec_stats_summary_functions>`
+        section for mathemathical details of this statistic.
 
-        Operates on ``k = 3`` sample sets at a time; please see the
+        Operates on ``k = 3`` sample sets at a time; see the
         :ref:`multi-way statistics <sec_stats_sample_sets_multi_way>`
         section for details on how the ``sample_sets`` and ``indexes`` arguments are
         interpreted and how they interact with the dimensions of the output array.
@@ -9227,10 +9227,10 @@ class TreeSequence:
     ):
         """
         Computes the 'Y2' statistic between pairs of sets of nodes from ``sample_sets``.
-        Please see the :ref:`summary functions <sec_stats_summary_functions>`
-        section on the exact definition of the calculated statistic.
+        See the :ref:`summary functions <sec_stats_summary_functions>`
+        section for mathemathical details of this statistic.
 
-        Operates on ``k = 2`` sample sets at a time; please see the
+        Operates on ``k = 2`` sample sets at a time; see the
         :ref:`multi-way statistics <sec_stats_sample_sets_multi_way>`
         section for details on how the ``sample_sets`` and ``indexes`` arguments are
         interpreted and how they interact with the dimensions of the output array.
@@ -9273,8 +9273,8 @@ class TreeSequence:
         """
         Computes the 'Y1' statistic within each of the sets of nodes given by
         ``sample_sets``.
-        Please see the :ref:`summary functions <sec_stats_summary_functions>`
-        section on the exact definition of the calculated statistic.
+        See the :ref:`summary functions <sec_stats_summary_functions>`
+        section for mathemathical details of this statistic.
 
         Operates on ``k = 1`` sample set at a time.
         See the :ref:`one-way statistics <sec_stats_sample_sets_one_way>`
@@ -9315,10 +9315,10 @@ class TreeSequence:
         """
         Computes Patterson's f4 statistic between four groups of nodes from
         ``sample_sets``.
-        Please see the :ref:`summary functions <sec_stats_summary_functions>`
-        section on the exact definition of the calculated statistic.
+        See the :ref:`summary functions <sec_stats_summary_functions>`
+        section for mathemathical details of this statistic.
 
-        Operates on ``k = 4`` sample sets at a time; please see the
+        Operates on ``k = 4`` sample sets at a time; see the
         :ref:`multi-way statistics <sec_stats_sample_sets_multi_way>`
         section for details on how the ``sample_sets`` and ``indexes`` arguments are
         interpreted and how they interact with the dimensions of the output array.
@@ -9385,10 +9385,10 @@ class TreeSequence:
         is usually placed as population ``A`` (see
         `Peter (2016) <https://doi.org/10.1534/genetics.115.183913>`_
         for more discussion).
-        Please see the :ref:`summary functions <sec_stats_summary_functions>`
-        section on the exact definition of the calculated statistic.
+        See the :ref:`summary functions <sec_stats_summary_functions>`
+        section for mathemathical details of this statistic.
 
-        Operates on ``k = 3`` sample sets at a time; please see the
+        Operates on ``k = 3`` sample sets at a time; see the
         :ref:`multi-way statistics <sec_stats_sample_sets_multi_way>`
         section for details on how the ``sample_sets`` and ``indexes`` arguments are
         interpreted and how they interact with the dimensions of the output array.
@@ -9432,10 +9432,10 @@ class TreeSequence:
         """
         Computes Patterson's f2 statistic between two groups of nodes from
         ``sample_sets``.
-        Please see the :ref:`summary functions <sec_stats_summary_functions>`
-        section on the exact definition of the calculated statistic.
+        See the :ref:`summary functions <sec_stats_summary_functions>`
+        section for mathemathical details of this statistic.
 
-        Operates on ``k = 2`` sample sets at a time; please see the
+        Operates on ``k = 2`` sample sets at a time; see the
         :ref:`multi-way statistics <sec_stats_sample_sets_multi_way>`
         section for details on how the ``sample_sets`` and ``indexes`` arguments are
         interpreted and how they interact with the dimensions of the output array.
@@ -9612,7 +9612,7 @@ class TreeSequence:
         ``store_segments`` parameters. By default only total counts and other
         statistics of the IBD segments are stored (i.e.,
         ``store_pairs=False``), since storing pairs and segments has a
-        substantial CPU and memory overhead. Please see the
+        substantial CPU and memory overhead. See the
         :ref:`sec_identity` section for more details on how to access the
         information stored in the :class:`.IdentitySegments`.
 
