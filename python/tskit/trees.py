@@ -2476,36 +2476,26 @@ class Tree:
             else:
                 min_leaf[u] = min(min_leaf[v] for v in self.children(u))
 
-        stack = []
-
-        def push(nodes):
-            stack.extend(sorted(nodes, key=lambda u: min_leaf[u], reverse=True))
-
-        # The postorder traversal isn't robust to using virtual_root directly
-        # as a node because we depend on tree.parent() returning the last
-        # node we visiting on the path from "root". So, we treat this as a
-        # special case.
+        # If we deliberately specify the virtual root, it should also be returned
         is_virtual_root = root == self.virtual_root
-        roots = self.roots if root == -1 or is_virtual_root else [root]
+        if root == -1:
+            root = self.virtual_root
 
-        push(roots)
-        parent = NULL
+        stack = [(root, False)]
         while len(stack) > 0:
-            v = stack[-1]
-            children = [] if v == parent else self.children(v)
-            if len(children) > 0:
-                # The first time visiting a node, we push onto the stack its children
-                # in order of reverse min leaf ID under each child. This guarantees
-                # that the earlier children visited have smaller min leaf ID,
-                # which is equivalent to the minlex condition.
-                push(children)
+            u, visited = stack.pop()
+            if visited:
+                if u != self.virtual_root or is_virtual_root:
+                    yield u
             else:
-                # The second time visiting a node, we pop and yield it, and
-                # we update the parent variable
-                parent = self.get_parent(v)
-                yield stack.pop()
-        if is_virtual_root:
-            yield self.virtual_root
+                stack.append((u, True))  # Reappend, marking visited
+                stack.extend(
+                    sorted(
+                        ((c, False) for c in self.children(u)),
+                        key=lambda v: min_leaf[v[0]],
+                        reverse=True,
+                    )
+                )
 
     def nodes(self, root=None, order="preorder"):
         """
