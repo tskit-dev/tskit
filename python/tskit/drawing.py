@@ -1686,19 +1686,18 @@ class SvgTree(SvgAxisPlot):
         # Set up x positions for nodes
         node_x_coord = {}
         leaf_x = 0  # First leaf starts at x=1, to give some space between Y axis & leaf
-        for root in self.tree.roots:
-            for u in self.tree.nodes(root, order=self.traversal_order):
-                if self.tree.is_leaf(u):
-                    leaf_x += 1
-                    node_x_coord[u] = leaf_x
+        for u in self.tree.nodes(order=self.traversal_order):
+            if self.tree.is_leaf(u):
+                leaf_x += 1
+                node_x_coord[u] = leaf_x
+            else:
+                child_coords = [node_x_coord[c] for c in self.tree.children(u)]
+                if len(child_coords) == 1:
+                    node_x_coord[u] = child_coords[0]
                 else:
-                    child_coords = [node_x_coord[c] for c in self.tree.children(u)]
-                    if len(child_coords) == 1:
-                        node_x_coord[u] = child_coords[0]
-                    else:
-                        a = min(child_coords)
-                        b = max(child_coords)
-                        node_x_coord[u] = a + (b - a) / 2
+                    a = min(child_coords)
+                    b = max(child_coords)
+                    node_x_coord[u] = a + (b - a) / 2
         # Now rescale to the plot width: leaf_x is the maximum value of the last leaf
         if len(node_x_coord) > 0:
             scale = self.plotbox.width / leaf_x
