@@ -1,0 +1,48 @@
+<?xml version="1.0" ?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:xlink="http://www.w3.org/1999/xlink" baseProfile="full" height="200" version="1.1" width="200">
+	<defs>
+		<style type="text/css"><![CDATA[.background path {fill: #808080; fill-opacity: 0}.background path:nth-child(odd) {fill-opacity: .1}.x-regions rect {fill: yellow; stroke: black; opacity: 0.5}.axes {font-size: 14px}.x-axis .tick .lab {font-weight: bold; dominant-baseline: hanging}.axes, .tree {font-size: 14px; text-anchor: middle}.axes line, .edge {stroke: black; fill: none}.axes .ax-skip {stroke-dasharray: 4}.y-axis .grid {stroke: #FAFAFA}.node > .sym {fill: black; stroke: none}.site > .sym {stroke: black}.mut text {fill: red; font-style: italic}.mut.extra text {fill: hotpink}.mut line {fill: none; stroke: none}.mut .sym {fill: none; stroke: red}.mut.extra .sym {stroke: hotpink}.node .mut .sym {stroke-width: 1.5px}.tree text, .tree-sequence text {dominant-baseline: central}.plotbox .lab.lft {text-anchor: end}.plotbox .lab.rgt {text-anchor: start}]]></style>
+	</defs>
+	<g class="tree t0">
+		<g class="plotbox">
+			<g class="c2 node n14 root" transform="translate(115 26.8)">
+				<g class="a14 c2 node n10" transform="translate(-45 47.1333)">
+					<g class="a10 c2 node n8" transform="translate(-30 47.1333)">
+						<path class="edge" d="M 0 0 V -47.1333 H 30"/>
+						<circle class="sym" cx="0" cy="0" r="3"/>
+						<polygon class="sym multi" points="3.0,0 6,6 -6,6 -3.0,0"/>
+						<text class="lab summary" font-style="italic" transform="translate(0 12)">+2</text>
+						<text class="lab lft" transform="translate(-3 -7)">8</text>
+					</g>
+					<g class="a10 c2 node n9" transform="translate(30 47.1333)">
+						<g class="a9 leaf node n2 sample" transform="translate(-20 47.1333)">
+							<path class="edge" d="M 0 0 V -47.1333 H 20"/>
+							<rect class="sym" height="6" width="6" x="-3" y="-3"/>
+							<text class="lab" transform="translate(0 11)">2</text>
+						</g>
+						<g class="a9 leaf node n3 sample" transform="translate(20 47.1333)">
+							<path class="edge" d="M 0 0 V -47.1333 H -20"/>
+							<rect class="sym" height="6" width="6" x="-3" y="-3"/>
+							<text class="lab" transform="translate(0 11)">3</text>
+						</g>
+						<path class="edge" d="M 0 0 V -47.1333 H -30"/>
+						<circle class="sym" cx="0" cy="0" r="3"/>
+						<text class="lab rgt" transform="translate(3 -7)">9</text>
+					</g>
+					<path class="edge" d="M 0 0 V -47.1333 H 45"/>
+					<circle class="sym" cx="0" cy="0" r="3"/>
+					<text class="lab lft" transform="translate(-3 -7)">10</text>
+				</g>
+				<g class="a14 c2 node n13" transform="translate(45 47.1333)">
+					<path class="edge" d="M 0 0 V -47.1333 H -45"/>
+					<circle class="sym" cx="0" cy="0" r="3"/>
+					<polygon class="sym multi" points="3.0,0 6,6 -6,6 -3.0,0"/>
+					<text class="lab summary" font-style="italic" transform="translate(0 12)">+4</text>
+					<text class="lab rgt" transform="translate(3 -7)">13</text>
+				</g>
+				<circle class="sym" cx="0" cy="0" r="3"/>
+				<text class="lab" transform="translate(0 -11)">14</text>
+			</g>
+		</g>
+	</g>
+</svg>

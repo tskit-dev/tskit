@@ -31,10 +31,10 @@
 				</g>
 				<line class="ax-line" x1="56.8" x2="56.8" y1="131.4" y2="10"/>
 				<g class="ticks">
-					<g class="tick" transform="translate(56.8 26.8)">
+					<g class="tick" transform="translate(56.8 131.4)">
 						<line x1="0" x2="-5" y1="0" y2="0"/>
 						<g transform="translate(-6 0)">
-							<text class="lab" text-anchor="end">6.57</text>
+							<text class="lab" text-anchor="end">0.00</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(56.8 129.578)">
@@ -43,16 +43,16 @@
 							<text class="lab" text-anchor="end">0.11</text>
 						</g>
 					</g>
-					<g class="tick" transform="translate(56.8 131.4)">
-						<line x1="0" x2="-5" y1="0" y2="0"/>
-						<g transform="translate(-6 0)">
-							<text class="lab" text-anchor="end">0.00</text>
-						</g>
-					</g>
 					<g class="tick" transform="translate(56.8 113.726)">
 						<line x1="0" x2="-5" y1="0" y2="0"/>
 						<g transform="translate(-6 0)">
 							<text class="lab" text-anchor="end">1.11</text>
+						</g>
+					</g>
+					<g class="tick" transform="translate(56.8 26.8)">
+						<line x1="0" x2="-5" y1="0" y2="0"/>
+						<g transform="translate(-6 0)">
+							<text class="lab" text-anchor="end">6.57</text>
 						</g>
 					</g>
 				</g>
@@ -73,7 +73,7 @@
 					</g>
 					<path class="edge" d="M 0 0 V -102.778 H 30.8"/>
 					<circle class="sym" cx="0" cy="0" r="3"/>
-					<text class="lab lft" transform="translate(-3 -7.0)">4</text>
+					<text class="lab lft" transform="translate(-3 -7)">4</text>
 				</g>
 				<g class="a8 c2 node n5 p0" transform="translate(30.8 86.9259)">
 					<g class="a5 leaf node n2 p0 sample" transform="translate(-15.4 17.6741)">
@@ -88,7 +88,7 @@
 					</g>
 					<path class="edge" d="M 0 0 V -86.9259 H -30.8"/>
 					<circle class="sym" cx="0" cy="0" r="3"/>
-					<text class="lab rgt" transform="translate(3 -7.0)">5</text>
+					<text class="lab rgt" transform="translate(3 -7)">5</text>
 				</g>
 				<circle class="sym" cx="0" cy="0" r="3"/>
 				<text class="lab" transform="translate(0 -11)">8</text>

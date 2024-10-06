@@ -19,7 +19,7 @@
 					</g>
 					<path class="edge" d="M 0 0 V -138.937 H 40"/>
 					<circle class="sym" cx="0" cy="0" r="3"/>
-					<text class="lab lft" transform="translate(-3 -7.0)">4</text>
+					<text class="lab lft" transform="translate(-3 -7)">4</text>
 				</g>
 				<g class="a8 c2 node n5 p0" transform="translate(40 117.508)">
 					<g class="a5 leaf node n2 p0 sample" transform="translate(-20 23.8921)">
@@ -34,7 +34,7 @@
 					</g>
 					<path class="edge" d="M 0 0 V -117.508 H -40"/>
 					<circle class="sym" cx="0" cy="0" r="3"/>
-					<text class="lab rgt" transform="translate(3 -7.0)">5</text>
+					<text class="lab rgt" transform="translate(3 -7)">5</text>
 				</g>
 				<circle class="sym" cx="0" cy="0" r="3"/>
 				<text class="lab" transform="translate(0 -11)">8</text>

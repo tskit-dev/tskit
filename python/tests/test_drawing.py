@@ -336,19 +336,21 @@ class TestClosestLeftNode(TestTreeDraw):
 
     def test_left_child(self):
         t = self.get_nonbinary_tree()
-        left_child = drawing.get_left_child(t, "postorder")
+        left_child = drawing.get_left_child(t, t.postorder())
         for u in t.nodes(order="postorder"):
             if t.num_children(u) > 0:
                 assert left_child[u] == t.children(u)[0]
 
     def test_null_node_left_child(self):
         t = self.get_nonbinary_tree()
-        left_child = drawing.get_left_child(t, "minlex_postorder")
+        arr = list(t.nodes(order="minlex_postorder"))
+        left_child = drawing.get_left_child(t, arr)
         assert left_child[tskit.NULL] == tskit.NULL
 
     def test_leaf_node_left_child(self):
         t = self.get_nonbinary_tree()
-        left_child = drawing.get_left_child(t, "minlex_postorder")
+        arr = list(t.nodes(order="minlex_postorder"))
+        left_child = drawing.get_left_child(t, arr)
         for u in t.samples():
             assert left_child[u] == tskit.NULL
 
@@ -1462,7 +1464,7 @@ class TestDrawSvgBase(TestTreeDraw, xmlunittest.XmlTestMixin):
     Base class for testing the SVG tree drawing method
     """
 
-    def verify_basic_svg(self, svg, width=200, height=200, num_trees=1):
+    def verify_basic_svg(self, svg, width=200, height=200, num_trees=1, has_root=True):
         prefix = "{http://www.w3.org/2000/svg}"
         root = xml.etree.ElementTree.fromstring(svg)
         assert root.tag == prefix + "svg"
@@ -1498,7 +1500,11 @@ class TestDrawSvgBase(TestTreeDraw, xmlunittest.XmlTestMixin):
         for group in groups:
             assert "class" in group.attrib
             cls = group.attrib["class"]
-            assert re.search(r"\broot\b", cls)
+            # if a subtree plot, the top of the displayed topology is not a local root
+            if has_root:
+                assert re.search(r"\broot\b", cls)
+            else:
+                assert not re.search(r"\broot\b", cls)
 
 
 class TestDrawSvg(TestDrawSvgBase):
@@ -2554,6 +2560,41 @@ class TestDrawSvg(TestDrawSvgBase):
         with pytest.raises(ValueError, match="Invalid coordinates"):
             ts.draw_svg(x_regions={(1, 0): "bad"})
 
+    def test_bad_ts_order(self):
+        ts = msprime.sim_ancestry(1, sequence_length=100, random_seed=1)
+        with pytest.raises(ValueError, match="Unknown display order"):
+            ts.draw_svg(order=(ts.first().nodes(order="minlex_postorder")))
+
+    def test_good_tree_order(self):
+        ts = msprime.sim_ancestry(1, sequence_length=100, random_seed=1)
+        ts.first().draw_svg(order=(ts.first().nodes(order="minlex_postorder")))
+
+    def test_nonpostorder_tree_order(self):
+        tree = tskit.Tree.generate_balanced(10)
+        with pytest.raises(ValueError, match="must be passed in postorder"):
+            tree.draw_svg(order=(tree.nodes(order="preorder")))
+
+    def test_only_subset_nodes_in_rank(self, caplog):
+        tree = tskit.Tree.generate_comb(100)
+        # Only show the last few tips of the comb. We should only use the ranks
+        # from those tip times, so ticks > 5 should raise a warning
+        with caplog.at_level(logging.WARNING):
+            tree.draw_svg(
+                order=tree.nodes(root=105, order="minlex_postorder"),
+                time_scale="rank",
+                y_axis=True,
+                y_ticks=[0, 1, 6],
+            )
+            assert "lie outside the plotted axis" not in caplog.text
+        with caplog.at_level(logging.WARNING):
+            tree.draw_svg(
+                order=tree.nodes(root=105, order="minlex_postorder"),
+                time_scale="rank",
+                y_axis=True,
+                y_ticks=[0, 1, 10],
+            )
+            assert "Ticks {10: '10'} lie outside the plotted axis" in caplog.text
+
 
 class TestDrawKnownSvg(TestDrawSvgBase):
     """
@@ -2953,6 +2994,61 @@ class TestDrawKnownSvg(TestDrawSvgBase):
         )
         self.verify_known_svg(
             svg, "ts_max_trees_treewise.svg", overwrite_viz, width=200 * (max_trees + 1)
+        )
+
+    def test_known_svg_tree_collapsed(self, overwrite_viz, draw_plotbox):
+        tree = tskit.Tree.generate_balanced(8)
+        remove_nodes = set()
+        remove_nodes_below = {8, 13}
+        for u in remove_nodes_below:
+            subtree_nodes = set(tree.nodes(root=u)) - {u}
+            remove_nodes.update(subtree_nodes)
+        order = [
+            u for u in tree.nodes(order="minlex_postorder") if u not in remove_nodes
+        ]
+        svg = tree.draw_svg(order=order, debug_box=draw_plotbox)
+        assert svg.count("multi") == len(remove_nodes_below)
+        assert svg.count(">+2<") == 1  # One tip has 2 samples below it
+        assert svg.count(">+4<") == 1  # Another tip has 4 samples below it
+        for u in order:
+            assert f'n{u}"' in svg or f"n{u} " in svg
+        for u in remove_nodes:
+            assert f'n{u}"' not in svg and f"n{u} " not in svg
+        self.verify_known_svg(svg, "tree_simple_collapsed.svg", overwrite_viz)
+
+    def test_known_svg_tree_subtree(self, overwrite_viz, draw_plotbox):
+        tree = tskit.Tree.generate_balanced(8)
+        order = [u for u in tree.nodes(root=10, order="minlex_postorder")]
+        # The balanced tree has all descendants of nodes 10 with IDs < 10
+        assert np.all(np.array(order) <= 10)
+        svg = tree.draw_svg(order=order, debug_box=draw_plotbox)
+        for u in order:
+            assert f'n{u}"' in svg or f"n{u} " in svg
+        for u in set(tree.nodes()) - set(order):
+            assert f'n{u}"' not in svg and f"n{u} " not in svg
+        self.verify_known_svg(svg, "tree_subtree.svg", overwrite_viz, has_root=False)
+
+    def test_known_svg_tree_subtrees_with_collapsed(self, overwrite_viz, draw_plotbox):
+        # Two subtrees, one with a collapsed node below node 16
+        tree = tskit.Tree.generate_balanced(16)
+        roots = [22, 25]
+        order = []
+        remove_nodes_below = 16
+        remove_nodes = set(tree.nodes(root=remove_nodes_below)) - {remove_nodes_below}
+        for root in roots:
+            order += [
+                u
+                for u in tree.nodes(root=root, order="minlex_postorder")
+                if u not in remove_nodes
+            ]
+        svg = tree.draw_svg(order=order, debug_box=draw_plotbox)
+        assert svg.count("multi") == 1  # One tip representing multiple nodes
+        for u in order:
+            assert f'n{u}"' in svg or f"n{u} " in svg
+        for u in remove_nodes:
+            assert f'n{u}"' not in svg and f"n{u} " not in svg
+        self.verify_known_svg(
+            svg, "tree_subtrees_with_collapsed.svg", overwrite_viz, has_root=False
         )
 
 

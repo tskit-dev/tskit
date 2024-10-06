@@ -19,7 +19,7 @@
 					</g>
 					<path class="edge" d="M 0 0 V -138.85 H 40"/>
 					<circle class="sym" cx="0" cy="0" r="3"/>
-					<text class="lab lft" transform="translate(-3 -7.0)">4</text>
+					<text class="lab lft" transform="translate(-3 -7)">4</text>
 				</g>
 				<g class="a9 c2 m2 node n5 p0 s0" transform="translate(40 123.427)">
 					<g class="a5 leaf node n2 p0 sample" transform="translate(-20 17.1953)">
@@ -39,7 +39,7 @@
 						<text class="lab rgt" transform="translate(5 0)">2</text>
 					</g>
 					<circle class="sym" cx="0" cy="0" r="3"/>
-					<text class="lab rgt" transform="translate(3 -7.0)">5</text>
+					<text class="lab rgt" transform="translate(3 -7)">5</text>
 				</g>
 				<path class="edge" d="M 0 0 V -17.5778 H 0"/>
 				<g class="mut m0 s0 unknown_time" transform="translate(0 -11.7185)">
@@ -53,7 +53,7 @@
 					<text class="lab rgt" transform="translate(5 0)">1</text>
 				</g>
 				<circle class="sym" cx="0" cy="0" r="3"/>
-				<text class="lab rgt" transform="translate(3 -7.0)">9</text>
+				<text class="lab rgt" transform="translate(3 -7)">9</text>
 			</g>
 		</g>
 	</g>
