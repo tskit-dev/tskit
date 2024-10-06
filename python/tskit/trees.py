@@ -1949,7 +1949,7 @@ class Tree:
             mutation_titles=mutation_titles,
             root_svg_attributes=root_svg_attributes,
             style=style,
-            order=order,
+            order=order,  # NB undocumented: Tree.draw_svg can also take an iterable here
             force_root_branch=force_root_branch,
             symbol_size=symbol_size,
             x_axis=x_axis,

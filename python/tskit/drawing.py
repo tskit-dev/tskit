@@ -175,6 +175,10 @@ def check_order(order):
         "minlex": "minlex_postorder",
         "tree": "postorder",
     }
+    # Silently accept a tree traversal order as a valid order, so we can
+    # call this check twice if necessary
+    if order in traversal_orders.values():
+        return order
     if order not in traversal_orders:
         raise ValueError(
             f"Unknown display order '{order}'. "
@@ -1097,6 +1101,7 @@ class SvgTreeSequence(SvgAxisPlot):
             **kwargs,
         )
         x_scale = check_x_scale(x_scale)
+        order = check_order(order)
         if node_labels is None:
             node_labels = {u: str(u) for u in range(ts.num_nodes)}
         if force_root_branch is None:
@@ -1386,7 +1391,14 @@ class SvgTree(SvgAxisPlot):
             **kwargs,
         )
         self.tree = tree
-        self.traversal_order = check_order(order)
+        if order is None or isinstance(order, str):
+            # Can't use the Tree.postorder array as we need minlex
+            self.postorder_nodes = list(tree.nodes(order=check_order(order)))
+        else:
+            # Currently undocumented feature: we can pass a (postorder) list
+            # of nodes to plot, which allows us to draw a subset of nodes, or
+            # stop traversing certain subtrees
+            self.postorder_nodes = order
 
         # Create some instance variables for later use in plotting
         self.node_mutations = collections.defaultdict(list)
@@ -1528,7 +1540,7 @@ class SvgTree(SvgAxisPlot):
             x_regions=x_regions,
         )
         if y_ticks is None:
-            y_ticks = {h: ts.node(u).time for u, h in self.node_height.items()}
+            y_ticks = {h: ts.node(u).time for u, h in sorted(self.node_height.items())}
 
         self.draw_y_axis(
             ticks=check_y_ticks(y_ticks),
@@ -1582,7 +1594,7 @@ class SvgTree(SvgAxisPlot):
             t = np.zeros_like(node_time)
             if max_time == "tree":
                 # We only rank the times within the tree in this case.
-                for u in self.tree.nodes():
+                for u in self.node_x_coord.keys():
                     t[u] = node_time[u]
             else:
                 # only rank the nodes that are actually referenced in the edge table
@@ -1603,19 +1615,22 @@ class SvgTree(SvgAxisPlot):
             # In pathological cases, all the nodes are at the same time
             if max_time == min_time:
                 max_time = min_time + 1
-            self.node_height = {u: depth[node_time[u]] for u in self.tree.nodes()}
+            self.node_height = {
+                u: depth[node_time[u]] for u in self.node_x_coord.keys()
+            }
             for u in self.node_mutations.keys():
-                parent = self.tree.parent(u)
-                if parent == NULL:
-                    top = self.node_height[u] + root_branch_len
-                else:
-                    top = self.node_height[parent]
-                self.process_mutations_over_node(
-                    u, self.node_height[u], top, ignore_times=True
-                )
+                if u in self.node_height:
+                    parent = self.tree.parent(u)
+                    if parent == NULL:
+                        top = self.node_height[u] + root_branch_len
+                    else:
+                        top = depth[node_time[parent]]
+                    self.process_mutations_over_node(
+                        u, self.node_height[u], top, ignore_times=True
+                    )
         else:
             assert self.time_scale in ["time", "log_time"]
-            self.node_height = {u: node_time[u] for u in self.tree.nodes()}
+            self.node_height = {u: node_time[u] for u in self.node_x_coord.keys()}
             if max_time == "tree":
                 max_node_height = max(self.node_height.values())
                 max_mut_height = np.nanmax(
@@ -1647,13 +1662,14 @@ class SvgTree(SvgAxisPlot):
                 if max_node_height + root_branch_len > max_time:
                     max_time = max_node_height + root_branch_len
             for u in self.node_mutations.keys():
-                parent = self.tree.parent(u)
-                if parent == NULL:
-                    # This is a root: if muts have no times we must specify an upper time
-                    top = self.node_height[u] + root_branch_len
-                else:
-                    top = self.node_height[parent]
-                self.process_mutations_over_node(u, self.node_height[u], top)
+                if u in self.node_height:
+                    parent = self.tree.parent(u)
+                    if parent == NULL:
+                        # This is a root: if muts have no times we specify an upper time
+                        top = self.node_height[u] + root_branch_len
+                    else:
+                        top = node_time[parent]
+                    self.process_mutations_over_node(u, self.node_height[u], top)
 
         assert float(max_time) == max_time
         assert float(min_time) == min_time
@@ -1684,25 +1700,33 @@ class SvgTree(SvgAxisPlot):
             + self.plotbox.left
         )
         # Set up x positions for nodes
-        node_x_coord = {}
+        node_xpos = {}
         leaf_x = 0  # First leaf starts at x=1, to give some space between Y axis & leaf
-        for u in self.tree.nodes(order=self.traversal_order):
-            if self.tree.is_leaf(u):
+        prev = self.tree.virtual_root
+        tree = self.tree
+        for u in self.postorder_nodes:
+            is_tip = tree.parent(prev) != u
+            if is_tip:
                 leaf_x += 1
-                node_x_coord[u] = leaf_x
+                node_xpos[u] = leaf_x
             else:
-                child_coords = [node_x_coord[c] for c in self.tree.children(u)]
-                if len(child_coords) == 1:
-                    node_x_coord[u] = child_coords[0]
+                child_x = [node_xpos[c] for c in tree.children(u) if c in node_xpos]
+                assert len(child_x) != 0  # Must have prev hit somethng defined as a tip
+                if len(child_x) == 1:
+                    node_xpos[u] = child_x[0]
                 else:
-                    a = min(child_coords)
-                    b = max(child_coords)
-                    node_x_coord[u] = a + (b - a) / 2
+                    a = min(child_x)
+                    b = max(child_x)
+                    node_xpos[u] = a + (b - a) / 2
+            if tree.parent(u) == prev:
+                raise ValueError("Nodes must be passed in postorder to Tree.draw_svg()")
+            prev = u
+
         # Now rescale to the plot width: leaf_x is the maximum value of the last leaf
-        if len(node_x_coord) > 0:
+        if len(node_xpos) > 0:
             scale = self.plotbox.width / leaf_x
             lft = self.plotbox.left - scale / 2
-        self.node_x_coord = {k: lft + v * scale for k, v in node_x_coord.items()}
+        self.node_x_coord = {k: lft + v * scale for k, v in node_xpos.items()}
 
     def info_classes(self, focal_node_id):
         """
@@ -1741,29 +1765,60 @@ class SvgTree(SvgAxisPlot):
             classes.add(f"s{mutation.site+ self.offsets.site}")
         return sorted(classes)
 
-    def draw_tree(self):
-        dwg = self.drawing
-        node_coords = {
-            u: np.array([x, self.timescaling.transform(self.node_height[u])])
-            for u, x in self.node_x_coord.items()
+    def text_transform(self, position, dy=0):
+        line_h = self.text_height
+        sym_sz = self.symbol_size
+        transforms = {
+            "below": f"translate(0 {rnd(line_h - sym_sz / 2 + dy)})",
+            "above": f"translate(0 {rnd(-(line_h - sym_sz / 2) + dy)})",
+            "above_left": f"translate({rnd(-sym_sz / 2)} {rnd(-line_h / 2 + dy)})",
+            "above_right": f"translate({rnd(sym_sz / 2)} {-rnd(line_h / 2 + dy)})",
+            "left": f"translate({-rnd(2 + sym_sz / 2)} {rnd(dy)})",
+            "right": f"translate({rnd(2 + sym_sz / 2)} {rnd(dy)})",
         }
-        tree = self.tree
-        left_child = get_left_child(tree, self.traversal_order)
+        return transforms[position]
 
-        # Iterate over nodes, adding groups to reflect the tree hierarchy
+    def draw_tree(self):
+        # Note: the displayed tree may not be the same as self.tree, e.g. if the nodes
+        # have been collapsed, or a subtree is being displayed. The node_x_coord
+        # dictionary keys gives the nodes of the displayed tree, in postorder.
+        NodeDrawInfo = collections.namedtuple("NodeDrawInfo", ["pos", "is_tip"])
+        dwg = self.drawing
+        tree = self.tree
+        left_child = get_left_child(tree, self.postorder_nodes)
+        parent_array = tree.parent_array
+
+        node_info = {}
+        roots = []  # Roots of the displated tree
+        prev = tree.virtual_root
+        for u, x in self.node_x_coord.items():  # Node ids `u` returned in postorder
+            node_info[u] = NodeDrawInfo(
+                pos=np.array([x, self.timescaling.transform(self.node_height[u])]),
+                # Detect if this is a "tip" in the displayed tree, even if
+                # it is not a leaf in the original tree, by looking at the prev parent
+                is_tip=(parent_array[prev] != u),
+            )
+            prev = u
+            if parent_array[u] not in self.node_x_coord:
+                roots.append(u)
+        # Iterate over displayed nodes, adding groups to reflect the tree hierarchy
         stack = []
-        for u in tree.roots:
-            x, y = node_coords[u]
+        for u in roots:
+            x, y = node_info[u].pos
             grp = dwg.g(
                 class_=" ".join(self.info_classes(u)),
                 transform=f"translate({rnd(x)} {rnd(y)})",
             )
             stack.append((u, self.get_plotbox().add(grp)))
+
+        # Preorder traversal, so we can create nested groups
         while len(stack) > 0:
             u, curr_svg_group = stack.pop()
-            pu = node_coords[u]
+            pu, is_tip = node_info[u]
             for focal in tree.children(u):
-                fx, fy = node_coords[focal] - pu
+                if focal not in node_info:
+                    continue
+                fx, fy = node_info[focal].pos - pu
                 new_svg_group = curr_svg_group.add(
                     dwg.g(
                         class_=" ".join(self.info_classes(focal)),
@@ -1773,31 +1828,30 @@ class SvgTree(SvgAxisPlot):
                 stack.append((focal, new_svg_group))
 
             o = (0, 0)
-            v = tree.parent(u)
+            v = parent_array[u]
 
-            # Add edge first => on layer underneath anything else
-            if v != NULL:
+            # Add edge above node first => on layer underneath anything else
+            draw_edge_above_node = False
+            try:
+                dx, dy = node_info[v].pos - pu
+                draw_edge_above_node = True
+            except KeyError:
+                # Must be a root
+                root_branch_l = self.min_root_branch_plot_length
+                if root_branch_l > 0:
+                    if len(self.node_mutations[u]) > 0:
+                        mtop = self.timescaling.transform(
+                            self.node_mutations[u][0].time
+                        )
+                        root_branch_l = max(root_branch_l, pu[1] - mtop)
+                    dx, dy = 0, -root_branch_l
+                    draw_edge_above_node = True
+            if draw_edge_above_node:
                 add_class(self.edge_attrs[u], "edge")
-                dx, dy = node_coords[v] - pu
                 path = dwg.path(
                     [("M", o), ("V", rnd(dy)), ("H", rnd(dx))], **self.edge_attrs[u]
                 )
                 curr_svg_group.add(path)
-            else:
-                root_branch_l = self.min_root_branch_plot_length
-                if root_branch_l > 0:
-                    add_class(self.edge_attrs[u], "edge")
-                    if len(self.node_mutations[u]) > 0:
-                        mutation = self.node_mutations[u][0]  # Oldest on this branch
-                        root_branch_l = max(
-                            root_branch_l,
-                            pu[1] - self.timescaling.transform(mutation.time),
-                        )
-                    path = dwg.path(
-                        [("M", o), ("V", rnd(-root_branch_l)), ("H", 0)],
-                        **self.edge_attrs[u],
-                    )
-                    curr_svg_group.add(path)
 
             # Add mutation symbols + labels
             for mutation in self.node_mutations[u]:
@@ -1824,37 +1878,63 @@ class SvgTree(SvgAxisPlot):
                 if mutation_id in self.mutation_titles:
                     symbol.set_desc(title=self.mutation_titles[mutation_id])
                 # Labels
-                if u == left_child[tree.parent(u)]:
+                if u == left_child[parent_array[u]]:
                     mut_label_class = "lft"
-                    transform = f"translate(-{rnd(2+self.symbol_size/2)} 0)"
+                    transform = self.text_transform("left")
                 else:
                     mut_label_class = "rgt"
-                    transform = f"translate({rnd(2+self.symbol_size/2)} 0)"
+                    transform = self.text_transform("right")
                 add_class(self.mutation_label_attrs[mutation_id], mut_label_class)
                 self.mutation_label_attrs[mutation_id]["transform"] = transform
                 mut_group.add(dwg.text(**self.mutation_label_attrs[mutation_id]))
 
-            # Add node symbol + label next (visually above the edge subtending this node)
-            # Symbols
-            if self.tree.is_sample(u):
+            # Add node symbol + label (visually above the edge subtending this node)
+            # -> symbols
+            if tree.is_sample(u):
                 symbol = curr_svg_group.add(dwg.rect(**self.node_attrs[u]))
             else:
                 symbol = curr_svg_group.add(dwg.circle(**self.node_attrs[u]))
+            multi_samples = None
+            if (
+                is_tip and tree.num_samples(u) > 1
+            ):  # Multi-sample tip => trapezium shape
+                multi_samples = tree.num_samples(u)
+                trapezium_attrs = self.node_attrs[u].copy()
+                # Remove the shape-styling attributes
+                for unwanted_attr in ("size", "insert", "center", "r"):
+                    trapezium_attrs.pop(unwanted_attr, None)
+                trapezium_attrs["points"] = [  # add a trapezium shape below the symbol
+                    (self.symbol_size / 2, 0),
+                    (self.symbol_size, self.symbol_size),
+                    (-self.symbol_size, self.symbol_size),
+                    (-self.symbol_size / 2, 0),
+                ]
+                add_class(trapezium_attrs, "multi")
+                curr_svg_group.add(dwg.polygon(**trapezium_attrs))
             if u in self.node_titles:
                 symbol.set_desc(title=self.node_titles[u])
-            # Labels
+            # -> labels
             node_lab_attr = self.node_label_attrs[u]
-            if tree.is_leaf(u):
-                node_lab_attr["transform"] = f"translate(0 {self.text_height - 3})"
-            elif tree.parent(u) == NULL and self.min_root_branch_plot_length == 0:
-                node_lab_attr["transform"] = f"translate(0 -{self.text_height - 3})"
+            if is_tip and multi_samples is None:
+                node_lab_attr["transform"] = self.text_transform("below")
+            elif u in roots and self.min_root_branch_plot_length == 0:
+                node_lab_attr["transform"] = self.text_transform("above")
             else:
+                if multi_samples is not None:
+                    curr_svg_group.add(
+                        dwg.text(
+                            text=f"+{multi_samples}",
+                            transform=self.text_transform("below", dy=1),
+                            font_style="italic",
+                            class_="lab summary",
+                        )
+                    )
                 if u == left_child[tree.parent(u)]:
                     add_class(node_lab_attr, "lft")
-                    node_lab_attr["transform"] = f"translate(-3 -{self.text_height/2})"
+                    node_lab_attr["transform"] = self.text_transform("above_left")
                 else:
                     add_class(node_lab_attr, "rgt")
-                    node_lab_attr["transform"] = f"translate(3 -{self.text_height/2})"
+                    node_lab_attr["transform"] = self.text_transform("above_right")
             curr_svg_group.add(dwg.text(**node_lab_attr))
 
 
@@ -1980,14 +2060,14 @@ def get_left_neighbour(tree, traversal_order):
     return left_neighbour[:-1]
 
 
-def get_left_child(tree, traversal_order):
+def get_left_child(tree, postorder_nodes):
     """
     Returns the left-most child of each node in the tree according to the
-    specified traversal order. If a node has no children or NULL is passed
-    in, return NULL.
+    traversal order listed in postorder_nodes. If a node has no children or
+    NULL is passed in, return NULL.
     """
     left_child = np.full(tree.tree_sequence.num_nodes + 1, NULL, dtype=int)
-    for u in tree.nodes(order=traversal_order):
+    for u in postorder_nodes:
         parent = tree.parent(u)
         if parent != NULL and left_child[parent] == NULL:
             left_child[parent] = u

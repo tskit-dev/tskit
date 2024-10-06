@@ -11,11 +11,11 @@
 				</g>
 				<line class="ax-line" x1="56.8" x2="56.8" y1="168.2" y2="10"/>
 				<g class="ticks">
-					<g class="tick" transform="translate(56.8 49.55)">
+					<g class="tick" transform="translate(56.8 168.2)">
 						<line class="grid" x1="0" x2="123.2" y1="0" y2="0"/>
 						<line x1="0" x2="-5" y1="0" y2="0"/>
 						<g transform="translate(-6 0)">
-							<text class="lab" text-anchor="end">5.31</text>
+							<text class="lab" text-anchor="end">0.00</text>
 						</g>
 					</g>
 					<g class="tick" transform="translate(56.8 128.65)">
@@ -25,18 +25,18 @@
 							<text class="lab" text-anchor="end">0.11</text>
 						</g>
 					</g>
-					<g class="tick" transform="translate(56.8 168.2)">
-						<line class="grid" x1="0" x2="123.2" y1="0" y2="0"/>
-						<line x1="0" x2="-5" y1="0" y2="0"/>
-						<g transform="translate(-6 0)">
-							<text class="lab" text-anchor="end">0.00</text>
-						</g>
-					</g>
 					<g class="tick" transform="translate(56.8 89.1)">
 						<line class="grid" x1="0" x2="123.2" y1="0" y2="0"/>
 						<line x1="0" x2="-5" y1="0" y2="0"/>
 						<g transform="translate(-6 0)">
 							<text class="lab" text-anchor="end">1.11</text>
+						</g>
+					</g>
+					<g class="tick" transform="translate(56.8 49.55)">
+						<line class="grid" x1="0" x2="123.2" y1="0" y2="0"/>
+						<line x1="0" x2="-5" y1="0" y2="0"/>
+						<g transform="translate(-6 0)">
+							<text class="lab" text-anchor="end">5.31</text>
 						</g>
 					</g>
 				</g>
@@ -67,7 +67,7 @@
 						<text class="lab lft" transform="translate(-5 0)">4</text>
 					</g>
 					<circle class="sym" cx="0" cy="0" r="3"/>
-					<text class="lab lft" transform="translate(-3 -7.0)">4</text>
+					<text class="lab lft" transform="translate(-3 -7)">4</text>
 				</g>
 				<g class="a7 c2 node n5 p0" transform="translate(30.8 39.55)">
 					<g class="a5 leaf node n2 p0 sample" transform="translate(-15.4 79.1)">
@@ -87,7 +87,7 @@
 					</g>
 					<path class="edge" d="M 0 0 V -39.55 H -30.8"/>
 					<circle class="sym" cx="0" cy="0" r="3"/>
-					<text class="lab rgt" transform="translate(3 -7.0)">5</text>
+					<text class="lab rgt" transform="translate(3 -7)">5</text>
 				</g>
 				<path class="edge" d="M 0 0 V -39.55 H 0"/>
 				<g class="mut m5 s2 unknown_time" transform="translate(0 -19.775)">
@@ -96,7 +96,7 @@
 					<text class="lab rgt" transform="translate(5 0)">5</text>
 				</g>
 				<circle class="sym" cx="0" cy="0" r="3"/>
-				<text class="lab rgt" transform="translate(3 -7.0)">7</text>
+				<text class="lab rgt" transform="translate(3 -7)">7</text>
 			</g>
 		</g>
 	</g>
