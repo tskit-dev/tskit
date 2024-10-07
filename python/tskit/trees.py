@@ -40,7 +40,6 @@ from typing import Any
 from typing import NamedTuple
 
 import numpy as np
-import scipy.sparse
 
 import _tskit
 import tskit
