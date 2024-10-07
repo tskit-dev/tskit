@@ -8600,7 +8600,7 @@ class TreeSequence:
             samples: np.ndarray = None,
             individuals: np.ndarray = None,
             centre: bool = True,
-            windows = None,
+            windows: list = None,
             random_state: np.random.Generator = None,
             ) -> (np.ndarray, np.ndarray):
         """
@@ -8608,14 +8608,14 @@ class TreeSequence:
         API partially adopted from `scikit-learn`: 
         https://scikit-learn.org/dev/modules/generated/sklearn.decomposition.PCA.html
 
-        :param int n_components: Number of principal components
-        :param int iterated_power: Number of power iteration of range finder
-        :param int n_oversamples: Number of additional test vectors
-        :param np.ndarray samples: Samples to perform PCA
-        :param np.ndarray individuals: Individuals to perform PCA
-        :param bool centre: Centre the genetic relatedness matrix
-        :param windows: ???
-        :param np.random.Generator random_state: Random number generator
+        :param int n_components: Number of principal components.
+        :param int iterated_power: Number of power iteration of range finder.
+        :param int n_oversamples: Number of additional test vectors.
+        :param np.ndarray samples: Samples to perform PCA.
+        :param np.ndarray individuals: Individuals to perform PCA.
+        :param bool centre: Centre the genetic relatedness matrix.
+        :param list windows: An increasing list of breakpoints between the windows to compute the principal components in. Currently not working.
+        :param np.random.Generator random_state: Random number generator.
         """
 
         def _rand_pow_range_finder(
@@ -8689,7 +8689,7 @@ class TreeSequence:
             x = arr - arr.mean(axis=0) if centre else arr # centering within index in rows
             x = self.genetic_relatedness_vector(W=x[sample_individuals], windows=windows, mode="branch", centre=False, nodes=samples)
             bincount_fn = lambda w: np.bincount(sample_individuals, w)
-            x = np.apply_along_axis(bincount_fn, axis=0, arr=x) # I think it should be axis=1, but axis=0 gives the correct values why?
+            x = np.apply_along_axis(bincount_fn, axis=0, arr=x)
             x = x - x.mean(axis=0) if centre else x # centering within index in cols
 
             return x
