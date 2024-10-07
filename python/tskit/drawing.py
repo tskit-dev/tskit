@@ -360,6 +360,12 @@ def rnd(x):
     return x
 
 
+def bold_integer(number):
+    # For simple integers, it's easier to use bold unicode characters
+    # than to try to get the SVG to render a bold font for part of a string
+    return "".join("𝟎𝟏𝟐𝟑𝟒𝟓𝟔𝟕𝟖𝟗"[int(digit)] for digit in str(number))
+
+
 def edge_and_sample_nodes(ts, omit_regions=None):
     """
     Return ids of nodes which are mentioned in an edge in this tree sequence or which
@@ -380,6 +386,82 @@ def edge_and_sample_nodes(ts, omit_regions=None):
             ids = np.concatenate((ids, used_edges.child, used_edges.parent))
     return np.unique(
         np.concatenate((ids, np.where(ts.nodes_flags & NODE_IS_SAMPLE)[0]))
+    )
+
+
+def _postorder_tracked_node_traversal(tree, root, collapse_tracked, key_dict=None):
+    # Postorder traversal that only descends into subtrees if they contain
+    # a tracked node. Additionally, if collapse_tracked is not None, it is
+    # interpreted as a proportion, so that we do not descend into a subtree if
+    # that proportion or greater of the samples in the subtree are tracked.
+    # If key_dict is provided, use this to sort the children. This allows
+    # us to put e.g. the subtrees containing the most tracked nodes first.
+    # Private function, for use only in drawing.postorder_tracked_minlex_traversal()
+
+    # If we deliberately specify the virtual root, it should also be returned
+    is_virtual_root = root == tree.virtual_root
+    if root == tskit.NULL:
+        root = tree.virtual_root
+    stack = [(root, False)]
+    while stack:
+        u, visited = stack.pop()
+        if visited:
+            if u != tree.virtual_root or is_virtual_root:
+                yield u
+        else:
+            if tree.num_children(u) == 0:
+                yield u
+            elif tree.num_tracked_samples(u) == 0:
+                yield u
+            elif (
+                collapse_tracked is not None
+                and tree.num_children(u) != 1
+                and tree.num_tracked_samples(u)
+                >= collapse_tracked * tree.num_samples(u)
+            ):
+                yield u
+            else:
+                stack.append((u, True))
+                if key_dict is None:
+                    stack.extend((c, False) for c in tree.children(u))
+                else:
+                    stack.extend(
+                        sorted(
+                            ((c, False) for c in tree.children(u)),
+                            key=lambda v: key_dict[v[0]],
+                            reverse=True,
+                        )
+                    )
+
+
+def _postorder_tracked_minlex_traversal(tree, root=None, *, collapse_tracked=None):
+    """
+    Postorder traversal for drawing purposes that places child nodes with the
+    most tracked sample descendants first (then sorts ties by minlex on leaf node ids).
+    Additionally, this traversal only descends into subtrees if they contain a tracked
+    node, and may not descend into other subtree, if the ``collapse_tracked``
+    parameter is set to a numeric value. More specifically, if the proportion of
+    tracked samples in the subtree is greater than or equal to ``collapse_tracked``,
+    the subtree is not descended into.
+    """
+
+    key_dict = {}
+    parent_array = tree.parent_array
+    prev = tree.virtual_root
+    if root is None:
+        root = tskit.NULL
+    for u in _postorder_tracked_node_traversal(tree, root, collapse_tracked):
+        is_tip = parent_array[prev] != u
+        prev = u
+        if is_tip:
+            # Sort by number of tracked samples (desc), then by minlex
+            key_dict[u] = (-tree.num_tracked_samples(u), u)
+        else:
+            min_tip_id = min(key_dict[v][1] for v in tree.children(u) if v in key_dict)
+            key_dict[u] = (-tree.num_tracked_samples(u), min_tip_id)
+
+    return _postorder_tracked_node_traversal(
+        tree, root, collapse_tracked, key_dict=key_dict
     )
 
 
@@ -688,6 +770,8 @@ class SvgAxisPlot(SvgPlot):
         ".tree text, .tree-sequence text {dominant-baseline: central}"
         ".plotbox .lab.lft {text-anchor: end}"
         ".plotbox .lab.rgt {text-anchor: start}"
+        ".polytomy line {stroke: black; stroke-dasharray: 1px, 1px}"
+        ".polytomy text {paint-order:stroke;stroke-width:0.3em;stroke:white}"
     )
 
     # TODO: we may want to make some of the constants below into parameters
@@ -1315,6 +1399,10 @@ class SvgTree(SvgAxisPlot):
     See :meth:`Tree.draw_svg` for a description of usage and frequently used parameters.
     """
 
+    PolytomyLine = collections.namedtuple(
+        "PolytomyLine", "num_branches, num_samples, line_pos"
+    )
+
     def __init__(
         self,
         tree,
@@ -1348,6 +1436,7 @@ class SvgTree(SvgAxisPlot):
         mutation_label_attrs=None,
         offsets=None,
         omit_sites=None,
+        pack_untracked_polytomies=None,
         **kwargs,
     ):
         if max_time is None and max_tree_height is not None:
@@ -1371,6 +1460,7 @@ class SvgTree(SvgAxisPlot):
         if symbol_size is None:
             symbol_size = 6
         self.symbol_size = symbol_size
+        self.pack_untracked_polytomies = pack_untracked_polytomies
         ts = tree.tree_sequence
         tree_index = tree.index
         if offsets is not None:
@@ -1701,16 +1791,43 @@ class SvgTree(SvgAxisPlot):
         )
         # Set up x positions for nodes
         node_xpos = {}
+        untracked_children = collections.defaultdict(list)
+        self.extra_line = {}  # To store a dotted line to represent polytomies
         leaf_x = 0  # First leaf starts at x=1, to give some space between Y axis & leaf
-        prev = self.tree.virtual_root
         tree = self.tree
+        prev = tree.virtual_root
         for u in self.postorder_nodes:
+            parent = tree.parent(u)
+            if parent == prev:
+                raise ValueError("Nodes must be passed in postorder to Tree.draw_svg()")
             is_tip = tree.parent(prev) != u
             if is_tip:
-                leaf_x += 1
-                node_xpos[u] = leaf_x
+                if self.pack_untracked_polytomies and tree.num_tracked_samples(u) == 0:
+                    untracked_children[parent].append(u)
+                else:
+                    leaf_x += 1
+                    node_xpos[u] = leaf_x
             else:
+                # Concatenate all the untracked children
+                num_untracked_children = len(untracked_children[u])
                 child_x = [node_xpos[c] for c in tree.children(u) if c in node_xpos]
+                if num_untracked_children > 0:
+                    if num_untracked_children <= 1:
+                        # If only a single non-focal lineage, we might as well show it
+                        for child in untracked_children[u]:
+                            leaf_x += 1
+                            node_xpos[child] = leaf_x
+                            child_x.append(leaf_x)
+                    else:
+                        # Otherwise show a horizontal line with the number of lineages
+                        # Extra length of line is equal to log of the polytomy size
+                        self.extra_line[u] = self.PolytomyLine(
+                            num_untracked_children,
+                            sum(tree.num_samples(v) for v in untracked_children[u]),
+                            [leaf_x, leaf_x + 1 + np.log(num_untracked_children)],
+                        )
+                        child_x.append(leaf_x + 1)
+                        leaf_x = self.extra_line[u].line_pos[1]
                 assert len(child_x) != 0  # Must have prev hit somethng defined as a tip
                 if len(child_x) == 1:
                     node_xpos[u] = child_x[0]
@@ -1718,15 +1835,15 @@ class SvgTree(SvgAxisPlot):
                     a = min(child_x)
                     b = max(child_x)
                     node_xpos[u] = a + (b - a) / 2
-            if tree.parent(u) == prev:
-                raise ValueError("Nodes must be passed in postorder to Tree.draw_svg()")
             prev = u
-
         # Now rescale to the plot width: leaf_x is the maximum value of the last leaf
         if len(node_xpos) > 0:
             scale = self.plotbox.width / leaf_x
             lft = self.plotbox.left - scale / 2
         self.node_x_coord = {k: lft + v * scale for k, v in node_xpos.items()}
+        for v in self.extra_line.values():
+            for i in range(len(v.line_pos)):
+                v.line_pos[i] = lft + v.line_pos[i] * scale
 
     def info_classes(self, focal_node_id):
         """
@@ -1829,6 +1946,28 @@ class SvgTree(SvgAxisPlot):
 
             o = (0, 0)
             v = parent_array[u]
+
+            # Add polytomy line if necessary
+            if u in self.extra_line:
+                info = self.extra_line[u]
+                x2 = info.line_pos[1] - pu[0]
+                poly = dwg.g(class_="polytomy")
+                poly.add(
+                    dwg.line(
+                        start=(0, 0),
+                        end=(x2, 0),
+                    )
+                )
+                poly.add(
+                    dwg.text(
+                        f"+{info.num_samples}/{bold_integer(info.num_branches)}",
+                        font_style="italic",
+                        x=[rnd(x2)],
+                        dy=[rnd(-self.text_height / 10)],  # make the plus sign line up
+                        text_anchor="end",
+                    )
+                )
+                curr_svg_group.add(poly)
 
             # Add edge above node first => on layer underneath anything else
             draw_edge_above_node = False

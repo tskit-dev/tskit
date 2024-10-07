@@ -59,6 +59,11 @@
   which assigns a string to node and mutation symbols, commonly shown on mouseover. This
   can reduce label clutter while retaining useful info (:user:`hyanwong`, :pr:`3007`)
 
+- Added (currently undocumented) use of the `order` parameter in ``Tree.draw_svg()`` to
+  pass a subset of nodes, so subtrees can be visually collapsed. Additionally, an option
+  ``pack_untracked_polytomies`` allows large polytomies involving untracked samples to
+  be summarised as a dotted line (:user:`hyanwong`, :issue:`3011` :pr:`3010`, :pr:`3012`)
+
 --------------------
 [0.5.8] - 2024-06-27
 --------------------

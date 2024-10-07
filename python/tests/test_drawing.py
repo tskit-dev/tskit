@@ -3051,6 +3051,53 @@ class TestDrawKnownSvg(TestDrawSvgBase):
             svg, "tree_subtrees_with_collapsed.svg", overwrite_viz, has_root=False
         )
 
+    def test_known_svg_tree_polytomy(self, overwrite_viz, draw_plotbox):
+        tracked_nodes = [20, 24, 25, 27, 28, 29]
+        tree = tskit.Tree.generate_balanced(30, arity=4)
+        svg = tree.draw_svg(
+            time_scale="rank",
+            debug_box=draw_plotbox,
+            size=(600, 200),
+            style="".join(f".n{u} > .sym {{fill: cyan}}" for u in tracked_nodes + [39]),
+        )
+        self.verify_known_svg(
+            svg, "tree_poly.svg", overwrite_viz, width=600, height=200
+        )
+
+    def test_known_svg_tree_polytomy_tracked(self, overwrite_viz, draw_plotbox):
+        tracked_nodes = [20, 24, 25, 27, 28, 29]
+        tree = tskit.Tree.generate_balanced(30, arity=4, tracked_samples=tracked_nodes)
+        svg = tree.draw_svg(
+            time_scale="rank",
+            order=drawing._postorder_tracked_minlex_traversal(tree),
+            debug_box=draw_plotbox,
+            pack_untracked_polytomies=True,
+            size=(600, 200),
+            style="".join(f".n{u} > .sym {{fill: cyan}}" for u in tracked_nodes + [39]),
+        )
+        self.verify_known_svg(
+            svg, "tree_poly_tracked.svg", overwrite_viz, width=600, height=200
+        )
+
+    def test_known_svg_tree_polytomy_tracked_collapse(
+        self, overwrite_viz, draw_plotbox
+    ):
+        tracked_nodes = [20, 24, 25, 27, 28, 29]
+        tree = tskit.Tree.generate_balanced(30, arity=4, tracked_samples=tracked_nodes)
+        svg = tree.draw_svg(
+            time_scale="rank",
+            order=drawing._postorder_tracked_minlex_traversal(
+                tree, collapse_tracked=True
+            ),
+            debug_box=draw_plotbox,
+            size=(600, 200),
+            pack_untracked_polytomies=True,
+            style="".join(f".n{u} > .sym {{fill: cyan}}" for u in tracked_nodes + [39]),
+        )
+        self.verify_known_svg(
+            svg, "tree_poly_tracked_collapse.svg", overwrite_viz, width=600, height=200
+        )
+
 
 class TestRounding:
     def test_rnd(self):
@@ -3062,3 +3109,9 @@ class TestRounding:
         assert 1111110 == drawing.rnd(1111111)
         assert 123.457 == drawing.rnd(123.4567)
         assert 123.456 == drawing.rnd(123.4564)
+
+
+class TestDrawingTraversals:
+    # TODO: test drawing._postorder_tracked_minlex_traversal and
+    # drawing._postorder_tracked_node_traversal
+    pass
