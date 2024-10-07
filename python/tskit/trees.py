@@ -8718,7 +8718,6 @@ class TreeSequence:
 
         return U, D
 
-
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
         """
         Computes the mean squared covariances between each of the columns of ``W``
@@ -10298,4 +10297,3 @@ def write_ms(
                         )
             else:
                 print(file=output)
-
