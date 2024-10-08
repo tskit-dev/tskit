@@ -8601,7 +8601,7 @@ class TreeSequence:
             individuals: np.ndarray = None,
             centre: bool = True,
             windows: list = None,
-            seed: int = None,
+            random_seed: int = None,
             ) -> (np.ndarray, np.ndarray):
         """
         Run randomized singular value decomposition (rSVD) to obtain principal components.
@@ -8690,7 +8690,7 @@ class TreeSequence:
             ij = np.vstack([[n,k] for k, i in enumerate(individuals) for n in self.individual(i).nodes])
             samples, sample_individuals = ij[:,0], ij[:,1] # sample node index, individual of those nodes
             x = arr - arr.mean(axis=0) if centre else arr # centering within index in rows
-            x = self.genetic_relatedness_vector(W=x[sample_individuals], windows=windows, mode="branch", centre=False, nodes=samples)
+            x = self.genetic_relatedness_vector(W=x[sample_individuals], windows=windows, mode="branch", centre=False, nodes=samples)[0]
             bincount_fn = lambda w: np.bincount(sample_individuals, w)
             x = np.apply_along_axis(bincount_fn, axis=0, arr=x)
             x = x - x.mean(axis=0) if centre else x # centering within index in cols
@@ -8703,20 +8703,36 @@ class TreeSequence:
         if samples is not None and individuals is not None:
             raise ValueError("samples and individuals cannot be used at the same time")
         elif samples is not None:
-            _G = lambda x: self.genetic_relatedness_vector(x, windows=windows, mode="branch", centre=centre, nodes=samples)
+            mode = 'node'
             dim = samples.size
         elif individuals is not None:
-            _G = lambda x: _genetic_relatedness_vector(x, individuals, individuals, centre=centre, windows=windows)
+            mode = 'individual'
             dim = individuals.size
+    
+        drop_windows = windows is None
+        if drop_windows:
+            windows = [0, self.sequence_length]
 
-        U, D, _ = _rand_svd(
-                operator=_G,
-                operator_dim=dim,
-                rank=n_components,
-                depth=iterated_power,
-                num_vectors=n_components+n_oversamples,
-                rng=random_state
-                )
+        U = np.empty((len(windows)-1, dim, n_components))
+        D = np.empty((len(windows)-1, n_components))
+        for i in range(len(windows)-1):
+            if mode == 'node':
+                _G = lambda x: self.genetic_relatedness_vector(
+                        x, windows=windows[i:i+2], mode="branch", centre=centre, nodes=samples)[0]
+            elif mode == 'individual':
+                _G = lambda x: _genetic_relatedness_vector(
+                        x, individuals, individuals, centre=centre, windows=windows[i:i+2])
+            U[i], D[i], _ = _rand_svd(
+                        operator=_G,
+                        operator_dim=dim,
+                        rank=n_components,
+                        depth=iterated_power,
+                        num_vectors=n_components+n_oversamples,
+                        rng=random_state
+                    )
+
+        if drop_windows or len(windows) == 2:
+            U, D = U[0], D[0]
 
         return U, D
 
