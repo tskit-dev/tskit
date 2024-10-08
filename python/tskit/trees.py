@@ -8601,7 +8601,7 @@ class TreeSequence:
             individuals: np.ndarray = None,
             centre: bool = True,
             windows: list = None,
-            random_state: np.random.Generator = None,
+            seed: int = None,
             ) -> (np.ndarray, np.ndarray):
         """
         Run randomized singular value decomposition (rSVD) to obtain principal components.
@@ -8614,8 +8614,11 @@ class TreeSequence:
         :param np.ndarray samples: Samples to perform PCA.
         :param np.ndarray individuals: Individuals to perform PCA.
         :param bool centre: Centre the genetic relatedness matrix.
-        :param list windows: An increasing list of breakpoints between the windows to compute the principal components in. Currently not working.
-        :param np.random.Generator random_state: Random number generator.
+        :param list windows: An increasing list of breakpoints between the windows 
+            to compute the principal components in.
+        :param int random_seed: The random seed. If this is None, a random seed will
+            be automatically generated. Valid random seeds must be between 1 and
+            :math:`2^32 − 1`.
         """
 
         def _rand_pow_range_finder(
@@ -8694,8 +8697,7 @@ class TreeSequence:
 
             return x
 
-
-        if random_state is None: random_state = np.random.default_rng()
+        random_state = np.random.default_rng(random_seed)
         if samples is None and individuals is None: samples = self.samples()
         
         if samples is not None and individuals is not None:
