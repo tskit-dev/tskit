@@ -86,6 +86,8 @@
   be summarised as a dotted line (:user:`hyanwong`, :issue:`3011` :pr:`3010`, :pr:`3012`)
   
 
+- Added a ``title`` parameter to ``.draw_svg()`` methods (:user:`hyanwong`, :pr:`3015`)
+
 --------------------
 [0.5.8] - 2024-06-27
 --------------------

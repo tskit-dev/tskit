@@ -2560,6 +2560,13 @@ class TestDrawSvg(TestDrawSvgBase):
         with pytest.raises(ValueError, match="Invalid coordinates"):
             ts.draw_svg(x_regions={(1, 0): "bad"})
 
+    def test_title(self):
+        ts = msprime.sim_ancestry(1, sequence_length=100, random_seed=1)
+        svg = ts.draw_svg(title="This is a title")
+        assert "This is a title" in svg
+        svg = ts.first().draw_svg(title="This is another title")
+        assert "This is another title" in svg
+
     def test_bad_ts_order(self):
         ts = msprime.sim_ancestry(1, sequence_length=100, random_seed=1)
         with pytest.raises(ValueError, match="Unknown display order"):
@@ -2684,7 +2691,11 @@ class TestDrawKnownSvg(TestDrawSvgBase):
         tree = self.get_simple_ts().at_index(1)
         size = (300, 400)
         svg = tree.draw_svg(
-            size=size, debug_box=draw_plotbox, all_edge_mutations=True, x_axis=True
+            size=size,
+            debug_box=draw_plotbox,
+            all_edge_mutations=True,
+            x_axis=True,
+            title="All mutations tree: background shading shown",
         )
         self.verify_known_svg(
             svg, "tree_muts_all_edge.svg", overwrite_viz, width=size[0], height=size[1]
@@ -2705,6 +2716,13 @@ class TestDrawKnownSvg(TestDrawSvgBase):
         assert svg_no_css.count('class="site ') == ts.num_sites
         assert svg_no_css.count('class="mut ') == ts.num_mutations * 2
         self.verify_known_svg(svg, "ts.svg", overwrite_viz, width=200 * ts.num_trees)
+
+    def test_known_svg_ts_title(self, overwrite_viz, draw_plotbox):
+        ts = self.get_simple_ts()
+        svg = ts.draw_svg(title="The main plot title", debug_box=draw_plotbox)
+        self.verify_known_svg(
+            svg, "ts_title.svg", overwrite_viz, width=200 * ts.num_trees
+        )
 
     def test_known_svg_ts_no_axes(self, overwrite_viz, draw_plotbox):
         ts = self.get_simple_ts()

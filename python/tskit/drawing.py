@@ -1059,14 +1059,14 @@ class SvgAxisPlot(SvgPlot):
 
         # For tree sequences, we need to add on the background shaded regions
         self.root_groups["background"] = self.dwg_base.add(dwg.g(class_="background"))
-        y = self.image_size[1] - self.x_axis_offset
+        y = self.image_size[1] - self.x_axis_offset - self.plotbox.top
         for i in range(1, len(breaks)):
             break_x = plot_breaks[i]
             prev_break_x = plot_breaks[i - 1]
             tree_x = i * tree_width + self.plotbox.left
             prev_tree_x = (i - 1) * tree_width + self.plotbox.left
             # Shift diagonal lines between tree & axis into the treebox a little
-            diag_height = y - (self.image_size[1] - bottom_padding)
+            diag_height = y - (self.image_size[1] - bottom_padding) + self.plotbox.top
             self.root_groups["background"].add(
                 # NB: the path below draws straight diagonal lines between the tree boxes
                 # and the X axis. An alternative implementation using bezier curves could
@@ -1074,10 +1074,11 @@ class SvgAxisPlot(SvgPlot):
                 # "l0,{box_h:g} c0,{diag_h} {rdiag_x},0 {rdiag_x},{diag_h} "
                 # "c0,-{diag_h} {ldiag_x},0 {ldiag_x},-{diag_h} l0,-{box_h:g}z"
                 dwg.path(
-                    "M{start_x:g},0 l{box_w:g},0 "  # Top left to top right of tree box
+                    "M{start_x:g},{top:g} l{box_w:g},0 "  # Top left to top right of tree
                     "l0,{box_h:g} l{rdiag_x:g},{diag_h:g} "  # Down to axis
                     "l0,{tick_h:g} l{ax_x:g},0 l0,-{tick_h:g} "  # Between axis ticks
                     "l{ldiag_x:g},-{diag_h:g} l0,-{box_h:g}z".format(  # Up from axis
+                        top=rnd(self.plotbox.top),
                         start_x=rnd(prev_tree_x),
                         box_w=rnd(tree_x - prev_tree_x),
                         box_h=rnd(y - diag_height),
@@ -1136,6 +1137,7 @@ class SvgTreeSequence(SvgAxisPlot):
         tree_height_scale=None,
         max_tree_height=None,
         max_num_trees=None,
+        title=None,
         **kwargs,
     ):
         if max_time is None and max_tree_height is not None:
@@ -1196,7 +1198,9 @@ class SvgTreeSequence(SvgAxisPlot):
             )
 
         # TODO add general padding arguments following matplotlib's terminology.
-        self.set_spacing(top=0, left=20, bottom=10, right=20)
+        self.set_spacing(
+            top=0 if title is None else self.line_height, left=20, bottom=10, right=20
+        )
         subplot_size = (self.plotbox.width / num_plotboxes, self.plotbox.height)
         subplots = []
         for tree, use, summary in zip(ts.trees(), use_tree, use_skipped):
@@ -1233,6 +1237,15 @@ class SvgTreeSequence(SvgAxisPlot):
                     )
                 )
         y = self.plotbox.top
+        if title is not None:
+            self.add_text_in_group(
+                title,
+                self.drawing,
+                pos=(self.plotbox.max_x / 2, 0),
+                dominant_baseline="hanging",
+                group_class="title",
+                text_anchor="middle",
+            )
         self.tree_plotbox = subplots[0].plotbox
         tree_is_used, breaks, skipbreaks = self.find_used_trees()
         self.draw_x_axis(
@@ -1423,6 +1436,7 @@ class SvgTree(SvgAxisPlot):
         y_axis=None,
         x_label=None,
         y_label=None,
+        title=None,
         x_regions=None,
         y_ticks=None,
         y_gridlines=None,
@@ -1605,7 +1619,22 @@ class SvgTree(SvgAxisPlot):
                     self.mutation_label_attrs[m].update(mutation_label_attrs[m])
                 add_class(self.mutation_label_attrs[m], "lab")
 
-        self.set_spacing(top=10, left=20, bottom=15, right=20)
+        self.set_spacing(
+            top=10 if title is None else 10 + self.line_height,
+            left=20,
+            bottom=15,
+            right=20,
+        )
+        if title is not None:
+            self.add_text_in_group(
+                title,
+                self.drawing,
+                pos=(self.plotbox.max_x / 2, 0),
+                dominant_baseline="hanging",
+                group_class="title",
+                text_anchor="middle",
+            )
+
         self.assign_x_coordinates()
         self.assign_y_coordinates(max_time, min_time, force_root_branch)
         tick_length_lower = self.default_tick_length  # TODO - parameterize
