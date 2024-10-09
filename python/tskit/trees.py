@@ -1799,6 +1799,7 @@ class Tree:
         size=None,
         time_scale=None,
         tree_height_scale=None,
+        title=None,
         max_time=None,
         min_time=None,
         max_tree_height=None,
@@ -1845,6 +1846,8 @@ class Tree:
             heights are spaced equally according to their ranked times.
         :param str tree_height_scale: Deprecated alias for time_scale. (Deprecated in
                 0.3.6)
+        :param str title: A title string to be included in the SVG output. If ``None``
+            (default) no title is shown, which gives more vertical space for the tree.
         :param str,float max_time: The maximum plotted time value in the current
             scaling system (see ``time_scale``). Can be either a string or a
             numeric value. If equal to ``"tree"`` (the default), the maximum time
@@ -1940,6 +1943,7 @@ class Tree:
             size,
             time_scale=time_scale,
             tree_height_scale=tree_height_scale,
+            title=title,
             max_time=max_time,
             min_time=min_time,
             max_tree_height=max_tree_height,
@@ -7181,6 +7185,7 @@ class TreeSequence:
         x_scale=None,
         time_scale=None,
         tree_height_scale=None,
+        title=None,
         node_labels=None,
         mutation_labels=None,
         node_titles=None,
@@ -7232,6 +7237,8 @@ class TreeSequence:
             ``"rank"``, node heights are spaced equally according to their ranked times.
         :param str tree_height_scale: Deprecated alias for time_scale. (Deprecated in
             0.3.6)
+        :param str title: A title string to be included in the SVG output. If ``None``
+            (default) no title is shown, which gives more vertical space for the tree.
         :param node_labels: If specified, show custom labels for the nodes
             (specified by ID) that are present in this map; any nodes not present will
             not have a label.
@@ -7326,6 +7333,7 @@ class TreeSequence:
             x_scale=x_scale,
             time_scale=time_scale,
             tree_height_scale=tree_height_scale,
+            title=title,
             node_labels=node_labels,
             mutation_labels=mutation_labels,
             node_titles=node_titles,
