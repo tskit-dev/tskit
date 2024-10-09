@@ -35,6 +35,20 @@
 
 **Features**
 
+- Add the ``centre`` option to ``TreeSequence.genetic_relatedness`` and
+  ``TreeSequence.genetic_relatedness_weighted``.
+  (:user:`petrelharp`, :user:`mmosmond`, :pr:`1623`)
+
+- Edges now have an ``.interval`` attribute returning a ``tskit.Interval`` object.
+  (:user:`hyanwong`, :pr:`2531`)
+
+- Added ``distance_between`` that calculates the total distance between two nodes in a tree.
+  (:user:`Billyzhang1229`, :pr:`2771`)
+
+- Added ``genetic_relatedness_matrix`` method to compute
+  pairwise genetic relatedness between sample sets.
+  (:user:`jeromekelleher`, :user:`petrelharp`, :pr:`2823`)
+
 - Add ``TreeSequence.extend_haplotypes`` method that extends ancestral haplotypes
   using recombination information, leading to unary nodes in many trees and
   fewer edges. (:user:`petrelharp`, :user:`hfr1tz3`, :user: `nspope`,
@@ -43,14 +57,18 @@
 - Add ``Table.drop_metadata`` to make clearing metadata from tables easy.
   (:user:`jeromekelleher`, :pr:`2944`)
 
-- Add the ``centre`` option to ``TreeSequence.genetic_relatedness`` and
-  ``TreeSequence.genetic_relatedness_weighted``.
-
 - Add ``Interval.mid`` and ``Tree.mid`` properties to return the midpoint of the interval.
   (:user:`currocam`, :pr:`2960`)
 
-- Edges now have an ``.interval`` attribute returning a ``tskit.Interval`` object.
-  (:user:`hyanwong`, :pr:`2531`)
+- Added ``genetic_relatedness_vector`` method to compute product of genetic relatedness
+  matrix and weight vector.
+  (:user:`petrelharp`, :pr:`2980`)
+
+- Added ``pair_coalescence_counts`` method to calculate coalescence events per node or time
+  interval, ``pair_coalescence_quantiles`` method to estimate quantiles of pair
+  coalescence times using empirical CDF inversion, and ``pair_coalescence_rates`` method to
+  estimate instantaneous rates of pair coalescence within time intervals from the empirical CDF.
+  (:user:`nspope`, :pr:`2915`, :pr:`2976`, :pr:`2985`)
 
 - Add provenance information to the HTML notebook representation of a tree sequence.
   (:user:`benjeffery`, :pr:`3001`)
@@ -66,6 +84,7 @@
   pass a subset of nodes, so subtrees can be visually collapsed. Additionally, an option
   ``pack_untracked_polytomies`` allows large polytomies involving untracked samples to
   be summarised as a dotted line (:user:`hyanwong`, :issue:`3011` :pr:`3010`, :pr:`3012`)
+  
 
 --------------------
 [0.5.8] - 2024-06-27
