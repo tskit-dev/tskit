@@ -31,7 +31,7 @@ Note that `tskit` provides a unified interface for computing so-called
 well as a standard method for specifying "multi-way" statistics that are calculated
 over many combinations of sets of samples simultaneously.
 
-Please see the {ref}`tutorial <tutorials:sec_tutorial_stats>` for examples of the
+See the {ref}`tutorial <tutorials:sec_tutorial_stats>` for examples of the
 statistics API in use.
 
 :::{warning}
@@ -194,7 +194,7 @@ output array is defined in a simple and intuitive manner by the
 parameters provided. The {ref}`sec_stats_output_dimensions` section
 defines the rules that are used.
 
-Please see the {ref}`tutorial <sec_tutorial_stats>` for examples of the
+See the {ref}`tutorial <sec_tutorial_stats>` for examples of the
 statistics API in use.
 
 
@@ -385,7 +385,7 @@ There are some shortcuts to other useful options:
    sequence. As the first returned array contains only a single
    value, we drop this dimension as described in the
    {ref}`output dimensions <sec_stats_output_dimensions>` section. **Note:** if you
-   really do want to have an array with a single value as the result, please use
+   really do want to have an array with a single value as the result, use
    `windows = [0.0, ts.sequence_length]`.
 
 `windows = "trees"`
@@ -523,7 +523,7 @@ the dimensions of the output". Note that dropping these dimensions is
 **optional**: it is always possible to keep the full dimensions of the
 output arrays.
 
-Please see the {ref}`tutorial <sec_tutorial_stats>` for examples of the
+See the {ref}`tutorial <sec_tutorial_stats>` for examples of the
 various output dimension options.
 
 
