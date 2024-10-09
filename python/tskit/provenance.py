@@ -88,11 +88,10 @@ def get_resources(start_time):
         "sys_time": times.system + times.children_system,
     }
     if resource is not None:
-        # Don't report max memory on Windows. We could do this using the psutil lib, via
-        # psutil.Process(os.getpid()).get_ext_memory_info().peak_wset if demand exists
+        # Don't report max memory on Windows, we would need an external dep like psutil
         ret["max_memory"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         if sys.platform != "darwin":
-            ret["max_memory"] *= 1024  # Linux, freeBSD et al reports in KB, not bytes
+            ret["max_memory"] *= 1024  # Linux, freeBSD et al reports in KiB, not bytes
 
     return ret
 
