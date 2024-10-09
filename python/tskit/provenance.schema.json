@@ -45,6 +45,28 @@
           "type": "object"
         }
       }
+    },
+    "resources": {
+      "description": "Resources used by this operation.",
+      "type": "object",
+      "properties": {
+        "elapsed_time": {
+          "description": "Wall clock time in used in seconds.",
+          "type": "number"
+        },
+        "user_time": {
+          "description": "User time used in seconds.",
+          "type": "number"
+        },
+        "sys_time": {
+          "description": "System time used in seconds.",
+          "type": "number"
+        },
+        "max_memory": {
+          "description": "Maximum memory used in bytes.",
+          "type": "number"
+        }
+      }
     }
   }
 }
