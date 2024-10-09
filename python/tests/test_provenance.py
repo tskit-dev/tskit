@@ -32,7 +32,7 @@ import time
 try:
     import resource
 except ImportError:
-    resource = None  # resource.getrusage absent on windows
+    resource = None  # resource absent on windows
 
 
 import msprime
@@ -221,28 +221,29 @@ class TestEnvironment:
 
 
 class TestGetResources:
-    def test_used_resources_keys(self):
-        resources = provenance.get_resources(_start_time)
+    def test_get_resources_keys(self):
+        resources = provenance.get_resources(0)
         assert "elapsed_time" in resources
         assert "user_time" in resources
         assert "sys_time" in resources
         if resource is not None:
             assert "max_memory" in resources
 
-    def test_used_resources_values(self):
-        resources = provenance.get_resources(_start_time)
+    def test_get_resources_values(self):
+        delta = 0.1
+        resources = provenance.get_resources(time.time() - delta)
         assert isinstance(resources["elapsed_time"], float)
         assert isinstance(resources["user_time"], float)
         assert isinstance(resources["sys_time"], float)
-        assert resources["elapsed_time"] > 0.0001
-        assert resources["user_time"] > 0.0001
-        assert resources["sys_time"] > 0.0001
+        assert resources["elapsed_time"] >= delta
+        assert resources["user_time"] > 0
+        assert resources["sys_time"] > 0
         if resource is not None:
             assert isinstance(resources["max_memory"], int)
             assert resources["max_memory"] > 1024
 
-    def test_used_resources_platform(self):
-        resources = provenance.get_resources(_start_time)
+    def test_get_resources_platform(self):
+        resources = provenance.get_resources(0)
         if sys.platform != "darwin" and resource is not None:
             assert resources["max_memory"] % 1024 == 0
 
