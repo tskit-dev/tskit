@@ -64,6 +64,9 @@
   ``pack_untracked_polytomies`` allows large polytomies involving untracked samples to
   be summarised as a dotted line (:user:`hyanwong`, :issue:`3011` :pr:`3010`, :pr:`3012`)
 
+- Add ``resources`` section to provenance schema. (:user:`benjeffery`, :pr:`3016`)
+
+
 --------------------
 [0.5.8] - 2024-06-27
 --------------------
