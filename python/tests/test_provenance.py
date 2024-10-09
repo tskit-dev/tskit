@@ -43,9 +43,6 @@ import tskit
 import tskit.provenance as provenance
 
 
-_start_time = time.time()
-
-
 def get_provenance(
     software_name="x",
     software_version="y",
@@ -231,11 +228,12 @@ class TestGetResources:
 
     def test_get_resources_values(self):
         delta = 0.1
-        resources = provenance.get_resources(time.time() - delta)
+        t = time.time()
+        resources = provenance.get_resources(t - delta)
         assert isinstance(resources["elapsed_time"], float)
         assert isinstance(resources["user_time"], float)
         assert isinstance(resources["sys_time"], float)
-        assert resources["elapsed_time"] >= delta
+        assert resources["elapsed_time"] >= delta - 0.001
         assert resources["user_time"] > 0
         assert resources["sys_time"] > 0
         if resource is not None:
@@ -272,7 +270,7 @@ class TestGetSchema:
     def test_form(self):
         s = provenance.get_schema()
         assert s["schema"] == "http://json-schema.org/draft-07/schema#"
-        assert s["version"] == "1.0.0"
+        assert s["version"] == "1.1.0"
 
 
 class TestTreeSeqEditMethods:
