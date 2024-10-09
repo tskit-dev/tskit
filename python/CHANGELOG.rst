@@ -90,6 +90,9 @@
 - Add comma separation to all display numbers. (:user:`benjeffery`, :issue:`3017`, :pr:`3018`)
 
 
+- Add ``resources`` section to provenance schema. (:user:`benjeffery`, :pr:`3016`)
+
+
 --------------------
 [0.5.8] - 2024-06-27
 --------------------
