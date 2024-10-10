@@ -88,6 +88,9 @@
 
 - Added a ``title`` parameter to ``.draw_svg()`` methods (:user:`hyanwong`, :pr:`3015`)
 
+- Add ``resources`` section to provenance schema. (:user:`benjeffery`, :pr:`3016`)
+
+
 --------------------
 [0.5.8] - 2024-06-27
 --------------------

@@ -1,6 +1,6 @@
 {
   "schema": "http://json-schema.org/draft-07/schema#",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "title": "tskit provenance",
   "description": "The combination of software, parameters and environment that produced a tree sequence",
   "type": "object",
@@ -43,6 +43,28 @@
         "libraries": {
           "description": "Details of libraries the primary software linked against.",
           "type": "object"
+        }
+      }
+    },
+    "resources": {
+      "description": "Resources used by this operation.",
+      "type": "object",
+      "properties": {
+        "elapsed_time": {
+          "description": "Wall clock time in used in seconds.",
+          "type": "number"
+        },
+        "user_time": {
+          "description": "User time used in seconds.",
+          "type": "number"
+        },
+        "sys_time": {
+          "description": "System time used in seconds.",
+          "type": "number"
+        },
+        "max_memory": {
+          "description": "Maximum memory used in bytes.",
+          "type": "number"
         }
       }
     }

@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2016-2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -27,6 +27,13 @@ of various dependencies and the OS.
 import json
 import os.path
 import platform
+import sys
+import time
+
+try:
+    import resource
+except ImportError:
+    resource = None  # resource.getrusage absent on windows
 
 import jsonschema
 
@@ -70,6 +77,23 @@ def get_environment(extra_libs=None, include_tskit=True):
         libs.update(extra_libs)
     env["libraries"] = libs
     return env
+
+
+def get_resources(start_time):
+    # Returns a dict describing the resources used by the current process
+    times = os.times()
+    ret = {
+        "elapsed_time": time.time() - start_time,
+        "user_time": times.user + times.children_user,
+        "sys_time": times.system + times.children_system,
+    }
+    if resource is not None:
+        # Don't report max memory on Windows, we would need an external dep like psutil
+        ret["max_memory"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        if sys.platform != "darwin":
+            ret["max_memory"] *= 1024  # Linux, freeBSD et al reports in KiB, not bytes
+
+    return ret
 
 
 def get_provenance_dict(parameters=None):

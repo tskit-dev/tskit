@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2020 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (C) 2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -26,6 +26,14 @@ Tests for the provenance information attached to tree sequences.
 import json
 import os
 import platform
+import sys
+import time
+
+try:
+    import resource
+except ImportError:
+    resource = None  # resource absent on windows
+
 
 import msprime
 import pytest
@@ -33,6 +41,9 @@ import pytest
 import _tskit
 import tskit
 import tskit.provenance as provenance
+
+
+_start_time = time.time()
 
 
 def get_provenance(
@@ -121,6 +132,37 @@ class TestSchema:
         }
         tskit.validate_provenance(extra)
 
+    def test_resources(self):
+        resources = {
+            "schema_version": "1",
+            "software": {"name": "x", "version": "y"},
+            "environment": {},
+            "parameters": {},
+            "resources": {
+                "elapsed_time": 1,
+                "user_time": 2,
+                "sys_time": 3,
+                "max_memory": 4,
+            },
+        }
+        tskit.validate_provenance(resources)
+
+    def test_resources_error(self):
+        resources = {
+            "schema_version": "1",
+            "software": {"name": "x", "version": "y"},
+            "environment": {},
+            "parameters": {},
+            "resources": {
+                "elapsed_time": "1",
+                "user_time": 2,
+                "sys_time": 3,
+                "max_memory": 4,
+            },
+        }
+        with pytest.raises(tskit.ProvenanceValidationError):
+            tskit.validate_provenance(resources)
+
 
 class TestOutputProvenance:
     """
@@ -178,6 +220,35 @@ class TestEnvironment:
         assert libs == env["libraries"]
 
 
+class TestGetResources:
+    def test_get_resources_keys(self):
+        resources = provenance.get_resources(0)
+        assert "elapsed_time" in resources
+        assert "user_time" in resources
+        assert "sys_time" in resources
+        if resource is not None:
+            assert "max_memory" in resources
+
+    def test_get_resources_values(self):
+        delta = 0.1
+        t = time.time()
+        resources = provenance.get_resources(t - delta)
+        assert isinstance(resources["elapsed_time"], float)
+        assert isinstance(resources["user_time"], float)
+        assert isinstance(resources["sys_time"], float)
+        assert resources["elapsed_time"] >= delta
+        assert resources["user_time"] > 0
+        assert resources["sys_time"] > 0
+        if resource is not None:
+            assert isinstance(resources["max_memory"], int)
+            assert resources["max_memory"] > 1024
+
+    def test_get_resources_platform(self):
+        resources = provenance.get_resources(0)
+        if sys.platform != "darwin" and resource is not None:
+            assert resources["max_memory"] % 1024 == 0
+
+
 class TestGetSchema:
     """
     Ensure we return the correct JSON schema.
@@ -202,7 +273,7 @@ class TestGetSchema:
     def test_form(self):
         s = provenance.get_schema()
         assert s["schema"] == "http://json-schema.org/draft-07/schema#"
-        assert s["version"] == "1.0.0"
+        assert s["version"] == "1.1.0"
 
 
 class TestTreeSeqEditMethods:

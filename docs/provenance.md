@@ -80,13 +80,19 @@ To make things more concrete, let's consider an example:
       "version": "#31~16.04.1-Ubuntu SMP Wed Jul 18 08:54:04 UTC 2018",
       "machine": "x86_64"
     }
+  },
+  "resources": {
+    "elapsed_time": 12.34,
+    "user_time": 10.56,
+    "sys_time": 1.78,
+    "max_memory": 1048576
   }
 }
 ```
 
 This information records the provenance for a very simple msprime simulation. The record is a JSON
-object with three mandatory fields ("software", "parameters" and "environment")
-which we discuss separately in the following sections.
+object with three mandatory fields ("software", "parameters" and "environment") and one optional
+("resources") which we discuss separately in the following sections.
 
 (sec_provenance_software)=
 
@@ -220,6 +226,19 @@ function:
 The `libraries` section captures information about important libraries that the
 primary software links against. There is no required structure.
 
+
+## Resources
+
+The resources section captures details about the computational resources used during the execution of the software. This section is optional and has the following fields, each of which is optional and may not be filled depending on os support:
+
+
+- `elapsed_time`: The total elapsed time in seconds.
+- `user_time`: The total user CPU time in seconds.
+- `sys_time`: The total system CPU time in seconds.
+- `max_memory`: The maximum memory usage in bytes.
+
+Including this information makes it easy for users of tree-sequence producing software to
+account for resource usage across pipelines of tools.
 
 (sec_provenance_schema)=
 
