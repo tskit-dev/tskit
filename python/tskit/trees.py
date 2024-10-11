@@ -7665,6 +7665,7 @@ class TreeSequence:
             time_windows = [0.0, math.inf]
         return np.array(time_windows)
 
+<<<<<<< HEAD
     def __run_windowed_stat(self, windows, method, *args, **kwargs):
         strip_win = windows is None
         windows = self.parse_windows(windows)
@@ -7675,6 +7676,9 @@ class TreeSequence:
 
     # only for temporary tw version
     def __run_windowed_stat_tw(self, windows, time_windows, method, *args, **kwargs):
+=======
+    def __run_windowed_stat(self, windows, time_windows, method, *args, **kwargs):
+>>>>>>> 14e1cefc (Better dimension drop with time windows)
         strip_win = windows is None
         strip_timewin = time_windows is None
         windows = self.parse_windows(windows)

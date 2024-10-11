@@ -4008,7 +4008,6 @@ def branch_allele_frequency_spectrum(
                         c = fold(c, out_dim)
                     index = tuple([window_index] + [k_tw] + list(c))
                     result[index] += x
-                    # print(f"x={x}, index={index}")
         last_update[u] = right
 
     for (t_left, t_right), edges_out, edges_in in ts.edge_diffs():
@@ -4249,6 +4248,7 @@ class TestAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
 
             assert len(sfs1.shape) == len(sample_sets) + 1
             assert sfs1.shape == sfs2.shape
+            print("SFS1=", sfs1, "\n...SFS3=", sfs3)
             assert sfs1.shape == sfs3.shape
             if not np.allclose(sfs1, sfs3):
                 print()
@@ -7270,5 +7270,13 @@ class TestTimeWindows(TestBranchAlleleFrequencySpectrum):
         # dim3-or-more: num_sample_sets
         assert sfs1_w_tw.ndim == 3
 
-        # print(sfs1_w_tw, sfs1_w_tw.shape)
-        # print(sfs1_tws, sfs1_tws.shape)
+        print(sfs1_decap_05)
+
+        sfs_c = ts.allele_frequency_spectrum(
+            sample_sets=[[0, 1, 2, 3]],
+            mode=self.mode,
+            polarised=True,
+            span_normalise=False,
+        )
+
+        print(sfs_c)
