@@ -8668,12 +8668,9 @@ class TreeSequence:
 
         def _genetic_relatedness_vector_individual(
                 arr: np.ndarray,
-                rows: np.ndarray,
-                cols: np.ndarray,
                 centre: bool = True,
                 windows = None,
                 ) -> np.ndarray:
-            assert cols.size == arr.shape[0], "Dimension mismatch"
             ij = np.vstack([[n,k] for k, i in enumerate(individuals) for n in self.individual(i).nodes])
             samples, sample_individuals = ij[:,0], ij[:,1] # sample node index, individual of those nodes
             x = arr - arr.mean(axis=0) if centre else arr # centering within index in rows
@@ -8686,14 +8683,11 @@ class TreeSequence:
 
         def _genetic_relatedness_vector_node(
                 arr: np.ndarray,
-                rows: np.ndarray,
-                cols: np.ndarray,
                 centre: bool = True,
                 windows = None,
                 ) -> np.ndarray:
-            assert cols.size == arr.shape[0], "Dimension mismatch"
             x = arr - arr.mean(axis=0) if centre else arr
-            x = self.genetic_relatedness_vector(W=x, windows=windows, mode="branch", centre=False, nodes=cols)[0]
+            x = self.genetic_relatedness_vector(W=x, windows=windows, mode="branch", centre=False, nodes=samples)[0]
             x = x - x.mean(axis=0) if centre else x
 
             return x
@@ -8719,10 +8713,10 @@ class TreeSequence:
         for i in range(len(windows)-1):
             if mode == 'node':
                 _G = lambda x: _genetic_relatedness_vector_node(
-                        x, samples, samples, centre=centre, windows=windows[i:i+2])
+                        x, centre=centre, windows=windows[i:i+2])
             elif mode == 'individual':
                 _G = lambda x: _genetic_relatedness_vector_individual(
-                        x, individuals, individuals, centre=centre, windows=windows[i:i+2])
+                        x, centre=centre, windows=windows[i:i+2])
             U[i], D[i], _ = _rand_svd(
                         operator=_G,
                         operator_dim=dim,
