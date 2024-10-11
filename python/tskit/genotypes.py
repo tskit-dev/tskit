@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2024 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -311,16 +311,16 @@ class Variant:
             freqs = self.frequencies()
             rows = (
                 [
-                    ["Site id", str(site_id)],
-                    ["Site position", str(site_position)],
-                    ["Number of samples", str(len(self.samples))],
-                    ["Number of alleles", str(self.num_alleles)],
+                    ["Site id", f"{site_id:,}"],
+                    ["Site position", f"{site_position:,}"],
+                    ["Number of samples", f"{len(self.samples):,}"],
+                    ["Number of alleles", f"{self.num_alleles:,}"],
                 ]
                 + [
                     [
-                        f"""Samples with allele {'missing' if k is None
-                            else "'" + k + "'"}""",
-                        f"{counts[k]} ({freqs[k] * 100:.2g}%)",
+                        f"Samples with allele "
+                        f"""{'missing' if k is None else "'" + k + "'"}""",
+                        f"{counts[k]:,} ({freqs[k] * 100:.2g}%)",
                     ]
                     for k in self.alleles
                 ]

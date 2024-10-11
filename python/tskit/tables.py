@@ -864,13 +864,13 @@ class IndividualTable(MetadataTable):
         row_indexes = util.truncate_rows(self.num_rows, limit)
         for j in row_indexes:
             if j == -1:
-                rows.append(f"__skipped__{self.num_rows-limit}")
+                rows.append(f"__skipped__{self.num_rows - limit}")
             else:
                 row = self[j]
                 location_str = ", ".join(map(str, row.location))
-                parents_str = ", ".join(map(str, row.parents))
+                parents_str = ", ".join([f"{p:,}" for p in row.parents])
                 rows.append(
-                    "{}\t{}\t{}\t{}\t{}".format(
+                    "{:,}\t{}\t{}\t{}\t{}".format(
                         j,
                         row.flags,
                         location_str,
@@ -1139,10 +1139,10 @@ class NodeTable(MetadataTable):
         for j in row_indexes:
             row = self[j]
             if j == -1:
-                rows.append(f"__skipped__{self.num_rows-limit}")
+                rows.append(f"__skipped__{self.num_rows - limit}")
             else:
                 rows.append(
-                    "{}\t{}\t{}\t{}\t{:.{dp}f}\t{}".format(
+                    "{:,}\t{}\t{:,}\t{:,}\t{:,.{dp}f}\t{}".format(
                         j,
                         row.flags,
                         row.population,
@@ -1332,11 +1332,11 @@ class EdgeTable(MetadataTable):
         decimal_places = 0 if self._columns_all_integer("left", "right") else 8
         for j in row_indexes:
             if j == -1:
-                rows.append(f"__skipped__{self.num_rows-limit}")
+                rows.append(f"__skipped__{self.num_rows - limit}")
             else:
                 row = self[j]
                 rows.append(
-                    "{}\t{:.{dp}f}\t{:.{dp}f}\t{}\t{}\t{}".format(
+                    "{:,}\t{:,.{dp}f}\t{:,.{dp}f}\t{:,}\t{:,}\t{}".format(
                         j,
                         row.left,
                         row.right,
@@ -1548,11 +1548,11 @@ class MigrationTable(MetadataTable):
         decimal_places_times = 0 if self._columns_all_integer("time") else 8
         for j in row_indexes:
             if j == -1:
-                rows.append(f"__skipped__{self.num_rows-limit}")
+                rows.append(f"__skipped__{self.num_rows - limit}")
             else:
                 row = self[j]
                 rows.append(
-                    "{}\t{:.{dp_c}f}\t{:.{dp_c}f}\t{}\t{}\t{}\t{:.{dp_t}f}\t{}".format(
+                    "{:,}\t{:,.{dp_c}f}\t{:,.{dp_c}f}\t{:,}\t{:,}\t{:,}\t{:,.{dp_t}f}\t{}".format(
                         j,
                         row.left,
                         row.right,
@@ -1563,7 +1563,9 @@ class MigrationTable(MetadataTable):
                         util.render_metadata(row.metadata),
                         dp_c=decimal_places_coords,
                         dp_t=decimal_places_times,
-                    ).split("\t")
+                    ).split(
+                        "\t"
+                    )
                 )
         return headers, rows
 
@@ -1760,11 +1762,11 @@ class SiteTable(MetadataTable):
         decimal_places = 0 if self._columns_all_integer("position") else 8
         for j in row_indexes:
             if j == -1:
-                rows.append(f"__skipped__{self.num_rows-limit}")
+                rows.append(f"__skipped__{self.num_rows - limit}")
             else:
                 row = self[j]
                 rows.append(
-                    "{}\t{:.{dp}f}\t{}\t{}".format(
+                    "{:,}\t{:,.{dp}f}\t{}\t{}".format(
                         j,
                         row.position,
                         row.ancestral_state,
@@ -1977,11 +1979,11 @@ class MutationTable(MetadataTable):
         decimal_places_times = 0 if self._columns_all_integer("time") else 8
         for j in row_indexes:
             if j == -1:
-                rows.append(f"__skipped__{self.num_rows-limit}")
+                rows.append(f"__skipped__{self.num_rows - limit}")
             else:
                 row = self[j]
                 rows.append(
-                    "{}\t{}\t{}\t{:.{dp}f}\t{}\t{}\t{}".format(
+                    "{:,}\t{:,}\t{:,}\t{:,.{dp}f}\t{}\t{:,}\t{}".format(
                         j,
                         row.site,
                         row.node,
@@ -2256,7 +2258,7 @@ class PopulationTable(MetadataTable):
         row_indexes = util.truncate_rows(self.num_rows, limit)
         for j in row_indexes:
             if j == -1:
-                rows.append(f"__skipped__{self.num_rows-limit}")
+                rows.append(f"__skipped__{self.num_rows - limit}")
             else:
                 rows.append((str(j), util.render_metadata(self[j].metadata, length=70)))
         return headers, rows
@@ -2507,7 +2509,7 @@ class ProvenanceTable(BaseTable):
         row_indexes = util.truncate_rows(self.num_rows, limit)
         for j in row_indexes:
             if j == -1:
-                rows.append(f"__skipped__{self.num_rows-limit}")
+                rows.append(f"__skipped__{self.num_rows - limit}")
             else:
                 row = self[j]
                 rows.append(

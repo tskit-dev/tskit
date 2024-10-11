@@ -697,7 +697,7 @@ class CommonTestsMixin:
                 table.set_columns(**input_data)
                 _, rows = table._text_header_and_rows()
                 for row in rows:
-                    assert f"{identifiable_integers[0]}" in row
+                    assert f"{identifiable_integers[0]:,}" in row
                     assert f"{identifiable_floats[0]:.8f}" not in row
 
     def test_repr_html(self):

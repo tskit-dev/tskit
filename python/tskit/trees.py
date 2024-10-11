@@ -2797,16 +2797,17 @@ class Tree:
         Return a plain text summary of a tree in a tree sequence
         """
         tree_rows = [
-            ["Index", str(self.index)],
+            ["Index", f"{self.index:,}"],
             [
                 "Interval",
-                f"{self.interval.left:.8g}-{self.interval.right:.8g} ({self.span:.8g})",
+                f"{self.interval.left:,.8g}-{self.interval.right:,.8g}"
+                f"({self.span:,.8g})",
             ],
-            ["Roots", str(self.num_roots)],
-            ["Nodes", str(len(self.preorder()))],
-            ["Sites", str(self.num_sites)],
-            ["Mutations", str(self.num_mutations)],
-            ["Total Branch Length", f"{self.total_branch_length:.8g}"],
+            ["Roots", f"{self.num_roots:,}"],
+            ["Nodes", f"{len(self.preorder()):,}"],
+            ["Sites", f"{self.num_sites:,}"],
+            ["Mutations", f"{self.num_mutations:,}"],
+            ["Total Branch Length", f"{self.total_branch_length:,.8g}"],
         ]
         return util.unicode_table(tree_rows, title="Tree")
 
@@ -4369,17 +4370,14 @@ class TreeSequence:
         for name, table in self.tables.table_name_map.items():
             table_rows.append(
                 [
-                    str(s)
-                    for s in [
-                        name.capitalize(),
-                        table.num_rows,
-                        util.naturalsize(table.nbytes),
-                        (
-                            "Yes"
-                            if hasattr(table, "metadata") and len(table.metadata) > 0
-                            else "No"
-                        ),
-                    ]
+                    name.capitalize(),
+                    f"{table.num_rows:,}",
+                    util.naturalsize(table.nbytes),
+                    (
+                        "Yes"
+                        if hasattr(table, "metadata") and len(table.metadata) > 0
+                        else "No"
+                    ),
                 ]
             )
         return util.unicode_table(ts_rows, title="TreeSequence") + util.unicode_table(
