@@ -8731,7 +8731,7 @@ class TreeSequence:
                         rng=random_state
                     )
 
-        if drop_windows or len(windows) == 2:
+        if drop_windows:
             U, D = U[0], D[0]
 
         return U, D
