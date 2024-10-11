@@ -518,7 +518,7 @@ def tree_sequence_html(ts):
         f"""
             <tr>
                 <td>{name.capitalize()}</td>
-                <td>{table.num_rows}</td>
+                <td>{table.num_rows:,}</td>
                 <td>{naturalsize(table.nbytes)}</td>
                 <td style="text-align: center;">
                     {'✅' if hasattr(table, "metadata") and len(table.metadata) > 0
@@ -598,10 +598,10 @@ def tree_sequence_html(ts):
                             </tr>
                         </thead>
                         <tbody>
-                            <tr><td>Trees</td><td>{ts.num_trees}</td></tr>
-                            <tr><td>Sequence Length</td><td>{ts.sequence_length}</td></tr>
+                            <tr><td>Trees</td><td>{ts.num_trees:,}</td></tr>
+                            <tr><td>Sequence Length</td><td>{ts.sequence_length:,}</td></tr>
                             <tr><td>Time Units</td><td>{ts.time_units}</td></tr>
-                            <tr><td>Sample Nodes</td><td>{ts.num_samples}</td></tr>
+                            <tr><td>Sample Nodes</td><td>{ts.num_samples:,}</td></tr>
                             <tr><td>Total Size</td><td>{naturalsize(ts.nbytes)}</td></tr>
                             <tr>
                                 <td>Metadata</td><td style="text-align: left;">{md}</td>
@@ -670,13 +670,13 @@ def tree_html(tree):
                       </tr>
                     </thead>
                     <tbody>
-                      <tr><td>Index</td><td>{tree.index}</td></tr>
-                      <tr><td>Interval</td><td>{tree.interval.left:.8g}-{tree.interval.right:.8g} ({tree.span:.8g})</td></tr>
-                      <tr><td>Roots</td><td>{tree.num_roots}</td></tr>
-                      <tr><td>Nodes</td><td>{len(tree.preorder())}</td></tr>
-                      <tr><td>Sites</td><td>{tree.num_sites}</td></tr>
-                      <tr><td>Mutations</td><td>{tree.num_mutations}</td></tr>
-                      <tr><td>Total Branch Length</td><td>{tree.total_branch_length:.8g}</td></tr>
+                      <tr><td>Index</td><td>{tree.index:,}</td></tr>
+                      <tr><td>Interval</td><td>{tree.interval.left:,.8g}-{tree.interval.right:,.8g} ({tree.span:,.8g})</td></tr>
+                      <tr><td>Roots</td><td>{tree.num_roots:,}</td></tr>
+                      <tr><td>Nodes</td><td>{len(tree.preorder()):,}</td></tr>
+                      <tr><td>Sites</td><td>{tree.num_sites:,}</td></tr>
+                      <tr><td>Mutations</td><td>{tree.num_mutations:,}</td></tr>
+                      <tr><td>Total Branch Length</td><td>{tree.total_branch_length:,.8g}</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -745,18 +745,18 @@ def variant_html(variant):
         return (
             html_body_head
             + f"""
-                <tr><td>Site Id</td><td>{site_id}</td></tr>
-                <tr><td>Site Position</td><td>{site_position}</td></tr>
-                <tr><td>Number of Samples</td><td>{num_samples}</td></tr>
-                <tr><td>Number of Alleles</td><td>{num_alleles}</td></tr>
+                <tr><td>Site Id</td><td>{site_id:,}</td></tr>
+                <tr><td>Site Position</td><td>{site_position:,.8g}</td></tr>
+                <tr><td>Number of Samples</td><td>{num_samples:,}</td></tr>
+                <tr><td>Number of Alleles</td><td>{num_alleles:,}</td></tr>
             """
             + "\n".join(
                 [
                     f"""<tr><td>Samples with Allele {'missing' if k is None
                                                      else "'" + k + "'"}</td><td>"""
-                    + f"{counts[k]}"
+                    + f"{counts[k]:,}"
                     + " "
-                    + f"({freqs[k] * 100:.2g}%)"
+                    + f"({freqs[k] * 100:,.2g}%)"
                     + "</td></tr>"
                     for k in variant.alleles
                 ]

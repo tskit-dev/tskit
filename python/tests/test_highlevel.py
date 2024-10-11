@@ -39,7 +39,6 @@ import platform
 import random
 import re
 import tempfile
-import textwrap
 import unittest
 import uuid as _uuid
 import warnings
@@ -2191,7 +2190,7 @@ class TestTreeSequence(HighLevelTestCase):
         # Parse to check valid
         ElementTree.fromstring(html)
         assert len(html) > 5000
-        assert f"<tr><td>Trees</td><td>{ts.num_trees}</td></tr>" in html
+        assert f"<tr><td>Trees</td><td>{ts.num_trees:,}</td></tr>" in html
         assert f"<tr><td>Time Units</td><td>{ts.time_units}</td></tr>" in html
         for table in ts.tables.table_name_map:
             assert f"<td>{table.capitalize()}</td>" in html
@@ -3759,32 +3758,29 @@ class TestTree(HighLevelTestCase):
     def test_str(self, ts_fixture):
         t = ts_fixture.first()
         assert isinstance(str(t), str)
-        assert re.match(
-            textwrap.dedent(
-                r"""
-            ╔═════════════════════════════╗
-            ║Tree                         ║
-            ╠═══════════════════╤═════════╣
-            ║Index              │        0║
-            ╟───────────────────┼─────────╢
-            ║Interval           │  0-1 \(1\)║
-            ╟───────────────────┼─────────╢
-            ║Roots              │[0-9 ]*║
-            ╟───────────────────┼─────────╢
-            ║Nodes              │[0-9 ]*║
-            ╟───────────────────┼─────────╢
-            ║Sites              │[0-9 ]*║
-            ╟───────────────────┼─────────╢
-            ║Mutations          │[0-9 ]*║
-            ╟───────────────────┼─────────╢
-            ║Total Branch Length│[0-9\. ]*║
-            ╚═══════════════════╧═════════╝
-        """[
-                    1:
-                ]
-            ),
-            str(t),
+        pattern = re.compile(
+            r"""
+            ╔═+╗\s*
+            ║Tree.*?║\s*
+            ╠═+╤═+╣\s*
+            ║Index.*?│\s*\d+║\s*
+            ╟─+┼─+╢\s*
+            ║Interval.*?│\s*\d+-\d+\s*\(\d+\)║\s*
+            ╟─+┼─+╢\s*
+            ║Roots.*?│\s*\d+║\s*
+            ╟─+┼─+╢\s*
+            ║Nodes.*?│\s*\d+║\s*
+            ╟─+┼─+╢\s*
+            ║Sites.*?│\s*\d+║\s*
+            ╟─+┼─+╢\s*
+            ║Mutations.*?│\s*\d+║\s*
+            ╟─+┼─+╢\s*
+            ║Total\s*Branch\s*Length.*?│\s*[\d,]+\.\d+║\s*
+            ╚═+╧═+╝\s*
+            """,
+            re.VERBOSE | re.DOTALL,
         )
+        assert pattern.search(str(t))
 
     def test_html_repr(self, ts_fixture):
         html = ts_fixture.first()._repr_html_()

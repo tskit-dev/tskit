@@ -85,8 +85,10 @@
   ``pack_untracked_polytomies`` allows large polytomies involving untracked samples to
   be summarised as a dotted line (:user:`hyanwong`, :issue:`3011` :pr:`3010`, :pr:`3012`)
   
-
 - Added a ``title`` parameter to ``.draw_svg()`` methods (:user:`hyanwong`, :pr:`3015`)
+
+- Add comma separation to all display numbers. (:user:`benjeffery`, :issue:`3017`, :pr:`3018`)
+
 
 --------------------
 [0.5.8] - 2024-06-27
