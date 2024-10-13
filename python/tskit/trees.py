@@ -8593,138 +8593,188 @@ class TreeSequence:
         return out
 
     def pca(
-            self,
-            n_components: int = 10,
-            iterated_power: int = 3,
-            n_oversamples: int = 10,
-            samples: np.ndarray = None,
-            individuals: np.ndarray = None,
-            centre: bool = True,
-            windows: list = None,
-            random_seed: int = None,
-            ) -> (np.ndarray, np.ndarray):
+        self,
+        n_components: int = 10,
+        windows: list = None,
+        samples: np.ndarray = None,
+        individuals: np.ndarray = None,
+        mode: str = "branch",
+        centre: bool = True,
+        iterated_power: int = 3,
+        n_oversamples: int = 10,
+        random_seed: int = None,
+    ) -> (np.ndarray, np.ndarray):
         """
-        Run randomized singular value decomposition (rSVD) to obtain principal components.
-        API partially adopted from `scikit-learn`: 
-        https://scikit-learn.org/dev/modules/generated/sklearn.decomposition.PCA.html
+        Run randomized singular value decomposition (rSVD) to obtain principal
+        components.
+        API partially adopted from `scikit-learn`'s
+        `sklearn.decomposition.PCA.html`
+
+        By default, performs PCA for the samples, so output has one coordinate
+        for each sample), but alternatively either a list of sample IDs or a
+        list of individual IDs can be provided (but not both).
+
+        TODO: say exactly what is returned (and relationship to
+        :meth:`genetic_relatedness <.TreeSequence.genetic_relatedness>`).
+
+        TODO: say what algorithms are used.
 
         :param int n_components: Number of principal components.
+        :param list windows: An increasing list of breakpoints between the windows
+            to compute the statistic in.
+        :param np.ndarray samples: Samples to perform PCA with.
+        :param np.ndarray individuals: Individuals to perform PCA with. Cannot specify
+            both `samples` and `individuals`.
+        :param str mode: A string giving the "type" of relatedness to be computed
+            (defaults to "branch"; see
+            :meth:`genetic_relatedness_vector
+            <.TreeSequence.genetic_relatedness_vector>`)
+        :param bool centre: Centre the genetic relatedness matrix.
         :param int iterated_power: Number of power iteration of range finder.
         :param int n_oversamples: Number of additional test vectors.
-        :param np.ndarray samples: Samples to perform PCA.
-        :param np.ndarray individuals: Individuals to perform PCA.
-        :param bool centre: Centre the genetic relatedness matrix.
-        :param list windows: An increasing list of breakpoints between the windows 
-            to compute the principal components in.
         :param int random_seed: The random seed. If this is None, a random seed will
             be automatically generated. Valid random seeds must be between 1 and
             :math:`2^32 − 1`.
+        :return: A tuple (U, D) of ndarrays, with the principal component loadings in U
+            and the principal values in D.
         """
 
+        if samples is None and individuals is None:
+            samples = self.samples()
+
+        if samples is not None and individuals is not None:
+            raise ValueError("Samples and individuals cannot be used at the same time")
+        elif samples is not None:
+            output_type = "node"
+            dim = len(samples)
+        else:
+            assert individuals is not None
+            output_type = "individual"
+            dim = len(individuals)
+
+        if n_components > dim:
+            raise ValueError(
+                "Number of components must be less than or equal to "
+                "the number of samples (or individuals, if specified)."
+            )
+
+        random_state = np.random.default_rng(random_seed)
+
         def _rand_pow_range_finder(
-                operator: Callable,
-                operator_dim: int,
-                rank: int,
-                depth: int,
-                num_vectors: int,
-                rng: np.random.Generator,
-                ) -> np.ndarray:
+            operator,
+            operator_dim: int,
+            rank: int,
+            depth: int,
+            num_vectors: int,
+            rng: np.random.Generator,
+        ) -> np.ndarray:
             """
             Algorithm 9 in https://arxiv.org/pdf/2002.01387
             """
             assert num_vectors >= rank > 0
             test_vectors = rng.normal(size=(operator_dim, num_vectors))
             Q = test_vectors
-            for i in range(depth):
+            for _ in range(depth):
                 Q = np.linalg.qr(Q).Q
                 Q = operator(Q)
             Q = np.linalg.qr(Q).Q
             return Q[:, :rank]
 
         def _rand_svd(
-                operator: Callable,
-                operator_dim: int,
-                rank: int,
-                depth: int,
-                num_vectors: int,
-                rng: np.random.Generator,
-                ) -> (np.ndarray, np.ndarray, np.ndarray):
+            operator,
+            operator_dim: int,
+            rank: int,
+            depth: int,
+            num_vectors: int,
+            rng: np.random.Generator,
+        ) -> (np.ndarray, np.ndarray, np.ndarray):
             """
             Algorithm 8 in https://arxiv.org/pdf/2002.01387
             """
             assert num_vectors >= rank > 0
             Q = _rand_pow_range_finder(
-                    operator,
-                    operator_dim,
-                    num_vectors,
-                    depth,
-                    num_vectors,
-                    rng
-                    )
+                operator, operator_dim, num_vectors, depth, num_vectors, rng
+            )
             C = operator(Q).T
             U_hat, D, V = np.linalg.svd(C, full_matrices=False)
             U = Q @ U_hat
-            return U[:,:rank], D[:rank], V[:rank]
+            return U[:, :rank], D[:rank], V[:rank]
 
         def _genetic_relatedness_vector_individual(
-                arr: np.ndarray,
-                centre: bool = True,
-                windows = None,
-                ) -> np.ndarray:
-            ij = np.vstack([[n,k] for k, i in enumerate(individuals) for n in self.individual(i).nodes])
-            samples, sample_individuals = ij[:,0], ij[:,1] # sample node index, individual of those nodes
-            x = arr - arr.mean(axis=0) if centre else arr # centering within index in rows
-            x = self.genetic_relatedness_vector(W=x[sample_individuals], windows=windows, mode="branch", centre=False, nodes=samples)[0]
-            bincount_fn = lambda w: np.bincount(sample_individuals, w)
+            arr: np.ndarray,
+            centre: bool = True,
+            windows=None,
+        ) -> np.ndarray:
+            ij = np.vstack(
+                [
+                    [n, k]
+                    for k, i in enumerate(individuals)
+                    for n in self.individual(i).nodes
+                ]
+            )
+            samples, sample_individuals = (
+                ij[:, 0],
+                ij[:, 1],
+            )  # sample node index, individual of those nodes
+            x = (
+                arr - arr.mean(axis=0) if centre else arr
+            )  # centering within index in rows
+            x = self.genetic_relatedness_vector(
+                W=x[sample_individuals],
+                windows=windows,
+                mode=mode,
+                centre=False,
+                nodes=samples,
+            )[0]
+
+            def bincount_fn(w):
+                np.bincount(sample_individuals, w)
+
             x = np.apply_along_axis(bincount_fn, axis=0, arr=x)
-            x = x - x.mean(axis=0) if centre else x # centering within index in cols
+            x = x - x.mean(axis=0) if centre else x  # centering within index in cols
 
             return x
 
         def _genetic_relatedness_vector_node(
-                arr: np.ndarray,
-                centre: bool = True,
-                windows = None,
-                ) -> np.ndarray:
+            arr: np.ndarray,
+            centre: bool = True,
+            windows=None,
+        ) -> np.ndarray:
             x = arr - arr.mean(axis=0) if centre else arr
-            x = self.genetic_relatedness_vector(W=x, windows=windows, mode="branch", centre=False, nodes=samples)[0]
+            x = self.genetic_relatedness_vector(
+                W=x, windows=windows, mode=mode, centre=False, nodes=samples
+            )[0]
             x = x - x.mean(axis=0) if centre else x
 
             return x
 
-        random_state = np.random.default_rng(random_seed)
-        if samples is None and individuals is None: samples = self.samples()
-        
-        if samples is not None and individuals is not None:
-            raise ValueError("samples and individuals cannot be used at the same time")
-        elif samples is not None:
-            mode = 'node'
-            dim = samples.size
-        elif individuals is not None:
-            mode = 'individual'
-            dim = individuals.size
-    
         drop_windows = windows is None
-        if drop_windows:
-            windows = [0, self.sequence_length]
+        windows = self.parse_windows(windows)
+        num_windows = len(windows) - 1
+        if num_windows < 1:
+            raise ValueError("Number of windows must be at least 1.")
 
-        U = np.empty((len(windows)-1, dim, n_components))
-        D = np.empty((len(windows)-1, n_components))
-        for i in range(len(windows)-1):
-            if mode == 'node':
-                _G = lambda x: _genetic_relatedness_vector_node(
-                        x, centre=centre, windows=windows[i:i+2])
-            elif mode == 'individual':
-                _G = lambda x: _genetic_relatedness_vector_individual(
-                        x, centre=centre, windows=windows[i:i+2])
+        U = np.empty((num_windows, dim, n_components))
+        D = np.empty((num_windows, n_components))
+        for i in range(num_windows):
+            this_window = windows[i : i + 2]
+            _f = (
+                _genetic_relatedness_vector_node
+                if output_type == "node"
+                else _genetic_relatedness_vector_individual
+            )
+
+            def _G(x):
+                _f(x, centre=centre, windows=this_window)  # NOQA: B023
+
             U[i], D[i], _ = _rand_svd(
-                        operator=_G,
-                        operator_dim=dim,
-                        rank=n_components,
-                        depth=iterated_power,
-                        num_vectors=n_components+n_oversamples,
-                        rng=random_state
-                    )
+                operator=_G,
+                operator_dim=dim,
+                rank=n_components,
+                depth=iterated_power,
+                num_vectors=n_components + n_oversamples,
+                rng=random_state,
+            )
 
         if drop_windows:
             U, D = U[0], D[0]
