@@ -8603,7 +8603,8 @@ class TreeSequence:
         iterated_power: int = 5,
         num_oversamples: int = 10,
         random_seed: int = None,
-    ) -> (np.ndarray, np.ndarray):
+        range_sketch: list = None,
+    ) -> (np.ndarray, np.ndarray, np.ndarray):
         """
         Run randomized singular value decomposition (rSVD) to obtain principal
         components.
@@ -8635,6 +8636,7 @@ class TreeSequence:
         :param int random_seed: The random seed. If this is None, a random seed will
             be automatically generated. Valid random seeds must be between 1 and
             :math:`2^32 − 1`.
+        :param list range_sketch: Sketch matrix for each window. Default is None.
         :return: A tuple (U, D) of ndarrays, with the principal component loadings in U
             and the principal values in D.
         """
@@ -8651,6 +8653,8 @@ class TreeSequence:
             assert individuals is not None
             output_type = "individual"
             dim = len(individuals)
+        if range_sketch is not None:
+            assert len(range_sketch) == len(windows)
 
         if num_components > dim:
             raise ValueError(
@@ -8667,13 +8671,17 @@ class TreeSequence:
             depth: int,
             num_vectors: int,
             rng: np.random.Generator,
+            range_sketch: np.ndarray = None,
         ) -> np.ndarray:
             """
             Algorithm 9 in https://arxiv.org/pdf/2002.01387
             """
             assert num_vectors >= rank > 0
-            test_vectors = rng.normal(size=(operator_dim, num_vectors))
-            Q = test_vectors
+            if range_sketch is None:
+                test_vectors = rng.normal(size=(operator_dim, num_vectors))
+                Q = test_vectors
+            else:
+                Q = range_sketch
             for _ in range(depth):
                 Q = np.linalg.qr(Q).Q
                 Q = operator(Q)
@@ -8687,18 +8695,19 @@ class TreeSequence:
             depth: int,
             num_vectors: int,
             rng: np.random.Generator,
+            range_sketch: np.ndarray = None,
         ) -> (np.ndarray, np.ndarray, np.ndarray):
             """
             Algorithm 8 in https://arxiv.org/pdf/2002.01387
             """
             assert num_vectors >= rank > 0
             Q = _rand_pow_range_finder(
-                operator, operator_dim, num_vectors, depth, num_vectors, rng
+                operator, operator_dim, num_vectors, depth, num_vectors, rng, range_sketch
             )
             C = operator(Q).T
             U_hat, D, V = np.linalg.svd(C, full_matrices=False)
             U = Q @ U_hat
-            return U[:, :rank], D[:rank], V[:rank]
+            return U[:, :rank], D[:rank], V[:rank], Q
 
         def _genetic_relatedness_vector_individual(
             arr: np.ndarray,
@@ -8756,6 +8765,7 @@ class TreeSequence:
 
         U = np.empty((num_windows, dim, num_components))
         D = np.empty((num_windows, num_components))
+        Q = np.empty((num_windows, num_components + num_oversamples))
         for i in range(num_windows):
             this_window = windows[i : i + 2]
             _f = (
@@ -8767,19 +8777,20 @@ class TreeSequence:
             def _G(x):
                 _f(x, centre=centre, windows=this_window)  # NOQA: B023
 
-            U[i], D[i], _ = _rand_svd(
+            U[i], D[i], _, Q[i] = _rand_svd(
                 operator=_G,
                 operator_dim=dim,
                 rank=num_components,
                 depth=iterated_power,
                 num_vectors=num_components + num_oversamples,
                 rng=random_state,
+                range_sketch=range_sketch[i],
             )
 
         if drop_windows:
-            U, D = U[0], D[0]
+            U, D, Q = U[0], D[0], Q[0]
 
-        return U, D
+        return U, D, Q
 
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
         """
