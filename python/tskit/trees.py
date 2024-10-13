@@ -8594,14 +8594,14 @@ class TreeSequence:
 
     def pca(
         self,
-        n_components: int = 10,
+        num_components: int,
         windows: list = None,
         samples: np.ndarray = None,
         individuals: np.ndarray = None,
         mode: str = "branch",
         centre: bool = True,
-        iterated_power: int = 3,
-        n_oversamples: int = 10,
+        iterated_power: int = 5,
+        num_oversamples: int = 10,
         random_seed: int = None,
     ) -> (np.ndarray, np.ndarray):
         """
@@ -8619,7 +8619,7 @@ class TreeSequence:
 
         TODO: say what algorithms are used.
 
-        :param int n_components: Number of principal components.
+        :param int num_components: Number of principal components.
         :param list windows: An increasing list of breakpoints between the windows
             to compute the statistic in.
         :param np.ndarray samples: Samples to perform PCA with.
@@ -8631,7 +8631,7 @@ class TreeSequence:
             <.TreeSequence.genetic_relatedness_vector>`)
         :param bool centre: Centre the genetic relatedness matrix.
         :param int iterated_power: Number of power iteration of range finder.
-        :param int n_oversamples: Number of additional test vectors.
+        :param int num_oversamples: Number of additional test vectors.
         :param int random_seed: The random seed. If this is None, a random seed will
             be automatically generated. Valid random seeds must be between 1 and
             :math:`2^32 − 1`.
@@ -8652,7 +8652,7 @@ class TreeSequence:
             output_type = "individual"
             dim = len(individuals)
 
-        if n_components > dim:
+        if num_components > dim:
             raise ValueError(
                 "Number of components must be less than or equal to "
                 "the number of samples (or individuals, if specified)."
@@ -8754,8 +8754,8 @@ class TreeSequence:
         if num_windows < 1:
             raise ValueError("Number of windows must be at least 1.")
 
-        U = np.empty((num_windows, dim, n_components))
-        D = np.empty((num_windows, n_components))
+        U = np.empty((num_windows, dim, num_components))
+        D = np.empty((num_windows, num_components))
         for i in range(num_windows):
             this_window = windows[i : i + 2]
             _f = (
@@ -8770,9 +8770,9 @@ class TreeSequence:
             U[i], D[i], _ = _rand_svd(
                 operator=_G,
                 operator_dim=dim,
-                rank=n_components,
+                rank=num_components,
                 depth=iterated_power,
-                num_vectors=n_components + n_oversamples,
+                num_vectors=num_components + num_oversamples,
                 rng=random_state,
             )
 
