@@ -8784,7 +8784,7 @@ class TreeSequence:
                 depth=iterated_power,
                 num_vectors=num_components + num_oversamples,
                 rng=random_state,
-                range_sketch=range_sketch[i],
+                range_sketch=None if random_sketch is None else range_sketch[i],
             )
 
         if drop_windows:
