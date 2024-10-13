@@ -4,9 +4,9 @@ UPCOMING
 
 **Features**
 
-- Add the `tsk_treeseq_extend_edges` method that can compress a tree sequence
+- Add the `tsk_treeseq_extend_haplotypes` method that can compress a tree sequence
   by extending edges into adjacent trees and thus creating unary nodes in those
-  trees (:user:`petrelharp`, :user:`hfr1tze`, :user:`avabamf`, :pr:`2651`).
+  trees (:user:`petrelharp`, :user:`hfr1tze`, :user:`avabamf`, :pr:`2651`, :pr:`2938`).
 
 --------------------
 [1.1.2] - 2023-05-17
