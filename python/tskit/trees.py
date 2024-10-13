@@ -8603,7 +8603,7 @@ class TreeSequence:
         iterated_power: int = 5,
         num_oversamples: int = 10,
         random_seed: int = None,
-        range_sketch: list = None,
+        range_sketch: np.ndarray = None,
     ) -> (np.ndarray, np.ndarray, np.ndarray):
         """
         Run randomized singular value decomposition (rSVD) to obtain principal
@@ -8636,7 +8636,7 @@ class TreeSequence:
         :param int random_seed: The random seed. If this is None, a random seed will
             be automatically generated. Valid random seeds must be between 1 and
             :math:`2^32 − 1`.
-        :param list range_sketch: Sketch matrix for each window. Default is None.
+        :param np.ndarray range_sketch: Sketch matrix for each window. Default is None.
         :return: A tuple (U, D) of ndarrays, with the principal component loadings in U
             and the principal values in D.
         """
@@ -8653,8 +8653,11 @@ class TreeSequence:
             assert individuals is not None
             output_type = "individual"
             dim = len(individuals)
+
+        if windows is None and range_sketch is not None:
+            raise ValueError("Windows should be given to supply range_sketch")
         if range_sketch is not None:
-            assert len(range_sketch) == len(windows)
+            assert range_sketch.shape == len(windows) - 1
 
         if num_components > dim:
             raise ValueError(
