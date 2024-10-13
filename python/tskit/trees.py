@@ -8653,11 +8653,12 @@ class TreeSequence:
             assert individuals is not None
             output_type = "individual"
             dim = len(individuals)
-
-        if windows is None and range_sketch is not None:
-            raise ValueError("Windows should be given to supply range_sketch")
+        
         if range_sketch is not None:
-            assert range_sketch.shape == len(windows) - 1
+            if windows is not None:
+                assert range_sketch.shape[0] == len(windows) - 1
+            elif windows is None:
+                range_sketch = np.expand_dims(range_sketch, 0)
 
         if num_components > dim:
             raise ValueError(
