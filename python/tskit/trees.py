@@ -8680,7 +8680,7 @@ class TreeSequence:
             """
             Algorithm 9 in https://arxiv.org/pdf/2002.01387
             """
-            assert num_vectors >= rank > 0
+            assert num_vectors >= rank > 0, "num_vectors should be larger than rank"
             if range_sketch is None:
                 test_vectors = rng.normal(size=(operator_dim, num_vectors))
                 Q = test_vectors
@@ -8700,7 +8700,7 @@ class TreeSequence:
             num_vectors: int,
             rng: np.random.Generator,
             range_sketch: np.ndarray = None,
-        ) -> (np.ndarray, np.ndarray, np.ndarray):
+        ) -> (np.ndarray, np.ndarray, np.ndarray, float):
             """
             Algorithm 8 in https://arxiv.org/pdf/2002.01387
             """
@@ -8711,7 +8711,12 @@ class TreeSequence:
             C = operator(Q).T
             U_hat, D, V = np.linalg.svd(C, full_matrices=False)
             U = Q @ U_hat
-            return U[:, :rank], D[:rank], V[:rank], Q
+
+            error_factor = np.power(
+                    1 + 4 * np.sqrt(2 * operator_dim / (rank - 1)), 
+                    1 / (2 * depth + 1))
+            error_bound = D[-1] * (2 + error_factor)
+            return U[:, :rank], D[:rank], V[:rank], Q, error_bound
 
         def _genetic_relatedness_vector_individual(
             arr: np.ndarray,
@@ -8741,7 +8746,7 @@ class TreeSequence:
             )[0]
 
             def bincount_fn(w):
-                np.bincount(sample_individuals, w)
+                return np.bincount(sample_individuals, w)
 
             x = np.apply_along_axis(bincount_fn, axis=0, arr=x)
             x = x - x.mean(axis=0) if centre else x  # centering within index in cols
@@ -8769,7 +8774,8 @@ class TreeSequence:
 
         U = np.empty((num_windows, dim, num_components))
         D = np.empty((num_windows, num_components))
-        Q = np.empty((num_windows, num_components + num_oversamples))
+        Q = np.empty((num_windows, dim, num_components + num_oversamples))
+        E = np.empty(num_windows)
         for i in range(num_windows):
             this_window = windows[i : i + 2]
             _f = (
@@ -8779,22 +8785,22 @@ class TreeSequence:
             )
 
             def _G(x):
-                _f(x, centre=centre, windows=this_window)  # NOQA: B023
+                return _f(x, centre=centre, windows=this_window)  # NOQA: B023
 
-            U[i], D[i], _, Q[i] = _rand_svd(
+            U[i], D[i], _, Q[i], E[i] = _rand_svd(
                 operator=_G,
                 operator_dim=dim,
                 rank=num_components,
                 depth=iterated_power,
                 num_vectors=num_components + num_oversamples,
                 rng=random_state,
-                range_sketch=None if random_sketch is None else range_sketch[i],
+                range_sketch=None if range_sketch is None else range_sketch[i],
             )
 
         if drop_windows:
             U, D, Q = U[0], D[0], Q[0]
 
-        return U, D, Q
+        return U, D, Q, E
 
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
         """
