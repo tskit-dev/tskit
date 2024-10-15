@@ -339,11 +339,11 @@ The `indexes` parameter is interpreted in the following way:
   statistic selecting the specified sample sets and we remove the last dimension
   in the result array as described in the {ref}`sec_stats_output_dimensions` section.
 
-- If if is `None` and `sample_sets` contains exactly `k` sample sets,
+- If it is `None` and `sample_sets` contains exactly `k` sample sets,
   this is equivalent to `indexes=range(k)`. **Note
   that we also drop the outer dimension of the result array in this case**.
 
-- If is is a list of `k`-tuples (each consisting of integers
+- If it is a list of `k`-tuples (each consisting of integers
   of integers between `0` and `len(sample_sets) - 1`) of length `n` we
   compute `n` statistics based on these selections of sample sets.
 
