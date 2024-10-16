@@ -598,6 +598,7 @@ Functions and static methods
 ```{eval-rst}
 .. autosummary::
   Tree.kc_distance
+  Tree.rf_distance
 ```
 
 (sec_python_api_trees_balance)=

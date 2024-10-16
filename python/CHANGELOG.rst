@@ -93,6 +93,8 @@
 
 - Add ``resources`` section to provenance schema. (:user:`benjeffery`, :pr:`3016`)
 
+- Add ``Tree.rf_distance`` method to calculate the unweighted Robinson-Foulds distance
+  between two trees. (:user:`Billyzhang1229`, :issue:`995`, :pr:`2643`, :pr:`3032`)
 
 --------------------
 [0.5.8] - 2024-06-27

@@ -1420,6 +1420,10 @@ class TestKCSequenceMetric(unittest.TestCase):
         assert t1.kc_distance(t2, 1) == 0
 
 
+# Test the RF distance metrics:
+# TODO: integrate with the KC tests
+
+
 class TestTreeSameSamples:
     # Tree1
     # 2.00┊    6    ┊
@@ -1569,7 +1573,7 @@ class TestAllRootsN5:
         return tables.tree_sequence().first()
 
     def test_rf_distance(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="single root"):
             self.tree().rf_distance(self.tree())
 
 
