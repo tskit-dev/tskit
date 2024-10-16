@@ -71,11 +71,11 @@ an overview of how to contribute a new feature to `tskit`.
 ### Requirements
 
 To develop the Python code you will need a working C compiler and a
-development installation of Python (>= 3.8). On Debian/Ubuntu we can install these
+development installation of Python (>= 3.9). On Debian/Ubuntu we can install these
 with:
 
 ```bash
-$ sudo apt install python3-dev build-essential doxygen
+$ sudo apt install python3-dev python-is-python3 build-essential doxygen
 ```
 
 Python packages required for development are listed in `python/requirements/development.txt`.
