@@ -1,6 +1,8 @@
 name: Release
 
-on: push
+on:
+  push:
+    branches: [main, test]
 
 jobs:
   build:
@@ -8,14 +10,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install dependencies and set path
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - name: Install dependencies and set up venv
         run: |
-            sudo apt-get update
-            sudo apt-get install -y ninja-build libcunit1-dev python3-pip
-            # Install meson as root so we can install to the system below.
-            sudo pip install meson
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libcunit1-dev
+          python -m venv venv
+          source venv/bin/activate
+          pip install meson
       - name: Build tarball and changelogs
         run: |
+          source venv/bin/activate
           git rm -rf c/tests/meson-subproject
           git config --global user.email "CI@CI.com"
           git config --global user.name "Mr Robot"
