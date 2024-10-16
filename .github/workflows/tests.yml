@@ -138,8 +138,7 @@ jobs:
         run: |
           source ~/.profile
           conda activate anaconda-client-env
-          # pytest -xv -n2
-          python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 tests
+          python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
