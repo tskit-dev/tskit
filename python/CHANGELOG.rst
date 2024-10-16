@@ -42,6 +42,10 @@
 - Edges now have an ``.interval`` attribute returning a ``tskit.Interval`` object.
   (:user:`hyanwong`, :pr:`2531`)
 
+- Variants now have a `states()` method that returns the genotypes as an
+   (inefficient) array of strings, rather than integer indexes, to
+   aid comparison of genetic variation (:user:`hyanwong`, :pr:`2617`)
+
 - Added ``distance_between`` that calculates the total distance between two nodes in a tree.
   (:user:`Billyzhang1229`, :pr:`2771`)
 
@@ -95,6 +99,7 @@
 
 - Add ``Tree.rf_distance`` method to calculate the unweighted Robinson-Foulds distance
   between two trees. (:user:`Billyzhang1229`, :issue:`995`, :pr:`2643`, :pr:`3032`)
+
 
 --------------------
 [0.5.8] - 2024-06-27
@@ -216,7 +221,6 @@
    parameters to simplify previously defaulted to ``True`` but now default
    to ``None``, which is treated as ``True``. Previously, passing ``None``
    would result in an error. (:user:`hyanwong`, :pr:`2609`, :issue:`2608`)
-
 
 --------------------
 [0.5.3] - 2022-10-03
