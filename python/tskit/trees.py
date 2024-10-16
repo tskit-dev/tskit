@@ -2975,15 +2975,30 @@ class Tree:
 
     def rf_distance(self, other):
         """
-        Returns the Robinson-Foulds distance between the specified pair of trees.
+        Returns the (unweighted) Robinson-Foulds distance between the specified pair
+        of trees, where corresponding samples between the two trees are identified by
+        node ID. The Robinson-Foulds distance (also known as the symmetric difference)
+        is defined as the number of bipartitions that are present in one tree but
+        not the other (see
+        `Robinson & Foulds (1981) <https://doi.org/10.1016/0025-5564(81)90043-2>`_).
+        This method returns the unnormalised RF distance: if the
+        trees are strictly bifurcating, i.e. binary, the value can be
+        normalised by dividing by the maximum, which is $2n-4$ for two rooted
+        trees of $n$ samples (however, if the trees contain polytomies, the maximum
+        RF distance is less easily defined).
 
-        .. seealso::
-            See `Robinson & Foulds (1981)
-            <https://doi.org/10.1016/0025-5564(81)90043-2>`_ for more details.
+        .. note::
+            The RF distance can be sensitive to small changes in topology: in some
+            cases, changing the position of a single leaf can result in the maximum
+            RF distance. Therefore even if adjacent trees in a tree sequence differ
+            by a single subtree-prune-and-regraft operation, the RF distance
+            between them can be large.
 
-        :param Tree other: The other tree to compare to.
-        :return: The computed Robinson-Foulds distance between this tree and other.
+        :param Tree other: The other tree to compare to. Trees are treated as rooted.
+        :return: The unweighted Robinson-Foulds distance between this tree and ``other``.
         :rtype: int
+        :raises ValueError: If either tree has multiple roots, or the trees have
+            different sample nodes.
         """
         if self.num_roots != 1 or other.num_roots != 1:
             raise ValueError("Trees must have a single root")
