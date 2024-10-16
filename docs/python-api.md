@@ -551,6 +551,7 @@ Iterator access
     .. autosummary::
 
       Tree.nodes
+      Tree.ancestors
 
 Array access
     .. autosummary::

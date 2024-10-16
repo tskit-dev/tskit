@@ -3822,6 +3822,23 @@ class TestTree(HighLevelTestCase):
         for u in tree.nodes():
             assert tree.num_children(u) == len(tree.children(u))
 
+    def test_ancestors(self):
+        tree = tskit.Tree.generate_balanced(10, arity=3)
+        ancestors_arrays = {u: [] for u in np.arange(tree.tree_sequence.num_nodes)}
+        ancestors_arrays[-1] = []
+        for u in tree.nodes(order="preorder"):
+            parent = tree.parent(u)
+            if parent != tskit.NULL:
+                ancestors_arrays[u] = [parent] + ancestors_arrays[tree.parent(u)]
+        for u in tree.nodes():
+            assert list(tree.ancestors(u)) == ancestors_arrays[u]
+
+    def test_ancestors_empty(self):
+        ts = tskit.Tree.generate_comb(10).tree_sequence
+        tree = ts.delete_intervals([[0, 1]]).first()
+        for u in ts.samples():
+            assert len(list(tree.ancestors(u))) == 0
+
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     def test_virtual_root_semantics(self, ts):
         for tree in ts.trees():
