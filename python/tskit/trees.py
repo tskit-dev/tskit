@@ -1091,6 +1091,16 @@ class Tree:
         """
         return self._parent_array
 
+    def ancestors(self, u):
+        """
+        Returns an iterator over the ancestors of node ``u`` in this tree
+        (i.e. the chain of parents from ``u`` to the root).
+        """
+        u = self.parent(u)
+        while u != -1:
+            yield u
+            u = self.parent(u)
+
     # Quintuply linked tree structure.
 
     def left_child(self, u):

@@ -35,15 +35,6 @@ from tests.test_highlevel import get_example_tree_sequences
 # we can remove this.
 
 
-def node_path(tree, u):
-    path = []
-    u = tree.parent(u)
-    while u != tskit.NULL:
-        path.append(u)
-        u = tree.parent(u)
-    return path
-
-
 def sackin_index_definition(tree):
     return sum(tree.depth(u) for u in tree.leaves())
 
@@ -79,7 +70,7 @@ def b2_index_definition(tree, base=10):
     if tree.num_roots != 1:
         raise ValueError("B2 index is only defined for trees with one root")
     proba = [
-        np.prod([1 / tree.num_children(u) for u in node_path(tree, leaf)])
+        np.prod([1 / tree.num_children(u) for u in tree.ancestors(leaf)])
         for leaf in tree.leaves()
     ]
     return -sum(p * math.log(p, base) for p in proba)

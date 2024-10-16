@@ -89,6 +89,7 @@
 
 - Add comma separation to all display numbers. (:user:`benjeffery`, :issue:`3017`, :pr:`3018`)
 
+- Added ``Tree.ancestors(u)`` method. (:user:`hyanwong`, :issue:`2706`, :pr:`3021`)
 
 - Add ``resources`` section to provenance schema. (:user:`benjeffery`, :pr:`3016`)
 
