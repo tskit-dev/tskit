@@ -8714,8 +8714,9 @@ class TreeSequence:
 
             error_factor = np.power(
                     1 + 4 * np.sqrt(2 * operator_dim / (rank - 1)), 
-                    1 / (2 * depth + 1))
-            error_bound = D[-1] * (2 + error_factor)
+                    1 / (2 * depth + 1)
+                    )
+            error_bound = D[-1] * (1 + error_factor)
             return U[:, :rank], D[:rank], V[:rank], Q, error_bound
 
         def _genetic_relatedness_vector_individual(
@@ -8765,7 +8766,14 @@ class TreeSequence:
             x = x - x.mean(axis=0) if centre else x
 
             return x
-
+        
+        @dataclass
+        class PCAResult:
+            U: np.ndarray
+            D: np.ndarray
+            Q: np.ndarray
+            E: np.ndarray
+        
         drop_windows = windows is None
         windows = self.parse_windows(windows)
         num_windows = len(windows) - 1
@@ -8800,7 +8808,9 @@ class TreeSequence:
         if drop_windows:
             U, D, Q = U[0], D[0], Q[0]
 
-        return U, D, Q, E
+        pca_result = PCAResult(U, D, Q, E)
+
+        return pca_result
 
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
         """
