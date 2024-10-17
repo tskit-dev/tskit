@@ -32,6 +32,32 @@ import tests
 import tskit
 from tests import tsutil
 
+
+def _single_tree_example(L, T):
+    """
+    For testing numerical issues with sequence scaling
+    """
+    tables = tskit.TableCollection(sequence_length=L)
+    tables.nodes.set_columns(
+        time=np.array([0.0] * 8 + [0.1, 0.2, 0.2, 0.6, 0.8, 1.0]) * T,
+        flags=np.repeat([1, 0], [8, 6]).astype("uint32"),
+    )
+    tables.edges.set_columns(
+        left=np.repeat([0], 13),
+        right=np.repeat([L], 13),
+        parent=np.array(
+            [8, 8, 9, 9, 10, 10, 11, 11, 11, 12, 12, 13, 13], dtype="int32"
+        ),
+        child=np.array([1, 2, 3, 8, 0, 7, 4, 5, 10, 6, 11, 9, 12], dtype="int32"),
+    )
+    tables.populations.add_row()
+    tables.populations.add_row()
+    tables.nodes.population = np.array(
+        [0, 1, 1, 1, 0, 0, 1, 0] + [tskit.NULL] * 6, dtype="int32"
+    )
+    return tables.tree_sequence()
+
+
 # --- prototype --- #
 
 
@@ -1570,6 +1596,29 @@ class TestPairCoalescenceQuantiles:
         with pytest.raises(ValueError, match="require calibrated node times"):
             tables.tree_sequence().pair_coalescence_quantiles(quantiles=np.array([0.5]))
 
+    def test_long_sequence(self):
+        ts = _single_tree_example(L=1e8, T=10)
+        windows = np.linspace(0, ts.sequence_length, 100)
+        time_windows = np.array([0, np.inf])
+        # check that there is roundoff error present
+        weights = ts.pair_coalescence_counts(
+            windows=windows,
+            time_windows=time_windows,
+            pair_normalise=True,
+            span_normalise=True,
+        )
+        assert np.all(np.isclose(weights, 1.0))
+        assert not np.all(weights == 1.0)
+        # check that we don't error out
+        quantiles = np.linspace(0, 1, 10)
+        quants = ts.pair_coalescence_quantiles(windows=windows, quantiles=quantiles)
+        ck_quants = _numpy_weighted_quantile(
+            ts.nodes_time,
+            ts.pair_coalescence_counts(pair_normalise=True),
+            quantiles,
+        )
+        np.testing.assert_allclose(quants, np.tile(ck_quants, (windows.size - 1, 1)))
+
 
 class TestPairCoalescenceRates:
     """
@@ -1674,3 +1723,27 @@ class TestPairCoalescenceRates:
             tables.tree_sequence().pair_coalescence_rates(
                 time_windows=np.array([0.0, np.inf])
             )
+
+    def test_long_sequence(self):
+        ts = _single_tree_example(L=1e8, T=10)
+        windows = np.linspace(0, ts.sequence_length, 100)
+        time_windows = np.array([0, np.inf])
+        # check that there is roundoff error present
+        weights = ts.pair_coalescence_counts(
+            windows=windows,
+            time_windows=time_windows,
+            pair_normalise=True,
+            span_normalise=True,
+        )
+        assert np.all(np.isclose(weights, 1.0))
+        assert not np.all(weights == 1.0)
+        # check that we don't error out
+        rates = ts.pair_coalescence_rates(windows=windows, time_windows=time_windows)
+        ck_rates = _numpy_hazard_rate(
+            ts.nodes_time,
+            ts.pair_coalescence_counts(pair_normalise=True),
+            time_windows,
+        )
+        np.testing.assert_allclose(
+            rates.flatten(), np.repeat(ck_rates, windows.size - 1)
+        )
