@@ -8637,8 +8637,11 @@ class TreeSequence:
             be automatically generated. Valid random seeds must be between 1 and
             :math:`2^32 − 1`.
         :param np.ndarray range_sketch: Sketch matrix for each window. Default is None.
-        :return: A tuple (U, D, Q) of ndarrays, with the principal component loadings in U
-            and the principal values in D. Q is the range sketch array for each window.
+        :return: A class object with attributes U, D, Q and E. 
+            The principal component loadings are in U
+            and the principal values are in D. 
+            Q is the range sketch array for each window.
+            E is the error bound of the singular values..
         """
 
         if samples is None and individuals is None:
