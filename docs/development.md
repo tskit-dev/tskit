@@ -1187,7 +1187,7 @@ the release looks good there, then publish the draft release on the
 Publishing this release will cause the github
 action to deploy to the [production PyPI](https://pypi.org/project/tskit/).
 After release, start a section in the changelog for new developments, close the
-GitHub issue milestone of the release and update ROADMAP.md.
+GitHub issue milestone of the release and update the python version to a `.dev`.
 For a major release the website (github repo tskit-dev/tskit-site) should then
 be updated with a notebook of new features. The benchmarks should be run as above
 and the `bench-results.html` updated on the website.
