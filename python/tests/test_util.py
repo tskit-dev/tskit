@@ -374,36 +374,52 @@ def test_naturalsize(value, expected):
 @pytest.mark.parametrize(
     "obj, expected",
     [
-        (0, "Test:0"),
+        (0, "Test: 0"),
         (
             {"a": 1},
-            '<div><spanclass="tskit-details-label">Test:</span><detailsopen><summary>dic'
-            "t</summary>a:1<br/></details></div>",
+            '<div><span class="tskit-details-label">Test:</span><details open>'
+            "<summary>dict</summary>a: 1<br/></details></div>",
         ),
         (
             {"b": [1, 2, 3]},
-            '<div><spanclass="tskit-details-label">Test:</span><detailsopen><summary>dic'
-            't</summary><div><spanclass="tskit-details-label">b:</span><details><summary'
-            ">list</summary>1<br/>2<br/>3<br/></details></div><br/></details></div>",
+            '<div><span class="tskit-details-label">Test:</span><details open>'
+            '<summary>dict</summary><div><span class="tskit-details-label">b:'
+            "</span><details ><summary>list</summary> 1<br/> 2<br/> 3<br/></"
+            "details></div><br/></details></div>",
         ),
         (
             {"b": [1, 2, {"c": 1}]},
-            '<div><spanclass="tskit-details-label">Test:</span><detailsopen><summary>dic'
-            't</summary><div><spanclass="tskit-details-label">b:</span><details><summary'
-            '>list</summary>1<br/>2<br/><div><spanclass="tskit-details-label"></span><de'
-            "tails><summary>dict</summary>c:1<br/></details></div><br/></details></div><"
-            "br/></details></div>",
+            '<div><span class="tskit-details-label">Test:</span><details open>'
+            '<summary>dict</summary><div><span class="tskit-details-label">b:'
+            "</span><details ><summary>list</summary> 1<br/> 2<br/><div><span"
+            ' class="tskit-details-label"></span><details ><summary>dict</'
+            "summary>c: 1<br/></details></div><br/></details></div><br/></"
+            "details></div>",
         ),
         (
             {"a": "1", "b": "2"},
-            '<div><spanclass="tskit-details-label">Test:</span><detailsopen><summary>dic'
-            "t</summary>a:1<br/>b:2<br/></details></div>",
+            '<div><span class="tskit-details-label">Test:</span><details open>'
+            "<summary>dict</summary>a: 1<br/>b: 2<br/></details></div>",
         ),
+        (
+            {"a": "a very long thing that is broken in the output"},
+            '<div><span class="tskit-details-label">Test:</span><details open>'
+            "<summary>dict</summary>a: a very long thing that is<br/>broken in"
+            " the output<br/></details></div>",
+        ),
+    ],
+    ids=[
+        "integer",
+        "simple_dict",
+        "dict_with_list",
+        "nested_dict_list",
+        "dict_with_strings",
+        "dict_with_multiline_strings",
     ],
 )
 def test_obj_to_collapsed_html(obj, expected):
     assert (
-        util.obj_to_collapsed_html(obj, "Test", 1).replace(" ", "").replace("\n", "")
+        util.obj_to_collapsed_html(obj, "Test", 1).replace("  ", "").replace("\n", "")
         == expected
     )
 

@@ -383,8 +383,9 @@ def obj_to_collapsed_html(d, name=None, open_depth=0, max_items=30, max_item_len
         if len(d_str) > max_item_len:
             d_str = d_str[:max_item_len] + "..."
         d_str = textwrap.fill(d_str, width=30)
+        d_str = f"{name} {html.escape(str(d_str))}"
         d_str = d_str.replace("\n", "<br/>")
-        return f"{name} {html.escape(str(d_str))}"
+        return d_str
 
 
 def truncate_string_end(string, length):
