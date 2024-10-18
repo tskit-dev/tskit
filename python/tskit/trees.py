@@ -8769,14 +8769,7 @@ class TreeSequence:
             x = x - x.mean(axis=0) if centre else x
 
             return x
-        
-        @dataclass
-        class PCAResult:
-            U: np.ndarray
-            D: np.ndarray
-            Q: np.ndarray
-            E: np.ndarray
-        
+                
         drop_windows = windows is None
         windows = self.parse_windows(windows)
         num_windows = len(windows) - 1
@@ -8811,7 +8804,7 @@ class TreeSequence:
         if drop_windows:
             U, D, Q = U[0], D[0], Q[0]
 
-        pca_result = PCAResult(U, D, Q, E)
+        pca_result = PCAResult(loadings=U, eigen_values=D, range_sketch=Q, error_bound=E)
 
         return pca_result
 
