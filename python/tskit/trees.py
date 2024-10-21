@@ -7959,7 +7959,6 @@ class TreeSequence:
             time_windows = [0.0, math.inf]
         return np.array(time_windows)
 
-<<<<<<< HEAD
     def __run_windowed_stat(self, windows, method, *args, **kwargs):
         strip_win = windows is None
         windows = self.parse_windows(windows)
@@ -7970,9 +7969,6 @@ class TreeSequence:
 
     # only for temporary tw version
     def __run_windowed_stat_tw(self, windows, time_windows, method, *args, **kwargs):
-=======
-    def __run_windowed_stat(self, windows, time_windows, method, *args, **kwargs):
->>>>>>> 14e1cefc (Better dimension drop with time windows)
         strip_win = windows is None
         strip_timewin = time_windows is None
         windows = self.parse_windows(windows)
@@ -8229,7 +8225,6 @@ class TreeSequence:
         sample_sets,
         indexes=None,
         windows=None,
-        time_windows=None,
         mode=None,
         span_normalise=True,
         polarised=False,
@@ -8262,7 +8257,6 @@ class TreeSequence:
             )
         stat = self.__run_windowed_stat(
             windows,
-            time_windows,
             ll_method,
             sample_set_sizes,
             flattened,
@@ -8285,7 +8279,6 @@ class TreeSequence:
         W,
         indexes=None,
         windows=None,
-        time_windows=None,
         mode=None,
         span_normalise=True,
         polarised=False,
@@ -8311,7 +8304,6 @@ class TreeSequence:
             )
         stat = self.__run_windowed_stat(
             windows,
-            time_windows,
             ll_method,
             W,
             indexes,
@@ -8995,7 +8987,6 @@ class TreeSequence:
             polarised=polarised,
             centre=centre,
         )
-
     def genetic_relatedness_vector(
         self,
         W,
@@ -9392,7 +9383,6 @@ class TreeSequence:
         pca_result = PCAResult(factors=U, eigenvalues=D, range_sketch=Q, error_bound=E)
 
         return pca_result
-
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
         """
         Computes the mean squared covariances between each of the columns of ``W``
@@ -9541,7 +9531,12 @@ class TreeSequence:
         return self.trait_linear_model(*args, **kwargs)
 
     def trait_linear_model(
-        self, W, Z=None, windows=None, mode="site", span_normalise=True
+        self,
+        W,
+        Z=None,
+        windows=None,
+        mode="site",
+        span_normalise=True,
     ):
         """
         Finds the relationship between trait and genotype after accounting for

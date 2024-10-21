@@ -4339,7 +4339,6 @@ class TestAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
 
             assert len(sfs1.shape) == len(sample_sets) + 1
             assert sfs1.shape == sfs2.shape
-            print("SFS1=", sfs1, "\n...SFS3=", sfs3)
             assert sfs1.shape == sfs3.shape
             if not np.allclose(sfs1, sfs3):
                 print()
@@ -7370,14 +7369,3 @@ class TestTimeWindows(TestBranchAlleleFrequencySpectrum):
         # dimensions are dim1: windows ; dim2: time_windows ;
         # dim3-or-more: num_sample_sets
         assert sfs1_w_tw.ndim == 3
-
-        print(sfs1_decap_05)
-
-        sfs_c = ts.allele_frequency_spectrum(
-            sample_sets=[[0, 1, 2, 3]],
-            mode=self.mode,
-            polarised=True,
-            span_normalise=False,
-        )
-
-        print(sfs_c)
