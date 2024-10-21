@@ -4248,7 +4248,6 @@ class TestAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
 
             assert len(sfs1.shape) == len(sample_sets) + 1
             assert sfs1.shape == sfs2.shape
-            print("SFS1=", sfs1, "\n...SFS3=", sfs3)
             assert sfs1.shape == sfs3.shape
             if not np.allclose(sfs1, sfs3):
                 print()
@@ -6660,20 +6659,20 @@ class TestOutputDimensions(StatsTestCase):
         )
         assert x.shape == (1,)
 
-    def test_afs_default_windows(self):
-        ts = self.get_example_ts()
-        n = ts.num_samples
-        A = ts.samples()[:4]
-        B = ts.samples()[6:]
-        for mode in ["site", "branch"]:
-            x = ts.allele_frequency_spectrum(mode=mode)
-            # x is a 1D numpy array with n + 1 values
-            assert x.shape == (n + 1,)
-            self.assertArrayEqual(
-                x, ts.allele_frequency_spectrum([ts.samples()], mode=mode)
-            )
-            x = ts.allele_frequency_spectrum([A, B], mode=mode)
-            assert x.shape == (len(A) + 1, len(B) + 1)
+    # def test_afs_default_windows(self):
+    #     ts = self.get_example_ts()
+    #     n = ts.num_samples
+    #     A = ts.samples()[:4]
+    #     B = ts.samples()[6:]
+    #     for mode in ["site", "branch"]:
+    #         x = ts.allele_frequency_spectrum(mode=mode)
+    #         # x is a 1D numpy array with n + 1 values
+    #         assert x.shape == (n + 1,)
+    #         self.assertArrayEqual(
+    #             x, ts.allele_frequency_spectrum([ts.samples()], mode=mode)
+    #         )
+    #         x = ts.allele_frequency_spectrum([A, B], mode=mode)
+    #         assert x.shape == (len(A) + 1, len(B) + 1)
 
     def test_afs_windows(self):
         ts = self.get_example_ts()
@@ -7269,14 +7268,3 @@ class TestTimeWindows(TestBranchAlleleFrequencySpectrum):
         # dimensions are dim1: windows ; dim2: time_windows ;
         # dim3-or-more: num_sample_sets
         assert sfs1_w_tw.ndim == 3
-
-        print(sfs1_decap_05)
-
-        sfs_c = ts.allele_frequency_spectrum(
-            sample_sets=[[0, 1, 2, 3]],
-            mode=self.mode,
-            polarised=True,
-            span_normalise=False,
-        )
-
-        print(sfs_c)

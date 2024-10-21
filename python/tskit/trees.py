@@ -7666,6 +7666,9 @@ class TreeSequence:
         return np.array(time_windows)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> d31f13b4 (AFS branch mode with time windows to review)
     def __run_windowed_stat(self, windows, method, *args, **kwargs):
         strip_win = windows is None
         windows = self.parse_windows(windows)
@@ -7676,9 +7679,12 @@ class TreeSequence:
 
     # only for temporary tw version
     def __run_windowed_stat_tw(self, windows, time_windows, method, *args, **kwargs):
+<<<<<<< HEAD
 =======
     def __run_windowed_stat(self, windows, time_windows, method, *args, **kwargs):
 >>>>>>> 14e1cefc (Better dimension drop with time windows)
+=======
+>>>>>>> d31f13b4 (AFS branch mode with time windows to review)
         strip_win = windows is None
         strip_timewin = time_windows is None
         windows = self.parse_windows(windows)
@@ -7889,7 +7895,6 @@ class TreeSequence:
         sample_sets,
         indexes=None,
         windows=None,
-        time_windows=None,
         mode=None,
         span_normalise=True,
         polarised=False,
@@ -7922,7 +7927,6 @@ class TreeSequence:
             )
         stat = self.__run_windowed_stat(
             windows,
-            time_windows,
             ll_method,
             sample_set_sizes,
             flattened,
@@ -7945,7 +7949,6 @@ class TreeSequence:
         W,
         indexes=None,
         windows=None,
-        time_windows=None,
         mode=None,
         span_normalise=True,
         polarised=False,
@@ -7971,7 +7974,6 @@ class TreeSequence:
             )
         stat = self.__run_windowed_stat(
             windows,
-            time_windows,
             ll_method,
             W,
             indexes,
@@ -8656,6 +8658,7 @@ class TreeSequence:
             centre=centre,
         )
 
+<<<<<<< HEAD
     def genetic_relatedness_vector(
         self,
         W,
@@ -8719,6 +8722,8 @@ class TreeSequence:
         )
         return out
 
+=======
+>>>>>>> d31f13b4 (AFS branch mode with time windows to review)
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
         """
         Computes the mean squared covariances between each of the columns of ``W``
@@ -8867,7 +8872,16 @@ class TreeSequence:
         return self.trait_linear_model(*args, **kwargs)
 
     def trait_linear_model(
+<<<<<<< HEAD
         self, W, Z=None, windows=None, mode="site", span_normalise=True
+=======
+        self,
+        W,
+        Z=None,
+        windows=None,
+        mode="site",
+        span_normalise=True,
+>>>>>>> d31f13b4 (AFS branch mode with time windows to review)
     ):
         """
         Finds the relationship between trait and genotype after accounting for
