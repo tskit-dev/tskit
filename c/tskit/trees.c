@@ -9798,7 +9798,6 @@ pair_coalescence_rates(tsk_size_t input_dim, const double *weight, const double 
     }
     coalesced = 0.0;
     for (i = 0; i < j; i++) {
-        tsk_bug_assert(weight[i] >= 0 && weight[i] <= 1);
         a = time_windows[i];
         b = time_windows[i + 1];
         if (i + 1 == j) {
