@@ -460,7 +460,7 @@ def check_relatedness_vector(
     return R
 
 
-class TestExamples:
+class TestRelatednessVector:
 
     def test_bad_weights(self):
         n = 5
@@ -737,3 +737,147 @@ class TestExamples:
             ts2, internal_checks=True, centre=centre, do_nodes=False
         )
         np.testing.assert_array_almost_equal(D1, D2)
+
+
+def pca(ts, windows, centre):
+    drop_dimension = windows is None
+    if drop_dimension:
+        windows = [0, ts.sequence_length]
+    Sigma = relatedness_matrix(ts=ts, windows=windows, centre=centre)
+    U, S, _ = np.linalg.svd(Sigma, hermitian=True)
+    if drop_dimension:
+        U = U[0]
+        S = S[0]
+    return U, S
+
+
+def allclose_up_to_sign(x, y, **kwargs):
+    # check if two vectors are the same up to sign
+    x_const = np.isclose(np.std(x), 0)
+    y_const = np.isclose(np.std(y), 0)
+    if x_const or y_const:
+        if np.allclose(x, 0):
+            r = 1.0
+        else:
+            r = np.mean(x / y)
+    else:
+        r = np.sign(np.corrcoef(x, y)[0, 1])
+    return np.allclose(x, r * y, **kwargs)
+
+
+def assert_pcs_equal(U, D, U_full, D_full, rtol=1e-05, atol=1e-08):
+    # check that the PCs in U, D occur in U_full, D_full
+    # accounting for sign and ordering
+    assert len(D) <= len(D_full)
+    assert U.shape[0] == U_full.shape[0]
+    assert U.shape[1] == len(D)
+    for k in range(len(D)):
+        u = U[:, k]
+        d = D[k]
+        (ii,) = np.where(np.isclose(D_full, d, rtol=rtol, atol=atol))
+        assert len(ii) > 0, f"{k}th singular value {d} not found in {D_full}."
+        found_it = False
+        for i in ii:
+            if allclose_up_to_sign(u, U_full[:, i], rtol=rtol, atol=atol):
+                found_it = True
+                break
+        assert found_it, f"{k}th singular vector {u} not found in {U_full}."
+
+
+class TestPCA:
+
+    def verify_pca(self, ts, num_windows, n_components, centre):
+        if num_windows == 0:
+            windows = None
+        elif num_windows % 2 == 0:
+            windows = np.linspace(
+                0.2 * ts.sequence_length, 0.8 * ts.sequence_length, num_windows + 1
+            )
+        else:
+            windows = np.linspace(0, ts.sequence_length, num_windows + 1)
+        ts_U, ts_D = ts.pca(
+            windows=windows, n_components=n_components, centre=centre, random_seed=123
+        )
+        num_rows = ts.num_samples
+        if windows is None:
+            assert ts_U.shape == (num_rows, n_components)
+            assert ts_D.shape == (n_components,)
+        else:
+            assert ts_U.shape == (num_windows, num_rows, n_components)
+            assert ts_D.shape == (num_windows, n_components)
+        U, D = pca(ts=ts, windows=windows, centre=centre)
+        if windows is None:
+            np.testing.assert_allclose(ts_D, D[:n_components], atol=1e-8)
+            assert_pcs_equal(ts_U, ts_D, U, D)
+        else:
+            for w in range(num_windows):
+                np.testing.assert_allclose(ts_D[w], D[w, :n_components], atol=1e-8)
+                assert_pcs_equal(ts_U[w], ts_D[w], U[w], D[w])
+
+    def test_bad_windows(self):
+        ts = msprime.sim_ancestry(
+            3,
+            ploidy=2,
+            sequence_length=10,
+            random_seed=123,
+        )
+        for bad_w in ([], [1]):
+            with pytest.raises(ValueError, match="Number of windows"):
+                ts.pca(n_components=2, windows=bad_w)
+        for bad_w in ([1, 0], [-3, 10]):
+            with pytest.raises(tskit.LibraryError, match="TSK_ERR_BAD_WINDOWS"):
+                ts.pca(n_components=2, windows=bad_w)
+
+    def test_bad_num_components(self):
+        ts = msprime.sim_ancestry(
+            3,
+            ploidy=2,
+            sequence_length=10,
+            random_seed=123,
+        )
+        with pytest.raises(ValueError, match="Number of components"):
+            ts.pca(n_components=ts.num_samples + 1)
+        with pytest.raises(ValueError, match="Number of components"):
+            ts.pca(n_components=4, samples=[0, 1, 2])
+        with pytest.raises(ValueError, match="Number of components"):
+            ts.pca(n_components=4, individuals=[0, 1])
+
+    def test_indivs_and_samples(self):
+        ts = msprime.sim_ancestry(
+            3,
+            ploidy=2,
+            sequence_length=10,
+            random_seed=123,
+        )
+        with pytest.raises(ValueError, match="Samples and individuals"):
+            ts.pca(n_components=2, samples=[0, 1, 2, 3], individuals=[0, 1, 2])
+
+    def test_modes(self):
+        ts = msprime.sim_ancestry(
+            3,
+            ploidy=2,
+            sequence_length=10,
+            random_seed=123,
+        )
+        for bad_mode in ("site", "node"):
+            with pytest.raises(
+                tskit.LibraryError, match="TSK_ERR_UNSUPPORTED_STAT_MODE"
+            ):
+                ts.pca(n_components=2, mode=bad_mode)
+
+    @pytest.mark.parametrize("n", [2, 3, 5, 15])
+    @pytest.mark.parametrize("centre", (True, False))
+    @pytest.mark.parametrize("num_windows", (0, 1, 2, 3))
+    @pytest.mark.parametrize("n_components", (1, 3))
+    def test_simple_sims(self, n, centre, num_windows, n_components):
+        ploidy = 1
+        nc = min(n_components, n * ploidy)
+        ts = msprime.sim_ancestry(
+            n,
+            ploidy=ploidy,
+            population_size=20,
+            sequence_length=100,
+            recombination_rate=0.01,
+            random_seed=12345,
+        )
+        self.verify_pca(ts, num_windows=num_windows, n_components=nc, centre=centre)
