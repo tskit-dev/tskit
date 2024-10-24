@@ -48,8 +48,8 @@
   (:user:`hyanwong`, :pr:`2531`)
 
 - Variants now have a `states()` method that returns the genotypes as an
-   (inefficient) array of strings, rather than integer indexes, to
-   aid comparison of genetic variation (:user:`hyanwong`, :pr:`2617`)
+  (inefficient) array of strings, rather than integer indexes, to
+  aid comparison of genetic variation (:user:`hyanwong`, :pr:`2617`)
 
 - Added ``distance_between`` that calculates the total distance between two nodes in a tree.
   (:user:`Billyzhang1229`, :pr:`2771`)
