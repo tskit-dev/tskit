@@ -8987,6 +8987,7 @@ class TreeSequence:
             polarised=polarised,
             centre=centre,
         )
+
     def genetic_relatedness_vector(
         self,
         W,
@@ -9383,6 +9384,7 @@ class TreeSequence:
         pca_result = PCAResult(factors=U, eigenvalues=D, range_sketch=Q, error_bound=E)
 
         return pca_result
+
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
         """
         Computes the mean squared covariances between each of the columns of ``W``
