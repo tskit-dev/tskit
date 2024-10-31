@@ -3543,7 +3543,7 @@ tsk_treeseq_update_branch_afs(const tsk_treeseq_t *self, tsk_id_t u, double righ
     const double *count_row = GET_2D_ROW(counts, num_sample_sets + 1, u);
     /* double x = (right - last_update[u]) * branch_length[u]; */
     double x = 0;
-    double t_v = time[parent[u]];
+    double t_v = 0;
     double tw_branch_length = 0;
     const tsk_size_t all_samples = (tsk_size_t) count_row[num_sample_sets];
     if (coordinate == NULL) {
@@ -3551,6 +3551,7 @@ tsk_treeseq_update_branch_afs(const tsk_treeseq_t *self, tsk_id_t u, double righ
         goto out;
     }
     if (parent[u] != -1){
+	t_v = time[parent[u]];
 	if (0 < all_samples && all_samples < self->num_samples) {
 	    for (time_window_index = 0; time_window_index < num_time_windows; time_window_index++){
 		afs_size = result_dims[num_sample_sets];
