@@ -2920,8 +2920,8 @@ out:
 
 static int
 compute_two_tree_branch_state_update(const tsk_treeseq_t *ts, tsk_id_t c,
-    tsk_bit_array_t *child_samples, const iter_state *A_state, const iter_state *B_state,
-    tsk_size_t state_dim, tsk_size_t result_dim, int sign, general_stat_func_t *f,
+    const iter_state *A_state, const iter_state *B_state, tsk_size_t state_dim,
+    tsk_size_t result_dim, int sign, general_stat_func_t *f,
     sample_count_stat_params_t *f_params, double *result)
 {
     int ret = 0;
@@ -2935,6 +2935,10 @@ compute_two_tree_branch_state_update(const tsk_treeseq_t *ts, tsk_id_t c,
     const tsk_bit_array_t *restrict B_state_samples = B_state->node_samples;
     tsk_size_t num_samples = ts->num_samples;
     tsk_size_t num_nodes = ts->tables->nodes.num_rows;
+    b_len = B_branch_len[c] * sign;
+    if (b_len == 0) {
+        return ret;
+    }
 
     tsk_memset(&AB_samples, 0, sizeof(AB_samples));
     tsk_memset(&B_samples_tmp, 0, sizeof(B_samples_tmp));
@@ -2953,7 +2957,6 @@ compute_two_tree_branch_state_update(const tsk_treeseq_t *ts, tsk_id_t c,
     if (ret != 0) {
         goto out;
     }
-    b_len = B_branch_len[c] * sign;
     for (n = 0; n < num_nodes; n++) {
         a_len = A_branch_len[n];
         if (a_len == 0) {
@@ -2961,7 +2964,6 @@ compute_two_tree_branch_state_update(const tsk_treeseq_t *ts, tsk_id_t c,
         }
         for (k = 0; k < state_dim; k++) {
             a_row = (state_dim * n) + k;
-            // TODO: what if c is TSK_NULL?
             b_row = (state_dim * (tsk_size_t) c) + k;
             tsk_bit_array_get_row(A_state_samples, a_row, &A_samples);
             tsk_bit_array_get_row(B_state_samples, b_row, &B_samples);
@@ -2980,32 +2982,6 @@ compute_two_tree_branch_state_update(const tsk_treeseq_t *ts, tsk_id_t c,
         for (k = 0; k < result_dim; k++) {
             result[k] += result_tmp[k] * a_len * b_len;
         }
-
-        if (child_samples != NULL) {
-            for (k = 0; k < state_dim; k++) {
-                a_row = (state_dim * n) + k;
-                // TODO: what if c is TSK_NULL?
-                b_row = (state_dim * (tsk_size_t) c) + k;
-                tsk_bit_array_get_row(B_state_samples, b_row, &B_samples);
-                tsk_bit_array_add(&B_samples_tmp, &B_samples);
-                tsk_bit_array_subtract(&B_samples_tmp, child_samples);
-                tsk_bit_array_get_row(A_state_samples, a_row, &A_samples);
-                tsk_bit_array_intersect(&A_samples, &B_samples_tmp, &AB_samples);
-                weights_row = GET_2D_ROW(weights, 3, k);
-                weights_row[0] = (double) tsk_bit_array_count(&AB_samples); // w_AB
-                weights_row[1]
-                    = (double) tsk_bit_array_count(&A_samples) - weights_row[0]; // w_Ab
-                weights_row[2] = (double) tsk_bit_array_count(&B_samples_tmp)
-                                 - weights_row[0]; // w_aB
-            }
-            ret = f(state_dim, weights, result_dim, result_tmp, f_params);
-            if (ret != 0) {
-                goto out;
-            }
-            for (k = 0; k < result_dim; k++) {
-                result[k] -= result_tmp[k] * a_len * b_len;
-            }
-        }
     }
 out:
     tsk_safe_free(weights);
@@ -3021,91 +2997,93 @@ compute_two_tree_branch_stat(const tsk_treeseq_t *ts, const iter_state *l_state,
     tsk_size_t result_dim, tsk_size_t state_dim, double *result)
 {
     int ret = 0;
-    tsk_id_t e, c, p;
-    tsk_size_t j, k;
-    tsk_bit_array_t child_samples, child_samples_row, samples_row, *in_parent;
+    tsk_id_t e, c, ec, p, *updated_nodes = NULL;
+    tsk_size_t j, k, n_updates;
     const double *restrict time = ts->tables->nodes.time;
     const tsk_id_t *restrict edges_child = ts->tables->edges.child;
     const tsk_id_t *restrict edges_parent = ts->tables->edges.parent;
-    tsk_bit_array_t *r_samples = r_state->node_samples;
+    const tsk_size_t num_nodes = ts->tables->nodes.num_rows;
+    tsk_bit_array_t updates, row, ec_row, *r_samples = r_state->node_samples;
 
-    tsk_memset(&child_samples, 0, sizeof(child_samples));
-    ret = tsk_bit_array_init(&child_samples, ts->num_samples, state_dim);
+    tsk_memset(&updates, 0, sizeof(updates));
+    ret = tsk_bit_array_init(&updates, num_nodes, 1);
     if (ret != 0) {
         goto out;
     }
-    for (j = 0; j < r_state->n_edges_out; j++) {
-        e = r_state->edges_out[j];
-        c = edges_child[e];
+    updated_nodes = tsk_calloc(num_nodes, sizeof(*updated_nodes));
+    if (updated_nodes == NULL) {
+        ret = TSK_ERR_NO_MEMORY;
+        goto out;
+    }
+    // Identify modified nodes both added and removed
+    for (j = 0; j < r_state->n_edges_out + r_state->n_edges_in; j++) {
+        e = j < r_state->n_edges_out ? r_state->edges_out[j]
+                                     : r_state->edges_in[j - r_state->n_edges_out];
         p = edges_parent[e];
-        tsk_memset(child_samples.data, 0,
-            child_samples.size * state_dim * sizeof(tsk_bit_array_value_t));
-        tsk_bug_assert(c != TSK_NULL); // TODO: are these checks necessary?
-        tsk_bug_assert(p != TSK_NULL);
-        for (k = 0; k < state_dim; k++) {
-            tsk_bit_array_get_row(
-                r_samples, (state_dim * (tsk_size_t) c) + k, &samples_row);
-            tsk_bit_array_get_row(&child_samples, k, &child_samples_row);
-            tsk_bit_array_add(&child_samples_row, &samples_row);
-        }
-        in_parent = NULL;
+        c = edges_child[e];
+        // Identify affected nodes above child
         while (p != TSK_NULL) {
-            compute_two_tree_branch_state_update(ts, c, in_parent, l_state, r_state,
-                state_dim, result_dim, -1, f, f_params, result);
-            if (in_parent != NULL) {
-                for (k = 0; k < state_dim; k++) {
-                    tsk_bit_array_get_row(
-                        r_samples, (state_dim * (tsk_size_t) c) + k, &samples_row);
-                    tsk_bit_array_get_row(&child_samples, k, &child_samples_row);
-                    tsk_bit_array_subtract(&samples_row, &child_samples_row);
-                }
-            }
-            in_parent = &child_samples;
+            tsk_bit_array_add_bit(&updates, (tsk_bit_array_value_t) c);
             c = p;
             p = r_state->parent[p];
         }
-        for (k = 0; k < state_dim; k++) {
-            tsk_bit_array_get_row(
-                r_samples, (state_dim * (tsk_size_t) c) + k, &samples_row);
-            tsk_bit_array_get_row(&child_samples, k, &child_samples_row);
-            tsk_bit_array_subtract(&samples_row, &child_samples_row);
-        }
-        c = edges_child[e];
-        r_state->branch_len[c] = 0;
-        r_state->parent[c] = TSK_NULL;
     }
-    for (j = 0; j < r_state->n_edges_in; j++) {
-        e = r_state->edges_in[j];
-        c = edges_child[e];
+    // Subtract the whole contribution from the child node
+    tsk_bit_array_get_items(&updates, updated_nodes, &n_updates);
+    while (n_updates != 0) {
+        n_updates--;
+        c = updated_nodes[n_updates];
+        compute_two_tree_branch_state_update(
+            ts, c, l_state, r_state, state_dim, result_dim, -1, f, f_params, result);
+    }
+    // Remove samples under nodes from removed edges to parent nodes
+    for (j = 0; j < r_state->n_edges_out; j++) {
+        e = r_state->edges_out[j];
         p = edges_parent[e];
-        tsk_memset(child_samples.data, 0,
-            child_samples.size * state_dim * sizeof(tsk_bit_array_value_t));
-        for (k = 0; k < state_dim; k++) {
-            tsk_bit_array_get_row(
-                r_samples, (state_dim * (tsk_size_t) c) + k, &samples_row);
-            tsk_bit_array_get_row(&child_samples, k, &child_samples_row);
-            tsk_bit_array_add(&child_samples_row, &samples_row);
-        }
-        r_state->branch_len[c] = time[p] - time[c];
-        r_state->parent[c] = p;
-
-        in_parent = NULL;
+        ec = edges_child[e]; // edge child
         while (p != TSK_NULL) {
             for (k = 0; k < state_dim; k++) {
                 tsk_bit_array_get_row(
-                    r_samples, (state_dim * (tsk_size_t) p) + k, &samples_row);
-                tsk_bit_array_get_row(&child_samples, k, &child_samples_row);
-                tsk_bit_array_add(&samples_row, &child_samples_row);
+                    r_samples, (state_dim * (tsk_size_t) ec) + k, &ec_row);
+                tsk_bit_array_get_row(r_samples, (state_dim * (tsk_size_t) p) + k, &row);
+                tsk_bit_array_subtract(&row, &ec_row);
             }
-            compute_two_tree_branch_state_update(ts, c, in_parent, l_state, r_state,
-                state_dim, result_dim, +1, f, f_params, result);
-            in_parent = &child_samples;
+            p = r_state->parent[p];
+        }
+        r_state->branch_len[ec] = 0;
+        r_state->parent[ec] = TSK_NULL;
+    }
+    // Add samples under nodes from added edges
+    for (j = 0; j < r_state->n_edges_in; j++) {
+        e = r_state->edges_in[j];
+        p = edges_parent[e];
+        ec = c = edges_child[e];
+        r_state->branch_len[c] = time[p] - time[c];
+        r_state->parent[c] = p;
+        while (p != TSK_NULL) {
+            tsk_bit_array_add_bit(&updates, (tsk_bit_array_value_t) c);
+            for (k = 0; k < state_dim; k++) {
+                tsk_bit_array_get_row(
+                    r_samples, (state_dim * (tsk_size_t) ec) + k, &ec_row);
+                tsk_bit_array_get_row(r_samples, (state_dim * (tsk_size_t) p) + k, &row);
+                tsk_bit_array_add(&row, &ec_row);
+            }
             c = p;
             p = r_state->parent[p];
         }
     }
+    // Update all affected child nodes (fully subtracted, deferred from addition)
+    n_updates = 0;
+    tsk_bit_array_get_items(&updates, updated_nodes, &n_updates);
+    while (n_updates != 0) {
+        n_updates--;
+        c = updated_nodes[n_updates];
+        compute_two_tree_branch_state_update(
+            ts, c, l_state, r_state, state_dim, result_dim, +1, f, f_params, result);
+    }
 out:
-    tsk_bit_array_free(&child_samples);
+    tsk_safe_free(updated_nodes);
+    tsk_bit_array_free(&updates);
     return ret;
 }
 

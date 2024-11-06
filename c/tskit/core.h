@@ -1100,6 +1100,8 @@ void tsk_bit_array_add_bit(tsk_bit_array_t *self, const tsk_bit_array_value_t bi
 bool tsk_bit_array_contains(
     const tsk_bit_array_t *self, const tsk_bit_array_value_t bit);
 tsk_size_t tsk_bit_array_count(const tsk_bit_array_t *self);
+void tsk_bit_array_get_items(
+    const tsk_bit_array_t *self, tsk_id_t *items, tsk_size_t *n_items);
 
 #ifdef __cplusplus
 }
