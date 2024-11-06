@@ -2602,6 +2602,19 @@ class TestDrawSvg(TestDrawSvgBase):
             )
             assert "Ticks {10: '10'} lie outside the plotted axis" in caplog.text
 
+    def test_polytomy_collapsing(self):
+        tree = tskit.Tree.generate_balanced(
+            20, arity=4, tracked_samples=np.arange(2, 8)
+        )
+        svg = tree.draw_svg(pack_untracked_polytomies=True)
+        # Should have one collapsed node (untracked samples 8 and 9)
+        # and two "polytomy lines" (from nodes 21 and 28 (the root))
+        assert svg.count('class="polytomy"') == 2  # poolytomy lines
+        collapsed_symbol = re.search("<polygon[^>]*>", svg)
+        assert collapsed_symbol is not None
+        assert collapsed_symbol.group(0).count("sym") == 1
+        assert collapsed_symbol.group(0).count("multi") == 1
+
 
 class TestDrawKnownSvg(TestDrawSvgBase):
     """

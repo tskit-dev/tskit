@@ -1827,23 +1827,26 @@ class SvgTree(SvgAxisPlot):
         prev = tree.virtual_root
         for u in self.postorder_nodes:
             parent = tree.parent(u)
+            omit = self.pack_untracked_polytomies and tree.num_tracked_samples(u) == 0
             if parent == prev:
                 raise ValueError("Nodes must be passed in postorder to Tree.draw_svg()")
             is_tip = tree.parent(prev) != u
             if is_tip:
-                if self.pack_untracked_polytomies and tree.num_tracked_samples(u) == 0:
-                    untracked_children[parent].append(u)
-                else:
+                if not omit:
                     leaf_x += 1
                     node_xpos[u] = leaf_x
-            else:
-                # Concatenate all the untracked children
-                num_untracked_children = len(untracked_children[u])
+            elif not omit:
+                # Untracked children are available for packing into a polytomy summary
+                untracked_children = []
+                if self.pack_untracked_polytomies:
+                    untracked_children += [
+                        c for c in tree.children(u) if tree.num_tracked_samples(c) == 0
+                    ]
                 child_x = [node_xpos[c] for c in tree.children(u) if c in node_xpos]
-                if num_untracked_children > 0:
-                    if num_untracked_children <= 1:
-                        # If only a single non-focal lineage, we might as well show it
-                        for child in untracked_children[u]:
+                if len(untracked_children) > 0:
+                    if len(untracked_children) <= 1:
+                        # If only a single non-focal lineage, treat it as a condensed tip
+                        for child in untracked_children:
                             leaf_x += 1
                             node_xpos[child] = leaf_x
                             child_x.append(leaf_x)
@@ -1851,9 +1854,9 @@ class SvgTree(SvgAxisPlot):
                         # Otherwise show a horizontal line with the number of lineages
                         # Extra length of line is equal to log of the polytomy size
                         self.extra_line[u] = self.PolytomyLine(
-                            num_untracked_children,
-                            sum(tree.num_samples(v) for v in untracked_children[u]),
-                            [leaf_x, leaf_x + 1 + np.log(num_untracked_children)],
+                            len(untracked_children),
+                            sum(tree.num_samples(v) for v in untracked_children),
+                            [leaf_x, leaf_x + 1 + np.log(len(untracked_children))],
                         )
                         child_x.append(leaf_x + 1)
                         leaf_x = self.extra_line[u].line_pos[1]
