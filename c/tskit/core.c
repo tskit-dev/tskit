@@ -1337,6 +1337,35 @@ tsk_bit_array_count(const tsk_bit_array_t *self)
 }
 
 void
+tsk_bit_array_get_items(
+    const tsk_bit_array_t *self, tsk_id_t *items, tsk_size_t *n_items)
+{
+    // Get the items stored in the row of a bitset.
+    // Uses a de Bruijn sequence lookup table to determine the lowest bit set. See the
+    // wikipedia article for more info: https://w.wiki/BYiF
+
+    tsk_size_t i, n, off;
+    tsk_bit_array_value_t v, lsb; // least significant bit
+    static const tsk_id_t lookup[32] = { 0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25,
+        17, 4, 8, 31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9 };
+
+    n = 0;
+    for (i = 0; i < self->size; i++) {
+        v = self->data[i];
+        off = i * ((tsk_size_t) TSK_BIT_ARRAY_NUM_BITS);
+        if (v == 0) {
+            continue;
+        }
+        while ((lsb = v & -v)) {
+            items[n] = lookup[(lsb * 0x077cb531U) >> 27] + (tsk_id_t) off;
+            n++;
+            v ^= lsb;
+        }
+    }
+    *n_items = n;
+}
+
+void
 tsk_bit_array_free(tsk_bit_array_t *self)
 {
     tsk_safe_free(self->data);
