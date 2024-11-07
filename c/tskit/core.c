@@ -232,10 +232,10 @@ tsk_strerror_internal(int err)
 
         /* Edge errors */
         case TSK_ERR_NULL_PARENT:
-            ret = "Edge in parent is null. (TSK_ERR_NULL_PARENT)";
+            ret = "Edge parent is null. (TSK_ERR_NULL_PARENT)";
             break;
         case TSK_ERR_NULL_CHILD:
-            ret = "Edge in parent is null. (TSK_ERR_NULL_CHILD)";
+            ret = "Edge child is null. (TSK_ERR_NULL_CHILD)";
             break;
         case TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME:
             ret = "Edges must be listed in (time[parent], child, left) order;"
