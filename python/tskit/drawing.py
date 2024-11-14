@@ -1990,15 +1990,20 @@ class SvgTree(SvgAxisPlot):
                         end=(x2, 0),
                     )
                 )
-                poly.add(
-                    dwg.text(
-                        f"+{info.num_samples}/{bold_integer(info.num_branches)}",
-                        font_style="italic",
-                        x=[rnd(x2)],
-                        dy=[rnd(-self.text_height / 10)],  # make the plus sign line up
-                        text_anchor="end",
+                label = dwg.text(
+                    f"+{info.num_samples}/{bold_integer(info.num_branches)}",
+                    font_style="italic",
+                    x=[rnd(x2)],
+                    dy=[rnd(-self.text_height / 10)],  # make the plus sign line up
+                    text_anchor="end",
+                )
+                label.set_desc(
+                    title=(
+                        f"This polytomy has {info.num_branches} additional branches, "
+                        f"leading to a total of {info.num_samples} descendant samples"
                     )
                 )
+                poly.add(label)
                 curr_svg_group.add(poly)
 
             # Add edge above node first => on layer underneath anything else
@@ -2092,14 +2097,18 @@ class SvgTree(SvgAxisPlot):
                 node_lab_attr["transform"] = self.text_transform("above")
             else:
                 if multi_samples is not None:
-                    curr_svg_group.add(
-                        dwg.text(
-                            text=f"+{multi_samples}",
-                            transform=self.text_transform("below", dy=1),
-                            font_style="italic",
-                            class_="lab summary",
-                        )
+                    label = dwg.text(
+                        text=f"+{multi_samples}",
+                        transform=self.text_transform("below", dy=1),
+                        font_style="italic",
+                        class_="lab summary",
                     )
+                    title = (
+                        f"A collapsed {'sample' if tree.is_sample(u) else 'non-sample'} "
+                        f"node with {multi_samples} descendant samples in this tree"
+                    )
+                    label.set_desc(title=title)
+                    curr_svg_group.add(label)
                 if u == left_child[tree.parent(u)]:
                     add_class(node_lab_attr, "lft")
                     node_lab_attr["transform"] = self.text_transform("above_left")
