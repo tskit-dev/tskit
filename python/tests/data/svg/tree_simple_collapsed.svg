@@ -11,7 +11,10 @@
 						<path class="edge" d="M 0 0 V -47.1333 H 30"/>
 						<circle class="sym" cx="0" cy="0" r="3"/>
 						<polygon class="sym multi" points="3.0,0 6,6 -6,6 -3.0,0"/>
-						<text class="lab summary" font-style="italic" transform="translate(0 12)">+2</text>
+						<text class="lab summary" font-style="italic" transform="translate(0 12)">
+							+2
+							<title>A collapsed non-sample node with 2 descendant samples in this tree</title>
+						</text>
 						<text class="lab lft" transform="translate(-3 -7)">8</text>
 					</g>
 					<g class="a10 c2 node n9" transform="translate(30 47.1333)">
@@ -37,7 +40,10 @@
 					<path class="edge" d="M 0 0 V -47.1333 H -45"/>
 					<circle class="sym" cx="0" cy="0" r="3"/>
 					<polygon class="sym multi" points="3.0,0 6,6 -6,6 -3.0,0"/>
-					<text class="lab summary" font-style="italic" transform="translate(0 12)">+4</text>
+					<text class="lab summary" font-style="italic" transform="translate(0 12)">
+						+4
+						<title>A collapsed non-sample node with 4 descendant samples in this tree</title>
+					</text>
 					<text class="lab rgt" transform="translate(3 -7)">13</text>
 				</g>
 				<circle class="sym" cx="0" cy="0" r="3"/>
