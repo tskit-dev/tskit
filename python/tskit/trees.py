@@ -8814,7 +8814,7 @@ class TreeSequence:
         if drop_windows:
             U, D, Q = U[0], D[0], Q[0]
 
-        pca_result = PCAResult(loadings=U, eigen_values=D, range_sketch=Q, error_bound=E)
+        pca_result = PCAResult(factors=U, eigen_values=D, range_sketch=Q, error_bound=E)
 
         return pca_result
 
@@ -10406,9 +10406,9 @@ class PCAResult:
 
 
     """
-    loadings: np.ndarray
+    factors: np.ndarray
     """
-    The principal component loadings. It is an orthogonal matrix.
+    The principal component factors. It is an orthogonal matrix.
     """
     eigen_values: np.ndarray
     """
