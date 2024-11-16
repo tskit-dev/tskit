@@ -8652,6 +8652,7 @@ class TreeSequence:
         windows: list = None,
         samples: np.ndarray = None,
         individuals: np.ndarray = None,
+        time_window: np.ndarray = None,
         mode: str = "branch",
         centre: bool = True,
         iterated_power: int = 5,
@@ -8680,6 +8681,7 @@ class TreeSequence:
         :param np.ndarray samples: Samples to perform PCA with.
         :param np.ndarray individuals: Individuals to perform PCA with. Cannot specify
             both `samples` and `individuals`.
+        :param np.ndarray time_window: The time interval on which to apply PCA.
         :param str mode: A string giving the "type" of relatedness to be computed
             (defaults to "branch"; see
             :meth:`genetic_relatedness_vector
@@ -8710,6 +8712,12 @@ class TreeSequence:
             assert individuals is not None
             output_type = "individual"
             dim = len(individuals)
+
+        if time_window is None:
+            tree_sequence_low, tree_sequence_high = None, self
+        else:
+            tree_sequence_low, tree_sequence_high = \
+                self.decapitate(time_window[0]), self.decapitate(time_window[1])
         
         if range_sketch is not None:
             if windows is not None:
@@ -8781,25 +8789,37 @@ class TreeSequence:
         num_windows = len(windows) - 1
         if num_windows < 1:
             raise ValueError("Number of windows must be at least 1.")
-
+        
         U = np.empty((num_windows, dim, num_components))
         D = np.empty((num_windows, num_components))
         Q = np.empty((num_windows, dim, num_components + num_oversamples))
         E = np.empty(num_windows)
         for i in range(num_windows):
             this_window = windows[i : i + 2]
-            _f = (
-                self._genetic_relatedness_vector_node
+            _f_high = (
+                tree_sequence_high._genetic_relatedness_vector_node
                 if output_type == "node"
-                else self._genetic_relatedness_vector_individual
+                else tree_sequence_high._genetic_relatedness_vector_individual
             )
+            if time_window is not None:
+                _f_low = (
+                    tree_sequence_low._genetic_relatedness_vector_node
+                    if output_type == "node"
+                    else tree_sequence_low._genetic_relatedness_vector_individual
+                )
+
             indices = (
                 samples
                 if output_type == "node"
                 else individuals
             )
             def _G(x):
-                return _f(arr=x, indices=indices, mode=mode, centre=centre, windows=this_window)  # NOQA: B023
+                high = _f_high(arr=x, indices=indices, mode=mode, centre=centre, windows=this_window)
+                if time_window is None:
+                    return high
+                else: 
+                    low = _f_low(arr=x, indices=indices, mode=mode, centre=centre, windows=this_window)
+                    return high - low
 
             U[i], D[i], _, Q[i], E[i] = _rand_svd(
                 operator=_G,
