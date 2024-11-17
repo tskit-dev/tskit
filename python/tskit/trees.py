@@ -10452,7 +10452,8 @@ class PCAResult:
     """
     factors: np.ndarray
     """
-    The principal component factors. It is an orthogonal matrix.
+    The principal component factors. Columns are orthogonal, with one entry per sample
+    or individual (see :meth:`pca <.TreeSequence.pca>`).
     """
     eigen_values: np.ndarray
     """
