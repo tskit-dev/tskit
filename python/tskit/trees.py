@@ -10465,5 +10465,5 @@ class PCAResult:
     """
     error_bound: np.ndarray
     """
-    Error bounds for the eigenvalues.
+    An estimate of the error bounds for the eigenvalues (experimental).
     """
