@@ -10460,8 +10460,8 @@ class PCAResult:
     """
     range_sketch: np.ndarray
     """
-    Range sketch matrix. Can be used as an input for .pca() call with range_sketch option
-    to further improve precision..
+    Range sketch matrix. Can be used as an input for :meth:`pca <.TreeSequence.pca>` option
+    to further improve precision.
     """
     error_bound: np.ndarray
     """
