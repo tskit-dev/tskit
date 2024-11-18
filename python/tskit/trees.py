@@ -8626,7 +8626,7 @@ class TreeSequence:
         samples, sample_individuals = (
             ij[:, 0],
             ij[:, 1],
-        )  # sample node index, individual of those nodes
+        )
         x = (
             arr - arr.mean(axis=0) if centre else arr
         )  # centering within index in rows
@@ -8858,7 +8858,7 @@ class TreeSequence:
         if drop_windows:
             U, D, Q = U[0], D[0], Q[0]
 
-        pca_result = PCAResult(factors=U, eigen_values=D, range_sketch=Q, error_bound=E)
+        pca_result = PCAResult(factors=U, eigenvalues=D, range_sketch=Q, error_bound=E)
 
         return pca_result
 
@@ -10455,7 +10455,7 @@ class PCAResult:
     The principal component factors. Columns are orthogonal, with one entry per sample
     or individual (see :meth:`pca <.TreeSequence.pca>`).
     """
-    eigen_values: np.ndarray
+    eigenvalues: np.ndarray
     """
     Eigenvalues of the genetic relatedness matrix.
     """
