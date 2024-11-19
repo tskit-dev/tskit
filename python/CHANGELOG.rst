@@ -2,12 +2,19 @@
 [0.6.1] - 2024-XX-XX
 --------------------
 
-**Bufixes**
+**Bugfixes**
 
 - Fix to ``TreeSequence.pair_coalescence_counts`` output dimension when
   provided with time windows containing no nodes (:user:`nspope`,
   :issue:`3046`, :pr:`3058`)
 
+- Fix to ``TreeSequence.pair_coalescence_counts`` to normalise by non-missing
+  span if ``span_normalise=True``. This resolves a bug where
+  ``TreeSequence.pair_coalescence_rates`` would return incorrect values for
+  intervals with missing trees.  (:user:`natep`, :issue:`3053`, :pr:`3059`)
+
+- Fix to ``TreeSequence.pair_coalescence_rates`` causing an
+  assertion to be triggered by floating point error, when all coalescence events are inside a single time window (:user:`natep`, :issue:`3035`, :pr:`3038`)
 
 --------------------
 [0.6.0] - 2024-10-16

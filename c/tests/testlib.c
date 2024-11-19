@@ -372,6 +372,33 @@ const char *empty_ex_nodes = "1  0.0  0  -1\n"
                              "1  0.0  0  -1\n";
 const char *empty_ex_edges = "";
 
+/*** An example of a tree sequence with missing marginal trees. ***/
+/*                                   
+     |     4     | |     4     |     
+     |    / \    | |    / \    |     
+     |   3   \   | |   /   3   |     
+     |  / \   \  | |  /   / \  |     
+     | 0   1   2 | | 0   1   2 |     
+   |-|-----------|-|-----------|-|   
+   0 1           2 3           4 5 
+*/
+const char *missing_ex_nodes = 
+    "1  0.0  0  -1\n"
+    "1  0.0  0  -1\n"
+    "1  0.0  0  -1\n"
+    "0  1.0  0  -1\n"
+    "0  2.0  0  -1\n";
+                                     
+const char *missing_ex_edges = 
+    "1.0  2.0  3  0\n"
+    "1.0  2.0  3  1\n"
+    "3.0  4.0  3  1\n"
+    "3.0  4.0  3  2\n"
+    "3.0  4.0  4  0\n"
+    "1.0  2.0  4  2\n"
+    "1.0  2.0  4  3\n"
+    "3.0  4.0  4  3\n";
+
 /* Simple utilities to parse text so we can write declaritive
  * tests. This is not intended as a robust general input mechanism.
  */

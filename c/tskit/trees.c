@@ -9334,9 +9334,9 @@ tsk_treeseq_pair_coalescence_stat(const tsk_treeseq_t *self, tsk_size_t num_samp
     void *summary_func_args, tsk_flags_t options, double *result)
 {
     int ret = 0;
-    double left, right, remaining_span, window_span, denominator, x, t;
+    double left, right, remaining_span, missing_span, window_span, denominator, x, t;
     tsk_id_t e, p, c, u, v, w, i, j;
-    tsk_size_t num_samples;
+    tsk_size_t num_samples, num_edges;
     tsk_tree_position_t tree_pos;
     const tsk_table_collection_t *tables = self->tables;
     const tsk_size_t num_nodes = tables->nodes.num_rows;
@@ -9449,6 +9449,8 @@ tsk_treeseq_pair_coalescence_stat(const tsk_treeseq_t *self, tsk_size_t num_samp
         goto out;
     }
 
+    num_edges = 0;
+    missing_span = 0.0;
     w = 0;
     while (true) {
         tsk_tree_position_next(&tree_pos);
@@ -9494,6 +9496,7 @@ tsk_treeseq_pair_coalescence_stat(const tsk_treeseq_t *self, tsk_size_t num_samp
                 }
                 p = nodes_parent[p];
             }
+            num_edges -= 1;
         }
 
         for (u = tree_pos.in.start; u != tree_pos.in.stop; u++) {
@@ -9530,6 +9533,11 @@ tsk_treeseq_pair_coalescence_stat(const tsk_treeseq_t *self, tsk_size_t num_samp
                 c = p;
                 p = nodes_parent[c];
             }
+            num_edges += 1;
+        }
+
+        if (num_edges == 0) {
+            missing_span += right - left;
         }
 
         /* flush windows */
@@ -9589,7 +9597,13 @@ tsk_treeseq_pair_coalescence_stat(const tsk_treeseq_t *self, tsk_size_t num_samp
             }
             /* normalise weights */
             if (options & (TSK_STAT_SPAN_NORMALISE | TSK_STAT_PAIR_NORMALISE)) {
-                window_span = windows[w + 1] - windows[w];
+                window_span = windows[w + 1] - windows[w] - missing_span;
+                missing_span = 0.0;
+                if (num_edges == 0) {
+                    remaining_span = right - windows[w + 1];
+                    window_span -= remaining_span;
+                    missing_span += remaining_span;
+                }
                 for (i = 0; i < (tsk_id_t) num_set_indexes; i++) {
                     denominator = 1.0;
                     if (options & TSK_STAT_SPAN_NORMALISE) {
@@ -9600,7 +9614,7 @@ tsk_treeseq_pair_coalescence_stat(const tsk_treeseq_t *self, tsk_size_t num_samp
                     }
                     weight = GET_2D_ROW(bin_weight, num_bins, i);
                     for (v = 0; v < (tsk_id_t) num_bins; v++) {
-                        weight[v] /= denominator;
+                        weight[v] *= denominator == 0.0 ? 0.0 : 1 / denominator;
                     }
                 }
             }
@@ -9668,6 +9682,9 @@ pair_coalescence_quantiles(tsk_size_t input_dim, const double *weight,
     j = 0;
     coalesced = 0.0;
     timepoint = TSK_UNKNOWN_TIME;
+    for (i = 0; i < output_dim; i++) {
+        output[i] = NAN;
+    }
     for (i = 0; i < input_dim; i++) {
         if (weight[i] > 0) {
             coalesced += weight[i];
@@ -9806,6 +9823,7 @@ pair_coalescence_rates(tsk_size_t input_dim, const double *weight, const double 
         } else {
             rate = log(1 - weight[i] / (1 - coalesced)) / (a - b);
         }
+        // avoid tiny negative values from fp error
         output[i] = rate > 0 ? rate : 0;
         coalesced += weight[i];
     }
