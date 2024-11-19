@@ -1509,6 +1509,25 @@ class TestCoalescingPairsUsage:
         )
         assert implm.shape == (2, ts.num_nodes)
 
+    def test_extra_time_windows(self):
+        """
+        test that output dimensions match number of time windows
+        and windows without nodes have zero counts
+        """
+        ts = self.example_ts()
+        ss = [[0, 1, 2], [3, 4, 5]]
+        max_time = ts.nodes_time.max()
+        time_windows = np.linspace(0, max_time * 2, 10)
+        implm = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            windows=None,
+            indexes=None,
+            time_windows=time_windows,
+        )
+        assert implm.shape == (time_windows.size - 1,)
+        max_idx = np.searchsorted(time_windows, max_time, side="right")
+        np.testing.assert_allclose(implm[max_idx:], 0.0)
+
 
 class TestPairCoalescenceQuantiles:
     """
@@ -1747,3 +1766,22 @@ class TestPairCoalescenceRates:
         np.testing.assert_allclose(
             rates.flatten(), np.repeat(ck_rates, windows.size - 1)
         )
+
+    def test_extra_time_windows(self):
+        """
+        test that output dimensions match number of time windows
+        and windows without nodes have NaN rates
+        """
+        ts = self.example_ts()
+        ss = [[0, 1, 2], [3, 4, 5]]
+        max_time = ts.nodes_time.max()
+        time_windows = np.append(np.linspace(0, max_time * 2, 10), np.inf)
+        implm = ts.pair_coalescence_rates(
+            time_windows,
+            sample_sets=ss,
+            windows=None,
+            indexes=None,
+        )
+        assert implm.shape == (time_windows.size - 1,)
+        max_idx = np.searchsorted(time_windows, max_time, side="right")
+        assert np.all(np.isnan(implm[max_idx:]))
