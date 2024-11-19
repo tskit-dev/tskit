@@ -127,4 +127,7 @@ extern const char *paper_ex_sites;
 extern const char *paper_ex_mutations;
 extern const char *paper_ex_individuals;
 
+extern const char *missing_ex_nodes;
+extern const char *missing_ex_edges;
+
 #endif

@@ -61,6 +61,36 @@ def _single_tree_example(L, T):
 # --- prototype --- #
 
 
+def _nonmissing_window_span(ts, windows):
+    num_windows = windows.size - 1
+    sequence_length = ts.sequence_length
+    missing_span = np.zeros(num_windows)
+    missing = 0.0
+    num_edges = 0
+    w = 0
+    position = tsutil.TreePosition(ts)
+    while position.interval.right < sequence_length:
+        position.next()
+        left, right = position.interval.left, position.interval.right
+        out_range, in_range = position.out_range, position.in_range
+        for _ in range(out_range.start, out_range.stop):  # edges_out
+            num_edges -= 1
+        for _ in range(in_range.start, in_range.stop):  # edges_out
+            num_edges += 1
+        if num_edges == 0:
+            missing += right - left
+        while w < num_windows and windows[w + 1] <= right:  # flush window
+            missing_span[w] = missing
+            missing = 0.0
+            if num_edges == 0:
+                x = max(0, right - windows[w + 1])
+                missing_span[w] -= x
+                missing += x
+            w += 1
+    window_span = np.diff(windows) - missing_span
+    return window_span
+
+
 def _pair_coalescence_weights(
     coalescing_pairs,
     nodes_time,
@@ -234,6 +264,9 @@ def _pair_coalescence_stat(
         else:
             total_pairs[i] = sizes[j] * sizes[k]
 
+    if span_normalise:
+        window_span = _nonmissing_window_span(ts, windows)
+
     for i, s in enumerate(sample_sets):  # initialize
         nodes_sample[s, i] = 1
     sample_counts = nodes_sample.copy()
@@ -327,7 +360,7 @@ def _pair_coalescence_stat(
                 nodes_values[nonzero, i] /= nodes_weight[nonzero, i]
                 nodes_values[~nonzero, i] = np.nan
             if span_normalise:
-                nodes_weight /= windows[w + 1] - windows[w]
+                nodes_weight /= window_span[w]
             if pair_normalise:
                 nodes_weight /= total_pairs[np.newaxis, :]
             for i in range(num_indexes):  # apply function to empirical distribution
@@ -1261,6 +1294,40 @@ class TestCoalescingPairsSimulated:
         proto = proto_pair_coalescence_counts(ts, windows=windows, span_normalise=False)
         np.testing.assert_allclose(proto, check)
 
+    def test_span_normalise_with_missing(self):
+        """
+        test case where span is normalised and there are intervals without trees
+        """
+        ts = self.example_ts()
+        missing = np.array([[0.0, 0.1], [0.8, 1.0]]) * ts.sequence_length
+        ts = ts.delete_intervals(missing)
+        windows = np.array([0.0, 0.33, 1.0]) * ts.sequence_length
+        window_size = np.diff(windows) - np.diff(missing, axis=1).flatten()
+        check = (
+            ts.pair_coalescence_counts(windows=windows, span_normalise=False)
+            / window_size[:, np.newaxis]
+        )
+        implm = ts.pair_coalescence_counts(windows=windows, span_normalise=True)
+        np.testing.assert_allclose(implm, check)
+        # TODO: remove with prototype
+        proto = proto_pair_coalescence_counts(ts, windows=windows, span_normalise=True)
+        np.testing.assert_allclose(proto, check)
+
+    def test_empty_windows(self):
+        """
+        test that windows without nodes contain zeros
+        """
+        ts = self.example_ts()
+        missing = np.array([[0.0, 0.1], [0.8, 1.0]]) * ts.sequence_length
+        ts = ts.delete_intervals(missing)
+        windows = np.concatenate(missing)
+        check = ts.pair_coalescence_counts(windows=windows, span_normalise=False)
+        implm = ts.pair_coalescence_counts(windows=windows, span_normalise=True)
+        np.testing.assert_allclose(check[0], 0.0)
+        np.testing.assert_allclose(check[2], 0.0)
+        np.testing.assert_allclose(implm[0], 0.0)
+        np.testing.assert_allclose(implm[2], 0.0)
+
     def test_pair_normalise(self):
         ts = self.example_ts()
         windows = np.array([0.0, 0.33, 1.0]) * ts.sequence_length
@@ -1638,6 +1705,19 @@ class TestPairCoalescenceQuantiles:
         )
         np.testing.assert_allclose(quants, np.tile(ck_quants, (windows.size - 1, 1)))
 
+    def test_empty_windows(self):
+        """
+        test case where a window has no nodes
+        """
+        ts = self.example_ts()
+        missing = np.array([[0.0, 0.1], [0.8, 1.0]]) * ts.sequence_length
+        ts = ts.delete_intervals(missing)
+        windows = np.concatenate(missing)
+        quantiles = np.linspace(0, 1, 10)
+        check = ts.pair_coalescence_quantiles(windows=windows, quantiles=quantiles)
+        assert np.all(np.isnan(check[0]))
+        assert np.all(np.isnan(check[2]))
+
 
 class TestPairCoalescenceRates:
     """
@@ -1785,3 +1865,33 @@ class TestPairCoalescenceRates:
         assert implm.shape == (time_windows.size - 1,)
         max_idx = np.searchsorted(time_windows, max_time, side="right")
         assert np.all(np.isnan(implm[max_idx:]))
+
+    def test_missing_sequence(self):
+        """
+        test that missing intervals are ignored when calculating rates
+        """
+        ts = self.example_ts()
+        missing = np.array([[0.0, 0.1], [0.9, 1.0]]) * ts.sequence_length
+        ts = ts.delete_intervals(missing)
+        windows = np.array([0.0, 0.5, 1.0]) * ts.sequence_length
+        ts_trim = ts.trim()
+        windows_trim = np.array([0.0, 0.5, 1.0]) * ts_trim.sequence_length
+        time_windows = np.linspace(0, ts.nodes_time.max() * 2, 10)
+        time_windows[-1] = np.inf
+        implm = ts.pair_coalescence_rates(time_windows, windows=windows)
+        check = ts_trim.pair_coalescence_rates(time_windows, windows=windows_trim)
+        np.testing.assert_allclose(implm, check)
+
+    def test_empty_windows(self):
+        """
+        test case where a window has no nodes
+        """
+        ts = self.example_ts()
+        missing = np.array([[0.0, 0.1], [0.8, 1.0]]) * ts.sequence_length
+        ts = ts.delete_intervals(missing)
+        windows = np.concatenate(missing)
+        time_windows = np.linspace(0, ts.nodes_time.max() * 2, 10)
+        time_windows[-1] = np.inf
+        check = ts.pair_coalescence_rates(time_windows, windows=windows)
+        assert np.all(np.isnan(check[0]))
+        assert np.all(np.isnan(check[2]))

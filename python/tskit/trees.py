@@ -9718,7 +9718,7 @@ class TreeSequence:
         :param list windows: An increasing list of breakpoints between the
             sequence windows to compute the statistic in, or None.
         :param bool span_normalise: Whether to divide the result by the span of
-            the window (defaults to True).
+            non-missing sequence in the window (defaults to True).
         :param bool pair_normalise: Whether to divide the result by the total
             number of pairs for a given index (defaults to False).
         :param time_windows: Either a string "nodes" or an increasing
@@ -9893,8 +9893,8 @@ class TreeSequence:
 
         The first breakpoint in `time_windows` must start at the age of the
         samples, and the last must end at infinity. In the output array, any
-        time windows that do not contain coalescence events will have `NaN`
-        values.
+        time windows where all pairs have coalesced by start of the window will
+        contain `NaN` values.
 
         Pair coalescence rates may be calculated within or between the
         non-overlapping lists of samples contained in `sample_sets`. In the
