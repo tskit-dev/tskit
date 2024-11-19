@@ -9077,7 +9077,7 @@ parse_windows(
     npy_intp *shape;
 
     windows_array = (PyArrayObject *) PyArray_FROMANY(
-				      windows, NPY_FLOAT64, 1, 1, NPY_ARRAY_IN_ARRAY);
+        windows, NPY_FLOAT64, 1, 1, NPY_ARRAY_IN_ARRAY);
     if (windows_array == NULL) {
         goto out;
     }
@@ -9094,7 +9094,6 @@ out:
     *ret_windows_array = windows_array;
     return ret;
 }
-
 
 static PyArrayObject *
 TreeSequence_allocate_results_array(
@@ -9440,13 +9439,13 @@ TreeSequence_allele_frequency_spectrum(
     TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     PyObject *ret = NULL;
-    static char *kwlist[] = { "sample_set_sizes", "sample_sets", "windows", "time_windows", "mode",
-        "span_normalise", "polarised", NULL };
+    static char *kwlist[] = { "sample_set_sizes", "sample_sets", "windows",
+        "time_windows", "mode", "span_normalise", "polarised", NULL };
     PyObject *sample_set_sizes = NULL;
     PyObject *sample_sets = NULL;
     PyObject *windows = NULL;
     PyObject *time_windows = NULL;
-    char *mode = "NULL";
+    char *mode = NULL;
     PyArrayObject *sample_set_sizes_array = NULL;
     PyArrayObject *sample_sets_array = NULL;
     PyArrayObject *windows_array = NULL;
@@ -9463,7 +9462,7 @@ TreeSequence_allele_frequency_spectrum(
         goto out;
     }
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOO|sii", kwlist, &sample_set_sizes,
-	&sample_sets, &windows, &time_windows, &mode, &span_normalise, &polarised)) {
+            &sample_sets, &windows, &time_windows, &mode, &span_normalise, &polarised)) {
         goto out;
     }
     if (parse_stats_mode(mode, &options) != 0) {
@@ -9496,8 +9495,8 @@ TreeSequence_allele_frequency_spectrum(
     for (k = 0; k < num_sample_sets; k++) {
         shape[k + 1 + 1] = 1 + sizes[k];
     }
-    result_array
-        = (PyArrayObject *) PyArray_SimpleNew(1 + 1 + num_sample_sets, shape, NPY_FLOAT64);
+    result_array = (PyArrayObject *) PyArray_SimpleNew(
+        1 + 1 + num_sample_sets, shape, NPY_FLOAT64);
     if (result_array == NULL) {
         goto out;
     }

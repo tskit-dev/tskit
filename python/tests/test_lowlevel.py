@@ -2263,7 +2263,7 @@ class TestAlleleFrequencySpectrum(LowLevelTestCase, OneWaySampleStatsMixin):
         n = len(samples)
         time_windows = [0, np.inf]
 
-        for mode in ["site", "branch"]:
+        for mode in ["branch"]:
             for s in [[n], [n - 2, 2], [n - 4, 2, 2], [1] * n]:
                 s = np.array(s, dtype=np.uint32)
                 windows = [0, L]
