@@ -869,17 +869,20 @@ verify_one_way_stat_func_errors(tsk_treeseq_t *ts, one_way_sample_stat_method *m
 typedef int one_way_sample_stat_method_tw(const tsk_treeseq_t *self,
     tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes,
     const tsk_id_t *sample_sets, tsk_size_t num_windows, const double *windows,
-    tsk_size_t num_time_windows, const double *time_windows,
-    tsk_flags_t options, double *result);
+    tsk_size_t num_time_windows, const double *time_windows, tsk_flags_t options,
+    double *result);
 
+// Temporary duplicate for time-windows-having methods
 static void
-verify_one_way_stat_func_errors_tw(tsk_treeseq_t *ts, one_way_sample_stat_method_tw *method)
+verify_one_way_stat_func_errors_tw(
+    tsk_treeseq_t *ts, one_way_sample_stat_method_tw *method)
 {
     int ret;
     tsk_id_t num_nodes = (tsk_id_t) tsk_treeseq_get_num_nodes(ts);
     tsk_id_t samples[] = { 0, 1, 2, 3 };
     tsk_size_t sample_set_sizes = 4;
     double windows[] = { 0, 0, 0 };
+    double time_windows[] = { 0, 0, 0 };
     double result;
 
     ret = method(ts, 0, &sample_set_sizes, samples, 0, NULL, 0, NULL, 0, &result);
@@ -917,6 +920,15 @@ verify_one_way_stat_func_errors_tw(tsk_treeseq_t *ts, one_way_sample_stat_method
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NUM_WINDOWS);
 
     ret = method(ts, 1, &sample_set_sizes, samples, 2, windows, 0, NULL, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);
+
+    /* Time window errors */
+    ret = method(
+        ts, 1, &sample_set_sizes, samples, 0, NULL, 0, time_windows, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NUM_WINDOWS);
+
+    ret = method(
+        ts, 1, &sample_set_sizes, samples, 0, NULL, 2, time_windows, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_WINDOWS);
 }
 
@@ -1258,23 +1270,24 @@ verify_afs(tsk_treeseq_t *ts)
     sample_set_sizes[0] = n - 2;
     sample_set_sizes[1] = 2;
     ret = tsk_treeseq_allele_frequency_spectrum(
-	ts, 2, sample_set_sizes, samples, 0, NULL, 0, NULL, 0, result);
+        ts, 2, sample_set_sizes, samples, 0, NULL, 0, NULL, 0, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_treeseq_allele_frequency_spectrum(
-	ts, 2, sample_set_sizes, samples, 0, NULL, 0, NULL, TSK_STAT_POLARISED, result);
+        ts, 2, sample_set_sizes, samples, 0, NULL, 0, NULL, TSK_STAT_POLARISED, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_treeseq_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples, 0,
-	NULL, 0, NULL, TSK_STAT_POLARISED | TSK_STAT_SPAN_NORMALISE, result);
+        NULL, 0, NULL, TSK_STAT_POLARISED | TSK_STAT_SPAN_NORMALISE, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_treeseq_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples, 0,
-	NULL, 0, NULL, TSK_STAT_BRANCH | TSK_STAT_POLARISED | TSK_STAT_SPAN_NORMALISE, result);
+        NULL, 0, NULL, TSK_STAT_BRANCH | TSK_STAT_POLARISED | TSK_STAT_SPAN_NORMALISE,
+        result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_treeseq_allele_frequency_spectrum(ts, 2, sample_set_sizes, samples, 0,
-	NULL, 0, NULL, TSK_STAT_BRANCH | TSK_STAT_SPAN_NORMALISE, result);
+        NULL, 0, NULL, TSK_STAT_BRANCH | TSK_STAT_SPAN_NORMALISE, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     free(result);
