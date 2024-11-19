@@ -7931,7 +7931,6 @@ class TreeSequence:
         # Note: need to make sure windows is a string or we try to compare the
         # target with a numpy array elementwise.
         if windows is None:
-            # initiate default spanning windows
             windows = [0.0, self.sequence_length]
         elif isinstance(windows, str):
             if windows == "trees":
@@ -7978,6 +7977,8 @@ class TreeSequence:
             stat = stat[0, :, :]
         elif strip_timewin:
             stat = stat[:, 0, :]
+        elif strip_win and strip_timewin:
+            stat = stat[0, 0, :]
         return stat
 
     def __one_way_sample_set_stat(
@@ -8077,9 +8078,7 @@ class TreeSequence:
         if drop_dimension:
             stat = stat.reshape(stat.shape[:-1])
             # TODO: Write test for this
-            if (stat.shape == () and windows is None) or (
-                stat.shape == () and time_windows is None
-            ):
+            if stat.shape == () and windows is None and time_windows is None:
                 stat = stat[()]
         return stat
 
