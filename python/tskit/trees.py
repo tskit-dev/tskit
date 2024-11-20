@@ -8591,7 +8591,17 @@ class TreeSequence:
             nodes=nodes,
         )
         return out
+    
+    def _expand_indices(self, 
+        x: np.ndarray, 
+        indices: np.ndarray
+        ) -> np.ndarray:
+        y = np.zeros((self.num_samples, x.shape[1]))
+        y[indices] = x
 
+        return y
+
+                
     def _genetic_relatedness_vector_node(
         self,
         arr: np.ndarray,
@@ -8601,6 +8611,7 @@ class TreeSequence:
         windows = None,
         ) -> np.ndarray:
         x = arr - arr.mean(axis=0) if centre else arr
+        x = self._expand_indices(x, indices)
         x = self.genetic_relatedness_vector(
             W=x, windows=windows, mode=mode, centre=False, nodes=indices,
         )[0]
@@ -8627,11 +8638,11 @@ class TreeSequence:
             ij[:, 0],
             ij[:, 1],
         )
-        x = (
-            arr - arr.mean(axis=0) if centre else arr
-        )  # centering within index in rows
+        x = arr - arr.mean(axis=0) if centre else arr
+        x = x[sample_individuals]
+        x = self._expand_indices(x, samples)
         x = self.genetic_relatedness_vector(
-            W=x[sample_individuals],
+            W=x,
             windows=windows,
             mode=mode,
             centre=False,
