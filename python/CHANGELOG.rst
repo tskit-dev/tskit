@@ -2,6 +2,12 @@
 [0.6.1] - 2024-XX-XX
 --------------------
 
+**Bufixes**
+
+- Fix to ``TreeSequence.pair_coalescence_counts`` output dimension when
+  provided with time windows containing no nodes (:user:`nspope`,
+  :issue:`3046`, :pr:`3058`)
+
 
 --------------------
 [0.6.0] - 2024-10-16

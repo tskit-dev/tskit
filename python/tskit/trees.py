@@ -9739,32 +9739,40 @@ class TreeSequence:
                 raise ValueError(
                     "Must specify indexes if there are more than two sample sets"
                 )
+        num_indexes = len(indexes)
 
         drop_left_dimension = False
         if windows is None:
             drop_left_dimension = True
             windows = np.array([0.0, self.sequence_length])
+        num_windows = len(windows) - 1
 
         if isinstance(time_windows, str) and time_windows == "nodes":
-            node_bin_map = np.arange(self.num_nodes, dtype=np.int32)
+            num_time_windows = self.num_nodes
+            node_bin_map = np.arange(num_time_windows, dtype=np.int32)
         else:
             if self.time_units == tskit.TIME_UNITS_UNCALIBRATED:
                 raise ValueError("Time windows require calibrated node times")
+            num_time_windows = len(time_windows) - 1
             node_bin_map = np.digitize(self.nodes_time, time_windows) - 1
-            node_bin_map[node_bin_map == time_windows.size - 1] = tskit.NULL
+            node_bin_map[node_bin_map == num_time_windows] = tskit.NULL
             node_bin_map = node_bin_map.astype(np.int32)
+        num_bins = node_bin_map.max() + 1
 
         sample_set_sizes = np.array([len(s) for s in sample_sets], dtype=np.uint32)
         sample_sets = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
 
-        coalescing_pairs = self.ll_tree_sequence.pair_coalescence_counts(
-            sample_sets=sample_sets,
-            sample_set_sizes=sample_set_sizes,
-            windows=windows,
-            indexes=indexes,
-            node_bin_map=node_bin_map,
-            span_normalise=span_normalise,
-            pair_normalise=pair_normalise,
+        coalescing_pairs = np.zeros((num_windows, num_indexes, num_time_windows))
+        coalescing_pairs[..., :num_bins] = (
+            self.ll_tree_sequence.pair_coalescence_counts(
+                sample_sets=sample_sets,
+                sample_set_sizes=sample_set_sizes,
+                windows=windows,
+                indexes=indexes,
+                node_bin_map=node_bin_map,
+                span_normalise=span_normalise,
+                pair_normalise=pair_normalise,
+            )
         )
 
         if drop_middle_dimension:
