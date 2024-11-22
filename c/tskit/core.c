@@ -277,7 +277,10 @@ tsk_strerror_internal(int err)
             break;
         case TSK_ERR_CANT_PROCESS_EDGES_WITH_METADATA:
             ret = "Can't squash, flush, simplify or link ancestors with edges that have "
-                  "non-empty metadata. (TSK_ERR_CANT_PROCESS_EDGES_WITH_METADATA)";
+                  "non-empty metadata. Removing the metadata from the edges will allow "
+                  "these operations to proceed. For example using "
+                  "tables.edges.drop_metadata() in the tskit Python API. "
+                  "(TSK_ERR_CANT_PROCESS_EDGES_WITH_METADATA)";
             break;
 
         /* Site errors */
