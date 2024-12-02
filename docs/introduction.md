@@ -28,7 +28,7 @@ formulation, and tskit is a therefore a powerful platform for processing ARGs.
 The tree sequence format is output by a number of external software libraries
 and programs (such as [msprime](https://github.com/tskit-dev/msprime), 
 [SLiM](https://github.com/MesserLab/SLiM), 
-[fwdpp](http://molpopgen.github.io/fwdpp/), and 
+[fwdpp](https://fwdpp.readthedocs.io/en/), and 
 [tsinfer](https://tsinfer.readthedocs.io/en/latest/)) that either simulate or
 infer the evolutionary history of genetic sequences. This library provides the
 underlying functionality that such software uses to load, examine, and
