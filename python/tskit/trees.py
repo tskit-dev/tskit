@@ -6821,6 +6821,10 @@ class TreeSequence:
         effect (i.e., calling ``tree_sequence.delete_sites([0, 1, 1])`` has the same
         effect as calling ``tree_sequence.delete_sites([0, 1])``.
 
+        .. note::
+            To remove only the mutations associated with a site, but keep the site
+            itself, use the :meth:`MutationTable.keep_rows` method.
+
         :param list[int] site_ids: A list of site IDs specifying the sites to remove.
         :param bool record_provenance: If ``True``, add details of this operation to the
             provenance information of the returned tree sequence. (Default: ``True``).
