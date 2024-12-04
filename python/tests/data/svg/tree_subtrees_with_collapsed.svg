@@ -11,7 +11,10 @@
 						<path class="edge" d="M 0 0 V -47.1333 H 10.9091"/>
 						<circle class="sym" cx="0" cy="0" r="3"/>
 						<polygon class="sym multi" points="3.0,0 6,6 -6,6 -3.0,0"/>
-						<text class="lab summary" font-style="italic" transform="translate(0 12)">+2</text>
+						<text class="lab summary" font-style="italic" transform="translate(0 12)">
+							+2
+							<title>A collapsed non-sample node with 2 descendant samples in this tree</title>
+						</text>
 						<text class="lab lft" transform="translate(-3 -7)">16</text>
 					</g>
 					<g class="a18 c2 node n17" transform="translate(10.9091 47.1333)">
