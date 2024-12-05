@@ -370,7 +370,11 @@ class Site(util.Dataclass):
     mutations: np.ndarray
     """
     The list of mutations at this site. Mutations within a site are returned in the
-    order they are specified in the underlying :class:`MutationTable`.
+
+    order they are specified in the underlying :class:`MutationTable`. For canonical
+    (i.e., valid) tables, this means ancestral mutations precede their descendants, so
+    older mutations (as defined by the canonical mutation ordering; see
+    :ref:`sec_mutation_requirements`) appear before younger ones.
     """
     metadata: bytes | dict | None
     """
