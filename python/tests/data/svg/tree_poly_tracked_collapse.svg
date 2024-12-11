@@ -15,7 +15,10 @@
 						</g>
 						<g class="polytomy">
 							<line x1="0" x2="69.44895759936173" y1="0" y2="0"/>
-							<text dy="-1.4" font-style="italic" text-anchor="end" x="69.449">+3/𝟑</text>
+							<text dy="-1.4" font-style="italic" text-anchor="end" x="69.449">
+								+3/𝟑
+								<title>This polytomy has 3 additional branches, leading to a total of 3 descendant samples</title>
+							</text>
 						</g>
 						<path class="edge" d="M 0 0 V -47.1333 H 56.4461"/>
 						<circle class="sym" cx="0" cy="0" r="3"/>
@@ -23,7 +26,10 @@
 					</g>
 					<g class="polytomy">
 						<line x1="0" x2="104.17343639904266" y1="0" y2="0"/>
-						<text dy="-1.4" font-style="italic" text-anchor="end" x="104.173">+3/𝟑</text>
+						<text dy="-1.4" font-style="italic" text-anchor="end" x="104.173">
+							+3/𝟑
+							<title>This polytomy has 3 additional branches, leading to a total of 3 descendant samples</title>
+						</text>
 					</g>
 					<path class="edge" d="M 0 0 V -47.1333 H -41.3013"/>
 					<circle class="sym" cx="0" cy="0" r="3"/>
@@ -34,7 +40,10 @@
 						<path class="edge" d="M 0 0 V -47.1333 H -108.608"/>
 						<circle class="sym" cx="0" cy="0" r="3"/>
 						<polygon class="sym multi" points="3.0,0 6,6 -6,6 -3.0,0"/>
-						<text class="lab summary" font-style="italic" transform="translate(0 12)">+2</text>
+						<text class="lab summary" font-style="italic" transform="translate(0 12)">
+							+2
+							<title>A collapsed non-sample node with 2 descendant samples in this tree</title>
+						</text>
 						<text class="lab rgt" transform="translate(3 -7)">36</text>
 					</g>
 					<g class="a40 c2 node n37" transform="translate(-43.4433 47.1333)">
@@ -71,7 +80,10 @@
 						<path class="edge" d="M 0 0 V -47.1333 H 108.608"/>
 						<circle class="sym" cx="0" cy="0" r="3"/>
 						<polygon class="sym multi" points="3.0,0 6,6 -6,6 -3.0,0"/>
-						<text class="lab summary" font-style="italic" transform="translate(0 12)">+3</text>
+						<text class="lab summary" font-style="italic" transform="translate(0 12)">
+							+3
+							<title>A collapsed non-sample node with 3 descendant samples in this tree</title>
+						</text>
 						<text class="lab rgt" transform="translate(3 -7)">39</text>
 					</g>
 					<path class="edge" d="M 0 0 V -47.1333 H 188.918"/>
@@ -80,7 +92,10 @@
 				</g>
 				<g class="polytomy">
 					<line x1="0" x2="219.0305567438898" y1="0" y2="0"/>
-					<text dy="-1.4" font-style="italic" text-anchor="end" x="219.031">+14/𝟐</text>
+					<text dy="-1.4" font-style="italic" text-anchor="end" x="219.031">
+						+14/𝟐
+						<title>This polytomy has 2 additional branches, leading to a total of 14 descendant samples</title>
+					</text>
 				</g>
 				<circle class="sym" cx="0" cy="0" r="3"/>
 				<text class="lab" transform="translate(0 -11)">41</text>
