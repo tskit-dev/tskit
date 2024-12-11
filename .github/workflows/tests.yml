@@ -14,8 +14,8 @@ jobs:
         uses: styfle/cancel-workflow-action@0.12.1
         with:
           access_token: ${{ github.token }}
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5.3.0
         with:
           python-version: '3.10'
       - name: install clang-format
@@ -24,7 +24,7 @@ jobs:
           python -m venv env
           source env/bin/activate
           pip install clang-format==6.0.1
-      - uses: pre-commit/action@v3.0.0
+      - uses: pre-commit/action@v3.0.1
 
   benchmark:
     name: Benchmark
@@ -32,8 +32,8 @@ jobs:
     steps:
       - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5.3.0
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -50,7 +50,7 @@ jobs:
           pip uninstall -y tskit
           python run.py
       - name: Upload Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.4.3
         with:
           name: benchmark-results
           path: python/benchmark
@@ -73,7 +73,7 @@ jobs:
           access_token: ${{ github.token }}
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.2.2
 
       - name: Install OSX libs
         if: matrix.os == 'macos-latest'
@@ -82,13 +82,13 @@ jobs:
 
       - name: Cache conda and dependencies
         id: cache
-        uses: actions/cache@v4
+        uses: actions/cache@v4.2.0
         with:
           path: ${{ env.CONDA }}/envs
           key: ${{ runner.os }}-${{ runner.arch }}-${{ matrix.python}}-conda-v1-${{ hashFiles('python/requirements/CI-tests-conda/requirements.txt') }}-${{ hashFiles('python/requirements/CI-tests-pip/requirements.txt') }}
 
       - name: Install Conda
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v3.1.0
         if: steps.cache.outputs.cache-hit != 'true'
         with:
           activate-environment: anaconda-client-env
@@ -141,7 +141,7 @@ jobs:
           python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           working-directory: python
@@ -168,10 +168,10 @@ jobs:
         access_token: ${{ github.token }}
 
     - name: 'Checkout'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4.2.2
 
     - name: Setup MSYS2 ${{matrix.sys}}
-      uses: msys2/setup-msys2@v2
+      uses: msys2/setup-msys2@v2.26.0
       with:
         msystem: ${{matrix.sys}}
         update: true
