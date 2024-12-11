@@ -1235,19 +1235,19 @@ out:
 static int
 tsk_treeseq_check_time_windows(tsk_size_t num_windows, const double *windows)
 {
-    int ret = TSK_ERR_BAD_WINDOWS;
+    int ret = TSK_ERR_BAD_TIME_WINDOWS;
     tsk_size_t j;
 
     if (num_windows < 1) {
-        ret = TSK_ERR_BAD_NUM_WINDOWS;
+        ret = TSK_ERR_BAD_TIME_WINDOWS_DIM;
         goto out;
     }
 
-    if (windows[0] < 0) {
+    if (windows[0] < 0.0) {
         goto out;
     }
 
-    if (windows[0] != 0) {
+    if (windows[0] != 0.0) {
         goto out;
     }
 
@@ -3744,13 +3744,14 @@ tsk_treeseq_allele_frequency_spectrum(const tsk_treeseq_t *self,
         num_time_windows = 1;
         time_windows = default_time_windows;
     } else {
-        if (stat_site
-            && tsk_memcmp(time_windows, default_time_windows, sizeof(double)) != 0) {
-            ret = TSK_ERR_UNSUPPORTED_STAT_MODE;
-            goto out;
-        }
         ret = tsk_treeseq_check_time_windows(num_time_windows, time_windows);
         if (ret != 0) {
+            goto out;
+        }
+        if (stat_site
+            && tsk_memcmp(time_windows, default_time_windows, 2 * sizeof(const double))
+                   != 0) {
+            ret = TSK_ERR_UNSUPPORTED_STAT_MODE;
             goto out;
         }
     }

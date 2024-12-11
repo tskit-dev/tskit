@@ -7268,3 +7268,15 @@ class TestTimeWindows(TestBranchAlleleFrequencySpectrum):
         # dimensions are dim1: windows ; dim2: time_windows ;
         # dim3-or-more: num_sample_sets
         assert sfs1_w_tw.ndim == 3
+        # make a badly formatted time_windows array
+        assert (
+            branch_allele_frequency_spectrum(
+                ts,
+                sample_sets=[[0, 1, 2, 3]],
+                time_windows=[0],
+                windows=None,
+                polarised=True,
+                span_normalise=False,
+            ).size
+            == 0
+        )
