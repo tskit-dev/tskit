@@ -8,7 +8,7 @@ on:
 jobs:
   pre-commit:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
@@ -28,7 +28,7 @@ jobs:
 
   benchmark:
     name: Benchmark
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
@@ -62,7 +62,7 @@ jobs:
       fail-fast: false
       matrix:
         python: [ 3.9, 3.12 ]
-        os:  [ macos-latest, ubuntu-latest, windows-latest ]
+        os:  [ macos-latest, ubuntu-24.04, windows-latest ]
     defaults:
       run:
         shell: bash
