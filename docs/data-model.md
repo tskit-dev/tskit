@@ -387,10 +387,10 @@ The tree sequence itself also has metadata stored as a byte array.
 ### Valid tree sequence requirements
 
 Arbitrary data can be stored in tables using the classes in the
-{ref}`sec_tables_api`. However, only a {class}`TableCollection`
-that fulfils a set of requirements represents
-a valid {class}`TreeSequence` object which can be obtained
-using the {meth}`TableCollection.tree_sequence` method. In this
+{ref}`sec_tables_api`. The {meth}`TableCollection.tree_sequence` method
+can be used to turn such a {class}`TableCollection` into an immutable
+{class}`TreeSequence` object, but this requires the tables to
+fulfil a specific set of requirements. In this
 section we list these requirements, and explain their rationale.
 Violations of most of these requirements are detected when the
 user attempts to load a tree sequence via {func}`tskit.load` or
@@ -597,6 +597,21 @@ can be used to create an index on a table collection if necessary.
 :::{todo}
 Add more details on what the indexes actually are.
 :::
+
+
+(sec_data_model_saving)=
+
+### Saving to file
+
+When serializing (storing a tree sequence on disk). the underlying tables are stored
+along with the indexes *and other stuff*. When the tree sequence is loaded from file,
+it is then guaranteed to be valid, with pre-calculated indexes and cached properties
+immediately available.
+
+If a TableCollection is saved to file, then any indexes are also stored in the
+file. A TableCollection that has been loaded from a file is not, however, guaranteed
+to be a valid tree sequence.
+
 
 (sec_data_model_data_encoding)=
 
