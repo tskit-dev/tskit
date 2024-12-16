@@ -35,7 +35,9 @@ files. We also refer to them as "tree sequence files".
 
 :::{todo}
 Link to the documentation for kastore, and describe the arrays that are
-stored as well as the top-level metadata.
+stored as well as the top-level metadata. Note that a structured listing of
+all the data stored in a tree sequence file can be shown using
+e.g. ``python -m kastore ls file.trees``.
 :::
 
 
