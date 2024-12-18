@@ -8751,6 +8751,7 @@ class TreeSequence:
         if time_window is None:
             tree_sequence_low, tree_sequence_high = None, self
         else:
+            assert time_windows[0] < time_windows[1], "The second argument should be larger."
             tree_sequence_low, tree_sequence_high = \
                 self.decapitate(time_window[0]), self.decapitate(time_window[1])
         
