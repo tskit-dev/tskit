@@ -8095,6 +8095,52 @@ class TreeSequence:
 
         return result
 
+    def __k_way_two_locus_sample_set_stat(
+        self,
+        ll_method,
+        k,
+        sample_sets,
+        indexes=None,
+        sites=None,
+        positions=None,
+        mode=None,
+    ):
+        sample_set_sizes = np.array(
+            [len(sample_set) for sample_set in sample_sets], dtype=np.uint32
+        )
+        if np.any(sample_set_sizes == 0):
+            raise ValueError("Sample sets must contain at least one element")
+        flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
+        row_sites, col_sites = self.parse_sites(sites)
+        row_positions, col_positions = self.parse_positions(positions)
+        drop_dimension = False
+        indexes = util.safe_np_int_cast(indexes, np.int32)
+        if len(indexes.shape) == 1:
+            indexes = indexes.reshape((1, indexes.shape[0]))
+            drop_dimension = True
+        if len(indexes.shape) != 2 or indexes.shape[1] != k:
+            raise ValueError(
+                "Indexes must be convertable to a 2D numpy array with {} "
+                "columns".format(k)
+            )
+        result = ll_method(
+            sample_set_sizes,
+            flattened,
+            indexes,
+            row_sites,
+            col_sites,
+            row_positions,
+            col_positions,
+            mode,
+        )
+        if drop_dimension:
+            result = result.reshape(result.shape[:2])
+        else:
+            # Orient the data so that the first dimension is the sample set.
+            # With this orientation, we get one LD matrix per sample set.
+            result = result.swapaxes(0, 2).swapaxes(1, 2)
+        return result
+
     def __k_way_sample_set_stat(
         self,
         ll_method,
@@ -10627,9 +10673,15 @@ class TreeSequence:
             return mutations_time
 
     def ld_matrix(
-        self, sample_sets=None, sites=None, positions=None, mode="site", stat="r2"
+        self,
+        sample_sets=None,
+        sites=None,
+        positions=None,
+        mode="site",
+        stat="r2",
+        indexes=None,
     ):
-        stats = {
+        one_way_stats = {
             "D": self._ll_tree_sequence.D_matrix,
             "D2": self._ll_tree_sequence.D2_matrix,
             "r2": self._ll_tree_sequence.r2_matrix,
@@ -10641,20 +10693,32 @@ class TreeSequence:
             "D2_unbiased": self._ll_tree_sequence.D2_unbiased_matrix,
             "pi2_unbiased": self._ll_tree_sequence.pi2_unbiased_matrix,
         }
-
+        two_way_stats = {
+            "D2": self._ll_tree_sequence.D2_ij_matrix,
+            "D2_unbiased": self._ll_tree_sequence.D2_ij_unbiased_matrix,
+            "r2": self._ll_tree_sequence.r2_ij_matrix,
+        }
+        stats = one_way_stats if indexes is None else two_way_stats
         try:
-            two_locus_stat = stats[stat]
+            stat_func = stats[stat]
         except KeyError:
             raise ValueError(
                 f"Unknown two-locus statistic '{stat}', we support: {list(stats.keys())}"
             )
 
+        if indexes is not None:
+            return self.__k_way_two_locus_sample_set_stat(
+                stat_func,
+                2,
+                sample_sets,
+                indexes=indexes,
+                sites=sites,
+                positions=positions,
+                mode=mode,
+            )
+
         return self.__two_locus_sample_set_stat(
-            two_locus_stat,
-            sample_sets,
-            sites=sites,
-            positions=positions,
-            mode=mode,
+            stat_func, sample_sets, sites=sites, positions=positions, mode=mode
         )
 
     def sample_nodes_by_ploidy(self, ploidy):

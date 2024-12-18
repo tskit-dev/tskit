@@ -244,6 +244,42 @@ def norm_hap_weighted(
         result[k] = hap_weights[0, k] / n
 
 
+def norm_hap_weighted_ij(
+    result_dim: int,
+    hap_weights: np.ndarray,
+    n_a: int,
+    n_b: int,
+    result: np.ndarray,
+    params: Dict[str, Any],
+) -> None:
+    """
+    Create a vector of normalizing coefficients, length of the number of
+    index tuples. Each allele's statistic will be weighted by the average
+    of the proportion of AB haplotypes in each population present in the
+    index tuple.
+
+    :param result_dim: Number of dimensions in output. Dependent on arity of stat.
+    :param hap_weights: Proportion of each two-locus haplotype.
+    :param n_a: Number of alleles at the A locus.
+    :param n_b: Number of alleles at the B locus.
+    :param result: Result vector to store the normalizing coefficients in.
+    :param params: Params of summary function.
+    """
+    del n_a, n_b  # handle unused params
+    sample_set_sizes = params["sample_set_sizes"]
+    set_indexes = params["set_indexes"]
+
+    for k in range(result_dim):
+        i = set_indexes[k][0]
+        j = set_indexes[k][1]
+        ni = sample_set_sizes[i]
+        nj = sample_set_sizes[j]
+        wAB_i = hap_weights[0, i]
+        wAB_j = hap_weights[0, j]
+        result[k] = (wAB_i + wAB_j) / (ni + nj)
+        # result[k] = (wAB_i / ni / 2) + (wAB_j / nj / 2)
+
+
 def norm_total_weighted(
     result_dim: int,
     hap_weights: np.ndarray,
@@ -523,7 +559,6 @@ def compute_general_two_site_stat_result(
     result_tmp = np.zeros(result_dim, np.float64)
 
     polarised_val = 1 if polarised else 0
-
     for mut_a in range(polarised_val, num_row_alleles):
         a = int(mut_a + row_site_offset)
         for mut_b in range(polarised_val, num_col_alleles):
@@ -1001,22 +1036,22 @@ def r2_ij_summary_func(
         i = set_indexes[k][0]
         j = set_indexes[k][1]
         n = sample_set_sizes[i]
-        p_AB = state[0, k] / n
-        p_Ab = state[1, k] / n
-        p_aB = state[2, k] / n
-        p_A = p_AB + p_Ab
-        p_B = p_AB + p_aB
-        D_i = p_AB - (p_A * p_B)
-        denom_i = np.sqrt(p_A * p_B * (1 - p_A) * (1 - p_B))
+        pAB = state[0, i] / n
+        pAb = state[1, i] / n
+        paB = state[2, i] / n
+        pA = pAB + pAb
+        pB = pAB + paB
+        D_i = pAB - pA * pB
+        denom_i = np.sqrt(pA * (1 - pA) * pB * (1 - pB))
 
         n = sample_set_sizes[j]
-        p_AB = state[0, k] / n
-        p_Ab = state[1, k] / n
-        p_aB = state[2, k] / n
-        p_A = p_AB + p_Ab
-        p_B = p_AB + p_aB
-        D_j = p_AB - (p_A * p_B)
-        denom_j = np.sqrt(p_A * p_B * (1 - p_A) * (1 - p_B))
+        pAB = state[0, j] / n
+        pAb = state[1, j] / n
+        paB = state[2, j] / n
+        pA = pAB + pAb
+        pB = pAB + paB
+        D_j = pAB - pA * pB
+        denom_j = np.sqrt(pA * (1 - pA) * pB * (1 - pB))
 
         with suppress_overflow_div0_warning():
             result[k] = (D_i * D_j) / (denom_i * denom_j)
@@ -1249,17 +1284,17 @@ def D2_ij_summary_func(
         j = set_indexes[k][1]
 
         n = sample_set_sizes[i]
-        p_AB = state[0, k] / n
-        p_Ab = state[1, k] / n
-        p_aB = state[2, k] / n
+        p_AB = state[0, i] / n
+        p_Ab = state[1, i] / n
+        p_aB = state[2, i] / n
         p_A = p_AB + p_Ab
         p_B = p_AB + p_aB
         D_i = p_AB - (p_A * p_B)
 
         n = sample_set_sizes[j]
-        p_AB = state[0, k] / n
-        p_Ab = state[1, k] / n
-        p_aB = state[2, k] / n
+        p_AB = state[0, j] / n
+        p_Ab = state[1, j] / n
+        p_aB = state[2, j] / n
         p_A = p_AB + p_Ab
         p_B = p_AB + p_aB
         D_j = p_AB - (p_A * p_B)
@@ -1287,17 +1322,18 @@ def D2_ij_unbiased_summary_func(
             w_Ab = state[1, i]
             w_aB = state[2, i]
             w_ab = n - (w_AB + w_Ab + w_aB)
-            result[k] = (
-                (
-                    w_AB * (w_AB - 1) * w_ab * (w_ab - 1)
-                    + w_Ab * (w_Ab - 1) * w_aB * (w_aB - 1)
-                    - 2 * w_AB * w_Ab * w_aB * w_ab
+            with suppress_overflow_div0_warning():
+                result[k] = (
+                    (
+                        w_AB * (w_AB - 1) * w_ab * (w_ab - 1)
+                        + w_Ab * (w_Ab - 1) * w_aB * (w_aB - 1)
+                        - 2 * w_AB * w_Ab * w_aB * w_ab
+                    )
+                    / n
+                    / (n - 1)
+                    / (n - 2)
+                    / (n - 3)
                 )
-                / n
-                / (n - 1)
-                / (n - 2)
-                / (n - 3)
-            )
         else:
             n_i = sample_set_sizes[i]
             w_AB_i = state[0, i]
@@ -1311,14 +1347,15 @@ def D2_ij_unbiased_summary_func(
             w_aB_j = state[2, j]
             w_ab_j = n_j - (w_AB_j + w_Ab_j + w_aB_j)
 
-            result[k] = (
-                (w_Ab_i * w_aB_i - w_AB_i * w_ab_i)
-                * (w_Ab_j * w_aB_j - w_AB_j * w_ab_j)
-                / n_i
-                / (n_i - 1)
-                / n_j
-                / (n_j - 1)
-            )
+            with suppress_overflow_div0_warning():
+                result[k] = (
+                    (w_Ab_i * w_aB_i - w_AB_i * w_ab_i)
+                    * (w_Ab_j * w_aB_j - w_AB_j * w_ab_j)
+                    / n_i
+                    / (n_i - 1)
+                    / n_j
+                    / (n_j - 1)
+                )
 
 
 SUMMARY_FUNCS = {
@@ -1351,7 +1388,7 @@ NORM_METHOD = {
     D2_unbiased_summary_func: norm_total_weighted,
     Dz_unbiased_summary_func: norm_total_weighted,
     pi2_unbiased_summary_func: norm_total_weighted,
-    r2_ij_summary_func: norm_hap_weighted,
+    r2_ij_summary_func: norm_hap_weighted_ij,
     D2_ij_summary_func: norm_total_weighted,
     D2_ij_unbiased_summary_func: norm_total_weighted,
 }
@@ -1373,9 +1410,11 @@ POLARIZATION = {
 }
 
 
-def check_set_indexes(num_sets: int, num_set_indexes: int, set_indexes: np.ndarray):
-    for i in range(len(set_indexes)):
-        for j in range(num_set_indexes):
+def check_set_indexes(
+    num_sets: int, num_set_indexes: int, tuple_size: int, set_indexes: np.ndarray
+):
+    for i in range(num_set_indexes):
+        for j in range(tuple_size):
             if set_indexes[i, j] < 0 or set_indexes[i, j] >= num_sets:
                 raise ValueError(f"Bad sample set index: {set_indexes[i, j]}")
 
@@ -1393,7 +1432,7 @@ def check_sample_stat_inputs(
         )
     if num_index_tuples < 1:
         raise ValueError(f"Insufficient number of index tuples: {num_index_tuples}")
-    check_set_indexes(num_sample_sets, num_index_tuples, index_tuples)
+    check_set_indexes(num_sample_sets, num_index_tuples, tuple_size, index_tuples)
 
 
 def ld_matrix(
@@ -1760,6 +1799,17 @@ def test_input_validation():
         ts.ld_matrix(positions=[[1.0, 2.0], [2.0, 3.0], [3.0, 4.0]], mode="branch")
     with pytest.raises(ValueError, match="must be a length 1 or 2 list"):
         ts.ld_matrix(positions=[], mode="branch")
+
+    with pytest.raises(
+        ValueError, match="Sample sets must contain at least one element"
+    ):
+        ts.ld_matrix(sample_sets=[[1, 2, 3], []], indexes=[])
+    with pytest.raises(
+        ValueError, match="Indexes must be convertable to a 2D numpy array"
+    ):
+        ts.ld_matrix(
+            sample_sets=[ts.samples(), ts.samples()], indexes=[[1, 2, 3], [2, 3, 4]]
+        )
 
 
 @dataclass
@@ -2152,6 +2202,49 @@ def test_branch_ld_matrix_2pop_sample_sets_unbiased(ts, sample_set, stat):
     )
 
 
+def gen_dims_test_cases(ts, mode):
+    ss = ts.samples()
+    dim = ts.num_sites if mode == "site" else ts.num_trees
+    base = (dim, dim)
+    return [
+        {"name": f"{mode}_default", "ld_params": {"mode": mode}, "shape": base},
+        {
+            "name": f"{mode}_dim_drop",
+            "ld_params": {"mode": mode, "sample_sets": ss},
+            "shape": base,
+        },
+        {
+            "name": f"{mode}_no_dim_drop",
+            "ld_params": {"mode": mode, "sample_sets": [ss]},
+            "shape": (1, *base),
+        },
+        {
+            "name": f"{mode}_two_sample_sets",
+            "ld_params": {"mode": mode, "sample_sets": [ss, ss]},
+            "shape": (2, *base),
+        },
+        {
+            "name": f"{mode}_two_way_dim_drop",
+            "ld_params": {"mode": mode, "sample_sets": [ss, ss], "indexes": (0, 1)},
+            "shape": base,
+        },
+        {
+            "name": f"{mode}_two_way_no_dim_drop",
+            "ld_params": {"mode": mode, "sample_sets": [ss, ss], "indexes": [(0, 1)]},
+            "shape": (1, *base),
+        },
+        {
+            "name": f"{mode}_two_way_three_set_indexes",
+            "ld_params": {
+                "mode": mode,
+                "sample_sets": [ss, ss],
+                "indexes": [(0, 0), (0, 1), (1, 1)],
+            },
+            "shape": (3, *base),
+        },
+    ]
+
+
 def get_test_dims_test_cases():
     test_cases = {
         "empty_tree",
@@ -2161,16 +2254,155 @@ def get_test_dims_test_cases():
         "internal_nodes_samples",
         "mixed_internal_leaf_samples",
     }
-    return [t for t in get_example_tree_sequences() if t.id in test_cases]
+    for ts_case in [t for t in get_example_tree_sequences() if t.id in test_cases]:
+        ts = ts_case.values[0]
+        for dim_case in gen_dims_test_cases(ts, "site"):
+            name = "_".join([dim_case["name"], ts_case.id])
+            yield pytest.param(ts, dim_case["ld_params"], dim_case["shape"], id=name)
+        for dim_case in gen_dims_test_cases(ts, "branch"):
+            name = "_".join([dim_case["name"], ts_case.id])
+            yield pytest.param(ts, dim_case["ld_params"], dim_case["shape"], id=name)
 
 
-@pytest.mark.parametrize("ts", get_test_dims_test_cases())
-def test_dims(ts):
-    ss = ts.samples()
-    assert ld_matrix(ts).ndim == 2
-    assert ld_matrix(ts, sample_sets=ss).ndim == 2
-    assert ld_matrix(ts, sample_sets=[ss]).ndim == 3
-    assert ld_matrix(ts, sample_sets=[ss, ss]).ndim == 3
-    assert ld_matrix(ts, sample_sets=[ss, ss], indexes=(0, 0)).ndim == 2
-    assert ld_matrix(ts, sample_sets=[ss, ss], indexes=[(0, 0)]).ndim == 3
-    assert ld_matrix(ts, sample_sets=[ss, ss], indexes=[(0, 0), (0, 1)]).ndim == 3
+@pytest.mark.parametrize("ts,params,shape", get_test_dims_test_cases())
+def test_dims(ts, params, shape):
+    assert ts.ld_matrix(**params).shape == ld_matrix(ts, **params).shape == shape
+
+
+@pytest.mark.parametrize("ts,sample_sets", get_test_branch_2pop_test_cases())
+@pytest.mark.parametrize("stat", sorted(TWO_WAY_SUMMARY_FUNCS.keys()))
+def test_two_way_branch_ld_matrix(ts, sample_sets, stat):
+    np.testing.assert_array_almost_equal(
+        ld_matrix(ts, sample_sets=sample_sets, indexes=[(0, 0), (0, 1), (1, 1)]),
+        ts.ld_matrix(sample_sets=sample_sets, indexes=[(0, 0), (0, 1), (1, 1)]),
+    )
+
+
+@pytest.mark.parametrize(
+    "ts",
+    [
+        ts
+        for ts in get_example_tree_sequences()
+        if ts.id not in {"no_samples", "empty_ts"}
+    ],
+)
+@pytest.mark.parametrize(
+    "stat",
+    sorted(TWO_WAY_SUMMARY_FUNCS.keys()),
+)
+def test_two_way_site_ld_matrix(ts, stat):
+    np.testing.assert_array_almost_equal(
+        ld_matrix(ts, stat=stat), ts.ld_matrix(stat=stat)
+    )
+    ss = [ts.samples()] * 3
+    np.testing.assert_array_almost_equal(
+        ld_matrix(ts, stat=stat, sample_sets=ss, indexes=[(0, 0), (0, 1), (1, 1)]),
+        ts.ld_matrix(stat=stat, sample_sets=ss, indexes=[(0, 0), (0, 1), (1, 1)]),
+    )
+
+
+@pytest.mark.parametrize(
+    "genotypes,sample_sets,expected",
+    [
+        (
+            # these genotypes are rows from a genotype matrix (sites x samples)
+            correlated := np.array(
+                [
+                    [0, 1, 1, 0, 2, 2, 1, 0, 2, 0, 1, 2],
+                    [1, 2, 2, 1, 0, 0, 2, 1, 0, 1, 2, 0],
+                ],
+            ),
+            (np.array([0, 1, 2, 3, 4, 5]), np.array([6, 7, 8, 9, 10, 11])),
+            np.float64(1.0),
+        ),
+        (
+            correlated,
+            (np.array([0, 1, 2, 3, 4, 5]), np.array([6, 7, 8, 9, 10])),
+            np.float64(1.0),
+        ),
+        (
+            correlated,
+            (np.array([0, 1, 2, 3, 4, 5]), np.array([6, 7, 8, 9])),
+            np.float64(1.0),
+        ),
+        (
+            correlated,
+            (np.array([0, 1, 2, 3, 4, 5]), np.array([6, 7, 8])),
+            np.float64(1.0),
+        ),
+        (
+            correlated,
+            (np.array([0, 1, 2, 3, 4, 5]), np.array([6, 7])),
+            np.float64(np.nan),
+        ),
+        (
+            correlated,
+            (np.array([0, 1, 2, 3, 4, 5]), np.array([6])),
+            np.float64(np.nan),
+        ),
+        (
+            anticorrelated := np.array(
+                [
+                    [0, 0, 0, 0, 2, 2, 2, 2, 1, 1, 1, 1, 3, 3, 3, 3],
+                    [1, 1, 1, 1, 3, 3, 3, 3, 0, 0, 0, 0, 2, 2, 2, 2],
+                ]
+            ),
+            (
+                np.array([0, 2, 4, 6, 8, 10, 12, 14]),
+                np.array([1, 3, 5, 7, 9, 11, 13, 15]),
+            ),
+            np.float64(1.0),
+        ),
+        (
+            anticorrelated,
+            (np.array([0, 2, 4, 6, 8, 10, 12, 14]), np.array([1, 3, 5, 7, 9, 11, 13])),
+            np.float64(1.0),
+        ),
+        (
+            anticorrelated,
+            (np.array([0, 2, 4, 6, 8, 10, 12, 14]), np.array([1, 3, 5, 7, 9, 11])),
+            np.float64(np.nan),
+        ),
+        (
+            anticorrelated,
+            (np.array([0, 2, 4, 6, 8, 10, 12, 14]), np.array([1, 3, 5, 7, 9])),
+            np.float64(np.nan),
+        ),
+        (
+            anticorrelated,
+            (np.array([0, 2, 4, 6, 8, 10, 12, 14]), np.array([1, 3, 5, 7])),
+            np.float64(np.nan),
+        ),
+        (
+            anticorrelated,
+            (np.array([0, 2, 4, 6, 8, 10, 12, 14]), np.array([1, 3, 5])),
+            np.float64(np.nan),
+        ),
+        (
+            anticorrelated,
+            (np.array([0, 2, 4, 6, 8, 10, 12, 14]), np.array([1, 3])),
+            np.float64(np.nan),
+        ),
+        (
+            anticorrelated,
+            (np.array([0, 2, 4, 6, 8, 10, 12, 14]), np.array([1])),
+            np.float64(np.nan),
+        ),
+    ],
+)
+def test_multipopulation_r2_varying_unequal_set_sizes(genotypes, sample_sets, expected):
+    a, b = genotypes
+    state_dim = len(sample_sets)
+    state = np.zeros((3, state_dim), dtype=int)
+    result = np.zeros((max(a) + 1, max(b) + 1, 1))
+    norm = np.zeros_like(result)
+    params = dict(sample_set_sizes=list(map(len, sample_sets)), set_indexes=[(0, 1)])
+    for i, j in np.ndindex(result.shape[:2]):
+        for k, ss in enumerate(sample_sets):
+            A = a[ss] == i
+            B = b[ss] == j
+            state[:, k] = (A & B).sum(), (A & ~B).sum(), (~A & B).sum()
+        r2_ij_summary_func(state_dim, state, 1, result[i, j], params)
+        norm_hap_weighted_ij(1, state, max(a) + 1, max(b) + 1, norm[i, j], params)
+
+    np.testing.assert_allclose((result * norm).sum(), expected)
