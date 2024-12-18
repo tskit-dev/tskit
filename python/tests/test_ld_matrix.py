@@ -24,6 +24,7 @@ Test cases for two-locus statistics
 """
 import contextlib
 import io
+import itertools
 from dataclasses import dataclass
 from itertools import combinations_with_replacement
 from itertools import permutations
@@ -842,6 +843,7 @@ def two_locus_count_stat(
     norm_func,
     polarised,
     mode,
+    result_dim,
     sites=None,
     positions=None,
     sample_sets=None,
@@ -857,6 +859,9 @@ def two_locus_count_stat(
     :param polarised: If true, skip the computation of the statistic for the
                       ancestral state.
     :param mode: Whether or not to compute "site" or "branch" statistics.
+    :param result_dim: The dimensions of the output array. For one-way stats,
+                       this will be the number of sample sets. For two-way stats,
+                       the number of index tuples.
     :param sites: List of two lists containing [row_sites, column_sites].
     :param positions: List of two lists containing [row_positions, col_positions],
                       which are genomic positions to compute LD on.
@@ -1455,6 +1460,7 @@ def ld_matrix(
         NORM_METHOD[summary_func],
         POLARIZATION[summary_func],
         mode,
+        result_dim,
         sites=sites,
         positions=positions,
         indexes=indexes,
