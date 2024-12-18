@@ -4231,7 +4231,7 @@ tsk_treeseq_D_prime(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
 {
     options |= TSK_STAT_POLARISED; // TODO: allow user to pick?
     return tsk_treeseq_two_locus_count_stat(self, num_sample_sets, sample_set_sizes,
-        sample_sets, num_sample_sets, NULL, D_prime_summary_func, norm_hap_weighted,
+        sample_sets, num_sample_sets, NULL, D_prime_summary_func, norm_total_weighted,
         num_rows, row_sites, row_positions, num_cols, col_sites, col_positions, options,
         result);
 }
