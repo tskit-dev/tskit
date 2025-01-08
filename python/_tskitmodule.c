@@ -9715,9 +9715,11 @@ TreeSequence_weighted_stat_vector_method(
     if (result_array == NULL) {
         goto out;
     }
+	Py_BEGIN_ALLOW_THREADS
     err = method(self->tree_sequence, w_shape[1], PyArray_DATA(weights_array),
         num_windows, PyArray_DATA(windows_array), num_focal_nodes,
         PyArray_DATA(focal_nodes_array), PyArray_DATA(result_array), options);
+	Py_END_ALLOW_THREADS
     if (err != 0) {
         handle_library_error(err);
         goto out;
