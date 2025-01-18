@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2024 Tskit Developers
+ * Copyright (c) 2019-2025 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,6 +23,7 @@
  * SOFTWARE.
  */
 
+#include "tskit/core.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
@@ -3542,8 +3543,6 @@ tsk_treeseq_update_branch_afs(const tsk_treeseq_t *self, tsk_id_t u, double righ
             time_window_index = 0;
             while (time_window_index < num_time_windows
                    && time_windows[time_window_index] < t_v) {
-                /* for (time_window_index = 0; time_window_index < num_time_windows;
-                 * time_window_index++){ */
                 afs_size = result_dims[num_sample_sets];
                 afs = result
                       + afs_size * (window_index * num_time_windows + time_window_index);
@@ -3553,8 +3552,9 @@ tsk_treeseq_update_branch_afs(const tsk_treeseq_t *self, tsk_id_t u, double righ
                 if (!polarised) {
                     fold(coordinate, result_dims, num_sample_sets);
                 }
-                tw_branch_length = TSK_MIN(time_windows[time_window_index + 1], t_v)
-                                   - TSK_MAX(time_windows[0], time[u]);
+                tw_branch_length
+                    = fabs(TSK_MIN(time_windows[time_window_index + 1], t_v)
+                           - TSK_MAX(time_windows[time_window_index], time[u]));
                 x = (right - last_update[u]) * tw_branch_length;
                 increment_nd_array_value(
                     afs, num_sample_sets, result_dims, coordinate, x);

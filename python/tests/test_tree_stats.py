@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2024 Tskit Developers
+# Copyright (c) 2018-2025 Tskit Developers
 # Copyright (C) 2016 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -39,6 +39,7 @@ import tests.test_wright_fisher as wf
 import tests.tsutil as tsutil
 import tskit
 import tskit.exceptions as exceptions
+
 
 np.random.seed(5)
 
@@ -3923,8 +3924,7 @@ def naive_branch_allele_frequency_spectrum(
                     break
             if span_normalise:
                 S /= end - begin
-            out[j, k, :] = S
-
+            out[j, k, :] = S - sum(out[j, 0:k, :])
     if drop_time_windows:
         assert out.ndim == 2 + len(out_dim)
         out = out[:, 0]
@@ -3994,20 +3994,25 @@ def branch_allele_frequency_spectrum(
 
     def update_result(window_index, u, right):
         if parent[u] != -1:
-            for k_tw, _ in enumerate(time_windows[:-1]):
-                if 0 < count[u, -1] < ts.num_samples:
-                    # t_v = branch_length[u] + time[u]
+            t_v = time[parent[u]]
+            if 0 < count[u, -1] < ts.num_samples:
+                time_window_index = 0
+                while (
+                    time_window_index < num_time_windows
+                    and time_windows[time_window_index] < t_v
+                ):
                     assert parent[u] != -1
-                    t_v = time[parent[u]]
-                    tw_branch_length = min(time_windows[k_tw + 1], t_v) - max(
-                        time_windows[0], time[u]
+                    tw_branch_length = abs(
+                        min(time_windows[time_window_index + 1], t_v)
+                        - max(time_windows[time_window_index], time[u])
                     )
                     x = (right - last_update[u]) * tw_branch_length
                     c = count[u, :num_sample_sets]
                     if not polarised:
                         c = fold(c, out_dim)
-                    index = tuple([window_index] + [k_tw] + list(c))
+                    index = tuple([window_index] + [time_window_index] + list(c))
                     result[index] += x
+                    time_window_index += 1
         last_update[u] = right
 
     for (t_left, t_right), edges_out, edges_in in ts.edge_diffs():
@@ -7029,6 +7034,39 @@ class TestTimeWindows(TestBranchAlleleFrequencySpectrum):
         )
         self.assertArrayAlmostEqual(x, true_x)
 
+    def test_bad_time_windows(self):
+        time_windows = [-1]
+        ts = self.four_taxa_test_case()
+        # make a badly formatted time_windows array
+        assert (
+            branch_allele_frequency_spectrum(
+                ts,
+                sample_sets=[[0, 1, 2, 3]],
+                time_windows=time_windows,
+                windows=None,
+                polarised=True,
+                span_normalise=False,
+            ).size
+            == 0
+        )
+
+    def test_drop_dimension(self):
+        ts = self.four_taxa_test_case()
+        sample_set = [0, 1, 2, 3]
+        for tw in [None, [0, 0.5, 1, np.inf]]:
+            x = ts.allele_frequency_spectrum(
+                sample_sets=[sample_set],
+                time_windows=tw,
+                mode="branch",
+            )
+            y = ts.allele_frequency_spectrum(
+                sample_sets=[sample_set],
+                mode="branch",
+            )
+            assert x.shape[-1] == y.shape[-1]
+            assert x.shape[-1] == len(sample_set) + 1
+            assert np.all(x[0] == y[:0])
+
     def test_afs_branch(self):
         """Tests for the Allele Frequency Spectrum stat
         using time windows under branch mode.
@@ -7268,15 +7306,3 @@ class TestTimeWindows(TestBranchAlleleFrequencySpectrum):
         # dimensions are dim1: windows ; dim2: time_windows ;
         # dim3-or-more: num_sample_sets
         assert sfs1_w_tw.ndim == 3
-        # make a badly formatted time_windows array
-        assert (
-            branch_allele_frequency_spectrum(
-                ts,
-                sample_sets=[[0, 1, 2, 3]],
-                time_windows=[0],
-                windows=None,
-                polarised=True,
-                span_normalise=False,
-            ).size
-            == 0
-        )

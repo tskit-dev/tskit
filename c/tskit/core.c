@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2024 Tskit Developers
+ * Copyright (c) 2019-2025 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -512,7 +512,7 @@ tsk_strerror_internal(int err)
                   "(TSK_ERR_BAD_SAMPLE_PAIR_TIMES)";
             break;
         case TSK_ERR_BAD_TIME_WINDOWS:
-            ret = "Time windows must be strictly increasing and end at infinity. "
+            ret = "Time windows must be strictly increasing. "
                   "(TSK_ERR_BAD_TIME_WINDOWS)";
             break;
         case TSK_ERR_BAD_NODE_TIME_WINDOW:

@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2024 Tskit Developers
+# Copyright (c) 2018-2025 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -2376,6 +2376,26 @@ class TestAlleleFrequencySpectrum(LowLevelTestCase, OneWaySampleStatsMixin):
         for bad_window in bad_windows:
             with pytest.raises(_tskit.LibraryError):
                 f(windows=bad_window, time_windows=[0, np.inf], mode="branch", **params)
+
+    def test_time_window_errors(self):
+        ts, f, params = self.get_example()
+
+        for bad_time_windows in [[], [0]]:
+            with pytest.raises(ValueError, match="must have at least 2"):
+                f(
+                    time_windows=bad_time_windows,
+                    mode="branch",
+                    **params,
+                )
+        bad_time_windows = [
+            [-1, np.inf],
+            [0, 0, np.inf],
+            [0, 10, 5, np.inf],
+            [0, np.inf, np.inf],
+        ]
+        for bad_time_window in bad_time_windows:
+            with pytest.raises(_tskit.LibraryError, match="TSK_ERR_BAD_TIME_WINDOWS"):
+                f(time_windows=bad_time_window, mode="branch", **params)
 
     def test_windows_output(self):
         ts, f, params = self.get_example()
