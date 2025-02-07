@@ -46,7 +46,7 @@ jobs:
 
       - name: Update environment
         run: |
-          mamba install -y python=3.10 doxygen pip
+          mamba install -y python=3.10 doxygen=1.12.0 pip
           pip install -r ${{ env.REQUIREMENTS }}
         if: steps.cache.outputs.cache-hit != 'true'
 
@@ -55,7 +55,9 @@ jobs:
         run: make $MAKE_TARGET
 
       - name: Build Docs
-        run: make -C docs
+        run: |
+          doxygen -v
+          make -C docs
 
       - name: Trigger docs site rebuild
         if: github.ref == 'refs/heads/main'
