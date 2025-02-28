@@ -16,6 +16,11 @@
 - Fix to ``TreeSequence.pair_coalescence_rates`` causing an
   assertion to be triggered by floating point error, when all coalescence events are inside a single time window (:user:`natep`, :issue:`3035`, :pr:`3038`)
 
+**Features**
+
+- Add support for fixed-length arrays in metadata struct codec using the ``length`` property.
+  (:user:`benjeffery`, :issue:`3088`,:pr:`3090`)
+
 --------------------
 [0.6.0] - 2024-10-16
 --------------------
