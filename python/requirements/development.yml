@@ -17,7 +17,6 @@ dependencies:
   - jsonschema>=3.0.0
   - jupyter-book>=0.12.1
   - kastore
-  - lshmm>=0.0.8
   - matplotlib
   - meson>=0.61.0
   - msprime>=1.0.0
@@ -37,14 +36,12 @@ dependencies:
   - sphinx-argparse
   - sphinx-autodoc-typehints>=1.18.3
   - sphinx-issues
-  - sphinx-jupyterbook-latex
-  - sphinxcontrib-prettyspecialmethods
   - sphinx-book-theme
-  - pydata_sphinx_theme>=0.7.2
   - svgwrite>=1.1.10
   - tqdm
   - tszip
   - pip:
+    - lshmm>=0.0.8
     - newick
     - xmlunittest
     - msgpack>=1.0.0
