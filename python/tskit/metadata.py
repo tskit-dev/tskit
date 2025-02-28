@@ -38,6 +38,7 @@ from typing import Any
 from typing import Mapping
 
 import jsonschema
+import numpy as np
 
 import tskit
 import tskit.exceptions as exceptions
@@ -101,6 +102,9 @@ class AbstractMetadataCodec(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def decode(self, encoded: bytes) -> Any:
         raise NotImplementedError  # pragma: no cover
+
+    def numpy_dtype(self) -> Any:
+        raise NotImplementedError
 
 
 codec_registry = {}
@@ -668,6 +672,93 @@ class StructCodec(AbstractMetadataCodec):
         # Set by __init__
         pass  # pragma: nocover
 
+    def numpy_dtype(self, schema):
+        # Mapping from struct format characters to NumPy dtype strings
+        # Note: All are little-endian as enforced by the struct codec
+        FORMAT_TO_DTYPE = {
+            # Boolean
+            "?": "?",
+            # Integers
+            "b": "i1",
+            "B": "u1",
+            "h": "i2",
+            "H": "u2",
+            "i": "i4",
+            "I": "u4",
+            "l": "i4",
+            "L": "u4",
+            "q": "i8",
+            "Q": "u8",
+            # Floats
+            "f": "f4",
+            "d": "f8",
+            # Single character
+            "c": "S1",
+        }
+
+        def _convert_binary_format(fmt):
+            if fmt.endswith("x"):
+                if fmt == "x":
+                    return "V1"
+                n = int(fmt[:-1])
+                return f"V{n}"
+
+            if fmt.endswith("s"):
+                if fmt == "s":
+                    return "S1"
+                n = int(fmt[:-1])
+                return f"S{n}"
+
+            if fmt.endswith("p"):
+                raise ValueError(
+                    "Pascal string format ('p') is not supported by NumPy dtypes."
+                )
+
+            if fmt in FORMAT_TO_DTYPE:
+                return FORMAT_TO_DTYPE[fmt]
+
+            # As schemas are validated on __init__ this should never happen
+            raise ValueError(f"Unsupported binary format: {fmt}")  # pragma: no cover
+
+        def _process_schema_node(node):
+            # The null type with union can only occur at the top-level
+            if node.get("type") == "object" or set(node.get("type", [])) == {
+                "object",
+                "null",
+            }:
+                fields = []
+                for prop_name, prop_schema in node.get("properties", {}).items():
+                    fields.append((prop_name, _process_schema_node(prop_schema)))
+                return fields
+
+            elif node.get("type") == "array":
+                if "length" not in node:
+                    raise ValueError(
+                        "Only fixed-length arrays are supported for NumPy dtype"
+                        " conversion. Variable-length arrays cannot be represented"
+                        " in a structured dtype."
+                    )
+
+                length = node["length"]
+                item_dtype = _process_schema_node(node["items"])
+
+                # Return the item dtype with shape information
+                return (item_dtype, (length,))
+
+            elif node.get("type") in ("number", "integer", "boolean", "string", "null"):
+                fmt = node["binaryFormat"]
+                dtype_str = _convert_binary_format(fmt)
+
+                if dtype_str[0] not in "VSU?":
+                    # Don't add endianness to void, string, unicode or bool types
+                    dtype_str = "<" + dtype_str
+
+                return dtype_str
+
+        print(self)
+        dtype_spec = _process_schema_node(schema)
+        return np.dtype(dtype_spec)
+
 
 register_metadata_codec(StructCodec, "struct")
 
@@ -710,17 +801,17 @@ class MetadataSchema:
                 )
             # Codecs can modify the schema, for example to set defaults as the validator
             # does not.
-            schema = codec_cls.modify_schema(schema)
-            codec_instance = codec_cls(schema)
-            self._string = tskit.canonical_json(schema)
-            self._validate_row = TSKITMetadataSchemaValidator(schema).validate
+            self._schema = codec_cls.modify_schema(schema)
+            self.codec_instance = codec_cls(self._schema)
+            self._string = tskit.canonical_json(self._schema)
+            self._validate_row = TSKITMetadataSchemaValidator(self._schema).validate
             self._bypass_validation = codec_cls.is_schema_trivial(schema)
-            self.encode_row = codec_instance.encode
-            self.decode_row = codec_instance.decode
+            self.encode_row = self.codec_instance.encode
+            self.decode_row = self.codec_instance.decode
 
             # If None is allowed by the schema as the top-level type, it gets used even
             # in the presence of default and required values.
-            if "type" in schema and "null" in schema["type"]:
+            if "type" in self._schema and "null" in self._schema["type"]:
                 self.empty_value = None
             else:
                 self.empty_value = {}
@@ -740,6 +831,9 @@ class MetadataSchema:
 
     def __eq__(self, other) -> bool:
         return self._string == other._string
+
+    def numpy_dtype(self) -> Any:
+        return self.codec_instance.numpy_dtype(self._schema)
 
     @property
     def schema(self) -> Mapping[str, Any] | None:
