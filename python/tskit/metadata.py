@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2020-2024 Tskit Developers
+# Copyright (c) 2020-2025 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -224,6 +224,40 @@ def binary_format_validator(validator, types, instance, schema):
         )
 
 
+def array_length_validator(validator, types, instance, schema):
+    # Validate that array schema doesn't have both length and
+    # noLengthEncodingExhaustBuffer set. Also ensure that arrayLengthFormat
+    # is not set when length is set.
+
+    # Call the normal properties validator first
+    try:
+        yield from jsonschema._validators.properties(validator, types, instance, schema)
+    except AttributeError:
+        # Needed since jsonschema==4.19.1
+        yield from jsonschema._keywords.properties(validator, types, instance, schema)
+    for prop, sub_schema in instance["properties"].items():
+        if sub_schema.get("type") == "array":
+            has_length = "length" in sub_schema
+            has_exhaust = sub_schema.get("noLengthEncodingExhaustBuffer", False)
+
+            if has_length and has_exhaust:
+                yield jsonschema.ValidationError(
+                    f"{prop} array cannot have both 'length' and "
+                    "'noLengthEncodingExhaustBuffer' set"
+                )
+
+            if has_length and "arrayLengthFormat" in sub_schema:
+                yield jsonschema.ValidationError(
+                    f"{prop} fixed-length array should not specify 'arrayLengthFormat'"
+                )
+
+            if has_length and sub_schema["length"] < 0:
+                yield jsonschema.ValidationError(
+                    f"{prop} array length must be non-negative, got "
+                    f"{sub_schema['length']}"
+                )
+
+
 def required_validator(validator, required, instance, schema):
     # Do the normal validation
     try:
@@ -244,7 +278,11 @@ def required_validator(validator, required, instance, schema):
 
 StructCodecSchemaValidator = jsonschema.validators.extend(
     TSKITMetadataSchemaValidator,
-    {"type": binary_format_validator, "required": required_validator},
+    {
+        "type": binary_format_validator,
+        "required": required_validator,
+        "properties": array_length_validator,
+    },
 )
 struct_meta_schema: Mapping[str, Any] = copy.deepcopy(
     StructCodecSchemaValidator.META_SCHEMA
@@ -298,6 +336,13 @@ struct_meta_schema["properties"]["noLengthEncodingExhaustBuffer"] = {"type": "bo
 struct_meta_schema["definitions"]["root"]["properties"][
     "noLengthEncodingExhaustBuffer"
 ] = struct_meta_schema["properties"]["noLengthEncodingExhaustBuffer"]
+
+# length is numeric (for fixed-length arrays)
+struct_meta_schema["properties"]["length"] = {"type": "integer"}
+struct_meta_schema["definitions"]["root"]["properties"]["length"] = struct_meta_schema[
+    "properties"
+]["length"]
+
 StructCodecSchemaValidator.META_SCHEMA = struct_meta_schema
 
 
@@ -351,6 +396,7 @@ class StructCodec(AbstractMetadataCodec):
     @classmethod
     def make_array_decode(cls, sub_schema):
         element_decoder = StructCodec.make_decode(sub_schema["items"])
+        fixed_length = sub_schema.get("length")
         array_length_f = "<" + sub_schema.get("arrayLengthFormat", "L")
         array_length_size = struct.calcsize(array_length_f)
         exhaust_buffer = sub_schema.get("noLengthEncodingExhaustBuffer", False)
@@ -373,7 +419,12 @@ class StructCodec(AbstractMetadataCodec):
                         raise e
             return ret
 
-        if exhaust_buffer:
+        def array_decode_fixed_length(buffer):
+            return [element_decoder(buffer) for _ in range(fixed_length)]
+
+        if fixed_length is not None:
+            return array_decode_fixed_length
+        elif exhaust_buffer:
             return array_decode_exhaust
         else:
             return array_decode
@@ -470,23 +521,37 @@ class StructCodec(AbstractMetadataCodec):
 
     @classmethod
     def make_array_encode(cls, sub_schema):
-        array_length_f = "<" + sub_schema.get("arrayLengthFormat", "L")
         element_encoder = StructCodec.make_encode(sub_schema["items"])
+        fixed_length = sub_schema.get("length")
+        array_length_f = "<" + sub_schema.get("arrayLengthFormat", "L")
         exhaust_buffer = sub_schema.get("noLengthEncodingExhaustBuffer", False)
-        if exhaust_buffer:
-            return lambda array: b"".join(element_encoder(ele) for ele in array)
+
+        def array_encode_fixed_length(array):
+            if len(array) != fixed_length:
+                raise ValueError(
+                    f"Array length {len(array)} does not match schema"
+                    f" fixed length {fixed_length}"
+                )
+            return b"".join(element_encoder(ele) for ele in array)
+
+        def array_encode_exhaust(array):
+            return b"".join(element_encoder(ele) for ele in array)
+
+        def array_encode_with_length(array):
+            try:
+                packed_length = struct.pack(array_length_f, len(array))
+            except struct.error:
+                raise ValueError(
+                    "Couldn't pack array size - it is likely too long"
+                    " for the specified arrayLengthFormat"
+                )
+            return packed_length + b"".join(element_encoder(ele) for ele in array)
+
+        if fixed_length is not None:
+            return array_encode_fixed_length
+        elif exhaust_buffer:
+            return array_encode_exhaust
         else:
-
-            def array_encode_with_length(array):
-                try:
-                    packed_length = struct.pack(array_length_f, len(array))
-                except struct.error:
-                    raise ValueError(
-                        "Couldn't pack array size - it is likely too long"
-                        " for the specified arrayLengthFormat"
-                    )
-                return packed_length + b"".join(element_encoder(ele) for ele in array)
-
             return array_encode_with_length
 
     @classmethod

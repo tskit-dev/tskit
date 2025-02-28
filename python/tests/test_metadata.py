@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2024 Tskit Developers
+# Copyright (c) 2018-2025 Tskit Developers
 # Copyright (c) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -1415,6 +1415,154 @@ class TestStructCodecRoundTrip:
         assert ms.validate_and_encode_row(row_data) == index_order_encoded
         assert ms.decode_row(index_order_encoded) == row_data
 
+    def test_fixed_length_array(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "length": 3,
+                    "items": {"type": "number", "binaryFormat": "i"},
+                }
+            },
+        }
+        self.round_trip(schema, {"array": [1, 2, 3]})
+
+        # Test with complex fixed-length arrays
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "length": 2,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "int": {"type": "number", "binaryFormat": "i"},
+                            "float": {"type": "number", "binaryFormat": "d"},
+                        },
+                    },
+                }
+            },
+        }
+        self.round_trip(
+            schema, {"array": [{"int": 1, "float": 1.1}, {"int": 2, "float": 2.2}]}
+        )
+
+        # Test fixed-length nested arrays
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "length": 2,
+                    "items": {
+                        "type": "array",
+                        "length": 3,
+                        "items": {"type": "number", "binaryFormat": "d"},
+                    },
+                }
+            },
+        }
+        self.round_trip(schema, {"array": [[1.1, 1.2, 1.3], [2.1, 2.2, 2.3]]})
+
+    def test_mixed_fixed_and_variable_arrays(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "fixed_array": {
+                    "type": "array",
+                    "length": 3,
+                    "items": {"type": "number", "binaryFormat": "i"},
+                },
+                "variable_array": {
+                    "type": "array",
+                    "items": {"type": "number", "binaryFormat": "i"},
+                },
+            },
+        }
+        self.round_trip(
+            schema, {"fixed_array": [1, 2, 3], "variable_array": [4, 5, 6, 7]}
+        )
+        self.round_trip(schema, {"fixed_array": [1, 2, 3], "variable_array": []})
+
+        # Nested case - array of objects where each object has
+        # both fixed and variable-length arrays
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "objects": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "fixed": {
+                                "type": "array",
+                                "length": 2,
+                                "items": {"type": "number", "binaryFormat": "d"},
+                            },
+                            "variable": {
+                                "type": "array",
+                                "items": {"type": "number", "binaryFormat": "i"},
+                            },
+                        },
+                    },
+                }
+            },
+        }
+        self.round_trip(
+            schema,
+            {
+                "objects": [
+                    {"fixed": [1.1, 2.2], "variable": [1, 2, 3]},
+                    {"fixed": [3.3, 4.4], "variable": [4]},
+                    {"fixed": [5.5, 6.6], "variable": []},
+                ]
+            },
+        )
+
+    def test_edge_case_zero_length_array(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "empty_fixed": {
+                    "type": "array",
+                    "length": 0,
+                    "items": {"type": "number", "binaryFormat": "i"},
+                }
+            },
+        }
+        self.round_trip(schema, {"empty_fixed": []})
+
+        # Can't provide non-empty array when length=0
+        ms = metadata.MetadataSchema(schema)
+        with pytest.raises(
+            ValueError, match="Array length 1 does not match schema fixed length 0"
+        ):
+            ms.validate_and_encode_row({"empty_fixed": [1]})
+
+        # Complex object with zero-length array
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "binaryFormat": "10p"},
+                "empty_fixed": {
+                    "type": "array",
+                    "length": 0,
+                    "items": {"type": "number", "binaryFormat": "i"},
+                },
+                "value": {"type": "number", "binaryFormat": "d"},
+            },
+        }
+        self.round_trip(schema, {"name": "test", "empty_fixed": [], "value": 42.0})
+
 
 class TestStructCodecErrors:
     def encode(self, schema, row_data):
@@ -1643,6 +1791,85 @@ class TestStructCodecErrors:
             exceptions.MetadataValidationError, match="'float' is a required property"
         ):
             self.encode(schema, {})
+
+    def test_fixed_length_array_wrong_length(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "length": 3,
+                    "items": {"type": "number", "binaryFormat": "i"},
+                },
+            },
+        }
+        ms = metadata.MetadataSchema(schema)
+
+        with pytest.raises(
+            ValueError, match="Array length 2 does not match schema fixed length 3"
+        ):
+            ms.validate_and_encode_row({"array": [1, 2]})
+
+        with pytest.raises(
+            ValueError, match="Array length 4 does not match schema fixed length 3"
+        ):
+            ms.validate_and_encode_row({"array": [1, 2, 3, 4]})
+
+    def test_fixed_length_array_conflicts(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "test": {
+                    "type": "array",
+                    "length": 3,
+                    "noLengthEncodingExhaustBuffer": True,
+                    "items": {"type": "number", "binaryFormat": "i"},
+                },
+            },
+        }
+        with pytest.raises(
+            exceptions.MetadataSchemaValidationError,
+            match="test array cannot have both 'length' and "
+            "'noLengthEncodingExhaustBuffer' set",
+        ):
+            metadata.MetadataSchema(schema)
+
+    def test_fixed_length_with_length_format(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "length": 3,
+                    "arrayLengthFormat": "B",
+                    "items": {"type": "number", "binaryFormat": "i"},
+                },
+            },
+        }
+        with pytest.raises(
+            exceptions.MetadataSchemaValidationError,
+            match="fixed-length array should not specify 'arrayLengthFormat'",
+        ):
+            metadata.MetadataSchema(schema)
+
+    def test_negative_fixed_length(self):
+        """Test that negative fixed-length values are rejected."""
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "length": -5,
+                    "items": {"type": "number", "binaryFormat": "i"},
+                },
+            },
+        }
+        with pytest.raises(exceptions.MetadataSchemaValidationError):
+            metadata.MetadataSchema(schema)
 
 
 class TestSLiMDecoding:

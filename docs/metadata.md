@@ -532,6 +532,17 @@ types above. `L` is the default. As an example:
 
 Will result in an array of 2 byte integers, prepended by a single-byte array-length.
 
+For arrays with a known fixed size, you can specify the `length` property instead:
+```
+{"type": "array", "length": 3, "items": {"type":"number", "binaryFormat":"i"}}
+```
+This creates a fixed-length array of exactly 3 integers, without storing the array length in the encoded data. 
+Fixed-length arrays are more space-efficient since they don't need to store the length prefix.
+
+When using fixed-length arrays:
+1. The `arrayLengthFormat` property should not be specified
+2. Arrays provided for encoding must match the specified length exactly
+
 For dealing with legacy encodings that do not store the
 length of the array, setting `noLengthEncodingExhaustBuffer` to `true` will read
 elements of the array until the metadata buffer is exhausted. As such an array
