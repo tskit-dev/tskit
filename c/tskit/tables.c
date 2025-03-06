@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2023 Tskit Developers
+ * Copyright (c) 2019-2025 Tskit Developers
  * Copyright (c) 2017-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -10997,7 +10997,7 @@ tsk_table_collection_check_integrity(
     }
 
     if (self->sequence_length <= 0) {
-        ret = TSK_ERR_BAD_SEQUENCE_LENGTH;
+        ret = tsk_trace_error(TSK_ERR_BAD_SEQUENCE_LENGTH);
         goto out;
     }
     ret = tsk_table_collection_check_offsets(self);
