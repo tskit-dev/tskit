@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2024 Tskit Developers
+# Copyright (c) 2018-2025 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -1178,25 +1178,32 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
 
     ARRAY_NAMES = [
         "individuals_flags",
+        "individuals_metadata",
         "nodes_time",
         "nodes_flags",
         "nodes_population",
         "nodes_individual",
+        "nodes_metadata",
         "edges_left",
         "edges_right",
         "edges_parent",
         "edges_child",
+        "edges_metadata",
         "sites_position",
+        "sites_metadata",
         "mutations_site",
         "mutations_node",
         "mutations_parent",
         "mutations_time",
+        "mutations_metadata",
         "migrations_left",
         "migrations_right",
         "migrations_node",
         "migrations_source",
         "migrations_dest",
         "migrations_time",
+        "migrations_metadata",
+        "populations_metadata",
         "indexes_edge_insertion_order",
         "indexes_edge_removal_order",
     ]

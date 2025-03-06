@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2024 Tskit Developers
+ * Copyright (c) 2019-2025 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -10735,6 +10735,21 @@ out:
 }
 
 static PyObject *
+TreeSequence_get_individuals_metadata(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_individual_table_t individuals;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    individuals = self->tree_sequence->tables->individuals;
+    ret = TreeSequence_make_array(self, individuals.metadata_length, NPY_UINT8, individuals.metadata);
+out:
+    return ret;
+}
+
+static PyObject *
 TreeSequence_get_nodes_time(TreeSequence *self, void *closure)
 {
     PyObject *ret = NULL;
@@ -10790,6 +10805,21 @@ TreeSequence_get_nodes_individual(TreeSequence *self, void *closure)
     }
     nodes = self->tree_sequence->tables->nodes;
     ret = TreeSequence_make_array(self, nodes.num_rows, NPY_INT32, nodes.individual);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_nodes_metadata(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_node_table_t nodes;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    nodes = self->tree_sequence->tables->nodes;
+    ret = TreeSequence_make_array(self, nodes.metadata_length, NPY_UINT8, nodes.metadata);
 out:
     return ret;
 }
@@ -10855,6 +10885,21 @@ out:
 }
 
 static PyObject *
+TreeSequence_get_edges_metadata(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_edge_table_t edges;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    edges = self->tree_sequence->tables->edges;
+    ret = TreeSequence_make_array(self, edges.metadata_length, NPY_UINT8, edges.metadata);
+out:
+    return ret;
+}
+
+static PyObject *
 TreeSequence_get_sites_position(TreeSequence *self, void *closure)
 {
     PyObject *ret = NULL;
@@ -10865,6 +10910,21 @@ TreeSequence_get_sites_position(TreeSequence *self, void *closure)
     }
     sites = self->tree_sequence->tables->sites;
     ret = TreeSequence_make_array(self, sites.num_rows, NPY_FLOAT64, sites.position);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_sites_metadata(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_site_table_t sites;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    sites = self->tree_sequence->tables->sites;
+    ret = TreeSequence_make_array(self, sites.metadata_length, NPY_UINT8, sites.metadata);
 out:
     return ret;
 }
@@ -10925,6 +10985,21 @@ TreeSequence_get_mutations_time(TreeSequence *self, void *closure)
     }
     mutations = self->tree_sequence->tables->mutations;
     ret = TreeSequence_make_array(self, mutations.num_rows, NPY_FLOAT64, mutations.time);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_mutations_metadata(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_mutation_table_t mutations;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    mutations = self->tree_sequence->tables->mutations;
+    ret = TreeSequence_make_array(self, mutations.metadata_length, NPY_UINT8, mutations.metadata);
 out:
     return ret;
 }
@@ -11019,6 +11094,36 @@ TreeSequence_get_migrations_time(TreeSequence *self, void *closure)
     migrations = self->tree_sequence->tables->migrations;
     ret = TreeSequence_make_array(
         self, migrations.num_rows, NPY_FLOAT64, migrations.time);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_migrations_metadata(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_migration_table_t migrations;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    migrations = self->tree_sequence->tables->migrations;
+    ret = TreeSequence_make_array(self, migrations.metadata_length, NPY_UINT8, migrations.metadata);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_populations_metadata(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_population_table_t populations;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    populations = self->tree_sequence->tables->populations;
+    ret = TreeSequence_make_array(self, populations.metadata_length, NPY_UINT8, populations.metadata);
 out:
     return ret;
 }
@@ -11358,6 +11463,9 @@ static PyGetSetDef TreeSequence_getsetters[] = {
     { .name = "individuals_flags",
         .get = (getter) TreeSequence_get_individuals_flags,
         .doc = "The individual flags array" },
+    { .name = "individuals_metadata",
+        .get = (getter) TreeSequence_get_individuals_metadata,
+        .doc = "The individual metadata array" },
     { .name = "nodes_time",
         .get = (getter) TreeSequence_get_nodes_time,
         .doc = "The node time array" },
@@ -11370,6 +11478,9 @@ static PyGetSetDef TreeSequence_getsetters[] = {
     { .name = "nodes_individual",
         .get = (getter) TreeSequence_get_nodes_individual,
         .doc = "The node individual array" },
+    { .name = "nodes_metadata",
+        .get = (getter) TreeSequence_get_nodes_metadata,
+        .doc = "The node metadata array" },
     { .name = "edges_left",
         .get = (getter) TreeSequence_get_edges_left,
         .doc = "The edge left array" },
@@ -11382,9 +11493,15 @@ static PyGetSetDef TreeSequence_getsetters[] = {
     { .name = "edges_child",
         .get = (getter) TreeSequence_get_edges_child,
         .doc = "The edge child array" },
+    { .name = "edges_metadata",
+        .get = (getter) TreeSequence_get_edges_metadata,
+        .doc = "The edge metadata array" },
     { .name = "sites_position",
         .get = (getter) TreeSequence_get_sites_position,
         .doc = "The site position array" },
+    { .name = "sites_metadata",
+        .get = (getter) TreeSequence_get_sites_metadata,
+        .doc = "The site metadata array" },
     { .name = "mutations_site",
         .get = (getter) TreeSequence_get_mutations_site,
         .doc = "The mutation site array" },
@@ -11397,6 +11514,9 @@ static PyGetSetDef TreeSequence_getsetters[] = {
     { .name = "mutations_time",
         .get = (getter) TreeSequence_get_mutations_time,
         .doc = "The mutation time array" },
+    { .name = "mutations_metadata",
+        .get = (getter) TreeSequence_get_mutations_metadata,
+        .doc = "The mutation metadata array" },
     { .name = "migrations_left",
         .get = (getter) TreeSequence_get_migrations_left,
         .doc = "The migration left array" },
@@ -11415,6 +11535,12 @@ static PyGetSetDef TreeSequence_getsetters[] = {
     { .name = "migrations_time",
         .get = (getter) TreeSequence_get_migrations_time,
         .doc = "The migration time array" },
+    { .name = "migrations_metadata",
+        .get = (getter) TreeSequence_get_migrations_metadata,
+        .doc = "The migration metadata array" },
+    { .name = "populations_metadata",
+        .get = (getter) TreeSequence_get_populations_metadata,
+        .doc = "The populations metadata array" },
     { .name = "indexes_edge_insertion_order",
         .get = (getter) TreeSequence_get_indexes_edge_insertion_order,
         .doc = "The edge insertion order array" },
