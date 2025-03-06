@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2024 Tskit Developers
+ * Copyright (c) 2019-2025 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -952,6 +952,21 @@ not be freed by client code.
 @return A description of the error.
 */
 const char *tsk_strerror(int err);
+
+#ifdef TSK_TRACE_ERRORS
+
+static inline int
+_tsk_trace_error(int err, int line, const char *file)
+{
+    fprintf(stderr, "tskit-trace-error: %d='%s' at line %d in %s\n", err,
+        tsk_strerror(err), line, file);
+    return err;
+}
+
+#define tsk_trace_error(err) (_tsk_trace_error(err, __LINE__, __FILE__))
+#else
+#define tsk_trace_error(err) (err)
+#endif
 
 #ifndef TSK_BUG_ASSERT_MESSAGE
 #define TSK_BUG_ASSERT_MESSAGE                                                          \
