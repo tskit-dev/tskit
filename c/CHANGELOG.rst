@@ -2,7 +2,11 @@
 [1.1.4] - 2024-XX-XX
 --------------------
 
+**Changes**
 
+- Added the TSK_TRACE_ERRORS macro to enable tracing of errors in the C library.
+  This is useful for debugging as errors will print to stderr when set.
+  (:user:`jeromekelleher`, :pr:`3095`).
 
 --------------------
 [1.1.3] - 2024-10-16

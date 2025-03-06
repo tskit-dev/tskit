@@ -690,6 +690,9 @@ $ cd c
 $ meson build
 ```
 
+To setup a debug build add `--buildtype=debug` to the above command. This will set the `TSK_TRACE_ERRORS`
+flag, which will print error messages to `stderr` when errors occur which is useful for debugging.
+
 To compile the code run
 
 ```bash
@@ -708,6 +711,11 @@ For vim users, the [mesonic](https://www.vim.org/scripts/script.php?script_id=53
 simplifies this process and allows code to be compiled seamlessly within the
 editor.
 
+### Compile flags
+
+If the flag `TSK_TRACE_ERRORS` is defined (by e.g. `-DTSK_TRACE_ERRORS` to gcc),
+then error messages will be printed to `stderr` when errors occur. This also allows
+breakpoints to be set in the `_tsk_trace_error` function to break on all errors.
 
 ### Unit Tests
 
@@ -785,7 +793,7 @@ failure scenarios. The following pattern is used throughout for this purpose:
 
     x = malloc(n * sizeof(double));
     if (x == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
+        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
     // rest of function
@@ -801,6 +809,10 @@ of the declaration.
 
 Error codes are defined in `core.h`, and these can be translated into a
 message using `tsk_strerror(err)`.
+
+When setting error codes in the C code, please use the `tsk_trace_error` function.
+If `TSK_TRACE_ERRORS` is defined, this will print a message to stderr with the
+details of the error.
 
 
 #### Using assertions
@@ -938,10 +950,6 @@ checks for code quality.
   using gcc and clang, and check for memory leaks using valgrind.
 
 - [CodeCov](https://codecov.io/gh)_ tracks test coverage in Python and C.
-
-- [PyUp](https://pyup.io/) Runs monthly checks on the Python dependencies listed in the
-  requirements files, which are pinned to ensure CI reproducibility. PyUp opens one PR
-  a month with updated pins.
 
 
 (sec_development_best_practices)=

@@ -3,6 +3,11 @@ project('tskit', ['c', 'cpp'],
     default_options: ['c_std=c99', 'cpp_std=c++11']
 )
 
+debug_c_args = []
+if get_option('buildtype').startswith('debug')
+    debug_c_args = ['-DTSK_TRACE_ERRORS']
+endif
+
 kastore_proj = subproject('kastore')
 kastore_dep = kastore_proj.get_variable('kastore_dep')
 kastore_inc = kastore_proj.get_variable('kastore_inc')
@@ -16,7 +21,7 @@ extra_c_args = [
     '-Wmissing-prototypes',  '-Wstrict-prototypes',
     '-Wconversion', '-Wshadow', '-Wpointer-arith', '-Wcast-align',
     '-Wcast-qual', '-Wwrite-strings', '-Wnested-externs',
-    '-fshort-enums', '-fno-common']
+    '-fshort-enums', '-fno-common'] + debug_c_args
 
 lib_sources = [
     'tskit/core.c', 'tskit/tables.c', 'tskit/trees.c',
