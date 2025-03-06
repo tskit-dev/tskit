@@ -2173,10 +2173,17 @@ class TestTableCollectionEquality:
         assert tables._ll_tables.metadata_schema == tskit.canonical_json(schema)
 
 
-class TestStructCodecNumPyDtype:
+class TestStructuredArrays:
     """
     Tests for the get_numpy_dtype method in StructCodec
     """
+
+    def test_not_implemented_json(self):
+        schema = {"codec": "json"}
+        with pytest.raises(NotImplementedError):
+            metadata.MetadataSchema(schema).numpy_dtype()
+        with pytest.raises(NotImplementedError):
+            metadata.MetadataSchema(schema).structured_array_from_buffer(b"")
 
     @pytest.mark.parametrize(
         "type_name, format_code, numpy_type",
@@ -2193,6 +2200,7 @@ class TestStructCodecNumPyDtype:
             ("number", "d", "<f8"),
             ("boolean", "?", "?"),
             ("string", "c", "S1"),
+            ("string", "s", "S1"),
             ("string", "10s", "S10"),
             ("null", "x", "V1"),
             ("null", "5x", "V5"),
@@ -2215,13 +2223,13 @@ class TestStructCodecNumPyDtype:
             "number": [{"value": i + 0.5} for i in range(3)],
             "boolean": [{"value": i} for i in [True, False, True, True]],
             "string": [
-                {"value": str(i) * (1 if format_code == "c" else 3)} for i in range(3)
+                {"value": str(i) * (1 if format_code in "cs" else 3)} for i in range(3)
             ],
             "null": [{"value": None}, {"value": None}, {"value": None}],
         }
         test_array = test_arrays[type_name]
         encoded = b"".join(schema.validate_and_encode_row(row) for row in test_array)
-        struct_array = np.frombuffer(encoded, dtype=dtype)
+        struct_array = schema.structured_array_from_buffer(encoded)
 
         if "S" not in numpy_type and "V" not in numpy_type:
             assert np.array_equal(
@@ -2251,8 +2259,8 @@ class TestStructCodecNumPyDtype:
             },
         }
 
-        ms_schema = metadata.MetadataSchema(schema)
-        dtype = ms_schema.numpy_dtype()
+        schema = metadata.MetadataSchema(schema)
+        dtype = schema.numpy_dtype()
         assert dtype.names == ("active", "id", "name", "value")  # Note reordering!
         assert dtype["id"] == np.dtype("<i4")
         assert dtype["name"] == np.dtype("S10")
@@ -2265,9 +2273,8 @@ class TestStructCodecNumPyDtype:
             {"id": 2, "name": "test2", "value": 2.5, "active": False},
             {"id": 3, "name": "test3", "value": 3.5, "active": True},
         ]
-        encoded = b"".join(ms_schema.validate_and_encode_row(row) for row in test_array)
-        print(encoded)
-        struct_array = np.frombuffer(encoded, dtype=dtype)
+        encoded = b"".join(schema.validate_and_encode_row(row) for row in test_array)
+        struct_array = schema.structured_array_from_buffer(encoded)
 
         assert np.array_equal(struct_array["id"], [1, 2, 3])
         assert np.array_equal(struct_array["value"], [1.5, 2.5, 3.5])
@@ -2290,8 +2297,8 @@ class TestStructCodecNumPyDtype:
             },
         }
 
-        ms_schema = metadata.MetadataSchema(schema)
-        dtype = ms_schema.numpy_dtype()
+        schema = metadata.MetadataSchema(schema)
+        dtype = schema.numpy_dtype()
         assert dtype.names == ("id", "nested")
         assert dtype["id"] == np.dtype("<i4")
         assert dtype["nested"].names == ("x", "y")
@@ -2304,8 +2311,8 @@ class TestStructCodecNumPyDtype:
             {"id": 2, "nested": {"x": 3.0, "y": 4.0}},
             {"id": 3, "nested": {"x": 5.0, "y": 6.0}},
         ]
-        encoded = b"".join(ms_schema.validate_and_encode_row(row) for row in test_array)
-        struct_array = np.frombuffer(encoded, dtype=dtype)
+        encoded = b"".join(schema.validate_and_encode_row(row) for row in test_array)
+        struct_array = schema.structured_array_from_buffer(encoded)
 
         assert np.array_equal(struct_array["id"], [1, 2, 3])
         assert np.array_equal(struct_array["nested"]["x"], [1.0, 3.0, 5.0])
@@ -2333,8 +2340,8 @@ class TestStructCodecNumPyDtype:
             },
         }
 
-        ms_schema = metadata.MetadataSchema(schema)
-        dtype = ms_schema.numpy_dtype()
+        schema = metadata.MetadataSchema(schema)
+        dtype = schema.numpy_dtype()
         assert dtype.names == ("matrix", "vector")  # Note reordering
         assert dtype["vector"].shape == (3,)
         assert dtype["vector"].base == np.dtype("<f8")
@@ -2347,8 +2354,8 @@ class TestStructCodecNumPyDtype:
             {"vector": [4.4, 5.5, 6.6], "matrix": [[5, 6], [7, 8]]},
             {"vector": [7.7, 8.8, 9.9], "matrix": [[9, 10], [11, 12]]},
         ]
-        encoded = b"".join(ms_schema.validate_and_encode_row(row) for row in test_array)
-        struct_array = np.frombuffer(encoded, dtype=dtype)
+        encoded = b"".join(schema.validate_and_encode_row(row) for row in test_array)
+        struct_array = schema.structured_array_from_buffer(encoded)
 
         expected_vectors = np.array([[1.1, 2.2, 3.3], [4.4, 5.5, 6.6], [7.7, 8.8, 9.9]])
         assert np.allclose(struct_array["vector"], expected_vectors)
@@ -2359,7 +2366,6 @@ class TestStructCodecNumPyDtype:
         assert np.array_equal(struct_array["matrix"], expected_matrices)
 
     def test_complex_nested_structure(self):
-        """Test complex nested structure with arrays and objects"""
         schema = {
             "codec": "struct",
             "type": "object",
@@ -2383,8 +2389,8 @@ class TestStructCodecNumPyDtype:
             },
         }
 
-        ms_schema = metadata.MetadataSchema(schema)
-        dtype = ms_schema.numpy_dtype()
+        schema = metadata.MetadataSchema(schema)
+        dtype = schema.numpy_dtype()
         assert dtype.names == ("data", "id")  # Note reordering
         assert dtype["id"] == np.dtype("<i4")
         assert dtype["data"].shape == (2,)
@@ -2416,8 +2422,8 @@ class TestStructCodecNumPyDtype:
                 ],
             },
         ]
-        encoded = b"".join(ms_schema.validate_and_encode_row(row) for row in test_array)
-        struct_array = np.frombuffer(encoded, dtype=dtype)
+        encoded = b"".join(schema.validate_and_encode_row(row) for row in test_array)
+        struct_array = schema.structured_array_from_buffer(encoded)
 
         assert np.array_equal(struct_array["id"], [1, 2, 3])
 
@@ -2436,7 +2442,6 @@ class TestStructCodecNumPyDtype:
         assert np.allclose(struct_array["data"]["coords"], expected_coords)
 
     def test_unsupported_formats(self):
-        """Test error cases with unsupported formats"""
         # Pascal strings not supported
         schema = {
             "codec": "struct",
@@ -2448,7 +2453,6 @@ class TestStructCodecNumPyDtype:
             metadata.MetadataSchema(schema).numpy_dtype()
 
     def test_variable_length_arrays_not_supported(self):
-        """Test that variable-length arrays raise an error"""
         schema = {
             "codec": "struct",
             "type": "object",
@@ -2463,8 +2467,7 @@ class TestStructCodecNumPyDtype:
         with pytest.raises(ValueError, match="Only fixed-length arrays"):
             metadata.MetadataSchema(schema).numpy_dtype()
 
-    def test_null_union_top_level(self):
-        """Test that object-null union types work at the top level"""
+    def test_null_union_top_level_not_supported(self):
         schema = {
             "codec": "struct",
             "type": ["object", "null"],
@@ -2474,11 +2477,22 @@ class TestStructCodecNumPyDtype:
             },
         }
 
+        with pytest.raises(
+            ValueError, match="Top level object/null union not supported"
+        ):
+            metadata.MetadataSchema(schema).numpy_dtype()
+
+    def test_explicit_ordering(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer", "binaryFormat": "i", "index": 1},
+                "name": {"type": "string", "binaryFormat": "10s", "index": 2},
+                "age": {"type": "integer", "binaryFormat": "i", "index": 3},
+            },
+            "required": ["id", "name", "age"],
+        }
+
         dtype = metadata.MetadataSchema(schema).numpy_dtype()
-        assert dtype.names == ("id", "name")
-        assert dtype["id"] == np.dtype("<i4")
-        assert dtype["name"] == np.dtype("S10")
-
-
-# TODO - Tests for explicit ordering of fields in schema
-# TODO - Remember object/null union values in metadata arrays are not supported
+        assert dtype.names == ("id", "name", "age")
