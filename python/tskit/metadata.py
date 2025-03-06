@@ -103,7 +103,7 @@ class AbstractMetadataCodec(metaclass=abc.ABCMeta):
     def decode(self, encoded: bytes) -> Any:
         raise NotImplementedError  # pragma: no cover
 
-    def numpy_dtype(self) -> Any:
+    def numpy_dtype(self, schema) -> Any:
         raise NotImplementedError
 
 
@@ -675,6 +675,7 @@ class StructCodec(AbstractMetadataCodec):
     def numpy_dtype(self, schema):
         # Mapping from struct format characters to NumPy dtype strings
         # Note: All are little-endian as enforced by the struct codec
+        # This means they will be the standard size across platforms
         FORMAT_TO_DTYPE = {
             # Boolean
             "?": "?",
@@ -722,10 +723,9 @@ class StructCodec(AbstractMetadataCodec):
 
         def _process_schema_node(node):
             # The null type with union can only occur at the top-level
-            if node.get("type") == "object" or set(node.get("type", [])) == {
-                "object",
-                "null",
-            }:
+            if set(node.get("type", [])) == {"object", "null"}:
+                raise ValueError("Top level object/null union not supported")
+            elif node.get("type") == "object":
                 fields = []
                 for prop_name, prop_schema in node.get("properties", {}).items():
                     fields.append((prop_name, _process_schema_node(prop_schema)))
@@ -832,9 +832,6 @@ class MetadataSchema:
     def __eq__(self, other) -> bool:
         return self._string == other._string
 
-    def numpy_dtype(self) -> Any:
-        return self.codec_instance.numpy_dtype(self._schema)
-
     @property
     def schema(self) -> Mapping[str, Any] | None:
         # Return a copy to avoid unintentional mutation
@@ -879,6 +876,16 @@ class MetadataSchema:
         """
         # Set by __init__
         pass  # pragma: no cover
+
+    def numpy_dtype(self) -> Any:
+        return self.codec_instance.numpy_dtype(self._schema)
+
+    def structured_array_from_buffer(self, buffer: Any) -> Any:
+        """
+        Convert a buffer of metadata into a structured NumPy array.
+        """
+        dtype = self.numpy_dtype()
+        return np.frombuffer(buffer, dtype=dtype)
 
     @staticmethod
     def permissive_json():
