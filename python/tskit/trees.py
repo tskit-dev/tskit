@@ -4122,28 +4122,23 @@ class TreeSequence:
         llts = self._ll_tree_sequence
         self._individuals_flags = llts.individuals_flags
         self._individuals_metadata = llts.individuals_metadata
-        self._individuals_metadata_offset = llts.individuals_metadata_offset
         self._nodes_time = llts.nodes_time
         self._nodes_flags = llts.nodes_flags
         self._nodes_population = llts.nodes_population
         self._nodes_individual = llts.nodes_individual
         self._nodes_metadata = llts.nodes_metadata
-        self._nodes_metadata_offset = llts.nodes_metadata_offset
         self._edges_left = llts.edges_left
         self._edges_right = llts.edges_right
         self._edges_parent = llts.edges_parent
         self._edges_child = llts.edges_child
         self._edges_metadata = llts.edges_metadata
-        self._edges_metadata_offset = llts.edges_metadata_offset
         self._sites_position = llts.sites_position
         self._sites_metadata = llts.sites_metadata
-        self._sites_metadata_offset = llts.sites_metadata_offset
         self._mutations_site = llts.mutations_site
         self._mutations_node = llts.mutations_node
         self._mutations_parent = llts.mutations_parent
         self._mutations_time = llts.mutations_time
         self._mutations_metadata = llts.mutations_metadata
-        self._mutations_metadata_offset = llts.mutations_metadata_offset
         self._migrations_left = llts.migrations_left
         self._migrations_right = llts.migrations_right
         self._migrations_node = llts.migrations_node
@@ -4151,9 +4146,7 @@ class TreeSequence:
         self._migrations_dest = llts.migrations_dest
         self._migrations_time = llts.migrations_time
         self._migrations_metadata = llts.migrations_metadata
-        self._migrations_metadata_offset = llts.migrations_metadata_offset
         self._populations_metadata = llts.populations_metadata
-        self._populations_metadata_offset = llts.populations_metadata_offset
         self._indexes_edge_insertion_order = llts.indexes_edge_insertion_order
         self._indexes_edge_removal_order = llts.indexes_edge_removal_order
 
@@ -5815,16 +5808,6 @@ class TreeSequence:
         )
 
     @property
-    def individuals_metadata_offset(self):
-        """
-        Efficient access to the ``metadata_offset`` column in the
-        :ref:`sec_individual_table_definition` as a numpy array (dtype=np.int32).
-        Equivalent to ``ts.tables.individuals.metadata_offset`` (but avoiding the
-        full copy of the table data that accessing ``ts.tables`` currently entails).
-        """
-        return self._individuals_metadata_offset
-
-    @property
     def nodes_metadata(self):
         """
         Efficient access to the ``metadata`` column in the
@@ -5836,16 +5819,6 @@ class TreeSequence:
         return self.table_metadata_schemas.node.structured_array_from_buffer(
             self._nodes_metadata
         )
-
-    @property
-    def nodes_metadata_offset(self):
-        """
-        Efficient access to the ``metadata_offset`` column in the
-        :ref:`sec_node_table_definition` as a numpy array (dtype=np.int32).
-        Equivalent to ``ts.tables.nodes.metadata_offset`` (but avoiding the full copy
-        of the table data that accessing ``ts.tables`` currently entails).
-        """
-        return self._nodes_metadata_offset
 
     @property
     def nodes_time(self):
@@ -5941,16 +5914,6 @@ class TreeSequence:
         )
 
     @property
-    def edges_metadata_offset(self):
-        """
-        Efficient access to the ``metadata_offset`` column in the
-        :ref:`sec_edge_table_definition` as a numpy array (dtype=np.int32).
-        Equivalent to ``ts.tables.edges.metadata_offset`` (but avoiding the full copy
-        of the table data that accessing ``ts.tables`` currently entails).
-        """
-        return self._edges_metadata_offset
-
-    @property
     def sites_position(self):
         """
         Efficient access to the ``position`` column in the
@@ -5972,16 +5935,6 @@ class TreeSequence:
         return self.table_metadata_schemas.site.structured_array_from_buffer(
             self._sites_metadata
         )
-
-    @property
-    def sites_metadata_offset(self):
-        """
-        Efficient access to the ``metadata_offset`` column in the
-        :ref:`sec_site_table_definition` as a numpy array (dtype=np.int32).
-        Equivalent to ``ts.tables.sites.metadata_offset`` (but avoiding the full copy
-        of the table data that accessing ``ts.tables`` currently entails).
-        """
-        return self._sites_metadata_offset
 
     @property
     def mutations_site(self):
@@ -6035,16 +5988,6 @@ class TreeSequence:
         return self.table_metadata_schemas.mutation.structured_array_from_buffer(
             self._mutations_metadata
         )
-
-    @property
-    def mutations_metadata_offset(self):
-        """
-        Efficient access to the ``metadata_offset`` column in the
-        :ref:`sec_mutation_table_definition` as a numpy array (dtype=np.int32).
-        Equivalent to ``ts.tables.mutations.metadata_offset`` (but avoiding the full copy
-        of the table data that accessing ``ts.tables`` currently entails).
-        """
-        return self._mutations_metadata_offset
 
     @property
     def migrations_left(self):
@@ -6120,17 +6063,6 @@ class TreeSequence:
         )
 
     @property
-    def migrations_metadata_offset(self):
-        """
-        Efficient access to the ``metadata_offset`` column in the
-        :ref:`sec_migration_table_definition` as a numpy array (dtype=np.int32).
-        Equivalent to ``ts.tables.migrations.metadata_offset``
-        (but avoiding the full copy of the table data that accessing
-        ``ts.tables`` currently entails).
-        """
-        return self._migrations_metadata_offset
-
-    @property
     def populations_metadata(self):
         """
         Efficient access to the ``metadata`` column in the
@@ -6142,17 +6074,6 @@ class TreeSequence:
         return self.table_metadata_schemas.population.structured_array_from_buffer(
             self._populations_metadata
         )
-
-    @property
-    def populations_metadata_offset(self):
-        """
-        Efficient access to the ``metadata_offset`` column in the
-        :ref:`sec_population_table_definition` as a numpy array (dtype=np.int32).
-        Equivalent to ``ts.tables.populations.metadata_offset``
-        (but avoiding the full copy of the table data that accessing
-        ``ts.tables`` currently entails).
-        """
-        return self._populations_metadata_offset
 
     @property
     def indexes_edge_insertion_order(self):
