@@ -1179,23 +1179,28 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
     ARRAY_NAMES = [
         "individuals_flags",
         "individuals_metadata",
+        "individuals_metadata_offset",
         "nodes_time",
         "nodes_flags",
         "nodes_population",
         "nodes_individual",
         "nodes_metadata",
+        "nodes_metadata_offset",
         "edges_left",
         "edges_right",
         "edges_parent",
         "edges_child",
         "edges_metadata",
+        "edges_metadata_offset",
         "sites_position",
         "sites_metadata",
+        "sites_metadata_offset",
         "mutations_site",
         "mutations_node",
         "mutations_parent",
         "mutations_time",
         "mutations_metadata",
+        "mutations_metadata_offset",
         "migrations_left",
         "migrations_right",
         "migrations_node",
@@ -1203,7 +1208,9 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         "migrations_dest",
         "migrations_time",
         "migrations_metadata",
+        "migrations_metadata_offset",
         "populations_metadata",
+        "populations_metadata_offset",
         "indexes_edge_insertion_order",
         "indexes_edge_removal_order",
     ]
@@ -1896,14 +1903,14 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             )
 
     @pytest.mark.parametrize("name", ARRAY_NAMES)
-    def test_array_read_only(self, name):
-        ts1 = self.get_example_tree_sequence(10)
+    def test_array_read_only(self, name, ts_fixture):
+        ts_fixture = ts_fixture.ll_tree_sequence
         with pytest.raises(AttributeError, match="not writable"):
-            setattr(ts1, name, None)
+            setattr(ts_fixture, name, None)
         with pytest.raises(AttributeError, match="not writable"):
-            delattr(ts1, name)
+            delattr(ts_fixture, name)
 
-        a = getattr(ts1, name)
+        a = getattr(ts_fixture, name)
         with pytest.raises(ValueError, match="assignment destination"):
             a[:] = 0
         with pytest.raises(ValueError, match="assignment destination"):
@@ -1912,15 +1919,15 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             a.setflags(write=True)
 
     @pytest.mark.parametrize("name", ARRAY_NAMES)
-    def test_array_properties(self, name):
-        ts1 = self.get_example_tree_sequence(10)
-        a = getattr(ts1, name)
-        assert a.base == ts1
+    def test_array_properties(self, name, ts_fixture):
+        ts_fixture = ts_fixture.ll_tree_sequence
+        a = getattr(ts_fixture, name)
+        assert a.base == ts_fixture
         assert not a.flags.writeable
         assert a.flags.aligned
         assert a.flags.c_contiguous
         assert not a.flags.owndata
-        b = getattr(ts1, name)
+        b = getattr(ts_fixture, name)
         assert a is not b
         assert np.all(a == b)
         # This checks that the underlying pointer to memory is the same in
@@ -1928,12 +1935,12 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         assert a.__array_interface__ == b.__array_interface__
 
     @pytest.mark.parametrize("name", ARRAY_NAMES)
-    def test_array_lifetime(self, name):
-        ts1 = self.get_example_tree_sequence(10)
-        a1 = getattr(ts1, name)
+    def test_array_lifetime(self, name, ts_fixture):
+        ts_fixture = ts_fixture.ll_tree_sequence
+        a1 = getattr(ts_fixture, name)
         a2 = a1.copy()
         assert a1 is not a2
-        del ts1
+        del ts_fixture
         # Do some memory operations
         a3 = np.ones(10**6)
         assert np.all(a1 == a2)
