@@ -2592,33 +2592,25 @@ class TestTreeSequence(HighLevelTestCase):
         "array",
         [
             "individuals_flags",
-            "individuals_metadata_offset",
             "nodes_time",
             "nodes_flags",
             "nodes_population",
             "nodes_individual",
-            "nodes_metadata_offset",
             "edges_left",
             "edges_right",
             "edges_parent",
             "edges_child",
-            "edges_metadata_offset",
             "sites_position",
-            "sites_metadata_offset",
             "mutations_site",
             "mutations_node",
             "mutations_parent",
             "mutations_time",
-            "mutations_metadata_offset",
             "migrations_left",
             "migrations_right",
             "migrations_node",
             "migrations_source",
             "migrations_dest",
             "migrations_time",
-            "migrations_metadata_offset",
-            "individuals_metadata_offset",
-            "populations_metadata_offset",
             "indexes_edge_insertion_order",
             "indexes_edge_removal_order",
         ],
@@ -2639,32 +2631,23 @@ class TestTreeSequence(HighLevelTestCase):
         tables = ts.tables
 
         assert_array_equal(ts.individuals_flags, tables.individuals.flags)
-        assert_array_equal(
-            ts.individuals_metadata_offset, tables.individuals.metadata_offset
-        )
 
         assert_array_equal(ts.nodes_flags, tables.nodes.flags)
         assert_array_equal(ts.nodes_population, tables.nodes.population)
         assert_array_equal(ts.nodes_time, tables.nodes.time)
         assert_array_equal(ts.nodes_individual, tables.nodes.individual)
-        assert_array_equal(ts.nodes_metadata_offset, tables.nodes.metadata_offset)
 
         assert_array_equal(ts.edges_left, tables.edges.left)
         assert_array_equal(ts.edges_right, tables.edges.right)
         assert_array_equal(ts.edges_parent, tables.edges.parent)
         assert_array_equal(ts.edges_child, tables.edges.child)
-        assert_array_equal(ts.edges_metadata_offset, tables.edges.metadata_offset)
 
         assert_array_equal(ts.sites_position, tables.sites.position)
-        assert_array_equal(ts.sites_metadata_offset, tables.sites.metadata_offset)
 
         assert_array_equal(ts.mutations_site, tables.mutations.site)
         assert_array_equal(ts.mutations_node, tables.mutations.node)
         assert_array_equal(ts.mutations_parent, tables.mutations.parent)
         assert_array_equal(ts.mutations_time, tables.mutations.time)
-        assert_array_equal(
-            ts.mutations_metadata_offset, tables.mutations.metadata_offset
-        )
 
         assert_array_equal(ts.migrations_left, tables.migrations.left)
         assert_array_equal(ts.migrations_right, tables.migrations.right)
@@ -2672,13 +2655,6 @@ class TestTreeSequence(HighLevelTestCase):
         assert_array_equal(ts.migrations_source, tables.migrations.source)
         assert_array_equal(ts.migrations_dest, tables.migrations.dest)
         assert_array_equal(ts.migrations_time, tables.migrations.time)
-        assert_array_equal(
-            ts.migrations_metadata_offset, tables.migrations.metadata_offset
-        )
-
-        assert_array_equal(
-            ts.populations_metadata_offset, tables.populations.metadata_offset
-        )
 
         assert_array_equal(
             ts.indexes_edge_insertion_order, tables.indexes.edge_insertion_order
