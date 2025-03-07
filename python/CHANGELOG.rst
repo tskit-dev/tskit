@@ -21,6 +21,9 @@
 - Add support for fixed-length arrays in metadata struct codec using the ``length`` property.
   (:user:`benjeffery`, :issue:`3088`,:pr:`3090`)
 
+- Add methods on `TreeSequence` to efficiently get table metadata as a
+  numpy structured array. (:user:`benjeffery`, :pr:`3098`)
+
 --------------------
 [0.6.0] - 2024-10-16
 --------------------
