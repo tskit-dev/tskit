@@ -25,6 +25,9 @@
   to find the top eigenvectors/values of the genetic relatedness matrix
   (:user:`hanbin973`, :user:`petrelharp`, :pr:`3008`)
 
+- Add methods on `TreeSequence` to efficiently get table metadata as a
+  numpy structured array. (:user:`benjeffery`, :pr:`3098`)
+
 --------------------
 [0.6.0] - 2024-10-16
 --------------------

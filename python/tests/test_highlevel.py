@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2024 Tskit Developers
+# Copyright (c) 2018-2025 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -56,6 +56,7 @@ import tests as tests
 import tests.simplify as simplify
 import tests.tsutil as tsutil
 import tskit
+import tskit.metadata as metadata
 import tskit.util as util
 from tskit import UNKNOWN_TIME
 
@@ -2591,25 +2592,33 @@ class TestTreeSequence(HighLevelTestCase):
         "array",
         [
             "individuals_flags",
+            "individuals_metadata_offset",
             "nodes_time",
             "nodes_flags",
             "nodes_population",
             "nodes_individual",
+            "nodes_metadata_offset",
             "edges_left",
             "edges_right",
             "edges_parent",
             "edges_child",
+            "edges_metadata_offset",
             "sites_position",
+            "sites_metadata_offset",
             "mutations_site",
             "mutations_node",
             "mutations_parent",
             "mutations_time",
+            "mutations_metadata_offset",
             "migrations_left",
             "migrations_right",
             "migrations_node",
             "migrations_source",
             "migrations_dest",
             "migrations_time",
+            "migrations_metadata_offset",
+            "individuals_metadata_offset",
+            "populations_metadata_offset",
             "indexes_edge_insertion_order",
             "indexes_edge_removal_order",
         ],
@@ -2630,23 +2639,32 @@ class TestTreeSequence(HighLevelTestCase):
         tables = ts.tables
 
         assert_array_equal(ts.individuals_flags, tables.individuals.flags)
+        assert_array_equal(
+            ts.individuals_metadata_offset, tables.individuals.metadata_offset
+        )
 
         assert_array_equal(ts.nodes_flags, tables.nodes.flags)
         assert_array_equal(ts.nodes_population, tables.nodes.population)
         assert_array_equal(ts.nodes_time, tables.nodes.time)
         assert_array_equal(ts.nodes_individual, tables.nodes.individual)
+        assert_array_equal(ts.nodes_metadata_offset, tables.nodes.metadata_offset)
 
         assert_array_equal(ts.edges_left, tables.edges.left)
         assert_array_equal(ts.edges_right, tables.edges.right)
         assert_array_equal(ts.edges_parent, tables.edges.parent)
         assert_array_equal(ts.edges_child, tables.edges.child)
+        assert_array_equal(ts.edges_metadata_offset, tables.edges.metadata_offset)
 
         assert_array_equal(ts.sites_position, tables.sites.position)
+        assert_array_equal(ts.sites_metadata_offset, tables.sites.metadata_offset)
 
         assert_array_equal(ts.mutations_site, tables.mutations.site)
         assert_array_equal(ts.mutations_node, tables.mutations.node)
         assert_array_equal(ts.mutations_parent, tables.mutations.parent)
         assert_array_equal(ts.mutations_time, tables.mutations.time)
+        assert_array_equal(
+            ts.mutations_metadata_offset, tables.mutations.metadata_offset
+        )
 
         assert_array_equal(ts.migrations_left, tables.migrations.left)
         assert_array_equal(ts.migrations_right, tables.migrations.right)
@@ -2654,6 +2672,13 @@ class TestTreeSequence(HighLevelTestCase):
         assert_array_equal(ts.migrations_source, tables.migrations.source)
         assert_array_equal(ts.migrations_dest, tables.migrations.dest)
         assert_array_equal(ts.migrations_time, tables.migrations.time)
+        assert_array_equal(
+            ts.migrations_metadata_offset, tables.migrations.metadata_offset
+        )
+
+        assert_array_equal(
+            ts.populations_metadata_offset, tables.populations.metadata_offset
+        )
 
         assert_array_equal(
             ts.indexes_edge_insertion_order, tables.indexes.edge_insertion_order
@@ -5413,3 +5438,74 @@ class TestNumLineages:
         ts = tables.tree_sequence()
         tree = ts.first()
         assert tree.num_lineages(t) == expected
+
+
+@pytest.fixture
+def struct_metadata_ts(ts_fixture):
+    schema = metadata.MetadataSchema(
+        {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer", "binaryFormat": "i"},
+                "name": {"type": "string", "binaryFormat": "10s"},
+                "value": {"type": "number", "binaryFormat": "d"},
+                "active": {"type": "boolean", "binaryFormat": "?"},
+            },
+        }
+    )
+    tables = ts_fixture.dump_tables()
+    for table_name in TestStructuredNumpyMetadata.metadata_tables:
+        table = getattr(tables, table_name)
+        table.metadata_schema = schema
+        table_copy = table.copy()
+        table.clear()
+        for j, row in enumerate(table_copy):
+            table.append(
+                row.replace(
+                    metadata={"id": j, "name": "name", "value": 1.0, "active": True}
+                )
+            )
+    return tables.tree_sequence()
+
+
+class TestStructuredNumpyMetadata:
+    metadata_tables = [
+        "nodes",
+        "edges",
+        "sites",
+        "mutations",
+        "migrations",
+        "individuals",
+        "populations",
+    ]
+
+    @pytest.mark.parametrize("table_name", metadata_tables)
+    def test_not_implemented_json(self, table_name, ts_fixture):
+        with pytest.raises(NotImplementedError):
+            getattr(ts_fixture, f"{table_name}_metadata")
+
+    @pytest.mark.parametrize("table_name", metadata_tables)
+    def test_array_attr_properties(self, struct_metadata_ts, table_name):
+        ts = struct_metadata_ts
+        attr_name = f"{table_name}_metadata"
+        a = getattr(ts, attr_name)
+        assert isinstance(a, np.ndarray)
+        with pytest.raises(AttributeError):
+            setattr(ts, attr_name, None)
+        with pytest.raises(AttributeError):
+            delattr(ts, attr_name)
+        with pytest.raises(ValueError, match="read-only"):
+            a[:] = 1
+
+    @pytest.mark.parametrize("table_name", metadata_tables)
+    def test_array_contents(self, struct_metadata_ts, table_name):
+        ts = struct_metadata_ts
+        attr_name = f"{table_name}_metadata"
+        a = getattr(ts, attr_name)
+        assert len(a) == getattr(ts, f"num_{table_name}")
+        for j, row in enumerate(a):
+            assert row["id"] == j
+            assert row["name"] == b"name"
+            assert row["value"] == 1.0
+            assert row["active"]
