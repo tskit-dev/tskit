@@ -242,7 +242,7 @@ out:
 static int
 tsk_treeseq_init_trees(tsk_treeseq_t *self)
 {
-    int ret = tsk_trace_error(TSK_ERR_GENERIC);
+    int ret = TSK_ERR_GENERIC;
     tsk_size_t j, k, tree_index;
     tsk_id_t site_id, edge_id, mutation_id;
     double tree_left, tree_right;
@@ -1197,7 +1197,7 @@ static int
 tsk_treeseq_check_windows(const tsk_treeseq_t *self, tsk_size_t num_windows,
     const double *windows, tsk_flags_t options)
 {
-    int ret = tsk_trace_error(TSK_ERR_BAD_WINDOWS);
+    int ret = 0;
     tsk_size_t j;
 
     if (num_windows < 1) {
@@ -1209,21 +1209,26 @@ tsk_treeseq_check_windows(const tsk_treeseq_t *self, tsk_size_t num_windows,
          * entire tree sequence span. This should be relaxed, so hopefully
          * this branch (and the option) can be removed at some point */
         if (windows[0] != 0) {
+            ret = tsk_trace_error(TSK_ERR_BAD_WINDOWS);
             goto out;
         }
         if (windows[num_windows] != self->tables->sequence_length) {
+            ret = tsk_trace_error(TSK_ERR_BAD_WINDOWS);
             goto out;
         }
     } else {
         if (windows[0] < 0) {
+            ret = tsk_trace_error(TSK_ERR_BAD_WINDOWS);
             goto out;
         }
         if (windows[num_windows] > self->tables->sequence_length) {
+            ret = tsk_trace_error(TSK_ERR_BAD_WINDOWS);
             goto out;
         }
     }
     for (j = 0; j < num_windows; j++) {
         if (windows[j] >= windows[j + 1]) {
+            ret = tsk_trace_error(TSK_ERR_BAD_WINDOWS);
             goto out;
         }
     }
@@ -5474,7 +5479,7 @@ tsk_tree_get_node_root(const tsk_tree_t *self, tsk_id_t u)
 int TSK_WARN_UNUSED
 tsk_tree_init(tsk_tree_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t options)
 {
-    int ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
+    int ret = 0;
     tsk_size_t num_samples, num_nodes, N;
 
     tsk_memset(self, 0, sizeof(tsk_tree_t));
@@ -5503,12 +5508,14 @@ tsk_tree_init(tsk_tree_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t 
     if (self->parent == NULL || self->left_child == NULL || self->right_child == NULL
         || self->left_sib == NULL || self->right_sib == NULL
         || self->num_children == NULL || self->edge == NULL) {
+        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
     if (!(self->options & TSK_NO_SAMPLE_COUNTS)) {
         self->num_samples = tsk_calloc(N, sizeof(*self->num_samples));
         self->num_tracked_samples = tsk_calloc(N, sizeof(*self->num_tracked_samples));
         if (self->num_samples == NULL || self->num_tracked_samples == NULL) {
+            ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
             goto out;
         }
     }
@@ -5518,6 +5525,7 @@ tsk_tree_init(tsk_tree_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t 
         self->next_sample = tsk_malloc(num_samples * sizeof(*self->next_sample));
         if (self->left_sample == NULL || self->right_sample == NULL
             || self->next_sample == NULL) {
+            ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
             goto out;
         }
     }
@@ -5609,7 +5617,7 @@ int TSK_WARN_UNUSED
 tsk_tree_set_tracked_samples(
     tsk_tree_t *self, tsk_size_t num_tracked_samples, const tsk_id_t *tracked_samples)
 {
-    int ret = tsk_trace_error(TSK_ERR_GENERIC);
+    int ret = TSK_ERR_GENERIC;
     tsk_size_t *tree_num_tracked_samples = self->num_tracked_samples;
     const tsk_id_t *parent = self->parent;
     tsk_size_t j;
@@ -5695,7 +5703,7 @@ out:
 int TSK_WARN_UNUSED
 tsk_tree_copy(const tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options)
 {
-    int ret = tsk_trace_error(TSK_ERR_GENERIC);
+    int ret = TSK_ERR_GENERIC;
     tsk_size_t N = self->num_nodes + 1;
 
     if (!(options & TSK_NO_INIT)) {
