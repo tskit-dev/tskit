@@ -468,17 +468,20 @@ static int
 check_offsets(
     tsk_size_t num_rows, const tsk_size_t *offsets, tsk_size_t length, bool check_length)
 {
-    int ret = tsk_trace_error(TSK_ERR_BAD_OFFSET);
+    int ret = 0;
     tsk_size_t j;
 
     if (offsets[0] != 0) {
+        ret = tsk_trace_error(TSK_ERR_BAD_OFFSET);
         goto out;
     }
     if (check_length && offsets[num_rows] != length) {
+        ret = tsk_trace_error(TSK_ERR_BAD_OFFSET);
         goto out;
     }
     for (j = 0; j < num_rows; j++) {
         if (offsets[j] > offsets[j + 1]) {
+            ret = tsk_trace_error(TSK_ERR_BAD_OFFSET);
             goto out;
         }
     }
@@ -1708,7 +1711,7 @@ tsk_individual_table_set_metadata_schema(tsk_individual_table_t *self,
 int
 tsk_individual_table_dump_text(const tsk_individual_table_t *self, FILE *out)
 {
-    int ret = tsk_trace_error(TSK_ERR_IO);
+    int ret = TSK_ERR_IO;
     tsk_size_t j, k;
     tsk_size_t metadata_len;
     int err;
@@ -2430,7 +2433,7 @@ tsk_node_table_set_metadata_schema(tsk_node_table_t *self, const char *metadata_
 int
 tsk_node_table_dump_text(const tsk_node_table_t *self, FILE *out)
 {
-    int ret = tsk_trace_error(TSK_ERR_IO);
+    int ret = TSK_ERR_IO;
     tsk_size_t j;
     tsk_size_t metadata_len;
     int err;
@@ -3140,7 +3143,7 @@ int
 tsk_edge_table_dump_text(const tsk_edge_table_t *self, FILE *out)
 {
     tsk_id_t j;
-    int ret = tsk_trace_error(TSK_ERR_IO);
+    int ret = TSK_ERR_IO;
     tsk_edge_t row;
     int err;
 
@@ -3938,7 +3941,7 @@ int
 tsk_site_table_dump_text(const tsk_site_table_t *self, FILE *out)
 {
     tsk_size_t j;
-    int ret = tsk_trace_error(TSK_ERR_IO);
+    int ret = TSK_ERR_IO;
     int err;
     tsk_size_t ancestral_state_len, metadata_len;
 
@@ -4702,7 +4705,7 @@ tsk_mutation_table_set_metadata_schema(tsk_mutation_table_t *self,
 int
 tsk_mutation_table_dump_text(const tsk_mutation_table_t *self, FILE *out)
 {
-    int ret = tsk_trace_error(TSK_ERR_IO);
+    int ret = TSK_ERR_IO;
     int err;
     tsk_size_t j, derived_state_len, metadata_len;
 
@@ -5380,7 +5383,7 @@ int
 tsk_migration_table_dump_text(const tsk_migration_table_t *self, FILE *out)
 {
     tsk_size_t j;
-    int ret = tsk_trace_error(TSK_ERR_IO);
+    int ret = TSK_ERR_IO;
     tsk_size_t metadata_len;
     int err;
 
@@ -5980,7 +5983,7 @@ tsk_population_table_set_metadata_schema(tsk_population_table_t *self,
 int
 tsk_population_table_dump_text(const tsk_population_table_t *self, FILE *out)
 {
-    int ret = tsk_trace_error(TSK_ERR_IO);
+    int ret = TSK_ERR_IO;
     int err;
     tsk_size_t j;
     tsk_size_t metadata_len;
@@ -6614,7 +6617,7 @@ out:
 int
 tsk_provenance_table_dump_text(const tsk_provenance_table_t *self, FILE *out)
 {
-    int ret = tsk_trace_error(TSK_ERR_IO);
+    int ret = TSK_ERR_IO;
     int err;
     tsk_size_t j, timestamp_len, record_len;
 
@@ -11303,7 +11306,7 @@ int TSK_WARN_UNUSED
 tsk_table_collection_build_index(
     tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(options))
 {
-    int ret = tsk_trace_error(TSK_ERR_GENERIC);
+    int ret = TSK_ERR_GENERIC;
     tsk_id_t ret_id;
     tsk_size_t j;
     double *time = self->nodes.time;
