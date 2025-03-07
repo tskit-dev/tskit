@@ -653,6 +653,14 @@ metadata for these methods.
 Metadata processing can be disabled and raw bytes stored/retrieved. See
 {ref}`sec_tutorial_metadata_binary`.
 
+(sec_structured_array_metadata)=
+
+## Structured array metadata
+
+:::{todo}
+Add documentation for the structured array metadata format which provides a way to efficiently store and access structured data in metadata fields for compatible struct codecs.
+:::
+
 (sec_metadata_schema_schema)=
 
 ## Full metaschema

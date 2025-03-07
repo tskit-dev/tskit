@@ -10760,7 +10760,7 @@ TreeSequence_get_individuals_metadata_offset(TreeSequence *self, void *closure)
     }
     individuals = self->tree_sequence->tables->individuals;
     ret = TreeSequence_make_array(
-        self, individuals.num_rows + 1, NPY_UINT32, individuals.metadata_offset);
+        self, individuals.num_rows + 1, NPY_UINT64, individuals.metadata_offset);
 out:
     return ret;
 }
@@ -10851,7 +10851,7 @@ TreeSequence_get_nodes_metadata_offset(TreeSequence *self, void *closure)
     }
     nodes = self->tree_sequence->tables->nodes;
     ret = TreeSequence_make_array(
-        self, nodes.num_rows + 1, NPY_UINT32, nodes.metadata_offset);
+        self, nodes.num_rows + 1, NPY_UINT64, nodes.metadata_offset);
 out:
     return ret;
 }
@@ -10941,7 +10941,7 @@ TreeSequence_get_edges_metadata_offset(TreeSequence *self, void *closure)
         goto out;
     }
     edges = self->tree_sequence->tables->edges;
-    ret = TreeSequence_make_array(self, edges.num_rows + 1, NPY_UINT32, edges.metadata_offset);
+    ret = TreeSequence_make_array(self, edges.num_rows + 1, NPY_UINT64, edges.metadata_offset);
 out:
     return ret;
 }
@@ -10986,7 +10986,7 @@ TreeSequence_get_sites_metadata_offset(TreeSequence *self, void *closure)
         goto out;
     }
     sites = self->tree_sequence->tables->sites;
-    ret = TreeSequence_make_array(self, sites.num_rows + 1, NPY_UINT32, sites.metadata_offset);
+    ret = TreeSequence_make_array(self, sites.num_rows + 1, NPY_UINT64, sites.metadata_offset);
 out:
     return ret;
 }
@@ -11076,7 +11076,7 @@ TreeSequence_get_mutations_metadata_offset(TreeSequence *self, void *closure)
         goto out;
     }
     mutations = self->tree_sequence->tables->mutations;
-    ret = TreeSequence_make_array(self, mutations.num_rows + 1, NPY_UINT32, mutations.metadata_offset);
+    ret = TreeSequence_make_array(self, mutations.num_rows + 1, NPY_UINT64, mutations.metadata_offset);
 out:
     return ret;
 }
@@ -11201,7 +11201,7 @@ TreeSequence_get_migrations_metadata_offset(TreeSequence *self, void *closure)
     }
     migrations = self->tree_sequence->tables->migrations;
     ret = TreeSequence_make_array(
-        self, migrations.num_rows + 1, NPY_UINT32, migrations.metadata_offset);
+        self, migrations.num_rows + 1, NPY_UINT64, migrations.metadata_offset);
 out:
     return ret;
 }
@@ -11232,7 +11232,7 @@ TreeSequence_get_populations_metadata_offset(TreeSequence *self, void *closure)
     }
     populations = self->tree_sequence->tables->populations;
     ret = TreeSequence_make_array(
-        self, populations.num_rows + 1, NPY_UINT32, populations.metadata_offset);
+        self, populations.num_rows + 1, NPY_UINT64, populations.metadata_offset);
 out:
     return ret;
 }
