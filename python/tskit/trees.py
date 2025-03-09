@@ -8691,7 +8691,7 @@ class TreeSequence:
         The parameters `centre` and `mode` are passed to
         :meth:`genetic_relatedness <.TreeSequence.genetic_relatedness>`;
         if `windows` are provided then PCA is carried out separately in each window.
-        If `time_windows` are provided, then genetic relatedness is measured using only
+        If `time_window` is provided, then genetic relatedness is measured using only
         ancestral material within the given time window (see
         :meth:`decapitate <.TreeSequence.decapitate>` for how this is defined).
                 
@@ -8773,24 +8773,28 @@ class TreeSequence:
             num_oversamples = min(10, dim - num_components)
 
         num_vectors = num_components + num_oversamples
+        if num_vectors > dim:
+            raise ValueError("num_components + num_oversamples must be less"
+                             " than or equal to the number of samples"
+                             " (or individuals, if specified).")
 
         if range_sketch is not None:
-            if num_vectors > dim:
-                raise ValueError("num_components + num_oversamples must be less"
-                                 " than or equal to the number of samples"
-                                 " (or individuals, if specified).")
             if drop_windows:
                 range_sketch = np.expand_dims(range_sketch, 0)
-            exp_dims = (num_windows, dim, num_vectors)
-            obs_dims = range_sketch_shape
-            if obs_dims != exp_dims:
-                if drop_windows:
-                    obs_dims = obs_dims[1:]
-                    exp_dims = exp_dims[1:]
-                raise ValueError("Incorrect shape of range_sketch:"
-                                 f" expected {exp_dims}; got {obs_dims}.")
-            else:
-                assert range_sketch.shape[0] == len(windows) - 1
+        else:
+            rng = np.random.default_rng(random_seed)
+            range_sketch = rng.normal(size=(num_windows, dim, num_vectors))
+        
+        rs_exp_dims = (num_windows, dim, num_vectors)
+        rs_obs_dims = range_sketch.shape
+        if rs_obs_dims != rs_exp_dims:
+            if drop_windows:
+                rs_obs_dims = rs_obs_dims[1:]
+                rs_exp_dims = rs_exp_dims[1:]
+            raise ValueError("Incorrect shape of range_sketch:"
+                             f" expected {rs_exp_dims}; got {rs_obs_dims}.")
+        else:
+            assert range_sketch.shape[0] == len(windows) - 1
 
         def _rand_pow_range_finder(
             operator,
@@ -8798,17 +8802,12 @@ class TreeSequence:
             rank: int,
             depth: int,
             num_vectors: int,
-            rng: np.random.Generator,
-            range_sketch: np.ndarray = None,
+            Q: np.ndarray,
             ) -> np.ndarray:
             """
             Algorithm 9 in https://arxiv.org/pdf/2002.01387
             """
             assert num_vectors >= rank > 0, "num_vectors should not be smaller than rank"
-            if range_sketch is None:
-                Q = rng.normal(size=(operator_dim, num_vectors))
-            else:
-                Q = range_sketch
             for _ in range(depth):
                 Q = np.linalg.qr(Q).Q
                 Q = operator(Q)
@@ -8821,8 +8820,7 @@ class TreeSequence:
             rank: int,
             depth: int,
             num_vectors: int,
-            rng: np.random.Generator,
-            range_sketch: np.ndarray = None,
+            range_sketch: np.ndarray,
             ) -> (np.ndarray, np.ndarray, np.ndarray, float):
             """
             Algorithm 8 in https://arxiv.org/pdf/2002.01387
@@ -8834,8 +8832,7 @@ class TreeSequence:
                 rank=num_vectors,
                 depth=depth,
                 num_vectors=num_vectors,
-                rng=rng,
-                range_sketch=range_sketch
+                Q=range_sketch
             )
             C = operator(Q).T
             U_hat, D, _ = np.linalg.svd(C, full_matrices=False)
@@ -8849,8 +8846,6 @@ class TreeSequence:
             return U[:, :rank], D[:rank], Q, error_bound
 
 
-        random_state = np.random.default_rng(random_seed)
-        
         U = np.empty((num_windows, dim, num_components))
         D = np.empty((num_windows, num_components))
         Q = np.empty((num_windows, dim, num_vectors))
@@ -8888,8 +8883,7 @@ class TreeSequence:
                 rank=num_components,
                 depth=iterated_power,
                 num_vectors=num_vectors,
-                rng=random_state,
-                range_sketch=None if range_sketch is None else range_sketch[i],
+                range_sketch=range_sketch[i],
             )
 
         if drop_windows:

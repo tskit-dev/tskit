@@ -835,7 +835,7 @@ class TestPCA:
             with pytest.raises(tskit.LibraryError, match="TSK_ERR_BAD_WINDOWS"):
                 ts.pca(num_components=2, windows=bad_w)
 
-    def test_bad_num_components(self):
+    def test_bad_params(self):
         ts = msprime.sim_ancestry(
             3,
             ploidy=2,
@@ -848,6 +848,29 @@ class TestPCA:
             ts.pca(num_components=4, samples=[0, 1, 2])
         with pytest.raises(ValueError, match="Number of components"):
             ts.pca(num_components=4, individuals=[0, 1])
+        with pytest.raises(ValueError, match="num_oversamples must be "):
+            ts.pca(num_components=2, num_oversamples=ts.num_samples)
+
+    def test_bad_range_sketch(self):
+        ts = msprime.sim_ancestry(
+            3,
+            ploidy=2,
+            sequence_length=10,
+            random_seed=123,
+        )
+        nc, no = 2, 3
+        Q = np.zeros((ts.num_samples - 1, nc + no))
+        with pytest.raises(ValueError, match="Incorrect shape of range"):
+            ts.pca(num_components=nc, num_oversamples=no, range_sketch=Q)
+        Q = np.zeros((ts.num_samples, nc + no - 1))
+        with pytest.raises(ValueError, match="Incorrect shape of range"):
+            ts.pca(num_components=nc, num_oversamples=no, range_sketch=Q)
+        Q = np.zeros((ts.num_samples, nc + no + 1))
+        with pytest.raises(ValueError, match="Incorrect shape of range"):
+            ts.pca(num_components=nc, num_oversamples=no, range_sketch=Q)
+        Q = np.zeros((ts.num_samples,))
+        with pytest.raises(ValueError, match="Incorrect shape of range"):
+            ts.pca(num_components=nc, num_oversamples=no, range_sketch=Q)
 
     def test_indivs_and_samples(self):
         ts = msprime.sim_ancestry(
