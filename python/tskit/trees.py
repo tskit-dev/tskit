@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2024 Tskit Developers
+# Copyright (c) 2018-2025 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -8634,8 +8634,9 @@ class TreeSequence:
             ij[:, 0],
             ij[:, 1],
         )
+        ploidy = np.bincount(sample_individuals)
         x = arr - arr.mean(axis=0) if centre else arr
-        x = x[sample_individuals]
+        x = x[sample_individuals] / ploidy[sample_individuals, np.newaxis]
         x = self._expand_indices(x, samples)
         x = self.genetic_relatedness_vector(
             W=x,
@@ -8646,7 +8647,7 @@ class TreeSequence:
         )[0]
 
         def bincount_fn(w):
-            return np.bincount(sample_individuals, w)
+            return np.bincount(sample_individuals, w) / ploidy
 
         x = np.apply_along_axis(bincount_fn, axis=0, arr=x)
         x = x - x.mean(axis=0) if centre else x  # centering within index in cols
@@ -8659,7 +8660,7 @@ class TreeSequence:
         windows: list = None,
         samples: np.ndarray = None,
         individuals: np.ndarray = None,
-        time_window: np.ndarray = None,
+        time_windows: np.ndarray = None,
         mode: str = "branch",
         centre: bool = True,
         iterated_power: int = 5,
@@ -8698,11 +8699,11 @@ class TreeSequence:
         constructing `range_sketch`, a low-dimensional approximation to the range
         of :math:`M`, so that the result of a previous call to `pca()` may be passed in.
         To check for convergence, compare
-        `pc1 = ts.pca()` and `pc2 = ts.pca(range_sketch=pc1.range_sketch)`; the difference
-        between `pc1.factors` and `pc2.factors` provides a diagnostic of the convergence
-        of the algorithm (i.e., if they are close then it has likely converged).
-        Algorithms are based on Algorithms 8 and 9 in Martinsson and Tropp,
-        https://arxiv.org/pdf/2002.01387 .
+        `pc1 = ts.pca()` and `pc2 = ts.pca(range_sketch=pc1.range_sketch)`; the
+        difference between `pc1.factors` and `pc2.factors` provides a
+        diagnostic of the convergence of the algorithm (i.e., if they are close
+        then it has likely converged). Algorithms are based on Algorithms 8
+        and 9 in Martinsson and Tropp, https://arxiv.org/pdf/2002.01387 .
 
         :param int num_components: Number of principal components to return.
         :param list windows: An increasing list of breakpoints between the windows
@@ -8711,7 +8712,8 @@ class TreeSequence:
         :param np.ndarray individuals: Individuals to perform PCA with. Cannot specify
             both `samples` and `individuals`.
         :param np.ndarray time_windows: The time interval on which to apply PCA:
-            currently, this must be either None (default, covers all time) or a single interval.
+            currently, this must be either None (default, covers all time)
+            or a single interval.
         :param str mode: A string giving the "type" of relatedness to be computed
             (defaults to "branch"; see
             :meth:`genetic_relatedness_vector
@@ -8747,13 +8749,15 @@ class TreeSequence:
             output_type = "individual"
             dim = len(individuals)
 
-        if time_window is None:
+        if time_windows is None:
             tree_sequence_low, tree_sequence_high = None, self
         else:
-            assert time_windows[0] < time_windows[1], "The second argument should be larger."
+            assert (
+                time_windows[0] < time_windows[1]
+            ), "The second argument should be larger."
             tree_sequence_low, tree_sequence_high = (
-                self.decapitate(time_window[0]),
-                self.decapitate(time_window[1]),
+                self.decapitate(time_windows[0]),
+                self.decapitate(time_windows[1]),
             )
 
         drop_windows = windows is None
@@ -8869,7 +8873,7 @@ class TreeSequence:
                 if output_type == "node"
                 else tree_sequence_high._genetic_relatedness_vector_individual
             )
-            if time_window is not None:
+            if time_windows is not None:
                 _f_low = (
                     tree_sequence_low._genetic_relatedness_vector_node
                     if output_type == "node"
@@ -8886,7 +8890,7 @@ class TreeSequence:
                     centre=centre,
                     windows=this_window,
                 )
-                if time_window is None:
+                if time_windows is None:
                     return high
                 else:
                     low = _f_low(
@@ -10515,8 +10519,8 @@ class PCAResult:
     """
     range_sketch: np.ndarray
     """
-    Range sketch matrix. Can be used as an input for :meth:`pca <.TreeSequence.pca>` option
-    to further improve precision.
+    Range sketch matrix. Can be used as an input for
+    :meth:`pca <.TreeSequence.pca>` option to further improve precision.
     """
     error_bound: np.ndarray
     """

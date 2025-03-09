@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2024 Tskit Developers
+# Copyright (c) 2025 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -739,7 +739,8 @@ class TestRelatednessVector:
         np.testing.assert_array_almost_equal(D1, D2)
 
 
-def pca(ts, windows, centre, samples=None):
+def pca(ts, windows, centre, samples=None, individuals=None):
+    assert samples is None or individuals is None
     if samples is None:
         ii = np.arange(ts.num_samples)
     else:
@@ -748,7 +749,19 @@ def pca(ts, windows, centre, samples=None):
     drop_dimension = windows is None
     if drop_dimension:
         windows = [0, ts.sequence_length]
-    Sigma = relatedness_matrix(ts=ts, windows=windows, centre=centre)  # [:, ii, ii]
+    Sigma = relatedness_matrix(ts=ts, windows=windows, centre=False)[:, ii, :][:, :, ii]
+    if individuals is not None:
+        ni = len(individuals)
+        J = np.zeros((ts.num_samples, ni))
+        for k, i in enumerate(individuals):
+            nn = ts.individual(i).nodes
+            for j in nn:
+                J[j, k] = 1 / len(nn)
+        Sigma = np.matmul(J.T, np.matmul(Sigma, J))
+    if centre:
+        n = Sigma.shape[-1]
+        P = np.eye(n) - 1 / n
+        Sigma = np.matmul(P, np.matmul(Sigma, P))
     U, S, _ = np.linalg.svd(Sigma, hermitian=True)
     if drop_dimension:
         U = U[0]
@@ -792,10 +805,16 @@ def assert_pcs_equal(U, D, U_full, D_full, rtol=1e-5, atol=1e-8):
 class TestPCA:
 
     def verify_pca(
-        self, ts, num_windows, num_components, centre, samples=None, **kwargs
+        self,
+        ts,
+        num_windows,
+        num_components,
+        centre,
+        samples=None,
+        individuals=None,
+        **kwargs,
     ):
-        if samples is None:
-            samples = ts.samples()
+        assert samples is None or individuals is None
         if num_windows == 0:
             windows = None
         elif num_windows % 2 == 0:
@@ -804,13 +823,19 @@ class TestPCA:
             )
         else:
             windows = np.linspace(0, ts.sequence_length, num_windows + 1)
-        num_rows = ts.num_samples
+        if samples is not None:
+            num_rows = len(samples)
+        elif individuals is not None:
+            num_rows = len(individuals)
+        else:
+            num_rows = ts.num_samples
         num_oversamples = kwargs.get(
             "num_oversamples", min(num_rows - num_components, 10)
         )
         pca_res = ts.pca(
             windows=windows,
             samples=samples,
+            individuals=individuals,
             num_components=num_components,
             centre=centre,
             random_seed=1238,
@@ -951,7 +976,7 @@ class TestPCA:
     @pytest.mark.parametrize("centre", (True, False))
     @pytest.mark.parametrize("num_windows", (0, 1, 2, 3))
     @pytest.mark.parametrize("num_components", (1, 3))
-    def test_haploid_sims(self, n, centre, num_windows, num_components):
+    def test_simple_sims(self, n, centre, num_windows, num_components):
         ploidy = 2
         nc = min(num_components, n * ploidy)
         ts = msprime.sim_ancestry(
@@ -1049,3 +1074,95 @@ class TestPCA:
         assert np.all(pc1.eigenvalues == pc2.eigenvalues)
         assert np.all(pc1.range_sketch == pc2.range_sketch)
         assert np.all(pc1.error_bound == pc2.error_bound)
+
+    @pytest.mark.parametrize("centre", (True, False))
+    @pytest.mark.parametrize("num_windows", (0, 2))
+    def test_samples(self, centre, num_windows):
+        ploidy = 2
+        ts = msprime.sim_ancestry(
+            20,
+            ploidy=ploidy,
+            population_size=20,
+            sequence_length=100,
+            recombination_rate=0.01,
+            random_seed=12345,
+        )
+        samples = [3, 0, 2, 5, 6, 15, 12]
+        self.verify_pca(
+            ts,
+            num_windows=num_windows,
+            num_components=5,
+            centre=centre,
+            samples=samples,
+        )
+
+    @pytest.mark.parametrize("centre", (True, False))
+    def test_individuals_matches_samples(self, centre):
+        # ploidy 1 individuals should be the same as samples
+        ploidy = 1
+        ts = msprime.sim_ancestry(
+            20,
+            ploidy=ploidy,
+            population_size=20,
+            sequence_length=100,
+            recombination_rate=0.01,
+            random_seed=12345,
+        )
+        individuals = [3, 0, 2, 5, 6, 15, 12]
+        for i in individuals:
+            assert ts.individual(i).nodes == [
+                i,
+            ]
+        pci = pca(
+            ts, windows=[0, ts.sequence_length], centre=centre, samples=individuals
+        )
+        pcs = pca(
+            ts, windows=[0, ts.sequence_length], centre=centre, individuals=individuals
+        )
+        tspci = ts.pca(
+            num_components=5, centre=centre, samples=individuals, random_seed=456
+        )
+        tspcs = ts.pca(
+            num_components=5, centre=centre, individuals=individuals, random_seed=456
+        )
+        assert np.all(pci[0] == pcs[0])
+        assert np.all(pci[1] == pcs[1])
+        assert np.all(tspci.factors == tspcs.factors)
+        assert np.all(tspci.eigenvalues == tspcs.eigenvalues)
+        pci = ts.pca(
+            num_components=5,
+            windows=[0, 50, 100],
+            centre=centre,
+            samples=individuals,
+            random_seed=456,
+        )
+        pcs = ts.pca(
+            num_components=5,
+            windows=[0, 50, 100],
+            centre=centre,
+            individuals=individuals,
+            random_seed=456,
+        )
+        assert np.all(pci.factors == pcs.factors)
+        assert np.all(pci.eigenvalues == pcs.eigenvalues)
+
+    @pytest.mark.parametrize("centre", (True, False))
+    @pytest.mark.parametrize("num_windows", (0, 2))
+    @pytest.mark.parametrize("ploidy", (1, 2, 3))
+    def test_individuals(self, centre, num_windows, ploidy):
+        ts = msprime.sim_ancestry(
+            20,
+            ploidy=ploidy,
+            population_size=20,
+            sequence_length=100,
+            recombination_rate=0.01,
+            random_seed=12345,
+        )
+        individuals = [3, 0, 2, 5, 6, 15, 12]
+        self.verify_pca(
+            ts,
+            num_windows=num_windows,
+            num_components=5,
+            centre=centre,
+            individuals=individuals,
+        )
