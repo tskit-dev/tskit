@@ -8667,7 +8667,7 @@ class TreeSequence:
         mode: str = "branch",
         centre: bool = True,
         iterated_power: int = 5,
-        num_oversamples: int = 10,
+        num_oversamples: int = None,
         random_seed: int = None,
         range_sketch: np.ndarray = None,
     ) -> (np.ndarray, np.ndarray, np.ndarray):
@@ -8721,8 +8721,8 @@ class TreeSequence:
             :meth:`genetic_relatedness_vector
             <.TreeSequence.genetic_relatedness_vector>`).
         :param bool centre: Centre the genetic relatedness matrix.
-        :param int iterated_power: Number of power iteration of range finder.
-        :param int num_oversamples: Number of additional test vectors.
+        :param int iterated_power: Number of power iterations of range finder.
+        :param int num_oversamples: Number of additional test vectors (default: 10).
         :param int random_seed: The random seed. If this is None, a random seed will
             be automatically generated. Valid random seeds are between 1 and
             :math:`2^32 − 1`.
@@ -8752,20 +8752,45 @@ class TreeSequence:
             tree_sequence_low, tree_sequence_high = None, self
         else:
             assert time_windows[0] < time_windows[1], "The second argument should be larger."
-            tree_sequence_low, tree_sequence_high = \
-                self.decapitate(time_window[0]), self.decapitate(time_window[1])
-        
-        if range_sketch is not None:
-            if windows is not None:
-                assert range_sketch.shape[0] == len(windows) - 1
-            elif windows is None:
-                range_sketch = np.expand_dims(range_sketch, 0)
+            tree_sequence_low, tree_sequence_high = (
+                self.decapitate(time_window[0]),
+                self.decapitate(time_window[1])
+            )
+
+        drop_windows = windows is None
+        windows = self.parse_windows(windows)
+        num_windows = len(windows) - 1
+        if num_windows < 1:
+            raise ValueError("Must have at least one window.")
 
         if num_components > dim:
             raise ValueError(
                 "Number of components must be less than or equal to "
                 "the number of samples (or individuals, if specified)."
             )
+
+        if num_oversamples is None:
+            num_oversamples = min(10, dim - num_components)
+
+        num_vectors = num_components + num_oversamples
+
+        if range_sketch is not None:
+            if num_vectors > dim:
+                raise ValueError("num_components + num_oversamples must be less"
+                                 " than or equal to the number of samples"
+                                 " (or individuals, if specified).")
+            if drop_windows:
+                range_sketch = np.expand_dims(range_sketch, 0)
+            exp_dims = (num_windows, dim, num_vectors)
+            obs_dims = range_sketch_shape
+            if obs_dims != exp_dims:
+                if drop_windows:
+                    obs_dims = obs_dims[1:]
+                    exp_dims = exp_dims[1:]
+                raise ValueError("Incorrect shape of range_sketch:"
+                                 f" expected {exp_dims}; got {obs_dims}.")
+            else:
+                assert range_sketch.shape[0] == len(windows) - 1
 
         def _rand_pow_range_finder(
             operator,
@@ -8779,17 +8804,16 @@ class TreeSequence:
             """
             Algorithm 9 in https://arxiv.org/pdf/2002.01387
             """
-            assert num_vectors >= rank > 0, "num_vectors should be larger than rank"
+            assert num_vectors >= rank > 0, "num_vectors should not be smaller than rank"
             if range_sketch is None:
-                test_vectors = rng.normal(size=(operator_dim, num_vectors))
-                Q = test_vectors
+                Q = rng.normal(size=(operator_dim, num_vectors))
             else:
                 Q = range_sketch
             for _ in range(depth):
                 Q = np.linalg.qr(Q).Q
                 Q = operator(Q)
             Q = np.linalg.qr(Q).Q
-            return Q[:, :rank]
+            return Q
 
         def _rand_svd(
             operator,
@@ -8805,30 +8829,31 @@ class TreeSequence:
             """
             assert num_vectors >= rank > 0
             Q = _rand_pow_range_finder(
-                operator, operator_dim, num_vectors, depth, num_vectors, rng, range_sketch
+                operator,
+                operator_dim,
+                rank=num_vectors,
+                depth=depth,
+                num_vectors=num_vectors,
+                rng=rng,
+                range_sketch=range_sketch
             )
             C = operator(Q).T
-            U_hat, D, V = np.linalg.svd(C, full_matrices=False)
+            U_hat, D, _ = np.linalg.svd(C, full_matrices=False)
             U = Q @ U_hat
 
             error_factor = np.power(
-                    1 + 4 * np.sqrt(2 * operator_dim / (rank - 1)), 
+                    1 + 4 * np.sqrt(2 * operator_dim / max(1, (rank - 1))),
                     1 / (2 * depth + 1)
                     )
             error_bound = D[-1] * (1 + error_factor)
-            return U[:, :rank], D[:rank], V[:rank], Q, error_bound
+            return U[:, :rank], D[:rank], Q, error_bound
 
 
         random_state = np.random.default_rng(random_seed)
-        drop_windows = windows is None
-        windows = self.parse_windows(windows)
-        num_windows = len(windows) - 1
-        if num_windows < 1:
-            raise ValueError("Number of windows must be at least 1.")
         
         U = np.empty((num_windows, dim, num_components))
         D = np.empty((num_windows, num_components))
-        Q = np.empty((num_windows, dim, num_components + num_oversamples))
+        Q = np.empty((num_windows, dim, num_vectors))
         E = np.empty(num_windows)
         for i in range(num_windows):
             this_window = windows[i : i + 2]
@@ -8857,18 +8882,18 @@ class TreeSequence:
                     low = _f_low(arr=x, indices=indices, mode=mode, centre=centre, windows=this_window)
                     return high - low
 
-            U[i], D[i], _, Q[i], E[i] = _rand_svd(
+            U[i], D[i], Q[i], E[i] = _rand_svd(
                 operator=_G,
                 operator_dim=dim,
                 rank=num_components,
                 depth=iterated_power,
-                num_vectors=num_components + num_oversamples,
+                num_vectors=num_vectors,
                 rng=random_state,
                 range_sketch=None if range_sketch is None else range_sketch[i],
             )
 
         if drop_windows:
-            U, D, Q = U[0], D[0], Q[0]
+            U, D, Q, E = U[0], D[0], Q[0], E[0]
 
         pca_result = PCAResult(factors=U, eigenvalues=D, range_sketch=Q, error_bound=E)
 

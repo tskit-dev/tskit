@@ -765,7 +765,7 @@ def allclose_up_to_sign(x, y, **kwargs):
     return np.allclose(x, r * y, **kwargs)
 
 
-def assert_pcs_equal(U, D, U_full, D_full, rtol=1e-05, atol=1e-08):
+def assert_pcs_equal(U, D, U_full, D_full, rtol=1e-5, atol=1e-8):
     # check that the PCs in U, D occur in U_full, D_full
     # accounting for sign and ordering
     assert len(D) <= len(D_full)
@@ -786,7 +786,7 @@ def assert_pcs_equal(U, D, U_full, D_full, rtol=1e-05, atol=1e-08):
 
 class TestPCA:
 
-    def verify_pca(self, ts, num_windows, n_components, centre):
+    def verify_pca(self, ts, num_windows, num_components, centre, **kwargs):
         if num_windows == 0:
             windows = None
         elif num_windows % 2 == 0:
@@ -795,24 +795,31 @@ class TestPCA:
             )
         else:
             windows = np.linspace(0, ts.sequence_length, num_windows + 1)
-        ts_U, ts_D = ts.pca(
-            windows=windows, n_components=n_components, centre=centre, random_seed=123
-        )
         num_rows = ts.num_samples
+        num_oversamples = kwargs.get("num_oversamples",
+                    min(num_rows - num_components, 10))
+        pca_res = ts.pca(
+            windows=windows, num_components=num_components, centre=centre, random_seed=123,
+            **kwargs,
+        )
         if windows is None:
-            assert ts_U.shape == (num_rows, n_components)
-            assert ts_D.shape == (n_components,)
+            assert pca_res.factors.shape == (num_rows, num_components)
+            assert pca_res.eigenvalues.shape == (num_components,)
+            assert pca_res.range_sketch.shape == (num_rows, num_components + num_oversamples)
+            assert pca_res.error_bound.shape == ()
         else:
-            assert ts_U.shape == (num_windows, num_rows, n_components)
-            assert ts_D.shape == (num_windows, n_components)
+            assert pca_res.factors.shape == (num_windows, num_rows, num_components)
+            assert pca_res.eigenvalues.shape == (num_windows, num_components)
+            assert pca_res.range_sketch.shape == (num_windows, num_rows, num_components + num_oversamples)
+            assert pca_res.error_bound.shape == (num_windows,)
         U, D = pca(ts=ts, windows=windows, centre=centre)
         if windows is None:
-            np.testing.assert_allclose(ts_D, D[:n_components], atol=1e-8)
-            assert_pcs_equal(ts_U, ts_D, U, D)
+            np.testing.assert_allclose(pca_res.eigenvalues, D[:num_components], atol=1e-8)
+            assert_pcs_equal(pca_res.factors, pca_res.eigenvalues, U, D)
         else:
             for w in range(num_windows):
-                np.testing.assert_allclose(ts_D[w], D[w, :n_components], atol=1e-8)
-                assert_pcs_equal(ts_U[w], ts_D[w], U[w], D[w])
+                np.testing.assert_allclose(pca_res.eigenvalues[w], D[w, :num_components], atol=1e-8)
+                assert_pcs_equal(pca_res.factors[w], pca_res.eigenvalues[w], U[w], D[w])
 
     def test_bad_windows(self):
         ts = msprime.sim_ancestry(
@@ -822,11 +829,11 @@ class TestPCA:
             random_seed=123,
         )
         for bad_w in ([], [1]):
-            with pytest.raises(ValueError, match="Number of windows"):
-                ts.pca(n_components=2, windows=bad_w)
+            with pytest.raises(ValueError, match="at least one window"):
+                ts.pca(num_components=2, windows=bad_w)
         for bad_w in ([1, 0], [-3, 10]):
             with pytest.raises(tskit.LibraryError, match="TSK_ERR_BAD_WINDOWS"):
-                ts.pca(n_components=2, windows=bad_w)
+                ts.pca(num_components=2, windows=bad_w)
 
     def test_bad_num_components(self):
         ts = msprime.sim_ancestry(
@@ -836,11 +843,11 @@ class TestPCA:
             random_seed=123,
         )
         with pytest.raises(ValueError, match="Number of components"):
-            ts.pca(n_components=ts.num_samples + 1)
+            ts.pca(num_components=ts.num_samples + 1)
         with pytest.raises(ValueError, match="Number of components"):
-            ts.pca(n_components=4, samples=[0, 1, 2])
+            ts.pca(num_components=4, samples=[0, 1, 2])
         with pytest.raises(ValueError, match="Number of components"):
-            ts.pca(n_components=4, individuals=[0, 1])
+            ts.pca(num_components=4, individuals=[0, 1])
 
     def test_indivs_and_samples(self):
         ts = msprime.sim_ancestry(
@@ -850,7 +857,7 @@ class TestPCA:
             random_seed=123,
         )
         with pytest.raises(ValueError, match="Samples and individuals"):
-            ts.pca(n_components=2, samples=[0, 1, 2, 3], individuals=[0, 1, 2])
+            ts.pca(num_components=2, samples=[0, 1, 2, 3], individuals=[0, 1, 2])
 
     def test_modes(self):
         ts = msprime.sim_ancestry(
@@ -863,15 +870,15 @@ class TestPCA:
             with pytest.raises(
                 tskit.LibraryError, match="TSK_ERR_UNSUPPORTED_STAT_MODE"
             ):
-                ts.pca(n_components=2, mode=bad_mode)
+                ts.pca(num_components=2, mode=bad_mode)
 
     @pytest.mark.parametrize("n", [2, 3, 5, 15])
     @pytest.mark.parametrize("centre", (True, False))
     @pytest.mark.parametrize("num_windows", (0, 1, 2, 3))
-    @pytest.mark.parametrize("n_components", (1, 3))
-    def test_simple_sims(self, n, centre, num_windows, n_components):
+    @pytest.mark.parametrize("num_components", (1, 3))
+    def test_simple_sims(self, n, centre, num_windows, num_components):
         ploidy = 1
-        nc = min(n_components, n * ploidy)
+        nc = min(num_components, n * ploidy)
         ts = msprime.sim_ancestry(
             n,
             ploidy=ploidy,
@@ -880,4 +887,10 @@ class TestPCA:
             recombination_rate=0.01,
             random_seed=12345,
         )
-        self.verify_pca(ts, num_windows=num_windows, n_components=nc, centre=centre)
+        kwargs = {}
+        # with n=15 and the default of 5 iterations, the relative tolerance on
+        # the eigenvectors is only 1e-4; so, up this:
+        if n > 10:
+            kwargs["iterated_power"] = 10
+        self.verify_pca(ts, num_windows=num_windows, num_components=nc, centre=centre,
+                        **kwargs)
