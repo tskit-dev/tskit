@@ -10510,8 +10510,9 @@ class PCAResult:
 
     factors: np.ndarray
     """
-    The principal component factors. Columns are orthogonal, with one entry per sample
+    The principal component factors (or scores). Columns are orthogonal, with one entry per sample
     or individual (see :meth:`pca <.TreeSequence.pca>`).
+    This is the same as the loadings because the GRM is symmetric.
     """
     eigenvalues: np.ndarray
     """
@@ -10525,4 +10526,8 @@ class PCAResult:
     error_bound: np.ndarray
     """
     An estimate of the error bounds for the eigenvalues (experimental).
+    This quantifies the average reconstruction error E|G-USVt| where G is the 
+    genetic relatedness matrix, U is the PC factors (scores), 
+    S is the diagonal eigenvalue matrix, and V is the loadings.
+    The norm is the matrix operator norm.
     """
