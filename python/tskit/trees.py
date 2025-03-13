@@ -8711,7 +8711,7 @@ class TreeSequence:
         time_windows: np.ndarray = None,
         mode: str = "branch",
         centre: bool = True,
-        iterated_power: int = 5,
+        iterated_power: int = 20,
         num_oversamples: int = None,
         random_seed: int = None,
         range_sketch: np.ndarray = None,

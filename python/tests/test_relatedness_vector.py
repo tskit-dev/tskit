@@ -738,6 +738,7 @@ class TestRelatednessVector:
         )
         np.testing.assert_array_almost_equal(D1, D2)
 
+
 def pca(ts, windows, centre, samples=None, individuals=None, time_windows=None):
     assert samples is None or individuals is None
     if samples is None:
@@ -749,15 +750,21 @@ def pca(ts, windows, centre, samples=None, individuals=None, time_windows=None):
     if drop_dimension:
         windows = [0, ts.sequence_length]
     if time_windows is None:
-        Sigma = relatedness_matrix(ts=ts, windows=windows, centre=False)[:, ii, :][:, :, ii]
+        Sigma = relatedness_matrix(ts=ts, windows=windows, centre=False)[:, ii, :][
+            :, :, ii
+        ]
     else:
         assert time_windows[0] < time_windows[1]
         ts_low, ts_high = (
             ts.decapitate(time_windows[0]),
-            ts.decapitate(time_windows[1])
+            ts.decapitate(time_windows[1]),
         )
-        Sigma_low = relatedness_matrix(ts=ts_low, windows=windows, centre=False)[:, ii, :][:, :, ii]
-        Sigma_high = relatedness_matrix(ts=ts_high, windows=windows, centre=False)[:, ii, :][:, :, ii]
+        Sigma_low = relatedness_matrix(ts=ts_low, windows=windows, centre=False)[
+            :, ii, :
+        ][:, :, ii]
+        Sigma_high = relatedness_matrix(ts=ts_high, windows=windows, centre=False)[
+            :, ii, :
+        ][:, :, ii]
         Sigma = Sigma_high - Sigma_low
     if individuals is not None:
         ni = len(individuals)
@@ -775,7 +782,8 @@ def pca(ts, windows, centre, samples=None, individuals=None, time_windows=None):
     if drop_dimension:
         U = U[0]
         S = S[0]
-    return U, S   
+    return U, S
+
 
 def allclose_up_to_sign(x, y, **kwargs):
     # check if two vectors are the same up to sign
@@ -1105,17 +1113,14 @@ class TestPCA:
             random_seed=12345,
         )
         samples = [3, 0, 2, 5, 6, 15, 12, 17, 7, 9, 11]
-        time_low, time_high = (
-            ts.nodes_time.max() / 4, 
-            ts.nodes_time.max() / 2
-        )
+        time_low, time_high = (ts.nodes_time.max() / 4, ts.nodes_time.max() / 2)
         self.verify_pca(
             ts,
             num_windows=num_windows,
             num_components=5,
             centre=centre,
             samples=samples,
-            time_windows=[time_low,time_high],
+            time_windows=[time_low, time_high],
         )
 
     @pytest.mark.parametrize("centre", (True, False))
@@ -1181,15 +1186,12 @@ class TestPCA:
             random_seed=12345,
         )
         individuals = [3, 0, 2, 5, 6, 15, 12, 11, 7, 17]
-        time_low, time_high = (
-            ts.nodes_time.max() / 4, 
-            ts.nodes_time.max() / 2
-        )
+        time_low, time_high = (ts.nodes_time.max() / 4, ts.nodes_time.max() / 2)
         self.verify_pca(
             ts,
             num_windows=num_windows,
             num_components=5,
             centre=centre,
             individuals=individuals,
-            time_windows=[time_low,time_high],
+            time_windows=[time_low, time_high],
         )
