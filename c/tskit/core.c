@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2024 Tskit Developers
+ * Copyright (c) 2019-2025 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -43,22 +43,24 @@ static int TSK_WARN_UNUSED
 get_random_bytes(uint8_t *buf)
 {
     /* Based on CPython's code in bootstrap_hash.c */
-    int ret = TSK_ERR_GENERATE_UUID;
+    int ret = 0;
     HCRYPTPROV hCryptProv = (HCRYPTPROV) NULL;
 
     if (!CryptAcquireContext(
             &hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
+        ret = tsk_trace_error(TSK_ERR_GENERATE_UUID);
         goto out;
     }
     if (!CryptGenRandom(hCryptProv, (DWORD) UUID_NUM_BYTES, buf)) {
+        ret = tsk_trace_error(TSK_ERR_GENERATE_UUID);
         goto out;
     }
     if (!CryptReleaseContext(hCryptProv, 0)) {
         hCryptProv = (HCRYPTPROV) NULL;
+        ret = tsk_trace_error(TSK_ERR_GENERATE_UUID);
         goto out;
     }
     hCryptProv = (HCRYPTPROV) NULL;
-    ret = 0;
 out:
     if (hCryptProv != (HCRYPTPROV) NULL) {
         CryptReleaseContext(hCryptProv, 0);
@@ -72,19 +74,21 @@ out:
 static int TSK_WARN_UNUSED
 get_random_bytes(uint8_t *buf)
 {
-    int ret = TSK_ERR_GENERATE_UUID;
+    int ret = 0;
     FILE *f = fopen("/dev/urandom", "r");
 
     if (f == NULL) {
+        ret = tsk_trace_error(TSK_ERR_GENERATE_UUID);
         goto out;
     }
     if (fread(buf, UUID_NUM_BYTES, 1, f) != 1) {
+        ret = tsk_trace_error(TSK_ERR_GENERATE_UUID);
         goto out;
     }
     if (fclose(f) != 0) {
+        ret = tsk_trace_error(TSK_ERR_GENERATE_UUID);
         goto out;
     }
-    ret = 0;
 out:
     return ret;
 }
@@ -111,7 +115,7 @@ tsk_generate_uuid(char *dest, int TSK_UNUSED(flags))
             buf[4], buf[5], buf[6], buf[7], buf[8], buf[9], buf[10], buf[11], buf[12],
             buf[13], buf[14], buf[15])
         < 0) {
-        ret = TSK_ERR_GENERATE_UUID;
+        ret = tsk_trace_error(TSK_ERR_GENERATE_UUID);
         goto out;
     }
 out:
@@ -764,7 +768,7 @@ tsk_blkalloc_init(tsk_blkalloc_t *self, size_t chunk_size)
 
     tsk_memset(self, 0, sizeof(tsk_blkalloc_t));
     if (chunk_size < 1) {
-        ret = TSK_ERR_BAD_PARAM_VALUE;
+        ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
         goto out;
     }
     self->chunk_size = chunk_size;
@@ -775,12 +779,12 @@ tsk_blkalloc_init(tsk_blkalloc_t *self, size_t chunk_size)
     self->num_chunks = 0;
     self->mem_chunks = malloc(sizeof(char *));
     if (self->mem_chunks == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
+        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
     self->mem_chunks[0] = malloc(chunk_size);
     if (self->mem_chunks[0] == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
+        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
     self->num_chunks = 1;
@@ -1256,7 +1260,7 @@ tsk_bit_array_init(tsk_bit_array_t *self, tsk_size_t num_bits, tsk_size_t length
                  + (num_bits % TSK_BIT_ARRAY_NUM_BITS ? 1 : 0);
     self->data = tsk_calloc(self->size * length, sizeof(*self->data));
     if (self->data == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
+        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
 out:

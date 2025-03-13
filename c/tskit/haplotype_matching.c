@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2024 Tskit Developers
+ * Copyright (c) 2019-2025 Tskit Developers
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -167,7 +167,7 @@ tsk_ls_hmm_init(tsk_ls_hmm_t *self, tsk_treeseq_t *tree_sequence,
         || self->transition_time_order == NULL || self->values == NULL
         || self->recombination_rate == NULL || self->mutation_rate == NULL
         || self->alleles == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
+        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
     for (l = 0; l < self->num_sites; l++) {
@@ -364,6 +364,8 @@ static int
 tsk_ls_hmm_get_allele_index(tsk_ls_hmm_t *self, tsk_id_t site, const char *allele_state,
     const tsk_size_t allele_length)
 {
+    /* Note we're not doing tsk_trace_error here because it would require changing
+     * the logic of the function. Could be done easily enough, though */
     int ret = TSK_ERR_ALLELE_NOT_FOUND;
     const char **alleles = self->alleles[site];
     const tsk_id_t num_alleles = (tsk_id_t) self->num_alleles[site];
@@ -710,7 +712,7 @@ tsk_ls_hmm_setup_optimal_value_sets(tsk_ls_hmm_t *self)
      * worth the bother. */
     self->num_optimal_value_set_words = (self->num_values / 64) + 1;
     if (self->num_optimal_value_set_words > self->max_parsimony_words) {
-        ret = TSK_ERR_TOO_MANY_VALUES;
+        ret = tsk_trace_error(TSK_ERR_TOO_MANY_VALUES);
         goto out;
     }
     if (self->num_values >= self->max_values) {
@@ -720,7 +722,7 @@ tsk_ls_hmm_setup_optimal_value_sets(tsk_ls_hmm_t *self)
             = tsk_calloc(self->num_nodes * self->num_optimal_value_set_words,
                 sizeof(*self->optimal_value_sets));
         if (self->optimal_value_sets == NULL) {
-            ret = TSK_ERR_NO_MEMORY;
+            ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
             goto out;
         }
     }
@@ -934,7 +936,7 @@ tsk_ls_hmm_process_site_forward(
     normalisation_factor = self->compute_normalisation_factor(self);
 
     if (normalisation_factor == 0) {
-        ret = TSK_ERR_MATCH_IMPOSSIBLE;
+        ret = tsk_trace_error(TSK_ERR_MATCH_IMPOSSIBLE);
         goto out;
     }
     for (j = 0; j < self->num_transitions; j++) {
@@ -1058,7 +1060,7 @@ tsk_ls_hmm_forward(tsk_ls_hmm_t *self, int32_t *haplotype,
         }
     } else {
         if (output->tree_sequence != self->tree_sequence) {
-            ret = TSK_ERR_BAD_PARAM_VALUE;
+            ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
             goto out;
         }
         ret = tsk_compressed_matrix_clear(output);
@@ -1183,7 +1185,7 @@ tsk_ls_hmm_run_backward(
                  * get norm values of 0 with impossible matches from the fwd
                  * matrix.
                  */
-                ret = TSK_ERR_MATCH_IMPOSSIBLE;
+                ret = tsk_trace_error(TSK_ERR_MATCH_IMPOSSIBLE);
                 goto out;
             }
             ret = tsk_ls_hmm_process_site_backward(
@@ -1216,7 +1218,7 @@ tsk_ls_hmm_backward(tsk_ls_hmm_t *self, int32_t *haplotype, const double *forwar
         }
     } else {
         if (output->tree_sequence != self->tree_sequence) {
-            ret = TSK_ERR_BAD_PARAM_VALUE;
+            ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
             goto out;
         }
         ret = tsk_compressed_matrix_clear(output);
@@ -1299,7 +1301,7 @@ tsk_ls_hmm_viterbi(tsk_ls_hmm_t *self, int32_t *haplotype, tsk_viterbi_matrix_t 
         }
     } else {
         if (output->matrix.tree_sequence != self->tree_sequence) {
-            ret = TSK_ERR_BAD_PARAM_VALUE;
+            ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
             goto out;
         }
         ret = tsk_viterbi_matrix_clear(output);
@@ -1338,7 +1340,7 @@ tsk_compressed_matrix_init(tsk_compressed_matrix_t *self, tsk_treeseq_t *tree_se
     self->values = tsk_malloc(self->num_sites * sizeof(*self->values));
     self->nodes = tsk_malloc(self->num_sites * sizeof(*self->nodes));
     if (self->num_transitions == NULL || self->values == NULL || self->nodes == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
+        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
     if (block_size == 0) {
@@ -1409,7 +1411,7 @@ tsk_compressed_matrix_store_site(tsk_compressed_matrix_t *self, tsk_id_t site,
     tsk_size_t j;
 
     if (site < 0 || site >= (tsk_id_t) self->num_sites) {
-        ret = TSK_ERR_SITE_OUT_OF_BOUNDS;
+        ret = tsk_trace_error(TSK_ERR_SITE_OUT_OF_BOUNDS);
         goto out;
     }
 
@@ -1420,7 +1422,7 @@ tsk_compressed_matrix_store_site(tsk_compressed_matrix_t *self, tsk_id_t site,
     self->values[site]
         = tsk_blkalloc_get(&self->memory, (size_t) num_transitions * sizeof(double));
     if (self->nodes[site] == NULL || self->values[site] == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
+        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
 
@@ -1450,14 +1452,14 @@ tsk_compressed_matrix_decode_site(tsk_compressed_matrix_t *self, const tsk_tree_
     for (j = 0; j < self->num_transitions[site]; j++) {
         node = self->nodes[site][j];
         if (node < 0 || node >= num_nodes) {
-            ret = TSK_ERR_NODE_OUT_OF_BOUNDS;
+            ret = tsk_trace_error(TSK_ERR_NODE_OUT_OF_BOUNDS);
             goto out;
         }
         value = self->values[site][j];
         index = list_left[node];
         if (index == TSK_NULL) {
             /* It's an error if there are nodes that don't subtend any samples */
-            ret = TSK_ERR_BAD_COMPRESSED_MATRIX_NODE;
+            ret = tsk_trace_error(TSK_ERR_BAD_COMPRESSED_MATRIX_NODE);
             goto out;
         }
         stop = list_right[node];
@@ -1530,7 +1532,7 @@ tsk_viterbi_matrix_expand_recomb_records(tsk_viterbi_matrix_t *self)
         self->recombination_required, self->max_recomb_records * sizeof(*tmp));
 
     if (tmp == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
+        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
     self->recombination_required = tmp;
@@ -1645,7 +1647,7 @@ tsk_viterbi_matrix_choose_sample(
     bool found;
 
     if (num_transitions == 0) {
-        ret = TSK_ERR_NULL_VITERBI_MATRIX;
+        ret = tsk_trace_error(TSK_ERR_NULL_VITERBI_MATRIX);
         goto out;
     }
     for (j = 0; j < num_transitions; j++) {
@@ -1699,7 +1701,7 @@ tsk_viterbi_matrix_traceback(
         goto out;
     }
     if (recombination_tree == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
+        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
     /* Initialise the path an recombination_tree to contain TSK_NULL */
