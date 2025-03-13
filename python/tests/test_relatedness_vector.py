@@ -738,8 +738,7 @@ class TestRelatednessVector:
         )
         np.testing.assert_array_almost_equal(D1, D2)
 
-
-def pca(ts, windows, centre, samples=None, individuals=None):
+def pca(ts, windows, centre, samples=None, individuals=None, time_windows=None):
     assert samples is None or individuals is None
     if samples is None:
         ii = np.arange(ts.num_samples)
@@ -749,7 +748,17 @@ def pca(ts, windows, centre, samples=None, individuals=None):
     drop_dimension = windows is None
     if drop_dimension:
         windows = [0, ts.sequence_length]
-    Sigma = relatedness_matrix(ts=ts, windows=windows, centre=False)[:, ii, :][:, :, ii]
+    if time_windows is None:
+        Sigma = relatedness_matrix(ts=ts, windows=windows, centre=False)[:, ii, :][:, :, ii]
+    else:
+        assert time_windows[0] < time_windows[1]
+        ts_low, ts_high = (
+            ts.decapitate(time_windows[0]),
+            ts.decapitate(time_windows[1])
+        )
+        Sigma_low = relatedness_matrix(ts=ts_low, windows=windows, centre=False)[:, ii, :][:, :, ii]
+        Sigma_high = relatedness_matrix(ts=ts_high, windows=windows, centre=False)[:, ii, :][:, :, ii]
+        Sigma = Sigma_high - Sigma_low
     if individuals is not None:
         ni = len(individuals)
         J = np.zeros((ts.num_samples, ni))
@@ -766,8 +775,7 @@ def pca(ts, windows, centre, samples=None, individuals=None):
     if drop_dimension:
         U = U[0]
         S = S[0]
-    return U, S
-
+    return U, S   
 
 def allclose_up_to_sign(x, y, **kwargs):
     # check if two vectors are the same up to sign
@@ -812,6 +820,7 @@ class TestPCA:
         centre,
         samples=None,
         individuals=None,
+        time_windows=None,
         **kwargs,
     ):
         assert samples is None or individuals is None
@@ -838,6 +847,7 @@ class TestPCA:
             individuals=individuals,
             num_components=num_components,
             centre=centre,
+            time_windows=time_windows,
             random_seed=1238,
             **kwargs,
         )
@@ -864,6 +874,7 @@ class TestPCA:
             centre=centre,
             samples=samples,
             individuals=individuals,
+            time_windows=time_windows,
         )
         if windows is None:
             np.testing.assert_allclose(
@@ -1093,13 +1104,18 @@ class TestPCA:
             recombination_rate=0.01,
             random_seed=12345,
         )
-        samples = [3, 0, 2, 5, 6, 15, 12]
+        samples = [3, 0, 2, 5, 6, 15, 12, 17, 7, 9, 11]
+        time_low, time_high = (
+            ts.nodes_time.max() / 4, 
+            ts.nodes_time.max() / 2
+        )
         self.verify_pca(
             ts,
             num_windows=num_windows,
             num_components=5,
             centre=centre,
             samples=samples,
+            time_windows=[time_low,time_high],
         )
 
     @pytest.mark.parametrize("centre", (True, False))
@@ -1164,11 +1180,16 @@ class TestPCA:
             recombination_rate=0.01,
             random_seed=12345,
         )
-        individuals = [3, 0, 2, 5, 6, 15, 12]
+        individuals = [3, 0, 2, 5, 6, 15, 12, 11, 7, 17]
+        time_low, time_high = (
+            ts.nodes_time.max() / 4, 
+            ts.nodes_time.max() / 2
+        )
         self.verify_pca(
             ts,
             num_windows=num_windows,
             num_components=5,
             centre=centre,
             individuals=individuals,
+            time_windows=[time_low,time_high],
         )
