@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2024 Tskit Developers
+# Copyright (c) 2018-2025 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -8640,6 +8640,331 @@ class TreeSequence:
         )
         return out
 
+    def _expand_indices(self, x: np.ndarray, indices: np.ndarray) -> np.ndarray:
+        y = np.zeros((self.num_samples, x.shape[1]))
+        y[indices] = x
+
+        return y
+
+    def _genetic_relatedness_vector_node(
+        self,
+        arr: np.ndarray,
+        indices: np.ndarray,
+        mode: str,
+        centre: bool = True,
+        windows=None,
+    ) -> np.ndarray:
+        x = arr - arr.mean(axis=0) if centre else arr
+        x = self._expand_indices(x, indices)
+        x = self.genetic_relatedness_vector(
+            W=x,
+            windows=windows,
+            mode=mode,
+            centre=False,
+            nodes=indices,
+        )[0]
+        x = x - x.mean(axis=0) if centre else x
+
+        return x
+
+    def _genetic_relatedness_vector_individual(
+        self,
+        arr: np.ndarray,
+        indices: np.ndarray,
+        mode: str,
+        centre: bool = True,
+        windows=None,
+    ) -> np.ndarray:
+        ij = np.vstack(
+            [[n, k] for k, i in enumerate(indices) for n in self.individual(i).nodes]
+        )
+        samples, sample_individuals = (
+            ij[:, 0],
+            ij[:, 1],
+        )
+        ploidy = np.bincount(sample_individuals)
+        x = arr - arr.mean(axis=0) if centre else arr
+        x = x[sample_individuals] / ploidy[sample_individuals, np.newaxis]
+        x = self._expand_indices(x, samples)
+        x = self.genetic_relatedness_vector(
+            W=x,
+            windows=windows,
+            mode=mode,
+            centre=False,
+            nodes=samples,
+        )[0]
+
+        def bincount_fn(w):
+            return np.bincount(sample_individuals, w) / ploidy
+
+        x = np.apply_along_axis(bincount_fn, axis=0, arr=x)
+        x = x - x.mean(axis=0) if centre else x  # centering within index in cols
+
+        return x
+
+    def pca(
+        self,
+        num_components: int,
+        windows: list = None,
+        samples: np.ndarray = None,
+        individuals: np.ndarray = None,
+        time_windows: np.ndarray = None,
+        mode: str = "branch",
+        centre: bool = True,
+        iterated_power: int = 20,
+        num_oversamples: int = None,
+        random_seed: int = None,
+        range_sketch: np.ndarray = None,
+    ) -> (np.ndarray, np.ndarray, np.ndarray):
+        """
+        Performs principal component analysis (PCA) for a given set of samples or
+        individuals. The principal components are the eigenvectors of the genetic
+        relatedness matrix, which are obtained by a randomized singular value
+        decomposition (rSVD) algorithm.
+
+        Concretely, if :math:`M` is the matrix of genetic relatedness values, with
+        :math:`M_{ij}` the output of
+        :meth:`genetic_relatedness <.TreeSequence.genetic_relatedness>`
+        between sample :math:`i` and sample :math:`j`, then by default this returns
+        the top `num_components` eigenvectors of :math:`M`, so that
+        `output.factor[i,k]` is the position of sample `i` on the `k`th PC.
+        If `samples` or `individuals` are provided, then this does the same thing,
+        except with :math:`M_{ij}` either the relatedness between `samples[i]`
+        and `samples[j]` or the nodes of `individuals[i]` and `individuals[j]`,
+        respectively.
+
+        The parameters `centre` and `mode` are passed to
+        :meth:`genetic_relatedness <.TreeSequence.genetic_relatedness>`;
+        if `windows` are provided then PCA is carried out separately in each window.
+        If `time_window` is provided, then genetic relatedness is measured using only
+        ancestral material within the given time window (see
+        :meth:`decapitate <.TreeSequence.decapitate>` for how this is defined).
+
+        So that the method scales to large tree sequences, the underlying method
+        relies on a randomized SVD algorithm. Larger values of `iterated_power` and
+        `num_oversamples` should produce better approximations to the true eigenvalues,
+        at the cost of greater compute times and/or memory usage. The method relies on
+        constructing `range_sketch`, a low-dimensional approximation to the range
+        of :math:`M`, so that the result of a previous call to `pca()` may be passed in.
+        To check for convergence, compare
+        `pc1 = ts.pca()` and `pc2 = ts.pca(range_sketch=pc1.range_sketch)`; the
+        difference between `pc1.factors` and `pc2.factors` provides a
+        diagnostic of the convergence of the algorithm (i.e., if they are close
+        then it has likely converged). Algorithms are based on Algorithms 8
+        and 9 in Martinsson and Tropp, https://arxiv.org/pdf/2002.01387 .
+
+        :param int num_components: Number of principal components to return.
+        :param list windows: An increasing list of breakpoints between the windows
+            to compute the statistic in (default: the entire genome).
+        :param numpy.ndarray samples: Samples to perform PCA with (default: all samples).
+        :param numpy.ndarray individuals: Individuals to perform PCA with. Cannot specify
+            both `samples` and `individuals`.
+        :param numpy.ndarray time_windows: The time interval on which to apply PCA:
+            currently, this must be either None (default, covers all time)
+            or a single interval.
+        :param str mode: A string giving the "type" of relatedness to be computed
+            (defaults to "branch"; see
+            :meth:`genetic_relatedness_vector
+            <.TreeSequence.genetic_relatedness_vector>`).
+        :param bool centre: Centre the genetic relatedness matrix.
+        :param int iterated_power: Number of power iterations of range finder.
+        :param int num_oversamples: Number of additional test vectors (default: 10).
+            Cannot specify along with range_sketch.
+        :param int random_seed: The random seed. If this is None, a random seed will
+            be automatically generated. Valid random seeds are between 1 and
+            :math:`2^32 − 1`.
+        :param numpy.ndarray range_sketch: Sketch matrix for each window. Default is
+            randomly generated; cannot specify along with num_oversamples.
+        :return: A :class:`PCAResult` object, containing estimated principal components,
+            eigenvalues, and other information:
+            the principal component loadings are in PCAResult.factors
+            and the principal values are in PCAResult.eigenvalues.
+        """
+
+        if (not isinstance(iterated_power, int)) or iterated_power < 1:
+            raise ValueError("iterated_power should be a positive integer.")
+
+        if samples is None and individuals is None:
+            samples = self.samples()
+
+        if samples is not None and individuals is not None:
+            raise ValueError("Samples and individuals cannot be used at the same time")
+        elif samples is not None:
+            output_type = "node"
+            dim = len(samples)
+        else:
+            assert individuals is not None
+            output_type = "individual"
+            dim = len(individuals)
+
+        if time_windows is None:
+            tree_sequence_low, tree_sequence_high = None, self
+        else:
+            assert (
+                time_windows[0] < time_windows[1]
+            ), "The second argument should be larger."
+            tree_sequence_low, tree_sequence_high = (
+                self.decapitate(time_windows[0]),
+                self.decapitate(time_windows[1]),
+            )
+
+        drop_windows = windows is None
+        windows = self.parse_windows(windows)
+        num_windows = len(windows) - 1
+        if num_windows < 1:
+            raise ValueError("Must have at least one window.")
+
+        if num_components > dim:
+            raise ValueError(
+                "Number of components must be less than or equal to "
+                "the number of samples (or individuals, if specified)."
+            )
+
+        if num_oversamples is not None and range_sketch is not None:
+            raise ValueError("Cannot specify both num_oversamples and range_sketch.")
+
+        if range_sketch is None:
+            if num_oversamples is None:
+                num_oversamples = min(10, dim - num_components)
+
+            rng = np.random.default_rng(random_seed)
+            range_sketch = rng.normal(
+                size=(num_windows, dim, num_components + num_oversamples)
+            )
+        else:
+            if drop_windows:
+                range_sketch = np.expand_dims(range_sketch, 0)
+            if range_sketch.shape[-1] < num_components:
+                raise ValueError(
+                    "range_sketch must have at least as many columns as num_components"
+                )
+            num_oversamples = range_sketch.shape[-1] - num_components
+
+        num_vectors = num_components + num_oversamples
+        if num_vectors > dim:
+            raise ValueError(
+                "Number of columns in range_sketch "
+                "(num_components + num_oversamples) must be less"
+                " than or equal to the number of samples"
+                " (or individuals, if specified)."
+            )
+        rs_exp_dims = (num_windows, dim, num_vectors)
+        rs_obs_dims = range_sketch.shape
+        if rs_obs_dims != rs_exp_dims:
+            if drop_windows:
+                rs_obs_dims = rs_obs_dims[1:]
+                rs_exp_dims = rs_exp_dims[1:]
+            raise ValueError(
+                "Incorrect shape of range_sketch:"
+                f" expected {rs_exp_dims}; got {rs_obs_dims}."
+            )
+
+        def _rand_pow_range_finder(
+            operator,
+            operator_dim: int,
+            rank: int,
+            depth: int,
+            num_vectors: int,
+            Q: np.ndarray,
+        ) -> np.ndarray:
+            """
+            Algorithm 9 in https://arxiv.org/pdf/2002.01387
+            """
+            assert (
+                num_vectors >= rank > 0
+            ), "num_vectors should not be smaller than rank"
+            for _ in range(depth):
+                Q = np.linalg.qr(Q).Q
+                Q = operator(Q)
+            Q = np.linalg.qr(Q).Q
+            return Q
+
+        def _rand_svd(
+            operator,
+            operator_dim: int,
+            rank: int,
+            depth: int,
+            num_vectors: int,
+            range_sketch: np.ndarray,
+        ) -> (np.ndarray, np.ndarray, np.ndarray, float):
+            """
+            Algorithm 8 in https://arxiv.org/pdf/2002.01387
+            """
+            assert num_vectors >= rank > 0
+            Q = _rand_pow_range_finder(
+                operator,
+                operator_dim,
+                rank=num_vectors,
+                depth=depth,
+                num_vectors=num_vectors,
+                Q=range_sketch,
+            )
+            C = operator(Q).T
+            U_hat, D, _ = np.linalg.svd(C, full_matrices=False)
+            U = Q @ U_hat
+
+            error_factor = np.power(
+                1 + 4 * np.sqrt(2 * operator_dim / max(1, (rank - 1))),
+                1 / (2 * depth + 1),
+            )
+            error_bound = D[-1] * (1 + error_factor)
+            return U[:, :rank], D[:rank], Q, error_bound
+
+        _f_high = (
+            tree_sequence_high._genetic_relatedness_vector_node
+            if output_type == "node"
+            else tree_sequence_high._genetic_relatedness_vector_individual
+        )
+        if time_windows is not None:
+            _f_low = (
+                tree_sequence_low._genetic_relatedness_vector_node
+                if output_type == "node"
+                else tree_sequence_low._genetic_relatedness_vector_individual
+            )
+        indices = samples if output_type == "node" else individuals
+
+        U = np.empty((num_windows, dim, num_components))
+        D = np.empty((num_windows, num_components))
+        Q = np.empty((num_windows, dim, num_vectors))
+        E = np.empty(num_windows)
+        for i in range(num_windows):
+
+            def _G(x, i=i):
+                high = _f_high(
+                    arr=x,
+                    indices=indices,
+                    mode=mode,
+                    centre=centre,
+                    windows=windows[i : i + 2],
+                )
+                if time_windows is None:
+                    return high
+                else:
+                    low = _f_low(
+                        arr=x,
+                        indices=indices,
+                        mode=mode,
+                        centre=centre,
+                        windows=windows[i : i + 2],
+                    )
+                    return high - low
+
+            U[i], D[i], Q[i], E[i] = _rand_svd(
+                operator=_G,
+                operator_dim=dim,
+                rank=num_components,
+                depth=iterated_power,
+                num_vectors=num_vectors,
+                range_sketch=range_sketch[i],
+            )
+
+        if drop_windows:
+            U, D, Q, E = U[0], D[0], Q[0], E[0]
+
+        pca_result = PCAResult(factors=U, eigenvalues=D, range_sketch=Q, error_bound=E)
+
+        return pca_result
+
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
         """
         Computes the mean squared covariances between each of the columns of ``W``
@@ -10227,3 +10552,38 @@ def write_ms(
                         )
             else:
                 print(file=output)
+
+
+@dataclass
+class PCAResult:
+    """
+    The result of a call to TreeSequence.pca() capturing the output values
+    and algorithm convergence details.
+
+
+    """
+
+    factors: np.ndarray
+    """
+    The principal component factors (or scores).
+    Columns are orthogonal, with one entry per sample
+    or individual (see :meth:`pca <.TreeSequence.pca>`).
+    This is the same as the loadings because the GRM is symmetric.
+    """
+    eigenvalues: np.ndarray
+    """
+    Eigenvalues of the genetic relatedness matrix.
+    """
+    range_sketch: np.ndarray
+    """
+    Range sketch matrix. Can be used as an input for
+    :meth:`pca <.TreeSequence.pca>` option to further improve precision.
+    """
+    error_bound: np.ndarray
+    """
+    An estimate of the error bounds for the eigenvalues (experimental).
+    This quantifies the average reconstruction error E|G-USVt| where G is the
+    genetic relatedness matrix, U is the PC factors (scores),
+    S is the diagonal eigenvalue matrix, and V is the loadings.
+    The norm is the matrix operator norm.
+    """
