@@ -8182,13 +8182,13 @@ test_time_uncalibrated(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_treeseq_allele_frequency_spectrum(
-        &ts2, 2, sample_set_sizes, samples, 0, NULL, TSK_STAT_SITE, result);
+        &ts2, 2, sample_set_sizes, samples, 0, NULL, 0, NULL, TSK_STAT_SITE, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     ret = tsk_treeseq_allele_frequency_spectrum(
-        &ts2, 2, sample_set_sizes, samples, 0, NULL, TSK_STAT_BRANCH, result);
+        &ts2, 2, sample_set_sizes, samples, 0, NULL, 0, NULL, TSK_STAT_BRANCH, result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_TIME_UNCALIBRATED);
     ret = tsk_treeseq_allele_frequency_spectrum(&ts2, 2, sample_set_sizes, samples, 0,
-        NULL, TSK_STAT_BRANCH | TSK_STAT_ALLOW_TIME_UNCALIBRATED, result);
+        NULL, 0, NULL, TSK_STAT_BRANCH | TSK_STAT_ALLOW_TIME_UNCALIBRATED, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     sigma = tsk_calloc(tsk_treeseq_get_num_nodes(&ts2), sizeof(double));
