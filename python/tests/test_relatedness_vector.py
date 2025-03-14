@@ -1220,7 +1220,7 @@ class TestPCA:
         self.verify_error_est(
             ts,
             num_windows=num_windows,
-            num_components=5,
+            num_components=4,
             centre=centre,
             samples=samples,
             time_windows=[time_low, time_high],
