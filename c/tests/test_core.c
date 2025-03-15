@@ -532,9 +532,18 @@ test_bit_arrays(void)
     // NB: This test is only valid for the 32 bit implementation of bit arrays. If we
     //     were to change the chunk size of a bit array, we'd need to update these tests
     tsk_bit_array_t arr;
+    tsk_id_t items_truth[64] = {0}, items[64] = {0};
+    tsk_size_t n_items = 0, n_items_truth = 0;
+
+    // test item retrieval
     tsk_bit_array_init(&arr, 90, 1);
+    tsk_bit_array_get_items(&arr, items, &n_items);
+    assert_arrays_equal(n_items_truth, items, items_truth);
+
     for (tsk_bit_array_value_t i = 0; i < 20; i++) {
         tsk_bit_array_add_bit(&arr, i);
+        items_truth[n_items_truth] = (tsk_id_t) i;
+        n_items_truth++;
     }
     tsk_bit_array_add_bit(&arr, 63);
     tsk_bit_array_add_bit(&arr, 65);
@@ -547,6 +556,12 @@ test_bit_arrays(void)
     // verify our assumptions about bit array counting
     CU_ASSERT_EQUAL_FATAL(tsk_bit_array_count(&arr), 22);
 
+    tsk_bit_array_get_items(&arr, items, &n_items);
+    assert_arrays_equal(n_items_truth, items, items_truth);
+
+    tsk_memset(items, 0, 64);
+    tsk_memset(items_truth, 0, 64);
+    n_items = n_items_truth = 0;
     tsk_bit_array_free(&arr);
 
     // create a length-2 array with 64 bit capacity
@@ -560,11 +575,30 @@ test_bit_arrays(void)
     // fill the first 50 bits of the first row
     for (tsk_bit_array_value_t i = 0; i < 50; i++) {
         tsk_bit_array_add_bit(&arr_row1, i);
+        items_truth[n_items_truth] = (tsk_id_t) i;
+        n_items_truth++;
     }
+
+    tsk_bit_array_get_items(&arr_row1, items, &n_items);
+    assert_arrays_equal(n_items_truth, items, items_truth);
+
+    tsk_memset(items, 0, 64);
+    tsk_memset(items_truth, 0, 64);
+    n_items = n_items_truth = 0;
+
     // fill bits 20-40 of the second row
     for (tsk_bit_array_value_t i = 20; i < 40; i++) {
         tsk_bit_array_add_bit(&arr_row2, i);
+        items_truth[n_items_truth] = (tsk_id_t) i;
+        n_items_truth++;
     }
+
+    tsk_bit_array_get_items(&arr_row2, items, &n_items);
+    assert_arrays_equal(n_items_truth, items, items_truth);
+
+    tsk_memset(items, 0, 64);
+    tsk_memset(items_truth, 0, 64);
+    n_items = n_items_truth = 0;
 
     // verify our assumptions about row selection
     CU_ASSERT_EQUAL_FATAL(arr.data[0], 4294967295);
