@@ -8711,23 +8711,23 @@ class TreeSequence:
         time_windows: np.ndarray = None,
         mode: str = "branch",
         centre: bool = True,
-        iterated_power: int = 5,
+        num_iterations: int = 5,
         num_oversamples: int = None,
         random_seed: int = None,
         range_sketch: np.ndarray = None,
     ) -> (np.ndarray, np.ndarray, np.ndarray):
         """
         Performs principal component analysis (PCA) for a given set of samples or
-        individuals. The principal components are the eigenvectors of the genetic
-        relatedness matrix, which are obtained by a randomized singular value
-        decomposition (rSVD) algorithm.
+        individuals (default: all samples). The principal components are the
+        eigenvectors of the genetic relatedness matrix, which are obtained by a
+        randomized singular value decomposition (rSVD) algorithm.
 
         Concretely, if :math:`M` is the matrix of genetic relatedness values, with
         :math:`M_{ij}` the output of
         :meth:`genetic_relatedness <.TreeSequence.genetic_relatedness>`
         between sample :math:`i` and sample :math:`j`, then by default this returns
         the top `num_components` eigenvectors of :math:`M`, so that
-        `output.factor[i,k]` is the position of sample `i` on the `k`th PC.
+        `output.factors[i,k]` is the position of sample `i` on the `k`th PC.
         If `samples` or `individuals` are provided, then this does the same thing,
         except with :math:`M_{ij}` either the relatedness between `samples[i]`
         and `samples[j]` or the nodes of `individuals[i]` and `individuals[j]`,
@@ -8736,12 +8736,14 @@ class TreeSequence:
         The parameters `centre` and `mode` are passed to
         :meth:`genetic_relatedness <.TreeSequence.genetic_relatedness>`;
         if `windows` are provided then PCA is carried out separately in each window.
-        If `time_window` is provided, then genetic relatedness is measured using only
+        If `time_windows` is provided, then genetic relatedness is measured using only
         ancestral material within the given time window (see
         :meth:`decapitate <.TreeSequence.decapitate>` for how this is defined).
 
         So that the method scales to large tree sequences, the underlying method
-        relies on a randomized SVD algorithm. Larger values of `iterated_power` and
+        relies on a randomized SVD algorithm, using
+        :meth:`genetic_relatedness_vector <.TreeSequence.genetic_relatedness_vector>`).
+        Larger values of `num_iterations` and
         `num_oversamples` should produce better approximations to the true eigenvalues,
         at the cost of greater compute times and/or memory usage. The method relies on
         constructing `range_sketch`, a low-dimensional approximation to the range
@@ -8750,7 +8752,11 @@ class TreeSequence:
         `pc1 = ts.pca()` and `pc2 = ts.pca(range_sketch=pc1.range_sketch)`; the
         difference between `pc1.factors` and `pc2.factors` provides a
         diagnostic of the convergence of the algorithm (i.e., if they are close
-        then it has likely converged). Algorithms are based on Algorithms 8
+        then it has likely converged). Alternatively, the output value of `error_bound`
+        gives an approximate upper bound for the spectral norm of the difference
+        between :math:`M` and the projection of :math:`M` into the space spanned by
+        the columns of `range_sketch`.
+        Algorithms are based on Algorithms 8
         and 9 in Martinsson and Tropp, https://arxiv.org/pdf/2002.01387 .
 
         :param int num_components: Number of principal components to return.
@@ -8766,13 +8772,14 @@ class TreeSequence:
             (defaults to "branch"; see
             :meth:`genetic_relatedness_vector
             <.TreeSequence.genetic_relatedness_vector>`).
-        :param bool centre: Centre the genetic relatedness matrix.
-        :param int iterated_power: Number of power iterations of range finder.
+        :param bool centre: Whether to centre the genetic relatedness matrix.
+        :param int num_iterations: Number of power iterations used in the range finding
+            algorithm.
         :param int num_oversamples: Number of additional test vectors (default: 10).
             Cannot specify along with range_sketch.
         :param int random_seed: The random seed. If this is None, a random seed will
             be automatically generated. Valid random seeds are between 1 and
-            :math:`2^32 − 1`.
+            :math:`2^32 − 1`. Only used if `range_sketch` is not provided.
         :param numpy.ndarray range_sketch: Sketch matrix for each window. Default is
             randomly generated; cannot specify along with num_oversamples.
         :return: A :class:`PCAResult` object, containing estimated principal components,
@@ -8781,8 +8788,8 @@ class TreeSequence:
             and the principal values are in PCAResult.eigenvalues.
         """
 
-        if (not isinstance(iterated_power, int)) or iterated_power < 1:
-            raise ValueError("iterated_power should be a positive integer.")
+        if (not isinstance(num_iterations, int)) or num_iterations < 1:
+            raise ValueError("num_iterations should be a positive integer.")
 
         if samples is None and individuals is None:
             samples = self.samples()
@@ -8953,7 +8960,7 @@ class TreeSequence:
                 operator=_G,
                 operator_dim=dim,
                 rank=num_components,
-                depth=iterated_power,
+                depth=num_iterations,
                 num_vectors=num_vectors,
                 range_sketch=range_sketch[i],
             )

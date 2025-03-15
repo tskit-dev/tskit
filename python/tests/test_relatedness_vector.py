@@ -1010,14 +1010,14 @@ class TestPCA:
                 num_oversamples=2,
                 range_sketch=np.zeros((ts.num_samples, 4)),
             )
-        with pytest.raises(ValueError, match="iterated_power should be"):
-            ts.pca(num_components=3, iterated_power=-1)
-        with pytest.raises(ValueError, match="iterated_power should be"):
-            ts.pca(num_components=3, iterated_power=0)
-        with pytest.raises(ValueError, match="iterated_power should be"):
-            ts.pca(num_components=3, iterated_power="bac")
-        with pytest.raises(ValueError, match="iterated_power should be"):
-            ts.pca(num_components=3, iterated_power=[])
+        with pytest.raises(ValueError, match="num_iterations should be"):
+            ts.pca(num_components=3, num_iterations=-1)
+        with pytest.raises(ValueError, match="num_iterations should be"):
+            ts.pca(num_components=3, num_iterations=0)
+        with pytest.raises(ValueError, match="num_iterations should be"):
+            ts.pca(num_components=3, num_iterations="bac")
+        with pytest.raises(ValueError, match="num_iterations should be"):
+            ts.pca(num_components=3, num_iterations=[])
 
     def test_bad_range_sketch(self):
         ts = msprime.sim_ancestry(
@@ -1096,7 +1096,7 @@ class TestPCA:
         # with n=15 and the default of 5 iterations, the relative tolerance on
         # the eigenvectors is only 1e-4; so, up this:
         if n > 10:
-            kwargs["iterated_power"] = 10
+            kwargs["num_iterations"] = 10
         self.verify_pca(
             ts, num_windows=num_windows, num_components=nc, centre=centre, **kwargs
         )
@@ -1117,7 +1117,7 @@ class TestPCA:
         )
         pca_res0 = ts.pca(num_components=nc)
         pca_res1 = ts.pca(
-            num_components=nc, range_sketch=range_sketch, iterated_power=20
+            num_components=nc, range_sketch=range_sketch, num_iterations=20
         )
         assert_pcs_equal(
             pca_res0.factors,
@@ -1136,7 +1136,7 @@ class TestPCA:
             pca_res1.eigenvalues,
         )
 
-    def test_iterated_power(self):
+    def test_num_iterations(self):
         n = 10
         ploidy = 2
         ts = msprime.sim_ancestry(
@@ -1150,14 +1150,14 @@ class TestPCA:
             (n * ploidy, nc + no)
         )
         pca_res0 = ts.pca(
-            num_components=nc, range_sketch=range_sketch, iterated_power=5
+            num_components=nc, range_sketch=range_sketch, num_iterations=5
         )
         pca_res1 = ts.pca(
-            num_components=nc, range_sketch=range_sketch, iterated_power=1
+            num_components=nc, range_sketch=range_sketch, num_iterations=1
         )
         for _ in range(4):
             pca_res1 = ts.pca(
-                num_components=nc, range_sketch=pca_res1.range_sketch, iterated_power=1
+                num_components=nc, range_sketch=pca_res1.range_sketch, num_iterations=1
             )
         assert_pcs_equal(
             pca_res0.factors,
