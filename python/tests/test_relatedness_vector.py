@@ -820,6 +820,86 @@ def assert_pcs_equal(U, D, U_full, D_full, rtol=1e-5, atol=1e-8):
 
 class TestPCA:
 
+    def verify_error_est(
+        self,
+        ts,
+        num_windows,
+        num_components,
+        centre,
+        samples=None,
+        individuals=None,
+        time_windows=None,
+        **kwargs,
+    ):
+        assert samples is None or individuals is None
+        if num_windows == 0:
+            windows = None
+        elif num_windows % 2 == 0:
+            windows = np.linspace(
+                0.2 * ts.sequence_length, 0.8 * ts.sequence_length, num_windows + 1
+            )
+        else:
+            windows = np.linspace(0, ts.sequence_length, num_windows + 1)
+        if samples is not None:
+            num_rows = len(samples)
+        elif individuals is not None:
+            num_rows = len(individuals)
+        else:
+            num_rows = ts.num_samples
+        num_oversamples = kwargs.get(
+            "num_oversamples", min(num_rows - num_components, 10)
+        )
+        pca_res = ts.pca(
+            windows=windows,
+            samples=samples,
+            individuals=individuals,
+            num_components=num_components,
+            centre=centre,
+            time_windows=time_windows,
+            random_seed=1238,
+            **kwargs,
+        )
+        if windows is None:
+            assert pca_res.factors.shape == (num_rows, num_components)
+            assert pca_res.eigenvalues.shape == (num_components,)
+            assert pca_res.range_sketch.shape == (
+                num_rows,
+                num_components + num_oversamples,
+            )
+            assert pca_res.error_bound.shape == ()
+        else:
+            assert pca_res.factors.shape == (num_windows, num_rows, num_components)
+            assert pca_res.eigenvalues.shape == (num_windows, num_components)
+            assert pca_res.range_sketch.shape == (
+                num_windows,
+                num_rows,
+                num_components + num_oversamples,
+            )
+            assert pca_res.error_bound.shape == (num_windows,)
+        U, D = pca(
+            ts=ts,
+            windows=windows,
+            centre=centre,
+            samples=samples,
+            individuals=individuals,
+            time_windows=time_windows,
+        )
+        if windows is None:
+            Sigma = U @ np.diag(D) @ U.T
+            Q = pca_res.range_sketch[:, :num_components]
+            err = np.linalg.svd(Sigma - Q @ Q.T @ Sigma).S[0]
+            assert (
+                err <= pca_res.error_bound
+            ), "Realized error should be smaller than the bound."
+        else:
+            for w in range(num_windows):
+                Sigma = U[w] @ np.diag(D[w]) @ U[w].T
+                Q = pca_res.range_sketch[w, :, :num_components]
+                err = np.linalg.svd(Sigma - Q @ Q.T @ Sigma).S[0]
+                assert (
+                    err <= pca_res.error_bound[w]
+                ), "Realized error should be smaller than the bound."
+
     def verify_pca(
         self,
         ts,
@@ -1124,6 +1204,29 @@ class TestPCA:
         )
 
     @pytest.mark.parametrize("centre", (True, False))
+    @pytest.mark.parametrize("num_windows", (0, 2))
+    def test_err_samples(self, centre, num_windows):
+        ploidy = 2
+        ts = msprime.sim_ancestry(
+            20,
+            ploidy=ploidy,
+            population_size=20,
+            sequence_length=100,
+            recombination_rate=0.01,
+            random_seed=12345,
+        )
+        samples = [3, 0, 2, 5, 6, 15, 12, 17, 7, 9, 11]
+        time_low, time_high = (ts.nodes_time.max() / 4, ts.nodes_time.max() / 2)
+        self.verify_error_est(
+            ts,
+            num_windows=num_windows,
+            num_components=4,
+            centre=centre,
+            samples=samples,
+            time_windows=[time_low, time_high],
+        )
+
+    @pytest.mark.parametrize("centre", (True, False))
     def test_individuals_matches_samples(self, centre):
         # ploidy 1 individuals should be the same as samples
         ploidy = 1
@@ -1188,6 +1291,29 @@ class TestPCA:
         individuals = [3, 0, 2, 5, 6, 15, 12, 11, 7, 17]
         time_low, time_high = (ts.nodes_time.max() / 4, ts.nodes_time.max() / 2)
         self.verify_pca(
+            ts,
+            num_windows=num_windows,
+            num_components=5,
+            centre=centre,
+            individuals=individuals,
+            time_windows=[time_low, time_high],
+        )
+
+    @pytest.mark.parametrize("centre", (True, False))
+    @pytest.mark.parametrize("num_windows", (0, 2))
+    @pytest.mark.parametrize("ploidy", (1, 2, 3))
+    def test_err_individuals(self, centre, num_windows, ploidy):
+        ts = msprime.sim_ancestry(
+            20,
+            ploidy=ploidy,
+            population_size=20,
+            sequence_length=100,
+            recombination_rate=0.01,
+            random_seed=12345,
+        )
+        individuals = [3, 0, 2, 5, 6, 15, 12, 11, 7, 17]
+        time_low, time_high = (ts.nodes_time.max() / 4, ts.nodes_time.max() / 2)
+        self.verify_error_est(
             ts,
             num_windows=num_windows,
             num_components=5,

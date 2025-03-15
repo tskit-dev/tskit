@@ -8711,7 +8711,7 @@ class TreeSequence:
         time_windows: np.ndarray = None,
         mode: str = "branch",
         centre: bool = True,
-        iterated_power: int = 20,
+        iterated_power: int = 5,
         num_oversamples: int = None,
         random_seed: int = None,
         range_sketch: np.ndarray = None,
@@ -8907,7 +8907,7 @@ class TreeSequence:
                 1 + 4 * np.sqrt(2 * operator_dim / max(1, (rank - 1))),
                 1 / (2 * depth + 1),
             )
-            error_bound = D[-1] * (1 + error_factor)
+            error_bound = D[rank] * (1 + error_factor)
             return U[:, :rank], D[:rank], Q, error_bound
 
         _f_high = (
