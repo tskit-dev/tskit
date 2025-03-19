@@ -21,6 +21,10 @@
 - Add support for fixed-length arrays in metadata struct codec using the ``length`` property.
   (:user:`benjeffery`, :issue:`3088`,:pr:`3090`)
 
+- Add a new ``TreeSequence.pca`` method that uses randomized linear algebra
+  to find the top eigenvectors/values of the genetic relatedness matrix
+  (:user:`hanbin973`, :user:`petrelharp`, :pr:`3008`)
+
 --------------------
 [0.6.0] - 2024-10-16
 --------------------
