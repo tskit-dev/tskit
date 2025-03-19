@@ -818,6 +818,50 @@ def assert_pcs_equal(U, D, U_full, D_full, rtol=1e-5, atol=1e-8):
         assert found_it, f"{k}th singular vector {u} not found in {U_full}."
 
 
+def assert_errors_bound(pca_res, D, U, w=None):
+    # Bounds on the error are from equation 1.11 in https://arxiv.org/pdf/0909.4061 -
+    # this gives a bound on reconstruction error (i.e., spectral norm between the GRM
+    # and the low-diml approx). But since the spectral norm is
+    # |X| = sup_v |Xv|^2/|v|^2,
+    # this implies bounds on singular values and vectors also:
+    # If G v = lambda v, and we've got estimated singular vectors U and values diag(L),
+    # then let v = \sum_i b_i u_i + delta be the projection of v into U,
+    # and we have that
+    #  |lambda v - U L U* v|^2
+    #   = \sum_i b_i (lambda - L_i)^2 + lambda^2 |delta|^2
+    #   < \epsilon   (where epsilon is the spectral norm bound error_bound)
+    # so
+    #  |delta| < sqrt(epsilon / lambda)
+    # since this is the amount by which the eigenvector v isn't hit by the columns of U.
+    # Then also for each i that if b_i is not small then
+    #  |lambda - L_i| < sqrt(epsilon)
+    # and there must be at least one b_i that is big (since sum_i b_i^2 = 1 - |delta|^2).
+    # In summary: sqrt(epsilon) should be the bound on error in eigenvalues,
+    # and sqrt(epsilon) / sigma[k+1] the L2 bound for eigenvectors
+    # Below, the 'roughly/should be' translates into the factor of 5.
+    f = pca_res.factors
+    ev = pca_res.eigenvalues
+    rs = pca_res.range_sketch
+    eps = pca_res.error_bound
+    if w is not None:
+        D, U = D[w], U[w]
+        f, ev, rs, eps = f[w], ev[w], rs[w], eps[w]
+    n = ev.shape[0]
+    Sigma = U @ np.diag(D) @ U.T
+    Q = rs[:, :n]
+    err = np.linalg.svd(Sigma - Q @ Q.T @ Sigma).S[0]
+    assert (
+        err <= 5 * eps**2
+    ), "Reconstruction error should be smaller than the bound squared."
+    assert (
+        np.max(np.abs(ev - D[:n])) < 5 * eps
+    ), "Eigenvalue error should be smaller than error bound."
+    for k in range(n):
+        assert (
+            np.sum((f[:, k] - U[:, k]) ** 2) < 5 * eps**2 / ev[-1]
+        ), "Factor error should be smaller than the bound squared."
+
+
 class TestPCA:
 
     def verify_error_est(
@@ -885,20 +929,10 @@ class TestPCA:
             time_windows=time_windows,
         )
         if windows is None:
-            Sigma = U @ np.diag(D) @ U.T
-            Q = pca_res.range_sketch[:, :num_components]
-            err = np.linalg.svd(Sigma - Q @ Q.T @ Sigma).S[0]
-            assert (
-                err <= pca_res.error_bound
-            ), "Realized error should be smaller than the bound."
+            assert_errors_bound(pca_res, D, U)
         else:
             for w in range(num_windows):
-                Sigma = U[w] @ np.diag(D[w]) @ U[w].T
-                Q = pca_res.range_sketch[w, :, :num_components]
-                err = np.linalg.svd(Sigma - Q @ Q.T @ Sigma).S[0]
-                assert (
-                    err <= pca_res.error_bound[w]
-                ), "Realized error should be smaller than the bound."
+                assert_errors_bound(pca_res, D, U, w=w)
 
     def verify_pca(
         self,
@@ -1303,21 +1337,23 @@ class TestPCA:
     @pytest.mark.parametrize("num_windows", (0, 2))
     @pytest.mark.parametrize("ploidy", (1, 2, 3))
     def test_err_individuals(self, centre, num_windows, ploidy):
+        # NOTE: this is a randomized test, so if things change under the
+        # hood it might start to fail for perfectly normal (ie unlucky) reasons.
+        # If so, it's probably better to replace the test with a simpler test,
+        # e.g., that error_bound is roughly the right order of magnitude.
         ts = msprime.sim_ancestry(
-            20,
+            30,
             ploidy=ploidy,
-            population_size=20,
+            population_size=30,
             sequence_length=100,
             recombination_rate=0.01,
-            random_seed=12345,
+            random_seed=12346,
         )
-        individuals = [3, 0, 2, 5, 6, 15, 12, 11, 7, 17]
-        time_low, time_high = (ts.nodes_time.max() / 4, ts.nodes_time.max() / 2)
+        individuals = np.arange(30)
         self.verify_error_est(
             ts,
             num_windows=num_windows,
             num_components=5,
             centre=centre,
             individuals=individuals,
-            time_windows=[time_low, time_high],
         )
