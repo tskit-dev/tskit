@@ -8914,7 +8914,7 @@ class TreeSequence:
                 1 + 4 * np.sqrt(2 * operator_dim / max(1, (rank - 1))),
                 1 / (2 * depth + 1),
             )
-            error_bound = np.sqrt(D[rank] * (1 + error_factor))  # note sqrt!
+            error_bound = D[rank] * (1 + error_factor)
             return U[:, :rank], D[:rank], Q, error_bound
 
         _f_high = (
@@ -10592,7 +10592,7 @@ class PCAResult:
     Eigenvalues should be correct to within (roughly) this additive factor,
     and factors should be correct to within (roughly) this factor divided by the
     next-largest eigenvalue in the Euclidean norm. These estimates are obtained from
-    a bound on the square root of the expected spectral norm between the true
-    GRM and its low-dimensional approximation, from equation 1.11 in
+    a bound on the expected L2 operator norm between the true GRM and its
+    low-dimensional approximation, from equation 1.11 in
     https://arxiv.org/pdf/0909.4061 .
     """

@@ -820,25 +820,32 @@ def assert_pcs_equal(U, D, U_full, D_full, rtol=1e-5, atol=1e-8):
 
 def assert_errors_bound(pca_res, D, U, w=None):
     # Bounds on the error are from equation 1.11 in https://arxiv.org/pdf/0909.4061 -
-    # this gives a bound on reconstruction error (i.e., spectral norm between the GRM
-    # and the low-diml approx). But since the spectral norm is
-    # |X| = sup_v |Xv|^2/|v|^2,
+    # this gives a bound on reconstruction error (i.e., operator norm between the GRM
+    # and the low-diml approx). But since the (L2) operator norm is
+    # |X| = sup_v |Xv|/|v|,
     # this implies bounds on singular values and vectors also:
     # If G v = lambda v, and we've got estimated singular vectors U and values diag(L),
     # then let v = \sum_i b_i u_i + delta be the projection of v into U,
     # and we have that
     #  |lambda v - U L U* v|^2
-    #   = \sum_i b_i (lambda - L_i)^2 + lambda^2 |delta|^2
-    #   < \epsilon   (where epsilon is the spectral norm bound error_bound)
+    #   = \sum_i b_i^2 (lambda - L_i)^2 + lambda^2 |delta|^2
+    #   < \epsilon^2   (where epsilon is the spectral norm bound error_bound)
     # so
-    #  |delta| < sqrt(epsilon / lambda)
+    #  |delta| < epsilon / lambda
     # since this is the amount by which the eigenvector v isn't hit by the columns of U.
     # Then also for each i that if b_i is not small then
-    #  |lambda - L_i| < sqrt(epsilon)
+    #  |lambda - L_i| < epsilon
     # and there must be at least one b_i that is big (since sum_i b_i^2 = 1 - |delta|^2).
-    # In summary: sqrt(epsilon) should be the bound on error in eigenvalues,
-    # and sqrt(epsilon) / sigma[k+1] the L2 bound for eigenvectors
+    # More concretely, let m = min_i |lambda - L_i|^2,
+    # so that
+    #  epsilon > \sum_i (lambda - L_i)^2 b_i^2 + lambda^2 |delta|^2
+    #   >= m * \sum_i b_i^2 + lambda^2 |delta|^2
+    #   = m * (1-|delta|^2) + lambda^2 |delta|^2.
+    # Hence, min_i |lambda-L_i|^2 = m < (epsilon - lambda^2  |delta|^2) / (1- |delta|^2).
+    # In summary: epsilon should be the bound on error in eigenvalues,
+    # and epsilon / sigma[k+1] the L2 bound for eigenvectors
     # Below, the 'roughly/should be' translates into the factor of 5.
+
     f = pca_res.factors
     ev = pca_res.eigenvalues
     rs = pca_res.range_sketch
@@ -1350,10 +1357,12 @@ class TestPCA:
             random_seed=12346,
         )
         individuals = np.arange(30)
+        time_low, time_high = (ts.nodes_time.max() / 4, ts.nodes_time.max() / 2)
         self.verify_error_est(
             ts,
             num_windows=num_windows,
             num_components=5,
             centre=centre,
             individuals=individuals,
+            time_windows=[time_low, time_high],
         )
