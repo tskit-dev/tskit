@@ -10588,9 +10588,11 @@ class PCAResult:
     """
     error_bound: np.ndarray
     """
-    An estimate of the error bounds for the eigenvalues (experimental).
-    This quantifies the average reconstruction error E|G-USVt| where G is the
-    genetic relatedness matrix, U is the PC factors (scores),
-    S is the diagonal eigenvalue matrix, and V is the loadings.
-    The norm is the matrix operator norm.
+    An estimate of the error resulting from the randomized algorithm (experimental).
+    Eigenvalues should be correct to within (roughly) this additive factor,
+    and factors should be correct to within (roughly) this factor divided by the
+    next-largest eigenvalue in the Euclidean norm. These estimates are obtained from
+    a bound on the expected L2 operator norm between the true GRM and its
+    low-dimensional approximation, from equation 1.11 in
+    https://arxiv.org/pdf/0909.4061 .
     """
