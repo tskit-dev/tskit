@@ -28,6 +28,8 @@
 - Add methods on `TreeSequence` to efficiently get table metadata as a
   numpy structured array. (:user:`benjeffery`, :pr:`3098`)
 
+- Add Python 3.13 support (:user:`benjeffery`, :pr:`3107`)
+
 --------------------
 [0.6.0] - 2024-10-16
 --------------------

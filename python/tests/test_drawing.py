@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2024 Tskit Developers
+# Copyright (c) 2018-2025 Tskit Developers
 # Copyright (C) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -2236,7 +2236,7 @@ class TestDrawSvg(TestDrawSvgBase):
                 y_ticks={upper + 100: "above", upper / 3: "inside"},
             )
             assert (
-                f"Ticks {{{upper+100}: 'above'}} lie outside the plotted axis"
+                f"Ticks {{{upper + 100}: 'above'}} lie outside the plotted axis"
                 in caplog.text
             )
         with caplog.at_level(logging.WARNING):
@@ -2255,7 +2255,7 @@ class TestDrawSvg(TestDrawSvgBase):
         # Squares have 'height="sz" width="sz"'
         assert svg_no_css.count(f'"{sz}"') == tree.num_samples() * 2
         # Circles define a radius like 'r="sz/2"'
-        assert svg_no_css.count(f'r="{sz/2:g}"') == num_nodes - tree.num_samples()
+        assert svg_no_css.count(f'r="{sz / 2:g}"') == num_nodes - tree.num_samples()
         # Mutations draw a line on the cross using 'l sz,sz'
         assert svg_no_css.count(f"l {sz},{sz} ") == num_mutations
 
