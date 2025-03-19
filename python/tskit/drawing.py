@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2024 Tskit Developers
+# Copyright (c) 2018-2025 Tskit Developers
 # Copyright (c) 2015-2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -1913,7 +1913,7 @@ class SvgTree(SvgAxisPlot):
             # Adding mutations and sites above this node allows identification
             # of the tree under any specific mutation
             classes.add(f"m{mutation.id + self.offsets.mutation}")
-            classes.add(f"s{mutation.site+ self.offsets.site}")
+            classes.add(f"s{mutation.site + self.offsets.site}")
         return sorted(classes)
 
     def text_transform(self, position, dy=0):
@@ -2038,7 +2038,7 @@ class SvgTree(SvgAxisPlot):
                 dy = self.timescaling.transform(mutation.time) - pu[1]
                 mutation_id = mutation.id + self.offsets.mutation
                 mutation_class = (
-                    f"mut m{mutation_id} " f"s{mutation.site+ self.offsets.site}"
+                    f"mut m{mutation_id} " f"s{mutation.site + self.offsets.site}"
                 )
                 # Use the real mutation ID here, since we are referencing into the ts
                 if util.is_unknown_time(self.ts.mutation(mutation.id).time):

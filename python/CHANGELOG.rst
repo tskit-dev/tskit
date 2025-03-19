@@ -25,6 +25,8 @@
   to find the top eigenvectors/values of the genetic relatedness matrix
   (:user:`hanbin973`, :user:`petrelharp`, :pr:`3008`)
 
+- Add Python 3.13 support (:user:`benjeffery`, :pr:`3107`)
+
 --------------------
 [0.6.0] - 2024-10-16
 --------------------

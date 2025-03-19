@@ -7,4 +7,5 @@ jsonschema
 svgwrite
 msprime
 PyYAML
-numpy<2
+build
+setuptools
