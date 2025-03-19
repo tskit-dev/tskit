@@ -28,7 +28,7 @@ pytest
 pytest-cov
 pytest-xdist
 si-prefix
-sphinx==7.4.7
+sphinx==8.2.3
 sphinx-argparse
 sphinx-autodoc-typehints>=1.18.3
 sphinx-issues
