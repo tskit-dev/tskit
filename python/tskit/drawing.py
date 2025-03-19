@@ -58,6 +58,7 @@ OMIT_MIDDLE = 8
 @dataclass
 class Offsets:
     "Used when x_lim set, and displayed ts has been cut down by keep_intervals"
+
     tree: int = 0
     site: int = 0
     mutation: int = 0
@@ -66,6 +67,7 @@ class Offsets:
 @dataclass(frozen=True)
 class Timescaling:
     "Class used to transform the time axis"
+
     max_time: float
     min_time: float
     plot_min: float
