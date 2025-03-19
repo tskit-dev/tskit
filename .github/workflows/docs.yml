@@ -30,13 +30,13 @@ jobs:
       - uses: actions/checkout@v4.2.2
 
       - name: Setup Conda
-        uses: conda-incubator/setup-miniconda@v3.1.0
+        uses: conda-incubator/setup-miniconda@v3.1.1
         with:
           miniforge-version: latest
           activate-environment: tskit-docs-env
           
       - name: Cache Conda env
-        uses: actions/cache@v4.2.0
+        uses: actions/cache@v4.2.2
         with:
           path: ${{ env.CONDA }}/envs
           key: conda-${{ runner.os }}--${{ runner.arch }}--${{ hashFiles(env.REQUIREMENTS) }}-${{ env.CACHE_NUMBER }}
