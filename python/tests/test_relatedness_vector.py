@@ -838,11 +838,12 @@ def assert_errors_bound(pca_res, D, U, w=None):
     # and there must be at least one b_i that is big (since sum_i b_i^2 = 1 - |delta|^2).
     # More concretely, let m = min_i |lambda - L_i|^2,
     # so that
-    #  epsilon > \sum_i (lambda - L_i)^2 b_i^2 + lambda^2 |delta|^2
+    #  epsilon^2 > \sum_i (lambda - L_i)^2 b_i^2 + lambda^2 |delta|^2
     #   >= m * \sum_i b_i^2 + lambda^2 |delta|^2
     #   = m * (1-|delta|^2) + lambda^2 |delta|^2.
-    # Hence, min_i |lambda-L_i|^2 = m < (epsilon - lambda^2  |delta|^2) / (1- |delta|^2).
-    # In summary: epsilon should be the bound on error in eigenvalues,
+    # Hence,
+    # min_i |lambda-L_i|^2 = m < (epsilon^2 - lambda^2  |delta|^2) / (1- |delta|^2).
+    # In summary: roughly, epsilon should be the bound on error in eigenvalues,
     # and epsilon / sigma[k+1] the L2 bound for eigenvectors
     # Below, the 'roughly/should be' translates into the factor of 5.
 
