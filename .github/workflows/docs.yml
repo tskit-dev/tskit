@@ -46,7 +46,7 @@ jobs:
 
       - name: Update environment
         run: |
-          mamba install -y python=3.10 doxygen=1.12.0 pip
+          mamba install -y python=3.12 doxygen=1.12.0 pip
           pip install -r ${{ env.REQUIREMENTS }}
         if: steps.cache.outputs.cache-hit != 'true'
 

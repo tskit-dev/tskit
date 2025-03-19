@@ -177,8 +177,8 @@ def generate_report(all_versions_results):
                             percent_change = 100 * ((avg - last_avg) / last_avg)
                             col = cmap(int(((percent_change / 100) * 128) + 128))
                             f.write(
-                                f"<td style='background-color: rgba({col[0]*255},"
-                                f" {col[1]*255}, {col[2]*255}, 1)'>"
+                                f"<td style='background-color: rgba({col[0] * 255},"
+                                f" {col[1] * 255}, {col[2] * 255}, 1)'>"
                             )
 
                             f.write(f"{si_format(avg)} ({percent_change:.1f}%)")

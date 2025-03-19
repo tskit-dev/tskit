@@ -6,4 +6,5 @@ si-prefix
 jsonschema
 msprime
 PyYAML
-numpy<2
+build
+setuptools
