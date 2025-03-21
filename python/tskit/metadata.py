@@ -787,6 +787,7 @@ class MetadataSchema:
             self.encode_row = NOOPCodec({}).encode
             self.decode_row = NOOPCodec({}).decode
             self.empty_value = b""
+            self.codec_instance = NOOPCodec({})
         else:
             try:
                 TSKITMetadataSchemaValidator.check_schema(schema)
