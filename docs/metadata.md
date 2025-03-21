@@ -657,9 +657,73 @@ Metadata processing can be disabled and raw bytes stored/retrieved. See
 
 ## Structured array metadata
 
-:::{todo}
-Add documentation for the structured array metadata format which provides a way to efficiently store and access structured data in metadata fields for compatible struct codecs.
-:::
+If the `struct` codec is used for metadata then the metadata can be very efficiently
+accessed via a `numpy` [structured array](https://numpy.org/doc/stable/user/basics.rec.html) via the `ts.X_metadata` property, e.g. {meth}`TreeSequence.individuals_metadata`. The codec must meet the following requirements for this to work:
+
+1. The metadata for a given object must be of a fixed size. This means that
+   variable length arrays are not permitted, such that the `length` property
+   must be set for all arrays.
+
+2. Each object for a given table must be present, i.e. at the top-level
+   the metadata must be an `object` and not a union of `object` and `null`.
+
+3. Strings must use the `s` format character, as the `p` pascal string format
+   is not supported by `numpy`.
+
+As an example, let's make a tree sequence with a large amount of metadata:
+
+```{code-cell} ipython3
+import msprime
+import tskit
+import itertools
+import time
+
+ts = msprime.sim_ancestry(1000, recombination_rate=1, sequence_length=1000)
+ts = msprime.sim_mutations(ts, rate=20)
+tables = ts.dump_tables()
+muts = tables.mutations.copy()
+tables.mutations.clear()
+schema = tskit.MetadataSchema({
+             "codec": "struct",
+             "type": "object",
+             "properties": {
+                 "id": {"type": "integer", "binaryFormat": "i"},
+                 "name": {"type": "string", "binaryFormat": "15s"},
+                 },
+             },
+)
+tables.mutations.metadata_schema = schema
+for i, m in enumerate(muts):
+             tables.mutations.append(m.replace(metadata={
+                 "id":i,
+                 "name":f"name_{i}"
+             }))
+ts = tables.tree_sequence()
+print(f"Tree sequence with {ts.num_mutations} mutations")
+```
+
+Accessing the metadata row-by-row is slow:
+
+```{code-cell} ipython3
+%timeit [m.metadata for m in ts.mutations()]
+```
+
+But accessing via the structured array is fast:
+
+```{code-cell} ipython3
+%timeit md = ts.mutations_metadata
+```
+
+Arrays of a specific key are easily accessed by item.It is also trivial to create a pandas dataframe from the metadata:
+
+```{code-cell} ipython3
+print(ts.mutations_metadata["id"][:5])
+
+import pandas as pd
+df = pd.DataFrame(ts.mutations_metadata)
+print(df.head())
+```
+
 
 (sec_metadata_schema_schema)=
 

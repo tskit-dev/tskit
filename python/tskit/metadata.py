@@ -755,7 +755,6 @@ class StructCodec(AbstractMetadataCodec):
 
                 return dtype_str
 
-        print(self)
         dtype_spec = _process_schema_node(schema)
         return np.dtype(dtype_spec)
 
