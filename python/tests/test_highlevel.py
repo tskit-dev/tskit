@@ -5485,3 +5485,9 @@ class TestStructuredNumpyMetadata:
             assert row["name"] == b"name"
             assert row["value"] == 1.0
             assert row["active"]
+
+    @pytest.mark.parametrize("table_name", metadata_tables)
+    def test_error_if_no_schema(self, table_name):
+        ts = msprime.simulate(10)
+        with pytest.raises(NotImplementedError):
+            getattr(ts, f"{table_name}_metadata")
