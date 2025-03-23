@@ -8823,36 +8823,38 @@ class TreeSequence:
         :math:`M_{ij}` the output of
         :meth:`genetic_relatedness <.TreeSequence.genetic_relatedness>`
         between sample :math:`i` and sample :math:`j`, then by default this returns
-        the top `num_components` eigenvectors of :math:`M`, so that
-        `output.factors[i,k]` is the position of sample `i` on the `k`th PC.
-        If `samples` or `individuals` are provided, then this does the same thing,
-        except with :math:`M_{ij}` either the relatedness between `samples[i]`
-        and `samples[j]` or the nodes of `individuals[i]` and `individuals[j]`,
+        the top ``num_components`` eigenvectors of :math:`M`, so that
+        ``output.factors[i,k]`` is the position of sample `i` on the `k` th PC.
+        If ``samples`` or ``individuals`` are provided, then this does the same thing,
+        except with :math:`M_{ij}` either the relatedness between ``samples[i]``
+        and ``samples[j]`` or the nodes of ``individuals[i]`` and ``individuals[j]``,
         respectively.
 
-        The parameters `centre` and `mode` are passed to
+        The parameters ``centre`` and ``mode`` are passed to
         :meth:`genetic_relatedness <.TreeSequence.genetic_relatedness>`;
-        if `windows` are provided then PCA is carried out separately in each window.
-        If `time_windows` is provided, then genetic relatedness is measured using only
+        if ``windows`` are provided then PCA is carried out separately in each window.
+        If ``time_windows`` is provided, then genetic relatedness is measured using only
         ancestral material within the given time window (see
         :meth:`decapitate <.TreeSequence.decapitate>` for how this is defined).
 
         So that the method scales to large tree sequences, the underlying method
         relies on a randomized SVD algorithm, using
         :meth:`genetic_relatedness_vector <.TreeSequence.genetic_relatedness_vector>`).
-        Larger values of `num_iterations` and
-        `num_oversamples` should produce better approximations to the true eigenvalues,
+        Larger values of ``num_iterations`` and
+        ``num_oversamples`` should produce better approximations to the true eigenvalues,
         at the cost of greater compute times and/or memory usage. The method relies on
-        constructing `range_sketch`, a low-dimensional approximation to the range
-        of :math:`M`, so that the result of a previous call to `pca()` may be passed in.
+        constructing ``range_sketch``, a low-dimensional approximation to the range
+        of :math:`M`, so that the result of a previous call to ``pca()`` may be passed
+        in.
+
         To check for convergence, compare
-        `pc1 = ts.pca()` and `pc2 = ts.pca(range_sketch=pc1.range_sketch)`; the
-        difference between `pc1.factors` and `pc2.factors` provides a
+        ``pc1 = ts.pca()`` and ``pc2 = ts.pca(range_sketch=pc1.range_sketch)``; the
+        difference between ``pc1.factors`` and ``pc2.factors`` provides a
         diagnostic of the convergence of the algorithm (i.e., if they are close
-        then it has likely converged). Alternatively, the output value of `error_bound`
+        then it has likely converged). Alternatively, the output value of ``error_bound``
         gives an approximate upper bound for the spectral norm of the difference
         between :math:`M` and the projection of :math:`M` into the space spanned by
-        the columns of `range_sketch`.
+        the columns of ``range_sketch``.
         Algorithms are based on Algorithms 8
         and 9 in Martinsson and Tropp, https://arxiv.org/pdf/2002.01387 .
 
@@ -8861,7 +8863,7 @@ class TreeSequence:
             to compute the statistic in (default: the entire genome).
         :param numpy.ndarray samples: Samples to perform PCA with (default: all samples).
         :param numpy.ndarray individuals: Individuals to perform PCA with. Cannot specify
-            both `samples` and `individuals`.
+            both ``samples`` and ``individuals``.
         :param numpy.ndarray time_windows: The time interval on which to apply PCA:
             currently, this must be either None (default, covers all time)
             or a single interval.
