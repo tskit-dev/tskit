@@ -35,5 +35,4 @@ sphinx-issues
 tqdm
 sphinx-book-theme
 tszip
-svgwrite>=1.1.10
 xmlunittest
