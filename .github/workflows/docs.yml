@@ -41,7 +41,7 @@ jobs:
           path: ${{ env.CONDA }}/envs
           key: conda-${{ runner.os }}--${{ runner.arch }}--${{ hashFiles(env.REQUIREMENTS) }}-${{ env.CACHE_NUMBER }}
         env:
-          CACHE_NUMBER: 0
+          CACHE_NUMBER: 1
         id: cache
 
       - name: Update environment
