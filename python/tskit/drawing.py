@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2024 Tskit Developers
+# Copyright (c) 2018-2025 Tskit Developers
 # Copyright (c) 2015-2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -30,13 +30,13 @@ import math
 import numbers
 import operator
 import warnings
+import xml
 from dataclasses import dataclass
 from typing import List
 from typing import Mapping
 from typing import Union
 
 import numpy as np
-import svgwrite
 
 import tskit
 import tskit.util as util
@@ -53,6 +53,186 @@ OMIT = 1
 LEFT_CLIP = 2
 RIGHT_CLIP = 4
 OMIT_MIDDLE = 8
+
+
+# Minimal SVG generation module to replace svgwrite for tskit visualization.
+# This implementation provides only the functionality needed for the visualization
+# code while maintaining the same API as svgwrite.
+
+
+class Element:
+    def __init__(self, tag, **kwargs):
+        self.tag = tag
+        self.attrs = {}
+        self.children = []
+
+        # Process kwargs in alphabetical order
+        for key in sorted(kwargs.keys()):
+            value = kwargs[key]
+            # Handle class_ special case for class attribute
+            if key.endswith("_"):
+                key = key[:-1]
+            key = key.replace("_", "-")
+            self.attrs[key] = value
+
+    def __getitem__(self, key):
+        return self.attrs.get(key, "")
+
+    def __setitem__(self, key, value):
+        self.attrs[key] = value
+
+    def add(self, child):
+        self.children.append(child)
+        return child
+
+    def set_desc(self, **kwargs):
+        if "title" in kwargs:
+            title_elem = Element("title")
+            title_elem.children.append(kwargs["title"])
+            self.children.append(title_elem)
+        return self
+
+    def _attr_str(self):
+        result = []
+        for key, value in self.attrs.items():
+            if isinstance(value, (list, tuple)):
+                # Handle points lists (for polygon/polyline)
+                if key == "points":
+                    points_str = " ".join(f"{x},{y}" for x, y in value)
+                    result.append(f'{key}="{points_str}"')
+                else:
+                    result.append(f'{key}="{" ".join(map(str, value))}"')
+            else:
+                result.append(f'{key}="{value}"')
+        return " ".join(result)
+
+    def tostring(self):
+        attr_str = self._attr_str()
+        start = f"<{self.tag}"
+        if attr_str:
+            start += f" {attr_str}"
+
+        if not self.children:
+            return f"{start}/>"
+
+        result = [f"{start}>"]
+        for child in self.children:
+            if isinstance(child, Element):
+                result.append(child.tostring())
+            else:
+                # Convert any non-Element to string
+                result.append(str(child))
+        result.append(f"</{self.tag}>")
+        return "".join(result)
+
+
+class Drawing:
+    def __init__(self, size=None, debug=False, **kwargs):
+        kwargs = {
+            "version": "1.1",
+            "xmlns": "http://www.w3.org/2000/svg",
+            "xmlns:ev": "http://www.w3.org/2001/xml-events",
+            "xmlns:xlink": "http://www.w3.org/1999/xlink",
+            "baseProfile": "full",
+            **kwargs,
+        }
+        if size is not None:
+            kwargs["width"] = size[0]
+            kwargs["height"] = size[1]
+        self.root = Element("svg", **kwargs)
+        self.defs = Element("defs")
+        self.root.add(self.defs)
+
+    def add(self, element):
+        return self.root.add(element)
+
+    def g(self, **kwargs):
+        return Element("g", **kwargs)
+
+    def rect(self, insert=None, size=None, **kwargs):
+        if insert:
+            kwargs["x"] = insert[0]
+            kwargs["y"] = insert[1]
+        if size:
+            kwargs["width"] = size[0]
+            kwargs["height"] = size[1]
+        return Element("rect", **kwargs)
+
+    def circle(self, center=None, r=None, **kwargs):
+        if center:
+            kwargs["cx"] = center[0]
+            kwargs["cy"] = center[1]
+        if r:
+            kwargs["r"] = r
+        return Element("circle", **kwargs)
+
+    def line(self, start=None, end=None, **kwargs):
+        if start:
+            kwargs["x1"] = start[0]
+            kwargs["y1"] = start[1]
+        else:
+            kwargs["x1"] = 0
+            kwargs["y1"] = 0
+        if end:
+            kwargs["x2"] = end[0]
+            kwargs["y2"] = end[1]
+        else:
+            kwargs["x2"] = 0  # pragma: not covered
+            kwargs["y2"] = 0  # pragma: not covered
+        return Element("line", **kwargs)
+
+    def polyline(self, points=None, **kwargs):
+        if points:
+            kwargs["points"] = points
+        return Element("polyline", **kwargs)
+
+    def polygon(self, points=None, **kwargs):
+        if points:
+            kwargs["points"] = points
+        return Element("polygon", **kwargs)
+
+    def path(self, d=None, **kwargs):
+        if isinstance(d, list):
+            # Convert path commands from tuples to string
+            path_str = ""
+            for cmd in d:
+                if isinstance(cmd, tuple) and len(cmd) >= 2:
+                    cmd_letter = cmd[0]
+                    # Handle nested tuples by flattening
+                    params = []
+                    for param in cmd[1:]:
+                        if isinstance(param, tuple):
+                            # Flatten tuple coordinates
+                            params.extend(str(p) for p in param)
+                        else:
+                            params.append(str(param))
+                    path_str += f"{cmd_letter} {' '.join(params)} "
+            kwargs["d"] = path_str.strip()
+        elif d:
+            kwargs["d"] = d
+        return Element("path", **kwargs)
+
+    def text(self, text=None, **kwargs):
+        elem = Element("text", **kwargs)
+        if text:
+            elem.children.append(text)
+        return elem
+
+    def style(self, content):
+        elem = Element("style", type="text/css")
+        if content:
+            # Use CDATA to avoid having to escape special characters in CSS
+            elem.children.append(f"<![CDATA[{content}]]>")
+        return elem
+
+    def tostring(self, pretty=False):
+        if pretty:
+            return xml.dom.minidom.parseString(self.root.tostring()).toprettyxml()
+        return self.root.tostring()
+
+    def saveas(self, path, pretty=False):
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(self.tostring(pretty=pretty))
 
 
 @dataclass
@@ -688,7 +868,7 @@ class SvgPlot:
             root_svg_attributes = {}
         if canvas_size is None:
             canvas_size = size
-        dwg = svgwrite.Drawing(size=canvas_size, debug=True, **root_svg_attributes)
+        dwg = Drawing(size=canvas_size, debug=True, **root_svg_attributes)
 
         self.image_size = size
         self.plotbox = Plotbox(size)
