@@ -107,22 +107,29 @@ class Element:
         return " ".join(result)
 
     def tostring(self):
-        attr_str = self._attr_str()
-        start = f"<{self.tag}"
-        if attr_str:
-            start += f" {attr_str}"
+        stack = [(self, False)]
+        result = []
 
-        if not self.children:
-            return f"{start}/>"
-
-        result = [f"{start}>"]
-        for child in self.children:
-            if isinstance(child, Element):
-                result.append(child.tostring())
+        while stack:
+            elem, is_closing_tag = stack.pop()
+            if is_closing_tag:
+                result.append(f"</{elem.tag}>")
+                continue
+            attr_str = elem._attr_str()
+            start = f"<{elem.tag}"
+            if attr_str:
+                start += f" {attr_str}"
+            if not elem.children:
+                result.append(f"{start}/>")
             else:
-                # Convert any non-Element to string
-                result.append(str(child))
-        result.append(f"</{self.tag}>")
+                result.append(f"{start}>")
+                stack.append((elem, True))
+                for child in reversed(elem.children):
+                    if isinstance(child, Element):
+                        stack.append((child, False))
+                    else:
+                        result.append(str(child))
+
         return "".join(result)
 
 
