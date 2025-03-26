@@ -1832,6 +1832,7 @@ class Tree:
         all_edge_mutations=None,
         omit_sites=None,
         canvas_size=None,
+        preamble=None,
         **kwargs,
     ):
         """
@@ -1944,6 +1945,11 @@ class Tree:
             elements, allowing extra room e.g. for unusually long labels. If ``None``
             take the canvas size to be the same as the target drawing size (see
             ``size``, above). Default: None
+        :param str preamble: SVG commands to be included at the start of the returned
+            object, immediately after the opening tag. These can include custom svg
+            elements such as legends or annotations or even entire ``<svg>`` elements.
+            The preamble is not checked for validity, so it is up to the user to
+            ensure that it is valid SVG. Default: None
 
         :return: An SVG representation of a tree.
         :rtype: SVGString
@@ -1976,6 +1982,7 @@ class Tree:
             all_edge_mutations=all_edge_mutations,
             omit_sites=omit_sites,
             canvas_size=canvas_size,
+            preamble=preamble,
             **kwargs,
         )
         output = draw.drawing.tostring()
@@ -7330,6 +7337,7 @@ class TreeSequence:
         omit_sites=None,
         canvas_size=None,
         max_num_trees=None,
+        preamble=None,
         **kwargs,
     ):
         """
@@ -7436,6 +7444,11 @@ class TreeSequence:
             from the plot and a message "XX trees skipped" displayed in their place.
             If ``None``, all the trees will be plotted: this can produce a very wide
             plot if there are many trees in the tree sequence. Default: None
+        :param str preamble: SVG commands to be included at the start of the returned
+            object, immediately after the opening tag. These can include custom svg
+            elements such as legends or annotations or even entire ``<svg>`` elements.
+            The preamble is not checked for validity, so it is up to the user to
+            ensure that it is valid SVG. Default: None
 
         :return: An SVG representation of a tree sequence.
         :rtype: SVGString
@@ -7478,6 +7491,7 @@ class TreeSequence:
             omit_sites=omit_sites,
             canvas_size=canvas_size,
             max_num_trees=max_num_trees,
+            preamble=preamble,
             **kwargs,
         )
         output = draw.drawing.tostring()

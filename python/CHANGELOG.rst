@@ -30,6 +30,9 @@
 
 - Add Python 3.13 support (:user:`benjeffery`, :pr:`3107`)
 
+- Add a `preamble` argument to `draw_svg()` methods to allow adding arbitrary extra
+  graphics (e.g. legends) to SVG plots (:user:`hyanwong`, `issue:`3086`, :pr:`3121`)
+
 --------------------
 [0.6.0] - 2024-10-16
 --------------------
