@@ -8980,9 +8980,9 @@ class TreeSequence:
                 num_vectors >= rank > 0
             ), "num_vectors should not be smaller than rank"
             for _ in range(depth):
-                Q = np.linalg.qr(Q).Q
+                Q = np.linalg.qr(Q)[0]
                 Q = operator(Q)
-            Q = np.linalg.qr(Q).Q
+            Q = np.linalg.qr(Q)[0]
             return Q
 
         def _rand_svd(
