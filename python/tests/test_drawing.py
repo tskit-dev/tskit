@@ -2615,6 +2615,34 @@ class TestDrawSvg(TestDrawSvgBase):
         assert collapsed_symbol.group(0).count("sym") == 1
         assert collapsed_symbol.group(0).count("multi") == 1
 
+    @pytest.mark.parametrize(
+        "tree_or_ts",
+        [tskit.Tree.generate_comb(3), tskit.Tree.generate_comb(3).tree_sequence],
+    )
+    def test_preamble(self, tree_or_ts):
+        embed = tskit.Tree.generate_comb(4)  # svg string to embed
+        svg = tree_or_ts.draw_svg(
+            size=(200, 200),
+            canvas_size=(400, 200),
+            preamble=embed.draw_svg(
+                root_svg_attributes={"x": 200, "class": "embedded"}
+            ),
+        )
+        self.verify_basic_svg(svg, width=400, height=200)
+        assert svg.count("<svg") == 2
+        assert svg.count('class="embedded"') == 1
+
+    @pytest.mark.parametrize(
+        "tree_or_ts",
+        [tskit.Tree.generate_comb(3), tskit.Tree.generate_comb(3).tree_sequence],
+    )
+    def test_non_svg_preamble(self, tree_or_ts):
+        svg = tree_or_ts.draw_svg(
+            size=(200, 200), canvas_size=(400, 200), preamble="<UnbalancedTag>"
+        )
+        with pytest.raises(xml.etree.ElementTree.ParseError):
+            self.verify_basic_svg(svg, width=400, height=200)
+
 
 class TestDrawKnownSvg(TestDrawSvgBase):
     """

@@ -134,7 +134,7 @@ class Element:
 
 
 class Drawing:
-    def __init__(self, size=None, debug=False, **kwargs):
+    def __init__(self, size=None, debug=False, preamble=None, **kwargs):
         kwargs = {
             "version": "1.1",
             "xmlns": "http://www.w3.org/2000/svg",
@@ -146,7 +146,10 @@ class Drawing:
         if size is not None:
             kwargs["width"] = size[0]
             kwargs["height"] = size[1]
+
         self.root = Element("svg", **kwargs)
+        if preamble is not None:
+            self.root.add(preamble)
         self.defs = Element("defs")
         self.root.add(self.defs)
 
@@ -864,6 +867,7 @@ class SvgPlot:
         svg_class,
         root_svg_attributes=None,
         canvas_size=None,
+        preamble=None,
     ):
         """
         Creates self.drawing, an svgwrite.Drawing object for further use, and populates
@@ -875,7 +879,9 @@ class SvgPlot:
             root_svg_attributes = {}
         if canvas_size is None:
             canvas_size = size
-        dwg = Drawing(size=canvas_size, debug=True, **root_svg_attributes)
+        dwg = Drawing(
+            size=canvas_size, debug=True, preamble=preamble, **root_svg_attributes
+        )
 
         self.image_size = size
         self.plotbox = Plotbox(size)
@@ -988,12 +994,14 @@ class SvgAxisPlot(SvgPlot):
         omit_sites=None,
         canvas_size=None,
         mutation_titles=None,
+        preamble=None,
     ):
         super().__init__(
             size,
             svg_class,
             root_svg_attributes,
             canvas_size,
+            preamble=preamble,
         )
         self.ts = ts
         dwg = self.drawing
@@ -1327,6 +1335,7 @@ class SvgTreeSequence(SvgAxisPlot):
         max_tree_height=None,
         max_num_trees=None,
         title=None,
+        preamble=None,
         **kwargs,
     ):
         if max_time is None and max_tree_height is not None:
@@ -1373,6 +1382,7 @@ class SvgTreeSequence(SvgAxisPlot):
             y_label=y_label,
             offsets=offsets,
             mutation_titles=mutation_titles,
+            preamble=preamble,
             **kwargs,
         )
         x_scale = check_x_scale(x_scale)
@@ -1640,6 +1650,7 @@ class SvgTree(SvgAxisPlot):
         offsets=None,
         omit_sites=None,
         pack_untracked_polytomies=None,
+        preamble=None,
         **kwargs,
     ):
         if max_time is None and max_tree_height is not None:
@@ -1681,6 +1692,7 @@ class SvgTree(SvgAxisPlot):
             y_label=y_label,
             offsets=offsets,
             omit_sites=omit_sites,
+            preamble=preamble,
             **kwargs,
         )
         self.tree = tree
