@@ -340,16 +340,14 @@ on GitHub, and help us fix any, or add issues for anything that's wrong or missi
 If you see a typo or some other small problem that you'd like to fix,
 this is most easily done through the GitHub UI.
 
-If the typo is in a large section of text (like this page), go to the
-top of the page and click on the "Edit on GitHub" link at the top
-right. This will bring you to the page on GitHub for the RST
-source file in question. Then, click on the pencil icon on the
-right hand side. This will open a web editor allowing you to
+Mouse over the GitHub icon at the top right of the page and 
+click on the "Suggest edit" button. This will bring you to a web 
+editor on GitHub for the source file in question, allowing you to
 quickly fix the typo and submit a pull request with the changes.
-Fix the typo, add a commit message like "Fixed typo" and click
-on the green "Propose file change" button. Then follow the dialogues
-until you've created a new pull request with your changes,
-so that we can incorporate them.
+Fix the typo, click the "Commit changes", add a commit message like 
+"Fixed typo" and click on the green "Propose file change" button. 
+Then follow the dialogues until you've created a new pull request 
+with your changes, so that we can incorporate them.
 
 If the change you'd like to make is in the API documentation
 for a particular function, then you'll need to find where this
