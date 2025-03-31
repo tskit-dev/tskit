@@ -9,6 +9,7 @@ logo: logo.svg
 
 execute:
   execute_notebooks: cache
+  timeout: 120
 
 launch_buttons:
   binderhub_url: ""
