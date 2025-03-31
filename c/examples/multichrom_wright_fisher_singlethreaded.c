@@ -107,13 +107,13 @@ main(int argc, char **argv)
     srand((unsigned)atoi(argv[5]));
     simulate(&tables, atoi(argv[6]), atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
 
-//    /* Sort and index so that the result can be opened as a tree sequence */
-//    ret = tsk_table_collection_sort(&tables, NULL, 0);
-//    check_tsk_error(ret);
-//    ret = tsk_table_collection_build_index(&tables, 0);
-//    check_tsk_error(ret);
-//    ret = tsk_table_collection_dump(&tables, argv[4], 0);
-//    check_tsk_error(ret);
+    /* Sort and index so that the result can be opened as a tree sequence */
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    check_tsk_error(ret);
+    ret = tsk_table_collection_build_index(&tables, 0);
+    check_tsk_error(ret);
+    ret = tsk_table_collection_dump(&tables, argv[4], 0);
+    check_tsk_error(ret);
 
     tsk_table_collection_free(&tables);
     return 0;

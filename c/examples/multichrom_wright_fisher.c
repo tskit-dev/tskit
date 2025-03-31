@@ -122,7 +122,7 @@ sort_and_simplify_all(tsk_table_collection_t *tcs, int num_chroms, int *samples,
 void
 simplify_tables(tsk_table_collection_t *tcs, int num_chroms, int *samples, int N)
 {
-    int j, k, ret;
+    int j, k, num_edges, ret;
     const tsk_size_t num_nodes = tcs[0].nodes.num_rows;
     tsk_bool_t *keep_nodes = malloc(num_nodes * sizeof(*keep_nodes));
     tsk_id_t *node_id_map = malloc(num_nodes * sizeof(*node_id_map));
@@ -137,15 +137,18 @@ simplify_tables(tsk_table_collection_t *tcs, int num_chroms, int *samples, int N
 
     for (j = 0; j < num_nodes; j++) {
         keep_nodes[j] = false;
+        tcs[0].nodes.flags[j] &= (~TSK_NODE_IS_SAMPLE);
     }
     for (j = 0; j < N; j++) {
         keep_nodes[samples[j]] = true;
+        tcs[0].nodes.flags[samples[j]] |= TSK_NODE_IS_SAMPLE;
     }
 
     for (j = 0; j < num_chroms; j++) {
         edge_child = tcs[j].edges.child;
         edge_parent = tcs[j].edges.parent;
-        for (k = 0; k < tcs[j].edges.num_rows; k++) {
+        num_edges = tcs[j].edges.num_rows;
+        for (k = 0; k < num_edges; k++) {
             keep_nodes[edge_child[k]] = true;
             keep_nodes[edge_parent[k]] = true;
         }
@@ -157,7 +160,8 @@ simplify_tables(tsk_table_collection_t *tcs, int num_chroms, int *samples, int N
     for (j = 0; j < num_chroms; j++) {
         edge_child = tcs[j].edges.child;
         edge_parent = tcs[j].edges.parent;
-        for (k = 0; k < tcs[j].edges.num_rows; k++) {
+        num_edges = tcs[j].edges.num_rows;
+        for (k = 0; k < num_edges; k++) {
             edge_child[k] = node_id_map[edge_child[k]];
             edge_parent[k] = node_id_map[edge_parent[k]];
         }
@@ -243,7 +247,7 @@ simulate(
 int
 main(int argc, char **argv)
 {
-//    int ret;
+    int ret;
     int num_chroms;
 
     if (argc != 7) {
@@ -257,8 +261,8 @@ main(int argc, char **argv)
     init_tables(tcs, num_chroms);
     simulate(tcs, num_chroms, atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
     join_tables(tcs, num_chroms);
-//    ret = tsk_table_collection_dump(&tcs[0], argv[4], 0);
-//    check_tsk_error(ret);
+    ret = tsk_table_collection_dump(&tcs[0], argv[4], 0);
+    check_tsk_error(ret);
     free_tables(tcs, num_chroms);
 
     return 0;
