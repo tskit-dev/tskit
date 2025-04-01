@@ -778,6 +778,7 @@ class MetadataSchema:
 
     def __init__(self, schema: Mapping[str, Any] | None) -> None:
         self._schema = schema
+        self._unmodified_schema = schema
         self._bypass_validation = False
 
         if schema is None:
@@ -835,7 +836,7 @@ class MetadataSchema:
     @property
     def schema(self) -> Mapping[str, Any] | None:
         # Return a copy to avoid unintentional mutation
-        return copy.deepcopy(self._schema)
+        return copy.deepcopy(self._unmodified_schema)
 
     def asdict(self) -> Mapping[str, Any] | None:
         """

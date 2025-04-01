@@ -1125,6 +1125,25 @@ class TestStructCodec:
         assert ms.validate_and_encode_row(None) == b""
         assert ms.decode_row(b"") is None
 
+    def test_add_property_to_schema(self):
+        schema = metadata.MetadataSchema(
+            {
+                "codec": "struct",
+                "type": ["object", "null"],
+                "name": "Mutation metadata",
+                "properties": {
+                    "s": {"type": "number", "binaryFormat": "d"},
+                },
+                "additionalProperties": False,
+            }
+        )
+        schema_with_additional = schema.schema
+        schema_with_additional["properties"]["a"] = {
+            "type": "number",
+            "binaryFormat": "d",
+        }
+        metadata.MetadataSchema(schema_with_additional)
+
 
 class TestStructCodecRoundTrip:
     def round_trip(self, schema, row_data):
