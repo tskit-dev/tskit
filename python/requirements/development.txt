@@ -18,7 +18,7 @@ msprime>=1.0.0
 networkx
 newick
 ninja
-numpy<2
+numpy
 packaging
 portion
 pre-commit
