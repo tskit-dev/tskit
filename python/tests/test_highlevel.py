@@ -56,6 +56,7 @@ import tests as tests
 import tests.simplify as simplify
 import tests.tsutil as tsutil
 import tskit
+import tskit.metadata as metadata
 import tskit.util as util
 from tskit import UNKNOWN_TIME
 
@@ -5413,3 +5414,80 @@ class TestNumLineages:
         ts = tables.tree_sequence()
         tree = ts.first()
         assert tree.num_lineages(t) == expected
+
+
+@pytest.fixture
+def struct_metadata_ts(ts_fixture):
+    schema = metadata.MetadataSchema(
+        {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer", "binaryFormat": "i"},
+                "name": {"type": "string", "binaryFormat": "10s"},
+                "value": {"type": "number", "binaryFormat": "d"},
+                "active": {"type": "boolean", "binaryFormat": "?"},
+            },
+        }
+    )
+    tables = ts_fixture.dump_tables()
+    for table_name in TestStructuredNumpyMetadata.metadata_tables:
+        table = getattr(tables, table_name)
+        table.metadata_schema = schema
+        table_copy = table.copy()
+        table.clear()
+        for j, row in enumerate(table_copy):
+            table.append(
+                row.replace(
+                    metadata={"id": j, "name": "name", "value": 1.0, "active": True}
+                )
+            )
+    return tables.tree_sequence()
+
+
+class TestStructuredNumpyMetadata:
+    metadata_tables = [
+        "nodes",
+        "edges",
+        "sites",
+        "mutations",
+        "migrations",
+        "individuals",
+        "populations",
+    ]
+
+    @pytest.mark.parametrize("table_name", metadata_tables)
+    def test_not_implemented_json(self, table_name, ts_fixture):
+        with pytest.raises(NotImplementedError):
+            getattr(ts_fixture, f"{table_name}_metadata")
+
+    @pytest.mark.parametrize("table_name", metadata_tables)
+    def test_array_attr_properties(self, struct_metadata_ts, table_name):
+        ts = struct_metadata_ts
+        attr_name = f"{table_name}_metadata"
+        a = getattr(ts, attr_name)
+        assert isinstance(a, np.ndarray)
+        with pytest.raises(AttributeError):
+            setattr(ts, attr_name, None)
+        with pytest.raises(AttributeError):
+            delattr(ts, attr_name)
+        with pytest.raises(ValueError, match="read-only"):
+            a[:] = 1
+
+    @pytest.mark.parametrize("table_name", metadata_tables)
+    def test_array_contents(self, struct_metadata_ts, table_name):
+        ts = struct_metadata_ts
+        attr_name = f"{table_name}_metadata"
+        a = getattr(ts, attr_name)
+        assert len(a) == getattr(ts, f"num_{table_name}")
+        for j, row in enumerate(a):
+            assert row["id"] == j
+            assert row["name"] == b"name"
+            assert row["value"] == 1.0
+            assert row["active"]
+
+    @pytest.mark.parametrize("table_name", metadata_tables)
+    def test_error_if_no_schema(self, table_name):
+        ts = msprime.simulate(10)
+        with pytest.raises(NotImplementedError):
+            getattr(ts, f"{table_name}_metadata")

@@ -3,7 +3,7 @@ channels:
   - bioconda
   - conda-forge
 dependencies:
-  - autodocsumm==0.1.13 #Pinned as errors on 0.2.0
+  - autodocsumm>=0.2.7
   - biopython
   - black
   - breathe
@@ -15,14 +15,16 @@ dependencies:
   - flake8
   - h5py>=2.6.0
   - jsonschema>=3.0.0
+  - jupyter-book>=0.12.1
   - kastore
+  - lshmm>=0.0.8
+  - matplotlib
   - meson>=0.61.0
   - msprime>=1.0.0
   - networkx
   - ninja
   - numpy<2
   - packaging
-  - pip
   - portion
   - pre-commit
   - pyparsing
@@ -30,12 +32,17 @@ dependencies:
   - pytest
   - pytest-cov
   - pytest-xdist
-  - PyVCF
-  - sphinx==4.5.0
+  - si-prefix
+  - sphinx==7.4.7
   - sphinx-argparse
+  - sphinx-autodoc-typehints>=1.18.3
   - sphinx-issues
-  - sphinx_rtd_theme
-  - svgwrite>=1.1.10
+  - sphinx-jupyterbook-latex
+  - sphinxcontrib-prettyspecialmethods
+  - sphinx-book-theme
+  - pydata_sphinx_theme>=0.7.2
+  - tqdm
+  - tszip
   - pip:
     - newick
     - xmlunittest

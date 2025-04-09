@@ -38,6 +38,7 @@ from typing import Any
 from typing import Mapping
 
 import jsonschema
+import numpy as np
 
 import tskit
 import tskit.exceptions as exceptions
@@ -101,6 +102,9 @@ class AbstractMetadataCodec(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def decode(self, encoded: bytes) -> Any:
         raise NotImplementedError  # pragma: no cover
+
+    def numpy_dtype(self, schema) -> Any:
+        raise NotImplementedError
 
 
 codec_registry = {}
@@ -224,6 +228,40 @@ def binary_format_validator(validator, types, instance, schema):
         )
 
 
+def array_length_validator(validator, types, instance, schema):
+    # Validate that array schema doesn't have both length and
+    # noLengthEncodingExhaustBuffer set. Also ensure that arrayLengthFormat
+    # is not set when length is set.
+
+    # Call the normal properties validator first
+    try:
+        yield from jsonschema._validators.properties(validator, types, instance, schema)
+    except AttributeError:
+        # Needed since jsonschema==4.19.1
+        yield from jsonschema._keywords.properties(validator, types, instance, schema)
+    for prop, sub_schema in instance["properties"].items():
+        if sub_schema.get("type") == "array":
+            has_length = "length" in sub_schema
+            has_exhaust = sub_schema.get("noLengthEncodingExhaustBuffer", False)
+
+            if has_length and has_exhaust:
+                yield jsonschema.ValidationError(
+                    f"{prop} array cannot have both 'length' and "
+                    "'noLengthEncodingExhaustBuffer' set"
+                )
+
+            if has_length and "arrayLengthFormat" in sub_schema:
+                yield jsonschema.ValidationError(
+                    f"{prop} fixed-length array should not specify 'arrayLengthFormat'"
+                )
+
+            if has_length and sub_schema["length"] < 0:
+                yield jsonschema.ValidationError(
+                    f"{prop} array length must be non-negative, got "
+                    f"{sub_schema['length']}"
+                )
+
+
 def required_validator(validator, required, instance, schema):
     # Do the normal validation
     try:
@@ -244,7 +282,11 @@ def required_validator(validator, required, instance, schema):
 
 StructCodecSchemaValidator = jsonschema.validators.extend(
     TSKITMetadataSchemaValidator,
-    {"type": binary_format_validator, "required": required_validator},
+    {
+        "type": binary_format_validator,
+        "required": required_validator,
+        "properties": array_length_validator,
+    },
 )
 struct_meta_schema: Mapping[str, Any] = copy.deepcopy(
     StructCodecSchemaValidator.META_SCHEMA
@@ -298,6 +340,13 @@ struct_meta_schema["properties"]["noLengthEncodingExhaustBuffer"] = {"type": "bo
 struct_meta_schema["definitions"]["root"]["properties"][
     "noLengthEncodingExhaustBuffer"
 ] = struct_meta_schema["properties"]["noLengthEncodingExhaustBuffer"]
+
+# length is numeric (for fixed-length arrays)
+struct_meta_schema["properties"]["length"] = {"type": "integer"}
+struct_meta_schema["definitions"]["root"]["properties"]["length"] = struct_meta_schema[
+    "properties"
+]["length"]
+
 StructCodecSchemaValidator.META_SCHEMA = struct_meta_schema
 
 
@@ -351,6 +400,7 @@ class StructCodec(AbstractMetadataCodec):
     @classmethod
     def make_array_decode(cls, sub_schema):
         element_decoder = StructCodec.make_decode(sub_schema["items"])
+        fixed_length = sub_schema.get("length")
         array_length_f = "<" + sub_schema.get("arrayLengthFormat", "L")
         array_length_size = struct.calcsize(array_length_f)
         exhaust_buffer = sub_schema.get("noLengthEncodingExhaustBuffer", False)
@@ -373,7 +423,12 @@ class StructCodec(AbstractMetadataCodec):
                         raise e
             return ret
 
-        if exhaust_buffer:
+        def array_decode_fixed_length(buffer):
+            return [element_decoder(buffer) for _ in range(fixed_length)]
+
+        if fixed_length is not None:
+            return array_decode_fixed_length
+        elif exhaust_buffer:
             return array_decode_exhaust
         else:
             return array_decode
@@ -470,23 +525,37 @@ class StructCodec(AbstractMetadataCodec):
 
     @classmethod
     def make_array_encode(cls, sub_schema):
-        array_length_f = "<" + sub_schema.get("arrayLengthFormat", "L")
         element_encoder = StructCodec.make_encode(sub_schema["items"])
+        fixed_length = sub_schema.get("length")
+        array_length_f = "<" + sub_schema.get("arrayLengthFormat", "L")
         exhaust_buffer = sub_schema.get("noLengthEncodingExhaustBuffer", False)
-        if exhaust_buffer:
-            return lambda array: b"".join(element_encoder(ele) for ele in array)
+
+        def array_encode_fixed_length(array):
+            if len(array) != fixed_length:
+                raise ValueError(
+                    f"Array length {len(array)} does not match schema"
+                    f" fixed length {fixed_length}"
+                )
+            return b"".join(element_encoder(ele) for ele in array)
+
+        def array_encode_exhaust(array):
+            return b"".join(element_encoder(ele) for ele in array)
+
+        def array_encode_with_length(array):
+            try:
+                packed_length = struct.pack(array_length_f, len(array))
+            except struct.error:
+                raise ValueError(
+                    "Couldn't pack array size - it is likely too long"
+                    " for the specified arrayLengthFormat"
+                )
+            return packed_length + b"".join(element_encoder(ele) for ele in array)
+
+        if fixed_length is not None:
+            return array_encode_fixed_length
+        elif exhaust_buffer:
+            return array_encode_exhaust
         else:
-
-            def array_encode_with_length(array):
-                try:
-                    packed_length = struct.pack(array_length_f, len(array))
-                except struct.error:
-                    raise ValueError(
-                        "Couldn't pack array size - it is likely too long"
-                        " for the specified arrayLengthFormat"
-                    )
-                return packed_length + b"".join(element_encoder(ele) for ele in array)
-
             return array_encode_with_length
 
     @classmethod
@@ -603,6 +672,92 @@ class StructCodec(AbstractMetadataCodec):
         # Set by __init__
         pass  # pragma: nocover
 
+    def numpy_dtype(self, schema):
+        # Mapping from struct format characters to NumPy dtype strings
+        # Note: All are little-endian as enforced by the struct codec
+        # This means they will be the standard size across platforms
+        FORMAT_TO_DTYPE = {
+            # Boolean
+            "?": "?",
+            # Integers
+            "b": "i1",
+            "B": "u1",
+            "h": "i2",
+            "H": "u2",
+            "i": "i4",
+            "I": "u4",
+            "l": "i4",
+            "L": "u4",
+            "q": "i8",
+            "Q": "u8",
+            # Floats
+            "f": "f4",
+            "d": "f8",
+            # Single character
+            "c": "S1",
+        }
+
+        def _convert_binary_format(fmt):
+            if fmt.endswith("x"):
+                if fmt == "x":
+                    return "V1"
+                n = int(fmt[:-1])
+                return f"V{n}"
+
+            if fmt.endswith("s"):
+                if fmt == "s":
+                    return "S1"
+                n = int(fmt[:-1])
+                return f"S{n}"
+
+            if fmt.endswith("p"):
+                raise ValueError(
+                    "Pascal string format ('p') is not supported by NumPy dtypes."
+                )
+
+            if fmt in FORMAT_TO_DTYPE:
+                return FORMAT_TO_DTYPE[fmt]
+
+            # As schemas are validated on __init__ this should never happen
+            raise ValueError(f"Unsupported binary format: {fmt}")  # pragma: no cover
+
+        def _process_schema_node(node):
+            # The null type with union can only occur at the top-level
+            if set(node.get("type", [])) == {"object", "null"}:
+                raise ValueError("Top level object/null union not supported")
+            elif node.get("type") == "object":
+                fields = []
+                for prop_name, prop_schema in node.get("properties", {}).items():
+                    fields.append((prop_name, _process_schema_node(prop_schema)))
+                return fields
+
+            elif node.get("type") == "array":
+                if "length" not in node:
+                    raise ValueError(
+                        "Only fixed-length arrays are supported for NumPy dtype"
+                        " conversion. Variable-length arrays cannot be represented"
+                        " in a structured dtype."
+                    )
+
+                length = node["length"]
+                item_dtype = _process_schema_node(node["items"])
+
+                # Return the item dtype with shape information
+                return (item_dtype, (length,))
+
+            elif node.get("type") in ("number", "integer", "boolean", "string", "null"):
+                fmt = node["binaryFormat"]
+                dtype_str = _convert_binary_format(fmt)
+
+                if dtype_str[0] not in "VSU?":
+                    # Don't add endianness to void, string, unicode or bool types
+                    dtype_str = "<" + dtype_str
+
+                return dtype_str
+
+        dtype_spec = _process_schema_node(schema)
+        return np.dtype(dtype_spec)
+
 
 register_metadata_codec(StructCodec, "struct")
 
@@ -623,6 +778,7 @@ class MetadataSchema:
 
     def __init__(self, schema: Mapping[str, Any] | None) -> None:
         self._schema = schema
+        self._unmodified_schema = schema
         self._bypass_validation = False
 
         if schema is None:
@@ -631,6 +787,7 @@ class MetadataSchema:
             self.encode_row = NOOPCodec({}).encode
             self.decode_row = NOOPCodec({}).decode
             self.empty_value = b""
+            self.codec_instance = NOOPCodec({})
         else:
             try:
                 TSKITMetadataSchemaValidator.check_schema(schema)
@@ -645,17 +802,17 @@ class MetadataSchema:
                 )
             # Codecs can modify the schema, for example to set defaults as the validator
             # does not.
-            schema = codec_cls.modify_schema(schema)
-            codec_instance = codec_cls(schema)
-            self._string = tskit.canonical_json(schema)
-            self._validate_row = TSKITMetadataSchemaValidator(schema).validate
+            self._schema = codec_cls.modify_schema(schema)
+            self.codec_instance = codec_cls(self._schema)
+            self._string = tskit.canonical_json(self._schema)
+            self._validate_row = TSKITMetadataSchemaValidator(self._schema).validate
             self._bypass_validation = codec_cls.is_schema_trivial(schema)
-            self.encode_row = codec_instance.encode
-            self.decode_row = codec_instance.decode
+            self.encode_row = self.codec_instance.encode
+            self.decode_row = self.codec_instance.decode
 
             # If None is allowed by the schema as the top-level type, it gets used even
             # in the presence of default and required values.
-            if "type" in schema and "null" in schema["type"]:
+            if "type" in self._schema and "null" in self._schema["type"]:
                 self.empty_value = None
             else:
                 self.empty_value = {}
@@ -679,7 +836,7 @@ class MetadataSchema:
     @property
     def schema(self) -> Mapping[str, Any] | None:
         # Return a copy to avoid unintentional mutation
-        return copy.deepcopy(self._schema)
+        return copy.deepcopy(self._unmodified_schema)
 
     def asdict(self) -> Mapping[str, Any] | None:
         """
@@ -720,6 +877,16 @@ class MetadataSchema:
         """
         # Set by __init__
         pass  # pragma: no cover
+
+    def numpy_dtype(self) -> Any:
+        return self.codec_instance.numpy_dtype(self._schema)
+
+    def structured_array_from_buffer(self, buffer: Any) -> Any:
+        """
+        Convert a buffer of metadata into a structured NumPy array.
+        """
+        dtype = self.numpy_dtype()
+        return np.frombuffer(buffer, dtype=dtype)
 
     @staticmethod
     def permissive_json():

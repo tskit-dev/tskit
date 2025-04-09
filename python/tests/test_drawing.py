@@ -2236,7 +2236,7 @@ class TestDrawSvg(TestDrawSvgBase):
                 y_ticks={upper + 100: "above", upper / 3: "inside"},
             )
             assert (
-                f"Ticks {{{upper+100}: 'above'}} lie outside the plotted axis"
+                f"Ticks {{{upper + 100}: 'above'}} lie outside the plotted axis"
                 in caplog.text
             )
         with caplog.at_level(logging.WARNING):
@@ -2255,7 +2255,7 @@ class TestDrawSvg(TestDrawSvgBase):
         # Squares have 'height="sz" width="sz"'
         assert svg_no_css.count(f'"{sz}"') == tree.num_samples() * 2
         # Circles define a radius like 'r="sz/2"'
-        assert svg_no_css.count(f'r="{sz/2:g}"') == num_nodes - tree.num_samples()
+        assert svg_no_css.count(f'r="{sz / 2:g}"') == num_nodes - tree.num_samples()
         # Mutations draw a line on the cross using 'l sz,sz'
         assert svg_no_css.count(f"l {sz},{sz} ") == num_mutations
 
@@ -2601,6 +2601,47 @@ class TestDrawSvg(TestDrawSvgBase):
                 y_ticks=[0, 1, 10],
             )
             assert "Ticks {10: '10'} lie outside the plotted axis" in caplog.text
+
+    def test_polytomy_collapsing(self):
+        tree = tskit.Tree.generate_balanced(
+            20, arity=4, tracked_samples=np.arange(2, 8)
+        )
+        svg = tree.draw_svg(pack_untracked_polytomies=True)
+        # Should have one collapsed node (untracked samples 8 and 9)
+        # and two "polytomy lines" (from nodes 21 and 28 (the root))
+        assert svg.count('class="polytomy"') == 2  # poolytomy lines
+        collapsed_symbol = re.search("<polygon[^>]*>", svg)
+        assert collapsed_symbol is not None
+        assert collapsed_symbol.group(0).count("sym") == 1
+        assert collapsed_symbol.group(0).count("multi") == 1
+
+    @pytest.mark.parametrize(
+        "tree_or_ts",
+        [tskit.Tree.generate_comb(3), tskit.Tree.generate_comb(3).tree_sequence],
+    )
+    def test_preamble(self, tree_or_ts):
+        embed = tskit.Tree.generate_comb(4)  # svg string to embed
+        svg = tree_or_ts.draw_svg(
+            size=(200, 200),
+            canvas_size=(400, 200),
+            preamble=embed.draw_svg(
+                root_svg_attributes={"x": 200, "class": "embedded"}
+            ),
+        )
+        self.verify_basic_svg(svg, width=400, height=200)
+        assert svg.count("<svg") == 2
+        assert svg.count('class="embedded"') == 1
+
+    @pytest.mark.parametrize(
+        "tree_or_ts",
+        [tskit.Tree.generate_comb(3), tskit.Tree.generate_comb(3).tree_sequence],
+    )
+    def test_non_svg_preamble(self, tree_or_ts):
+        svg = tree_or_ts.draw_svg(
+            size=(200, 200), canvas_size=(400, 200), preamble="<UnbalancedTag>"
+        )
+        with pytest.raises(xml.etree.ElementTree.ParseError):
+            self.verify_basic_svg(svg, width=400, height=200)
 
 
 class TestDrawKnownSvg(TestDrawSvgBase):

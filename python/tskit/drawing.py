@@ -30,13 +30,13 @@ import math
 import numbers
 import operator
 import warnings
+import xml
 from dataclasses import dataclass
 from typing import List
 from typing import Mapping
 from typing import Union
 
 import numpy as np
-import svgwrite
 
 import tskit
 import tskit.util as util
@@ -55,9 +55,200 @@ RIGHT_CLIP = 4
 OMIT_MIDDLE = 8
 
 
+# Minimal SVG generation module to replace svgwrite for tskit visualization.
+# This implementation provides only the functionality needed for the visualization
+# code while maintaining the same API as svgwrite.
+
+
+class Element:
+    def __init__(self, tag, **kwargs):
+        self.tag = tag
+        self.attrs = {}
+        self.children = []
+
+        # Process kwargs in alphabetical order
+        for key in sorted(kwargs.keys()):
+            value = kwargs[key]
+            # Handle class_ special case for class attribute
+            if key.endswith("_"):
+                key = key[:-1]
+            key = key.replace("_", "-")
+            self.attrs[key] = value
+
+    def __getitem__(self, key):
+        return self.attrs.get(key, "")
+
+    def __setitem__(self, key, value):
+        self.attrs[key] = value
+
+    def add(self, child):
+        self.children.append(child)
+        return child
+
+    def set_desc(self, **kwargs):
+        if "title" in kwargs:
+            title_elem = Element("title")
+            title_elem.children.append(kwargs["title"])
+            self.children.append(title_elem)
+        return self
+
+    def _attr_str(self):
+        result = []
+        for key, value in self.attrs.items():
+            if isinstance(value, (list, tuple)):
+                # Handle points lists (for polygon/polyline)
+                if key == "points":
+                    points_str = " ".join(f"{x},{y}" for x, y in value)
+                    result.append(f'{key}="{points_str}"')
+                else:
+                    result.append(f'{key}="{" ".join(map(str, value))}"')
+            else:
+                result.append(f'{key}="{value}"')
+        return " ".join(result)
+
+    def tostring(self):
+        stack = [(self, False)]
+        result = []
+
+        while stack:
+            elem, is_closing_tag = stack.pop()
+            if is_closing_tag:
+                result.append(f"</{elem.tag}>")
+                continue
+            attr_str = elem._attr_str()
+            start = f"<{elem.tag}"
+            if attr_str:
+                start += f" {attr_str}"
+            if not elem.children:
+                result.append(f"{start}/>")
+            else:
+                result.append(f"{start}>")
+                stack.append((elem, True))
+                for child in reversed(elem.children):
+                    if isinstance(child, Element):
+                        stack.append((child, False))
+                    else:
+                        result.append(str(child))
+
+        return "".join(result)
+
+
+class Drawing:
+    def __init__(self, size=None, debug=False, preamble=None, **kwargs):
+        kwargs = {
+            "version": "1.1",
+            "xmlns": "http://www.w3.org/2000/svg",
+            "xmlns:ev": "http://www.w3.org/2001/xml-events",
+            "xmlns:xlink": "http://www.w3.org/1999/xlink",
+            "baseProfile": "full",
+            **kwargs,
+        }
+        if size is not None:
+            kwargs["width"] = size[0]
+            kwargs["height"] = size[1]
+
+        self.root = Element("svg", **kwargs)
+        if preamble is not None:
+            self.root.add(preamble)
+        self.defs = Element("defs")
+        self.root.add(self.defs)
+
+    def add(self, element):
+        return self.root.add(element)
+
+    def g(self, **kwargs):
+        return Element("g", **kwargs)
+
+    def rect(self, insert=None, size=None, **kwargs):
+        if insert:
+            kwargs["x"] = insert[0]
+            kwargs["y"] = insert[1]
+        if size:
+            kwargs["width"] = size[0]
+            kwargs["height"] = size[1]
+        return Element("rect", **kwargs)
+
+    def circle(self, center=None, r=None, **kwargs):
+        if center:
+            kwargs["cx"] = center[0]
+            kwargs["cy"] = center[1]
+        if r:
+            kwargs["r"] = r
+        return Element("circle", **kwargs)
+
+    def line(self, start=None, end=None, **kwargs):
+        if start:
+            kwargs["x1"] = start[0]
+            kwargs["y1"] = start[1]
+        else:
+            kwargs["x1"] = 0
+            kwargs["y1"] = 0
+        if end:
+            kwargs["x2"] = end[0]
+            kwargs["y2"] = end[1]
+        else:
+            kwargs["x2"] = 0  # pragma: not covered
+            kwargs["y2"] = 0  # pragma: not covered
+        return Element("line", **kwargs)
+
+    def polyline(self, points=None, **kwargs):
+        if points:
+            kwargs["points"] = points
+        return Element("polyline", **kwargs)
+
+    def polygon(self, points=None, **kwargs):
+        if points:
+            kwargs["points"] = points
+        return Element("polygon", **kwargs)
+
+    def path(self, d=None, **kwargs):
+        if isinstance(d, list):
+            # Convert path commands from tuples to string
+            path_str = ""
+            for cmd in d:
+                if isinstance(cmd, tuple) and len(cmd) >= 2:
+                    cmd_letter = cmd[0]
+                    # Handle nested tuples by flattening
+                    params = []
+                    for param in cmd[1:]:
+                        if isinstance(param, tuple):
+                            # Flatten tuple coordinates
+                            params.extend(str(p) for p in param)
+                        else:
+                            params.append(str(param))
+                    path_str += f"{cmd_letter} {' '.join(params)} "
+            kwargs["d"] = path_str.strip()
+        elif d:
+            kwargs["d"] = d
+        return Element("path", **kwargs)
+
+    def text(self, text=None, **kwargs):
+        elem = Element("text", **kwargs)
+        if text:
+            elem.children.append(text)
+        return elem
+
+    def style(self, content):
+        elem = Element("style", type="text/css")
+        if content:
+            # Use CDATA to avoid having to escape special characters in CSS
+            elem.children.append(f"<![CDATA[{content}]]>")
+        return elem
+
+    def tostring(self, pretty=False):
+        if pretty:
+            return xml.dom.minidom.parseString(self.root.tostring()).toprettyxml()
+        return self.root.tostring()
+
+    def saveas(self, path, pretty=False):
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(self.tostring(pretty=pretty))
+
+
 @dataclass
 class Offsets:
     "Used when x_lim set, and displayed ts has been cut down by keep_intervals"
+
     tree: int = 0
     site: int = 0
     mutation: int = 0
@@ -66,6 +257,7 @@ class Offsets:
 @dataclass(frozen=True)
 class Timescaling:
     "Class used to transform the time axis"
+
     max_time: float
     min_time: float
     plot_min: float
@@ -675,6 +867,7 @@ class SvgPlot:
         svg_class,
         root_svg_attributes=None,
         canvas_size=None,
+        preamble=None,
     ):
         """
         Creates self.drawing, an svgwrite.Drawing object for further use, and populates
@@ -686,7 +879,9 @@ class SvgPlot:
             root_svg_attributes = {}
         if canvas_size is None:
             canvas_size = size
-        dwg = svgwrite.Drawing(size=canvas_size, debug=True, **root_svg_attributes)
+        dwg = Drawing(
+            size=canvas_size, debug=True, preamble=preamble, **root_svg_attributes
+        )
 
         self.image_size = size
         self.plotbox = Plotbox(size)
@@ -799,12 +994,14 @@ class SvgAxisPlot(SvgPlot):
         omit_sites=None,
         canvas_size=None,
         mutation_titles=None,
+        preamble=None,
     ):
         super().__init__(
             size,
             svg_class,
             root_svg_attributes,
             canvas_size,
+            preamble=preamble,
         )
         self.ts = ts
         dwg = self.drawing
@@ -1138,6 +1335,7 @@ class SvgTreeSequence(SvgAxisPlot):
         max_tree_height=None,
         max_num_trees=None,
         title=None,
+        preamble=None,
         **kwargs,
     ):
         if max_time is None and max_tree_height is not None:
@@ -1184,6 +1382,7 @@ class SvgTreeSequence(SvgAxisPlot):
             y_label=y_label,
             offsets=offsets,
             mutation_titles=mutation_titles,
+            preamble=preamble,
             **kwargs,
         )
         x_scale = check_x_scale(x_scale)
@@ -1451,6 +1650,7 @@ class SvgTree(SvgAxisPlot):
         offsets=None,
         omit_sites=None,
         pack_untracked_polytomies=None,
+        preamble=None,
         **kwargs,
     ):
         if max_time is None and max_tree_height is not None:
@@ -1492,6 +1692,7 @@ class SvgTree(SvgAxisPlot):
             y_label=y_label,
             offsets=offsets,
             omit_sites=omit_sites,
+            preamble=preamble,
             **kwargs,
         )
         self.tree = tree
@@ -1827,23 +2028,26 @@ class SvgTree(SvgAxisPlot):
         prev = tree.virtual_root
         for u in self.postorder_nodes:
             parent = tree.parent(u)
+            omit = self.pack_untracked_polytomies and tree.num_tracked_samples(u) == 0
             if parent == prev:
                 raise ValueError("Nodes must be passed in postorder to Tree.draw_svg()")
             is_tip = tree.parent(prev) != u
             if is_tip:
-                if self.pack_untracked_polytomies and tree.num_tracked_samples(u) == 0:
-                    untracked_children[parent].append(u)
-                else:
+                if not omit:
                     leaf_x += 1
                     node_xpos[u] = leaf_x
-            else:
-                # Concatenate all the untracked children
-                num_untracked_children = len(untracked_children[u])
+            elif not omit:
+                # Untracked children are available for packing into a polytomy summary
+                untracked_children = []
+                if self.pack_untracked_polytomies:
+                    untracked_children += [
+                        c for c in tree.children(u) if tree.num_tracked_samples(c) == 0
+                    ]
                 child_x = [node_xpos[c] for c in tree.children(u) if c in node_xpos]
-                if num_untracked_children > 0:
-                    if num_untracked_children <= 1:
-                        # If only a single non-focal lineage, we might as well show it
-                        for child in untracked_children[u]:
+                if len(untracked_children) > 0:
+                    if len(untracked_children) <= 1:
+                        # If only a single non-focal lineage, treat it as a condensed tip
+                        for child in untracked_children:
                             leaf_x += 1
                             node_xpos[child] = leaf_x
                             child_x.append(leaf_x)
@@ -1851,9 +2055,9 @@ class SvgTree(SvgAxisPlot):
                         # Otherwise show a horizontal line with the number of lineages
                         # Extra length of line is equal to log of the polytomy size
                         self.extra_line[u] = self.PolytomyLine(
-                            num_untracked_children,
-                            sum(tree.num_samples(v) for v in untracked_children[u]),
-                            [leaf_x, leaf_x + 1 + np.log(num_untracked_children)],
+                            len(untracked_children),
+                            sum(tree.num_samples(v) for v in untracked_children),
+                            [leaf_x, leaf_x + 1 + np.log(len(untracked_children))],
                         )
                         child_x.append(leaf_x + 1)
                         leaf_x = self.extra_line[u].line_pos[1]
@@ -1908,7 +2112,7 @@ class SvgTree(SvgAxisPlot):
             # Adding mutations and sites above this node allows identification
             # of the tree under any specific mutation
             classes.add(f"m{mutation.id + self.offsets.mutation}")
-            classes.add(f"s{mutation.site+ self.offsets.site}")
+            classes.add(f"s{mutation.site + self.offsets.site}")
         return sorted(classes)
 
     def text_transform(self, position, dy=0):
@@ -1987,15 +2191,20 @@ class SvgTree(SvgAxisPlot):
                         end=(x2, 0),
                     )
                 )
-                poly.add(
-                    dwg.text(
-                        f"+{info.num_samples}/{bold_integer(info.num_branches)}",
-                        font_style="italic",
-                        x=[rnd(x2)],
-                        dy=[rnd(-self.text_height / 10)],  # make the plus sign line up
-                        text_anchor="end",
+                label = dwg.text(
+                    f"+{info.num_samples}/{bold_integer(info.num_branches)}",
+                    font_style="italic",
+                    x=[rnd(x2)],
+                    dy=[rnd(-self.text_height / 10)],  # make the plus sign line up
+                    text_anchor="end",
+                )
+                label.set_desc(
+                    title=(
+                        f"This polytomy has {info.num_branches} additional branches, "
+                        f"leading to a total of {info.num_samples} descendant samples"
                     )
                 )
+                poly.add(label)
                 curr_svg_group.add(poly)
 
             # Add edge above node first => on layer underneath anything else
@@ -2028,7 +2237,7 @@ class SvgTree(SvgAxisPlot):
                 dy = self.timescaling.transform(mutation.time) - pu[1]
                 mutation_id = mutation.id + self.offsets.mutation
                 mutation_class = (
-                    f"mut m{mutation_id} " f"s{mutation.site+ self.offsets.site}"
+                    f"mut m{mutation_id} " f"s{mutation.site + self.offsets.site}"
                 )
                 # Use the real mutation ID here, since we are referencing into the ts
                 if util.is_unknown_time(self.ts.mutation(mutation.id).time):
@@ -2089,14 +2298,18 @@ class SvgTree(SvgAxisPlot):
                 node_lab_attr["transform"] = self.text_transform("above")
             else:
                 if multi_samples is not None:
-                    curr_svg_group.add(
-                        dwg.text(
-                            text=f"+{multi_samples}",
-                            transform=self.text_transform("below", dy=1),
-                            font_style="italic",
-                            class_="lab summary",
-                        )
+                    label = dwg.text(
+                        text=f"+{multi_samples}",
+                        transform=self.text_transform("below", dy=1),
+                        font_style="italic",
+                        class_="lab summary",
                     )
+                    title = (
+                        f"A collapsed {'sample' if tree.is_sample(u) else 'non-sample'} "
+                        f"node with {multi_samples} descendant samples in this tree"
+                    )
+                    label.set_desc(title=title)
+                    curr_svg_group.add(label)
                 if u == left_child[tree.parent(u)]:
                     add_class(node_lab_attr, "lft")
                     node_lab_attr["transform"] = self.text_transform("above_left")

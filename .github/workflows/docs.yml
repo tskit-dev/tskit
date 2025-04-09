@@ -17,7 +17,7 @@ env:
 jobs:
   build-deploy-docs:
     name: Docs
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         shell: bash -l {0}
@@ -27,16 +27,16 @@ jobs:
         with:
           access_token: ${{ github.token }}
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
 
       - name: Setup Conda
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v3.1.1
         with:
           miniforge-version: latest
           activate-environment: tskit-docs-env
           
       - name: Cache Conda env
-        uses: actions/cache@v4
+        uses: actions/cache@v4.2.2
         with:
           path: ${{ env.CONDA }}/envs
           key: conda-${{ runner.os }}--${{ runner.arch }}--${{ hashFiles(env.REQUIREMENTS) }}-${{ env.CACHE_NUMBER }}
@@ -46,7 +46,7 @@ jobs:
 
       - name: Update environment
         run: |
-          mamba install -y python=3.10 doxygen pip
+          mamba install -y python=3.12 doxygen=1.12.0 pip
           pip install -r ${{ env.REQUIREMENTS }}
         if: steps.cache.outputs.cache-hit != 'true'
 
@@ -55,7 +55,9 @@ jobs:
         run: make $MAKE_TARGET
 
       - name: Build Docs
-        run: make -C docs
+        run: |
+          doxygen -v
+          make -C docs
 
       - name: Trigger docs site rebuild
         if: github.ref == 'refs/heads/main'

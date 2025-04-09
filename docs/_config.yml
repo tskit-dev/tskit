@@ -9,6 +9,7 @@ logo: logo.svg
 
 execute:
   execute_notebooks: cache
+  timeout: 120
 
 launch_buttons:
   binderhub_url: ""
@@ -46,6 +47,12 @@ sphinx:
       html_theme_options:
         pygments_dark_style: monokai
         navigation_with_keys: false
+        repository_url: https://github.com/tskit-dev/tskit
+        repository_branch: main
+        path_to_docs: docs
+        use_repository_button: true
+        use_edit_page_button: true
+        use_issues_button: true
       pygments_style: monokai
       myst_enable_extensions:
       - colon_fence
