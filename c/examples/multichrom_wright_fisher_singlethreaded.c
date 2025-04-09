@@ -2,28 +2,30 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <err.h>
+#include <string.h>
 
 #include <tskit/tables.h>
 
 #define check_tsk_error(val)                                                            \
     if (val < 0) {                                                                      \
-        errx(EXIT_FAILURE, "line %d: %s", __LINE__, tsk_strerror(val));                 \
+        errx(EXIT_FAILURE, "line %d: %s\n", __LINE__, tsk_strerror(val));               \
     }
 
 void
 simulate(
-    tsk_table_collection_t *tables, int N, int T, int simplify_interval)
+    tsk_table_collection_t *tables, int num_chroms, int N, int T, int simplify_interval)
 {
     tsk_id_t *buffer, *parents, *children, child, left_parent, right_parent;
-    double breakpoint;
-    int ret, j, t, b;
+    bool left_is_first;
+    double chunk_left, chunk_right;
+    int ret, j, t, b, k;
 
     assert(simplify_interval != 0); // leads to division by zero
     buffer = malloc(2 * N * sizeof(tsk_id_t));
     if (buffer == NULL) {
         errx(EXIT_FAILURE, "Out of memory");
     }
-    tables->sequence_length = 1.0;
+    tables->sequence_length = num_chroms;
     parents = buffer;
     for (j = 0; j < N; j++) {
         parents[j]
@@ -44,17 +46,25 @@ simulate(
              * research code and proper random number generator
              * libraries should be preferred.
              */
-            left_parent = parents[(size_t)((rand()/(1.+RAND_MAX))*N)];
-            right_parent = parents[(size_t)((rand()/(1.+RAND_MAX))*N)];
-            do {
-                breakpoint = rand()/(1.+RAND_MAX);
-            } while (breakpoint == 0); /* tiny proba of breakpoint being 0 */
-            ret = tsk_edge_table_add_row(
-                &tables->edges, 0, breakpoint, left_parent, child, NULL, 0);
-            check_tsk_error(ret);
-            ret = tsk_edge_table_add_row(
-                &tables->edges, breakpoint, 1, right_parent, child, NULL, 0);
-            check_tsk_error(ret);
+            left_parent = parents[(size_t)((rand() / (1. + RAND_MAX)) * N)];
+            right_parent = parents[(size_t)((rand() / (1. + RAND_MAX)) * N)];
+            left_is_first = rand() < 0.5;
+            chunk_left = 0.0;
+            for (k = 0; k < num_chroms; k++) {
+                chunk_right = chunk_left + rand() / (1. + RAND_MAX);
+                /* a very tiny chance that right and left are equal */
+                if (chunk_right > chunk_left) {
+                    ret = tsk_edge_table_add_row(&tables->edges, chunk_left, chunk_right,
+                        left_is_first ? left_parent : right_parent, child, NULL, 0);
+                    check_tsk_error(ret);
+                }
+                chunk_left += 1.0;
+                if (chunk_right < chunk_left) {
+                    ret = tsk_edge_table_add_row(&tables->edges, chunk_right, chunk_left,
+                        left_is_first ? right_parent : left_parent, child, NULL, 0);
+                    check_tsk_error(ret);
+                }
+            }
             children[j] = child;
         }
         if (t % simplify_interval == 0) {
@@ -76,6 +86,10 @@ simulate(
             }
         }
     }
+    /* Set the sample flags for final generation */
+    for (j = 0; j < N; j++) {
+        tables->nodes.flags[children[j]] = TSK_NODE_IS_SAMPLE;
+    }
     free(buffer);
 }
 
@@ -85,13 +99,13 @@ main(int argc, char **argv)
     int ret;
     tsk_table_collection_t tables;
 
-    if (argc != 6) {
-        errx(EXIT_FAILURE, "usage: N T simplify-interval output-file seed");
+    if (argc != 7) {
+        errx(EXIT_FAILURE, "usage: N T simplify-interval output seed num-chroms");
     }
     ret = tsk_table_collection_init(&tables, 0);
     check_tsk_error(ret);
     srand((unsigned)atoi(argv[5]));
-    simulate(&tables, atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
+    simulate(&tables, atoi(argv[6]), atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
 
     /* Sort and index so that the result can be opened as a tree sequence */
     ret = tsk_table_collection_sort(&tables, NULL, 0);

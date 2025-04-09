@@ -1832,6 +1832,7 @@ class Tree:
         all_edge_mutations=None,
         omit_sites=None,
         canvas_size=None,
+        preamble=None,
         **kwargs,
     ):
         """
@@ -1944,6 +1945,11 @@ class Tree:
             elements, allowing extra room e.g. for unusually long labels. If ``None``
             take the canvas size to be the same as the target drawing size (see
             ``size``, above). Default: None
+        :param str preamble: SVG commands to be included at the start of the returned
+            object, immediately after the opening tag. These can include custom svg
+            elements such as legends or annotations or even entire ``<svg>`` elements.
+            The preamble is not checked for validity, so it is up to the user to
+            ensure that it is valid SVG. Default: None
 
         :return: An SVG representation of a tree.
         :rtype: SVGString
@@ -1976,6 +1982,7 @@ class Tree:
             all_edge_mutations=all_edge_mutations,
             omit_sites=omit_sites,
             canvas_size=canvas_size,
+            preamble=preamble,
             **kwargs,
         )
         output = draw.drawing.tostring()
@@ -4121,26 +4128,32 @@ class TreeSequence:
         # tables here (and remove the low-level boilerplate).
         llts = self._ll_tree_sequence
         self._individuals_flags = llts.individuals_flags
+        self._individuals_metadata = llts.individuals_metadata
         self._nodes_time = llts.nodes_time
         self._nodes_flags = llts.nodes_flags
         self._nodes_population = llts.nodes_population
         self._nodes_individual = llts.nodes_individual
+        self._nodes_metadata = llts.nodes_metadata
         self._edges_left = llts.edges_left
         self._edges_right = llts.edges_right
         self._edges_parent = llts.edges_parent
         self._edges_child = llts.edges_child
+        self._edges_metadata = llts.edges_metadata
         self._sites_position = llts.sites_position
+        self._sites_metadata = llts.sites_metadata
         self._mutations_site = llts.mutations_site
         self._mutations_node = llts.mutations_node
         self._mutations_parent = llts.mutations_parent
         self._mutations_time = llts.mutations_time
+        self._mutations_metadata = llts.mutations_metadata
         self._migrations_left = llts.migrations_left
-        self._migrations_right = llts.migrations_right
         self._migrations_right = llts.migrations_right
         self._migrations_node = llts.migrations_node
         self._migrations_source = llts.migrations_source
         self._migrations_dest = llts.migrations_dest
         self._migrations_time = llts.migrations_time
+        self._migrations_metadata = llts.migrations_metadata
+        self._populations_metadata = llts.populations_metadata
         self._indexes_edge_insertion_order = llts.indexes_edge_insertion_order
         self._indexes_edge_removal_order = llts.indexes_edge_removal_order
 
@@ -5789,6 +5802,32 @@ class TreeSequence:
         return self._individuals_flags
 
     @property
+    def individuals_metadata(self):
+        """
+        Efficient access to the ``metadata`` column in the
+        :ref:`sec_individual_table_definition` as a structured numpy array.
+        The returned dtype will depend on the metadata schema used. Only a subset
+        of `struct` metadata schemas are supported.
+        See :ref:`sec_structured_array_metadata` for more information.
+        """
+        return self.table_metadata_schemas.individual.structured_array_from_buffer(
+            self._individuals_metadata
+        )
+
+    @property
+    def nodes_metadata(self):
+        """
+        Efficient access to the ``metadata`` column in the
+        :ref:`sec_node_table_definition` as a structured numpy array.
+        The returned dtype will depend on the metadata schema used. Only a subset
+        of `struct` metadata schemas are supported.
+        See :ref:`sec_structured_array_metadata` for more information.
+        """
+        return self.table_metadata_schemas.node.structured_array_from_buffer(
+            self._nodes_metadata
+        )
+
+    @property
     def nodes_time(self):
         """
         Efficient access to the ``time`` column in the
@@ -5869,6 +5908,19 @@ class TreeSequence:
         return self._edges_child
 
     @property
+    def edges_metadata(self):
+        """
+        Efficient access to the ``metadata`` column in the
+        :ref:`sec_edge_table_definition` as a structured numpy array.
+        The returned dtype will depend on the metadata schema used. Only a subset
+        of `struct` metadata schemas are supported.
+        See :ref:`sec_structured_array_metadata` for more information.
+        """
+        return self.table_metadata_schemas.edge.structured_array_from_buffer(
+            self._edges_metadata
+        )
+
+    @property
     def sites_position(self):
         """
         Efficient access to the ``position`` column in the
@@ -5877,6 +5929,19 @@ class TreeSequence:
         of the table data that accessing ``ts.tables`` currently entails).
         """
         return self._sites_position
+
+    @property
+    def sites_metadata(self):
+        """
+        Efficient access to the ``metadata`` column in the
+        :ref:`sec_site_table_definition` as a structured numpy array.
+        The returned dtype will depend on the metadata schema used. Only a subset
+        of `struct` metadata schemas are supported.
+        See :ref:`sec_structured_array_metadata` for more information.
+        """
+        return self.table_metadata_schemas.site.structured_array_from_buffer(
+            self._sites_metadata
+        )
 
     @property
     def mutations_site(self):
@@ -5917,6 +5982,19 @@ class TreeSequence:
         of the table data that accessing ``ts.tables`` currently entails).
         """
         return self._mutations_time
+
+    @property
+    def mutations_metadata(self):
+        """
+        Efficient access to the ``metadata`` column in the
+        :ref:`sec_mutation_table_definition` as a structured numpy array.
+        The returned dtype will depend on the metadata schema used. Only a subset
+        of `struct` metadata schemas are supported.
+        See :ref:`sec_structured_array_metadata` for more information.
+        """
+        return self.table_metadata_schemas.mutation.structured_array_from_buffer(
+            self._mutations_metadata
+        )
 
     @property
     def migrations_left(self):
@@ -5977,6 +6055,32 @@ class TreeSequence:
         of the table data that accessing ``ts.tables`` currently entails).
         """
         return self._migrations_time
+
+    @property
+    def migrations_metadata(self):
+        """
+        Efficient access to the ``metadata`` column in the
+        :ref:`sec_migration_table_definition` as a structured numpy array.
+        The returned dtype will depend on the metadata schema used. Only a subset
+        of `struct` metadata schemas are supported.
+        See :ref:`sec_structured_array_metadata` for more information.
+        """
+        return self.table_metadata_schemas.migration.structured_array_from_buffer(
+            self._migrations_metadata
+        )
+
+    @property
+    def populations_metadata(self):
+        """
+        Efficient access to the ``metadata`` column in the
+        :ref:`sec_population_table_definition` as a structured numpy array.
+        The returned dtype will depend on the metadata schema used. Only a subset
+        of `struct` metadata schemas are supported.
+        See :ref:`sec_structured_array_metadata` for more information.
+        """
+        return self.table_metadata_schemas.population.structured_array_from_buffer(
+            self._populations_metadata
+        )
 
     @property
     def indexes_edge_insertion_order(self):
@@ -6821,6 +6925,10 @@ class TreeSequence:
         effect (i.e., calling ``tree_sequence.delete_sites([0, 1, 1])`` has the same
         effect as calling ``tree_sequence.delete_sites([0, 1])``.
 
+        .. note::
+            To remove only the mutations associated with a site, but keep the site
+            itself, use the :meth:`MutationTable.keep_rows` method.
+
         :param list[int] site_ids: A list of site IDs specifying the sites to remove.
         :param bool record_provenance: If ``True``, add details of this operation to the
             provenance information of the returned tree sequence. (Default: ``True``).
@@ -7229,6 +7337,7 @@ class TreeSequence:
         omit_sites=None,
         canvas_size=None,
         max_num_trees=None,
+        preamble=None,
         **kwargs,
     ):
         """
@@ -7335,6 +7444,11 @@ class TreeSequence:
             from the plot and a message "XX trees skipped" displayed in their place.
             If ``None``, all the trees will be plotted: this can produce a very wide
             plot if there are many trees in the tree sequence. Default: None
+        :param str preamble: SVG commands to be included at the start of the returned
+            object, immediately after the opening tag. These can include custom svg
+            elements such as legends or annotations or even entire ``<svg>`` elements.
+            The preamble is not checked for validity, so it is up to the user to
+            ensure that it is valid SVG. Default: None
 
         :return: An SVG representation of a tree sequence.
         :rtype: SVGString
@@ -7377,6 +7491,7 @@ class TreeSequence:
             omit_sites=omit_sites,
             canvas_size=canvas_size,
             max_num_trees=max_num_trees,
+            preamble=preamble,
             **kwargs,
         )
         output = draw.drawing.tostring()
@@ -8710,6 +8825,340 @@ class TreeSequence:
         )
         return out
 
+    def _expand_indices(self, x: np.ndarray, indices: np.ndarray) -> np.ndarray:
+        y = np.zeros((self.num_samples, x.shape[1]))
+        y[indices] = x
+
+        return y
+
+    def _genetic_relatedness_vector_node(
+        self,
+        arr: np.ndarray,
+        indices: np.ndarray,
+        mode: str,
+        centre: bool = True,
+        windows=None,
+    ) -> np.ndarray:
+        x = arr - arr.mean(axis=0) if centre else arr
+        x = self._expand_indices(x, indices)
+        x = self.genetic_relatedness_vector(
+            W=x,
+            windows=windows,
+            mode=mode,
+            centre=False,
+            nodes=indices,
+        )[0]
+        x = x - x.mean(axis=0) if centre else x
+
+        return x
+
+    def _genetic_relatedness_vector_individual(
+        self,
+        arr: np.ndarray,
+        indices: np.ndarray,
+        mode: str,
+        centre: bool = True,
+        windows=None,
+    ) -> np.ndarray:
+        ij = np.vstack(
+            [[n, k] for k, i in enumerate(indices) for n in self.individual(i).nodes]
+        )
+        samples, sample_individuals = (
+            ij[:, 0],
+            ij[:, 1],
+        )
+        ploidy = np.bincount(sample_individuals)
+        x = arr - arr.mean(axis=0) if centre else arr
+        x = x[sample_individuals] / ploidy[sample_individuals, np.newaxis]
+        x = self._expand_indices(x, samples)
+        x = self.genetic_relatedness_vector(
+            W=x,
+            windows=windows,
+            mode=mode,
+            centre=False,
+            nodes=samples,
+        )[0]
+
+        def bincount_fn(w):
+            return np.bincount(sample_individuals, w) / ploidy
+
+        x = np.apply_along_axis(bincount_fn, axis=0, arr=x)
+        x = x - x.mean(axis=0) if centre else x  # centering within index in cols
+
+        return x
+
+    def pca(
+        self,
+        num_components: int,
+        windows: list = None,
+        samples: np.ndarray = None,
+        individuals: np.ndarray = None,
+        time_windows: np.ndarray = None,
+        mode: str = "branch",
+        centre: bool = True,
+        num_iterations: int = 5,
+        num_oversamples: int = None,
+        random_seed: int = None,
+        range_sketch: np.ndarray = None,
+    ) -> (np.ndarray, np.ndarray, np.ndarray):
+        """
+        Performs principal component analysis (PCA) for a given set of samples or
+        individuals (default: all samples). The principal components are the
+        eigenvectors of the genetic relatedness matrix, which are obtained by a
+        randomized singular value decomposition (rSVD) algorithm.
+
+        Concretely, if :math:`M` is the matrix of genetic relatedness values, with
+        :math:`M_{ij}` the output of
+        :meth:`genetic_relatedness <.TreeSequence.genetic_relatedness>`
+        between sample :math:`i` and sample :math:`j`, then by default this returns
+        the top ``num_components`` eigenvectors of :math:`M`, so that
+        ``output.factors[i,k]`` is the position of sample `i` on the `k` th PC.
+        If ``samples`` or ``individuals`` are provided, then this does the same thing,
+        except with :math:`M_{ij}` either the relatedness between ``samples[i]``
+        and ``samples[j]`` or the nodes of ``individuals[i]`` and ``individuals[j]``,
+        respectively.
+
+        The parameters ``centre`` and ``mode`` are passed to
+        :meth:`genetic_relatedness <.TreeSequence.genetic_relatedness>`;
+        if ``windows`` are provided then PCA is carried out separately in each window.
+        If ``time_windows`` is provided, then genetic relatedness is measured using only
+        ancestral material within the given time window (see
+        :meth:`decapitate <.TreeSequence.decapitate>` for how this is defined).
+
+        So that the method scales to large tree sequences, the underlying method
+        relies on a randomized SVD algorithm, using
+        :meth:`genetic_relatedness_vector <.TreeSequence.genetic_relatedness_vector>`).
+        Larger values of ``num_iterations`` and
+        ``num_oversamples`` should produce better approximations to the true eigenvalues,
+        at the cost of greater compute times and/or memory usage. The method relies on
+        constructing ``range_sketch``, a low-dimensional approximation to the range
+        of :math:`M`, so that the result of a previous call to ``pca()`` may be passed
+        in.
+
+        To check for convergence, compare
+        ``pc1 = ts.pca()`` and ``pc2 = ts.pca(range_sketch=pc1.range_sketch)``; the
+        difference between ``pc1.factors`` and ``pc2.factors`` provides a
+        diagnostic of the convergence of the algorithm (i.e., if they are close
+        then it has likely converged). Alternatively, the output value of ``error_bound``
+        gives an approximate upper bound for the spectral norm of the difference
+        between :math:`M` and the projection of :math:`M` into the space spanned by
+        the columns of ``range_sketch``.
+        Algorithms are based on Algorithms 8
+        and 9 in Martinsson and Tropp, https://arxiv.org/pdf/2002.01387 .
+
+        :param int num_components: Number of principal components to return.
+        :param list windows: An increasing list of breakpoints between the windows
+            to compute the statistic in (default: the entire genome).
+        :param numpy.ndarray samples: Samples to perform PCA with (default: all samples).
+        :param numpy.ndarray individuals: Individuals to perform PCA with. Cannot specify
+            both ``samples`` and ``individuals``.
+        :param numpy.ndarray time_windows: The time interval on which to apply PCA:
+            currently, this must be either None (default, covers all time)
+            or a single interval.
+        :param str mode: A string giving the "type" of relatedness to be computed
+            (defaults to "branch"; see
+            :meth:`genetic_relatedness_vector
+            <.TreeSequence.genetic_relatedness_vector>`).
+        :param bool centre: Whether to centre the genetic relatedness matrix.
+        :param int num_iterations: Number of power iterations used in the range finding
+            algorithm.
+        :param int num_oversamples: Number of additional test vectors (default: 10).
+            Cannot specify along with range_sketch.
+        :param int random_seed: The random seed. If this is None, a random seed will
+            be automatically generated. Valid random seeds are between 1 and
+            :math:`2^32 − 1`. Only used if `range_sketch` is not provided.
+        :param numpy.ndarray range_sketch: Sketch matrix for each window. Default is
+            randomly generated; cannot specify along with num_oversamples.
+        :return: A :class:`PCAResult` object, containing estimated principal components,
+            eigenvalues, and other information:
+            the principal component loadings are in PCAResult.factors
+            and the principal values are in PCAResult.eigenvalues.
+        """
+
+        if (not isinstance(num_iterations, int)) or num_iterations < 1:
+            raise ValueError("num_iterations should be a positive integer.")
+
+        if samples is None and individuals is None:
+            samples = self.samples()
+
+        if samples is not None and individuals is not None:
+            raise ValueError("Samples and individuals cannot be used at the same time")
+        elif samples is not None:
+            output_type = "node"
+            dim = len(samples)
+        else:
+            assert individuals is not None
+            output_type = "individual"
+            dim = len(individuals)
+
+        if time_windows is None:
+            tree_sequence_low, tree_sequence_high = None, self
+        else:
+            assert (
+                time_windows[0] < time_windows[1]
+            ), "The second argument should be larger."
+            tree_sequence_low, tree_sequence_high = (
+                self.decapitate(time_windows[0]),
+                self.decapitate(time_windows[1]),
+            )
+
+        drop_windows = windows is None
+        windows = self.parse_windows(windows)
+        num_windows = len(windows) - 1
+        if num_windows < 1:
+            raise ValueError("Must have at least one window.")
+
+        if num_components > dim:
+            raise ValueError(
+                "Number of components must be less than or equal to "
+                "the number of samples (or individuals, if specified)."
+            )
+
+        if num_oversamples is not None and range_sketch is not None:
+            raise ValueError("Cannot specify both num_oversamples and range_sketch.")
+
+        if range_sketch is None:
+            if num_oversamples is None:
+                num_oversamples = min(10, dim - num_components)
+
+            rng = np.random.default_rng(random_seed)
+            range_sketch = rng.normal(
+                size=(num_windows, dim, num_components + num_oversamples)
+            )
+        else:
+            if drop_windows:
+                range_sketch = np.expand_dims(range_sketch, 0)
+            if range_sketch.shape[-1] < num_components:
+                raise ValueError(
+                    "range_sketch must have at least as many columns as num_components"
+                )
+            num_oversamples = range_sketch.shape[-1] - num_components
+
+        num_vectors = num_components + num_oversamples
+        if num_vectors > dim:
+            raise ValueError(
+                "Number of columns in range_sketch "
+                "(num_components + num_oversamples) must be less"
+                " than or equal to the number of samples"
+                " (or individuals, if specified)."
+            )
+        rs_exp_dims = (num_windows, dim, num_vectors)
+        rs_obs_dims = range_sketch.shape
+        if rs_obs_dims != rs_exp_dims:
+            if drop_windows:
+                rs_obs_dims = rs_obs_dims[1:]
+                rs_exp_dims = rs_exp_dims[1:]
+            raise ValueError(
+                "Incorrect shape of range_sketch:"
+                f" expected {rs_exp_dims}; got {rs_obs_dims}."
+            )
+
+        def _rand_pow_range_finder(
+            operator,
+            operator_dim: int,
+            rank: int,
+            depth: int,
+            num_vectors: int,
+            Q: np.ndarray,
+        ) -> np.ndarray:
+            """
+            Algorithm 9 in https://arxiv.org/pdf/2002.01387
+            """
+            assert (
+                num_vectors >= rank > 0
+            ), "num_vectors should not be smaller than rank"
+            for _ in range(depth):
+                Q = np.linalg.qr(Q)[0]
+                Q = operator(Q)
+            Q = np.linalg.qr(Q)[0]
+            return Q
+
+        def _rand_svd(
+            operator,
+            operator_dim: int,
+            rank: int,
+            depth: int,
+            num_vectors: int,
+            range_sketch: np.ndarray,
+        ) -> (np.ndarray, np.ndarray, np.ndarray, float):
+            """
+            Algorithm 8 in https://arxiv.org/pdf/2002.01387
+            """
+            assert num_vectors >= rank > 0
+            Q = _rand_pow_range_finder(
+                operator,
+                operator_dim,
+                rank=num_vectors,
+                depth=depth,
+                num_vectors=num_vectors,
+                Q=range_sketch,
+            )
+            C = operator(Q).T
+            U_hat, D, _ = np.linalg.svd(C, full_matrices=False)
+            U = Q @ U_hat
+
+            error_factor = np.power(
+                1 + 4 * np.sqrt(2 * operator_dim / max(1, (rank - 1))),
+                1 / (2 * depth + 1),
+            )
+            error_bound = D[rank] * (1 + error_factor)
+            return U[:, :rank], D[:rank], Q, error_bound
+
+        _f_high = (
+            tree_sequence_high._genetic_relatedness_vector_node
+            if output_type == "node"
+            else tree_sequence_high._genetic_relatedness_vector_individual
+        )
+        if time_windows is not None:
+            _f_low = (
+                tree_sequence_low._genetic_relatedness_vector_node
+                if output_type == "node"
+                else tree_sequence_low._genetic_relatedness_vector_individual
+            )
+        indices = samples if output_type == "node" else individuals
+
+        U = np.empty((num_windows, dim, num_components))
+        D = np.empty((num_windows, num_components))
+        Q = np.empty((num_windows, dim, num_vectors))
+        E = np.empty(num_windows)
+        for i in range(num_windows):
+
+            def _G(x, i=i):
+                high = _f_high(
+                    arr=x,
+                    indices=indices,
+                    mode=mode,
+                    centre=centre,
+                    windows=windows[i : i + 2],
+                )
+                if time_windows is None:
+                    return high
+                else:
+                    low = _f_low(
+                        arr=x,
+                        indices=indices,
+                        mode=mode,
+                        centre=centre,
+                        windows=windows[i : i + 2],
+                    )
+                    return high - low
+
+            U[i], D[i], Q[i], E[i] = _rand_svd(
+                operator=_G,
+                operator_dim=dim,
+                rank=num_components,
+                depth=num_iterations,
+                num_vectors=num_vectors,
+                range_sketch=range_sketch[i],
+            )
+
+        if drop_windows:
+            U, D, Q, E = U[0], D[0], Q[0], E[0]
+
+        pca_result = PCAResult(factors=U, eigenvalues=D, range_sketch=Q, error_bound=E)
+
+        return pca_result
+
     def trait_covariance(self, W, windows=None, mode="site", span_normalise=True):
         """
         Computes the mean squared covariances between each of the columns of ``W``
@@ -9794,7 +10243,7 @@ class TreeSequence:
         :param list windows: An increasing list of breakpoints between the
             sequence windows to compute the statistic in, or None.
         :param bool span_normalise: Whether to divide the result by the span of
-            the window (defaults to True).
+            non-missing sequence in the window (defaults to True).
         :param bool pair_normalise: Whether to divide the result by the total
             number of pairs for a given index (defaults to False).
         :param time_windows: Either a string "nodes" or an increasing
@@ -9815,32 +10264,40 @@ class TreeSequence:
                 raise ValueError(
                     "Must specify indexes if there are more than two sample sets"
                 )
+        num_indexes = len(indexes)
 
         drop_left_dimension = False
         if windows is None:
             drop_left_dimension = True
             windows = np.array([0.0, self.sequence_length])
+        num_windows = len(windows) - 1
 
         if isinstance(time_windows, str) and time_windows == "nodes":
-            node_bin_map = np.arange(self.num_nodes, dtype=np.int32)
+            num_time_windows = self.num_nodes
+            node_bin_map = np.arange(num_time_windows, dtype=np.int32)
         else:
             if self.time_units == tskit.TIME_UNITS_UNCALIBRATED:
                 raise ValueError("Time windows require calibrated node times")
+            num_time_windows = len(time_windows) - 1
             node_bin_map = np.digitize(self.nodes_time, time_windows) - 1
-            node_bin_map[node_bin_map == time_windows.size - 1] = tskit.NULL
+            node_bin_map[node_bin_map == num_time_windows] = tskit.NULL
             node_bin_map = node_bin_map.astype(np.int32)
+        num_bins = node_bin_map.max() + 1
 
         sample_set_sizes = np.array([len(s) for s in sample_sets], dtype=np.uint32)
         sample_sets = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
 
-        coalescing_pairs = self.ll_tree_sequence.pair_coalescence_counts(
-            sample_sets=sample_sets,
-            sample_set_sizes=sample_set_sizes,
-            windows=windows,
-            indexes=indexes,
-            node_bin_map=node_bin_map,
-            span_normalise=span_normalise,
-            pair_normalise=pair_normalise,
+        coalescing_pairs = np.zeros((num_windows, num_indexes, num_time_windows))
+        coalescing_pairs[..., :num_bins] = (
+            self.ll_tree_sequence.pair_coalescence_counts(
+                sample_sets=sample_sets,
+                sample_set_sizes=sample_set_sizes,
+                windows=windows,
+                indexes=indexes,
+                node_bin_map=node_bin_map,
+                span_normalise=span_normalise,
+                pair_normalise=pair_normalise,
+            )
         )
 
         if drop_middle_dimension:
@@ -9961,8 +10418,8 @@ class TreeSequence:
 
         The first breakpoint in `time_windows` must start at the age of the
         samples, and the last must end at infinity. In the output array, any
-        time windows that do not contain coalescence events will have `NaN`
-        values.
+        time windows where all pairs have coalesced by start of the window will
+        contain `NaN` values.
 
         Pair coalescence rates may be calculated within or between the
         non-overlapping lists of samples contained in `sample_sets`. In the
@@ -10291,3 +10748,40 @@ def write_ms(
                         )
             else:
                 print(file=output)
+
+
+@dataclass
+class PCAResult:
+    """
+    The result of a call to TreeSequence.pca() capturing the output values
+    and algorithm convergence details.
+
+
+    """
+
+    factors: np.ndarray
+    """
+    The principal component factors (or scores).
+    Columns are orthogonal, with one entry per sample
+    or individual (see :meth:`pca <.TreeSequence.pca>`).
+    This is the same as the loadings because the GRM is symmetric.
+    """
+    eigenvalues: np.ndarray
+    """
+    Eigenvalues of the genetic relatedness matrix.
+    """
+    range_sketch: np.ndarray
+    """
+    Range sketch matrix. Can be used as an input for
+    :meth:`pca <.TreeSequence.pca>` option to further improve precision.
+    """
+    error_bound: np.ndarray
+    """
+    An estimate of the error resulting from the randomized algorithm (experimental).
+    Eigenvalues should be correct to within (roughly) this additive factor,
+    and factors should be correct to within (roughly) this factor divided by the
+    next-largest eigenvalue in the Euclidean norm. These estimates are obtained from
+    a bound on the expected L2 operator norm between the true GRM and its
+    low-dimensional approximation, from equation 1.11 in
+    https://arxiv.org/pdf/0909.4061 .
+    """

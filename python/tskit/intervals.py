@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2023 Tskit Developers
+# Copyright (c) 2023-2025 Tskit Developers
 # Copyright (C) 2020-2021 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -341,7 +341,7 @@ class RateMap(collections.abc.Mapping):
         row_indexes = util.truncate_rows(num_rows, limit)
         for j in row_indexes:
             if j == -1:
-                rows.append(f"__skipped__{num_rows-limit}")
+                rows.append(f"__skipped__{num_rows - limit}")
             else:
                 rows.append(
                     [

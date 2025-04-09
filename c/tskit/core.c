@@ -43,22 +43,24 @@ static int TSK_WARN_UNUSED
 get_random_bytes(uint8_t *buf)
 {
     /* Based on CPython's code in bootstrap_hash.c */
-    int ret = TSK_ERR_GENERATE_UUID;
+    int ret = 0;
     HCRYPTPROV hCryptProv = (HCRYPTPROV) NULL;
 
     if (!CryptAcquireContext(
             &hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
+        ret = tsk_trace_error(TSK_ERR_GENERATE_UUID);
         goto out;
     }
     if (!CryptGenRandom(hCryptProv, (DWORD) UUID_NUM_BYTES, buf)) {
+        ret = tsk_trace_error(TSK_ERR_GENERATE_UUID);
         goto out;
     }
     if (!CryptReleaseContext(hCryptProv, 0)) {
         hCryptProv = (HCRYPTPROV) NULL;
+        ret = tsk_trace_error(TSK_ERR_GENERATE_UUID);
         goto out;
     }
     hCryptProv = (HCRYPTPROV) NULL;
-    ret = 0;
 out:
     if (hCryptProv != (HCRYPTPROV) NULL) {
         CryptReleaseContext(hCryptProv, 0);
@@ -72,19 +74,21 @@ out:
 static int TSK_WARN_UNUSED
 get_random_bytes(uint8_t *buf)
 {
-    int ret = TSK_ERR_GENERATE_UUID;
+    int ret = 0;
     FILE *f = fopen("/dev/urandom", "r");
 
     if (f == NULL) {
+        ret = tsk_trace_error(TSK_ERR_GENERATE_UUID);
         goto out;
     }
     if (fread(buf, UUID_NUM_BYTES, 1, f) != 1) {
+        ret = tsk_trace_error(TSK_ERR_GENERATE_UUID);
         goto out;
     }
     if (fclose(f) != 0) {
+        ret = tsk_trace_error(TSK_ERR_GENERATE_UUID);
         goto out;
     }
-    ret = 0;
 out:
     return ret;
 }
@@ -111,7 +115,7 @@ tsk_generate_uuid(char *dest, int TSK_UNUSED(flags))
             buf[4], buf[5], buf[6], buf[7], buf[8], buf[9], buf[10], buf[11], buf[12],
             buf[13], buf[14], buf[15])
         < 0) {
-        ret = TSK_ERR_GENERATE_UUID;
+        ret = tsk_trace_error(TSK_ERR_GENERATE_UUID);
         goto out;
     }
 out:
@@ -232,10 +236,10 @@ tsk_strerror_internal(int err)
 
         /* Edge errors */
         case TSK_ERR_NULL_PARENT:
-            ret = "Edge in parent is null. (TSK_ERR_NULL_PARENT)";
+            ret = "Edge parent is null. (TSK_ERR_NULL_PARENT)";
             break;
         case TSK_ERR_NULL_CHILD:
-            ret = "Edge in parent is null. (TSK_ERR_NULL_CHILD)";
+            ret = "Edge child is null. (TSK_ERR_NULL_CHILD)";
             break;
         case TSK_ERR_EDGES_NOT_SORTED_PARENT_TIME:
             ret = "Edges must be listed in (time[parent], child, left) order;"
@@ -277,7 +281,10 @@ tsk_strerror_internal(int err)
             break;
         case TSK_ERR_CANT_PROCESS_EDGES_WITH_METADATA:
             ret = "Can't squash, flush, simplify or link ancestors with edges that have "
-                  "non-empty metadata. (TSK_ERR_CANT_PROCESS_EDGES_WITH_METADATA)";
+                  "non-empty metadata. Removing the metadata from the edges will allow "
+                  "these operations to proceed. For example using "
+                  "tables.edges.drop_metadata() in the tskit Python API. "
+                  "(TSK_ERR_CANT_PROCESS_EDGES_WITH_METADATA)";
             break;
 
         /* Site errors */
@@ -761,7 +768,7 @@ tsk_blkalloc_init(tsk_blkalloc_t *self, size_t chunk_size)
 
     tsk_memset(self, 0, sizeof(tsk_blkalloc_t));
     if (chunk_size < 1) {
-        ret = TSK_ERR_BAD_PARAM_VALUE;
+        ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
         goto out;
     }
     self->chunk_size = chunk_size;
@@ -772,12 +779,12 @@ tsk_blkalloc_init(tsk_blkalloc_t *self, size_t chunk_size)
     self->num_chunks = 0;
     self->mem_chunks = malloc(sizeof(char *));
     if (self->mem_chunks == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
+        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
     self->mem_chunks[0] = malloc(chunk_size);
     if (self->mem_chunks[0] == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
+        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
     self->num_chunks = 1;
@@ -1253,7 +1260,7 @@ tsk_bit_array_init(tsk_bit_array_t *self, tsk_size_t num_bits, tsk_size_t length
                  + (num_bits % TSK_BIT_ARRAY_NUM_BITS ? 1 : 0);
     self->data = tsk_calloc(self->size * length, sizeof(*self->data));
     if (self->data == NULL) {
-        ret = TSK_ERR_NO_MEMORY;
+        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
 out:
@@ -1331,6 +1338,35 @@ tsk_bit_array_count(const tsk_bit_array_t *self)
         count += (((tmp + (tmp >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
     }
     return count;
+}
+
+void
+tsk_bit_array_get_items(
+    const tsk_bit_array_t *self, tsk_id_t *items, tsk_size_t *n_items)
+{
+    // Get the items stored in the row of a bitset.
+    // Uses a de Bruijn sequence lookup table to determine the lowest bit set. See the
+    // wikipedia article for more info: https://w.wiki/BYiF
+
+    tsk_size_t i, n, off;
+    tsk_bit_array_value_t v, lsb; // least significant bit
+    static const tsk_id_t lookup[32] = { 0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25,
+        17, 4, 8, 31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9 };
+
+    n = 0;
+    for (i = 0; i < self->size; i++) {
+        v = self->data[i];
+        off = i * ((tsk_size_t) TSK_BIT_ARRAY_NUM_BITS);
+        if (v == 0) {
+            continue;
+        }
+        while ((lsb = v & -v)) {
+            items[n] = lookup[(lsb * 0x077cb531U) >> 27] + (tsk_id_t) off;
+            n++;
+            v ^= lsb;
+        }
+    }
+    *n_items = n;
 }
 
 void

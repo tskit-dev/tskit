@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2019-2024 Tskit Developers
+ * Copyright (c) 2019-2025 Tskit Developers
  * Copyright (c) 2015-2018 University of Oxford
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -152,7 +152,7 @@ to the API or ABI are introduced, i.e., the addition of a new function.
 The library patch version. Incremented when any changes not relevant to the
 to the API or ABI are introduced, i.e., internal refactors of bugfixes.
 */
-#define TSK_VERSION_PATCH   3
+#define TSK_VERSION_PATCH   4
 /** @} */
 
 /*
@@ -953,6 +953,21 @@ not be freed by client code.
 */
 const char *tsk_strerror(int err);
 
+#ifdef TSK_TRACE_ERRORS
+
+static inline int
+_tsk_trace_error(int err, int line, const char *file)
+{
+    fprintf(stderr, "tskit-trace-error: %d='%s' at line %d in %s\n", err,
+        tsk_strerror(err), line, file);
+    return err;
+}
+
+#define tsk_trace_error(err) (_tsk_trace_error(err, __LINE__, __FILE__))
+#else
+#define tsk_trace_error(err) (err)
+#endif
+
 #ifndef TSK_BUG_ASSERT_MESSAGE
 #define TSK_BUG_ASSERT_MESSAGE                                                          \
     "If you are using tskit directly please open an issue on"                           \
@@ -1100,6 +1115,8 @@ void tsk_bit_array_add_bit(tsk_bit_array_t *self, const tsk_bit_array_value_t bi
 bool tsk_bit_array_contains(
     const tsk_bit_array_t *self, const tsk_bit_array_value_t bit);
 tsk_size_t tsk_bit_array_count(const tsk_bit_array_t *self);
+void tsk_bit_array_get_items(
+    const tsk_bit_array_t *self, tsk_id_t *items, tsk_size_t *n_items);
 
 #ifdef __cplusplus
 }

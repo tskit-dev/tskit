@@ -18,7 +18,7 @@ msprime>=1.0.0
 networkx
 newick
 ninja
-numpy<2
+numpy
 packaging
 portion
 pre-commit
@@ -28,15 +28,10 @@ pytest
 pytest-cov
 pytest-xdist
 si-prefix
-sphinx==7.4.7
 sphinx-argparse
 sphinx-autodoc-typehints>=1.18.3
 sphinx-issues
-sphinx-jupyterbook-latex
-sphinxcontrib-prettyspecialmethods
 tqdm
 sphinx-book-theme
 tszip
-pydata_sphinx_theme>=0.7.2
-svgwrite>=1.1.10
 xmlunittest

@@ -1,8 +1,8 @@
-jupyter-book==1.0.0
+jupyter-book==1.0.4.post1
 breathe==4.35.0
-sphinx-autodoc-typehints==2.2.2
-sphinx-issues==4.1.0
-sphinx-argparse==0.4.0
-svgwrite==1.4.3
-msprime==1.3.2
+sphinx-autodoc-typehints==2.3.0
+sphinx-issues==5.0.0
+sphinx-argparse==0.5.2
+msprime==1.3.3
 sphinx-book-theme
+pandas==2.2.3

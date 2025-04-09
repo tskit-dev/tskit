@@ -26,10 +26,10 @@ Recombination Graph (ARG); succinct tree sequences are fully compatible with thi
 formulation, and tskit is a therefore a powerful platform for processing ARGs.
 
 The tree sequence format is output by a number of external software libraries
-and programs (such as [msprime](https://github.com/tskit-dev/msprime), 
+and programs (such as [msprime](https://tskit.dev/msprime/docs), 
 [SLiM](https://github.com/MesserLab/SLiM), 
-[fwdpp](http://molpopgen.github.io/fwdpp/), and 
-[tsinfer](https://tsinfer.readthedocs.io/en/latest/)) that either simulate or
+[fwdpp](https://fwdpp.readthedocs.io/en/), and 
+[tsinfer](https://tskit.dev/tsinfer/docs/)) that either simulate or
 infer the evolutionary history of genetic sequences. This library provides the
 underlying functionality that such software uses to load, examine, and
 manipulate tree sequences, including efficient methods for calculating
@@ -42,5 +42,5 @@ tutorial material to introduce you to the key concepts behind succinct tree sequ
 :::{note}
 This documentation is under active development and may be incomplete
 in some areas. If you would like to help improve it, please open an issue or
-pull request at [GitHub](https://github.com/tskit-dev/tskit).
+pull request on [GitHub](https://github.com/tskit-dev/tskit).
 :::

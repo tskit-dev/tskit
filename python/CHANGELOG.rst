@@ -1,7 +1,46 @@
 --------------------
-[0.6.1] - 2024-XX-XX
+[0.6.2] - 2025-04-01
 --------------------
 
+**Bugfixes**
+
+- Meatdata.schema was returning a modified schema, this is fixed to return a copy of
+  the original schema instead (:user:`benjeffery`, :issue:`3129`, :pr:`3130`)
+
+--------------------
+[0.6.1] - 2025-03-31
+--------------------
+
+**Bugfixes**
+
+- Fix to ``TreeSequence.pair_coalescence_counts`` output dimension when
+  provided with time windows containing no nodes (:user:`nspope`,
+  :issue:`3046`, :pr:`3058`)
+
+- Fix to ``TreeSequence.pair_coalescence_counts`` to normalise by non-missing
+  span if ``span_normalise=True``. This resolves a bug where
+  ``TreeSequence.pair_coalescence_rates`` would return incorrect values for
+  intervals with missing trees.  (:user:`natep`, :issue:`3053`, :pr:`3059`)
+
+- Fix to ``TreeSequence.pair_coalescence_rates`` causing an
+  assertion to be triggered by floating point error, when all coalescence events are inside a single time window (:user:`natep`, :issue:`3035`, :pr:`3038`)
+
+**Features**
+
+- Add support for fixed-length arrays in metadata struct codec using the ``length`` property.
+  (:user:`benjeffery`, :issue:`3088`,:pr:`3090`)
+
+- Add a new ``TreeSequence.pca`` method that uses randomized linear algebra
+  to find the top eigenvectors/values of the genetic relatedness matrix
+  (:user:`hanbin973`, :user:`petrelharp`, :pr:`3008`)
+
+- Add methods on `TreeSequence` to efficiently get table metadata as a
+  numpy structured array. (:user:`benjeffery`, :pr:`3098`)
+
+- Add Python 3.13 support (:user:`benjeffery`, :pr:`3107`)
+
+- Add a `preamble` argument to `draw_svg()` methods to allow adding arbitrary extra
+  graphics (e.g. legends) to SVG plots (:user:`hyanwong`, `issue:`3086`, :pr:`3121`)
 
 --------------------
 [0.6.0] - 2024-10-16
@@ -48,8 +87,8 @@
   (:user:`hyanwong`, :pr:`2531`)
 
 - Variants now have a `states()` method that returns the genotypes as an
-   (inefficient) array of strings, rather than integer indexes, to
-   aid comparison of genetic variation (:user:`hyanwong`, :pr:`2617`)
+  (inefficient) array of strings, rather than integer indexes, to
+  aid comparison of genetic variation (:user:`hyanwong`, :pr:`2617`)
 
 - Added ``distance_between`` that calculates the total distance between two nodes in a tree.
   (:user:`Billyzhang1229`, :pr:`2771`)

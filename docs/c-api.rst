@@ -920,3 +920,31 @@ stored in the file ``no_mutations.trees``::
     $ ./build/streaming < no_mutations.trees > /dev/null
     Tree sequence 0 had 0 mutations
     Tree sequence 1 had 0 mutations
+
+------------------------------------
+Parallel, multichromosome simulation
+------------------------------------
+
+A substantial bottleneck in forwards simulations using tree sequences
+is *simplification*. This is therefore a natural target for parallelization.
+The potential for breaking up a chromosome into discrete chunks that
+are separately parallelized is limited, however, since any edge
+that extends across the boundary between two chunks is split;
+thus creating more work.
+However, distinct chromosomes provide a natural target:
+the edge tables describing inheritance for each chromosome can be
+independently simplified, as long as the fact that they all refer to
+the same set of nodes.
+This simulation keeps each chromosome in a separate tree sequence,
+but they essentially share a common node table;
+the :c:macro:`TSK_SIMPLIFY_NO_FILTER_NODES` flag is used so that
+each call to :c:func:`tsk_table_collection_simplify` does not
+change the common node table.
+Afterwards, we iterate though the edge tables to determine which
+nodes need to be retained, and use
+:c:func:`tsk_node_table_keep_rows` to remove unused nodes.
+
+
+.. literalinclude:: ../c/examples/multichrom_wright_fisher.c
+    :language: c
+

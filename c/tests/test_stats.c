@@ -317,12 +317,15 @@ verify_pair_coalescence_counts(tsk_treeseq_t *ts, tsk_flags_t options)
     const double *breakpoints = tsk_treeseq_get_breakpoints(ts);
     const tsk_size_t P = 2;
     const tsk_size_t I = P * (P + 1) / 2;
+    const tsk_size_t B = 8;
     tsk_id_t sample_sets[n];
     tsk_size_t sample_set_sizes[P];
     tsk_id_t index_tuples[2 * I];
     tsk_id_t node_bin_map[N];
     tsk_size_t dim = T * N * I;
     double C[dim];
+    double C_B[T * B * I];
+    double C_Nh[T * (N / 2) * I];
     tsk_size_t i, j, k;
 
     for (i = 0; i < n; i++) {
@@ -333,7 +336,7 @@ verify_pair_coalescence_counts(tsk_treeseq_t *ts, tsk_flags_t options)
         sample_set_sizes[i] = 0;
     }
     for (j = 0; j < n; j++) {
-        i = j / (n / P);
+        i = j / ((n + P - 1) / P);
         sample_set_sizes[i]++;
     }
 
@@ -346,17 +349,17 @@ verify_pair_coalescence_counts(tsk_treeseq_t *ts, tsk_flags_t options)
 
     /* test various bin assignments */
     for (i = 0; i < N; i++) {
-        node_bin_map[i] = ((tsk_id_t) i) % 8;
+        node_bin_map[i] = ((tsk_id_t) (i % B));
     }
     ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
-        index_tuples, T, breakpoints, 8, node_bin_map, options, C);
+        index_tuples, T, breakpoints, B, node_bin_map, options, C_B);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     for (i = 0; i < N; i++) {
         node_bin_map[i] = i < N / 2 ? ((tsk_id_t) i) : TSK_NULL;
     }
     ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
-        index_tuples, T, breakpoints, N / 2, node_bin_map, options, C);
+        index_tuples, T, breakpoints, N / 2, node_bin_map, options, C_Nh);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     for (i = 0; i < N; i++) {
@@ -3773,6 +3776,17 @@ test_pair_coalescence_counts(void)
 }
 
 static void
+test_pair_coalescence_counts_missing(void)
+{
+    tsk_treeseq_t ts;
+    tsk_treeseq_from_text(&ts, 5, missing_ex_nodes, missing_ex_edges, NULL,
+        NULL, NULL, NULL, NULL, 0);
+    verify_pair_coalescence_counts(&ts, 0);
+    verify_pair_coalescence_counts(&ts, TSK_STAT_SPAN_NORMALISE);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_pair_coalescence_quantiles(void)
 {
     tsk_treeseq_t ts;
@@ -3901,6 +3915,7 @@ main(int argc, char **argv)
         { "test_multiroot_divergence_matrix", test_multiroot_divergence_matrix },
 
         { "test_pair_coalescence_counts", test_pair_coalescence_counts },
+        { "test_pair_coalescence_counts_missing", test_pair_coalescence_counts_missing },
         { "test_pair_coalescence_quantiles", test_pair_coalescence_quantiles },
         { "test_pair_coalescence_rates", test_pair_coalescence_rates },
 

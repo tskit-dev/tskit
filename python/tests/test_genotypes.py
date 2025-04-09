@@ -2016,8 +2016,8 @@ class TestAlignmentExamples:
         ),
         # Case 10: Lists contain unicode characters.
         (
-            ["\u1F1E8", "\u1F1EC"],
-            ["\u1F1EC", "\u1F1E8", "\u1F1E6", "\u1F1F3"],
+            ["\u1f1e8", "\u1f1eC"],
+            ["\u1f1eC", "\u1f1e8", "\u1f1e6", "\u1f1f3"],
             np.array([1, 0], dtype="uint32"),
         ),
     ],

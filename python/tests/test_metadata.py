@@ -1125,6 +1125,25 @@ class TestStructCodec:
         assert ms.validate_and_encode_row(None) == b""
         assert ms.decode_row(b"") is None
 
+    def test_add_property_to_schema(self):
+        schema = metadata.MetadataSchema(
+            {
+                "codec": "struct",
+                "type": ["object", "null"],
+                "name": "Mutation metadata",
+                "properties": {
+                    "s": {"type": "number", "binaryFormat": "d"},
+                },
+                "additionalProperties": False,
+            }
+        )
+        schema_with_additional = schema.schema
+        schema_with_additional["properties"]["a"] = {
+            "type": "number",
+            "binaryFormat": "d",
+        }
+        metadata.MetadataSchema(schema_with_additional)
+
 
 class TestStructCodecRoundTrip:
     def round_trip(self, schema, row_data):
@@ -1415,6 +1434,154 @@ class TestStructCodecRoundTrip:
         assert ms.validate_and_encode_row(row_data) == index_order_encoded
         assert ms.decode_row(index_order_encoded) == row_data
 
+    def test_fixed_length_array(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "length": 3,
+                    "items": {"type": "number", "binaryFormat": "i"},
+                }
+            },
+        }
+        self.round_trip(schema, {"array": [1, 2, 3]})
+
+        # Test with complex fixed-length arrays
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "length": 2,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "int": {"type": "number", "binaryFormat": "i"},
+                            "float": {"type": "number", "binaryFormat": "d"},
+                        },
+                    },
+                }
+            },
+        }
+        self.round_trip(
+            schema, {"array": [{"int": 1, "float": 1.1}, {"int": 2, "float": 2.2}]}
+        )
+
+        # Test fixed-length nested arrays
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "length": 2,
+                    "items": {
+                        "type": "array",
+                        "length": 3,
+                        "items": {"type": "number", "binaryFormat": "d"},
+                    },
+                }
+            },
+        }
+        self.round_trip(schema, {"array": [[1.1, 1.2, 1.3], [2.1, 2.2, 2.3]]})
+
+    def test_mixed_fixed_and_variable_arrays(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "fixed_array": {
+                    "type": "array",
+                    "length": 3,
+                    "items": {"type": "number", "binaryFormat": "i"},
+                },
+                "variable_array": {
+                    "type": "array",
+                    "items": {"type": "number", "binaryFormat": "i"},
+                },
+            },
+        }
+        self.round_trip(
+            schema, {"fixed_array": [1, 2, 3], "variable_array": [4, 5, 6, 7]}
+        )
+        self.round_trip(schema, {"fixed_array": [1, 2, 3], "variable_array": []})
+
+        # Nested case - array of objects where each object has
+        # both fixed and variable-length arrays
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "objects": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "fixed": {
+                                "type": "array",
+                                "length": 2,
+                                "items": {"type": "number", "binaryFormat": "d"},
+                            },
+                            "variable": {
+                                "type": "array",
+                                "items": {"type": "number", "binaryFormat": "i"},
+                            },
+                        },
+                    },
+                }
+            },
+        }
+        self.round_trip(
+            schema,
+            {
+                "objects": [
+                    {"fixed": [1.1, 2.2], "variable": [1, 2, 3]},
+                    {"fixed": [3.3, 4.4], "variable": [4]},
+                    {"fixed": [5.5, 6.6], "variable": []},
+                ]
+            },
+        )
+
+    def test_edge_case_zero_length_array(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "empty_fixed": {
+                    "type": "array",
+                    "length": 0,
+                    "items": {"type": "number", "binaryFormat": "i"},
+                }
+            },
+        }
+        self.round_trip(schema, {"empty_fixed": []})
+
+        # Can't provide non-empty array when length=0
+        ms = metadata.MetadataSchema(schema)
+        with pytest.raises(
+            ValueError, match="Array length 1 does not match schema fixed length 0"
+        ):
+            ms.validate_and_encode_row({"empty_fixed": [1]})
+
+        # Complex object with zero-length array
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "binaryFormat": "10p"},
+                "empty_fixed": {
+                    "type": "array",
+                    "length": 0,
+                    "items": {"type": "number", "binaryFormat": "i"},
+                },
+                "value": {"type": "number", "binaryFormat": "d"},
+            },
+        }
+        self.round_trip(schema, {"name": "test", "empty_fixed": [], "value": 42.0})
+
 
 class TestStructCodecErrors:
     def encode(self, schema, row_data):
@@ -1643,6 +1810,85 @@ class TestStructCodecErrors:
             exceptions.MetadataValidationError, match="'float' is a required property"
         ):
             self.encode(schema, {})
+
+    def test_fixed_length_array_wrong_length(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "length": 3,
+                    "items": {"type": "number", "binaryFormat": "i"},
+                },
+            },
+        }
+        ms = metadata.MetadataSchema(schema)
+
+        with pytest.raises(
+            ValueError, match="Array length 2 does not match schema fixed length 3"
+        ):
+            ms.validate_and_encode_row({"array": [1, 2]})
+
+        with pytest.raises(
+            ValueError, match="Array length 4 does not match schema fixed length 3"
+        ):
+            ms.validate_and_encode_row({"array": [1, 2, 3, 4]})
+
+    def test_fixed_length_array_conflicts(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "test": {
+                    "type": "array",
+                    "length": 3,
+                    "noLengthEncodingExhaustBuffer": True,
+                    "items": {"type": "number", "binaryFormat": "i"},
+                },
+            },
+        }
+        with pytest.raises(
+            exceptions.MetadataSchemaValidationError,
+            match="test array cannot have both 'length' and "
+            "'noLengthEncodingExhaustBuffer' set",
+        ):
+            metadata.MetadataSchema(schema)
+
+    def test_fixed_length_with_length_format(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "length": 3,
+                    "arrayLengthFormat": "B",
+                    "items": {"type": "number", "binaryFormat": "i"},
+                },
+            },
+        }
+        with pytest.raises(
+            exceptions.MetadataSchemaValidationError,
+            match="fixed-length array should not specify 'arrayLengthFormat'",
+        ):
+            metadata.MetadataSchema(schema)
+
+    def test_negative_fixed_length(self):
+        """Test that negative fixed-length values are rejected."""
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "array": {
+                    "type": "array",
+                    "length": -5,
+                    "items": {"type": "number", "binaryFormat": "i"},
+                },
+            },
+        }
+        with pytest.raises(exceptions.MetadataSchemaValidationError):
+            metadata.MetadataSchema(schema)
 
 
 class TestSLiMDecoding:
@@ -1944,3 +2190,328 @@ class TestTableCollectionEquality:
         assert tables._ll_tables.metadata_schema != tskit.canonical_json(schema)
         tables.metadata_schema = tables.metadata_schema
         assert tables._ll_tables.metadata_schema == tskit.canonical_json(schema)
+
+
+class TestStructuredArrays:
+    """
+    Tests for the get_numpy_dtype method in StructCodec
+    """
+
+    def test_not_implemented_json(self):
+        schema = {"codec": "json"}
+        with pytest.raises(NotImplementedError):
+            metadata.MetadataSchema(schema).numpy_dtype()
+        with pytest.raises(NotImplementedError):
+            metadata.MetadataSchema(schema).structured_array_from_buffer(b"")
+
+    @pytest.mark.parametrize(
+        "type_name, format_code, numpy_type",
+        [
+            ("integer", "b", "<i1"),
+            ("integer", "B", "u1"),
+            ("integer", "h", "<i2"),
+            ("integer", "H", "<u2"),
+            ("integer", "i", "<i4"),
+            ("integer", "I", "<u4"),
+            ("integer", "q", "<i8"),
+            ("integer", "Q", "<u8"),
+            ("number", "f", "<f4"),
+            ("number", "d", "<f8"),
+            ("boolean", "?", "?"),
+            ("string", "c", "S1"),
+            ("string", "s", "S1"),
+            ("string", "10s", "S10"),
+            ("null", "x", "V1"),
+            ("null", "5x", "V5"),
+        ],
+    )
+    def test_types(self, type_name, format_code, numpy_type):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {"value": {"type": type_name, "binaryFormat": format_code}},
+        }
+
+        schema = metadata.MetadataSchema(schema)
+        dtype = schema.numpy_dtype()
+        assert dtype.names == ("value",)
+        assert dtype["value"] == np.dtype(numpy_type)
+
+        test_arrays = {
+            "integer": [{"value": i} for i in range(3)],
+            "number": [{"value": i + 0.5} for i in range(3)],
+            "boolean": [{"value": i} for i in [True, False, True, True]],
+            "string": [
+                {"value": str(i) * (1 if format_code in "cs" else 3)} for i in range(3)
+            ],
+            "null": [{"value": None}, {"value": None}, {"value": None}],
+        }
+        test_array = test_arrays[type_name]
+        encoded = b"".join(schema.validate_and_encode_row(row) for row in test_array)
+        struct_array = schema.structured_array_from_buffer(encoded)
+
+        if "S" not in numpy_type and "V" not in numpy_type:
+            assert np.array_equal(
+                struct_array["value"], [i["value"] for i in test_array]
+            )
+        elif "S" in numpy_type:
+            assert np.array_equal(
+                struct_array["value"], [i["value"].encode() for i in test_array]
+            )
+        else:
+            for val in struct_array["value"]:
+                assert (
+                    str(val) == "b'\\x00'"
+                    if numpy_type == "V1"
+                    else "b'\\x00\\x00\\x00\\x00\\x00'"
+                )
+
+    def test_object_with_multiple_fields(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer", "binaryFormat": "i"},
+                "name": {"type": "string", "binaryFormat": "10s"},
+                "value": {"type": "number", "binaryFormat": "d"},
+                "active": {"type": "boolean", "binaryFormat": "?"},
+            },
+        }
+
+        schema = metadata.MetadataSchema(schema)
+        dtype = schema.numpy_dtype()
+        assert dtype.names == ("active", "id", "name", "value")  # Note reordering!
+        assert dtype["id"] == np.dtype("<i4")
+        assert dtype["name"] == np.dtype("S10")
+        assert dtype["value"] == np.dtype("<f8")
+        assert dtype["active"] == np.dtype("?")
+
+        # Test array of objects with multiple fields
+        test_array = [
+            {"id": 1, "name": "test1", "value": 1.5, "active": True},
+            {"id": 2, "name": "test2", "value": 2.5, "active": False},
+            {"id": 3, "name": "test3", "value": 3.5, "active": True},
+        ]
+        encoded = b"".join(schema.validate_and_encode_row(row) for row in test_array)
+        struct_array = schema.structured_array_from_buffer(encoded)
+
+        assert np.array_equal(struct_array["id"], [1, 2, 3])
+        assert np.array_equal(struct_array["value"], [1.5, 2.5, 3.5])
+        assert np.array_equal(struct_array["active"], [True, False, True])
+        assert np.array_equal(struct_array["name"], [b"test1", b"test2", b"test3"])
+
+    def test_nested_objects(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer", "binaryFormat": "i"},
+                "nested": {
+                    "type": "object",
+                    "properties": {
+                        "x": {"type": "number", "binaryFormat": "d"},
+                        "y": {"type": "number", "binaryFormat": "d"},
+                    },
+                },
+            },
+        }
+
+        schema = metadata.MetadataSchema(schema)
+        dtype = schema.numpy_dtype()
+        assert dtype.names == ("id", "nested")
+        assert dtype["id"] == np.dtype("<i4")
+        assert dtype["nested"].names == ("x", "y")
+        assert dtype["nested"]["x"] == np.dtype("<f8")
+        assert dtype["nested"]["y"] == np.dtype("<f8")
+
+        # Test array of objects with nested objects
+        test_array = [
+            {"id": 1, "nested": {"x": 1.0, "y": 2.0}},
+            {"id": 2, "nested": {"x": 3.0, "y": 4.0}},
+            {"id": 3, "nested": {"x": 5.0, "y": 6.0}},
+        ]
+        encoded = b"".join(schema.validate_and_encode_row(row) for row in test_array)
+        struct_array = schema.structured_array_from_buffer(encoded)
+
+        assert np.array_equal(struct_array["id"], [1, 2, 3])
+        assert np.array_equal(struct_array["nested"]["x"], [1.0, 3.0, 5.0])
+        assert np.array_equal(struct_array["nested"]["y"], [2.0, 4.0, 6.0])
+
+    def test_fixed_length_arrays(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "vector": {
+                    "type": "array",
+                    "length": 3,
+                    "items": {"type": "number", "binaryFormat": "d"},
+                },
+                "matrix": {
+                    "type": "array",
+                    "length": 2,
+                    "items": {
+                        "type": "array",
+                        "length": 2,
+                        "items": {"type": "integer", "binaryFormat": "i"},
+                    },
+                },
+            },
+        }
+
+        schema = metadata.MetadataSchema(schema)
+        dtype = schema.numpy_dtype()
+        assert dtype.names == ("matrix", "vector")  # Note reordering
+        assert dtype["vector"].shape == (3,)
+        assert dtype["vector"].base == np.dtype("<f8")
+        assert dtype["matrix"].shape == (2,)
+        assert dtype["matrix"].base == (np.dtype("<i4"), (2,))
+
+        # Test array with fixed-length arrays
+        test_array = [
+            {"vector": [1.1, 2.2, 3.3], "matrix": [[1, 2], [3, 4]]},
+            {"vector": [4.4, 5.5, 6.6], "matrix": [[5, 6], [7, 8]]},
+            {"vector": [7.7, 8.8, 9.9], "matrix": [[9, 10], [11, 12]]},
+        ]
+        encoded = b"".join(schema.validate_and_encode_row(row) for row in test_array)
+        struct_array = schema.structured_array_from_buffer(encoded)
+
+        expected_vectors = np.array([[1.1, 2.2, 3.3], [4.4, 5.5, 6.6], [7.7, 8.8, 9.9]])
+        assert np.allclose(struct_array["vector"], expected_vectors)
+
+        expected_matrices = np.array(
+            [[[1, 2], [3, 4]], [[5, 6], [7, 8]], [[9, 10], [11, 12]]]
+        )
+        assert np.array_equal(struct_array["matrix"], expected_matrices)
+
+    def test_complex_nested_structure(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer", "binaryFormat": "i"},
+                "data": {
+                    "type": "array",
+                    "length": 2,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "binaryFormat": "10s"},
+                            "coords": {
+                                "type": "array",
+                                "length": 3,
+                                "items": {"type": "number", "binaryFormat": "f"},
+                            },
+                        },
+                    },
+                },
+            },
+        }
+
+        schema = metadata.MetadataSchema(schema)
+        dtype = schema.numpy_dtype()
+        assert dtype.names == ("data", "id")  # Note reordering
+        assert dtype["id"] == np.dtype("<i4")
+        assert dtype["data"].shape == (2,)
+        assert dtype["data"].base.names == ("coords", "name")  # Note reordering
+        assert dtype["data"].base["name"] == np.dtype("S10")
+        assert dtype["data"].base["coords"].shape == (3,)
+        assert dtype["data"].base["coords"].base == np.dtype("<f4")
+
+        test_array = [
+            {
+                "id": 1,
+                "data": [
+                    {"name": "point1", "coords": [1.0, 2.0, 3.0]},
+                    {"name": "point2", "coords": [4.0, 5.0, 6.0]},
+                ],
+            },
+            {
+                "id": 2,
+                "data": [
+                    {"name": "point3", "coords": [7.0, 8.0, 9.0]},
+                    {"name": "point4", "coords": [10.0, 11.0, 12.0]},
+                ],
+            },
+            {
+                "id": 3,
+                "data": [
+                    {"name": "point5", "coords": [13.0, 14.0, 15.0]},
+                    {"name": "point6", "coords": [16.0, 17.0, 18.0]},
+                ],
+            },
+        ]
+        encoded = b"".join(schema.validate_and_encode_row(row) for row in test_array)
+        struct_array = schema.structured_array_from_buffer(encoded)
+
+        assert np.array_equal(struct_array["id"], [1, 2, 3])
+
+        expected_names = np.array(
+            [[b"point1", b"point2"], [b"point3", b"point4"], [b"point5", b"point6"]]
+        )
+        assert np.array_equal(struct_array["data"]["name"], expected_names)
+
+        expected_coords = np.array(
+            [
+                [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+                [[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]],
+                [[13.0, 14.0, 15.0], [16.0, 17.0, 18.0]],
+            ]
+        )
+        assert np.allclose(struct_array["data"]["coords"], expected_coords)
+
+    def test_unsupported_formats(self):
+        # Pascal strings not supported
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {"pascal_string": {"type": "string", "binaryFormat": "10p"}},
+        }
+
+        with pytest.raises(ValueError, match="Pascal string format"):
+            metadata.MetadataSchema(schema).numpy_dtype()
+
+    def test_variable_length_arrays_not_supported(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "var_array": {
+                    "type": "array",
+                    "items": {"type": "integer", "binaryFormat": "i"},
+                }
+            },
+        }
+
+        with pytest.raises(ValueError, match="Only fixed-length arrays"):
+            metadata.MetadataSchema(schema).numpy_dtype()
+
+    def test_null_union_top_level_not_supported(self):
+        schema = {
+            "codec": "struct",
+            "type": ["object", "null"],
+            "properties": {
+                "id": {"type": "integer", "binaryFormat": "i"},
+                "name": {"type": "string", "binaryFormat": "10s"},
+            },
+        }
+
+        with pytest.raises(
+            ValueError, match="Top level object/null union not supported"
+        ):
+            metadata.MetadataSchema(schema).numpy_dtype()
+
+    def test_explicit_ordering(self):
+        schema = {
+            "codec": "struct",
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer", "binaryFormat": "i", "index": 1},
+                "name": {"type": "string", "binaryFormat": "10s", "index": 2},
+                "age": {"type": "integer", "binaryFormat": "i", "index": 3},
+            },
+            "required": ["id", "name", "age"],
+        }
+
+        dtype = metadata.MetadataSchema(schema).numpy_dtype()
+        assert dtype.names == ("id", "name", "age")
