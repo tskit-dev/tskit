@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2024 Tskit Developers
+# Copyright (c) 2018-2025 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -7749,7 +7749,6 @@ class TreeSequence:
     ):
         if sample_sets is None:
             sample_sets = self.samples()
-
         # First try to convert to a 1D numpy array. If it is, then we strip off
         # the corresponding dimension from the output.
         drop_dimension = False
@@ -7763,7 +7762,6 @@ class TreeSequence:
             if len(sample_sets.shape) == 1:
                 sample_sets = [sample_sets]
                 drop_dimension = True
-
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32
         )
@@ -7782,7 +7780,9 @@ class TreeSequence:
             polarised=polarised,
         )
         if drop_dimension:
-            stat = stat.reshape(stat.shape[:-1])
+            # no applicable for AFS
+            if not ll_method.__name__ == "allele_frequency_spectrum":
+                stat = stat.reshape(stat.shape[:-1])
             # TODO: Write test for this
             if stat.shape == () and windows is None and time_windows is None:
                 stat = stat[()]
