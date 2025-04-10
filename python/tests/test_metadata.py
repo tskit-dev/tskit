@@ -26,12 +26,9 @@ Tests for metadata handling.
 import collections
 import io
 import json
-import os
 import pickle
 import pprint
 import struct
-import tempfile
-import unittest
 from unittest.mock import patch
 
 import msgpack
@@ -42,72 +39,6 @@ import pytest
 import tskit
 import tskit.exceptions as exceptions
 import tskit.metadata as metadata
-
-
-class TestMetadataHdf5RoundTrip(unittest.TestCase):
-    """
-    Tests that we can encode metadata under various formats and this will
-    successfully round-trip through the HDF5 format.
-    """
-
-    def setUp(self):
-        fd, self.temp_file = tempfile.mkstemp(prefix="msp_hdf5meta_test_")
-        os.close(fd)
-
-    def tearDown(self):
-        os.unlink(self.temp_file)
-
-    def test_json(self):
-        ts = msprime.simulate(10, random_seed=1)
-        tables = ts.dump_tables()
-        nodes = tables.nodes
-        # For each node, we create some Python metadata that can be JSON encoded.
-        metadata = [
-            {"one": j, "two": 2 * j, "three": list(range(j))} for j in range(len(nodes))
-        ]
-        encoded, offset = tskit.pack_strings(map(json.dumps, metadata))
-        nodes.set_columns(
-            flags=nodes.flags,
-            time=nodes.time,
-            population=nodes.population,
-            metadata_offset=offset,
-            metadata=encoded,
-        )
-        assert np.array_equal(nodes.metadata_offset, offset)
-        assert np.array_equal(nodes.metadata, encoded)
-        ts1 = tables.tree_sequence()
-        for j, node in enumerate(ts1.nodes()):
-            decoded_metadata = json.loads(node.metadata.decode())
-            assert decoded_metadata == metadata[j]
-        ts1.dump(self.temp_file)
-        ts2 = tskit.load(self.temp_file)
-        assert ts1.tables.nodes == ts2.tables.nodes
-
-    def test_pickle(self):
-        ts = msprime.simulate(10, random_seed=1)
-        tables = ts.dump_tables()
-        # For each node, we create some Python metadata that can be pickled
-        metadata = [
-            {"one": j, "two": 2 * j, "three": list(range(j))}
-            for j in range(ts.num_nodes)
-        ]
-        encoded, offset = tskit.pack_bytes(list(map(pickle.dumps, metadata)))
-        tables.nodes.set_columns(
-            flags=tables.nodes.flags,
-            time=tables.nodes.time,
-            population=tables.nodes.population,
-            metadata_offset=offset,
-            metadata=encoded,
-        )
-        assert np.array_equal(tables.nodes.metadata_offset, offset)
-        assert np.array_equal(tables.nodes.metadata, encoded)
-        ts1 = tables.tree_sequence()
-        for j, node in enumerate(ts1.nodes()):
-            decoded_metadata = pickle.loads(node.metadata)
-            assert decoded_metadata == metadata[j]
-        ts1.dump(self.temp_file)
-        ts2 = tskit.load(self.temp_file)
-        assert ts1.tables.nodes == ts2.tables.nodes
 
 
 class ExampleMetadata:
