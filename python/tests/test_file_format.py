@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2023 Tskit Developers
+# Copyright (c) 2018-2025 Tskit Developers
 # Copyright (c) 2016-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -23,15 +23,11 @@
 """
 Test cases for tskit's file format.
 """
-import json
 import os
-import sys
 import tempfile
 import unittest
 import uuid as _uuid
-from unittest import mock
 
-import h5py
 import kastore
 import msprime
 import numpy as np
@@ -274,248 +270,16 @@ class TestLoadLegacyExamples(TestFileFormat):
             ):
                 tskit.TableCollection.load(path)
 
-    def test_msprime_v_0_5_0(self):
-        path = os.path.join(test_data_dir, "hdf5-formats", "msprime-0.5.0_v10.0.hdf5")
-        ts = tskit.load_legacy(path)
-        self.verify_tree_sequence(ts)
-
-    def test_msprime_v_0_4_0(self):
-        path = os.path.join(test_data_dir, "hdf5-formats", "msprime-0.4.0_v3.1.hdf5")
-        ts = tskit.load_legacy(path)
-        self.verify_tree_sequence(ts)
-
-    def test_msprime_v_0_3_0(self):
-        path = os.path.join(test_data_dir, "hdf5-formats", "msprime-0.3.0_v2.0.hdf5")
-        ts = tskit.load_legacy(path)
-        self.verify_tree_sequence(ts)
-
     def test_tskit_v_0_3_3(self):
         path = os.path.join(test_data_dir, "old-formats", "tskit-0.3.3.trees")
         ts = tskit.load(path)
         self.verify_tree_sequence(ts)
 
 
-class TestRoundTrip(TestFileFormat):
-    """
-    Tests if we can round trip convert a tree sequence in memory
-    through a V2 file format and a V3 format.
-    """
-
-    def verify_tree_sequences_equal(self, ts, tsp, simplify=True):
-        assert ts.sequence_length == tsp.sequence_length
-        t1 = ts.dump_tables()
-        # We need to sort and squash the edges in the new format because it
-        # has gone through an edgesets representation. Simplest way to do this
-        # is to call simplify.
-        if simplify:
-            t2 = tsp.simplify().tables
-        else:
-            t2 = tsp.tables
-        assert t1.nodes == t2.nodes
-        assert t1.edges == t2.edges
-        assert t1.sites == t2.sites
-        # The old formats can't represent mutation times so null them out.
-        t1.mutations.time = np.full_like(t1.mutations.time, tskit.UNKNOWN_TIME)
-        assert t1.mutations == t2.mutations
-
-    def verify_round_trip(self, ts, version):
-        tskit.dump_legacy(ts, self.temp_file, version=version)
-        tsp = tskit.load_legacy(self.temp_file)
-        simplify = version < 10
-        self.verify_tree_sequences_equal(ts, tsp, simplify=simplify)
-        tsp.dump(self.temp_file)
-        tsp = tskit.load(self.temp_file)
-        self.verify_tree_sequences_equal(ts, tsp, simplify=simplify)
-        for provenance in tsp.provenances():
-            tskit.validate_provenance(json.loads(provenance.record))
-
-    def verify_round_trip_no_legacy(self, ts):
-        ts.dump(self.temp_file)
-        tsp = tskit.load(self.temp_file)
-        self.verify_tree_sequences_equal(ts, tsp, simplify=False)
-        for provenance in tsp.provenances():
-            tskit.validate_provenance(json.loads(provenance.record))
-
-    def verify_malformed_json_v2(self, ts, group_name, attr, bad_json):
-        tskit.dump_legacy(ts, self.temp_file, 2)
-        # Write some bad JSON to the provenance string.
-        root = h5py.File(self.temp_file, "r+")
-        group = root[group_name]
-        group.attrs[attr] = bad_json
-        root.close()
-        tsp = tskit.load_legacy(self.temp_file)
-        self.verify_tree_sequences_equal(ts, tsp)
-
-    def test_malformed_json_v2(self):
-        ts = multi_locus_with_mutation_example()
-        for group_name in ["trees", "mutations"]:
-            for attr in ["environment", "parameters"]:
-                for bad_json in ["", "{", "{},"]:
-                    self.verify_malformed_json_v2(ts, group_name, attr, bad_json)
-
-    def test_single_locus_no_mutation(self):
-        self.verify_round_trip(single_locus_no_mutation_example(), 2)
-        self.verify_round_trip(single_locus_no_mutation_example(), 3)
-        self.verify_round_trip(single_locus_no_mutation_example(), 10)
-
-    def test_single_locus_with_mutation(self):
-        self.verify_round_trip(single_locus_with_mutation_example(), 2)
-        self.verify_round_trip(single_locus_with_mutation_example(), 3)
-        self.verify_round_trip(single_locus_with_mutation_example(), 10)
-
-    def test_multi_locus_with_mutation(self):
-        self.verify_round_trip(multi_locus_with_mutation_example(), 2)
-        self.verify_round_trip(multi_locus_with_mutation_example(), 3)
-        self.verify_round_trip(multi_locus_with_mutation_example(), 10)
-
-    def test_migration_example(self):
-        self.verify_round_trip(migration_example(), 2)
-        self.verify_round_trip(migration_example(), 3)
-        self.verify_round_trip(migration_example(), 10)
-
-    def test_bottleneck_example(self):
-        self.verify_round_trip(migration_example(), 3)
-        self.verify_round_trip(migration_example(), 10)
-
-    def test_no_provenance(self):
-        self.verify_round_trip(no_provenance_example(), 10)
-
-    def test_provenance_timestamp_only(self):
-        self.verify_round_trip(provenance_timestamp_only_example(), 10)
-
-    def test_recurrent_mutation_example(self):
-        ts = recurrent_mutation_example()
-        for version in [2, 3]:
-            with pytest.raises(ValueError):
-                tskit.dump_legacy(ts, self.temp_file, version)
-        self.verify_round_trip(ts, 10)
-
-    def test_general_mutation_example(self):
-        ts = general_mutation_example()
-        for version in [2, 3]:
-            with pytest.raises(ValueError):
-                tskit.dump_legacy(ts, self.temp_file, version)
-        self.verify_round_trip(ts, 10)
-
-    def test_node_metadata_example(self):
-        self.verify_round_trip(node_metadata_example(), 10)
-
-    def test_site_metadata_example(self):
-        self.verify_round_trip(site_metadata_example(), 10)
-
-    def test_mutation_metadata_example(self):
-        self.verify_round_trip(mutation_metadata_example(), 10)
-
-    def test_migration_metadata_example(self):
-        self.verify_round_trip(migration_metadata_example(), 10)
-
-    def test_edge_metadata_example(self):
-        # metadata for edges was introduced
-        self.verify_round_trip_no_legacy(edge_metadata_example())
-
-    def test_multichar_mutation_example(self):
-        self.verify_round_trip(multichar_mutation_example(), 10)
-
-    def test_empty_file(self):
-        tables = tskit.TableCollection(sequence_length=3)
-        self.verify_round_trip(tables.tree_sequence(), 10)
-
-    def test_zero_edges(self):
-        tables = tskit.TableCollection(sequence_length=3)
-        tables.nodes.add_row(time=0)
-        self.verify_round_trip(tables.tree_sequence(), 10)
-
-    def test_v2_no_samples(self):
-        ts = multi_locus_with_mutation_example()
-        tskit.dump_legacy(ts, self.temp_file, version=2)
-        root = h5py.File(self.temp_file, "r+")
-        del root["samples"]
-        root.close()
-        tsp = tskit.load_legacy(self.temp_file)
-        self.verify_tree_sequences_equal(ts, tsp)
-
-    def test_duplicate_mutation_positions_single_value(self):
-        ts = multi_locus_with_mutation_example()
-        for version in [2, 3]:
-            tskit.dump_legacy(ts, self.temp_file, version=version)
-            root = h5py.File(self.temp_file, "r+")
-            root["mutations/position"][:] = 0
-            root.close()
-            with pytest.raises(tskit.DuplicatePositionsError):
-                tskit.load_legacy(self.temp_file)
-            tsp = tskit.load_legacy(self.temp_file, remove_duplicate_positions=True)
-            assert tsp.num_sites == 1
-            sites = list(tsp.sites())
-            assert sites[0].position == 0
-
-    def test_duplicate_mutation_positions(self):
-        ts = multi_locus_with_mutation_example()
-        for version in [2, 3]:
-            tskit.dump_legacy(ts, self.temp_file, version=version)
-            root = h5py.File(self.temp_file, "r+")
-            position = np.array(root["mutations/position"])
-            position[0] = position[1]
-            root["mutations/position"][:] = position
-            root.close()
-            with pytest.raises(tskit.DuplicatePositionsError):
-                tskit.load_legacy(self.temp_file)
-            tsp = tskit.load_legacy(self.temp_file, remove_duplicate_positions=True)
-            assert tsp.num_sites == position.shape[0] - 1
-            position_after = list(s.position for s in tsp.sites())
-            assert list(position[1:]) == position_after
-
-
 class TestErrors(TestFileFormat):
     """
     Test various API errors.
     """
-
-    def test_v2_non_binary_records(self):
-        demographic_events = [
-            msprime.SimpleBottleneck(time=0.01, population=0, proportion=1)
-        ]
-        ts = msprime.simulate(
-            sample_size=10, demographic_events=demographic_events, random_seed=1
-        )
-        with pytest.raises(ValueError):
-            tskit.dump_legacy(ts, self.temp_file, 2)
-
-    def test_unsupported_version(self):
-        ts = msprime.simulate(10)
-        with pytest.raises(ValueError):
-            tskit.dump_legacy(ts, self.temp_file, version=4)
-        # Cannot read current files.
-        ts.dump(self.temp_file)
-        # Catch Exception here because h5py throws different exceptions on py2 and py3
-        with pytest.raises(Exception):  # noqa B017
-            tskit.load_legacy(self.temp_file)
-
-    def test_no_version_number(self):
-        root = h5py.File(self.temp_file, "w")
-        root.attrs["x"] = 0
-        root.close()
-        with pytest.raises(ValueError):
-            tskit.load_legacy(self.temp_file)
-
-    def test_unknown_legacy_version(self):
-        root = h5py.File(self.temp_file, "w")
-        root.attrs["format_version"] = (1024, 0)  # Arbitrary unknown version
-        root.close()
-        with pytest.raises(ValueError):
-            tskit.load_legacy(self.temp_file)
-
-    def test_no_h5py(self):
-        ts = msprime.simulate(10)
-        path = os.path.join(test_data_dir, "hdf5-formats", "msprime-0.3.0_v2.0.hdf5")
-        msg = (
-            "Legacy formats require h5py. Install via `pip install h5py` or"
-            " `conda install h5py`"
-        )
-        with mock.patch.dict(sys.modules, {"h5py": None}):
-            with pytest.raises(ImportError, match=msg):
-                tskit.load_legacy(path)
-            with pytest.raises(ImportError, match=msg):
-                tskit.dump_legacy(ts, path)
 
     def test_tszip_file(self):
         ts = msprime.simulate(5)
@@ -1101,12 +865,6 @@ class TestFileFormatErrors(TestFileFormat):
     def test_load_empty_kastore(self):
         kastore.dump({}, self.temp_file)
         with pytest.raises(exceptions.LibraryError):
-            tskit.load(self.temp_file)
-
-    def test_load_non_tskit_hdf5(self):
-        with h5py.File(self.temp_file, "w") as root:
-            root["x"] = np.zeros(10)
-        with pytest.raises(exceptions.FileFormatError):
             tskit.load(self.temp_file)
 
     def test_old_version_load_error(self):

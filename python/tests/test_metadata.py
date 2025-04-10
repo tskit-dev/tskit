@@ -44,14 +44,13 @@ import tskit.exceptions as exceptions
 import tskit.metadata as metadata
 
 
-class TestMetadataHdf5RoundTrip(unittest.TestCase):
+class TestMetadataRoundTrip(unittest.TestCase):
     """
-    Tests that we can encode metadata under various formats and this will
-    successfully round-trip through the HDF5 format.
+    Tests that we can encode metadata under various formats.
     """
 
     def setUp(self):
-        fd, self.temp_file = tempfile.mkstemp(prefix="msp_hdf5meta_test_")
+        fd, self.temp_file = tempfile.mkstemp(prefix="msp_meta_test_")
         os.close(fd)
 
     def tearDown(self):

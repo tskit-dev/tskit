@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2024 Tskit Developers
+# Copyright (c) 2018-2025 Tskit Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -73,7 +73,6 @@ TABLE_NAMES = [
 
 from tskit.provenance import __version__  # NOQA
 from tskit.provenance import validate_provenance  # NOQA
-from tskit.formats import *  # NOQA
 from tskit.trees import *  # NOQA
 from tskit.genotypes import Variant  # NOQA
 from tskit.tables import *  # NOQA
