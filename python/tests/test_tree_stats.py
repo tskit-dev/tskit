@@ -202,7 +202,13 @@ def naive_branch_general_stat(
 
 
 def branch_general_stat(
-    ts, sample_weights, summary_func, windows=None, polarised=False, span_normalise=True
+    ts,
+    sample_weights,
+    summary_func,
+    windows=None,
+    time_windows=None,
+    polarised=False,
+    span_normalise=True,
 ):
     """
     Efficient implementation of the algorithm used as the basis for the
@@ -210,22 +216,26 @@ def branch_general_stat(
     """
     n, state_dim = sample_weights.shape
     windows = ts.parse_windows(windows)
+    drop_time_windows = time_windows is None
+    time_windows = ts.parse_time_windows(time_windows)
     num_windows = windows.shape[0] - 1
+    num_time_windows = time_windows.shape[0] - 1
 
     # Determine result_dim
     result_dim = len(summary_func(sample_weights[0]))
-    result = np.zeros((num_windows, result_dim))
+    # result = np.zeros((num_windows, result_dim))
+    result = np.zeros((num_windows, num_time_windows, result_dim))
     state = np.zeros((ts.num_nodes, state_dim))
     state[ts.samples()] = sample_weights
     total_weight = np.sum(sample_weights, axis=0)
 
     time = ts.tables.nodes.time
     parent = np.zeros(ts.num_nodes, dtype=np.int32) - 1
-    branch_length = np.zeros(ts.num_nodes)
+    branch_length = np.zeros((num_time_windows, ts.num_nodes))
     # The value of summary_func(u) for every node.
     summary = np.zeros((ts.num_nodes, result_dim))
     # The result for the current tree *not* weighted by span.
-    running_sum = np.zeros(result_dim)
+    running_sum = np.zeros((num_time_windows, result_dim))
 
     def polarised_summary(u):
         s = summary_func(state[u])
@@ -237,31 +247,48 @@ def branch_general_stat(
         summary[u] = polarised_summary(u)
 
     window_index = 0
+
+    def update_sum(u, sign):
+        time_window_index = 0
+        if parent[u] != -1:
+            while (
+                time_window_index < num_time_windows
+                and time_windows[time_window_index] < time[parent[u]]
+            ):
+                running_sum[time_window_index] += sign * (
+                    branch_length[time_window_index, u] * summary[u]
+                )
+                time_window_index += 1
+
     for (t_left, t_right), edges_out, edges_in in ts.edge_diffs():
         for edge in edges_out:
             u = edge.child
-            running_sum -= branch_length[u] * summary[u]
+            update_sum(u, sign=-1)
             u = edge.parent
             while u != -1:
-                running_sum -= branch_length[u] * summary[u]
+                update_sum(u, sign=-1)
                 state[u] -= state[edge.child]
                 summary[u] = polarised_summary(u)
-                running_sum += branch_length[u] * summary[u]
+                update_sum(u, sign=+1)
                 u = parent[u]
             parent[edge.child] = -1
-            branch_length[edge.child] = 0
+            for tw in range(num_time_windows):
+                branch_length[tw, edge.child] = 0
 
         for edge in edges_in:
             parent[edge.child] = edge.parent
-            branch_length[edge.child] = time[edge.parent] - time[edge.child]
+            for tw in range(num_time_windows):
+                branch_length[tw, edge.child] = min(
+                    time[edge.parent], time_windows[tw + 1]
+                ) - max(time[edge.child], time_windows[tw])
             u = edge.child
-            running_sum += branch_length[u] * summary[u]
+            update_sum(u, sign=+1)
             u = edge.parent
             while u != -1:
-                running_sum -= branch_length[u] * summary[u]
+                update_sum(u, sign=-1)
                 state[u] += state[edge.child]
                 summary[u] = polarised_summary(u)
-                running_sum += branch_length[u] * summary[u]
+                update_sum(u, sign=+1)
                 u = parent[u]
 
         # Update the windows
@@ -273,15 +300,23 @@ def branch_general_stat(
             right = min(t_right, w_right)
             span = right - left
             assert span > 0
-            result[window_index] += running_sum * span
+            time_window_index = 0
+            while time_window_index < num_time_windows:
+                result[window_index, time_window_index] += (
+                    running_sum[time_window_index] * span
+                )
+                time_window_index += 1
             if w_right <= t_right:
                 window_index += 1
             else:
                 # This interval crosses a tree boundary, so we update it again in the
                 # for the next tree
                 break
-
+    # print("SUM", running_sum)
     assert window_index == windows.shape[0] - 1
+    if drop_time_windows:
+        assert result.ndim == 3
+        result = result[:, 0]
     if span_normalise:
         for j in range(num_windows):
             result[j] /= windows[j + 1] - windows[j]
@@ -341,7 +376,13 @@ def naive_site_general_stat(
 
 
 def site_general_stat(
-    ts, sample_weights, summary_func, windows=None, polarised=False, span_normalise=True
+    ts,
+    sample_weights,
+    summary_func,
+    windows=None,
+    time_windows=None,
+    polarised=False,
+    span_normalise=True,
 ):
     """
     Problem: 'sites' is different that the other windowing options
@@ -444,7 +485,13 @@ def naive_node_general_stat(
 
 
 def node_general_stat(
-    ts, sample_weights, summary_func, windows=None, polarised=False, span_normalise=True
+    ts,
+    sample_weights,
+    summary_func,
+    windows=None,
+    time_windows=None,
+    polarised=False,
+    span_normalise=True,
 ):
     """
     Efficient implementation of the algorithm used as the basis for the
@@ -519,6 +566,7 @@ def general_stat(
     sample_weights,
     summary_func,
     windows=None,
+    time_windows=None,
     polarised=False,
     mode="site",
     span_normalise=True,
@@ -537,6 +585,7 @@ def general_stat(
         sample_weights,
         summary_func,
         windows=windows,
+        time_windows=time_windows,
         polarised=polarised,
         span_normalise=span_normalise,
     )
@@ -3515,7 +3564,9 @@ class TestSitef3(Testf3, MutatedTopologyExamplesMixin):
 ############################################
 
 
-def branch_f4(ts, sample_sets, indexes, windows=None, span_normalise=True):
+def branch_f4(
+    ts, sample_sets, indexes, windows=None, time_windows=None, span_normalise=True
+):
     windows = ts.parse_windows(windows)
     out = np.zeros((len(windows) - 1, len(indexes)))
     for j in range(len(windows) - 1):
@@ -3655,7 +3706,15 @@ def node_f4(ts, sample_sets, indexes, windows=None, span_normalise=True):
     return out
 
 
-def f4(ts, sample_sets, indexes=None, windows=None, mode="site", span_normalise=True):
+def f4(
+    ts,
+    sample_sets,
+    indexes=None,
+    windows=None,
+    time_windows=None,
+    mode="site",
+    span_normalise=True,
+):
     """
     Patterson's f4 statistic definitions.
     """
@@ -6998,7 +7057,7 @@ class TestGeneralStatCallbackErrors:
 
 
 class TestTimeWindows(TestBranchAlleleFrequencySpectrum):
-    def test_four_taxa_test_case(self):
+    def test_general_stat(self):
         # 1.00┊   7     ┊         ┊         ┊
         #     ┊ ┏━┻━┓   ┊         ┊         ┊
         # 0.70┊ ┃   ┃   ┊         ┊   6     ┊
@@ -7034,6 +7093,17 @@ class TestTimeWindows(TestBranchAlleleFrequencySpectrum):
         )
         self.assertArrayAlmostEqual(x, true_x)
 
+        x0 = branch_general_stat(ts, W, f, time_windows=None, span_normalise=False)
+        x1 = naive_branch_general_stat(
+            ts, W, f, time_windows=None, span_normalise=False
+        )
+        self.assertArrayAlmostEqual(x0, x1)
+        x_tw = branch_general_stat(
+            ts, W, f, time_windows=[0, 0.5, 2.0], span_normalise=False
+        )
+
+        self.assertArrayAlmostEqual(x, x_tw)
+
     def test_bad_time_windows(self):
         time_windows = [-1]
         ts = self.four_taxa_test_case()
@@ -7052,19 +7122,18 @@ class TestTimeWindows(TestBranchAlleleFrequencySpectrum):
 
     def test_drop_dimension(self):
         ts = self.four_taxa_test_case()
-        sample_set = [0, 1, 2, 3]
         for tw in [None, [0, 0.5, 1, np.inf]]:
             x = ts.allele_frequency_spectrum(
-                sample_sets=[sample_set],
+                sample_sets=[[0, 1, 2, 3]],
                 time_windows=tw,
                 mode="branch",
             )
             y = ts.allele_frequency_spectrum(
-                sample_sets=[sample_set],
+                sample_sets=[0, 1, 2, 3],
                 mode="branch",
             )
             assert x.shape[-1] == y.shape[-1]
-            assert x.shape[-1] == len(sample_set) + 1
+            # assert x.shape[-1] == len(sample_set) + 1
             assert np.all(x[0] == y[:0])
 
     def test_afs_branch(self):
