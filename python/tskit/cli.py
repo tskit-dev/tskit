@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2018-2024 Tskit Developers
+# Copyright (c) 2018-2025 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -66,19 +66,6 @@ def run_trees(args):
         )
         if args.draw:
             print(tree.draw(format="unicode"))
-
-
-def run_upgrade(args):
-    try:
-        tree_sequence = tskit.load_legacy(args.source, args.remove_duplicate_positions)
-        tree_sequence.dump(args.destination)
-    except tskit.DuplicatePositionsError:
-        sys_exit(
-            "Error: Duplicate mutation positions in the source file detected.\n\n"
-            'This is not supported in the current file format. Running "upgrade -d" '
-            "will remove these duplicate positions. However, this will result in loss "
-            "of data from the original file!"
-        )
 
 
 def run_individuals(args):
@@ -183,21 +170,6 @@ def get_tskit_parser():
     )
     parser.set_defaults(runner=run_trees)
 
-    parser = subparsers.add_parser(
-        "upgrade", help="Upgrade legacy tree sequence files."
-    )
-    parser.add_argument(
-        "source", help="The source tskit tree sequence file in legacy format"
-    )
-    parser.add_argument("destination", help="The filename of the upgraded copy.")
-    parser.add_argument(
-        "--remove-duplicate-positions",
-        "-d",
-        action="store_true",
-        default=False,
-        help="Remove any duplicated mutation positions in the source file. ",
-    )
-    parser.set_defaults(runner=run_upgrade)
     # suppress fasta visibility until we have a reference sequence
     # See https://github.com/tskit-dev/tskit/issues/1888
     # parser = subparsers.add_parser(

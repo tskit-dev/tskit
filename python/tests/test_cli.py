@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2018-2024 Tskit Developers
+# Copyright (c) 2018-2025 Tskit Developers
 # Copyright (c) 2017 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -30,7 +30,6 @@ import tempfile
 import unittest
 from unittest import mock
 
-import h5py
 import msprime
 import pytest
 
@@ -310,16 +309,6 @@ class TestTskitArgumentParser:
         args = parser.parse_args([cmd, tree_sequence, *flags])
         assert args.tree_sequence == tree_sequence
         assert args.allow_position_zero == expected
-
-    def test_upgrade_default_values(self):
-        parser = cli.get_tskit_parser()
-        cmd = "upgrade"
-        source = "in.trees"
-        destination = "out.trees"
-        args = parser.parse_args([cmd, source, destination])
-        assert args.source == source
-        assert args.destination == destination
-        assert not args.remove_duplicate_positions
 
     def test_info_default_values(self):
         parser = cli.get_tskit_parser()
@@ -655,68 +644,3 @@ class TestBadFile:
 
     def test_provenances(self):
         self.verify("provenances")
-
-
-class TestUpgrade(TestCli):
-    """
-    Tests the results of the upgrade operation to ensure they are
-    correct.
-    """
-
-    def setUp(self):
-        fd, self.legacy_file_name = tempfile.mkstemp(prefix="msp_cli", suffix=".trees")
-        os.close(fd)
-        fd, self.current_file_name = tempfile.mkstemp(prefix="msp_cli", suffix=".trees")
-        os.close(fd)
-
-    def tearDown(self):
-        os.unlink(self.legacy_file_name)
-        os.unlink(self.current_file_name)
-
-    def test_conversion(self):
-        ts1 = msprime.simulate(10)
-        for version in [2, 3]:
-            tskit.dump_legacy(ts1, self.legacy_file_name, version=version)
-            stdout, stderr = capture_output(
-                cli.tskit_main,
-                ["upgrade", self.legacy_file_name, self.current_file_name],
-            )
-            ts2 = tskit.load(self.current_file_name)
-            assert stdout == ""
-            assert stderr == ""
-            # Quick checks to ensure we have the right tree sequence.
-            # More thorough checks are done elsewhere.
-            assert ts1.get_sample_size() == ts2.get_sample_size()
-            assert ts1.num_edges == ts2.num_edges
-            assert ts1.get_num_trees() == ts2.get_num_trees()
-
-    def test_duplicate_positions(self):
-        ts = msprime.simulate(10, mutation_rate=10)
-        for version in [2, 3]:
-            tskit.dump_legacy(ts, self.legacy_file_name, version=version)
-            root = h5py.File(self.legacy_file_name, "r+")
-            root["mutations/position"][:] = 0
-            root.close()
-            stdout, stderr = capture_output(
-                cli.tskit_main,
-                ["upgrade", "-d", self.legacy_file_name, self.current_file_name],
-            )
-            assert stdout == ""
-            tsp = tskit.load(self.current_file_name)
-            assert tsp.sample_size == ts.sample_size
-            assert tsp.num_sites == 1
-
-    def test_duplicate_positions_error(self):
-        ts = msprime.simulate(10, mutation_rate=10)
-        for version in [2, 3]:
-            tskit.dump_legacy(ts, self.legacy_file_name, version=version)
-            root = h5py.File(self.legacy_file_name, "r+")
-            root["mutations/position"][:] = 0
-            root.close()
-            with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
-                with pytest.raises(TestException):
-                    capture_output(
-                        cli.tskit_main,
-                        ["upgrade", self.legacy_file_name, self.current_file_name],
-                    )
-                assert mocked_exit.call_count == 1

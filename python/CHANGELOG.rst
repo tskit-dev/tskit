@@ -17,6 +17,11 @@
 - Metadata.schema was returning a modified schema, this is fixed to return a copy of
   the original schema instead (:user:`benjeffery`, :issue:`3129`, :pr:`3130`)
 
+**Breaking Changes**
+
+- Legacy formats from msprime<0.6 (HDF5 formats) support is dropped. This includes the
+  support for ``tskit upgrade``  (:user:`hossam26644`, :issue:`2812`, :pr:`3138`)
+
 --------------------
 [0.6.1] - 2025-03-31
 --------------------
@@ -142,7 +147,7 @@
   pass a subset of nodes, so subtrees can be visually collapsed. Additionally, an option
   ``pack_untracked_polytomies`` allows large polytomies involving untracked samples to
   be summarised as a dotted line (:user:`hyanwong`, :issue:`3011` :pr:`3010`, :pr:`3012`)
-  
+
 - Added a ``title`` parameter to ``.draw_svg()`` methods (:user:`hyanwong`, :pr:`3015`)
 
 - Add comma separation to all display numbers. (:user:`benjeffery`, :issue:`3017`, :pr:`3018`)
