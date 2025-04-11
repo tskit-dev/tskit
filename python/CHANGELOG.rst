@@ -8,7 +8,8 @@
   the original schema instead (:user:`benjeffery`, :issue:`3129`, :pr:`3130`)
 
 **Breaking Changes**
-- HDF5 support is dropped (:user:`hossam26644`, :issue:`2812`, :pr:`3138`)
+- Legacy formats from msprime<0.6 (HDF5 formats) support is dropped. This includes the support for
+  ``tskit upgrade``  (:user:`hossam26644`, :issue:`2812`, :pr:`3138`)
 
 --------------------
 [0.6.1] - 2025-03-31
