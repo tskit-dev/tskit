@@ -170,20 +170,6 @@ def get_tskit_parser():
     )
     parser.set_defaults(runner=run_trees)
 
-    parser = subparsers.add_parser(
-        "upgrade", help="Upgrade legacy tree sequence files."
-    )
-    parser.add_argument(
-        "source", help="The source tskit tree sequence file in legacy format"
-    )
-    parser.add_argument("destination", help="The filename of the upgraded copy.")
-    parser.add_argument(
-        "--remove-duplicate-positions",
-        "-d",
-        action="store_true",
-        default=False,
-        help="Remove any duplicated mutation positions in the source file. ",
-    )
     # suppress fasta visibility until we have a reference sequence
     # See https://github.com/tskit-dev/tskit/issues/1888
     # parser = subparsers.add_parser(

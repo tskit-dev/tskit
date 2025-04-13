@@ -310,16 +310,6 @@ class TestTskitArgumentParser:
         assert args.tree_sequence == tree_sequence
         assert args.allow_position_zero == expected
 
-    def test_upgrade_default_values(self):
-        parser = cli.get_tskit_parser()
-        cmd = "upgrade"
-        source = "in.trees"
-        destination = "out.trees"
-        args = parser.parse_args([cmd, source, destination])
-        assert args.source == source
-        assert args.destination == destination
-        assert not args.remove_duplicate_positions
-
     def test_info_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "info"

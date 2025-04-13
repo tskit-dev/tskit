@@ -42,7 +42,7 @@ stored as well as the top-level metadata.
 ### Legacy Versions
 
 Tree sequence files written by older versions of tskit are not readable by
-newer versions of tskit. For major releases of tskit, `tskit upgrade`
+newer versions of tskit. For tskit releases<0.6.2, `tskit upgrade`
 will convert older tree sequence files to the latest version.
 
 
