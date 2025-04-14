@@ -2,10 +2,17 @@
 [0.6.2] - 2025-04-01
 --------------------
 
+
 **Bugfixes**
 
 - Meatdata.schema was returning a modified schema, this is fixed to return a copy of
   the original schema instead (:user:`benjeffery`, :issue:`3129`, :pr:`3130`)
+
+**Breaking Changes**
+
+- To avoid confusion, metadata returned from `.metadata` accessors is now a `FrozenDict`
+  that does not allow mutation of its contents. This is because mutating the object doesn't
+  update the underlying metadata. (:user:`benjeffery`, :issue:`993`, :pr:`3140`)
 
 --------------------
 [0.6.1] - 2025-03-31
