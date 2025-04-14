@@ -79,6 +79,61 @@ deref_meta_schema["$schema"] = "http://json-schema.org/draft-o=07/schema#tskit"
 TSKITMetadataSchemaValidator.META_SCHEMA = deref_meta_schema
 
 
+class FrozenDict(collections.abc.Mapping):
+    def __init__(self, *args, **kwargs):
+        self._data = dict(*args, **kwargs)
+
+    def __getitem__(self, key):
+        return self._data[key]
+
+    def __iter__(self):
+        return iter(self._data)
+
+    def __len__(self):
+        return len(self._data)
+
+    def __repr__(self):
+        return repr(self._data)
+
+    def __str__(self):
+        return str(self._data)
+
+    def __eq__(self, other):
+        if isinstance(other, dict):
+            return self._data == other
+        return self._data == getattr(other, "_data", other)
+
+
+class FrozenList(collections.abc.Sequence):
+    def __init__(self, iterable):
+        self._data = list(iterable)
+
+    def __getitem__(self, index):
+        return self._data[index]
+
+    def __len__(self):
+        return len(self._data)
+
+    def __repr__(self):
+        return repr(self._data)
+
+    def __str__(self):
+        return str(self._data)
+
+    def __eq__(self, other):
+        if isinstance(other, list):
+            return self._data == other
+        return self._data == getattr(other, "_data", other)
+
+
+def freeze(obj):
+    if isinstance(obj, dict):
+        return FrozenDict({k: freeze(v) for k, v in obj.items()})
+    elif isinstance(obj, list):
+        return FrozenList([freeze(item) for item in obj])
+    return obj
+
+
 class AbstractMetadataCodec(metaclass=abc.ABCMeta):
     """
     Superclass of all MetadataCodecs.
@@ -173,9 +228,10 @@ class JSONCodec(AbstractMetadataCodec):
 
         # Assign default values
         if isinstance(result, dict):
-            return dict(self.defaults, **result)
-        else:
-            return result
+            result = dict(self.defaults, **result)
+
+        # Freeze the result to prevent mutation
+        return freeze(result)
 
 
 register_metadata_codec(JSONCodec, "json")
@@ -662,7 +718,8 @@ class StructCodec(AbstractMetadataCodec):
 
         self.encode = StructCodec.make_encode(schema)
         decoder = StructCodec.make_decode(schema)
-        self.decode = lambda buffer: decoder(iter(buffer))
+        # Wrap the decoder with freeze to make results immutable
+        self.decode = lambda buffer: freeze(decoder(iter(buffer)))
 
     def encode(self, obj: Any) -> bytes:
         # Set by __init__

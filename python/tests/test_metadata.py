@@ -2515,3 +2515,186 @@ class TestStructuredArrays:
 
         dtype = metadata.MetadataSchema(schema).numpy_dtype()
         assert dtype.names == ("id", "name", "age")
+
+
+class TestFrozenMetadata:
+    def test_json_simple_frozen(self):
+        schema = metadata.MetadataSchema({"codec": "json"})
+        data = {"a": 1, "b": 2, "c": [1, 2, 3], "d": {"x": 10, "y": 20}}
+        encoded = schema.validate_and_encode_row(data)
+        decoded = schema.decode_row(encoded)
+
+        # Check that we can't modify the top-level dict
+        with pytest.raises(TypeError):
+            decoded["e"] = 5
+
+        with pytest.raises(TypeError):
+            decoded["a"] = 10
+
+        with pytest.raises(TypeError):
+            del decoded["a"]
+
+        # Check that we can't modify nested lists
+        with pytest.raises(AttributeError):
+            decoded["c"].append(4)
+
+        with pytest.raises(TypeError):
+            decoded["c"][0] = 10
+
+        # Check that we can't modify nested dictionaries
+        with pytest.raises(TypeError):
+            decoded["d"]["z"] = 30
+
+        with pytest.raises(TypeError):
+            decoded["d"]["x"] = 100
+
+        with pytest.raises(TypeError):
+            del decoded["d"]["x"]
+
+    def test_struct_simple_frozen(self):
+        schema = metadata.MetadataSchema(
+            {
+                "codec": "struct",
+                "type": "object",
+                "properties": {
+                    "a": {"type": "number", "binaryFormat": "i"},
+                    "b": {"type": "number", "binaryFormat": "i"},
+                    "c": {
+                        "type": "array",
+                        "items": {"type": "number", "binaryFormat": "i"},
+                    },
+                    "d": {
+                        "type": "object",
+                        "properties": {
+                            "x": {"type": "number", "binaryFormat": "i"},
+                            "y": {"type": "number", "binaryFormat": "i"},
+                        },
+                    },
+                },
+            }
+        )
+
+        data = {"a": 1, "b": 2, "c": [1, 2, 3], "d": {"x": 10, "y": 20}}
+        encoded = schema.validate_and_encode_row(data)
+        decoded = schema.decode_row(encoded)
+
+        # Check that we can't modify the top-level dict
+        with pytest.raises(TypeError):
+            decoded["e"] = 5
+
+        with pytest.raises(TypeError):
+            decoded["a"] = 10
+
+        with pytest.raises(TypeError):
+            del decoded["a"]
+
+        # Check that we can't modify nested lists
+        with pytest.raises(AttributeError):
+            decoded["c"].append(4)
+
+        with pytest.raises(TypeError):
+            decoded["c"][0] = 10
+
+        # Check that we can't modify nested dictionaries
+        with pytest.raises(TypeError):
+            decoded["d"]["z"] = 30
+
+        with pytest.raises(TypeError):
+            decoded["d"]["x"] = 100
+
+        with pytest.raises(TypeError):
+            del decoded["d"]["x"]
+
+    def test_complex_nested_frozen(self):
+        schema = metadata.MetadataSchema(
+            {"codec": "json", "type": "object", "properties": {}}
+        )
+
+        data = {
+            "level1": {
+                "level2": {"level3": {"array": [1, 2, [3, 4, {"a": 5}]]}},
+                "items": [
+                    {"name": "item1", "values": [1, 2, 3]},
+                    {"name": "item2", "values": [4, 5, 6]},
+                ],
+            }
+        }
+
+        encoded = schema.validate_and_encode_row(data)
+        decoded = schema.decode_row(encoded)
+
+        # Test deeply nested dictionary modification
+        with pytest.raises(TypeError):
+            decoded["level1"]["level2"]["level3"]["new"] = "value"
+
+        # Test deeply nested array modification
+        with pytest.raises(AttributeError):
+            decoded["level1"]["level2"]["level3"]["array"].append(5)
+
+        # Test nested array in array modification
+        with pytest.raises(AttributeError):
+            decoded["level1"]["level2"]["level3"]["array"][2].append(6)
+
+        # Test dictionary in nested array modification
+        with pytest.raises(TypeError):
+            decoded["level1"]["level2"]["level3"]["array"][2][2]["b"] = 6
+
+        # Test object in array modification
+        with pytest.raises(AttributeError):
+            decoded["level1"]["items"][0]["values"].append(4)
+
+        # Test replacing object in array
+        with pytest.raises(TypeError):
+            decoded["level1"]["items"][1] = {"name": "new", "values": []}
+
+    def test_json_empty_values_frozen(self):
+        schema = metadata.MetadataSchema({"codec": "json"})
+
+        data = {"empty_dict": {}, "empty_list": []}
+        encoded = schema.validate_and_encode_row(data)
+        decoded = schema.decode_row(encoded)
+
+        with pytest.raises(TypeError):
+            decoded["empty_dict"]["x"] = 1
+
+        with pytest.raises(AttributeError):
+            decoded["empty_list"].append(1)
+
+    def test_tree_sequence_metadata_frozen(self):
+        ts = msprime.simulate(10, random_seed=42)
+        tables = ts.dump_tables()
+
+        # Set metadata schema and add metadata to a node, and at top-level
+        tables.nodes.metadata_schema = metadata.MetadataSchema({"codec": "json"})
+        node_data = {"value": 42, "name": "test", "list": [1, 2, 3]}
+        tables.nodes[0] = tables.nodes[0].replace(metadata=node_data)
+        tables.metadata_schema = metadata.MetadataSchema({"codec": "json"})
+        tables.metadata = {"key": "value"}
+
+        # Create new tree sequence and verify the metadata is frozen
+        new_ts = tables.tree_sequence()
+        node_metadata = new_ts.node(0).metadata
+
+        with pytest.raises(TypeError):
+            node_metadata["new_field"] = "value"
+
+        with pytest.raises(AttributeError):
+            node_metadata["list"].append(4)
+
+        top_level_metadata = new_ts.metadata
+        with pytest.raises(TypeError):
+            top_level_metadata["new_key"] = "new_value"
+
+        with pytest.raises(TypeError):
+            top_level_metadata["key"] = "new_value"
+
+    def test_frozen_dict_repr(self):
+        schema = metadata.MetadataSchema({"codec": "json"})
+        data = {"a": 1, "b": [1, 2], "c": {"x": 10}}
+        encoded = schema.validate_and_encode_row(data)
+        decoded = schema.decode_row(encoded)
+
+        # String representation should be like a normal dict/list
+        assert str(decoded) == "{'a': 1, 'b': [1, 2], 'c': {'x': 10}}"
+        assert str(decoded["b"]) == "[1, 2]"
+        assert str(decoded["c"]) == "{'x': 10}"
