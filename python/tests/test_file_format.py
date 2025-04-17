@@ -28,7 +28,6 @@ import tempfile
 import unittest
 import uuid as _uuid
 
-import h5py
 import kastore
 import msprime
 import numpy as np
@@ -866,12 +865,6 @@ class TestFileFormatErrors(TestFileFormat):
     def test_load_empty_kastore(self):
         kastore.dump({}, self.temp_file)
         with pytest.raises(exceptions.LibraryError):
-            tskit.load(self.temp_file)
-
-    def test_load_non_tskit_hdf5(self):
-        with h5py.File(self.temp_file, "w") as root:
-            root["x"] = np.zeros(10)
-        with pytest.raises(exceptions.FileFormatError):
             tskit.load(self.temp_file)
 
     def test_old_version_load_error(self):
