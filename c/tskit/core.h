@@ -283,7 +283,7 @@ A file could not be read because it is in the wrong format
 /**
 The file is in tskit format, but the version is too old for the
 library to read. The file should be upgraded to the latest version
-using the ``tskit upgrade`` command line utility.
+using the ``tskit upgrade`` command line utility from tskit version<0.6.2.
 */
 #define TSK_ERR_FILE_VERSION_TOO_OLD                                -101
 /**

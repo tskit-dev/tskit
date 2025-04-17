@@ -223,7 +223,7 @@ handle_library_error(int err)
     const char *not_kas_format_msg
         = "File not in kastore format. Either the file is corrupt or it is not a "
           "tskit tree sequence file. It may be a legacy HDF file upgradable with "
-          "`tskit upgrade` or a compressed tree sequence file that can be decompressed "
+          "`tskit upgrade` from tskit version<0.6.2 or a compressed tree sequence file that can be decompressed "
           "with `tszip`.";
     const char *ibd_pairs_not_stored_msg
         = "Sample pairs are not stored by default "
