@@ -39,6 +39,10 @@ For a gentle introduction, you might like to read "{ref}`tutorials:sec_what_is`"
 on our {ref}`tutorials site<tutorials:sec_intro>`. There you can also find further
 tutorial material to introduce you to the key concepts behind succinct tree sequences.
 
+:::{important}
+If you use `tskit` in your work, please remember to cite it appropriately: see the {ref}`citations<sec_citation>` page for details.
+:::
+
 :::{note}
 This documentation is under active development and may be incomplete
 in some areas. If you would like to help improve it, please open an issue or

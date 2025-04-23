@@ -27,3 +27,7 @@ parts:
   chapters:
   - file: development
   - file: changelogs
+- caption: Miscellaneous
+  chapters:
+  - file: citation
+
