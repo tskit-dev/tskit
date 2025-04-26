@@ -4,8 +4,11 @@
 
 **Bugfixes**
 
-- Meatdata.schema was returning a modified schema, this is fixed to return a copy of
+- Metadata.schema was returning a modified schema, this is fixed to return a copy of
   the original schema instead (:user:`benjeffery`, :issue:`3129`, :pr:`3130`)
+
+- ``TreeSequence.draw_svg(path=...)`` was failing due to a missing
+  `import xml.dom.minidom` (:user:`petrelharp`, :issue:`3144`, :pr:`3145`)
 
 --------------------
 [0.6.1] - 2025-03-31
