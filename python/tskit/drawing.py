@@ -30,7 +30,7 @@ import math
 import numbers
 import operator
 import warnings
-import xml
+import xml.dom.minidom
 from dataclasses import dataclass
 from typing import List
 from typing import Mapping
