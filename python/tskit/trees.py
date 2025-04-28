@@ -358,7 +358,8 @@ class Site(util.Dataclass):
     mutations: np.ndarray
     """
     The list of mutations at this site. Mutations within a site are returned in the
-    order they are specified in the underlying :class:`MutationTable`.
+    order they are specified in the underlying :class:`MutationTable`. In particular,
+    this means that older mutations will be listed before younger ones at this site.
     """
     metadata: bytes | dict | None
     """
