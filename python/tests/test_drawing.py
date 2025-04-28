@@ -31,7 +31,6 @@ import os
 import pathlib
 import platform
 import re
-import xml.dom.minidom
 import xml.etree
 
 import msprime
