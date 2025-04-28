@@ -133,6 +133,15 @@ jobs:
           conda activate anaconda-client-env
           python setup.py build_ext --inplace
 
+      - name: Minidom test
+        working-directory: python
+        # Importing either IPython or pytest causes import of xml.dom.minidom
+        # So to actually test that tskit imports it, we need a minimal test
+        run: |
+          source ~/.profile
+          conda activate anaconda-client-env
+          python -c "import tskit;tskit.Tree.generate_star(5).tree_sequence.draw_svg(path='test.svg')"
+
       - name: Run tests
         working-directory: python
         run: |
