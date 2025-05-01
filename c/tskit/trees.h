@@ -1056,7 +1056,8 @@ int tsk_treeseq_Y1(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
 int tsk_treeseq_allele_frequency_spectrum(const tsk_treeseq_t *self,
     tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes,
     const tsk_id_t *sample_sets, tsk_size_t num_windows, const double *windows,
-    tsk_flags_t options, double *result);
+    tsk_size_t num_time_windows, const double *time_windows, tsk_flags_t options,
+    double *result);
 
 typedef int general_sample_stat_method(const tsk_treeseq_t *self,
     tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes,
