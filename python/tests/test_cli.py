@@ -94,7 +94,7 @@ class TestTskitArgumentParser:
     def test_individuals_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "individuals"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 6
@@ -102,7 +102,7 @@ class TestTskitArgumentParser:
     def test_individuals_short_args(self):
         parser = cli.get_tskit_parser()
         cmd = "individuals"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, "-p", "8"])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 8
@@ -110,7 +110,7 @@ class TestTskitArgumentParser:
     def test_individuals_long_args(self):
         parser = cli.get_tskit_parser()
         cmd = "individuals"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, "--precision", "5"])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 5
@@ -118,7 +118,7 @@ class TestTskitArgumentParser:
     def test_nodes_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "nodes"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 6
@@ -126,7 +126,7 @@ class TestTskitArgumentParser:
     def test_nodes_short_args(self):
         parser = cli.get_tskit_parser()
         cmd = "nodes"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, "-p", "8"])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 8
@@ -134,7 +134,7 @@ class TestTskitArgumentParser:
     def test_nodes_long_args(self):
         parser = cli.get_tskit_parser()
         cmd = "nodes"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, "--precision", "5"])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 5
@@ -142,7 +142,7 @@ class TestTskitArgumentParser:
     def test_edges_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "edges"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 6
@@ -150,7 +150,7 @@ class TestTskitArgumentParser:
     def test_edges_short_args(self):
         parser = cli.get_tskit_parser()
         cmd = "edges"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, "-p", "8"])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 8
@@ -158,7 +158,7 @@ class TestTskitArgumentParser:
     def test_edges_long_args(self):
         parser = cli.get_tskit_parser()
         cmd = "edges"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, "--precision", "5"])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 5
@@ -166,7 +166,7 @@ class TestTskitArgumentParser:
     def test_sites_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "sites"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 6
@@ -174,7 +174,7 @@ class TestTskitArgumentParser:
     def test_sites_short_args(self):
         parser = cli.get_tskit_parser()
         cmd = "sites"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, "-p", "8"])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 8
@@ -182,7 +182,7 @@ class TestTskitArgumentParser:
     def test_sites_long_args(self):
         parser = cli.get_tskit_parser()
         cmd = "sites"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, "--precision", "5"])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 5
@@ -190,7 +190,7 @@ class TestTskitArgumentParser:
     def test_mutations_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "mutations"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 6
@@ -198,7 +198,7 @@ class TestTskitArgumentParser:
     def test_mutations_short_args(self):
         parser = cli.get_tskit_parser()
         cmd = "mutations"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, "-p", "4"])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 4
@@ -206,7 +206,7 @@ class TestTskitArgumentParser:
     def test_mutations_long_args(self):
         parser = cli.get_tskit_parser()
         cmd = "mutations"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, "--precision", "9"])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 9
@@ -214,7 +214,7 @@ class TestTskitArgumentParser:
     def test_provenances_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "provenances"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence])
         assert args.tree_sequence == tree_sequence
         assert not args.human
@@ -222,7 +222,7 @@ class TestTskitArgumentParser:
     def test_provenances_short_args(self):
         parser = cli.get_tskit_parser()
         cmd = "provenances"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, "-H"])
         assert args.tree_sequence == tree_sequence
         assert args.human
@@ -230,7 +230,7 @@ class TestTskitArgumentParser:
     def test_provenances_long_args(self):
         parser = cli.get_tskit_parser()
         cmd = "provenances"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, "--human"])
         assert args.tree_sequence == tree_sequence
         assert args.human
@@ -239,7 +239,7 @@ class TestTskitArgumentParser:
     def test_fasta_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "fasta"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence])
         assert args.tree_sequence == tree_sequence
         assert args.wrap == 60
@@ -248,7 +248,7 @@ class TestTskitArgumentParser:
     def test_fasta_short_args(self):
         parser = cli.get_tskit_parser()
         cmd = "fasta"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, "-w", "100"])
         assert args.tree_sequence == tree_sequence
         assert args.wrap == 100
@@ -257,7 +257,7 @@ class TestTskitArgumentParser:
     def test_fasta_long_args(self):
         parser = cli.get_tskit_parser()
         cmd = "fasta"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, "--wrap", "50"])
         assert args.tree_sequence == tree_sequence
         assert args.wrap == 50
@@ -273,7 +273,7 @@ class TestTskitArgumentParser:
     def test_vcf_ploidy(self, flags, expected):
         parser = cli.get_tskit_parser()
         cmd = "vcf"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, *flags])
         assert args.tree_sequence == tree_sequence
         assert args.ploidy == expected
@@ -289,7 +289,7 @@ class TestTskitArgumentParser:
     def test_vcf_contig_id(self, flags, expected):
         parser = cli.get_tskit_parser()
         cmd = "vcf"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, *flags])
         assert args.tree_sequence == tree_sequence
         assert args.contig_id == expected
@@ -305,7 +305,7 @@ class TestTskitArgumentParser:
     def test_vcf_allow_position_zero(self, flags, expected):
         parser = cli.get_tskit_parser()
         cmd = "vcf"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, *flags])
         assert args.tree_sequence == tree_sequence
         assert args.allow_position_zero == expected
@@ -313,28 +313,28 @@ class TestTskitArgumentParser:
     def test_info_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "info"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence])
         assert args.tree_sequence == tree_sequence
 
     def test_populations_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "populations"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence])
         assert args.tree_sequence == tree_sequence
 
     def test_migrations_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "migrations"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence])
         assert args.tree_sequence == tree_sequence
 
     def test_migrations_short_args(self):
         parser = cli.get_tskit_parser()
         cmd = "migrations"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, "-p", "2"])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 2
@@ -342,7 +342,7 @@ class TestTskitArgumentParser:
     def test_migrations_long_args(self):
         parser = cli.get_tskit_parser()
         cmd = "migrations"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, "--precision", "5"])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 5
@@ -350,7 +350,7 @@ class TestTskitArgumentParser:
     def test_trees_default_values(self):
         parser = cli.get_tskit_parser()
         cmd = "trees"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 6
@@ -359,7 +359,7 @@ class TestTskitArgumentParser:
     def test_trees_short_args(self):
         parser = cli.get_tskit_parser()
         cmd = "trees"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, "-d", "-p", "8"])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 8
@@ -368,7 +368,7 @@ class TestTskitArgumentParser:
     def test_trees_long_args(self):
         parser = cli.get_tskit_parser()
         cmd = "trees"
-        tree_sequence = "test.trees"
+        tree_sequence = "test.arg"
         args = parser.parse_args([cmd, tree_sequence, "--precision", "5", "--draw"])
         assert args.tree_sequence == tree_sequence
         assert args.precision == 5
@@ -397,9 +397,7 @@ class TestTskitConversionOutput(unittest.TestCase):
         cls._tree_sequence = tsutil.insert_random_ploidy_individuals(
             ts, samples_only=True
         )
-        fd, cls._tree_sequence_file = tempfile.mkstemp(
-            prefix="tsk_cli", suffix=".trees"
-        )
+        fd, cls._tree_sequence_file = tempfile.mkstemp(prefix="tsk_cli", suffix=".arg")
         os.close(fd)
         cls._tree_sequence.dump(cls._tree_sequence_file)
 
@@ -596,11 +594,11 @@ class TestVCFZeroPosition:
 
     def test_zero_position(self, tmp_path):
         ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
-        ts.dump(tmp_path / "test.trees")
+        ts.dump(tmp_path / "test.arg")
         with pytest.raises(ValueError):
-            capture_output(cli.tskit_main, ["vcf", str(tmp_path / "test.trees")])
+            capture_output(cli.tskit_main, ["vcf", str(tmp_path / "test.arg")])
         stdout, stderr = capture_output(
-            cli.tskit_main, ["vcf", "-0", str(tmp_path / "test.trees")]
+            cli.tskit_main, ["vcf", "-0", str(tmp_path / "test.arg")]
         )
         assert len(stderr) == 0
 

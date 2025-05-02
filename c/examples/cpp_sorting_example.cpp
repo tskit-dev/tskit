@@ -73,7 +73,7 @@ int
 main(int argc, char **argv)
 {
     if (argc != 3) {
-        std::cerr << "Usage: " << argv[0] << " input.trees output.trees\n";
+        std::cerr << "Usage: " << argv[0] << " input.arg output.arg\n";
         std::exit(0);
     }
     const char *infile = argv[1];

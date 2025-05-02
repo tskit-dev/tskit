@@ -338,7 +338,7 @@ that function's documentation for details and options.
 
     int ret;
     tsk_treeseq_t ts;
-    ret = tsk_treeseq_load(&ts, "data.trees", 0);
+    ret = tsk_treeseq_load(&ts, "data.arg 0);
     if (ret != 0) {
         fprintf(stderr, "Load error:%s\n", tsk_strerror(ret));
         exit(EXIT_FAILURE);

@@ -23,7 +23,7 @@ Do I need the C API?
 The ``tskit`` C API is generally useful in the following situations:
 
 - You want to use the ``tskit`` API in a larger C/C++ application (e.g.,
-  in order to output data in the ``.trees`` format);
+  in order to output data in the ``.arg`` format);
 - You need to perform lots of tree traversals/loops etc. to analyse some
   data that is in tree sequence form.
 
@@ -909,15 +909,15 @@ normally.
 
 Running this program on some tree sequence files we might get::
 
-    $ cat tmp1.trees tmp2.trees | ./build/streaming > no_mutations.trees
+    $ cat tmp1.arg tmp2.arg | ./build/streaming > no_mutations.arg
     Tree sequence 0 had 38 mutations
     Tree sequence 1 had 132 mutations
 
 Then, running this program again on the output of the previous command,
 we see that we now have two tree sequences with their mutations removed
-stored in the file ``no_mutations.trees``::
+stored in the file ``no_mutations.arg``::
 
-    $ ./build/streaming < no_mutations.trees > /dev/null
+    $ ./build/streaming < no_mutations.arg > /dev/null
     Tree sequence 0 had 0 mutations
     Tree sequence 1 had 0 mutations
 

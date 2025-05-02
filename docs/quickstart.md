@@ -27,7 +27,7 @@ def basic_sim():
         recombination_rate=1e-7,
         random_seed=665)
     ts = msprime.sim_mutations(ts, rate=2e-7, random_seed=123)
-    ts.dump("data/basic_tree_seq.trees")
+    ts.dump("data/basic_tree_seq.arg")
     
 def create_notebook_data():
     basic_sim()
@@ -53,7 +53,7 @@ sites.
 ```{code-cell}
 import tskit
 
-ts = tskit.load("data/basic_tree_seq.trees")  # Or generate using e.g. msprime.sim_ancestry()
+ts = tskit.load("data/basic_tree_seq.arg")  # Or generate using e.g. msprime.sim_ancestry()
 ts  # In a Jupyter notebook this displays a summary table. Otherwise use print(ts)
 ```
 

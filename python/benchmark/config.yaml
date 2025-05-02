@@ -5,8 +5,8 @@ benchmarks:
   - code: ts = tskit.load("{filename}")
     parameters:
       filename: &files
-        - "tiny.trees"
-        - "bench.trees"
+        - "tiny.arg"
+        - "bench.arg"
 
   - code: ts.dump("/dev/null");"{filename}"
     setup: |
@@ -18,7 +18,7 @@ benchmarks:
     #, site_mask=site_mask, sample_mask=sample_mask)
     setup: |
       import numpy
-      ts = tskit.load("bench.trees")
+      ts = tskit.load("bench.arg")
       tables = ts.tables
       tables.migrations.clear()
       ts = tables.tree_sequence()
@@ -37,7 +37,7 @@ benchmarks:
       tree.seek(pos)
       pos = 0 if pos == 500_000 else 500_000
     setup: |
-      ts = tskit.load("bench.trees")
+      ts = tskit.load("bench.arg")
       tree = ts.first()
       pos = 500_000
 
@@ -48,7 +48,7 @@ benchmarks:
 
   - code: tree.{array}
     setup: |
-      ts = tskit.load("bench.trees")
+      ts = tskit.load("bench.arg")
       tree = ts.first()
     parameters:
       array: &tree_arrays
@@ -62,7 +62,7 @@ benchmarks:
 
   - code: tree.{array}(42);
     setup: |
-      ts = tskit.load("bench.trees")
+      ts = tskit.load("bench.arg")
       tree = ts.first()
     parameters:
       array:
@@ -76,7 +76,7 @@ benchmarks:
 
   - code: tree.{traversal_order}()
     setup: |
-      ts = tskit.load("bench.trees")
+      ts = tskit.load("bench.arg")
       tree = ts.first()
     parameters:
       traversal_order: &traversal_orders
@@ -102,7 +102,7 @@ benchmarks:
       filename: *files
 
   - code: "for row in ts.{table}(): pass"
-    setup: ts = tskit.load("bench.trees")
+    setup: ts = tskit.load("bench.arg")
     parameters:
       table: &tables
         - nodes
@@ -128,7 +128,7 @@ benchmarks:
 
   - code: ts.{table}(1)
     setup: |
-      ts = tskit.load("bench.trees")
+      ts = tskit.load("bench.arg")
     parameters:
       table:
         - node
@@ -141,18 +141,18 @@ benchmarks:
         - provenance
 
   - code: ts.tables
-    setup: ts = tskit.load("bench.trees")
+    setup: ts = tskit.load("bench.arg")
 
   - code: tables.{table}
     setup: |
-      ts = tskit.load("bench.trees")
+      ts = tskit.load("bench.arg")
       tables = ts.tables
     parameters:
       table: *tables
 
   - code: x = {table}.{column}
     setup: |
-      ts = tskit.load("bench.trees")
+      ts = tskit.load("bench.arg")
       tables = ts.tables
       {table} = tables.{table}
     parameters: &table_columns

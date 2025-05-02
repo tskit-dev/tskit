@@ -271,7 +271,7 @@ class TestLoadLegacyExamples(TestFileFormat):
                 tskit.TableCollection.load(path)
 
     def test_tskit_v_0_3_3(self):
-        path = os.path.join(test_data_dir, "old-formats", "tskit-0.3.3.trees")
+        path = os.path.join(test_data_dir, "old-formats", "tskit-0.3.3.arg")
         ts = tskit.load(path)
         self.verify_tree_sequence(ts)
 
@@ -671,14 +671,14 @@ class TestReferenceSequence:
 
     def test_round_trip(self, ts_fixture, tmp_path):
         ts1 = ts_fixture
-        temp_file = tmp_path / "tmp.trees"
+        temp_file = tmp_path / "tmp.arg"
         ts1.dump(temp_file)
         ts2 = tskit.load(temp_file)
         ts1.tables.assert_equals(ts2.tables)
 
     def test_no_reference_sequence(self, ts_fixture, tmp_path):
         ts1 = ts_fixture
-        temp_file = tmp_path / "tmp.trees"
+        temp_file = tmp_path / "tmp.arg"
         ts1.dump(temp_file)
         with kastore.load(temp_file) as store:
             all_data = dict(store)
@@ -698,7 +698,7 @@ class TestReferenceSequence:
     @pytest.mark.parametrize("attr", ["data", "url"])
     def test_missing_attr(self, ts_fixture, tmp_path, attr):
         ts1 = ts_fixture
-        temp_file = tmp_path / "tmp.trees"
+        temp_file = tmp_path / "tmp.arg"
         ts1.dump(temp_file)
         with kastore.load(temp_file) as store:
             all_data = dict(store)
@@ -710,7 +710,7 @@ class TestReferenceSequence:
 
     def test_missing_metadata(self, ts_fixture, tmp_path):
         ts1 = ts_fixture
-        temp_file = tmp_path / "tmp.trees"
+        temp_file = tmp_path / "tmp.arg"
         ts1.dump(temp_file)
         with kastore.load(temp_file) as store:
             all_data = dict(store)
@@ -722,7 +722,7 @@ class TestReferenceSequence:
 
     def test_missing_metadata_schema(self, ts_fixture, tmp_path):
         ts1 = ts_fixture
-        temp_file = tmp_path / "tmp.trees"
+        temp_file = tmp_path / "tmp.arg"
         ts1.dump(temp_file)
         with kastore.load(temp_file) as store:
             all_data = dict(store)
@@ -943,7 +943,7 @@ class TestSkipTables:
         # Check the fixture has metadata and a schema
         assert ts_fixture.metadata_schema is not None
         assert len(ts_fixture.metadata) > 0
-        save_path = tmp_path / "tmp.trees"
+        save_path = tmp_path / "tmp.arg"
         ts_fixture.dump(save_path)
         ts_no_tables = tskit.load(save_path, skip_tables=True)
         assert not ts_no_tables.equals(ts_fixture)
@@ -951,7 +951,7 @@ class TestSkipTables:
         assert_tables_empty(ts_no_tables.tables)
 
     def test_ts_read_one_stream(self, tmp_path, ts_fixture):
-        save_path = tmp_path / "tmp.trees"
+        save_path = tmp_path / "tmp.arg"
         ts_fixture.dump(save_path)
         with open(save_path, "rb") as f:
             ts_no_tables = tskit.load(f, skip_tables=True)
@@ -960,7 +960,7 @@ class TestSkipTables:
         assert_tables_empty(ts_no_tables.tables)
 
     def test_ts_twofile_stream_noskip(self, tmp_path, ts_fixture):
-        save_path = tmp_path / "tmp.trees"
+        save_path = tmp_path / "tmp.arg"
         with open(save_path, "wb") as f:
             ts_fixture.dump(f)
             ts_fixture.dump(f)
@@ -972,7 +972,7 @@ class TestSkipTables:
 
     def test_ts_twofile_stream_fails(self, tmp_path, ts_fixture):
         # We can't skip_tables while reading from a stream
-        save_path = tmp_path / "tmp.trees"
+        save_path = tmp_path / "tmp.arg"
         with open(save_path, "wb") as f:
             ts_fixture.dump(f)
             ts_fixture.dump(f)
@@ -982,7 +982,7 @@ class TestSkipTables:
                 tskit.load(f)
 
     def test_table_collection_load_path(self, tmp_path, ts_fixture):
-        save_path = tmp_path / "tmp.trees"
+        save_path = tmp_path / "tmp.arg"
         ts_fixture.dump(save_path)
         tables_skipped = tskit.TableCollection.load(save_path, skip_tables=True)
         tables = ts_fixture.tables
@@ -991,7 +991,7 @@ class TestSkipTables:
         assert_tables_empty(tables_skipped)
 
     def test_table_collection_load_stream(self, tmp_path, ts_fixture):
-        save_path = tmp_path / "tmp.trees"
+        save_path = tmp_path / "tmp.arg"
         ts_fixture.dump(save_path)
         with open(save_path, "rb") as f:
             tables_skipped = tskit.TableCollection.load(f, skip_tables=True)
@@ -1009,7 +1009,7 @@ class TestSkipReferenceSequence:
 
     def test_ts_load_path(self, tmp_path, ts_fixture):
         assert ts_fixture.has_reference_sequence()
-        save_path = tmp_path / "tmp.trees"
+        save_path = tmp_path / "tmp.arg"
         ts_fixture.dump(save_path)
         ts_no_refseq = tskit.load(save_path, skip_reference_sequence=True)
         assert not ts_no_refseq.equals(ts_fixture)
@@ -1017,7 +1017,7 @@ class TestSkipReferenceSequence:
         assert not ts_no_refseq.has_reference_sequence()
 
     def test_ts_load_stream(self, tmp_path, ts_fixture):
-        save_path = tmp_path / "tmp.trees"
+        save_path = tmp_path / "tmp.arg"
         ts_fixture.dump(save_path)
         with open(save_path, "rb") as f:
             ts_no_refseq = tskit.load(f, skip_reference_sequence=True)
@@ -1027,7 +1027,7 @@ class TestSkipReferenceSequence:
 
     def test_ts_twofile_stream_fails(self, tmp_path, ts_fixture):
         # We can't skip_reference_sequence while reading from a stream
-        save_path = tmp_path / "tmp.trees"
+        save_path = tmp_path / "tmp.arg"
         with open(save_path, "wb") as f:
             ts_fixture.dump(f)
             ts_fixture.dump(f)
@@ -1037,7 +1037,7 @@ class TestSkipReferenceSequence:
                 tskit.load(f)
 
     def test_table_collection_load_path(self, tmp_path, ts_fixture):
-        save_path = tmp_path / "tmp.trees"
+        save_path = tmp_path / "tmp.arg"
         ts_fixture.dump(save_path)
         tables_no_refseq = tskit.TableCollection.load(
             save_path, skip_reference_sequence=True
@@ -1048,7 +1048,7 @@ class TestSkipReferenceSequence:
         assert not tables_no_refseq.has_reference_sequence()
 
     def test_table_collection_load_stream(self, tmp_path, ts_fixture):
-        save_path = tmp_path / "tmp.trees"
+        save_path = tmp_path / "tmp.arg"
         ts_fixture.dump(save_path)
         with open(save_path, "rb") as f:
             tables_no_refseq = tskit.TableCollection.load(

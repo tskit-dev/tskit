@@ -30,7 +30,7 @@ This documentation serves two distinct purposes:
 1. For developers using `tskit` in their own applications, it provides normative documentation
    for how provenance information should be stored.
 2. For end-users of `tskit`, it provides documentation to allows them to inspect and interpret
-   the provenance information stored in `.trees` files.
+   the provenance information stored in `.arg` files.
 
 Provenance information is encoded using [JSON](https://www.json.org/).
 To standardise the provenance information produced by different software and improve
@@ -167,7 +167,7 @@ here even though it was automatically generated.
 Consider the following invocation of a hypothetical command line program:
 
 ```bash
-$ supersim --sample-size=10 --do-some-stuff -O out.trees
+$ supersim --sample-size=10 --do-some-stuff -O out.arg
 ```
 
 We recommend encoding the parameters provenance as follows (other fields omitted
@@ -177,7 +177,7 @@ for clarity):
 {
   "parameters": {
     "command": "supersim",
-    "args": ["--sample-size=10", "--do-some-stuff", "-O", "out.trees"],
+    "args": ["--sample-size=10", "--do-some-stuff", "-O", "out.arg"],
     "random_seed": 56789
   }
 }
@@ -245,7 +245,7 @@ account for resource usage across pipelines of tools.
 ## Full schema
 
 This schema is formally defined using [JSON Schema](http://json-schema.org/) and
-given in full here. Developers writing provenance information to `.trees` files
+given in full here. Developers writing provenance information to `.arg` files
 should validate the output JSON against this schema.
 
 ```{eval-rst}

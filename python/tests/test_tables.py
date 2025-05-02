@@ -3932,7 +3932,7 @@ class TestTableCollection:
         check_concordance(lwt.asdict(), tables.asdict())
 
     def test_dump_pathlib(self, ts_fixture, tmp_path):
-        path = pathlib.Path(tmp_path) / "tmp.trees"
+        path = pathlib.Path(tmp_path) / "tmp.arg"
         assert path.exists
         assert path.is_file
         tc = ts_fixture.dump_tables()
@@ -3945,7 +3945,7 @@ class TestTableCollection:
         tc = ts_fixture.dump_tables()
         # Try to dump/load files we don't have access to or don't exist.
         for func in [tc.dump, tskit.TableCollection.load]:
-            for f in ["/", "/test.trees", "/dir_does_not_exist/x.trees"]:
+            for f in ["/", "/test.arg", "/dir_does_not_exist/x.arg"]:
                 with pytest.raises(OSError):
                     func(f)
                 try:

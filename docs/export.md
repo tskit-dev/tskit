@@ -41,7 +41,7 @@ If we have a tree sequence file the
 convenient way to convert to VCF:
 
 :::{code-block} bash
-$ tskit vcf example.trees > example.vcf
+$ tskit vcf example.arg > example.vcf
 :::
 
 See the {ref}`sec_export_vcf_compression` section for information
@@ -137,14 +137,14 @@ The simplest way to compress the VCF output is to use the
 and pipe the output to `bgzip`:
 
 :::{code-block} bash
-$ tskit vcf example.trees | bgzip -c > example.vcf.gz
+$ tskit vcf example.arg | bgzip -c > example.vcf.gz
 :::
 A general way to convert VCF data to various formats is to pipe the text
 produced by ``tskit`` into ``bcftools`` using the command
 line interface:
 
 :::{code-block} bash
-$ tskit vcf example.trees | bcftools view -O b > example.bcf
+$ tskit vcf example.arg | bcftools view -O b > example.bcf
 :::
 
 If you need more control over the form of the output (or want to work

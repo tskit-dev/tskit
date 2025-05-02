@@ -3406,9 +3406,9 @@ def load(file, *, skip_tables=False, skip_reference_sequence=False):
         (e.g. a socket or STDIN) of multiple tree sequences using consecutive
         calls to :meth:`tskit.load`.
 
-    :param str file: The file object or path of the ``.trees`` file containing the
+    :param str file: The file object or path of the ``.arg`` file containing the
         tree sequence we wish to load.
-    :param bool skip_tables: If True, no tables are read from the ``.trees``
+    :param bool skip_tables: If True, no tables are read from the ``.arg``
         file and only the top-level information is populated in the tree
         sequence object.
     :param bool skip_reference_sequence: If True, the tree sequence is read

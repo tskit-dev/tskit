@@ -1979,7 +1979,7 @@ class TestTreeSequence(HighLevelTestCase):
             ts.to_nexus()
 
     def test_dump_pathlib(self, ts_fixture, tmp_path):
-        path = tmp_path / "tmp.trees"
+        path = tmp_path / "tmp.arg"
         assert path.exists
         assert path.is_file
         ts_fixture.dump(path)
@@ -1991,7 +1991,7 @@ class TestTreeSequence(HighLevelTestCase):
         ts = msprime.simulate(5, random_seed=1)
         # Try to dump/load files we don't have access to or don't exist.
         for func in [ts.dump, tskit.load]:
-            for f in ["/", "/test.trees", "/dir_does_not_exist/x.trees"]:
+            for f in ["/", "/test.arg", "/dir_does_not_exist/x.arg"]:
                 with pytest.raises(OSError):
                     func(f)
                 try:
@@ -2012,7 +2012,7 @@ class TestTreeSequence(HighLevelTestCase):
                     func(bad_filename)
 
     def test_zlib_compression_warning(self, ts_fixture, tmp_path):
-        temp_file = tmp_path / "tmp.trees"
+        temp_file = tmp_path / "tmp.arg"
         with warnings.catch_warnings(record=True) as w:
             ts_fixture.dump(temp_file, zlib_compression=True)
             assert len(w) == 1
@@ -3260,7 +3260,7 @@ class TestFileUuid(HighLevelTestCase):
 
     def validate(self, ts):
         with tempfile.TemporaryDirectory() as tempdir:
-            temp_file = pathlib.Path(tempdir) / "tmp.trees"
+            temp_file = pathlib.Path(tempdir) / "tmp.arg"
             assert ts.file_uuid is None
             ts.dump(temp_file)
             other_ts = tskit.load(temp_file)
@@ -4590,7 +4590,7 @@ class TestNodeOrdering(HighLevelTestCase):
         assert j == ts.get_num_trees()
         # Verify we can dump this new tree sequence OK.
         with tempfile.TemporaryDirectory() as tempdir:
-            temp_file = pathlib.Path(tempdir) / "tmp.trees"
+            temp_file = pathlib.Path(tempdir) / "tmp.arg"
             other_ts.dump(temp_file)
             ts3 = tskit.load(temp_file)
         self.verify_tree_sequences_equal(other_ts, ts3)

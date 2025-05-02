@@ -29,8 +29,8 @@ data on file in a columnar, binary format. The format is based on the
 key-value store for numerical data. There is a one-to-one correspondence
 between the tables described above and the arrays stored in these files.
 
-By convention, these files are given the `.trees` suffix (although this
-is not enforced in any way), and we will sometimes refer to them as ".trees"
+By convention, these files are given the `.arg` suffix (although this
+is not enforced in any way), and we will sometimes refer to them as ".arg"
 files. We also refer to them as "tree sequence files".
 
 :::{todo}
