@@ -4123,6 +4123,7 @@ class TreeSequence:
         self._individuals_time = None
         self._individuals_population = None
         self._individuals_location = None
+        self._individuals_nodes = None
         # NOTE: when we've implemented read-only access via the underlying
         # tables we can replace these arrays with reference to the read-only
         # tables here (and remove the low-level boilerplate).
@@ -5813,6 +5814,20 @@ class TreeSequence:
         return self.table_metadata_schemas.individual.structured_array_from_buffer(
             self._individuals_metadata
         )
+
+    @property
+    def individuals_nodes(self):
+        """
+        Return an array of node IDs for each individual in the tree sequence.
+
+        :return: Array of shape (num_individuals, max_ploidy) containing node IDs.
+            Values of -1 indicate unused slots for individuals with ploidy
+            less than the maximum.
+        :rtype: numpy.ndarray (dtype=np.int32)
+        """
+        if self._individuals_nodes is None:
+            self._individuals_nodes = self._ll_tree_sequence.get_individuals_nodes()
+        return self._individuals_nodes
 
     @property
     def nodes_metadata(self):

@@ -8726,6 +8726,61 @@ out:
 }
 
 static PyObject *
+TreeSequence_get_individuals_nodes(TreeSequence *self)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *ret_array = NULL;
+    npy_intp dims[2];
+    tsk_size_t ploidy;
+    tsk_size_t max_ploidy = 0;
+    tsk_id_t *node_mem;
+    tsk_size_t j;
+    tsk_size_t num_individuals;
+    tsk_id_t *const *individual_nodes;
+    const tsk_size_t *individual_nodes_length;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+
+    num_individuals = tsk_treeseq_get_num_individuals(self->tree_sequence);
+    individual_nodes = self->tree_sequence->individual_nodes;
+    individual_nodes_length = self->tree_sequence->individual_nodes_length;
+
+    for (tsk_id_t i = 0; i < (tsk_id_t) num_individuals; i++) {
+        ploidy = individual_nodes_length[i];
+        if (ploidy > max_ploidy) {
+            max_ploidy = ploidy;
+        }
+    }
+
+    dims[0] = (npy_intp) num_individuals;
+    dims[1] = (npy_intp) max_ploidy;
+    ret_array = (PyArrayObject *) PyArray_SimpleNew(2, dims, NPY_INT32);
+    if (ret_array == NULL) {
+        goto out;
+    }
+
+    /* Fill with -1 (TSK_NULL) */
+    node_mem = (tsk_id_t *) PyArray_DATA(ret_array);
+    memset(node_mem, 0xFF, PyArray_NBYTES(ret_array));
+
+    for (tsk_id_t i = 0; i < (tsk_id_t) num_individuals; i++) {
+        ploidy = individual_nodes_length[i];
+        for (j = 0; j < ploidy; j++) {
+            node_mem[i * max_ploidy + j] = individual_nodes[i][j];
+        }
+    }
+
+    ret = (PyObject *) ret_array;
+    ret_array = NULL;
+
+out:
+    Py_XDECREF(ret_array);
+    return ret;
+}
+
+static PyObject *
 TreeSequence_genealogical_nearest_neighbours(
     TreeSequence *self, PyObject *args, PyObject *kwds)
 {
@@ -11425,6 +11480,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_get_individuals_time,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns the vector of per-individual times." },
+    { .ml_name = "get_individuals_nodes",
+        .ml_meth = (PyCFunction) TreeSequence_get_individuals_nodes,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns an array of the node ids for each individual" },
     { .ml_name = "genealogical_nearest_neighbours",
         .ml_meth = (PyCFunction) TreeSequence_genealogical_nearest_neighbours,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
