@@ -5491,3 +5491,96 @@ class TestStructuredNumpyMetadata:
         ts = msprime.simulate(10)
         with pytest.raises(NotImplementedError):
             getattr(ts, f"{table_name}_metadata")
+
+
+class TestIndividualsNodes:
+    def test_basic_individuals_nodes(self, tmp_path):
+        # Create a basic tree sequence with two individuals
+        tables = tskit.TableCollection(sequence_length=100)
+        tables.individuals.add_row(flags=0, location=(0, 0), metadata=b"")
+        tables.individuals.add_row(flags=0, location=(0, 0), metadata=b"")
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=0)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=0)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=1)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=1)
+        ts = tables.tree_sequence()
+
+        result = ts.individuals_nodes
+        assert result.shape == (2, 2)
+        assert_array_equal(result, [[0, 1], [2, 3]])
+
+    def test_variable_ploidy(self, tmp_path):
+        tables = tskit.TableCollection(sequence_length=100)
+        tables.individuals.add_row(flags=0, location=(0, 0), metadata=b"")  # Diploid
+        tables.individuals.add_row(flags=0, location=(0, 0), metadata=b"")  # Haploid
+        tables.individuals.add_row(flags=0, location=(0, 0), metadata=b"")  # Triploid
+
+        # Diploid individual
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=0)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=0)
+
+        # Haploid individual
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=1)
+
+        # Triploid individual
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=2)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=2)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=2)
+
+        ts = tables.tree_sequence()
+
+        result = ts.individuals_nodes
+
+        assert result.shape == (3, 3)
+
+        expected = np.array(
+            [[0, 1, -1], [2, -1, -1], [3, 4, 5]]  # Diploid  # Haploid  # Triploid
+        )
+        assert_array_equal(result, expected)
+
+    def test_no_individuals(self):
+        tables = tskit.TableCollection(sequence_length=100)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        ts = tables.tree_sequence()
+
+        result = ts.individuals_nodes
+        expected = np.array([], dtype=np.int32).reshape(0, 0)
+        assert result.shape == (0, 0)
+        assert_array_equal(result, expected)
+
+    def test_no_nodes_with_individuals(self):
+        tables = tskit.TableCollection(sequence_length=100)
+        tables.individuals.add_row(flags=0, location=(0, 0), metadata=b"")
+        # Node without individual reference
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        ts = tables.tree_sequence()
+
+        result = ts.individuals_nodes
+        expected = np.array([[]])
+        assert result.shape == (1, 0)
+        assert_array_equal(result, expected)
+
+    def test_individual_with_no_nodes(self):
+        tables = tskit.TableCollection(sequence_length=100)
+        tables.individuals.add_row(flags=0, location=(0, 0), metadata=b"")
+        tables.individuals.add_row(flags=0, location=(0, 0), metadata=b"")
+        # Only add nodes for first individual
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=0)
+        ts = tables.tree_sequence()
+
+        result = ts.individuals_nodes
+        expected = np.array([[0], [-1]])
+        assert result.shape == (2, 1)
+        assert_array_equal(result, expected)
+
+    def test_mixed_sample_status(self):
+        tables = tskit.TableCollection(sequence_length=100)
+        tables.individuals.add_row(flags=0, location=(0, 0), metadata=b"")
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=0)
+        tables.nodes.add_row(flags=0, time=0, individual=0)
+        ts = tables.tree_sequence()
+
+        result = ts.individuals_nodes
+        expected = np.array([[0, 1]])
+        assert result.shape == (1, 2)
+        assert_array_equal(result, expected)

@@ -1,4 +1,14 @@
 --------------------
+[0.6.4] - 2025-XX-XX
+--------------------
+
+**Features**
+
+- Add ``TreeSequence.individuals_nodes`` attribute to return the nodes
+  associated with each individual as a numpy array.
+  (:user:`benjeffery`, :pr:`3153`)
+
+--------------------
 [0.6.3] - 2025-04-28
 --------------------
 

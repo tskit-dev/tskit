@@ -1949,6 +1949,31 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         a2[:] = 0
         assert a3 is not a2
 
+    def test_individuals_nodes(self, ts_fixture):
+        ts_fixture = ts_fixture.ll_tree_sequence
+
+        # Properties
+        a = ts_fixture.get_individuals_nodes()
+        assert a.flags.aligned
+        assert a.flags.c_contiguous
+        assert a.flags.owndata
+        b = ts_fixture.get_individuals_nodes()
+        assert a is not b
+        assert np.all(a == b)
+
+        # Lifetime
+        a1 = ts_fixture.get_individuals_nodes()
+        a2 = a1.copy()
+        assert a1 is not a2
+        del ts_fixture
+        # Do some memory operations
+        a3 = np.ones(10**6)
+        assert np.all(a1 == a2)
+        del a1
+        # Just do something to touch memory
+        a2[:] = 0
+        assert a3 is not a2
+
 
 class StatsInterfaceMixin:
     """
