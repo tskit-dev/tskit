@@ -5584,3 +5584,87 @@ class TestIndividualsNodes:
         expected = np.array([[0, 1]])
         assert result.shape == (1, 2)
         assert_array_equal(result, expected)
+
+
+class TestSampleNodesByPloidy:
+    @pytest.mark.parametrize(
+        "n_samples,ploidy,expected",
+        [
+            (6, 2, np.array([[0, 1], [2, 3], [4, 5]])),  # Basic diploid
+            (9, 3, np.array([[0, 1, 2], [3, 4, 5], [6, 7, 8]])),  # Triploid
+            (5, 1, np.array([[0], [1], [2], [3], [4]])),  # Ploidy of 1
+            (4, 4, np.array([[0, 1, 2, 3]])),  # Ploidy equals number of samples
+        ],
+    )
+    def test_various_ploidy_scenarios(self, n_samples, ploidy, expected):
+        tables = tskit.TableCollection(sequence_length=100)
+        for _ in range(n_samples):
+            tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        ts = tables.tree_sequence()
+
+        result = ts.sample_nodes_by_ploidy(ploidy)
+        expected_shape = (n_samples // ploidy, ploidy)
+        assert result.shape == expected_shape
+        assert_array_equal(result, expected)
+
+    def test_mixed_sample_status(self):
+        tables = tskit.TableCollection(sequence_length=100)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.nodes.add_row(flags=0, time=0)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.nodes.add_row(flags=0, time=0)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        ts = tables.tree_sequence()
+
+        result = ts.sample_nodes_by_ploidy(2)
+        assert result.shape == (2, 2)
+        expected = np.array([[0, 2], [4, 5]])
+        assert_array_equal(result, expected)
+
+    def test_no_sample_nodes(self):
+        tables = tskit.TableCollection(sequence_length=100)
+        tables.nodes.add_row(flags=0, time=0)
+        tables.nodes.add_row(flags=0, time=0)
+        ts = tables.tree_sequence()
+
+        with pytest.raises(ValueError, match="No sample nodes in tree sequence"):
+            ts.sample_nodes_by_ploidy(2)
+
+    def test_not_multiple_of_ploidy(self):
+        tables = tskit.TableCollection(sequence_length=100)
+        for _ in range(5):
+            tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        ts = tables.tree_sequence()
+
+        with pytest.raises(ValueError, match="not a multiple of ploidy"):
+            ts.sample_nodes_by_ploidy(2)
+
+    def test_with_existing_individuals(self):
+        tables = tskit.TableCollection(sequence_length=100)
+        tables.individuals.add_row(flags=0, location=(0, 0), metadata=b"")
+        tables.individuals.add_row(flags=0, location=(0, 0), metadata=b"")
+        # Add nodes with individual references but in a different order
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=1)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=0)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=1)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=0)
+
+        ts = tables.tree_sequence()
+        result = ts.sample_nodes_by_ploidy(2)
+        expected = np.array([[0, 1], [2, 3]])
+        assert_array_equal(result, expected)
+        ind_nodes = ts.individuals_nodes
+        assert not np.array_equal(result, ind_nodes)
+
+    def test_different_node_flags(self):
+        tables = tskit.TableCollection(sequence_length=100)
+        OTHER_FLAG1 = 1 << 1
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.nodes.add_row(flags=OTHER_FLAG1, time=0)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE | OTHER_FLAG1, time=0)
+        tables.nodes.add_row()
+        ts = tables.tree_sequence()
+        result = ts.sample_nodes_by_ploidy(2)
+        assert result.shape == (1, 2)
+        assert_array_equal(result, np.array([[0, 2]]))

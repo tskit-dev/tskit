@@ -4,6 +4,10 @@
 
 **Features**
 
+- Add ``TreeSequence.sample_nodes_by_ploidy`` method to return the sample nodes
+  in a tree sequence, grouped by a ploidy value.
+  (:user:`benjeffery`, :pr:`3157`)
+
 - Add ``TreeSequence.individuals_nodes`` attribute to return the nodes
   associated with each individual as a numpy array.
   (:user:`benjeffery`, :pr:`3153`)
