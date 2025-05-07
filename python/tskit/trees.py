@@ -10495,6 +10495,31 @@ class TreeSequence:
             mode=mode,
         )
 
+    def sample_nodes_by_ploidy(self, ploidy):
+        """
+        Returns an 2D array of node IDs, where each row has length `ploidy`.
+        This is useful when individuals are not defined in the tree sequence
+        so `TreeSequence.individuals_nodes` cannot be used. The samples are
+        placed in the array in the order which they are found in the node
+        table. The number of sample nodes must be a multiple of ploidy.
+
+        :param int ploidy: The number of samples per individual.
+        :return: A 2D array of node IDs, where each row has length `ploidy`.
+        :rtype: numpy.ndarray
+        """
+        sample_node_ids = np.flatnonzero(self.nodes_flags & tskit.NODE_IS_SAMPLE)
+        num_samples = len(sample_node_ids)
+        if num_samples == 0:
+            raise ValueError("No sample nodes in tree sequence")
+        if num_samples % ploidy != 0:
+            raise ValueError(
+                f"Number of sample nodes {num_samples} is not a multiple "
+                f"of ploidy {ploidy}"
+            )
+        num_samples_per_individual = num_samples // ploidy
+        sample_node_ids = sample_node_ids.reshape((num_samples_per_individual, ploidy))
+        return sample_node_ids
+
     ############################################
     #
     # Deprecated APIs. These are either already unsupported, or will be unsupported in a
