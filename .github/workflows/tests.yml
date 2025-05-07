@@ -22,9 +22,10 @@ jobs:
       - name: install clang-format
         if: steps.clang_format.outputs.cache-hit != 'true'
         run: |
-          python -m venv env
-          source env/bin/activate
-          pip install clang-format==6.0.1
+          pip install setuptools clang-format==6.0.1
+          clang-format -version
+          sudo cp /opt/hostedtoolcache/Python/3.12.10/x64/bin/clang-format /opt/hostedtoolcache/Python/3.12.10/x64/bin/clang-format-6.0
+          clang-format-6.0 -version
       - uses: pre-commit/action@v3.0.1
 
   benchmark:
