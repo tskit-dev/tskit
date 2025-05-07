@@ -9349,11 +9349,17 @@ class TreeSequence:
         What is computed depends on ``mode``. For a sample set ``A``, computes:
 
         "site"
-            The sum over sites of the number of alleles found in ``A`` at each site
-            minus one, per unit of chromosome length.
-            If all sites have at most two alleles, this is the density of sites
-            that are polymorphic in ``A``. To get the **number** of segregating minor
-            alleles per window, pass ``span_normalise=False``.
+            The sum over sites of [the number of alleles found in ``A`` at each site
+            minus one], per unit of chromosome length.
+            If all sites have at most two alleles in ``A``,
+            this is the density of segregating/polymorphic sites in ``A``
+            (since the "minus one" reduces the sum for ancestral allele).
+            Hence, multiple mutations per site increase the
+            returned value, but only if they segregate in ``A``.
+            If an ancestral allele does not segregate in ``A``,
+            the "minus one" will reduce the sum for another allele.
+            To get the **number** of segregating alleles in ``A``,
+            use ``span_normalise=False``.
 
         "branch"
             The total length of all branches in the tree subtended by the samples in
