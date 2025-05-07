@@ -168,7 +168,8 @@ tsk_strerror_internal(int err)
             break;
         case TSK_ERR_FILE_VERSION_TOO_OLD:
             ret = "tskit file version too old. Please upgrade using the "
-                  "'tskit upgrade' command from tskit version<0.6.2. (TSK_ERR_FILE_VERSION_TOO_OLD)";
+                  "'tskit upgrade' command from tskit version<0.6.2. "
+                  "(TSK_ERR_FILE_VERSION_TOO_OLD)";
             break;
         case TSK_ERR_FILE_VERSION_TOO_NEW:
             ret = "tskit file version is too new for this instance. "

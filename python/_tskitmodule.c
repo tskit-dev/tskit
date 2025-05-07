@@ -223,7 +223,8 @@ handle_library_error(int err)
     const char *not_kas_format_msg
         = "File not in kastore format. Either the file is corrupt or it is not a "
           "tskit tree sequence file. It may be a legacy HDF file upgradable with "
-          "`tskit upgrade` from tskit version<0.6.2 or a compressed tree sequence file that can be decompressed "
+          "`tskit upgrade` from tskit version<0.6.2 or a compressed tree sequence file "
+          "that can be decompressed "
           "with `tszip`.";
     const char *ibd_pairs_not_stored_msg
         = "Sample pairs are not stored by default "
@@ -9715,12 +9716,12 @@ TreeSequence_weighted_stat_vector_method(
     if (result_array == NULL) {
         goto out;
     }
-	Py_BEGIN_ALLOW_THREADS
-    err = method(self->tree_sequence, w_shape[1], PyArray_DATA(weights_array),
-        num_windows, PyArray_DATA(windows_array), num_focal_nodes,
-        PyArray_DATA(focal_nodes_array), PyArray_DATA(result_array), options);
-	Py_END_ALLOW_THREADS
-    if (err != 0) {
+    Py_BEGIN_ALLOW_THREADS err
+        = method(self->tree_sequence, w_shape[1], PyArray_DATA(weights_array),
+            num_windows, PyArray_DATA(windows_array), num_focal_nodes,
+            PyArray_DATA(focal_nodes_array), PyArray_DATA(result_array), options);
+    Py_END_ALLOW_THREADS if (err != 0)
+    {
         handle_library_error(err);
         goto out;
     }
@@ -10744,7 +10745,8 @@ TreeSequence_get_individuals_metadata(TreeSequence *self, void *closure)
         goto out;
     }
     individuals = self->tree_sequence->tables->individuals;
-    ret = TreeSequence_make_array(self, individuals.metadata_length, NPY_UINT8, individuals.metadata);
+    ret = TreeSequence_make_array(
+        self, individuals.metadata_length, NPY_UINT8, individuals.metadata);
 out:
     return ret;
 }
@@ -10835,7 +10837,8 @@ TreeSequence_get_nodes_metadata(TreeSequence *self, void *closure)
         goto out;
     }
     nodes = self->tree_sequence->tables->nodes;
-    ret = TreeSequence_make_array(self, nodes.metadata_length, NPY_UINT8, nodes.metadata);
+    ret = TreeSequence_make_array(
+        self, nodes.metadata_length, NPY_UINT8, nodes.metadata);
 out:
     return ret;
 }
@@ -10926,7 +10929,8 @@ TreeSequence_get_edges_metadata(TreeSequence *self, void *closure)
         goto out;
     }
     edges = self->tree_sequence->tables->edges;
-    ret = TreeSequence_make_array(self, edges.metadata_length, NPY_UINT8, edges.metadata);
+    ret = TreeSequence_make_array(
+        self, edges.metadata_length, NPY_UINT8, edges.metadata);
 out:
     return ret;
 }
@@ -10941,7 +10945,8 @@ TreeSequence_get_edges_metadata_offset(TreeSequence *self, void *closure)
         goto out;
     }
     edges = self->tree_sequence->tables->edges;
-    ret = TreeSequence_make_array(self, edges.num_rows + 1, NPY_UINT64, edges.metadata_offset);
+    ret = TreeSequence_make_array(
+        self, edges.num_rows + 1, NPY_UINT64, edges.metadata_offset);
 out:
     return ret;
 }
@@ -10971,7 +10976,8 @@ TreeSequence_get_sites_metadata(TreeSequence *self, void *closure)
         goto out;
     }
     sites = self->tree_sequence->tables->sites;
-    ret = TreeSequence_make_array(self, sites.metadata_length, NPY_UINT8, sites.metadata);
+    ret = TreeSequence_make_array(
+        self, sites.metadata_length, NPY_UINT8, sites.metadata);
 out:
     return ret;
 }
@@ -10986,7 +10992,8 @@ TreeSequence_get_sites_metadata_offset(TreeSequence *self, void *closure)
         goto out;
     }
     sites = self->tree_sequence->tables->sites;
-    ret = TreeSequence_make_array(self, sites.num_rows + 1, NPY_UINT64, sites.metadata_offset);
+    ret = TreeSequence_make_array(
+        self, sites.num_rows + 1, NPY_UINT64, sites.metadata_offset);
 out:
     return ret;
 }
@@ -11061,7 +11068,8 @@ TreeSequence_get_mutations_metadata(TreeSequence *self, void *closure)
         goto out;
     }
     mutations = self->tree_sequence->tables->mutations;
-    ret = TreeSequence_make_array(self, mutations.metadata_length, NPY_UINT8, mutations.metadata);
+    ret = TreeSequence_make_array(
+        self, mutations.metadata_length, NPY_UINT8, mutations.metadata);
 out:
     return ret;
 }
@@ -11076,7 +11084,8 @@ TreeSequence_get_mutations_metadata_offset(TreeSequence *self, void *closure)
         goto out;
     }
     mutations = self->tree_sequence->tables->mutations;
-    ret = TreeSequence_make_array(self, mutations.num_rows + 1, NPY_UINT64, mutations.metadata_offset);
+    ret = TreeSequence_make_array(
+        self, mutations.num_rows + 1, NPY_UINT64, mutations.metadata_offset);
 out:
     return ret;
 }
@@ -11185,7 +11194,8 @@ TreeSequence_get_migrations_metadata(TreeSequence *self, void *closure)
         goto out;
     }
     migrations = self->tree_sequence->tables->migrations;
-    ret = TreeSequence_make_array(self, migrations.metadata_length, NPY_UINT8, migrations.metadata);
+    ret = TreeSequence_make_array(
+        self, migrations.metadata_length, NPY_UINT8, migrations.metadata);
 out:
     return ret;
 }
@@ -11216,7 +11226,8 @@ TreeSequence_get_populations_metadata(TreeSequence *self, void *closure)
         goto out;
     }
     populations = self->tree_sequence->tables->populations;
-    ret = TreeSequence_make_array(self, populations.metadata_length, NPY_UINT8, populations.metadata);
+    ret = TreeSequence_make_array(
+        self, populations.metadata_length, NPY_UINT8, populations.metadata);
 out:
     return ret;
 }

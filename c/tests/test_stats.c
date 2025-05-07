@@ -348,7 +348,7 @@ verify_pair_coalescence_counts(tsk_treeseq_t *ts, tsk_flags_t options)
 
     /* test various bin assignments */
     for (i = 0; i < N; i++) {
-        node_bin_map[i] = ((tsk_id_t) (i % B));
+        node_bin_map[i] = ((tsk_id_t)(i % B));
     }
     ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
         index_tuples, T, breakpoints, B, node_bin_map, options, C_B);
@@ -3694,8 +3694,8 @@ static void
 test_pair_coalescence_counts_missing(void)
 {
     tsk_treeseq_t ts;
-    tsk_treeseq_from_text(&ts, 5, missing_ex_nodes, missing_ex_edges, NULL,
-        NULL, NULL, NULL, NULL, 0);
+    tsk_treeseq_from_text(
+        &ts, 5, missing_ex_nodes, missing_ex_edges, NULL, NULL, NULL, NULL, NULL, 0);
     verify_pair_coalescence_counts(&ts, 0);
     verify_pair_coalescence_counts(&ts, TSK_STAT_SPAN_NORMALISE);
     tsk_treeseq_free(&ts);
