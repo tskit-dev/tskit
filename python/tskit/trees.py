@@ -9353,11 +9353,9 @@ class TreeSequence:
             minus one], per unit of chromosome length.
             If all sites have at most two alleles in ``A``,
             this is the density of segregating/polymorphic sites in ``A``
-            (since the "minus one" reduces the sum for ancestral allele).
-            Hence, multiple mutations per site increase the
-            returned value, but only if they segregate in ``A``.
-            If an ancestral allele does not segregate in ``A``,
-            the "minus one" will reduce the sum for another allele.
+            (since the "minus one" reduces the sum for monoallelic sites).
+            For sites with more than two alleles, the sum is increased by
+            one for each additional allele segregating in ``A``.
             To get the **number** of segregating alleles in ``A``,
             use ``span_normalise=False``.
 
