@@ -4001,7 +4001,7 @@ flags:
 
     int ret;
     tsk_table_collection_t tables;
-    ret = tsk_table_collection_load(&tables, "data.trees", 0);
+    ret = tsk_table_collection_load(&tables, "data.arg", 0);
     if (ret != 0) {
         fprintf(stderr, "Load error:%s\n", tsk_strerror(ret));
         exit(EXIT_FAILURE);
@@ -4096,7 +4096,7 @@ and well formed files will be written.
     error_check(ret);
     tables.sequence_length = 1.0;
     // Write out the empty tree sequence
-    ret = tsk_table_collection_dump(&tables, "empty.trees", 0);
+    ret = tsk_table_collection_dump(&tables, "empty.arg", 0);
     error_check(ret);
 
 @endrst

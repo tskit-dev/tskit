@@ -10,6 +10,6 @@ initialize() {
     sim.addSubpop("p1", 5);
 }
 3 {
-    sim.treeSeqOutput("tests/data/SLiM/minimal-example.trees");
+    sim.treeSeqOutput("tests/data/SLiM/minimal-example.arg");
     sim.simulationFinished();
 }

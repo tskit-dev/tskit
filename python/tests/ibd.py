@@ -327,7 +327,7 @@ if __name__ == "__main__":
     """
     A simple CLI for running IBDFinder on a command line from the `python`
     subdirectory. Basic usage:
-    > python3 ./tests/ibd.py --infile test.trees
+    > python3 ./tests/ibd.py --infile test.arg
     """
 
     parser = argparse.ArgumentParser(

@@ -41,7 +41,7 @@ def system_info():
 
 
 def make_file():
-    benchmark_trees = tskit_dir / "benchmark" / "bench.trees"
+    benchmark_trees = tskit_dir / "benchmark" / "bench.arg"
     if not os.path.exists(benchmark_trees):
         print("Generating benchmark trees...")
         demography = msprime.Demography()
@@ -70,7 +70,7 @@ def make_file():
             record_provenance=True,
         )
         ts = msprime.sim_mutations(ts, rate=0.001, random_seed=42)
-        ts.dump(tskit_dir / "benchmark" / "tiny.trees")
+        ts.dump(tskit_dir / "benchmark" / "tiny.arg")
 
 
 def autotime(setup, code):
