@@ -340,7 +340,8 @@ class TestInterface:
         # Non divisible
         for bad_ploidy in [3, 7]:
             with pytest.raises(
-                ValueError, match="Sample size must be divisible by ploidy"
+                ValueError,
+                match="Number of sample nodes 10 is not a multiple of ploidy",
             ):
                 ts.write_vcf(io.StringIO, bad_ploidy)
 
@@ -353,13 +354,27 @@ class TestInterface:
             allow_position_zero=True
         )
 
+    def test_individuals_no_nodes_but_specified(self):
+        ts = msprime.sim_ancestry(10, random_seed=2)
+        ts = msprime.sim_mutations(ts, rate=1, random_seed=2)
+        tables = ts.dump_tables()
+        tables.individuals.add_row()
+        ts = tables.tree_sequence()
+        with pytest.raises(ValueError, match="is not associated with any nodes"):
+            ts.as_vcf(
+                allow_position_zero=True,
+                individuals=list(range(ts.num_individuals)) + [ts.num_individuals - 1],
+            )
+
     def test_individuals_no_nodes_as_argument(self):
         ts1 = msprime.simulate(10, mutation_rate=0.1, random_seed=2)
         tables = ts1.dump_tables()
         tables.individuals.add_row()
         ts2 = tables.tree_sequence()
-        with pytest.raises(ValueError, match="0 not associated with a node"):
-            ts2.as_vcf(individuals=[0])
+        with pytest.raises(
+            ValueError, match="No samples were associated with the individuals"
+        ):
+            ts2.as_vcf(individuals=[0], allow_position_zero=True)
 
     def test_ploidy_with_sample_individuals(self):
         ts = msprime.sim_ancestry(3, random_seed=2)
@@ -397,10 +412,13 @@ class TestInterface:
         tables.nodes.individual = individual
         ts = tables.tree_sequence()
         ts = tsutil.insert_branch_sites(ts)
+        ts.as_vcf(allow_position_zero=True, isolated_as_missing=False)
         with pytest.raises(
-            ValueError, match="0 has nodes that are sample and non-sample"
+            tskit.LibraryError,
+            match="Cannot generate genotypes for non-samples when isolated "
+            "nodes are considered as missing",
         ):
-            ts.as_vcf()
+            ts.as_vcf(allow_position_zero=True)
         # but it's OK if we run without the affected individual
         assert len(ts.as_vcf(individuals=[1, 2], allow_position_zero=True)) > 0
 
@@ -414,12 +432,7 @@ class TestInterface:
         tables.nodes.individual = individual
         ts = tables.tree_sequence()
         ts = tsutil.insert_branch_sites(ts)
-        with pytest.raises(
-            ValueError, match="Sample nodes must either all be associated"
-        ):
-            ts.as_vcf()
-        # But it's OK if explicitly specify that sample
-        assert len(ts.as_vcf(individuals=[0], allow_position_zero=True)) > 0
+        ts.as_vcf(allow_position_zero=True)
 
     def test_bad_individuals(self):
         ts = msprime.simulate(10, mutation_rate=0.1, random_seed=2)

@@ -25,7 +25,6 @@ Convert tree sequences to VCF.
 """
 import numpy as np
 
-import tskit
 from . import provenance
 
 
@@ -140,54 +139,37 @@ class VcfWriter:
             raise ValueError(
                 "Cannot specify ploidy when individuals are present in tables "
             )
-
-        if individuals is None:
-            # Find all sample nodes that reference individuals
-            individuals = np.unique(ts.nodes_individual[ts.samples()])
-            if len(individuals) == 1 and individuals[0] == tskit.NULL:
-                # No samples refer to individuals
-                individuals = None
-            else:
-                # np.unique sorts the argument, so if NULL (-1) is present it
-                # will be the first value.
-                if individuals[0] == tskit.NULL:
-                    raise ValueError(
-                        "Sample nodes must either all be associated with individuals "
-                        "or not associated with any individuals"
-                    )
-        else:
-            individuals = np.array(individuals, dtype=np.int32)
-            if len(individuals) == 0:
-                raise ValueError("List of sample individuals empty")
-
-        if individuals is not None:
-            self.samples = []
-            # FIXME this could probably be done more efficiently.
-            for i in individuals:
-                if i < 0 or i >= self.tree_sequence.num_individuals:
-                    raise ValueError("Invalid individual IDs provided.")
-                ind = self.tree_sequence.individual(i)
-                if len(ind.nodes) == 0:
-                    raise ValueError(f"Individual {i} not associated with a node")
-                is_sample = {ts.node(u).is_sample() for u in ind.nodes}
-                if len(is_sample) != 1:
-                    raise ValueError(
-                        f"Individual {ind.id} has nodes that are sample and "
-                        "non-samples"
-                    )
-                self.samples.extend(ind.nodes)
-                self.individual_ploidies.append(len(ind.nodes))
+        # If there are no individuals, or all the individuals are not associated with
+        # nodes, then we split by ploidy.
+        if ts.num_individuals > 0 and np.any(ts.individuals_nodes != -1):
+            individuals_nodes = ts.individuals_nodes
         else:
             if ploidy is None:
                 ploidy = 1
-            if ploidy < 1:
-                raise ValueError("Ploidy must be >= 1")
-            if ts.num_samples % ploidy != 0:
-                raise ValueError("Sample size must be divisible by ploidy")
-            self.individual_ploidies = np.full(
-                ts.sample_size // ploidy, ploidy, dtype=np.int32
-            )
+            individuals_nodes = ts.sample_nodes_by_ploidy(ploidy)
+
+        if individuals is not None:
+            individuals = np.array(individuals, dtype=np.int32)
+            if len(individuals) == 0:
+                raise ValueError("List of sample individuals empty")
+            if any(individuals < 0) or any(individuals >= ts.num_individuals):
+                raise ValueError("Invalid individual IDs provided.")
+            for ind in individuals:
+                if all(individuals_nodes[ind] == -1):
+                    raise ValueError(
+                        f"Individual {ind} is not associated with any nodes."
+                    )
+            individuals_nodes = ts.individuals_nodes[individuals]
+
+        self.samples = []
+        for ind_nodes in individuals_nodes:
+            wanted_nodes = ind_nodes[ind_nodes != -1]
+            if len(wanted_nodes) > 0:
+                self.samples.extend(wanted_nodes)
+                self.individual_ploidies.append(len(wanted_nodes))
         self.num_individuals = len(self.individual_ploidies)
+        if self.num_individuals == 0:
+            raise ValueError("No samples were associated with the individuals")
 
     def __write_header(self, output):
         print("##fileformat=VCFv4.2", file=output)

@@ -2,7 +2,19 @@
 [0.6.4] - 2025-XX-XX
 --------------------
 
+**Changes**
+
+- Allow mixed sample and non-sample nodes to be output by ``write_vcf``.
+  Also relax the previous restriction that all sample nodes must be
+  associated with an individual when no specific individuals are
+  specified.
+  (:user:`benjeffery`, :pr:`3157`)
+
 **Features**
+
+- Add ``TreeSequence.sample_nodes_by_ploidy`` method to return the sample nodes
+  in a tree sequence, grouped by a ploidy value.
+  (:user:`benjeffery`, :pr:`3157`)
 
 - Add ``TreeSequence.individuals_nodes`` attribute to return the nodes
   associated with each individual as a numpy array.

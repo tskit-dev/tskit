@@ -6433,13 +6433,7 @@ class TreeSequence:
 
         Subsets or permutations of the sample individuals may be specified
         using the ``individuals`` argument. It is an error to specify any
-        individuals that are not associated with any nodes, or whose
-        nodes are not all samples.
-
-        Mixed-sample individuals (e.g., those associated with one node
-        that is a sample and another that is not) in the data model will
-        result in an error by default. However, such individuals can be
-        excluded using the ``individuals`` argument.
+        individuals that are not associated with any nodes.
 
         If there are no individuals in the tree sequence,
         synthetic individuals are created by combining adjacent samples, and
@@ -10494,6 +10488,33 @@ class TreeSequence:
             positions=positions,
             mode=mode,
         )
+
+    def sample_nodes_by_ploidy(self, ploidy):
+        """
+        Returns an 2D array of node IDs, where each row has length `ploidy`.
+        This is useful when individuals are not defined in the tree sequence
+        so `TreeSequence.individuals_nodes` cannot be used. The samples are
+        placed in the array in the order which they are found in the node
+        table. The number of sample nodes must be a multiple of ploidy.
+
+        :param int ploidy: The number of samples per individual.
+        :return: A 2D array of node IDs, where each row has length `ploidy`.
+        :rtype: numpy.ndarray
+        """
+        if ploidy < 1:
+            raise ValueError("Ploidy must be >= 1")
+        sample_node_ids = np.flatnonzero(self.nodes_flags & tskit.NODE_IS_SAMPLE)
+        num_samples = len(sample_node_ids)
+        if num_samples == 0:
+            raise ValueError("No sample nodes in tree sequence")
+        if num_samples % ploidy != 0:
+            raise ValueError(
+                f"Number of sample nodes {num_samples} is not a multiple "
+                f"of ploidy {ploidy}"
+            )
+        num_samples_per_individual = num_samples // ploidy
+        sample_node_ids = sample_node_ids.reshape((num_samples_per_individual, ploidy))
+        return sample_node_ids
 
     ############################################
     #
