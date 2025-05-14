@@ -3758,6 +3758,25 @@ class TestTableCollection:
         with pytest.raises(TypeError):
             t1.equals(t2, True)
 
+        # When two tables differ, check that the right reason is given
+        t1 = tskit.TableCollection(sequence_length=1.0)
+        t2 = tskit.TableCollection(sequence_length=1.0)
+        t1.assert_equals(t2)
+        t1.metadata = b""
+        t2.metadata = b"abc"
+        t1.assert_equals(t2, ignore_ts_metadata=True)
+        t1.edges.add_row(0, 1, 0, 1)
+        with pytest.raises(AssertionError, match="EdgeTable number of rows"):
+            t1.assert_equals(t2, ignore_ts_metadata=True)
+        t2.metadata = b""
+        t2.edges.add_row(0, 1, 0, 1, metadata=b"abc")
+        t1.assert_equals(t2, ignore_metadata=True)
+        t1.edges.add_row(0, 1, 0, 1)
+        with pytest.raises(AssertionError, match="EdgeTable number of rows"):
+            t1.assert_equals(t2, ignore_metadata=True)
+        with pytest.raises(AssertionError, match="EdgeTable row 0 differs"):
+            t1.assert_equals(t2)
+
     def test_sequence_length(self):
         for sequence_length in [0, 1, 100.1234]:
             tables = tskit.TableCollection(sequence_length=sequence_length)

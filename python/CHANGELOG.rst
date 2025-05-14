@@ -12,6 +12,12 @@
   associated with each individual as a numpy array.
   (:user:`benjeffery`, :pr:`3153`)
 
+
+**Fixes**
+
+- Correct assertion message when tables are compared with metadata ignored.
+  (:user:`benjeffery`, :pr:`3162`, :issue:`3161`)
+  
 --------------------
 [0.6.3] - 2025-04-28
 --------------------

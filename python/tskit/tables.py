@@ -3246,7 +3246,7 @@ class TableCollection(metadata.MetadataProvider):
         ):
             return
 
-        if not ignore_metadata or ignore_ts_metadata:
+        if not (ignore_metadata or ignore_ts_metadata):
             super().assert_equals(other)
 
         if not ignore_reference_sequence:
