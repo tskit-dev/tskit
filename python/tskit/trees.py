@@ -10581,7 +10581,14 @@ class TreeSequence:
                     raise ValueError(f"Individual {i} has no nodes associated with it.")
                 individuals_nodes.append(ind.nodes)
 
-        return individuals_nodes
+        if len(individuals_nodes) == 0:
+            return np.array([], dtype=np.int32).reshape((0, 0))
+
+        max_nodes = max(len(nodes) for nodes in individuals_nodes)
+        result = np.full((len(individuals_nodes), max_nodes), -1, dtype=np.int32)
+        for i, nodes in enumerate(individuals_nodes):
+            result[i, : len(nodes)] = nodes
+        return result
 
     ############################################
     #
