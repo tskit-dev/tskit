@@ -520,7 +520,7 @@ tsk_strerror_internal(int err)
                   "(TSK_ERR_BAD_SAMPLE_PAIR_TIMES)";
             break;
         case TSK_ERR_BAD_TIME_WINDOWS:
-            ret = "Time windows must be strictly increasing and end at infinity. "
+            ret = "Time windows must be strictly increasing. "
                   "(TSK_ERR_BAD_TIME_WINDOWS)";
             break;
         case TSK_ERR_BAD_NODE_TIME_WINDOW:
