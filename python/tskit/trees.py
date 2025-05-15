@@ -57,6 +57,12 @@ from tskit import UNKNOWN_TIME
 LEGACY_MS_LABELS = "legacy_ms"
 
 
+@dataclass
+class VcfModelMapping:
+    individuals_nodes: np.ndarray
+    individuals_name: np.ndarray
+
+
 class CoalescenceRecord(NamedTuple):
     left: float
     right: float
@@ -10520,7 +10526,13 @@ class TreeSequence:
         sample_node_ids = sample_node_ids.reshape((num_samples_per_individual, ploidy))
         return sample_node_ids
 
-    def map_samples_to_vcf(self, individuals=None, ploidy=None):
+    def map_to_vcf_model(
+        self,
+        individuals=None,
+        ploidy=None,
+        name_metadata_key=None,
+        individual_names=None,
+    ):
         """
         Returns a list of lists of node IDs, where each sublist contains the
         sample nodes associated with the same individual.
@@ -10528,6 +10540,11 @@ class TreeSequence:
         all of their nodes are samples are returned. If `individuals` is specified,
         only the nodes for the specified individuals are returned.
         """
+
+        if name_metadata_key is not None and individual_names is not None:
+            raise ValueError(
+                "Cannot specify both name_metadata_key and individual_names"
+            )
 
         if self.num_individuals > 0 and ploidy is not None:
             raise ValueError(
@@ -10548,47 +10565,66 @@ class TreeSequence:
         if self.num_individuals == 0 and individuals is None:
             if ploidy is None:
                 ploidy = 1
-            return self.sample_nodes_by_ploidy(ploidy)
-
-        individuals_nodes = []
-        if individuals is None:
-            for ind in self.individuals():
-                if len(ind.nodes) == 0:
-                    warnings.warn(
-                        f"Individual {ind.id} has no nodes associated with it.",
-                        stacklevel=1,
-                    )
-                    continue
-                is_sample = np.array(
-                    [self.node_flags(u) & tskit.NODE_IS_SAMPLE for u in ind.nodes]
-                )
-                if all(is_sample):
-                    individuals_nodes.append(ind.nodes)
-                elif all(~is_sample):
-                    continue
-                else:
-                    warnings.warn(
-                        f"Individual {ind.id} has both sample and non-sample nodes "
-                        "associated with it.",
-                        stacklevel=1,
-                    )
+            individuals_nodes = self.sample_nodes_by_ploidy(ploidy)
         else:
-            for i in individuals:
-                if i < 0 or i >= self.num_individuals:
-                    raise ValueError(f"Invalid individual ID {i}")
-                ind = self.individual(i)
-                if len(ind.nodes) == 0:
-                    raise ValueError(f"Individual {i} has no nodes associated with it.")
-                individuals_nodes.append(ind.nodes)
+            individuals_nodes = []
+            ts_individual_names = []
+            if individuals is None:
+                for ind in self.individuals():
+                    if len(ind.nodes) == 0:
+                        warnings.warn(
+                            f"Individual {ind.id} has no nodes associated with it.",
+                            stacklevel=1,
+                        )
+                        continue
+                    is_sample = np.array(
+                        [self.node_flags(u) & tskit.NODE_IS_SAMPLE for u in ind.nodes]
+                    )
+                    if all(is_sample):
+                        individuals_nodes.append(ind.nodes)
+                        if name_metadata_key is not None:
+                            ts_individual_names.append(ind.metadata[name_metadata_key])
+                        else:
+                            ts_individual_names.append(f"tsk_{ind.id}")
+                    elif all(~is_sample):
+                        continue
+                    else:
+                        warnings.warn(
+                            f"Individual {ind.id} has both sample and non-sample nodes "
+                            "associated with it.",
+                            stacklevel=1,
+                        )
+            else:
+                for i in individuals:
+                    if i < 0 or i >= self.num_individuals:
+                        raise ValueError(f"Invalid individual ID {i}")
+                    ind = self.individual(i)
+                    if len(ind.nodes) == 0:
+                        raise ValueError(
+                            f"Individual {i} has no nodes associated with it."
+                        )
+                    individuals_nodes.append(ind.nodes)
+                    if name_metadata_key is not None:
+                        ts_individual_names.append(ind.metadata[name_metadata_key])
+                    else:
+                        ts_individual_names.append(f"tsk_{ind.id}")
 
-        if len(individuals_nodes) == 0:
-            return np.array([], dtype=np.int32).reshape((0, 0))
+            max_nodes = max(len(nodes) for nodes in individuals_nodes)
+            result = np.full((len(individuals_nodes), max_nodes), -1, dtype=np.int32)
+            for i, nodes in enumerate(individuals_nodes):
+                result[i, : len(nodes)] = nodes
+            individuals_nodes = result
 
-        max_nodes = max(len(nodes) for nodes in individuals_nodes)
-        result = np.full((len(individuals_nodes), max_nodes), -1, dtype=np.int32)
-        for i, nodes in enumerate(individuals_nodes):
-            result[i, : len(nodes)] = nodes
-        return result
+        if individual_names is None:
+            individual_names = ts_individual_names
+        individual_names = np.array(individual_names, dtype=object)
+
+        if len(individuals_nodes) != len(individual_names):
+            raise ValueError(
+                "The number of individuals does not match the number of names"
+            )
+
+        return VcfModelMapping(result, individual_names)
 
     ############################################
     #
