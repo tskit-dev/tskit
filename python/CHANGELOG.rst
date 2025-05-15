@@ -12,6 +12,11 @@
   associated with each individual as a numpy array.
   (:user:`benjeffery`, :pr:`3153`)
 
+- Add ``shift`` method to both ``TableCollection`` and ``TreeSequence`` classes
+  allowing the coordinate system to be shifted, and ``TreeSequence.concatenate``
+  so a set of tree sequence can be added to the right of an existing one.
+  (:user:`hyanwong`, :pr:`3165`, :issue:`3164`)
+
 
 **Fixes**
 

@@ -7074,6 +7074,182 @@ class TestTrim(unittest.TestCase):
             ts.trim()
 
 
+class TestShift:
+    """
+    Test the shift functionality
+    """
+
+    @pytest.mark.parametrize("shift", [-0.5, 0, 0.5])
+    def test_shift(self, shift):
+        ts = tskit.Tree.generate_comb(2, span=2).tree_sequence
+        tables = ts.dump_tables()
+        tables.delete_intervals([[0, 1]], simplify=False)
+        tables.sites.add_row(1.5, "A")
+        ts = tables.tree_sequence()
+        ts = ts.shift(shift)
+        assert ts.sequence_length == 2 + shift
+        assert np.min(ts.tables.edges.left) == 1 + shift
+        assert np.max(ts.tables.edges.right) == 2 + shift
+        assert np.all(ts.tables.sites.position == 1.5 + shift)
+        assert len(list(ts.trees())) == ts.num_trees
+
+    def test_sequence_length(self):
+        ts = tskit.Tree.generate_comb(2).tree_sequence
+        ts = ts.shift(1, sequence_length=3)
+        assert ts.sequence_length == 3
+        ts = ts.shift(-1, sequence_length=1)
+        assert ts.sequence_length == 1
+
+    def test_empty(self):
+        empty_ts = tskit.TableCollection(1.0).tree_sequence()
+        empty_ts = empty_ts.shift(1)
+        assert empty_ts.sequence_length == 2
+        empty_ts = empty_ts.shift(-1.5)
+        assert empty_ts.sequence_length == 0.5
+        assert empty_ts.num_nodes == 0
+
+    def test_migrations(self):
+        tables = tskit.Tree.generate_comb(2, span=2).tree_sequence.dump_tables()
+        tables.populations.add_row()
+        tables.migrations.add_row(0, 1, 0, 0, 0, 0)
+        ts = tables.tree_sequence().shift(10)
+        assert np.all(ts.tables.migrations.left == 10)
+        assert np.all(ts.tables.migrations.right == 11)
+
+    def test_provenance(self):
+        ts = tskit.Tree.generate_comb(2).tree_sequence
+        ts = ts.shift(1, record_provenance=False)
+        params = json.loads(ts.provenance(-1).record)["parameters"]
+        assert params["command"] != "shift"
+        ts = ts.shift(1, sequence_length=9)
+        params = json.loads(ts.provenance(-1).record)["parameters"]
+        assert params["command"] == "shift"
+        assert params["value"] == 1
+        assert params["sequence_length"] == 9
+
+    def test_too_negative(self):
+        ts = tskit.Tree.generate_comb(2).tree_sequence
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_BAD_SEQUENCE_LENGTH"):
+            ts.shift(-1)
+
+    def test_bad_seq_len(self):
+        ts = tskit.Tree.generate_comb(2).tree_sequence
+        with pytest.raises(
+            tskit.LibraryError, match="TSK_ERR_RIGHT_GREATER_SEQ_LENGTH"
+        ):
+            ts.shift(1, sequence_length=1)
+
+
+class TestConcatenate:
+    def test_simple(self):
+        ts1 = tskit.Tree.generate_comb(5, span=2).tree_sequence
+        ts2 = tskit.Tree.generate_balanced(5, arity=3, span=3).tree_sequence
+        assert ts1.num_samples == ts2.num_samples
+        assert ts1.num_nodes != ts2.num_nodes
+        joint_ts = ts1.concatenate(ts2)
+        assert joint_ts.num_nodes == ts1.num_nodes + ts2.num_nodes - 5
+        assert joint_ts.sequence_length == ts1.sequence_length + ts2.sequence_length
+        assert joint_ts.num_samples == ts1.num_samples
+        ts3 = joint_ts.delete_intervals([[2, 5]]).rtrim()
+        # Have to simplify here, to remove the redundant nodes
+        assert ts3.equals(ts1.simplify(), ignore_provenance=True)
+        ts4 = joint_ts.delete_intervals([[0, 2]]).ltrim()
+        assert ts4.equals(ts2.simplify(), ignore_provenance=True)
+
+    def test_multiple(self):
+        np.random.seed(42)
+        ts3 = [
+            tskit.Tree.generate_comb(5, span=2).tree_sequence,
+            tskit.Tree.generate_balanced(5, arity=3, span=3).tree_sequence,
+            tskit.Tree.generate_star(5, span=5).tree_sequence,
+        ]
+        for i in range(1, len(ts3)):
+            # shuffle the sample nodes so they don't have the same IDs
+            ts3[i] = ts3[i].subset(np.random.permutation(ts3[i].num_nodes))
+        assert not np.all(ts3[0].samples() == ts3[1].samples())
+        assert not np.all(ts3[0].samples() == ts3[2].samples())
+        assert not np.all(ts3[1].samples() == ts3[2].samples())
+        ts = ts3[0].concatenate(*ts3[1:])
+        assert ts.sequence_length == sum([t.sequence_length for t in ts3])
+        assert ts.num_nodes - ts.num_samples == sum(
+            [t.num_nodes - t.num_samples for t in ts3]
+        )
+        assert np.all(ts.samples() == ts3[0].samples())
+
+    def test_empty(self):
+        empty_ts = tskit.TableCollection(10).tree_sequence()
+        ts = empty_ts.concatenate(empty_ts, empty_ts, empty_ts)
+        assert ts.num_nodes == 0
+        assert ts.sequence_length == 40
+
+    def test_samples_at_end(self):
+        ts1 = tskit.Tree.generate_comb(5, span=2).tree_sequence
+        ts2 = tskit.Tree.generate_balanced(5, arity=3, span=3).tree_sequence
+        # reverse the node order
+        ts1 = ts1.subset(np.arange(ts1.num_nodes)[::-1])
+        assert ts1.num_samples == ts2.num_samples
+        assert np.all(ts1.samples() != ts2.samples())
+        joint_ts = ts1.concatenate(ts2)
+        assert joint_ts.num_samples == ts1.num_samples
+        assert np.all(joint_ts.samples() == ts1.samples())
+
+    def test_internal_samples(self):
+        tables = tskit.Tree.generate_comb(4, span=2).tree_sequence.dump_tables()
+        nodes_flags = tables.nodes.flags
+        nodes_flags[:] = tskit.NODE_IS_SAMPLE
+        nodes_flags[-1] = 0  # Only root is not a sample
+        tables.nodes.flags = nodes_flags
+        ts = tables.tree_sequence()
+        joint_ts = ts.concatenate(ts)
+        assert joint_ts.num_samples == ts.num_samples
+        assert joint_ts.num_nodes == ts.num_nodes + 1
+        assert joint_ts.sequence_length == ts.sequence_length * 2
+
+    def test_some_shared_samples(self):
+        ts1 = tskit.Tree.generate_comb(4, span=2).tree_sequence
+        ts2 = tskit.Tree.generate_balanced(8, arity=3, span=3).tree_sequence
+        shared = np.full(ts2.num_nodes, tskit.NULL)
+        shared[0] = 1
+        shared[1] = 0
+        joint_ts = ts1.concatenate(ts2, node_mappings=[shared])
+        assert joint_ts.sequence_length == ts1.sequence_length + ts2.sequence_length
+        assert joint_ts.num_samples == ts1.num_samples + ts2.num_samples - 2
+        assert joint_ts.num_nodes == ts1.num_nodes + ts2.num_nodes - 2
+
+    def test_provenance(self):
+        ts = tskit.Tree.generate_comb(2).tree_sequence
+        ts = ts.concatenate(ts, record_provenance=False)
+        params = json.loads(ts.provenance(-1).record)["parameters"]
+        assert params["command"] != "concatenate"
+
+        ts = ts.concatenate(ts)
+        params = json.loads(ts.provenance(-1).record)["parameters"]
+        assert params["command"] == "concatenate"
+
+    def test_unequal_samples(self):
+        ts1 = tskit.Tree.generate_comb(5, span=2).tree_sequence
+        ts2 = tskit.Tree.generate_balanced(4, arity=3, span=3).tree_sequence
+        with pytest.raises(ValueError, match="must have the same number of samples"):
+            ts1.concatenate(ts2)
+
+    @pytest.mark.skip(
+        reason="union bug: https://github.com/tskit-dev/tskit/issues/3168"
+    )
+    def test_duplicate_ts(self):
+        ts1 = tskit.Tree.generate_comb(3, span=4).tree_sequence
+        ts = ts1.keep_intervals([[0, 1]]).trim()  # a quarter of the original
+        nm = np.arange(ts.num_nodes)  # all nodes identical
+        ts2 = ts.concatenate(ts, ts, ts, node_mappings=[nm] * 3, add_populations=False)
+        ts2 = ts2.simplify()  # squash the edges
+        assert ts1.equals(ts2, ignore_provenance=True)
+
+    def test_node_mappings_bad_len(self):
+        ts = tskit.Tree.generate_comb(3, span=2).tree_sequence
+        nm = np.arange(ts.num_nodes)
+        with pytest.raises(ValueError, match="same number of node_mappings"):
+            ts.concatenate(ts, ts, ts, node_mappings=[nm, nm])
+
+
 class TestMissingData:
     """
     Test various aspects of missing data functionality

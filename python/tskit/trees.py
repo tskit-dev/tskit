@@ -32,6 +32,7 @@ import concurrent.futures
 import functools
 import io
 import itertools
+import json
 import math
 import numbers
 import warnings
@@ -46,6 +47,7 @@ import tskit
 import tskit.combinatorics as combinatorics
 import tskit.drawing as drawing
 import tskit.metadata as metadata_module
+import tskit.provenance as provenance
 import tskit.tables as tables
 import tskit.text_formats as text_formats
 import tskit.util as util
@@ -7058,6 +7060,104 @@ class TreeSequence:
         """
         tables = self.dump_tables()
         tables.trim(record_provenance)
+        return tables.tree_sequence()
+
+    def shift(self, value, sequence_length=None, record_provenance=True):
+        """
+        Shift the coordinate system (used by edges and sites) of this TableCollection by
+        a given value. Positive values shift the coordinate system to the right, negative
+        values to the left. The sequence length of the tree sequence will be changed by
+        ``value``, unless ``sequence_length`` is given, in which case this will be used
+        for the new sequence length.
+
+        .. note::
+            By setting ``value=0``, this method will simply return a tree sequence
+            with a new sequence length.
+
+        :param value: The amount by which to shift the coordinate system.
+        :param sequence_length: The new sequence length of the tree sequence. If
+            ``None`` (default) add ``value`` to the sequence length.
+        :raises ValueError: If the new coordinate system is invalid (e.g., if
+            shifting the coordinate system results in negative coordinates).
+        """
+        tables = self.dump_tables()
+        tables.shift(
+            value=value,
+            sequence_length=sequence_length,
+            record_provenance=record_provenance,
+        )
+        return tables.tree_sequence()
+
+    def concatenate(
+        self, *args, node_mappings=None, record_provenance=True, add_populations=None
+    ):
+        r"""
+        Concatenate a set of tree sequences to the right of this one, by repeatedly
+        calling {meth}`union` with an (optional)
+        node mapping for each of the ``others``. If any node mapping is ``None``
+        only map the sample nodes between the input tree sequence and this one,
+        based on the numerical order of sample node IDs.
+
+        .. note::
+            To add gaps between the concatenated tables, use :meth:`shift` or
+            to remove gaps, use :meth:`trim` before concatenating.
+
+        :param TreeSequence \*args: A list of other tree sequences to append to
+            the right of this one.
+        :param Union[list, None] node_mappings: An list of node mappings for each
+            input tree sequence in ``args``. Each should either be an array of
+            integers of the same length as the number of nodes in the equivalent
+            input tree sequence (see :meth:`union` for details), or ``None``.
+            If ``None``, only sample nodes are mapped to each other.
+            Default: ``None``, treated as ``[None] * len(args)``.
+        :param bool record_provenance: If True (default), record details of this
+            call to ``concatenate`` in the returned tree sequence's provenance
+            information (Default: True).
+        :param bool add_populations: If True (default), nodes new to ``self`` will
+            be assigned new population IDs (see :meth:`union`)
+        """
+        if node_mappings is None:
+            node_mappings = [None] * len(args)
+        if add_populations is None:
+            add_populations = True
+        if len(node_mappings) != len(args):
+            raise ValueError(
+                "You must provide the same number of node_mappings as args"
+            )
+
+        samples = self.samples()
+        tables = self.dump_tables()
+        tables.drop_index()
+
+        for node_mapping, other in zip(node_mappings, args):
+            if node_mapping is None:
+                other_samples = other.samples()
+                if len(other_samples) != len(samples):
+                    raise ValueError(
+                        "each `other` must have the same number of samples as `self`"
+                    )
+                node_mapping = np.full(other.num_nodes, tskit.NULL, dtype=np.int32)
+                node_mapping[other_samples] = samples
+            other_tables = other.dump_tables()
+            other_tables.shift(tables.sequence_length, record_provenance=False)
+            tables.sequence_length = other_tables.sequence_length
+            # NB: should we use a different default for add_populations?
+            tables.union(
+                other_tables,
+                node_mapping=node_mapping,
+                check_shared_equality=False,  # Else checks fail with internal samples
+                record_provenance=False,
+                add_populations=add_populations,
+            )
+        if record_provenance:
+            parameters = {
+                "command": "concatenate",
+                "TODO": "add concatenate parameters",  # tricky as both have provenances
+            }
+            tables.provenances.add_row(
+                record=json.dumps(provenance.get_provenance_dict(parameters))
+            )
+
         return tables.tree_sequence()
 
     def split_edges(self, time, *, flags=None, population=None, metadata=None):
