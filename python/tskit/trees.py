@@ -10520,7 +10520,7 @@ class TreeSequence:
         sample_node_ids = sample_node_ids.reshape((num_samples_per_individual, ploidy))
         return sample_node_ids
 
-    def map_samples_to_vcf(self, individuals=None):
+    def map_samples_to_vcf(self, individuals=None, ploidy=None):
         """
         Returns a list of lists of node IDs, where each sublist contains the
         sample nodes associated with the same individual.
@@ -10529,8 +10529,14 @@ class TreeSequence:
         only the nodes for the specified individuals are returned.
         """
 
+        if self.num_individuals > 0 and ploidy is not None:
+            raise ValueError(
+                "Cannot specify ploidy when individuals are present in the tree sequence"
+            )
+
         if any(
-            np.logical_and(
+            self.num_individuals > 0
+            and np.logical_and(
                 self.nodes_individual == tskit.NULL,
                 self.nodes_flags & tskit.NODE_IS_SAMPLE,
             )
@@ -10538,6 +10544,12 @@ class TreeSequence:
             warnings.warn(
                 "At least one sample node does not have an individual ID.", stacklevel=1
             )
+
+        if self.num_individuals == 0 and individuals is None:
+            if ploidy is None:
+                ploidy = 1
+            return self.sample_nodes_by_ploidy(ploidy)
+
         individuals_nodes = []
         if individuals is None:
             for ind in self.individuals():
@@ -10568,6 +10580,7 @@ class TreeSequence:
                 if len(ind.nodes) == 0:
                     raise ValueError(f"Individual {i} has no nodes associated with it.")
                 individuals_nodes.append(ind.nodes)
+
         return individuals_nodes
 
     ############################################
