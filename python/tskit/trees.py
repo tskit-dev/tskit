@@ -10520,6 +10520,56 @@ class TreeSequence:
         sample_node_ids = sample_node_ids.reshape((num_samples_per_individual, ploidy))
         return sample_node_ids
 
+    def map_samples_to_vcf(self, individuals=None):
+        """
+        Returns a list of lists of node IDs, where each sublist contains the
+        sample nodes associated with the same individual.
+        If `individuals` is not specified (the default) nodes for all individuals where
+        all of their nodes are samples are returned. If `individuals` is specified,
+        only the nodes for the specified individuals are returned.
+        """
+
+        if any(
+            np.logical_and(
+                self.nodes_individual == tskit.NULL,
+                self.nodes_flags & tskit.NODE_IS_SAMPLE,
+            )
+        ):
+            warnings.warn(
+                "At least one sample node does not have an individual ID.", stacklevel=1
+            )
+        individuals_nodes = []
+        if individuals is None:
+            for ind in self.individuals():
+                if len(ind.nodes) == 0:
+                    warnings.warn(
+                        f"Individual {ind.id} has no nodes associated with it.",
+                        stacklevel=1,
+                    )
+                    continue
+                is_sample = np.array(
+                    [self.node_flags(u) & tskit.NODE_IS_SAMPLE for u in ind.nodes]
+                )
+                if all(is_sample):
+                    individuals_nodes.append(ind.nodes)
+                elif all(~is_sample):
+                    continue
+                else:
+                    warnings.warn(
+                        f"Individual {ind.id} has both sample and non-sample nodes "
+                        "associated with it.",
+                        stacklevel=1,
+                    )
+        else:
+            for i in individuals:
+                if i < 0 or i >= self.num_individuals:
+                    raise ValueError(f"Invalid individual ID {i}")
+                ind = self.individual(i)
+                if len(ind.nodes) == 0:
+                    raise ValueError(f"Individual {i} has no nodes associated with it.")
+                individuals_nodes.append(ind.nodes)
+        return individuals_nodes
+
     ############################################
     #
     # Deprecated APIs. These are either already unsupported, or will be unsupported in a
