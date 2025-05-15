@@ -5668,3 +5668,245 @@ class TestSampleNodesByPloidy:
         result = ts.sample_nodes_by_ploidy(2)
         assert result.shape == (1, 2)
         assert_array_equal(result, np.array([[0, 2]]))
+
+
+class TestMapToVcfModel:
+    def test_no_individuals_default_ploidy(self):
+        ts = tskit.Tree.generate_balanced(4).tree_sequence
+        assert ts.num_individuals == 0
+
+        # Default ploidy should be 1
+        result = ts.map_to_vcf_model()
+        assert isinstance(result, tskit.VcfModelMapping)
+        assert result.individuals_nodes.shape == (4, 1)
+        for i in range(4):
+            assert result.individuals_nodes[i, 0] == i
+        assert result.individuals_name.shape == (4,)
+        for i in range(4):
+            assert result.individuals_name[i] == f"tsk_{i}"
+
+        with pytest.raises(
+            ValueError,
+            match="Cannot include non-sample nodes when individuals are not present",
+        ):
+            ts.map_to_vcf_model(include_non_sample_nodes=True)
+
+    def test_no_individuals_custom_ploidy(self):
+        ts = tskit.Tree.generate_balanced(6).tree_sequence
+        assert ts.num_individuals == 0
+
+        # Use ploidy = 2
+        result = ts.map_to_vcf_model(ploidy=2)
+        assert isinstance(result, tskit.VcfModelMapping)
+        assert result.individuals_nodes.shape == (3, 2)
+        for i in range(3):
+            assert result.individuals_nodes[i, 0] == i * 2
+            assert result.individuals_nodes[i, 1] == i * 2 + 1
+        assert result.individuals_name.shape == (3,)
+        for i in range(3):
+            assert result.individuals_name[i] == f"tsk_{i}"
+
+    def test_no_individuals_uneven_ploidy(self):
+        ts = tskit.Tree.generate_balanced(5).tree_sequence
+        # This tree sequence has no individuals
+        assert ts.num_individuals == 0
+
+        # 5 samples cannot be evenly divided into ploidy=2
+        with pytest.raises(ValueError, match="not a multiple"):
+            ts.map_to_vcf_model(ploidy=2)
+
+    def test_with_individuals(self):
+        ts = msprime.sim_ancestry(
+            5,
+            random_seed=42,
+        )
+        result = ts.map_to_vcf_model()
+        assert isinstance(result, tskit.VcfModelMapping)
+        assert result.individuals_nodes.shape == (5, 2)
+        assert np.array_equal(
+            result.individuals_nodes,
+            np.array([[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]),
+        )
+        assert result.individuals_name.shape == (5,)
+        for i in range(5):
+            assert result.individuals_name[i] == f"tsk_{i}"
+
+    def test_with_individuals_and_ploidy_error(self):
+        tables = tskit.TableCollection(1.0)
+        tables.individuals.add_row()
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=0)
+        ts = tables.tree_sequence()
+
+        with pytest.raises(ValueError, match="Cannot specify ploidy when individuals"):
+            ts.map_to_vcf_model(ploidy=2)
+
+    def test_specific_individuals(self):
+        tables = tskit.TableCollection(1.0)
+        # Create 5 individuals with varying ploidy
+        for i in range(5):
+            tables.individuals.add_row()
+            # Individuals have ploidy i+1
+            for _ in range(i + 1):
+                tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=i)
+        ts = tables.tree_sequence()
+
+        result = ts.map_to_vcf_model(individuals=[1, 3])
+        assert isinstance(result, tskit.VcfModelMapping)
+        # Individual 1 has ploidy 2, individual 3 has ploidy 4
+        assert result.individuals_nodes.shape == (2, 5)
+        assert np.array_equal(result.individuals_nodes[0], [1, 2, -1, -1, -1])
+        assert np.array_equal(result.individuals_nodes[1], [6, 7, 8, 9, -1])
+
+        assert result.individuals_name.shape == (2,)
+        assert result.individuals_name[0] == "tsk_1"
+        assert result.individuals_name[1] == "tsk_3"
+
+    def test_individual_with_no_nodes(self):
+        tables = tskit.TableCollection(1.0)
+        # Individual with no nodes
+        tables.individuals.add_row()
+        # Individual with nodes
+        tables.individuals.add_row()
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=1)
+        ts = tables.tree_sequence()
+
+        result = ts.map_to_vcf_model()
+        assert result.individuals_nodes.shape == (2, 1)
+        assert np.array_equal(result.individuals_nodes, [[-1], [0]])
+
+    def test_individual_with_no_nodes_only(self):
+        tables = tskit.TableCollection(1.0)
+        # Individual with no nodes
+        tables.individuals.add_row()
+        # Individual with nodes
+        tables.individuals.add_row()
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=1)
+        ts = tables.tree_sequence()
+
+        result = ts.map_to_vcf_model(individuals=[0])
+        assert result.individuals_nodes.shape == (1, 1)
+        assert np.array_equal(result.individuals_nodes, [[-1]])
+
+    def test_invalid_individual_id(self):
+        tables = tskit.TableCollection(1.0)
+        tables.individuals.add_row()
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=0)
+        ts = tables.tree_sequence()
+
+        with pytest.raises(ValueError, match="Invalid individual ID"):
+            ts.map_to_vcf_model(individuals=[-1])
+
+        with pytest.raises(ValueError, match="Invalid individual ID"):
+            ts.map_to_vcf_model(individuals=[1])
+
+    def test_mixed_sample_non_sample_ordering(self):
+        tables = tskit.TableCollection(1.0)
+        tables.individuals.add_row()
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=0)
+        tables.nodes.add_row(flags=0, time=0, individual=0)  # Non-sample node
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=0)
+        tables.nodes.add_row(flags=0, time=0, individual=0)  # Non-sample node
+        tables.individuals.add_row()
+        tables.nodes.add_row(flags=0, time=0, individual=1)  # Non-sample node
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=1)
+        ts = tables.tree_sequence()
+
+        result = ts.map_to_vcf_model()
+        assert result.individuals_nodes.shape == (2, 4)
+        assert np.array_equal(
+            result.individuals_nodes,
+            np.array([[0, 2, -1, -1], [5, -1, -1, -1]]),
+        )
+
+        result = ts.map_to_vcf_model(include_non_sample_nodes=True)
+        assert result.individuals_nodes.shape == (2, 4)
+        assert np.array_equal(
+            result.individuals_nodes,
+            np.array([[0, 1, 2, 3], [4, 5, -1, -1]]),
+        )
+
+    def test_samples_without_individuals_warning(self):
+        tables = tskit.TableCollection(1.0)
+        tables.individuals.add_row()
+        # Node with individual
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=0)
+        # Node without individual
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=tskit.NULL)
+        ts = tables.tree_sequence()
+
+        with warnings.catch_warnings(record=True) as w:
+            ts.map_to_vcf_model()
+            assert len(w) == 1
+            assert "At least one sample node does not have an individual ID" in str(
+                w[0].message
+            )
+
+    def test_metadata_key_for_names(self):
+        tables = tskit.TableCollection(1.0)
+
+        # Add individuals with metadata
+        tables.individuals.metadata_schema = tskit.MetadataSchema(
+            {
+                "codec": "json",
+                "type": "object",
+                "properties": {"name": {"type": "string"}},
+            }
+        )
+        tables.individuals.add_row(metadata={"name": "ind1"})
+        tables.individuals.add_row(metadata={"name": "ind2"})
+
+        # Add nodes
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=0)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=1)
+        ts = tables.tree_sequence()
+
+        result = ts.map_to_vcf_model(name_metadata_key="name")
+        assert result.individuals_name.shape == (2,)
+        assert result.individuals_name[0] == "ind1"
+        assert result.individuals_name[1] == "ind2"
+
+    def test_custom_individual_names(self):
+        tables = tskit.TableCollection(1.0)
+        tables.individuals.add_row()
+        tables.individuals.add_row()
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=0)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=1)
+        ts = tables.tree_sequence()
+
+        custom_names = ["individual_A", "individual_B"]
+        result = ts.map_to_vcf_model(individual_names=custom_names)
+        assert result.individuals_name.shape == (2,)
+        assert result.individuals_name[0] == "individual_A"
+        assert result.individuals_name[1] == "individual_B"
+
+    def test_name_conflict_error(self):
+        tables = tskit.TableCollection(1.0)
+        ts = tables.tree_sequence()
+        with pytest.raises(
+            ValueError,
+            match="Cannot specify both name_metadata_key and individual_names",
+        ):
+            ts.map_to_vcf_model(
+                name_metadata_key="name", individual_names=["custom_name"]
+            )
+
+    def test_name_count_mismatch_error(self):
+        tables = tskit.TableCollection(1.0)
+        tables.individuals.add_row()
+        tables.individuals.add_row()
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=0)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=1)
+        ts = tables.tree_sequence()
+
+        with pytest.raises(
+            ValueError, match="number of individuals does not match the number of names"
+        ):
+            ts.map_to_vcf_model(individual_names=["only_one_name"])
+
+    def test_all_individuals_no_nodes(self):
+        tables = tskit.TableCollection(1.0)
+        tables.individuals.add_row()
+        tables.individuals.add_row()
+        ts = tables.tree_sequence()
+        result = ts.map_to_vcf_model()
+        assert result.individuals_nodes.shape == (2, 0)

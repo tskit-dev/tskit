@@ -59,6 +59,12 @@ from tskit import UNKNOWN_TIME
 LEGACY_MS_LABELS = "legacy_ms"
 
 
+@dataclass
+class VcfModelMapping:
+    individuals_nodes: np.ndarray
+    individuals_name: np.ndarray
+
+
 class CoalescenceRecord(NamedTuple):
     left: float
     right: float
@@ -6412,6 +6418,7 @@ class TreeSequence:
         sample_mask=None,
         isolated_as_missing=None,
         allow_position_zero=None,
+        include_non_sample_nodes=None,
     ):
         """
         Convert the genetic variation data in this tree sequence to Variant
@@ -6427,21 +6434,21 @@ class TreeSequence:
         :ref:`sec_export_vcf_constructing_gt` section for more details
         and examples.
 
-        If individuals that are associated with sample nodes are defined in the
+        If individuals are defined in the
         data model (see :ref:`sec_individual_table_definition`), the genotypes
-        for each of the individual's samples are combined into a phased
-        multiploid values at each site. By default, all individuals associated
-        with sample nodes are included in increasing order of individual ID.
+        for each of the individual's nodes are combined into a phased
+        multiploid values at each site. By default, all individuals are
+        included with their sample nodes, individuals with no nodes are
+        omitted. The ``include_non_sample_nodes`` argument can be used to
+        included non-sample nodes in the output VCF.
 
         Subsets or permutations of the sample individuals may be specified
-        using the ``individuals`` argument. It is an error to specify any
-        individuals that are not associated with any nodes, or whose
-        nodes are not all samples.
+        using the ``individuals`` argument.
 
         Mixed-sample individuals (e.g., those associated with one node
         that is a sample and another that is not) in the data model will
-        result in an error by default. However, such individuals can be
-        excluded using the ``individuals`` argument.
+        only have the sample nodes output by default. However, non-sample
+        nodes can be included using the ``include_non_sample_nodes`` argument.
 
         If there are no individuals in the tree sequence,
         synthetic individuals are created by combining adjacent samples, and
@@ -6542,6 +6549,8 @@ class TreeSequence:
             output to the VCF, otherwise if one is present an error will be raised.
             The VCF spec does not allow for sites at position 0. However, in practise
             many tools will be fine with this. Default: False.
+        :param bool include_non_sample_nodes: If True, include non-sample nodes
+            in the output VCF. By default, only sample nodes are included.
         """
         if allow_position_zero is None:
             allow_position_zero = False
@@ -6556,6 +6565,7 @@ class TreeSequence:
             sample_mask=sample_mask,
             isolated_as_missing=isolated_as_missing,
             allow_position_zero=allow_position_zero,
+            include_non_sample_nodes=include_non_sample_nodes,
         )
         writer.write(output)
 
@@ -10607,6 +10617,8 @@ class TreeSequence:
         :return: A 2D array of node IDs, where each row has length `ploidy`.
         :rtype: numpy.ndarray
         """
+        if ploidy <= 0 or ploidy != int(ploidy):
+            raise ValueError("Ploidy must be a positive integer")
         sample_node_ids = np.flatnonzero(self.nodes_flags & tskit.NODE_IS_SAMPLE)
         num_samples = len(sample_node_ids)
         if num_samples == 0:
@@ -10619,6 +10631,131 @@ class TreeSequence:
         num_samples_per_individual = num_samples // ploidy
         sample_node_ids = sample_node_ids.reshape((num_samples_per_individual, ploidy))
         return sample_node_ids
+
+    def map_to_vcf_model(
+        self,
+        individuals=None,
+        ploidy=None,
+        name_metadata_key=None,
+        individual_names=None,
+        include_non_sample_nodes=None,
+    ):
+        """
+        Maps the sample nodes in this tree sequence to a representation suitable for
+        VCF output, using the individuals if present.
+
+        Creates a VcfModelMapping object that contains both the nodes-to-individual
+        mapping as a 2D array of (individuals, nodes) and the individual names. The
+        mapping is created by first checking if the tree sequence contains individuals.
+        If it does, the mapping is created using the individuals in the tree sequence.
+        By default only the sample nodes of the individuals are included in the mapping,
+        unless `include_non_sample_nodes` is set to True, in which case all nodes
+        belonging to the individuals are included. Any individuals without any nodes
+        will have no nodes in their row of the mapping, being essentially of zero ploidy.
+        If no individuals are present, the mapping is created using only the sample nodes
+        and the specified ploidy.
+
+        If neither `name_metadata_key` nor `individual_names` is not specified, the
+        individual names are set to "tsk_{individual_id}" for each individual. If
+        no individuals are present, the individual names are set to "tsk_{i}" with
+        `0 <= i < num_sample_nodes/ploidy`.
+
+        A Warning are emmitted if any sample nodes do not have an individual ID.
+
+        :param list individuals: Specific individual IDs to include in the VCF. If not
+            specified and the tree sequence contains individuals, all individuals are
+            included at least one node.
+        :param int ploidy: The ploidy, or number of nodes per individual. Only used when
+            the tree sequence does not contain individuals. Cannot be used if the tree
+            sequence contains individuals. Defaults to 1 if not specified.
+        :param str name_metadata_key: The key in the individual metadata to use
+            for individual names. Cannot be specified simultaneously with
+            individual_names.
+        :param list individual_names: The names to use for each individual. Cannot
+            be specified simultaneously with name_metadata_key.
+        :param bool include_non_sample_nodes: If True, include all nodes belonging to
+            the individuals in the mapping. If False, only include sample nodes.
+            Deafults to False.
+        :return: A VcfModelMapping containing the node-to-individual mapping and
+            individual names.
+        :raises ValueError: If both name_metadata_key and individual_names are specified,
+            if ploidy is specified when individuals are present, if an invalid individual
+            ID is specified, if a specified individual has no nodes, or if the number of
+            individuals doesn't match the number of names.
+        """
+        if include_non_sample_nodes is None:
+            include_non_sample_nodes = False
+
+        if name_metadata_key is not None and individual_names is not None:
+            raise ValueError(
+                "Cannot specify both name_metadata_key and individual_names"
+            )
+
+        if self.num_individuals > 0 and ploidy is not None:
+            raise ValueError(
+                "Cannot specify ploidy when individuals are present in the tree sequence"
+            )
+
+        if self.num_individuals == 0 and include_non_sample_nodes:
+            raise ValueError(
+                "Cannot include non-sample nodes when individuals are not present in "
+                "the tree sequence"
+            )
+
+        if self.num_individuals > 0 and np.any(
+            np.logical_and(
+                self.nodes_individual == tskit.NULL,
+                self.nodes_flags & tskit.NODE_IS_SAMPLE,
+            )
+        ):
+            warnings.warn(
+                "At least one sample node does not have an individual ID.", stacklevel=1
+            )
+
+        if self.num_individuals == 0 and individuals is None:
+            if ploidy is None:
+                ploidy = 1
+            individuals_nodes = self.sample_nodes_by_ploidy(ploidy)
+            if individual_names is None:
+                individual_names = [f"tsk_{i}" for i in range(len(individuals_nodes))]
+        else:
+            if individuals is None:
+                individuals = np.arange(self.num_individuals, dtype=np.int32)
+            if len(individuals) == 0:
+                raise ValueError("No individuals specified")
+            if min(individuals) < 0 or max(individuals) >= self.num_individuals:
+                raise ValueError("Invalid individual ID")
+
+            individuals_nodes = self.individuals_nodes[individuals]
+            non_sample_nodes = np.logical_not(
+                self.nodes_flags[individuals_nodes] & tskit.NODE_IS_SAMPLE
+            )
+            if np.any(non_sample_nodes) and not include_non_sample_nodes:
+                individuals_nodes[non_sample_nodes] = -1
+                rows_to_reorder = np.any(non_sample_nodes, axis=1)
+                for i in np.where(rows_to_reorder)[0]:
+                    row = individuals_nodes[i]
+                    individuals_nodes[i] = np.concatenate(
+                        [row[row != -1], row[row == -1]]
+                    )
+
+            if individual_names is None:
+                if name_metadata_key is not None:
+                    individual_names = [
+                        self.individual(i).metadata[name_metadata_key]
+                        for i in individuals
+                    ]
+                else:
+                    individual_names = [f"tsk_{i}" for i in individuals]
+
+        individual_names = np.array(individual_names, dtype=object)
+
+        if len(individuals_nodes) != len(individual_names):
+            raise ValueError(
+                "The number of individuals does not match the number of names"
+            )
+
+        return VcfModelMapping(individuals_nodes, individual_names)
 
     ############################################
     #
