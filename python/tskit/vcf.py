@@ -25,7 +25,6 @@ Convert tree sequences to VCF.
 """
 import numpy as np
 
-import tskit
 from . import provenance
 
 
@@ -64,19 +63,38 @@ class VcfWriter:
         sample_mask,
         isolated_as_missing,
         allow_position_zero,
+        include_non_sample_nodes,
     ):
         self.tree_sequence = tree_sequence
         self.contig_id = contig_id
         self.isolated_as_missing = isolated_as_missing
 
-        self.__make_sample_mapping(ploidy, individuals)
-        if individual_names is None:
-            individual_names = [f"tsk_{j}" for j in range(self.num_individuals)]
-        self.individual_names = individual_names
-        if len(self.individual_names) != self.num_individuals:
-            raise ValueError(
-                "individual_names must have length equal to the number of individuals"
-            )
+        vcf_model = tree_sequence.map_to_vcf_model(
+            individuals=individuals,
+            ploidy=ploidy,
+            individual_names=individual_names,
+            include_non_sample_nodes=include_non_sample_nodes,
+        )
+        # Remove individuals with zero ploidy as these cannot be
+        # represented in VCF.
+        individuals_nodes = vcf_model.individuals_nodes
+        to_keep = (individuals_nodes != -1).any(axis=1)
+        individuals_nodes = individuals_nodes[to_keep]
+        self.individual_names = vcf_model.individuals_name[to_keep]
+        self.individual_ploidies = [
+            len(nodes[nodes >= 0]) for nodes in individuals_nodes
+        ]
+        self.num_individuals = len(self.individual_names)
+
+        if len(individuals_nodes) == 0:
+            raise ValueError("No samples in resulting VCF model")
+
+        # Flatten the array of node IDs, filtering out the -1 padding values
+        self.samples = []
+        for row in individuals_nodes:
+            for node_id in row:
+                if node_id != -1:
+                    self.samples.append(node_id)
 
         # Transform coordinates for VCF
         if position_transform is None:
@@ -125,69 +143,6 @@ class VcfWriter:
                 '"position_transform = lambda x: 1 + x" or coerce the zero to one with '
                 '"position_transform = lambda x: np.fmax(1, x)"'
             )
-
-    def __make_sample_mapping(self, ploidy, individuals):
-        """
-        Compute the sample IDs for each VCF individual and the template for
-        writing out genotypes.
-        """
-        ts = self.tree_sequence
-        self.samples = None
-        self.individual_ploidies = []
-
-        # Cannot use "ploidy" when *any* individuals are present.
-        if ts.num_individuals > 0 and ploidy is not None:
-            raise ValueError(
-                "Cannot specify ploidy when individuals are present in tables "
-            )
-
-        if individuals is None:
-            # Find all sample nodes that reference individuals
-            individuals = np.unique(ts.nodes_individual[ts.samples()])
-            if len(individuals) == 1 and individuals[0] == tskit.NULL:
-                # No samples refer to individuals
-                individuals = None
-            else:
-                # np.unique sorts the argument, so if NULL (-1) is present it
-                # will be the first value.
-                if individuals[0] == tskit.NULL:
-                    raise ValueError(
-                        "Sample nodes must either all be associated with individuals "
-                        "or not associated with any individuals"
-                    )
-        else:
-            individuals = np.array(individuals, dtype=np.int32)
-            if len(individuals) == 0:
-                raise ValueError("List of sample individuals empty")
-
-        if individuals is not None:
-            self.samples = []
-            # FIXME this could probably be done more efficiently.
-            for i in individuals:
-                if i < 0 or i >= self.tree_sequence.num_individuals:
-                    raise ValueError("Invalid individual IDs provided.")
-                ind = self.tree_sequence.individual(i)
-                if len(ind.nodes) == 0:
-                    raise ValueError(f"Individual {i} not associated with a node")
-                is_sample = {ts.node(u).is_sample() for u in ind.nodes}
-                if len(is_sample) != 1:
-                    raise ValueError(
-                        f"Individual {ind.id} has nodes that are sample and "
-                        "non-samples"
-                    )
-                self.samples.extend(ind.nodes)
-                self.individual_ploidies.append(len(ind.nodes))
-        else:
-            if ploidy is None:
-                ploidy = 1
-            if ploidy < 1:
-                raise ValueError("Ploidy must be >= 1")
-            if ts.num_samples % ploidy != 0:
-                raise ValueError("Sample size must be divisible by ploidy")
-            self.individual_ploidies = np.full(
-                ts.sample_size // ploidy, ploidy, dtype=np.int32
-            )
-        self.num_individuals = len(self.individual_ploidies)
 
     def __write_header(self, output):
         print("##fileformat=VCFv4.2", file=output)
