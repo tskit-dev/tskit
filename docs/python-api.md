@@ -262,10 +262,12 @@ which perform the same actions but modify the {class}`TableCollection` in place.
   TreeSequence.simplify
   TreeSequence.subset
   TreeSequence.union
+  TreeSequence.concatenate
   TreeSequence.keep_intervals
   TreeSequence.delete_intervals
   TreeSequence.delete_sites
   TreeSequence.trim
+  TreeSequence.shift
   TreeSequence.split_edges
   TreeSequence.decapitate
   TreeSequence.extend_haplotypes
@@ -750,6 +752,7 @@ a functional way, returning a new tree sequence while leaving the original uncha
   TableCollection.keep_intervals
   TableCollection.delete_sites
   TableCollection.trim
+  TableCollection.shift
   TableCollection.union
   TableCollection.delete_older
 ```

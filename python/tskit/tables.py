@@ -3991,6 +3991,40 @@ class TableCollection(metadata.MetadataProvider):
                 record=json.dumps(provenance.get_provenance_dict(parameters))
             )
 
+    def shift(self, value, *, sequence_length=None, record_provenance=True):
+        """
+        Shift the coordinate system (used by edges, sites, and migrations) of this
+        TableCollection by a given value. This is identical to :meth:`TreeSequence.shift`
+        but acts *in place* to alter the data in this :class:`TableCollection`.
+
+        .. note::
+            No attempt is made to check that the new coordinate system or sequence length
+            is valid: if you wish to do this, use {meth}`TreeSequence.shift` instead.
+
+        :param value: The amount by which to shift the coordinate system.
+        :param sequence_length: The new sequence length of the tree sequence. If
+            ``None`` (default) add `value` to the sequence length.
+        """
+        self.drop_index()
+        self.edges.left += value
+        self.edges.right += value
+        self.migrations.left += value
+        self.migrations.right += value
+        self.sites.position += value
+        if sequence_length is None:
+            self.sequence_length += value
+        else:
+            self.sequence_length = sequence_length
+        if record_provenance:
+            parameters = {
+                "command": "shift",
+                "value": value,
+                "sequence_length": sequence_length,
+            }
+            self.provenances.add_row(
+                record=json.dumps(provenance.get_provenance_dict(parameters))
+            )
+
     def delete_older(self, time):
         """
         Deletes edge, mutation and migration information at least as old as
