@@ -3991,6 +3991,96 @@ class TableCollection(metadata.MetadataProvider):
                 record=json.dumps(provenance.get_provenance_dict(parameters))
             )
 
+    def shift(self, value, *, sequence_length=None, record_provenance=True):
+        """
+        Shift the coordinate system (used by edges and sites) of this TableCollection by
+        a given value. This is identical to :meth:`TreeSequence.shift` but acts
+        *in place* to alter the data in this :class:`TableCollection`.
+
+        .. note::
+            No attempt is made to check that the new coordinate system or sequence length
+            is valid: if you wish to do this, use {meth}`TreeSequence.shift` instead.
+
+        :param value: The amount by which to shift the coordinate system.
+        :param sequence_length: The new sequence length of the tree sequence. If
+            ``None`` (default) add `value` to the sequence length.
+        """
+        self.edges.left += value
+        self.edges.right += value
+        self.sites.position += value
+        if sequence_length is None:
+            self.sequence_length += value
+        else:
+            self.sequence_length = sequence_length
+
+        if record_provenance:
+            parameters = {
+                "command": "shift",
+                "value": value,
+                "sequence_length": sequence_length,
+            }
+            self.provenances.add_row(
+                record=json.dumps(provenance.get_provenance_dict(parameters))
+            )
+
+    def concatenate(
+        self, other, *, node_mapping=None, record_provenance=True, **kwargs
+    ):
+        """
+        Concatenate another table collection to the right of this one. This
+        {meth}`shift`s the other table coordinate rightwards, then calls
+        {meth}`union` with ``check_shared_equality=False`` and the provided
+        ``node_mapping``. If no node mapping is given, the two table
+        collections must have the same number of samples, and those are treated
+        (in numerical order) as shared between the two table collections.
+        This is identical to :meth:`TreeSequence.concatenate` but
+        acts *in place* to alter the data in this :class:`TableCollection`.
+
+        .. note::
+            To add gaps between the concatenated tables, use :meth:`shift` before
+            concatenating; to remove gaps, use :meth:`trim`.
+
+        :param TableCollection other: The other table collection to add to the right
+            of this one.
+        :param list node_mapping: An array of integers of the same length as the number
+            of nodes in ``other``, where the _k_'th element gives the id of the node in
+            the current table collection corresponding to node _k_ in the other table
+            collection (see {meth}`union`). If None (default), only the sample nodes
+            between the two node tables, in numerical order, are mapped to each other.
+        :param bool record_provenance: If True (default), record details of this call to
+            ``concatenate`` in the returned tree sequence's provenance information
+            (Default: True).
+        :param \\**kwargs: Additional keyword arguments to pass to {meth}`union`
+            (e.g. ``add_populations``).
+        """
+        if node_mapping is None:
+            samples = np.where(self.nodes.flags & tskit.NODE_IS_SAMPLE)[0]
+            other_samples = np.where(other.nodes.flags & tskit.NODE_IS_SAMPLE)[0]
+            if len(other_samples) != len(samples):
+                raise ValueError(
+                    "each `other` must have the same number of samples as `self`"
+                )
+            node_mapping = np.full(other.nodes.num_rows, tskit.NULL, dtype=np.int32)
+            node_mapping[other_samples] = samples
+        other.shift(self.sequence_length, record_provenance=False)
+        self.sequence_length = other.sequence_length
+        # NB: should we use a different default for add_populations?
+        self.union(
+            other,
+            node_mapping=node_mapping,
+            check_shared_equality=False,  # Needed as checks fail with internal samples
+            record_provenance=False,
+            **kwargs,
+        )
+        if record_provenance:
+            parameters = {
+                "command": "concatenate",
+                "TODO": "add concatenate parameters",  # tricky as both have provenances
+            }
+            self.provenances.add_row(
+                record=json.dumps(provenance.get_provenance_dict(parameters))
+            )
+
     def delete_older(self, time):
         """
         Deletes edge, mutation and migration information at least as old as

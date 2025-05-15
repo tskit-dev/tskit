@@ -7060,6 +7060,72 @@ class TreeSequence:
         tables.trim(record_provenance)
         return tables.tree_sequence()
 
+    def shift(self, value, sequence_length=None, record_provenance=True):
+        """
+        Shift the coordinate system (used by edges and sites) of this TableCollection by
+        a given value. Positive values shift the coordinate system to the right, negative
+        values to the left. The sequence length of the tree sequence will be changed by
+        ``value``, unless ``sequence_length`` is given, in which case this will be used
+        for the new sequence length.
+
+        .. note::
+            By setting ``value=0``, this method will simply return a tree sequence
+            with a new sequence length.
+
+        :param value: The amount by which to shift the coordinate system.
+        :param sequence_length: The new sequence length of the tree sequence. If
+            ``None`` (default) add ``value`` to the sequence length.
+        :raises ValueError: If the new coordinate system is invalid (e.g., if
+            shifting the coordinate system results in negative coordinates).
+        """
+        tables = self.dump_tables()
+        tables.shift(
+            value=value,
+            sequence_length=sequence_length,
+            record_provenance=record_provenance,
+        )
+        try:
+            ts = tables.tree_sequence()
+        except ValueError as e:
+            raise ValueError("Cannot shift due to bad coordinate values") from e
+        return ts
+
+    def concatenate(
+        self, other, *, node_mapping=None, record_provenance=True, **kwargs
+    ):
+        """
+        Concatenate another tree sequence to the right of this one. This shifts the
+        coordinate system of the other tree sequence rightwards, then calls
+        {meth}`union` with the provided ``node_mapping``. If no node mapping
+        is given, matches sample nodes only, in numerical order.
+
+        .. note::
+            To add gaps between the concatenated tables, use :meth:`shift` or
+            to remove gaps, use :meth:`trim` before concatenating.
+
+        :param TableCollection other: The other table collection to add to the right
+            of this one.
+        :param list node_mapping: An array of integers of the same length as the number
+            of nodes in ``other``, where the _k_'th element gives the id of the node in
+            the current table collection corresponding to node _k_ in the other table
+            collection (see :meth:`union`). If None (default), only the sample nodes
+            between the two node tables, in numerical order, are mapped to each other.
+        :param bool record_provenance: If True (default), record details of this call to
+            ``concatenate`` in the returned tree sequence's provenance information
+            (Default: True).
+        :param \\**kwargs: Additional keyword arguments to pass to :meth:`union`,
+            e.g. ``add_populations``.
+        """
+
+        tables = self.dump_tables()
+        tables.concatenate(
+            other.tables,
+            node_mapping=node_mapping,
+            record_provenance=record_provenance,
+            **kwargs,
+        )
+        return tables.tree_sequence()
+
     def split_edges(self, time, *, flags=None, population=None, metadata=None):
         """
         Returns a copy of this tree sequence in which we replace any
