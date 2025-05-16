@@ -39,21 +39,6 @@ from tests.test_highlevel import get_example_tree_sequences
 # we can remove this.
 
 
-class TestShift:
-    # Most testing is done on the TreeSequence methods. Here we just check
-    # that the TableCollection methods work even if they produce an invalid ts
-    def test_too_negative(self):
-        tables = tskit.Tree.generate_comb(2).tree_sequence.dump_tables()
-        tables.shift(-1)
-        assert np.min(tables.edges.left) == -1
-
-    def test_bad_seq_len(self):
-        tables = tskit.Tree.generate_comb(2).tree_sequence.dump_tables()
-        tables.shift(1, sequence_length=0.5)
-        assert tables.sequence_length == 0.5
-        assert np.max(tables.edges.right) == 2
-
-
 def delete_older_definition(tables, time):
     node_time = tables.nodes.time
     edges = tables.edges.copy()

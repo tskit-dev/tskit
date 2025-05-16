@@ -7091,6 +7091,7 @@ class TestShift:
         assert np.min(ts.tables.edges.left) == 1 + shift
         assert np.max(ts.tables.edges.right) == 2 + shift
         assert np.all(ts.tables.sites.position == 1.5 + shift)
+        assert len(list(ts.trees())) == ts.num_trees
 
     def test_sequence_length(self):
         ts = tskit.Tree.generate_comb(2).tree_sequence
@@ -7147,11 +7148,31 @@ class TestConcatenate:
         ts4 = joint_ts.delete_intervals([[0, 2]]).ltrim()
         assert ts4.equals(ts2.simplify(), ignore_provenance=True)
 
+    def test_multiple(self):
+        np.random.seed(42)
+        ts3 = [
+            tskit.Tree.generate_comb(5, span=2).tree_sequence,
+            tskit.Tree.generate_balanced(5, arity=3, span=3).tree_sequence,
+            tskit.Tree.generate_star(5, span=5).tree_sequence,
+        ]
+        for i in range(1, len(ts3)):
+            # shuffle the sample nodes so they don't have the same IDs
+            ts3[i] = ts3[i].subset(np.random.permutation(ts3[i].num_nodes))
+        assert not np.all(ts3[0].samples() == ts3[1].samples())
+        assert not np.all(ts3[0].samples() == ts3[2].samples())
+        assert not np.all(ts3[1].samples() == ts3[2].samples())
+        ts = ts3[0].concatenate(*ts3[1:])
+        assert ts.sequence_length == sum([t.sequence_length for t in ts3])
+        assert ts.num_nodes - ts.num_samples == sum(
+            [t.num_nodes - t.num_samples for t in ts3]
+        )
+        assert np.all(ts.samples() == ts3[0].samples())
+
     def test_empty(self):
         empty_ts = tskit.TableCollection(10).tree_sequence()
-        ts = empty_ts.concatenate(empty_ts)
+        ts = empty_ts.concatenate(empty_ts, empty_ts, empty_ts)
         assert ts.num_nodes == 0
-        assert ts.sequence_length == 20
+        assert ts.sequence_length == 40
 
     def test_samples_at_end(self):
         ts1 = tskit.Tree.generate_comb(5, span=2).tree_sequence
@@ -7182,7 +7203,7 @@ class TestConcatenate:
         shared = np.full(ts2.num_nodes, tskit.NULL)
         shared[0] = 1
         shared[1] = 0
-        joint_ts = ts1.concatenate(ts2, node_mapping=shared)
+        joint_ts = ts1.concatenate(ts2, node_mappings=[shared])
         assert joint_ts.sequence_length == ts1.sequence_length + ts2.sequence_length
         assert joint_ts.num_samples == ts1.num_samples + ts2.num_samples - 2
         assert joint_ts.num_nodes == ts1.num_nodes + ts2.num_nodes - 2

@@ -754,7 +754,6 @@ a functional way, returning a new tree sequence while leaving the original uncha
   TableCollection.trim
   TableCollection.shift
   TableCollection.union
-  TableCollection.concatenate
   TableCollection.delete_older
 ```
 
