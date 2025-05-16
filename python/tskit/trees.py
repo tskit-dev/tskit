@@ -7304,9 +7304,9 @@ class TreeSequence:
             ``other`` to nodes in ``self``.
         :param bool check_shared_equality: If True, the shared portions of the
             tree sequences will be checked for equality. It does so by
-            subsetting both ``self`` and ``other`` on the equivalent nodes
-            specified in ``node_mapping``, and then checking for equality of
-            the subsets.
+            running :meth:`TreeSequence.subset` on both ``self`` and ``other``
+            for the equivalent nodes specified in ``node_mapping``, and then
+            checking for equality of the subsets.
         :param bool add_populations: If True, nodes new to ``self`` will be
             assigned new population IDs.
         :param bool record_provenance: Whether to record a provenance entry
