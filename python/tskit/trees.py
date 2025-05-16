@@ -10551,9 +10551,8 @@ class TreeSequence:
                 "Cannot specify ploidy when individuals are present in the tree sequence"
             )
 
-        if any(
-            self.num_individuals > 0
-            and np.logical_and(
+        if self.num_individuals > 0 and np.any(
+            np.logical_and(
                 self.nodes_individual == tskit.NULL,
                 self.nodes_flags & tskit.NODE_IS_SAMPLE,
             )
@@ -10566,6 +10565,7 @@ class TreeSequence:
             if ploidy is None:
                 ploidy = 1
             individuals_nodes = self.sample_nodes_by_ploidy(ploidy)
+            ts_individual_names = [f"tsk_{i}" for i in range(len(individuals_nodes))]
         else:
             individuals_nodes = []
             ts_individual_names = []
@@ -10578,7 +10578,7 @@ class TreeSequence:
                         )
                         continue
                     is_sample = np.array(
-                        [self.node_flags(u) & tskit.NODE_IS_SAMPLE for u in ind.nodes]
+                        [self.nodes_flags[u] & tskit.NODE_IS_SAMPLE for u in ind.nodes]
                     )
                     if all(is_sample):
                         individuals_nodes.append(ind.nodes)
@@ -10586,7 +10586,7 @@ class TreeSequence:
                             ts_individual_names.append(ind.metadata[name_metadata_key])
                         else:
                             ts_individual_names.append(f"tsk_{ind.id}")
-                    elif all(~is_sample):
+                    elif all(np.logical_not(is_sample)):
                         continue
                     else:
                         warnings.warn(
@@ -10609,11 +10609,16 @@ class TreeSequence:
                     else:
                         ts_individual_names.append(f"tsk_{ind.id}")
 
-            max_nodes = max(len(nodes) for nodes in individuals_nodes)
-            result = np.full((len(individuals_nodes), max_nodes), -1, dtype=np.int32)
-            for i, nodes in enumerate(individuals_nodes):
-                result[i, : len(nodes)] = nodes
-            individuals_nodes = result
+            if len(individuals_nodes) > 0:
+                max_nodes = max(len(nodes) for nodes in individuals_nodes)
+                result = np.full(
+                    (len(individuals_nodes), max_nodes), -1, dtype=np.int32
+                )
+                for i, nodes in enumerate(individuals_nodes):
+                    result[i, : len(nodes)] = nodes
+                individuals_nodes = result
+            else:
+                individuals_nodes = np.empty((0, 0), dtype=np.int32)
 
         if individual_names is None:
             individual_names = ts_individual_names
@@ -10624,7 +10629,7 @@ class TreeSequence:
                 "The number of individuals does not match the number of names"
             )
 
-        return VcfModelMapping(result, individual_names)
+        return VcfModelMapping(individuals_nodes, individual_names)
 
     ############################################
     #
