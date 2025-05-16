@@ -10513,6 +10513,8 @@ class TreeSequence:
         :return: A 2D array of node IDs, where each row has length `ploidy`.
         :rtype: numpy.ndarray
         """
+        if ploidy <= 0 or ploidy != int(ploidy):
+            raise ValueError("Ploidy must be a positive integer")
         sample_node_ids = np.flatnonzero(self.nodes_flags & tskit.NODE_IS_SAMPLE)
         num_samples = len(sample_node_ids)
         if num_samples == 0:
