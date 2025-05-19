@@ -20,6 +20,9 @@
 - Add ``TreeSequence.map_to_vcf_model`` method to return a mapping of
   the tree sequence to the VCF model. 
   (:user:`benjeffery`, :pr:`3163`)
+- Use a thin space as the thousands separator in HTML output,
+  and a comma in CLI output.
+  (:user:`hossam26644`, :pr:`3167`, :issue:`2951`)
 
 **Fixes**
 
@@ -37,6 +40,7 @@
   code if individuals are specified. To fix, manually specify ``individual_names``
   to the required pattern.
   (:user:`benjeffery`, :pr:`3163`)
+
 
 --------------------
 [0.6.3] - 2025-04-28
