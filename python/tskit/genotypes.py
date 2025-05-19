@@ -334,22 +334,25 @@ class Variant:
         Return a plain text summary of the contents of a variant.
         """
         try:
-            site_id = self.site.id
-            site_position = self.site.position
+            site_id = util.format_number(self.site.id, sep=",")
+            site_position = util.format_number(self.site.position, sep=",")
             counts = self.counts()
             freqs = self.frequencies()
+            samples = util.format_number(len(self.samples), sep=",")
+            num_alleles = util.format_number(self.num_alleles, sep=",")
             rows = (
                 [
-                    ["Site id", f"{site_id:,}"],
-                    ["Site position", f"{site_position:,}"],
-                    ["Number of samples", f"{len(self.samples):,}"],
-                    ["Number of alleles", f"{self.num_alleles:,}"],
+                    ["Site id", f"{site_id}"],
+                    ["Site position", f"{site_position}"],
+                    ["Number of samples", f"{samples}"],
+                    ["Number of alleles", f"{num_alleles}"],
                 ]
                 + [
                     [
                         f"Samples with allele "
                         f"""{'missing' if k is None else "'" + k + "'"}""",
-                        f"{counts[k]:,} ({freqs[k] * 100:.2g}%)",
+                        f"{util.format_number(counts[k], sep=',')} "
+                        f"({util.format_number(freqs[k] * 100, 2, sep=',')}%)",
                     ]
                     for k in self.alleles
                 ]

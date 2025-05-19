@@ -2822,17 +2822,21 @@ class Tree:
         Return a plain text summary of a tree in a tree sequence
         """
         tree_rows = [
-            ["Index", f"{self.index:,}"],
+            ["Index", f"{util.format_number(self.index, sep=',')}"],
             [
                 "Interval",
-                f"{self.interval.left:,.8g}-{self.interval.right:,.8g}"
-                f"({self.span:,.8g})",
+                f"{util.format_number(self.interval.left, sep=',')}-"
+                f"{util.format_number(self.interval.right, sep=',')}"
+                f"({util.format_number(self.span, sep=',')})",
             ],
-            ["Roots", f"{self.num_roots:,}"],
-            ["Nodes", f"{len(self.preorder()):,}"],
-            ["Sites", f"{self.num_sites:,}"],
-            ["Mutations", f"{self.num_mutations:,}"],
-            ["Total Branch Length", f"{self.total_branch_length:,.8g}"],
+            ["Roots", f"{util.format_number(self.num_roots, sep=',')}"],
+            ["Nodes", f"{util.format_number(len(self.preorder()), sep=',')}"],
+            ["Sites", f"{util.format_number(self.num_sites, sep=',')}"],
+            ["Mutations", f"{util.format_number(self.num_mutations, sep=',')}"],
+            [
+                "Total Branch Length",
+                f"{util.format_number(self.total_branch_length, sep=',')}",
+            ],
         ]
         return util.unicode_table(tree_rows, title="Tree")
 
@@ -4399,17 +4403,10 @@ class TreeSequence:
         Return a plain text summary of the contents of a tree sequence
         """
         ts_rows = [
-            ["Trees", str(self.num_trees)],
-            [
-                "Sequence Length",
-                str(
-                    int(self.sequence_length)
-                    if self.discrete_genome
-                    else self.sequence_length
-                ),
-            ],
+            ["Trees", util.format_number(self.num_trees, sep=",")],
+            ["Sequence Length", util.format_number(self.sequence_length, sep=",")],
             ["Time Units", self.time_units],
-            ["Sample Nodes", str(self.num_samples)],
+            ["Sample Nodes", util.format_number(self.num_samples, sep=",")],
             ["Total Size", util.naturalsize(self.nbytes)],
         ]
         header = ["Table", "Rows", "Size", "Has Metadata"]
@@ -4418,7 +4415,7 @@ class TreeSequence:
             table_rows.append(
                 [
                     name.capitalize(),
-                    f"{table.num_rows:,}",
+                    f"{util.format_number(table.num_rows, sep=',')}",
                     util.naturalsize(table.nbytes),
                     (
                         "Yes"

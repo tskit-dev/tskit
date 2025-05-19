@@ -3764,19 +3764,19 @@ class TestTree(HighLevelTestCase):
             ╔═+╗\s*
             ║Tree.*?║\s*
             ╠═+╤═+╣\s*
-            ║Index.*?│\s*\d+║\s*
+            ║Index.*?│\s*[\d\u2009,]+║\s*
             ╟─+┼─+╢\s*
-            ║Interval.*?│\s*\d+-\d+\s*\(\d+\)║\s*
+            ║Interval.*?│\s*[\d\u2009,]+-[\d\u2009,]+\s*\([\d\u2009,]+\)║\s*
             ╟─+┼─+╢\s*
-            ║Roots.*?│\s*\d+║\s*
+            ║Roots.*?│\s*[\d\u2009,]+║\s*
             ╟─+┼─+╢\s*
-            ║Nodes.*?│\s*\d+║\s*
+            ║Nodes.*?│\s*[\d\u2009,]+║\s*
             ╟─+┼─+╢\s*
-            ║Sites.*?│\s*\d+║\s*
+            ║Sites.*?│\s*[\d\u2009,]+║\s*
             ╟─+┼─+╢\s*
-            ║Mutations.*?│\s*\d+║\s*
+            ║Mutations.*?│\s*[\d\u2009,]+║\s*
             ╟─+┼─+╢\s*
-            ║Total\s*Branch\s*Length.*?│\s*[\d,]+\.\d+║\s*
+            ║Total\s*Branch\s*Length.*?│\s*[\d\u2009,]+\.\d+║\s*
             ╚═+╧═+╝\s*
             """,
             re.VERBOSE | re.DOTALL,

@@ -371,6 +371,19 @@ def test_naturalsize(value, expected):
         assert util.naturalsize(-value) == expected
 
 
+def test_format_number():
+    assert util.format_number(0) == "0"
+    assert util.format_number("1.23") == "1.23"
+    assert util.format_number(3216546.34) == "3 216 546.3"
+    assert util.format_number(3216546.34, 9) == "3 216 546.34"
+    assert util.format_number(-3456.23) == "-3 456.23"
+    assert util.format_number(-3456.23, sep=",") == "-3,456.23"
+
+    with pytest.raises(TypeError) as e_info:
+        util.format_number("bad")
+        assert str(e_info.value) == "The string cannot be converted to a number"
+
+
 @pytest.mark.parametrize(
     "obj, expected",
     [
