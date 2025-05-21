@@ -596,6 +596,7 @@ class TopologyExamplesMixin:
         assert ts.num_trees > 2
         self.verify(ts)
 
+    @pytest.mark.slow
     def test_wright_fisher_unsimplified(self):
         tables = wf.wf_sim(
             4,
@@ -784,6 +785,7 @@ class MutatedTopologyExamplesMixin:
         tables.sites.add_row(0.2, "aaa")
         self.verify(tables.tree_sequence())
 
+    @pytest.mark.slow
     def test_single_tree_jukes_cantor(self):
         ts = msprime.simulate(6, random_seed=1, mutation_rate=1)
         ts = tsutil.jukes_cantor(ts, 20, 1, seed=10)
@@ -805,6 +807,7 @@ class MutatedTopologyExamplesMixin:
         assert ts.num_trees > 2
         self.verify(ts)
 
+    @pytest.mark.slow
     def test_many_trees_sequence_length_infinite_sites(self):
         for L in [0.5, 1.5, 3.3333]:
             ts = msprime.simulate(

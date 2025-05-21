@@ -1312,6 +1312,7 @@ class TestSingleBalancedTreeExample:
 
 
 class TestSimulationExamples:
+    @pytest.mark.slow
     @pytest.mark.parametrize("n", [3, 10, 50])
     @pytest.mark.parametrize("L", [1, 10, 100])
     def test_continuous_genome(self, n, L):
