@@ -149,7 +149,11 @@ jobs:
         run: |
           source ~/.profile
           conda activate anaconda-client-env
-          python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            python -m pytest -x --skip-slow --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
+          else
+            python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
+          fi
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5.4.0
