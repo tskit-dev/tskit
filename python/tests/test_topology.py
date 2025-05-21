@@ -4230,6 +4230,7 @@ class TestSimplify(SimplifyTestBase):
                     for keep in [True, False]:
                         self.verify_simplify_haplotypes(ts, samples, keep_unary=keep)
 
+    @pytest.mark.slow
     def test_many_multiroot_trees_recurrent_mutations(self):
         ts = msprime.simulate(7, recombination_rate=1, random_seed=10)
         assert ts.num_trees > 3

@@ -5064,6 +5064,7 @@ class TestUnionTables(unittest.TestCase):
         uni.union(tables, node_mapping, record_provenance=False)
         uni.assert_equals(tables)
 
+    @pytest.mark.slow
     def test_no_add_pop(self):
         self.verify_union(
             *self.split_example(self.get_msprime_example(10, 10, seed=135), 10),
@@ -5093,6 +5094,7 @@ class TestUnionTables(unittest.TestCase):
         tables.provenances.truncate(tables.provenances.num_rows - 1)
         assert tables.provenances == tables_copy.provenances
 
+    @pytest.mark.slow
     def test_examples(self):
         for N in [2, 4, 5]:
             for T in [2, 5, 20]:
