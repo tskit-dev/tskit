@@ -1,4 +1,13 @@
 --------------------
+[0.6.5] - 2025-0X-XX
+--------------------
+
+**Features**
+
+- ``TreeSequence.map_to_vcf_model`` now also returns the transformed positions and
+  contig length. (:user:`benjeffery`, :pr:`XXXX`, :issue:`3173`)
+
+--------------------
 [0.6.4] - 2025-05-21
 --------------------
 

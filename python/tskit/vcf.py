@@ -28,22 +28,6 @@ import numpy as np
 from . import provenance
 
 
-def legacy_position_transform(positions):
-    """
-    Transforms positions in the tree sequence into VCF coordinates under
-    the pre 0.2.0 legacy rule.
-    """
-    last_pos = 0
-    transformed = []
-    for pos in positions:
-        pos = int(round(pos))
-        if pos <= last_pos:
-            pos = last_pos + 1
-        transformed.append(pos)
-        last_pos = pos
-    return transformed
-
-
 class VcfWriter:
     """
     Writes a VCF representation of the genotypes tree sequence to a
@@ -74,6 +58,7 @@ class VcfWriter:
             ploidy=ploidy,
             individual_names=individual_names,
             include_non_sample_nodes=include_non_sample_nodes,
+            position_transform=position_transform,
         )
         # Remove individuals with zero ploidy as these cannot be
         # represented in VCF.
@@ -96,21 +81,8 @@ class VcfWriter:
                 if node_id != -1:
                     self.samples.append(node_id)
 
-        # Transform coordinates for VCF
-        if position_transform is None:
-            position_transform = np.round
-        elif position_transform == "legacy":
-            position_transform = legacy_position_transform
-        self.transformed_positions = np.array(
-            position_transform(tree_sequence.tables.sites.position), dtype=int
-        )
-        if self.transformed_positions.shape != (tree_sequence.num_sites,):
-            raise ValueError(
-                "Position transform must return an array of the same length"
-            )
-        self.contig_length = max(
-            1, int(position_transform([tree_sequence.sequence_length])[0])
-        )
+        self.transformed_positions = vcf_model.transformed_positions
+        self.contig_length = vcf_model.contig_length
         if len(self.transformed_positions) > 0:
             # Arguably this should be last_pos + 1, but if we hit this
             # condition the coordinate systems are all muddled up anyway

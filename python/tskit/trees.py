@@ -63,6 +63,8 @@ LEGACY_MS_LABELS = "legacy_ms"
 class VcfModelMapping:
     individuals_nodes: np.ndarray
     individuals_name: np.ndarray
+    transformed_positions: np.ndarray
+    contig_length: int
 
 
 class CoalescenceRecord(NamedTuple):
@@ -10636,13 +10638,15 @@ class TreeSequence:
         name_metadata_key=None,
         individual_names=None,
         include_non_sample_nodes=None,
+        position_transform=None,
     ):
         """
         Maps the sample nodes in this tree sequence to a representation suitable for
         VCF output, using the individuals if present.
 
-        Creates a VcfModelMapping object that contains both the nodes-to-individual
-        mapping as a 2D array of (individuals, nodes) and the individual names. The
+        Creates a VcfModelMapping object that contains a nodes-to-individual
+        mapping as a 2D array of (individuals, nodes), the individual names and VCF
+        compatible site positions and contig length. The
         mapping is created by first checking if the tree sequence contains individuals.
         If it does, the mapping is created using the individuals in the tree sequence.
         By default only the sample nodes of the individuals are included in the mapping,
@@ -10651,6 +10655,12 @@ class TreeSequence:
         will have no nodes in their row of the mapping, being essentially of zero ploidy.
         If no individuals are present, the mapping is created using only the sample nodes
         and the specified ploidy.
+
+        As the tskit data model allows non-integer positions, site positions and contig
+        length are transformed to integer values suitable for VCF output. The
+        transformation is done using the `position_transform` function, which must
+        return an integer numpy array the same dimension as the input. By default,
+        this is set to ``numpy.round()`` which will round values to the nearest integer.
 
         If neither `name_metadata_key` nor `individual_names` is not specified, the
         individual names are set to "tsk_{individual_id}" for each individual. If
@@ -10672,9 +10682,20 @@ class TreeSequence:
             be specified simultaneously with name_metadata_key.
         :param bool include_non_sample_nodes: If True, include all nodes belonging to
             the individuals in the mapping. If False, only include sample nodes.
-            Deafults to False.
-        :return: A VcfModelMapping containing the node-to-individual mapping and
-            individual names.
+            Defaults to False.
+        :param position_transform: A callable that transforms the
+            site position values into integer valued coordinates suitable for
+            VCF. The function takes a single positional parameter x and must
+            return an integer numpy array the same dimension as x. By default,
+            this is set to ``numpy.round()`` which will round values to the
+            nearest integer. If the string "legacy" is provided here, the
+            pre 0.2.0 legacy behaviour of rounding values to the nearest integer
+            (starting from 1) and avoiding the output of identical positions
+            by incrementing is used.
+            See the :ref:`sec_export_vcf_modifying_coordinates` for examples
+            and more information.
+        :return: A VcfModelMapping containing the node-to-individual mapping,
+            individual names, transformed positions, and transformed contig length.
         :raises ValueError: If both name_metadata_key and individual_names are specified,
             if ploidy is specified when individuals are present, if an invalid individual
             ID is specified, if a specified individual has no nodes, or if the number of
@@ -10752,7 +10773,37 @@ class TreeSequence:
                 "The number of individuals does not match the number of names"
             )
 
-        return VcfModelMapping(individuals_nodes, individual_names)
+        def legacy_position_transform(positions):
+            """
+            Transforms positions in the tree sequence into VCF coordinates under
+            the pre 0.2.0 legacy rule.
+            """
+            last_pos = 0
+            transformed = []
+            for pos in positions:
+                pos = int(round(pos))
+                if pos <= last_pos:
+                    pos = last_pos + 1
+                transformed.append(pos)
+                last_pos = pos
+            return transformed
+
+        if position_transform is None:
+            position_transform = np.round
+        elif position_transform == "legacy":
+            position_transform = legacy_position_transform
+        transformed_positions = np.array(
+            position_transform(self.sites_position), dtype=int
+        )
+        if transformed_positions.shape != (self.num_sites,):
+            raise ValueError(
+                "Position transform must return an array of the same length"
+            )
+        contig_length = max(1, int(position_transform([self.sequence_length])[0]))
+
+        return VcfModelMapping(
+            individuals_nodes, individual_names, transformed_positions, contig_length
+        )
 
     ############################################
     #

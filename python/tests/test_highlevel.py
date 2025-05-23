@@ -5910,3 +5910,62 @@ class TestMapToVcfModel:
         ts = tables.tree_sequence()
         result = ts.map_to_vcf_model()
         assert result.individuals_nodes.shape == (2, 0)
+
+    def test_position_transform_default_and_custom(self):
+        tables = tskit.TableCollection(10.6)
+        tables.sites.add_row(position=1.3, ancestral_state="A")
+        tables.sites.add_row(position=5.7, ancestral_state="T")
+        tables.sites.add_row(position=9.9, ancestral_state="C")
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        ts = tables.tree_sequence()
+
+        result = ts.map_to_vcf_model()
+        assert np.array_equal(result.transformed_positions, [1, 6, 10])
+        assert result.contig_length == 11
+
+        def floor_transform(positions):
+            return np.floor(positions).astype(int)
+
+        result = ts.map_to_vcf_model(position_transform=floor_transform)
+        assert np.array_equal(result.transformed_positions, [1, 5, 9])
+        assert result.contig_length == 10
+
+    def test_legacy_position_transform(self):
+        # Test legacy transform with duplicate positions
+        tables = tskit.TableCollection(10.0)
+        tables.sites.add_row(position=1.4, ancestral_state="A")
+        tables.sites.add_row(position=1.6, ancestral_state="T")
+        tables.sites.add_row(position=1.7, ancestral_state="T")
+        tables.sites.add_row(position=3.2, ancestral_state="C")
+        tables.sites.add_row(position=3.8, ancestral_state="G")
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        ts = tables.tree_sequence()
+
+        result = ts.map_to_vcf_model(position_transform="legacy")
+        assert np.array_equal(result.transformed_positions, [1, 2, 3, 4, 5])
+        assert result.contig_length == 10
+
+    def test_position_transform_no_sites(self):
+        tables = tskit.TableCollection(5.5)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        ts = tables.tree_sequence()
+
+        result = ts.map_to_vcf_model()
+        assert result.transformed_positions.shape == (0,)
+        assert result.contig_length == 6
+
+    def test_invalid_position_transform_return_shape(self):
+        tables = tskit.TableCollection(10.0)
+        tables.sites.add_row(position=1.0, ancestral_state="A")
+        tables.sites.add_row(position=5.0, ancestral_state="T")
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        ts = tables.tree_sequence()
+
+        def bad_transform(positions):
+            return np.array([1])  # Wrong length
+
+        with pytest.raises(
+            ValueError,
+            match="Position transform must return an array of the same length",
+        ):
+            ts.map_to_vcf_model(position_transform=bad_transform)
