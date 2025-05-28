@@ -9586,8 +9586,9 @@ tsk_treeseq_pair_coalescence_stat(const tsk_treeseq_t *self, tsk_size_t num_samp
                 window_span = windows[w + 1] - windows[w] - missing_span;
                 missing_span = 0.0;
                 if (num_edges == 0) {
+                    /* missing interval, so remove overcounted missing span */
                     remaining_span = right - windows[w + 1];
-                    window_span -= remaining_span;
+                    window_span += remaining_span;
                     missing_span += remaining_span;
                 }
                 for (i = 0; i < (tsk_id_t) num_set_indexes; i++) {
