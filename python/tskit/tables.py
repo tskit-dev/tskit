@@ -4161,8 +4161,11 @@ class TableCollection(metadata.MetadataProvider):
         portions of ``other`` to itself. To perform the node-wise union,
         the method relies on a ``node_mapping`` array, that maps nodes in
         ``other`` to its equivalent node in ``self`` or ``tskit.NULL`` if
-        the node is exclusive to ``other``. See :meth:`TreeSequence.union` for a more
-        detailed description.
+        the node is exclusive to ``other``. See :meth:`TreeSequence.union`
+        for a more detailed description.
+
+        .. seealso::
+            :meth:`.union` for a combining two tables edgewise
 
         :param TableCollection other: Another table collection.
         :param list node_mapping: An array of node IDs that relate nodes in
@@ -4191,6 +4194,142 @@ class TableCollection(metadata.MetadataProvider):
                 "command": "union",
                 "other": {"timestamp": other_timestamps, "record": other_records},
                 "node_mapping": node_mapping.tolist(),
+            }
+            self.provenances.add_row(
+                record=json.dumps(provenance.get_provenance_dict(parameters))
+            )
+
+    def merge(
+        self,
+        other,
+        node_mapping,
+        *,
+        add_populations=None,
+        check_populations=None,
+        record_provenance=True,
+    ):
+        """
+        Merge another table collection into this one, edgewise. Nodes in ``other``
+        whose mapping is set to :data:`tskit.NULL` will be added as new nodes.
+        See :meth:`TreeSequence.merge` for a more detailed description.
+
+        .. seealso::
+            :meth:`.union` for a combining two tables nodewise
+
+        :param TableCollection other: Another table collection.
+        :param list node_mapping: An array of node IDs that relate nodes in
+            ``other`` to nodes in ``self``: the k-th element of ``node_mapping``
+            should be the index of the equivalent node in ``self``, or
+            :data:`tskit.NULL` if the node is not present in ``self`` (in which
+            case it will be added to ``self``).
+        :param bool record_provenance: If ``True`` (default), record details of this
+            call to ``merge`` in the returned tree sequence's provenance
+            information (Default: ``True``).
+        :param bool add_populations: If ``True`` (default), populations referred
+            to from nodes new to ``self`` will be added as a new populations.
+            If ``False`` new populations will not be created, and populations
+            with the same ID in ``self`` and the other tree sequences will be reused.
+        :param bool check_populations: If ``True`` (default), check that the
+            populations referred to from nodes in the other tree sequences
+            are identical to those in ``self``.
+        :raises ValueError: If the node mapping is not of the correct length,
+            or if the sequence lengths of the two tree sequences are not equal,
+            or if the populations referred to from nodes in the other tree sequence
+            do not match those in ``self``.
+        """
+        if add_populations is None:
+            add_populations = True
+        if check_populations is None:
+            check_populations = True
+
+        node_mapping = util.safe_np_int_cast(node_mapping, np.int32)
+        node_map = node_mapping.copy()
+        if node_map.shape != (other.nodes.num_rows,):
+            raise ValueError(
+                "node_mapping must be of length equal to the number of nodes in other"
+            )
+        if self.sequence_length != other.sequence_length:
+            raise ValueError(
+                "Tree sequences must have same sequence lengths: use trim or shift to"
+                " adjust sequence lengths as necessary"
+            )
+        if check_populations:
+            nodes_pop = other.nodes.population
+            if add_populations:
+                # Only need to check those populations used by nodes in the node_mapping
+                nodes_pop = nodes_pop[node_map != tskit.NULL]
+            for i in np.unique(nodes_pop[nodes_pop != tskit.NULL]):
+                if (
+                    i >= self.populations.num_rows
+                    or self.populations[i] != other.populations[i]
+                ):
+                    raise ValueError("Non-matching populations")
+        individual_map = {}
+        population_map = {}
+        for new_node in np.where(node_map == tskit.NULL)[0]:
+            params = {}
+            node = other.nodes[new_node]
+            if node.individual != tskit.NULL:
+                if node.individual not in individual_map:
+                    individual_map[node.individual] = self.individuals.append(
+                        other.individuals[node.individual]
+                    )
+                params["individual"] = individual_map[node.individual]
+            if node.population != tskit.NULL:
+                if add_populations:
+                    if node.population not in population_map:
+                        population_map[node.population] = self.populations.append(
+                            other.populations[node.population]
+                        )
+                    params["population"] = population_map[node.population]
+                else:
+                    if node.population >= self.populations.num_rows:
+                        raise ValueError(
+                            "One of the tree sequences to concatenate has a "
+                            "population not present in the existing tree sequence"
+                        )
+            node_map[new_node] = self.nodes.append(node.replace(**params))
+
+        for e in other.edges:
+            self.edges.append(
+                e.replace(child=node_map[e.child], parent=node_map[e.parent])
+            )
+        site_map = {}
+        site_positions = {p: i for i, p in enumerate(self.sites.position)}
+        for site_id, site in enumerate(other.sites):
+            if site.position in site_positions:
+                site_map[site_id] = site_positions[site.position]
+            else:
+                site_map[site_id] = self.sites.append(site)
+        for mut in other.mutations:
+            self.mutations.append(
+                mut.replace(
+                    node=node_map[mut.node],
+                    site=site_map[mut.site],
+                    parent=tskit.NULL,
+                )
+            )
+        for mig in other.migrations:
+            self.migrations.append(
+                mig.replace(
+                    node=node_map[mig.node],
+                    source=population_map.get(mig.source, mig.source),
+                    dest=population_map.get(mig.dest, mig.dest),
+                )
+            )
+        self.sort()
+        self.build_index()
+        self.compute_mutation_parents()
+
+        if record_provenance:
+            other_records = [prov.record for prov in other.provenances]
+            other_timestamps = [prov.timestamp for prov in other.provenances]
+            parameters = {
+                "command": "merge",
+                "other": {"timestamp": other_timestamps, "record": other_records},
+                "node_mapping": node_mapping.tolist(),
+                "add_populations": add_populations,
+                "check_populations": check_populations,
             }
             self.provenances.add_row(
                 record=json.dumps(provenance.get_provenance_dict(parameters))

@@ -7098,14 +7098,19 @@ class TreeSequence:
         return tables.tree_sequence()
 
     def concatenate(
-        self, *args, node_mappings=None, record_provenance=True, add_populations=None
+        self,
+        *args,
+        node_mappings=None,
+        record_provenance=True,
+        add_populations=None,
+        check_populations=None,
     ):
         r"""
-        Concatenate a set of tree sequences to the right of this one, by repeatedly
-        calling {meth}`union` with an (optional)
-        node mapping for each of the ``others``. If any node mapping is ``None``
-        only map the sample nodes between the input tree sequence and this one,
-        based on the numerical order of sample node IDs.
+        Concatenate a set of tree sequences to the right of this one by shifting
+        them and then calling :meth:`~TreeSequence.merge`, by default merging on the
+        sample nodes of each tree sequence, in order of their node IDs. See the
+        documentation for :meth:`~TreeSequence.merge` for further details (with the
+        difference that ``concatenate`` defaults to ``add_populations=False``).
 
         .. note::
             To add gaps between the concatenated tables, use :meth:`shift` or
@@ -7113,22 +7118,30 @@ class TreeSequence:
 
         :param TreeSequence \*args: A list of other tree sequences to append to
             the right of this one.
-        :param Union[list, None] node_mappings: An list of node mappings for each
+        :param Union[list, None] node_mappings: A list of node mappings for each
             input tree sequence in ``args``. Each should either be an array of
             integers of the same length as the number of nodes in the equivalent
-            input tree sequence (see :meth:`union` for details), or ``None``.
+            input tree sequence, or ``None``.
             If ``None``, only sample nodes are mapped to each other.
             Default: ``None``, treated as ``[None] * len(args)``.
-        :param bool record_provenance: If True (default), record details of this
+        :param bool record_provenance: If ``True``, record details of this
             call to ``concatenate`` in the returned tree sequence's provenance
-            information (Default: True).
-        :param bool add_populations: If True (default), nodes new to ``self`` will
-            be assigned new population IDs (see :meth:`union`)
+            information (Default: ``True``).
+        :param bool add_populations: If ``True``, populations referred to from nodes
+            new to ``self`` will be added as new populations. If ``False`` new
+            populations will not be created, and populations with the same ID in
+            ``self`` and the other tree sequences will be reused. Default: ``None``,
+            treated as ``False``.
+        :param bool check_populations: If ``True``, check that the populations
+            referred to from nodes in the other tree sequences are identical to those
+            in ``self``. Default: ``None``, treated as ``True``.
         """
         if node_mappings is None:
             node_mappings = [None] * len(args)
         if add_populations is None:
-            add_populations = True
+            add_populations = False
+        if check_populations is None:
+            check_populations = True
         if len(node_mappings) != len(args):
             raise ValueError(
                 "You must provide the same number of node_mappings as args"
@@ -7138,26 +7151,26 @@ class TreeSequence:
         tables = self.dump_tables()
         tables.drop_index()
 
-        for node_mapping, other in zip(node_mappings, args):
-            if node_mapping is None:
+        for node_map, other in zip(node_mappings, args):
+            if node_map is None:
                 other_samples = other.samples()
                 if len(other_samples) != len(samples):
                     raise ValueError(
                         "each `other` must have the same number of samples as `self`"
                     )
-                node_mapping = np.full(other.num_nodes, tskit.NULL, dtype=np.int32)
-                node_mapping[other_samples] = samples
+                node_map = np.full(other.num_nodes, tskit.NULL, dtype=np.int32)
+                node_map[other_samples] = samples
             other_tables = other.dump_tables()
             other_tables.shift(tables.sequence_length, record_provenance=False)
             tables.sequence_length = other_tables.sequence_length
-            # NB: should we use a different default for add_populations?
-            tables.union(
+            tables.merge(
                 other_tables,
-                node_mapping=node_mapping,
-                check_shared_equality=False,  # Else checks fail with internal samples
-                record_provenance=False,
+                node_mapping=node_map,
                 add_populations=add_populations,
+                check_populations=check_populations,
+                record_provenance=False,
             )
+
         if record_provenance:
             parameters = {
                 "command": "concatenate",
@@ -7435,6 +7448,62 @@ class TreeSequence:
             node_mapping,
             check_shared_equality=check_shared_equality,
             add_populations=add_populations,
+            record_provenance=record_provenance,
+        )
+        return tables.tree_sequence()
+
+    def merge(
+        self,
+        other,
+        node_mapping,
+        *,
+        add_populations=None,
+        check_populations=None,
+        record_provenance=True,
+    ):
+        """
+        Merge another tree sequence into this one, edgewise. Nodes in ``other``
+        whose mapping is set to :data:`tskit.NULL` will be added as new nodes.
+        All other nodes will remain unaltered (hence will be associated with the
+        same populations and individuals as in ``self``). Items that will be ported
+        from ``other`` into ``self`` (and given new IDs) are:
+
+        1. All edges in ``other``
+        2. All migrations in ``other``
+        3. All mutations in ``other``
+        4. Sites whose positions are new to ``self``
+        5. Individuals whose nodes are new to ``self``.
+        6. If ``add_populations=True``, populations whose nodes are new to ``self``
+
+        .. seealso::
+            :meth:`.union` for a combining two tree-sequences nodewise, rather than
+            edgewise.
+
+        :param TableCollection other: Another table collection.
+        :param list node_mapping: An array of node IDs that relate nodes in
+            ``other`` to nodes in ``self``: the k-th element of ``node_mapping``
+            should be the index of the equivalent node in ``self``, or
+            :data:`tskit.NULL` if the node is not present in ``self`` (in which
+            case it will be added to ``self``).
+        :param bool record_provenance: If ``True`` (default), record details of this
+            call to ``merge`` in the returned tree sequence's provenance
+            information (Default: ``True``).
+        :param bool add_populations: If ``True``, populations referenced by nodes new to
+            ``self`` will be added as a new populations. If ``False`` new populations
+            will not be created, and populations with the same ID in ``self`` and the
+            other tree sequences will be reused. Default: ``None``, treated as ``False``.
+        :param bool check_populations: If ``True``, check that the populations referred
+            to from nodes in the other tree sequences are identical to those in ``self``.
+            Default: ``None``, treated as ``True``.
+        :return: A new tree sequence containing the merged tables.
+        :rtype: tskit.TreeSequence
+        """
+        tables = self.dump_tables()
+        tables.merge(
+            other.tables,
+            node_mapping=node_mapping,
+            add_populations=add_populations,
+            check_populations=check_populations,
             record_provenance=record_provenance,
         )
         return tables.tree_sequence()

@@ -261,6 +261,7 @@ which perform the same actions but modify the {class}`TableCollection` in place.
 .. autosummary::
   TreeSequence.simplify
   TreeSequence.subset
+  TreeSequence.merge
   TreeSequence.union
   TreeSequence.concatenate
   TreeSequence.keep_intervals
@@ -753,6 +754,7 @@ a functional way, returning a new tree sequence while leaving the original uncha
   TableCollection.delete_sites
   TableCollection.trim
   TableCollection.shift
+  TableCollection.merge
   TableCollection.union
   TableCollection.delete_older
 ```

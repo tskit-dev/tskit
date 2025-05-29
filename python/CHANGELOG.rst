@@ -7,11 +7,18 @@
 - ``TreeSequence.map_to_vcf_model`` now also returns the transformed positions and
   contig length. (:user:`benjeffery`, :pr:`XXXX`, :issue:`3173`)
 
+- New ``merge`` functions for tree sequences and table collections, to merge another
+  into the current one (:user:`hyanwong`, :pr:`3183`, :issue:`3181`)
+
 **Bugfixes**
 
 - Fix bug in ``TreeSequence.pair_coalescence_counts`` when ``span_normalise=True``
   and a window breakpoint falls within an internal missing interval.
   (:user:`nspope`, :pr:`3176`, :issue:`3175`)
+
+- Change ``TreeSequence.concatenate`` to use ``merge``, as ``union`` does not
+  port edges, sites, or mutations from the added tree sequences if they are associated
+  with shared nodes (:user:`hyanwong`, :pr:`3183`, :issue:`3168`, :issue:`3182`)
 
 --------------------
 [0.6.4] - 2025-05-21
