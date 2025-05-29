@@ -2321,6 +2321,9 @@ typedef struct {
     tsk_bitset_t ss_AB_samples;
 } two_locus_work_t;
 
+typedef int norm_func_t(tsk_size_t result_dim, const double *hap_weights, tsk_size_t n_a,
+    tsk_size_t n_b, double *result, void *params);
+
 static int
 two_locus_work_init(tsk_size_t max_alleles, tsk_size_t result_dim, tsk_size_t state_dim,
     tsk_size_t num_samples, two_locus_work_t *out)
