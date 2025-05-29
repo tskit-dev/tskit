@@ -5047,6 +5047,13 @@ class TestUnionTables(unittest.TestCase):
         uni.union(empty_tables, [])
         tables.assert_equals(uni, ignore_provenance=True)
 
+    def test_contradictory_children(self):
+        # these are identical
+        ts1 = tskit.Tree.generate_comb(2, span=2).tree_sequence
+        ts2 = tskit.Tree.generate_comb(2, span=2).tree_sequence
+        with pytest.raises(_tskit.LibraryError, match="contradictory children"):
+            _ = ts1.union(ts2, node_mapping=[0, 1, -1])
+
     def test_noshared_example(self):
         ts1 = self.get_msprime_example(sample_size=3, T=2, seed=9328)
         ts2 = self.get_msprime_example(sample_size=3, T=2, seed=2125)
