@@ -7402,7 +7402,14 @@ class TreeSequence:
            added mutation.
 
         By default, populations of newly added nodes are assumed to be new
-        populations, and added to the population table as well.
+        populations, and added to the population table as well. This can be
+        thought of as a "node-wise" union: for instance, it can not be used
+        to add new edges between two nodes already in ``self`` or new mutations
+        above nodes already in ``self``.
+
+        If the resulting tree sequence is invalid (for instance, a node is
+        specified to have two distinct parents on the same interval),
+        an error will be raised.
 
         Note that this operation also sorts the resulting tables, so the
         resulting tree sequence may not be equal to ``self`` even if nothing
