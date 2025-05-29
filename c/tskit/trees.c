@@ -2313,67 +2313,8 @@ get_all_samples_bits(tsk_bit_array_t *all_samples, tsk_size_t n)
     }
 }
 
-typedef struct {
-    double *weights;
-    double *norm;
-    double *result_tmp;
-    tsk_bit_array_t AB_samples;
-    tsk_bit_array_t ss_A_samples;
-    tsk_bit_array_t ss_B_samples;
-    tsk_bit_array_t ss_AB_samples;
-} two_locus_work_t;
-
-static int
-two_locus_work_init(tsk_size_t max_alleles, tsk_size_t result_dim, tsk_size_t state_dim,
-    tsk_size_t num_samples, two_locus_work_t *out)
-{
-    int ret = 0;
-    out->weights = tsk_malloc(3 * state_dim * sizeof(*out->weights));
-    out->norm = tsk_malloc(result_dim * sizeof(*out->norm));
-    out->result_tmp
-        = tsk_malloc(result_dim * max_alleles * max_alleles * sizeof(*out->result_tmp));
-
-    tsk_memset(&out->ss_A_samples, 0, sizeof(out->ss_A_samples));
-    tsk_memset(&out->ss_B_samples, 0, sizeof(out->ss_B_samples));
-    tsk_memset(&out->ss_AB_samples, 0, sizeof(out->ss_AB_samples));
-    tsk_memset(&out->AB_samples, 0, sizeof(out->AB_samples));
-
-    if (out->weights == NULL || out->norm == NULL || out->result_tmp == NULL) {
-        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
-        goto out;
-    }
-
-    ret = tsk_bit_array_init(&out->AB_samples, num_samples, 1);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_bit_array_init(&out->ss_A_samples, num_samples, 1);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_bit_array_init(&out->ss_B_samples, num_samples, 1);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_bit_array_init(&out->ss_AB_samples, num_samples, 1);
-    if (ret != 0) {
-        goto out;
-    }
-out:
-    return ret;
-}
-
-static void
-two_locus_work_free(two_locus_work_t *work)
-{
-    tsk_safe_free(work->weights);
-    tsk_safe_free(work->norm);
-    tsk_safe_free(work->result_tmp);
-    tsk_bit_array_free(&work->AB_samples);
-    tsk_bit_array_free(&work->ss_A_samples);
-    tsk_bit_array_free(&work->ss_B_samples);
-    tsk_bit_array_free(&work->ss_AB_samples);
-}
+typedef int norm_func_t(tsk_size_t result_dim, const double *hap_weights, tsk_size_t n_a,
+    tsk_size_t n_b, double *result, void *params);
 
 static int
 compute_general_two_site_stat_result(const tsk_bit_array_t *site_a_state,
