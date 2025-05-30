@@ -4263,7 +4263,8 @@ class TableCollection(metadata.MetadataProvider):
                     i >= self.populations.num_rows
                     or self.populations[i] != other.populations[i]
                 ):
-                    raise ValueError("Non-matching populations")
+                    raise ValueError(f"Non-matching populations:\n   self: {self.populations[i]}"
+                                                  f"\n   self: {other.populations[i]}")
         individual_map = {}
         population_map = {}
         for new_node in np.where(node_map == tskit.NULL)[0]:
