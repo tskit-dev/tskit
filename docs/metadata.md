@@ -658,7 +658,7 @@ Metadata processing can be disabled and raw bytes stored/retrieved. See
 ## Structured array metadata
 
 If the `struct` codec is used for metadata then the metadata can be very efficiently
-accessed via a `numpy` [structured array](https://numpy.org/doc/stable/user/basics.rec.html) via the `ts.X_metadata` property, e.g. {meth}`TreeSequence.individuals_metadata`. The codec must meet the following requirements for this to work:
+accessed via a `numpy` [structured array](https://numpy.org/doc/stable/user/basics.rec.html) via the `ts.X_metadata` property, e.g. {attr}`TreeSequence.individuals_metadata`. The codec must meet the following requirements for this to work:
 
 1. The metadata for a given object must be of a fixed size. This means that
    variable length arrays are not permitted, such that the `length` property
