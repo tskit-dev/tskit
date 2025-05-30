@@ -5972,6 +5972,10 @@ class TreeSequence:
         :ref:`sec_mutation_table_definition` as a numpy array (dtype=np.int32).
         Equivalent to ``ts.tables.mutations.site`` (but avoiding the full copy
         of the table data that accessing ``ts.tables`` currently entails).
+
+        .. note::
+            To efficently get an array of the number of mutations per site, you
+            can use ``np.bincount(ts.mutations_site, minlength=ts.num_sites)``.
         """
         return self._mutations_site
 
