@@ -22,6 +22,7 @@
 """
 Test cases for two-locus statistics
 """
+
 import contextlib
 import io
 import itertools
