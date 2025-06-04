@@ -5,7 +5,7 @@
 **Features**
 
 - ``TreeSequence.map_to_vcf_model`` now also returns the transformed positions and
-  contig length. (:user:`benjeffery`, :pr:`XXXX`, :issue:`3173`)
+  contig length. (:user:`benjeffery`, :pr:`3174`, :issue:`3173`)
 
 **Bugfixes**
 
