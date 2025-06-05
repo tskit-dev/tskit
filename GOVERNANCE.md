@@ -47,14 +47,14 @@ Steering Council (TSC). This role is defined on a per-repository basis.
 
 The tskit Steering Council (TSC) has the following responsibilities:
 
-- Management of the tskit-dev GitHub organization
-- Administration of the repositories listed above
-- Addition and removal of maintainers to those repositories
-- Addition and removal of members of the tskit-dev Slack
-- Addition and removal of repositories from this governance model
-- Approval of changes to this governance model
-- Resolution of disputes between maintainers and contributors
-- Response to emails on the admin@tskit.dev address
+- Management of the tskit-dev GitHub organization, including the addition and removal of members.
+- Administration of the repositories listed above.
+- Addition and removal of maintainers to those repositories.
+- Addition and removal of members of the tskit-dev Slack.
+- Addition and removal of repositories from this governance model.
+- Approval of changes to this governance model.
+- Resolution of disputes between maintainers and contributors.
+- Response to emails on the admin@tskit.dev address.
 - Management of release artifacts on package indexes such as PyPI, conda-forge.
 
 The steering council consists of a small number of people. This should always be an odd number to ensure a simple majority vote outcome is always possible. Currently this is:
