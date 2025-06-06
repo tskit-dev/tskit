@@ -2281,11 +2281,11 @@ class TestDrawSvg(TestDrawSvgBase):
             svg = ts.draw_svg(time_scale=time_scale, x_lim=[0, ts.sequence_length])
             self.verify_basic_svg(svg)
             assert svg.count("<rect") == 10  # Sample nodes are rectangles
-            assert svg.count('<path class="edge"') == 0
+            assert svg.count('<path class="edge') == 0
         svg = ts.draw_svg(force_root_branch=True, x_lim=[0, ts.sequence_length])
         self.verify_basic_svg(svg)
         assert svg.count("<rect") == 10
-        assert svg.count('<path class="edge"') == 10
+        assert svg.count('<path class="edge') == 10
 
     def test_no_edges_with_muts(self):
         # If there is a mutation above a sample, the root branches should be there too
@@ -2299,7 +2299,7 @@ class TestDrawSvg(TestDrawSvgBase):
         svg = ts.draw_svg()
         self.verify_basic_svg(svg)
         assert svg.count("<rect") == 10
-        assert svg.count('<path class="edge"') == 10
+        assert svg.count('<path class="edge') == 10
         assert svg.count('<path class="sym"') == ts.num_mutations
         assert svg.count('<line class="sym"') == ts.num_sites
 
@@ -2435,18 +2435,15 @@ class TestDrawSvg(TestDrawSvgBase):
         self.verify_basic_svg(svg2a)
         self.verify_basic_svg(svg2b)
         # Last <path> should be the root branch, if it exists
-        edge_str = '<path class="edge" d='
+        edge_str = '<path class="edge root" d='
         str_pos1 = svg1.rfind(edge_str, 0, svg1.find(f">{root1}<"))
-        str_pos2a = svg2a.rfind(edge_str, 0, svg2a.find(f">{root2}<"))
+        assert edge_str not in svg2a
         str_pos2b = svg2b.rfind(edge_str, 0, svg2b.find(f">{root2}<"))
         snippet1 = svg1[str_pos1 + len(edge_str) : svg1.find(">", str_pos1)]
-        snippet2a = svg2a[str_pos2a + len(edge_str) : svg2a.find(">", str_pos2a)]
         snippet2b = svg2b[str_pos2b + len(edge_str) : svg2b.find(">", str_pos2b)]
         assert snippet1.startswith('"M 0 0')
-        assert snippet2a.startswith('"M 0 0')
         assert snippet2b.startswith('"M 0 0')
         assert "H 0" in snippet1
-        assert not ("H 0" in snippet2a)  # No root branch
         assert "H 0" in snippet2b
 
     def test_debug_box(self):
@@ -2490,6 +2487,16 @@ class TestDrawSvg(TestDrawSvgBase):
         site_strings_in_stylesheet = svg.count(".site")
         assert svg.count("site") - site_strings_in_stylesheet == num_sites
         self.verify_basic_svg(svg, width=200 * (max_trees + 1))
+
+    def test_edge_ids(self):
+        ts = self.get_simple_ts()
+        for tree in ts.trees():
+            svg = tree.draw_svg()
+            mut_nodes = {m.node for m in tree.mutations()}
+            assert svg.count('"edge root"') == (1 if tree.root in mut_nodes else 0)
+            edges = {tree.edge(u) for u in tree.nodes()}
+            for e in range(tree.num_edges):
+                assert svg.count(f'"edge e{e}"') == (1 if e in edges else 0)
 
     def test_draw_tree_symbol_titles(self):
         tree = self.get_binary_tree()

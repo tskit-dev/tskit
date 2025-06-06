@@ -7,6 +7,9 @@
 - ``TreeSequence.map_to_vcf_model`` now also returns the transformed positions and
   contig length. (:user:`benjeffery`, :pr:`3174`, :issue:`3173`)
 
+- ``draw_svg()`` methods now associate tree branches with edge IDs
+  (:user:`hyanwong`, :pr:`3193`, :issue:`557`)
+
 **Bugfixes**
 
 - Fix bug in ``TreeSequence.pair_coalescence_counts`` when ``span_normalise=True``

@@ -8,7 +8,7 @@
 			<g class="c2 node n14 root" transform="translate(115 26.8)">
 				<g class="a14 c2 node n10" transform="translate(-45 47.1333)">
 					<g class="a10 c2 node n8" transform="translate(-30 47.1333)">
-						<path class="edge" d="M 0 0 V -47.1333 H 30"/>
+						<path class="edge e8" d="M 0 0 V -47.1333 H 30"/>
 						<circle class="sym" cx="0" cy="0" r="3"/>
 						<polygon class="sym multi" points="3.0,0 6,6 -6,6 -3.0,0"/>
 						<text class="lab summary" font-style="italic" transform="translate(0 12)">
@@ -19,25 +19,25 @@
 					</g>
 					<g class="a10 c2 node n9" transform="translate(30 47.1333)">
 						<g class="a9 leaf node n2 sample" transform="translate(-20 47.1333)">
-							<path class="edge" d="M 0 0 V -47.1333 H 20"/>
+							<path class="edge e2" d="M 0 0 V -47.1333 H 20"/>
 							<rect class="sym" height="6" width="6" x="-3" y="-3"/>
 							<text class="lab" transform="translate(0 11)">2</text>
 						</g>
 						<g class="a9 leaf node n3 sample" transform="translate(20 47.1333)">
-							<path class="edge" d="M 0 0 V -47.1333 H -20"/>
+							<path class="edge e3" d="M 0 0 V -47.1333 H -20"/>
 							<rect class="sym" height="6" width="6" x="-3" y="-3"/>
 							<text class="lab" transform="translate(0 11)">3</text>
 						</g>
-						<path class="edge" d="M 0 0 V -47.1333 H -30"/>
+						<path class="edge e9" d="M 0 0 V -47.1333 H -30"/>
 						<circle class="sym" cx="0" cy="0" r="3"/>
 						<text class="lab rgt" transform="translate(3 -7)">9</text>
 					</g>
-					<path class="edge" d="M 0 0 V -47.1333 H 45"/>
+					<path class="edge e12" d="M 0 0 V -47.1333 H 45"/>
 					<circle class="sym" cx="0" cy="0" r="3"/>
 					<text class="lab lft" transform="translate(-3 -7)">10</text>
 				</g>
 				<g class="a14 c2 node n13" transform="translate(45 47.1333)">
-					<path class="edge" d="M 0 0 V -47.1333 H -45"/>
+					<path class="edge e13" d="M 0 0 V -47.1333 H -45"/>
 					<circle class="sym" cx="0" cy="0" r="3"/>
 					<polygon class="sym multi" points="3.0,0 6,6 -6,6 -3.0,0"/>
 					<text class="lab summary" font-style="italic" transform="translate(0 12)">
