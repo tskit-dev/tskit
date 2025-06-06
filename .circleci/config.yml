@@ -122,6 +122,12 @@ commands:
             python -m pytest -n2
 
       - run:
+          name: Build cython example LWT interface code and run
+          command: |
+            cd python/lwt_interface/cython_example
+            make
+
+      - run:
           name: Generate coverage
           command: |
             # Make sure the C coverage reports aren't lying around
