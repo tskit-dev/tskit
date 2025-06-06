@@ -1614,6 +1614,10 @@ class SvgTree(SvgAxisPlot):
     PolytomyLine = collections.namedtuple(
         "PolytomyLine", "num_branches, num_samples, line_pos"
     )
+    margin_left = 20
+    margin_right = 20
+    margin_top = 10  # oldest point is line_height below or 2*line_height if title given
+    margin_bottom = 15  # youngest plot points are line_height above this bottom margin
 
     def __init__(
         self,
@@ -1821,10 +1825,10 @@ class SvgTree(SvgAxisPlot):
                 add_class(self.mutation_label_attrs[m], "lab")
 
         self.set_spacing(
-            top=10 if title is None else 10 + self.line_height,
-            left=20,
-            bottom=15,
-            right=20,
+            top=self.margin_top + (0 if title is None else self.line_height),
+            left=self.margin_left,
+            bottom=self.margin_bottom,
+            right=self.margin_right,
         )
         if title is not None:
             self.add_text_in_group(
