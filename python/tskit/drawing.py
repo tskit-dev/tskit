@@ -2137,6 +2137,7 @@ class SvgTree(SvgAxisPlot):
         tree = self.tree
         left_child = get_left_child(tree, self.postorder_nodes)
         parent_array = tree.parent_array
+        edge_array = tree.edge_array
 
         node_info = {}
         roots = []  # Roots of the displated tree
@@ -2224,7 +2225,10 @@ class SvgTree(SvgAxisPlot):
                     dx, dy = 0, -root_branch_l
                     draw_edge_above_node = True
             if draw_edge_above_node:
-                add_class(self.edge_attrs[u], "edge")
+                edge_id_class = (
+                    "root" if edge_array[u] == tskit.NULL else f"e{edge_array[u]}"
+                )
+                add_class(self.edge_attrs[u], f"edge {edge_id_class}")
                 path = dwg.path(
                     [("M", o), ("V", rnd(dy)), ("H", rnd(dx))], **self.edge_attrs[u]
                 )
