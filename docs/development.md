@@ -79,21 +79,20 @@ $ sudo apt install python3-dev python-is-python3 build-essential doxygen
 ```
 
 Python packages required for development are listed in `python/requirements/development.txt`.
-These can be installed using `pip`::
+These can be installed using `pip`. We recommend using an isolated environment as below:
 
 ```bash
+$ python3 -m venv env
+$ source env/bin/activate
 $ python3 -m pip install -r python/requirements/development.txt
 ```
-
-You may wish isolate your development environment using a `virtualenv
-<https://docs.python-guide.org/dev/virtualenvs/>`_.
 
 A few extra dependencies are required if you wish to work on the
 {ref}`C library <sec_development_c_requirements>`.
 
 For OSX and Windows users we recommending using
-[conda](https://docs.conda.io/projects/conda/en/latest/)_,
-and isolating development in a dedicated environment as follows::
+[conda](https://docs.conda.io/projects/conda/en/latest/),
+and isolating development in a dedicated environment as follows:
 
 ```bash
 $ conda env create -f python/requirements/development.yml
