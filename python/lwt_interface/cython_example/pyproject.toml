@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=64", "wheel", "Cython", "numpy"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tskit_cython_example"
+version = "0.0.1"
+description = "Cython example for tskit"
+authors = [{name = "tskit developers"}]
+dependencies = ["numpy", "Cython"]
+
+[tool.setuptools]
+packages = []
