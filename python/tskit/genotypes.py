@@ -233,6 +233,36 @@ class Variant:
         """
         self._ll_variant.decode(site_id)
 
+    def next(self):  # noqa A002
+        """
+        Decode the variant at the next site, returning True if successful, False
+        if the variant is already at the last site. If the variant has not yet been
+        decoded, decode the variant at the first site.
+        """
+        if self._ll_variant.site_id == self.tree_sequence.num_sites - 1:
+            # TODO: should also set the variant to the null state
+            return False
+        if self._ll_variant.site_id == tskit.NULL:
+            self.decode(0)
+        else:
+            self.decode(self._ll_variant.site_id + 1)
+        return True
+
+    def prev(self):
+        """
+        Decode the variant at the previous site, returning True if successful, False
+        if the variant is already at the first site. If the variant has not yet been
+        decoded at any site, decode the variant at the last site.
+        """
+        if self._ll_variant.site_id == 0:
+            # TODO: should also set the variant to the null state
+            return False
+        if self._ll_variant.site_id == tskit.NULL:
+            self.decode(self.tree_sequence.num_sites - 1)
+        else:
+            self.decode(self._ll_variant.site_id - 1)
+        return True
+
     def copy(self) -> Variant:
         """
         Create a copy of this Variant. Note that calling :meth:`decode` on the
