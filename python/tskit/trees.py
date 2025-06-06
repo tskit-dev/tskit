@@ -1889,7 +1889,8 @@ class Tree:
             0.3.6)
         :param node_labels: If specified, show custom labels for the nodes
             (specified by ID) that are present in this map; any nodes not present will
-            not have a label.
+            not have a label. To use a metadata key, for example, use
+            ``node_labels={node.id: node.metadata["key"] for node in ts.nodes()}``.
         :type node_labels: dict(int, str)
         :param mutation_labels: If specified, show custom labels for the
             mutations (specified by ID) that are present in the map; any mutations
