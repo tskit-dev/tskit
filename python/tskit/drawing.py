@@ -894,6 +894,13 @@ class SvgPlot:
         self.dwg_base = dwg.add(dwg.g(class_=svg_class))
         self.drawing = dwg
 
+    def draw(self, path=None):
+        output = self.drawing.tostring()
+        if path is not None:
+            # TODO remove the 'pretty' when we are done debugging this.
+            self.drawing.saveas(path, pretty=True)
+        return SVGString(output)
+
     def get_plotbox(self):
         """
         Get the svgwrite plotbox, creating it if necessary.
