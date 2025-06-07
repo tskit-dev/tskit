@@ -860,6 +860,8 @@ class SvgPlot:
 
     text_height = 14  # May want to calculate this based on a font size
     line_height = text_height * 1.2  # allowing padding above and below a line
+    default_width = 200  # for a single tree
+    default_height = 200
 
     def __init__(
         self,
@@ -1361,7 +1363,7 @@ class SvgTreeSequence(SvgAxisPlot):
         use_skipped = np.append(np.diff(self.tree_status & OMIT_MIDDLE == 0) == 1, 0)
         num_plotboxes = np.sum(np.logical_or(use_tree, use_skipped))
         if size is None:
-            size = (200 * int(num_plotboxes), 200)
+            size = (self.default_width * int(num_plotboxes), self.default_height)
         if max_time is None:
             max_time = "ts"
         if min_time is None:
@@ -1674,7 +1676,7 @@ class SvgTree(SvgAxisPlot):
                 stacklevel=4,
             )
         if size is None:
-            size = (200, 200)
+            size = (self.default_width, self.default_height)
         if symbol_size is None:
             symbol_size = 6
         self.symbol_size = symbol_size
