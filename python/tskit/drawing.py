@@ -134,7 +134,7 @@ class Element:
 
 
 class Drawing:
-    def __init__(self, size=None, preamble=None, **kwargs):
+    def __init__(self, size=None, **kwargs):
         kwargs = {
             "version": "1.1",
             "xmlns": "http://www.w3.org/2000/svg",
@@ -148,8 +148,7 @@ class Drawing:
             kwargs["height"] = size[1]
 
         self.root = Element("svg", **kwargs)
-        if preamble is not None:
-            self.root.add(preamble)
+        self.root.add("")  # First root elem is a blank preamble
         self.defs = Element("defs")
         self.root.add(self.defs)
 
@@ -881,8 +880,9 @@ class SvgPlot:
             root_svg_attributes = {}
         if canvas_size is None:
             canvas_size = size
-        dwg = Drawing(size=canvas_size, preamble=None, **root_svg_attributes)
+        dwg = Drawing(size=canvas_size, **root_svg_attributes)
 
+        self.preamble = preamble
         self.image_size = size
         self.plotbox = Plotbox(size)
         self.root_groups = {}
@@ -893,6 +893,8 @@ class SvgPlot:
         self.drawing = dwg
 
     def draw(self, path=None):
+        if self.preamble is not None:
+            self.drawing.root.children[0] = self.preamble
         output = self.drawing.tostring()
         if path is not None:
             # TODO remove the 'pretty' when we are done debugging this.
