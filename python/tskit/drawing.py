@@ -134,7 +134,7 @@ class Element:
 
 
 class Drawing:
-    def __init__(self, size=None, debug=False, preamble=None, **kwargs):
+    def __init__(self, size=None, debug=False, **kwargs):
         kwargs = {
             "version": "1.1",
             "xmlns": "http://www.w3.org/2000/svg",
@@ -148,8 +148,6 @@ class Drawing:
             kwargs["height"] = size[1]
 
         self.root = Element("svg", **kwargs)
-        if preamble is not None:
-            self.root.add(preamble)
         self.defs = Element("defs")
         self.root.add(self.defs)
 
@@ -860,6 +858,8 @@ class SvgPlot:
 
     text_height = 14  # May want to calculate this based on a font size
     line_height = text_height * 1.2  # allowing padding above and below a line
+    default_width = 200  # for a single tree
+    default_height = 200
 
     def __init__(
         self,
@@ -879,18 +879,26 @@ class SvgPlot:
             root_svg_attributes = {}
         if canvas_size is None:
             canvas_size = size
-        dwg = Drawing(
-            size=canvas_size, debug=True, preamble=preamble, **root_svg_attributes
-        )
+        dwg = Drawing(size=canvas_size, debug=True, **root_svg_attributes)
 
         self.image_size = size
         self.plotbox = Plotbox(size)
         self.root_groups = {}
         self.svg_class = svg_class
         self.timescaling = None
+        self.preamble = preamble
         self.root_svg_attributes = root_svg_attributes
         self.dwg_base = dwg.add(dwg.g(class_=svg_class))
         self.drawing = dwg
+
+    def draw(self, path=None):
+        if self.preamble is not None:
+            self.drawing.root.children.insert(0, self.preamble)
+        output = self.drawing.tostring()
+        if path is not None:
+            # TODO remove the 'pretty' when we are done debugging this.
+            self.drawing.saveas(path, pretty=True)
+        return SVGString(output)
 
     def get_plotbox(self):
         """
@@ -1361,7 +1369,7 @@ class SvgTreeSequence(SvgAxisPlot):
         use_skipped = np.append(np.diff(self.tree_status & OMIT_MIDDLE == 0) == 1, 0)
         num_plotboxes = np.sum(np.logical_or(use_tree, use_skipped))
         if size is None:
-            size = (200 * int(num_plotboxes), 200)
+            size = (self.default_width * int(num_plotboxes), self.default_height)
         if max_time is None:
             max_time = "ts"
         if min_time is None:
@@ -1674,7 +1682,7 @@ class SvgTree(SvgAxisPlot):
                 stacklevel=4,
             )
         if size is None:
-            size = (200, 200)
+            size = (self.default_width, self.default_height)
         if symbol_size is None:
             symbol_size = 6
         self.symbol_size = symbol_size
