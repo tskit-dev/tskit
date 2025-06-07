@@ -546,7 +546,8 @@ order. Often, given a particular order, it is convenient to iterate over each no
 using the {meth}`Tree.nodes` method. However, for high performance algorithms, it
 may be more convenient to access the node indices for a particular order as
 an array, and use this, for example, to index into one of the node arrays (see
-{ref}`sec_topological_analysis_traversal`).
+{ref}`sec_topological_analysis_traversal`). Note that the most efficient of these
+methods is {meth}`Tree.preorder`.
 
 ```{eval-rst}
 Iterator access
