@@ -134,7 +134,7 @@ class Element:
 
 
 class Drawing:
-    def __init__(self, size=None, debug=False, preamble=None, **kwargs):
+    def __init__(self, size=None, preamble=None, **kwargs):
         kwargs = {
             "version": "1.1",
             "xmlns": "http://www.w3.org/2000/svg",
@@ -881,9 +881,7 @@ class SvgPlot:
             root_svg_attributes = {}
         if canvas_size is None:
             canvas_size = size
-        dwg = Drawing(
-            size=canvas_size, debug=True, preamble=preamble, **root_svg_attributes
-        )
+        dwg = Drawing(size=canvas_size, preamble=None, **root_svg_attributes)
 
         self.image_size = size
         self.plotbox = Plotbox(size)
