@@ -1965,7 +1965,7 @@ class Tree:
         :return: An SVG representation of a tree.
         :rtype: SVGString
         """
-        draw = drawing.SvgTree(
+        svgtree = drawing.SvgTree(
             self,
             size,
             time_scale=time_scale,
@@ -1996,11 +1996,7 @@ class Tree:
             preamble=preamble,
             **kwargs,
         )
-        output = draw.drawing.tostring()
-        if path is not None:
-            # TODO: removed the pretty here when this is stable.
-            draw.drawing.saveas(path, pretty=True)
-        return drawing.SVGString(output)
+        return svgtree.draw(path)
 
     def draw(
         self,
@@ -7600,7 +7596,7 @@ class TreeSequence:
             strictly within an empty region then that tree will not be plotted on the
             right hand side, and the X axis will end at ``empty_tree.interval.left``
         """
-        draw = drawing.SvgTreeSequence(
+        svgtreesequence = drawing.SvgTreeSequence(
             self,
             size,
             x_scale=x_scale,
@@ -7630,11 +7626,7 @@ class TreeSequence:
             preamble=preamble,
             **kwargs,
         )
-        output = draw.drawing.tostring()
-        if path is not None:
-            # TODO remove the 'pretty' when we are done debugging this.
-            draw.drawing.saveas(path, pretty=True)
-        return drawing.SVGString(output)
+        return svgtreesequence.draw(path)
 
     def draw_text(
         self,
