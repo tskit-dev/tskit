@@ -10,6 +10,9 @@
 - ``draw_svg()`` methods now associate tree branches with edge IDs
   (:user:`hyanwong`, :pr:`3193`, :issue:`557`)
 
+- ``draw_svg()`` methods now allow the y-axis to be placed on the right-hand side
+  using ``y_axis="right"`` (:user:`hyanwong`, :pr:`3201`)
+
 **Bugfixes**
 
 - Fix bug in ``TreeSequence.pair_coalescence_counts`` when ``span_normalise=True``
