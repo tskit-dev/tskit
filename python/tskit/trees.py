@@ -7103,7 +7103,7 @@ class TreeSequence:
     ):
         r"""
         Concatenate a set of tree sequences to the right of this one, by repeatedly
-        calling {meth}`union` with an (optional)
+        calling :meth:`~TreeSequence.union` with an (optional)
         node mapping for each of the ``others``. If any node mapping is ``None``
         only map the sample nodes between the input tree sequence and this one,
         based on the numerical order of sample node IDs.
@@ -7117,14 +7117,14 @@ class TreeSequence:
         :param Union[list, None] node_mappings: An list of node mappings for each
             input tree sequence in ``args``. Each should either be an array of
             integers of the same length as the number of nodes in the equivalent
-            input tree sequence (see :meth:`union` for details), or ``None``.
-            If ``None``, only sample nodes are mapped to each other.
+            input tree sequence (see :meth:`~TreeSequence.union` for details), or
+            ``None``. If ``None``, only sample nodes are mapped to each other.
             Default: ``None``, treated as ``[None] * len(args)``.
         :param bool record_provenance: If True (default), record details of this
             call to ``concatenate`` in the returned tree sequence's provenance
             information (Default: True).
         :param bool add_populations: If True (default), nodes new to ``self`` will
-            be assigned new population IDs (see :meth:`union`)
+            be assigned new population IDs (see :meth:`~TreeSequence.union`)
         """
         if node_mappings is None:
             node_mappings = [None] * len(args)
