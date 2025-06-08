@@ -7552,9 +7552,11 @@ class TreeSequence:
             draws a box, labelled with the name, on the X axis between the left and
             right positions, and can be used for annotating genomic regions (e.g.
             genes) on the X axis. If ``None`` (default) do not plot any regions.
-        :param bool y_axis: Should the plot have an Y axis line, showing time (or
-            ranked node time if ``time_scale="rank"``. If ``None`` (default)
-            do not plot a Y axis.
+        :param Union[bool, str] y_axis: Should the plot have an Y axis line, showing
+            time. If ``False`` do not plot a Y axis. If ``True``, plot the Y axis on
+            left hand side of the plot. Can also take the strings ``"left"`` or
+            ``"right"``, specifying the side of the plot on which to plot the Y axis.
+            Default: ``None``, treated as ``False``.
         :param str y_label: Place a label to the left of the plot. If ``None`` (default)
             and there is a Y axis, create and place an appropriate label.
         :param Union[list, dict] y_ticks: A list of Y values at which to plot

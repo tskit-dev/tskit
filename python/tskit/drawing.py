@@ -412,6 +412,19 @@ def check_x_lim(x_lim, max_x):
     return x_lim
 
 
+def check_y_axis(y_axis):
+    """
+    Checks the specified y_axis is valid and sets default if None.
+    """
+    if y_axis is None:
+        y_axis = False
+    if y_axis is True:
+        y_axis = "left"
+    if y_axis not in ["left", "right", False]:
+        raise ValueError(f"Unknown y_axis specification: '{y_axis}'.")
+    return y_axis
+
+
 def create_tick_labels(tick_values, decimal_places=2):
     """
     If tick_values are numeric, round the labels to X decimal_places, but do not print
@@ -1019,7 +1032,7 @@ class SvgAxisPlot(SvgPlot):
         dwg.defs.add(dwg.style(style))
         self.debug_box = debug_box
         self.time_scale = check_time_scale(time_scale)
-        self.y_axis = y_axis
+        self.y_axis = check_y_axis(y_axis)
         self.x_axis = x_axis
         if x_label is None and x_axis:
             x_label = "Genome position"
@@ -1049,8 +1062,12 @@ class SvgAxisPlot(SvgPlot):
             self.y_axis_offset += self.line_height
         if self.x_axis:
             bottom += self.x_axis_offset
-        if self.y_axis:
-            left = self.y_axis_offset  # Override user-provided, so y-axis is at x=0
+        if self.y_axis == "left":
+            left = (
+                self.y_axis_offset
+            )  # Override user-provided values, so y-axis is at x=0
+        if self.y_axis == "right":
+            right = self.y_axis_offset
         self.plotbox.set_padding(top, left, bottom, right)
         if self.debug_box:
             self.root_groups["debug"] = self.dwg_base.add(
@@ -1193,8 +1210,9 @@ class SvgAxisPlot(SvgPlot):
         ticks,  # A dict of pos->label
         upper=None,  # In plot coords
         lower=None,  # In plot coords
-        tick_length_left=default_tick_length,
+        tick_length_outer=default_tick_length,  # Positive means towards the outside
         gridlines=None,
+        side="left",  # 'left' or 'right', where the axis is drawn
     ):
         if not self.y_axis and not self.y_label:
             return
@@ -1203,18 +1221,31 @@ class SvgAxisPlot(SvgPlot):
         if lower is None:
             lower = self.plotbox.bottom
         dwg = self.drawing
-        x = rnd(self.y_axis_offset)
+        if side == "left":
+            x = rnd(self.y_axis_offset)
+            width = self.plotbox.right - x
+            direction = -1
+            text_anchor = "end"
+            pos = (0, (upper + lower) / 2)
+            transform = "translate(11) rotate(-90)"
+        else:
+            x = rnd(self.plotbox.max_x - self.y_axis_offset)
+            width = x - self.plotbox.left
+            direction = 1
+            text_anchor = "start"
+            pos = (self.plotbox.max_x, (upper + lower) / 2)
+            transform = "translate(-11) rotate(90)"
         axes = self.get_axes()
         y_axis = axes.add(dwg.g(class_="y-axis"))
         if self.y_label:
             self.add_text_in_group(
                 self.y_label,
                 y_axis,
-                pos=(0, (upper + lower) / 2),
+                pos=pos,
                 group_class="title",
                 class_="lab",
                 text_anchor="middle",
-                transform="translate(11) rotate(-90)",
+                transform=transform,
             )
         if self.y_axis:
             y_axis.add(dwg.line((x, rnd(lower)), (x, rnd(upper)), class_="ax-line"))
@@ -1228,19 +1259,15 @@ class SvgAxisPlot(SvgPlot):
                     dwg.g(class_="tick", transform=f"translate({x} {rnd(y_pos)})")
                 )
                 if gridlines:
-                    tick.add(
-                        dwg.line(
-                            (0, 0), (rnd(self.plotbox.right - x), 0), class_="grid"
-                        )
-                    )
-                tick.add(dwg.line((0, 0), (rnd(-tick_length_left), 0)))
+                    tick.add(dwg.line((0, 0), (rnd(width), 0), class_="grid"))
+                tick.add(dwg.line((0, 0), (rnd(direction * tick_length_outer), 0)))
                 self.add_text_in_group(
                     # place the origin at the left of the tickmark plus a single px space
                     label,
                     tick,
-                    pos=(rnd(-tick_length_left - 1), 0),
+                    pos=(rnd(direction * (tick_length_outer + 1)), 0),
                     class_="lab",
-                    text_anchor="end",
+                    text_anchor=text_anchor,
                 )
             if len(tick_outside_axis) > 0:
                 logging.warning(
@@ -1485,8 +1512,9 @@ class SvgTreeSequence(SvgAxisPlot):
             ticks=check_y_ticks(y_ticks),
             upper=self.tree_plotbox.top,
             lower=y_low,
-            tick_length_left=self.default_tick_length,
+            tick_length_outer=self.default_tick_length,
             gridlines=y_gridlines,
+            side="right" if y_axis == "right" else "left",
         )
 
         subplot_x = self.plotbox.left
@@ -1878,8 +1906,9 @@ class SvgTree(SvgAxisPlot):
         self.draw_y_axis(
             ticks=check_y_ticks(y_ticks),
             lower=self.timescaling.transform(self.timescaling.min_time),
-            tick_length_left=self.default_tick_length,
+            tick_length_outer=self.default_tick_length,
             gridlines=y_gridlines,
+            side="right" if y_axis == "right" else "left",
         )
         self.draw_tree()
 

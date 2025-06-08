@@ -1578,7 +1578,7 @@ class TestDrawSvg(TestDrawSvgBase):
         svg = t.draw_svg()
         self.verify_basic_svg(svg)
 
-    @pytest.mark.parametrize("y_axis", (True, False))
+    @pytest.mark.parametrize("y_axis", ("left", "right", True, False))
     @pytest.mark.parametrize("y_label", (True, False))
     @pytest.mark.parametrize(
         "time_scale",
@@ -1769,6 +1769,12 @@ class TestDrawSvg(TestDrawSvgBase):
         svg = t.draw_svg(mutation_label_attrs={0: {"stroke": colour}})
         self.verify_basic_svg(svg)
         assert svg.count(f'stroke="{colour}"') == 1
+
+    def test_bad_y_axis(self):
+        t = self.get_binary_tree()
+        for bad_axis in ["te", "asdf", "", [], b"23"]:
+            with pytest.raises(ValueError):
+                t.draw_svg(y_axis=bad_axis)
 
     def test_bad_time_scale(self):
         t = self.get_binary_tree()
@@ -2750,7 +2756,8 @@ class TestDrawKnownSvg(TestDrawSvgBase):
 
     def test_known_svg_tree_timed_root_mut(self, overwrite_viz, draw_plotbox):
         tree = self.get_simple_ts(use_mutation_times=True).at_index(0)
-        svg = tree.draw_svg(debug_box=draw_plotbox)
+        # Also look at y_axis=right
+        svg = tree.draw_svg(debug_box=draw_plotbox, y_axis="right")
         self.verify_known_svg(svg, "tree_timed_muts.svg", overwrite_viz)
 
     def test_known_svg_ts(self, overwrite_viz, draw_plotbox):
@@ -2921,7 +2928,8 @@ class TestDrawKnownSvg(TestDrawSvgBase):
 
     def test_known_svg_ts_mutation_times(self, overwrite_viz, draw_plotbox):
         ts = self.get_simple_ts(use_mutation_times=True)
-        svg = ts.draw_svg(debug_box=draw_plotbox)
+        # also look at y_axis="right"
+        svg = ts.draw_svg(debug_box=draw_plotbox, y_axis="right")
         assert svg.count('class="site ') == ts.num_sites
         assert svg.count('class="mut ') == ts.num_mutations * 2
         self.verify_known_svg(
