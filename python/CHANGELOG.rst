@@ -72,8 +72,11 @@
   values with mutations over roots.
   (:user:`benjeffery`, :pr:`3274`, :issue:`3273`)
 
+- Prevent iterating over a ``TopologyCounter``
+  (:user:`benjeffery` , :pr:`3202`, :issue:`1462`)
 
-**Breaking changes** 
+
+**Breaking changes**
 
 - ``ltrim``, ``rtrim``, ``trim`` and ``shift`` raise an error if used on a tree sequence
   containing a reference sequence (:user:`hyanwong`, :pr:`3210`, :issue:`2091`)
