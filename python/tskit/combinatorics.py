@@ -150,23 +150,43 @@ class TreeNode:
         while root.parent is not None:
             root = root.parent
 
-        # Canonicalise the order of the children within a node. This
-        # is given by (num_leaves, min_label). See also the
-        # RankTree.canonical_order function for the definition of
-        # how these are ordered during rank/unrank.
+        # Canonicalise the order of the children within a node using iterative approach
+        # This replaces the recursive reorder_children function
 
-        def reorder_children(node):
+        # Use post-order traversal to process leaf nodes first, then internal nodes
+        # We need to visit children before parents to compute (num_leaves, min_label)
+
+        # First, collect all nodes in post-order using two stacks
+        stack1 = [root]
+        stack2 = []
+
+        while stack1:
+            node = stack1.pop()
+            stack2.append(node)
+            for child in node.children:
+                stack1.append(child)
+
+        # Now process nodes in reverse order (post-order)
+        # Store results for each node as we compute them
+        node_keys = {}
+
+        while stack2:
+            node = stack2.pop()
+
             if len(node.children) == 0:
-                return 1, node.label
-            keys = [reorder_children(child) for child in node.children]
-            if keys[0] > keys[1]:
-                node.children = node.children[::-1]
-            return (
-                sum(leaf_count for leaf_count, _ in keys),
-                min(min_label for _, min_label in keys),
-            )
+                # Leaf node
+                node_keys[node] = (1, node.label)
+            else:
+                # Internal node - get keys from children
+                keys = [node_keys[child] for child in node.children]
+                if keys[0] > keys[1]:
+                    node.children = node.children[::-1]
+                    keys = keys[::-1]  # Update keys to match new order
 
-        reorder_children(root)
+                node_keys[node] = (
+                    sum(leaf_count for leaf_count, _ in keys),
+                    min(min_label for _, min_label in keys),
+                )
         return root
 
     @classmethod
