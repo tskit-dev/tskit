@@ -541,6 +541,12 @@ class TopologyCounter:
         k = TopologyCounter._to_key(sample_set_indexes)
         self.topologies[k] = counter
 
+    def __iter__(self):
+        raise TypeError(
+            "TopologyCounter object is not iterable, "
+            "iterate over '.topologies' instead"
+        )
+
     @staticmethod
     def _to_key(sample_set_indexes):
         if not isinstance(sample_set_indexes, collections.abc.Iterable):
