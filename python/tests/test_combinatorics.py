@@ -635,6 +635,11 @@ class TestCountTopologies:
                         assert actual_topologies == expected[i][sample_set_indexes]
                     assert actual_topologies == actual_inc_topologies
 
+    def test_no_iterate(self):
+        with pytest.raises(TypeError, match="not iterable"):
+            for _ in tskit.Tree.generate_star(3).count_topologies():
+                pass
+
     def subsample_topologies(self, ts, sample_sets, sample_set_indexes):
         subsample_sets = [sample_sets[i] for i in sample_set_indexes]
         topologies = collections.Counter()
