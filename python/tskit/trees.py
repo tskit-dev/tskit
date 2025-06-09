@@ -920,10 +920,10 @@ class Tree:
         ``sample_sets`` need not include all samples but must be pairwise disjoint.
 
         The returned object is a :class:`tskit.TopologyCounter` that contains
-        counts of topologies per combination of sample sets. For example,
+        counts of topologies per combination of sample sets. For example::
 
-        >>> topology_counter = tree.count_topologies()
-        >>> rank, count = topology_counter[0, 1, 2].most_common(1)[0]
+            topology_counter = tree.count_topologies()
+            rank, count = topology_counter[0, 1, 2].most_common(1)[0]
 
         produces the most common tree topology, with populations 0, 1
         and 2 as its tips, according to the genealogies of those
@@ -941,8 +941,8 @@ class Tree:
         To convert the topology counts to probabilities, divide by the total
         possible number of sample combinations from the sample sets in question::
 
-            >>> set_sizes = [len(sample_set) for sample_set in sample_sets]
-            >>> p = count / (set_sizes[0] * set_sizes[1] * set_sizes[2])
+            set_sizes = [len(sample_set) for sample_set in sample_sets]
+            p = count / (set_sizes[0] * set_sizes[1] * set_sizes[2])
 
         .. warning:: The interface for this method is preliminary and may be subject to
             backwards incompatible changes in the near future.
@@ -968,9 +968,9 @@ class Tree:
     def branch_length(self, u):
         """
         Returns the length of the branch (in units of time) joining the
-        specified node to its parent. This is equivalent to
+        specified node to its parent. This is equivalent to::
 
-        >>> tree.time(tree.parent(u)) - tree.time(u)
+            tree.time(tree.parent(u)) - tree.time(u)
 
         The branch length for a node that has no parent (e.g., a root) is
         defined as zero.
@@ -996,9 +996,9 @@ class Tree:
     def total_branch_length(self):
         """
         Returns the sum of all the branch lengths in this tree (in
-        units of time). This is equivalent to
+        units of time). This is equivalent to::
 
-        >>> sum(tree.branch_length(u) for u in tree.nodes())
+            sum(tree.branch_length(u) for u in tree.nodes())
 
         Note that the branch lengths for root nodes are defined as zero.
 
@@ -1047,7 +1047,7 @@ class Tree:
         Returns the time of the most recent common ancestor of the specified
         nodes. This is equivalent to::
 
-            >>> tree.time(tree.mrca(*args))
+            tree.time(tree.mrca(*args))
 
         .. note::
             If you are using this method to calculate average tmrca values along the
@@ -2023,13 +2023,13 @@ class Tree:
         When working in a Jupyter notebook, use the ``IPython.display.SVG``
         function to display the SVG output from this function inline in the notebook::
 
-            >>> SVG(tree.draw())
+            SVG(tree.draw())
 
         The unicode format uses unicode `box drawing characters
         <https://en.wikipedia.org/wiki/Box-drawing_character>`_ to render the tree.
         This allows rendered trees to be printed out to the terminal::
 
-            >>> print(tree.draw(format="unicode"))
+            print(tree.draw(format="unicode"))
               6
             ┏━┻━┓
             ┃   5
@@ -2041,7 +2041,7 @@ class Tree:
         The ``node_labels`` argument allows the user to specify custom labels
         for nodes, or no labels at all::
 
-            >>> print(tree.draw(format="unicode", node_labels={}))
+            print(tree.draw(format="unicode", node_labels={}))
               ┃
             ┏━┻━┓
             ┃   ┃
@@ -2202,9 +2202,9 @@ class Tree:
         The returned iterator is equivalent to iterating over all sites
         and all mutations in each site, i.e.::
 
-            >>> for site in tree.sites():
-            >>>     for mutation in site.mutations:
-            >>>         yield mutation
+            for site in tree.sites():
+                for mutation in site.mutations:
+                    yield mutation
 
         :return: An iterator over all :class:`Mutation` objects in this tree.
         :rtype: iter(:class:`Mutation`)
@@ -2787,10 +2787,10 @@ class Tree:
 
         For example::
 
-            >>> import networkx as nx
-            >>> nx.DiGraph(tree.as_dict_of_dicts())
-            >>> # undirected graphs work as well
-            >>> nx.Graph(tree.as_dict_of_dicts())
+            import networkx as nx
+            nx.DiGraph(tree.as_dict_of_dicts())
+            # undirected graphs work as well
+            nx.Graph(tree.as_dict_of_dicts())
 
         :return: Dictionary of dictionaries of dictionaries where the first key
             is the source, the second key is the target of an edge, and the
@@ -4984,9 +4984,9 @@ class TreeSequence:
         The returned iterator is equivalent to iterating over all sites
         and all mutations in each site, i.e.::
 
-            >>> for site in tree_sequence.sites():
-            >>>     for mutation in site.mutations:
-            >>>         yield mutation
+            for site in tree_sequence.sites():
+                for mutation in site.mutations:
+                    yield mutation
 
         :return: An iterator over all mutations in this tree sequence.
         :rtype: iter(:class:`Mutation`)
@@ -5017,9 +5017,9 @@ class TreeSequence:
     def breakpoints(self, as_array=False):
         """
         Returns the breakpoints that separate trees along the chromosome, including the
-        two extreme points 0 and L. This is equivalent to
+        two extreme points 0 and L. This is equivalent to::
 
-        >>> iter([0] + [t.interval.right for t in self.trees()])
+            iter([0] + [t.interval.right for t in self.trees()])
 
         By default we return an iterator over the breakpoints as Python float objects;
         if ``as_array`` is True we return them as a numpy array.
