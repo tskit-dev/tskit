@@ -9038,7 +9038,7 @@ test_sort_tables_mutation_times(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Check to make sure we have legal mutations */
-    ret = tsk_treeseq_init(&ts, &tables, 0);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_COMPUTE_MUTATION_PARENTS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_treeseq_copy_tables(&ts, &t1, 0);
@@ -10718,6 +10718,64 @@ test_table_collection_check_integrity_bad_indexes(void)
 }
 
 static void
+test_check_integrity_bad_mutation_parent_topology(void)
+{
+    int ret;
+    tsk_id_t ret_trees;
+    tsk_table_collection_t tables;
+    const char *sites = "0       0\n";
+    /* Make a mutation on a parallel branch the parent*/
+    const char *bad_mutations = "0   0  1  -1\n"
+                                "0   1  1  0\n";
+
+    /* A mutation above is set as child*/
+    const char *reverse_mutations = "0   0  1  -1\n"
+                                    "0   4  1  0\n";
+
+    const char *reverse_sites = "0.5       0\n"
+                                "0       0\n";
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tables.sequence_length = 1;
+    parse_nodes(single_tree_ex_nodes, &tables.nodes);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 7);
+    parse_edges(single_tree_ex_edges, &tables.edges);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 6);
+    parse_sites(sites, &tables.sites);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.num_rows, 1);
+    parse_mutations(bad_mutations, &tables.mutations);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.num_rows, 2);
+    tables.sequence_length = 1.0;
+
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret_trees = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
+    CU_ASSERT_EQUAL_FATAL(ret_trees, 1);
+    ret_trees
+        = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_PARENTS);
+    CU_ASSERT_EQUAL_FATAL(ret_trees, TSK_ERR_BAD_MUTATION_PARENT);
+
+    parse_mutations(reverse_mutations, &tables.mutations);
+    ret_trees = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
+    CU_ASSERT_EQUAL_FATAL(ret_trees, 1);
+    ret_trees
+        = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_PARENTS);
+    CU_ASSERT_EQUAL_FATAL(ret_trees, TSK_ERR_MUTATION_PARENT_AFTER_CHILD);
+
+    /* Now check that TSK_CHECK_MUTATION_PARENTS implies TSK_CHECK_TREES
+       by triggering an error with reversed sites */
+    parse_sites(reverse_sites, &tables.sites);
+    ret_trees
+        = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_PARENTS);
+    CU_ASSERT_EQUAL_FATAL(ret_trees, TSK_ERR_UNSORTED_SITES);
+
+    tsk_table_collection_free(&tables);
+}
+
+static void
 test_table_collection_subset_with_options(tsk_flags_t options)
 {
     int ret;
@@ -11771,6 +11829,8 @@ main(int argc, char **argv)
             test_table_collection_check_integrity_bad_indexes_example },
         { "test_table_collection_check_integrity_bad_indexes",
             test_table_collection_check_integrity_bad_indexes },
+        { "test_check_integrity_bad_mutation_parent_topology",
+            test_check_integrity_bad_mutation_parent_topology },
         { "test_table_collection_subset", test_table_collection_subset },
         { "test_table_collection_subset_unsorted",
             test_table_collection_subset_unsorted },

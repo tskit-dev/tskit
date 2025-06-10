@@ -2427,6 +2427,104 @@ class TestTreeSequence(HighLevelTestCase):
         ):
             ts.impute_unknown_mutations_time(method="foobar")
 
+    @pytest.mark.parametrize(
+        "mutations, error",
+        [
+            ([], None),
+            (
+                [{"node": 0, "parent": -1}, {"node": 1, "parent": -1}],
+                None,
+            ),  # On parallel branches, no parents
+            (
+                [
+                    {"node": 4, "parent": -1},
+                    {"node": 0, "parent": 0},
+                    {"node": 1, "parent": 0},
+                ],
+                None,
+            ),  # On parallel branches, legal parent
+            (
+                [{"node": 0, "parent": -1}, {"node": 0, "parent": 0}],
+                None,
+            ),  # On same node
+            (
+                [{"node": 0, "parent": -1}, {"node": 0, "parent": -1}],
+                "not consistent with the topology",
+            ),  # On same node without parents
+            (
+                [
+                    {"node": 3, "parent": -1},
+                    {"node": 0, "parent": 0},
+                    {"node": 1, "parent": 0},
+                ],
+                "not consistent with the topology",
+            ),  # On parallel branches, parent on parallel branches
+            (
+                [
+                    {"node": 5, "parent": -1},
+                    {"node": 0, "parent": 0},
+                    {"node": 1, "parent": 0},
+                ],
+                "not consistent with the topology",
+            ),  # On parallel branches, parent high on parallel
+            (
+                [
+                    {"node": 3, "parent": -1},
+                    {"node": 0, "parent": 0},
+                    {"node": 7, "parent": 0},
+                ],
+                "not consistent with the topology",
+            ),  # On parallel branches, parent on different root
+            (
+                [
+                    {"node": 0, "parent": -1},
+                    {"node": 1, "parent": 0},
+                ],
+                "not consistent with the topology",
+            ),  # parent on parallel branch
+            (
+                [
+                    {"node": 6, "parent": -1},
+                    {"node": 6, "parent": 0},
+                ],
+                None,
+            ),  # parent above root
+            (
+                [
+                    {"node": 6, "parent": -1},
+                    {"node": 6, "parent": -1},
+                ],
+                "not consistent with the topology",
+            ),  # parent above root, no parents
+        ],
+    )
+    def test_mutation_parent_errors(self, mutations, error):
+        tables = tskit.TableCollection(sequence_length=1)
+        tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
+        tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
+        tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
+        tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
+        tables.nodes.add_row(time=1)
+        tables.nodes.add_row(time=1)
+        tables.nodes.add_row(time=2)
+        tables.nodes.add_row(time=3)
+        tables.edges.add_row(left=0, right=1, parent=4, child=0)
+        tables.edges.add_row(left=0, right=1, parent=4, child=1)
+        tables.edges.add_row(left=0, right=1, parent=5, child=2)
+        tables.edges.add_row(left=0, right=1, parent=5, child=3)
+        tables.edges.add_row(left=0, right=1, parent=6, child=4)
+        tables.edges.add_row(left=0, right=1, parent=6, child=5)
+        tables.sites.add_row(position=0.5, ancestral_state="A")
+
+        for mut in mutations:
+            tables.mutations.add_row(**{"derived_state": "G", "site": 0, **mut})
+
+        if error is not None:
+            with pytest.raises(_tskit.LibraryError, match=error):
+                tables.tree_sequence()
+        else:
+            tables.tree_sequence()
+
 
 class TestSimplify:
     # This class was factored out of the old TestHighlevel class 2022-12-13,
@@ -2707,6 +2805,8 @@ class TestSiteAlleles:
         tables.nodes.add_row(1, 0)  # will not have any mutations => missing
         for j in range(k):
             tables.mutations.add_row(site=0, node=0, derived_state=str(j))
+        tables.build_index()
+        tables.compute_mutation_parents()
         ts = tables.tree_sequence()
         variant = next(ts.variants())
         assert variant.has_missing_data

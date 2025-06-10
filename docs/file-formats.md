@@ -110,8 +110,8 @@ position      ancestral_state
 mutations = """\
 site   node    derived_state    time    parent
 0      0       A                0.5     -1
+1      1       A                1.0     -1
 1      0       T                1.5     -1
-1      1       A                1.0     1
 """
 
 migrations = """\

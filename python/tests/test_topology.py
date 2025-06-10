@@ -1659,9 +1659,9 @@ class TestSimplifyExamples(TopologyTestCase):
         0   0.1         0
         """
         mutations_before = """\
-        site    node    derived_state
-        0       3       2
-        0       4       1
+        site    node    derived_state parent
+        0       4       1             -1
+        0       3       2             0
         """
 
         # We sample 0 and 2
@@ -1682,9 +1682,9 @@ class TestSimplifyExamples(TopologyTestCase):
         0   0.1         0
         """
         mutations_after = """\
-        site    node    derived_state
-        0       2       1
-        0       2       2
+        site    node    derived_state parent
+        0       2       1             -1
+        0       2       2             0
         """
         self.verify_simplify(
             samples=[0, 1],
@@ -1716,10 +1716,10 @@ class TestSimplifyExamples(TopologyTestCase):
         0   1.0         0
         """
         mutations_before = """\
-        site    node    derived_state time
-        0       0       2             0
-        0       1       1             1
-        0       2       3             2
+        site    node    derived_state time parent
+        0       2       3             2    -1
+        0       1       1             1    0
+        0       0       2             0    1
         """
         # expected result without keep_input_roots
         nodes_after = """\
@@ -1730,10 +1730,10 @@ class TestSimplifyExamples(TopologyTestCase):
         left    right   parent  child
         """
         mutations_after = """\
-        site    node    derived_state time
-        0       0       2             0
-        0       0       1             1
-        0       0       3             2
+        site    node    derived_state time parent
+        0       0       3             2    -1
+        0       0       1             1    0
+        0       0       2             0    1
         """
         # expected result with keep_input_roots
         nodes_after_keep = """\
@@ -1746,10 +1746,10 @@ class TestSimplifyExamples(TopologyTestCase):
         0       2       1       0
         """
         mutations_after_keep = """\
-        site    node    derived_state time
-        0       0       2             0
-        0       0       1             1
-        0       1       3             2
+        site    node    derived_state time parent
+        0       1       3             2    -1
+        0       0       1             1    0
+        0       0       2             0    1
         """
         self.verify_simplify(
             samples=[0],
@@ -3828,6 +3828,7 @@ class TestSimplify(SimplifyTestBase):
         tables.mutations.add_row(site=0, node=7, derived_state="1")
         tables.mutations.add_row(site=0, node=5, derived_state="0")
         tables.mutations.add_row(site=0, node=1, derived_state="1")
+        tables.compute_mutation_parents()
         ts = tables.tree_sequence()
         assert ts.num_sites == 1
         assert ts.num_mutations == 3

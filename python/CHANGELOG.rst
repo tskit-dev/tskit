@@ -2,6 +2,15 @@
 [0.6.5] - 2025-0X-XX
 --------------------
 
+**Breaking Changes**
+
+- For a tree seqeunce to be valid mutation parents in the table collection
+  must be correct and consistent with the topology of the tree at each mutation site.
+  ``TableCollection.tree_sequence()`` will raise a ``_tskit.LibraryError`` if this
+  is not the case.
+  (:user:`benjeffery`, :issue:`2729`, :issue:`2732`, :pr:`3212`).
+
+
 **Features**
 
 - ``TreeSequence.map_to_vcf_model`` now also returns the transformed positions and

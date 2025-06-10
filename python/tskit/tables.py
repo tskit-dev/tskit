@@ -3701,8 +3701,8 @@ class TableCollection(metadata.MetadataProvider):
         valid, and the site and mutation tables must be sorted (see
         :meth:`TableCollection.sort`).  This will produce an error if mutations
         are not sorted (i.e., if a mutation appears before its mutation parent)
-        *unless* the two mutations occur on the same branch, in which case
-        there is no way to detect the error.
+        *unless* the two mutations occur on the same branch, and have unknown times
+        in which case there is no way to detect the error.
 
         The ``parent`` of a given mutation is the ID of the next mutation
         encountered traversing the tree upwards from that mutation, or

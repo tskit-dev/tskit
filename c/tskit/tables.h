@@ -785,6 +785,11 @@ All checks needed to define a valid tree sequence. Note that
 this implies all of the above checks.
 */
 #define TSK_CHECK_TREES (1 << 7)
+/**
+Check mutation parents are consistent with topology.
+Implies TSK_CHECK_TREES.
+*/
+#define TSK_CHECK_MUTATION_PARENTS (1 << 8)
 
 /* Leave room for more positive check flags */
 /**
