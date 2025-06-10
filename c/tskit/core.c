@@ -347,6 +347,12 @@ tsk_strerror_internal(int err)
                   "(TSK_ERR_DISALLOWED_UNKNOWN_MUTATION_TIME)";
             break;
 
+        case TSK_ERR_BAD_MUTATION_PARENT:
+            ret = "A mutation's parent is not consistent with the topology of the tree. "
+                  "Use compute_mutation_parents to set the parents correctly."
+                  "(TSK_ERR_BAD_MUTATION_PARENT)";
+            break;
+
         /* Migration errors */
         case TSK_ERR_UNSORTED_MIGRATIONS:
             ret = "Migrations must be sorted by time. (TSK_ERR_UNSORTED_MIGRATIONS)";

@@ -458,7 +458,8 @@ tsk_treeseq_init(
             goto out;
         }
     }
-    num_trees = tsk_table_collection_check_integrity(self->tables, TSK_CHECK_TREES);
+    num_trees = tsk_table_collection_check_integrity(
+        self->tables, TSK_CHECK_TREES | TSK_CHECK_MUTATION_PARENTS);
     if (num_trees < 0) {
         ret = (int) num_trees;
         goto out;
