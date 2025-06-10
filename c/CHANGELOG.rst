@@ -7,6 +7,32 @@
 - Remove ``tsk_diff_iter_t`` and associated functions.
   (:user:`benjeffery`, :pr:`3221`, :issue:`2797`).
 
+- ``tsk_treeseq_init`` now requires that mutation parents in the table collection
+  are correct and consistent with the topology of the tree at each mutation site.
+  Returns ``TSK_ERR_BAD_MUTATION_PARENT`` if this is not the case, or 
+  ``TSK_ERR_MUTATION_PARENT_AFTER_CHILD`` if the mutations are not in an order
+  compatible with the correct mutation parent.
+  (:user:`benjeffery`, :issue:`2729`, :issue:`2732`, :pr:`3212`).
+
+**Features**
+
+- Add ``TSK_TS_INIT_COMPUTE_MUTATION_PARENTS`` to ``tsk_treeseq_init``
+  to compute mutation parents from the tree sequence topology.
+  Note that the mutations must be in the correct order.
+  (:user:`benjeffery`, :issue:`2757`, :pr:`3212`).
+
+- Add ``TSK_CHECK_MUTATION_PARENTS`` option to ``tsk_table_collection_check_integrity``
+  to check that mutation parents are consistent with the tree sequence topology.
+  This option implies ``TSK_CHECK_TREES``.
+  (:user:`benjeffery`, :issue:`2729`, :issue:`2732`, :pr:`3212`).
+
+- Add the ``TSK_NO_CHECK_INTEGRITY`` option to ``tsk_table_collection_compute_mutation_parents``
+  to skip the integrity checks that are normally run when computing mutation parents.
+  This is useful for speeding up the computation of mutation parents when the
+  tree sequence is certainly known to be valid.
+  (:user:`benjeffery`, :pr:`3212`).
+
+
 --------------------
 [1.1.4] - 2025-03-31
 --------------------

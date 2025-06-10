@@ -71,6 +71,11 @@ when the tree sequence is initialised. Indexes are required for a valid
 tree sequence, and are not built by default for performance reasons.
 */
 #define TSK_TS_INIT_BUILD_INDEXES (1 << 0)
+/**
+If specified, mutation parents in the table collection will be overwritten
+with those computed from the topology when the tree sequence is initialised.
+*/
+#define TSK_TS_INIT_COMPUTE_MUTATION_PARENTS (1 << 1)
 /** @} */
 
 // clang-format on

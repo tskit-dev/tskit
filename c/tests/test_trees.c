@@ -3815,16 +3815,16 @@ test_simplest_mutation_edges(void)
                         "1  2   2   0\n";
     const char *sites = "0.5  0\n"
                         "1.5  0\n";
-    const char *mutations = "0    1     1\n"
+    const char *mutations = "0    2     1\n"
+                            "0    1     1\n"
                             "0    0     1\n"
-                            "0    2     1\n"
-                            "1    0     1\n"
+                            "1    2     1\n"
                             "1    1     1\n"
-                            "1    2     1\n";
+                            "1    0     1\n";
     tsk_treeseq_t ts;
     tsk_tree_t tree;
     /* We have mutations over roots, samples and just isolated nodes */
-    tsk_id_t mutation_edges[] = { -1, 0, -1, 1, -1, -1 };
+    tsk_id_t mutation_edges[] = { -1, -1, 0, -1, -1, 1 };
     tsk_size_t i, j, k, t;
     tsk_mutation_t mut;
     tsk_site_t site;
@@ -4167,7 +4167,7 @@ test_single_tree_bad_mutations(void)
     ret = tsk_treeseq_init(&ts, &tables, load_flags);
     CU_ASSERT_EQUAL(ret, TSK_ERR_MUTATION_PARENT_AFTER_CHILD);
     tsk_treeseq_free(&ts);
-    tables.mutations.parent[3] = TSK_NULL;
+    tables.mutations.parent[3] = 2;
 
     /* time < node time */
     tables.mutations.time[2] = 0;
@@ -8559,6 +8559,112 @@ test_init_take_ownership_no_edge_metadata(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_init_compute_mutation_parents(void)
+{
+    int ret;
+    tsk_table_collection_t *tables, *tables2;
+    tsk_treeseq_t ts;
+    const char *sites = "0       0\n";
+    /* Make a mutation on a parallel branch the parent*/
+    const char *bad_mutations = "0   0  1  -1\n"
+                                "0   1  1  0\n";
+
+    tables = tsk_malloc(sizeof(tsk_table_collection_t));
+    CU_ASSERT_NOT_EQUAL_FATAL(tables, NULL);
+    tables2 = tsk_malloc(sizeof(tsk_table_collection_t));
+    CU_ASSERT_NOT_EQUAL_FATAL(tables2, NULL);
+
+    CU_ASSERT_FATAL(tables != NULL);
+    ret = tsk_table_collection_init(tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tables->sequence_length = 1;
+    parse_nodes(single_tree_ex_nodes, &tables->nodes);
+    CU_ASSERT_EQUAL_FATAL(tables->nodes.num_rows, 7);
+    parse_edges(single_tree_ex_edges, &tables->edges);
+    CU_ASSERT_EQUAL_FATAL(tables->edges.num_rows, 6);
+    parse_sites(sites, &tables->sites);
+    CU_ASSERT_EQUAL_FATAL(tables->sites.num_rows, 1);
+    parse_mutations(bad_mutations, &tables->mutations);
+    CU_ASSERT_EQUAL_FATAL(tables->mutations.num_rows, 2);
+    tables->sequence_length = 1.0;
+    ret = tsk_table_collection_copy(tables, tables2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_init(&ts, tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_MUTATION_PARENT);
+    tsk_treeseq_free(&ts);
+
+    ret = tsk_treeseq_init(
+        &ts, tables, TSK_TS_INIT_BUILD_INDEXES | TSK_TS_INIT_COMPUTE_MUTATION_PARENTS);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+
+    /* When we use take ownership, the check of parents shouldn't overwrite them*/
+    ret = tsk_treeseq_init(&ts, tables, TSK_TAKE_OWNERSHIP | TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_MUTATION_PARENT);
+    CU_ASSERT_EQUAL(tables->mutations.parent[0], -1);
+    CU_ASSERT_EQUAL(tables->mutations.parent[1], 0);
+    tsk_treeseq_free(&ts);
+
+    /* When we use take ownership and compute, the tables are overwritten*/
+    ret = tsk_treeseq_init(&ts, tables2,
+        TSK_TAKE_OWNERSHIP | TSK_TS_INIT_BUILD_INDEXES
+            | TSK_TS_INIT_COMPUTE_MUTATION_PARENTS);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(tables2->mutations.parent[0], -1);
+    CU_ASSERT_EQUAL(tables2->mutations.parent[1], -1);
+
+    /* Don't need to free tables as we took ownership */
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_init_compute_mutation_parents_errors(void)
+{
+    int ret;
+    tsk_id_t row_ret;
+    tsk_table_collection_t tables;
+    tsk_treeseq_t ts;
+    const char *sites = "0.5       0\n"
+                        "0         0\n";
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tables.sequence_length = 1;
+    parse_nodes(single_tree_ex_nodes, &tables.nodes);
+    CU_ASSERT_EQUAL_FATAL(tables.nodes.num_rows, 7);
+    parse_edges(single_tree_ex_edges, &tables.edges);
+    CU_ASSERT_EQUAL_FATAL(tables.edges.num_rows, 6);
+    parse_sites(sites, &tables.sites);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.num_rows, 2);
+    tables.sequence_length = 1.0;
+
+    ret = tsk_treeseq_init(
+        &ts, &tables, TSK_TS_INIT_BUILD_INDEXES | TSK_TS_INIT_COMPUTE_MUTATION_PARENTS);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_SITES);
+    tsk_treeseq_free(&ts);
+
+    tsk_site_table_clear(&tables.sites);
+    row_ret = tsk_site_table_add_row(&tables.sites, 0.5, "A", 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(row_ret, 0);
+    row_ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 0, TSK_NULL, TSK_UNKNOWN_TIME, "A", 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(row_ret, 0);
+    row_ret = tsk_mutation_table_add_row(
+        &tables.mutations, 0, 4, TSK_NULL, TSK_UNKNOWN_TIME, "A", 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(row_ret, 1);
+
+    ret = tsk_treeseq_init(
+        &ts, &tables, TSK_TS_INIT_BUILD_INDEXES | TSK_TS_INIT_COMPUTE_MUTATION_PARENTS);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_PARENT_AFTER_CHILD);
+    tsk_treeseq_free(&ts);
+
+    tsk_table_collection_free(&tables);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -8759,6 +8865,9 @@ main(int argc, char **argv)
             test_extend_haplotypes_conflicting_times },
         { "test_init_take_ownership_no_edge_metadata",
             test_init_take_ownership_no_edge_metadata },
+        { "test_init_compute_mutation_parents", test_init_compute_mutation_parents },
+        { "test_init_compute_mutation_parents_errors",
+            test_init_compute_mutation_parents_errors },
         { NULL, NULL },
     };
 

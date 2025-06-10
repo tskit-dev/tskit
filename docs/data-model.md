@@ -507,13 +507,14 @@ requirements for a valid set of mutations are:
   `time` and equal to or less than the `time` of the `parent` mutation
   if this mutation has one. If one mutation on a site has `UNKNOWN_TIME` then
   all mutations at that site must, as a mixture of known and unknown is not valid.
-- `parent` must either be the null ID (-1) or a valid mutation ID within the
-  current table
+- `parent` must either be the null ID (-1), if the mutation has no parent, or a
+  valid mutation ID within the current table. 
 
 Furthermore,
 
-- If another mutation occurs on the tree above the mutation in
-  question, its ID must be listed as the `parent`.
+- The `parent` value must be consistent with the topology of the tree at the site
+  of the mutation, such that a path from the child mutation to the parent mutation
+  exists without passing through any other mutations at the same site.
 
 For simplicity and algorithmic efficiency, mutations must also:
 

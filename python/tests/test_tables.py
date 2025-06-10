@@ -2539,27 +2539,6 @@ class TestSortTables:
         ts = tsutil.remove_mutation_times(ts)
         self.verify_sort(ts.tables, 9182)
 
-    def test_no_mutation_parents(self):
-        # we should maintain relative order of mutations when all else fails:
-        # these tables are not canonicalizable (since we don't sort on derived state)
-        rng = random.Random(7000)
-        alleles = ["A", "B", "C", "D", "E", "F", "G"]
-        for t in [0.5, None]:
-            rng.shuffle(alleles)
-            tables = tskit.TableCollection(sequence_length=1)
-            tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
-            tables.sites.add_row(position=0, ancestral_state="")
-            for a in alleles:
-                tables.mutations.add_row(site=0, node=0, derived_state=a, time=t)
-            tables_canonical = tables.copy()
-            tables_canonical.canonicalise()
-            tables.sort()
-            for t in (tables, tables_canonical):
-                for a, mut in zip(alleles, t.mutations):
-                    assert a == mut.derived_state
-                self.verify_sort_equality(t, 985)
-                self.verify_sort_mutation_consistency(t, 985)
-
     def test_stable_individual_order(self):
         # canonical should retain individual order lacking any other information
         tables = tskit.TableCollection(sequence_length=100)
@@ -2697,7 +2676,7 @@ class TestSortMutations:
         1       0       1               -1
         1       1       1               -1
         0       1       1               -1
-        0       1       0               -1
+        0       1       0               2
         """
         )
         ts = tskit.load_text(
@@ -2806,6 +2785,8 @@ class TestSortMutations:
             """\
         id      is_sample   time
         0       1           -6
+        1       1           -6
+        2       1           -6
         """
         )
         edges = io.StringIO(
@@ -2825,14 +2806,14 @@ class TestSortMutations:
             """\
         site    node    time    derived_state   parent
         2       0       4       a              -1
-        2       0       -5      b              -1
-        2       0       6       c              -1
+        2       1       -5      b              -1
+        2       2       6       c              -1
         1       0       0.5     d              -1
-        1       0       0.5     e              -1
-        1       0       0.5     f              -1
+        1       1       0.5     e              -1
+        1       2       0.5     f              -1
         0       0       1       g              -1
-        0       0       2       h              -1
-        0       0       3       i              -1
+        0       1       2       h              -1
+        0       2       3       i              -1
         """
         )
         ts = tskit.load_text(
@@ -2850,7 +2831,7 @@ class TestSortMutations:
         assert len(sites) == 3
         assert len(mutations) == 9
         assert list(mutations.site) == [0, 0, 0, 1, 1, 1, 2, 2, 2]
-        assert list(mutations.node) == [0, 0, 0, 0, 0, 0, 0, 0, 0]
+        assert list(mutations.node) == [2, 1, 0, 0, 1, 2, 2, 0, 1]
         # Nans are not equal so swap in -1
         times = mutations.time
         times[np.isnan(times)] = -1
@@ -2973,6 +2954,8 @@ class TestMutationTimeErrors:
             """\
         id      is_sample   time
         0       1           0
+        1       1           0
+        2       1           0
         """
         )
         edges = io.StringIO(
@@ -2990,8 +2973,8 @@ class TestMutationTimeErrors:
             """\
         site    node    time    derived_state   parent
         0       0       1       0              -1
-        0       0       2       0              -1
-        0       0       3       0              -1
+        0       1       2       0              -1
+        0       2       3       0              -1
         """
         )
         ts = tskit.load_text(

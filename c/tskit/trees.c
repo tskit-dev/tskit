@@ -458,10 +458,29 @@ tsk_treeseq_init(
             goto out;
         }
     }
-    num_trees = tsk_table_collection_check_integrity(self->tables, TSK_CHECK_TREES);
-    if (num_trees < 0) {
-        ret = (int) num_trees;
-        goto out;
+
+    if (options & TSK_TS_INIT_COMPUTE_MUTATION_PARENTS) {
+        /* As tsk_table_collection_compute_mutation_parents performs an
+           integrity check, and we don't wish to do that twice we perform
+           our own check here */
+        num_trees = tsk_table_collection_check_integrity(self->tables, TSK_CHECK_TREES);
+        if (num_trees < 0) {
+            ret = (int) num_trees;
+            goto out;
+        }
+
+        ret = tsk_table_collection_compute_mutation_parents(
+            self->tables, TSK_NO_CHECK_INTEGRITY);
+        if (ret != 0) {
+            goto out;
+        }
+    } else {
+        num_trees = tsk_table_collection_check_integrity(
+            self->tables, TSK_CHECK_TREES | TSK_CHECK_MUTATION_PARENTS);
+        if (num_trees < 0) {
+            ret = (int) num_trees;
+            goto out;
+        }
     }
     self->num_trees = (tsk_size_t) num_trees;
     self->discrete_genome = true;
