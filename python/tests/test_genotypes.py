@@ -720,7 +720,9 @@ class TestLimitInterval:
         ts = ts_fixture
         test_variant = tskit.Variant(ts)
         test_variant.decode(1)
-        for v in ts.variants(left=ts.site(1).position, right=ts.site(2).position):
+        v_iter = ts.variants(left=ts.site(1).position, right=ts.site(2).position)
+        assert len(v_iter) == 1
+        for v in v_iter:
             # should only decode the first variant
             assert v.site.id == 1
             assert np.all(v.genotypes == test_variant.genotypes)
@@ -745,7 +747,9 @@ class TestLimitInterval:
         for x in range(int(tables.sequence_length)):
             tables.sites.add_row(position=x, ancestral_state="A")
         ts = tables.tree_sequence()
-        positions = [var.site.position for var in ts.variants(left=left)]
+        v_iter = ts.variants(left=left)
+        assert len(v_iter) == len(expected)
+        positions = [var.site.position for var in v_iter]
         assert positions == expected
 
     @pytest.mark.parametrize(
@@ -765,7 +769,9 @@ class TestLimitInterval:
         for x in range(int(tables.sequence_length)):
             tables.sites.add_row(position=x, ancestral_state="A")
         ts = tables.tree_sequence()
-        positions = [var.site.position for var in ts.variants(right=right)]
+        v_iter = ts.variants(right=right)
+        assert len(v_iter) == len(expected)
+        positions = [var.site.position for var in v_iter]
         assert positions == expected
 
     @pytest.mark.parametrize("bad_left", [-1, 10, 100, np.nan, np.inf, -np.inf])
