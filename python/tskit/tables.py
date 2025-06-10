@@ -3887,6 +3887,11 @@ class TableCollection(metadata.MetadataProvider):
             )
 
     def _check_trim_conditions(self):
+        if self.has_reference_sequence():
+            raise ValueError(
+                "Cannot trim if there is a reference sequence. Please remove the "
+                "reference sequence by calling `.reference_sequence.clear()` first."
+            )
         if self.migrations.num_rows > 0:
             if (np.min(self.migrations.left) < np.min(self.edges.left)) and (
                 np.max(self.migrations.right) > np.max(self.edges.right)
@@ -4005,6 +4010,11 @@ class TableCollection(metadata.MetadataProvider):
         :param sequence_length: The new sequence length of the tree sequence. If
             ``None`` (default) add `value` to the sequence length.
         """
+        if self.has_reference_sequence():
+            raise ValueError(
+                "Cannot shift if there is a reference sequence. Please remove the "
+                "reference sequence by calling `.reference_sequence.clear()` first."
+            )
         self.drop_index()
         self.edges.left += value
         self.edges.right += value
