@@ -19,6 +19,11 @@
   and a window breakpoint falls within an internal missing interval.
   (:user:`nspope`, :pr:`3176`, :issue:`3175`)
 
+**Breaking changes** 
+
+- ``ltrim``, ``rtrim``, ``trim`` and ``shift`` raise an error if used on a tree sequence
+  containing a reference sequence (:user:`hyanwong`, :pr:`3210`, :issue:`2091`)
+
 --------------------
 [0.6.4] - 2025-05-21
 --------------------

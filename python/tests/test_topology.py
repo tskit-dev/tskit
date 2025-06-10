@@ -7074,6 +7074,18 @@ class TestTrim(unittest.TestCase):
         with pytest.raises(ValueError):
             ts.trim()
 
+    def test_reference_sequence(self):
+        # Test that we fail if there is a reference sequence
+        tables = tskit.TableCollection(3.0)
+        tables.reference_sequence.data = "ABC"
+        ts = tables.tree_sequence()
+        with pytest.raises(ValueError, match="reference sequence"):
+            ts.ltrim()
+        with pytest.raises(ValueError, match="reference sequence"):
+            ts.rtrim()
+        with pytest.raises(ValueError, match="reference sequence"):
+            ts.trim()
+
 
 class TestShift:
     """
@@ -7139,6 +7151,14 @@ class TestShift:
             tskit.LibraryError, match="TSK_ERR_RIGHT_GREATER_SEQ_LENGTH"
         ):
             ts.shift(1, sequence_length=1)
+
+    def test_reference_sequence(self):
+        # Test that we fail if there is a reference sequence
+        tables = tskit.TableCollection(3.0)
+        tables.reference_sequence.data = "ABC"
+        ts = tables.tree_sequence()
+        with pytest.raises(ValueError, match="reference sequence"):
+            ts.shift(1)
 
 
 class TestConcatenate:
