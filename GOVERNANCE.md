@@ -5,8 +5,9 @@ tskit-dev community for core software projects, to clarify who has what responsi
 and how decisions are made on changes to those responsibilities.
 
 tskit-dev is an open and inclusive community. Anyone with an interest in the
-software and science can contribute discussion, and propose changes to code, documentation
-or website content.
+software and science is welcome to contribute discussion, and propose changes to code,
+documentation or website content, as long as they follow the
+code of conduct](https://github.com/tskit-dev/.github/blob/main/CODE_OF_CONDUCT.md).
 
 # Scope
 
