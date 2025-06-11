@@ -514,7 +514,7 @@ disallowed (use compute_mutation_times?).
 /** 
 A mutation's parent was not consistent with the topology of the tree.
  */
-#define TSK_ERR_BAD_MUTATION_PARENT                                -511
+#define TSK_ERR_BAD_MUTATION_PARENT                                 -511
 
 /** @} */
 

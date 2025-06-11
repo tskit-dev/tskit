@@ -3886,16 +3886,16 @@ test_simplest_mutation_edges(void)
                         "1  2   2   0\n";
     const char *sites = "0.5  0\n"
                         "1.5  0\n";
-    const char *mutations = "0    1     1\n"
+    const char *mutations = "0    2     1\n"
+                            "0    1     1\n"
                             "0    0     1\n"
-                            "0    2     1\n"
-                            "1    0     1\n"
+                            "1    2     1\n"
                             "1    1     1\n"
-                            "1    2     1\n";
+                            "1    0     1\n";
     tsk_treeseq_t ts;
     tsk_tree_t tree;
     /* We have mutations over roots, samples and just isolated nodes */
-    tsk_id_t mutation_edges[] = { -1, 0, -1, 1, -1, -1 };
+    tsk_id_t mutation_edges[] = { -1, -1, 0, -1, -1, 1 };
     tsk_size_t i, j, k, t;
     tsk_mutation_t mut;
     tsk_site_t site;
@@ -4238,7 +4238,7 @@ test_single_tree_bad_mutations(void)
     ret = tsk_treeseq_init(&ts, &tables, load_flags);
     CU_ASSERT_EQUAL(ret, TSK_ERR_MUTATION_PARENT_AFTER_CHILD);
     tsk_treeseq_free(&ts);
-    tables.mutations.parent[3] = TSK_NULL;
+    tables.mutations.parent[3] = 2;
 
     /* time < node time */
     tables.mutations.time[2] = 0;

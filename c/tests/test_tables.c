@@ -9011,7 +9011,7 @@ test_sort_tables_mutation_times(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Check to make sure we have legal mutations */
-    ret = tsk_treeseq_init(&ts, &tables, 0);
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_COMPUTE_MUTATION_PARENTS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_treeseq_copy_tables(&ts, &t1, 0);
