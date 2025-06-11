@@ -10986,8 +10986,8 @@ out:
     return ret;
 }
 
-int TSK_WARN_UNUSED
-tsk_table_collection_compute_mutation_parents_no_integrity_check(
+static int TSK_WARN_UNUSED
+tsk_table_collection_compute_mutation_parents_to_array(
     const tsk_table_collection_t *self, tsk_id_t *mutation_parent)
 {
     int ret = 0;
@@ -11110,10 +11110,8 @@ tsk_table_collection_check_mutation_parents(const tsk_table_collection_t *self)
         ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
-    tsk_memcpy(new_parents, mutations.parent, mutations.num_rows * sizeof(*new_parents));
 
-    ret = tsk_table_collection_compute_mutation_parents_no_integrity_check(
-        self, new_parents);
+    ret = tsk_table_collection_compute_mutation_parents_to_array(self, new_parents);
     if (ret != 0) {
         goto out;
     }
@@ -12504,24 +12502,30 @@ out:
 
 int TSK_WARN_UNUSED
 tsk_table_collection_compute_mutation_parents(
-    tsk_table_collection_t *self, tsk_flags_t TSK_UNUSED(options))
+    tsk_table_collection_t *self, tsk_flags_t options)
 {
     int ret = 0;
-    tsk_id_t num_trees;
     const tsk_mutation_table_t mutations = self->mutations;
 
-    /* Set the mutation parent to TSK_NULL so that we don't use the
-     * parent values we are about to write over. */
-    tsk_memset(mutations.parent, 0xff, mutations.num_rows * sizeof(*mutations.parent));
+    if (!(options & TSK_NO_CHECK_INTEGRITY)) {
+        /* Set the mutation parent to TSK_NULL so that we don't error
+           in the integrity check on data we're about to overwite.
+        */
+        tsk_memset(
+            mutations.parent, 0xff, mutations.num_rows * sizeof(*mutations.parent));
 
-    num_trees = tsk_table_collection_check_integrity(self, TSK_CHECK_TREES);
-    if (num_trees < 0) {
-        ret = (int) num_trees;
-        goto out;
+        /* Safe to cast here as we're not counting trees */
+        ret = (int) tsk_table_collection_check_integrity(self, TSK_CHECK_TREES);
+        if (ret < 0) {
+            goto out;
+        }
     }
 
-    ret = tsk_table_collection_compute_mutation_parents_no_integrity_check(
+    ret = tsk_table_collection_compute_mutation_parents_to_array(
         self, self->mutations.parent);
+    if (ret != 0) {
+        goto out;
+    }
 
 out:
     return ret;

@@ -469,12 +469,8 @@ tsk_treeseq_init(
             goto out;
         }
 
-        /* Set the mutation parent to TSK_NULL so that we don't use the
-           parent values we are about to write over. */
-        tsk_memset(self->tables->mutations.parent, 0xff,
-            self->tables->mutations.num_rows * sizeof(*self->tables->mutations.parent));
-        ret = tsk_table_collection_compute_mutation_parents_no_integrity_check(
-            self->tables, self->tables->mutations.parent);
+        ret = tsk_table_collection_compute_mutation_parents(
+            self->tables, TSK_NO_CHECK_INTEGRITY);
         if (ret != 0) {
             goto out;
         }
