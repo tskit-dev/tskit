@@ -27,7 +27,7 @@ repositories of the tskit software ecosystem. These are:
 
 ## Contributors
 
-Anyone can become a contributor to the tskit-dev project by, for example,
+Anyone is welcome to contribute to the tskit-dev project by, for example,
 
 - proposing, discussing, or reviewing a change to the code, documentation, or specification
   via a GitHub pull request to the above repositories;
