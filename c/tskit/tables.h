@@ -4624,6 +4624,8 @@ int tsk_table_collection_deduplicate_sites(
     tsk_table_collection_t *tables, tsk_flags_t options);
 int tsk_table_collection_compute_mutation_parents(
     tsk_table_collection_t *self, tsk_flags_t options);
+int tsk_table_collection_compute_mutation_parents_no_integrity_check(
+    const tsk_table_collection_t *self, tsk_id_t *mutation_parent);
 int tsk_table_collection_compute_mutation_times(
     tsk_table_collection_t *self, double *random, tsk_flags_t options);
 int tsk_table_collection_delete_older(

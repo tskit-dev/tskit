@@ -10986,7 +10986,7 @@ out:
     return ret;
 }
 
-static int TSK_WARN_UNUSED
+int TSK_WARN_UNUSED
 tsk_table_collection_compute_mutation_parents_no_integrity_check(
     const tsk_table_collection_t *self, tsk_id_t *mutation_parent)
 {
@@ -12561,6 +12561,7 @@ tsk_table_collection_compute_mutation_times(
     for (j = 0; j < mutations.num_rows; j++) {
         mutations.time[j] = TSK_UNKNOWN_TIME;
     }
+    /* TSK_CHECK_MUTATION_PARENTS isn't needed here as we're not using the parents */
     num_trees = tsk_table_collection_check_integrity(self, TSK_CHECK_TREES);
     if (num_trees < 0) {
         ret = (int) num_trees;

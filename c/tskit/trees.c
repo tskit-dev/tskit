@@ -458,6 +458,28 @@ tsk_treeseq_init(
             goto out;
         }
     }
+
+    if (options & TSK_TS_INIT_COMPUTE_MUTATION_PARENTS) {
+        /* As tsk_table_collection_compute_mutation_parents performs an
+           integrity check, and we don't wish to do that twice we perform
+           our own check here */
+        num_trees = tsk_table_collection_check_integrity(self->tables, TSK_CHECK_TREES);
+        if (num_trees < 0) {
+            ret = (int) num_trees;
+            goto out;
+        }
+
+        /* Set the mutation parent to TSK_NULL so that we don't use the
+           parent values we are about to write over. */
+        tsk_memset(self->tables->mutations.parent, 0xff,
+            self->tables->mutations.num_rows * sizeof(*self->tables->mutations.parent));
+        ret = tsk_table_collection_compute_mutation_parents_no_integrity_check(
+            self->tables, self->tables->mutations.parent);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+
     num_trees = tsk_table_collection_check_integrity(
         self->tables, TSK_CHECK_TREES | TSK_CHECK_MUTATION_PARENTS);
     if (num_trees < 0) {
