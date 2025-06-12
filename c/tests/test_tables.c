@@ -10580,6 +10580,7 @@ static void
 test_check_integrity_bad_mutation_parent_topology(void)
 {
     int ret;
+    tsk_id_t ret_trees;
     tsk_table_collection_t tables;
     const char *sites = "0       0\n";
     /* Make a mutation on a parallel branch the parent*/
@@ -10610,22 +10611,25 @@ test_check_integrity_bad_mutation_parent_topology(void)
     ret = tsk_table_collection_build_index(&tables, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_PARENTS);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_MUTATION_PARENT);
+    ret_trees = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
+    CU_ASSERT_EQUAL_FATAL(ret_trees, 1);
+    ret_trees
+        = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_PARENTS);
+    CU_ASSERT_EQUAL_FATAL(ret_trees, TSK_ERR_BAD_MUTATION_PARENT);
 
     parse_mutations(reverse_mutations, &tables.mutations);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_PARENTS);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_PARENT_AFTER_CHILD);
+    ret_trees = tsk_table_collection_check_integrity(&tables, TSK_CHECK_TREES);
+    CU_ASSERT_EQUAL_FATAL(ret_trees, 1);
+    ret_trees
+        = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_PARENTS);
+    CU_ASSERT_EQUAL_FATAL(ret_trees, TSK_ERR_MUTATION_PARENT_AFTER_CHILD);
 
     /* Now check that TSK_CHECK_MUTATION_PARENTS implies TSK_CHECK_TREES
        by triggering an error with reversed sites */
     parse_sites(reverse_sites, &tables.sites);
-    ret = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_PARENTS);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSORTED_SITES);
+    ret_trees
+        = tsk_table_collection_check_integrity(&tables, TSK_CHECK_MUTATION_PARENTS);
+    CU_ASSERT_EQUAL_FATAL(ret_trees, TSK_ERR_UNSORTED_SITES);
 
     tsk_table_collection_free(&tables);
 }
