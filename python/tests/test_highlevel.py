@@ -2972,6 +2972,8 @@ class TestSiteAlleles:
         tables.nodes.add_row(1, 0)  # will not have any mutations => missing
         for j in range(k):
             tables.mutations.add_row(site=0, node=0, derived_state=str(j))
+        tables.build_index()
+        tables.compute_mutation_parents()
         ts = tables.tree_sequence()
         variant = next(ts.variants())
         assert variant.has_missing_data
