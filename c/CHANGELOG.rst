@@ -5,7 +5,7 @@
 **Breaking changes**
 
 - ``tsk_treeseq_init`` now requires that mutation parents in the table collection
-  are correct and consistent with the topology of the tree at the mutation site.
+  are correct and consistent with the topology of the tree at each mutation site.
   Returns ``TSK_ERR_BAD_MUTATION_PARENT`` if this is not the case, or 
   ``TSK_ERR_MUTATION_PARENT_AFTER_CHILD`` if the mutations are not in an order
   compatible with the correct mutation parent.
