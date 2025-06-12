@@ -8715,6 +8715,67 @@ test_init_take_ownership_no_edge_metadata(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_init_compute_mutation_parents(void)
+{
+    int ret;
+    tsk_table_collection_t *tables, *tables2;
+    tsk_treeseq_t ts;
+    const char *sites = "0       0\n";
+    /* Make a mutation on a parallel branch the parent*/
+    const char *bad_mutations = "0   0  1  -1\n"
+                                "0   1  1  0\n";
+
+    tables = tsk_malloc(sizeof(tsk_table_collection_t));
+    CU_ASSERT_NOT_EQUAL_FATAL(tables, NULL);
+    tables2 = tsk_malloc(sizeof(tsk_table_collection_t));
+    CU_ASSERT_NOT_EQUAL_FATAL(tables2, NULL);
+
+    CU_ASSERT_FATAL(tables != NULL);
+    ret = tsk_table_collection_init(tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tables->sequence_length = 1;
+    parse_nodes(single_tree_ex_nodes, &tables->nodes);
+    CU_ASSERT_EQUAL_FATAL(tables->nodes.num_rows, 7);
+    parse_edges(single_tree_ex_edges, &tables->edges);
+    CU_ASSERT_EQUAL_FATAL(tables->edges.num_rows, 6);
+    parse_sites(sites, &tables->sites);
+    CU_ASSERT_EQUAL_FATAL(tables->sites.num_rows, 1);
+    parse_mutations(bad_mutations, &tables->mutations);
+    CU_ASSERT_EQUAL_FATAL(tables->mutations.num_rows, 2);
+    tables->sequence_length = 1.0;
+    ret = tsk_table_collection_copy(tables, tables2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_treeseq_init(&ts, tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_MUTATION_PARENT);
+    tsk_treeseq_free(&ts);
+
+    ret = tsk_treeseq_init(
+        &ts, tables, TSK_TS_INIT_BUILD_INDEXES | TSK_TS_INIT_COMPUTE_MUTATION_PARENTS);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+
+    /* When we use take ownership, the check of parents shouldn't overwrite them*/
+    ret = tsk_treeseq_init(&ts, tables, TSK_TAKE_OWNERSHIP | TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_MUTATION_PARENT);
+    CU_ASSERT_EQUAL(tables->mutations.parent[0], -1);
+    CU_ASSERT_EQUAL(tables->mutations.parent[1], 0);
+    tsk_treeseq_free(&ts);
+
+    /* When we use take ownership and compute, the tables are overwritten*/
+    ret = tsk_treeseq_init(&ts, tables2,
+        TSK_TAKE_OWNERSHIP | TSK_TS_INIT_BUILD_INDEXES
+            | TSK_TS_INIT_COMPUTE_MUTATION_PARENTS);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(tables2->mutations.parent[0], -1);
+    CU_ASSERT_EQUAL(tables2->mutations.parent[1], -1);
+
+    /* Don't need to free tables as we took ownership */
+    tsk_treeseq_free(&ts);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -8923,6 +8984,7 @@ main(int argc, char **argv)
             test_extend_haplotypes_conflicting_times },
         { "test_init_take_ownership_no_edge_metadata",
             test_init_take_ownership_no_edge_metadata },
+        { "test_init_compute_mutation_parents", test_init_compute_mutation_parents },
         { NULL, NULL },
     };
 
