@@ -12505,15 +12505,8 @@ tsk_table_collection_compute_mutation_parents(
     tsk_table_collection_t *self, tsk_flags_t options)
 {
     int ret = 0;
-    const tsk_mutation_table_t mutations = self->mutations;
 
     if (!(options & TSK_NO_CHECK_INTEGRITY)) {
-        /* Set the mutation parent to TSK_NULL so that we don't error
-           in the integrity check on data we're about to overwite.
-        */
-        tsk_memset(
-            mutations.parent, 0xff, mutations.num_rows * sizeof(*mutations.parent));
-
         /* Safe to cast here as we're not counting trees */
         ret = (int) tsk_table_collection_check_integrity(self, TSK_CHECK_TREES);
         if (ret < 0) {
