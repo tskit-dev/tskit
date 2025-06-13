@@ -73,7 +73,7 @@ TSC members may be removed by consensus of the remaining TSC members, or may res
 
 Decisions about the future of the project are made through discussion with all
 members of the community. All non-sensitive project management discussion takes
-place on the issue trackers of the appropriate repositories.
+place in the issue trackers of the appropriate repositories or other public forums.
 Where possible decisions and discussions of the steering council should be documented as issues on the [administrative](https://github.com/tskit-dev/administrative) repository. Sensitive discussion may occur via email to admin@tskit.dev.
 
 tskit uses a "consensus-seeking" process for making decisions. The group tries to
