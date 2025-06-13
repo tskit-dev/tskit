@@ -2792,6 +2792,8 @@ class TestSortMutations:
             """\
         id      is_sample   time
         0       1           -6
+        1       1           -6
+        2       1           -6
         """
         )
         edges = io.StringIO(
@@ -2811,14 +2813,14 @@ class TestSortMutations:
             """\
         site    node    time    derived_state   parent
         2       0       4       a              -1
-        2       0       -5      b              -1
-        2       0       6       c              -1
+        2       1       -5      b              -1
+        2       2       6       c              -1
         1       0       0.5     d              -1
-        1       0       0.5     e              -1
-        1       0       0.5     f              -1
+        1       1       0.5     e              -1
+        1       2       0.5     f              -1
         0       0       1       g              -1
-        0       0       2       h              -1
-        0       0       3       i              -1
+        0       1       2       h              -1
+        0       2       3       i              -1
         """
         )
         ts = tskit.load_text(
@@ -2836,7 +2838,7 @@ class TestSortMutations:
         assert len(sites) == 3
         assert len(mutations) == 9
         assert list(mutations.site) == [0, 0, 0, 1, 1, 1, 2, 2, 2]
-        assert list(mutations.node) == [0, 0, 0, 0, 0, 0, 0, 0, 0]
+        assert list(mutations.node) == [2, 1, 0, 0, 1, 2, 2, 0, 1]
         # Nans are not equal so swap in -1
         times = mutations.time
         times[np.isnan(times)] = -1
@@ -2928,6 +2930,8 @@ class TestMutationTimeErrors:
             """\
         id      is_sample   time
         0       1           0
+        1       1           0
+        2       1           0
         """
         )
         edges = io.StringIO(
@@ -2945,8 +2949,8 @@ class TestMutationTimeErrors:
             """\
         site    node    time    derived_state   parent
         0       0       1       0              -1
-        0       0       2       0              -1
-        0       0       3       0              -1
+        0       1       2       0              -1
+        0       2       3       0              -1
         """
         )
         ts = tskit.load_text(

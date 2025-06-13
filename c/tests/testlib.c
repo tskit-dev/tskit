@@ -767,6 +767,8 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length, const char *nod
     tsk_table_collection_t tables;
     tsk_id_t max_population_id;
     tsk_size_t j;
+    tsk_flags_t ts_flags;
+    bool all_parents_null;
 
     CU_ASSERT_FATAL(ts != NULL);
     CU_ASSERT_FATAL(nodes != NULL);
@@ -807,7 +809,21 @@ tsk_treeseq_from_text(tsk_treeseq_t *ts, double sequence_length, const char *nod
         }
     }
 
-    ret = tsk_treeseq_init(ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    /* If all mutation.parent are TSK_NULL, use TSK_TS_COMPUTE_MUTATION_PARENTS flag too
+     */
+    ts_flags = TSK_TS_INIT_BUILD_INDEXES;
+    all_parents_null = true;
+    for (j = 0; j < tables.mutations.num_rows; j++) {
+        if (tables.mutations.parent[j] != TSK_NULL) {
+            all_parents_null = false;
+            break;
+        }
+    }
+    if (all_parents_null) {
+        ts_flags |= TSK_TS_INIT_COMPUTE_MUTATION_PARENTS;
+    }
+
+    ret = tsk_treeseq_init(ts, &tables, ts_flags);
     /* tsk_treeseq_print_state(ts, stdout); */
     if (ret != 0) {
         printf("\nret = %s\n", tsk_strerror(ret));

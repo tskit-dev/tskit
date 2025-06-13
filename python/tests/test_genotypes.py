@@ -342,6 +342,7 @@ class TestVariantGenerator:
                     site = tables.sites.add_row(position=0, ancestral_state="0")
                     tables.mutations.add_row(site=site, node=u, derived_state="1")
                     tables.mutations.add_row(site=site, node=sample, derived_state="1")
+                    tables.compute_mutation_parents()
                     ts_new = tables.tree_sequence()
                     assert all([v.genotypes[sample] == 1 for v in ts_new.variants()])
 
@@ -927,8 +928,9 @@ class TestHaplotypeGenerator:
             tables.sites.clear()
             tables.mutations.clear()
             site = tables.sites.add_row(position=0, ancestral_state="0")
-            tables.mutations.add_row(site=site, node=u, derived_state="1")
             tables.mutations.add_row(site=site, node=tree.root, derived_state="1")
+            tables.mutations.add_row(site=site, node=u, derived_state="1")
+            tables.compute_mutation_parents()
             ts_new = tables.tree_sequence()
             all(h == 1 for h in ts_new.haplotypes())
 

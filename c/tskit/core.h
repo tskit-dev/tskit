@@ -510,6 +510,12 @@ Some mutations have TSK_UNKNOWN_TIME in an algorithm where that's
 disallowed (use compute_mutation_times?).
 */
 #define TSK_ERR_DISALLOWED_UNKNOWN_MUTATION_TIME                    -510
+
+/** 
+A mutation's parent was not consistent with the topology of the tree.
+ */
+#define TSK_ERR_BAD_MUTATION_PARENT                                 -511
+
 /** @} */
 
 /**
