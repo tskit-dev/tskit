@@ -65,6 +65,8 @@ class VcfModelMapping:
     individuals_name: np.ndarray
     transformed_positions: np.ndarray
     contig_length: int
+    contig_id: str
+    isolated_as_missing: bool
 
 
 class CoalescenceRecord(NamedTuple):
@@ -10645,6 +10647,8 @@ class TreeSequence:
         individual_names=None,
         include_non_sample_nodes=None,
         position_transform=None,
+        contig_id=None,
+        isolated_as_missing=None,
     ):
         """
         Maps the sample nodes in this tree sequence to a representation suitable for
@@ -10700,6 +10704,12 @@ class TreeSequence:
             by incrementing is used.
             See the :ref:`sec_export_vcf_modifying_coordinates` for examples
             and more information.
+        :param str contig_id: The ID of the contig to use in the VCF output.
+            Defaults to "1" if not specified.
+        :param bool isolated_as_missing: If True, isolated samples without mutations
+            will be considered as missing data in the VCF output. If False, these samples
+            will have the ancestral state in the VCF output.
+            Default: True.
         :return: A VcfModelMapping containing the node-to-individual mapping,
             individual names, transformed positions, and transformed contig length.
         :raises ValueError: If both name_metadata_key and individual_names are specified,
@@ -10709,6 +10719,12 @@ class TreeSequence:
         """
         if include_non_sample_nodes is None:
             include_non_sample_nodes = False
+
+        if contig_id is None:
+            contig_id = "1"
+
+        if isolated_as_missing is None:
+            isolated_as_missing = True
 
         if name_metadata_key is not None and individual_names is not None:
             raise ValueError(
@@ -10808,7 +10824,12 @@ class TreeSequence:
         contig_length = max(1, int(position_transform([self.sequence_length])[0]))
 
         return VcfModelMapping(
-            individuals_nodes, individual_names, transformed_positions, contig_length
+            individuals_nodes,
+            individual_names,
+            transformed_positions,
+            contig_length,
+            contig_id,
+            isolated_as_missing,
         )
 
     ############################################
