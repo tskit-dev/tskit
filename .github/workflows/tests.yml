@@ -28,35 +28,6 @@ jobs:
           clang-format-6.0 -version
       - uses: pre-commit/action@v3.0.1
 
-  benchmark:
-    name: Benchmark
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-      - uses: actions/checkout@v4.2.2
-      - uses: actions/setup-python@v5.4.0
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-          cache-dependency-path: python/requirements/benchmark.txt
-      - name: Install deps
-        run: pip install -r python/requirements/benchmark.txt
-      - name: Build module
-        run: |
-          cd python
-          python setup.py build_ext --inplace
-      - name: Run benchmarks
-        run: |
-          cd python/benchmark
-          pip uninstall -y tskit
-          python run.py
-      - name: Upload Results
-        uses: actions/upload-artifact@v4.6.1
-        with:
-          name: benchmark-results
-          path: python/benchmark
-
   test:
     name: Python
     runs-on: ${{ matrix.os }}
