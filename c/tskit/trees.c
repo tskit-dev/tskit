@@ -474,13 +474,13 @@ tsk_treeseq_init(
         if (ret != 0) {
             goto out;
         }
-    }
-
-    num_trees = tsk_table_collection_check_integrity(
-        self->tables, TSK_CHECK_TREES | TSK_CHECK_MUTATION_PARENTS);
-    if (num_trees < 0) {
-        ret = (int) num_trees;
-        goto out;
+    } else {
+        num_trees = tsk_table_collection_check_integrity(
+            self->tables, TSK_CHECK_TREES | TSK_CHECK_MUTATION_PARENTS);
+        if (num_trees < 0) {
+            ret = (int) num_trees;
+            goto out;
+        }
     }
     self->num_trees = (tsk_size_t) num_trees;
     self->discrete_genome = true;
