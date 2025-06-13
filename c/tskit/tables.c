@@ -11102,7 +11102,7 @@ tsk_table_collection_check_mutation_parents(const tsk_table_collection_t *self)
     tsk_size_t j;
 
     if (mutations.num_rows == 0) {
-        goto out;
+        return ret;
     }
 
     new_parents = tsk_malloc(mutations.num_rows * sizeof(*new_parents));
