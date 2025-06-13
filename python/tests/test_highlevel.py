@@ -5969,3 +5969,27 @@ class TestMapToVcfModel:
             match="Position transform must return an array of the same length",
         ):
             ts.map_to_vcf_model(position_transform=bad_transform)
+
+    def test_contig_id(self):
+        tables = tskit.TableCollection(10.0)
+        tables.sites.add_row(position=1.0, ancestral_state="A")
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        ts = tables.tree_sequence()
+
+        result = ts.map_to_vcf_model(contig_id="chr1")
+        assert result.contig_id == "chr1"
+
+        result = ts.map_to_vcf_model()
+        assert result.contig_id == "1"
+
+    def test_isolated_as_missing(self):
+        tables = tskit.TableCollection(10.0)
+        tables.sites.add_row(position=1.0, ancestral_state="A")
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        ts = tables.tree_sequence()
+
+        result = ts.map_to_vcf_model(isolated_as_missing=False)
+        assert result.isolated_as_missing is False
+
+        result = ts.map_to_vcf_model()
+        assert result.isolated_as_missing is True
