@@ -33,7 +33,7 @@ Anyone is welcome to contribute to the tskit-dev project by, for example,
   via a GitHub pull request to the above repositories;
 - reporting a GitHub issue or starting a discussion on the above repositories;
 
-Potential contributors are encouraged to read and abide by the [CODE OF CONDUCT](https://github.com/tskit-dev/.github/blob/main/CODE_OF_CONDUCT.md).
+Contributors must abide by the [CODE OF CONDUCT](https://github.com/tskit-dev/.github/blob/main/CODE_OF_CONDUCT.md).
 
 
 ## Maintainers
