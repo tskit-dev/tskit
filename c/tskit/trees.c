@@ -7358,18 +7358,6 @@ out:
     return ret;
 }
 
-/* Compatibility shim for initialising the diff iterator from a tree sequence. We are
- * using this function in a small number of places internally, so simplest to keep it
- * until a more satisfactory "diff" API comes along.
- */
-int TSK_WARN_UNUSED
-tsk_diff_iter_init_from_ts(
-    tsk_diff_iter_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t options)
-{
-    return tsk_diff_iter_init(
-        self, tree_sequence->tables, (tsk_id_t) tree_sequence->num_trees, options);
-}
-
 /* ======================================================== *
  * KC Distance
  * ======================================================== */
