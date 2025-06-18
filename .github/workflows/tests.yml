@@ -126,14 +126,6 @@ jobs:
             python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
           fi
 
-      - name: Run numba tests
-        working-directory: python
-        run: |
-          source ~/.profile
-          conda activate anaconda-client-env
-          pip install numba
-          python -m pytest -x --only-numba-tests --cov=tskit.numba --cov-report=xml --cov-branch -n2 --durations=20 tests
-  
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5.4.0
         with:

@@ -64,12 +64,6 @@ def pytest_addoption(parser):
         default=False,
         help="To help debugging, draw lines around the plotboxes in SVG output files",
     )
-    parser.addoption(
-        "--only-numba-tests",
-        action="store_true",
-        default=False,
-        help="Only run tests marked with @pytest.mark.numba",
-    )
 
 
 def pytest_configure(config):
@@ -77,7 +71,6 @@ def pytest_configure(config):
     Add docs on the "slow" marker
     """
     config.addinivalue_line("markers", "slow: mark test as slow to run")
-    config.addinivalue_line("markers", "numba: mark test as a Numba test")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -86,18 +79,6 @@ def pytest_collection_modifyitems(config, items):
         for item in items:
             if "slow" in item.keywords:
                 item.add_marker(skip_slow)
-    if config.getoption("--only-numba-tests"):
-        only_numba = pytest.mark.skip(reason="--only-numba-tests specified")
-        for item in items:
-            if "numba" not in item.keywords:
-                item.add_marker(only_numba)
-    else:
-        numba_tests_skipped = pytest.mark.skip(
-            reason="--only-numba-tests not specified, skipping numba tests"
-        )
-        for item in items:
-            if "numba" in item.keywords:
-                item.add_marker(numba_tests_skipped)
 
 
 @fixture
