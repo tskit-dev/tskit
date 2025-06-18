@@ -30,7 +30,7 @@ import pytest
 import tests
 import tskit
 from tests import tsutil
-from tests.test_highlevel import get_example_tree_sequences
+from tests.tsutil import get_example_tree_sequences
 
 # ↑ See https://github.com/tskit-dev/tskit/issues/1804 for when
 # we can remove this.

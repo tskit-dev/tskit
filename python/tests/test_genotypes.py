@@ -37,7 +37,7 @@ import tests
 import tests.test_wright_fisher as wf
 import tests.tsutil as tsutil
 import tskit
-from tests.test_highlevel import get_example_tree_sequences
+from tests.tsutil import get_example_tree_sequences
 from tskit import exceptions
 from tskit.genotypes import allele_remap
 

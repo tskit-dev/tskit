@@ -34,6 +34,7 @@ import typing
 
 import msprime
 import numpy as np
+import pytest
 
 import tskit
 import tskit.provenance as provenance
@@ -2288,3 +2289,269 @@ def all_fields_ts(edge_metadata=True, migrations=True):
         tables.provenances.add_row(record="A", timestamp=str(i))
 
     return tables.tree_sequence()
+
+
+def insert_uniform_mutations(tables, num_mutations, nodes):
+    """
+    Returns n evenly mutations over the specified list of nodes.
+    """
+    for j in range(num_mutations):
+        tables.sites.add_row(
+            position=j * (tables.sequence_length / num_mutations),
+            ancestral_state="0",
+            metadata=json.dumps({"index": j}).encode(),
+        )
+        tables.mutations.add_row(
+            site=j,
+            derived_state="1",
+            node=nodes[j % len(nodes)],
+            metadata=json.dumps({"index": j}).encode(),
+        )
+
+
+def get_table_collection_copy(tables, sequence_length):
+    """
+    Returns a copy of the specified table collection with the specified
+    sequence length.
+    """
+    table_dict = tables.asdict()
+    table_dict["sequence_length"] = sequence_length
+    return tskit.TableCollection.fromdict(table_dict)
+
+
+def insert_gap(ts, position, length):
+    """
+    Inserts a gap of the specified size into the specified tree sequence.
+    This involves: (1) breaking all edges that intersect with this point;
+    and (2) shifting all coordinates greater than this value up by the
+    gap length.
+    """
+    new_edges = []
+    for e in ts.edges():
+        if e.left < position < e.right:
+            new_edges.append([e.left, position, e.parent, e.child])
+            new_edges.append([position, e.right, e.parent, e.child])
+        else:
+            new_edges.append([e.left, e.right, e.parent, e.child])
+
+    # Now shift up all coordinates.
+    for e in new_edges:
+        # Left coordinates == position get shifted
+        if e[0] >= position:
+            e[0] += length
+        # Right coordinates == position do not get shifted
+        if e[1] > position:
+            e[1] += length
+    tables = ts.dump_tables()
+    L = ts.sequence_length + length
+    tables = get_table_collection_copy(tables, L)
+    tables.edges.clear()
+    tables.sites.clear()
+    tables.mutations.clear()
+    for left, right, parent, child in new_edges:
+        tables.edges.add_row(left, right, parent, child)
+    tables.sort()
+    # Throw in a bunch of mutations over the whole sequence on the samples.
+    insert_uniform_mutations(tables, 100, list(ts.samples()))
+    return tables.tree_sequence()
+
+
+@functools.lru_cache
+def get_decapitated_examples(custom_max=None):
+    """
+    Returns example tree sequences in which the oldest edges have been removed.
+    """
+    ret = []
+    if custom_max is None:
+        n_list = [10, 20]
+    else:
+        n_list = [custom_max // 2, custom_max]
+    ts = msprime.simulate(n_list[0], random_seed=1234)
+    # yield ts.decapitate(ts.tables.nodes.time[-1] / 2)
+    ts = msprime.simulate(n_list[1], recombination_rate=1, random_seed=1234)
+    assert ts.num_trees > 2
+    ret.append(("decapitate_recomb", ts.decapitate(ts.tables.nodes.time[-1] / 4)))
+    return ret
+
+
+@functools.lru_cache
+def get_gap_examples(custom_max=None):
+    """
+    Returns example tree sequences that contain gaps within the list of
+    edges.
+    """
+    ret = []
+    if custom_max is None:
+        n_list = [20, 10]
+    else:
+        n_list = [custom_max, custom_max // 2]
+
+    ts = msprime.simulate(n_list[0], random_seed=56, recombination_rate=1)
+
+    assert ts.num_trees > 1
+
+    gap = 0.0125
+    for x in [0, 0.1, 0.5, 0.75]:
+        ts = insert_gap(ts, x, gap)
+        found = False
+        for t in ts.trees():
+            if t.interval.left == x:
+                assert t.interval.right == x + gap
+                assert len(t.parent_dict) == 0
+                found = True
+        assert found
+        ret.append((f"gap_{x}", ts))
+    # Give an example with a gap at the end.
+    ts = msprime.simulate(n_list[1], random_seed=5, recombination_rate=1)
+    tables = get_table_collection_copy(ts.dump_tables(), 2)
+    tables.sites.clear()
+    tables.mutations.clear()
+    insert_uniform_mutations(tables, 100, list(ts.samples()))
+    ret.append(("gap_at_end", tables.tree_sequence()))
+    return ret
+
+
+@functools.lru_cache
+def get_internal_samples_examples():
+    """
+    Returns example tree sequences with internal samples.
+    """
+    ret = []
+    n = 5
+    ts = msprime.simulate(n, random_seed=10, mutation_rate=5)
+    assert ts.num_mutations > 0
+    tables = ts.dump_tables()
+    nodes = tables.nodes
+    flags = nodes.flags
+    # Set all nodes to be samples.
+    flags[:] = tskit.NODE_IS_SAMPLE
+    nodes.flags = flags
+    ret.append(("all_nodes_samples", tables.tree_sequence()))
+
+    # Set just internal nodes to be samples.
+    flags[:] = 0
+    flags[n:] = tskit.NODE_IS_SAMPLE
+    nodes.flags = flags
+    ret.append(("internal_nodes_samples", tables.tree_sequence()))
+
+    # Set a mixture of internal and leaf samples.
+    flags[:] = 0
+    flags[n // 2 : n + n // 2] = tskit.NODE_IS_SAMPLE
+    nodes.flags = flags
+    ret.append(("mixed_internal_leaf_samples", tables.tree_sequence()))
+    return ret
+
+
+@functools.lru_cache
+def get_bottleneck_examples(custom_max=None):
+    """
+    Returns an iterator of example tree sequences with nonbinary trees.
+    """
+    bottlenecks = [
+        msprime.SimpleBottleneck(0.01, 0, proportion=0.05),
+        msprime.SimpleBottleneck(0.02, 0, proportion=0.25),
+        msprime.SimpleBottleneck(0.03, 0, proportion=1),
+    ]
+    if custom_max is None:
+        n_list = [3, 10, 100]
+    else:
+        n_list = [i * custom_max // 3 for i in range(1, 4)]
+    for n in n_list:
+        ts = msprime.simulate(
+            n,
+            length=100,
+            recombination_rate=1,
+            demographic_events=bottlenecks,
+            random_seed=n,
+        )
+        yield (f"bottleneck_n={n}", ts)
+
+
+@functools.lru_cache
+def get_back_mutation_examples():
+    """
+    Returns an iterator of example tree sequences with nonbinary trees.
+    """
+    ts = msprime.simulate(10, random_seed=1)
+    for j in [1, 2, 3]:
+        yield insert_branch_mutations(ts, mutations_per_branch=j)
+    for ts in get_bottleneck_examples():
+        yield insert_branch_mutations(ts)
+
+
+def make_example_tree_sequences(custom_max=None):
+    yield from get_decapitated_examples(custom_max=custom_max)
+    yield from get_gap_examples(custom_max=custom_max)
+    yield from get_internal_samples_examples()
+    seed = 1
+    if custom_max is None:
+        n_list = [2, 3, 10, 100]
+    else:
+        n_list = [i * custom_max // 4 for i in range(1, 5)]
+    for n in n_list:
+        for m in [1, 2, 32]:
+            for rho in [0, 0.1, 0.5]:
+                recomb_map = msprime.RecombinationMap.uniform_map(m, rho, num_loci=m)
+                ts = msprime.simulate(
+                    recombination_map=recomb_map,
+                    mutation_rate=0.1,
+                    random_seed=seed,
+                    population_configurations=[
+                        msprime.PopulationConfiguration(n),
+                        msprime.PopulationConfiguration(0),
+                    ],
+                    migration_matrix=[[0, 1], [1, 0]],
+                )
+                ts = insert_random_ploidy_individuals(ts, 4, seed=seed)
+                yield (
+                    f"n={n}_m={m}_rho={rho}",
+                    add_random_metadata(ts, seed=seed),
+                )
+                seed += 1
+    for name, ts in get_bottleneck_examples(custom_max=custom_max):
+        yield (
+            f"{name}_mutated",
+            msprime.mutate(
+                ts,
+                rate=0.1,
+                random_seed=seed,
+                model=msprime.InfiniteSites(msprime.NUCLEOTIDES),
+            ),
+        )
+    ts = tskit.Tree.generate_balanced(8).tree_sequence
+    yield ("rev_node_order", ts.subset(np.arange(ts.num_nodes - 1, -1, -1)))
+    ts = msprime.sim_ancestry(
+        8, sequence_length=40, recombination_rate=0.1, random_seed=seed
+    )
+    tables = ts.dump_tables()
+    tables.populations.metadata_schema = tskit.MetadataSchema(None)
+    ts = tables.tree_sequence()
+    assert ts.num_trees > 1
+    yield (
+        "back_mutations",
+        insert_branch_mutations(ts, mutations_per_branch=2),
+    )
+    ts = insert_multichar_mutations(ts)
+    yield ("multichar", ts)
+    yield ("multichar_no_metadata", add_random_metadata(ts))
+    tables = ts.dump_tables()
+    tables.nodes.flags = np.zeros_like(tables.nodes.flags)
+    yield ("no_samples", tables.tree_sequence())  # no samples
+    tables = ts.dump_tables()
+    tables.edges.clear()
+    yield ("empty_tree", tables.tree_sequence())  # empty tree
+    yield (
+        "empty_ts",
+        tskit.TableCollection(sequence_length=1).tree_sequence(),
+    )  # empty tree seq
+    yield ("all_fields", all_fields_ts())
+
+
+_examples = tuple(make_example_tree_sequences(custom_max=None))
+
+
+def get_example_tree_sequences(pytest_params=True, custom_max=None):
+    if pytest_params:
+        return [pytest.param(ts, id=name) for name, ts in _examples]
+    else:
+        return [ts for _, ts in _examples]
