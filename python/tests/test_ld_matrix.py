@@ -41,7 +41,7 @@ import pytest
 
 import tskit
 from tests import tsutil
-from tests.test_highlevel import get_example_tree_sequences
+from tests.tsutil import get_example_tree_sequences
 
 
 @contextlib.contextmanager
