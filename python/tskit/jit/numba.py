@@ -13,11 +13,20 @@ except ImportError:
 # Decorator that makes a jited dataclass by removing certain methods
 # that are not compatible with Numba's JIT compilation.
 def jitdataclass(cls):
-    dc_cls = dataclass(cls, eq=False, match_args=False)
+    dc_cls = dataclass(cls, eq=False)
     del dc_cls.__dataclass_params__
     del dc_cls.__dataclass_fields__
     del dc_cls.__repr__
-    del dc_cls.__replace__
+    try:
+        del dc_cls.__replace__
+    except AttributeError:
+        # __replace__ is not available in Python < 3.10
+        pass
+    try:
+        del dc_cls.__match_args__
+    except AttributeError:
+        # __match_args__ is not available in Python < 3.10
+        pass
     return numba.experimental.jitclass(dc_cls)
 
 
