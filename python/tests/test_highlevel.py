@@ -5321,6 +5321,83 @@ class TestIndividualsNodes:
         assert_array_equal(result, expected)
 
 
+class TestRaggedArrays:
+    @pytest.mark.skipif(not _tskit.HAS_NUMPY_2, reason="Requires NumPy 2.0 or higher")
+    @pytest.mark.parametrize("num_rows", [0, 1, 100])
+    @pytest.mark.parametrize("column", ["ancestral_state", "derived_state"])
+    def test_site_ancestral_state(self, num_rows, column):
+        tables = tskit.TableCollection(sequence_length=100)
+        rng = random.Random(42)
+        for i in range(num_rows):
+            state_length = rng.randint(0, 10)
+            state = "".join(
+                chr(rng.randint(0x1F300, 0x1F6FF)) for _ in range(state_length)
+            )
+            if column == "ancestral_state":
+                tables.sites.add_row(position=i, ancestral_state=state)
+            elif column == "derived_state":
+                tables.nodes.add_row()
+                tables.sites.add_row(position=i, ancestral_state="A")
+                tables.mutations.add_row(site=i, node=0, derived_state=state)
+        ts = tables.tree_sequence()
+        a = getattr(
+            ts,
+            (
+                "sites_ancestral_state"
+                if column == "ancestral_state"
+                else "mutations_derived_state"
+            ),
+        )
+        assert isinstance(a, np.ndarray)
+        assert a.shape == (num_rows,)
+        assert a.dtype == np.dtype("T")
+        assert a.size == num_rows
+
+        # Check that the value is cached
+        assert a is getattr(
+            ts,
+            (
+                "sites_ancestral_state"
+                if column == "ancestral_state"
+                else "mutations_derived_state"
+            ),
+        )
+
+        for state, row in itertools.zip_longest(
+            a, ts.sites() if column == "ancestral_state" else ts.mutations()
+        ):
+            assert state == getattr(row, column)
+
+    @pytest.mark.skipif(not _tskit.HAS_NUMPY_2, reason="Requires NumPy 2.0 or higher")
+    @pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
+    def test_equality_sites_ancestral_state(self, ts):
+        assert_array_equal(
+            ts.sites_ancestral_state, [site.ancestral_state for site in ts.sites()]
+        )
+
+    @pytest.mark.skipif(not _tskit.HAS_NUMPY_2, reason="Requires NumPy 2.0 or higher")
+    @pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
+    def test_equality_mutations_derived_state(self, ts):
+        assert_array_equal(
+            ts.mutations_derived_state,
+            [mutation.derived_state for mutation in ts.mutations()],
+        )
+
+    @pytest.mark.skipif(_tskit.HAS_NUMPY_2, reason="Test only on Numpy 1.X")
+    @pytest.mark.parametrize(
+        "column", ["sites_ancestral_state", "mutations_derived_state"]
+    )
+    def test_ragged_array_not_supported(self, column):
+        tables = tskit.TableCollection(sequence_length=100)
+        ts = tables.tree_sequence()
+
+        with pytest.raises(
+            RuntimeError,
+            match="requires numpy 2.0",
+        ):
+            getattr(ts, column)
+
+
 class TestSampleNodesByPloidy:
     @pytest.mark.parametrize(
         "n_samples,ploidy,expected",

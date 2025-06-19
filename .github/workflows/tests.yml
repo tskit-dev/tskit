@@ -136,6 +136,52 @@ jobs:
           name: codecov-umbrella
           verbose: true
 
+  test-numpy1:
+    name: Numpy 1.x
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Setup Python
+        uses: actions/setup-python@v5.4.0
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: python
+        run: |
+          pip install -r requirements/CI-complete/requirements.txt
+          pip install "numpy<2"
+
+      - name: Build module
+        working-directory: python
+        run: |
+          python setup.py build_ext --inplace
+
+      - name: Run tests with numpy 1.x
+        working-directory: python
+        run: |
+          python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 tests/test_lowlevel.py tests/test_highlevel.py
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5.4.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          working-directory: python
+          fail_ci_if_error: false
+          flags: python-tests-numpy1
+          name: codecov-numpy1
+          verbose: true
+
   msys2:
     runs-on: windows-latest
     strategy:

@@ -23,16 +23,27 @@
  * SOFTWARE.
  */
 
-#define PY_SSIZE_T_CLEAN
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #define TSK_BUG_ASSERT_MESSAGE                                                          \
     "Please open an issue on"                                                           \
     " GitHub, ideally with a reproducible example."                                     \
     " (https://github.com/tskit-dev/tskit/issues)"
 
+#define PY_SSIZE_T_CLEAN
 #include <Python.h>
-#include <structmember.h>
+#include <numpy/numpyconfig.h>
+
+#if defined(NPY_2_0_API_VERSION) && NPY_API_VERSION >= NPY_2_0_API_VERSION
+#define NPY_NO_DEPRECATED_API NPY_2_0_API_VERSION
+#undef NPY_FEATURE_VERSION
+#define NPY_FEATURE_VERSION NPY_2_0_API_VERSION
+#define HAVE_NUMPY_2 1
+#else
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#define HAVE_NUMPY_2 0
+#endif
 #include <numpy/arrayobject.h>
+
+#include <structmember.h>
 #include <float.h>
 
 #include "kastore.h"
@@ -10802,6 +10813,60 @@ TreeSequence_make_array(TreeSequence *self, tsk_size_t size, int dtype, void *da
     return make_owned_array((PyObject *) self, size, dtype, data);
 }
 
+#if HAVE_NUMPY_2
+PyObject *
+TreeSequence_decode_ragged_string_column(
+    TreeSequence *self, tsk_size_t num_rows, const char *data, const tsk_size_t *offset)
+{
+    PyObject *ret = NULL;
+    PyObject *array = NULL;
+    char *array_data = NULL;
+    npy_intp dims[1];
+    tsk_size_t i;
+    int pack_result;
+    npy_string_allocator *allocator = NULL;
+    PyArray_StringDTypeObject *string_dtype
+        = (PyArray_StringDTypeObject *) PyArray_DescrFromType(NPY_VSTRING);
+    /* This can only fail if an invalid dtype is passed */
+    assert(string_dtype != NULL);
+
+    dims[0] = (npy_intp) num_rows;
+    array = PyArray_Zeros(1, dims, (PyArray_Descr *) string_dtype, 0);
+    if (array == NULL) {
+        goto out;
+    }
+    array_data = (char *) PyArray_DATA((PyArrayObject *) array);
+    allocator = NpyString_acquire_allocator(string_dtype);
+    for (i = 0; i < num_rows; i++) {
+        pack_result = NpyString_pack(allocator,
+            (npy_packed_static_string
+                    *) (array_data + (i * ((PyArray_Descr *) string_dtype)->elsize)),
+            data + offset[i], offset[i + 1] - offset[i]);
+        if (pack_result < 0) {
+            PyErr_SetString(PyExc_MemoryError, "could not pack string.");
+            goto out;
+        }
+    }
+    /* Release the allocator before we call any other Python C API functions
+     * which may require the GIL.
+     */
+    NpyString_release_allocator(allocator);
+    allocator = NULL;
+
+    /* Clear the writeable flag to match other arrays semantics */
+    PyArray_CLEARFLAGS((PyArrayObject *) array, NPY_ARRAY_WRITEABLE);
+
+    ret = array;
+    array = NULL;
+out:
+    if (allocator != NULL) {
+        NpyString_release_allocator(allocator);
+    }
+    Py_XDECREF(array);
+    return ret;
+}
+#endif
+
 static PyObject *
 TreeSequence_get_individuals_flags(TreeSequence *self, void *closure)
 {
@@ -11049,6 +11114,24 @@ out:
     return ret;
 }
 
+#if HAVE_NUMPY_2
+static PyObject *
+TreeSequence_get_sites_ancestral_state(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_site_table_t sites;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    sites = self->tree_sequence->tables->sites;
+    ret = TreeSequence_decode_ragged_string_column(
+        self, sites.num_rows, sites.ancestral_state, sites.ancestral_state_offset);
+out:
+    return ret;
+}
+#endif
+
 static PyObject *
 TreeSequence_get_sites_metadata(TreeSequence *self, void *closure)
 {
@@ -11140,6 +11223,24 @@ TreeSequence_get_mutations_time(TreeSequence *self, void *closure)
 out:
     return ret;
 }
+
+#if HAVE_NUMPY_2
+static PyObject *
+TreeSequence_get_mutations_derived_state(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_mutation_table_t mutations;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    mutations = self->tree_sequence->tables->mutations;
+    ret = TreeSequence_decode_ragged_string_column(self, mutations.num_rows,
+        mutations.derived_state, mutations.derived_state_offset);
+out:
+    return ret;
+}
+#endif
 
 static PyObject *
 TreeSequence_get_mutations_metadata(TreeSequence *self, void *closure)
@@ -11719,6 +11820,11 @@ static PyGetSetDef TreeSequence_getsetters[] = {
     { .name = "sites_position",
         .get = (getter) TreeSequence_get_sites_position,
         .doc = "The site position array" },
+#if HAVE_NUMPY_2
+    { .name = "sites_ancestral_state",
+        .get = (getter) TreeSequence_get_sites_ancestral_state,
+        .doc = "The site ancestral state array" },
+#endif
     { .name = "sites_metadata",
         .get = (getter) TreeSequence_get_sites_metadata,
         .doc = "The site metadata array" },
@@ -11737,6 +11843,11 @@ static PyGetSetDef TreeSequence_getsetters[] = {
     { .name = "mutations_time",
         .get = (getter) TreeSequence_get_mutations_time,
         .doc = "The mutation time array" },
+#if HAVE_NUMPY_2
+    { .name = "mutations_derived_state",
+        .get = (getter) TreeSequence_get_mutations_derived_state,
+        .doc = "The mutation derived state array" },
+#endif
     { .name = "mutations_metadata",
         .get = (getter) TreeSequence_get_mutations_metadata,
         .doc = "The mutation metadata array" },
@@ -14606,11 +14717,24 @@ static struct PyModuleDef tskitmodule = {
 PyObject *
 PyInit__tskit(void)
 {
-    PyObject *module = PyModule_Create(&tskitmodule);
+    PyObject *module;
+
+#if HAVE_NUMPY_2
+    if (PyArray_ImportNumPyAPI() < 0) {
+        return NULL;
+    }
+#else
+    import_array();
+#endif
+
+    module = PyModule_Create(&tskitmodule);
     if (module == NULL) {
         return NULL;
     }
-    import_array();
+
+    if (PyModule_AddIntConstant(module, "HAS_NUMPY_2", HAVE_NUMPY_2)) {
+        return NULL;
+    }
 
     if (register_lwt_class(module) != 0) {
         return NULL;
