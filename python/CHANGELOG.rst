@@ -16,6 +16,9 @@
 - Add ``contig_id`` and ``isolated_as_missing`` to ``VcfModelMapping``
   (:user:`benjeffery`, :pr:`3219`, :issue:`3177`)
 
+- Add ``TreeSequence.mutations_edge`` which returns the edge ID for each mutation's
+  edge. (:user:`benjeffery`, :pr:`3226`, :issue:`3189`)
+
 **Bugfixes**
 
 - Fix bug in ``TreeSequence.pair_coalescence_counts`` when ``span_normalise=True``
