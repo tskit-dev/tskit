@@ -10774,6 +10774,118 @@ TreeSequence_make_array(TreeSequence *self, tsk_size_t size, int dtype, void *da
     return make_owned_array((PyObject *) self, size, dtype, data);
 }
 
+PyObject *
+TreeSequence_decode_ragged_string_column(
+    TreeSequence *self, tsk_size_t num_rows, const char *data, const tsk_size_t *offset)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *ret_array = NULL;
+    npy_intp dims[1];
+    char *string_data = NULL;
+    tsk_size_t i;
+    tsk_size_t max_length;
+    tsk_size_t len;
+    tsk_size_t start;
+    tsk_size_t end;
+    char *dest;
+    bool all_length_one;
+
+    dims[0] = (npy_intp) num_rows;
+
+    /* If all strings are length one we can back the array with tskit memory */
+    all_length_one = true;
+    for (i = 0; i < num_rows; i++) {
+        len = offset[i + 1] - offset[i];
+        if (len != 1) {
+            all_length_one = false;
+            break;
+        }
+    }
+
+    if (all_length_one && num_rows > 0) {
+        ret_array = (PyArrayObject *) PyArray_New(&PyArray_Type, /* subtype */
+            1,                                                   /* nd */
+            dims,                                                /* dims */
+            NPY_STRING,                                          /* type_num */
+            NULL,                                                /* strides */
+            (void *) data,                                       /* data */
+            1,   /* itemsize = 1 for S1 */
+            0,   /* flags */
+            NULL /* obj */
+        );
+        if (ret_array == NULL) {
+            goto out;
+        }
+
+        if (PyArray_SetBaseObject(ret_array, (PyObject *) self) != 0) {
+            goto out;
+        }
+        Py_INCREF(self);
+
+    } else {
+        /* We have to pad the strings to make a rectangular array */
+        max_length = 0;
+        for (i = 0; i < num_rows; i++) {
+            len = offset[i + 1] - offset[i];
+            if (len > max_length) {
+                max_length = len;
+            }
+        }
+
+        /* Ensure at least S1 */
+        if (max_length == 0) {
+            max_length = 1;
+        }
+
+        if (num_rows > 0) {
+            tsk_size_t total_size = num_rows * max_length;
+            string_data = PyMem_Calloc(total_size, sizeof(char));
+            if (string_data == NULL) {
+                PyErr_NoMemory();
+                goto out;
+            }
+
+            for (i = 0; i < num_rows; i++) {
+                start = offset[i];
+                end = offset[i + 1];
+                len = end - start;
+
+                dest = string_data + (i * max_length);
+                if (len > 0) {
+                    memcpy(dest, data + start, len);
+                }
+                /* PyMem_Calloc zero-fills so we don't need to pad */
+            }
+        }
+
+        ret_array = (PyArrayObject *) PyArray_New(&PyArray_Type, /* subtype */
+            1,                                                   /* nd */
+            dims,                                                /* dims */
+            NPY_STRING,                                          /* type_num */
+            NULL,                                                /* strides */
+            string_data,                                         /* data */
+            (int) max_length,                                    /* itemsize */
+            NPY_ARRAY_OWNDATA, /* flags - we own the data */
+            NULL               /* obj */
+        );
+        if (ret_array == NULL) {
+            goto out;
+        }
+        string_data = NULL; /* Array now owns the memory */
+    }
+
+    /* Make array read-only for consistent semantics with tskit memory case */
+    PyArray_CLEARFLAGS(ret_array, NPY_ARRAY_WRITEABLE);
+
+    ret = (PyObject *) ret_array;
+    ret_array = NULL;
+
+out:
+    PyMem_Free(string_data);
+    Py_XDECREF(ret_array);
+    return ret;
+}
+
 static PyObject *
 TreeSequence_get_individuals_flags(TreeSequence *self, void *closure)
 {
@@ -11017,6 +11129,22 @@ TreeSequence_get_sites_position(TreeSequence *self, void *closure)
     }
     sites = self->tree_sequence->tables->sites;
     ret = TreeSequence_make_array(self, sites.num_rows, NPY_FLOAT64, sites.position);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_sites_ancestral_state(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_site_table_t sites;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    sites = self->tree_sequence->tables->sites;
+    ret = TreeSequence_decode_ragged_string_column(
+        self, sites.num_rows, sites.ancestral_state, sites.ancestral_state_offset);
 out:
     return ret;
 }
@@ -11687,6 +11815,9 @@ static PyGetSetDef TreeSequence_getsetters[] = {
     { .name = "sites_position",
         .get = (getter) TreeSequence_get_sites_position,
         .doc = "The site position array" },
+    { .name = "sites_ancestral_state",
+        .get = (getter) TreeSequence_get_sites_ancestral_state,
+        .doc = "The site ancestral state array" },
     { .name = "sites_metadata",
         .get = (getter) TreeSequence_get_sites_metadata,
         .doc = "The site metadata array" },
