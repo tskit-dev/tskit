@@ -4137,6 +4137,7 @@ class TreeSequence:
         self._individuals_population = None
         self._individuals_location = None
         self._individuals_nodes = None
+        self._mutations_edge = None
         # NOTE: when we've implemented read-only access via the underlying
         # tables we can replace these arrays with reference to the read-only
         # tables here (and remove the low-level boilerplate).
@@ -6020,6 +6021,18 @@ class TreeSequence:
         return self.table_metadata_schemas.mutation.structured_array_from_buffer(
             self._mutations_metadata
         )
+
+    @property
+    def mutations_edge(self):
+        """
+        Return an array of the ID of the edge each mutation sits on in the tree sequence.
+
+        :return: Array of shape (num_mutations,) containing edge IDs.
+        :rtype: numpy.ndarray (dtype=np.int32)
+        """
+        if self._mutations_edge is None:
+            self._mutations_edge = self._ll_tree_sequence.get_mutations_edge()
+        return self._mutations_edge
 
     @property
     def migrations_left(self):

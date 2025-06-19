@@ -5993,3 +5993,9 @@ class TestMapToVcfModel:
 
         result = ts.map_to_vcf_model()
         assert result.isolated_as_missing is True
+
+
+@pytest.mark.parametrize("ts", get_example_tree_sequences())
+def test_mutations_edge(ts):
+    for mut, mut_edge in itertools.zip_longest(ts.mutations(), ts.mutations_edge):
+        assert mut.edge == mut_edge

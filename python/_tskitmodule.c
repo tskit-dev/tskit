@@ -8781,6 +8781,34 @@ out:
 }
 
 static PyObject *
+TreeSequence_get_mutations_edge(TreeSequence *self)
+{
+    PyObject *ret = NULL;
+    PyArrayObject *array = NULL;
+    npy_intp num_mutations;
+    tsk_size_t j;
+    tsk_id_t *data;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+
+    num_mutations = (npy_intp) tsk_treeseq_get_num_mutations(self->tree_sequence);
+    array = (PyArrayObject *) PyArray_SimpleNew(1, &num_mutations, NPY_INT32);
+    if (array == NULL) {
+        goto out;
+    }
+
+    data = (tsk_id_t *) PyArray_DATA(array);
+    for (j = 0; j < (tsk_size_t) num_mutations; j++) {
+        data[j] = self->tree_sequence->site_mutations_mem[j].edge;
+    }
+    ret = (PyObject *) array;
+out:
+    return ret;
+}
+
+static PyObject *
 TreeSequence_genealogical_nearest_neighbours(
     TreeSequence *self, PyObject *args, PyObject *kwds)
 {
@@ -11484,6 +11512,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_get_individuals_nodes,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns an array of the node ids for each individual" },
+    { .ml_name = "get_mutations_edge",
+        .ml_meth = (PyCFunction) TreeSequence_get_mutations_edge,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns an array of the edge ids of each mutation's edge" },
     { .ml_name = "genealogical_nearest_neighbours",
         .ml_meth = (PyCFunction) TreeSequence_genealogical_nearest_neighbours,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
