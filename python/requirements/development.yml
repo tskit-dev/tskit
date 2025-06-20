@@ -22,7 +22,7 @@ dependencies:
   - msprime>=1.0.0
   - networkx
   - ninja
-  - numpy<2
+  - numpy
   - packaging
   - portion
   - pre-commit

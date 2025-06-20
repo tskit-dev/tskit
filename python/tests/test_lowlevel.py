@@ -1922,11 +1922,11 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
     def test_array_properties(self, name, ts_fixture):
         ts_fixture = ts_fixture.ll_tree_sequence
         a = getattr(ts_fixture, name)
-        assert a.base == ts_fixture
         assert not a.flags.writeable
         assert a.flags.aligned
         assert a.flags.c_contiguous
         assert not a.flags.owndata
+        assert a.base == ts_fixture
         b = getattr(ts_fixture, name)
         assert a is not b
         assert np.all(a == b)
@@ -1968,6 +1968,82 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         a2 = a1.copy()
         assert a1 is not a2
         del ts_fixture
+        # Do some memory operations
+        a3 = np.ones(10**6)
+        assert np.all(a1 == a2)
+        del a1
+        # Just do something to touch memory
+        a2[:] = 0
+        assert a3 is not a2
+
+    @pytest.mark.skipif(not _tskit.HAS_NUMPY_2, reason="Requires NumPy 2.0+")
+    @pytest.mark.parametrize(
+        "site_lengths",
+        ["none", "all-0", "all-1", "all-2", "mixed", "very_long", "unicode"],
+    )
+    def test_sites_ancestral_state(self, ts_fixture, site_lengths):
+        if site_lengths == "none":
+            ts = tskit.TableCollection(1.0).tree_sequence()
+        else:
+            if site_lengths == "all-1":
+                ts = ts_fixture
+                assert {len(site.ancestral_state) for site in ts.sites()} == {1}
+            else:
+                tables = ts_fixture.dump_tables()
+                sites = tables.sites.copy()
+                tables.sites.clear()
+
+                ancestral_state_map = {
+                    "all-0": lambda i, site: "",
+                    "all-2": lambda i, site: chr(ord("A") + (i % 26)) * 2,
+                    "mixed": lambda i, site: chr(ord("A") + (i % 26)) * (i % 20),
+                    "very_long": lambda i, site: "A" * 100_000_000 if i == 1 else "A",
+                    "unicode": lambda i, site: "💩" * (i + 1),
+                }
+
+                get_ancestral_state = ancestral_state_map[site_lengths]
+                for i, site in enumerate(sites):
+                    tables.sites.append(
+                        site.replace(ancestral_state=get_ancestral_state(i, site))
+                    )
+                ts = tables.tree_sequence()
+        ll_ts = ts.ll_tree_sequence
+
+        a = ll_ts.sites_ancestral_state
+        # Contents
+        if site_lengths == "none":
+            assert a.size == 0
+        else:
+            for site in ts.sites():
+                assert a[site.id] == site.ancestral_state
+
+        # Read only
+        with pytest.raises(AttributeError, match="not writable"):
+            ll_ts.sites_ancestral_state = None
+        with pytest.raises(AttributeError, match="not writable"):
+            del ll_ts.sites_ancestral_state
+
+        with pytest.raises(ValueError, match="assignment destination"):
+            a[:] = 0
+        with pytest.raises(ValueError, match="assignment destination"):
+            a[0] = 0
+        if site_lengths in [("all-1",)]:
+            with pytest.raises(ValueError, match="cannot set WRITEABLE"):
+                a.setflags(write=True)
+
+        # Properties
+        assert a.dtype == np.dtypes.StringDType()
+        assert a.flags.aligned
+        assert a.flags.c_contiguous
+        b = ll_ts.sites_ancestral_state
+        assert a is not b
+        assert np.all(a == b)
+
+        # Lifetime
+        a1 = ll_ts.sites_ancestral_state
+        a2 = a1.copy()
+        assert a1 is not a2
+        del ll_ts
         # Do some memory operations
         a3 = np.ones(10**6)
         assert np.all(a1 == a2)
