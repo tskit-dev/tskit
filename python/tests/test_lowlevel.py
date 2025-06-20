@@ -1193,7 +1193,6 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         "edges_metadata",
         "edges_metadata_offset",
         "sites_position",
-        "sites_ancestral_state",
         "sites_metadata",
         "sites_metadata_offset",
         "mutations_site",
@@ -1916,29 +1915,24 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             a[:] = 0
         with pytest.raises(ValueError, match="assignment destination"):
             a[0] = 0
-        if name != "sites_ancestral_state":
-            with pytest.raises(ValueError, match="cannot set WRITEABLE"):
-                a.setflags(write=True)
+        with pytest.raises(ValueError, match="cannot set WRITEABLE"):
+            a.setflags(write=True)
 
     @pytest.mark.parametrize("name", ARRAY_NAMES)
     def test_array_properties(self, name, ts_fixture):
         ts_fixture = ts_fixture.ll_tree_sequence
         a = getattr(ts_fixture, name)
-        assert a.base == ts_fixture
         assert not a.flags.writeable
         assert a.flags.aligned
         assert a.flags.c_contiguous
-        if name == "sites_ancestral_state":
-            assert a.flags.owndata
-        else:
-            assert not a.flags.owndata
+        assert not a.flags.owndata
+        assert a.base == ts_fixture
         b = getattr(ts_fixture, name)
         assert a is not b
         assert np.all(a == b)
         # This checks that the underlying pointer to memory is the same in
         # both arrays.
-        if name != "sites_ancestral_state":
-            assert a.__array_interface__ == b.__array_interface__
+        assert a.__array_interface__ == b.__array_interface__
 
     @pytest.mark.parametrize("name", ARRAY_NAMES)
     def test_array_lifetime(self, name, ts_fixture):
@@ -1980,6 +1974,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         a2[:] = 0
         assert a3 is not a2
 
+    @pytest.mark.skipif(not _tskit.HAS_NUMPY_2, reason="Requires NumPy 2.0+")
     @pytest.mark.parametrize(
         "site_lengths",
         ["none", "all-0", "all-1", "all-2", "mixed", "very_long", "unicode"],

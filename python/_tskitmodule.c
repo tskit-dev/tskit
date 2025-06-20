@@ -23,17 +23,27 @@
  * SOFTWARE.
  */
 
-#define PY_SSIZE_T_CLEAN
-#define NPY_NO_DEPRECATED_API NPY_2_0_API_VERSION
-#define NPY_TARGET_VERSION NPY_2_0_API_VERSION
 #define TSK_BUG_ASSERT_MESSAGE                                                          \
     "Please open an issue on"                                                           \
     " GitHub, ideally with a reproducible example."                                     \
     " (https://github.com/tskit-dev/tskit/issues)"
 
+#define PY_SSIZE_T_CLEAN
 #include <Python.h>
-#include <structmember.h>
+#include <numpy/numpyconfig.h>
+
+#if defined(NPY_2_0_API_VERSION) && NPY_API_VERSION >= NPY_2_0_API_VERSION
+#define NPY_NO_DEPRECATED_API NPY_2_0_API_VERSION
+#undef NPY_FEATURE_VERSION
+#define NPY_FEATURE_VERSION NPY_2_0_API_VERSION
+#define HAVE_NUMPY_2 1
+#else
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#define HAVE_NUMPY_2 0
+#endif
 #include <numpy/arrayobject.h>
+
+#include <structmember.h>
 #include <float.h>
 
 #include "kastore.h"
@@ -10775,6 +10785,7 @@ TreeSequence_make_array(TreeSequence *self, tsk_size_t size, int dtype, void *da
     return make_owned_array((PyObject *) self, size, dtype, data);
 }
 
+#if HAVE_NUMPY_2
 PyObject *
 TreeSequence_decode_ragged_string_column(
     TreeSequence *self, tsk_size_t num_rows, const char *data, const tsk_size_t *offset)
@@ -10825,6 +10836,7 @@ out:
     Py_XDECREF(array);
     return ret;
 }
+#endif
 
 static PyObject *
 TreeSequence_get_individuals_flags(TreeSequence *self, void *closure)
@@ -11073,6 +11085,7 @@ out:
     return ret;
 }
 
+#if HAVE_NUMPY_2
 static PyObject *
 TreeSequence_get_sites_ancestral_state(TreeSequence *self, void *closure)
 {
@@ -11088,6 +11101,7 @@ TreeSequence_get_sites_ancestral_state(TreeSequence *self, void *closure)
 out:
     return ret;
 }
+#endif
 
 static PyObject *
 TreeSequence_get_sites_metadata(TreeSequence *self, void *closure)
@@ -11755,9 +11769,11 @@ static PyGetSetDef TreeSequence_getsetters[] = {
     { .name = "sites_position",
         .get = (getter) TreeSequence_get_sites_position,
         .doc = "The site position array" },
+#if HAVE_NUMPY_2
     { .name = "sites_ancestral_state",
         .get = (getter) TreeSequence_get_sites_ancestral_state,
         .doc = "The site ancestral state array" },
+#endif
     { .name = "sites_metadata",
         .get = (getter) TreeSequence_get_sites_metadata,
         .doc = "The site metadata array" },
@@ -14647,12 +14663,20 @@ PyInit__tskit(void)
 {
     PyObject *module;
 
+#if HAVE_NUMPY_2
     if (PyArray_ImportNumPyAPI() < 0) {
         return NULL;
     }
+#else
+    import_array();
+#endif
 
     module = PyModule_Create(&tskitmodule);
     if (module == NULL) {
+        return NULL;
+    }
+
+    if (PyModule_AddIntConstant(module, "HAS_NUMPY_2", HAVE_NUMPY_2)) {
         return NULL;
     }
 

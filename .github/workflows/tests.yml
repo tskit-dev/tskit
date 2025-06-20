@@ -126,6 +126,15 @@ jobs:
             python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
           fi
 
+      - name: Build and run with numpy 1.x
+        working-directory: python
+        run: |
+          source ~/.profile
+          conda activate anaconda-client-env
+          conda install --yes "numpy<2"
+          python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 tests/test_lowlevel.py
+
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5.4.0
         with:
