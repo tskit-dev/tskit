@@ -24,7 +24,8 @@
  */
 
 #define PY_SSIZE_T_CLEAN
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#define NPY_NO_DEPRECATED_API NPY_2_0_API_VERSION
+#define NPY_TARGET_VERSION NPY_2_0_API_VERSION
 #define TSK_BUG_ASSERT_MESSAGE                                                          \
     "Please open an issue on"                                                           \
     " GitHub, ideally with a reproducible example."                                     \
@@ -10779,110 +10780,49 @@ TreeSequence_decode_ragged_string_column(
     TreeSequence *self, tsk_size_t num_rows, const char *data, const tsk_size_t *offset)
 {
     PyObject *ret = NULL;
-    PyArrayObject *ret_array = NULL;
+    PyObject *array = NULL;
+    PyArray_StringDTypeObject *string_dtype = NULL;
+    npy_string_allocator *allocator = NULL;
+    char *array_data = NULL;
     npy_intp dims[1];
-    char *string_data = NULL;
     tsk_size_t i;
-    tsk_size_t max_length;
-    tsk_size_t len;
-    tsk_size_t start;
-    tsk_size_t end;
-    char *dest;
-    bool all_length_one;
+    int pack_result;
 
+    string_dtype = (PyArray_StringDTypeObject *) PyArray_DescrFromType(NPY_VSTRING);
+    if (string_dtype == NULL) {
+        goto out;
+    }
     dims[0] = (npy_intp) num_rows;
-
-    /* If all strings are length one we can back the array with tskit memory */
-    all_length_one = true;
+    array = PyArray_Zeros(1, dims, (PyArray_Descr *) string_dtype, 0);
+    if (array == NULL) {
+        goto out;
+    }
+    allocator = NpyString_acquire_allocator(string_dtype);
+    if (allocator == NULL) {
+        goto out;
+    }
+    array_data = (char *) PyArray_DATA((PyArrayObject *) array);
     for (i = 0; i < num_rows; i++) {
-        len = offset[i + 1] - offset[i];
-        if (len != 1) {
-            all_length_one = false;
-            break;
+        pack_result = NpyString_pack(allocator,
+            (npy_packed_static_string
+                    *) (array_data + (i * ((PyArray_Descr *) string_dtype)->elsize)),
+            data + offset[i], offset[i + 1] - offset[i]);
+        if (pack_result == -1) {
+            goto out;
         }
     }
 
-    if (all_length_one && num_rows > 0) {
-        ret_array = (PyArrayObject *) PyArray_New(&PyArray_Type, /* subtype */
-            1,                                                   /* nd */
-            dims,                                                /* dims */
-            NPY_STRING,                                          /* type_num */
-            NULL,                                                /* strides */
-            (void *) data,                                       /* data */
-            1,   /* itemsize = 1 for S1 */
-            0,   /* flags */
-            NULL /* obj */
-        );
-        if (ret_array == NULL) {
-            goto out;
-        }
+    /* Clear the writeable flag to match other arrays semantics */
+    PyArray_CLEARFLAGS((PyArrayObject *) array, NPY_ARRAY_WRITEABLE);
 
-        if (PyArray_SetBaseObject(ret_array, (PyObject *) self) != 0) {
-            goto out;
-        }
-        Py_INCREF(self);
-
-    } else {
-        /* We have to pad the strings to make a rectangular array */
-        max_length = 0;
-        for (i = 0; i < num_rows; i++) {
-            len = offset[i + 1] - offset[i];
-            if (len > max_length) {
-                max_length = len;
-            }
-        }
-
-        /* Ensure at least S1 */
-        if (max_length == 0) {
-            max_length = 1;
-        }
-
-        if (num_rows > 0) {
-            tsk_size_t total_size = num_rows * max_length;
-            string_data = PyMem_Calloc(total_size, sizeof(char));
-            if (string_data == NULL) {
-                PyErr_NoMemory();
-                goto out;
-            }
-
-            for (i = 0; i < num_rows; i++) {
-                start = offset[i];
-                end = offset[i + 1];
-                len = end - start;
-
-                dest = string_data + (i * max_length);
-                if (len > 0) {
-                    memcpy(dest, data + start, len);
-                }
-                /* PyMem_Calloc zero-fills so we don't need to pad */
-            }
-        }
-
-        ret_array = (PyArrayObject *) PyArray_New(&PyArray_Type, /* subtype */
-            1,                                                   /* nd */
-            dims,                                                /* dims */
-            NPY_STRING,                                          /* type_num */
-            NULL,                                                /* strides */
-            string_data,                                         /* data */
-            (int) max_length,                                    /* itemsize */
-            NPY_ARRAY_OWNDATA, /* flags - we own the data */
-            NULL               /* obj */
-        );
-        if (ret_array == NULL) {
-            goto out;
-        }
-        string_data = NULL; /* Array now owns the memory */
-    }
-
-    /* Make array read-only for consistent semantics with tskit memory case */
-    PyArray_CLEARFLAGS(ret_array, NPY_ARRAY_WRITEABLE);
-
-    ret = (PyObject *) ret_array;
-    ret_array = NULL;
+    ret = array;
+    array = NULL;
 
 out:
-    PyMem_Free(string_data);
-    Py_XDECREF(ret_array);
+    if (allocator != NULL) {
+        NpyString_release_allocator(allocator);
+    }
+    Py_XDECREF(array);
     return ret;
 }
 
@@ -14705,11 +14645,16 @@ static struct PyModuleDef tskitmodule = {
 PyObject *
 PyInit__tskit(void)
 {
-    PyObject *module = PyModule_Create(&tskitmodule);
+    PyObject *module;
+
+    if (PyArray_ImportNumPyAPI() < 0) {
+        return NULL;
+    }
+
+    module = PyModule_Create(&tskitmodule);
     if (module == NULL) {
         return NULL;
     }
-    import_array();
 
     if (register_lwt_class(module) != 0) {
         return NULL;

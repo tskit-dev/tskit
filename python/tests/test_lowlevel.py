@@ -1916,8 +1916,9 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             a[:] = 0
         with pytest.raises(ValueError, match="assignment destination"):
             a[0] = 0
-        with pytest.raises(ValueError, match="cannot set WRITEABLE"):
-            a.setflags(write=True)
+        if name != "sites_ancestral_state":
+            with pytest.raises(ValueError, match="cannot set WRITEABLE"):
+                a.setflags(write=True)
 
     @pytest.mark.parametrize("name", ARRAY_NAMES)
     def test_array_properties(self, name, ts_fixture):
@@ -1927,13 +1928,17 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         assert not a.flags.writeable
         assert a.flags.aligned
         assert a.flags.c_contiguous
-        assert not a.flags.owndata
+        if name == "sites_ancestral_state":
+            assert a.flags.owndata
+        else:
+            assert not a.flags.owndata
         b = getattr(ts_fixture, name)
         assert a is not b
         assert np.all(a == b)
         # This checks that the underlying pointer to memory is the same in
         # both arrays.
-        assert a.__array_interface__ == b.__array_interface__
+        if name != "sites_ancestral_state":
+            assert a.__array_interface__ == b.__array_interface__
 
     @pytest.mark.parametrize("name", ARRAY_NAMES)
     def test_array_lifetime(self, name, ts_fixture):
@@ -1976,7 +1981,8 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         assert a3 is not a2
 
     @pytest.mark.parametrize(
-        "site_lengths", ["none", "all-0", "all-1", "all-2", "mixed", "very_long"]
+        "site_lengths",
+        ["none", "all-0", "all-1", "all-2", "mixed", "very_long", "unicode"],
     )
     def test_sites_ancestral_state(self, ts_fixture, site_lengths):
         if site_lengths == "none":
@@ -1992,9 +1998,10 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
 
                 ancestral_state_map = {
                     "all-0": lambda i, site: "",
-                    "all-2": lambda i, site: "YO",
-                    "mixed": lambda i, site: "A" * i,
-                    "very_long": lambda i, site: "A" * 100_000_000 if i == 0 else "A",
+                    "all-2": lambda i, site: chr(ord("A") + (i % 26)) * 2,
+                    "mixed": lambda i, site: chr(ord("A") + (i % 26)) * (i % 20),
+                    "very_long": lambda i, site: "A" * 100_000_000 if i == 1 else "A",
+                    "unicode": lambda i, site: "💩" * (i + 1),
                 }
 
                 get_ancestral_state = ancestral_state_map[site_lengths]
@@ -2003,15 +2010,22 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
                         site.replace(ancestral_state=get_ancestral_state(i, site))
                     )
                 ts = tables.tree_sequence()
-        ts = ts.ll_tree_sequence
+        ll_ts = ts.ll_tree_sequence
+
+        a = ll_ts.sites_ancestral_state
+        # Contents
+        if site_lengths == "none":
+            assert a.size == 0
+        else:
+            for site in ts.sites():
+                assert a[site.id] == site.ancestral_state
 
         # Read only
         with pytest.raises(AttributeError, match="not writable"):
-            ts.sites_ancestral_state = None
+            ll_ts.sites_ancestral_state = None
         with pytest.raises(AttributeError, match="not writable"):
-            del ts.sites_ancestral_state
+            del ll_ts.sites_ancestral_state
 
-        a = ts.sites_ancestral_state
         with pytest.raises(ValueError, match="assignment destination"):
             a[:] = 0
         with pytest.raises(ValueError, match="assignment destination"):
@@ -2021,18 +2035,18 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
                 a.setflags(write=True)
 
         # Properties
-        a = ts.sites_ancestral_state
+        assert a.dtype == np.dtypes.StringDType()
         assert a.flags.aligned
         assert a.flags.c_contiguous
-        b = ts.sites_ancestral_state
+        b = ll_ts.sites_ancestral_state
         assert a is not b
         assert np.all(a == b)
 
         # Lifetime
-        a1 = ts.sites_ancestral_state
+        a1 = ll_ts.sites_ancestral_state
         a2 = a1.copy()
         assert a1 is not a2
-        del ts
+        del ll_ts
         # Do some memory operations
         a3 = np.ones(10**6)
         assert np.all(a1 == a2)
