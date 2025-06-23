@@ -24,16 +24,17 @@ def test_correct_trees_forward(ts):
     numba_ts = jit_numba.numba_tree_sequence(ts)
     in_index = ts.indexes_edge_insertion_order
     out_index = ts.indexes_edge_removal_order
-    for numba_edge_diff, edge_diff in itertools.zip_longest(
-        numba_ts.edge_diffs(), ts.edge_diffs()
-    ):
-        assert edge_diff.interval == numba_edge_diff.interval
+    tree_pos = numba_ts.tree_position()
+    ts_edge_diffs = ts.edge_diffs()
+    while tree_pos.next():
+        edge_diff = next(ts_edge_diffs)
+        assert edge_diff.interval == tree_pos.interval
         for edge_in_index, edge in itertools.zip_longest(
-            range(*numba_edge_diff.edges_in_index_range), edge_diff.edges_in
+            range(*tree_pos.edges_in_index_range), edge_diff.edges_in
         ):
             assert edge.id == in_index[edge_in_index]
         for edge_out_index, edge in itertools.zip_longest(
-            range(*numba_edge_diff.edges_out_index_range), edge_diff.edges_out
+            range(*tree_pos.edges_out_index_range), edge_diff.edges_out
         ):
             assert edge.id == out_index[edge_out_index]
 
@@ -52,7 +53,8 @@ def test_using_from_jit_function():
     def _coalescent_nodes_numba(numba_ts, num_nodes, edges_parent):
         is_coalescent = np.zeros(num_nodes, dtype=np.int8)
         num_children = np.zeros(num_nodes, dtype=np.int64)
-        for tree_pos in numba_ts.edge_diffs():
+        tree_pos = numba_ts.tree_position()
+        while tree_pos.next():
             for j in range(*tree_pos.edges_out_index_range):
                 e = numba_ts.indexes_edge_removal_order[j]
                 num_children[edges_parent[e]] -= 1

@@ -31,13 +31,6 @@ def jitdataclass(cls):
 
 
 @jitdataclass
-class NumbaEdgeDiff:
-    interval: numba.types.UniTuple(numba.float64, 2)
-    edges_in_index_range: numba.types.UniTuple(numba.int32, 2)
-    edges_out_index_range: numba.types.UniTuple(numba.int32, 2)
-
-
-@jitdataclass
 class NumbaTreeSequence:
     num_edges: numba.int64
     sequence_length: numba.float64
@@ -46,39 +39,44 @@ class NumbaTreeSequence:
     indexes_edge_insertion_order: numba.int32[:]
     indexes_edge_removal_order: numba.int32[:]
 
-    def edge_diffs(self, include_terminal=False):
-        left = 0.0
-        j = 0
-        k = 0
-        edges_left = self.edges_left
-        edges_right = self.edges_right
-        in_order = self.indexes_edge_insertion_order
-        out_order = self.indexes_edge_removal_order
+    def tree_position(self):
+        return NumbaTreePosition(self, (0, 0), (0, 0), (0, 0))
 
-        while j < self.num_edges or left < self.sequence_length:
-            in_start = j
-            out_start = k
 
-            while k < self.num_edges and edges_right[out_order[k]] == left:
-                k += 1
-            while j < self.num_edges and edges_left[in_order[j]] == left:
-                j += 1
-            in_end = j
-            out_end = k
+@jitdataclass
+class NumbaTreePosition:
+    ts: NumbaTreeSequence
+    interval: numba.types.UniTuple(numba.float64, 2)
+    edges_in_index_range: numba.types.UniTuple(numba.int32, 2)
+    edges_out_index_range: numba.types.UniTuple(numba.int32, 2)
 
-            right = self.sequence_length
-            if j < self.num_edges:
-                right = min(right, edges_left[in_order[j]])
-            if k < self.num_edges:
-                right = min(right, edges_right[out_order[k]])
+    def next(self):  # noqa: A003
+        M = self.ts.num_edges
+        edges_left = self.ts.edges_left
+        edges_right = self.ts.edges_right
+        in_order = self.ts.indexes_edge_insertion_order
+        out_order = self.ts.indexes_edge_removal_order
 
-            yield NumbaEdgeDiff((left, right), (in_start, in_end), (out_start, out_end))
+        left = self.interval[1]
+        j = self.edges_in_index_range[1]
+        k = self.edges_out_index_range[1]
 
-            left = right
+        while k < M and edges_right[out_order[k]] == left:
+            k += 1
+        while j < M and edges_left[in_order[j]] == left:
+            j += 1
 
-        # Handle remaining edges that haven't been processed
-        if include_terminal:
-            yield NumbaEdgeDiff((left, right), (j, j), (k, self.num_edges))
+        self.edges_in_index_range = (self.edges_in_index_range[1], j)
+        self.edges_out_index_range = (self.edges_out_index_range[1], k)
+
+        right = self.ts.sequence_length
+        if j < M:
+            right = min(right, edges_left[in_order[j]])
+        if k < M:
+            right = min(right, edges_right[out_order[k]])
+
+        self.interval = (left, right)
+        return j < M or left < self.ts.sequence_length
 
 
 def numba_tree_sequence(ts):
