@@ -803,51 +803,6 @@ def wf_mut_sim_fixture():
     return simulations
 
 
-# Fixture for TraitLinearModel matrix operations
-@pytest.fixture(scope="session")
-def trait_covariate_cache():
-    """Cache expensive matrix operations for TraitLinearModel tests."""
-    cache = {}
-    np.random.seed(999)  # Same seed as example_covariates
-
-    # Pre-compute for common sample sizes
-    for N in [6, 10, 12]:  # Most common test sizes
-        k = min(2, N)  # We now only use k=2
-
-        # Uniform covariates transform
-        Z = np.ones((N, k))
-        Z[1, :] = np.arange(k, 2 * k)
-        tZ = np.column_stack([Z, np.ones((N, 1))])
-        if np.linalg.matrix_rank(tZ) == tZ.shape[1]:
-            Z_full = tZ
-        else:
-            Z_full = Z
-
-        if np.linalg.matrix_rank(Z_full) == Z_full.shape[1]:
-            K = np.linalg.cholesky(np.matmul(Z_full.T, Z_full)).T
-            Z_transformed = np.matmul(Z_full, np.linalg.inv(K))
-            cache[(N, "uniform")] = Z_transformed
-
-        # Normal covariates transform (only for N >= 6)
-        if N >= 6:
-            Z = np.ones((N, k))
-            for j in range(k):
-                Z[:, j] = np.random.normal(0, 1, N)
-
-            tZ = np.column_stack([Z, np.ones((N, 1))])
-            if np.linalg.matrix_rank(tZ) == tZ.shape[1]:
-                Z_full = tZ
-            else:
-                Z_full = Z
-
-            if np.linalg.matrix_rank(Z_full) == Z_full.shape[1]:
-                K = np.linalg.cholesky(np.matmul(Z_full.T, Z_full)).T
-                Z_transformed = np.matmul(Z_full, np.linalg.inv(K))
-                cache[(N, "normal")] = Z_transformed
-
-    return cache
-
-
 class MutatedTopologyExamplesMixin:
     """
     Defines a set of test cases on different example tree sequence topologies.
@@ -5588,22 +5543,27 @@ class TestTraitLinearModel(StatsTestCase, WeightStatsMixin):
         assert ts.num_mutations > 0
         return ts
 
-    def example_covariates(self, ts):
+    def example_covariates(self, ts, k_values=None):
+        if k_values is None:
+            k_values = [2]  # Default to [2] to maintain current optimization
+
         np.random.seed(999)
         N = ts.num_samples
-        # Reduced combinations for performance: only k=2 instead of [1, 2, 5]
-        k = min(2, ts.num_samples)
 
-        # Uniform covariates
-        Z = np.ones((N, k))
-        Z[1, :] = np.arange(k, 2 * k)
-        yield Z
+        for k in k_values:
+            k = min(k, ts.num_samples)
 
-        # Include one normal case for test coverage
-        if N >= 6:  # Only for larger samples to reduce computations
-            for j in range(k):
-                Z[:, j] = np.random.normal(0, 1, N)
+            # Uniform covariates
+            Z = np.ones((N, k))
+            Z[1, :] = np.arange(k, 2 * k)
             yield Z
+
+            # Include one normal case for test coverage
+            if N >= 6:  # Only for larger samples to reduce computations
+                Z_normal = np.ones((N, k))
+                for j in range(k):
+                    Z_normal[:, j] = np.random.normal(0, 1, N)
+                yield Z_normal
 
     def transform_weights(self, W, Z):
         n = W.shape[0]
@@ -5621,7 +5581,7 @@ class TestTraitLinearModel(StatsTestCase, WeightStatsMixin):
     def verify(self, ts):
         for W, Z, windows in subset_combos(
             self.example_weights(ts),
-            self.example_covariates(ts),
+            self.example_covariates(ts, k_values=[2]),
             example_windows(ts),
             p=0.02,  # Reduced from 0.04 for performance
         ):
