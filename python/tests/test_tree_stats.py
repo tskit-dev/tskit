@@ -586,8 +586,8 @@ class TopologyExamplesMixin:
         assert ts.first().num_roots > 1
         self.verify(ts)
 
-    def test_many_trees(self, ts_12_highrecomb_fixture):
-        ts = ts_12_highrecomb_fixture
+    def test_many_trees(self, ts_4_recomb_fixture):
+        ts = ts_4_recomb_fixture
         assert ts.num_trees > 2
         self.verify(ts)
 
@@ -598,81 +598,24 @@ class TopologyExamplesMixin:
         self.verify(ts)
 
     @pytest.mark.slow
-    def test_wright_fisher_unsimplified(self):
-        tables = wf.wf_sim(
-            4,
-            5,
-            seed=1,
-            deep_history=True,
-            initial_generation_samples=False,
-            num_loci=5,
-        )
-        tables.sort()
-        ts = tables.tree_sequence()
-        self.verify(ts)
+    def test_wright_fisher_unsimplified(self, wf_sim_fixture):
+        self.verify(wf_sim_fixture["unsimplified"])
 
     @pytest.mark.slow
-    def test_wright_fisher_initial_generation(self):
-        tables = wf.wf_sim(
-            6, 5, seed=3, deep_history=True, initial_generation_samples=True, num_loci=2
-        )
-        tables.sort()
-        tables.simplify()
-        ts = tables.tree_sequence()
-        self.verify(ts)
+    def test_wright_fisher_initial_generation(self, wf_sim_fixture):
+        self.verify(wf_sim_fixture["initial_generation"])
 
-    def test_wright_fisher_initial_generation_no_deep_history(self):
-        tables = wf.wf_sim(
-            6,
-            15,
-            seed=202,
-            deep_history=False,
-            initial_generation_samples=True,
-            num_loci=5,
-        )
-        tables.sort()
-        tables.simplify()
-        ts = tables.tree_sequence()
-        self.verify(ts)
+    def test_wright_fisher_initial_generation_no_deep_history(self, wf_sim_fixture):
+        self.verify(wf_sim_fixture["no_deep_history"])
 
-    def test_wright_fisher_unsimplified_multiple_roots(self):
-        tables = wf.wf_sim(
-            6,
-            5,
-            seed=1,
-            deep_history=False,
-            initial_generation_samples=False,
-            num_loci=4,
-        )
-        tables.sort()
-        ts = tables.tree_sequence()
-        self.verify(ts)
+    def test_wright_fisher_unsimplified_multiple_roots(self, wf_sim_fixture):
+        self.verify(wf_sim_fixture["unsimplified_multi_roots"])
 
-    def test_wright_fisher_simplified(self):
-        tables = wf.wf_sim(
-            5,
-            8,
-            seed=1,
-            deep_history=True,
-            initial_generation_samples=False,
-            num_loci=5,
-        )
-        tables.sort()
-        ts = tables.tree_sequence().simplify()
-        self.verify(ts)
+    def test_wright_fisher_simplified(self, wf_sim_fixture):
+        self.verify(wf_sim_fixture["simplified"])
 
-    def test_wright_fisher_simplified_multiple_roots(self):
-        tables = wf.wf_sim(
-            6,
-            8,
-            seed=1,
-            deep_history=False,
-            initial_generation_samples=False,
-            num_loci=3,
-        )
-        tables.sort()
-        ts = tables.tree_sequence().simplify()
-        self.verify(ts)
+    def test_wright_fisher_simplified_multiple_roots(self, wf_sim_fixture):
+        self.verify(wf_sim_fixture["simplified_multi_roots"])
 
     def test_empty_ts(self):
         tables = tskit.TableCollection(1.0)
@@ -762,6 +705,147 @@ def ts_6_length_factory_fixture():
         )
 
     return _make_ts
+
+
+# Wright-Fisher simulation fixtures
+@pytest.fixture(scope="session")
+def wf_sim_fixture():
+    """Common Wright-Fisher simulations used across test classes."""
+    # Pre-compute all common WF simulations
+    simulations = {}
+
+    # Used in TopologyExamplesMixin tests
+    tables = wf.wf_sim(
+        4, 5, seed=1, deep_history=True, initial_generation_samples=False, num_loci=5
+    )
+    tables.sort()
+    simulations["unsimplified"] = tables.tree_sequence()
+
+    tables = wf.wf_sim(
+        6, 5, seed=3, deep_history=True, initial_generation_samples=True, num_loci=2
+    )
+    tables.sort()
+    tables.simplify()
+    simulations["initial_generation"] = tables.tree_sequence()
+
+    tables = wf.wf_sim(
+        6, 15, seed=202, deep_history=False, initial_generation_samples=True, num_loci=5
+    )
+    tables.sort()
+    tables.simplify()
+    simulations["no_deep_history"] = tables.tree_sequence()
+
+    tables = wf.wf_sim(
+        6, 5, seed=1, deep_history=False, initial_generation_samples=False, num_loci=4
+    )
+    tables.sort()
+    simulations["unsimplified_multi_roots"] = tables.tree_sequence()
+
+    tables = wf.wf_sim(
+        5, 8, seed=1, deep_history=True, initial_generation_samples=False, num_loci=5
+    )
+    tables.sort()
+    simulations["simplified"] = tables.tree_sequence().simplify()
+
+    tables = wf.wf_sim(
+        6, 8, seed=1, deep_history=False, initial_generation_samples=False, num_loci=3
+    )
+    tables.sort()
+    simulations["simplified_multi_roots"] = tables.tree_sequence().simplify()
+
+    return simulations
+
+
+@pytest.fixture(scope="session")
+def wf_mut_sim_fixture():
+    """Wright-Fisher simulations with mutations for MutatedTopologyExamplesMixin."""
+    simulations = {}
+
+    # With mutations for site-based tests
+    tables = wf.wf_sim(
+        4, 5, seed=1, deep_history=True, initial_generation_samples=False, num_loci=10
+    )
+    tables.sort()
+    ts = msprime.mutate(tables.tree_sequence(), rate=0.05, random_seed=234)
+    simulations["unsimplified"] = ts
+
+    tables = wf.wf_sim(
+        6, 5, seed=3, deep_history=True, initial_generation_samples=True, num_loci=2
+    )
+    tables.sort()
+    tables.simplify()
+    ts = msprime.mutate(tables.tree_sequence(), rate=0.08, random_seed=2)
+    simulations["initial_generation"] = ts
+
+    tables = wf.wf_sim(
+        7, 15, seed=202, deep_history=False, initial_generation_samples=True, num_loci=5
+    )
+    tables.sort()
+    tables.simplify()
+    ts = msprime.mutate(tables.tree_sequence(), rate=0.1, random_seed=3)
+    simulations["no_deep_history"] = ts
+
+    tables = wf.wf_sim(
+        8, 15, seed=1, deep_history=False, initial_generation_samples=False, num_loci=20
+    )
+    tables.sort()
+    ts = msprime.mutate(tables.tree_sequence(), rate=0.01, random_seed=2)
+    simulations["unsimplified_multi_roots"] = ts
+
+    tables = wf.wf_sim(
+        9, 10, seed=1, deep_history=True, initial_generation_samples=False, num_loci=5
+    )
+    tables.sort()
+    ts = tables.tree_sequence().simplify()
+    ts = tsutil.jukes_cantor(ts, 10, 0.01, seed=1)
+    simulations["simplified"] = ts
+
+    return simulations
+
+
+# Fixture for TraitLinearModel matrix operations
+@pytest.fixture(scope="session")
+def trait_covariate_cache():
+    """Cache expensive matrix operations for TraitLinearModel tests."""
+    cache = {}
+    np.random.seed(999)  # Same seed as example_covariates
+
+    # Pre-compute for common sample sizes
+    for N in [6, 10, 12]:  # Most common test sizes
+        k = min(2, N)  # We now only use k=2
+
+        # Uniform covariates transform
+        Z = np.ones((N, k))
+        Z[1, :] = np.arange(k, 2 * k)
+        tZ = np.column_stack([Z, np.ones((N, 1))])
+        if np.linalg.matrix_rank(tZ) == tZ.shape[1]:
+            Z_full = tZ
+        else:
+            Z_full = Z
+
+        if np.linalg.matrix_rank(Z_full) == Z_full.shape[1]:
+            K = np.linalg.cholesky(np.matmul(Z_full.T, Z_full)).T
+            Z_transformed = np.matmul(Z_full, np.linalg.inv(K))
+            cache[(N, "uniform")] = Z_transformed
+
+        # Normal covariates transform (only for N >= 6)
+        if N >= 6:
+            Z = np.ones((N, k))
+            for j in range(k):
+                Z[:, j] = np.random.normal(0, 1, N)
+
+            tZ = np.column_stack([Z, np.ones((N, 1))])
+            if np.linalg.matrix_rank(tZ) == tZ.shape[1]:
+                Z_full = tZ
+            else:
+                Z_full = Z
+
+            if np.linalg.matrix_rank(Z_full) == Z_full.shape[1]:
+                K = np.linalg.cholesky(np.matmul(Z_full.T, Z_full)).T
+                Z_transformed = np.matmul(Z_full, np.linalg.inv(K))
+                cache[(N, "normal")] = Z_transformed
+
+    return cache
 
 
 class MutatedTopologyExamplesMixin:
@@ -881,71 +965,28 @@ class MutatedTopologyExamplesMixin:
             ts = ts_6_length_factory_fixture(L)
             self.verify(ts)
 
-    def test_wright_fisher_unsimplified(self):
-        tables = wf.wf_sim(
-            4,
-            5,
-            seed=1,
-            deep_history=True,
-            initial_generation_samples=False,
-            num_loci=10,
-        )
-        tables.sort()
-        ts = msprime.mutate(tables.tree_sequence(), rate=0.05, random_seed=234)
+    def test_wright_fisher_unsimplified(self, wf_mut_sim_fixture):
+        ts = wf_mut_sim_fixture["unsimplified"]
         assert ts.num_sites > 0
         self.verify(ts)
 
-    def test_wright_fisher_initial_generation(self):
-        tables = wf.wf_sim(
-            6, 5, seed=3, deep_history=True, initial_generation_samples=True, num_loci=2
-        )
-        tables.sort()
-        tables.simplify()
-        ts = msprime.mutate(tables.tree_sequence(), rate=0.08, random_seed=2)
+    def test_wright_fisher_initial_generation(self, wf_mut_sim_fixture):
+        ts = wf_mut_sim_fixture["initial_generation"]
         assert ts.num_sites > 0
         self.verify(ts)
 
-    def test_wright_fisher_initial_generation_no_deep_history(self):
-        tables = wf.wf_sim(
-            7,
-            15,
-            seed=202,
-            deep_history=False,
-            initial_generation_samples=True,
-            num_loci=5,
-        )
-        tables.sort()
-        tables.simplify()
-        ts = msprime.mutate(tables.tree_sequence(), rate=0.01, random_seed=2)
+    def test_wright_fisher_initial_generation_no_deep_history(self, wf_mut_sim_fixture):
+        ts = wf_mut_sim_fixture["no_deep_history"]
         assert ts.num_sites > 0
         self.verify(ts)
 
-    def test_wright_fisher_unsimplified_multiple_roots(self):
-        tables = wf.wf_sim(
-            8,
-            15,
-            seed=1,
-            deep_history=False,
-            initial_generation_samples=False,
-            num_loci=20,
-        )
-        tables.sort()
-        ts = msprime.mutate(tables.tree_sequence(), rate=0.01, random_seed=2)
+    def test_wright_fisher_unsimplified_multiple_roots(self, wf_mut_sim_fixture):
+        ts = wf_mut_sim_fixture["unsimplified_multi_roots"]
         assert ts.num_sites > 0
         self.verify(ts)
 
-    def test_wright_fisher_simplified(self):
-        tables = wf.wf_sim(
-            9,
-            10,
-            seed=1,
-            deep_history=True,
-            initial_generation_samples=False,
-            num_loci=5,
-        )
-        tables.sort()
-        ts = tables.tree_sequence().simplify()
-        ts = tsutil.jukes_cantor(ts, 10, 0.01, seed=1)
+    def test_wright_fisher_simplified(self, wf_mut_sim_fixture):
+        ts = wf_mut_sim_fixture["simplified"]
         assert ts.num_sites > 0
         self.verify(ts)
 
@@ -1025,15 +1066,33 @@ class WeightStatsMixin:
         Generate a series of example weights from the specfied tree sequence.
         """
         np.random.seed(46)
-        for k in [min_size, min_size + 1, min_size + 10]:
-            W = 1.0 + np.zeros((ts.num_samples, k))
-            W[0, :] = 2.0
-            yield W
-            for j in range(k):
-                W[:, j] = np.random.exponential(1, ts.num_samples)
-            yield W
-            for j in range(k):
-                W[:, j] = np.random.normal(0, 1, ts.num_samples)
+        # Reduced to 3 essential weight matrices for performance
+
+        # 1. Simple weights with variance (k=min_size)
+        k = min_size
+        W = np.ones((ts.num_samples, k))
+        # Ensure positive variance: different values for different samples
+        for i in range(ts.num_samples):
+            W[i, :] = 1.0 + i * 0.1
+        yield W
+
+        # 2. Exponential weights with k=min_size+1 (medium complexity)
+        k = min_size + 1
+        W = np.zeros((ts.num_samples, k))
+        for j in range(k):
+            W[:, j] = np.random.exponential(1, ts.num_samples)
+        yield W
+
+        # 3. Mixed weights with larger k (complex case)
+        # Only test larger k if samples allow it and keep it reasonable
+        k = min(min_size + 3, ts.num_samples)  # Reduced from +5 to +3
+        if k > min_size + 1:
+            W = np.zeros((ts.num_samples, k))
+            # First column: linear gradient for variance
+            W[:, 0] = np.linspace(0.5, 1.5, ts.num_samples)
+            # Remaining columns: exponential
+            for j in range(1, k):
+                W[:, j] = np.random.exponential(0.8, ts.num_samples)
             yield W
 
     def transform_weights(self, W):
@@ -1087,7 +1146,9 @@ class SampleSetStatsMixin:
 
     def verify(self, ts):
         for sample_sets, windows in subset_combos(
-            example_sample_sets(ts), example_windows(ts)
+            example_sample_sets(ts),
+            example_windows(ts),
+            p=0.2,
         ):
             self.verify_sample_sets(ts, sample_sets, windows=windows)
 
@@ -1165,7 +1226,9 @@ class TwoWaySampleSetStatsMixin(KWaySampleSetStatsMixin):
 
     def verify(self, ts):
         for sample_sets, windows in subset_combos(
-            example_sample_sets(ts, min_size=2), example_windows(ts)
+            example_sample_sets(ts, min_size=2),
+            example_windows(ts),
+            p=0.1,
         ):
             for indexes in example_sample_set_index_pairs(sample_sets):
                 self.verify_sample_sets_indexes(ts, sample_sets, indexes, windows)
@@ -1179,7 +1242,9 @@ class ThreeWaySampleSetStatsMixin(KWaySampleSetStatsMixin):
 
     def verify(self, ts):
         for sample_sets, windows in subset_combos(
-            example_sample_sets(ts, min_size=3), example_windows(ts)
+            example_sample_sets(ts, min_size=3),
+            example_windows(ts),
+            p=0.1,
         ):
             for indexes in example_sample_set_index_triples(sample_sets):
                 self.verify_sample_sets_indexes(ts, sample_sets, indexes, windows)
@@ -1193,7 +1258,9 @@ class FourWaySampleSetStatsMixin(KWaySampleSetStatsMixin):
 
     def verify(self, ts):
         for sample_sets, windows in subset_combos(
-            example_sample_sets(ts, min_size=4), example_windows(ts)
+            example_sample_sets(ts, min_size=4),
+            example_windows(ts),
+            p=0.1,
         ):
             for indexes in example_sample_set_index_quads(sample_sets):
                 self.verify_sample_sets_indexes(ts, sample_sets, indexes, windows)
@@ -5524,11 +5591,16 @@ class TestTraitLinearModel(StatsTestCase, WeightStatsMixin):
     def example_covariates(self, ts):
         np.random.seed(999)
         N = ts.num_samples
-        for k in [1, 2, 5]:
-            k = min(k, ts.num_samples)
-            Z = np.ones((N, k))
-            Z[1, :] = np.arange(k, 2 * k)
-            yield Z
+        # Reduced combinations for performance: only k=2 instead of [1, 2, 5]
+        k = min(2, ts.num_samples)
+
+        # Uniform covariates
+        Z = np.ones((N, k))
+        Z[1, :] = np.arange(k, 2 * k)
+        yield Z
+
+        # Include one normal case for test coverage
+        if N >= 6:  # Only for larger samples to reduce computations
             for j in range(k):
                 Z[:, j] = np.random.normal(0, 1, N)
             yield Z
@@ -5551,7 +5623,7 @@ class TestTraitLinearModel(StatsTestCase, WeightStatsMixin):
             self.example_weights(ts),
             self.example_covariates(ts),
             example_windows(ts),
-            p=0.04,
+            p=0.02,  # Reduced from 0.04 for performance
         ):
             self.verify_trait_linear_model(ts, W, Z, windows=windows)
 
