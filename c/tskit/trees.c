@@ -4515,7 +4515,7 @@ check_sample_stat_inputs(tsk_size_t num_sample_sets, tsk_size_t tuple_size,
 {
     int ret = 0;
 
-    if (num_sample_sets < tuple_size) {
+    if (num_sample_sets < 1) {
         ret = tsk_trace_error(TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
         goto out;
     }

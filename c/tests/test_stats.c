@@ -881,9 +881,6 @@ verify_two_way_stat_func_errors(
     ret = method(ts, 0, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
         options | TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
-    ret = method(ts, 1, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
-        options | TSK_STAT_SITE, &result);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
 
     ret = method(ts, 2, sample_set_sizes, samples, 0, set_indexes, 0, NULL,
         options | TSK_STAT_SITE, &result);
@@ -938,12 +935,6 @@ verify_three_way_stat_func_errors(tsk_treeseq_t *ts, general_sample_stat_method 
     ret = method(ts, 0, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
         TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
-    ret = method(ts, 1, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
-        TSK_STAT_SITE, &result);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
-    ret = method(ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
-        TSK_STAT_SITE, &result);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
 
     ret = method(ts, 3, sample_set_sizes, samples, 0, set_indexes, 0, NULL,
         TSK_STAT_SITE, &result);
@@ -970,15 +961,6 @@ verify_four_way_stat_func_errors(tsk_treeseq_t *ts, general_sample_stat_method *
     double result;
 
     ret = method(ts, 0, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
-        TSK_STAT_SITE, &result);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
-    ret = method(ts, 1, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
-        TSK_STAT_SITE, &result);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
-    ret = method(ts, 2, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
-        TSK_STAT_SITE, &result);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
-    ret = method(ts, 3, sample_set_sizes, samples, 1, set_indexes, 0, NULL,
         TSK_STAT_SITE, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
 
@@ -3684,7 +3666,7 @@ test_two_locus_stat_input_errors(void)
         NULL, 0, result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_INSUFFICIENT_INDEX_TUPLES);
 
-    num_sample_sets = 1;
+    num_sample_sets = 0;
     num_index_tuples = 1;
     ret = tsk_treeseq_D2_ij(&ts, num_sample_sets, sample_set_sizes, sample_sets,
         num_index_tuples, index_tuples, num_sites, row_sites, NULL, num_sites, col_sites,

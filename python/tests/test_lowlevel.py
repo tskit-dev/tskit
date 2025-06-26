@@ -1871,17 +1871,13 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             stat_method(
                 bad_ss_sizes, bad_ss, indexes, None, None, row_pos, col_pos, "branch"
             )
-        with pytest.raises(
-            _tskit.LibraryError, match="TSK_ERR_INSUFFICIENT_SAMPLE_SETS"
-        ):
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_BAD_SAMPLE_SET_INDEX"):
             bad_ss = np.array([], dtype=np.int32)
             bad_ss_sizes = np.array([0], dtype=np.uint32)
             stat_method(
                 bad_ss_sizes, bad_ss, indexes, row_sites, col_sites, None, None, "site"
             )
-        with pytest.raises(
-            _tskit.LibraryError, match="TSK_ERR_INSUFFICIENT_SAMPLE_SETS"
-        ):
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_BAD_SAMPLE_SET_INDEX"):
             bad_ss = np.array([], dtype=np.int32)
             bad_ss_sizes = np.array([0], dtype=np.uint32)
             stat_method(
