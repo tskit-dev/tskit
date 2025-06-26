@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 import tests.tsutil as tsutil
+import tskit
 
 
 def test_numba_import_error():
@@ -22,21 +23,43 @@ def test_correct_trees_forward(ts):
     import tskit.jit.numba as jit_numba
 
     numba_ts = jit_numba.numba_tree_sequence(ts)
-    in_index = ts.indexes_edge_insertion_order
-    out_index = ts.indexes_edge_removal_order
     tree_pos = numba_ts.tree_position()
     ts_edge_diffs = ts.edge_diffs()
     while tree_pos.next():
         edge_diff = next(ts_edge_diffs)
         assert edge_diff.interval == tree_pos.interval
         for edge_in_index, edge in itertools.zip_longest(
-            range(*tree_pos.edges_in_index_range), edge_diff.edges_in
+            range(tree_pos.in_range.start, tree_pos.in_range.stop), edge_diff.edges_in
         ):
-            assert edge.id == in_index[edge_in_index]
+            assert edge.id == tree_pos.in_range.order[edge_in_index]
         for edge_out_index, edge in itertools.zip_longest(
-            range(*tree_pos.edges_out_index_range), edge_diff.edges_out
+            range(tree_pos.out_range.start, tree_pos.out_range.stop),
+            edge_diff.edges_out,
         ):
-            assert edge.id == out_index[edge_out_index]
+            assert edge.id == tree_pos.out_range.order[edge_out_index]
+
+
+@pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
+def test_correct_trees_backwards(ts):
+    import tskit.jit.numba as jit_numba
+
+    numba_ts = jit_numba.numba_tree_sequence(ts)
+    tree_pos = numba_ts.tree_position()
+    ts_edge_diffs = ts.edge_diffs(direction=tskit.REVERSE)
+    while tree_pos.prev():
+        edge_diff = next(ts_edge_diffs)
+        assert edge_diff.interval == tree_pos.interval
+        for edge_in_index, edge in itertools.zip_longest(
+            range(tree_pos.in_range.start, tree_pos.in_range.stop, -1),
+            edge_diff.edges_in,
+        ):
+
+            assert edge.id == tree_pos.in_range.order[edge_in_index]
+        for edge_out_index, edge in itertools.zip_longest(
+            range(tree_pos.out_range.start, tree_pos.out_range.stop, -1),
+            edge_diff.edges_out,
+        ):
+            assert edge.id == tree_pos.out_range.order[edge_out_index]
 
 
 def test_using_from_jit_function():
@@ -55,11 +78,11 @@ def test_using_from_jit_function():
         num_children = np.zeros(num_nodes, dtype=np.int64)
         tree_pos = numba_ts.tree_position()
         while tree_pos.next():
-            for j in range(*tree_pos.edges_out_index_range):
-                e = numba_ts.indexes_edge_removal_order[j]
+            for j in range(tree_pos.out_range.start, tree_pos.out_range.stop):
+                e = tree_pos.out_range.order[j]
                 num_children[edges_parent[e]] -= 1
-            for j in range(*tree_pos.edges_in_index_range):
-                e = numba_ts.indexes_edge_insertion_order[j]
+            for j in range(tree_pos.in_range.start, tree_pos.in_range.stop):
+                e = tree_pos.in_range.order[j]
                 p = edges_parent[e]
                 num_children[p] += 1
                 if num_children[p] == 2:
@@ -95,6 +118,7 @@ def test_numba_tree_sequence_properties(ts_fixture):
 
     numba_ts = jit_numba.numba_tree_sequence(ts)
 
+    assert numba_ts.num_trees == ts.num_trees
     assert numba_ts.num_edges == ts.num_edges
     assert numba_ts.sequence_length == ts.sequence_length
     np.testing.assert_array_equal(numba_ts.edges_left, ts.edges_left)
