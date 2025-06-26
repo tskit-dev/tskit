@@ -84,3 +84,54 @@ def test_using_from_jit_function():
     C2 = _coalescent_nodes_numba(numba_ts, ts.num_nodes, ts.edges_parent)
 
     np.testing.assert_array_equal(C1, C2)
+
+
+def test_numba_tree_sequence_properties(ts_fixture):
+    """
+    Test that NumbaTreeSequence properties have correct contents and dtypes.
+    """
+    ts = ts_fixture
+    import tskit.jit.numba as jit_numba
+
+    numba_ts = jit_numba.numba_tree_sequence(ts)
+
+    assert numba_ts.num_edges == ts.num_edges
+    assert numba_ts.sequence_length == ts.sequence_length
+    np.testing.assert_array_equal(numba_ts.edges_left, ts.edges_left)
+    np.testing.assert_array_equal(numba_ts.edges_right, ts.edges_right)
+    np.testing.assert_array_equal(numba_ts.edges_parent, ts.edges_parent)
+    np.testing.assert_array_equal(numba_ts.edges_child, ts.edges_child)
+    assert numba_ts.edges_left.dtype == np.float64
+    assert numba_ts.edges_right.dtype == np.float64
+    assert numba_ts.edges_parent.dtype == np.int32
+    assert numba_ts.edges_child.dtype == np.int32
+    np.testing.assert_array_equal(numba_ts.nodes_time, ts.nodes_time)
+    np.testing.assert_array_equal(numba_ts.nodes_flags, ts.nodes_flags)
+    np.testing.assert_array_equal(numba_ts.nodes_population, ts.nodes_population)
+    np.testing.assert_array_equal(numba_ts.nodes_individual, ts.nodes_individual)
+    assert numba_ts.nodes_time.dtype == np.float64
+    assert numba_ts.nodes_flags.dtype == np.uint32
+    assert numba_ts.nodes_population.dtype == np.int32
+    assert numba_ts.nodes_individual.dtype == np.int32
+    np.testing.assert_array_equal(numba_ts.individuals_flags, ts.individuals_flags)
+    assert numba_ts.individuals_flags.dtype == np.uint32
+    np.testing.assert_array_equal(numba_ts.sites_position, ts.sites_position)
+    assert numba_ts.sites_position.dtype == np.float64
+    np.testing.assert_array_equal(numba_ts.mutations_site, ts.mutations_site)
+    np.testing.assert_array_equal(numba_ts.mutations_node, ts.mutations_node)
+    np.testing.assert_array_equal(numba_ts.mutations_parent, ts.mutations_parent)
+    np.testing.assert_array_equal(numba_ts.mutations_time, ts.mutations_time)
+    assert numba_ts.mutations_site.dtype == np.int32
+    assert numba_ts.mutations_node.dtype == np.int32
+    assert numba_ts.mutations_parent.dtype == np.int32
+    assert numba_ts.mutations_time.dtype == np.float64
+    np.testing.assert_array_equal(
+        numba_ts.indexes_edge_insertion_order, ts.indexes_edge_insertion_order
+    )
+    np.testing.assert_array_equal(
+        numba_ts.indexes_edge_removal_order, ts.indexes_edge_removal_order
+    )
+    assert numba_ts.indexes_edge_insertion_order.dtype == np.int32
+    assert numba_ts.indexes_edge_removal_order.dtype == np.int32
+    assert numba_ts.breakpoints.dtype == np.float64
+    np.testing.assert_array_equal(numba_ts.breakpoints, ts.breakpoints(as_array=True))
