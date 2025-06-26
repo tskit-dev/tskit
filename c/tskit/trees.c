@@ -4515,7 +4515,7 @@ check_sample_stat_inputs(tsk_size_t num_sample_sets, tsk_size_t tuple_size,
 {
     int ret = 0;
 
-    if (num_sample_sets < tuple_size) {
+    if (num_sample_sets < 1) {
         ret = tsk_trace_error(TSK_ERR_INSUFFICIENT_SAMPLE_SETS);
         goto out;
     }
@@ -4624,6 +4624,7 @@ tsk_treeseq_genetic_relatedness(const tsk_treeseq_t *self, tsk_size_t num_sample
     const double *windows, tsk_flags_t options, double *result)
 {
     int ret = 0;
+    // we want to allow self comparisons
     ret = check_sample_stat_inputs(num_sample_sets, 2, num_index_tuples, index_tuples);
     if (ret != 0) {
         goto out;
