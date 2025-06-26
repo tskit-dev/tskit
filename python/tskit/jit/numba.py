@@ -1,3 +1,5 @@
+import numpy as np
+
 try:
     import numba
 except ImportError:
@@ -7,8 +9,13 @@ except ImportError:
     )
 
 
+FORWARD = 1
+REVERSE = -1
+
+
 tree_sequence_spec = [
-    ("num_edges", numba.int64),
+    ("num_trees", numba.int32),
+    ("num_edges", numba.int32),
     ("sequence_length", numba.float64),
     ("edges_left", numba.float64[:]),
     ("edges_right", numba.float64[:]),
@@ -34,6 +41,7 @@ tree_sequence_spec = [
 class NumbaTreeSequence:
     def __init__(
         self,
+        num_trees,
         num_edges,
         sequence_length,
         edges_left,
@@ -54,6 +62,7 @@ class NumbaTreeSequence:
         mutations_time,
         breakpoints,
     ):
+        self.num_trees = num_trees
         self.num_edges = num_edges
         self.sequence_length = sequence_length
         self.edges_left = edges_left
@@ -75,56 +84,143 @@ class NumbaTreeSequence:
         self.breakpoints = breakpoints
 
     def tree_position(self):
-        return NumbaTreePosition(self, (0, 0), (0, 0), (0, 0))
+        return NumbaTreePosition(self)
+
+
+edge_range_spec = [
+    ("start", numba.int32),
+    ("stop", numba.int32),
+    ("order", numba.int32[:]),
+]
+
+
+@numba.experimental.jitclass(edge_range_spec)
+class NumbaEdgeRange:
+    def __init__(self, start, stop, order):
+        self.start = start
+        self.stop = stop
+        self.order = order
 
 
 tree_position_spec = [
     ("ts", NumbaTreeSequence.class_type.instance_type),
+    ("index", numba.int32),
+    ("direction", numba.int32),
     ("interval", numba.types.UniTuple(numba.float64, 2)),
-    ("edges_in_index_range", numba.types.UniTuple(numba.int32, 2)),
-    ("edges_out_index_range", numba.types.UniTuple(numba.int32, 2)),
+    ("in_range", NumbaEdgeRange.class_type.instance_type),
+    ("out_range", NumbaEdgeRange.class_type.instance_type),
 ]
 
 
 @numba.experimental.jitclass(tree_position_spec)
 class NumbaTreePosition:
-    def __init__(self, ts, interval, edges_in_index_range, edges_out_index_range):
+    def __init__(self, ts):
         self.ts = ts
-        self.interval = interval
-        self.edges_in_index_range = edges_in_index_range
-        self.edges_out_index_range = edges_out_index_range
+        self.index = -1
+        self.direction = 0
+        self.interval = (0, 0)
+        self.in_range = NumbaEdgeRange(0, 0, np.zeros(0, dtype=numba.int32))
+        self.out_range = NumbaEdgeRange(0, 0, np.zeros(0, dtype=numba.int32))
+
+    def set_null(self):
+        self.index = -1
+        self.interval = (0, 0)
 
     def next(self):  # noqa: A003
         M = self.ts.num_edges
-        edges_left = self.ts.edges_left
-        edges_right = self.ts.edges_right
-        in_order = self.ts.indexes_edge_insertion_order
-        out_order = self.ts.indexes_edge_removal_order
+        breakpoints = self.ts.breakpoints
+        left_coords = self.ts.edges_left
+        left_order = self.ts.indexes_edge_insertion_order
+        right_coords = self.ts.edges_right
+        right_order = self.ts.indexes_edge_removal_order
+
+        if self.index == -1:
+            self.interval = (self.interval[0], 0)
+            self.out_range.stop = 0
+            self.in_range.stop = 0
+            self.direction = FORWARD
+
+        if self.direction == FORWARD:
+            left_current_index = self.in_range.stop
+            right_current_index = self.out_range.stop
+        else:
+            left_current_index = self.out_range.stop + 1
+            right_current_index = self.in_range.stop + 1
 
         left = self.interval[1]
-        j = self.edges_in_index_range[1]
-        k = self.edges_out_index_range[1]
 
-        while k < M and edges_right[out_order[k]] == left:
-            k += 1
-        while j < M and edges_left[in_order[j]] == left:
+        j = right_current_index
+        self.out_range.start = j
+        while j < M and right_coords[right_order[j]] == left:
             j += 1
+        self.out_range.stop = j
+        self.out_range.order = right_order
 
-        self.edges_in_index_range = (self.edges_in_index_range[1], j)
-        self.edges_out_index_range = (self.edges_out_index_range[1], k)
+        j = left_current_index
+        self.in_range.start = j
+        while j < M and left_coords[left_order[j]] == left:
+            j += 1
+        self.in_range.stop = j
+        self.in_range.order = left_order
 
-        right = self.ts.sequence_length
-        if j < M:
-            right = min(right, edges_left[in_order[j]])
-        if k < M:
-            right = min(right, edges_right[out_order[k]])
+        self.direction = FORWARD
+        self.index += 1
+        if self.index == self.ts.num_trees:
+            self.set_null()
+        else:
+            self.interval = (left, breakpoints[self.index + 1])
+        return self.index != -1
 
-        self.interval = (left, right)
-        return j < M or left < self.ts.sequence_length
+    def prev(self):
+        M = self.ts.num_edges
+        breakpoints = self.ts.breakpoints
+        right_coords = self.ts.edges_right
+        right_order = self.ts.indexes_edge_removal_order
+        left_coords = self.ts.edges_left
+        left_order = self.ts.indexes_edge_insertion_order
+
+        if self.index == -1:
+            self.index = self.ts.num_trees
+            self.interval = (self.ts.sequence_length, self.interval[1])
+            self.in_range.stop = M - 1
+            self.out_range.stop = M - 1
+            self.direction = REVERSE
+
+        if self.direction == REVERSE:
+            left_current_index = self.out_range.stop
+            right_current_index = self.in_range.stop
+        else:
+            left_current_index = self.in_range.stop - 1
+            right_current_index = self.out_range.stop - 1
+
+        right = self.interval[0]
+
+        j = left_current_index
+        self.out_range.start = j
+        while j >= 0 and left_coords[left_order[j]] == right:
+            j -= 1
+        self.out_range.stop = j
+        self.out_range.order = left_order
+
+        j = right_current_index
+        self.in_range.start = j
+        while j >= 0 and right_coords[right_order[j]] == right:
+            j -= 1
+        self.in_range.stop = j
+        self.in_range.order = right_order
+
+        self.direction = REVERSE
+        self.index -= 1
+        if self.index == -1:
+            self.set_null()
+        else:
+            self.interval = (breakpoints[self.index], right)
+        return self.index != -1
 
 
 def numba_tree_sequence(ts):
     return NumbaTreeSequence(
+        num_trees=ts.num_trees,
         num_edges=ts.num_edges,
         sequence_length=ts.sequence_length,
         edges_left=ts.edges_left,
