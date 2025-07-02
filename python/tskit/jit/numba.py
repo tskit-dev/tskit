@@ -9,8 +9,8 @@ except ImportError:
     )
 
 
-FORWARD = 1
-REVERSE = -1
+FORWARD = 1  #: Direction constant for forward tree traversal
+REVERSE = -1  #: Direction constant for reverse tree traversal
 
 
 tree_sequence_spec = [
@@ -39,6 +39,60 @@ tree_sequence_spec = [
 
 @numba.experimental.jitclass(tree_sequence_spec)
 class NumbaTreeSequence:
+    """
+    A Numba-compatible representation of a tree sequence.
+
+    This class provides access a tree sequence class that can be used
+    from within Numba "njit" compiled functions, as it is a Numba
+    "jitclass". :meth:`numba_tree_sequence` should be used to
+    create this class from a :class:`tskit.TreeSequence` object,
+    before it is passed to a Numba function.
+
+    Attributes
+    ----------
+    num_trees : int32
+        Number of trees in the tree sequence.
+    num_edges : int32
+        Number of edges in the tree sequence.
+    sequence_length : float64
+        Total sequence length of the tree sequence.
+    edges_left : float64[]
+        Left coordinates of edges.
+    edges_right : float64[]
+        Right coordinates of edges.
+    edges_parent : int32[]
+        Parent node IDs for each edge.
+    edges_child : int32[]
+        Child node IDs for each edge.
+    nodes_time : float64[]
+        Time values for each node.
+    nodes_flags : uint32[]
+        Flag values for each node.
+    nodes_population : int32[]
+        Population IDs for each node.
+    nodes_individual : int32[]
+        Individual IDs for each node.
+    individuals_flags : uint32[]
+        Flag values for each individual.
+    sites_position : float64[]
+        Positions of sites along the sequence.
+    mutations_site : int32[]
+        Site IDs for each mutation.
+    mutations_node : int32[]
+        Node IDs for each mutation.
+    mutations_parent : int32[]
+        Parent mutation IDs.
+    mutations_time : float64[]
+        Time values for each mutation.
+    breakpoints : float64[]
+        Genomic positions where trees change.
+    indexes_edge_insertion_order : int32[]
+        Order in which edges are inserted during tree building.
+    indexes_edge_removal_order : int32[]
+        Order in which edges are removed during tree building.
+
+    """
+
     def __init__(
         self,
         num_trees,
@@ -84,6 +138,22 @@ class NumbaTreeSequence:
         self.breakpoints = breakpoints
 
     def tree_position(self):
+        """
+        Create a :class:`NumbaTreePosition` for traversing this tree sequence.
+
+        Returns
+        -------
+        NumbaTreePosition
+            A new tree position initialized to the null tree.
+            Use next() or prev() to move to actual tree positions.
+
+        Examples
+        --------
+        >>> tree_pos = numba_ts.tree_position()
+        >>> while tree_pos.next():
+        ...     # Process current tree at tree_pos.index
+        ...     print(f"Tree {tree_pos.index}: {tree_pos.interval}")
+        """
         return NumbaTreePosition(self)
 
 
@@ -96,6 +166,25 @@ edge_range_spec = [
 
 @numba.experimental.jitclass(edge_range_spec)
 class NumbaEdgeRange:
+    """
+    Represents a range of edges during tree traversal.
+
+    This class encapsulates information about a contiguous range of edges
+    that are either being removed or added to step from one tree to another
+    The ``start`` and ``stop`` indices, when applied to the order array,
+    define the ids of edges to process.
+
+    Attributes
+    ----------
+    start : int32
+        Starting index of the edge range (inclusive).
+    stop : int32
+        Stopping index of the edge range (exclusive).
+    order : int32[]
+        Array containing edge IDs in the order they should be processed.
+        The edge ids in this range are order[start:stop].
+    """
+
     def __init__(self, start, stop, order):
         self.start = start
         self.stop = stop
@@ -114,6 +203,39 @@ tree_position_spec = [
 
 @numba.experimental.jitclass(tree_position_spec)
 class NumbaTreePosition:
+    """
+    Traverse trees in a numba compatible tree sequence.
+
+    This class provides efficient forward and backward iteration through
+    the trees in a tree sequence. It tracks the current position and interval,
+    providing edge changes between trees.
+
+
+    Attributes
+    ----------
+    ts : NumbaTreeSequence
+        Reference to the tree sequence being traversed.
+    index : int32
+        Current tree index. -1 indicates no current tree (null state).
+    direction : int32
+        Traversal direction: tskit.FORWARD or tskit.REVERSE. tskit.NULL if uninitialised.
+    interval : tuple of float64
+        Genomic interval (left, right) covered by the current tree.
+    in_range : NumbaEdgeRange
+        Edges being added to form this current tree, relative to the last state
+    out_range : NumbaEdgeRange
+        Edges being removed to form this current tree, relative to the last state
+
+    Example
+    --------
+    >>> tree_pos = numba_ts.tree_position()
+    >>> num_edges
+    >>> while tree_pos.next():
+            num_edges += (tree_pos.in_range.stop - tree_pos.in_range.start)
+            num_edges -= (tree_pos.out_range.stop - tree_pos.out_range.start)
+            print(f"Tree {tree_pos.index}: {num_edges} edges")
+    """
+
     def __init__(self, ts):
         self.ts = ts
         self.index = -1
@@ -123,10 +245,34 @@ class NumbaTreePosition:
         self.out_range = NumbaEdgeRange(0, 0, np.zeros(0, dtype=numba.int32))
 
     def set_null(self):
+        """
+        Reset the tree position to null state.
+        """
         self.index = -1
         self.interval = (0, 0)
 
     def next(self):  # noqa: A003
+        """
+        Move to the next tree in forward direction.
+
+        Updates the tree position to the next tree in the sequence,
+        computing the edges that need to be added and removed to
+        transform from the previous tree to the current tree, storing
+        them in self.in_range and self.out_range.
+
+        Returns
+        -------
+        bool
+            True if successfully moved to next tree, False if the end
+            of the tree sequence is reached.
+            When False is returned, the iterator is in null state (index=-1).
+
+        Notes
+        -----
+        On the first call, this initializes the iterator and moves to tree 0.
+        The in_range and out_range attributes are updated to reflect the
+        edge changes needed for the current tree.
+        """
         M = self.ts.num_edges
         breakpoints = self.ts.breakpoints
         left_coords = self.ts.edges_left
@@ -172,6 +318,28 @@ class NumbaTreePosition:
         return self.index != -1
 
     def prev(self):
+        """
+        Move to the previous tree in reverse direction.
+
+        Updates the tree position to the previous tree in the sequence,
+        computing the edges that need to be added and removed to
+        transform from the next tree to the current tree, storing them
+        in self.in_range and self.out_range
+
+        Returns
+        -------
+        bool
+            True if successfully moved to previous tree, False if the beginning
+            of the tree sequence is reached.
+            When False is returned, the iterator is in null state (index=-1).
+
+        Notes
+        -----
+        On the first call, this initializes the iterator and moves to the most
+        rightward tree.
+        The in_range and out_range attributes are updated to reflect the
+        edge changes needed for the current tree when traversing backward.
+        """
         M = self.ts.num_edges
         breakpoints = self.ts.breakpoints
         right_coords = self.ts.edges_right
@@ -219,6 +387,23 @@ class NumbaTreePosition:
 
 
 def numba_tree_sequence(ts):
+    """
+    Convert a TreeSequence to a Numba-compatible format.
+
+    Creates a NumbaTreeSequence object that can be used within
+    Numba-compiled functions.
+
+    Parameters
+    ----------
+    ts : tskit.TreeSequence
+        The tree sequence to convert.
+
+    Returns
+    -------
+    NumbaTreeSequence
+        A Numba-compatible representation of the input tree sequence.
+        Contains all necessary data arrays and metadata for tree traversal.
+    """
     return NumbaTreeSequence(
         num_trees=ts.num_trees,
         num_edges=ts.num_edges,
