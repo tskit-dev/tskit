@@ -161,7 +161,7 @@ def test_numba_edge_range():
 
     order = np.array([1, 3, 2, 0], dtype=np.int32)
     edge_range = jit_numba.NumbaEdgeRange(start=1, stop=3, order=order)
-    
+
     assert edge_range.start == 1
     assert edge_range.stop == 3
     np.testing.assert_array_equal(edge_range.order, order)
@@ -170,18 +170,15 @@ def test_numba_edge_range():
 def test_numba_tree_position_set_null(ts_fixture):
     import tskit.jit.numba as jit_numba
 
-    ts = msprime.sim_ancestry(
-        samples=5, sequence_length=10, recombination_rate=0.1, random_seed=42
-    )
     numba_ts = jit_numba.numba_tree_sequence(ts_fixture)
     tree_pos = numba_ts.tree_position()
-    
+
     # Move to a valid position first
     tree_pos.next()
     initial_interval = tree_pos.interval
     assert tree_pos.index != -1
     assert initial_interval != (0, 0)
-    
+
     # Test set_null
     tree_pos.set_null()
     assert tree_pos.index == -1
@@ -191,21 +188,18 @@ def test_numba_tree_position_set_null(ts_fixture):
 def test_numba_tree_position_constants(ts_fixture):
     import tskit.jit.numba as jit_numba
 
-    ts = msprime.sim_ancestry(
-        samples=5, sequence_length=10, recombination_rate=0.1, random_seed=42
-    )
     numba_ts = jit_numba.numba_tree_sequence(ts_fixture)
     tree_pos = numba_ts.tree_position()
-    
+
     # Initial direction should be 0
     assert tree_pos.direction == 0
-    
+
     # After next(), direction should be FORWARD
     tree_pos.next()
     assert tree_pos.direction == jit_numba.FORWARD
     assert tree_pos.direction == 1
-    
-    # After prev(), direction should be REVERSE  
+
+    # After prev(), direction should be REVERSE
     tree_pos.prev()
     assert tree_pos.direction == jit_numba.REVERSE
     assert tree_pos.direction == -1
@@ -219,19 +213,19 @@ def test_numba_tree_position_edge_cases():
     empty_ts = tables.tree_sequence()
     numba_ts = jit_numba.numba_tree_sequence(empty_ts)
     tree_pos = numba_ts.tree_position()
-    
+
     # Should have exactly one tree
     assert tree_pos.next()
     assert tree_pos.index == 0
     assert tree_pos.interval == (0.0, 1.0)
     assert not tree_pos.next()  # No more trees
     assert tree_pos.index == -1
-    
+
     # Test with single tree (with edges)
     ts = msprime.sim_ancestry(samples=2, random_seed=42)  # No recombination
     numba_ts = jit_numba.numba_tree_sequence(ts)
     tree_pos = numba_ts.tree_position()
-    
+
     # Should have exactly one tree
     assert tree_pos.next()
     assert tree_pos.index == 0
