@@ -42,8 +42,8 @@ conda install numba
 The numba integration provides:
 
 - **{class}`NumbaTreeSequence`**: A Numba-compatible representation of tree sequence data
-- **{class}`NumbaTreePosition`**: An class for efficient tree traversal
-- **{class}`NumbaEdgeRange`**: Container class for edge ranges during traversal
+- **{class}`NumbaTreePosition`**: An class for efficient tree iteration
+- **{class}`NumbaEdgeRange`**: Container class for edge ranges during iteration
 
 These classes are designed to work within Numba's `@njit` decorated functions,
 allowing you to write high-performance tree sequence analysis code.
@@ -73,9 +73,9 @@ numba_ts = tskit_numba.numba_tree_sequence(ts)
 print(type(numba_ts))
 ```
 
-## Tree Traversal
+## Tree Iteration
 
-Tree traversal can be performed using the {class}`NumbaTreePosition` class.
+Tree iteration can be performed using the {class}`NumbaTreePosition` class.
 This class provides `next()` and `prev()` methods for forward and backward iteration through the trees in a tree sequence. It's `in_range` and `out_range` attributes provide the edges that must be added or removed to form the current
 tree from the previous tree.
 
@@ -93,7 +93,7 @@ def edges_per_tree(numba_ts):
     current_num_edges = 0
     num_edges = []
     
-    # Traverse trees forward
+    # Move forward through the trees
     while tree_pos.next():
         # Access current tree information
         in_range = tree_pos.in_range
