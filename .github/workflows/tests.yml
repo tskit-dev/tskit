@@ -121,7 +121,7 @@ jobs:
           source ~/.profile
           conda activate anaconda-client-env
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            python -m pytest -x --skip-slow --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
+            python -m pytest -x --skip-slow --cov=tskit --cov=tskit.jit --cov-report=xml --cov-branch -n2 --durations=20 tests
           else
             python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
           fi
@@ -170,7 +170,7 @@ jobs:
       - name: Run tests with numpy 1.x
         working-directory: python
         run: |
-          python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 tests/test_lowlevel.py tests/test_highlevel.py
+          python -m pytest -x --cov=tskit --cov=tskit.jit --cov-report=xml --cov-branch -n2 tests/test_lowlevel.py tests/test_highlevel.py
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5.4.0
