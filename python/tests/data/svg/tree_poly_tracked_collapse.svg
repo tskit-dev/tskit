@@ -9,7 +9,7 @@
 				<g class="a41 c4 node n35" transform="translate(41.3013 47.1333)">
 					<g class="a35 c4 node n34" transform="translate(-56.4461 47.1333)">
 						<g class="a34 leaf node n20 sample" transform="translate(-21.7216 47.1333)">
-							<path class="edge" d="M 0 0 V -47.1333 H 21.7216"/>
+							<path class="edge e11" d="M 0 0 V -47.1333 H 21.7216"/>
 							<rect class="sym" height="6" width="6" x="-3" y="-3"/>
 							<text class="lab" transform="translate(0 11)">20</text>
 						</g>
@@ -20,7 +20,7 @@
 								<title>This polytomy has 3 additional branches, leading to a total of 3 descendant samples</title>
 							</text>
 						</g>
-						<path class="edge" d="M 0 0 V -47.1333 H 56.4461"/>
+						<path class="edge e32" d="M 0 0 V -47.1333 H 56.4461"/>
 						<circle class="sym" cx="0" cy="0" r="3"/>
 						<text class="lab rgt" transform="translate(3 -7)">34</text>
 					</g>
@@ -31,13 +31,13 @@
 							<title>This polytomy has 3 additional branches, leading to a total of 3 descendant samples</title>
 						</text>
 					</g>
-					<path class="edge" d="M 0 0 V -47.1333 H -41.3013"/>
+					<path class="edge e39" d="M 0 0 V -47.1333 H -41.3013"/>
 					<circle class="sym" cx="0" cy="0" r="3"/>
 					<text class="lab rgt" transform="translate(3 -7)">35</text>
 				</g>
 				<g class="a41 c4 node n40" transform="translate(-188.918 47.1333)">
 					<g class="a40 c2 node n36" transform="translate(108.608 47.1333)">
-						<path class="edge" d="M 0 0 V -47.1333 H -108.608"/>
+						<path class="edge e33" d="M 0 0 V -47.1333 H -108.608"/>
 						<circle class="sym" cx="0" cy="0" r="3"/>
 						<polygon class="sym multi" points="3.0,0 6,6 -6,6 -3.0,0"/>
 						<text class="lab summary" font-style="italic" transform="translate(0 12)">
@@ -48,36 +48,36 @@
 					</g>
 					<g class="a40 c2 node n37" transform="translate(-43.4433 47.1333)">
 						<g class="a37 leaf node n23 sample" transform="translate(21.7216 47.1333)">
-							<path class="edge" d="M 0 0 V -47.1333 H -21.7216"/>
+							<path class="edge e14" d="M 0 0 V -47.1333 H -21.7216"/>
 							<rect class="sym" height="6" width="6" x="-3" y="-3"/>
 							<text class="lab" transform="translate(0 11)">23</text>
 						</g>
 						<g class="a37 leaf node n24 sample" transform="translate(-21.7216 47.1333)">
-							<path class="edge" d="M 0 0 V -47.1333 H 21.7216"/>
+							<path class="edge e15" d="M 0 0 V -47.1333 H 21.7216"/>
 							<rect class="sym" height="6" width="6" x="-3" y="-3"/>
 							<text class="lab" transform="translate(0 11)">24</text>
 						</g>
-						<path class="edge" d="M 0 0 V -47.1333 H 43.4433"/>
+						<path class="edge e34" d="M 0 0 V -47.1333 H 43.4433"/>
 						<circle class="sym" cx="0" cy="0" r="3"/>
 						<text class="lab rgt" transform="translate(3 -7)">37</text>
 					</g>
 					<g class="a40 c2 node n38" transform="translate(43.4433 47.1333)">
 						<g class="a38 leaf node n25 sample" transform="translate(-21.7216 47.1333)">
-							<path class="edge" d="M 0 0 V -47.1333 H 21.7216"/>
+							<path class="edge e16" d="M 0 0 V -47.1333 H 21.7216"/>
 							<rect class="sym" height="6" width="6" x="-3" y="-3"/>
 							<text class="lab" transform="translate(0 11)">25</text>
 						</g>
 						<g class="a38 leaf node n26 sample" transform="translate(21.7216 47.1333)">
-							<path class="edge" d="M 0 0 V -47.1333 H -21.7216"/>
+							<path class="edge e17" d="M 0 0 V -47.1333 H -21.7216"/>
 							<rect class="sym" height="6" width="6" x="-3" y="-3"/>
 							<text class="lab" transform="translate(0 11)">26</text>
 						</g>
-						<path class="edge" d="M 0 0 V -47.1333 H -43.4433"/>
+						<path class="edge e35" d="M 0 0 V -47.1333 H -43.4433"/>
 						<circle class="sym" cx="0" cy="0" r="3"/>
 						<text class="lab rgt" transform="translate(3 -7)">38</text>
 					</g>
 					<g class="a40 c3 node n39" transform="translate(-108.608 47.1333)">
-						<path class="edge" d="M 0 0 V -47.1333 H 108.608"/>
+						<path class="edge e36" d="M 0 0 V -47.1333 H 108.608"/>
 						<circle class="sym" cx="0" cy="0" r="3"/>
 						<polygon class="sym multi" points="3.0,0 6,6 -6,6 -3.0,0"/>
 						<text class="lab summary" font-style="italic" transform="translate(0 12)">
@@ -86,7 +86,7 @@
 						</text>
 						<text class="lab rgt" transform="translate(3 -7)">39</text>
 					</g>
-					<path class="edge" d="M 0 0 V -47.1333 H 188.918"/>
+					<path class="edge e40" d="M 0 0 V -47.1333 H 188.918"/>
 					<circle class="sym" cx="0" cy="0" r="3"/>
 					<text class="lab rgt" transform="translate(3 -7)">40</text>
 				</g>

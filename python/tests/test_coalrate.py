@@ -1294,9 +1294,9 @@ class TestCoalescingPairsSimulated:
         proto = proto_pair_coalescence_counts(ts, windows=windows, span_normalise=False)
         np.testing.assert_allclose(proto, check)
 
-    def test_span_normalise_with_missing(self):
+    def test_span_normalise_with_missing_flanks(self):
         """
-        test case where span is normalised and there are intervals without trees
+        test case where span is normalised and there are flanking intervals without trees
         """
         ts = self.example_ts()
         missing = np.array([[0.0, 0.1], [0.8, 1.0]]) * ts.sequence_length
@@ -1312,6 +1312,30 @@ class TestCoalescingPairsSimulated:
         # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(ts, windows=windows, span_normalise=True)
         np.testing.assert_allclose(proto, check)
+
+    def test_span_normalise_with_missing_interior(self):
+        """
+        test that span normalisation correctly calculates internal missing data
+        """
+        ts = msprime.sim_ancestry(samples=1, discrete_genome=False)
+        missing_interval = np.array([[0.3, 0.6]]) * ts.sequence_length
+        windows = np.array([0.0, 0.31, 1.0]) * ts.sequence_length
+        time_windows = np.array([0.0, np.inf])
+        ts = ts.delete_intervals(missing_interval)
+        check = np.ones(windows.size - 1)
+        implm = ts.pair_coalescence_counts(
+            windows=windows,
+            time_windows=time_windows,
+            span_normalise=True,
+        ).flatten()
+        np.testing.assert_array_almost_equal(implm, check)
+        proto = proto_pair_coalescence_counts(
+            ts,
+            windows=windows,
+            time_windows=time_windows,
+            span_normalise=True,
+        ).flatten()
+        np.testing.assert_array_almost_equal(proto, check)
 
     def test_empty_windows(self):
         """

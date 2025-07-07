@@ -4231,7 +4231,7 @@ tsk_treeseq_D_prime(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
 {
     options |= TSK_STAT_POLARISED; // TODO: allow user to pick?
     return tsk_treeseq_two_locus_count_stat(self, num_sample_sets, sample_set_sizes,
-        sample_sets, num_sample_sets, NULL, D_prime_summary_func, norm_hap_weighted,
+        sample_sets, num_sample_sets, NULL, D_prime_summary_func, norm_total_weighted,
         num_rows, row_sites, row_positions, num_cols, col_sites, col_positions, options,
         result);
 }
@@ -7358,18 +7358,6 @@ out:
     return ret;
 }
 
-/* Compatibility shim for initialising the diff iterator from a tree sequence. We are
- * using this function in a small number of places internally, so simplest to keep it
- * until a more satisfactory "diff" API comes along.
- */
-int TSK_WARN_UNUSED
-tsk_diff_iter_init_from_ts(
-    tsk_diff_iter_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t options)
-{
-    return tsk_diff_iter_init(
-        self, tree_sequence->tables, (tsk_id_t) tree_sequence->num_trees, options);
-}
-
 /* ======================================================== *
  * KC Distance
  * ======================================================== */
@@ -9586,8 +9574,9 @@ tsk_treeseq_pair_coalescence_stat(const tsk_treeseq_t *self, tsk_size_t num_samp
                 window_span = windows[w + 1] - windows[w] - missing_span;
                 missing_span = 0.0;
                 if (num_edges == 0) {
+                    /* missing interval, so remove overcounted missing span */
                     remaining_span = right - windows[w + 1];
-                    window_span -= remaining_span;
+                    window_span += remaining_span;
                     missing_span += remaining_span;
                 }
                 for (i = 0; i < (tsk_id_t) num_set_indexes; i++) {

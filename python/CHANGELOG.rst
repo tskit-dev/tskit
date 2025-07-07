@@ -1,5 +1,49 @@
 --------------------
-[0.6.4] - 2025-XX-XX
+[0.6.5] - 2025-0X-XX
+--------------------
+
+**Features**
+
+- ``TreeSequence.map_to_vcf_model`` now also returns the transformed positions and
+  contig length. (:user:`benjeffery`, :pr:`3174`, :issue:`3173`)
+
+- ``draw_svg()`` methods now associate tree branches with edge IDs
+  (:user:`hyanwong`, :pr:`3193`, :issue:`557`)
+
+- ``draw_svg()`` methods now allow the y-axis to be placed on the right-hand side
+  using ``y_axis="right"`` (:user:`hyanwong`, :pr:`3201`)
+
+- Add ``contig_id`` and ``isolated_as_missing`` to ``VcfModelMapping``
+  (:user:`benjeffery`, :pr:`3219`, :issue:`3177`)
+
+- Add ``TreeSequence.mutations_edge`` which returns the edge ID for each mutation's
+  edge. (:user:`benjeffery`, :pr:`3226`, :issue:`3189`)
+
+
+**Bugfixes**
+
+- Fix bug in ``TreeSequence.pair_coalescence_counts`` when ``span_normalise=True``
+  and a window breakpoint falls within an internal missing interval.
+  (:user:`nspope`, :pr:`3176`, :issue:`3175`)
+
+**Breaking changes** 
+
+- ``ltrim``, ``rtrim``, ``trim`` and ``shift`` raise an error if used on a tree sequence
+  containing a reference sequence (:user:`hyanwong`, :pr:`3210`, :issue:`2091`)
+
+- Add ``TreeSequence.sites_ancestral_state`` and ``TreeSequence.mutations_derived_state`` properties
+  to return the ancestral state of sites and derived state of mutations as NumPy arrays of
+  the new numpy 2.0 StringDType.
+  This requires numpy version 2 or greater, as such this is now the minimum version stated in tskit's
+  dependencies. If you try to use another python module that was compiled against numpy 1.X you may see
+  the error "A module that was compiled using NumPy 1.x cannot be run in NumPy 2.0.0 as it may crash.".
+  If no newer version of the module is avaliable you can still use it with tskit and numpy 1.X by
+  building tskit from source with numpy 1.X using ``pip install tskit --no-binary tskit``. However
+  any use of the new properties will result in a ``RuntimeError``.
+  (:user:`benjeffery`, :pr:`3228`, :issue:`2632`)
+
+--------------------
+[0.6.4] - 2025-05-21
 --------------------
 
 **Features**
@@ -12,12 +56,36 @@
   associated with each individual as a numpy array.
   (:user:`benjeffery`, :pr:`3153`)
 
+- Add ``shift`` method to both ``TableCollection`` and ``TreeSequence`` classes
+  allowing the coordinate system to be shifted, and ``TreeSequence.concatenate``
+  so a set of tree sequence can be added to the right of an existing one.
+  (:user:`hyanwong`, :pr:`3165`, :issue:`3164`)
+
+- Add ``TreeSequence.map_to_vcf_model`` method to return a mapping of
+  the tree sequence to the VCF model. 
+  (:user:`benjeffery`, :pr:`3163`)
+- Use a thin space as the thousands separator in HTML output,
+  and a comma in CLI output.
+  (:user:`hossam26644`, :pr:`3167`, :issue:`2951`)
 
 **Fixes**
 
 - Correct assertion message when tables are compared with metadata ignored.
   (:user:`benjeffery`, :pr:`3162`, :issue:`3161`)
   
+**Breaking changes** 
+
+- ``TreeSequence.write_vcf`` now filters non-sample nodes from individuals
+  by default, instead of raising an error. These nodes can be included using the
+  new ``include_non_sample_nodes`` argument. 
+  By default individual names (sample IDs) in VCF output are now of the form
+  ``tsk_{individual.id}`` Previously these were always 
+  ``"tsk_{j}" for j in range(num_individuals)``. This may break some downstream
+  code if individuals are specified. To fix, manually specify ``individual_names``
+  to the required pattern.
+  (:user:`benjeffery`, :pr:`3163`)
+
+
 --------------------
 [0.6.3] - 2025-04-28
 --------------------

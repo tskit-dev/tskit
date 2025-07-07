@@ -1904,9 +1904,6 @@ bool tsk_tree_is_sample(const tsk_tree_t *self, tsk_id_t u);
  */
 bool tsk_tree_equals(const tsk_tree_t *self, const tsk_tree_t *other);
 
-int tsk_diff_iter_init_from_ts(
-    tsk_diff_iter_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t options);
-
 int tsk_tree_position_init(
     tsk_tree_position_t *self, const tsk_treeseq_t *tree_sequence, tsk_flags_t options);
 int tsk_tree_position_free(tsk_tree_position_t *self);

@@ -1578,7 +1578,7 @@ class TestDrawSvg(TestDrawSvgBase):
         svg = t.draw_svg()
         self.verify_basic_svg(svg)
 
-    @pytest.mark.parametrize("y_axis", (True, False))
+    @pytest.mark.parametrize("y_axis", ("left", "right", True, False))
     @pytest.mark.parametrize("y_label", (True, False))
     @pytest.mark.parametrize(
         "time_scale",
@@ -1769,6 +1769,12 @@ class TestDrawSvg(TestDrawSvgBase):
         svg = t.draw_svg(mutation_label_attrs={0: {"stroke": colour}})
         self.verify_basic_svg(svg)
         assert svg.count(f'stroke="{colour}"') == 1
+
+    def test_bad_y_axis(self):
+        t = self.get_binary_tree()
+        for bad_axis in ["te", "asdf", "", [], b"23"]:
+            with pytest.raises(ValueError):
+                t.draw_svg(y_axis=bad_axis)
 
     def test_bad_time_scale(self):
         t = self.get_binary_tree()
@@ -2281,11 +2287,11 @@ class TestDrawSvg(TestDrawSvgBase):
             svg = ts.draw_svg(time_scale=time_scale, x_lim=[0, ts.sequence_length])
             self.verify_basic_svg(svg)
             assert svg.count("<rect") == 10  # Sample nodes are rectangles
-            assert svg.count('<path class="edge"') == 0
+            assert svg.count('<path class="edge') == 0
         svg = ts.draw_svg(force_root_branch=True, x_lim=[0, ts.sequence_length])
         self.verify_basic_svg(svg)
         assert svg.count("<rect") == 10
-        assert svg.count('<path class="edge"') == 10
+        assert svg.count('<path class="edge') == 10
 
     def test_no_edges_with_muts(self):
         # If there is a mutation above a sample, the root branches should be there too
@@ -2299,7 +2305,7 @@ class TestDrawSvg(TestDrawSvgBase):
         svg = ts.draw_svg()
         self.verify_basic_svg(svg)
         assert svg.count("<rect") == 10
-        assert svg.count('<path class="edge"') == 10
+        assert svg.count('<path class="edge') == 10
         assert svg.count('<path class="sym"') == ts.num_mutations
         assert svg.count('<line class="sym"') == ts.num_sites
 
@@ -2435,18 +2441,15 @@ class TestDrawSvg(TestDrawSvgBase):
         self.verify_basic_svg(svg2a)
         self.verify_basic_svg(svg2b)
         # Last <path> should be the root branch, if it exists
-        edge_str = '<path class="edge" d='
+        edge_str = '<path class="edge root" d='
         str_pos1 = svg1.rfind(edge_str, 0, svg1.find(f">{root1}<"))
-        str_pos2a = svg2a.rfind(edge_str, 0, svg2a.find(f">{root2}<"))
+        assert edge_str not in svg2a
         str_pos2b = svg2b.rfind(edge_str, 0, svg2b.find(f">{root2}<"))
         snippet1 = svg1[str_pos1 + len(edge_str) : svg1.find(">", str_pos1)]
-        snippet2a = svg2a[str_pos2a + len(edge_str) : svg2a.find(">", str_pos2a)]
         snippet2b = svg2b[str_pos2b + len(edge_str) : svg2b.find(">", str_pos2b)]
         assert snippet1.startswith('"M 0 0')
-        assert snippet2a.startswith('"M 0 0')
         assert snippet2b.startswith('"M 0 0')
         assert "H 0" in snippet1
-        assert not ("H 0" in snippet2a)  # No root branch
         assert "H 0" in snippet2b
 
     def test_debug_box(self):
@@ -2490,6 +2493,16 @@ class TestDrawSvg(TestDrawSvgBase):
         site_strings_in_stylesheet = svg.count(".site")
         assert svg.count("site") - site_strings_in_stylesheet == num_sites
         self.verify_basic_svg(svg, width=200 * (max_trees + 1))
+
+    def test_edge_ids(self):
+        ts = self.get_simple_ts()
+        for tree in ts.trees():
+            svg = tree.draw_svg()
+            mut_nodes = {m.node for m in tree.mutations()}
+            assert svg.count('"edge root"') == (1 if tree.root in mut_nodes else 0)
+            edges = {tree.edge(u) for u in tree.nodes()}
+            for e in range(tree.num_edges):
+                assert svg.count(f'"edge e{e}"') == (1 if e in edges else 0)
 
     def test_draw_tree_symbol_titles(self):
         tree = self.get_binary_tree()
@@ -2743,7 +2756,8 @@ class TestDrawKnownSvg(TestDrawSvgBase):
 
     def test_known_svg_tree_timed_root_mut(self, overwrite_viz, draw_plotbox):
         tree = self.get_simple_ts(use_mutation_times=True).at_index(0)
-        svg = tree.draw_svg(debug_box=draw_plotbox)
+        # Also look at y_axis=right
+        svg = tree.draw_svg(debug_box=draw_plotbox, y_axis="right")
         self.verify_known_svg(svg, "tree_timed_muts.svg", overwrite_viz)
 
     def test_known_svg_ts(self, overwrite_viz, draw_plotbox):
@@ -2914,7 +2928,8 @@ class TestDrawKnownSvg(TestDrawSvgBase):
 
     def test_known_svg_ts_mutation_times(self, overwrite_viz, draw_plotbox):
         ts = self.get_simple_ts(use_mutation_times=True)
-        svg = ts.draw_svg(debug_box=draw_plotbox)
+        # also look at y_axis="right"
+        svg = ts.draw_svg(debug_box=draw_plotbox, y_axis="right")
         assert svg.count('class="site ') == ts.num_sites
         assert svg.count('class="mut ') == ts.num_mutations * 2
         self.verify_known_svg(

@@ -1922,11 +1922,11 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
     def test_array_properties(self, name, ts_fixture):
         ts_fixture = ts_fixture.ll_tree_sequence
         a = getattr(ts_fixture, name)
-        assert a.base == ts_fixture
         assert not a.flags.writeable
         assert a.flags.aligned
         assert a.flags.c_contiguous
         assert not a.flags.owndata
+        assert a.base == ts_fixture
         b = getattr(ts_fixture, name)
         assert a is not b
         assert np.all(a == b)
@@ -1949,23 +1949,123 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         a2[:] = 0
         assert a3 is not a2
 
-    def test_individuals_nodes(self, ts_fixture):
+    @pytest.mark.parametrize("name", ("individuals_nodes", "mutations_edge"))
+    def test_generated_columns(self, ts_fixture, name):
+        name = f"get_{name}"
         ts_fixture = ts_fixture.ll_tree_sequence
 
         # Properties
-        a = ts_fixture.get_individuals_nodes()
+        a = getattr(ts_fixture, name)()
         assert a.flags.aligned
         assert a.flags.c_contiguous
         assert a.flags.owndata
-        b = ts_fixture.get_individuals_nodes()
+        b = getattr(ts_fixture, name)()
         assert a is not b
         assert np.all(a == b)
 
         # Lifetime
-        a1 = ts_fixture.get_individuals_nodes()
+        a1 = getattr(ts_fixture, name)()
         a2 = a1.copy()
         assert a1 is not a2
         del ts_fixture
+        # Do some memory operations
+        a3 = np.ones(10**6)
+        assert np.all(a1 == a2)
+        del a1
+        # Just do something to touch memory
+        a2[:] = 0
+        assert a3 is not a2
+
+    @pytest.mark.skipif(not _tskit.HAS_NUMPY_2, reason="Requires NumPy 2.0+")
+    @pytest.mark.parametrize(
+        "string_array", ["sites_ancestral_state", "mutations_derived_state"]
+    )
+    @pytest.mark.parametrize(
+        "str_lengths",
+        ["none", "all-0", "all-1", "all-2", "mixed", "very_long", "unicode"],
+    )
+    def test_string_arrays(self, ts_fixture, str_lengths, string_array):
+        if str_lengths == "none":
+            ts = tskit.TableCollection(1.0).tree_sequence()
+        else:
+            if str_lengths == "all-1":
+                ts = ts_fixture
+                if string_array == "sites_ancestral_state":
+                    assert ts.num_sites > 0
+                    assert {len(site.ancestral_state) for site in ts.sites()} == {1}
+                elif string_array == "mutations_derived_state":
+                    assert ts.num_mutations > 0
+                    assert {len(mut.derived_state) for mut in ts.mutations()} == {1}
+            else:
+                tables = ts_fixture.dump_tables()
+
+                str_map = {
+                    "all-0": lambda i, item: "",
+                    "all-2": lambda i, item: chr(ord("A") + (i % 26)) * 2,
+                    "mixed": lambda i, item: chr(ord("A") + (i % 26)) * (i % 20),
+                    "very_long": lambda i, item: "A" * 100_000_000 if i == 1 else "T",
+                    "unicode": lambda i, item: "🧬" * (i + 1),
+                }
+
+                if string_array == "sites_ancestral_state":
+                    sites = tables.sites.copy()
+                    tables.sites.clear()
+                    get_ancestral_state = str_map[str_lengths]
+                    for i, site in enumerate(sites):
+                        tables.sites.append(
+                            site.replace(ancestral_state=get_ancestral_state(i, site))
+                        )
+                elif string_array == "mutations_derived_state":
+                    mutations = tables.mutations.copy()
+                    tables.mutations.clear()
+                    get_derived_state = str_map[str_lengths]
+                    for i, mutation in enumerate(mutations):
+                        tables.mutations.append(
+                            mutation.replace(
+                                derived_state=get_derived_state(i, mutation)
+                            )
+                        )
+
+                ts = tables.tree_sequence()
+        ll_ts = ts.ll_tree_sequence
+
+        a = getattr(ll_ts, string_array)
+
+        # Contents
+        if str_lengths == "none":
+            assert a.size == 0
+        else:
+            if string_array == "sites_ancestral_state":
+                for site in ts.sites():
+                    assert a[site.id] == site.ancestral_state
+            elif string_array == "mutations_derived_state":
+                for mutation in ts.mutations():
+                    assert a[mutation.id] == mutation.derived_state
+
+        # Read only
+        with pytest.raises(AttributeError, match="not writable"):
+            setattr(ll_ts, string_array, None)
+        with pytest.raises(AttributeError, match="not writable"):
+            delattr(ll_ts, string_array)
+
+        with pytest.raises(ValueError, match="assignment destination"):
+            a[:] = 0
+        with pytest.raises(ValueError, match="assignment destination"):
+            a[0] = 0
+
+        # Properties
+        assert a.dtype == np.dtypes.StringDType()
+        assert a.flags.aligned
+        assert a.flags.c_contiguous
+        b = getattr(ll_ts, string_array)
+        assert a is not b
+        assert np.all(a == b)
+
+        # Lifetime
+        a1 = getattr(ll_ts, string_array)
+        a2 = a1.copy()
+        assert a1 is not a2
+        del ll_ts
         # Do some memory operations
         a3 = np.ones(10**6)
         assert np.all(a1 == a2)

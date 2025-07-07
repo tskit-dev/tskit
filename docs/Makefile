@@ -2,7 +2,7 @@
 # Need to set PYTHONPATH so that we pick up the local tskit
 PYPATH=$(shell pwd)/../python/
 TSK_VERSION:=$(shell PYTHONPATH=${PYPATH} \
-   python3 -c 'import tskit; print(tskit.__version__.split("+")[0])')
+   python -c 'import tskit; print(tskit.__version__.split("+")[0])')
 
 BUILDDIR      = _build
 DOXYGEN_XML=doxygen/xml

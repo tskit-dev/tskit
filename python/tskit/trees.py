@@ -32,6 +32,7 @@ import concurrent.futures
 import functools
 import io
 import itertools
+import json
 import math
 import numbers
 import warnings
@@ -46,6 +47,7 @@ import tskit
 import tskit.combinatorics as combinatorics
 import tskit.drawing as drawing
 import tskit.metadata as metadata_module
+import tskit.provenance as provenance
 import tskit.tables as tables
 import tskit.text_formats as text_formats
 import tskit.util as util
@@ -55,6 +57,16 @@ from tskit import NULL
 from tskit import UNKNOWN_TIME
 
 LEGACY_MS_LABELS = "legacy_ms"
+
+
+@dataclass
+class VcfModelMapping:
+    individuals_nodes: np.ndarray
+    individuals_name: np.ndarray
+    transformed_positions: np.ndarray
+    contig_length: int
+    contig_id: str
+    isolated_as_missing: bool
 
 
 class CoalescenceRecord(NamedTuple):
@@ -910,10 +922,10 @@ class Tree:
         ``sample_sets`` need not include all samples but must be pairwise disjoint.
 
         The returned object is a :class:`tskit.TopologyCounter` that contains
-        counts of topologies per combination of sample sets. For example,
+        counts of topologies per combination of sample sets. For example::
 
-        >>> topology_counter = tree.count_topologies()
-        >>> rank, count = topology_counter[0, 1, 2].most_common(1)[0]
+            topology_counter = tree.count_topologies()
+            rank, count = topology_counter[0, 1, 2].most_common(1)[0]
 
         produces the most common tree topology, with populations 0, 1
         and 2 as its tips, according to the genealogies of those
@@ -931,8 +943,8 @@ class Tree:
         To convert the topology counts to probabilities, divide by the total
         possible number of sample combinations from the sample sets in question::
 
-            >>> set_sizes = [len(sample_set) for sample_set in sample_sets]
-            >>> p = count / (set_sizes[0] * set_sizes[1] * set_sizes[2])
+            set_sizes = [len(sample_set) for sample_set in sample_sets]
+            p = count / (set_sizes[0] * set_sizes[1] * set_sizes[2])
 
         .. warning:: The interface for this method is preliminary and may be subject to
             backwards incompatible changes in the near future.
@@ -958,9 +970,9 @@ class Tree:
     def branch_length(self, u):
         """
         Returns the length of the branch (in units of time) joining the
-        specified node to its parent. This is equivalent to
+        specified node to its parent. This is equivalent to::
 
-        >>> tree.time(tree.parent(u)) - tree.time(u)
+            tree.time(tree.parent(u)) - tree.time(u)
 
         The branch length for a node that has no parent (e.g., a root) is
         defined as zero.
@@ -986,9 +998,9 @@ class Tree:
     def total_branch_length(self):
         """
         Returns the sum of all the branch lengths in this tree (in
-        units of time). This is equivalent to
+        units of time). This is equivalent to::
 
-        >>> sum(tree.branch_length(u) for u in tree.nodes())
+            sum(tree.branch_length(u) for u in tree.nodes())
 
         Note that the branch lengths for root nodes are defined as zero.
 
@@ -1037,7 +1049,7 @@ class Tree:
         Returns the time of the most recent common ancestor of the specified
         nodes. This is equivalent to::
 
-            >>> tree.time(tree.mrca(*args))
+            tree.time(tree.mrca(*args))
 
         .. note::
             If you are using this method to calculate average tmrca values along the
@@ -1879,7 +1891,8 @@ class Tree:
             0.3.6)
         :param node_labels: If specified, show custom labels for the nodes
             (specified by ID) that are present in this map; any nodes not present will
-            not have a label.
+            not have a label. To use a metadata key, for example, use
+            ``node_labels={node.id: node.metadata["key"] for node in ts.nodes()}``.
         :type node_labels: dict(int, str)
         :param mutation_labels: If specified, show custom labels for the
             mutations (specified by ID) that are present in the map; any mutations
@@ -1954,7 +1967,7 @@ class Tree:
         :return: An SVG representation of a tree.
         :rtype: SVGString
         """
-        draw = drawing.SvgTree(
+        svgtree = drawing.SvgTree(
             self,
             size,
             time_scale=time_scale,
@@ -1985,11 +1998,7 @@ class Tree:
             preamble=preamble,
             **kwargs,
         )
-        output = draw.drawing.tostring()
-        if path is not None:
-            # TODO: removed the pretty here when this is stable.
-            draw.drawing.saveas(path, pretty=True)
-        return drawing.SVGString(output)
+        return svgtree.draw(path)
 
     def draw(
         self,
@@ -2016,13 +2025,13 @@ class Tree:
         When working in a Jupyter notebook, use the ``IPython.display.SVG``
         function to display the SVG output from this function inline in the notebook::
 
-            >>> SVG(tree.draw())
+            SVG(tree.draw())
 
         The unicode format uses unicode `box drawing characters
         <https://en.wikipedia.org/wiki/Box-drawing_character>`_ to render the tree.
         This allows rendered trees to be printed out to the terminal::
 
-            >>> print(tree.draw(format="unicode"))
+            print(tree.draw(format="unicode"))
               6
             ┏━┻━┓
             ┃   5
@@ -2034,7 +2043,7 @@ class Tree:
         The ``node_labels`` argument allows the user to specify custom labels
         for nodes, or no labels at all::
 
-            >>> print(tree.draw(format="unicode", node_labels={}))
+            print(tree.draw(format="unicode", node_labels={}))
               ┃
             ┏━┻━┓
             ┃   ┃
@@ -2195,9 +2204,9 @@ class Tree:
         The returned iterator is equivalent to iterating over all sites
         and all mutations in each site, i.e.::
 
-            >>> for site in tree.sites():
-            >>>     for mutation in site.mutations:
-            >>>         yield mutation
+            for site in tree.sites():
+                for mutation in site.mutations:
+                    yield mutation
 
         :return: An iterator over all :class:`Mutation` objects in this tree.
         :rtype: iter(:class:`Mutation`)
@@ -2780,10 +2789,10 @@ class Tree:
 
         For example::
 
-            >>> import networkx as nx
-            >>> nx.DiGraph(tree.as_dict_of_dicts())
-            >>> # undirected graphs work as well
-            >>> nx.Graph(tree.as_dict_of_dicts())
+            import networkx as nx
+            nx.DiGraph(tree.as_dict_of_dicts())
+            # undirected graphs work as well
+            nx.Graph(tree.as_dict_of_dicts())
 
         :return: Dictionary of dictionaries of dictionaries where the first key
             is the source, the second key is the target of an edge, and the
@@ -2814,17 +2823,21 @@ class Tree:
         Return a plain text summary of a tree in a tree sequence
         """
         tree_rows = [
-            ["Index", f"{self.index:,}"],
+            ["Index", f"{util.format_number(self.index, sep=',')}"],
             [
                 "Interval",
-                f"{self.interval.left:,.8g}-{self.interval.right:,.8g}"
-                f"({self.span:,.8g})",
+                f"{util.format_number(self.interval.left, sep=',')}-"
+                f"{util.format_number(self.interval.right, sep=',')}"
+                f"({util.format_number(self.span, sep=',')})",
             ],
-            ["Roots", f"{self.num_roots:,}"],
-            ["Nodes", f"{len(self.preorder()):,}"],
-            ["Sites", f"{self.num_sites:,}"],
-            ["Mutations", f"{self.num_mutations:,}"],
-            ["Total Branch Length", f"{self.total_branch_length:,.8g}"],
+            ["Roots", f"{util.format_number(self.num_roots, sep=',')}"],
+            ["Nodes", f"{util.format_number(len(self.preorder()), sep=',')}"],
+            ["Sites", f"{util.format_number(self.num_sites, sep=',')}"],
+            ["Mutations", f"{util.format_number(self.num_mutations, sep=',')}"],
+            [
+                "Total Branch Length",
+                f"{util.format_number(self.total_branch_length, sep=',')}",
+            ],
         ]
         return util.unicode_table(tree_rows, title="Tree")
 
@@ -4124,6 +4137,9 @@ class TreeSequence:
         self._individuals_population = None
         self._individuals_location = None
         self._individuals_nodes = None
+        self._mutations_edge = None
+        self._sites_ancestral_state = None
+        self._mutations_derived_state = None
         # NOTE: when we've implemented read-only access via the underlying
         # tables we can replace these arrays with reference to the read-only
         # tables here (and remove the low-level boilerplate).
@@ -4391,17 +4407,10 @@ class TreeSequence:
         Return a plain text summary of the contents of a tree sequence
         """
         ts_rows = [
-            ["Trees", str(self.num_trees)],
-            [
-                "Sequence Length",
-                str(
-                    int(self.sequence_length)
-                    if self.discrete_genome
-                    else self.sequence_length
-                ),
-            ],
+            ["Trees", util.format_number(self.num_trees, sep=",")],
+            ["Sequence Length", util.format_number(self.sequence_length, sep=",")],
             ["Time Units", self.time_units],
-            ["Sample Nodes", str(self.num_samples)],
+            ["Sample Nodes", util.format_number(self.num_samples, sep=",")],
             ["Total Size", util.naturalsize(self.nbytes)],
         ]
         header = ["Table", "Rows", "Size", "Has Metadata"]
@@ -4410,7 +4419,7 @@ class TreeSequence:
             table_rows.append(
                 [
                     name.capitalize(),
-                    f"{table.num_rows:,}",
+                    f"{util.format_number(table.num_rows, sep=',')}",
                     util.naturalsize(table.nbytes),
                     (
                         "Yes"
@@ -4980,9 +4989,9 @@ class TreeSequence:
         The returned iterator is equivalent to iterating over all sites
         and all mutations in each site, i.e.::
 
-            >>> for site in tree_sequence.sites():
-            >>>     for mutation in site.mutations:
-            >>>         yield mutation
+            for site in tree_sequence.sites():
+                for mutation in site.mutations:
+                    yield mutation
 
         :return: An iterator over all mutations in this tree sequence.
         :rtype: iter(:class:`Mutation`)
@@ -5013,9 +5022,9 @@ class TreeSequence:
     def breakpoints(self, as_array=False):
         """
         Returns the breakpoints that separate trees along the chromosome, including the
-        two extreme points 0 and L. This is equivalent to
+        two extreme points 0 and L. This is equivalent to::
 
-        >>> iter([0] + [t.interval.right for t in self.trees()])
+            iter([0] + [t.interval.right for t in self.trees()])
 
         By default we return an iterator over the breakpoints as Python float objects;
         if ``as_array`` is True we return them as a numpy array.
@@ -5946,6 +5955,20 @@ class TreeSequence:
         return self._sites_position
 
     @property
+    def sites_ancestral_state(self):
+        """
+        The ``ancestral_state`` column in the
+        :ref:`sec_site_table_definition` as a numpy array (dtype=StringDtype).
+        """
+        if not _tskit.HAS_NUMPY_2:
+            raise RuntimeError(
+                "The sites_ancestral_state property requires numpy 2.0 or later."
+            )
+        if self._sites_ancestral_state is None:
+            self._sites_ancestral_state = self._ll_tree_sequence.sites_ancestral_state
+        return self._sites_ancestral_state
+
+    @property
     def sites_metadata(self):
         """
         Efficient access to the ``metadata`` column in the
@@ -5965,6 +5988,10 @@ class TreeSequence:
         :ref:`sec_mutation_table_definition` as a numpy array (dtype=np.int32).
         Equivalent to ``ts.tables.mutations.site`` (but avoiding the full copy
         of the table data that accessing ``ts.tables`` currently entails).
+
+        .. note::
+            To efficently get an array of the number of mutations per site, you
+            can use ``np.bincount(ts.mutations_site, minlength=ts.num_sites)``.
         """
         return self._mutations_site
 
@@ -5999,6 +6026,22 @@ class TreeSequence:
         return self._mutations_time
 
     @property
+    def mutations_derived_state(self):
+        """
+        Access to the ``derived_state`` column in the
+        :ref:`sec_mutation_table_definition` as a numpy array (dtype=StringDtype).
+        """
+        if not _tskit.HAS_NUMPY_2:
+            raise RuntimeError(
+                "The mutations_derived_state property requires numpy 2.0 or later."
+            )
+        if self._mutations_derived_state is None:
+            self._mutations_derived_state = (
+                self._ll_tree_sequence.mutations_derived_state
+            )
+        return self._mutations_derived_state
+
+    @property
     def mutations_metadata(self):
         """
         Efficient access to the ``metadata`` column in the
@@ -6010,6 +6053,18 @@ class TreeSequence:
         return self.table_metadata_schemas.mutation.structured_array_from_buffer(
             self._mutations_metadata
         )
+
+    @property
+    def mutations_edge(self):
+        """
+        Return an array of the ID of the edge each mutation sits on in the tree sequence.
+
+        :return: Array of shape (num_mutations,) containing edge IDs.
+        :rtype: numpy.ndarray (dtype=np.int32)
+        """
+        if self._mutations_edge is None:
+            self._mutations_edge = self._ll_tree_sequence.get_mutations_edge()
+        return self._mutations_edge
 
     @property
     def migrations_left(self):
@@ -6410,6 +6465,7 @@ class TreeSequence:
         sample_mask=None,
         isolated_as_missing=None,
         allow_position_zero=None,
+        include_non_sample_nodes=None,
     ):
         """
         Convert the genetic variation data in this tree sequence to Variant
@@ -6425,21 +6481,21 @@ class TreeSequence:
         :ref:`sec_export_vcf_constructing_gt` section for more details
         and examples.
 
-        If individuals that are associated with sample nodes are defined in the
+        If individuals are defined in the
         data model (see :ref:`sec_individual_table_definition`), the genotypes
-        for each of the individual's samples are combined into a phased
-        multiploid values at each site. By default, all individuals associated
-        with sample nodes are included in increasing order of individual ID.
+        for each of the individual's nodes are combined into a phased
+        multiploid values at each site. By default, all individuals are
+        included with their sample nodes, individuals with no nodes are
+        omitted. The ``include_non_sample_nodes`` argument can be used to
+        included non-sample nodes in the output VCF.
 
         Subsets or permutations of the sample individuals may be specified
-        using the ``individuals`` argument. It is an error to specify any
-        individuals that are not associated with any nodes, or whose
-        nodes are not all samples.
+        using the ``individuals`` argument.
 
         Mixed-sample individuals (e.g., those associated with one node
         that is a sample and another that is not) in the data model will
-        result in an error by default. However, such individuals can be
-        excluded using the ``individuals`` argument.
+        only have the sample nodes output by default. However, non-sample
+        nodes can be included using the ``include_non_sample_nodes`` argument.
 
         If there are no individuals in the tree sequence,
         synthetic individuals are created by combining adjacent samples, and
@@ -6540,6 +6596,8 @@ class TreeSequence:
             output to the VCF, otherwise if one is present an error will be raised.
             The VCF spec does not allow for sites at position 0. However, in practise
             many tools will be fine with this. Default: False.
+        :param bool include_non_sample_nodes: If True, include non-sample nodes
+            in the output VCF. By default, only sample nodes are included.
         """
         if allow_position_zero is None:
             allow_position_zero = False
@@ -6554,6 +6612,7 @@ class TreeSequence:
             sample_mask=sample_mask,
             isolated_as_missing=isolated_as_missing,
             allow_position_zero=allow_position_zero,
+            include_non_sample_nodes=include_non_sample_nodes,
         )
         writer.write(output)
 
@@ -7060,6 +7119,104 @@ class TreeSequence:
         tables.trim(record_provenance)
         return tables.tree_sequence()
 
+    def shift(self, value, sequence_length=None, record_provenance=True):
+        """
+        Shift the coordinate system (used by edges and sites) of this TableCollection by
+        a given value. Positive values shift the coordinate system to the right, negative
+        values to the left. The sequence length of the tree sequence will be changed by
+        ``value``, unless ``sequence_length`` is given, in which case this will be used
+        for the new sequence length.
+
+        .. note::
+            By setting ``value=0``, this method will simply return a tree sequence
+            with a new sequence length.
+
+        :param value: The amount by which to shift the coordinate system.
+        :param sequence_length: The new sequence length of the tree sequence. If
+            ``None`` (default) add ``value`` to the sequence length.
+        :raises ValueError: If the new coordinate system is invalid (e.g., if
+            shifting the coordinate system results in negative coordinates).
+        """
+        tables = self.dump_tables()
+        tables.shift(
+            value=value,
+            sequence_length=sequence_length,
+            record_provenance=record_provenance,
+        )
+        return tables.tree_sequence()
+
+    def concatenate(
+        self, *args, node_mappings=None, record_provenance=True, add_populations=None
+    ):
+        r"""
+        Concatenate a set of tree sequences to the right of this one, by repeatedly
+        calling :meth:`~TreeSequence.union` with an (optional)
+        node mapping for each of the ``others``. If any node mapping is ``None``
+        only map the sample nodes between the input tree sequence and this one,
+        based on the numerical order of sample node IDs.
+
+        .. note::
+            To add gaps between the concatenated tables, use :meth:`shift` or
+            to remove gaps, use :meth:`trim` before concatenating.
+
+        :param TreeSequence \*args: A list of other tree sequences to append to
+            the right of this one.
+        :param Union[list, None] node_mappings: An list of node mappings for each
+            input tree sequence in ``args``. Each should either be an array of
+            integers of the same length as the number of nodes in the equivalent
+            input tree sequence (see :meth:`~TreeSequence.union` for details), or
+            ``None``. If ``None``, only sample nodes are mapped to each other.
+            Default: ``None``, treated as ``[None] * len(args)``.
+        :param bool record_provenance: If True (default), record details of this
+            call to ``concatenate`` in the returned tree sequence's provenance
+            information (Default: True).
+        :param bool add_populations: If True (default), nodes new to ``self`` will
+            be assigned new population IDs (see :meth:`~TreeSequence.union`)
+        """
+        if node_mappings is None:
+            node_mappings = [None] * len(args)
+        if add_populations is None:
+            add_populations = True
+        if len(node_mappings) != len(args):
+            raise ValueError(
+                "You must provide the same number of node_mappings as args"
+            )
+
+        samples = self.samples()
+        tables = self.dump_tables()
+        tables.drop_index()
+
+        for node_mapping, other in zip(node_mappings, args):
+            if node_mapping is None:
+                other_samples = other.samples()
+                if len(other_samples) != len(samples):
+                    raise ValueError(
+                        "each `other` must have the same number of samples as `self`"
+                    )
+                node_mapping = np.full(other.num_nodes, tskit.NULL, dtype=np.int32)
+                node_mapping[other_samples] = samples
+            other_tables = other.dump_tables()
+            other_tables.shift(tables.sequence_length, record_provenance=False)
+            tables.sequence_length = other_tables.sequence_length
+            # NB: should we use a different default for add_populations?
+            tables.union(
+                other_tables,
+                node_mapping=node_mapping,
+                check_shared_equality=False,  # Else checks fail with internal samples
+                record_provenance=False,
+                add_populations=add_populations,
+            )
+        if record_provenance:
+            parameters = {
+                "command": "concatenate",
+                "TODO": "add concatenate parameters",  # tricky as both have provenances
+            }
+            tables.provenances.add_row(
+                record=json.dumps(provenance.get_provenance_dict(parameters))
+            )
+
+        return tables.tree_sequence()
+
     def split_edges(self, time, *, flags=None, population=None, metadata=None):
         """
         Returns a copy of this tree sequence in which we replace any
@@ -7293,7 +7450,14 @@ class TreeSequence:
            added mutation.
 
         By default, populations of newly added nodes are assumed to be new
-        populations, and added to the population table as well.
+        populations, and added to the population table as well. This can be
+        thought of as a "node-wise" union: for instance, it can not be used
+        to add new edges between two nodes already in ``self`` or new mutations
+        above nodes already in ``self``.
+
+        If the resulting tree sequence is invalid (for instance, a node is
+        specified to have two distinct parents on the same interval),
+        an error will be raised.
 
         Note that this operation also sorts the resulting tables, so the
         resulting tree sequence may not be equal to ``self`` even if nothing
@@ -7304,9 +7468,9 @@ class TreeSequence:
             ``other`` to nodes in ``self``.
         :param bool check_shared_equality: If True, the shared portions of the
             tree sequences will be checked for equality. It does so by
-            subsetting both ``self`` and ``other`` on the equivalent nodes
-            specified in ``node_mapping``, and then checking for equality of
-            the subsets.
+            running :meth:`TreeSequence.subset` on both ``self`` and ``other``
+            for the equivalent nodes specified in ``node_mapping``, and then
+            checking for equality of the subsets.
         :param bool add_populations: If True, nodes new to ``self`` will be
             assigned new population IDs.
         :param bool record_provenance: Whether to record a provenance entry
@@ -7435,9 +7599,11 @@ class TreeSequence:
             draws a box, labelled with the name, on the X axis between the left and
             right positions, and can be used for annotating genomic regions (e.g.
             genes) on the X axis. If ``None`` (default) do not plot any regions.
-        :param bool y_axis: Should the plot have an Y axis line, showing time (or
-            ranked node time if ``time_scale="rank"``. If ``None`` (default)
-            do not plot a Y axis.
+        :param Union[bool, str] y_axis: Should the plot have an Y axis line, showing
+            time. If ``False`` do not plot a Y axis. If ``True``, plot the Y axis on
+            left hand side of the plot. Can also take the strings ``"left"`` or
+            ``"right"``, specifying the side of the plot on which to plot the Y axis.
+            Default: ``None``, treated as ``False``.
         :param str y_label: Place a label to the left of the plot. If ``None`` (default)
             and there is a Y axis, create and place an appropriate label.
         :param Union[list, dict] y_ticks: A list of Y values at which to plot
@@ -7479,7 +7645,7 @@ class TreeSequence:
             strictly within an empty region then that tree will not be plotted on the
             right hand side, and the X axis will end at ``empty_tree.interval.left``
         """
-        draw = drawing.SvgTreeSequence(
+        svgtreesequence = drawing.SvgTreeSequence(
             self,
             size,
             x_scale=x_scale,
@@ -7509,11 +7675,7 @@ class TreeSequence:
             preamble=preamble,
             **kwargs,
         )
-        output = draw.drawing.tostring()
-        if path is not None:
-            # TODO remove the 'pretty' when we are done debugging this.
-            draw.drawing.saveas(path, pretty=True)
-        return drawing.SVGString(output)
+        return svgtreesequence.draw(path)
 
     def draw_text(
         self,
@@ -10507,6 +10669,8 @@ class TreeSequence:
         :return: A 2D array of node IDs, where each row has length `ploidy`.
         :rtype: numpy.ndarray
         """
+        if ploidy <= 0 or ploidy != int(ploidy):
+            raise ValueError("Ploidy must be a positive integer")
         sample_node_ids = np.flatnonzero(self.nodes_flags & tskit.NODE_IS_SAMPLE)
         num_samples = len(sample_node_ids)
         if num_samples == 0:
@@ -10519,6 +10683,199 @@ class TreeSequence:
         num_samples_per_individual = num_samples // ploidy
         sample_node_ids = sample_node_ids.reshape((num_samples_per_individual, ploidy))
         return sample_node_ids
+
+    def map_to_vcf_model(
+        self,
+        individuals=None,
+        ploidy=None,
+        name_metadata_key=None,
+        individual_names=None,
+        include_non_sample_nodes=None,
+        position_transform=None,
+        contig_id=None,
+        isolated_as_missing=None,
+    ):
+        """
+        Maps the sample nodes in this tree sequence to a representation suitable for
+        VCF output, using the individuals if present.
+
+        Creates a VcfModelMapping object that contains a nodes-to-individual
+        mapping as a 2D array of (individuals, nodes), the individual names and VCF
+        compatible site positions and contig length. The
+        mapping is created by first checking if the tree sequence contains individuals.
+        If it does, the mapping is created using the individuals in the tree sequence.
+        By default only the sample nodes of the individuals are included in the mapping,
+        unless `include_non_sample_nodes` is set to True, in which case all nodes
+        belonging to the individuals are included. Any individuals without any nodes
+        will have no nodes in their row of the mapping, being essentially of zero ploidy.
+        If no individuals are present, the mapping is created using only the sample nodes
+        and the specified ploidy.
+
+        As the tskit data model allows non-integer positions, site positions and contig
+        length are transformed to integer values suitable for VCF output. The
+        transformation is done using the `position_transform` function, which must
+        return an integer numpy array the same dimension as the input. By default,
+        this is set to ``numpy.round()`` which will round values to the nearest integer.
+
+        If neither `name_metadata_key` nor `individual_names` is not specified, the
+        individual names are set to "tsk_{individual_id}" for each individual. If
+        no individuals are present, the individual names are set to "tsk_{i}" with
+        `0 <= i < num_sample_nodes/ploidy`.
+
+        A Warning are emmitted if any sample nodes do not have an individual ID.
+
+        :param list individuals: Specific individual IDs to include in the VCF. If not
+            specified and the tree sequence contains individuals, all individuals are
+            included at least one node.
+        :param int ploidy: The ploidy, or number of nodes per individual. Only used when
+            the tree sequence does not contain individuals. Cannot be used if the tree
+            sequence contains individuals. Defaults to 1 if not specified.
+        :param str name_metadata_key: The key in the individual metadata to use
+            for individual names. Cannot be specified simultaneously with
+            individual_names.
+        :param list individual_names: The names to use for each individual. Cannot
+            be specified simultaneously with name_metadata_key.
+        :param bool include_non_sample_nodes: If True, include all nodes belonging to
+            the individuals in the mapping. If False, only include sample nodes.
+            Defaults to False.
+        :param position_transform: A callable that transforms the
+            site position values into integer valued coordinates suitable for
+            VCF. The function takes a single positional parameter x and must
+            return an integer numpy array the same dimension as x. By default,
+            this is set to ``numpy.round()`` which will round values to the
+            nearest integer. If the string "legacy" is provided here, the
+            pre 0.2.0 legacy behaviour of rounding values to the nearest integer
+            (starting from 1) and avoiding the output of identical positions
+            by incrementing is used.
+            See the :ref:`sec_export_vcf_modifying_coordinates` for examples
+            and more information.
+        :param str contig_id: The ID of the contig to use in the VCF output.
+            Defaults to "1" if not specified.
+        :param bool isolated_as_missing: If True, isolated samples without mutations
+            will be considered as missing data in the VCF output. If False, these samples
+            will have the ancestral state in the VCF output.
+            Default: True.
+        :return: A VcfModelMapping containing the node-to-individual mapping,
+            individual names, transformed positions, and transformed contig length.
+        :raises ValueError: If both name_metadata_key and individual_names are specified,
+            if ploidy is specified when individuals are present, if an invalid individual
+            ID is specified, if a specified individual has no nodes, or if the number of
+            individuals doesn't match the number of names.
+        """
+        if include_non_sample_nodes is None:
+            include_non_sample_nodes = False
+
+        if contig_id is None:
+            contig_id = "1"
+
+        if isolated_as_missing is None:
+            isolated_as_missing = True
+
+        if name_metadata_key is not None and individual_names is not None:
+            raise ValueError(
+                "Cannot specify both name_metadata_key and individual_names"
+            )
+
+        if self.num_individuals > 0 and ploidy is not None:
+            raise ValueError(
+                "Cannot specify ploidy when individuals are present in the tree sequence"
+            )
+
+        if self.num_individuals == 0 and include_non_sample_nodes:
+            raise ValueError(
+                "Cannot include non-sample nodes when individuals are not present in "
+                "the tree sequence"
+            )
+
+        if self.num_individuals > 0 and np.any(
+            np.logical_and(
+                self.nodes_individual == tskit.NULL,
+                self.nodes_flags & tskit.NODE_IS_SAMPLE,
+            )
+        ):
+            warnings.warn(
+                "At least one sample node does not have an individual ID.", stacklevel=1
+            )
+
+        if self.num_individuals == 0 and individuals is None:
+            if ploidy is None:
+                ploidy = 1
+            individuals_nodes = self.sample_nodes_by_ploidy(ploidy)
+            if individual_names is None:
+                individual_names = [f"tsk_{i}" for i in range(len(individuals_nodes))]
+        else:
+            if individuals is None:
+                individuals = np.arange(self.num_individuals, dtype=np.int32)
+            if len(individuals) == 0:
+                raise ValueError("No individuals specified")
+            if min(individuals) < 0 or max(individuals) >= self.num_individuals:
+                raise ValueError("Invalid individual ID")
+
+            individuals_nodes = self.individuals_nodes[individuals]
+            non_sample_nodes = np.logical_not(
+                self.nodes_flags[individuals_nodes] & tskit.NODE_IS_SAMPLE
+            )
+            if np.any(non_sample_nodes) and not include_non_sample_nodes:
+                individuals_nodes[non_sample_nodes] = -1
+                rows_to_reorder = np.any(non_sample_nodes, axis=1)
+                for i in np.where(rows_to_reorder)[0]:
+                    row = individuals_nodes[i]
+                    individuals_nodes[i] = np.concatenate(
+                        [row[row != -1], row[row == -1]]
+                    )
+
+            if individual_names is None:
+                if name_metadata_key is not None:
+                    individual_names = [
+                        self.individual(i).metadata[name_metadata_key]
+                        for i in individuals
+                    ]
+                else:
+                    individual_names = [f"tsk_{i}" for i in individuals]
+
+        individual_names = np.array(individual_names, dtype=object)
+
+        if len(individuals_nodes) != len(individual_names):
+            raise ValueError(
+                "The number of individuals does not match the number of names"
+            )
+
+        def legacy_position_transform(positions):
+            """
+            Transforms positions in the tree sequence into VCF coordinates under
+            the pre 0.2.0 legacy rule.
+            """
+            last_pos = 0
+            transformed = []
+            for pos in positions:
+                pos = int(round(pos))
+                if pos <= last_pos:
+                    pos = last_pos + 1
+                transformed.append(pos)
+                last_pos = pos
+            return transformed
+
+        if position_transform is None:
+            position_transform = np.round
+        elif position_transform == "legacy":
+            position_transform = legacy_position_transform
+        transformed_positions = np.array(
+            position_transform(self.sites_position), dtype=int
+        )
+        if transformed_positions.shape != (self.num_sites,):
+            raise ValueError(
+                "Position transform must return an array of the same length"
+            )
+        contig_length = max(1, int(position_transform([self.sequence_length])[0]))
+
+        return VcfModelMapping(
+            individuals_nodes,
+            individual_names,
+            transformed_positions,
+            contig_length,
+            contig_id,
+            isolated_as_missing,
+        )
 
     ############################################
     #

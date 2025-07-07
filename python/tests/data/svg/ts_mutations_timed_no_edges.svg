@@ -57,32 +57,32 @@
 			<g class="tree t0" transform="translate(20 0)">
 				<g class="plotbox">
 					<g class="leaf node n0 p0 root sample" transform="translate(26 121.4)">
-						<path class="edge" d="M 0 0 V -13.925 H 0"/>
+						<path class="edge root" d="M 0 0 V -13.925 H 0"/>
 						<rect class="sym" height="6" width="6" x="-3" y="-3"/>
 						<text class="lab" transform="translate(0 11)">0</text>
 					</g>
 					<g class="leaf node n1 p0 root sample" transform="translate(38 121.4)">
-						<path class="edge" d="M 0 0 V -13.925 H 0"/>
+						<path class="edge root" d="M 0 0 V -13.925 H 0"/>
 						<rect class="sym" height="6" width="6" x="-3" y="-3"/>
 						<text class="lab" transform="translate(0 11)">1</text>
 					</g>
 					<g class="leaf node n2 p0 root sample" transform="translate(50 121.4)">
-						<path class="edge" d="M 0 0 V -13.925 H 0"/>
+						<path class="edge root" d="M 0 0 V -13.925 H 0"/>
 						<rect class="sym" height="6" width="6" x="-3" y="-3"/>
 						<text class="lab" transform="translate(0 11)">2</text>
 					</g>
 					<g class="leaf node n3 p0 root sample" transform="translate(62 121.4)">
-						<path class="edge" d="M 0 0 V -13.925 H 0"/>
+						<path class="edge root" d="M 0 0 V -13.925 H 0"/>
 						<rect class="sym" height="6" width="6" x="-3" y="-3"/>
 						<text class="lab" transform="translate(0 11)">3</text>
 					</g>
 					<g class="leaf node n4 p0 root sample" transform="translate(74 121.4)">
-						<path class="edge" d="M 0 0 V -13.925 H 0"/>
+						<path class="edge root" d="M 0 0 V -13.925 H 0"/>
 						<rect class="sym" height="6" width="6" x="-3" y="-3"/>
 						<text class="lab" transform="translate(0 11)">4</text>
 					</g>
 					<g class="leaf m0 node n5 p0 root s0 sample" transform="translate(86 121.4)">
-						<path class="edge" d="M 0 0 V -13.925 H 0"/>
+						<path class="edge root" d="M 0 0 V -13.925 H 0"/>
 						<g class="mut m0 s0" transform="translate(0 0.0)">
 							<line x1="0" x2="0" y1="0" y2="-0.0"/>
 							<path class="sym" d="M -3,-3 l 6,6 M -3,3 l 6,-6"/>
@@ -92,12 +92,12 @@
 						<text class="lab" transform="translate(0 11)">5</text>
 					</g>
 					<g class="leaf node n6 p0 root sample" transform="translate(98 121.4)">
-						<path class="edge" d="M 0 0 V -13.925 H 0"/>
+						<path class="edge root" d="M 0 0 V -13.925 H 0"/>
 						<rect class="sym" height="6" width="6" x="-3" y="-3"/>
 						<text class="lab" transform="translate(0 11)">6</text>
 					</g>
 					<g class="leaf m3 node n7 p0 root s3 sample" transform="translate(110 121.4)">
-						<path class="edge" d="M 0 0 V -111.4 H 0"/>
+						<path class="edge root" d="M 0 0 V -111.4 H 0"/>
 						<g class="mut m3 s3" transform="translate(0 -111.4)">
 							<line x1="0" x2="0" y1="0" y2="111.4"/>
 							<path class="sym" d="M -3,-3 l 6,6 M -3,3 l 6,-6"/>
@@ -107,12 +107,12 @@
 						<text class="lab" transform="translate(0 11)">7</text>
 					</g>
 					<g class="leaf node n8 p0 root sample" transform="translate(122 121.4)">
-						<path class="edge" d="M 0 0 V -13.925 H 0"/>
+						<path class="edge root" d="M 0 0 V -13.925 H 0"/>
 						<rect class="sym" height="6" width="6" x="-3" y="-3"/>
 						<text class="lab" transform="translate(0 11)">8</text>
 					</g>
 					<g class="leaf node n9 p0 root sample" transform="translate(134 121.4)">
-						<path class="edge" d="M 0 0 V -13.925 H 0"/>
+						<path class="edge root" d="M 0 0 V -13.925 H 0"/>
 						<rect class="sym" height="6" width="6" x="-3" y="-3"/>
 						<text class="lab" transform="translate(0 11)">9</text>
 					</g>

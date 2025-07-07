@@ -1,4 +1,13 @@
 --------------------
+[1.2.0] - 2025-XX-XX
+--------------------
+
+**Breaking changes**
+
+- Remove ``tsk_diff_iter_t`` and associated functions.
+  (:user:`benjeffery`, :pr:`3221`, :issue:`2797`).
+
+--------------------
 [1.1.4] - 2025-03-31
 --------------------
 

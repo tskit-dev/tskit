@@ -3887,6 +3887,11 @@ class TableCollection(metadata.MetadataProvider):
             )
 
     def _check_trim_conditions(self):
+        if self.has_reference_sequence():
+            raise ValueError(
+                "Cannot trim if there is a reference sequence. Please remove the "
+                "reference sequence by calling `.reference_sequence.clear()` first."
+            )
         if self.migrations.num_rows > 0:
             if (np.min(self.migrations.left) < np.min(self.edges.left)) and (
                 np.max(self.migrations.right) > np.max(self.edges.right)
@@ -3986,6 +3991,45 @@ class TableCollection(metadata.MetadataProvider):
             # TODO replace with a version of https://github.com/tskit-dev/tskit/pull/243
             parameters = {
                 "command": "trim",
+            }
+            self.provenances.add_row(
+                record=json.dumps(provenance.get_provenance_dict(parameters))
+            )
+
+    def shift(self, value, *, sequence_length=None, record_provenance=True):
+        """
+        Shift the coordinate system (used by edges, sites, and migrations) of this
+        TableCollection by a given value. This is identical to :meth:`TreeSequence.shift`
+        but acts *in place* to alter the data in this :class:`TableCollection`.
+
+        .. note::
+            No attempt is made to check that the new coordinate system or sequence length
+            is valid: if you wish to do this, use {meth}`TreeSequence.shift` instead.
+
+        :param value: The amount by which to shift the coordinate system.
+        :param sequence_length: The new sequence length of the tree sequence. If
+            ``None`` (default) add `value` to the sequence length.
+        """
+        if self.has_reference_sequence():
+            raise ValueError(
+                "Cannot shift if there is a reference sequence. Please remove the "
+                "reference sequence by calling `.reference_sequence.clear()` first."
+            )
+        self.drop_index()
+        self.edges.left += value
+        self.edges.right += value
+        self.migrations.left += value
+        self.migrations.right += value
+        self.sites.position += value
+        if sequence_length is None:
+            self.sequence_length += value
+        else:
+            self.sequence_length = sequence_length
+        if record_provenance:
+            parameters = {
+                "command": "shift",
+                "value": value,
+                "sequence_length": sequence_length,
             }
             self.provenances.add_row(
                 record=json.dumps(provenance.get_provenance_dict(parameters))

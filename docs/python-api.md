@@ -262,10 +262,12 @@ which perform the same actions but modify the {class}`TableCollection` in place.
   TreeSequence.simplify
   TreeSequence.subset
   TreeSequence.union
+  TreeSequence.concatenate
   TreeSequence.keep_intervals
   TreeSequence.delete_intervals
   TreeSequence.delete_sites
   TreeSequence.trim
+  TreeSequence.shift
   TreeSequence.split_edges
   TreeSequence.decapitate
   TreeSequence.extend_haplotypes
@@ -505,6 +507,14 @@ Descendant nodes
       Tree.num_samples
       Tree.num_tracked_samples
 
+Note that :meth:`Tree.num_samples` provides an efficient way to count samples under a node.
+However, samples and leaves are not always equivalent: some samples may be internal nodes,
+some leaves may not be samples (in unsimplified tree sequences), and the same node can be
+a leaf in one tree but internal in another. While ``tree.num_samples()`` often equals the
+leaf count (particularly in simplified tree sequences without internal samples), a strict
+leaf count requires tree traversal, e.g. via ``num_leaves = len(list(tree.leaves()))``.
+
+
 Multiple nodes
     .. autosummary::
       Tree.is_descendant
@@ -544,7 +554,8 @@ order. Often, given a particular order, it is convenient to iterate over each no
 using the {meth}`Tree.nodes` method. However, for high performance algorithms, it
 may be more convenient to access the node indices for a particular order as
 an array, and use this, for example, to index into one of the node arrays (see
-{ref}`sec_topological_analysis_traversal`).
+{ref}`sec_topological_analysis_traversal`). Note that the most efficient of these
+methods is {meth}`Tree.preorder`.
 
 ```{eval-rst}
 Iterator access
@@ -750,6 +761,7 @@ a functional way, returning a new tree sequence while leaving the original uncha
   TableCollection.keep_intervals
   TableCollection.delete_sites
   TableCollection.trim
+  TableCollection.shift
   TableCollection.union
   TableCollection.delete_older
 ```

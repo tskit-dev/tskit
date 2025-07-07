@@ -134,7 +134,7 @@ class Element:
 
 
 class Drawing:
-    def __init__(self, size=None, debug=False, preamble=None, **kwargs):
+    def __init__(self, size=None, **kwargs):
         kwargs = {
             "version": "1.1",
             "xmlns": "http://www.w3.org/2000/svg",
@@ -148,8 +148,7 @@ class Drawing:
             kwargs["height"] = size[1]
 
         self.root = Element("svg", **kwargs)
-        if preamble is not None:
-            self.root.add(preamble)
+        self.root.add("")  # First root elem is a blank preamble
         self.defs = Element("defs")
         self.root.add(self.defs)
 
@@ -411,6 +410,19 @@ def check_x_lim(x_lim, max_x):
     except TypeError:
         raise TypeError("x_lim parameters must be numeric")
     return x_lim
+
+
+def check_y_axis(y_axis):
+    """
+    Checks the specified y_axis is valid and sets default if None.
+    """
+    if y_axis is None:
+        y_axis = False
+    if y_axis is True:
+        y_axis = "left"
+    if y_axis not in ["left", "right", False]:
+        raise ValueError(f"Unknown y_axis specification: '{y_axis}'.")
+    return y_axis
 
 
 def create_tick_labels(tick_values, decimal_places=2):
@@ -860,6 +872,8 @@ class SvgPlot:
 
     text_height = 14  # May want to calculate this based on a font size
     line_height = text_height * 1.2  # allowing padding above and below a line
+    default_width = 200  # for a single tree
+    default_height = 200
 
     def __init__(
         self,
@@ -879,10 +893,9 @@ class SvgPlot:
             root_svg_attributes = {}
         if canvas_size is None:
             canvas_size = size
-        dwg = Drawing(
-            size=canvas_size, debug=True, preamble=preamble, **root_svg_attributes
-        )
+        dwg = Drawing(size=canvas_size, **root_svg_attributes)
 
+        self.preamble = preamble
         self.image_size = size
         self.plotbox = Plotbox(size)
         self.root_groups = {}
@@ -891,6 +904,15 @@ class SvgPlot:
         self.root_svg_attributes = root_svg_attributes
         self.dwg_base = dwg.add(dwg.g(class_=svg_class))
         self.drawing = dwg
+
+    def draw(self, path=None):
+        if self.preamble is not None:
+            self.drawing.root.children[0] = self.preamble
+        output = self.drawing.tostring()
+        if path is not None:
+            # TODO remove the 'pretty' when we are done debugging this.
+            self.drawing.saveas(path, pretty=True)
+        return SVGString(output)
 
     def get_plotbox(self):
         """
@@ -1010,7 +1032,7 @@ class SvgAxisPlot(SvgPlot):
         dwg.defs.add(dwg.style(style))
         self.debug_box = debug_box
         self.time_scale = check_time_scale(time_scale)
-        self.y_axis = y_axis
+        self.y_axis = check_y_axis(y_axis)
         self.x_axis = x_axis
         if x_label is None and x_axis:
             x_label = "Genome position"
@@ -1040,8 +1062,12 @@ class SvgAxisPlot(SvgPlot):
             self.y_axis_offset += self.line_height
         if self.x_axis:
             bottom += self.x_axis_offset
-        if self.y_axis:
-            left = self.y_axis_offset  # Override user-provided, so y-axis is at x=0
+        if self.y_axis == "left":
+            left = (
+                self.y_axis_offset
+            )  # Override user-provided values, so y-axis is at x=0
+        if self.y_axis == "right":
+            right = self.y_axis_offset
         self.plotbox.set_padding(top, left, bottom, right)
         if self.debug_box:
             self.root_groups["debug"] = self.dwg_base.add(
@@ -1184,8 +1210,9 @@ class SvgAxisPlot(SvgPlot):
         ticks,  # A dict of pos->label
         upper=None,  # In plot coords
         lower=None,  # In plot coords
-        tick_length_left=default_tick_length,
+        tick_length_outer=default_tick_length,  # Positive means towards the outside
         gridlines=None,
+        side="left",  # 'left' or 'right', where the axis is drawn
     ):
         if not self.y_axis and not self.y_label:
             return
@@ -1194,18 +1221,31 @@ class SvgAxisPlot(SvgPlot):
         if lower is None:
             lower = self.plotbox.bottom
         dwg = self.drawing
-        x = rnd(self.y_axis_offset)
+        if side == "left":
+            x = rnd(self.y_axis_offset)
+            width = self.plotbox.right - x
+            direction = -1
+            text_anchor = "end"
+            pos = (0, (upper + lower) / 2)
+            transform = "translate(11) rotate(-90)"
+        else:
+            x = rnd(self.plotbox.max_x - self.y_axis_offset)
+            width = x - self.plotbox.left
+            direction = 1
+            text_anchor = "start"
+            pos = (self.plotbox.max_x, (upper + lower) / 2)
+            transform = "translate(-11) rotate(90)"
         axes = self.get_axes()
         y_axis = axes.add(dwg.g(class_="y-axis"))
         if self.y_label:
             self.add_text_in_group(
                 self.y_label,
                 y_axis,
-                pos=(0, (upper + lower) / 2),
+                pos=pos,
                 group_class="title",
                 class_="lab",
                 text_anchor="middle",
-                transform="translate(11) rotate(-90)",
+                transform=transform,
             )
         if self.y_axis:
             y_axis.add(dwg.line((x, rnd(lower)), (x, rnd(upper)), class_="ax-line"))
@@ -1219,19 +1259,15 @@ class SvgAxisPlot(SvgPlot):
                     dwg.g(class_="tick", transform=f"translate({x} {rnd(y_pos)})")
                 )
                 if gridlines:
-                    tick.add(
-                        dwg.line(
-                            (0, 0), (rnd(self.plotbox.right - x), 0), class_="grid"
-                        )
-                    )
-                tick.add(dwg.line((0, 0), (rnd(-tick_length_left), 0)))
+                    tick.add(dwg.line((0, 0), (rnd(width), 0), class_="grid"))
+                tick.add(dwg.line((0, 0), (rnd(direction * tick_length_outer), 0)))
                 self.add_text_in_group(
                     # place the origin at the left of the tickmark plus a single px space
                     label,
                     tick,
-                    pos=(rnd(-tick_length_left - 1), 0),
+                    pos=(rnd(direction * (tick_length_outer + 1)), 0),
                     class_="lab",
-                    text_anchor="end",
+                    text_anchor=text_anchor,
                 )
             if len(tick_outside_axis) > 0:
                 logging.warning(
@@ -1361,7 +1397,7 @@ class SvgTreeSequence(SvgAxisPlot):
         use_skipped = np.append(np.diff(self.tree_status & OMIT_MIDDLE == 0) == 1, 0)
         num_plotboxes = np.sum(np.logical_or(use_tree, use_skipped))
         if size is None:
-            size = (200 * int(num_plotboxes), 200)
+            size = (self.default_width * int(num_plotboxes), self.default_height)
         if max_time is None:
             max_time = "ts"
         if min_time is None:
@@ -1476,8 +1512,9 @@ class SvgTreeSequence(SvgAxisPlot):
             ticks=check_y_ticks(y_ticks),
             upper=self.tree_plotbox.top,
             lower=y_low,
-            tick_length_left=self.default_tick_length,
+            tick_length_outer=self.default_tick_length,
             gridlines=y_gridlines,
+            side="right" if y_axis == "right" else "left",
         )
 
         subplot_x = self.plotbox.left
@@ -1614,6 +1651,10 @@ class SvgTree(SvgAxisPlot):
     PolytomyLine = collections.namedtuple(
         "PolytomyLine", "num_branches, num_samples, line_pos"
     )
+    margin_left = 20
+    margin_right = 20
+    margin_top = 10  # oldest point is line_height below or 2*line_height if title given
+    margin_bottom = 15  # youngest plot points are line_height above this bottom margin
 
     def __init__(
         self,
@@ -1670,7 +1711,7 @@ class SvgTree(SvgAxisPlot):
                 stacklevel=4,
             )
         if size is None:
-            size = (200, 200)
+            size = (self.default_width, self.default_height)
         if symbol_size is None:
             symbol_size = 6
         self.symbol_size = symbol_size
@@ -1821,10 +1862,10 @@ class SvgTree(SvgAxisPlot):
                 add_class(self.mutation_label_attrs[m], "lab")
 
         self.set_spacing(
-            top=10 if title is None else 10 + self.line_height,
-            left=20,
-            bottom=15,
-            right=20,
+            top=self.margin_top + (0 if title is None else self.line_height),
+            left=self.margin_left,
+            bottom=self.margin_bottom,
+            right=self.margin_right,
         )
         if title is not None:
             self.add_text_in_group(
@@ -1865,8 +1906,9 @@ class SvgTree(SvgAxisPlot):
         self.draw_y_axis(
             ticks=check_y_ticks(y_ticks),
             lower=self.timescaling.transform(self.timescaling.min_time),
-            tick_length_left=self.default_tick_length,
+            tick_length_outer=self.default_tick_length,
             gridlines=y_gridlines,
+            side="right" if y_axis == "right" else "left",
         )
         self.draw_tree()
 
@@ -2137,6 +2179,7 @@ class SvgTree(SvgAxisPlot):
         tree = self.tree
         left_child = get_left_child(tree, self.postorder_nodes)
         parent_array = tree.parent_array
+        edge_array = tree.edge_array
 
         node_info = {}
         roots = []  # Roots of the displated tree
@@ -2224,7 +2267,10 @@ class SvgTree(SvgAxisPlot):
                     dx, dy = 0, -root_branch_l
                     draw_edge_above_node = True
             if draw_edge_above_node:
-                add_class(self.edge_attrs[u], "edge")
+                edge_id_class = (
+                    "root" if edge_array[u] == tskit.NULL else f"e{edge_array[u]}"
+                )
+                add_class(self.edge_attrs[u], f"edge {edge_id_class}")
                 path = dwg.path(
                     [("M", o), ("V", rnd(dy)), ("H", rnd(dx))], **self.edge_attrs[u]
                 )

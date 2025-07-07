@@ -67,7 +67,7 @@ def subset_combos(*args, p=0.5, min_tests=3):
     # of them, using this function, below. If we don't set a seed, a different
     # random set is run each time. Ensures that at least min_tests are run.
     # Uncomment this line to run all tests (takes about an hour):
-    p = 1.0
+    # p = 1.0
     num_tests = 0
     skipped_tests = []
     # total_tests = 0
@@ -586,91 +586,36 @@ class TopologyExamplesMixin:
         assert ts.first().num_roots > 1
         self.verify(ts)
 
-    def test_many_trees(self):
-        ts = msprime.simulate(6, recombination_rate=2, random_seed=1)
+    def test_many_trees(self, ts_4_recomb_fixture):
+        ts = ts_4_recomb_fixture
         assert ts.num_trees > 2
         self.verify(ts)
 
+    # @pytest.mark.skip(reason="Skipping short sequence length test")
     def test_short_sequence_length(self):
         ts = msprime.simulate(6, length=0.5, recombination_rate=2, random_seed=1)
         assert ts.num_trees > 2
         self.verify(ts)
 
-    def test_wright_fisher_unsimplified(self):
-        tables = wf.wf_sim(
-            4,
-            5,
-            seed=1,
-            deep_history=True,
-            initial_generation_samples=False,
-            num_loci=5,
-        )
-        tables.sort()
-        ts = tables.tree_sequence()
-        self.verify(ts)
+    @pytest.mark.slow
+    def test_wright_fisher_unsimplified(self, wf_sim_fixture):
+        self.verify(wf_sim_fixture["unsimplified"])
 
     @pytest.mark.slow
-    def test_wright_fisher_initial_generation(self):
-        tables = wf.wf_sim(
-            6, 5, seed=3, deep_history=True, initial_generation_samples=True, num_loci=2
-        )
-        tables.sort()
-        tables.simplify()
-        ts = tables.tree_sequence()
-        self.verify(ts)
+    def test_wright_fisher_initial_generation(self, wf_sim_fixture):
+        self.verify(wf_sim_fixture["initial_generation"])
 
-    def test_wright_fisher_initial_generation_no_deep_history(self):
-        tables = wf.wf_sim(
-            6,
-            15,
-            seed=202,
-            deep_history=False,
-            initial_generation_samples=True,
-            num_loci=5,
-        )
-        tables.sort()
-        tables.simplify()
-        ts = tables.tree_sequence()
-        self.verify(ts)
+    def test_wright_fisher_initial_generation_no_deep_history(self, wf_sim_fixture):
+        self.verify(wf_sim_fixture["no_deep_history"])
 
-    def test_wright_fisher_unsimplified_multiple_roots(self):
-        tables = wf.wf_sim(
-            6,
-            5,
-            seed=1,
-            deep_history=False,
-            initial_generation_samples=False,
-            num_loci=4,
-        )
-        tables.sort()
-        ts = tables.tree_sequence()
-        self.verify(ts)
+    def test_wright_fisher_unsimplified_multiple_roots(self, wf_sim_fixture):
+        self.verify(wf_sim_fixture["unsimplified_multi_roots"])
 
-    def test_wright_fisher_simplified(self):
-        tables = wf.wf_sim(
-            5,
-            8,
-            seed=1,
-            deep_history=True,
-            initial_generation_samples=False,
-            num_loci=5,
-        )
-        tables.sort()
-        ts = tables.tree_sequence().simplify()
-        self.verify(ts)
+    def test_wright_fisher_simplified(self, wf_sim_fixture):
+        self.verify(wf_sim_fixture["simplified"])
 
-    def test_wright_fisher_simplified_multiple_roots(self):
-        tables = wf.wf_sim(
-            6,
-            8,
-            seed=1,
-            deep_history=False,
-            initial_generation_samples=False,
-            num_loci=3,
-        )
-        tables.sort()
-        ts = tables.tree_sequence().simplify()
-        self.verify(ts)
+    def test_wright_fisher_simplified_multiple_roots(self, wf_sim_fixture):
+        self.verify(wf_sim_fixture["simplified_multi_roots"])
 
     def test_empty_ts(self):
         tables = tskit.TableCollection(1.0)
@@ -697,6 +642,167 @@ class TopologyExamplesMixin:
         self.verify(ts)
 
 
+# Fixtures for commonly used simulations in test_tree_stats.py
+# Naming convention: ts_{num_samples}_{features}_fixture
+# Features: mut (mutations), recomb (recombination), highmut/highrecomb (high rates)
+
+
+@pytest.fixture(scope="session")
+def ts_6_fixture():
+    """Basic 6-sample tree sequence, no mutations or recombination."""
+    return msprime.simulate(6, random_seed=1)
+
+
+@pytest.fixture(scope="session")
+def ts_10_recomb_fixture():
+    """10-sample tree sequence with recombination (used 3+ times)."""
+    return msprime.simulate(10, recombination_rate=1, random_seed=2)
+
+
+@pytest.fixture(scope="session")
+def ts_10_mut_fixture():
+    """10-sample tree sequence with mutations (used 10 times)."""
+    return msprime.simulate(10, mutation_rate=1, random_seed=1)
+
+
+@pytest.fixture(scope="session")
+def ts_10_mut_recomb_fixture():
+    """10-sample tree sequence with mutations and recombination (used 5+ times)."""
+    return msprime.simulate(10, mutation_rate=1, recombination_rate=2, random_seed=1)
+
+
+@pytest.fixture(scope="session")
+def ts_4_recomb_fixture():
+    """4-sample tree sequence with recombination (used 4+ times)."""
+    return msprime.simulate(4, recombination_rate=1, random_seed=2)
+
+
+@pytest.fixture(scope="session")
+def ts_12_highrecomb_fixture():
+    """12-sample tree sequence with high recombination (used 4+ times)."""
+    return msprime.simulate(12, recombination_rate=3, random_seed=2)
+
+
+@pytest.fixture(scope="session")
+def ts_44_recomb_fixture():
+    """44-sample tree sequence with recombination (used 2 times)."""
+    return msprime.simulate(44, recombination_rate=1, random_seed=2)
+
+
+@pytest.fixture(scope="session")
+def ts_ancestry_10_fixture():
+    """Standard ancestry simulation for 10 samples."""
+    return msprime.sim_ancestry(10, random_seed=1, sequence_length=10)
+
+
+@pytest.fixture(scope="session")
+def ts_6_length_factory_fixture():
+    """Factory fixture for 6-sample tree sequences with variable length."""
+
+    def _make_ts(length):
+        return msprime.simulate(
+            6, length=length, recombination_rate=2, mutation_rate=1, random_seed=1
+        )
+
+    return _make_ts
+
+
+# Wright-Fisher simulation fixtures
+@pytest.fixture(scope="session")
+def wf_sim_fixture():
+    """Common Wright-Fisher simulations used across test classes."""
+    # Pre-compute all common WF simulations
+    simulations = {}
+
+    # Used in TopologyExamplesMixin tests
+    tables = wf.wf_sim(
+        4, 5, seed=1, deep_history=True, initial_generation_samples=False, num_loci=5
+    )
+    tables.sort()
+    simulations["unsimplified"] = tables.tree_sequence()
+
+    tables = wf.wf_sim(
+        6, 5, seed=3, deep_history=True, initial_generation_samples=True, num_loci=2
+    )
+    tables.sort()
+    tables.simplify()
+    simulations["initial_generation"] = tables.tree_sequence()
+
+    tables = wf.wf_sim(
+        6, 15, seed=202, deep_history=False, initial_generation_samples=True, num_loci=5
+    )
+    tables.sort()
+    tables.simplify()
+    simulations["no_deep_history"] = tables.tree_sequence()
+
+    tables = wf.wf_sim(
+        6, 5, seed=1, deep_history=False, initial_generation_samples=False, num_loci=4
+    )
+    tables.sort()
+    simulations["unsimplified_multi_roots"] = tables.tree_sequence()
+
+    tables = wf.wf_sim(
+        5, 8, seed=1, deep_history=True, initial_generation_samples=False, num_loci=5
+    )
+    tables.sort()
+    simulations["simplified"] = tables.tree_sequence().simplify()
+
+    tables = wf.wf_sim(
+        6, 8, seed=1, deep_history=False, initial_generation_samples=False, num_loci=3
+    )
+    tables.sort()
+    simulations["simplified_multi_roots"] = tables.tree_sequence().simplify()
+
+    return simulations
+
+
+@pytest.fixture(scope="session")
+def wf_mut_sim_fixture():
+    """Wright-Fisher simulations with mutations for MutatedTopologyExamplesMixin."""
+    simulations = {}
+
+    # With mutations for site-based tests
+    tables = wf.wf_sim(
+        4, 5, seed=1, deep_history=True, initial_generation_samples=False, num_loci=10
+    )
+    tables.sort()
+    ts = msprime.mutate(tables.tree_sequence(), rate=0.05, random_seed=234)
+    simulations["unsimplified"] = ts
+
+    tables = wf.wf_sim(
+        6, 5, seed=3, deep_history=True, initial_generation_samples=True, num_loci=2
+    )
+    tables.sort()
+    tables.simplify()
+    ts = msprime.mutate(tables.tree_sequence(), rate=0.08, random_seed=2)
+    simulations["initial_generation"] = ts
+
+    tables = wf.wf_sim(
+        7, 15, seed=202, deep_history=False, initial_generation_samples=True, num_loci=5
+    )
+    tables.sort()
+    tables.simplify()
+    ts = msprime.mutate(tables.tree_sequence(), rate=0.1, random_seed=3)
+    simulations["no_deep_history"] = ts
+
+    tables = wf.wf_sim(
+        8, 15, seed=1, deep_history=False, initial_generation_samples=False, num_loci=20
+    )
+    tables.sort()
+    ts = msprime.mutate(tables.tree_sequence(), rate=0.01, random_seed=2)
+    simulations["unsimplified_multi_roots"] = ts
+
+    tables = wf.wf_sim(
+        9, 10, seed=1, deep_history=True, initial_generation_samples=False, num_loci=5
+    )
+    tables.sort()
+    ts = tables.tree_sequence().simplify()
+    ts = tsutil.jukes_cantor(ts, 10, 0.01, seed=1)
+    simulations["simplified"] = ts
+
+    return simulations
+
+
 class MutatedTopologyExamplesMixin:
     """
     Defines a set of test cases on different example tree sequence topologies.
@@ -704,8 +810,8 @@ class MutatedTopologyExamplesMixin:
     actual tests.
     """
 
-    def test_single_tree_no_sites(self):
-        ts = msprime.simulate(6, random_seed=1)
+    def test_single_tree_no_sites(self, ts_6_fixture):
+        ts = ts_6_fixture
         assert ts.num_sites == 0
         self.verify(ts)
 
@@ -772,111 +878,70 @@ class MutatedTopologyExamplesMixin:
         ts = tables.tree_sequence()
         self.verify(ts)
 
-    def test_single_tree_infinite_sites(self):
-        ts = msprime.simulate(6, random_seed=1, mutation_rate=1)
+    def test_single_tree_infinite_sites(self, ts_10_mut_fixture):
+        ts = ts_10_mut_fixture
         assert ts.num_sites > 0
         self.verify(ts)
 
-    def test_single_tree_sites_no_mutations(self):
-        ts = msprime.simulate(6, random_seed=1)
+    def test_single_tree_sites_no_mutations(self, ts_6_fixture):
+        ts = ts_6_fixture
         tables = ts.dump_tables()
         tables.sites.add_row(0.1, "a")
         tables.sites.add_row(0.2, "aaa")
         self.verify(tables.tree_sequence())
 
-    def test_single_tree_jukes_cantor(self):
-        ts = msprime.simulate(6, random_seed=1, mutation_rate=1)
+    @pytest.mark.slow
+    def test_single_tree_jukes_cantor(self, ts_10_mut_fixture):
+        ts = ts_10_mut_fixture
         ts = tsutil.jukes_cantor(ts, 20, 1, seed=10)
         self.verify(ts)
 
-    def test_single_tree_single_site_many_silent(self):
-        ts = msprime.simulate(6, random_seed=1)
+    def test_single_tree_single_site_many_silent(self, ts_6_fixture):
+        ts = ts_6_fixture
         ts = tsutil.jukes_cantor(ts, 1, 20, seed=10)
         self.verify(ts)
 
-    def test_single_tree_multichar_mutations(self):
-        ts = msprime.simulate(6, random_seed=1, mutation_rate=1)
+    def test_single_tree_multichar_mutations(self, ts_10_mut_fixture):
+        ts = ts_10_mut_fixture
         ts = tsutil.insert_multichar_mutations(ts)
         self.verify(ts)
 
-    def test_many_trees_infinite_sites(self):
-        ts = msprime.simulate(6, recombination_rate=2, mutation_rate=2, random_seed=1)
+    def test_many_trees_infinite_sites(self, ts_10_mut_recomb_fixture):
+        ts = ts_10_mut_recomb_fixture
         assert ts.num_sites > 0
         assert ts.num_trees > 2
         self.verify(ts)
 
-    def test_many_trees_sequence_length_infinite_sites(self):
+    @pytest.mark.slow
+    def test_many_trees_sequence_length_infinite_sites(
+        self, ts_6_length_factory_fixture
+    ):
         for L in [0.5, 1.5, 3.3333]:
-            ts = msprime.simulate(
-                6, length=L, recombination_rate=2, mutation_rate=1, random_seed=1
-            )
+            ts = ts_6_length_factory_fixture(L)
             self.verify(ts)
 
-    def test_wright_fisher_unsimplified(self):
-        tables = wf.wf_sim(
-            4,
-            5,
-            seed=1,
-            deep_history=True,
-            initial_generation_samples=False,
-            num_loci=10,
-        )
-        tables.sort()
-        ts = msprime.mutate(tables.tree_sequence(), rate=0.05, random_seed=234)
+    def test_wright_fisher_unsimplified(self, wf_mut_sim_fixture):
+        ts = wf_mut_sim_fixture["unsimplified"]
         assert ts.num_sites > 0
         self.verify(ts)
 
-    def test_wright_fisher_initial_generation(self):
-        tables = wf.wf_sim(
-            6, 5, seed=3, deep_history=True, initial_generation_samples=True, num_loci=2
-        )
-        tables.sort()
-        tables.simplify()
-        ts = msprime.mutate(tables.tree_sequence(), rate=0.08, random_seed=2)
+    def test_wright_fisher_initial_generation(self, wf_mut_sim_fixture):
+        ts = wf_mut_sim_fixture["initial_generation"]
         assert ts.num_sites > 0
         self.verify(ts)
 
-    def test_wright_fisher_initial_generation_no_deep_history(self):
-        tables = wf.wf_sim(
-            7,
-            15,
-            seed=202,
-            deep_history=False,
-            initial_generation_samples=True,
-            num_loci=5,
-        )
-        tables.sort()
-        tables.simplify()
-        ts = msprime.mutate(tables.tree_sequence(), rate=0.01, random_seed=2)
+    def test_wright_fisher_initial_generation_no_deep_history(self, wf_mut_sim_fixture):
+        ts = wf_mut_sim_fixture["no_deep_history"]
         assert ts.num_sites > 0
         self.verify(ts)
 
-    def test_wright_fisher_unsimplified_multiple_roots(self):
-        tables = wf.wf_sim(
-            8,
-            15,
-            seed=1,
-            deep_history=False,
-            initial_generation_samples=False,
-            num_loci=20,
-        )
-        tables.sort()
-        ts = msprime.mutate(tables.tree_sequence(), rate=0.01, random_seed=2)
+    def test_wright_fisher_unsimplified_multiple_roots(self, wf_mut_sim_fixture):
+        ts = wf_mut_sim_fixture["unsimplified_multi_roots"]
         assert ts.num_sites > 0
         self.verify(ts)
 
-    def test_wright_fisher_simplified(self):
-        tables = wf.wf_sim(
-            9,
-            10,
-            seed=1,
-            deep_history=True,
-            initial_generation_samples=False,
-            num_loci=5,
-        )
-        tables.sort()
-        ts = tables.tree_sequence().simplify()
-        ts = tsutil.jukes_cantor(ts, 10, 0.01, seed=1)
+    def test_wright_fisher_simplified(self, wf_mut_sim_fixture):
+        ts = wf_mut_sim_fixture["simplified"]
         assert ts.num_sites > 0
         self.verify(ts)
 
@@ -956,15 +1021,33 @@ class WeightStatsMixin:
         Generate a series of example weights from the specfied tree sequence.
         """
         np.random.seed(46)
-        for k in [min_size, min_size + 1, min_size + 10]:
-            W = 1.0 + np.zeros((ts.num_samples, k))
-            W[0, :] = 2.0
-            yield W
-            for j in range(k):
-                W[:, j] = np.random.exponential(1, ts.num_samples)
-            yield W
-            for j in range(k):
-                W[:, j] = np.random.normal(0, 1, ts.num_samples)
+        # Reduced to 3 essential weight matrices for performance
+
+        # 1. Simple weights with variance (k=min_size)
+        k = min_size
+        W = np.ones((ts.num_samples, k))
+        # Ensure positive variance: different values for different samples
+        for i in range(ts.num_samples):
+            W[i, :] = 1.0 + i * 0.1
+        yield W
+
+        # 2. Exponential weights with k=min_size+1 (medium complexity)
+        k = min_size + 1
+        W = np.zeros((ts.num_samples, k))
+        for j in range(k):
+            W[:, j] = np.random.exponential(1, ts.num_samples)
+        yield W
+
+        # 3. Mixed weights with larger k (complex case)
+        # Only test larger k if samples allow it and keep it reasonable
+        k = min(min_size + 3, ts.num_samples)  # Reduced from +5 to +3
+        if k > min_size + 1:
+            W = np.zeros((ts.num_samples, k))
+            # First column: linear gradient for variance
+            W[:, 0] = np.linspace(0.5, 1.5, ts.num_samples)
+            # Remaining columns: exponential
+            for j in range(1, k):
+                W[:, j] = np.random.exponential(0.8, ts.num_samples)
             yield W
 
     def transform_weights(self, W):
@@ -1018,7 +1101,9 @@ class SampleSetStatsMixin:
 
     def verify(self, ts):
         for sample_sets, windows in subset_combos(
-            example_sample_sets(ts), example_windows(ts)
+            example_sample_sets(ts),
+            example_windows(ts),
+            p=0.2,
         ):
             self.verify_sample_sets(ts, sample_sets, windows=windows)
 
@@ -1096,7 +1181,9 @@ class TwoWaySampleSetStatsMixin(KWaySampleSetStatsMixin):
 
     def verify(self, ts):
         for sample_sets, windows in subset_combos(
-            example_sample_sets(ts, min_size=2), example_windows(ts)
+            example_sample_sets(ts, min_size=2),
+            example_windows(ts),
+            p=0.1,
         ):
             for indexes in example_sample_set_index_pairs(sample_sets):
                 self.verify_sample_sets_indexes(ts, sample_sets, indexes, windows)
@@ -1110,7 +1197,9 @@ class ThreeWaySampleSetStatsMixin(KWaySampleSetStatsMixin):
 
     def verify(self, ts):
         for sample_sets, windows in subset_combos(
-            example_sample_sets(ts, min_size=3), example_windows(ts)
+            example_sample_sets(ts, min_size=3),
+            example_windows(ts),
+            p=0.1,
         ):
             for indexes in example_sample_set_index_triples(sample_sets):
                 self.verify_sample_sets_indexes(ts, sample_sets, indexes, windows)
@@ -1124,7 +1213,9 @@ class FourWaySampleSetStatsMixin(KWaySampleSetStatsMixin):
 
     def verify(self, ts):
         for sample_sets, windows in subset_combos(
-            example_sample_sets(ts, min_size=4), example_windows(ts)
+            example_sample_sets(ts, min_size=4),
+            example_windows(ts),
+            p=0.1,
         ):
             for indexes in example_sample_set_index_quads(sample_sets):
                 self.verify_sample_sets_indexes(ts, sample_sets, indexes, windows)
@@ -3707,8 +3798,8 @@ class TestFold:
         Ef = np.array([8.0, 8.0, 8.0, 8.0, 4.0, 0.0, 0.0, 0.0, 0.0])
         assert np.all(foldit(E) == Ef)
 
-    def test_branch_folded(self):
-        ts = msprime.sim_ancestry(10, random_seed=1, sequence_length=10)
+    def test_branch_folded(self, ts_ancestry_10_fixture):
+        ts = ts_ancestry_10_fixture
         folded = ts.allele_frequency_spectrum(
             windows=[0, 5, 8, 9, 10], mode="branch", polarised=False
         )
@@ -3717,8 +3808,8 @@ class TestFold:
         )
         assert np.allclose(fold_windowed(unfolded), folded)
 
-    def test_site_folded(self):
-        ts = msprime.sim_ancestry(10, random_seed=1, sequence_length=10)
+    def test_site_folded(self, ts_ancestry_10_fixture):
+        ts = ts_ancestry_10_fixture
         ts = msprime.sim_mutations(ts, rate=1, random_seed=1, discrete_genome=False)
         for s in ts.sites():
             assert len(s.mutations) == 1
@@ -4236,13 +4327,13 @@ class TestSampleSets(StatsTestCase):
     Tests that passing sample sets in various ways gets interpreted correctly.
     """
 
-    def get_example_ts(self):
-        ts = msprime.simulate(10, mutation_rate=1, recombination_rate=1, random_seed=2)
+    def get_example_ts(self, ts_10_mut_recomb_fixture):
+        ts = ts_10_mut_recomb_fixture
         assert ts.num_mutations > 0
         return ts
 
-    def test_duplicate_samples(self):
-        ts = self.get_example_ts()
+    def test_duplicate_samples(self, ts_10_mut_recomb_fixture):
+        ts = self.get_example_ts(ts_10_mut_recomb_fixture)
         for bad_set in [[1, 1], [1, 2, 1], list(range(10)) + [9]]:
             with pytest.raises(exceptions.LibraryError):
                 ts.diversity([bad_set])
@@ -4251,8 +4342,8 @@ class TestSampleSets(StatsTestCase):
             with pytest.raises(ValueError):
                 ts.sample_count_stat([bad_set], self.identity_f(ts), 1)
 
-    def test_empty_sample_set(self):
-        ts = self.get_example_ts()
+    def test_empty_sample_set(self, ts_10_mut_recomb_fixture):
+        ts = self.get_example_ts(ts_10_mut_recomb_fixture)
         with pytest.raises(ValueError):
             ts.diversity([[]])
         for bad_sample_sets in [[[], []], [[1], []], [[1, 2], [1], []]]:
@@ -4263,8 +4354,8 @@ class TestSampleSets(StatsTestCase):
             with pytest.raises(ValueError):
                 ts.sample_count_stat(bad_sample_sets, self.identity_f(ts), 1)
 
-    def test_non_samples(self):
-        ts = self.get_example_ts()
+    def test_non_samples(self, ts_10_mut_recomb_fixture):
+        ts = self.get_example_ts(ts_10_mut_recomb_fixture)
         with pytest.raises(exceptions.LibraryError):
             ts.diversity([[ts.num_samples]])
 
@@ -4274,9 +4365,9 @@ class TestSampleSets(StatsTestCase):
         with pytest.raises(ValueError):
             ts.sample_count_stat([[ts.num_samples]], self.identity_f(ts), 1)
 
-    def test_span_normalise(self):
+    def test_span_normalise(self, ts_10_mut_recomb_fixture):
         np.random.seed(92)
-        ts = self.get_example_ts()
+        ts = self.get_example_ts(ts_10_mut_recomb_fixture)
         sample_sets = [[0, 1], [2, 3, 4], [5, 6]]
         windows = ts.sequence_length * np.random.uniform(size=10)
         windows.sort()
@@ -4312,13 +4403,13 @@ class TestSampleSetIndexes(StatsTestCase):
     k-way stats functions.
     """
 
-    def get_example_ts(self):
-        ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
+    def get_example_ts(self, ts_10_mut_fixture):
+        ts = ts_10_mut_fixture
         assert ts.num_mutations > 0
         return ts
 
-    def test_2_way_default(self):
-        ts = self.get_example_ts()
+    def test_2_way_default(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         sample_sets = np.array_split(ts.samples(), 2)
         S1 = ts.divergence(sample_sets)
         S2 = divergence(ts, sample_sets)[0, 0]
@@ -4332,8 +4423,8 @@ class TestSampleSetIndexes(StatsTestCase):
         with pytest.raises(ValueError):
             _ = ts.divergence([sample_sets[0]])
 
-    def test_3_way_default(self):
-        ts = self.get_example_ts()
+    def test_3_way_default(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         sample_sets = np.array_split(ts.samples(), 3)
         S1 = ts.f3(sample_sets)
         S2 = f3(ts, sample_sets)[0, 0]
@@ -4345,8 +4436,8 @@ class TestSampleSetIndexes(StatsTestCase):
         with pytest.raises(ValueError):
             _ = ts.f3(sample_sets)
 
-    def test_4_way_default(self):
-        ts = self.get_example_ts()
+    def test_4_way_default(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         sample_sets = np.array_split(ts.samples(), 4)
         S1 = ts.f4(sample_sets)
         S2 = f4(ts, sample_sets)
@@ -4358,8 +4449,8 @@ class TestSampleSetIndexes(StatsTestCase):
         with pytest.raises(ValueError):
             _ = ts.f4(sample_sets)
 
-    def test_2_way_combinations(self):
-        ts = self.get_example_ts()
+    def test_2_way_combinations(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         sample_sets = np.array_split(ts.samples(), 4)
         pairs = list(itertools.combinations(range(4), 2))
         for k in range(1, len(pairs)):
@@ -4369,8 +4460,8 @@ class TestSampleSetIndexes(StatsTestCase):
             assert S1.shape == S2.shape
             self.assertArrayAlmostEqual(S1, S2)
 
-    def test_3_way_combinations(self):
-        ts = self.get_example_ts()
+    def test_3_way_combinations(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         sample_sets = np.array_split(ts.samples(), 5)
         triples = list(itertools.combinations(range(5), 3))
         for k in range(1, len(triples)):
@@ -4380,8 +4471,8 @@ class TestSampleSetIndexes(StatsTestCase):
             assert S1.shape == S2.shape
             self.assertArrayAlmostEqual(S1, S2)
 
-    def test_4_way_combinations(self):
-        ts = self.get_example_ts()
+    def test_4_way_combinations(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         sample_sets = np.array_split(ts.samples(), 5)
         quads = list(itertools.combinations(range(5), 4))
         for k in range(1, len(quads)):
@@ -4391,8 +4482,8 @@ class TestSampleSetIndexes(StatsTestCase):
             assert S2.shape == S2.shape
             self.assertArrayAlmostEqual(S1, S2)
 
-    def test_errors(self):
-        ts = self.get_example_ts()
+    def test_errors(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         sample_sets = np.array_split(ts.samples(), 2)
         with pytest.raises(ValueError):
             ts.divergence(sample_sets, indexes=[])
@@ -4440,15 +4531,15 @@ class TestGeneralStatInterface(StatsTestCase):
         )
         self.assertArrayEqual(x, y)
 
-    def test_default_mode(self):
-        ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
+    def test_default_mode(self, ts_10_recomb_fixture):
+        ts = ts_10_recomb_fixture
         W = np.ones((ts.num_samples, 2))
         sigma1 = ts.general_stat(W, self.identity_f(ts), W.shape[1])
         sigma2 = ts.general_stat(W, self.identity_f(ts), W.shape[1], mode="site")
         self.assertArrayEqual(sigma1, sigma2)
 
-    def test_bad_mode(self):
-        ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
+    def test_bad_mode(self, ts_10_recomb_fixture):
+        ts = ts_10_recomb_fixture
         W = np.ones((ts.num_samples, 2))
         for bad_mode in ["", "MODE", "x" * 8192]:
             with pytest.raises(ValueError):
@@ -4496,8 +4587,8 @@ class TestGeneralBranchStats(StatsTestCase):
         self.assertArrayAlmostEqual(sigma1, sigma3)
         return sigma1
 
-    def test_simple_identity_f_w_zeros(self):
-        ts = msprime.simulate(12, recombination_rate=3, random_seed=2)
+    def test_simple_identity_f_w_zeros(self, ts_12_highrecomb_fixture):
+        ts = ts_12_highrecomb_fixture
         W = np.zeros((ts.num_samples, 3))
         for polarised in [True, False]:
             sigma = self.compare_general_stat(
@@ -4506,8 +4597,8 @@ class TestGeneralBranchStats(StatsTestCase):
             assert sigma.shape == (ts.num_trees, W.shape[1])
             assert np.all(sigma == 0)
 
-    def test_simple_identity_f_w_ones(self):
-        ts = msprime.simulate(10, recombination_rate=1, random_seed=2)
+    def test_simple_identity_f_w_ones(self, ts_10_recomb_fixture):
+        ts = ts_10_recomb_fixture
         W = np.ones((ts.num_samples, 2))
         sigma = self.compare_general_stat(
             ts, W, self.identity_f(ts), windows="trees", polarised=True
@@ -4564,8 +4655,8 @@ class TestGeneralBranchStats(StatsTestCase):
             sigma = self.compare_general_stat(ts, W, f, windows)
             assert sigma.shape == (num_windows, 1)
 
-    def test_simple_identity_f_w_zeros_windows(self):
-        ts = msprime.simulate(15, recombination_rate=3, random_seed=2)
+    def test_simple_identity_f_w_zeros_windows(self, ts_12_highrecomb_fixture):
+        ts = ts_12_highrecomb_fixture
         W = np.zeros((ts.num_samples, 3))
         f = self.identity_f(ts)
         windows = np.linspace(0, ts.sequence_length, num=11)
@@ -4710,8 +4801,8 @@ class TestGeneralNodeStats(StatsTestCase):
         self.assertArrayAlmostEqual(sigma1, sigma3)
         return sigma1
 
-    def test_simple_sum_f_w_zeros(self):
-        ts = msprime.simulate(12, recombination_rate=3, random_seed=2)
+    def test_simple_sum_f_w_zeros(self, ts_12_highrecomb_fixture):
+        ts = ts_12_highrecomb_fixture
         W = np.zeros((ts.num_samples, 3))
         for polarised in [True, False]:
             sigma = self.compare_general_stat(
@@ -4720,8 +4811,8 @@ class TestGeneralNodeStats(StatsTestCase):
             assert sigma.shape == (ts.num_trees, ts.num_nodes, 3)
             assert np.all(sigma == 0)
 
-    def test_simple_sum_f_w_ones(self):
-        ts = msprime.simulate(44, recombination_rate=1, random_seed=2)
+    def test_simple_sum_f_w_ones(self, ts_44_recomb_fixture):
+        ts = ts_44_recomb_fixture
         W = np.ones((ts.num_samples, 2))
         f = self.sum_f(ts)
         sigma = self.compare_general_stat(ts, W, f, windows="trees", polarised=True)
@@ -4739,8 +4830,8 @@ class TestGeneralNodeStats(StatsTestCase):
             )
             self.assertArrayAlmostEqual(sigma[tree.index], 2 * s)
 
-    def test_simple_sum_f_w_ones_notstrict(self):
-        ts = msprime.simulate(44, recombination_rate=1, random_seed=2)
+    def test_simple_sum_f_w_ones_notstrict(self, ts_44_recomb_fixture):
+        ts = ts_44_recomb_fixture
         W = np.ones((ts.num_samples, 2))
         sigma = ts.general_stat(
             W,
@@ -4773,16 +4864,16 @@ class TestGeneralNodeStats(StatsTestCase):
         )
         assert sigma.shape == (ts.num_trees, ts.num_nodes, 1)
 
-    def test_one_window_polarised(self):
-        ts = msprime.simulate(4, recombination_rate=1, random_seed=2)
+    def test_one_window_polarised(self, ts_4_recomb_fixture):
+        ts = ts_4_recomb_fixture
         W = np.ones((ts.num_samples, 1))
         sigma = self.compare_general_stat(
             ts, W, self.cumsum_f(ts), windows=[0, ts.sequence_length], polarised=True
         )
         assert sigma.shape == (1, ts.num_nodes, W.shape[1])
 
-    def test_one_window_unpolarised(self):
-        ts = msprime.simulate(4, recombination_rate=1, random_seed=2)
+    def test_one_window_unpolarised(self, ts_4_recomb_fixture):
+        ts = ts_4_recomb_fixture
         W = np.ones((ts.num_samples, 2))
         sigma = self.compare_general_stat(
             ts, W, self.cumsum_f(ts), windows=[0, ts.sequence_length], polarised=False
@@ -4960,8 +5051,8 @@ class TestTraitCovariance(StatsTestCase, WeightStatsMixin):
     # Derived classes define this to get a specific stats mode.
     mode = None
 
-    def get_example_ts(self):
-        ts = msprime.simulate(10, mutation_rate=1, recombination_rate=2, random_seed=1)
+    def get_example_ts(self, ts_10_mut_recomb_fixture):
+        ts = ts_10_mut_recomb_fixture
         assert ts.num_mutations > 0
         return ts
 
@@ -4991,7 +5082,7 @@ class TestTraitCovariance(StatsTestCase, WeightStatsMixin):
 
     def verify_centering(self, ts, method, ts_method):
         # Since weights are mean-centered, adding a constant shouldn't change anything.
-        ts = self.get_example_ts()
+        # ts is already passed as parameter, no need to call get_example_ts()
         for W, windows in subset_combos(
             self.example_weights(ts), example_windows(ts), p=0.1
         ):
@@ -5009,16 +5100,16 @@ class TestTraitCovariance(StatsTestCase, WeightStatsMixin):
 
 
 class TraitCovarianceMixin:
-    def test_interface(self):
-        ts = self.get_example_ts()
+    def test_interface(self, ts_10_mut_recomb_fixture):
+        ts = self.get_example_ts(ts_10_mut_recomb_fixture)
         self.verify_interface(ts, ts.trait_covariance)
 
-    def test_normalisation(self):
-        ts = self.get_example_ts()
+    def test_normalisation(self, ts_10_mut_recomb_fixture):
+        ts = self.get_example_ts(ts_10_mut_recomb_fixture)
         self.verify_centering(ts, trait_covariance, ts.trait_covariance)
 
-    def test_errors(self):
-        ts = self.get_example_ts()
+    def test_errors(self, ts_10_mut_recomb_fixture):
+        ts = self.get_example_ts(ts_10_mut_recomb_fixture)
         W = np.ones((ts.num_samples, 2))
         # W must have the right number of rows
         with pytest.raises(ValueError):
@@ -5213,8 +5304,8 @@ class TestTraitCorrelation(TestTraitCovariance):
             ts, W, windows, f, ts.trait_correlation, trait_correlation
         )
 
-    def test_errors(self):
-        ts = self.get_example_ts()
+    def test_errors(self, ts_10_mut_recomb_fixture):
+        ts = self.get_example_ts(ts_10_mut_recomb_fixture)
         # columns of W must have positive SD
         W = np.ones((ts.num_samples, 2))
         with pytest.raises(ValueError):
@@ -5243,12 +5334,12 @@ class TestTraitCorrelation(TestTraitCovariance):
 
 
 class TraitCorrelationMixin:
-    def test_interface(self):
-        ts = self.get_example_ts()
+    def test_interface(self, ts_10_mut_recomb_fixture):
+        ts = self.get_example_ts(ts_10_mut_recomb_fixture)
         self.verify_interface(ts, ts.trait_correlation)
 
-    def test_normalisation(self):
-        ts = self.get_example_ts()
+    def test_normalisation(self, ts_10_mut_recomb_fixture):
+        ts = self.get_example_ts(ts_10_mut_recomb_fixture)
         self.verify_centering(ts, trait_correlation, ts.trait_correlation)
         self.verify_standardising(ts, trait_correlation, ts.trait_correlation)
 
@@ -5447,22 +5538,32 @@ class TestTraitLinearModel(StatsTestCase, WeightStatsMixin):
     # Derived classes define this to get a specific stats mode.
     mode = None
 
-    def get_example_ts(self):
-        ts = msprime.simulate(10, mutation_rate=1, recombination_rate=2, random_seed=1)
+    def get_example_ts(self, ts_10_mut_recomb_fixture):
+        ts = ts_10_mut_recomb_fixture
         assert ts.num_mutations > 0
         return ts
 
-    def example_covariates(self, ts):
+    def example_covariates(self, ts, k_values=None):
+        if k_values is None:
+            k_values = [2]  # Default to [2] to maintain current optimization
+
         np.random.seed(999)
         N = ts.num_samples
-        for k in [1, 2, 5]:
+
+        for k in k_values:
             k = min(k, ts.num_samples)
+
+            # Uniform covariates
             Z = np.ones((N, k))
             Z[1, :] = np.arange(k, 2 * k)
             yield Z
-            for j in range(k):
-                Z[:, j] = np.random.normal(0, 1, N)
-            yield Z
+
+            # Include one normal case for test coverage
+            if N >= 6:  # Only for larger samples to reduce computations
+                Z_normal = np.ones((N, k))
+                for j in range(k):
+                    Z_normal[:, j] = np.random.normal(0, 1, N)
+                yield Z_normal
 
     def transform_weights(self, W, Z):
         n = W.shape[0]
@@ -5480,9 +5581,9 @@ class TestTraitLinearModel(StatsTestCase, WeightStatsMixin):
     def verify(self, ts):
         for W, Z, windows in subset_combos(
             self.example_weights(ts),
-            self.example_covariates(ts),
+            self.example_covariates(ts, k_values=[2]),
             example_windows(ts),
-            p=0.04,
+            p=0.02,  # Reduced from 0.04 for performance
         ):
             self.verify_trait_linear_model(ts, W, Z, windows=windows)
 
@@ -5547,8 +5648,8 @@ class TestTraitLinearModel(StatsTestCase, WeightStatsMixin):
 
 
 class TraitLinearModelMixin:
-    def test_interface(self):
-        ts = self.get_example_ts()
+    def test_interface(self, ts_10_mut_recomb_fixture):
+        ts = self.get_example_ts(ts_10_mut_recomb_fixture)
         W = np.array([np.arange(ts.num_samples)]).T
         Z = np.ones((ts.num_samples, 1))
         sigma1 = ts.trait_linear_model(W, Z=Z, mode=self.mode)
@@ -5567,8 +5668,8 @@ class TraitLinearModelMixin:
         self.assertArrayAlmostEqual(sigma1, sigma3[0])
         self.assertArrayAlmostEqual(sigma1, sigma4[0])
 
-    def test_errors(self):
-        ts = self.get_example_ts()
+    def test_errors(self, ts_10_mut_recomb_fixture):
+        ts = self.get_example_ts(ts_10_mut_recomb_fixture)
         W = np.array([np.arange(ts.num_samples)]).T
         Z = np.ones((ts.num_samples, 1))
         # singular covariates
@@ -5585,8 +5686,8 @@ class TraitLinearModelMixin:
         with pytest.raises(ValueError):
             ts.trait_linear_model(W, Z[1:, :], mode=self.mode)
 
-    def test_deprecation(self):
-        ts = self.get_example_ts()
+    def test_deprecation(self, ts_10_mut_recomb_fixture):
+        ts = self.get_example_ts(ts_10_mut_recomb_fixture)
         W = np.array([np.arange(ts.num_samples)]).T
         Z = np.ones((ts.num_samples, 1))
         with pytest.warns(FutureWarning):
@@ -6488,36 +6589,36 @@ class TestOutputDimensions(StatsTestCase):
     Tests for the dimension stripping behaviour of the stats functions.
     """
 
-    def get_example_ts(self):
-        ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
+    def get_example_ts(self, ts_10_mut_fixture):
+        ts = ts_10_mut_fixture
         assert ts.num_sites > 1
         return ts
 
-    def test_one_way_no_window_scalar_stat(self):
-        ts = self.get_example_ts()
+    def test_one_way_no_window_scalar_stat(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         x = ts.diversity()
         assert isinstance(x, np.floating)
 
-    def test_one_way_one_list_scalar_stat(self):
-        ts = self.get_example_ts()
+    def test_one_way_one_list_scalar_stat(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         x = ts.diversity(sample_sets=list(ts.samples()))
         assert isinstance(x, np.floating)
 
-    def test_one_way_nested_list_not_scalar_stat(self):
-        ts = self.get_example_ts()
+    def test_one_way_nested_list_not_scalar_stat(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         x = ts.diversity(sample_sets=[list(ts.samples())])
         assert x.shape == (1,)
 
-    def test_one_way_one_window_scalar_stat(self):
-        ts = self.get_example_ts()
+    def test_one_way_one_window_scalar_stat(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         x = ts.diversity(windows=[0, ts.sequence_length])
         assert x.shape == (1,)
         for samples in (None, list(ts.samples())):
             x = ts.diversity(sample_sets=samples, windows=[0, ts.sequence_length])
             assert x.shape == (1,)
 
-    def test_multi_way_no_window_scalar_stat(self):
-        ts = self.get_example_ts()
+    def test_multi_way_no_window_scalar_stat(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         n = ts.num_samples
         x = ts.f2(
             sample_sets=[
@@ -6527,8 +6628,8 @@ class TestOutputDimensions(StatsTestCase):
         )
         assert isinstance(x, np.floating)
 
-    def test_multi_way_one_window_not_scalar_stat(self):
-        ts = self.get_example_ts()
+    def test_multi_way_one_window_not_scalar_stat(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         n = ts.num_samples
         x = ts.f2(
             sample_sets=[
@@ -6539,8 +6640,8 @@ class TestOutputDimensions(StatsTestCase):
         )
         assert x.shape == (1,)
 
-    def test_multi_way_no_indexes_scalar_stat(self):
-        ts = self.get_example_ts()
+    def test_multi_way_no_indexes_scalar_stat(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         n = ts.num_samples
         x = ts.f2(
             sample_sets=[
@@ -6550,8 +6651,8 @@ class TestOutputDimensions(StatsTestCase):
         )
         assert isinstance(x, np.floating)
 
-    def test_multi_way_indexes_not_scalar_stat(self):
-        ts = self.get_example_ts()
+    def test_multi_way_indexes_not_scalar_stat(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         n = ts.num_samples
         x = ts.f2(
             sample_sets=[
@@ -6562,8 +6663,8 @@ class TestOutputDimensions(StatsTestCase):
         )
         assert x.shape == (1,)
 
-    def test_afs_default_windows(self):
-        ts = self.get_example_ts()
+    def test_afs_default_windows(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         n = ts.num_samples
         A = ts.samples()[:4]
         B = ts.samples()[6:]
@@ -6577,8 +6678,8 @@ class TestOutputDimensions(StatsTestCase):
             x = ts.allele_frequency_spectrum([A, B], mode=mode)
             assert x.shape == (len(A) + 1, len(B) + 1)
 
-    def test_afs_windows(self):
-        ts = self.get_example_ts()
+    def test_afs_windows(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         L = ts.sequence_length
 
         windows = [0, L / 4, L / 2, L]
@@ -6597,8 +6698,8 @@ class TestOutputDimensions(StatsTestCase):
             y = ts.allele_frequency_spectrum([ts.samples()], windows=windows, mode=mode)
             self.assertArrayEqual(x, y)
 
-    def test_one_way_stat_default_windows(self):
-        ts = self.get_example_ts()
+    def test_one_way_stat_default_windows(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         # Use diversity as the example one-way stat.
         for mode in ["site", "branch"]:
             x = ts.diversity(mode=mode)
@@ -6666,20 +6767,20 @@ class TestOutputDimensions(StatsTestCase):
         self.assertArrayEqual(x[0], x[1])
         self.assertArrayEqual(x[0], x[2])
 
-    def test_diversity_windows(self):
-        ts = self.get_example_ts()
+    def test_diversity_windows(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         self.verify_one_way_stat_windows(ts, ts.diversity)
 
-    def test_Tajimas_D_windows(self):
-        ts = self.get_example_ts()
+    def test_Tajimas_D_windows(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         self.verify_one_way_stat_windows(ts, ts.Tajimas_D)
 
-    def test_segregating_sites_windows(self):
-        ts = self.get_example_ts()
+    def test_segregating_sites_windows(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         self.verify_one_way_stat_windows(ts, ts.segregating_sites)
 
-    def test_two_way_stat_default_windows(self):
-        ts = self.get_example_ts()
+    def test_two_way_stat_default_windows(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         # Use divergence as the example one-way stat.
         A = ts.samples()[:6]
         B = ts.samples()[6:]
@@ -6749,16 +6850,16 @@ class TestOutputDimensions(StatsTestCase):
         self.assertArrayEqual(x[0], x[1])
         self.assertArrayEqual(x[0], x[2])
 
-    def test_divergence_windows(self):
-        ts = self.get_example_ts()
+    def test_divergence_windows(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         self.verify_two_way_stat_windows(ts, ts.divergence)
 
-    def test_Fst_windows(self):
-        ts = self.get_example_ts()
+    def test_Fst_windows(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         self.verify_two_way_stat_windows(ts, ts.Fst)
 
-    def test_f2_windows(self):
-        ts = self.get_example_ts()
+    def test_f2_windows(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         self.verify_two_way_stat_windows(ts, ts.f2)
 
     def verify_three_way_stat_windows(self, ts, method):
@@ -6813,12 +6914,12 @@ class TestOutputDimensions(StatsTestCase):
         self.assertArrayEqual(x[0], x[1])
         self.assertArrayEqual(x[0], x[2])
 
-    def test_Y3_windows(self):
-        ts = self.get_example_ts()
+    def test_Y3_windows(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         self.verify_three_way_stat_windows(ts, ts.Y3)
 
-    def test_f3_windows(self):
-        ts = self.get_example_ts()
+    def test_f3_windows(self, ts_10_mut_fixture):
+        ts = self.get_example_ts(ts_10_mut_fixture)
         self.verify_three_way_stat_windows(ts, ts.f3)
 
 

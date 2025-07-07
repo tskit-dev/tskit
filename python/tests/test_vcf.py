@@ -29,6 +29,7 @@ import math
 import os
 import tempfile
 import textwrap
+import warnings
 
 import msprime
 import numpy as np
@@ -335,12 +336,13 @@ class TestInterface:
     def test_bad_ploidy(self):
         ts = msprime.simulate(10, mutation_rate=0.1, random_seed=2)
         for bad_ploidy in [-1, 0]:
-            with pytest.raises(ValueError, match="Ploidy must be >= 1"):
+            with pytest.raises(ValueError, match="Ploidy must be a positive integer"):
                 ts.write_vcf(io.StringIO, bad_ploidy)
         # Non divisible
         for bad_ploidy in [3, 7]:
             with pytest.raises(
-                ValueError, match="Sample size must be divisible by ploidy"
+                ValueError,
+                match="Number of sample nodes 10 is not a multiple of ploidy",
             ):
                 ts.write_vcf(io.StringIO, bad_ploidy)
 
@@ -349,17 +351,29 @@ class TestInterface:
         tables = ts1.dump_tables()
         tables.individuals.add_row()
         ts2 = tables.tree_sequence()
-        assert ts1.as_vcf(allow_position_zero=True) == ts2.as_vcf(
-            allow_position_zero=True
-        )
+        # ts1 should work as it has no individuals
+        ts1.as_vcf(allow_position_zero=True)
+        # ts2 should fail as it has individuals but no nodes
+        with warnings.catch_warnings(record=True) as w:
+            with pytest.raises(ValueError, match="No samples in resulting VCF model"):
+                ts2.as_vcf(allow_position_zero=True)
+            assert len(w) == 1
+            assert "At least one sample node does not have an individual ID" in str(
+                w[0].message
+            )
 
     def test_individuals_no_nodes_as_argument(self):
         ts1 = msprime.simulate(10, mutation_rate=0.1, random_seed=2)
         tables = ts1.dump_tables()
         tables.individuals.add_row()
         ts2 = tables.tree_sequence()
-        with pytest.raises(ValueError, match="0 not associated with a node"):
-            ts2.as_vcf(individuals=[0])
+        with warnings.catch_warnings(record=True) as w:
+            with pytest.raises(ValueError, match="No samples in resulting VCF model"):
+                ts2.as_vcf(individuals=[0])
+            assert len(w) == 1
+            assert "At least one sample node does not have an individual ID" in str(
+                w[0].message
+            )
 
     def test_ploidy_with_sample_individuals(self):
         ts = msprime.sim_ancestry(3, random_seed=2)
@@ -378,7 +392,7 @@ class TestInterface:
     def test_empty_individuals(self):
         ts = msprime.sim_ancestry(3, random_seed=2)
         ts = tsutil.insert_branch_sites(ts)
-        with pytest.raises(ValueError, match="List of sample individuals empty"):
+        with pytest.raises(ValueError, match="No individuals specified"):
             ts.as_vcf(individuals=[])
 
     def test_duplicate_individuals(self):
@@ -386,23 +400,6 @@ class TestInterface:
         ts = tsutil.insert_branch_sites(ts)
         with pytest.raises(tskit.LibraryError, match="TSK_ERR_DUPLICATE_SAMPLE"):
             ts.as_vcf(individuals=[0, 0], allow_position_zero=True)
-
-    def test_mixed_sample_non_sample_individuals(self):
-        ts = msprime.sim_ancestry(3, random_seed=2)
-        tables = ts.dump_tables()
-        tables.individuals.add_row()
-        # Add a reference to an individual from a non-sample
-        individual = tables.nodes.individual
-        individual[-1] = 0
-        tables.nodes.individual = individual
-        ts = tables.tree_sequence()
-        ts = tsutil.insert_branch_sites(ts)
-        with pytest.raises(
-            ValueError, match="0 has nodes that are sample and non-sample"
-        ):
-            ts.as_vcf()
-        # but it's OK if we run without the affected individual
-        assert len(ts.as_vcf(individuals=[1, 2], allow_position_zero=True)) > 0
 
     def test_samples_with_and_without_individuals(self):
         ts = tskit.Tree.generate_balanced(3).tree_sequence
@@ -414,19 +411,19 @@ class TestInterface:
         tables.nodes.individual = individual
         ts = tables.tree_sequence()
         ts = tsutil.insert_branch_sites(ts)
-        with pytest.raises(
-            ValueError, match="Sample nodes must either all be associated"
-        ):
-            ts.as_vcf()
-        # But it's OK if explicitly specify that sample
-        assert len(ts.as_vcf(individuals=[0], allow_position_zero=True)) > 0
+        with warnings.catch_warnings(record=True) as w:
+            ts.as_vcf(allow_position_zero=True)
+            assert len(w) == 1
+            assert "At least one sample node does not have an individual ID" in str(
+                w[0].message
+            )
 
     def test_bad_individuals(self):
         ts = msprime.simulate(10, mutation_rate=0.1, random_seed=2)
         ts = tsutil.insert_individuals(ts, ploidy=2)
-        with pytest.raises(ValueError, match="Invalid individual IDs provided."):
+        with pytest.raises(ValueError, match="Invalid individual ID"):
             ts.write_vcf(io.StringIO(), individuals=[0, -1])
-        with pytest.raises(ValueError, match="Invalid individual IDs provided."):
+        with pytest.raises(ValueError, match="Invalid individual ID"):
             ts.write_vcf(io.StringIO(), individuals=[1, 2, ts.num_individuals])
 
     def test_ploidy_positional(self):
@@ -527,20 +524,17 @@ class TestIndividualNames:
         ts = tsutil.insert_individuals(ts, ploidy=2)
         with pytest.raises(
             ValueError,
-            match="individual_names must have length equal to"
-            " the number of individuals",
+            match="The number of individuals does not match the number of names",
         ):
             ts.write_vcf(io.StringIO(), individual_names=[])
         with pytest.raises(
             ValueError,
-            match="individual_names must have length equal to"
-            " the number of individuals",
+            match="The number of individuals does not match the number of names",
         ):
             ts.write_vcf(io.StringIO(), individual_names=["x" for _ in range(4)])
         with pytest.raises(
             ValueError,
-            match="individual_names must have length equal to"
-            " the number of individuals",
+            match="The number of individuals does not match the number of names",
         ):
             ts.write_vcf(
                 io.StringIO(),
@@ -549,8 +543,7 @@ class TestIndividualNames:
             )
         with pytest.raises(
             ValueError,
-            match="individual_names must have length equal to"
-            " the number of individuals",
+            match="The number of individuals does not match the number of names",
         ):
             ts.write_vcf(
                 io.StringIO(),
@@ -563,14 +556,12 @@ class TestIndividualNames:
         assert ts.num_sites > 0
         with pytest.raises(
             ValueError,
-            match="individual_names must have length equal to"
-            " the number of individuals",
+            match="The number of individuals does not match the number of names",
         ):
             ts.write_vcf(io.StringIO(), ploidy=2, individual_names=[])
         with pytest.raises(
             ValueError,
-            match="individual_names must have length equal to"
-            " the number of individuals",
+            match="The number of individuals does not match the number of names",
         ):
             ts.write_vcf(
                 io.StringIO(), ploidy=2, individual_names=["x" for _ in range(4)]
@@ -907,7 +898,7 @@ class TestSampleOptions:
         expected = textwrap.dedent(s)
         assert (
             drop_header(
-                ts.as_vcf(ploidy=3, individual_names="A", allow_position_zero=True)
+                ts.as_vcf(ploidy=3, individual_names=["A"], allow_position_zero=True)
             )
             == expected
         )
@@ -940,7 +931,7 @@ class TestSampleOptions:
     def test_individual_1(self):
         ts = self.ts()
         s = """\
-        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_1
         1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t0
         1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t1
         1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t1
@@ -954,7 +945,7 @@ class TestSampleOptions:
     def test_reversed(self):
         ts = self.ts()
         s = """\
-        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0\ttsk_1
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_1\ttsk_0
         1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t0\t1|0
         1\t2\t1\t0\t1\t.\tPASS\t.\tGT\t1\t0|1
         1\t4\t2\t0\t1\t.\tPASS\t.\tGT\t1\t0|0
@@ -980,6 +971,81 @@ class TestSampleOptions:
                     individuals=[1, 0],
                     individual_names=["A", "B"],
                     allow_position_zero=True,
+                ),
+            )
+            == expected
+        )
+
+
+class TestVcfMapping:
+    def test_mix_sample_non_sample(self):
+        ts = tskit.Tree.generate_balanced(5, span=10).tree_sequence
+        ts = tsutil.insert_branch_sites(ts)
+        assert ts.num_nodes >= 8
+        tables = ts.dump_tables()
+        tables.individuals.add_row()
+        tables.individuals.add_row()
+        tables.individuals.add_row()
+        tables.individuals.add_row()
+        individual = tables.nodes.individual
+        assert np.all(individual == -1)
+        # First has only non-sample nodes
+        individual[7] = 0
+        # Second has 2 sample nodes
+        individual[0] = 1
+        individual[1] = 1
+        # Third has 1 non-sample and 1 sample
+        individual[5] = 2
+        individual[2] = 2
+        # Fourth has sandwiched non-sample
+        individual[3] = 3
+        individual[6] = 3
+        individual[4] = 3
+        tables.nodes.individual = individual
+        ts = tables.tree_sequence()
+
+        # Individual "A" is redacted as has no nodes
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tB\tC\tD
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t1|1\t0\t0|0
+        1\t1\t1\t0\t1\t.\tPASS\t.\tGT\t1|0\t0\t0|0
+        1\t2\t2\t0\t1\t.\tPASS\t.\tGT\t0|1\t0\t0|0
+        1\t3\t3\t0\t1\t.\tPASS\t.\tGT\t0|0\t1\t1|1
+        1\t4\t4\t0\t1\t.\tPASS\t.\tGT\t0|0\t1\t0|0
+        1\t6\t5\t0\t1\t.\tPASS\t.\tGT\t0|0\t0\t1|1
+        1\t7\t6\t0\t1\t.\tPASS\t.\tGT\t0|0\t0\t1|0
+        1\t8\t7\t0\t1\t.\tPASS\t.\tGT\t0|0\t0\t0|1"""
+        expected = textwrap.dedent(s)
+        assert (
+            drop_header(
+                ts.as_vcf(
+                    individual_names=["A", "B", "C", "D"],
+                    allow_position_zero=True,
+                ),
+            )
+            == expected
+        )
+
+        # Now with non-sample nodes, so A is included, C becomes diploid
+        # and D is triploid
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tA\tB\tC\tD
+        1\t0\t0\t0\t1\t.\tPASS\t.\tGT\t0\t1|1\t0|1\t0|0|0
+        1\t1\t1\t0\t1\t.\tPASS\t.\tGT\t0\t1|0\t0|0\t0|0|0
+        1\t2\t2\t0\t1\t.\tPASS\t.\tGT\t0\t0|1\t0|0\t0|0|0
+        1\t3\t3\t0\t1\t.\tPASS\t.\tGT\t1\t0|0\t1|0\t1|1|1
+        1\t4\t4\t0\t1\t.\tPASS\t.\tGT\t0\t0|0\t1|0\t0|0|0
+        1\t6\t5\t0\t1\t.\tPASS\t.\tGT\t0\t0|0\t0|0\t1|1|1
+        1\t7\t6\t0\t1\t.\tPASS\t.\tGT\t0\t0|0\t0|0\t1|0|0
+        1\t8\t7\t0\t1\t.\tPASS\t.\tGT\t0\t0|0\t0|0\t0|1|0"""
+        expected = textwrap.dedent(s)
+        assert (
+            drop_header(
+                ts.as_vcf(
+                    individual_names=["A", "B", "C", "D"],
+                    allow_position_zero=True,
+                    include_non_sample_nodes=True,
+                    isolated_as_missing=False,
                 ),
             )
             == expected
