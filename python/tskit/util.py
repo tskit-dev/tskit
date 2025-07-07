@@ -662,6 +662,9 @@ def tree_sequence_html(ts):
                     </table>
                 </div>
             </div>
+            <div style="margin-top: 1em; font-size: 0.8em; text-align: center;">
+                To cite this software, please consult the citation manual: <a href="https://tskit.dev/tskit/docs/stable/citation.html" target="_blank">tskit.dev/tskit/docs/stable/citation.html</a>
+            </div>
         </div>
     """  # noqa: B950
 
