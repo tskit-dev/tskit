@@ -3264,7 +3264,7 @@ tsk_treeseq_two_locus_count_stat(const tsk_treeseq_t *self, tsk_size_t num_sampl
     tsk_memset(&sample_sets_bits, 0, sizeof(sample_sets_bits));
 
     // If no mode is specified, we default to site mode
-    if (!(stat_site || stat_branch)) {
+    if (!(stat_site || stat_branch || stat_node)) {
         stat_site = true;
     }
     // It's an error to specify more than one mode
