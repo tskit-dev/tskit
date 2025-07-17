@@ -590,6 +590,9 @@ def compute_general_two_site_stat_result(
             for k in range(result_dim):
                 result[k] += result_tmp[k] * norm[k]
 
+            # for k in range(result_dim):
+            #     print(mut_a, mut_b, k, weights[0, k], weights[1, k], weights[2, k], sep="\t")
+
 
 def two_site_count_stat(
     ts: tskit.TreeSequence,
@@ -1777,6 +1780,7 @@ def test_ld_empty_examples(ts):
 
 
 def test_input_validation():
+    # TODO
     ts = get_paper_ex_ts()
     with pytest.raises(ValueError, match="Unknown two-locus statistic"):
         ts.ld_matrix(stat="bad_stat")
