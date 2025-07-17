@@ -22,10 +22,8 @@
 """
 Test cases for two-locus statistics
 """
-
 import contextlib
 import io
-import itertools
 from dataclasses import dataclass
 from itertools import combinations_with_replacement
 from itertools import permutations
@@ -592,6 +590,9 @@ def compute_general_two_site_stat_result(
             for k in range(result_dim):
                 result[k] += result_tmp[k] * norm[k]
 
+            # for k in range(result_dim):
+            #     print(mut_a, mut_b, k, weights[0, k], weights[1, k], weights[2, k], sep="\t")
+
 
 def two_site_count_stat(
     ts: tskit.TreeSequence,
@@ -844,7 +845,6 @@ def two_locus_count_stat(
     norm_func,
     polarised,
     mode,
-    result_dim,
     sites=None,
     positions=None,
     sample_sets=None,
@@ -860,9 +860,6 @@ def two_locus_count_stat(
     :param polarised: If true, skip the computation of the statistic for the
                       ancestral state.
     :param mode: Whether or not to compute "site" or "branch" statistics.
-    :param result_dim: The dimensions of the output array. For one-way stats,
-                       this will be the number of sample sets. For two-way stats,
-                       the number of index tuples.
     :param sites: List of two lists containing [row_sites, column_sites].
     :param positions: List of two lists containing [row_positions, col_positions],
                       which are genomic positions to compute LD on.
@@ -1461,7 +1458,6 @@ def ld_matrix(
         NORM_METHOD[summary_func],
         POLARIZATION[summary_func],
         mode,
-        result_dim,
         sites=sites,
         positions=positions,
         indexes=indexes,
@@ -1784,6 +1780,7 @@ def test_ld_empty_examples(ts):
 
 
 def test_input_validation():
+    # TODO
     ts = get_paper_ex_ts()
     with pytest.raises(ValueError, match="Unknown two-locus statistic"):
         ts.ld_matrix(stat="bad_stat")
