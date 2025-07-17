@@ -590,9 +590,6 @@ def compute_general_two_site_stat_result(
             for k in range(result_dim):
                 result[k] += result_tmp[k] * norm[k]
 
-            # for k in range(result_dim):
-            #     print(mut_a, mut_b, k, weights[0, k], weights[1, k], weights[2, k], sep="\t")
-
 
 def two_site_count_stat(
     ts: tskit.TreeSequence,
