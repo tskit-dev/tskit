@@ -2313,9 +2313,6 @@ get_all_samples_bits(tsk_bit_array_t *all_samples, tsk_size_t n)
     }
 }
 
-typedef int norm_func_t(tsk_size_t result_dim, const double *hap_weights, tsk_size_t n_a,
-    tsk_size_t n_b, double *result, void *params);
-
 static int
 compute_general_two_site_stat_result(const tsk_bit_array_t *site_a_state,
     const tsk_bit_array_t *site_b_state, tsk_size_t num_a_alleles,
