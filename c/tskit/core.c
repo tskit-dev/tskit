@@ -1290,9 +1290,6 @@ tsk_bitset_intersect(const tsk_bitset_t *self, tsk_size_t self_row,
 {
     tsk_bitset_val_t *self_d = self->data + (self_row * self->row_len);
     tsk_bitset_val_t *other_d = other->data + (other_row * self->row_len);
-    if (self_row >= self->len || other_row >= other->len) {
-        printf("isect: OUTSIDE_OF_BOUNDS");
-    }
     for (tsk_size_t i = 0; i < self->row_len; i++) {
         out->data[i] = self_d[i] & other_d[i];
     }
@@ -1304,9 +1301,6 @@ tsk_bitset_subtract(tsk_bitset_t *self, tsk_size_t self_row, const tsk_bitset_t 
 {
     tsk_bitset_val_t *self_d = self->data + (self_row * self->row_len);
     tsk_bitset_val_t *other_d = other->data + (other_row * self->row_len);
-    if (self_row >= self->len || other_row >= other->len) {
-        printf("subtr: OUTSIDE_OF_BOUNDS");
-    }
     for (tsk_size_t i = 0; i < self->row_len; i++) {
         self_d[i] &= ~(other_d[i]);
     }
@@ -1318,9 +1312,6 @@ tsk_bitset_union(tsk_bitset_t *self, tsk_size_t self_row, const tsk_bitset_t *ot
 {
     tsk_bitset_val_t *self_d = self->data + (self_row * self->row_len);
     tsk_bitset_val_t *other_d = other->data + (other_row * self->row_len);
-    if (self_row >= self->len || other_row >= other->len) {
-        printf("union: OUTSIDE_OF_BOUNDS");
-    }
     for (tsk_size_t i = 0; i < self->row_len; i++) {
         self_d[i] |= other_d[i];
     }
@@ -1338,11 +1329,26 @@ bool
 tsk_bitset_contains(const tsk_bitset_t *self, tsk_size_t row, const tsk_bitset_val_t bit)
 {
     tsk_bitset_val_t i = (bit >> TSK_BIT_ARRAY_CHUNK);
-    if (row >= self->len) {
-        printf("contains: OUTSIDE_OF_BOUNDS");
-    }
     return self->data[i + row * self->row_len]
            & ((tsk_bitset_val_t) 1 << (bit - (TSK_BIT_ARRAY_NUM_BITS * i)));
+}
+
+tsk_size_t
+tsk_bitset_isect_and_count(const tsk_bitset_t *self, tsk_size_t self_row,
+    const tsk_bitset_t *other, tsk_size_t other_row)
+{
+    tsk_bitset_val_t tmp;
+    tsk_size_t i, count = 0;
+    tsk_bitset_val_t *self_d = self->data + (self_row * self->row_len);
+    tsk_bitset_val_t *other_d = other->data + (other_row * self->row_len);
+
+    for (i = 0; i < self->row_len; i++) {
+        tmp = self_d[i] & other_d[i];
+        tmp = tmp - ((tmp >> 1) & 0x55555555);
+        tmp = (tmp & 0x33333333) + ((tmp >> 2) & 0x33333333);
+        count += (((tmp + (tmp >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
+    }
+    return count;
 }
 
 tsk_size_t
@@ -1364,9 +1370,6 @@ tsk_bitset_count(const tsk_bitset_t *self, tsk_size_t row)
     tsk_size_t i, count = 0;
     tsk_bitset_val_t *self_d = self->data + (row * self->row_len);
 
-    if (row >= self->len) {
-        printf("count: OUTSIDE_OF_BOUNDS");
-    }
     for (i = 0; i < self->row_len; i++) {
         tmp = self_d[i] - ((self_d[i] >> 1) & 0x55555555);
         tmp = (tmp & 0x33333333) + ((tmp >> 2) & 0x33333333);

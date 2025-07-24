@@ -2316,9 +2316,6 @@ typedef struct {
     double *norm;
     double *result_tmp;
     tsk_bitset_t AB_samples;
-    tsk_bitset_t ss_A_samples;
-    tsk_bitset_t ss_B_samples;
-    tsk_bitset_t ss_AB_samples;
 } two_locus_work_t;
 
 static int
@@ -2330,30 +2327,12 @@ two_locus_work_init(tsk_size_t max_alleles, tsk_size_t result_dim, tsk_size_t st
     out->norm = tsk_malloc(result_dim * sizeof(*out->norm));
     out->result_tmp
         = tsk_malloc(result_dim * max_alleles * max_alleles * sizeof(*out->result_tmp));
-
-    tsk_memset(&out->ss_A_samples, 0, sizeof(out->ss_A_samples));
-    tsk_memset(&out->ss_B_samples, 0, sizeof(out->ss_B_samples));
-    tsk_memset(&out->ss_AB_samples, 0, sizeof(out->ss_AB_samples));
     tsk_memset(&out->AB_samples, 0, sizeof(out->AB_samples));
-
     if (out->weights == NULL || out->norm == NULL || out->result_tmp == NULL) {
         ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
-
     ret = tsk_bitset_init(&out->AB_samples, num_samples, 1);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_bitset_init(&out->ss_A_samples, num_samples, 1);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_bitset_init(&out->ss_B_samples, num_samples, 1);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_bitset_init(&out->ss_AB_samples, num_samples, 1);
     if (ret != 0) {
         goto out;
     }
@@ -2368,9 +2347,6 @@ two_locus_work_free(two_locus_work_t *work)
     tsk_safe_free(work->norm);
     tsk_safe_free(work->result_tmp);
     tsk_bitset_free(&work->AB_samples);
-    tsk_bitset_free(&work->ss_A_samples);
-    tsk_bitset_free(&work->ss_B_samples);
-    tsk_bitset_free(&work->ss_AB_samples);
 }
 
 static int
@@ -2388,7 +2364,6 @@ compute_general_two_site_stat_result(const tsk_bitset_t *state, tsk_size_t a_off
     // a3   [s1, s2, s3] [s1, s2, s3] [s1, s2, s3]
     tsk_size_t k, mut_a, mut_b;
     tsk_size_t result_row_len = num_b_alleles * result_dim;
-    double w_AB = 0;
     uint8_t polarised_val = polarised ? 1 : 0;
     double *hap_weight_row;
     double *result_tmp_row;
@@ -2397,9 +2372,6 @@ compute_general_two_site_stat_result(const tsk_bitset_t *state, tsk_size_t a_off
     double *weights = work->weights;
     double *result_tmp = work->result_tmp;
     tsk_bitset_t AB_samples = work->AB_samples;
-    tsk_bitset_t ss_A_samples = work->ss_A_samples;
-    tsk_bitset_t ss_B_samples = work->ss_B_samples;
-    tsk_bitset_t ss_AB_samples = work->ss_AB_samples;
 
     for (mut_a = polarised_val; mut_a < num_a_alleles; mut_a++) {
         result_tmp_row = GET_2D_ROW(result_tmp, result_row_len, mut_a);
@@ -2408,14 +2380,14 @@ compute_general_two_site_stat_result(const tsk_bitset_t *state, tsk_size_t a_off
                 state, mut_a + a_off, state, mut_b + b_off, &AB_samples);
             for (k = 0; k < state_dim; k++) {
                 hap_weight_row = GET_2D_ROW(weights, 3, k);
-                tsk_bitset_intersect(
-                    state, mut_a + a_off, sample_sets, k, &ss_A_samples);
-                tsk_bitset_intersect(
-                    state, mut_b + b_off, sample_sets, k, &ss_B_samples);
-                tsk_bitset_intersect(&AB_samples, 0, sample_sets, k, &ss_AB_samples);
-                w_AB = hap_weight_row[0] = (double) tsk_bitset_count(&ss_AB_samples, 0);
-                hap_weight_row[1] = ((double) tsk_bitset_count(&ss_A_samples, 0) - w_AB);
-                hap_weight_row[2] = ((double) tsk_bitset_count(&ss_B_samples, 0) - w_AB);
+                hap_weight_row[0] = (double) tsk_bitset_isect_and_count(
+                    &AB_samples, 0, sample_sets, k);
+                hap_weight_row[1] = (double) tsk_bitset_isect_and_count(
+                                        state, mut_a + a_off, sample_sets, k)
+                                    - hap_weight_row[0];
+                hap_weight_row[2] = (double) tsk_bitset_isect_and_count(
+                                        state, mut_b + b_off, sample_sets, k)
+                                    - hap_weight_row[0];
             }
             ret = f(state_dim, weights, result_dim, result_tmp_row, f_params);
             if (ret != 0) {
@@ -2665,7 +2637,6 @@ sample_sets_to_bitset(const tsk_treeseq_t *self, const tsk_size_t *sample_set_si
     tsk_bitset_t *sample_sets_bits)
 {
     int ret;
-    tsk_bitset_t bits_row;
     tsk_size_t j, k, l;
     tsk_id_t u, sample_index;
 
@@ -2673,10 +2644,8 @@ sample_sets_to_bitset(const tsk_treeseq_t *self, const tsk_size_t *sample_set_si
     if (ret != 0) {
         return ret;
     }
-
     j = 0;
     for (k = 0; k < num_sample_sets; k++) {
-        tsk_bitset_get_row(sample_sets_bits, k, &bits_row);
         for (l = 0; l < sample_set_sizes[k]; l++) {
             u = sample_sets[j];
             sample_index = self->sample_index_map[u];
@@ -2869,7 +2838,6 @@ get_node_samples(const tsk_treeseq_t *ts, tsk_size_t state_dim,
 {
     int ret = 0;
     tsk_size_t n, k;
-    tsk_bitset_t sample_set_row, node_samples_row;
     tsk_size_t num_nodes = ts->tables->nodes.num_rows;
     tsk_bitset_val_t sample;
     const tsk_id_t *restrict sample_index_map = ts->sample_index_map;
@@ -2880,14 +2848,11 @@ get_node_samples(const tsk_treeseq_t *ts, tsk_size_t state_dim,
         goto out;
     }
     for (k = 0; k < state_dim; k++) {
-        tsk_bitset_get_row(sample_sets, k, &sample_set_row);
         for (n = 0; n < num_nodes; n++) {
             if (flags[n] & TSK_NODE_IS_SAMPLE) {
                 sample = (tsk_bitset_val_t) sample_index_map[n];
-                if (tsk_bitset_contains(&sample_set_row, 0, sample)) {
-                    tsk_bitset_get_row(
-                        node_samples, (state_dim * n) + k, &node_samples_row);
-                    tsk_bitset_set_bit(&node_samples_row, 0, sample);
+                if (tsk_bitset_contains(sample_sets, k, sample)) {
+                    tsk_bitset_set_bit(node_samples, (state_dim * n) + k, sample);
                 }
             }
         }
@@ -3002,32 +2967,19 @@ compute_two_tree_branch_state_update(const tsk_treeseq_t *ts, tsk_id_t c,
     double *restrict B_branch_len = B_state->branch_len;
     double *weights = NULL, *weights_row, *result_tmp = NULL;
     tsk_size_t n, k, a_row, b_row;
-    tsk_bitset_t AB_samples, B_samples_tmp;
     const double *restrict A_branch_len = A_state->branch_len;
     const tsk_bitset_t *restrict A_state_samples = A_state->node_samples;
     const tsk_bitset_t *restrict B_state_samples = B_state->node_samples;
-    tsk_size_t num_samples = ts->num_samples;
     tsk_size_t num_nodes = ts->tables->nodes.num_rows;
+
     b_len = B_branch_len[c] * sign;
     if (b_len == 0) {
         return ret;
     }
-
-    tsk_memset(&AB_samples, 0, sizeof(AB_samples));
-    tsk_memset(&B_samples_tmp, 0, sizeof(B_samples_tmp));
-
     weights = tsk_calloc(3 * state_dim, sizeof(*weights));
     result_tmp = tsk_calloc(result_dim, sizeof(*result_tmp));
     if (weights == NULL || result_tmp == NULL) {
         ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
-        goto out;
-    }
-    ret = tsk_bitset_init(&AB_samples, num_samples, 1);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_bitset_init(&B_samples_tmp, num_samples, 1);
-    if (ret != 0) {
         goto out;
     }
     for (n = 0; n < num_nodes; n++) {
@@ -3038,10 +2990,9 @@ compute_two_tree_branch_state_update(const tsk_treeseq_t *ts, tsk_id_t c,
         for (k = 0; k < state_dim; k++) {
             a_row = (state_dim * n) + k;
             b_row = (state_dim * (tsk_size_t) c) + k;
-            tsk_bitset_intersect(
-                A_state_samples, a_row, B_state_samples, b_row, &AB_samples);
             weights_row = GET_2D_ROW(weights, 3, k);
-            weights_row[0] = (double) tsk_bitset_count(&AB_samples, 0); // w_AB
+            weights_row[0] = (double) tsk_bitset_isect_and_count(
+                A_state_samples, a_row, B_state_samples, b_row);
             weights_row[1]
                 = (double) tsk_bitset_count(A_state_samples, a_row) - weights_row[0];
             weights_row[2]
@@ -3058,8 +3009,6 @@ compute_two_tree_branch_state_update(const tsk_treeseq_t *ts, tsk_id_t c,
 out:
     tsk_safe_free(weights);
     tsk_safe_free(result_tmp);
-    tsk_bitset_free(&AB_samples);
-    tsk_bitset_free(&B_samples_tmp);
     return ret;
 }
 
@@ -3075,7 +3024,7 @@ compute_two_tree_branch_stat(const tsk_treeseq_t *ts, const iter_state *l_state,
     const tsk_id_t *restrict edges_child = ts->tables->edges.child;
     const tsk_id_t *restrict edges_parent = ts->tables->edges.parent;
     const tsk_size_t num_nodes = ts->tables->nodes.num_rows;
-    tsk_bitset_t updates, row, ec_row, *r_samples = r_state->node_samples;
+    tsk_bitset_t updates, *r_samples = r_state->node_samples;
 
     tsk_memset(&updates, 0, sizeof(updates));
     ret = tsk_bitset_init(&updates, num_nodes, 1);
@@ -3115,10 +3064,8 @@ compute_two_tree_branch_stat(const tsk_treeseq_t *ts, const iter_state *l_state,
         ec = edges_child[e]; // edge child
         while (p != TSK_NULL) {
             for (k = 0; k < state_dim; k++) {
-                tsk_bitset_get_row(
-                    r_samples, (state_dim * (tsk_size_t) ec) + k, &ec_row);
-                tsk_bitset_get_row(r_samples, (state_dim * (tsk_size_t) p) + k, &row);
-                tsk_bitset_subtract(&row, 0, &ec_row, 0);
+                tsk_bitset_subtract(r_samples, (state_dim * (tsk_size_t) p) + k,
+                    r_samples, (state_dim * (tsk_size_t) ec) + k);
             }
             p = r_state->parent[p];
         }
@@ -3135,10 +3082,8 @@ compute_two_tree_branch_stat(const tsk_treeseq_t *ts, const iter_state *l_state,
         while (p != TSK_NULL) {
             tsk_bitset_set_bit(&updates, 0, (tsk_bitset_val_t) c);
             for (k = 0; k < state_dim; k++) {
-                tsk_bitset_get_row(
-                    r_samples, (state_dim * (tsk_size_t) ec) + k, &ec_row);
-                tsk_bitset_get_row(r_samples, (state_dim * (tsk_size_t) p) + k, &row);
-                tsk_bitset_union(&row, 0, &ec_row, 0);
+                tsk_bitset_union(r_samples, (state_dim * (tsk_size_t) p) + k, r_samples,
+                    (state_dim * (tsk_size_t) ec) + k);
             }
             c = p;
             p = r_state->parent[p];
