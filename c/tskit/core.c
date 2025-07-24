@@ -1259,13 +1259,14 @@ tsk_avl_tree_int_ordered_nodes(const tsk_avl_tree_int_t *self, tsk_avl_node_int_
 // Currently implemented as an array of 32-bit unsigned integers for ease of counting.
 
 int
-tsk_bit_array_init(tsk_bit_array_t *self, tsk_size_t num_bits, tsk_size_t length)
+tsk_bitset_init(tsk_bitset_t *self, tsk_size_t num_bits, tsk_size_t length)
 {
     int ret = 0;
 
-    self->size = (num_bits >> TSK_BIT_ARRAY_CHUNK)
-                 + (num_bits % TSK_BIT_ARRAY_NUM_BITS ? 1 : 0);
-    self->data = tsk_calloc(self->size * length, sizeof(*self->data));
+    self->row_len = (num_bits >> TSK_BIT_ARRAY_CHUNK)
+                    + (num_bits % TSK_BIT_ARRAY_NUM_BITS ? 1 : 0);
+    self->len = length;
+    self->data = tsk_calloc(self->row_len * length, sizeof(*self->data));
     if (self->data == NULL) {
         ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
@@ -1275,54 +1276,77 @@ out:
 }
 
 void
-tsk_bit_array_get_row(const tsk_bit_array_t *self, tsk_size_t row, tsk_bit_array_t *out)
+tsk_bitset_get_row(const tsk_bitset_t *self, tsk_size_t row, tsk_bitset_t *out)
 {
-    out->size = self->size;
-    out->data = self->data + (row * self->size);
+    out->row_len = self->row_len;
+    out->data = self->data + (row * self->row_len);
+    out->len = (tsk_size_t)(out->data - self->data) / self->row_len;
+    out->len++;
 }
 
 void
-tsk_bit_array_intersect(
-    const tsk_bit_array_t *self, const tsk_bit_array_t *other, tsk_bit_array_t *out)
+tsk_bitset_intersect(const tsk_bitset_t *self, tsk_size_t self_row,
+    const tsk_bitset_t *other, tsk_size_t other_row, tsk_bitset_t *out)
 {
-    for (tsk_size_t i = 0; i < self->size; i++) {
-        out->data[i] = self->data[i] & other->data[i];
+    tsk_bitset_val_t *self_d = self->data + (self_row * self->row_len);
+    tsk_bitset_val_t *other_d = other->data + (other_row * self->row_len);
+    if (self_row >= self->len || other_row >= other->len) {
+        printf("isect: OUTSIDE_OF_BOUNDS");
+    }
+    for (tsk_size_t i = 0; i < self->row_len; i++) {
+        out->data[i] = self_d[i] & other_d[i];
     }
 }
 
 void
-tsk_bit_array_subtract(tsk_bit_array_t *self, const tsk_bit_array_t *other)
+tsk_bitset_subtract(tsk_bitset_t *self, tsk_size_t self_row, const tsk_bitset_t *other,
+    tsk_size_t other_row)
 {
-    for (tsk_size_t i = 0; i < self->size; i++) {
-        self->data[i] &= ~(other->data[i]);
+    tsk_bitset_val_t *self_d = self->data + (self_row * self->row_len);
+    tsk_bitset_val_t *other_d = other->data + (other_row * self->row_len);
+    if (self_row >= self->len || other_row >= other->len) {
+        printf("subtr: OUTSIDE_OF_BOUNDS");
+    }
+    for (tsk_size_t i = 0; i < self->row_len; i++) {
+        self_d[i] &= ~(other_d[i]);
     }
 }
 
 void
-tsk_bit_array_add(tsk_bit_array_t *self, const tsk_bit_array_t *other)
+tsk_bitset_union(tsk_bitset_t *self, tsk_size_t self_row, const tsk_bitset_t *other,
+    tsk_size_t other_row)
 {
-    for (tsk_size_t i = 0; i < self->size; i++) {
-        self->data[i] |= other->data[i];
+    tsk_bitset_val_t *self_d = self->data + (self_row * self->row_len);
+    tsk_bitset_val_t *other_d = other->data + (other_row * self->row_len);
+    if (self_row >= self->len || other_row >= other->len) {
+        printf("union: OUTSIDE_OF_BOUNDS");
+    }
+    for (tsk_size_t i = 0; i < self->row_len; i++) {
+        self_d[i] |= other_d[i];
     }
 }
 
 void
-tsk_bit_array_add_bit(tsk_bit_array_t *self, const tsk_bit_array_value_t bit)
+tsk_bitset_set_bit(tsk_bitset_t *self, tsk_size_t row, const tsk_bitset_val_t bit)
 {
-    tsk_bit_array_value_t i = bit >> TSK_BIT_ARRAY_CHUNK;
-    self->data[i] |= (tsk_bit_array_value_t) 1 << (bit - (TSK_BIT_ARRAY_NUM_BITS * i));
+    tsk_bitset_val_t i = (bit >> TSK_BIT_ARRAY_CHUNK);
+    self->data[i + row * self->row_len] |= (tsk_bitset_val_t) 1
+                                           << (bit - (TSK_BIT_ARRAY_NUM_BITS * i));
 }
 
 bool
-tsk_bit_array_contains(const tsk_bit_array_t *self, const tsk_bit_array_value_t bit)
+tsk_bitset_contains(const tsk_bitset_t *self, tsk_size_t row, const tsk_bitset_val_t bit)
 {
-    tsk_bit_array_value_t i = bit >> TSK_BIT_ARRAY_CHUNK;
-    return self->data[i]
-           & ((tsk_bit_array_value_t) 1 << (bit - (TSK_BIT_ARRAY_NUM_BITS * i)));
+    tsk_bitset_val_t i = (bit >> TSK_BIT_ARRAY_CHUNK);
+    if (row >= self->len) {
+        printf("contains: OUTSIDE_OF_BOUNDS");
+    }
+    return self->data[i + row * self->row_len]
+           & ((tsk_bitset_val_t) 1 << (bit - (TSK_BIT_ARRAY_NUM_BITS * i)));
 }
 
 tsk_size_t
-tsk_bit_array_count(const tsk_bit_array_t *self)
+tsk_bitset_count(const tsk_bitset_t *self, tsk_size_t row)
 {
     // Utilizes 12 operations per bit array. NB this only works on 32 bit integers.
     // Taken from:
@@ -1336,11 +1360,15 @@ tsk_bit_array_count(const tsk_bit_array_t *self)
     // This option is relatively simple, but requires a 64 bit bit array and also
     // involves some compiler flag plumbing (-mpopcnt)
 
-    tsk_bit_array_value_t tmp;
+    tsk_bitset_val_t tmp;
     tsk_size_t i, count = 0;
+    tsk_bitset_val_t *self_d = self->data + (row * self->row_len);
 
-    for (i = 0; i < self->size; i++) {
-        tmp = self->data[i] - ((self->data[i] >> 1) & 0x55555555);
+    if (row >= self->len) {
+        printf("count: OUTSIDE_OF_BOUNDS");
+    }
+    for (i = 0; i < self->row_len; i++) {
+        tmp = self_d[i] - ((self_d[i] >> 1) & 0x55555555);
         tmp = (tmp & 0x33333333) + ((tmp >> 2) & 0x33333333);
         count += (((tmp + (tmp >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
     }
@@ -1348,20 +1376,19 @@ tsk_bit_array_count(const tsk_bit_array_t *self)
 }
 
 void
-tsk_bit_array_get_items(
-    const tsk_bit_array_t *self, tsk_id_t *items, tsk_size_t *n_items)
+tsk_bitset_get_items(const tsk_bitset_t *self, tsk_id_t *items, tsk_size_t *n_items)
 {
     // Get the items stored in the row of a bitset.
     // Uses a de Bruijn sequence lookup table to determine the lowest bit set. See the
     // wikipedia article for more info: https://w.wiki/BYiF
 
     tsk_size_t i, n, off;
-    tsk_bit_array_value_t v, lsb; // least significant bit
+    tsk_bitset_val_t v, lsb; // least significant bit
     static const tsk_id_t lookup[32] = { 0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25,
         17, 4, 8, 31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9 };
 
     n = 0;
-    for (i = 0; i < self->size; i++) {
+    for (i = 0; i < self->row_len; i++) {
         v = self->data[i];
         off = i * ((tsk_size_t) TSK_BIT_ARRAY_NUM_BITS);
         if (v == 0) {
@@ -1377,7 +1404,7 @@ tsk_bit_array_get_items(
 }
 
 void
-tsk_bit_array_free(tsk_bit_array_t *self)
+tsk_bitset_free(tsk_bitset_t *self)
 {
     tsk_safe_free(self->data);
 }

@@ -1100,29 +1100,32 @@ FILE *tsk_get_debug_stream(void);
 
 /* Bit Array functionality */
 
-typedef uint32_t tsk_bit_array_value_t;
+typedef uint32_t tsk_bitset_val_t;
 typedef struct {
-    tsk_size_t size;             // Number of chunks per row
-    tsk_bit_array_value_t *data; // Array data
-} tsk_bit_array_t;
+    tsk_size_t row_len; // Number of chunks per row
+    tsk_size_t len;     // Number of rows
+    tsk_bitset_val_t *data;
+} tsk_bitset_t;
 
-#define TSK_BIT_ARRAY_CHUNK 5U
+#define TSK_BIT_ARRAY_CHUNK 5
 #define TSK_BIT_ARRAY_NUM_BITS (1U << TSK_BIT_ARRAY_CHUNK)
+#define TSK_BITSET_BITS 32U
 
-int tsk_bit_array_init(tsk_bit_array_t *self, tsk_size_t num_bits, tsk_size_t length);
-void tsk_bit_array_free(tsk_bit_array_t *self);
-void tsk_bit_array_get_row(
-    const tsk_bit_array_t *self, tsk_size_t row, tsk_bit_array_t *out);
-void tsk_bit_array_intersect(
-    const tsk_bit_array_t *self, const tsk_bit_array_t *other, tsk_bit_array_t *out);
-void tsk_bit_array_subtract(tsk_bit_array_t *self, const tsk_bit_array_t *other);
-void tsk_bit_array_add(tsk_bit_array_t *self, const tsk_bit_array_t *other);
-void tsk_bit_array_add_bit(tsk_bit_array_t *self, const tsk_bit_array_value_t bit);
-bool tsk_bit_array_contains(
-    const tsk_bit_array_t *self, const tsk_bit_array_value_t bit);
-tsk_size_t tsk_bit_array_count(const tsk_bit_array_t *self);
-void tsk_bit_array_get_items(
-    const tsk_bit_array_t *self, tsk_id_t *items, tsk_size_t *n_items);
+int tsk_bitset_init(tsk_bitset_t *self, tsk_size_t num_bits, tsk_size_t length);
+void tsk_bitset_free(tsk_bitset_t *self);
+void tsk_bitset_get_row(const tsk_bitset_t *self, tsk_size_t row, tsk_bitset_t *out);
+void tsk_bitset_intersect(const tsk_bitset_t *self, tsk_size_t self_row,
+    const tsk_bitset_t *other, tsk_size_t other_row, tsk_bitset_t *out);
+void tsk_bitset_subtract(tsk_bitset_t *self, tsk_size_t self_row,
+    const tsk_bitset_t *other, tsk_size_t other_row);
+void tsk_bitset_union(tsk_bitset_t *self, tsk_size_t self_row, const tsk_bitset_t *other,
+    tsk_size_t other_row);
+void tsk_bitset_set_bit(tsk_bitset_t *self, tsk_size_t row, const tsk_bitset_val_t bit);
+bool tsk_bitset_contains(
+    const tsk_bitset_t *self, tsk_size_t row, const tsk_bitset_val_t bit);
+tsk_size_t tsk_bitset_count(const tsk_bitset_t *self, tsk_size_t row);
+void tsk_bitset_get_items(
+    const tsk_bitset_t *self, tsk_id_t *items, tsk_size_t *n_items);
 
 #ifdef __cplusplus
 }
