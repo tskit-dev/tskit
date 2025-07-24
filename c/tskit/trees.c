@@ -2340,6 +2340,11 @@ two_locus_work_init(tsk_size_t max_alleles, tsk_size_t result_dim, tsk_size_t st
         ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
+
+    ret = tsk_bitset_init(&out->AB_samples, num_samples, 1);
+    if (ret != 0) {
+        goto out;
+    }
     ret = tsk_bitset_init(&out->ss_A_samples, num_samples, 1);
     if (ret != 0) {
         goto out;
@@ -2349,10 +2354,6 @@ two_locus_work_init(tsk_size_t max_alleles, tsk_size_t result_dim, tsk_size_t st
         goto out;
     }
     ret = tsk_bitset_init(&out->ss_AB_samples, num_samples, 1);
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_bitset_init(&out->AB_samples, num_samples, 1);
     if (ret != 0) {
         goto out;
     }
@@ -2367,6 +2368,9 @@ two_locus_work_free(two_locus_work_t *work)
     tsk_safe_free(work->norm);
     tsk_safe_free(work->result_tmp);
     tsk_bitset_free(&work->AB_samples);
+    tsk_bitset_free(&work->ss_A_samples);
+    tsk_bitset_free(&work->ss_B_samples);
+    tsk_bitset_free(&work->ss_AB_samples);
 }
 
 static int
