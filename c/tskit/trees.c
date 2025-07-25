@@ -3260,12 +3260,17 @@ tsk_treeseq_two_locus_count_stat(const tsk_treeseq_t *self, tsk_size_t num_sampl
 
     tsk_memset(&sample_sets_bits, 0, sizeof(sample_sets_bits));
 
+    // We do not support two-locus node stats
+    if (!!(options & TSK_STAT_NODE)) {
+        ret = tsk_trace_error(TSK_ERR_UNSUPPORTED_STAT_MODE);
+        goto out;
+    }
     // If no mode is specified, we default to site mode
-    if (!(stat_site || stat_branch || stat_node)) {
+    if (!(stat_site || stat_branch)) {
         stat_site = true;
     }
     // It's an error to specify more than one mode
-    if (stat_site + stat_branch + stat_node > 1) {
+    if (stat_site + stat_branch > 1) {
         ret = tsk_trace_error(TSK_ERR_MULTIPLE_STAT_MODES);
         goto out;
     }
@@ -3310,8 +3315,6 @@ tsk_treeseq_two_locus_count_stat(const tsk_treeseq_t *self, tsk_size_t num_sampl
         ret = tsk_treeseq_two_branch_count_stat(self, state_dim, &sample_sets_bits,
             result_dim, f, &f_params, norm_f, out_rows, row_positions, out_cols,
             col_positions, options, result);
-    } else {
-        ret = tsk_trace_error(TSK_ERR_UNSUPPORTED_STAT_MODE);
     }
 
 out:
