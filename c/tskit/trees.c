@@ -2556,9 +2556,10 @@ tsk_treeseq_two_site_count_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
     const tsk_size_t num_samples = self->num_samples;
     tsk_size_t *num_alleles = NULL, *site_offsets = NULL;
     tsk_size_t result_row_len = n_cols * result_dim;
-    two_locus_work_t work = { 0 };
-    tsk_memset(&allele_samples, 0, sizeof(allele_samples));
+    two_locus_work_t work;
 
+    tsk_memset(&work, 0, sizeof(work));
+    tsk_memset(&allele_samples, 0, sizeof(allele_samples));
     sites = tsk_malloc(self->tables->sites.num_rows * sizeof(*sites));
     row_idx = tsk_malloc(self->tables->sites.num_rows * sizeof(*row_idx));
     col_idx = tsk_malloc(self->tables->sites.num_rows * sizeof(*col_idx));
@@ -2596,6 +2597,7 @@ tsk_treeseq_two_site_count_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
     if (ret != 0) {
         goto out;
     }
+    // we track the number of alleles to account for backmutations
     ret = get_mutation_samples(self, sites, n_sites, num_alleles, &allele_samples);
     if (ret != 0) {
         goto out;
@@ -2960,27 +2962,24 @@ static int
 compute_two_tree_branch_state_update(const tsk_treeseq_t *ts, tsk_id_t c,
     const iter_state *A_state, const iter_state *B_state, tsk_size_t state_dim,
     tsk_size_t result_dim, int sign, general_stat_func_t *f,
-    sample_count_stat_params_t *f_params, double *result)
+    sample_count_stat_params_t *f_params, two_locus_work_t *restrict work,
+    double *result)
 {
     int ret = 0;
     double a_len, b_len;
     double *restrict B_branch_len = B_state->branch_len;
-    double *weights = NULL, *weights_row, *result_tmp = NULL;
+    double *weights_row;
     tsk_size_t n, k, a_row, b_row;
     const double *restrict A_branch_len = A_state->branch_len;
     const tsk_bitset_t *restrict A_state_samples = A_state->node_samples;
     const tsk_bitset_t *restrict B_state_samples = B_state->node_samples;
     tsk_size_t num_nodes = ts->tables->nodes.num_rows;
+    double *weights = work->weights;
+    double *result_tmp = work->result_tmp;
 
     b_len = B_branch_len[c] * sign;
     if (b_len == 0) {
         return ret;
-    }
-    weights = tsk_calloc(3 * state_dim, sizeof(*weights));
-    result_tmp = tsk_calloc(result_dim, sizeof(*result_tmp));
-    if (weights == NULL || result_tmp == NULL) {
-        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
-        goto out;
     }
     for (n = 0; n < num_nodes; n++) {
         a_len = A_branch_len[n];
@@ -3007,8 +3006,6 @@ compute_two_tree_branch_state_update(const tsk_treeseq_t *ts, tsk_id_t c,
         }
     }
 out:
-    tsk_safe_free(weights);
-    tsk_safe_free(result_tmp);
     return ret;
 }
 
@@ -3024,9 +3021,17 @@ compute_two_tree_branch_stat(const tsk_treeseq_t *ts, const iter_state *l_state,
     const tsk_id_t *restrict edges_child = ts->tables->edges.child;
     const tsk_id_t *restrict edges_parent = ts->tables->edges.parent;
     const tsk_size_t num_nodes = ts->tables->nodes.num_rows;
+    const tsk_size_t num_samples = ts->num_samples;
     tsk_bitset_t updates, *r_samples = r_state->node_samples;
+    two_locus_work_t work;
 
+    tsk_memset(&work, 0, sizeof(work));
     tsk_memset(&updates, 0, sizeof(updates));
+    // only two alleles are possible for branch stats
+    ret = two_locus_work_init(2, result_dim, state_dim, num_samples, &work);
+    if (ret != 0) {
+        goto out;
+    }
     ret = tsk_bitset_init(&updates, num_nodes, 1);
     if (ret != 0) {
         goto out;
@@ -3054,8 +3059,8 @@ compute_two_tree_branch_stat(const tsk_treeseq_t *ts, const iter_state *l_state,
     while (n_updates != 0) {
         n_updates--;
         c = updated_nodes[n_updates];
-        compute_two_tree_branch_state_update(
-            ts, c, l_state, r_state, state_dim, result_dim, -1, f, f_params, result);
+        compute_two_tree_branch_state_update(ts, c, l_state, r_state, state_dim,
+            result_dim, -1, f, f_params, &work, result);
     }
     // Remove samples under nodes from removed edges to parent nodes
     for (j = 0; j < r_state->n_edges_out; j++) {
@@ -3095,11 +3100,12 @@ compute_two_tree_branch_stat(const tsk_treeseq_t *ts, const iter_state *l_state,
     while (n_updates != 0) {
         n_updates--;
         c = updated_nodes[n_updates];
-        compute_two_tree_branch_state_update(
-            ts, c, l_state, r_state, state_dim, result_dim, +1, f, f_params, result);
+        compute_two_tree_branch_state_update(ts, c, l_state, r_state, state_dim,
+            result_dim, +1, f, f_params, &work, result);
     }
 out:
     tsk_safe_free(updated_nodes);
+    two_locus_work_free(&work);
     tsk_bitset_free(&updates);
     return ret;
 }
