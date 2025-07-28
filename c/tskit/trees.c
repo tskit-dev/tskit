@@ -2316,6 +2316,9 @@ typedef struct {
     double *norm;
     double *result_tmp;
     tsk_bitset_t AB_samples;
+    tsk_bitset_t ss_A_samples;
+    tsk_bitset_t ss_B_samples;
+    tsk_bitset_t ss_AB_samples;
 } two_locus_work_t;
 
 static int
@@ -2327,9 +2330,26 @@ two_locus_work_init(tsk_size_t max_alleles, tsk_size_t result_dim, tsk_size_t st
     out->norm = tsk_malloc(result_dim * sizeof(*out->norm));
     out->result_tmp
         = tsk_malloc(result_dim * max_alleles * max_alleles * sizeof(*out->result_tmp));
+
+    tsk_memset(&out->ss_A_samples, 0, sizeof(out->ss_A_samples));
+    tsk_memset(&out->ss_B_samples, 0, sizeof(out->ss_B_samples));
+    tsk_memset(&out->ss_AB_samples, 0, sizeof(out->ss_AB_samples));
     tsk_memset(&out->AB_samples, 0, sizeof(out->AB_samples));
+
     if (out->weights == NULL || out->norm == NULL || out->result_tmp == NULL) {
         ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
+        goto out;
+    }
+    ret = tsk_bitset_init(&out->ss_A_samples, num_samples, 1);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_bitset_init(&out->ss_B_samples, num_samples, 1);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_bitset_init(&out->ss_AB_samples, num_samples, 1);
+    if (ret != 0) {
         goto out;
     }
     ret = tsk_bitset_init(&out->AB_samples, num_samples, 1);
@@ -2362,39 +2382,42 @@ compute_general_two_site_stat_result(const tsk_bitset_t *state, tsk_size_t a_off
     // a1   [s1, s2, s3] [s1, s2, s3] [s1, s2, s3]
     // a2   [s1, s2, s3] [s1, s2, s3] [s1, s2, s3]
     // a3   [s1, s2, s3] [s1, s2, s3] [s1, s2, s3]
-    tsk_size_t k, mut_a, mut_b;
-    tsk_size_t result_row_len = num_b_alleles * result_dim;
-    uint8_t polarised_val = polarised ? 1 : 0;
-    double *hap_weight_row;
-    double *result_tmp_row;
+    tsk_size_t k, mut_a, mut_b, result_row_len = num_b_alleles * result_dim;
+    uint8_t is_polarised = polarised ? 1 : 0;
+    double *hap_weight_row, *result_tmp_row;
 
     double *norm = work->norm;
     double *weights = work->weights;
     double *result_tmp = work->result_tmp;
     tsk_bitset_t AB_samples = work->AB_samples;
+    tsk_bitset_t ss_A_samples = work->ss_A_samples;
+    tsk_bitset_t ss_B_samples = work->ss_B_samples;
+    tsk_bitset_t ss_AB_samples = work->ss_AB_samples;
 
-    for (mut_a = polarised_val; mut_a < num_a_alleles; mut_a++) {
+    for (mut_a = is_polarised; mut_a < num_a_alleles; mut_a++) {
         result_tmp_row = GET_2D_ROW(result_tmp, result_row_len, mut_a);
-        for (mut_b = polarised_val; mut_b < num_b_alleles; mut_b++) {
+        for (mut_b = is_polarised; mut_b < num_b_alleles; mut_b++) {
             tsk_bitset_intersect(
                 state, mut_a + a_off, state, mut_b + b_off, &AB_samples);
             for (k = 0; k < state_dim; k++) {
                 hap_weight_row = GET_2D_ROW(weights, 3, k);
-                hap_weight_row[0] = (double) tsk_bitset_isect_and_count(
-                    &AB_samples, 0, sample_sets, k);
-                hap_weight_row[1] = (double) tsk_bitset_isect_and_count(
-                                        state, mut_a + a_off, sample_sets, k)
-                                    - hap_weight_row[0];
-                hap_weight_row[2] = (double) tsk_bitset_isect_and_count(
-                                        state, mut_b + b_off, sample_sets, k)
-                                    - hap_weight_row[0];
+                tsk_bitset_intersect(
+                    state, mut_a + a_off, sample_sets, k, &ss_A_samples);
+                tsk_bitset_intersect(
+                    state, mut_b + b_off, sample_sets, k, &ss_B_samples);
+                tsk_bitset_intersect(&AB_samples, 0, sample_sets, k, &ss_AB_samples);
+                hap_weight_row[0] = (double) tsk_bitset_count(&ss_AB_samples, 0);
+                hap_weight_row[1]
+                    = (double) tsk_bitset_count(&ss_A_samples, 0) - hap_weight_row[0];
+                hap_weight_row[2]
+                    = (double) tsk_bitset_count(&ss_B_samples, 0) - hap_weight_row[0];
             }
             ret = f(state_dim, weights, result_dim, result_tmp_row, f_params);
             if (ret != 0) {
                 goto out;
             }
-            ret = norm_f(result_dim, weights, num_a_alleles - polarised_val,
-                num_b_alleles - polarised_val, norm, f_params);
+            ret = norm_f(result_dim, weights, num_a_alleles - is_polarised,
+                num_b_alleles - is_polarised, norm, f_params);
             if (ret != 0) {
                 goto out;
             }
@@ -2976,6 +2999,7 @@ compute_two_tree_branch_state_update(const tsk_treeseq_t *ts, tsk_id_t c,
     tsk_size_t num_nodes = ts->tables->nodes.num_rows;
     double *weights = work->weights;
     double *result_tmp = work->result_tmp;
+    tsk_bitset_t AB_samples = work->AB_samples;
 
     b_len = B_branch_len[c] * sign;
     if (b_len == 0) {
@@ -2990,8 +3014,9 @@ compute_two_tree_branch_state_update(const tsk_treeseq_t *ts, tsk_id_t c,
             a_row = (state_dim * n) + k;
             b_row = (state_dim * (tsk_size_t) c) + k;
             weights_row = GET_2D_ROW(weights, 3, k);
-            weights_row[0] = (double) tsk_bitset_isect_and_count(
-                A_state_samples, a_row, B_state_samples, b_row);
+            tsk_bitset_intersect(
+                A_state_samples, a_row, B_state_samples, b_row, &AB_samples);
+            weights_row[0] = (double) tsk_bitset_count(&AB_samples, 0);
             weights_row[1]
                 = (double) tsk_bitset_count(A_state_samples, a_row) - weights_row[0];
             weights_row[2]

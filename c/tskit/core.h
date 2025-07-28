@@ -1126,8 +1126,6 @@ bool tsk_bitset_contains(
 tsk_size_t tsk_bitset_count(const tsk_bitset_t *self, tsk_size_t row);
 void tsk_bitset_get_items(
     const tsk_bitset_t *self, tsk_id_t *items, tsk_size_t *n_items);
-tsk_size_t tsk_bitset_isect_and_count(const tsk_bitset_t *self, tsk_size_t self_row,
-    const tsk_bitset_t *other, tsk_size_t other_row);
 
 #ifdef __cplusplus
 }

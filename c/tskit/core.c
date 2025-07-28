@@ -1334,27 +1334,9 @@ tsk_bitset_contains(const tsk_bitset_t *self, tsk_size_t row, const tsk_bitset_v
 }
 
 tsk_size_t
-tsk_bitset_isect_and_count(const tsk_bitset_t *self, tsk_size_t self_row,
-    const tsk_bitset_t *other, tsk_size_t other_row)
-{
-    tsk_bitset_val_t tmp;
-    tsk_size_t i, count = 0;
-    tsk_bitset_val_t *self_d = self->data + (self_row * self->row_len);
-    tsk_bitset_val_t *other_d = other->data + (other_row * self->row_len);
-
-    for (i = 0; i < self->row_len; i++) {
-        tmp = self_d[i] & other_d[i];
-        tmp = tmp - ((tmp >> 1) & 0x55555555);
-        tmp = (tmp & 0x33333333) + ((tmp >> 2) & 0x33333333);
-        count += (((tmp + (tmp >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
-    }
-    return count;
-}
-
-tsk_size_t
 tsk_bitset_count(const tsk_bitset_t *self, tsk_size_t row)
 {
-    // Utilizes 12 operations per bit array. NB this only works on 32 bit integers.
+    // Utilizes 12 operations per chunk. NB this only works on 32 bit integers.
     // Taken from:
     //   https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
     // There's a nice breakdown of this algorithm here:
@@ -1362,12 +1344,17 @@ tsk_bitset_count(const tsk_bitset_t *self, tsk_size_t row)
     // Could probably do better with explicit SIMD (instead of SWAR), but not as
     // portable: https://arxiv.org/pdf/1611.07612.pdf
     //
-    // There is one solution to explore further, which uses __builtin_popcountll.
-    // This option is relatively simple, but requires a 64 bit bit array and also
-    // involves some compiler flag plumbing (-mpopcnt)
+    // The gcc/clang compiler flag will -mpopcnt will convert this code to a
+    // popcnt instruction (most if not all modern CPUs will support this). The
+    // popcnt instruction will yield some speed improvements, which depend on
+    // the tree sequence.
+    //
+    // NB: 32bit counting is typically faster than 64bit counting for this task.
+    //     (at least on x86-64)
 
     tsk_bitset_val_t tmp;
-    tsk_size_t i, count = 0;
+    tsk_size_t i = 0;
+    uint32_t count = 0;
     tsk_bitset_val_t *self_d = self->data + (row * self->row_len);
 
     for (i = 0; i < self->row_len; i++) {
@@ -1375,7 +1362,7 @@ tsk_bitset_count(const tsk_bitset_t *self, tsk_size_t row)
         tmp = (tmp & 0x33333333) + ((tmp >> 2) & 0x33333333);
         count += (((tmp + (tmp >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
     }
-    return count;
+    return (tsk_size_t) count;
 }
 
 void
