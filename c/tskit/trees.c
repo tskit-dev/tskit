@@ -2311,55 +2311,6 @@ get_all_samples_bits(tsk_bitset_t *all_samples, tsk_size_t n)
     }
 }
 
-// typedef struct {
-//     double *weights;
-//     double *norm;
-//     double *result_tmp;
-//     tsk_bitset_t AB_samples;
-//     tsk_bitset_t **ss_mutations;
-//     tsk_size_t *ss_allele_counts;
-// } two_locus_work_t;
-
-// static int
-// two_locus_work_init(tsk_size_t max_alleles, tsk_size_t result_dim, tsk_size_t
-// state_dim,
-//     tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes,
-//     two_locus_work_t *out)
-// {
-//     int ret = 0;
-//     tsk_size_t i, max_ss_size = 0;
-//     out->weights = tsk_malloc(3 * state_dim * sizeof(*out->weights));
-//     out->norm = tsk_malloc(result_dim * sizeof(*out->norm));
-//     out->result_tmp
-//         = tsk_malloc(result_dim * max_alleles * max_alleles *
-//         sizeof(*out->result_tmp));
-//     out->ss_mutations = num_sample_sets > 0
-//                             ? tsk_calloc(num_sample_sets, sizeof(out->ss_mutations))
-//                             : NULL;
-//     for (i = 0; i < num_sample_sets; i++) {
-//         if (sample_set_sizes[i] > max_ss_size) {
-//             max_ss_size = sample_set_sizes[i];
-//         }
-//     }
-//     tsk_memset(&out->AB_samples, 0, sizeof(out->AB_samples));
-//     if (out->weights == NULL || out->norm == NULL || out->result_tmp == NULL) {
-//         ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
-//         goto out;
-//     }
-//     ret = tsk_bitset_init(&out->AB_samples, max_ss_size, 1);
-//     if (ret != 0) {
-//         goto out;
-//     }
-//     for (i = 0; i < num_sample_sets; i++) {
-//         ret = tsk_bitset_init(out->ss_mutations[i], sample_set_sizes[i], 1);
-//         if (ret != 0) {
-//             goto out;
-//         }
-//     }
-// out:
-//     return ret;
-// }
-
 typedef struct {
     double *weights;
     double *norm;
@@ -2526,34 +2477,6 @@ get_site_row_col_indices(tsk_size_t n_rows, const tsk_id_t *row_sites, tsk_size_
     }
     *n_sites = s;
 }
-
-// static int
-// get_mutation_sample_sets(const tsk_bitset_t *allele_samples,
-//     const tsk_bitset_t *sample_sets, two_locus_work_t *restrict work)
-// {
-//     int ret = 0;
-//     tsk_size_t i, j, k, n_ss_samples;
-//     tsk_id_t sample, *ss_samples = NULL;
-
-//     ss_samples = tsk_calloc(
-//         allele_samples->row_len * TSK_BIT_ARRAY_NUM_BITS, sizeof(*ss_samples));
-//     if (ss_samples == NULL) {
-//         ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
-//         goto out;
-//     }
-
-//     for (i = 0; i < sample_sets->len; i++) {
-//         tsk_bitset_get_items(sample_sets, i, ss_samples, &n_ss_samples);
-//         if (n_ss_samples == 0) {
-//             continue;
-//         }
-//         for (j = 0; j < n_ss_samples; j++) {
-//             sample = ss_samples[0];
-//         }
-//     }
-// out:
-//     return ret;
-// }
 
 static int
 get_mutation_samples(const tsk_treeseq_t *ts, const tsk_id_t *sites, tsk_size_t n_sites,
