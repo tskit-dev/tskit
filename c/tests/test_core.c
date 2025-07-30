@@ -537,7 +537,7 @@ test_bit_arrays(void)
 
     // test item retrieval
     tsk_bitset_init(&arr, 90, 1);
-    tsk_bitset_get_items(&arr, items, &n_items);
+    tsk_bitset_get_items(&arr, 0, items, &n_items);
     assert_arrays_equal(n_items_truth, items, items_truth);
 
     for (tsk_bitset_val_t i = 0; i < 20; i++) {
@@ -556,7 +556,7 @@ test_bit_arrays(void)
     // verify our assumptions about bit array counting
     CU_ASSERT_EQUAL_FATAL(tsk_bitset_count(&arr, 0), 22);
 
-    tsk_bitset_get_items(&arr, items, &n_items);
+    tsk_bitset_get_items(&arr, 0, items, &n_items);
     assert_arrays_equal(n_items_truth, items, items_truth);
 
     tsk_memset(items, 0, 64);
@@ -579,7 +579,7 @@ test_bit_arrays(void)
         n_items_truth++;
     }
 
-    tsk_bitset_get_items(&arr_row1, items, &n_items);
+    tsk_bitset_get_items(&arr_row1, 0, items, &n_items);
     assert_arrays_equal(n_items_truth, items, items_truth);
 
     tsk_memset(items, 0, 64);
@@ -593,7 +593,7 @@ test_bit_arrays(void)
         n_items_truth++;
     }
 
-    tsk_bitset_get_items(&arr_row2, items, &n_items);
+    tsk_bitset_get_items(&arr_row2, 0, items, &n_items);
     assert_arrays_equal(n_items_truth, items, items_truth);
 
     tsk_memset(items, 0, 64);

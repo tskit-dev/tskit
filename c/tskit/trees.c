@@ -3080,7 +3080,7 @@ compute_two_tree_branch_stat(const tsk_treeseq_t *ts, const iter_state *l_state,
         }
     }
     // Subtract the whole contribution from the child node
-    tsk_bitset_get_items(&updates, updated_nodes, &n_updates);
+    tsk_bitset_get_items(&updates, 0, updated_nodes, &n_updates);
     while (n_updates != 0) {
         n_updates--;
         c = updated_nodes[n_updates];
@@ -3121,7 +3121,7 @@ compute_two_tree_branch_stat(const tsk_treeseq_t *ts, const iter_state *l_state,
     }
     // Update all affected child nodes (fully subtracted, deferred from addition)
     n_updates = 0;
-    tsk_bitset_get_items(&updates, updated_nodes, &n_updates);
+    tsk_bitset_get_items(&updates, 0, updated_nodes, &n_updates);
     while (n_updates != 0) {
         n_updates--;
         c = updated_nodes[n_updates];
