@@ -2253,7 +2253,6 @@ norm_hap_weighted(tsk_size_t result_dim, const double *hap_weights,
     for (k = 0; k < result_dim; k++) {
         weight_row = GET_2D_ROW(hap_weights, 3, k);
         n = (double) args.sample_set_sizes[k];
-        // TODO: what to do when n = 0
         result[k] = weight_row[0] / n;
     }
     return 0;
@@ -2290,9 +2289,10 @@ norm_total_weighted(tsk_size_t result_dim, const double *TSK_UNUSED(hap_weights)
     tsk_size_t n_a, tsk_size_t n_b, double *result, void *TSK_UNUSED(params))
 {
     tsk_size_t k;
+    double norm = 1 / (double) (n_a * n_b);
 
     for (k = 0; k < result_dim; k++) {
-        result[k] = 1 / (double) (n_a * n_b);
+        result[k] = norm;
     }
     return 0;
 }
@@ -3305,6 +3305,40 @@ out:
     return ret;
 }
 
+static int
+check_sample_set_dups(tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes,
+    const tsk_id_t *sample_sets, const tsk_id_t *restrict sample_index_map,
+    tsk_size_t num_samples)
+{
+    int ret;
+    tsk_size_t j, k, l;
+    tsk_id_t u, sample_index;
+    tsk_bitset_t tmp;
+
+    tsk_memset(&tmp, 0, sizeof(tmp));
+    ret = tsk_bitset_init(&tmp, num_samples, 1);
+    if (ret != 0) {
+        return ret;
+    }
+    j = 0;
+    for (k = 0; k < num_sample_sets; k++) {
+        tsk_memset(tmp.data, 0, sizeof(*tmp.data) * tmp.len);
+        for (l = 0; l < sample_set_sizes[k]; l++) {
+            u = sample_sets[j];
+            sample_index = sample_index_map[u];
+            if (tsk_bitset_contains(&tmp, k, (tsk_bitset_val_t) sample_index)) {
+                ret = tsk_trace_error(TSK_ERR_DUPLICATE_SAMPLE);
+                goto out;
+            }
+            tsk_bitset_set_bit(&tmp, k, (tsk_bitset_val_t) sample_index);
+            j++;
+        }
+    }
+out:
+    tsk_bitset_free(&tmp);
+    return ret;
+}
+
 int
 tsk_treeseq_two_locus_count_stat(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
     const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
@@ -3354,6 +3388,11 @@ tsk_treeseq_two_locus_count_stat(const tsk_treeseq_t *self, tsk_size_t num_sampl
             goto out;
         }
         ret = check_sites(col_sites, out_cols, self->tables->sites.num_rows);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = check_sample_set_dups(num_sample_sets, sample_set_sizes, sample_sets,
+            self->sample_index_map, self->num_samples);
         if (ret != 0) {
             goto out;
         }
