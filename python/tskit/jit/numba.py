@@ -339,12 +339,17 @@ def _numba_tree_sequence(max_ancestral_length, max_derived_length):
             if self.index == self.ts.num_trees:
                 self.set_null()
             else:
-                self.interval = (left, breakpoints[self.index + 1])
+                right = self.ts.breakpoints[self.index + 1]
+                self.interval = (left, right)
+                
+                # Find sites in current tree interval [left, right)
                 old_site_left, old_site_right = self.site_range
                 j = old_site_right
-                while j < NS and sites_position[j] < left:
+                while j < NS and sites_position[j] < right:
                     j += 1
                 self.site_range = (old_site_right, j)
+                
+                # Find mutations for sites in this interval
                 old_mutation_left, old_mutation_right = self.mutation_range
                 k = old_mutation_right
                 while k < NM and mutations_site[k] < j:
@@ -377,11 +382,15 @@ def _numba_tree_sequence(max_ancestral_length, max_derived_length):
             edge changes needed for the current tree when traversing backward.
             """
             M = self.ts.num_edges
+            NS = self.ts.num_sites
+            NM = self.ts.num_mutations
             breakpoints = self.ts.breakpoints
             right_coords = self.ts.edges_right
             right_order = self.ts.indexes_edge_removal_order
             left_coords = self.ts.edges_left
             left_order = self.ts.indexes_edge_insertion_order
+            sites_position = self.ts.sites_position
+            mutations_site = self.ts.mutations_site
 
             if self.index == -1:
                 self.index = self.ts.num_trees
@@ -389,6 +398,8 @@ def _numba_tree_sequence(max_ancestral_length, max_derived_length):
                 self.in_range.stop = M - 1
                 self.out_range.stop = M - 1
                 self.direction = REVERSE
+                self.site_range = (NS, NS)
+                self.mutation_range = (NM, NM)
 
             if self.direction == REVERSE:
                 left_current_index = self.out_range.stop
@@ -418,7 +429,23 @@ def _numba_tree_sequence(max_ancestral_length, max_derived_length):
             if self.index == -1:
                 self.set_null()
             else:
-                self.interval = (breakpoints[self.index], right)
+                left = breakpoints[self.index]
+                self.interval = (left, right)
+                
+                # Find sites in current tree interval [left, right) going backward
+                old_site_left, old_site_right = self.site_range
+                j = old_site_left - 1
+                while j >= 0 and sites_position[j] >= left:
+                    j -= 1
+                self.site_range = (j + 1, old_site_left)
+                
+                # Find mutations for sites in this interval going backward
+                old_mutation_left, old_mutation_right = self.mutation_range
+                k = old_mutation_left - 1
+                while k >= 0 and mutations_site[k] >= self.site_range[0]:
+                    k -= 1
+                self.mutation_range = (k + 1, old_mutation_left)
+                
             return self.index != -1
 
     return NumbaTreeSequence
