@@ -25,6 +25,7 @@ def test_correct_trees_forward(ts):
     numba_ts = jit_numba.numba_tree_sequence(ts)
     tree_pos = numba_ts.tree_position()
     ts_edge_diffs = ts.edge_diffs()
+    tree = ts.first()
     while tree_pos.next():
         edge_diff = next(ts_edge_diffs)
         assert edge_diff.interval == tree_pos.interval
@@ -37,6 +38,18 @@ def test_correct_trees_forward(ts):
             edge_diff.edges_out,
         ):
             assert edge.id == tree_pos.out_range.order[edge_out_index]
+        sites = [s.id for s in tree.sites()]
+        if len(sites) > 0:
+            assert tree_pos.site_range == (min(sites), max(sites) + 1)
+        else:
+            assert tree_pos.site_range[0] == tree_pos.site_range[1]
+        muts = [m.id for m in tree.mutations()]
+        if len(muts) > 0:
+            assert tree_pos.mutation_range == (min(muts), max(muts) + 1)
+        else:
+            assert tree_pos.mutation_range[0] == tree_pos.mutation_range[1]
+        last_tree = not tree.next()
+    assert last_tree
 
 
 @pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
@@ -46,6 +59,7 @@ def test_correct_trees_backwards(ts):
     numba_ts = jit_numba.numba_tree_sequence(ts)
     tree_pos = numba_ts.tree_position()
     ts_edge_diffs = ts.edge_diffs(direction=tskit.REVERSE)
+    tree = ts.last()
     while tree_pos.prev():
         edge_diff = next(ts_edge_diffs)
         assert edge_diff.interval == tree_pos.interval
@@ -60,6 +74,18 @@ def test_correct_trees_backwards(ts):
             edge_diff.edges_out,
         ):
             assert edge.id == tree_pos.out_range.order[edge_out_index]
+        sites = [s.id for s in tree.sites()]
+        if len(sites) > 0:
+            assert tree_pos.site_range == (min(sites), max(sites) + 1)
+        else:
+            assert tree_pos.site_range[0] == tree_pos.site_range[1]
+        muts = [m.id for m in tree.mutations()]
+        if len(muts) > 0:
+            assert tree_pos.mutation_range == (min(muts), max(muts) + 1)
+        else:
+            assert tree_pos.mutation_range[0] == tree_pos.mutation_range[1]
+        last_tree = not tree.prev()
+    assert last_tree
 
 
 def test_using_from_jit_function():

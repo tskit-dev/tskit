@@ -56,6 +56,8 @@ def _numba_tree_sequence(max_ancestral_length, max_derived_length):
     tree_sequence_spec = [
         ("num_trees", numba.int32),
         ("num_edges", numba.int32),
+        ("num_sites", numba.int32),
+        ("num_mutations", numba.int32),
         ("sequence_length", numba.float64),
         ("edges_left", numba.float64[:]),
         ("edges_right", numba.float64[:]),
@@ -95,6 +97,10 @@ def _numba_tree_sequence(max_ancestral_length, max_derived_length):
             Number of trees in the tree sequence.
         num_edges : int32
             Number of edges in the tree sequence.
+        num_sites : int32
+            Number of sites in the tree sequence.
+        num_mutations : int32
+            Number of mutations in the tree sequence.
         sequence_length : float64
             Total sequence length of the tree sequence.
         edges_left : float64[]
@@ -138,6 +144,8 @@ def _numba_tree_sequence(max_ancestral_length, max_derived_length):
             self,
             num_trees,
             num_edges,
+            num_sites,
+            num_mutations,
             sequence_length,
             edges_left,
             edges_right,
@@ -161,6 +169,8 @@ def _numba_tree_sequence(max_ancestral_length, max_derived_length):
         ):
             self.num_trees = num_trees
             self.num_edges = num_edges
+            self.num_sites = num_sites
+            self.num_mutations = num_mutations
             self.sequence_length = sequence_length
             self.edges_left = edges_left
             self.edges_right = edges_right
@@ -339,16 +349,16 @@ def _numba_tree_sequence(max_ancestral_length, max_derived_length):
             if self.index == self.ts.num_trees:
                 self.set_null()
             else:
-                right = self.ts.breakpoints[self.index + 1]
+                right = breakpoints[self.index + 1]
                 self.interval = (left, right)
-                
+
                 # Find sites in current tree interval [left, right)
                 old_site_left, old_site_right = self.site_range
                 j = old_site_right
                 while j < NS and sites_position[j] < right:
                     j += 1
                 self.site_range = (old_site_right, j)
-                
+
                 # Find mutations for sites in this interval
                 old_mutation_left, old_mutation_right = self.mutation_range
                 k = old_mutation_right
@@ -431,21 +441,21 @@ def _numba_tree_sequence(max_ancestral_length, max_derived_length):
             else:
                 left = breakpoints[self.index]
                 self.interval = (left, right)
-                
+
                 # Find sites in current tree interval [left, right) going backward
                 old_site_left, old_site_right = self.site_range
                 j = old_site_left - 1
                 while j >= 0 and sites_position[j] >= left:
                     j -= 1
                 self.site_range = (j + 1, old_site_left)
-                
+
                 # Find mutations for sites in this interval going backward
                 old_mutation_left, old_mutation_right = self.mutation_range
                 k = old_mutation_left - 1
                 while k >= 0 and mutations_site[k] >= self.site_range[0]:
                     k -= 1
                 self.mutation_range = (k + 1, old_mutation_left)
-                
+
             return self.index != -1
 
     return NumbaTreeSequence
@@ -475,6 +485,8 @@ def numba_tree_sequence(ts):
     return _numba_tree_sequence(max_ancestral_length, max_derived_length)(
         num_trees=ts.num_trees,
         num_edges=ts.num_edges,
+        num_sites=ts.num_sites,
+        num_mutations=ts.num_mutations,
         sequence_length=ts.sequence_length,
         edges_left=ts.edges_left,
         edges_right=ts.edges_right,
