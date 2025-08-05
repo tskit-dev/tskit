@@ -44,7 +44,7 @@ class StatefulTree:
 
     def __init__(self, ts):
         self.ts = ts
-        self.tree_pos = tsutil.TreePosition(ts)
+        self.tree_pos = tsutil.TreeIndexes(ts)
         self.parent = [-1 for _ in range(ts.num_nodes)]
 
     def __str__(self):
@@ -158,7 +158,7 @@ class StatefulTree:
 def check_iters_forward(ts):
     alg_t_output = tsutil.algorithm_T(ts)
     lib_tree = tskit.Tree(ts)
-    tree_pos = tsutil.TreePosition(ts)
+    tree_pos = tsutil.TreeIndexes(ts)
     sample_count = np.zeros(ts.num_nodes, dtype=int)
     sample_count[ts.samples()] = 1
     parent1 = [-1 for _ in range(ts.num_nodes)]
@@ -208,7 +208,7 @@ def check_iters_back(ts):
     i = len(alg_t_output) - 1
 
     lib_tree = tskit.Tree(ts)
-    tree_pos = tsutil.TreePosition(ts)
+    tree_pos = tsutil.TreeIndexes(ts)
     parent1 = [-1 for _ in range(ts.num_nodes)]
 
     lib_tree.last()
@@ -422,27 +422,27 @@ class TestDirectionSwitching:
         check_seek_backward_out_range_is_empty(ts, index)
 
 
-class TestTreePositionStep:
+class TestTreeIndexesStep:
     def ts(self):
         return tsutil.all_trees_ts(3)
 
     @pytest.mark.parametrize("index", [0, 1, 2])
     def test_tree_position_step_forward(self, index):
         ts = self.ts()
-        tree1_pos = tsutil.TreePosition(ts)
+        tree1_pos = tsutil.TreeIndexes(ts)
         tree1_pos.seek_forward(index)
         tree1_pos.step(direction=1)
-        tree2_pos = tsutil.TreePosition(ts)
+        tree2_pos = tsutil.TreeIndexes(ts)
         tree2_pos.seek_forward(index + 1)
         tree1_pos.assert_equal(tree2_pos)
 
     @pytest.mark.parametrize("index", [1, 2, 3])
     def test_tree_position_step_backward(self, index):
         ts = self.ts()
-        tree1_pos = tsutil.TreePosition(ts)
+        tree1_pos = tsutil.TreeIndexes(ts)
         tree1_pos.seek_backward(index)
         tree1_pos.step(direction=-1)
-        tree2_pos = tsutil.TreePosition(ts)
+        tree2_pos = tsutil.TreeIndexes(ts)
         tree2_pos.seek_backward(index - 1)
         tree1_pos.assert_equal(tree2_pos)
 
@@ -450,7 +450,7 @@ class TestTreePositionStep:
         ts = self.ts()
         # Test for unallowed direction
         with pytest.raises(ValueError, match="Direction must be FORWARD"):
-            tsutil.TreePosition(ts).step(direction="foo")
+            tsutil.TreeIndexes(ts).step(direction="foo")
 
 
 class TestSeeking:

@@ -68,7 +68,7 @@ def _nonmissing_window_span(ts, windows):
     missing = 0.0
     num_edges = 0
     w = 0
-    position = tsutil.TreePosition(ts)
+    position = tsutil.TreeIndexes(ts)
     while position.interval.right < sequence_length:
         position.next()
         left, right = position.interval.left, position.interval.right
@@ -272,7 +272,7 @@ def _pair_coalescence_stat(
     sample_counts = nodes_sample.copy()
 
     w = 0
-    position = tsutil.TreePosition(ts)
+    position = tsutil.TreeIndexes(ts)
     while position.interval.right < sequence_length:
         position.next()
         left, right = position.interval.left, position.interval.right

@@ -297,7 +297,7 @@ def relatedness_vector(ts, sample_weights, windows=None, nodes=None, **kwargs):
     if drop_dimension:
         windows = [0, ts.sequence_length]
 
-    tree_pos = tsutil.TreePosition(ts)
+    tree_pos = tsutil.TreeIndexes(ts)
     breakpoints = np.fromiter(ts.breakpoints(), dtype="float")
     index = np.searchsorted(breakpoints, windows[0])
     if breakpoints[index] > windows[0]:

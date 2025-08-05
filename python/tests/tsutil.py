@@ -1737,7 +1737,7 @@ class EdgeRange:
     order: typing.List
 
 
-class TreePosition:
+class TreeIndexes:
     def __init__(self, ts):
         self.ts = ts
         self.index = -1
