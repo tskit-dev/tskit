@@ -1401,6 +1401,21 @@ class AssertEqualsMixin:
                 table_5row.assert_equals(table2)
             table_5row.assert_equals(table2, ignore_metadata=True)
 
+    def test_degenerate_metadata_schema(self, table_5row):
+        if hasattr(table_5row, "metadata_schema"):
+            table_5row.clear()
+            table1 = table_5row.copy()
+            table2 = table_5row.copy()
+            table1.ll_table.metadata_schema = (
+                '{"codec": "json", "properties": '
+                '{"A": {"type": "integer"}, "B": {"type": "number"}}}'
+            )
+            table2.ll_table.metadata_schema = (
+                '{"codec": "json", "properties": '
+                '{"B": {"type": "number"}, "A": {"type": "integer"}}}'
+            )
+            table1.assert_equals(table2)
+
     def test_row_changes(self, table_5row, test_rows):
         for column_name in test_rows[0].keys():
             table2 = self.table_class()
@@ -4216,6 +4231,17 @@ class TestTableCollectionAssertEquals:
         ):
             t1.assert_equals(t2)
         t1.assert_equals(t2, ignore_reference_sequence=True)
+
+    def test_degenerate_metadata_schema(self, t1, t2):
+        t1._ll_object.metadata_schema = (
+            '{"codec": "json", "properties": '
+            '{"A": {"type": "integer"}, "B": {"type": "number"}}}'
+        )
+        t2._ll_object.metadata_schema = (
+            '{"codec": "json", "properties": '
+            '{"B": {"type": "number"}, "A": {"type": "integer"}}}'
+        )
+        t1.assert_equals(t2)
 
 
 class TestTableCollectionMethodSignatures:

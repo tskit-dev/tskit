@@ -19,12 +19,15 @@
 - Add ``TreeSequence.mutations_edge`` which returns the edge ID for each mutation's
   edge. (:user:`benjeffery`, :pr:`3226`, :issue:`3189`)
 
-
 **Bugfixes**
 
 - Fix bug in ``TreeSequence.pair_coalescence_counts`` when ``span_normalise=True``
   and a window breakpoint falls within an internal missing interval.
   (:user:`nspope`, :pr:`3176`, :issue:`3175`)
+
+- Fix metadata schemas that are equal but have different byte representations not being equal
+  when using ``TableCollection.assert_equals`` and ``Table.assert_equals``.
+  (:user:`benjeffery`, :pr:`3246`, :issue:`3244`)
 
 **Breaking changes** 
 

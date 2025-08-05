@@ -462,9 +462,18 @@ class BaseTable:
                 f"other={other.num_rows}"
             )
 
+        # We can reach this point if the metadata schemas byte representations
+        # differ when the decoded schema is the same
+        if (
+            not ignore_metadata
+            and self.ll_table.metadata_schema != other.ll_table.metadata_schema
+            and self.metadata_schema == other.metadata_schema
+        ):
+            return
+
         raise AssertionError(
             "Tables differ in an undetected way - "
-            "this is a bug, please report an issue on gitub"
+            "this is a bug, please report an issue on github"
         )  # pragma: no cover
 
     def __eq__(self, other):
@@ -2411,7 +2420,7 @@ class ProvenanceTable(BaseTable):
 
         raise AssertionError(
             "Tables differ in an undetected way - "
-            "this is a bug, please report an issue on gitub"
+            "this is a bug, please report an issue on github"
         )  # pragma: no cover
 
     def add_row(self, record, timestamp=None):
@@ -3277,9 +3286,18 @@ class TableCollection(metadata.MetadataProvider):
                 other.provenances, ignore_timestamps=ignore_timestamps
             )
 
+        # We can reach this point if the metadata schemas byte representations
+        # differ when the decoded schema is the same
+        if (
+            not ignore_metadata
+            and self._ll_object.metadata_schema != other._ll_object.metadata_schema
+            and self.metadata_schema == other.metadata_schema
+        ):
+            return
+
         raise AssertionError(
             "TableCollections differ in an undetected way - "
-            "this is a bug, please report an issue on gitub"
+            "this is a bug, please report an issue on github"
         )  # pragma: no cover
 
     def __eq__(self, other):
