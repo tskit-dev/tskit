@@ -113,8 +113,8 @@ class LsHmmAlgorithm:
         self.N = np.zeros(ts.num_nodes, dtype=int)
         # Efficiently compute the allelic state at a site
         self.allelic_state = np.zeros(ts.num_nodes, dtype=int) - 1
-        # TreePosition so we can can update T and T_index between trees.
-        self.tree_pos = tsutil.TreePosition(ts)
+        # TreeIndexes so we can can update T and T_index between trees.
+        self.tree_pos = tsutil.TreeIndexes(ts)
         self.parent = np.zeros(self.ts.num_nodes, dtype=int) - 1
         self.tree = tskit.Tree(self.ts)
         self.output = None

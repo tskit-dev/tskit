@@ -414,7 +414,7 @@ class HaplotypeExtender:
         self.add_or_extend_edge(p_out, child, left, right)
 
     def extend_haplotypes(self):
-        tree_pos = tsutil.TreePosition(self.ts)
+        tree_pos = tsutil.TreeIndexes(self.ts)
         if self.direction == 1:
             valid = tree_pos.next()
         else:

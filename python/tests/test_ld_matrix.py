@@ -1769,7 +1769,7 @@ class TreeState:
     enables easy copying of the state for computing a matrix.
     """
 
-    pos: tsutil.TreePosition  # current position in the tree sequence
+    pos: tsutil.TreeIndexes  # current position in the tree sequence
     parent: np.ndarray  # parent node of a given node (connected by an edge)
     branch_len: np.ndarray  # length of the branch above a particular child node
     node_samples: BitSet  # samples that exist under a given node, this is a
@@ -1784,7 +1784,7 @@ class TreeState:
     edges_in: List[int]  # list of edges added during iteration
 
     def __init__(self, ts, sample_sets, num_sample_sets, sample_index_map):
-        self.pos = tsutil.TreePosition(ts)
+        self.pos = tsutil.TreeIndexes(ts)
         self.parent = -np.ones(ts.num_nodes, dtype=np.int64)
         self.branch_len = np.zeros(ts.num_nodes, dtype=np.float64)
         self.node_samples = BitSet(ts.num_samples, ts.num_nodes * num_sample_sets)
