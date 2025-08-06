@@ -3838,7 +3838,8 @@ class TestTree(HighLevelTestCase):
         with pytest.warns(FutureWarning, match="Tree.tree_sequence.num_nodes"):
             t1.num_nodes
 
-    def test_seek_index(self):
+    @pytest.mark.parametrize("skip", [False, True])
+    def test_seek_index(self, skip):
         ts = msprime.simulate(10, recombination_rate=3, length=5, random_seed=42)
         N = ts.num_trees
         assert ts.num_trees > 3
@@ -3847,18 +3848,23 @@ class TestTree(HighLevelTestCase):
             fresh_tree = tskit.Tree(ts)
             assert fresh_tree.index == -1
             fresh_tree.seek_index(index)
-            tree.seek_index(index)
             assert fresh_tree.index == index
-            assert tree.index == index
+            tree.seek_index(index, skip)
+            assert_trees_equivalent(fresh_tree, tree)
 
         tree = tskit.Tree(ts)
         for index in [-1, -2, -N + 2, -N + 1, -N]:
             fresh_tree = tskit.Tree(ts)
             assert fresh_tree.index == -1
             fresh_tree.seek_index(index)
-            tree.seek_index(index)
+            tree.seek_index(index, skip)
             assert fresh_tree.index == index + N
             assert tree.index == index + N
+            assert_trees_equivalent(fresh_tree, tree)
+
+    def test_seek_index_errors(self):
+        tree = self.get_tree()
+        N = tree.tree_sequence.num_trees
         with pytest.raises(IndexError):
             tree.seek_index(N)
         with pytest.raises(IndexError):
@@ -4373,11 +4379,21 @@ class TestNodeOrdering(HighLevelTestCase):
 def assert_trees_identical(t1, t2):
     assert t1.tree_sequence == t2.tree_sequence
     assert t1.index == t2.index
-    assert np.all(t1.parent_array == t2.parent_array)
-    assert np.all(t1.left_child_array == t2.left_child_array)
-    assert np.all(t1.left_sib_array == t2.left_sib_array)
-    assert np.all(t1.right_child_array == t2.right_child_array)
-    assert np.all(t1.right_sib_array == t2.right_sib_array)
+    assert_array_equal(t1.parent_array, t2.parent_array)
+    assert_array_equal(t1.left_child_array, t2.left_child_array)
+    assert_array_equal(t1.left_sib_array, t2.left_sib_array)
+    assert_array_equal(t1.right_child_array, t2.right_child_array)
+    assert_array_equal(t1.right_sib_array, t2.right_sib_array)
+
+
+def assert_trees_equivalent(t1, t2):
+    assert t1.tree_sequence == t2.tree_sequence
+    assert t1.index == t2.index
+    assert_array_equal(t1.parent_array, t2.parent_array)
+    assert_array_equal(t1.edge_array, t2.edge_array)
+    for u in range(t1.tree_sequence.num_nodes):
+        # this isn't fully testing the data model, but that's done elsewhere
+        assert sorted(t1.children(u)) == sorted(t2.children(u))
 
 
 def assert_same_tree_different_order(t1, t2):
@@ -4431,8 +4447,9 @@ class TestSeekDirection:
         ts = self.ts()
         t1 = tskit.Tree(ts)
         t2 = tskit.Tree(ts)
-        # Note: for development we can monkeypatch in the Python implementation
-        # above like this:
+        # # Note: for development we can monkeypatch in the Python implementation
+        # # above like this:
+        # import functools
         # t2.seek = functools.partial(seek, t2)
         return t1, t2
 
@@ -4447,75 +4464,89 @@ class TestSeekDirection:
             t2.prev()
         assert_same_tree_different_order(t1, t2)
 
-    @pytest.mark.skip()
-    #   @pytest.mark.parametrize("position", [0, 1, 2, 3])
+    @pytest.mark.parametrize("position", [0, 1, 2, 3])
     def test_seek_from_null(self, position):
         t1, t2 = self.get_tree_pair()
         t1.clear()
         t1.seek(position)
         t2.first()
-        t2.seek(position)
+        t2.seek(position, skip=False)
         assert_trees_identical(t1, t2)
 
+    @pytest.mark.parametrize("position", [0, 1, 2, 3])
+    def test_skip_from_null(self, position):
+        t1, t2 = self.get_tree_pair()
+        t1.clear()
+        t1.seek(position)
+        t2.first()
+        t2.seek(position, skip=True)
+        assert_trees_equivalent(t1, t2)
+
     @pytest.mark.parametrize("index", range(3))
-    def test_seek_next_tree(self, index):
+    @pytest.mark.parametrize("skip", [False, True])
+    def test_seek_next_tree(self, index, skip):
         t1, t2 = self.get_tree_pair()
         while t1.index != index:
             t1.next()
             t2.next()
         t1.next()
-        t2.seek(index + 1)
+        t2.seek(index + 1, skip=skip)
         assert_trees_identical(t1, t2)
 
     @pytest.mark.parametrize("index", [3, 2, 1])
-    def test_seek_prev_tree(self, index):
+    @pytest.mark.parametrize("skip", [False, True])
+    def test_seek_prev_tree(self, index, skip):
         t1, t2 = self.get_tree_pair()
         while t1.index != index:
             t1.prev()
             t2.prev()
         t1.prev()
-        t2.seek(index - 1)
+        t2.seek(index - 1, skip=skip)
         assert_trees_identical(t1, t2)
 
-    def test_seek_1_from_0(self):
+    @pytest.mark.parametrize("skip", [False, True])
+    def test_seek_1_from_0(self, skip):
         t1, t2 = self.get_tree_pair()
         t1.first()
         t1.next()
         t2.first()
-        t2.seek(1)
+        t2.seek(1, skip)
         assert_trees_identical(t1, t2)
 
-    def test_seek_1_5_from_0(self):
+    @pytest.mark.parametrize("skip", [False, True])
+    def test_seek_1_5_from_0(self, skip):
         t1, t2 = self.get_tree_pair()
         t1.first()
         t1.next()
         t2.first()
-        t2.seek(1.5)
+        t2.seek(1.5, skip)
         assert_trees_identical(t1, t2)
 
-    def test_seek_1_5_from_1(self):
+    @pytest.mark.parametrize("skip", [False, True])
+    def test_seek_1_5_from_1(self, skip):
         t1, t2 = self.get_tree_pair()
         for _ in range(2):
             t1.next()
             t2.next()
-        t2.seek(1.5)
+        t2.seek(1.5, skip)
         assert_trees_identical(t1, t2)
 
-    def test_seek_3_from_null(self):
+    @pytest.mark.parametrize("skip", [False, True])
+    def test_seek_3_from_null(self, skip):
         t1, t2 = self.get_tree_pair()
         t1.last()
-        t2.seek(3)
+        t2.seek(3, skip)
         assert_trees_identical(t1, t2)
 
-    def test_seek_3_from_null_prev(self):
+    @pytest.mark.parametrize("skip", [False, True])
+    def test_seek_3_from_null_prev(self, skip):
         t1, t2 = self.get_tree_pair()
         t1.last()
         t1.prev()
-        t2.seek(3)
+        t2.seek(3, skip)
         t2.prev()
         assert_trees_identical(t1, t2)
 
-    @pytest.mark.skip()
     def test_seek_3_from_0(self):
         t1, t2 = self.get_tree_pair()
         t1.last()
@@ -4523,7 +4554,21 @@ class TestSeekDirection:
         t2.seek(3)
         assert_trees_identical(t1, t2)
 
-    @pytest.mark.skip()
+    def test_skip_3_from_0(self):
+        t1, t2 = self.get_tree_pair()
+        t1.last()
+        t2.first()
+        t2.seek(3, True)
+        assert_trees_equivalent(t1, t2)
+
+    def test_skip_0_from_3(self):
+        t1, t2 = self.get_tree_pair()
+        t1.last()
+        t1.first()
+        t2.last()
+        t2.seek(0, True)
+        assert_trees_equivalent(t1, t2)
+
     def test_seek_0_from_3(self):
         t1, t2 = self.get_tree_pair()
         t1.last()
@@ -4548,8 +4593,18 @@ class TestSeekDirection:
             else:
                 while t2.index != index:
                     t2.prev()
-            assert t1.index == t2.index
-            assert np.all(t1.parent_array == t2.parent_array)
+            assert_trees_equivalent(t1, t2)
+
+    @pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
+    def test_seek_skip_middle(self, ts):
+        breakpoints = ts.breakpoints(as_array=True)
+        mid = breakpoints[:-1] + np.diff(breakpoints) / 2
+        for _, x in enumerate(mid[:-1]):
+            t1 = tskit.Tree(ts)
+            t1.seek(x, skip=False)
+            t2 = tskit.Tree(ts)
+            t2.seek(x, skip=True)
+            assert_trees_equivalent(t1, t2)
 
     @pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
     def test_seek_last_then_prev(self, ts):

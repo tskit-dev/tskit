@@ -3640,6 +3640,15 @@ class TestTree(LowLevelTestCase):
             with pytest.raises(_tskit.LibraryError):
                 tree.seek(bad_pos)
 
+    def seek_skip_errors(self):
+        ts = self.get_example_tree_sequence()
+        tree = _tskit.Tree(ts)
+        for bad_type in ["", "x", {}]:
+            with pytest.raises(TypeError):
+                tree.seek(0, bad_type)
+            with pytest.raises(TypeError):
+                tree.seek_index(0, bad_type)
+
     def test_seek_index_errors(self):
         ts = self.get_example_tree_sequence()
         tree = _tskit.Tree(ts)
@@ -3649,6 +3658,16 @@ class TestTree(LowLevelTestCase):
         for bad_index in [-1, 10**6]:
             with pytest.raises(_tskit.LibraryError):
                 tree.seek_index(bad_index)
+
+    @pytest.mark.parametrize("skip", [True, False])
+    def test_seek_zero(self, skip):
+        ts = self.get_example_tree_sequence()
+        tree1 = _tskit.Tree(ts)
+        tree1.seek_index(0, skip)
+        assert tree1.get_left() == 0
+        tree2 = _tskit.Tree(ts)
+        tree2.seek(0, skip)
+        assert tree2.get_left() == 0
 
     def test_root_threshold(self):
         for ts in self.get_example_tree_sequences():

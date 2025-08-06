@@ -1275,7 +1275,7 @@ int tsk_tree_copy(const tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options)
 
     @ingroup TREE_API_SEEKING_GROUP
 */
-#define TSK_TREE_SEEK_ENABLE_SKIPPING (1 << 0)
+#define TSK_SEEK_SKIP (1 << 0)
 
 /**
 @brief Seek to the first tree in the sequence.
@@ -1286,7 +1286,7 @@ tree sequence.
 @endrst
 
 @param self A pointer to an initialised tsk_tree_t object.
-@return Return on success; or a negative value if an error occurs.
+@return Return TSK_TREE_OK on success; or a negative value if an error occurs.
 */
 int tsk_tree_first(tsk_tree_t *self);
 
@@ -1384,13 +1384,13 @@ Seeking to a position currently covered by the tree is
 a constant time operation.
 
 Seeking to a position from a non-null tree use a linear time
-algorithm by default, unless the option :c:macro:`TSK_TREE_SEEK_ENABLE_SKIPPING`
+algorithm by default, unless the option :c:macro:`TSK_SEEK_SKIP`
 is specified. In this case, a faster algorithm is employed which skips
 to the target tree by removing and adding the minimal number of edges
 possible. However, this approach does not guarantee that edges are
 inserted and removed in time-sorted order.
 
-.. warning:: Using the :c:macro:`TSK_TREE_SEEK_ENABLE_SKIPPING` option
+.. warning:: Using the :c:macro:`TSK_SEEK_SKIP` option
     may lead to edges not being inserted or removed in time-sorted order.
 
 @endrst
