@@ -6361,17 +6361,18 @@ tsk_tree_print_state(const tsk_tree_t *self, FILE *out)
     fprintf(out, "left = %f\n", self->interval.left);
     fprintf(out, "right = %f\n", self->interval.right);
     fprintf(out, "index = %lld\n", (long long) self->index);
-    fprintf(out, "node\tparent\tlchild\trchild\tlsib\trsib");
+    fprintf(out, "num_edges = %d\n", (int) self->num_edges);
+    fprintf(out, "node\tedge\tparent\tlchild\trchild\tlsib\trsib");
     if (self->options & TSK_SAMPLE_LISTS) {
         fprintf(out, "\thead\ttail");
     }
     fprintf(out, "\n");
 
     for (j = 0; j < self->num_nodes + 1; j++) {
-        fprintf(out, "%lld\t%lld\t%lld\t%lld\t%lld\t%lld", (long long) j,
-            (long long) self->parent[j], (long long) self->left_child[j],
-            (long long) self->right_child[j], (long long) self->left_sib[j],
-            (long long) self->right_sib[j]);
+        fprintf(out, "%lld\t%lld\t%lld\t%lld\t%lld\t%lld\t%lld", (long long) j,
+            (long long) self->edge[j], (long long) self->parent[j],
+            (long long) self->left_child[j], (long long) self->right_child[j],
+            (long long) self->left_sib[j], (long long) self->right_sib[j]);
         if (self->options & TSK_SAMPLE_LISTS) {
             fprintf(out, "\t%lld\t%lld\t", (long long) self->left_sample[j],
                 (long long) self->right_sample[j]);
@@ -6499,7 +6500,8 @@ tsk_tree_remove_root(tsk_tree_t *self, tsk_id_t root, tsk_id_t *restrict parent)
 }
 
 static void
-tsk_tree_remove_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
+tsk_tree_remove_edge(
+    tsk_tree_t *self, tsk_id_t p, tsk_id_t c, tsk_id_t TSK_UNUSED(edge_id))
 {
     tsk_id_t *restrict parent = self->parent;
     tsk_size_t *restrict num_samples = self->num_samples;
@@ -6640,7 +6642,7 @@ tsk_tree_next(tsk_tree_t *self)
     if (valid) {
         for (j = tree_pos.out.start; j != tree_pos.out.stop; j++) {
             e = tree_pos.out.order[j];
-            tsk_tree_remove_edge(self, edge_parent[e], edge_child[e]);
+            tsk_tree_remove_edge(self, edge_parent[e], edge_child[e], e);
         }
 
         for (j = tree_pos.in.start; j != tree_pos.in.stop; j++) {
@@ -6672,7 +6674,7 @@ tsk_tree_prev(tsk_tree_t *self)
     if (valid) {
         for (j = tree_pos.out.start; j != tree_pos.out.stop; j--) {
             e = tree_pos.out.order[j];
-            tsk_tree_remove_edge(self, edge_parent[e], edge_child[e]);
+            tsk_tree_remove_edge(self, edge_parent[e], edge_child[e], e);
         }
 
         for (j = tree_pos.in.start; j != tree_pos.in.stop; j--) {
@@ -6771,9 +6773,9 @@ tsk_tree_seek_forward(tsk_tree_t *self, tsk_id_t index)
     for (j = tree_pos.out.start; j != tree_pos.out.stop; j++) {
         e = tree_pos.out.order[j];
         e_left = edge_left[e];
-        if (e_left <= old_right) {
+        if (e_left < old_right) {
             tsk_bug_assert(edge_parent[e] != TSK_NULL);
-            tsk_tree_remove_edge(self, edge_parent[e], edge_child[e]);
+            tsk_tree_remove_edge(self, edge_parent[e], edge_child[e], e);
         }
         tsk_bug_assert(e_left < interval_left);
     }
@@ -6815,7 +6817,7 @@ tsk_tree_seek_backward(tsk_tree_t *self, tsk_id_t index)
         e_right = edge_right[e];
         if (e_right >= old_right) {
             tsk_bug_assert(edge_parent[e] != TSK_NULL);
-            tsk_tree_remove_edge(self, edge_parent[e], edge_child[e]);
+            tsk_tree_remove_edge(self, edge_parent[e], edge_child[e], e);
         }
         tsk_bug_assert(e_right > interval_right);
     }
@@ -6924,7 +6926,7 @@ tsk_tree_seek(tsk_tree_t *self, double x, tsk_flags_t options)
     if (self->index == -1) {
         ret = tsk_tree_seek_from_null(self, x, options);
     } else {
-        if (options & TSK_TREE_SEEK_ENABLE_SKIPPING) {
+        if (options & TSK_SEEK_SKIP) {
             ret = tsk_tree_seek_skip(self, x);
         } else {
             ret = tsk_tree_seek_linear(self, x);
