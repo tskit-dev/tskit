@@ -8106,6 +8106,7 @@ class TreeSequence:
         span_normalise=True,
         polarised=False,
         centre=True,
+        allow_self_comparisons=False,
     ):
         sample_set_sizes = np.array(
             [len(sample_set) for sample_set in sample_sets], dtype=np.uint32
@@ -8132,6 +8133,24 @@ class TreeSequence:
                 "Indexes must be convertable to a 2D numpy array with {} "
                 "columns".format(k)
             )
+        # For genetic_relatedness, we allow self-comparisons with a single sample set
+        if allow_self_comparisons and len(sample_sets) < k:
+            # Check that all indexes are valid
+            if np.any(indexes >= len(sample_sets)) or np.any(indexes < 0):
+                raise ValueError("Index out of bounds")
+            # Find which sample sets we actually need
+            unique_indexes = np.unique(indexes)
+            if np.max(unique_indexes) < len(sample_sets):
+                # we need to pad with dummy sets to satisfy the C side
+                # requirement of having at least k sets
+                sample_sets = list(sample_sets)
+                sample_set_sizes = list(sample_set_sizes)
+                while len(sample_sets) < k:
+                    # Add a dummy sample set that won't be used
+                    sample_sets.append(np.array([sample_sets[0][0]], dtype=np.int32))
+                    sample_set_sizes.append(1)
+                sample_set_sizes = np.array(sample_set_sizes, dtype=np.uint32)
+                flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
         stat = self.__run_windowed_stat(
             windows,
             ll_method,
@@ -8702,6 +8721,7 @@ class TreeSequence:
             span_normalise=span_normalise,
             polarised=polarised,
             centre=centre,
+            allow_self_comparisons=True,
         )
         if proportion:
             # TODO this should be done in C also
