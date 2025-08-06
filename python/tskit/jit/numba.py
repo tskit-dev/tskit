@@ -55,6 +55,8 @@ class NumbaEdgeRange:
 def _numba_tree_sequence(max_ancestral_length, max_derived_length):
     tree_sequence_spec = [
         ("num_trees", numba.int32),
+        ("num_nodes", numba.int32),
+        ("num_samples", numba.int32),
         ("num_edges", numba.int32),
         ("num_sites", numba.int32),
         ("num_mutations", numba.int32),
@@ -95,6 +97,10 @@ def _numba_tree_sequence(max_ancestral_length, max_derived_length):
         ----------
         num_trees : int32
             Number of trees in the tree sequence.
+        num_nodes : int32
+            Number of nodes in the tree sequence.
+        num_samples : int32
+            Number of samples in the tree sequence.
         num_edges : int32
             Number of edges in the tree sequence.
         num_sites : int32
@@ -143,6 +149,8 @@ def _numba_tree_sequence(max_ancestral_length, max_derived_length):
         def __init__(
             self,
             num_trees,
+            num_nodes,
+            num_samples,
             num_edges,
             num_sites,
             num_mutations,
@@ -168,6 +176,8 @@ def _numba_tree_sequence(max_ancestral_length, max_derived_length):
             breakpoints,
         ):
             self.num_trees = num_trees
+            self.num_nodes = num_nodes
+            self.num_samples = num_samples
             self.num_edges = num_edges
             self.num_sites = num_sites
             self.num_mutations = num_mutations
@@ -484,6 +494,8 @@ def numba_tree_sequence(ts):
 
     return _numba_tree_sequence(max_ancestral_length, max_derived_length)(
         num_trees=ts.num_trees,
+        num_nodes=ts.num_nodes,
+        num_samples=ts.num_samples,
         num_edges=ts.num_edges,
         num_sites=ts.num_sites,
         num_mutations=ts.num_mutations,
