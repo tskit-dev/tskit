@@ -2,6 +2,8 @@ import functools
 
 import numpy as np
 
+import tskit
+
 try:
     import numba
 except ImportError:
@@ -13,7 +15,7 @@ except ImportError:
 
 FORWARD = 1  #: Direction constant for forward tree traversal
 REVERSE = -1  #: Direction constant for reverse tree traversal
-
+NODE_IS_SAMPLE = tskit.NODE_IS_SAMPLE
 
 edge_range_spec = [
     ("start", numba.int32),
@@ -220,6 +222,72 @@ def _numba_tree_sequence(max_ancestral_length, max_derived_length):
             ...     print(f"Tree {tree_pos.index}: {tree_pos.interval}")
             """
             return NumbaTreePosition(self)
+
+        def diversity(self):
+            edge_child = self.edges_child
+            edge_parent = self.edges_parent
+            node_times = self.nodes_time
+            node_flags = self.nodes_flags
+            num_samples = self.num_samples
+
+            if num_samples <= 1:
+                return 0.0
+
+            parent = np.full(self.num_nodes, -1, dtype=np.int32)
+            branch_length = np.zeros(self.num_nodes, dtype=np.float64)
+            state = np.zeros(self.num_nodes, dtype=np.int32)
+            summary = np.zeros(self.num_nodes, dtype=np.float64)
+
+            n = float(num_samples)
+            two_over_denom = 2.0 / (n * (n - 1.0))
+            sample_summary = 2.0 / n
+
+            for node in range(self.num_nodes):
+                if node_flags[node] & NODE_IS_SAMPLE:
+                    state[node] = 1.0
+                    summary[node] = sample_summary
+
+            result = 0.0
+            running_sum = 0.0
+            tree_pos = self.tree_position()
+
+            while tree_pos.next():
+                for j in range(tree_pos.out_range.start, tree_pos.out_range.stop):
+                    h = tree_pos.out_range.order[j]
+                    u = edge_child[h]
+
+                    running_sum -= branch_length[u] * summary[u]
+                    parent[u] = -1
+                    branch_length[u] = 0.0
+
+                    u = edge_parent[h]
+                    while u != -1:
+                        running_sum -= branch_length[u] * summary[u]
+                        state[u] -= state[edge_child[h]]
+                        summary[u] = state[u] * (n - state[u]) * two_over_denom
+                        running_sum += branch_length[u] * summary[u]
+                        u = parent[u]
+
+                for j in range(tree_pos.in_range.start, tree_pos.in_range.stop):
+                    h = tree_pos.in_range.order[j]
+                    u = edge_child[h]
+                    v = edge_parent[h]
+
+                    parent[u] = v
+                    branch_length[u] = node_times[v] - node_times[u]
+                    running_sum += branch_length[u] * summary[u]
+
+                    u = v
+                    while u != -1:
+                        running_sum -= branch_length[u] * summary[u]
+                        state[u] += state[edge_child[h]]
+                        summary[u] = state[u] * (n - state[u]) * two_over_denom
+                        running_sum += branch_length[u] * summary[u]
+                        u = parent[u]
+
+                result += running_sum * (tree_pos.interval[1] - tree_pos.interval[0])
+
+            return result / self.sequence_length
 
     tree_position_spec = [
         ("ts", NumbaTreeSequence.class_type.instance_type),
