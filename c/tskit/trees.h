@@ -1412,7 +1412,7 @@ we will have ``position < tree.interval.right``.
 Seeking to a position currently covered by the tree is
 a constant time operation.
 
-Seeking to a position from a non-null tree use a linear time
+Seeking to a position from a non-null tree uses a linear time
 algorithm by default, unless the option :c:macro:`TSK_SEEK_SKIP`
 is specified. In this case, a faster algorithm is employed which skips
 to the target tree by removing and adding the minimal number of edges
