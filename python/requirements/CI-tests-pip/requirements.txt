@@ -12,3 +12,4 @@ msgpack==1.1.0
 newick==1.10.0
 kastore==0.3.3
 jsonschema==4.23.0
+numba>=0.60.0
