@@ -23,7 +23,6 @@
 """
 Module responsible for managing trees and tree sequences.
 """
-
 from __future__ import annotations
 
 import base64
