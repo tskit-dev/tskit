@@ -311,9 +311,9 @@ def check_max_time(max_time, allow_numeric=True):
     if max_time is None:
         max_time = "tree"
     is_numeric = isinstance(max_time, numbers.Real)
-    if max_time not in ["tree", "ts"] and not allow_numeric:
+    if str(max_time) not in ["tree", "ts"] and not allow_numeric:
         raise ValueError("max_time must be 'tree' or 'ts'")
-    if max_time not in ["tree", "ts"] and (allow_numeric and not is_numeric):
+    if str(max_time) not in ["tree", "ts"] and (allow_numeric and not is_numeric):
         raise ValueError("max_time must be a numeric value or one of 'tree' or 'ts'")
     return max_time
 
