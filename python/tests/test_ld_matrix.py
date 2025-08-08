@@ -22,6 +22,7 @@
 """
 Test cases for two-locus statistics
 """
+
 import contextlib
 import io
 from dataclasses import dataclass
@@ -2319,20 +2320,12 @@ def test_two_way_site_ld_matrix(ts, stat):
         (
             correlated,
             (np.array([0, 1, 2, 3, 4, 5]), np.array([6, 7, 8, 9, 10])),
-<<<<<<< HEAD
             np.float64(1.0),
-=======
-            np.float64(0.9708352229780801),
->>>>>>> c5bdbc7e (C and Python API for two-way two-locus stats)
         ),
         (
             correlated,
             (np.array([0, 1, 2, 3, 4, 5]), np.array([6, 7, 8, 9])),
-<<<<<<< HEAD
             np.float64(1.0),
-=======
-            np.float64(0.9526958931720837),
->>>>>>> c5bdbc7e (C and Python API for two-way two-locus stats)
         ),
         (
             correlated,
@@ -2342,20 +2335,12 @@ def test_two_way_site_ld_matrix(ts, stat):
         (
             correlated,
             (np.array([0, 1, 2, 3, 4, 5]), np.array([6, 7])),
-<<<<<<< HEAD
             np.float64(np.nan),
-=======
-            np.float64(0.7585185185185186),
->>>>>>> c5bdbc7e (C and Python API for two-way two-locus stats)
         ),
         (
             correlated,
             (np.array([0, 1, 2, 3, 4, 5]), np.array([6])),
-<<<<<<< HEAD
             np.float64(np.nan),
-=======
-            np.float64(0.0),
->>>>>>> c5bdbc7e (C and Python API for two-way two-locus stats)
         ),
         (
             anticorrelated := np.array(
@@ -2373,65 +2358,37 @@ def test_two_way_site_ld_matrix(ts, stat):
         (
             anticorrelated,
             (np.array([0, 2, 4, 6, 8, 10, 12, 14]), np.array([1, 3, 5, 7, 9, 11, 13])),
-<<<<<<< HEAD
             np.float64(1.0),
-=======
-            np.float64(0.9798566895766568),
->>>>>>> c5bdbc7e (C and Python API for two-way two-locus stats)
         ),
         (
             anticorrelated,
             (np.array([0, 2, 4, 6, 8, 10, 12, 14]), np.array([1, 3, 5, 7, 9, 11])),
-<<<<<<< HEAD
             np.float64(np.nan),
-=======
-            np.float64(0.8574999999999999),
->>>>>>> c5bdbc7e (C and Python API for two-way two-locus stats)
         ),
         (
             anticorrelated,
             (np.array([0, 2, 4, 6, 8, 10, 12, 14]), np.array([1, 3, 5, 7, 9])),
-<<<<<<< HEAD
             np.float64(np.nan),
-=======
-            np.float64(0.8299777777777777),
->>>>>>> c5bdbc7e (C and Python API for two-way two-locus stats)
         ),
         (
             anticorrelated,
             (np.array([0, 2, 4, 6, 8, 10, 12, 14]), np.array([1, 3, 5, 7])),
-<<<<<<< HEAD
             np.float64(np.nan),
-=======
-            np.float64(0.6328124999999999),
->>>>>>> c5bdbc7e (C and Python API for two-way two-locus stats)
         ),
         (
             anticorrelated,
             (np.array([0, 2, 4, 6, 8, 10, 12, 14]), np.array([1, 3, 5])),
-<<<<<<< HEAD
             np.float64(np.nan),
-=======
-            np.float64(0.57179616638322),
->>>>>>> c5bdbc7e (C and Python API for two-way two-locus stats)
         ),
         (
             anticorrelated,
             (np.array([0, 2, 4, 6, 8, 10, 12, 14]), np.array([1, 3])),
-<<<<<<< HEAD
             np.float64(np.nan),
-=======
-            np.float64(0.0),
->>>>>>> c5bdbc7e (C and Python API for two-way two-locus stats)
         ),
         (
             anticorrelated,
             (np.array([0, 2, 4, 6, 8, 10, 12, 14]), np.array([1])),
-<<<<<<< HEAD
             np.float64(np.nan),
-=======
-            np.float64(0.0),
->>>>>>> c5bdbc7e (C and Python API for two-way two-locus stats)
         ),
     ],
 )
@@ -2450,8 +2407,4 @@ def test_multipopulation_r2_varying_unequal_set_sizes(genotypes, sample_sets, ex
         r2_ij_summary_func(state_dim, state, 1, result[i, j], params)
         norm_hap_weighted_ij(1, state, max(a) + 1, max(b) + 1, norm[i, j], params)
 
-<<<<<<< HEAD
     np.testing.assert_allclose((result * norm).sum(), expected)
-=======
-    np.testing.assert_allclose(expected, (result * norm).sum())
->>>>>>> c5bdbc7e (C and Python API for two-way two-locus stats)
