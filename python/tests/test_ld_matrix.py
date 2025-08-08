@@ -22,7 +22,6 @@
 """
 Test cases for two-locus statistics
 """
-
 import contextlib
 import io
 from dataclasses import dataclass
@@ -1053,10 +1052,8 @@ def r2_ij_summary_func(
         D_j = pAB - pA * pB
         denom_j = np.sqrt(pA * (1 - pA) * pB * (1 - pB))
 
-        p_A = (w_A_i + w_A_j) / (ni + nj)
-        p_B = (w_B_i + w_B_j) / (ni + nj)
         with suppress_overflow_div0_warning():
-            result[k] = (D_i * D_j) / (p_A * (1 - p_A) * p_B * (1 - p_B))
+            result[k] = (D_i * D_j) / (denom_i * denom_j)
 
 
 def D_summary_func(
