@@ -1299,6 +1299,13 @@ int tsk_tree_copy(const tsk_tree_t *self, tsk_tree_t *dest, tsk_flags_t options)
 @{
 */
 
+/** @brief Option to seek by skipping to the target tree, adding and removing as few
+   edges as possible. If not specified, a linear time algorithm is used instead.
+
+    @ingroup TREE_API_SEEKING_GROUP
+*/
+#define TSK_SEEK_SKIP (1 << 0)
+
 /**
 @brief Seek to the first tree in the sequence.
 
@@ -1404,12 +1411,22 @@ we will have ``position < tree.interval.right``.
 
 Seeking to a position currently covered by the tree is
 a constant time operation.
+
+Seeking to a position from a non-null tree uses a linear time
+algorithm by default, unless the option :c:macro:`TSK_SEEK_SKIP`
+is specified. In this case, a faster algorithm is employed which skips
+to the target tree by removing and adding the minimal number of edges
+possible. However, this approach does not guarantee that edges are
+inserted and removed in time-sorted order.
+
+.. warning:: Using the :c:macro:`TSK_SEEK_SKIP` option
+    may lead to edges not being inserted or removed in time-sorted order.
+
 @endrst
 
 @param self A pointer to an initialised tsk_tree_t object.
 @param position The position in genome coordinates
-@param options Seek options. Currently unused. Set to 0 for compatibility
-    with future versions of tskit.
+@param options Seek options. See the notes above for details.
 @return Return 0 on success or a negative value on failure.
 */
 int tsk_tree_seek(tsk_tree_t *self, double position, tsk_flags_t options);

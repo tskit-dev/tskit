@@ -12265,16 +12265,21 @@ static PyObject *
 Tree_seek(Tree *self, PyObject *args)
 {
     PyObject *ret = NULL;
+    tsk_flags_t options = 0;
+    int skip = false;
     double position;
     int err;
 
     if (Tree_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTuple(args, "d", &position)) {
+    if (!PyArg_ParseTuple(args, "d|i", &position, &skip)) {
         goto out;
     }
-    err = tsk_tree_seek(self->tree, position, 0);
+    if (skip) {
+        options |= TSK_SEEK_SKIP;
+    }
+    err = tsk_tree_seek(self->tree, position, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -12289,15 +12294,20 @@ Tree_seek_index(Tree *self, PyObject *args)
 {
     PyObject *ret = NULL;
     tsk_id_t index = 0;
+    tsk_flags_t options = 0;
+    int skip = false;
     int err;
 
     if (Tree_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTuple(args, "O&", tsk_id_converter, &index)) {
+    if (!PyArg_ParseTuple(args, "O&|i", tsk_id_converter, &index, &skip)) {
         goto out;
     }
-    err = tsk_tree_seek_index(self->tree, index, 0);
+    if (skip) {
+        options |= TSK_SEEK_SKIP;
+    }
+    err = tsk_tree_seek_index(self->tree, index, options);
     if (err != 0) {
         handle_library_error(err);
         goto out;

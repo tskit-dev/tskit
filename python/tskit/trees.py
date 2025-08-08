@@ -840,7 +840,7 @@ class Tree:
         """
         self._ll_tree.clear()
 
-    def seek_index(self, index):
+    def seek_index(self, index, skip=None):
         """
         Sets the state to represent the tree at the specified
         index in the parent tree sequence. Negative indexes following the
@@ -857,9 +857,10 @@ class Tree:
             index += num_trees
         if index < 0 or index >= num_trees:
             raise IndexError("Index out of bounds")
-        self._ll_tree.seek_index(index)
+        skip = False if skip is None else skip
+        self._ll_tree.seek_index(index, skip)
 
-    def seek(self, position):
+    def seek(self, position, skip=None):
         """
         Sets the state to represent the tree that covers the specified
         position in the parent tree sequence. After a successful return
@@ -875,7 +876,8 @@ class Tree:
         """
         if position < 0 or position >= self.tree_sequence.sequence_length:
             raise ValueError("Position out of bounds")
-        self._ll_tree.seek(position)
+        skip = False if skip is None else skip
+        self._ll_tree.seek(position, skip)
 
     def rank(self) -> tskit.Rank:
         """

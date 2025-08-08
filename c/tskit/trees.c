@@ -6361,17 +6361,18 @@ tsk_tree_print_state(const tsk_tree_t *self, FILE *out)
     fprintf(out, "left = %f\n", self->interval.left);
     fprintf(out, "right = %f\n", self->interval.right);
     fprintf(out, "index = %lld\n", (long long) self->index);
-    fprintf(out, "node\tparent\tlchild\trchild\tlsib\trsib");
+    fprintf(out, "num_edges = %d\n", (int) self->num_edges);
+    fprintf(out, "node\tedge\tparent\tlchild\trchild\tlsib\trsib");
     if (self->options & TSK_SAMPLE_LISTS) {
         fprintf(out, "\thead\ttail");
     }
     fprintf(out, "\n");
 
     for (j = 0; j < self->num_nodes + 1; j++) {
-        fprintf(out, "%lld\t%lld\t%lld\t%lld\t%lld\t%lld", (long long) j,
-            (long long) self->parent[j], (long long) self->left_child[j],
-            (long long) self->right_child[j], (long long) self->left_sib[j],
-            (long long) self->right_sib[j]);
+        fprintf(out, "%lld\t%lld\t%lld\t%lld\t%lld\t%lld\t%lld", (long long) j,
+            (long long) self->edge[j], (long long) self->parent[j],
+            (long long) self->left_child[j], (long long) self->right_child[j],
+            (long long) self->left_sib[j], (long long) self->right_sib[j]);
         if (self->options & TSK_SAMPLE_LISTS) {
             fprintf(out, "\t%lld\t%lld\t", (long long) self->left_sample[j],
                 (long long) self->right_sample[j]);
@@ -6499,7 +6500,8 @@ tsk_tree_remove_root(tsk_tree_t *self, tsk_id_t root, tsk_id_t *restrict parent)
 }
 
 static void
-tsk_tree_remove_edge(tsk_tree_t *self, tsk_id_t p, tsk_id_t c)
+tsk_tree_remove_edge(
+    tsk_tree_t *self, tsk_id_t p, tsk_id_t c, tsk_id_t TSK_UNUSED(edge_id))
 {
     tsk_id_t *restrict parent = self->parent;
     tsk_size_t *restrict num_samples = self->num_samples;
@@ -6640,7 +6642,7 @@ tsk_tree_next(tsk_tree_t *self)
     if (valid) {
         for (j = tree_pos.out.start; j != tree_pos.out.stop; j++) {
             e = tree_pos.out.order[j];
-            tsk_tree_remove_edge(self, edge_parent[e], edge_child[e]);
+            tsk_tree_remove_edge(self, edge_parent[e], edge_child[e], e);
         }
 
         for (j = tree_pos.in.start; j != tree_pos.in.stop; j++) {
@@ -6672,7 +6674,7 @@ tsk_tree_prev(tsk_tree_t *self)
     if (valid) {
         for (j = tree_pos.out.start; j != tree_pos.out.stop; j--) {
             e = tree_pos.out.order[j];
-            tsk_tree_remove_edge(self, edge_parent[e], edge_child[e]);
+            tsk_tree_remove_edge(self, edge_parent[e], edge_child[e], e);
         }
 
         for (j = tree_pos.in.start; j != tree_pos.in.stop; j--) {
@@ -6747,6 +6749,90 @@ out:
     return ret;
 }
 
+static int TSK_WARN_UNUSED
+tsk_tree_seek_forward(tsk_tree_t *self, tsk_id_t index)
+{
+    int ret = 0;
+    tsk_table_collection_t *tables = self->tree_sequence->tables;
+    const tsk_id_t *restrict edge_parent = tables->edges.parent;
+    const tsk_id_t *restrict edge_child = tables->edges.child;
+    const double *restrict edge_left = tables->edges.left;
+    const double *restrict edge_right = tables->edges.right;
+    double interval_left, e_left;
+    const double old_right = self->interval.right;
+    tsk_id_t j, e;
+    tsk_tree_position_t tree_pos;
+
+    ret = tsk_tree_position_seek_forward(&self->tree_pos, index);
+    if (ret != 0) {
+        goto out;
+    }
+    tree_pos = self->tree_pos;
+    interval_left = tree_pos.interval.left;
+
+    for (j = tree_pos.out.start; j != tree_pos.out.stop; j++) {
+        e = tree_pos.out.order[j];
+        e_left = edge_left[e];
+        if (e_left < old_right) {
+            tsk_bug_assert(edge_parent[e] != TSK_NULL);
+            tsk_tree_remove_edge(self, edge_parent[e], edge_child[e], e);
+        }
+        tsk_bug_assert(e_left < interval_left);
+    }
+
+    for (j = tree_pos.in.start; j != tree_pos.in.stop; j++) {
+        e = tree_pos.in.order[j];
+        if (edge_left[e] <= interval_left && interval_left < edge_right[e]) {
+            tsk_tree_insert_edge(self, edge_parent[e], edge_child[e], e);
+        }
+    }
+    tsk_tree_update_index_and_interval(self);
+out:
+    return ret;
+}
+
+static int TSK_WARN_UNUSED
+tsk_tree_seek_backward(tsk_tree_t *self, tsk_id_t index)
+{
+    int ret = 0;
+    tsk_table_collection_t *tables = self->tree_sequence->tables;
+    const tsk_id_t *restrict edge_parent = tables->edges.parent;
+    const tsk_id_t *restrict edge_child = tables->edges.child;
+    const double *restrict edge_left = tables->edges.left;
+    const double *restrict edge_right = tables->edges.right;
+    double interval_right, e_right;
+    const double old_right = self->interval.right;
+    tsk_id_t j, e;
+    tsk_tree_position_t tree_pos;
+
+    ret = tsk_tree_position_seek_backward(&self->tree_pos, index);
+    if (ret != 0) {
+        goto out;
+    }
+    tree_pos = self->tree_pos;
+    interval_right = tree_pos.interval.right;
+
+    for (j = tree_pos.out.start; j != tree_pos.out.stop; j--) {
+        e = tree_pos.out.order[j];
+        e_right = edge_right[e];
+        if (e_right >= old_right) {
+            tsk_bug_assert(edge_parent[e] != TSK_NULL);
+            tsk_tree_remove_edge(self, edge_parent[e], edge_child[e], e);
+        }
+        tsk_bug_assert(e_right > interval_right);
+    }
+
+    for (j = tree_pos.in.start; j != tree_pos.in.stop; j--) {
+        e = tree_pos.in.order[j];
+        if (edge_right[e] >= interval_right && interval_right > edge_left[e]) {
+            tsk_tree_insert_edge(self, edge_parent[e], edge_child[e], e);
+        }
+    }
+    tsk_tree_update_index_and_interval(self);
+out:
+    return ret;
+}
+
 int TSK_WARN_UNUSED
 tsk_tree_seek_index(tsk_tree_t *self, tsk_id_t tree, tsk_flags_t options)
 {
@@ -6764,7 +6850,7 @@ out:
 }
 
 static int TSK_WARN_UNUSED
-tsk_tree_seek_linear(tsk_tree_t *self, double x, tsk_flags_t TSK_UNUSED(options))
+tsk_tree_seek_linear(tsk_tree_t *self, double x)
 {
     const double L = tsk_treeseq_get_sequence_length(self->tree_sequence);
     const double t_l = self->interval.left;
@@ -6803,6 +6889,29 @@ out:
     return ret;
 }
 
+static int TSK_WARN_UNUSED
+tsk_tree_seek_skip(tsk_tree_t *self, double x)
+{
+    const double t_l = self->interval.left;
+    int ret = 0;
+    tsk_id_t index;
+    const tsk_size_t num_trees = self->tree_sequence->num_trees;
+    const double *restrict breakpoints = self->tree_sequence->breakpoints;
+
+    index = (tsk_id_t) tsk_search_sorted(breakpoints, num_trees + 1, x);
+    if (breakpoints[index] > x) {
+        index--;
+    }
+
+    if (x < t_l) {
+        ret = tsk_tree_seek_backward(self, index);
+    } else {
+        ret = tsk_tree_seek_forward(self, index);
+    }
+    tsk_bug_assert(tsk_tree_position_in_interval(self, x));
+    return ret;
+}
+
 int TSK_WARN_UNUSED
 tsk_tree_seek(tsk_tree_t *self, double x, tsk_flags_t options)
 {
@@ -6817,7 +6926,11 @@ tsk_tree_seek(tsk_tree_t *self, double x, tsk_flags_t options)
     if (self->index == -1) {
         ret = tsk_tree_seek_from_null(self, x, options);
     } else {
-        ret = tsk_tree_seek_linear(self, x, options);
+        if (options & TSK_SEEK_SKIP) {
+            ret = tsk_tree_seek_skip(self, x);
+        } else {
+            ret = tsk_tree_seek_linear(self, x);
+        }
     }
 
 out:
