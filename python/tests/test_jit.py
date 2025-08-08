@@ -1,6 +1,5 @@
 import itertools
 import sys
-from unittest.mock import patch
 
 import msprime
 import numba
@@ -9,19 +8,31 @@ import pytest
 
 import tests.tsutil as tsutil
 import tskit
+import tskit.jit.numba as jit_numba
 
 
 def test_numba_import_error():
-    # Mock numba as not available
-    with patch.dict(sys.modules, {"numba": None}):
+    # Make the modules unavailable temporarily
+    original_numba = sys.modules.get("numba")
+    original_jit_numba = sys.modules.get("tskit.jit.numba")
+    try:
+        if "numba" in sys.modules:
+            del sys.modules["numba"]
+        if "tskit.jit.numba" in sys.modules:
+            del sys.modules["tskit.jit.numba"]
+
+        # Mock numba as not available at all
+        sys.modules["numba"] = None
         with pytest.raises(ImportError, match="pip install numba"):
             import tskit.jit.numba  # noqa: F401
+    finally:
+        # Restore original modules
+        sys.modules["numba"] = original_numba
+        sys.modules["tskit.jit.numba"] = original_jit_numba
 
 
 @pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
 def test_correct_trees_forward(ts):
-    import tskit.jit.numba as jit_numba
-
     numba_ts = jit_numba.numba_tree_sequence(ts)
     tree_pos = numba_ts.tree_position()
     ts_edge_diffs = ts.edge_diffs()
@@ -54,7 +65,6 @@ def test_correct_trees_forward(ts):
 
 @pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
 def test_correct_trees_backwards(ts):
-    import tskit.jit.numba as jit_numba
 
     numba_ts = jit_numba.numba_tree_sequence(ts)
     tree_pos = numba_ts.tree_position()
@@ -90,7 +100,6 @@ def test_correct_trees_backwards(ts):
 
 def test_using_from_jit_function():
     # Test we can use from a numba jitted function
-    import tskit.jit.numba as jit_numba
 
     ts = msprime.sim_ancestry(
         samples=10, sequence_length=100, recombination_rate=1, random_seed=42
@@ -140,8 +149,6 @@ def test_jit_diversity(ts):
             "Tree sequence must have at least one sample for diversity calculation"
         )
 
-    import tskit.jit.numba as jit_numba
-
     numba_ts = jit_numba.numba_tree_sequence(ts)
     diversity_numba = numba_ts.diversity()
     diversity_python = ts.diversity(mode="branch")
@@ -151,7 +158,6 @@ def test_jit_diversity(ts):
 
 def test_numba_tree_sequence_properties(ts_fixture):
     ts = ts_fixture
-    import tskit.jit.numba as jit_numba
 
     numba_ts = jit_numba.numba_tree_sequence(ts)
 
@@ -199,7 +205,6 @@ def test_numba_tree_sequence_properties(ts_fixture):
 
 
 def test_numba_edge_range():
-    import tskit.jit.numba as jit_numba
 
     order = np.array([1, 3, 2, 0], dtype=np.int32)
     edge_range = jit_numba.NumbaEdgeRange(start=1, stop=3, order=order)
@@ -210,7 +215,6 @@ def test_numba_edge_range():
 
 
 def test_numba_tree_position_set_null(ts_fixture):
-    import tskit.jit.numba as jit_numba
 
     numba_ts = jit_numba.numba_tree_sequence(ts_fixture)
     tree_pos = numba_ts.tree_position()
@@ -228,7 +232,6 @@ def test_numba_tree_position_set_null(ts_fixture):
 
 
 def test_numba_tree_position_constants(ts_fixture):
-    import tskit.jit.numba as jit_numba
 
     numba_ts = jit_numba.numba_tree_sequence(ts_fixture)
     tree_pos = numba_ts.tree_position()
@@ -248,7 +251,6 @@ def test_numba_tree_position_constants(ts_fixture):
 
 
 def test_numba_tree_position_edge_cases():
-    import tskit.jit.numba as jit_numba
 
     # Test with empty tree sequence
     tables = tskit.TableCollection(sequence_length=1.0)

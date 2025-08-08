@@ -117,6 +117,7 @@ class NumbaTreeSequence:
 
         pass
 
+
 class NumbaTreePosition:
     """
     Traverse trees in a numba compatible tree sequence.
@@ -210,6 +211,7 @@ class NumbaTreePosition:
         edge changes needed for the current tree when traversing backward.
         """
         pass
+
 
 edge_range_spec = [
     ("start", numba.int32),
