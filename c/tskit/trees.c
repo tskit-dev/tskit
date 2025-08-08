@@ -3322,7 +3322,7 @@ check_sample_set_dups(tsk_size_t num_sample_sets, const tsk_size_t *sample_set_s
     }
     j = 0;
     for (k = 0; k < num_sample_sets; k++) {
-        tsk_memset(tmp.data, 0, sizeof(*tmp.data) * tmp.len);
+        tsk_memset(tmp.data, 0, sizeof(*tmp.data) * tmp.row_len);
         for (l = 0; l < sample_set_sizes[k]; l++) {
             u = sample_sets[j];
             sample_index = sample_index_map[u];
