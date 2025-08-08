@@ -23,7 +23,6 @@
 """
 Test cases for the low level C interface to tskit.
 """
-
 import collections
 import gc
 import inspect
@@ -3243,10 +3242,7 @@ class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):
         for bad_array in [[1, 1], range(10)]:
             with pytest.raises(ValueError):
                 ts.general_stat(
-                    W,
-                    lambda x: bad_array,
-                    1,
-                    ts.get_breakpoints(),  # noqa:B023
+                    W, lambda x: bad_array, 1, ts.get_breakpoints()  # noqa:B023
                 )
         with pytest.raises(ValueError):
             ts.general_stat(W, lambda x: [1], 2, ts.get_breakpoints())
@@ -3255,10 +3251,7 @@ class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):
         for bad_array in [["sdf"], 0, "w4", None]:
             with pytest.raises(ValueError):
                 ts.general_stat(
-                    W,
-                    lambda x: bad_array,
-                    1,
-                    ts.get_breakpoints(),  # noqa:B023
+                    W, lambda x: bad_array, 1, ts.get_breakpoints()  # noqa:B023
                 )
 
 
