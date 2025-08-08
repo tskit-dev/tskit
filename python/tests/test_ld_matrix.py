@@ -590,9 +590,6 @@ def compute_general_two_site_stat_result(
             for k in range(result_dim):
                 result[k] += result_tmp[k] * norm[k]
 
-            # for k in range(result_dim):
-            #     print(mut_a, mut_b, k, weights[0, k], weights[1, k], weights[2, k], sep="\t")
-
 
 def two_site_count_stat(
     ts: tskit.TreeSequence,
@@ -1056,7 +1053,7 @@ def r2_ij_summary_func(
         denom_j = np.sqrt(pA * (1 - pA) * pB * (1 - pB))
 
         with suppress_overflow_div0_warning():
-            result[k] = result[k] = (D_i * D_j) / (denom_i * denom_j)
+            result[k] = (D_i * D_j) / (denom_i * denom_j)
 
 
 def D_summary_func(
