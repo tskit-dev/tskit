@@ -312,7 +312,6 @@ def branch_general_stat(
                 # This interval crosses a tree boundary, so we update it again in the
                 # for the next tree
                 break
-    # print("SUM", running_sum)
     assert window_index == windows.shape[0] - 1
     if drop_time_windows:
         assert result.ndim == 3
@@ -4061,9 +4060,10 @@ def branch_allele_frequency_spectrum(
                     and time_windows[time_window_index] < t_v
                 ):
                     assert parent[u] != -1
-                    tw_branch_length = abs(
+                    tw_branch_length = max(
+                        0.0,
                         min(time_windows[time_window_index + 1], t_v)
-                        - max(time_windows[time_window_index], time[u])
+                        - max(time_windows[time_window_index], time[u]),
                     )
                     x = (right - last_update[u]) * tw_branch_length
                     c = count[u, :num_sample_sets]
@@ -7375,3 +7375,52 @@ class TestTimeWindows(TestBranchAlleleFrequencySpectrum):
         # dimensions are dim1: windows ; dim2: time_windows ;
         # dim3-or-more: num_sample_sets
         assert sfs1_w_tw.ndim == 3
+
+    def test_decap_vs_tw(self):
+        ns = 2
+        time_grid = np.append(np.logspace(2, 5, 11), np.inf)[0:1]
+        ts = msprime.sim_ancestry(
+            ns,
+            recombination_rate=1e-8,
+            sequence_length=1e6,
+            population_size=1e4,
+            random_seed=1,
+        )
+        ts = msprime.sim_mutations(ts, rate=1e-8, random_seed=2)
+        sample_sets = [np.arange(ns), np.arange(ns, 2 * ns)]
+
+        time_grid = np.append(0, time_grid)
+        time_grid = np.append(time_grid, np.inf)
+
+        windows = np.array([0, 0.5, 1]) * ts.sequence_length
+        windows = None
+        test1 = ts.allele_frequency_spectrum(
+            sample_sets=sample_sets,
+            time_windows=time_grid,
+            mode="branch",
+            polarised=True,
+            span_normalise=True,
+            windows=windows,
+        ).cumsum(axis=0)
+
+        test2 = branch_allele_frequency_spectrum(
+            ts,
+            windows=windows,
+            sample_sets=sample_sets,
+            time_windows=time_grid,
+            polarised=True,
+            span_normalise=True,
+        ).cumsum(axis=0)
+
+        # manually calculate twAFS
+        twafs0 = np.zeros((time_grid.size, ns + 1, ns + 1))
+        for i, t in enumerate(time_grid):
+            tsd = ts.decapitate(t) if t < np.inf else ts
+            twafs0[i] = tsd.allele_frequency_spectrum(
+                sample_sets=sample_sets,
+                mode="branch",
+                polarised=True,
+                span_normalise=True,
+            ).squeeze()
+        self.assertArrayAlmostEqual(test1, test2)
+        self.assertArrayAlmostEqual(test2, twafs0[1:])
