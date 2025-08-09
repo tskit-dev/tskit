@@ -2568,11 +2568,11 @@ out:
 static int
 get_mutation_sample_sets(const tsk_bitset_t *allele_samples, tsk_size_t num_sample_sets,
     const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
-    tsk_size_t *max_ss_size, tsk_bitset_t *allele_sample_sets,
-    tsk_size_t **allele_sample_set_counts)
+    const tsk_id_t *sample_index_map, tsk_size_t *max_ss_size,
+    tsk_bitset_t *allele_sample_sets, tsk_size_t **allele_sample_set_counts)
 {
     int ret = 0;
-    tsk_bitset_val_t k;
+    tsk_bitset_val_t k, sample;
     tsk_size_t i, j, ss_off;
 
     *max_ss_size = 0;
@@ -2598,8 +2598,8 @@ get_mutation_sample_sets(const tsk_bitset_t *allele_samples, tsk_size_t num_samp
         ss_off = 0;
         for (j = 0; j < num_sample_sets; j++) {
             for (k = 0; k < sample_set_sizes[j]; k++) {
-                if (tsk_bitset_contains(
-                        allele_samples, i, (tsk_bitset_val_t) sample_sets[k + ss_off])) {
+                sample = (tsk_bitset_val_t) sample_index_map[sample_sets[k + ss_off]];
+                if (tsk_bitset_contains(allele_samples, i, sample)) {
                     tsk_bitset_set_bit(allele_sample_sets, j + i * num_sample_sets, k);
                     (*allele_sample_set_counts)[j + i * num_sample_sets]++;
                 }
@@ -2671,7 +2671,8 @@ tsk_treeseq_two_site_count_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
         goto out;
     }
     ret = get_mutation_sample_sets(&allele_samples, num_sample_sets, sample_set_sizes,
-        sample_sets, &max_ss_size, &allele_sample_sets, &allele_counts);
+        sample_sets, self->sample_index_map, &max_ss_size, &allele_sample_sets,
+        &allele_counts);
     if (ret != 0) {
         goto out;
     }
@@ -3326,11 +3327,11 @@ check_sample_set_dups(tsk_size_t num_sample_sets, const tsk_size_t *sample_set_s
         for (l = 0; l < sample_set_sizes[k]; l++) {
             u = sample_sets[j];
             sample_index = sample_index_map[u];
-            if (tsk_bitset_contains(&tmp, k, (tsk_bitset_val_t) sample_index)) {
+            if (tsk_bitset_contains(&tmp, 0, (tsk_bitset_val_t) sample_index)) {
                 ret = tsk_trace_error(TSK_ERR_DUPLICATE_SAMPLE);
                 goto out;
             }
-            tsk_bitset_set_bit(&tmp, k, (tsk_bitset_val_t) sample_index);
+            tsk_bitset_set_bit(&tmp, 0, (tsk_bitset_val_t) sample_index);
             j++;
         }
     }
