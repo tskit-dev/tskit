@@ -277,6 +277,7 @@ def norm_hap_weighted_ij(
         wAB_i = hap_weights[0, i]
         wAB_j = hap_weights[0, j]
         result[k] = (wAB_i + wAB_j) / (ni + nj)
+        # result[k] = (wAB_i / ni / 2) + (wAB_j / nj / 2)
 
 
 def norm_total_weighted(
