@@ -17,7 +17,10 @@ except ImportError:
 
 FORWARD = 1  #: Direction constant for forward tree traversal
 REVERSE = -1  #: Direction constant for reverse tree traversal
+
+# Retrieve these here to avoid lookups in tight loops
 NODE_IS_SAMPLE = tskit.NODE_IS_SAMPLE
+NULL = tskit.NULL
 
 edge_range_spec = [
     ("start", numba.int32),
@@ -98,7 +101,7 @@ class NumbaTreeIndex:
     def __init__(self, ts):
         self.ts = ts
         self.index = -1
-        self.direction = tskit.NULL
+        self.direction = NULL
         self.interval = (0, 0)
         self.in_range = NumbaEdgeRange(0, 0, np.zeros(0, dtype=np.int32))
         self.out_range = NumbaEdgeRange(0, 0, np.zeros(0, dtype=np.int32))

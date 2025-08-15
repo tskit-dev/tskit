@@ -207,37 +207,44 @@ def test_jit_diversity(ts):
             # Process the outgoing edges
             for j in range(tree_index.out_range.start, tree_index.out_range.stop):
                 h = tree_index.out_range.order[j]
-                u = edge_child[h]
+                child = edge_child[h]
+                child_parent = edge_parent[h]
 
-                running_sum -= branch_length[u] * summary[u]
-                parent[u] = -1
-                branch_length[u] = 0.0
+                running_sum -= branch_length[child] * summary[child]
+                parent[child] = -1
+                branch_length[child] = 0.0
 
-                u = edge_parent[h]
+                u = child_parent
+                parent_u = parent[u]
                 while u != -1:
                     running_sum -= branch_length[u] * summary[u]
-                    state[u] -= state[edge_child[h]]
+                    state[u] -= state[child]
                     summary[u] = state[u] * (n - state[u]) * two_over_denom
                     running_sum += branch_length[u] * summary[u]
-                    u = parent[u]
+                    u = parent_u
+                    if u != -1:
+                        parent_u = parent[u]
 
             # Process the incoming edges
             for j in range(tree_index.in_range.start, tree_index.in_range.stop):
                 h = tree_index.in_range.order[j]
-                u = edge_child[h]
-                v = edge_parent[h]
+                child = edge_child[h]
+                child_parent = edge_parent[h]
 
-                parent[u] = v
-                branch_length[u] = node_times[v] - node_times[u]
-                running_sum += branch_length[u] * summary[u]
+                parent[child] = child_parent
+                branch_length[child] = node_times[child_parent] - node_times[child]
+                running_sum += branch_length[child] * summary[child]
 
-                u = v
+                u = child_parent
+                parent_u = parent[u]
                 while u != -1:
                     running_sum -= branch_length[u] * summary[u]
-                    state[u] += state[edge_child[h]]
+                    state[u] += state[child]
                     summary[u] = state[u] * (n - state[u]) * two_over_denom
                     running_sum += branch_length[u] * summary[u]
-                    u = parent[u]
+                    u = parent_u
+                    if u != -1:
+                        parent_u = parent[u]
 
             result += running_sum * (tree_index.interval[1] - tree_index.interval[0])
 
