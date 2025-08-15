@@ -44,6 +44,8 @@ The numba integration provides:
 - **{class}`NumbaTreeSequence`**: A Numba-compatible representation of tree sequence data
 - **{class}`NumbaTreeIndex`**: A class for efficient tree iteration
 - **{class}`NumbaEdgeRange`**: Container class for edge ranges during iteration
+- **{class}`NumbaChildIndex`**: A class for efficiently finding child edges of nodes
+- **{class}`NumbaParentIndex`**: A class for efficiently finding parent edges of nodes
 
 These classes are designed to work within Numba's `@njit` decorated functions,
 allowing you to write high-performance tree sequence analysis code.
@@ -76,7 +78,7 @@ print(type(numba_ts))
 
 ## Tree Iteration
 
-Tree iteration can be performed using the {class}`NumbaTreeIndex` class.
+Tree iteration can be performed in `numba.njit` compiled functions using the {class}`NumbaTreeIndex` class.
 This class provides `next()` and `prev()` methods for forward and backward iteration through the trees in a tree sequence. Its `in_range` and `out_range` attributes provide the edges that must be added or removed to form the current
 tree from the previous tree, along with the current tree `interval` and its sites and mutations through `site_range` and `mutation_range`.
 
@@ -134,7 +136,7 @@ print(f"Normal Time taken: {time.time() - t:.4f} seconds")
 assert jit_num_edges == python_num_edges, "JIT and normal results do not match!"
 ```
 
-## Example - diversity calculation
+### Example - diversity calculation
 
 As a more interesting example we can calculate genetic diversity (also known as pi).
 For this example we'll be calculating based on the distance in the tree between samples.
@@ -252,7 +254,117 @@ print("Diversity (tskit):", d_tskit)
 print("Time taken:", time.time() - t)
 ```
 
+## ARG Traversal
 
+Beyond iterating through trees, you may need to traverse the ARG vertically. The {class}`NumbaChildIndex` and {class}`NumbaParentIndex` classes provide efficient access to parent-child relationships in the edge table within `numba.njit` functions.
+
+The {class}`NumbaChildIndex` allows you to efficiently find all edges where a given node is the parent. Since edges are already sorted by parent in the tskit data model, this is implemented using simple range indexing. For any node `u`, `child_range[u]` gives a tuple of the start and stop indices in the tskit edge table where node `u` is the parent.
+
+The {class}`NumbaParentIndex` allows you to efficiently find all edges where a given node is the child. Since edges are not sorted by child in the edge table, this class builds a custom index that sorts edge IDs by child node (and then by left coordinate). For any node `u`, `parent_range[u]` gives a tuple of the start and stop indices in the `parent_index` array, and `parent_index[start:stop]` gives the actual tskit edge IDs.
+
+Both indexes can be obtained from a `NumbaTreeSequence`:
+
+```{code-cell} python
+# Get the indexes
+child_index = numba_ts.child_index()
+parent_index = numba_ts.parent_index()
+
+# Example: find all edges where node 5 is the parent
+start, stop = child_index.child_range[5]
+print(f"Node 5 has {stop - start} child edges")
+
+# Example: find all edges where node 3 is the child  
+start, stop = parent_index.parent_range[3]
+print(f"Node 3 appears as child in {stop - start} edges")
+```
+
+These indexes enable efficient algorithms that need to traverse parent-child relationships in the ARG, such as computing descendant sets, ancestral paths, or subtree properties.
+
+### Example - descendant span calculation
+
+Here's an example of using the ARG traversal classes to calculate the total sequence length over which each node descends from a specified node:
+
+```{code-cell} python
+@numba.njit
+def descendant_span(numba_ts, u):
+    """
+    Calculate the total sequence length over which each node 
+    descends from the specified node u.
+    """
+    child_index = numba_ts.child_index()
+    child_range = child_index.child_range
+    edges_left = numba_ts.edges_left
+    edges_right = numba_ts.edges_right
+    edges_child = numba_ts.edges_child
+    
+    total_descending = np.zeros(numba_ts.num_nodes)
+    stack = [(u, 0.0, numba_ts.sequence_length)]
+    
+    # TODO is it right that u is considered to inherit from itself
+    # across the whole sequence?
+    total_descending[u] = numba_ts.sequence_length
+    
+    while len(stack) > 0:
+        node, left, right = stack.pop()
+        
+        # Find all child edges for this node
+        for e in range(child_range[node, 0], child_range[node, 1]):
+            e_left = edges_left[e]
+            e_right = edges_right[e]
+            
+            # Check if edge overlaps with current interval
+            if e_right > left and right > e_left:
+                inter_left = max(e_left, left)
+                inter_right = min(e_right, right)
+                e_child = edges_child[e]
+                
+                total_descending[e_child] += inter_right - inter_left
+                stack.append((e_child, inter_left, inter_right))
+    
+    return total_descending
+```
+
+```{code-cell} python
+:tags: [hide-cell]
+# Warm up the JIT
+result = descendant_span(numba_ts, 0)
+```
+
+```{code-cell} python
+# Calculate descendant span for the root node (highest numbered node)
+root_node = numba_ts.num_nodes - 1
+result = descendant_span(numba_ts, root_node)
+
+# Show nodes that have non-zero descendant span
+non_zero = result > 0
+print(f"Nodes descended from {root_node}:")
+print(f"Node IDs: {np.where(non_zero)[0]}")
+print(f"Span lengths: {result[non_zero]}")
+```
+
+Comparing performance with using the tskit Python API:
+
+```{code-cell} python
+def descendant_span_tskit(ts, u):
+    """Reference implementation using tskit trees"""
+    total_descending = np.zeros(ts.num_nodes)
+    for tree in ts.trees():
+        descendants = tree.preorder(u)
+        total_descending[descendants] += tree.span
+    return total_descending
+
+import time
+t = time.time()
+numba_result = descendant_span(numba_ts, root_node)
+print(f"Numba time: {time.time() - t:.6f} seconds")
+
+t = time.time()
+tskit_result = descendant_span_tskit(ts, root_node)
+print(f"tskit time: {time.time() - t:.6f} seconds")
+
+np.testing.assert_array_almost_equal(numba_result, tskit_result, decimal=10)
+print("Results match!")
+```
 
 
 ## API Reference
@@ -269,5 +381,11 @@ print("Time taken:", time.time() - t)
    :members:
 
 .. autoclass:: NumbaEdgeRange
+   :members:
+
+.. autoclass:: NumbaChildIndex
+   :members:
+
+.. autoclass:: NumbaParentIndex
    :members:
 ```

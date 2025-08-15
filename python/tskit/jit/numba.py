@@ -35,7 +35,7 @@ class NumbaEdgeRange:
     Represents a range of edges during tree traversal.
 
     This class encapsulates information about a contiguous range of edges
-    that are either being removed or added to step from one tree to another
+    that are either being removed or added to step from one tree to another.
     The ``start`` and ``stop`` indices, when applied to the order array,
     define the ids of edges to process.
 
@@ -54,6 +54,143 @@ class NumbaEdgeRange:
         self.start = start
         self.stop = stop
         self.order = order
+
+
+class NumbaChildIndex:
+    """
+    Index for efficiently finding child edges of nodes in a tree sequence.
+
+    This class provides access to all edges where a given node is the parent.
+    Since the tskit edge table is already sorted by parent ID, this is implemented
+    using simple range indexing of that table.
+
+    It should not be instantiated directly, but is returned by the `child_index`
+    method of `NumbaTreeSequence`.
+
+    Attributes
+    ----------
+    ts : NumbaTreeSequence
+        Reference to the tree sequence.
+    child_range : int32[num_nodes, 2]
+        For each node, the [start, stop) range of edges where this node is parent.
+
+    Example
+    --------
+    >>> child_index = numba_ts.child_index()
+    >>> # Get all child edges for node 5
+    >>> start, stop = child_index.child_range[5]
+    >>> for j in range(start, stop):
+    ...     edge_id = j
+    ...     print(f"Edge {edge_id}: {ts.edges_child[j]} -> {ts.edges_parent[j]}")
+    """
+
+    def __init__(self, ts):
+        self.ts = ts
+        child_range = np.full((ts.num_nodes, 2), -1, dtype=np.int32)
+        edges_parent = self.ts.edges_parent
+        if self.ts.num_edges == 0:
+            self.child_range = child_range
+            return
+
+        # Find ranges in tskit edge ordering
+        last_parent = -1
+        for edge_id in range(self.ts.num_edges):
+            parent = edges_parent[edge_id]
+            if parent != last_parent:
+                child_range[parent, 0] = edge_id
+            if last_parent != -1:
+                child_range[last_parent, 1] = edge_id
+            last_parent = parent
+
+        if last_parent != -1:
+            child_range[last_parent, 1] = self.ts.num_edges
+
+        self.child_range = child_range
+
+
+class NumbaParentIndex:
+    """
+    Index for efficiently finding parent edges of nodes in a tree sequence.
+
+    This class provides access to all edges where a given node is the child.
+    Since edges are not sorted by child in the tskit edge table, this class builds
+    a custom index (parent_index) that sorts edge IDs by child node. `parent_range`
+    then contains the [start, stop) range of edges for each child node in `parent_index`.
+
+    It should not be instantiated directly, but is returned by the `parent_index`
+    method of `NumbaTreeSequence`.
+
+    Attributes
+    ----------
+    ts : NumbaTreeSequence
+        Reference to the tree sequence.
+    parent_range : int32[num_nodes, 2]
+        For each node, the [start, stop) range in parent_index where this node is child.
+    parent_index : int32[num_edges]
+        Array of edge IDs sorted by child node and left coordinate.
+
+    Example
+    --------
+    >>> parent_index = numba_ts.parent_index()
+    >>> # Get all parent edges for node 3
+    >>> start, stop = parent_index.parent_range[3]
+    >>> for j in range(start, stop):
+    ...     edge_id = parent_index.parent_index[j]
+    ...     print(f"Edge {edge_id}: {ts.edges_child[edge_id]} ->
+        {ts.edges_parent[edge_id]}")
+    """
+
+    def __init__(self, ts):
+        self.ts = ts
+        parent_range = np.full((ts.num_nodes, 2), -1, dtype=np.int32)
+        parent_index = np.zeros(ts.num_edges, dtype=np.int32)
+        if self.ts.num_edges == 0:
+            self.parent_range = parent_range
+            self.parent_index = parent_index
+            return
+
+        # Create array of edge IDs
+        parent_index[:] = np.arange(self.ts.num_edges, dtype=np.int32)
+
+        # Sort edge IDs by child node (and by left coordinate as secondary sort)
+        # We need to implement our own sorting since numba doesn't support lexsort
+        # Use a stable sort to maintain order for secondary key
+        # First sort by left coordinate (secondary key) using a stable sort
+        edges_left = self.ts.edges_left
+        edges_child = self.ts.edges_child
+
+        left_coords = np.zeros(self.ts.num_edges, dtype=np.float64)
+        for i in range(self.ts.num_edges):
+            left_coords[i] = edges_left[parent_index[i]]
+
+        # Stable sort by left coordinate
+        sort_indices = np.argsort(left_coords, kind="mergesort")
+        parent_index[:] = parent_index[sort_indices]
+
+        # Stable sort by child node
+        child_nodes = np.zeros(self.ts.num_edges, dtype=np.int32)
+        for i in range(self.ts.num_edges):
+            child_nodes[i] = edges_child[parent_index[i]]
+        sort_indices = np.argsort(child_nodes, kind="mergesort")
+        parent_index[:] = parent_index[sort_indices]
+
+        # Find ranges
+        last_child = -1
+        for j in range(self.ts.num_edges):
+            edge_id = parent_index[j]
+            child = edges_child[edge_id]
+
+            if child != last_child:
+                parent_range[child, 0] = j
+            if last_child != -1:
+                parent_range[last_child, 1] = j
+            last_child = child
+
+        if last_child != -1:
+            parent_range[last_child, 1] = self.ts.num_edges
+
+        self.parent_range = parent_range
+        self.parent_index = parent_index
 
 
 class NumbaTreeIndex:
@@ -123,21 +260,13 @@ class NumbaTreeIndex:
 
         Updates the tree index to the next tree in the sequence,
         computing the edges that need to be added and removed to
-        transform from the previous tree to the current tree, storing
-        them in self.in_range and self.out_range.
-
-        Returns
-        -------
-        bool
-            True if successfully moved to next tree, False if the end
-            of the tree sequence is reached.
-            When False is returned, the iterator is in null state (index=-1).
-
-        Notes
-        -----
+        transform from the previous tree to the current tree.
         On the first call, this initializes the iterator and moves to tree 0.
-        The in_range and out_range attributes are updated to reflect the
-        edge changes needed for the current tree.
+
+        :return: True if successfully moved to next tree, False if the end
+            of the tree sequence is reached. When False is returned, the iterator
+            is in null state (index=-1).
+        :rtype: bool
         """
         M = self.ts.num_edges
         NS = self.ts.num_sites
@@ -211,22 +340,14 @@ class NumbaTreeIndex:
 
         Updates the tree index to the previous tree in the sequence,
         computing the edges that need to be added and removed to
-        transform from the next tree to the current tree, storing them
-        in self.in_range and self.out_range
-
-        Returns
-        -------
-        bool
-            True if successfully moved to previous tree, False if the beginning
-            of the tree sequence is reached.
-            When False is returned, the iterator is in null state (index=-1).
-
-        Notes
-        -----
+        transform from the next tree to the current tree.
         On the first call, this initializes the iterator and moves to the most
         rightward tree.
-        The in_range and out_range attributes are updated to reflect the
-        edge changes needed for the current tree when traversing backward.
+
+        :return: True if successfully moved to previous tree, False if the beginning
+            of the tree sequence is reached. When False is returned, the iterator
+            is in null state (index=-1).
+        :rtype: bool
         """
         M = self.ts.num_edges
         NS = self.ts.num_sites
@@ -422,22 +543,37 @@ class NumbaTreeSequence:
         """
         Create a :class:`NumbaTreeIndex` for traversing this tree sequence.
 
-        Returns
-        -------
-        NumbaTreeIndex
-            A new tree index initialized to the null tree.
+        :return: A new tree index initialized to the null tree.
             Use next() or prev() to move to an actual tree.
-
-        Examples
-        --------
-        >>> tree_index = numba_ts.tree_index()
-        >>> while tree_index.next():
-        ...     # Process current tree at tree_index.index
-        ...     print(f"Tree {tree_index.index}: {tree_index.interval}")
+        :rtype: NumbaTreeIndex
         """
         # This method will be overriden when the concrete JIT class NumbaTreeIndex
         # is defined in `jitwrap`.
         return NumbaTreeIndex(self)  # pragma: no cover
+
+    def child_index(self):
+        """
+        Create a :class:`NumbaChildIndex` for finding child edges of nodes.
+
+        :return: A new child index that can be used to efficiently find all edges
+            where a given node is the parent.
+        :rtype: NumbaChildIndex
+        """
+        # This method will be overriden when the concrete JIT
+        # class is defined in `jitwrap`.
+        return NumbaChildIndex(self)  # pragma: no cover
+
+    def parent_index(self):
+        """
+        Create a :class:`NumbaParentIndex` for finding parent edges of nodes.
+
+        :return: A new parent index that can be used to efficiently find all edges
+            where a given node is the child.
+        :rtype: NumbaParentIndex
+        """
+        # This method will be overriden when the concrete JIT class is
+        # defined in `jitwrap`.
+        return NumbaParentIndex(self)  # pragma: no cover
 
 
 # We cache these classes to avoid repeated JIT compilation
@@ -452,6 +588,8 @@ def _jitwrap(max_ancestral_length, max_derived_length):
     # in this case, so we skip the spec entirely.
     if os.environ.get("NUMBA_DISABLE_JIT") == "1":
         tree_index_spec = []
+        child_index_spec = []
+        parent_index_spec = []
     else:
         tree_index_spec = [
             ("ts", tree_sequence_type),
@@ -463,7 +601,19 @@ def _jitwrap(max_ancestral_length, max_derived_length):
             ("site_range", numba.types.UniTuple(numba.int32, 2)),
             ("mutation_range", numba.types.UniTuple(numba.int32, 2)),
         ]
+        child_index_spec = [
+            ("ts", tree_sequence_type),
+            ("child_range", numba.int32[:, :]),
+        ]
+        parent_index_spec = [
+            ("ts", tree_sequence_type),
+            ("parent_range", numba.int32[:, :]),
+            ("parent_index", numba.int32[:]),
+        ]
+
     JittedTreeIndex = numba.experimental.jitclass(tree_index_spec)(NumbaTreeIndex)
+    JittedChildIndex = numba.experimental.jitclass(child_index_spec)(NumbaChildIndex)
+    JittedParentIndex = numba.experimental.jitclass(parent_index_spec)(NumbaParentIndex)
 
     tree_sequence_spec = [
         ("num_trees", numba.int32),
@@ -504,6 +654,12 @@ def _jitwrap(max_ancestral_length, max_derived_length):
         def tree_index(self):
             return JittedTreeIndex(self)
 
+        def child_index(self):
+            return JittedChildIndex(self)
+
+        def parent_index(self):
+            return JittedParentIndex(self)
+
     JittedTreeSequence = numba.experimental.jitclass(tree_sequence_spec)(
         _NumbaTreeSequence
     )
@@ -522,16 +678,10 @@ def jitwrap(ts):
     Creates a NumbaTreeSequence object that can be used within
     Numba-compiled functions.
 
-    Parameters
-    ----------
-    ts : tskit.TreeSequence
-        The tree sequence to convert.
-
-    Returns
-    -------
-    NumbaTreeSequence
-        A Numba-compatible representation of the input tree sequence.
+    :param tskit.TreeSequence ts: The tree sequence to convert.
+    :return: A Numba-compatible representation of the input tree sequence.
         Contains all necessary data arrays and metadata for tree traversal.
+    :rtype: NumbaTreeSequence
     """
     max_ancestral_length = max(1, max(map(len, ts.sites_ancestral_state), default=1))
     max_derived_length = max(1, max(map(len, ts.mutations_derived_state), default=1))
