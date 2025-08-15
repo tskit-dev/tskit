@@ -115,6 +115,22 @@ jobs:
           conda activate anaconda-client-env
           python -c "import tskit;tskit.Tree.generate_star(5).tree_sequence.draw_svg(path='test.svg')"
 
+      - name: Run JIT code coverage
+        working-directory: python
+        run: |
+          source ~/.profile
+          conda activate anaconda-client-env
+          NUMBA_DISABLE_JIT=1 python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 tests/test_jit.py
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5.4.0
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          working-directory: python
+          fail_ci_if_error: false
+          flags: python-tests-no-jit
+          name: codecov-umbrella
+          verbose: true
       - name: Run tests
         working-directory: python
         run: |
@@ -135,6 +151,7 @@ jobs:
           flags: python-tests
           name: codecov-umbrella
           verbose: true
+
 
   test-numpy1:
     name: Numpy 1.x
