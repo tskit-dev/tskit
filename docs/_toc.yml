@@ -20,6 +20,7 @@ parts:
 - caption: Interfaces
   chapters:
   - file: python-api
+  - file: numba
   - file: c-api
   - file: cli
   - file: file-formats
