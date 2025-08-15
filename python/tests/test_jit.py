@@ -117,7 +117,126 @@ def test_correct_trees_backwards_and_forwards(ts):
     assert last_tree
 
 
-def test_using_from_jit_function():
+@pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
+def test_child_index_correctness(ts):
+    numba_ts = jit_numba.jitwrap(ts)
+    child_index = numba_ts.child_index()
+    for node in range(ts.num_nodes):
+        start, stop = child_index.child_range[node]
+
+        expected_children = []
+        for edge_id in range(ts.num_edges):
+            if ts.edges_parent[edge_id] == node:
+                expected_children.append(edge_id)
+
+        if len(expected_children) == 0:
+            assert start == -1 and stop == -1
+        else:
+            assert stop > start
+            actual_children = list(range(start, stop))
+            for edge_id in actual_children:
+                assert ts.edges_parent[edge_id] == node
+            assert actual_children == expected_children
+
+
+@pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
+def test_parent_index_correctness(ts):
+    numba_ts = jit_numba.jitwrap(ts)
+    parent_index = numba_ts.parent_index()
+    for node in range(ts.num_nodes):
+        start, stop = parent_index.parent_range[node]
+
+        expected_parents = []
+        for edge_id in range(ts.num_edges):
+            if ts.edges_child[edge_id] == node:
+                expected_parents.append(edge_id)
+
+        if len(expected_parents) == 0:
+            assert start == -1 and stop == -1
+        else:
+            assert stop > start
+            actual_parent_edge_ids = []
+            for j in range(start, stop):
+                edge_id = parent_index.parent_index[j]
+                actual_parent_edge_ids.append(edge_id)
+                assert ts.edges_child[edge_id] == node
+            assert set(actual_parent_edge_ids) == set(expected_parents)
+
+
+@pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
+def test_parent_index_tree_reconstruction(ts):
+    numba_ts = jit_numba.jitwrap(ts)
+    parent_index = numba_ts.parent_index()
+
+    # Test tree reconstruction at all breakpoints
+    for tree in ts.trees():
+        position = tree.interval.left + 0.5 * tree.span
+        reconstructed_parent = np.full(ts.num_nodes, -1, dtype=np.int32)
+        for node in range(ts.num_nodes):
+            start, stop = parent_index.parent_range[node]
+            if start != -1:
+                for j in range(start, stop):
+                    edge_id = parent_index.parent_index[j]
+                    if ts.edges_left[edge_id] <= position < ts.edges_right[edge_id]:
+                        reconstructed_parent[node] = ts.edges_parent[edge_id]
+                        break
+        expected_parent = tree.parent_array
+
+        # Compare parent arrays (excluding virtual root)
+        nt.assert_array_equal(
+            reconstructed_parent,
+            expected_parent[:-1],
+        )
+
+
+def test_child_parent_index_from_jit_function():
+    ts = msprime.sim_ancestry(
+        samples=10, sequence_length=100, recombination_rate=1, random_seed=42
+    )
+
+    @numba.njit
+    def _count_children_parents_numba(numba_ts):
+        child_index = numba_ts.child_index()
+        parent_index = numba_ts.parent_index()
+
+        total_child_edges = 0
+        total_parent_edges = 0
+
+        for node in range(numba_ts.num_nodes):
+            # Count child edges
+            child_start, child_stop = child_index.child_range[node]
+            if child_start != -1:
+                total_child_edges += child_stop - child_start
+
+            # Count parent edges
+            parent_start, parent_stop = parent_index.parent_range[node]
+            if parent_start != -1:
+                total_parent_edges += parent_stop - parent_start
+
+        return total_child_edges, total_parent_edges
+
+    def count_children_parents_python(ts):
+        total_child_edges = 0
+        total_parent_edges = 0
+
+        for node in range(ts.num_nodes):
+            # Count child edges
+            for edge in ts.edges():
+                if edge.parent == node:
+                    total_child_edges += 1
+                if edge.child == node:
+                    total_parent_edges += 1
+
+        return total_child_edges, total_parent_edges
+
+    numba_ts = jit_numba.jitwrap(ts)
+    numba_result = _count_children_parents_numba(numba_ts)
+    python_result = count_children_parents_python(ts)
+
+    assert numba_result == python_result
+
+
+def test_using_tree_index_from_jit_function():
     # Test we can use from a numba jitted function
 
     ts = msprime.sim_ancestry(
@@ -384,3 +503,56 @@ def test_numba_tree_index_edge_cases():
     assert tree_index.index == 0
     assert not tree_index.next()  # No more trees
     assert tree_index.index == -1
+
+
+@pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
+def test_jit_descendant_span(ts):
+    if ts.num_nodes == 0:
+        pytest.skip("Tree sequence must have at least one node")
+
+    @numba.njit
+    def descendant_span(numba_ts, u):
+        child_index = numba_ts.child_index()
+        child_range = child_index.child_range
+        edges_left = numba_ts.edges_left
+        edges_right = numba_ts.edges_right
+        edges_child = numba_ts.edges_child
+
+        total_descending = np.zeros(numba_ts.num_nodes)
+        stack = [(u, 0.0, numba_ts.sequence_length)]
+
+        # TODO is it right that u is considered to inherit from itself
+        # across the whole sequence?
+        total_descending[u] = numba_ts.sequence_length
+
+        while len(stack) > 0:
+            node, left, right = stack.pop()
+
+            # Find all child edges for this node
+            for e in range(child_range[node, 0], child_range[node, 1]):
+                e_left = edges_left[e]
+                e_right = edges_right[e]
+
+                # Check if edge overlaps with current interval
+                if e_right > left and right > e_left:
+                    inter_left = max(e_left, left)
+                    inter_right = min(e_right, right)
+                    e_child = edges_child[e]
+
+                    total_descending[e_child] += inter_right - inter_left
+                    stack.append((e_child, inter_left, inter_right))
+
+        return total_descending
+
+    def descendant_span_tree(ts, u):
+        total_descending = np.zeros(ts.num_nodes)
+        for tree in ts.trees():
+            descendants = tree.preorder(u)
+            total_descending[descendants] += tree.span
+        return total_descending
+
+    numba_ts = jit_numba.jitwrap(ts)
+    for u in range(ts.num_nodes):
+        d1 = descendant_span(numba_ts, u)
+        d2 = descendant_span_tree(ts, u)
+        np.testing.assert_array_almost_equal(d1, d2, decimal=10)
