@@ -482,7 +482,7 @@ def extend_haplotypes(ts, max_iter=10):
             extender = HaplotypeExtender(ts, forwards=forwards)
             extender.extend_haplotypes()
             tables.edges.replace_with(extender.edges)
-            tables.sort()
+            tables.sort(mutation_start=tables.mutations.num_rows)
             tables.build_index()
             ts = tables.tree_sequence()
         if ts.num_edges == last_num_edges:
@@ -493,7 +493,6 @@ def extend_haplotypes(ts, max_iter=10):
     tables = ts.dump_tables()
     mutations = _slide_mutation_nodes_up(ts, mutations)
     tables.mutations.replace_with(mutations)
-    tables.sort()
     ts = tables.tree_sequence()
     return ts
 
