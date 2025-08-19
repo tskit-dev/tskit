@@ -958,6 +958,7 @@ def cmp_mutation_canonical(i, j, tables, site_order, num_descendants=None):
     site_i = tables.mutations.site[i]
     site_j = tables.mutations.site[j]
     ret = site_order[site_i] - site_order[site_j]
+    # Within a particular site sort by time if known, then node time fallback
     if (
         ret == 0
         and (not tskit.is_unknown_time(tables.mutations.time[i]))
@@ -965,24 +966,40 @@ def cmp_mutation_canonical(i, j, tables, site_order, num_descendants=None):
     ):
         ret = tables.mutations.time[j] - tables.mutations.time[i]
     if ret == 0:
-        ret = num_descendants[j] - num_descendants[i]
+        # Use node times as fallback when mutation times are unknown or equal
+        node_time_i = tables.nodes.time[tables.mutations.node[i]]
+        node_time_j = tables.nodes.time[tables.mutations.node[j]]
+        ret = node_time_j - node_time_i
+        # If node times are tied, use num_descendants
+        if ret == 0:
+            ret = num_descendants[j] - num_descendants[i]
+    # Tiebreaker: node
     if ret == 0:
         ret = tables.mutations.node[i] - tables.mutations.node[j]
+    # Final tiebreaker: ID
     if ret == 0:
         ret = i - j
     return ret
 
 
-def cmp_mutation(i, j, tables, site_order):
+def cmp_mutation(i, j, tables, site_order, num_descendants=None):
     site_i = tables.mutations.site[i]
     site_j = tables.mutations.site[j]
     ret = site_order[site_i] - site_order[site_j]
+    # Within a particular site sort by time if known, then node time fallback
     if (
         ret == 0
         and (not tskit.is_unknown_time(tables.mutations.time[i]))
         and (not tskit.is_unknown_time(tables.mutations.time[j]))
     ):
         ret = tables.mutations.time[j] - tables.mutations.time[i]
+    if ret == 0:
+        # Use node times as fallback when mutation times are unknown or equal
+        node_time_i = tables.nodes.time[tables.mutations.node[i]]
+        node_time_j = tables.nodes.time[tables.mutations.node[j]]
+        ret = node_time_j - node_time_i
+    if ret == 0:
+        ret = num_descendants[j] - num_descendants[i]
     if ret == 0:
         ret = i - j
     return ret
@@ -1107,8 +1124,9 @@ def py_sort(tables, canonical=False):
     sorted_sites = sorted(range(copy.sites.num_rows), key=site_key)
     site_id_map = {k: j for j, k in enumerate(sorted_sites)}
     site_order = np.argsort(sorted_sites)
+    # Both regular and canonical sorting now need num_descendants
+    mut_num_descendants = compute_mutation_num_descendants(copy)
     if canonical:
-        mut_num_descendants = compute_mutation_num_descendants(copy)
         mut_key = functools.cmp_to_key(
             lambda a, b: cmp_mutation_canonical(
                 a,
@@ -1125,6 +1143,7 @@ def py_sort(tables, canonical=False):
                 b,
                 tables=copy,
                 site_order=site_order,
+                num_descendants=mut_num_descendants,
             )
         )
     sorted_muts = sorted(range(copy.mutations.num_rows), key=mut_key)

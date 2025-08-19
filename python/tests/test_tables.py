@@ -4718,6 +4718,7 @@ class TestSubsetTables:
         # subsetting to everything shouldn't change things except the
         # individual and population ids in the node tables if there are gaps
         for tables in self.get_examples(123583):
+            tables.sort()
             tables2 = tables.copy()
             tables2.subset(np.arange(tables.nodes.num_rows))
             tables.individuals.clear()

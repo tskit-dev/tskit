@@ -3396,7 +3396,12 @@ class TestTreeSequenceTextIO(HighLevelTestCase):
                 sequence_length=ts1.sequence_length,
                 strict=True,
             )
-            self.verify_approximate_equality(ts1, ts2)
+            tables1 = ts1.tables.copy()
+            # load_text performs a `sort`, which changes the order relative to
+            # the original tree sequence
+            tables1.sort()
+            ts1_sorted = tables1.tree_sequence()
+            self.verify_approximate_equality(ts1_sorted, ts2)
 
     def test_empty_files(self):
         nodes_file = io.StringIO("is_sample\ttime\n")

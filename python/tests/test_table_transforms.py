@@ -596,6 +596,11 @@ class TestSplitEdgesExamples:
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     @pytest.mark.parametrize("population", [-1, None])
     def test_definition(self, ts, population):
+        # The python implementation of split_edges performs a sort,
+        # which changes the order relative to the original tree sequence
+        tables = ts.dump_tables()
+        tables.sort()
+        ts = tables.tree_sequence()
         time = 0 if ts.num_nodes == 0 else np.median(ts.tables.nodes.time)
         if ts.num_migrations == 0:
             ts1 = split_edges_definition(ts, time, population=population)
