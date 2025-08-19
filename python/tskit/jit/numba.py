@@ -46,12 +46,12 @@ class EdgeRange:
 
     Attributes
     ----------
-    start : int32
+    start : int
         Starting index of the edge range (inclusive).
-    stop : int32
+    stop : int
         Stopping index of the edge range (exclusive).
-    order : int32[]
-        Array containing edge IDs in the order they should be processed.
+    order : numpy.ndarray
+        Array (dtype=np.int32) containing edge IDs in the order they should be processed.
         The edge ids in this range are order[start:stop].
     """
 
@@ -73,10 +73,11 @@ class ParentIndex:
 
     Attributes
     ----------
-    edge_index : int32[num_edges]
-        Array of edge IDs sorted by child node and left coordinate.
-    index_range : int32[num_nodes, 2]
-        For each node, the [start, stop) range in edge_index where this node is child.
+    edge_index : numpy.ndarray
+        Array (dtype=np.int32) of edge IDs sorted by child node and left coordinate.
+    index_range : numpy.ndarray
+        Array (dtype=np.int32, shape=(num_nodes, 2)) where each row contains the
+        [start, stop) range in edge_index where this node is the child.
     """
 
     def __init__(self, edge_index, index_range):
@@ -100,20 +101,20 @@ class TreeIndex:
     ----------
     ts : NumbaTreeSequence
         Reference to the tree sequence being traversed.
-    index : int32
+    index : int
         Current tree index. -1 indicates no current tree (null state).
-    direction : int32
+    direction : int
         Traversal direction: tskit.FORWARD or tskit.REVERSE. tskit.NULL
         if uninitialised.
-    interval : tuple of float64
+    interval : tuple
         Genomic interval (left, right) covered by the current tree.
-    in_range : NumbaEdgeRange
+    in_range : EdgeRange
         Edges being added to form this current tree, relative to the last state
-    out_range : NumbaEdgeRange
+    out_range : EdgeRange
         Edges being removed to form this current tree, relative to the last state
-    site_range : tuple of int32
+    site_range : tuple
         Range of sites in the current tree (start, stop).
-    mutation_range : tuple of int32
+    mutation_range : tuple
         Range of mutations in the current tree (start, stop).
 
     Example
@@ -319,54 +320,56 @@ class NumbaTreeSequence:
 
     Attributes
     ----------
-    num_trees : int32
+    num_trees : int
         Number of trees in the tree sequence.
-    num_nodes : int32
+    num_nodes : int
         Number of nodes in the tree sequence.
-    num_samples : int32
+    num_samples : int
         Number of samples in the tree sequence.
-    num_edges : int32
+    num_edges : int
         Number of edges in the tree sequence.
-    num_sites : int32
+    num_sites : int
         Number of sites in the tree sequence.
-    num_mutations : int32
+    num_mutations : int
         Number of mutations in the tree sequence.
-    sequence_length : float64
+    sequence_length : float
         Total sequence length of the tree sequence.
-    edges_left : float64[]
-        Left coordinates of edges.
-    edges_right : float64[]
-        Right coordinates of edges.
-    edges_parent : int32[]
-        Parent node IDs for each edge.
-    edges_child : int32[]
-        Child node IDs for each edge.
-    nodes_time : float64[]
-        Time values for each node.
-    nodes_flags : uint32[]
-        Flag values for each node.
-    nodes_population : int32[]
-        Population IDs for each node.
-    nodes_individual : int32[]
-        Individual IDs for each node.
-    individuals_flags : uint32[]
-        Flag values for each individual.
-    sites_position : float64[]
-        Positions of sites along the sequence.
-    mutations_site : int32[]
-        Site IDs for each mutation.
-    mutations_node : int32[]
-        Node IDs for each mutation.
-    mutations_parent : int32[]
-        Parent mutation IDs.
-    mutations_time : float64[]
-        Time values for each mutation.
-    breakpoints : float64[]
-        Genomic positions where trees change.
-    indexes_edge_insertion_order : int32[]
-        Order in which edges are inserted during tree building.
-    indexes_edge_removal_order : int32[]
-        Order in which edges are removed during tree building.
+    edges_left : numpy.ndarray
+        Array (dtype=np.float64) of left coordinates of edges.
+    edges_right : numpy.ndarray
+        Array (dtype=np.float64) of right coordinates of edges.
+    edges_parent : numpy.ndarray
+        Array (dtype=np.int32) of parent node IDs for each edge.
+    edges_child : numpy.ndarray
+        Array (dtype=np.int32) of child node IDs for each edge.
+    nodes_time : numpy.ndarray
+        Array (dtype=np.float64) of time values for each node.
+    nodes_flags : numpy.ndarray
+        Array (dtype=np.uint32) of flag values for each node.
+    nodes_population : numpy.ndarray
+        Array (dtype=np.int32) of population IDs for each node.
+    nodes_individual : numpy.ndarray
+        Array (dtype=np.int32) of individual IDs for each node.
+    individuals_flags : numpy.ndarray
+        Array (dtype=np.uint32) of flag values for each individual.
+    sites_position : numpy.ndarray
+        Array (dtype=np.float64) of positions of sites along the sequence.
+    mutations_site : numpy.ndarray
+        Array (dtype=np.int32) of site IDs for each mutation.
+    mutations_node : numpy.ndarray
+        Array (dtype=np.int32) of node IDs for each mutation.
+    mutations_parent : numpy.ndarray
+        Array (dtype=np.int32) of parent mutation IDs.
+    mutations_time : numpy.ndarray
+        Array (dtype=np.float64) of time values for each mutation.
+    breakpoints : numpy.ndarray
+        Array (dtype=np.float64) of genomic positions where trees change.
+    indexes_edge_insertion_order : numpy.ndarray
+        Array (dtype=np.int32) specifying the order in which edges are inserted
+        during tree building.
+    indexes_edge_removal_order : numpy.ndarray
+        Array (dtype=np.int32) specifying the order in which edges are removed
+        during tree building.
 
     """
 
@@ -446,9 +449,9 @@ class NumbaTreeSequence:
         """
         Create child index array for finding child edges of nodes.
 
-        :return: Array where each row [node] contains [start, stop) range of edges
-            where this node is the parent.
-        :rtype: int32[num_nodes, 2]
+        :return: A numpy array (dtype=np.int32, shape=(num_nodes, 2)) where each row
+            contains the [start, stop) range of edges where this node is the parent.
+        :rtype: numpy.ndarray
         """
         child_range = np.full((self.num_nodes, 2), -1, dtype=np.int32)
         edges_parent = self.edges_parent
