@@ -25,9 +25,14 @@ edge_range_spec = [
     ("order", numba.int32[:]),
 ]
 
+parent_index_spec = [
+    ("edge_index", numba.int32[:]),
+    ("index_range", numba.int32[:, :]),
+]
+
 
 @numba.experimental.jitclass(edge_range_spec)
-class NumbaEdgeRange:
+class EdgeRange:
     """
     Represents a range of edges during tree traversal.
 
@@ -53,144 +58,30 @@ class NumbaEdgeRange:
         self.order = order
 
 
-class NumbaChildIndex:
+@numba.experimental.jitclass(parent_index_spec)
+class ParentIndex:
     """
-    Index for efficiently finding child edges of nodes in a tree sequence.
-
-    This class provides access to all edges where a given node is the parent.
-    Since the tskit edge table is already sorted by parent ID, this is implemented
-    using simple range indexing of that table.
-
-    It should not be instantiated directly, but is returned by the `child_index`
-    method of `NumbaTreeSequence`.
-
-    Attributes
-    ----------
-    ts : NumbaTreeSequence
-        Reference to the tree sequence.
-    child_range : int32[num_nodes, 2]
-        For each node, the [start, stop) range of edges where this node is parent.
-
-    Example
-    --------
-    >>> child_index = numba_ts.child_index()
-    >>> # Get all child edges for node 5
-    >>> start, stop = child_index.child_range[5]
-    >>> for j in range(start, stop):
-    ...     edge_id = j
-    ...     print(f"Edge {edge_id}: {ts.edges_child[j]} -> {ts.edges_parent[j]}")
-    """
-
-    def __init__(self, ts):
-        self.ts = ts
-        child_range = np.full((ts.num_nodes, 2), -1, dtype=np.int32)
-        edges_parent = self.ts.edges_parent
-        if self.ts.num_edges == 0:
-            self.child_range = child_range
-            return
-
-        # Find ranges in tskit edge ordering
-        last_parent = -1
-        for edge_id in range(self.ts.num_edges):
-            parent = edges_parent[edge_id]
-            if parent != last_parent:
-                child_range[parent, 0] = edge_id
-            if last_parent != -1:
-                child_range[last_parent, 1] = edge_id
-            last_parent = parent
-
-        if last_parent != -1:
-            child_range[last_parent, 1] = self.ts.num_edges
-
-        self.child_range = child_range
-
-
-class NumbaParentIndex:
-    """
-    Index for efficiently finding parent edges of nodes in a tree sequence.
+    Simple data container for parent index information.
 
     This class provides access to all edges where a given node is the child.
-    Since edges are not sorted by child in the tskit edge table, this class builds
-    a custom index (parent_index) that sorts edge IDs by child node. `parent_range`
-    then contains the [start, stop) range of edges for each child node in `parent_index`.
-
-    It should not be instantiated directly, but is returned by the `parent_index`
-    method of `NumbaTreeSequence`.
+    Since edges are not sorted by child in the tskit edge table, a custom index
+    (edge_index) is built that sorts edge IDs by child node. `index_range`
+    then contains the [start, stop) range of edges for each child node in `edge_index`.
 
     Attributes
     ----------
-    ts : NumbaTreeSequence
-        Reference to the tree sequence.
-    parent_range : int32[num_nodes, 2]
-        For each node, the [start, stop) range in parent_index where this node is child.
-    parent_index : int32[num_edges]
+    edge_index : int32[num_edges]
         Array of edge IDs sorted by child node and left coordinate.
-
-    Example
-    --------
-    >>> parent_index = numba_ts.parent_index()
-    >>> # Get all parent edges for node 3
-    >>> start, stop = parent_index.parent_range[3]
-    >>> for j in range(start, stop):
-    ...     edge_id = parent_index.parent_index[j]
-    ...     print(f"Edge {edge_id}: {ts.edges_child[edge_id]} ->
-        {ts.edges_parent[edge_id]}")
+    index_range : int32[num_nodes, 2]
+        For each node, the [start, stop) range in edge_index where this node is child.
     """
 
-    def __init__(self, ts):
-        self.ts = ts
-        parent_range = np.full((ts.num_nodes, 2), -1, dtype=np.int32)
-        parent_index = np.zeros(ts.num_edges, dtype=np.int32)
-        if self.ts.num_edges == 0:
-            self.parent_range = parent_range
-            self.parent_index = parent_index
-            return
-
-        # Create array of edge IDs
-        parent_index[:] = np.arange(self.ts.num_edges, dtype=np.int32)
-
-        # Sort edge IDs by child node (and by left coordinate as secondary sort)
-        # We need to implement our own sorting since numba doesn't support lexsort
-        # Use a stable sort to maintain order for secondary key
-        # First sort by left coordinate (secondary key) using a stable sort
-        edges_left = self.ts.edges_left
-        edges_child = self.ts.edges_child
-
-        left_coords = np.zeros(self.ts.num_edges, dtype=np.float64)
-        for i in range(self.ts.num_edges):
-            left_coords[i] = edges_left[parent_index[i]]
-
-        # Stable sort by left coordinate
-        sort_indices = np.argsort(left_coords, kind="mergesort")
-        parent_index[:] = parent_index[sort_indices]
-
-        # Stable sort by child node
-        child_nodes = np.zeros(self.ts.num_edges, dtype=np.int32)
-        for i in range(self.ts.num_edges):
-            child_nodes[i] = edges_child[parent_index[i]]
-        sort_indices = np.argsort(child_nodes, kind="mergesort")
-        parent_index[:] = parent_index[sort_indices]
-
-        # Find ranges
-        last_child = -1
-        for j in range(self.ts.num_edges):
-            edge_id = parent_index[j]
-            child = edges_child[edge_id]
-
-            if child != last_child:
-                parent_range[child, 0] = j
-            if last_child != -1:
-                parent_range[last_child, 1] = j
-            last_child = child
-
-        if last_child != -1:
-            parent_range[last_child, 1] = self.ts.num_edges
-
-        self.parent_range = parent_range
-        self.parent_index = parent_index
+    def __init__(self, edge_index, index_range):
+        self.edge_index = edge_index
+        self.index_range = index_range
 
 
-class NumbaTreeIndex:
+class TreeIndex:
     """
     Traverse trees in a numba compatible tree sequence.
 
@@ -237,8 +128,8 @@ class NumbaTreeIndex:
         self.index = -1
         self.direction = tskit.NULL
         self.interval = (0, 0)
-        self.in_range = NumbaEdgeRange(0, 0, np.zeros(0, dtype=np.int32))
-        self.out_range = NumbaEdgeRange(0, 0, np.zeros(0, dtype=np.int32))
+        self.in_range = EdgeRange(0, 0, np.zeros(0, dtype=np.int32))
+        self.out_range = EdgeRange(0, 0, np.zeros(0, dtype=np.int32))
         self.site_range = (0, 0)
         self.mutation_range = (0, 0)
 
@@ -538,39 +429,98 @@ class NumbaTreeSequence:
 
     def tree_index(self):
         """
-        Create a :class:`NumbaTreeIndex` for traversing this tree sequence.
+        Create a :class:`TreeIndex` for traversing this tree sequence.
 
         :return: A new tree index initialized to the null tree.
             Use next() or prev() to move to an actual tree.
-        :rtype: NumbaTreeIndex
+        :rtype: TreeIndex
         """
-        # This method will be overriden when the concrete JIT class NumbaTreeIndex
+        # This method will be overriden when the concrete JIT class TreeIndex
         # is defined in `jitwrap`.
-        return NumbaTreeIndex(self)  # pragma: no cover
+        return TreeIndex(self)  # pragma: no cover
 
     def child_index(self):
         """
-        Create a :class:`NumbaChildIndex` for finding child edges of nodes.
+        Create child index array for finding child edges of nodes.
 
-        :return: A new child index that can be used to efficiently find all edges
-            where a given node is the parent.
-        :rtype: NumbaChildIndex
+        :return: Array where each row [node] contains [start, stop) range of edges
+            where this node is the parent.
+        :rtype: int32[num_nodes, 2]
         """
-        # This method will be overriden when the concrete JIT
-        # class is defined in `jitwrap`.
-        return NumbaChildIndex(self)  # pragma: no cover
+        child_range = np.full((self.num_nodes, 2), -1, dtype=np.int32)
+        edges_parent = self.edges_parent
+        if self.num_edges == 0:
+            return child_range
+
+        # Find ranges in tskit edge ordering
+        last_parent = -1
+        for edge_id in range(self.num_edges):
+            parent = edges_parent[edge_id]
+            if parent != last_parent:
+                child_range[parent, 0] = edge_id
+            if last_parent != -1:
+                child_range[last_parent, 1] = edge_id
+            last_parent = parent
+
+        if last_parent != -1:
+            child_range[last_parent, 1] = self.num_edges
+
+        return child_range
 
     def parent_index(self):
         """
-        Create a :class:`NumbaParentIndex` for finding parent edges of nodes.
+        Create a :class:`ParentIndex` for finding parent edges of nodes.
 
-        :return: A new parent index that can be used to efficiently find all edges
-            where a given node is the child.
-        :rtype: NumbaParentIndex
+        :return: A new parent index container that can be used to
+            efficiently find all edges where a given node is the child.
+        :rtype: ParentIndex
         """
-        # This method will be overriden when the concrete JIT class is
-        # defined in `jitwrap`.
-        return NumbaParentIndex(self)  # pragma: no cover
+        index_range = np.full((self.num_nodes, 2), -1, dtype=np.int32)
+        edge_index = np.zeros(self.num_edges, dtype=np.int32)
+        if self.num_edges == 0:
+            return ParentIndex(edge_index, index_range)
+
+        # Create array of edge IDs
+        edge_index[:] = np.arange(self.num_edges, dtype=np.int32)
+
+        # Sort edge IDs by child node (and by left coordinate as secondary sort)
+        # We need to implement our own sorting since numba doesn't support lexsort
+        # Use a stable sort to maintain order for secondary key
+        # First sort by left coordinate (secondary key) using a stable sort
+        edges_left = self.edges_left
+        edges_child = self.edges_child
+
+        left_coords = np.zeros(self.num_edges, dtype=np.float64)
+        for i in range(self.num_edges):
+            left_coords[i] = edges_left[edge_index[i]]
+
+        # Stable sort by left coordinate
+        sort_indices = np.argsort(left_coords, kind="mergesort")
+        edge_index[:] = edge_index[sort_indices]
+
+        # Stable sort by child node
+        child_nodes = np.zeros(self.num_edges, dtype=np.int32)
+        for i in range(self.num_edges):
+            child_nodes[i] = edges_child[edge_index[i]]
+        sort_indices = np.argsort(child_nodes, kind="mergesort")
+        edge_index[:] = edge_index[sort_indices]
+
+        # Find ranges
+        last_child = -1
+        for j in range(self.num_edges):
+            edge_id = edge_index[j]
+            child = edges_child[edge_id]
+
+            if child != last_child:
+                index_range[child, 0] = j
+            if last_child != -1:
+                index_range[last_child, 1] = j
+            last_child = child
+
+        if last_child != -1:
+            index_range[last_child, 1] = self.num_edges
+
+        return ParentIndex(edge_index, index_range)
 
 
 # We cache these classes to avoid repeated JIT compilation
@@ -581,36 +531,23 @@ def _jitwrap(max_ancestral_length, max_derived_length):
     tree_sequence_type = numba.deferred_type()
 
     # We run this code on CI with this env var set so we can get coverage
-    # of the jitted functions. NumbaEdgeRange doesn't have a class_type
+    # of the jitted functions. EdgeRange doesn't have a class_type
     # in this case, so we skip the spec entirely.
     if os.environ.get("NUMBA_DISABLE_JIT") == "1":
         tree_index_spec = []
-        child_index_spec = []
-        parent_index_spec = []
     else:
         tree_index_spec = [
             ("ts", tree_sequence_type),
             ("index", numba.int32),
             ("direction", numba.int32),
             ("interval", numba.types.UniTuple(numba.float64, 2)),
-            ("in_range", NumbaEdgeRange.class_type.instance_type),
-            ("out_range", NumbaEdgeRange.class_type.instance_type),
+            ("in_range", EdgeRange.class_type.instance_type),
+            ("out_range", EdgeRange.class_type.instance_type),
             ("site_range", numba.types.UniTuple(numba.int32, 2)),
             ("mutation_range", numba.types.UniTuple(numba.int32, 2)),
         ]
-        child_index_spec = [
-            ("ts", tree_sequence_type),
-            ("child_range", numba.int32[:, :]),
-        ]
-        parent_index_spec = [
-            ("ts", tree_sequence_type),
-            ("parent_range", numba.int32[:, :]),
-            ("parent_index", numba.int32[:]),
-        ]
 
-    JittedTreeIndex = numba.experimental.jitclass(tree_index_spec)(NumbaTreeIndex)
-    JittedChildIndex = numba.experimental.jitclass(child_index_spec)(NumbaChildIndex)
-    JittedParentIndex = numba.experimental.jitclass(parent_index_spec)(NumbaParentIndex)
+    JittedTreeIndex = numba.experimental.jitclass(tree_index_spec)(TreeIndex)
 
     tree_sequence_spec = [
         ("num_trees", numba.int32),
@@ -650,12 +587,6 @@ def _jitwrap(max_ancestral_length, max_derived_length):
     class _NumbaTreeSequence(NumbaTreeSequence):
         def tree_index(self):
             return JittedTreeIndex(self)
-
-        def child_index(self):
-            return JittedChildIndex(self)
-
-        def parent_index(self):
-            return JittedParentIndex(self)
 
     JittedTreeSequence = numba.experimental.jitclass(tree_sequence_spec)(
         _NumbaTreeSequence

@@ -42,10 +42,9 @@ conda install numba
 The numba integration provides:
 
 - **{class}`NumbaTreeSequence`**: A Numba-compatible representation of tree sequence data
-- **{class}`NumbaTreeIndex`**: A class for efficient tree iteration
-- **{class}`NumbaEdgeRange`**: Container class for edge ranges during iteration
-- **{class}`NumbaChildIndex`**: A class for efficiently finding child edges of nodes
-- **{class}`NumbaParentIndex`**: A class for efficiently finding parent edges of nodes
+- **{class}`TreeIndex`**: A class for efficient tree iteration
+- **{class}`EdgeRange`**: Container class for edge ranges during iteration
+- **{class}`ParentIndex`**: Container for parent edge index information
 
 These classes are designed to work within Numba's `@njit` decorated functions,
 allowing you to write high-performance tree sequence analysis code.
@@ -78,11 +77,11 @@ print(type(numba_ts))
 
 ## Tree Iteration
 
-Tree iteration can be performed in `numba.njit` compiled functions using the {class}`NumbaTreeIndex` class.
+Tree iteration can be performed in `numba.njit` compiled functions using the {class}`TreeIndex` class.
 This class provides `next()` and `prev()` methods for forward and backward iteration through the trees in a tree sequence. Its `in_range` and `out_range` attributes provide the edges that must be added or removed to form the current
 tree from the previous tree, along with the current tree `interval` and its sites and mutations through `site_range` and `mutation_range`.
 
-A `NumbaTreeIndex` instance can be obtained from a `NumbaTreeSequence` using the `tree_index()` method. The initial state of this is of a "null" tree outside the range of the tree sequence, the first call to `next()` or `prev()` will be to the first, or last tree sequence tree respectively. After that, the `in_range` and `out_range` attributes will provide the edges that must be added or removed to form the current tree from the previous tree. For example
+A `TreeIndex` instance can be obtained from a {class}`NumbaTreeSequence` using the {meth}`~NumbaTreeSequence.tree_index` method. The initial state of this is of a "null" tree outside the range of the tree sequence, the first call to `next()` or `prev()` will be to the first, or last tree sequence tree respectively. After that, the `in_range` and `out_range` attributes will provide the edges that must be added or removed to form the current tree from the previous tree. For example
 `tree_index.in_range.order[in_range.start:in_range.stop]` will give the edge ids that are new in the current tree, and `tree_index.out_range.order[out_range.start:out_range.stop]` will give the edge ids that are no longer present in the current tree. `tree_index.site_range` and
 `tree_index.mutation_range` give the indexes into the tree sequences site and mutation arrays.
 
@@ -249,13 +248,13 @@ print("Time taken:", time.time() - t)
 
 ## ARG Traversal
 
-Beyond iterating through trees, you may need to traverse the ARG vertically. The {class}`NumbaChildIndex` and {class}`NumbaParentIndex` classes provide efficient access to parent-child relationships in the edge table within `numba.njit` functions.
+Beyond iterating through trees, you may need to traverse the ARG vertically. The {meth}`~NumbaTreeSequence.child_index` method and {class}`ParentIndex` class provide efficient access to parent-child relationships in the edge table within `numba.njit` functions.
 
-The {class}`NumbaChildIndex` allows you to efficiently find all edges where a given node is the parent. Since edges are already sorted by parent in the tskit data model, this is implemented using simple range indexing. For any node `u`, `child_range[u]` gives a tuple of the start and stop indices in the tskit edge table where node `u` is the parent.
+The {meth}`~NumbaTreeSequence.child_index` method returns an array that allows you to efficiently find all edges where a given node is the parent. Since edges are already sorted by parent in the tskit data model, this is implemented using simple range indexing. For any node `u`, the returned array `child_index[u]` gives a tuple of the start and stop indices in the tskit edge table where node `u` is the parent.
 
-The {class}`NumbaParentIndex` allows you to efficiently find all edges where a given node is the child. Since edges are not sorted by child in the edge table, this class builds a custom index that sorts edge IDs by child node (and then by left coordinate). For any node `u`, `parent_range[u]` gives a tuple of the start and stop indices in the `parent_index` array, and `parent_index[start:stop]` gives the actual tskit edge IDs.
+The {meth}`~NumbaTreeSequence.parent_index` method creates a {class}`ParentIndex` that allows you to efficiently find all edges where a given node is the child. Since edges are not sorted by child in the edge table, the returned class contains a custom index that sorts edge IDs by child node (and then by left coordinate). For any node `u`, `parent_index.index_range[u]` gives a tuple of the start and stop indices in the `edge_index` array, and `parent_index.edge_index[start:stop]` gives the actual tskit edge IDs.
 
-Both indexes can be obtained from a `NumbaTreeSequence`:
+Both can be obtained from a {class}`NumbaTreeSequence`:
 
 ```{code-cell} python
 # Get the indexes
@@ -263,11 +262,11 @@ child_index = numba_ts.child_index()
 parent_index = numba_ts.parent_index()
 
 # Example: find all edges where node 5 is the parent
-start, stop = child_index.child_range[5]
+start, stop = child_index[5]
 print(f"Node 5 has {stop - start} child edges")
 
 # Example: find all edges where node 3 is the child  
-start, stop = parent_index.parent_range[3]
+start, stop = parent_index.index_range[3]
 print(f"Node 3 appears as child in {stop - start} edges")
 ```
 
@@ -285,7 +284,6 @@ def descendant_span(numba_ts, u):
     descends from the specified node u.
     """
     child_index = numba_ts.child_index()
-    child_range = child_index.child_range
     edges_left = numba_ts.edges_left
     edges_right = numba_ts.edges_right
     edges_child = numba_ts.edges_child
@@ -301,7 +299,7 @@ def descendant_span(numba_ts, u):
         node, left, right = stack.pop()
         
         # Find all child edges for this node
-        for e in range(child_range[node, 0], child_range[node, 1]):
+        for e in range(child_index[node, 0], child_index[node, 1]):
             e_left = edges_left[e]
             e_right = edges_right[e]
             
@@ -370,15 +368,12 @@ print("Results match!")
 .. autoclass:: NumbaTreeSequence
    :members:
 
-.. autoclass:: NumbaTreeIndex
+.. autoclass:: TreeIndex
    :members:
 
-.. autoclass:: NumbaEdgeRange
+.. autoclass:: EdgeRange
    :members:
 
-.. autoclass:: NumbaChildIndex
-   :members:
-
-.. autoclass:: NumbaParentIndex
+.. autoclass:: ParentIndex
    :members:
 ```
