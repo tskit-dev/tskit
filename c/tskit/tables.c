@@ -6817,35 +6817,6 @@ cmp_mutation(const void *a, const void *b)
         ret = (ia->num_descendants < ib->num_descendants)
               - (ia->num_descendants > ib->num_descendants);
     }
-    /* Final tiebreaker: ID */
-    if (ret == 0) {
-        ret = (ia->mut.id > ib->mut.id) - (ia->mut.id < ib->mut.id);
-    }
-    return ret;
-}
-
-static int
-cmp_mutation_canonical(const void *a, const void *b)
-{
-    const mutation_sort_t *ia = (const mutation_sort_t *) a;
-    const mutation_sort_t *ib = (const mutation_sort_t *) b;
-    /* Compare mutations by site */
-    int ret = (ia->mut.site > ib->mut.site) - (ia->mut.site < ib->mut.site);
-
-    /* Within a particular site sort by time if known */
-    if (ret == 0 && !tsk_is_unknown_time(ia->mut.time)
-        && !tsk_is_unknown_time(ib->mut.time)) {
-        ret = (ia->mut.time < ib->mut.time) - (ia->mut.time > ib->mut.time);
-    }
-    /* Or node times when mutation times are unknown or equal */
-    if (ret == 0) {
-        ret = (ia->node_time < ib->node_time) - (ia->node_time > ib->node_time);
-    }
-    /* If node times are equal, sort by number of descendants */
-    if (ret == 0) {
-        ret = (ia->num_descendants < ib->num_descendants)
-              - (ia->num_descendants > ib->num_descendants);
-    }
     /* If number of descendants are equal, sort by node */
     if (ret == 0) {
         ret = (ia->mut.node > ib->mut.node) - (ia->mut.node < ib->mut.node);
@@ -7076,8 +7047,7 @@ out:
 }
 
 static int
-tsk_table_sorter_sort_mutations_impl(
-    tsk_table_sorter_t *self, int (*cmp_func)(const void *, const void *))
+tsk_table_sorter_sort_mutations(tsk_table_sorter_t *self)
 {
     int ret = 0;
     tsk_size_t j;
@@ -7125,7 +7095,8 @@ tsk_table_sorter_sort_mutations_impl(
         goto out;
     }
 
-    qsort(sorted_mutations, (size_t) num_mutations, sizeof(*sorted_mutations), cmp_func);
+    qsort(sorted_mutations, (size_t) num_mutations, sizeof(*sorted_mutations),
+        cmp_mutation);
 
     /* Make a first pass through the sorted mutations to build the ID map. */
     for (j = 0; j < num_mutations; j++) {
@@ -7155,18 +7126,6 @@ out:
     tsk_safe_free(sorted_mutations);
     tsk_mutation_table_free(&copy);
     return ret;
-}
-
-static int
-tsk_table_sorter_sort_mutations(tsk_table_sorter_t *self)
-{
-    return tsk_table_sorter_sort_mutations_impl(self, cmp_mutation);
-}
-
-static int
-tsk_table_sorter_sort_mutations_canonical(tsk_table_sorter_t *self)
-{
-    return tsk_table_sorter_sort_mutations_impl(self, cmp_mutation_canonical);
 }
 
 static int
@@ -12217,7 +12176,7 @@ tsk_table_collection_canonicalise(tsk_table_collection_t *self, tsk_flags_t opti
     if (ret != 0) {
         goto out;
     }
-    sorter.sort_mutations = tsk_table_sorter_sort_mutations_canonical;
+    sorter.sort_mutations = tsk_table_sorter_sort_mutations;
     sorter.sort_individuals = tsk_table_sorter_sort_individuals_canonical;
 
     nodes = tsk_malloc(self->nodes.num_rows * sizeof(*nodes));
