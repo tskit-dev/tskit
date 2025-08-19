@@ -2286,11 +2286,9 @@ class TestSortTables:
         tables2 = tables1.copy()
         tables1.sort()
         tsutil.py_sort(tables2)
-
-        # TODO - Check the sorted tables are valid ts, currently fails due to mutations
-        # tables1.tree_sequence()
-        # tables2.tree_sequence()
-
+        # Check that both are valid tree sequences
+        tables1.tree_sequence()
+        tables2.tree_sequence()
         tables1.assert_equals(tables2)
 
     def verify_canonical_equality(self, tables, seed):
@@ -2699,7 +2697,7 @@ class TestSortMutations:
         1       0       1               -1
         1       1       1               -1
         0       1       1               -1
-        0       0       1               -1
+        0       1       0               -1
         """
         )
         ts = tskit.load_text(
@@ -2717,7 +2715,8 @@ class TestSortMutations:
         assert len(sites) == 2
         assert len(mutations) == 4
         assert list(mutations.site) == [0, 0, 1, 1]
-        assert list(mutations.node) == [1, 0, 0, 1]
+        assert list(mutations.node) == [1, 1, 0, 1]
+        assert list(map(chr, mutations.derived_state)) == ["1", "0", "1", "1"]
 
     def test_sort_mutations_remap_parent_id(self):
         nodes = io.StringIO(
@@ -2860,6 +2859,37 @@ class TestSortMutations:
             map(ord, ["i", "h", "g", "d", "e", "f", "c", "a", "b"])
         )
         assert list(mutations.parent) == [-1, -1, -1, -1, -1, -1, -1, -1, -1]
+
+    def test_add_mutations_to_nodes(self):
+        # Test that adding mutations to random nodes, without parent IDs
+        # works - this requires the mutations to be sorted by node times
+
+        ts = msprime.sim_mutations(
+            msprime.sim_ancestry(
+                10, sequence_length=100, random_seed=1, recombination_rate=0.01
+            ),
+            rate=1,
+            random_seed=1,
+        )
+
+        # Add some random mutations, and delete some others
+        tables = ts.dump_tables()
+        tables.mutations.time = np.full_like(tables.mutations.time, tskit.UNKNOWN_TIME)
+        np.random.seed(10)
+        for s in ts.sites():
+            tables.mutations.add_row(
+                site=s.id, node=np.random.randint(ts.num_nodes), derived_state="A"
+            )
+        keep = np.ones(tables.mutations.num_rows, dtype=bool)
+        keep[0:100] = False
+        tables.mutations.replace_with(tables.mutations[keep])
+        # Remove all the parent IDs
+        tables.mutations.parent = np.full_like(tables.mutations.parent, tskit.NULL)
+        assert np.all(tables.mutations.parent == tskit.NULL)
+        tables.sort()
+        tables.build_index()
+        tables.compute_mutation_parents()
+        tables.tree_sequence()
 
 
 class TestTablesToTreeSequence:
@@ -4695,14 +4725,26 @@ class TestSubsetTables:
         for k, s in zip(sites, subset.sites):
             ss = tables.sites[k]
             assert ss == s
-        assert subset.mutations.num_rows == len(muts)
-        for k, m in zip(muts, subset.mutations):
-            mm = tables.mutations[k]
-            assert mutation_map[mm.parent] == m.parent
-            assert site_map[mm.site] == m.site
-            assert node_map[mm.node] == m.node
-            assert mm.derived_state == m.derived_state
-            assert mm.metadata == m.metadata
+
+        # subset can reorder the mutations: we need to check we have the same set
+        def normalize_time(time):
+            return -42.0 if tskit.is_unknown_time(time) else time
+
+        expected_mutations = {
+            (
+                site_map[tables.mutations[k].site],
+                node_map[tables.mutations[k].node],
+                normalize_time(tables.mutations[k].time),
+                tables.mutations[k].metadata,
+            )
+            for k in muts
+        }
+        actual_mutations = {
+            (m.site, m.node, normalize_time(m.time), m.metadata)
+            for m in subset.mutations
+        }
+        assert len(expected_mutations) == len(actual_mutations)
+        assert expected_mutations == actual_mutations
         assert tables.migrations == subset.migrations
         assert tables.provenances == subset.provenances
 
@@ -4718,6 +4760,7 @@ class TestSubsetTables:
         # subsetting to everything shouldn't change things except the
         # individual and population ids in the node tables if there are gaps
         for tables in self.get_examples(123583):
+            tables.sort()
             tables2 = tables.copy()
             tables2.subset(np.arange(tables.nodes.num_rows))
             tables.individuals.clear()

@@ -21,6 +21,13 @@
 
 **Bugfixes**
 
+- In some tables with mutations out-of-order `TableCollection.sort` did not re-order
+  the mutations so they formed a valid TreeSequence. `TableCollection.sort` and
+  `TableCollection.canonicalise` now sort mutations by site, then time (if known),
+  then the mutation's node's time, then number of descendant mutations
+  (ensuring that parent mutations occur before children), then node, then
+  their original order in the tables. (:user:`benjeffery`, :pr:`3257`, :issue:`3253`)
+
 - Fix bug in ``TreeSequence.pair_coalescence_counts`` when ``span_normalise=True``
   and a window breakpoint falls within an internal missing interval.
   (:user:`nspope`, :pr:`3176`, :issue:`3175`)

@@ -3627,10 +3627,10 @@ class TableCollection(metadata.MetadataProvider):
         Sites are sorted by position, and sites with the same position retain
         their relative ordering.
 
-        Mutations are sorted by site ID, and within the same site are sorted by time.
-        Those with equal or unknown time retain their relative ordering. This does not
-        currently rearrange tables so that mutations occur after their mutation parents,
-        which is a requirement for valid tree sequences.
+        Mutations are sorted by site, then time (if known), then the mutation's
+        node's time, then number of descendant mutations (ensuring that parent
+        mutations occur before children), then node, then original order in the
+        tables.
 
         Migrations are sorted by ``time``, ``source``, ``dest``, ``left`` and
         ``node`` values. This defines a total sort order, such that any permutation
@@ -3667,9 +3667,10 @@ class TableCollection(metadata.MetadataProvider):
         and population tables are sorted by the first node that refers to each
         (see :meth:`TreeSequence.subset`). Then, the remaining tables are sorted
         as in :meth:`.sort`, with the modification that mutations are sorted by
-        site, then time, then number of descendant mutations (ensuring that
-        parent mutations occur before children), then node, then original order
-        in the tables. This ensures that any two tables with the same information
+        site, then time (if known), then the mutation's node's time, then number
+        of descendant mutations (ensuring that parent mutations occur before
+        children), then node, then original order in the tables. This ensures
+        that any two tables with the same information
         and node order should be identical after canonical sorting (note
         that no canonical order exists for the node table).
 
