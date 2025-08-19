@@ -39,15 +39,18 @@ conda install numba
 
 ## Overview
 
-The numba integration provides:
+The numba integration provides a {class}`tskit.TreeSequence` wrapper class {class}`NumbaTreeSequence`.
+This class can be used directly in `numba.njit` compiled functions, and provides several efficient
+methods for tree traversal:
 
-- **{class}`NumbaTreeSequence`**: A Numba-compatible representation of tree sequence data
-- **{class}`TreeIndex`**: A class for efficient tree iteration
-- **{class}`EdgeRange`**: Container class for edge ranges during iteration
-- **{class}`ParentIndex`**: Container for parent edge index information
+- **{meth}`~NumbaTreeSequence.tree_index`**: For efficient iteration through the trees in the sequence
+- **{meth}`~NumbaTreeSequence.parent_index`**: For efficient access to parent edge information, to
+traverse upwards through the ARG.
+- **{meth}`~NumbaTreeSequence.child_index`**: For efficient access to child edge information, to
+traverse downwards through the ARG.
 
-These classes are designed to work within Numba's `@njit` decorated functions,
-allowing you to write high-performance tree sequence analysis code.
+These methods are optimised to work within Numba's `@njit` decorated functions,
+allowing you to write high-performance tree sequence analysis code in a plain Python style.
 
 ## Basic Usage
 
@@ -248,11 +251,11 @@ print("Time taken:", time.time() - t)
 
 ## ARG Traversal
 
-Beyond iterating through trees, you may need to traverse the ARG vertically. The {meth}`~NumbaTreeSequence.child_index` method and {class}`ParentIndex` class provide efficient access to parent-child relationships in the edge table within `numba.njit` functions.
+Beyond iterating through trees, you may need to traverse the ARG vertically. The {meth}`~NumbaTreeSequence.child_index` and {meth}`~NumbaTreeSequence.parent_index` methods provide efficient access to parent-child relationships in the edge table within `numba.njit` functions.
 
-The {meth}`~NumbaTreeSequence.child_index` method returns an array that allows you to efficiently find all edges where a given node is the parent. Since edges are already sorted by parent in the tskit data model, this is implemented using simple range indexing. For any node `u`, the returned array `child_index[u]` gives a tuple of the start and stop indices in the tskit edge table where node `u` is the parent.
+The {meth}`~NumbaTreeSequence.child_index` method returns an array that allows you to efficiently find all edges where a given node is the parent. Since edges are already sorted by parent in the tskit data model, this is implemented using simple range indexing. For any node `u`, the returned array `child_index[u]` gives a tuple of the start and stop indices in the tskit edge table where node `u` is the parent. The index is calculated on each call to `child_index()` so should be called once.
 
-The {meth}`~NumbaTreeSequence.parent_index` method creates a {class}`ParentIndex` that allows you to efficiently find all edges where a given node is the child. Since edges are not sorted by child in the edge table, the returned class contains a custom index that sorts edge IDs by child node (and then by left coordinate). For any node `u`, `parent_index.index_range[u]` gives a tuple of the start and stop indices in the `edge_index` array, and `parent_index.edge_index[start:stop]` gives the actual tskit edge IDs.
+The {meth}`~NumbaTreeSequence.parent_index` method creates a {class}`ParentIndex` that allows you to efficiently find all edges where a given node is the child. Since edges are not sorted by child in the edge table, the returned class contains a custom index that sorts edge IDs by child node (and then by left coordinate). For any node `u`, `parent_index.index_range[u]` gives a tuple of the start and stop indices in the `parent_index.edge_index` array, and `parent_index.edge_index[start:stop]` gives the actual tskit edge IDs.
 
 Both can be obtained from a {class}`NumbaTreeSequence`:
 
@@ -261,20 +264,22 @@ Both can be obtained from a {class}`NumbaTreeSequence`:
 child_index = numba_ts.child_index()
 parent_index = numba_ts.parent_index()
 
-# Example: find all edges where node 5 is the parent
+# Example: find all left coordinates of edges where node 5 is the parent
 start, stop = child_index[5]
-print(f"Node 5 has {stop - start} child edges")
+left_coords = numba_ts.edges_left[start:stop]
+print(left_coords)
 
-# Example: find all edges where node 3 is the child  
+# Example: find all right coordinates of edges where node 3 is the child
 start, stop = parent_index.index_range[3]
-print(f"Node 3 appears as child in {stop - start} edges")
+right_coords = numba_ts.edges_right[start:stop]
+print(right_coords)
 ```
 
 These indexes enable efficient algorithms that need to traverse parent-child relationships in the ARG, such as computing descendant sets, ancestral paths, or subtree properties.
 
 ### Example - descendant span calculation
 
-Here's an example of using the ARG traversal classes to calculate the total sequence length over which each node descends from a specified node:
+Here's an example of using the ARG traversal indexes to calculate the total sequence length over which each node descends from a specified node:
 
 ```{code-cell} python
 @numba.njit
