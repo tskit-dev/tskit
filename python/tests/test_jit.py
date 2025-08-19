@@ -122,7 +122,7 @@ def test_child_index_correctness(ts):
     numba_ts = jit_numba.jitwrap(ts)
     child_index = numba_ts.child_index()
     for node in range(ts.num_nodes):
-        start, stop = child_index.child_range[node]
+        start, stop = child_index[node]
 
         expected_children = []
         for edge_id in range(ts.num_edges):
@@ -144,7 +144,7 @@ def test_parent_index_correctness(ts):
     numba_ts = jit_numba.jitwrap(ts)
     parent_index = numba_ts.parent_index()
     for node in range(ts.num_nodes):
-        start, stop = parent_index.parent_range[node]
+        start, stop = parent_index.index_range[node]
 
         expected_parents = []
         for edge_id in range(ts.num_edges):
@@ -157,7 +157,7 @@ def test_parent_index_correctness(ts):
             assert stop > start
             actual_parent_edge_ids = []
             for j in range(start, stop):
-                edge_id = parent_index.parent_index[j]
+                edge_id = parent_index.edge_index[j]
                 actual_parent_edge_ids.append(edge_id)
                 assert ts.edges_child[edge_id] == node
             assert set(actual_parent_edge_ids) == set(expected_parents)
@@ -173,10 +173,10 @@ def test_parent_index_tree_reconstruction(ts):
         position = tree.interval.left + 0.5 * tree.span
         reconstructed_parent = np.full(ts.num_nodes, -1, dtype=np.int32)
         for node in range(ts.num_nodes):
-            start, stop = parent_index.parent_range[node]
+            start, stop = parent_index.index_range[node]
             if start != -1:
                 for j in range(start, stop):
-                    edge_id = parent_index.parent_index[j]
+                    edge_id = parent_index.edge_index[j]
                     if ts.edges_left[edge_id] <= position < ts.edges_right[edge_id]:
                         reconstructed_parent[node] = ts.edges_parent[edge_id]
                         break
@@ -204,12 +204,12 @@ def test_child_parent_index_from_jit_function():
 
         for node in range(numba_ts.num_nodes):
             # Count child edges
-            child_start, child_stop = child_index.child_range[node]
+            child_start, child_stop = child_index[node]
             if child_start != -1:
                 total_child_edges += child_stop - child_start
 
             # Count parent edges
-            parent_start, parent_stop = parent_index.parent_range[node]
+            parent_start, parent_stop = parent_index.index_range[node]
             if parent_start != -1:
                 total_parent_edges += parent_stop - parent_start
 
@@ -435,7 +435,7 @@ def test_jitwrap_properties(ts):
 def test_numba_edge_range():
 
     order = np.array([1, 3, 2, 0], dtype=np.int32)
-    edge_range = jit_numba.NumbaEdgeRange(start=1, stop=3, order=order)
+    edge_range = jit_numba.EdgeRange(start=1, stop=3, order=order)
 
     assert edge_range.start == 1
     assert edge_range.stop == 3
@@ -520,7 +520,6 @@ def test_jit_descendant_span(ts):
     @numba.njit
     def descendant_span(numba_ts, u):
         child_index = numba_ts.child_index()
-        child_range = child_index.child_range
         edges_left = numba_ts.edges_left
         edges_right = numba_ts.edges_right
         edges_child = numba_ts.edges_child
@@ -536,7 +535,7 @@ def test_jit_descendant_span(ts):
             node, left, right = stack.pop()
 
             # Find all child edges for this node
-            for e in range(child_range[node, 0], child_range[node, 1]):
+            for e in range(child_index[node, 0], child_index[node, 1]):
                 e_left = edges_left[e]
                 e_right = edges_right[e]
 
