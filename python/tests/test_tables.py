@@ -2860,6 +2860,37 @@ class TestSortMutations:
         )
         assert list(mutations.parent) == [-1, -1, -1, -1, -1, -1, -1, -1, -1]
 
+    def test_add_mutations_to_nodes(self):
+        # Test that adding mutations to random nodes, without parent IDs
+        # works - this requires the mutations to be sorted by node times
+
+        ts = msprime.sim_mutations(
+            msprime.sim_ancestry(
+                10, sequence_length=100, random_seed=1, recombination_rate=0.01
+            ),
+            rate=1,
+            random_seed=1,
+        )
+
+        # Add some random mutations, and delete some others
+        tables = ts.dump_tables()
+        tables.mutations.time = np.full_like(tables.mutations.time, tskit.UNKNOWN_TIME)
+        np.random.seed(10)
+        for s in ts.sites():
+            tables.mutations.add_row(
+                site=s.id, node=np.random.randint(ts.num_nodes), derived_state="A"
+            )
+        keep = np.ones(tables.mutations.num_rows, dtype=bool)
+        keep[0:100] = False
+        tables.mutations.replace_with(tables.mutations[keep])
+        # Remove all the parent IDs
+        tables.mutations.parent = np.full_like(tables.mutations.parent, tskit.NULL)
+        assert np.all(tables.mutations.parent == tskit.NULL)
+        tables.sort()
+        tables.build_index()
+        tables.compute_mutation_parents()
+        tables.tree_sequence()
+
 
 class TestTablesToTreeSequence:
     """
