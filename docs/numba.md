@@ -303,12 +303,9 @@ def descendant_span(numba_ts, u):
     total_descending = np.zeros(numba_ts.num_nodes)
     stack = [(u, 0.0, numba_ts.sequence_length)]
     
-    # TODO is it right that u is considered to inherit from itself
-    # across the whole sequence?
-    total_descending[u] = numba_ts.sequence_length
-    
     while len(stack) > 0:
         node, left, right = stack.pop()
+        total_descending[node] += right - left
         
         # Find all child edges for this node
         for e in range(child_index[node, 0], child_index[node, 1]):
@@ -320,8 +317,6 @@ def descendant_span(numba_ts, u):
                 inter_left = max(e_left, left)
                 inter_right = min(e_right, right)
                 e_child = edges_child[e]
-                
-                total_descending[e_child] += inter_right - inter_left
                 stack.append((e_child, inter_left, inter_right))
     
     return total_descending
