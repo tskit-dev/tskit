@@ -152,7 +152,7 @@ def test_parent_index_correctness(ts):
                 expected_parents.append(edge_id)
 
         if len(expected_parents) == 0:
-            assert start == -1 and stop == -1
+            assert start == stop
         else:
             assert stop > start
             actual_parent_edge_ids = []

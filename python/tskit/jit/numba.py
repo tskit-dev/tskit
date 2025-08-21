@@ -479,58 +479,47 @@ class NumbaTreeSequence:
 
     def parent_index(self):
         """
-        Create a :class:`ParentIndex` for finding parent edges of nodes. This
-        operation requires sorting the edges by child ID and left coordinate,
-        and therefore requires O(E log E) time complexity.
+        Create a :class:`ParentIndex` for finding parent edges of nodes.
+
+        Edges within each child's group are not guaranteed to be in any
+        specific order. This operation uses a two-pass algorithm with
+        O(N + E) time complexity and O(N) auxiliary space.
 
         :return: A new parent index container that can be used to
             efficiently find all edges where a given node is the child.
         :rtype: ParentIndex
         """
-        index_range = np.full((self.num_nodes, 2), -1, dtype=np.int32)
-        edge_index = np.zeros(self.num_edges, dtype=np.int32)
-        if self.num_edges == 0:
-            return ParentIndex(edge_index, index_range)
-
-        # Create array of edge IDs
-        edge_index[:] = np.arange(self.num_edges, dtype=np.int32)
-
-        # Sort edge IDs by child node (and by left coordinate as secondary sort)
-        # We need to implement our own sorting since numba doesn't support lexsort
-        # Use a stable sort to maintain order for secondary key
-        # First sort by left coordinate (secondary key) using a stable sort
-        edges_left = self.edges_left
+        num_nodes = self.num_nodes
+        num_edges = self.num_edges
         edges_child = self.edges_child
 
-        left_coords = np.zeros(self.num_edges, dtype=np.float64)
-        for i in range(self.num_edges):
-            left_coords[i] = edges_left[edge_index[i]]
+        child_counts = np.zeros(num_nodes, dtype=np.int32)
+        edge_index = np.zeros(num_edges, dtype=np.int32)
+        index_range = np.zeros((num_nodes, 2), dtype=np.int32)
 
-        # Stable sort by left coordinate
-        sort_indices = np.argsort(left_coords, kind="mergesort")
-        edge_index[:] = edge_index[sort_indices]
+        if num_edges == 0:
+            return ParentIndex(edge_index, index_range)
 
-        # Stable sort by child node
-        child_nodes = np.zeros(self.num_edges, dtype=np.int32)
-        for i in range(self.num_edges):
-            child_nodes[i] = edges_child[edge_index[i]]
-        sort_indices = np.argsort(child_nodes, kind="mergesort")
-        edge_index[:] = edge_index[sort_indices]
+        # Count how many children each node has
+        for child_node in edges_child:
+            child_counts[child_node] += 1
 
-        # Find ranges
-        last_child = -1
-        for j in range(self.num_edges):
-            edge_id = edge_index[j]
+        # From the counts build the index ranges, we set both the start and the
+        # end index to the start - this lets us use the end index as a tracker
+        # for where we should insert the next edge for that node - when all
+        # edges are done these values will be the correct end values!
+        current_start = 0
+        for i in range(num_nodes):
+            index_range[i, :] = current_start
+            current_start += child_counts[i]
+
+        # Now go over the edges, inserting them at the index pointed to
+        # by the node's current end value, then increment.
+        for edge_id in range(num_edges):
             child = edges_child[edge_id]
-
-            if child != last_child:
-                index_range[child, 0] = j
-            if last_child != -1:
-                index_range[last_child, 1] = j
-            last_child = child
-
-        if last_child != -1:
-            index_range[last_child, 1] = self.num_edges
+            pos = index_range[child, 1]
+            edge_index[pos] = edge_id
+            index_range[child, 1] += 1
 
         return ParentIndex(edge_index, index_range)
 
