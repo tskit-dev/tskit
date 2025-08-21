@@ -367,15 +367,15 @@ print("Results match!")
 ### Example - ARG descendant and ancestral edges calculation
 
 As we have `child_index` and `parent_index`, we can efficiently find both descendant and ancestral sub-ARGs
-for a given node. This first example shows how to find all edges in the ARG that are descendants of a given node. It returns a boolean mask indicating which edges are part of the sub-ARG rooted at the specified node:
+for a given node. This first example shows how to find all edges in the ARG that are descendants of a given node. It returns a boolean array indicating which edges are part of the sub-ARG rooted at the specified node:
 
 ```{code-cell} python
 @numba.njit
 def descendant_edges(numba_ts, u):
     """
-    Returns a boolean mask for edges that are descendants of node u.
+    Returns a boolean array which is only True for edges that are descendants of node u.
     """
-    edge_mask = np.zeros(numba_ts.num_edges, dtype=np.bool_)
+    edge_select = np.zeros(numba_ts.num_edges, dtype=np.bool_)
     child_index = numba_ts.child_index()
     edges_left = numba_ts.edges_left
     edges_right = numba_ts.edges_right
@@ -396,7 +396,7 @@ def descendant_edges(numba_ts, u):
             # Check for genomic interval overlap
             if e_right > left and right > e_left:
                 # This edge is part of the sub-ARG
-                edge_mask[e] = True
+                edge_select[e] = True
                 
                 # Calculate the intersection for the next traversal step
                 inter_left = max(e_left, left)
@@ -404,18 +404,18 @@ def descendant_edges(numba_ts, u):
                 e_child = edges_child[e]
                 stack.append((e_child, inter_left, inter_right))
                 
-    return edge_mask
+    return edge_select
 ```
 
 ```{code-cell} python
 # Find descendant edges for a high-numbered node (likely near root)
 test_node = max(0, numba_ts.num_nodes - 5)
-edge_mask = descendant_edges(numba_ts, test_node)
+edge_select = descendant_edges(numba_ts, test_node)
 
 # Show which edges are descendants
-descendant_edge_ids = np.where(edge_mask)[0]
+descendant_edge_ids = np.where(edge_select)[0]
 print(f"Edges descended from node {test_node}: {descendant_edge_ids[:10]}...")
-print(f"Total descendant edges: {np.sum(edge_mask)}")
+print(f"Total descendant edges: {np.sum(edge_select)}")
 ```
 
 In the other direction, we can similarly find the sub-ARG that is ancestral to a given node:
@@ -424,9 +424,9 @@ In the other direction, we can similarly find the sub-ARG that is ancestral to a
 @numba.njit
 def ancestral_edges(numba_ts, u):
     """
-    Returns a boolean mask for edges that are ancestors of node u.
+    Returns a boolean array which is only True for edges that are ancestors of node u.
     """
-    edge_mask = np.zeros(numba_ts.num_edges, dtype=np.bool_)
+    edge_select = np.zeros(numba_ts.num_edges, dtype=np.bool_)
     parent_index = numba_ts.parent_index()
     edges_left = numba_ts.edges_left
     edges_right = numba_ts.edges_right
@@ -448,7 +448,7 @@ def ancestral_edges(numba_ts, u):
             # Check for genomic interval overlap
             if e_right > left and right > e_left:
                 # This edge is part of the sub-ARG
-                edge_mask[e] = True
+                edge_select[e] = True
                 
                 # Calculate the intersection for the next traversal step
                 inter_left = max(e_left, left)
@@ -456,18 +456,18 @@ def ancestral_edges(numba_ts, u):
                 e_parent = edges_parent[e]
                 stack.append((e_parent, inter_left, inter_right))
 
-    return edge_mask
+    return edge_select
 ```
 
 ```{code-cell} python
 # Find ancestral edges for a sample node (low-numbered nodes are usually samples)
 test_node = min(5, numba_ts.num_nodes - 1)
-edge_mask = ancestral_edges(numba_ts, test_node)
+edge_select = ancestral_edges(numba_ts, test_node)
 
 # Show which edges are ancestors
-ancestral_edge_ids = np.where(edge_mask)[0]
+ancestral_edge_ids = np.where(edge_select)[0]
 print(f"Edges ancestral to node {test_node}: {ancestral_edge_ids[:10]}...")
-print(f"Total ancestral edges: {np.sum(edge_mask)}")
+print(f"Total ancestral edges: {np.sum(edge_select)}")
 ```
 
 ```{code-cell} python
