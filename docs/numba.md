@@ -364,6 +364,169 @@ np.testing.assert_array_almost_equal(numba_result, tskit_result, decimal=10)
 print("Results match!")
 ```
 
+### Example - ARG descendant and ancestral edges calculation
+
+As we have `child_index` and `parent_index`, we can efficiently find both descendant and ancestral sub-ARGs
+for a given node. This first example shows how to find all edges in the ARG that are descendants of a given node. It returns a boolean mask indicating which edges are part of the sub-ARG rooted at the specified node:
+
+```{code-cell} python
+@numba.njit
+def descendant_edges(numba_ts, u):
+    """
+    Returns a boolean mask for edges that are descendants of node u.
+    """
+    edge_mask = np.zeros(numba_ts.num_edges, dtype=np.bool_)
+    child_index = numba_ts.child_index()
+    edges_left = numba_ts.edges_left
+    edges_right = numba_ts.edges_right
+    edges_child = numba_ts.edges_child
+    
+    # The stack stores (node_id, left_coord, right_coord)
+    stack = [(u, 0.0, numba_ts.sequence_length)]
+    
+    while len(stack) > 0:
+        node, left, right = stack.pop()
+        
+        # Find all edges where 'node' is the parent
+        start, stop = child_index[node]
+        for e in range(start, stop):
+            e_left = edges_left[e]
+            e_right = edges_right[e]
+            
+            # Check for genomic interval overlap
+            if e_right > left and right > e_left:
+                # This edge is part of the sub-ARG
+                edge_mask[e] = True
+                
+                # Calculate the intersection for the next traversal step
+                inter_left = max(e_left, left)
+                inter_right = min(e_right, right)
+                e_child = edges_child[e]
+                stack.append((e_child, inter_left, inter_right))
+                
+    return edge_mask
+```
+
+```{code-cell} python
+# Find descendant edges for a high-numbered node (likely near root)
+test_node = max(0, numba_ts.num_nodes - 5)
+edge_mask = descendant_edges(numba_ts, test_node)
+
+# Show which edges are descendants
+descendant_edge_ids = np.where(edge_mask)[0]
+print(f"Edges descended from node {test_node}: {descendant_edge_ids[:10]}...")
+print(f"Total descendant edges: {np.sum(edge_mask)}")
+```
+
+In the other direction, we can similarly find the sub-ARG that is ancestral to a given node:
+
+```{code-cell} python
+@numba.njit
+def ancestral_edges(numba_ts, u):
+    """
+    Returns a boolean mask for edges that are ancestors of node u.
+    """
+    edge_mask = np.zeros(numba_ts.num_edges, dtype=np.bool_)
+    parent_index = numba_ts.parent_index()
+    edges_left = numba_ts.edges_left
+    edges_right = numba_ts.edges_right
+    edges_parent = numba_ts.edges_parent
+    
+    # The stack stores (node_id, left_coord, right_coord)
+    stack = [(u, 0.0, numba_ts.sequence_length)]
+    
+    while len(stack) > 0:
+        node, left, right = stack.pop()
+        
+        # Find all edges where 'node' is the child
+        start, stop = parent_index.index_range[node]
+        for i in range(start, stop):
+            e = parent_index.edge_index[i]
+            e_left = edges_left[e]
+            e_right = edges_right[e]
+            
+            # Check for genomic interval overlap
+            if e_right > left and right > e_left:
+                # This edge is part of the sub-ARG
+                edge_mask[e] = True
+                
+                # Calculate the intersection for the next traversal step
+                inter_left = max(e_left, left)
+                inter_right = min(e_right, right)
+                e_parent = edges_parent[e]
+                stack.append((e_parent, inter_left, inter_right))
+
+    return edge_mask
+```
+
+```{code-cell} python
+# Find ancestral edges for a sample node (low-numbered nodes are usually samples)
+test_node = min(5, numba_ts.num_nodes - 1)
+edge_mask = ancestral_edges(numba_ts, test_node)
+
+# Show which edges are ancestors
+ancestral_edge_ids = np.where(edge_mask)[0]
+print(f"Edges ancestral to node {test_node}: {ancestral_edge_ids[:10]}...")
+print(f"Total ancestral edges: {np.sum(edge_mask)}")
+```
+
+```{code-cell} python
+:tags: [hide-cell]
+# Warm up the JIT for both functions
+_ = descendant_edges(numba_ts, 0)
+_ = ancestral_edges(numba_ts, 0)
+```
+
+Comparing performance with using the tskit Python API shows significant speedup:
+
+```{code-cell} python
+def descendant_edges_tskit(ts, start_node):
+    D = np.zeros(ts.num_edges, dtype=bool)
+    for tree in ts.trees():
+        for v in tree.preorder(start_node):
+            if v != start_node:
+                D[tree.edge(v)] = True
+    return D
+
+def ancestral_edges_tskit(ts, start_node):
+    A = np.zeros(ts.num_edges, dtype=bool)
+    for tree in ts.trees():
+        curr_node = start_node
+        parent = tree.parent(curr_node)
+        while parent != tskit.NULL:
+            edge_id = tree.edge(curr_node)
+            A[edge_id] = True
+            curr_node = parent
+            parent = tree.parent(curr_node)
+    return A
+
+import time
+
+# Test with root node for descendant edges
+root_node = numba_ts.num_nodes - 1
+t = time.time()
+numba_desc = descendant_edges(numba_ts, root_node)
+print(f"Numba descendant edges time: {time.time() - t:.6f} seconds")
+
+t = time.time()
+tskit_desc = descendant_edges_tskit(ts, root_node)
+print(f"tskit descendant edges time: {time.time() - t:.6f} seconds")
+
+# Test with sample node for ancestral edges  
+sample_node = 0
+t = time.time()
+numba_anc = ancestral_edges(numba_ts, sample_node)
+print(f"Numba ancestral edges time: {time.time() - t:.6f} seconds")
+
+t = time.time()
+tskit_anc = ancestral_edges_tskit(ts, sample_node)
+print(f"tskit ancestral edges time: {time.time() - t:.6f} seconds")
+
+# Verify results match
+np.testing.assert_array_equal(numba_desc, tskit_desc)
+np.testing.assert_array_equal(numba_anc, tskit_anc)
+print("Results match!")
+```
 
 ## API Reference
 

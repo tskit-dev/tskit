@@ -556,4 +556,112 @@ def test_jit_descendant_span(ts):
     for u in range(ts.num_nodes):
         d1 = descendant_span(numba_ts, u)
         d2 = descendant_span_tree(ts, u)
-        np.testing.assert_array_almost_equal(d1, d2, decimal=10)
+        nt.assert_array_almost_equal(d1, d2, decimal=10)
+
+
+@pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
+def test_jit_descendant_edges(ts):
+    if ts.num_nodes == 0:
+        pytest.skip("Tree sequence must have at least one node")
+
+    @numba.njit
+    def descendant_edges(numba_ts, u):
+        """
+        Returns a boolean mask for edges that are descendants of node u.
+        """
+        edge_mask = np.zeros(numba_ts.num_edges, dtype=np.bool_)
+        child_index = numba_ts.child_index()
+        edges_left = numba_ts.edges_left
+        edges_right = numba_ts.edges_right
+        edges_child = numba_ts.edges_child
+
+        # The stack stores (node_id, left_coord, right_coord)
+        stack = [(u, 0.0, numba_ts.sequence_length)]
+
+        while len(stack) > 0:
+            node, left, right = stack.pop()
+
+            start, stop = child_index[node]
+            for e in range(start, stop):
+                e_left = edges_left[e]
+                e_right = edges_right[e]
+
+                if e_right > left and right > e_left:
+                    edge_mask[e] = True
+                    inter_left = max(e_left, left)
+                    inter_right = min(e_right, right)
+                    e_child = edges_child[e]
+                    stack.append((e_child, inter_left, inter_right))
+
+        return edge_mask
+
+    def descendant_edges_tskit(ts, start_node):
+        D = np.zeros(ts.num_edges, dtype=bool)
+        for tree in ts.trees():
+            for v in tree.preorder(start_node):
+                # We want the edges *below* the start_node, so we skip the node itself.
+                if v != start_node:
+                    D[tree.edge(v)] = True
+        return D
+
+    numba_ts = jit_numba.jitwrap(ts)
+    for u in range(ts.num_nodes):
+        d1 = descendant_edges(numba_ts, u)
+        d2 = descendant_edges_tskit(ts, u)
+        nt.assert_array_equal(d1, d2)
+
+
+@pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
+def test_jit_ancestral_edges(ts):
+    if ts.num_nodes == 0:
+        pytest.skip("Tree sequence must have at least one node")
+
+    @numba.njit
+    def ancestral_edges(numba_ts, u):
+        """
+        Returns a boolean mask for edges that are ancestors of node u.
+        """
+        edge_mask = np.zeros(numba_ts.num_edges, dtype=np.bool_)
+        parent_index = numba_ts.parent_index()
+        edges_left = numba_ts.edges_left
+        edges_right = numba_ts.edges_right
+        edges_parent = numba_ts.edges_parent
+
+        # The stack stores (node_id, left_coord, right_coord)
+        stack = [(u, 0.0, numba_ts.sequence_length)]
+
+        while len(stack) > 0:
+            node, left, right = stack.pop()
+
+            start, stop = parent_index.index_range[node]
+            for i in range(start, stop):
+                e = parent_index.edge_index[i]
+                e_left = edges_left[e]
+                e_right = edges_right[e]
+
+                if e_right > left and right > e_left:
+                    edge_mask[e] = True
+                    inter_left = max(e_left, left)
+                    inter_right = min(e_right, right)
+                    e_parent = edges_parent[e]
+                    stack.append((e_parent, inter_left, inter_right))
+
+        return edge_mask
+
+    def ancestral_edges_tskit(ts, start_node):
+        A = np.zeros(ts.num_edges, dtype=bool)
+        for tree in ts.trees():
+            curr_node = start_node
+            parent = tree.parent(curr_node)
+            while parent != tskit.NULL:
+                edge_id = tree.edge(curr_node)
+                A[edge_id] = True
+                curr_node = parent
+                parent = tree.parent(curr_node)
+        return A
+
+    numba_ts = jit_numba.jitwrap(ts)
+    for u in range(ts.num_nodes):
+        a1 = ancestral_edges(numba_ts, u)
+        a2 = ancestral_edges_tskit(ts, u)
+        nt.assert_array_equal(a1, a2)
