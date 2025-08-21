@@ -92,6 +92,8 @@ class TreeIndex:
     This class provides efficient forward and backward iteration through
     the trees in a tree sequence. It provides the tree interval,
     edge changes to create the current tree, along with its sites and mutations.
+    A full pass over the trees using repeated `next` or `prev` requires O(E + M + S) time
+    complexity.
 
     It should not be instantiated directly, but is returned by the `tree_index` method
     of `NumbaTreeSequence`.
@@ -447,7 +449,9 @@ class NumbaTreeSequence:
 
     def child_index(self):
         """
-        Create child index array for finding child edges of nodes.
+        Create child index array for finding child edges of nodes. This operation
+        requires a linear pass over the edge table and therefore has a time
+        complexity of O(E).
 
         :return: A numpy array (dtype=np.int32, shape=(num_nodes, 2)) where each row
             contains the [start, stop) range of edges where this node is the parent.
@@ -475,7 +479,9 @@ class NumbaTreeSequence:
 
     def parent_index(self):
         """
-        Create a :class:`ParentIndex` for finding parent edges of nodes.
+        Create a :class:`ParentIndex` for finding parent edges of nodes. This
+        operation requires sorting the edges by child ID and left coordinate,
+        and therefore requires O(E log E) time complexity.
 
         :return: A new parent index container that can be used to
             efficiently find all edges where a given node is the child.
