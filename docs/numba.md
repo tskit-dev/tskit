@@ -418,6 +418,56 @@ print(f"Edges descended from node {test_node}: {descendant_edge_ids[:10]}...")
 print(f"Total descendant edges: {np.sum(edge_select)}")
 ```
 
+```{code-cell} python
+:tags: [hide-cell]
+# Create a simple hard-coded example for consistent visualization
+tables = tskit.TableCollection(sequence_length=10.0)
+
+tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)  # node 0
+tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)  # node 1
+tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)  # node 2
+tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)  # node 3
+tables.nodes.add_row(flags=0, time=1)  # node 4
+tables.nodes.add_row(flags=0, time=2)  # node 5
+tables.nodes.add_row(flags=0, time=3)  # node 6
+
+tables.edges.add_row(left=0, right=5, parent=4, child=0)
+tables.edges.add_row(left=0, right=10, parent=4, child=1)
+tables.edges.add_row(left=5, right=10, parent=5, child=0)
+tables.edges.add_row(left=0, right=10, parent=5, child=2)
+tables.edges.add_row(left=0, right=7, parent=6, child=4)
+tables.edges.add_row(left=0, right=10, parent=6, child=5)
+tables.edges.add_row(left=7, right=10, parent=6, child=3)
+
+tables.sort()
+ts_simple = tables.tree_sequence()
+```
+
+A tree sequence is easily made from the descendant edges array:
+
+```{code-cell} python
+numba_ts_simple = tskit_numba.jitwrap(ts_simple)
+node = 5
+E = descendant_edges(numba_ts_simple, node)
+tables_sub = ts_simple.dump_tables()
+tables_sub.edges.replace_with(tables_sub.edges[E])
+ts_sub = tables_sub.tree_sequence()
+```
+
+As an example, lets visualise the selection of a sub-ARG. Here is the full ARG
+with a highlighted node:
+
+```{code-cell} python
+css_style = f".node.n{node} > .sym {{ fill: #c41e3a; }}"
+ts_simple.draw_svg(size=(400, 200), node_labels={}, y_axis=True, style=css_style)
+```
+
+And the sub-ARG from that node:
+
+```{code-cell} python
+ts_sub.draw_svg(size=(400, 200), node_labels={}, y_axis=True, style=css_style)
+```
+
 In the other direction, we can similarly find the sub-ARG that is ancestral to a given node:
 
 ```{code-cell} python
