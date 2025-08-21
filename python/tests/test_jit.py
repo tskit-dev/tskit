@@ -567,9 +567,10 @@ def test_jit_descendant_edges(ts):
     @numba.njit
     def descendant_edges(numba_ts, u):
         """
-        Returns a boolean mask for edges that are descendants of node u.
+        Returns a boolean array which is only True for edges that
+        are descendants of node u.
         """
-        edge_mask = np.zeros(numba_ts.num_edges, dtype=np.bool_)
+        edge_select = np.zeros(numba_ts.num_edges, dtype=np.bool_)
         child_index = numba_ts.child_index()
         edges_left = numba_ts.edges_left
         edges_right = numba_ts.edges_right
@@ -587,13 +588,13 @@ def test_jit_descendant_edges(ts):
                 e_right = edges_right[e]
 
                 if e_right > left and right > e_left:
-                    edge_mask[e] = True
+                    edge_select[e] = True
                     inter_left = max(e_left, left)
                     inter_right = min(e_right, right)
                     e_child = edges_child[e]
                     stack.append((e_child, inter_left, inter_right))
 
-        return edge_mask
+        return edge_select
 
     def descendant_edges_tskit(ts, start_node):
         D = np.zeros(ts.num_edges, dtype=bool)
@@ -619,9 +620,10 @@ def test_jit_ancestral_edges(ts):
     @numba.njit
     def ancestral_edges(numba_ts, u):
         """
-        Returns a boolean mask for edges that are ancestors of node u.
+        Returns a boolean array which is only True for edges that are
+        ancestors of node u.
         """
-        edge_mask = np.zeros(numba_ts.num_edges, dtype=np.bool_)
+        edge_select = np.zeros(numba_ts.num_edges, dtype=np.bool_)
         parent_index = numba_ts.parent_index()
         edges_left = numba_ts.edges_left
         edges_right = numba_ts.edges_right
@@ -640,13 +642,13 @@ def test_jit_ancestral_edges(ts):
                 e_right = edges_right[e]
 
                 if e_right > left and right > e_left:
-                    edge_mask[e] = True
+                    edge_select[e] = True
                     inter_left = max(e_left, left)
                     inter_right = min(e_right, right)
                     e_parent = edges_parent[e]
                     stack.append((e_parent, inter_left, inter_right))
 
-        return edge_mask
+        return edge_select
 
     def ancestral_edges_tskit(ts, start_node):
         A = np.zeros(ts.num_edges, dtype=bool)
