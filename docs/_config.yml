@@ -6,6 +6,7 @@ author: Tskit Developers
 copyright: "2022"
 only_build_toc_files: true
 logo: logo.svg
+favicon: favicon.ico
 
 execute:
   execute_notebooks: cache
@@ -23,13 +24,10 @@ html:
   use_issues_button: true
   use_repository_button: true
   use_edit_page_button: true
-  # Do not edit this - the version placeholder is replaced by the
-  # current version during a distribution build in the Makefile
-  extra_navbar: __TSKIT_VERSION__
-  extra_footer: __TSKIT_VERSION__
 
 sphinx:
     extra_extensions:
+    - sphinx_copybutton
     - breathe
     - sphinx.ext.autodoc
     - sphinx_autodoc_typehints
@@ -47,6 +45,8 @@ sphinx:
       html_theme_options:
         pygments_dark_style: monokai
         navigation_with_keys: false
+        logo:
+          text: "Version __TSKIT_VERSION__"
         repository_url: https://github.com/tskit-dev/tskit
         repository_branch: main
         path_to_docs: docs
