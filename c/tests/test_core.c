@@ -537,6 +537,8 @@ test_bit_arrays(void)
 
     // test item retrieval
     tsk_bitset_init(&arr, 90, 1);
+    CU_ASSERT_EQUAL_FATAL(arr.len, 1);
+    CU_ASSERT_EQUAL_FATAL(arr.row_len, 3);
     tsk_bitset_get_items(&arr, 0, items, &n_items);
     assert_arrays_equal(n_items_truth, items, items_truth);
 
@@ -564,22 +566,19 @@ test_bit_arrays(void)
     n_items = n_items_truth = 0;
     tsk_bitset_free(&arr);
 
-    // create a length-2 array with 64 bit capacity
+    // create a length-2 array with 64 bit capacity (two chunks per row)
     tsk_bitset_init(&arr, 64, 2);
-    tsk_bitset_t arr_row1, arr_row2;
-
-    // select the first and second row
-    tsk_bitset_get_row(&arr, 0, &arr_row1);
-    tsk_bitset_get_row(&arr, 1, &arr_row2);
+    CU_ASSERT_EQUAL_FATAL(arr.len, 2);
+    CU_ASSERT_EQUAL_FATAL(arr.row_len, 2);
 
     // fill the first 50 bits of the first row
     for (tsk_bitset_val_t i = 0; i < 50; i++) {
-        tsk_bitset_set_bit(&arr_row1, 0, i);
+        tsk_bitset_set_bit(&arr, 0, i);
         items_truth[n_items_truth] = (tsk_id_t) i;
         n_items_truth++;
     }
 
-    tsk_bitset_get_items(&arr_row1, 0, items, &n_items);
+    tsk_bitset_get_items(&arr, 0, items, &n_items);
     assert_arrays_equal(n_items_truth, items, items_truth);
 
     tsk_memset(items, 0, 64);
@@ -588,12 +587,12 @@ test_bit_arrays(void)
 
     // fill bits 20-40 of the second row
     for (tsk_bitset_val_t i = 20; i < 40; i++) {
-        tsk_bitset_set_bit(&arr_row2, 0, i);
+        tsk_bitset_set_bit(&arr, 1, i);
         items_truth[n_items_truth] = (tsk_id_t) i;
         n_items_truth++;
     }
 
-    tsk_bitset_get_items(&arr_row2, 0, items, &n_items);
+    tsk_bitset_get_items(&arr, 1, items, &n_items);
     assert_arrays_equal(n_items_truth, items, items_truth);
 
     tsk_memset(items, 0, 64);
@@ -601,36 +600,33 @@ test_bit_arrays(void)
     n_items = n_items_truth = 0;
 
     // verify our assumptions about row selection
-    CU_ASSERT_EQUAL_FATAL(arr.data[0], 4294967295);
-    CU_ASSERT_EQUAL_FATAL(arr.data[1], 262143);
-    CU_ASSERT_EQUAL_FATAL(arr_row1.data[0], 4294967295);
-    CU_ASSERT_EQUAL_FATAL(arr_row1.data[1], 262143);
-
-    CU_ASSERT_EQUAL_FATAL(arr.data[2], 4293918720);
-    CU_ASSERT_EQUAL_FATAL(arr.data[3], 255);
-    CU_ASSERT_EQUAL_FATAL(arr_row2.data[0], 4293918720);
-    CU_ASSERT_EQUAL_FATAL(arr_row2.data[1], 255);
+    CU_ASSERT_EQUAL_FATAL(arr.data[0], 4294967295); // row1 elem1
+    CU_ASSERT_EQUAL_FATAL(arr.data[1], 262143);     // row1 elem2
+    CU_ASSERT_EQUAL_FATAL(arr.data[2], 4293918720); // row2 elem1
+    CU_ASSERT_EQUAL_FATAL(arr.data[3], 255);        // row2 elem2
 
     // subtract the second from the first row, store in first
-    tsk_bitset_subtract(&arr_row1, 0, &arr_row2, 0);
+    tsk_bitset_subtract(&arr, 0, &arr, 1);
 
     // verify our assumptions about subtraction
-    CU_ASSERT_EQUAL_FATAL(arr_row1.data[0], 1048575);
-    CU_ASSERT_EQUAL_FATAL(arr_row1.data[1], 261888);
+    CU_ASSERT_EQUAL_FATAL(arr.data[0], 1048575);
+    CU_ASSERT_EQUAL_FATAL(arr.data[1], 261888);
 
     tsk_bitset_t int_result;
     tsk_bitset_init(&int_result, 64, 1);
+    CU_ASSERT_EQUAL_FATAL(int_result.len, 1);
+    CU_ASSERT_EQUAL_FATAL(int_result.row_len, 2);
 
     // their intersection should be zero
-    tsk_bitset_intersect(&arr_row1, 0, &arr_row2, 0, &int_result);
+    tsk_bitset_intersect(&arr, 0, &arr, 1, &int_result);
     CU_ASSERT_EQUAL_FATAL(int_result.data[0], 0);
     CU_ASSERT_EQUAL_FATAL(int_result.data[1], 0);
 
     // now, add them back together, storing back in a
-    tsk_bitset_union(&arr_row1, 0, &arr_row2, 0);
+    tsk_bitset_union(&arr, 0, &arr, 1);
 
     // now, their intersection should be the subtracted chunk (20-40)
-    tsk_bitset_intersect(&arr_row1, 0, &arr_row2, 0, &int_result);
+    tsk_bitset_intersect(&arr, 0, &arr, 1, &int_result);
     CU_ASSERT_EQUAL_FATAL(int_result.data[0], 4293918720);
     CU_ASSERT_EQUAL_FATAL(int_result.data[1], 255);
 

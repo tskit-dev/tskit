@@ -2302,7 +2302,7 @@ get_all_samples_bits(tsk_bitset_t *all_samples, tsk_size_t n)
 {
     tsk_size_t i;
     const tsk_bitset_val_t all = ~((tsk_bitset_val_t) 0);
-    const tsk_bitset_val_t remainder_samples = n % TSK_BIT_ARRAY_NUM_BITS;
+    const tsk_bitset_val_t remainder_samples = n % TSK_BITSET_BITS;
 
     all_samples->data[all_samples->row_len - 1]
         = remainder_samples ? ~(all << remainder_samples) : all;

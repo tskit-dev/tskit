@@ -1100,20 +1100,19 @@ FILE *tsk_get_debug_stream(void);
 
 /* Bit Array functionality */
 
+// define a 32-bit chunk size for our bitsets.
+// this means we'll be able to hold 32 distinct items in each 32 bit uint
+#define TSK_BITSET_BITS (tsk_size_t) 32
 typedef uint32_t tsk_bitset_val_t;
+
 typedef struct {
-    tsk_size_t row_len; // Number of chunks per row
+    tsk_size_t row_len; // Number of size TSK_BITSET_BITS chunks per row
     tsk_size_t len;     // Number of rows
     tsk_bitset_val_t *data;
 } tsk_bitset_t;
 
-#define TSK_BIT_ARRAY_CHUNK 5
-#define TSK_BIT_ARRAY_NUM_BITS (1U << TSK_BIT_ARRAY_CHUNK)
-#define TSK_BITSET_BITS 32U
-
 int tsk_bitset_init(tsk_bitset_t *self, tsk_size_t num_bits, tsk_size_t length);
 void tsk_bitset_free(tsk_bitset_t *self);
-void tsk_bitset_get_row(const tsk_bitset_t *self, tsk_size_t row, tsk_bitset_t *out);
 void tsk_bitset_intersect(const tsk_bitset_t *self, tsk_size_t self_row,
     const tsk_bitset_t *other, tsk_size_t other_row, tsk_bitset_t *out);
 void tsk_bitset_subtract(tsk_bitset_t *self, tsk_size_t self_row,
