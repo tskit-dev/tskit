@@ -3353,7 +3353,6 @@ tsk_treeseq_two_locus_count_stat(const tsk_treeseq_t *self, tsk_size_t num_sampl
     int ret = 0;
     bool stat_site = !!(options & TSK_STAT_SITE);
     bool stat_branch = !!(options & TSK_STAT_BRANCH);
-    bool stat_node = !!(options & TSK_STAT_NODE);
     tsk_size_t state_dim = num_sample_sets;
     sample_count_stat_params_t f_params = { .sample_sets = sample_sets,
         .num_sample_sets = num_sample_sets,
@@ -3370,7 +3369,7 @@ tsk_treeseq_two_locus_count_stat(const tsk_treeseq_t *self, tsk_size_t num_sampl
         stat_site = true;
     }
     // It's an error to specify more than one mode
-    if (stat_site + stat_branch + stat_node > 1) {
+    if (stat_site + stat_branch > 1) {
         ret = tsk_trace_error(TSK_ERR_MULTIPLE_STAT_MODES);
         goto out;
     }
