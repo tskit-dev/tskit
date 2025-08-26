@@ -4293,25 +4293,28 @@ tsk_treeseq_D2(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
 }
 
 static int
-r2_summary_func(tsk_size_t state_dim, const double *restrict state,
-    tsk_size_t TSK_UNUSED(result_dim), double *restrict result, void *restrict params)
+r2_summary_func(tsk_size_t state_dim, const double *state,
+    tsk_size_t TSK_UNUSED(result_dim), double *result, void *params)
 {
     sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
-    double n, wA, wB, wAwB, wAB, wAb, waB;
-    tsk_size_t j;
-    const tsk_size_t *ns = args.sample_set_sizes;
+    double n;
     const double *state_row;
+    tsk_size_t j;
 
     for (j = 0; j < state_dim; j++) {
+        n = (double) args.sample_set_sizes[j];
         state_row = GET_2D_ROW(state, 3, j);
-        wAB = state_row[0];
-        wAb = state_row[1];
-        waB = state_row[2];
-        n = (double) ns[j];
-        wA = wAB + wAb;
-        wB = wAB + waB;
-        wAwB = wA * wB;
-        result[j] = pow((n * wAB - wAwB), 2) / ((n - wB) * (n - wA) * wAwB);
+        double p_AB = state_row[0] / n;
+        double p_Ab = state_row[1] / n;
+        double p_aB = state_row[2] / n;
+
+        double p_A = p_AB + p_Ab;
+        double p_B = p_AB + p_aB;
+
+        double D = p_AB - (p_A * p_B);
+        double denom = p_A * p_B * (1 - p_A) * (1 - p_B);
+
+        result[j] = (D * D) / denom;
     }
     return 0;
 }
