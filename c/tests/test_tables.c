@@ -8905,6 +8905,7 @@ static void
 test_sort_tables_errors(void)
 {
     int ret;
+    tsk_id_t ret_id;
     tsk_treeseq_t ts;
     tsk_table_collection_t tables;
     tsk_bookmark_t pos;
@@ -8968,6 +8969,32 @@ test_sort_tables_errors(void)
     ret = tsk_table_collection_sort(&tables, &pos, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_SORT_OFFSET_NOT_SUPPORTED);
 
+    /* Test TSK_ERR_MUTATION_PARENT_INCONSISTENT */
+    ret = tsk_table_collection_clear(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1.0;
+
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_site_table_add_row(&tables.sites, 0.0, "x", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+
+    ret_id
+        = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 2, 0.0, "a", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id
+        = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 3, 0.0, "b", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id
+        = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 1, 0.0, "c", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id
+        = tsk_mutation_table_add_row(&tables.mutations, 0, 0, 2, 0.0, "d", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_PARENT_INCONSISTENT);
+
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);
 }
@@ -9030,6 +9057,120 @@ test_sort_tables_mutation_times(void)
     tsk_table_collection_free(&t1);
     tsk_table_collection_free(&tables);
     tsk_treeseq_free(&ts);
+}
+
+static void
+test_sort_tables_mutations(void)
+{
+    int ret;
+    tsk_table_collection_t tables;
+
+    /* Sorting hierarchy:
+     * 1. site
+     * 2. time (when known)
+     * 3. node_time
+     * 4. num_descendants: parent mutations first
+     * 5. node_id
+     * 6. mutation_id
+     */
+
+    const char *sites = "0.0   A\n"
+                        "0.5   T\n"
+                        "0.75  G\n";
+
+    const char *mutations_unsorted =
+        /* Test site criterion (primary) - site 1 should come after site 0 */
+        "1   0  X  -1  0.0\n" /* mut 0: site 1, will be sorted after site 0 mutations */
+        "0   0  Y  -1  0.0\n" /* mut 1: site 0, will be sorted before site 1 mutations */
+
+        /* Test time criterion - within same site, earlier time first */
+        "0   4  B  -1  2.0\n" /* mut 2: site 0, node 4 (time 1.0), time 2.0 (later time)
+                               */
+        "0   5  A  -1  2.5\n" /* mut 3: site 0, node 5 (time 2.0), time 2.5 (earlier
+                                 relative) */
+
+        /* Test unknown vs known times - unknown times at site 2, fall back to node_time
+           sorting */
+        "2   4  U2  -1\n" /* mut 4: site 2, node 4 (time 1.0), unknown time - falls back
+                             to node_time */
+        "2   4  U3  -1\n" /* mut 5: site 2, node 4 (time 1.0), unknown time - should use
+                             mutation_id as tiebreaker */
+        "2   5  U1  -1\n" /* mut 6: site 2, node 5 (time 2.0), unknown time - falls back
+                             to node_time */
+
+        /* Test node_time criterion - same site, same mut time, different node times */
+        "0   4  D  -1  1.5\n" /* mut 7: site 0, node 4 (time 1.0), mut time 1.5 */
+        "0   5  C  -1  2.5\n" /* mut 8: site 0, node 5 (time 2.0), mut time 2.5 - same
+                                 mut time */
+
+        /* Test num_descendants criterion with mutation parent-child relationships */
+        "0   2  P  -1  0.0\n"  /* mut 9: site 0, node 2, parent mutation (0 descendants
+                                  initially) */
+        "0   1  C1  9  0.0\n"  /* mut 10: site 0, node 1, child of mut 9 (parent now has
+                                  1+ descendants) */
+        "0   1  C2  9  0.0\n"  /* mut 11: site 0, node 1, another child of mut 9 (parent
+                                  now has 2+ descendants) */
+        "0   3  Q  -1  0.0\n"  /* mut 12: site 0, node 3, no children (0 descendants) */
+        "0   0  C3  10  0.0\n" /* mut 13: site 0, node 0, child of mut 10 (making mut 9 a
+                                  grandparent) */
+
+        /* Test node and mutation_id criteria for final tiebreaking */
+        "0   0  Z1  -1  0.0\n"  /* mut 14: site 0, node 0, no parent, will test node+id
+                                   ordering */
+        "0   0  Z2  -1  0.0\n"; /* mut 15: site 0, node 0, no parent, later in input =
+                                   higher ID */
+
+    const char *mutations_sorted =
+        /* Site 0 mutations - known times first, sorted by time */
+        "0   5  A  -1  2.5\n"
+        "0   5  C  -1  2.5\n"
+        "0   4  B  -1  2.0\n"
+        "0   4  D  -1  1.5\n"
+        "0   2  P  -1  0.0\n"
+        "0   1  C1  4  0.0\n"
+        "0   0  Y  -1  0.0\n"
+        "0   0  C3  5  0.0\n"
+        "0   0  Z1  -1  0.0\n"
+        "0   0  Z2  -1  0.0\n"
+        "0   1  C2  4  0.0\n"
+        "0   3  Q  -1  0.0\n"
+
+        /* Site 1 mutations */
+        "1   0  X  -1  0.0\n"
+
+        /* Site 2 mutations - unknown times, sorted by node_time then other criteria */
+        "2   5  U1  -1\n"
+        "2   4  U2  -1\n"
+        "2   4  U3  -1\n";
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1.0;
+    parse_nodes(single_tree_ex_nodes, &tables.nodes);
+    parse_edges(single_tree_ex_edges, &tables.edges);
+
+    parse_sites(sites, &tables.sites);
+    CU_ASSERT_EQUAL_FATAL(tables.sites.num_rows, 3);
+
+    parse_mutations(mutations_unsorted, &tables.mutations);
+    CU_ASSERT_EQUAL_FATAL(tables.mutations.num_rows, 16);
+
+    ret = tsk_table_collection_sort(&tables, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tsk_table_collection_t expected;
+    ret = tsk_table_collection_init(&expected, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    expected.sequence_length = 1.0;
+    parse_nodes(single_tree_ex_nodes, &expected.nodes);
+    parse_edges(single_tree_ex_edges, &expected.edges);
+    parse_sites(sites, &expected.sites);
+    parse_mutations(mutations_sorted, &expected.mutations);
+
+    CU_ASSERT_TRUE(tsk_mutation_table_equals(&tables.mutations, &expected.mutations, 0));
+
+    tsk_table_collection_free(&expected);
+    tsk_table_collection_free(&tables);
 }
 
 static void
@@ -11608,6 +11749,7 @@ main(int argc, char **argv)
         { "test_sort_tables_errors", test_sort_tables_errors },
         { "test_sort_tables_individuals", test_sort_tables_individuals },
         { "test_sort_tables_mutation_times", test_sort_tables_mutation_times },
+        { "test_sort_tables_mutations", test_sort_tables_mutations },
         { "test_sort_tables_migrations", test_sort_tables_migrations },
         { "test_sort_tables_no_edge_metadata", test_sort_tables_no_edge_metadata },
         { "test_sort_tables_offsets", test_sort_tables_offsets },
