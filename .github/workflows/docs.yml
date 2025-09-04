@@ -1,5 +1,4 @@
 name: Build Docs
-
 on:
   pull_request:
   merge_group:
@@ -7,63 +6,10 @@ on:
     branches: [main]
     tags:
       - '*'
-
-env:
-  COMMIT_EMAIL: ben.jeffery.well+adminbot@gmail.com
-  MAKE_TARGET: -C python
-  OWNER: tskit-dev
-  REPO: tskit
-  REQUIREMENTS: python/requirements/CI-docs/requirements.txt
-
 jobs:
-  build-deploy-docs:
-    name: Docs
-    runs-on: ubuntu-24.04
-    defaults:
-      run:
-        shell: bash -l {0}
-    steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
-        with:
-          access_token: ${{ github.token }}
-
-      - uses: actions/checkout@v4.2.2
-
-      - name: Setup Conda
-        uses: conda-incubator/setup-miniconda@v3.1.1
-        with:
-          miniforge-version: latest
-          activate-environment: tskit-docs-env
-          
-      - name: Cache Conda env
-        uses: actions/cache@v4.2.2
-        with:
-          path: ${{ env.CONDA }}/envs
-          key: conda-${{ runner.os }}--${{ runner.arch }}--${{ hashFiles(env.REQUIREMENTS) }}-${{ env.CACHE_NUMBER }}
-        env:
-          CACHE_NUMBER: 0
-        id: cache
-
-      - name: Update environment
-        run: |
-          mamba install -y python=3.12 doxygen=1.12.0 pip
-          pip install -r ${{ env.REQUIREMENTS }}
-        if: steps.cache.outputs.cache-hit != 'true'
-
-      - name: Build C module
-        if: env.MAKE_TARGET
-        run: make $MAKE_TARGET
-
-      - name: Build Docs
-        run: |
-          doxygen -v
-          make -C docs
-
-      - name: Trigger docs site rebuild
-        if: github.ref == 'refs/heads/main'
-        run: |
-          curl -X POST https://api.github.com/repos/tskit-dev/tskit-site/dispatches \
-                    -H 'Accept: application/vnd.github.everest-preview+json' \
-                    -u AdminBot-tskit:${{ secrets.ADMINBOT_TOKEN }} \
-                    --data '{"event_type":"build-docs"}'
+  Docs:
+    uses: tskit-dev/.github/.github/workflows/docs-build-template.yml@main
+    with:
+      requirements-path: python/requirements/CI-docs/requirements.txt
+      additional-setup: sudo apt-get install -y doxygen
+      make-command: make -C python
