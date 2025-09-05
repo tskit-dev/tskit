@@ -8,8 +8,7 @@ on:
       - '*'
 jobs:
   Docs:
-    uses: tskit-dev/.github/.github/workflows/docs-build-template.yml@main
+    uses: tskit-dev/.github/.github/workflows/docs-build-template.yml@v1
     with:
-      requirements-path: python/requirements/CI-docs/requirements.txt
       additional-setup: sudo apt-get install -y doxygen
       make-command: make -C python

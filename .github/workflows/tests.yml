@@ -53,23 +53,6 @@ jobs:
         run: |
           brew install libxml2 libxslt
 
-      - name: Cache conda and dependencies
-        id: cache
-        uses: actions/cache@v4.2.2
-        with:
-          path: ${{ env.CONDA }}/envs
-          key: ${{ runner.os }}-${{ runner.arch }}-${{ matrix.python}}-conda-v1-${{ hashFiles('python/requirements/CI-tests-conda/requirements.txt') }}-${{ hashFiles('python/requirements/CI-tests-pip/requirements.txt') }}
-
-      - name: Install Conda
-        uses: conda-incubator/setup-miniconda@v3.1.1
-        if: steps.cache.outputs.cache-hit != 'true'
-        with:
-          activate-environment: anaconda-client-env
-          python-version: ${{ matrix.python }}
-          channels: conda-forge
-          channel-priority: strict
-          auto-update-conda: true
-
       - name: Fix windows symlinks
         working-directory: python
         if: matrix.os == 'windows-latest'
@@ -80,47 +63,36 @@ jobs:
           cp -r --dereference ../c/tskit lib/.
           cp ../c/tskit.h lib/.
 
-      - name: Fix windows .profile
-        if: steps.cache.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python }}
+          version: "0.8.15"
+      
+      - name: Install dependencies
+        working-directory: python
         run: |
-          cp ~/.bash_profile ~/.profile
-
-      - name: Install conda deps
-        if: steps.cache.outputs.cache-hit != 'true'
-        shell: bash -l {0} #We need a login shell to get conda
-        run: |
-          conda install --yes --file=python/requirements/CI-tests-conda/requirements.txt
-
-      - name: Install pip deps
-        if: steps.cache.outputs.cache-hit != 'true'
-        shell: bash -l {0}
-        run: |
-          pip install -r python/requirements/CI-tests-pip/requirements.txt
-          # Remove tskit installed by conda
-          pip uninstall -y tskit
+          uv venv
+          uv pip install -r pyproject.toml --extra test
+          # Remove tskit installed as a dep of msprime
+          uv pip uninstall tskit
 
       - name: Build module
         working-directory: python
         run: |
-          source ~/.profile
-          conda activate anaconda-client-env
-          python setup.py build_ext --inplace
+          uv run --no-sync python setup.py build_ext --inplace
 
       - name: Minidom test
         working-directory: python
         # Importing either IPython or pytest causes import of xml.dom.minidom
         # So to actually test that tskit imports it, we need a minimal test
         run: |
-          source ~/.profile
-          conda activate anaconda-client-env
-          python -c "import tskit;tskit.Tree.generate_star(5).tree_sequence.draw_svg(path='test.svg')"
+          uv run --no-sync python -c "import tskit;tskit.Tree.generate_star(5).tree_sequence.draw_svg(path='test.svg')"
 
       - name: Run JIT code coverage
         working-directory: python
         run: |
-          source ~/.profile
-          conda activate anaconda-client-env
-          NUMBA_DISABLE_JIT=1 python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 tests/test_jit.py
+          NUMBA_DISABLE_JIT=1 uv run --no-sync python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 tests/test_jit.py
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5.4.0
@@ -134,12 +106,10 @@ jobs:
       - name: Run tests
         working-directory: python
         run: |
-          source ~/.profile
-          conda activate anaconda-client-env
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            python -m pytest -x --skip-slow --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
+            uv run --no-sync python -m pytest -x --skip-slow --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
           else
-            python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
+            uv run --no-sync python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
           fi
 
       - name: Upload coverage to Codecov
@@ -173,21 +143,28 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.15"
+
       - name: Install dependencies
         working-directory: python
         run: |
-          pip install -r requirements/CI-complete/requirements.txt
-          pip install "numpy<2"
+          uv venv
+          uv pip install -r pyproject.toml --extra test
+          uv pip uninstall tskit
+          uv pip install "numpy<2"
 
       - name: Build module
         working-directory: python
         run: |
-          python setup.py build_ext --inplace
+          uv run --no-sync python setup.py build_ext --inplace
 
       - name: Run tests with numpy 1.x
         working-directory: python
         run: |
-          python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 tests/test_lowlevel.py tests/test_highlevel.py
+          uv run --no-sync python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 tests/test_lowlevel.py tests/test_highlevel.py
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5.4.0
