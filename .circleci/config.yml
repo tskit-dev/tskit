@@ -13,10 +13,12 @@ commands:
             # Install meson to the system packages so we can run it as root
             pip install --upgrade pip wheel
             sudo pip install meson
-            # Needed for some build steps in requirements.txt, no blas as expensive to
+            # Install uv for dependency management
+            pip install --user uv
+            # Install dependencies from pyproject.toml, no blas as expensive to
             # build on 32 bit
             pip install --user numpy --config-settings=setup-args="-Dallow-noblas=true"
-            pip install --user -r python/requirements/CI-complete/requirements.txt --config-settings=setup-args="-Dallow-noblas=true"
+            cd python && uv pip install --system -r pyproject.toml --extra test --config-settings=setup-args="-Dallow-noblas=true"
             # Remove tskit installed by msprime
             pip uninstall tskit -y
             echo 'export PATH=/home/circleci/.local/bin:$PATH' >> $BASH_ENV
