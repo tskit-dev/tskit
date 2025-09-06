@@ -7451,11 +7451,20 @@ class TreeSequence:
         4. Sites which were not present in ``self``, if the site contains a newly
            added mutation.
 
-        By default, populations of newly added nodes are assumed to be new
-        populations, and added to the population table as well. This can be
-        thought of as a "node-wise" union: for instance, it can not be used
-        to add new edges between two nodes already in ``self`` or new mutations
-        above nodes already in ``self``.
+        This can be thought of as a "node-wise" union: for instance, it can not
+        be used to add new edges between two nodes already in ``self`` or new
+        mutations above nodes already in ``self``.
+
+        By default, with ``add_populations=True``, populations of all newly added
+        nodes are assumed to be new populations, and added to the end of the
+        population table as well. This is appropriate if all nodes to be added
+        are from distinct populations not already in ``self`` and ordering of
+        populations is not important. On the other hand, if
+        ``add_populations=False`` then no new populations are added, so any
+        populations referred to in ``other`` must already exist in ``self``.
+        If some new nodes are in populations already in ``self`` but other new
+        nodes are in entirely new populations, then you must set up the
+        population table first, and then union with ``add_populations=False``.
 
         If the resulting tree sequence is invalid (for instance, a node is
         specified to have two distinct parents on the same interval),
