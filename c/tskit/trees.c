@@ -2713,8 +2713,10 @@ out:
     tsk_safe_free(col_idx);
     tsk_safe_free(num_alleles);
     tsk_safe_free(site_offsets);
+    tsk_safe_free(allele_counts);
     two_locus_work_free(&work);
     tsk_bitset_free(&allele_samples);
+    tsk_bitset_free(&allele_sample_sets);
     return ret;
 }
 
@@ -3303,6 +3305,7 @@ out:
     iter_state_free(&l_state);
     iter_state_free(&r_state);
     tsk_bitset_free(&node_samples);
+    tsk_bitset_free(&sample_sets_bits);
     return ret;
 }
 
