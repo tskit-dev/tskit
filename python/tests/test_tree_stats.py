@@ -53,7 +53,7 @@ def cached_np(func):
     cache = {}
 
     def f(*args):
-        nonlocal cache
+        nonlocal cache  # noqa: F824
         key = tuple(x.tobytes() for x in args)
         if key not in cache:
             cache[key] = func(*args)
