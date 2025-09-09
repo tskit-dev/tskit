@@ -10,6 +10,8 @@
   is not the case.
   (:user:`benjeffery`, :issue:`2729`, :issue:`2732`, :pr:`3212`).
 
+- Drop Python 3.9 support, require Python >= 3.10 (:pr:`3267`, :user:`benjeffery`)
+
 
 **Features**
 
