@@ -3162,6 +3162,7 @@ compute_two_tree_branch_stat(const tsk_treeseq_t *ts, const iter_state *l_state,
     }
 out:
     tsk_safe_free(updated_nodes);
+    two_locus_work_free(&work);
     tsk_bit_array_free(&updates);
     return ret;
 }
