@@ -12,8 +12,35 @@ jobs:
     uses: tskit-dev/.github/.github/workflows/lint.yml@v2
 
   test:
-    name: Python
+    uses: tskit-dev/.github/.github/workflows/python-tests.yml@v3
+    strategy:
+      fail-fast: false
+      matrix:
+        python: [ "3.10", 3.13 ]
+        os:  [ macos-latest, ubuntu-24.04, windows-latest ]
+    with:
+      additional_commands: |
+        # Install OS-specific dependencies and fix Windows symlinks
+        if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+          brew install libxml2 libxslt
+        elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          cd python
+          rm -r lib
+          mkdir lib
+          cp -r --dereference ../c/subprojects lib/.
+          cp -r --dereference ../c/tskit lib/.
+          cp ../c/tskit.h lib/.
+          cd ..
+        fi
+        # Remove tskit installed as a dep of msprime
+        cd python && uv pip uninstall tskit && cd ..
+      make_command: |
+        cd python && uv run --no-sync python setup.py build_ext --inplace && cd ..
+
+  test-additional:
+    name: Additional Tests
     runs-on: ${{ matrix.os }}
+    needs: test
     strategy:
       fail-fast: false
       matrix:
@@ -77,31 +104,13 @@ jobs:
         run: |
           NUMBA_DISABLE_JIT=1 uv run --no-sync python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 tests/test_jit.py
 
-      - name: Upload coverage to Codecov
+      - name: Upload JIT coverage to Codecov
         uses: codecov/codecov-action@v5.4.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           working-directory: python
           fail_ci_if_error: false
           flags: python-tests-no-jit
-          name: codecov-umbrella
-          verbose: true
-      - name: Run tests
-        working-directory: python
-        run: |
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            uv run --no-sync python -m pytest -x --skip-slow --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
-          else
-            uv run --no-sync python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
-          fi
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5.4.0
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          working-directory: python
-          fail_ci_if_error: false
-          flags: python-tests
           name: codecov-umbrella
           verbose: true
 
