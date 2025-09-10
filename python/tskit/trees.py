@@ -7973,12 +7973,12 @@ class TreeSequence:
         windows = self.parse_windows(windows)
         time_windows = self.parse_time_windows(time_windows)
         stat = method(*args, **kwargs, windows=windows, time_windows=time_windows)
-        if strip_win:
+        if strip_win and strip_timewin:
+            stat = stat[0, 0, :]
+        elif strip_win:
             stat = stat[0, :, :]
         elif strip_timewin:
             stat = stat[:, 0, :]
-        elif strip_win and strip_timewin:
-            stat = stat[0, 0, :]
         return stat
 
     def __one_way_sample_set_stat(

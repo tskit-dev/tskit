@@ -6448,7 +6448,6 @@ class SpecificTreesTestCase(StatsTestCase):
         #          (0.0, 0.2),        (0.2, 0.8),       (0.8, 2.5)
 
         # f4(0, 1, 2, 3): (0 -> 1)(2 -> 3)
-        ts = self.four_taxa_test_case()
         branch_true_f4_0123 = (0.1 * 0.2 + (0.1 + 0.1) * 0.6 + 0.1 * 1.7) / 2.5
         windows = [0.0, 0.4, 2.5]
         branch_true_f4_0123_windowed = np.array(
@@ -6479,6 +6478,46 @@ class SpecificTreesTestCase(StatsTestCase):
                     / (2.5 - 0.4)
                 ],
             ]
+        )
+
+        nodes = io.StringIO(
+            """\
+        id      is_sample   time
+        0       1           0
+        1       1           0
+        2       1           0
+        3       1           0
+        4       0           0.4
+        5       0           0.5
+        6       0           0.7
+        7       0           1.0
+        8       0           0.4
+        """
+        )
+        edges = io.StringIO(
+            """\
+        left    right   parent  child
+        0.0     2.5     8       1,3
+        0.2     0.8     4       0,2
+        0.0     0.2     5       8,2
+        0.2     0.8     5       8,4
+        0.8     2.5     5       8,2
+        0.8     2.5     6       0,5
+        0.0     0.2     7       0,5
+        """
+        )
+        sites = io.StringIO(
+            """\
+        id  position    ancestral_state
+        """
+        )
+        mutations = io.StringIO(
+            """\
+        site    node    derived_state   parent
+        """
+        )
+        ts = tskit.load_text(
+            nodes=nodes, edges=edges, sites=sites, mutations=mutations, strict=False
         )
 
         mode = "branch"
@@ -7235,7 +7274,13 @@ class TestTimeWindows(TestBranchAlleleFrequencySpectrum):
             )
             assert x.shape[-1] == y.shape[-1]
             # assert x.shape[-1] == len(sample_set) + 1
-            assert np.all(x[0] == y[:0])
+            # Test that dimensions are handled correctly
+            if tw is None:
+                # When no time windows, x should have same shape as y
+                assert x.shape == y.shape
+            else:
+                # When time windows present, x should have extra dimension for time
+                assert len(x.shape) == len(y.shape) + 1
 
     def test_afs_branch(self):
         """Tests for the Allele Frequency Spectrum stat
