@@ -2307,6 +2307,46 @@ class TestGeneticRelatedness(StatsTestCase, TwoWaySampleSetStatsMixin):
         else:
             assert x.shape == (2,)
 
+    def test_single_sample_set_self_comparison(self, ts_12_highrecomb_fixture):
+        if self.mode is None:
+            return
+        # Test for issue #3055 - self-comparisons with single sample set
+        ts = ts_12_highrecomb_fixture
+        # Single sample set with self-comparison
+        result = ts.genetic_relatedness([[0]], indexes=[(0, 0)], mode=self.mode)
+        result_shape = (ts.num_nodes, 1) if self.mode == "node" else (1,)
+        assert result.shape == result_shape
+        # Should work for multiple samples in single set too
+        result = ts.genetic_relatedness([[0, 1, 2]], indexes=[(0, 0)], mode=self.mode)
+        assert result.shape == result_shape
+        # Test with multiple self-comparisons
+        result = ts.genetic_relatedness(
+            [[0, 1], [2, 3]], indexes=[(0, 0), (1, 1)], mode=self.mode
+        )
+        result_shape = (ts.num_nodes, 2) if self.mode == "node" else (2,)
+        assert result.shape == result_shape
+
+    def test_single_sample_set_invalid_indexes(self, ts_12_highrecomb_fixture):
+        if self.mode is None:
+            return
+        # Test that invalid indexes raise ValueError with single sample set
+        ts = ts_12_highrecomb_fixture
+        # Index out of bounds (only have 1 sample set, but trying to access index 1)
+        with pytest.raises(
+            exceptions.LibraryError, match="TSK_ERR_BAD_SAMPLE_SET_INDEX"
+        ):
+            ts.genetic_relatedness([[0]], indexes=[(0, 1)], mode=self.mode)
+        # Negative index
+        with pytest.raises(
+            exceptions.LibraryError, match="TSK_ERR_BAD_SAMPLE_SET_INDEX"
+        ):
+            ts.genetic_relatedness([[0]], indexes=[(-1, 0)], mode=self.mode)
+        # Both indexes out of bounds
+        with pytest.raises(
+            exceptions.LibraryError, match="TSK_ERR_BAD_SAMPLE_SET_INDEX"
+        ):
+            ts.genetic_relatedness([[0, 1]], indexes=[(2, 2)], mode=self.mode)
+
 
 class TestBranchGeneticRelatedness(TestGeneticRelatedness, TopologyExamplesMixin):
     mode = "branch"

@@ -47,6 +47,12 @@
   when using ``TableCollection.assert_equals`` and ``Table.assert_equals``.
   (:user:`benjeffery`, :pr:`3246`, :issue:`3244`)
 
+- k-way statistics no longer require k sample sets, allowing in particular
+  "self" comparisons for `TreeSequence.genetic_relatedness`. This changes the
+  error code returned in some situations.
+  (:user:`andrewkern`, :user:`petrelharp`, :pr:`3235`, :issue:`3055`)
+  
+
 **Breaking changes** 
 
 - ``ltrim``, ``rtrim``, ``trim`` and ``shift`` raise an error if used on a tree sequence
