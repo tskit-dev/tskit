@@ -737,6 +737,39 @@ and IO errors are difficult to simulate in C.) Code coverage statistics are
 automatically tracked using [CodeCov](https://codecov.io/gh/tskit-dev/tskit/).
 
 
+### Viewing coverage reports
+
+To generate and view coverage reports for the C tests locally:
+
+Compile with coverage enabled:
+   ```bash
+   $ cd c
+   $ meson build -D b_coverage=true
+   $ ninja -C build
+   ```
+
+Run the tests:
+   ```bash
+   $ ninja -C build test
+   ```
+
+Generate coverage data:
+   ```bash
+   $ cd build
+   $ find ../tskit/*.c -type f -printf "%f\n" | xargs -i gcov -pb libtskit.a.p/tskit_{}.gcno ../tskit/{}
+   ```
+
+The generated `.gcov` files can then be viewed directly with `cat filename.c.gcov`. 
+Lines prefixed with `#####` were never executed, lines with numbers show execution counts, and lines with `-` are non-executable code.
+
+`lcov` can be used to create browsable HTML coverage reports:
+  ```bash
+  $ sudo apt-get install lcov  # if needed
+  $ lcov --capture --directory build-gcc --output-file coverage.info
+  $ genhtml coverage.info --output-directory coverage_html
+  $ firefox coverage_html/index.html
+  ```
+
 ### Coding conventions
 
 The code is written using the [C99](https://en.wikipedia.org/wiki/C99) standard. All
