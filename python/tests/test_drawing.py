@@ -1868,6 +1868,22 @@ class TestDrawSvg(TestDrawSvgBase):
         svg3 = ts.draw_svg(min_time=min(ts.tables.nodes.time), y_axis=True)
         assert svg2 == svg3
 
+    def test_numeric_max_time_with_mutations_over_roots(self):
+        t = self.get_mutations_over_roots_tree()
+        max_time_value = 10.0  # Use a numeric max_time value
+
+        with pytest.warns(
+            UserWarning, match="Mutations .* are above nodes which are not present"
+        ):
+            svg = t.draw_svg(max_time=max_time_value)
+        self.verify_basic_svg(svg)
+
+        with pytest.warns(
+            UserWarning, match="Mutations .* are above nodes which are not present"
+        ):
+            svg_log = t.draw_svg(max_time=max_time_value, time_scale="log_time")
+        self.verify_basic_svg(svg_log)
+
     #
     # TODO: update the tests below here to check the new SVG based interface.
     #

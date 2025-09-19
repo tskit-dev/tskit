@@ -2003,6 +2003,8 @@ class SvgTree(SvgAxisPlot):
                 max_node_height = self.ts.max_root_time
                 max_mut_height = np.nanmax(np.append(mut_time, 0))
                 max_time = max(max_node_height, max_mut_height)  # Reuse variable
+            else:
+                max_node_height = max(self.node_height.values())
             if min_time == "tree":
                 min_time = min(self.node_height.values())
                 # don't need to check mutation times, as they must be above a node

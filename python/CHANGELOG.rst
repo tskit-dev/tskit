@@ -51,7 +51,11 @@
   "self" comparisons for `TreeSequence.genetic_relatedness`. This changes the
   error code returned in some situations.
   (:user:`andrewkern`, :user:`petrelharp`, :pr:`3235`, :issue:`3055`)
-  
+
+- Fix ``UnboundLocalError`` in ``draw_svg()`` when using numeric ``max_time``
+  values with mutations over roots.
+  (:user:`benjeffery`, :pr:`3274`, :issue:`3273`)
+
 
 **Breaking changes** 
 
