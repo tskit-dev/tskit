@@ -1869,20 +1869,31 @@ class TestDrawSvg(TestDrawSvgBase):
         assert svg2 == svg3
 
     def test_numeric_max_time_with_mutations_over_roots(self):
+        max_time_value = 0.1  # Use a numeric max_time value
+        params = {"y_ticks": [1.23], "y_axis": True}
+        test_draw = {
+            "svg_nomin": {},
+            "svg_min": {"max_time": max_time_value},
+            "svg_log_min": {"max_time": max_time_value, "time_scale": "log_time"},
+        }
+
         t = self.get_mutations_over_roots_tree()
-        max_time_value = 10.0  # Use a numeric max_time value
+        assert t.tree_sequence.max_time > max_time_value
 
-        with pytest.warns(
-            UserWarning, match="Mutations .* are above nodes which are not present"
-        ):
-            svg = t.draw_svg(max_time=max_time_value)
-        self.verify_basic_svg(svg)
-
-        with pytest.warns(
-            UserWarning, match="Mutations .* are above nodes which are not present"
-        ):
-            svg_log = t.draw_svg(max_time=max_time_value, time_scale="log_time")
-        self.verify_basic_svg(svg_log)
+        for name, extra in test_draw.items():
+            with pytest.warns(
+                UserWarning, match="Mutations .* are above nodes which are not present"
+            ):
+                svg = t.draw_svg(**{**params, **extra})
+            assert svg.count('class="tick"') == 1
+            m = re.search(r'<g class="tick" transform="translate\((.*?)\)">', svg)
+            assert m is not None
+            translate_coords = [float(x) for x in m.group(1).split()]
+            if name == "svg_nomin":
+                # single tick within the plot region
+                assert translate_coords[1] > 0
+            else:
+                assert translate_coords[1] < 0
 
     #
     # TODO: update the tests below here to check the new SVG based interface.
