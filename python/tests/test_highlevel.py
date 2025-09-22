@@ -1218,6 +1218,7 @@ class TestTreeSequence(HighLevelTestCase):
     def test_mutations(self, ts):
         self.verify_mutations(ts)
 
+    @pytest.mark.skipif(not _tskit.HAS_NUMPY_2, reason="Requires NumPy 2.0 or higher")
     @pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
     def test_mutation_inherited_state_property(self, ts):
         inherited_states = ts.mutations_inherited_state
