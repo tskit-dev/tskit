@@ -5546,9 +5546,34 @@ class TestRaggedArrays:
             [mutation.derived_state for mutation in ts.mutations()],
         )
 
+    @pytest.mark.skipif(not _tskit.HAS_NUMPY_2, reason="Requires NumPy 2.0 or higher")
+    @pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
+    def test_mutations_inherited_state(self, ts):
+        inherited_state = ts.mutations_inherited_state
+        assert len(inherited_state) == ts.num_mutations
+        assert isinstance(inherited_state, np.ndarray)
+        assert inherited_state.shape == (ts.num_mutations,)
+        assert inherited_state.dtype == np.dtype("T")
+        assert inherited_state.size == ts.num_mutations
+
+        for mut in ts.mutations():
+            state0 = ts.site(mut.site).ancestral_state
+            if mut.parent != -1:
+                state0 = ts.mutation(mut.parent).derived_state
+            assert state0 == inherited_state[mut.id]
+
+        # Test caching - second access should return the same object
+        inherited_state2 = ts.mutations_inherited_state
+        assert inherited_state is inherited_state2
+
     @pytest.mark.skipif(_tskit.HAS_NUMPY_2, reason="Test only on Numpy 1.X")
     @pytest.mark.parametrize(
-        "column", ["sites_ancestral_state", "mutations_derived_state"]
+        "column",
+        [
+            "sites_ancestral_state",
+            "mutations_derived_state",
+            "mutations_inherited_state",
+        ],
     )
     def test_ragged_array_not_supported(self, column):
         tables = tskit.TableCollection(sequence_length=100)

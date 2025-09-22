@@ -30,6 +30,9 @@
 - Add ``TreeSequence.mutations_edge`` which returns the edge ID for each mutation's
   edge. (:user:`benjeffery`, :pr:`3226`, :issue:`3189`)
 
+- Add ``TreeSequence.mutations_inherited_state`` which returns the inherited state
+  for each mutation. (:user:`benjeffery`, :pr:`3276`, :issue:`2631`)
+
 **Bugfixes**
 
 - In some tables with mutations out-of-order `TableCollection.sort` did not re-order
