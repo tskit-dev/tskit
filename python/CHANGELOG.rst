@@ -33,6 +33,18 @@
 - Add ``TreeSequence.mutations_inherited_state`` which returns the inherited state
   for each mutation. (:user:`benjeffery`, :pr:`3276`, :issue:`2631`)
 
+- Add ``TreeSequence.sites_ancestral_state`` and ``TreeSequence.mutations_derived_state`` properties
+  to return the ancestral state of sites and derived state of mutations as NumPy arrays of
+  the new numpy 2.0 StringDType.
+  (:user:`benjeffery`, :pr:`3228`, :issue:`2632`)
+
+- Tskit now distributes with a requirement of numpy version 2 or greater. However, you can still use
+  tskit with numpy 1.X by building tskit from source with numpy 1.X using ``pip install tskit --no-binary tskit``.
+  With numpy 1.X, any use of the new StringDType properties will result in a ``RuntimeError``.
+  If you try to use another python module that was compiled against numpy 1.X with numpy 2.X you may see
+  the error "A module that was compiled using NumPy 1.x cannot be run in NumPy 2.0.0 as it may crash.".
+  If no newer version of the module is available you will have to use the Numpy 1.X build as above.
+
 **Bugfixes**
 
 - In some tables with mutations out-of-order `TableCollection.sort` did not re-order
@@ -64,17 +76,6 @@
 
 - ``ltrim``, ``rtrim``, ``trim`` and ``shift`` raise an error if used on a tree sequence
   containing a reference sequence (:user:`hyanwong`, :pr:`3210`, :issue:`2091`)
-
-- Add ``TreeSequence.sites_ancestral_state`` and ``TreeSequence.mutations_derived_state`` properties
-  to return the ancestral state of sites and derived state of mutations as NumPy arrays of
-  the new numpy 2.0 StringDType.
-  This requires numpy version 2 or greater, as such this is now the minimum version stated in tskit's
-  dependencies. If you try to use another python module that was compiled against numpy 1.X you may see
-  the error "A module that was compiled using NumPy 1.x cannot be run in NumPy 2.0.0 as it may crash.".
-  If no newer version of the module is avaliable you can still use it with tskit and numpy 1.X by
-  building tskit from source with numpy 1.X using ``pip install tskit --no-binary tskit``. However
-  any use of the new properties will result in a ``RuntimeError``.
-  (:user:`benjeffery`, :pr:`3228`, :issue:`2632`)
 
 --------------------
 [0.6.4] - 2025-05-21
