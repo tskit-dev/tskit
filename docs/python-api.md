@@ -97,6 +97,10 @@ for more information.
   TreeSequence.mutations_node
   TreeSequence.mutations_parent
   TreeSequence.mutations_time
+  TreeSequence.mutations_derived_state
+  TreeSequence.mutations_metadata
+  TreeSequence.mutations_edge
+  TreeSequence.mutations_inherited_state
   TreeSequence.migrations_left
   TreeSequence.migrations_right
   TreeSequence.migrations_right
