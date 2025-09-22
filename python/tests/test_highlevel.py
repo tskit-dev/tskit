@@ -1218,6 +1218,20 @@ class TestTreeSequence(HighLevelTestCase):
     def test_mutations(self, ts):
         self.verify_mutations(ts)
 
+    @pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
+    def test_mutation_inherited_state_property(self, ts):
+        inherited_states = ts.mutations_inherited_state
+        for mut in ts.mutations():
+            expected = inherited_states[mut.id]
+            actual = mut.inherited_state
+            assert actual == expected
+
+            if mut.parent == tskit.NULL:
+                expected_direct = ts.site(mut.site).ancestral_state
+            else:
+                expected_direct = ts.mutation(mut.parent).derived_state
+            assert actual == expected_direct
+
     def verify_pairwise_diversity(self, ts):
         haplotypes = ts.genotype_matrix(isolated_as_missing=False).T
         if ts.num_samples == 0:

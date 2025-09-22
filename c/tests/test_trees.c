@@ -3998,24 +3998,31 @@ test_single_tree_good_mutations(void)
     CU_ASSERT_EQUAL(other_mutations[0].id, 0);
     CU_ASSERT_EQUAL(other_mutations[0].node, 2);
     CU_ASSERT_NSTRING_EQUAL(other_mutations[0].derived_state, "1", 1);
+    CU_ASSERT_NSTRING_EQUAL(other_mutations[0].inherited_state, "0", 1);
     CU_ASSERT_EQUAL(other_mutations[1].id, 1);
     CU_ASSERT_EQUAL(other_mutations[1].node, 4);
     CU_ASSERT_NSTRING_EQUAL(other_mutations[1].derived_state, "1", 1);
+    CU_ASSERT_NSTRING_EQUAL(other_mutations[1].inherited_state, "0", 1);
     CU_ASSERT_EQUAL(other_mutations[2].id, 2);
     CU_ASSERT_EQUAL(other_mutations[2].node, 0);
     CU_ASSERT_NSTRING_EQUAL(other_mutations[2].derived_state, "0", 1);
+    CU_ASSERT_NSTRING_EQUAL(other_mutations[2].inherited_state, "1", 1);
     CU_ASSERT_EQUAL(other_mutations[3].id, 3);
     CU_ASSERT_EQUAL(other_mutations[3].node, 0);
     CU_ASSERT_NSTRING_EQUAL(other_mutations[3].derived_state, "1", 1);
+    CU_ASSERT_NSTRING_EQUAL(other_mutations[3].inherited_state, "0", 1);
     CU_ASSERT_EQUAL(other_mutations[4].id, 4);
     CU_ASSERT_EQUAL(other_mutations[4].node, 1);
     CU_ASSERT_NSTRING_EQUAL(other_mutations[4].derived_state, "1", 1);
+    CU_ASSERT_NSTRING_EQUAL(other_mutations[4].inherited_state, "0", 1);
     CU_ASSERT_EQUAL(other_mutations[5].id, 5);
     CU_ASSERT_EQUAL(other_mutations[5].node, 2);
     CU_ASSERT_NSTRING_EQUAL(other_mutations[5].derived_state, "1", 1);
+    CU_ASSERT_NSTRING_EQUAL(other_mutations[5].inherited_state, "0", 1);
     CU_ASSERT_EQUAL(other_mutations[6].id, 6);
     CU_ASSERT_EQUAL(other_mutations[6].node, 3);
     CU_ASSERT_NSTRING_EQUAL(other_mutations[6].derived_state, "1", 1);
+    CU_ASSERT_NSTRING_EQUAL(other_mutations[6].inherited_state, "0", 1);
 
     tsk_treeseq_free(&ts);
 }

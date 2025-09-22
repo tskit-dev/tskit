@@ -253,6 +253,13 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
     const tsk_size_t num_nodes = self->tables->nodes.num_rows;
     const double *restrict site_position = self->tables->sites.position;
     const tsk_id_t *restrict mutation_site = self->tables->mutations.site;
+    const tsk_id_t *restrict mutation_parent = self->tables->mutations.parent;
+    const char *restrict sites_ancestral_state = self->tables->sites.ancestral_state;
+    const tsk_size_t *restrict sites_ancestral_state_offset
+        = self->tables->sites.ancestral_state_offset;
+    const char *restrict mutations_derived_state = self->tables->mutations.derived_state;
+    const tsk_size_t *restrict mutations_derived_state_offset
+        = self->tables->mutations.derived_state_offset;
     const tsk_id_t *restrict I = self->tables->indexes.edge_insertion_order;
     const tsk_id_t *restrict O = self->tables->indexes.edge_removal_order;
     const double *restrict edge_right = self->tables->edges.right;
@@ -311,6 +318,26 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
                 mutation_id < num_mutations && mutation_site[mutation_id] == site_id) {
                 mutation = self->site_mutations_mem + mutation_id;
                 mutation->edge = node_edge_map[mutation->node];
+
+                /* Compute inherited state */
+                if (mutation_parent[mutation_id] == TSK_NULL) {
+                    /* No parent: inherited state is the site's ancestral state */
+                    mutation->inherited_state
+                        = sites_ancestral_state + sites_ancestral_state_offset[site_id];
+                    mutation->inherited_state_length
+                        = sites_ancestral_state_offset[site_id + 1]
+                          - sites_ancestral_state_offset[site_id];
+                } else {
+                    /* Has parent: inherited state is parent's derived state */
+                    tsk_id_t parent_id = mutation_parent[mutation_id];
+                    mutation->inherited_state
+                        = mutations_derived_state
+                          + mutations_derived_state_offset[parent_id];
+                    mutation->inherited_state_length
+                        = mutations_derived_state_offset[parent_id + 1]
+                          - mutations_derived_state_offset[parent_id];
+                }
+
                 mutation_id++;
             }
             site_id++;
@@ -5228,6 +5255,9 @@ tsk_treeseq_get_mutation(
         goto out;
     }
     mutation->edge = self->site_mutations_mem[index].edge;
+    mutation->inherited_state = self->site_mutations_mem[index].inherited_state;
+    mutation->inherited_state_length
+        = self->site_mutations_mem[index].inherited_state_length;
 out:
     return ret;
 }

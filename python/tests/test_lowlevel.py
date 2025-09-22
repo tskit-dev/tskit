@@ -1336,7 +1336,16 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             assert len(mutations) == ts.get_num_mutations()
             # Check the form of the mutations
             for packed in mutations:
-                site, node, derived_state, parent, metadata, time, edge = packed
+                (
+                    site,
+                    node,
+                    derived_state,
+                    parent,
+                    metadata,
+                    time,
+                    edge,
+                    inherited_state,
+                ) = packed
                 assert isinstance(site, int)
                 assert isinstance(node, int)
                 assert isinstance(derived_state, str)
@@ -1344,6 +1353,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
                 assert isinstance(metadata, bytes)
                 assert isinstance(time, float)
                 assert isinstance(edge, int)
+                assert isinstance(inherited_state, str)
 
     def test_get_edge_interface(self):
         for ts in self.get_example_tree_sequences():
@@ -3867,6 +3877,7 @@ class TestTree(LowLevelTestCase):
                             metadata,
                             time,
                             edge,
+                            inherited_state,
                         ) = ts.get_mutation(mut_id)
                         assert site == index
                         assert mutation_id == mut_id

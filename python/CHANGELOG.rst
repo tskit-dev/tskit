@@ -30,13 +30,14 @@
 - Add ``TreeSequence.mutations_edge`` which returns the edge ID for each mutation's
   edge. (:user:`benjeffery`, :pr:`3226`, :issue:`3189`)
 
-- Add ``TreeSequence.mutations_inherited_state`` which returns the inherited state
+- Add  which returns the inherited state
   for each mutation. (:user:`benjeffery`, :pr:`3276`, :issue:`2631`)
 
-- Add ``TreeSequence.sites_ancestral_state`` and ``TreeSequence.mutations_derived_state`` properties
-  to return the ancestral state of sites and derived state of mutations as NumPy arrays of
+- Add ``TreeSequence.sites_ancestral_state``, ``TreeSequence.mutations_derived_state`` and
+  ``TreeSequence.mutations_inherited_state`` properties  to return the ancestral state of sites,
+  derived state of mutations and inherited state of mutations as NumPy arrays of
   the new numpy 2.0 StringDType.
-  (:user:`benjeffery`, :pr:`3228`, :issue:`2632`)
+  (:user:`benjeffery`, :pr:`3228`, :issue:`2632`, :pr:`3276`, :issue:`2631`)
 
 - Tskit now distributes with a requirement of numpy version 2 or greater. However, you can still use
   tskit with numpy 1.X by building tskit from source with numpy 1.X using ``pip install tskit --no-binary tskit``.
@@ -44,6 +45,9 @@
   If you try to use another python module that was compiled against numpy 1.X with numpy 2.X you may see
   the error "A module that was compiled using NumPy 1.x cannot be run in NumPy 2.0.0 as it may crash.".
   If no newer version of the module is available you will have to use the Numpy 1.X build as above.
+
+- Add ``Mutation.inherited_state`` property which returns the inherited state
+  for a single mutation. (:user:`benjeffery`, :pr:`3277`, :issue:`2631`)
 
 **Bugfixes**
 
