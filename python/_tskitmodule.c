@@ -363,9 +363,10 @@ make_mutation_object(const tsk_mutation_t *mutation)
     if (metadata == NULL) {
         goto out;
     }
-    ret = Py_BuildValue("iis#iOdi", mutation->site, mutation->node,
+    ret = Py_BuildValue("iis#iOdis#", mutation->site, mutation->node,
         mutation->derived_state, (Py_ssize_t) mutation->derived_state_length,
-        mutation->parent, metadata, mutation->time, mutation->edge);
+        mutation->parent, metadata, mutation->time, mutation->edge,
+        mutation->inherited_state, (Py_ssize_t) mutation->inherited_state_length);
 out:
     Py_XDECREF(metadata);
     return ret;

@@ -425,6 +425,7 @@ class Mutation(util.Dataclass):
         "metadata",
         "time",
         "edge",
+        "inherited_state",
     ]
     id: int  # noqa A003
     """
@@ -473,6 +474,13 @@ class Mutation(util.Dataclass):
     """
     The ID of the edge that this mutation is on.
     """
+    inherited_state: str
+    """
+    The inherited state for this mutation. This is the state that existed at the site
+    before this mutation occurred. This is either the ancestral state of the site
+    (if the mutation has no parent) or the derived state of the mutation's
+    parent mutation (if it has a parent).
+    """
 
     # To get default values on slots we define a custom init
     def __init__(
@@ -485,6 +493,7 @@ class Mutation(util.Dataclass):
         parent=NULL,
         metadata=b"",
         edge=NULL,
+        inherited_state=None,
     ):
         self.id = id
         self.site = site
@@ -494,6 +503,7 @@ class Mutation(util.Dataclass):
         self.parent = parent
         self.metadata = metadata
         self.edge = edge
+        self.inherited_state = inherited_state
 
     # We need a custom eq to compare unknown times.
     def __eq__(self, other):
@@ -6333,6 +6343,7 @@ class TreeSequence:
             metadata,
             time,
             edge,
+            inherited_state,
         ) = self._ll_tree_sequence.get_mutation(id_)
         return Mutation(
             id=id_,
@@ -6343,6 +6354,7 @@ class TreeSequence:
             metadata=metadata,
             time=time,
             edge=edge,
+            inherited_state=inherited_state,
             metadata_decoder=self.table_metadata_schemas.mutation.decode_row,
         )
 

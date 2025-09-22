@@ -65,7 +65,7 @@ arbitrarily between releases.
     stability, since the primary use-case is for tskit to be embedded
     within another application rather than used as a shared library. If you
     do intend to use tskit as a shared library and ABI stability is
-    therefore imporant to you, please let us know and we can plan
+    therefore important to you, please let us know and we can plan
     accordingly.
 
 .. _sec_c_api_overview_structure:

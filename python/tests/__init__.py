@@ -150,6 +150,7 @@ class PythonTreeSequence:
                 metadata,
                 time,
                 edge,
+                inherited_state,
             ) = ll_ts.get_mutation(id_)
             return tskit.Mutation(
                 id=id_,
@@ -160,6 +161,7 @@ class PythonTreeSequence:
                 parent=parent,
                 metadata=metadata,
                 edge=edge,
+                inherited_state=inherited_state,
                 metadata_decoder=tskit.metadata.parse_metadata_schema(
                     ll_ts.get_table_metadata_schemas().mutation
                 ).decode_row,
