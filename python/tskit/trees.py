@@ -4140,6 +4140,7 @@ class TreeSequence:
         self._individuals_location = None
         self._individuals_nodes = None
         self._mutations_edge = None
+        self._mutations_inherited_state = None
         self._sites_ancestral_state = None
         self._mutations_derived_state = None
         # NOTE: when we've implemented read-only access via the underlying
@@ -6067,6 +6068,29 @@ class TreeSequence:
         if self._mutations_edge is None:
             self._mutations_edge = self._ll_tree_sequence.get_mutations_edge()
         return self._mutations_edge
+
+    @property
+    def mutations_inherited_state(self):
+        """
+        Return an array of the inherited state for each mutation in the tree sequence.
+
+        The inherited state for a mutation is the state that existed at the site
+        before the mutation occurred. This is either the ancestral state of the site
+        (if the mutation has no parent) or the derived state of the mutation's
+        parent mutation (if it has a parent).
+
+        :return: Array of shape (num_mutations,) containing inherited states.
+        :rtype: numpy.ndarray
+        """
+        if self._mutations_inherited_state is None:
+            inherited_state = self.sites_ancestral_state[self.mutations_site]
+            mutations_with_parent = self.mutations_parent != -1
+            parent = self.mutations_parent[mutations_with_parent]
+            inherited_state[mutations_with_parent] = self.mutations_derived_state[
+                parent
+            ]
+            self._mutations_inherited_state = inherited_state
+        return self._mutations_inherited_state
 
     @property
     def migrations_left(self):
