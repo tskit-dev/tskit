@@ -4951,6 +4951,8 @@ tsk_treeseq_get_mutation(
         goto out;
     }
     mutation->edge = self->site_mutations_mem[index].edge;
+    mutation->inherited_state = self->site_mutations_mem[index].inherited_state;
+    mutation->inherited_state_length = self->site_mutations_mem[index].inherited_state_length;
 out:
     return ret;
 }

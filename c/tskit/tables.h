@@ -158,6 +158,10 @@ typedef struct {
     /** @brief The ID of the edge that this mutation lies on, or TSK_NULL
       if there is no corresponding edge.*/
     tsk_id_t edge;
+    /** @brief Inherited state. */
+    const char *inherited_state;
+    /** @brief Size of the inherited state in bytes. */
+    tsk_size_t inherited_state_length;
 } tsk_mutation_t;
 
 /**
