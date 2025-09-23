@@ -11399,6 +11399,59 @@ TreeSequence_get_mutations_derived_state(TreeSequence *self, void *closure)
 out:
     return ret;
 }
+static PyObject *
+TreeSequence_get_mutations_inherited_state(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_treeseq_t *ts;
+    tsk_size_t num_mutations;
+    char *inherited_state_data = NULL;
+    tsk_size_t *inherited_state_offsets = NULL;
+    tsk_size_t total_length = 0;
+    tsk_size_t j, offset;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+
+    ts = self->tree_sequence;
+    num_mutations = ts->tables->mutations.num_rows;
+
+    /* Calculate total length needed for inherited state data */
+    for (j = 0; j < num_mutations; j++) {
+        total_length += ts->site_mutations_mem[j].inherited_state_length;
+    }
+
+    /* Allocate memory for the ragged array */
+    inherited_state_data = PyMem_Malloc(total_length * sizeof(char));
+    inherited_state_offsets = PyMem_Malloc((num_mutations + 1) * sizeof(tsk_size_t));
+    if (inherited_state_data == NULL || inherited_state_offsets == NULL) {
+        PyErr_NoMemory();
+        goto out;
+    }
+
+    /* Populate the ragged array data */
+    offset = 0;
+    for (j = 0; j < num_mutations; j++) {
+        inherited_state_offsets[j] = offset;
+        memcpy(inherited_state_data + offset, ts->site_mutations_mem[j].inherited_state,
+            ts->site_mutations_mem[j].inherited_state_length);
+        offset += ts->site_mutations_mem[j].inherited_state_length;
+    }
+    inherited_state_offsets[num_mutations] = offset;
+
+    ret = TreeSequence_decode_ragged_string_column(
+        self, num_mutations, inherited_state_data, inherited_state_offsets);
+
+out:
+    if (inherited_state_data != NULL) {
+        PyMem_Free(inherited_state_data);
+    }
+    if (inherited_state_offsets != NULL) {
+        PyMem_Free(inherited_state_offsets);
+    }
+    return ret;
+}
 #endif
 
 static PyObject *
@@ -12018,6 +12071,9 @@ static PyGetSetDef TreeSequence_getsetters[] = {
     { .name = "mutations_derived_state",
         .get = (getter) TreeSequence_get_mutations_derived_state,
         .doc = "The mutation derived state array" },
+    { .name = "mutations_inherited_state",
+        .get = (getter) TreeSequence_get_mutations_inherited_state,
+        .doc = "The mutation inherited state array" },
 #endif
     { .name = "mutations_metadata",
         .get = (getter) TreeSequence_get_mutations_metadata,

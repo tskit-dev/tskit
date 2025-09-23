@@ -30,9 +30,6 @@
 - Add ``TreeSequence.mutations_edge`` which returns the edge ID for each mutation's
   edge. (:user:`benjeffery`, :pr:`3226`, :issue:`3189`)
 
-- Add  which returns the inherited state
-  for each mutation. (:user:`benjeffery`, :pr:`3276`, :issue:`2631`)
-
 - Add ``TreeSequence.sites_ancestral_state``, ``TreeSequence.mutations_derived_state`` and
   ``TreeSequence.mutations_inherited_state`` properties  to return the ancestral state of sites,
   derived state of mutations and inherited state of mutations as NumPy arrays of

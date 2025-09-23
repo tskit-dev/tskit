@@ -92,6 +92,7 @@ for more information.
   TreeSequence.edges_parent
   TreeSequence.edges_child
   TreeSequence.sites_position
+  TreeSequence.sites_ancestral_state
   TreeSequence.mutations_site
   TreeSequence.mutations_node
   TreeSequence.mutations_parent

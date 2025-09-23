@@ -5562,6 +5562,14 @@ class TestRaggedArrays:
 
     @pytest.mark.skipif(not _tskit.HAS_NUMPY_2, reason="Requires NumPy 2.0 or higher")
     @pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
+    def test_equality_mutations_inherited_state(self, ts):
+        assert_array_equal(
+            ts.mutations_inherited_state,
+            [mutation.inherited_state for mutation in ts.mutations()],
+        )
+
+    @pytest.mark.skipif(not _tskit.HAS_NUMPY_2, reason="Requires NumPy 2.0 or higher")
+    @pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
     def test_mutations_inherited_state(self, ts):
         inherited_state = ts.mutations_inherited_state
         assert len(inherited_state) == ts.num_mutations
