@@ -6092,14 +6092,14 @@ class TreeSequence:
         :return: Array of shape (num_mutations,) containing inherited states.
         :rtype: numpy.ndarray
         """
+        if not _tskit.HAS_NUMPY_2:
+            raise RuntimeError(
+                "The mutations_inherited_state property requires numpy 2.0 or later."
+            )
         if self._mutations_inherited_state is None:
-            inherited_state = self.sites_ancestral_state[self.mutations_site]
-            mutations_with_parent = self.mutations_parent != -1
-            parent = self.mutations_parent[mutations_with_parent]
-            inherited_state[mutations_with_parent] = self.mutations_derived_state[
-                parent
-            ]
-            self._mutations_inherited_state = inherited_state
+            self._mutations_inherited_state = (
+                self._ll_tree_sequence.mutations_inherited_state
+            )
         return self._mutations_inherited_state
 
     @property

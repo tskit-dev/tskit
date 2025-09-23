@@ -2192,7 +2192,12 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
 
     @pytest.mark.skipif(not _tskit.HAS_NUMPY_2, reason="Requires NumPy 2.0+")
     @pytest.mark.parametrize(
-        "string_array", ["sites_ancestral_state", "mutations_derived_state"]
+        "string_array",
+        [
+            "sites_ancestral_state",
+            "mutations_derived_state",
+            "mutations_inherited_state",
+        ],
     )
     @pytest.mark.parametrize(
         "str_lengths",
@@ -2210,6 +2215,9 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
                 elif string_array == "mutations_derived_state":
                     assert ts.num_mutations > 0
                     assert {len(mut.derived_state) for mut in ts.mutations()} == {1}
+                elif string_array == "mutations_inherited_state":
+                    assert ts.num_mutations > 0
+                    assert {len(mut.inherited_state) for mut in ts.mutations()} == {1}
             else:
                 tables = ts_fixture.dump_tables()
 
@@ -2239,6 +2247,25 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
                                 derived_state=get_derived_state(i, mutation)
                             )
                         )
+                elif string_array == "mutations_inherited_state":
+                    # For inherited state, we modify sites and mutations to create
+                    # varied lengths
+                    sites = tables.sites.copy()
+                    tables.sites.clear()
+                    get_ancestral_state = str_map[str_lengths]
+                    for i, site in enumerate(sites):
+                        tables.sites.append(
+                            site.replace(ancestral_state=get_ancestral_state(i, site))
+                        )
+                    mutations = tables.mutations.copy()
+                    tables.mutations.clear()
+                    get_derived_state = str_map[str_lengths]
+                    for i, mutation in enumerate(mutations):
+                        tables.mutations.append(
+                            mutation.replace(
+                                derived_state=get_derived_state(i, mutation)
+                            )
+                        )
 
                 ts = tables.tree_sequence()
         ll_ts = ts.ll_tree_sequence
@@ -2255,6 +2282,9 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             elif string_array == "mutations_derived_state":
                 for mutation in ts.mutations():
                     assert a[mutation.id] == mutation.derived_state
+            elif string_array == "mutations_inherited_state":
+                for mutation in ts.mutations():
+                    assert a[mutation.id] == mutation.inherited_state
 
         # Read only
         with pytest.raises(AttributeError, match="not writable"):

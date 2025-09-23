@@ -402,9 +402,11 @@ class NumbaTreeSequence:
         mutations_parent,
         mutations_time,
         mutations_derived_state,
+        mutations_inherited_state,
         breakpoints,
         max_ancestral_length,
         max_derived_length,
+        max_inherited_length,
     ):
         self.num_trees = num_trees
         self.num_nodes = num_nodes
@@ -431,9 +433,11 @@ class NumbaTreeSequence:
         self.mutations_parent = mutations_parent
         self.mutations_time = mutations_time
         self.mutations_derived_state = mutations_derived_state
+        self.mutations_inherited_state = mutations_inherited_state
         self.breakpoints = breakpoints
         self.max_ancestral_length = max_ancestral_length
         self.max_derived_length = max_derived_length
+        self.max_inherited_length = max_inherited_length
 
     def tree_index(self):
         """
@@ -526,7 +530,7 @@ class NumbaTreeSequence:
 
 # We cache these classes to avoid repeated JIT compilation
 @functools.lru_cache(None)
-def _jitwrap(max_ancestral_length, max_derived_length):
+def _jitwrap(max_ancestral_length, max_derived_length, max_inherited_length):
     # We have a circular dependency in JIT compilation between NumbaTreeSequence
     # and NumbaTreeIndex so we used a deferred type to break it
     tree_sequence_type = numba.deferred_type()
@@ -576,9 +580,14 @@ def _jitwrap(max_ancestral_length, max_derived_length):
         ("mutations_parent", numba.int32[:]),
         ("mutations_time", numba.float64[:]),
         ("mutations_derived_state", numba.types.UnicodeCharSeq(max_derived_length)[:]),
+        (
+            "mutations_inherited_state",
+            numba.types.UnicodeCharSeq(max_inherited_length)[:],
+        ),
         ("breakpoints", numba.float64[:]),
         ("max_ancestral_length", numba.int32),
         ("max_derived_length", numba.int32),
+        ("max_inherited_length", numba.int32),
     ]
 
     # The `tree_index` method on NumbaTreeSequence uses NumbaTreeIndex
@@ -614,8 +623,13 @@ def jitwrap(ts):
     """
     max_ancestral_length = max(1, max(map(len, ts.sites_ancestral_state), default=1))
     max_derived_length = max(1, max(map(len, ts.mutations_derived_state), default=1))
+    max_inherited_length = max(
+        1, max(map(len, ts.mutations_inherited_state), default=1)
+    )
 
-    JittedTreeSequence = _jitwrap(max_ancestral_length, max_derived_length)
+    JittedTreeSequence = _jitwrap(
+        max_ancestral_length, max_derived_length, max_inherited_length
+    )
 
     # Create the tree sequence instance
     numba_ts = JittedTreeSequence(
@@ -648,9 +662,13 @@ def jitwrap(ts):
         mutations_derived_state=ts.mutations_derived_state.astype(
             f"U{max_derived_length}"
         ),
+        mutations_inherited_state=ts.mutations_inherited_state.astype(
+            f"U{max_inherited_length}"
+        ),
         breakpoints=ts.breakpoints(as_array=True),
         max_ancestral_length=max_ancestral_length,
         max_derived_length=max_derived_length,
+        max_inherited_length=max_inherited_length,
     )
 
     return numba_ts

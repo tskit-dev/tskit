@@ -269,6 +269,7 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
     bool discrete_breakpoints = true;
     tsk_id_t *node_edge_map = tsk_malloc(num_nodes * sizeof(*node_edge_map));
     tsk_mutation_t *mutation;
+    tsk_id_t parent_id;
 
     self->tree_sites_length
         = tsk_malloc(num_trees_alloc * sizeof(*self->tree_sites_length));
@@ -329,7 +330,7 @@ tsk_treeseq_init_trees(tsk_treeseq_t *self)
                           - sites_ancestral_state_offset[site_id];
                 } else {
                     /* Has parent: inherited state is parent's derived state */
-                    tsk_id_t parent_id = mutation_parent[mutation_id];
+                    parent_id = mutation_parent[mutation_id];
                     mutation->inherited_state
                         = mutations_derived_state
                           + mutations_derived_state_offset[parent_id];

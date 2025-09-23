@@ -421,6 +421,10 @@ def test_jitwrap_properties(ts):
     nt.assert_array_equal(numba_ts.mutations_derived_state, ts.mutations_derived_state)
     assert numba_ts.mutations_derived_state.dtype.kind == "U"  # Unicode string
     nt.assert_array_equal(
+        numba_ts.mutations_inherited_state, ts.mutations_inherited_state
+    )
+    assert numba_ts.mutations_inherited_state.dtype.kind == "U"  # Unicode string
+    nt.assert_array_equal(
         numba_ts.indexes_edge_insertion_order, ts.indexes_edge_insertion_order
     )
     nt.assert_array_equal(
