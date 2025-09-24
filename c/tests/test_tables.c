@@ -11241,6 +11241,107 @@ test_table_collection_union(void)
 }
 
 static void
+test_table_collection_disjoint_union(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_table_collection_t tables;
+    tsk_table_collection_t tables1;
+    tsk_table_collection_t tables2;
+    tsk_table_collection_t tables12;
+    tsk_id_t node_mapping[4];
+
+    tsk_memset(node_mapping, 0xff, sizeof(node_mapping));
+
+    ret = tsk_table_collection_init(&tables1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables1.sequence_length = 2;
+
+    // set up nodes, which will be shared
+    // flags, time, pop, ind, metadata, metadata_length
+    ret_id = tsk_node_table_add_row(
+        &tables1.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_node_table_add_row(
+        &tables1.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_node_table_add_row(&tables1.nodes, 0, 0.5, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_node_table_add_row(&tables1.nodes, 0, 1.5, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret = tsk_table_collection_copy(&tables1, &tables2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // for tables1:
+    // on [0, 1] we have 0, 1 inherit from 2
+    // left, right, parent, child, metadata, metadata_length
+    ret_id = tsk_edge_table_add_row(&tables1.edges, 0.0, 1.0, 2, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_edge_table_add_row(&tables1.edges, 0.0, 1.0, 2, 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_site_table_add_row(&tables1.sites, 0.4, "T", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_mutation_table_add_row(
+        &tables1.mutations, ret_id, 0, TSK_NULL, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret = tsk_table_collection_build_index(&tables1, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_sort(&tables1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // all this goes in tables12 so far
+    ret = tsk_table_collection_copy(&tables1, &tables12, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // for tables2; and need to add it to tables12 also:
+    // on [1, 2] we have 0, 1 inherit from 3
+    // left, right, parent, child, metadata, metadata_length
+    ret_id = tsk_edge_table_add_row(&tables2.edges, 1.0, 2.0, 3, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_edge_table_add_row(&tables2.edges, 1.0, 2.0, 3, 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_site_table_add_row(&tables2.sites, 1.4, "A", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_mutation_table_add_row(
+        &tables2.mutations, ret_id, 0, TSK_NULL, TSK_UNKNOWN_TIME, "T", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret = tsk_table_collection_build_index(&tables2, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_sort(&tables2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    // also tables12
+    ret_id = tsk_edge_table_add_row(&tables12.edges, 1.0, 2.0, 3, 0, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_edge_table_add_row(&tables12.edges, 1.0, 2.0, 3, 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_site_table_add_row(&tables12.sites, 1.4, "A", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_mutation_table_add_row(
+        &tables12.mutations, ret_id, 1, TSK_NULL, TSK_UNKNOWN_TIME, "T", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret = tsk_table_collection_build_index(&tables12, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_sort(&tables12, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    // now disjoint union-ing tables1 and tables2 should get tables12
+    ret = tsk_table_collection_copy(&tables1, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    node_mapping[0] = 0;
+    node_mapping[1] = 1;
+    node_mapping[2] = 2;
+    node_mapping[3] = 3;
+    ret = tsk_table_collection_union(&tables, &tables2, node_mapping,
+        TSK_UNION_NO_CHECK_SHARED | TSK_UNION_ALL_EDGES | TSK_UNION_ALL_MUTATIONS);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tsk_table_collection_free(&tables12);
+    tsk_table_collection_free(&tables2);
+    tsk_table_collection_free(&tables1);
+    tsk_table_collection_free(&tables);
+}
+
+static void
 test_table_collection_union_middle_merge(void)
 {
     /* Test ability to have non-shared history both above and below the
@@ -11836,6 +11937,7 @@ main(int argc, char **argv)
             test_table_collection_subset_unsorted },
         { "test_table_collection_subset_errors", test_table_collection_subset_errors },
         { "test_table_collection_union", test_table_collection_union },
+        { "test_table_collection_disjoint_union", test_table_collection_disjoint_union },
         { "test_table_collection_union_middle_merge",
             test_table_collection_union_middle_merge },
         { "test_table_collection_union_errors", test_table_collection_union_errors },
