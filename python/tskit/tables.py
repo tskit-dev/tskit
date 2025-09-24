@@ -4337,6 +4337,9 @@ class TableCollection(metadata.MetadataProvider):
         check_shared_equality=True,
         add_populations=True,
         record_provenance=True,
+        *,
+        all_edges=False,
+        all_mutations=False,
     ):
         """
         Modifies the table collection in place by adding the non-shared
@@ -4358,6 +4361,10 @@ class TableCollection(metadata.MetadataProvider):
             assigned new population IDs.
         :param bool record_provenance: Whether to record a provenance entry
             in the provenance table for this operation.
+        :param bool all_edges: If True, then all edges in ``other`` are added
+            to ``self``.
+        :param bool all_mutations: If True, then all mutations in ``other`` are added
+            to ``self``.
         """
         node_mapping = util.safe_np_int_cast(node_mapping, np.int32)
         self._ll_tables.union(
@@ -4365,6 +4372,8 @@ class TableCollection(metadata.MetadataProvider):
             node_mapping,
             check_shared_equality=check_shared_equality,
             add_populations=add_populations,
+            all_edges=all_edges,
+            all_mutations=all_mutations,
         )
         if record_provenance:
             other_records = [prov.record for prov in other.provenances]

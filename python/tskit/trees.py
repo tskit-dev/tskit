@@ -7198,19 +7198,32 @@ class TreeSequence:
         self, *args, node_mappings=None, record_provenance=True, add_populations=None
     ):
         r"""
-        Concatenate a set of tree sequences to the right of this one, by repeatedly
-        calling :meth:`~TreeSequence.union` with an (optional)
-        node mapping for each of the ``others``. If any node mapping is ``None``
-        only map the sample nodes between the input tree sequence and this one,
-        based on the numerical order of sample node IDs.
+        Concatenate a set of tree sequences to the right of this one, by shifting
+        their coordinate systems and adding all edges, sites, mutations, and
+        any additional nodes, individuals, or populations needed for these.
+        Concretely, to concatenate an ``other`` tree sequence to ``self``, the value
+        of ``self.sequence_length`` is added to all genomic coordinates in ``other``,
+        and then the concatenated tree sequence  will contain all edges, sites, and
+        mutations in both. Which nodes in ``other`` are treated as "new", and hence
+        added as well, is controlled by ``node_mappings``. Any individuals to which
+        new nodes belong are added as well.
+
+        The method uses :meth:`.shift` followed by :meth:`.union`, with
+        ``all_mutations=True``, ``all_edges=True``, and ``check_shared_equality=False``.
+
+        By default, the samples in current and input tree sequences are assumed to
+        refer to the same nodes, and are matched based on the numerical order of
+        sample node IDs; all other nodes are assumed to be new. This can be
+        changed by providing explicit ``node_mappings`` for each input tree sequence
+        (see below).
 
         .. note::
-            To add gaps between the concatenated tables, use :meth:`shift` or
-            to remove gaps, use :meth:`trim` before concatenating.
+            To add gaps between the concatenated tree sequences, use :meth:`shift`
+            or to remove gaps, use :meth:`trim` before concatenating.
 
         :param TreeSequence \*args: A list of other tree sequences to append to
             the right of this one.
-        :param Union[list, None] node_mappings: An list of node mappings for each
+        :param Union[list, None] node_mappings: A list of node mappings for each
             input tree sequence in ``args``. Each should either be an array of
             integers of the same length as the number of nodes in the equivalent
             input tree sequence (see :meth:`~TreeSequence.union` for details), or
@@ -7252,6 +7265,8 @@ class TreeSequence:
                 other_tables,
                 node_mapping=node_mapping,
                 check_shared_equality=False,  # Else checks fail with internal samples
+                all_mutations=True,
+                all_edges=True,
                 record_provenance=False,
                 add_populations=add_populations,
             )
@@ -7480,6 +7495,9 @@ class TreeSequence:
         check_shared_equality=True,
         add_populations=True,
         record_provenance=True,
+        *,
+        all_edges=False,
+        all_mutations=False,
     ):
         """
         Returns an expanded tree sequence which contains the node-wise union of
@@ -7513,6 +7531,26 @@ class TreeSequence:
         nodes are in entirely new populations, then you must set up the
         population table first, and then union with ``add_populations=False``.
 
+        This method makes sense if the "shared" portions of the tree sequences
+        are equal; the option ``check_shared_equality`` performs a consistency
+        check that this is true. If this check is disabled, it is very easy to
+        produce nonsensical results via subtle inconsistencies.
+
+        The behavior above can be changed by ``all_edges`` and ``all_mutations``.
+        If ``all_edges`` is True, then all edges in ``other`` are added to
+        ``self``, instead of only edges adjacent to added nodes. If
+        ``all_mutations`` is True, then similarly all mutations in ``other``
+        are added (not just those on added nodes); furthermore, all sites
+        at positions without a site already present are added to ``self``.
+        The intended use case for these options is a "disjoint" union,
+        where for instance the two tree sequences contain information about
+        disjoint segments of the genome (see :meth:`.concatenate`).
+        For some such applications it may be necessary to set
+        ``check_shared_equality=False``: for instance, if ``other`` has
+        an identical copy of the node table but no edges, then
+        ``all_mutations=True, check_shared_equality=False`` can be used
+        to add mutations to ``self``.
+
         If the resulting tree sequence is invalid (for instance, a node is
         specified to have two distinct parents on the same interval),
         an error will be raised.
@@ -7521,9 +7559,13 @@ class TreeSequence:
         resulting tree sequence may not be equal to ``self`` even if nothing
         new was added (although it would differ only in ordering of the tables).
 
-        :param TableCollection other: Another table collection.
+        :param TreeSequence other: Another tree sequence.
         :param list node_mapping: An array of node IDs that relate nodes in
             ``other`` to nodes in ``self``.
+        :param bool all_edges: If True, then all edges in ``other`` are added
+            to ``self``.
+        :param bool all_mutations: If True, then all mutations and sites in
+            ``other`` are added to ``self``.
         :param bool check_shared_equality: If True, the shared portions of the
             tree sequences will be checked for equality. It does so by
             running :meth:`TreeSequence.subset` on both ``self`` and ``other``
@@ -7542,6 +7584,8 @@ class TreeSequence:
             check_shared_equality=check_shared_equality,
             add_populations=add_populations,
             record_provenance=record_provenance,
+            all_edges=all_edges,
+            all_mutations=all_mutations,
         )
         return tables.tree_sequence()
 
