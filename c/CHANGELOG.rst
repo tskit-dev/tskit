@@ -1,5 +1,5 @@
 --------------------
-[1.2.0] - 2025-XX-XX
+[1.2.0] - 2025-09-24
 --------------------
 
 **Breaking changes**
@@ -13,15 +13,6 @@
   ``TSK_ERR_MUTATION_PARENT_AFTER_CHILD`` if the mutations are not in an order
   compatible with the correct mutation parent.
   (:user:`benjeffery`, :issue:`2729`, :issue:`2732`, :pr:`3212`).
-
-- Mutations returned by ``tsk_treeseq_get_mutation`` now include pre-computed
-  ``inherited_state`` and ``inherited_state_length`` fields. The inherited state
-  is computed during tree sequence initialization and represents the state that
-  existed at the site before each mutation occurred (either the ancestral state
-  if the mutation is the root mutation or the derived state of the parent mutation).
-  Note that this breaks ABI compatibility due to the addition of these fields
-  to the ``tsk_mutation_t`` struct.
-  (:user:`benjeffery`, :pr:`3277`, :issue:`2631`).
 
 **Features**
 
@@ -40,6 +31,16 @@
   This is useful for speeding up the computation of mutation parents when the
   tree sequence is certainly known to be valid.
   (:user:`benjeffery`, :pr:`3212`).
+
+- Mutations returned by ``tsk_treeseq_get_mutation`` now include pre-computed
+  ``inherited_state`` and ``inherited_state_length`` fields. The inherited state
+  is computed during tree sequence initialization and represents the state that
+  existed at the site before each mutation occurred (either the ancestral state
+  if the mutation is the root mutation or the derived state of the parent mutation).
+  Note that this breaks ABI compatibility due to the addition of these fields
+  to the ``tsk_mutation_t`` struct.
+  (:user:`benjeffery`, :pr:`3277`, :issue:`2631`).
+
 
 
 --------------------
