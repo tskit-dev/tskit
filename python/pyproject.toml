@@ -56,7 +56,7 @@ GitHub = "https://github.com/tskit-dev/tskit/"
 tskit = "tskit.cli:tskit_main"
 
 [tool.setuptools]
-packages = ["tskit"]
+packages = ["tskit", "tskit.jit"]
 
 [tool.setuptools.dynamic]
 version = {attr = "tskit._version.tskit_version"}
