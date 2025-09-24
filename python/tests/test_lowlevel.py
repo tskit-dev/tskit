@@ -4863,7 +4863,7 @@ class TestModuleFunctions:
 
     def test_tskit_version(self):
         version = _tskit.get_tskit_version()
-        assert version == (1, 1, 4)
+        assert version == (1, 2, 0)
 
     def test_tskit_version_file(self):
         maj, min_, patch = _tskit.get_tskit_version()
