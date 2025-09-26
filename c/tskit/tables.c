@@ -13202,6 +13202,8 @@ tsk_table_collection_union(tsk_table_collection_t *self,
     tsk_id_t *site_map = NULL;
     bool add_populations = !(options & TSK_UNION_NO_ADD_POP);
     bool check_shared_portion = !(options & TSK_UNION_NO_CHECK_SHARED);
+    bool all_edges = !!(options & TSK_UNION_ALL_EDGES);
+    bool all_mutations = !!(options & TSK_UNION_ALL_MUTATIONS);
 
     /* Not calling TSK_CHECK_TREES so casting to int is safe */
     ret = (int) tsk_table_collection_check_integrity(self, 0);
@@ -13285,7 +13287,7 @@ tsk_table_collection_union(tsk_table_collection_t *self,
     // edges
     for (k = 0; k < (tsk_id_t) other->edges.num_rows; k++) {
         tsk_edge_table_get_row_unsafe(&other->edges, k, &edge);
-        if ((other_node_mapping[edge.parent] == TSK_NULL)
+        if (all_edges || (other_node_mapping[edge.parent] == TSK_NULL)
             || (other_node_mapping[edge.child] == TSK_NULL)) {
             new_parent = node_map[edge.parent];
             new_child = node_map[edge.child];
@@ -13305,7 +13307,7 @@ tsk_table_collection_union(tsk_table_collection_t *self,
         while ((i < (tsk_id_t) other->mutations.num_rows)
                && (other->mutations.site[i] == site.id)) {
             tsk_mutation_table_get_row_unsafe(&other->mutations, i, &mut);
-            if (other_node_mapping[mut.node] == TSK_NULL) {
+            if (all_mutations || (other_node_mapping[mut.node] == TSK_NULL)) {
                 if (site_map[site.id] == TSK_NULL) {
                     ret_id = tsk_site_table_add_row(&self->sites, site.position,
                         site.ancestral_state, site.ancestral_state_length, site.metadata,

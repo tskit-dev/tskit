@@ -7466,6 +7466,8 @@ class TreeSequence:
         self,
         other,
         node_mapping,
+        all_edges=False,
+        all_mutations=False,
         check_shared_equality=True,
         add_populations=True,
         record_provenance=True,
@@ -7513,6 +7515,10 @@ class TreeSequence:
         :param TableCollection other: Another table collection.
         :param list node_mapping: An array of node IDs that relate nodes in
             ``other`` to nodes in ``self``.
+        :param bool all_edges: If True, then all edges in ``other`` are added
+            to ``self``. Must have ``check_shared_equality=False``.
+        :param bool all_mutations: If True, then all mutations in ``other`` are added
+            to ``self``. Must have ``check_shared_equality=False``.
         :param bool check_shared_equality: If True, the shared portions of the
             tree sequences will be checked for equality. It does so by
             running :meth:`TreeSequence.subset` on both ``self`` and ``other``
@@ -7528,6 +7534,8 @@ class TreeSequence:
         tables.union(
             other_tables,
             node_mapping,
+            all_edges=all_edges,
+            all_mutations=all_mutations,
             check_shared_equality=check_shared_equality,
             add_populations=add_populations,
             record_provenance=record_provenance,
