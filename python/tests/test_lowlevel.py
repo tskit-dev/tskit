@@ -1178,6 +1178,10 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
 
     ARRAY_NAMES = [
         "individuals_flags",
+        "individuals_location",
+        "individuals_location_offset",
+        "individuals_parents",
+        "individuals_parents_offset",
         "individuals_metadata",
         "individuals_metadata_offset",
         "nodes_time",
@@ -2197,6 +2201,8 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             "sites_ancestral_state",
             "mutations_derived_state",
             "mutations_inherited_state",
+            "provenances_timestamp",
+            "provenances_record",
         ],
     )
     @pytest.mark.parametrize(
@@ -2218,6 +2224,12 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
                 elif string_array == "mutations_inherited_state":
                     assert ts.num_mutations > 0
                     assert {len(mut.inherited_state) for mut in ts.mutations()} == {1}
+                elif string_array == "provenances_timestamp":
+                    assert ts.num_provenances > 0
+                    assert len(ts.provenance(3).timestamp) == 1
+                elif string_array == "provenances_record":
+                    assert ts.num_provenances > 0
+                    assert len(ts.provenance(3).record) == 1
             else:
                 tables = ts_fixture.dump_tables()
 
@@ -2266,6 +2278,22 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
                                 derived_state=get_derived_state(i, mutation)
                             )
                         )
+                elif string_array == "provenances_timestamp":
+                    provenances = tables.provenances.copy()
+                    tables.provenances.clear()
+                    get_timestamp = str_map[str_lengths]
+                    for i, provenance in enumerate(provenances):
+                        tables.provenances.append(
+                            provenance.replace(timestamp=get_timestamp(i, provenance))
+                        )
+                elif string_array == "provenances_record":
+                    provenances = tables.provenances.copy()
+                    tables.provenances.clear()
+                    get_record = str_map[str_lengths]
+                    for i, provenance in enumerate(provenances):
+                        tables.provenances.append(
+                            provenance.replace(record=get_record(i, provenance))
+                        )
 
                 ts = tables.tree_sequence()
         ll_ts = ts.ll_tree_sequence
@@ -2285,6 +2313,12 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             elif string_array == "mutations_inherited_state":
                 for mutation in ts.mutations():
                     assert a[mutation.id] == mutation.inherited_state
+            elif string_array == "provenances_timestamp":
+                for provenance in ts.provenances():
+                    assert a[provenance.id] == provenance.timestamp
+            elif string_array == "provenances_record":
+                for provenance in ts.provenances():
+                    assert a[provenance.id] == provenance.record
 
         # Read only
         with pytest.raises(AttributeError, match="not writable"):

@@ -11075,6 +11075,104 @@ out:
 }
 
 static PyObject *
+TreeSequence_get_individuals_location(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_individual_table_t individuals;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    individuals = self->tree_sequence->tables->individuals;
+    ret = TreeSequence_make_array(
+        self, individuals.location_length, NPY_FLOAT64, individuals.location);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_individuals_location_offset(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_individual_table_t individuals;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    individuals = self->tree_sequence->tables->individuals;
+    ret = TreeSequence_make_array(
+        self, individuals.num_rows + 1, NPY_UINT64, individuals.location_offset);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_individuals_parents(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_individual_table_t individuals;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    individuals = self->tree_sequence->tables->individuals;
+    ret = TreeSequence_make_array(
+        self, individuals.parents_length, NPY_INT32, individuals.parents);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_individuals_parents_offset(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_individual_table_t individuals;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    individuals = self->tree_sequence->tables->individuals;
+    ret = TreeSequence_make_array(
+        self, individuals.num_rows + 1, NPY_UINT64, individuals.parents_offset);
+out:
+    return ret;
+}
+
+#if HAVE_NUMPY_2
+static PyObject *
+TreeSequence_get_provenances_timestamp(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_provenance_table_t provenances;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    provenances = self->tree_sequence->tables->provenances;
+    ret = TreeSequence_decode_ragged_string_column(
+        self, provenances.num_rows, provenances.timestamp, provenances.timestamp_offset);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_provenances_record(TreeSequence *self, void *closure)
+{
+    PyObject *ret = NULL;
+    tsk_provenance_table_t provenances;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    provenances = self->tree_sequence->tables->provenances;
+    ret = TreeSequence_decode_ragged_string_column(
+        self, provenances.num_rows, provenances.record, provenances.record_offset);
+out:
+    return ret;
+}
+#endif
+
+static PyObject *
 TreeSequence_get_nodes_time(TreeSequence *self, void *closure)
 {
     PyObject *ret = NULL;
@@ -12005,6 +12103,18 @@ static PyGetSetDef TreeSequence_getsetters[] = {
     { .name = "individuals_metadata_offset",
         .get = (getter) TreeSequence_get_individuals_metadata_offset,
         .doc = "The individual metadata offset array" },
+    { .name = "individuals_location",
+        .get = (getter) TreeSequence_get_individuals_location,
+        .doc = "The individual location array" },
+    { .name = "individuals_location_offset",
+        .get = (getter) TreeSequence_get_individuals_location_offset,
+        .doc = "The individual location offset array" },
+    { .name = "individuals_parents",
+        .get = (getter) TreeSequence_get_individuals_parents,
+        .doc = "The individual parents array" },
+    { .name = "individuals_parents_offset",
+        .get = (getter) TreeSequence_get_individuals_parents_offset,
+        .doc = "The individual parents offset array" },
     { .name = "nodes_time",
         .get = (getter) TreeSequence_get_nodes_time,
         .doc = "The node time array" },
@@ -12117,6 +12227,14 @@ static PyGetSetDef TreeSequence_getsetters[] = {
     { .name = "indexes_edge_removal_order",
         .get = (getter) TreeSequence_get_indexes_edge_removal_order,
         .doc = "The edge removal order array" },
+#if HAVE_NUMPY_2
+    { .name = "provenances_timestamp",
+        .get = (getter) TreeSequence_get_provenances_timestamp,
+        .doc = "The provenance timestamp array" },
+    { .name = "provenances_record",
+        .get = (getter) TreeSequence_get_provenances_record,
+        .doc = "The provenance record array" },
+#endif
     { NULL } /* Sentinel */
 };
 
