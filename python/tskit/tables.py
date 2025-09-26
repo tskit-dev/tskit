@@ -24,15 +24,13 @@
 """
 Tree sequence IO via the tables API.
 """
-import collections.abc
+import collections
 import dataclasses
 import datetime
 import json
 import numbers
 import warnings
-from collections.abc import Mapping
 from dataclasses import dataclass
-from functools import reduce
 from typing import Dict
 from typing import Optional
 from typing import Union
@@ -45,19 +43,9 @@ import tskit.metadata as metadata
 import tskit.provenance as provenance
 import tskit.util as util
 from tskit import UNKNOWN_TIME
+from tskit.metadata import TableMetadataWriter
 
 dataclass_options = {"frozen": True}
-
-
-# Needed for cases where `None` can be an appropriate kwarg value,
-# we override the meta so that it looks good in the docs.
-class NotSetMeta(type):
-    def __repr__(cls):
-        return "Not set"
-
-
-class NOTSET(metaclass=NotSetMeta):
-    pass
 
 
 @metadata.lazy_decode()
@@ -341,9 +329,7 @@ def keep_with_offset(keep, data, offset):
 
 
 class BaseTable:
-    """
-    Superclass of high-level tables. Not intended for direct instantiation.
-    """
+    # Base class for all tables
 
     # The list of columns in the table. Must be set by subclasses.
     column_names = []
@@ -499,7 +485,12 @@ class BaseTable:
             object.__setattr__(self, name, value)
 
     def _make_row(self, *args):
-        return self.row_class(*args)
+        try:
+            return self.row_class(
+                *args, metadata_decoder=self.metadata_schema.decode_row
+            )
+        except AttributeError:
+            return self.row_class(*args)
 
     def __getitem__(self, index):
         """
@@ -704,118 +695,53 @@ class BaseTable:
             for col in colnames
         )
 
+    def _text_header_and_rows(self, limit=None):
+        display_columns = [
+            col for col in self.column_names if not col.endswith("_offset")
+        ]
+        headers = ("id",) + tuple(display_columns)
 
-class MetadataTable(BaseTable):
-    """
-    Base class for tables that have a metadata column.
-    """
+        rows = []
+        row_indexes = util.truncate_rows(self.num_rows, limit)
 
-    # TODO this class has some overlap with the MetadataProvider base class
-    # and also the TreeSequence class. These all have methods to deal with
-    # schemas and essentially do the same thing (provide a facade for the
-    # low-level get/set metadata schemas functionality). We should refactor
-    # this so we're only doing it in one place.
-    # https://github.com/tskit-dev/tskit/issues/1957
+        float_columns = {}
+        for col in display_columns:
+            arr = getattr(self, col)
+            if np.issubdtype(arr.dtype, np.floating):
+                float_columns[col] = 0 if self._columns_all_integer(col) else 8
+
+        for j in row_indexes:
+            if j == -1:
+                rows.append(f"__skipped__{self.num_rows - limit}")
+            else:
+                row = self[j]
+                formatted_values = [f"{j:,}"]
+                for col in display_columns:
+                    value = getattr(row, col)
+                    if col == "metadata":
+                        formatted_values.append(util.render_metadata(value))
+                    elif col in ["location", "parents"]:
+                        if col == "parents":
+                            formatted_values.append(", ".join(f"{p:,}" for p in value))
+                        else:
+                            formatted_values.append(", ".join(map(str, value)))
+                    elif col in float_columns:
+                        dp = float_columns[col]
+                        formatted_values.append(f"{value:,.{dp}f}")
+                    elif isinstance(value, (int, np.integer)):
+                        formatted_values.append(f"{value:,}")
+                    else:
+                        formatted_values.append(str(value))
+                rows.append(formatted_values)
+
+        return headers, rows
+
+
+class MetadataTable(BaseTable, TableMetadataWriter):
+    # Base class for tables that have a metadata column
+
     def __init__(self, ll_table, row_class):
         super().__init__(ll_table, row_class)
-
-    def _make_row(self, *args):
-        return self.row_class(*args, metadata_decoder=self.metadata_schema.decode_row)
-
-    def packset_metadata(self, metadatas):
-        """
-        Packs the specified list of metadata values and updates the ``metadata``
-        and ``metadata_offset`` columns. The length of the metadatas array
-        must be equal to the number of rows in the table.
-
-        :param list metadatas: A list of metadata bytes values.
-        """
-        packed, offset = util.pack_bytes(metadatas)
-        d = self.asdict()
-        d["metadata"] = packed
-        d["metadata_offset"] = offset
-        self.set_columns(**d)
-
-    @property
-    def metadata_schema(self) -> metadata.MetadataSchema:
-        """
-        The :class:`tskit.MetadataSchema` for this table.
-        """
-        # This isn't as inefficient as it looks because we're using an LRU cache on
-        # the parse_metadata_schema function. Thus, we're really only incurring the
-        # cost of creating the unicode string from the low-level schema and looking
-        # up the functools cache.
-        return metadata.parse_metadata_schema(self.ll_table.metadata_schema)
-
-    @metadata_schema.setter
-    def metadata_schema(self, schema: metadata.MetadataSchema) -> None:
-        if not isinstance(schema, metadata.MetadataSchema):
-            raise TypeError(
-                "Only instances of tskit.MetadataSchema can be assigned to "
-                f"metadata_schema, not {type(schema)}"
-            )
-        self.ll_table.metadata_schema = repr(schema)
-
-    def metadata_vector(self, key, *, dtype=None, default_value=NOTSET):
-        """
-        Returns a numpy array of metadata values obtained by extracting ``key``
-        from each metadata entry, and using ``default_value`` if the key is
-        not present. ``key`` may be a list, in which case nested values are returned.
-        For instance, ``key = ["a", "x"]`` will return an array of
-        ``row.metadata["a"]["x"]`` values, iterated over rows in this table.
-
-        :param str key: The name, or a list of names, of metadata entries.
-        :param str dtype: The dtype of the result (can usually be omitted).
-        :param object default_value: The value to be inserted if the metadata key
-            is not present. Note that for numeric columns, a default value of None
-            will result in a non-numeric array. The default behaviour is to raise
-            ``KeyError`` on missing entries.
-        """
-
-        if default_value == NOTSET:
-
-            def getter(d, k):
-                return d[k]
-
-        else:
-
-            def getter(d, k):
-                return (
-                    d.get(k, default_value) if isinstance(d, Mapping) else default_value
-                )
-
-        if isinstance(key, list):
-            out = np.array(
-                [
-                    reduce(
-                        getter,
-                        key,
-                        row.metadata,
-                    )
-                    for row in self
-                ],
-                dtype=dtype,
-            )
-        else:
-            out = np.array(
-                [getter(row.metadata, key) for row in self],
-                dtype=dtype,
-            )
-        return out
-
-    def drop_metadata(self, *, keep_schema=False):
-        """
-        Drops all metadata in this table. By default, the schema is also cleared,
-        except if ``keep_schema`` is True.
-
-        :param bool keep_schema: True if the current schema should be kept intact.
-        """
-        data = self.asdict()
-        data["metadata"] = []
-        data["metadata_offset"][:] = 0
-        self.set_columns(**data)
-        if not keep_schema:
-            self.metadata_schema = metadata.MetadataSchema.null()
 
 
 class IndividualTable(MetadataTable):
@@ -866,28 +792,6 @@ class IndividualTable(MetadataTable):
         if ll_table is None:
             ll_table = _tskit.IndividualTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, IndividualTableRow)
-
-    def _text_header_and_rows(self, limit=None):
-        headers = ("id", "flags", "location", "parents", "metadata")
-        rows = []
-        row_indexes = util.truncate_rows(self.num_rows, limit)
-        for j in row_indexes:
-            if j == -1:
-                rows.append(f"__skipped__{self.num_rows - limit}")
-            else:
-                row = self[j]
-                location_str = ", ".join(map(str, row.location))
-                parents_str = ", ".join([f"{p:,}" for p in row.parents])
-                rows.append(
-                    "{:,}\t{}\t{}\t{}\t{}".format(
-                        j,
-                        row.flags,
-                        location_str,
-                        parents_str,
-                        util.render_metadata(row.metadata),
-                    ).split("\t")
-                )
-        return headers, rows
 
     def add_row(self, flags=0, location=None, parents=None, metadata=None):
         """
@@ -1140,29 +1044,6 @@ class NodeTable(MetadataTable):
             ll_table = _tskit.NodeTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, NodeTableRow)
 
-    def _text_header_and_rows(self, limit=None):
-        headers = ("id", "flags", "population", "individual", "time", "metadata")
-        rows = []
-        row_indexes = util.truncate_rows(self.num_rows, limit)
-        decimal_places_times = 0 if self._columns_all_integer("time") else 8
-        for j in row_indexes:
-            row = self[j]
-            if j == -1:
-                rows.append(f"__skipped__{self.num_rows - limit}")
-            else:
-                rows.append(
-                    "{:,}\t{}\t{:,}\t{:,}\t{:,.{dp}f}\t{}".format(
-                        j,
-                        row.flags,
-                        row.population,
-                        row.individual,
-                        row.time,
-                        util.render_metadata(row.metadata),
-                        dp=decimal_places_times,
-                    ).split("\t")
-                )
-        return headers, rows
-
     def add_row(self, flags=0, time=0, population=-1, individual=-1, metadata=None):
         """
         Adds a new row to this :class:`NodeTable` and returns the ID of the
@@ -1333,29 +1214,6 @@ class EdgeTable(MetadataTable):
         if ll_table is None:
             ll_table = _tskit.EdgeTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, EdgeTableRow)
-
-    def _text_header_and_rows(self, limit=None):
-        headers = ("id", "left", "right", "parent", "child", "metadata")
-        rows = []
-        row_indexes = util.truncate_rows(self.num_rows, limit)
-        decimal_places = 0 if self._columns_all_integer("left", "right") else 8
-        for j in row_indexes:
-            if j == -1:
-                rows.append(f"__skipped__{self.num_rows - limit}")
-            else:
-                row = self[j]
-                rows.append(
-                    "{:,}\t{:,.{dp}f}\t{:,.{dp}f}\t{:,}\t{:,}\t{}".format(
-                        j,
-                        row.left,
-                        row.right,
-                        row.parent,
-                        row.child,
-                        util.render_metadata(row.metadata),
-                        dp=decimal_places,
-                    ).split("\t")
-                )
-        return headers, rows
 
     def add_row(self, left, right, parent, child, metadata=None):
         """
@@ -1549,35 +1407,6 @@ class MigrationTable(MetadataTable):
             ll_table = _tskit.MigrationTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, MigrationTableRow)
 
-    def _text_header_and_rows(self, limit=None):
-        headers = ("id", "left", "right", "node", "source", "dest", "time", "metadata")
-        rows = []
-        row_indexes = util.truncate_rows(self.num_rows, limit)
-        decimal_places_coords = 0 if self._columns_all_integer("left", "right") else 8
-        decimal_places_times = 0 if self._columns_all_integer("time") else 8
-        for j in row_indexes:
-            if j == -1:
-                rows.append(f"__skipped__{self.num_rows - limit}")
-            else:
-                row = self[j]
-                rows.append(
-                    "{:,}\t{:,.{dp_c}f}\t{:,.{dp_c}f}\t{:,}\t{:,}\t{:,}\t{:,.{dp_t}f}\t{}".format(
-                        j,
-                        row.left,
-                        row.right,
-                        row.node,
-                        row.source,
-                        row.dest,
-                        row.time,
-                        util.render_metadata(row.metadata),
-                        dp_c=decimal_places_coords,
-                        dp_t=decimal_places_times,
-                    ).split(
-                        "\t"
-                    )
-                )
-        return headers, rows
-
     def add_row(self, left, right, node, source, dest, time, metadata=None):
         """
         Adds a new row to this :class:`MigrationTable` and returns the ID of the
@@ -1763,27 +1592,6 @@ class SiteTable(MetadataTable):
         if ll_table is None:
             ll_table = _tskit.SiteTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, SiteTableRow)
-
-    def _text_header_and_rows(self, limit=None):
-        headers = ("id", "position", "ancestral_state", "metadata")
-        rows = []
-        row_indexes = util.truncate_rows(self.num_rows, limit)
-        decimal_places = 0 if self._columns_all_integer("position") else 8
-        for j in row_indexes:
-            if j == -1:
-                rows.append(f"__skipped__{self.num_rows - limit}")
-            else:
-                row = self[j]
-                rows.append(
-                    "{:,}\t{:,.{dp}f}\t{}\t{}".format(
-                        j,
-                        row.position,
-                        row.ancestral_state,
-                        util.render_metadata(row.metadata),
-                        dp=decimal_places,
-                    ).split("\t")
-                )
-        return headers, rows
 
     def add_row(self, position, ancestral_state, metadata=None):
         """
@@ -1979,31 +1787,6 @@ class MutationTable(MetadataTable):
         if ll_table is None:
             ll_table = _tskit.MutationTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, MutationTableRow)
-
-    def _text_header_and_rows(self, limit=None):
-        headers = ("id", "site", "node", "time", "derived_state", "parent", "metadata")
-        rows = []
-        row_indexes = util.truncate_rows(self.num_rows, limit)
-        # Currently mutations do not have discretised times: this for consistency
-        decimal_places_times = 0 if self._columns_all_integer("time") else 8
-        for j in row_indexes:
-            if j == -1:
-                rows.append(f"__skipped__{self.num_rows - limit}")
-            else:
-                row = self[j]
-                rows.append(
-                    "{:,}\t{:,}\t{:,}\t{:,.{dp}f}\t{}\t{:,}\t{}".format(
-                        j,
-                        row.site,
-                        row.node,
-                        row.time,
-                        row.derived_state,
-                        row.parent,
-                        util.render_metadata(row.metadata),
-                        dp=decimal_places_times,
-                    ).split("\t")
-                )
-        return headers, rows
 
     def add_row(self, site, node, derived_state, parent=-1, metadata=None, time=None):
         """
@@ -2261,17 +2044,6 @@ class PopulationTable(MetadataTable):
         metadata = self.metadata_schema.validate_and_encode_row(metadata)
         return self.ll_table.add_row(metadata=metadata)
 
-    def _text_header_and_rows(self, limit=None):
-        headers = ("id", "metadata")
-        rows = []
-        row_indexes = util.truncate_rows(self.num_rows, limit)
-        for j in row_indexes:
-            if j == -1:
-                rows.append(f"__skipped__{self.num_rows - limit}")
-            else:
-                rows.append((str(j), util.render_metadata(self[j].metadata, length=70)))
-        return headers, rows
-
     def set_columns(self, metadata=None, metadata_offset=None, metadata_schema=None):
         """
         Sets the values for each column in this :class:`PopulationTable` using the
@@ -2511,24 +2283,6 @@ class ProvenanceTable(BaseTable):
                 record_offset=record_offset,
             )
         )
-
-    def _text_header_and_rows(self, limit=None):
-        headers = ("id", "timestamp", "record")
-        rows = []
-        row_indexes = util.truncate_rows(self.num_rows, limit)
-        for j in row_indexes:
-            if j == -1:
-                rows.append(f"__skipped__{self.num_rows - limit}")
-            else:
-                row = self[j]
-                rows.append(
-                    (
-                        str(j),
-                        str(row.timestamp),
-                        util.truncate_string_end(str(row.record), length=60),
-                    )
-                )
-        return headers, rows
 
     def packset_record(self, records):
         """

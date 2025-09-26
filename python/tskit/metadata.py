@@ -42,6 +42,7 @@ import numpy as np
 
 import tskit
 import tskit.exceptions as exceptions
+import tskit.util as util
 
 __builtins__object__setattr__ = builtins.object.__setattr__
 
@@ -1041,3 +1042,106 @@ class MetadataProvider:
             raise AssertionError(
                 f"Metadata differs: self={self.metadata} " f"other={other.metadata}"
             )
+
+
+NOTSET = object()  # Sentinel for unset default values
+
+
+class TableMetadataReader:
+    # Mixin for table classes that expose decoded metadata
+
+    @property
+    def metadata_schema(self) -> MetadataSchema:
+        """
+        The :class:`tskit.MetadataSchema` for this table.
+        """
+        # This isn't as inefficient as it looks because we're using an LRU cache on
+        # the parse_metadata_schema function. Thus, we're really only incurring the
+        # cost of creating the unicode string from the low-level schema and looking
+        # up the functools cache.
+        return parse_metadata_schema(self.ll_table.metadata_schema)
+
+    def metadata_vector(self, key, *, dtype=None, default_value=NOTSET):
+        """
+        Returns a numpy array of metadata values obtained by extracting ``key``
+        from each metadata entry, and using ``default_value`` if the key is
+        not present. ``key`` may be a list, in which case nested values are returned.
+        For instance, ``key = ["a", "x"]`` will return an array of
+        ``row.metadata["a"]["x"]`` values, iterated over rows in this table.
+
+        :param str key: The name, or a list of names, of metadata entries.
+        :param str dtype: The dtype of the result (can usually be omitted).
+        :param object default_value: The value to be inserted if the metadata key
+            is not present. Note that for numeric columns, a default value of None
+            will result in a non-numeric array. The default behaviour is to raise
+            ``KeyError`` on missing entries.
+        """
+        from collections.abc import Mapping
+
+        if default_value == NOTSET:
+
+            def getter(d, k):
+                return d[k]
+
+        else:
+
+            def getter(d, k):
+                return (
+                    d.get(k, default_value) if isinstance(d, Mapping) else default_value
+                )
+
+        if isinstance(key, list):
+            out = np.array(
+                [functools.reduce(getter, key, row.metadata) for row in self],
+                dtype=dtype,
+            )
+        else:
+            out = np.array(
+                [getter(row.metadata, key) for row in self],
+                dtype=dtype,
+            )
+        return out
+
+    def _make_row(self, *args):
+        return self.row_class(*args, metadata_decoder=self.metadata_schema.decode_row)
+
+
+class TableMetadataWriter(TableMetadataReader):
+    # Mixin for tables writing metadata
+
+    @TableMetadataReader.metadata_schema.setter
+    def metadata_schema(self, schema: MetadataSchema) -> None:
+        if not isinstance(schema, MetadataSchema):
+            raise TypeError(
+                "Only instances of tskit.MetadataSchema can be assigned to "
+                f"metadata_schema, not {type(schema)}"
+            )
+        self.ll_table.metadata_schema = repr(schema)
+
+    def packset_metadata(self, metadatas):
+        """
+        Packs the specified list of metadata values and updates the ``metadata``
+        and ``metadata_offset`` columns. The length of the metadatas array
+        must be equal to the number of rows in the table.
+
+        :param list metadatas: A list of metadata bytes values.
+        """
+        packed, offset = util.pack_bytes(metadatas)
+        data = self.asdict()
+        data["metadata"] = packed
+        data["metadata_offset"] = offset
+        self.set_columns(**data)
+
+    def drop_metadata(self, *, keep_schema=False):
+        """
+        Drops all metadata in this table. By default, the schema is also cleared,
+        except if ``keep_schema`` is True.
+
+        :param bool keep_schema: True if the current schema should be kept intact.
+        """
+        data = self.asdict()
+        data["metadata"] = []
+        data["metadata_offset"][:] = 0
+        self.set_columns(**data)
+        if not keep_schema:
+            self.metadata_schema = MetadataSchema.null()
