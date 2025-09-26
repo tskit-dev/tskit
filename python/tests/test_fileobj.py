@@ -242,6 +242,7 @@ def stream(fifo, ts_list):
         assert ts.tables == ts_out.tables
 
 
+@pytest.mark.network
 @pytest.mark.skipif(IS_WINDOWS, reason="No FIFOs on Windows")
 @pytest.mark.skipif(IS_OSX, reason="FIFO flakey on OS X, issue #1170")
 class TestFIFO:
@@ -286,6 +287,7 @@ def server_process(q):
     server.serve_forever()
 
 
+@pytest.mark.network
 @pytest.mark.skipif(IS_WINDOWS or IS_OSX, reason="Errors on systems without proper fds")
 class TestSocket:
     @fixture
@@ -339,6 +341,7 @@ def write_and_read_from_fifo(fifo_path, file_path, expected_exception, error_tex
         read_process.join(timeout=3)
 
 
+@pytest.mark.network
 @pytest.mark.skipif(IS_WINDOWS, reason="No FIFOs on Windows")
 class TestBadStream:
     def test_bad_stream(self, tmp_path):

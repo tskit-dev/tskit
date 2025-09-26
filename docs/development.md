@@ -529,6 +529,13 @@ under 20 seconds on an modern workstation:
 $ python3 -m pytest --skip-slow
 ```
 
+If you have an agent running the tests in a sandboxed environment, you may need to
+skip tests thsat require network access or FIFOs:
+
+```bash
+$ python3 -m pytest --skip-network
+```
+
 If you have a lot of failing tests it can be useful to have a shorter summary
 of the failing lines:
 
