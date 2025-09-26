@@ -53,6 +53,12 @@ def pytest_addoption(parser):
         "--skip-slow", action="store_true", default=False, help="Skip slow tests"
     )
     parser.addoption(
+        "--skip-network",
+        action="store_true",
+        default=False,
+        help="Skip network/FIFO tests",
+    )
+    parser.addoption(
         "--overwrite-expected-visualizations",
         action="store_true",
         default=False,
@@ -71,6 +77,7 @@ def pytest_configure(config):
     Add docs on the "slow" marker
     """
     config.addinivalue_line("markers", "slow: mark test as slow to run")
+    config.addinivalue_line("markers", "network: mark test as using network/FIFO")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -79,6 +86,11 @@ def pytest_collection_modifyitems(config, items):
         for item in items:
             if "slow" in item.keywords:
                 item.add_marker(skip_slow)
+    if config.getoption("--skip-network"):
+        skip_network = pytest.mark.skip(reason="--skip-network specified")
+        for item in items:
+            if "network" in item.keywords:
+                item.add_marker(skip_network)
 
 
 @fixture
