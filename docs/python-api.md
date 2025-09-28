@@ -64,20 +64,11 @@ The {class}`.TreeSequence` class provides access to underlying numerical
 data defined in the {ref}`data model<sec_data_model>` in two ways:
 
 1. Via the {attr}`.TreeSequence.tables` property and the
-    {ref}`Tables API<sec_tables_api_accessing_table_data>`
+    {ref}`Tables API<sec_tables_api_accessing_table_data>`.
+   Since version 1.0 this provides a direct, zero-copy, immutable view of the
+   underlying memory.
 2. Via a set of properties on the ``TreeSequence`` class that provide
-   direct and efficient access to the underlying memory.
-
-:::{warning}
-Accessing table data via {attr}`.TreeSequence.tables` can be very inefficient
-at the moment because accessing the `.tables` property incurs a **full copy**
-of the data model. While we intend to implement this as a read-only view
-in the future, the engineering involved is nontrivial, and so we recommend
-using the properties listed here like ``ts.nodes_time`` in favour of
-``ts.tables.nodes.time``.
-Please see [issue #760](https://github.com/tskit-dev/tskit/issues/760)
-for more information.
-:::
+   direct and efficient access to a single array in the underlying memory.
 
 
 ```{eval-rst}

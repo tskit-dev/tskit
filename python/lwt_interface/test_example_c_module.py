@@ -35,7 +35,7 @@ def test_example_receiving():
         example_c_module.example_receiving(lwt)
 
     # This tree sequence has one root so we get false
-    tables = msprime.simulate(10).tables
+    tables = msprime.simulate(10).dump_tables()
     lwt.fromdict(tables.asdict())
     assert not example_c_module.example_receiving(lwt)
 

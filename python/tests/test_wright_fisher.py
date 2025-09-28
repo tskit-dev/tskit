@@ -400,7 +400,7 @@ class TestSimulation:
         tables.sort()
         ts = tables.tree_sequence()
         ts = tsutil.jukes_cantor(ts, 10, 0.1, seed=self.random_seed)
-        tables = ts.tables
+        tables = ts.dump_tables()
         assert tables.sites.num_rows > 0
         assert tables.mutations.num_rows > 0
         samples = np.where(tables.nodes.flags == tskit.NODE_IS_SAMPLE)[0].astype(
@@ -427,7 +427,7 @@ class TestSimulation:
         tables.sort()
         ts = tables.tree_sequence()
         ts = tsutil.jukes_cantor(ts, 1, 10, seed=self.random_seed)
-        tables = ts.tables
+        tables = ts.dump_tables()
         assert tables.sites.num_rows == 1
         assert tables.mutations.num_rows > 0
         # before simplify

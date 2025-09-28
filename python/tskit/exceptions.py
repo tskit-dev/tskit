@@ -60,3 +60,11 @@ class MetadataEncodingError(TskitException):
     """
     A metadata object was of a type that could not be encoded
     """
+
+
+class ImmutableTableError(ValueError):
+    """
+    Raised when attempting to modify an immutable table view.
+
+    Use TreeSequence.dump_tables() to get a mutable copy.
+    """

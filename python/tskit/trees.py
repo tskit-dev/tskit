@@ -4136,6 +4136,7 @@ class TreeSequence:
 
     def __init__(self, ll_tree_sequence):
         self._ll_tree_sequence = ll_tree_sequence
+        self._immutable_tables = None
         metadata_schema_strings = self._ll_tree_sequence.get_table_metadata_schemas()
         metadata_schema_instances = {
             name: metadata_module.parse_metadata_schema(
@@ -4321,21 +4322,29 @@ class TreeSequence:
     @property
     def tables(self):
         """
-        Returns the :class:`tables<TableCollection>` underlying this tree
-        sequence, intended for read-only access. See :meth:`.dump_tables` if you wish
-        to modify the tables.
+        Returns an immutable view of the tables underlying this tree sequence.
 
-        .. warning:: This property currently returns a copy of the tables
-            underlying a tree sequence but it may return a read-only
-            **view** in the future. Thus, if the tables will subsequently be
-            updated, please use the :meth:`.dump_tables` method instead as
-            this will always return a new copy of the TableCollection.
+        This view shares the same data as the TreeSequence (zero-copy).
+        Use :meth:`.dump_tables` for a modifiable copy.
 
-        :return: A :class:`TableCollection` containing all a copy of the
-            tables underlying this tree sequence.
-        :rtype: TableCollection
+        Note that if tskit was built with Numpy 1, this method acts as
+        :meth:`.dump_tables` and returns a mutable TableCollection.
+
+        :return: An immutable view of the TableCollection underlying this tree sequence.
         """
-        return self.dump_tables()
+        if not _tskit.HAS_NUMPY_2:
+            warnings.warn(
+                "Immutable table views require tskit to be built against NumPy 2.0 or "
+                "newer. Falling back to returning a mutable TableCollection.",
+                UserWarning,
+                stacklevel=2,
+            )
+            return self.dump_tables()
+        if self._immutable_tables is None:
+            self._immutable_tables = tables.ImmutableTableCollection(
+                self._ll_tree_sequence
+            )
+        return self._immutable_tables
 
     @property
     def nbytes(self):
@@ -10451,7 +10460,7 @@ class TreeSequence:
             IBD information.
         :rtype: IdentitySegments
         """
-        return self.tables.ibd_segments(
+        return self.dump_tables().ibd_segments(
             within=within,
             between=between,
             max_time=max_time,

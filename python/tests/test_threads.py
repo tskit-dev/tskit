@@ -156,7 +156,7 @@ class TestTables:
         ts = msprime.simulate(
             100, mutation_rate=10, recombination_rate=10, random_seed=8
         )
-        return ts.tables
+        return ts.dump_tables()
 
     def run_multiple_writers(self, writer, num_writers=32):
         barrier = threading.Barrier(num_writers)
