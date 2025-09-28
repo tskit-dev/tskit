@@ -1745,6 +1745,7 @@ def test_multiallelic_with_back_mutation(stat):
     )
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "ts",
     [
@@ -2278,6 +2279,7 @@ def test_two_way_branch_ld_matrix(ts, sample_sets, stat):
     )
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "ts",
     [

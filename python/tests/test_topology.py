@@ -862,7 +862,7 @@ class TestRecordSquashing(TopologyTestCase):
         ts = tskit.load_text(nodes, edges, strict=False)
         tss, node_map = ts.simplify(map_nodes=True)
         assert list(node_map) == [0, 1]
-        assert tss.dump_tables().nodes == ts.dump_tables().nodes
+        assert tss.tables.nodes == ts.tables.nodes
         simplified_edges = list(tss.edges())
         assert len(simplified_edges) == 1
         e = simplified_edges[0]
@@ -873,16 +873,16 @@ class TestRecordSquashing(TopologyTestCase):
         ts = msprime.simulate(10, random_seed=self.random_seed)
         ts_redundant = tsutil.insert_redundant_breakpoints(ts)
         tss = ts_redundant.simplify()
-        assert tss.dump_tables().nodes == ts.dump_tables().nodes
-        assert tss.dump_tables().edges == ts.dump_tables().edges
+        assert tss.tables.nodes == ts.tables.nodes
+        assert tss.tables.edges == ts.tables.edges
 
     def test_many_trees(self):
         ts = msprime.simulate(20, recombination_rate=5, random_seed=self.random_seed)
         assert ts.num_trees > 2
         ts_redundant = tsutil.insert_redundant_breakpoints(ts)
         tss = ts_redundant.simplify()
-        assert tss.dump_tables().nodes == ts.dump_tables().nodes
-        assert tss.dump_tables().edges == ts.dump_tables().edges
+        assert tss.tables.nodes == ts.tables.nodes
+        assert tss.tables.edges == ts.tables.edges
 
 
 class TestRedundantBreakpoints(TopologyTestCase):
@@ -4899,7 +4899,7 @@ class TestMapToAncestors:
         s = tests.AncestorMap(ts, samples, ancestors)
         ancestor_table = s.link_ancestors()
         if compare_lib:
-            lib_result = ts.tables.link_ancestors(samples, ancestors)
+            lib_result = ts.dump_tables().link_ancestors(samples, ancestors)
             assert ancestor_table == lib_result
         return ancestor_table
 
@@ -4912,7 +4912,7 @@ class TestMapToAncestors:
         ancestors = [8]
         s = tests.AncestorMap(ts, samples, ancestors)
         tss = s.link_ancestors()
-        lib_result = ts.tables.map_ancestors(samples, ancestors)
+        lib_result = ts.dump_tables().map_ancestors(samples, ancestors)
         assert tss == lib_result
         assert list(tss.parent) == [8, 8, 8, 8, 8]
         assert list(tss.child) == [0, 1, 2, 3, 4]
@@ -5141,7 +5141,7 @@ class TestMutationParent:
 
     def verify_parents(self, ts):
         parent = tsutil.compute_mutation_parent(ts)
-        tables = ts.tables
+        tables = ts.dump_tables()
         assert np.array_equal(parent, tables.mutations.parent)
         tables.mutations.parent = np.zeros_like(tables.mutations.parent) - 1
         assert np.all(tables.mutations.parent == tskit.NULL)
@@ -5334,7 +5334,7 @@ class TestMutationTime:
     seed = 42
 
     def verify_times(self, ts):
-        tables = ts.tables
+        tables = ts.dump_tables()
         # Clear out the existing mutations as they come from msprime
         tables.mutations.time = np.full(
             tables.mutations.time.shape, -1, dtype=np.float64
@@ -5397,7 +5397,7 @@ class TestMutationTime:
         )
         # ts.dump_text(mutations=sys.stdout)
         # self.assertFalse(True)
-        tables = ts.tables
+        tables = ts.dump_tables()
         python_time = tsutil.compute_mutation_times(ts)
         assert np.allclose(python_time, tables.mutations.time, rtol=1e-15, atol=1e-15)
         tables.mutations.time = np.full(
@@ -5775,7 +5775,7 @@ class TestSquashEdges:
     """
 
     def do_squash(self, ts, compare_lib=True):
-        squashed = ts.tables.edges
+        squashed = ts.dump_tables().edges
         squashed.squash()
         if compare_lib:
             squashed_list = squash_edges(ts)
@@ -6604,7 +6604,7 @@ class TestKeepIntervals(TopologyTestCase):
             random_seed=1,
         )
         with pytest.raises(tskit.LibraryError):
-            ts.tables.keep_intervals([[0, 1]])
+            ts.dump_tables().keep_intervals([[0, 1]])
 
     def test_bad_intervals(self):
         tables = tskit.TableCollection(10)
@@ -6619,7 +6619,7 @@ class TestKeepIntervals(TopologyTestCase):
         ts = msprime.simulate(
             10, random_seed=self.random_seed, recombination_rate=2, mutation_rate=2
         )
-        tables = ts.tables
+        tables = ts.dump_tables()
         intervals = [(0.3, 0.7)]
         for simplify in (True, False):
             for rec_prov in (True, False):
@@ -6629,7 +6629,7 @@ class TestKeepIntervals(TopologyTestCase):
         ts = msprime.simulate(
             10, random_seed=self.random_seed, recombination_rate=2, mutation_rate=2
         )
-        tables = ts.tables
+        tables = ts.dump_tables()
         intervals = [(0.1, 0.2), (0.8, 0.9)]
         for simplify in (True, False):
             for rec_prov in (True, False):
@@ -6639,7 +6639,7 @@ class TestKeepIntervals(TopologyTestCase):
         ts = msprime.simulate(
             10, random_seed=self.random_seed, recombination_rate=2, mutation_rate=2
         )
-        tables = ts.tables
+        tables = ts.dump_tables()
         intervals = [(x, x + 0.05) for x in np.arange(0.0, 1.0, 0.1)]
         for simplify in (True, False):
             for rec_prov in (True, False):
@@ -6649,7 +6649,7 @@ class TestKeepIntervals(TopologyTestCase):
         ts = msprime.simulate(
             10, random_seed=self.random_seed, recombination_rate=2, mutation_rate=2
         )
-        tables = ts.tables
+        tables = ts.dump_tables()
         intervals = [(x, x + 0.005) for x in np.arange(0.0, 1.0, 0.01)]
         for simplify in (True, False):
             for rec_prov in (True, False):
@@ -6659,7 +6659,7 @@ class TestKeepIntervals(TopologyTestCase):
         ts = msprime.simulate(
             3, random_seed=1234, recombination_rate=2, mutation_rate=2
         )
-        tables = ts.tables
+        tables = ts.dump_tables()
         eps = 0.0125
         for num_intervals in range(2, 10):
             breaks = np.linspace(0, ts.sequence_length, num=num_intervals)

@@ -49,6 +49,7 @@ import tests.tsutil as tsutil
 import tskit
 import tskit.exceptions as exceptions
 import tskit.metadata as metadata
+from tskit.tables import _ragged_selection_indices
 
 
 class Column:
@@ -860,7 +861,7 @@ class CommonTestsMixin:
     def test_replace_with_wrong_class(self):
         t = self.table_class()
         with pytest.raises(TypeError, match="is required"):
-            t.replace_with(tskit.BaseTable(None, None))
+            t.replace_with(tskit.MutableBaseTable(None, None))
 
 
 class MetadataTestsMixin:
@@ -2210,6 +2211,28 @@ class TestProvenanceTable(CommonTestsMixin, AssertEqualsMixin):
         assert t[0].record == "AAAA"
         assert t[1].record == "BBBB"
 
+    def test_assert_equals_ignore_timestamps_with_other_difference(self):
+        t1 = tskit.ProvenanceTable()
+        t1.add_row(record="{}", timestamp="2024-01-01T00:00:00Z")
+        t2 = tskit.ProvenanceTable()
+        t2.add_row(record="different", timestamp="2024-02-01T00:00:00Z")
+        with pytest.raises(
+            AssertionError,
+            match=re.escape(
+                "ProvenanceTable row 0 differs:\n"
+                "self.record={} other.record=different"
+            ),
+        ):
+            t1.assert_equals(t2, ignore_timestamps=True)
+        with pytest.raises(
+            AssertionError,
+            match=re.escape(
+                "ProvenanceTable row 0 differs:\n"
+                "self.record=different other.record={}"
+            ),
+        ):
+            t2.assert_equals(t1, ignore_timestamps=True)
+
 
 class TestPopulationTable(*common_tests):
     metadata_mandatory = True
@@ -2443,41 +2466,41 @@ class TestSortTables:
     def test_single_tree_no_mutations(self):
         ts = msprime.simulate(10, random_seed=self.random_seed)
         self.verify_sort_offset(ts)
-        self.verify_sort(ts.tables, 432)
+        self.verify_sort(ts.dump_tables(), 432)
 
     def test_single_tree_no_mutations_metadata(self):
         ts = msprime.simulate(10, random_seed=self.random_seed)
         ts = tsutil.add_random_metadata(ts, self.random_seed)
-        self.verify_sort(ts.tables, 12)
+        self.verify_sort(ts.dump_tables(), 12)
 
     def test_many_trees_no_mutations(self):
         ts = msprime.simulate(10, recombination_rate=2, random_seed=self.random_seed)
         assert ts.num_trees > 2
         self.verify_sort_offset(ts)
-        self.verify_sort(ts.tables, 31)
+        self.verify_sort(ts.dump_tables(), 31)
 
     def test_single_tree_mutations(self):
         ts = msprime.simulate(10, mutation_rate=2, random_seed=self.random_seed)
         assert ts.num_sites > 2
         self.verify_sort_offset(ts)
-        self.verify_sort(ts.tables, 83)
+        self.verify_sort(ts.dump_tables(), 83)
 
     def test_single_tree_mutations_metadata(self):
         ts = msprime.simulate(10, mutation_rate=2, random_seed=self.random_seed)
         assert ts.num_sites > 2
         ts = tsutil.add_random_metadata(ts, self.random_seed)
-        self.verify_sort(ts.tables, 384)
+        self.verify_sort(ts.dump_tables(), 384)
 
     def test_single_tree_multichar_mutations(self):
         ts = msprime.simulate(10, random_seed=self.random_seed)
         ts = tsutil.insert_multichar_mutations(ts, self.random_seed)
-        self.verify_sort(ts.tables, 185)
+        self.verify_sort(ts.dump_tables(), 185)
 
     def test_single_tree_multichar_mutations_metadata(self):
         ts = msprime.simulate(10, random_seed=self.random_seed)
         ts = tsutil.insert_multichar_mutations(ts, self.random_seed)
         ts = tsutil.add_random_metadata(ts, self.random_seed)
-        self.verify_sort(ts.tables, 2175)
+        self.verify_sort(ts.dump_tables(), 2175)
 
     def test_many_trees_mutations(self):
         ts = msprime.simulate(
@@ -2486,20 +2509,20 @@ class TestSortTables:
         assert ts.num_trees > 2
         assert ts.num_sites > 2
         self.verify_sort_offset(ts)
-        self.verify_sort(ts.tables, 173)
+        self.verify_sort(ts.dump_tables(), 173)
 
     def test_many_trees_multichar_mutations(self):
         ts = msprime.simulate(10, recombination_rate=2, random_seed=self.random_seed)
         assert ts.num_trees > 2
         ts = tsutil.insert_multichar_mutations(ts, self.random_seed)
-        self.verify_sort(ts.tables, 16)
+        self.verify_sort(ts.dump_tables(), 16)
 
     def test_many_trees_multichar_mutations_metadata(self):
         ts = msprime.simulate(10, recombination_rate=2, random_seed=self.random_seed)
         assert ts.num_trees > 2
         ts = tsutil.insert_multichar_mutations(ts, self.random_seed)
         ts = tsutil.add_random_metadata(ts, self.random_seed)
-        self.verify_sort(ts.tables, 91)
+        self.verify_sort(ts.dump_tables(), 91)
 
     def get_nonbinary_example(self, mutation_rate):
         ts = msprime.simulate(
@@ -2524,20 +2547,20 @@ class TestSortTables:
     def test_nonbinary_trees(self):
         ts = self.get_nonbinary_example(mutation_rate=0)
         self.verify_sort_offset(ts)
-        self.verify_sort(ts.tables, 9182)
+        self.verify_sort(ts.dump_tables(), 9182)
 
     def test_nonbinary_trees_mutations(self):
         ts = self.get_nonbinary_example(mutation_rate=2)
         assert ts.num_trees > 2
         assert ts.num_sites > 2
         self.verify_sort_offset(ts)
-        self.verify_sort(ts.tables, 44)
+        self.verify_sort(ts.dump_tables(), 44)
 
     def test_unknown_times(self):
         ts = self.get_wf_example(seed=486)
         ts = tsutil.insert_branch_mutations(ts, mutations_per_branch=2)
         ts = tsutil.remove_mutation_times(ts)
-        self.verify_sort(ts.tables, 9182)
+        self.verify_sort(ts.dump_tables(), 9182)
 
     def test_stable_individual_order(self):
         # canonical should retain individual order lacking any other information
@@ -2551,7 +2574,7 @@ class TestSortTables:
     def test_discrete_times(self):
         ts = self.get_wf_example(seed=623)
         ts = tsutil.insert_discrete_time_mutations(ts)
-        self.verify_sort(ts.tables, 9183)
+        self.verify_sort(ts.dump_tables(), 9183)
 
     def test_incompatible_edges(self):
         ts1 = msprime.simulate(10, random_seed=self.random_seed)
@@ -2833,7 +2856,7 @@ class TestSortMutations:
         assert list(mutations.site) == [0, 0, 0, 1, 1, 1, 2, 2, 2]
         assert list(mutations.node) == [2, 1, 0, 0, 1, 2, 2, 0, 1]
         # Nans are not equal so swap in -1
-        times = mutations.time
+        times = mutations.time.copy()
         times[np.isnan(times)] = -1
         assert list(times) == [3.0, 2.0, 1.0, 0.5, 0.5, 0.5, 6.0, 4.0, -5.0]
         assert list(mutations.derived_state) == list(
@@ -3481,6 +3504,13 @@ class TestTableCollection:
     Tests for the convenience wrapper around a collection of related tables.
     """
 
+    @pytest.fixture(params=["tables", "dump_tables"], ids=["immutable", "mutable"])
+    def tc(self, request, ts_fixture):
+        if request.param == "tables":
+            return ts_fixture.tables
+        else:
+            return ts_fixture.dump_tables()
+
     def test_table_references(self):
         ts = msprime.simulate(10, mutation_rate=2, random_seed=1)
         tables = ts.tables
@@ -3520,9 +3550,8 @@ class TestTableCollection:
         tables = tskit.TableCollection(1)
         assert tables.nbytes == 119
 
-    def test_nbytes(self, tmp_path, ts_fixture):
-        tables = ts_fixture.dump_tables()
-        tables.dump(tmp_path / "tables")
+    def test_nbytes(self, tmp_path, tc):
+        tc.dump(tmp_path / "tables")
         store = kastore.load(tmp_path / "tables")
         for v in store.values():
             # Check we really have data in every field
@@ -3533,28 +3562,27 @@ class TestTableCollection:
             # nbytes is the size of asdict, so exclude file format items
             if name not in ["format/version", "format/name", "uuid"]
         )
-        assert nbytes == tables.nbytes
+        assert nbytes == tc.nbytes
 
-    def test_asdict(self, ts_fixture):
-        t = ts_fixture.dump_tables()
+    def test_asdict(self, tc):
         d1 = {
             "encoding_version": (1, 6),
-            "sequence_length": t.sequence_length,
-            "metadata_schema": repr(t.metadata_schema),
-            "metadata": t.metadata_schema.encode_row(t.metadata),
-            "time_units": t.time_units,
-            "individuals": t.individuals.asdict(),
-            "populations": t.populations.asdict(),
-            "nodes": t.nodes.asdict(),
-            "edges": t.edges.asdict(),
-            "sites": t.sites.asdict(),
-            "mutations": t.mutations.asdict(),
-            "migrations": t.migrations.asdict(),
-            "provenances": t.provenances.asdict(),
-            "indexes": t.indexes.asdict(),
-            "reference_sequence": t.reference_sequence.asdict(),
+            "sequence_length": tc.sequence_length,
+            "metadata_schema": repr(tc.metadata_schema),
+            "metadata": tc.metadata_schema.encode_row(tc.metadata),
+            "time_units": tc.time_units,
+            "individuals": tc.individuals.asdict(),
+            "populations": tc.populations.asdict(),
+            "nodes": tc.nodes.asdict(),
+            "edges": tc.edges.asdict(),
+            "sites": tc.sites.asdict(),
+            "mutations": tc.mutations.asdict(),
+            "migrations": tc.migrations.asdict(),
+            "provenances": tc.provenances.asdict(),
+            "indexes": tc.indexes.asdict(),
+            "reference_sequence": tc.reference_sequence.asdict(),
         }
-        d2 = t.asdict()
+        d2 = tc.asdict()
         assert set(d1.keys()) == set(d2.keys())
         t1 = tskit.TableCollection.fromdict(d1)
         t2 = tskit.TableCollection.fromdict(d2)
@@ -3563,10 +3591,9 @@ class TestTableCollection:
         assert t2.has_index()
 
     @pytest.mark.parametrize("force_offset_64", [True, False])
-    def test_asdict_force_offset_64(self, ts_fixture, force_offset_64):
-        tables = ts_fixture.dump_tables()
-        d = tables.asdict(force_offset_64=force_offset_64)
-        for table in tables.table_name_map:
+    def test_asdict_force_offset_64(self, tc, force_offset_64):
+        d = tc.asdict(force_offset_64=force_offset_64)
+        for table in tc.table_name_map:
             for name, column in d[table].items():
                 if name.endswith("_offset"):
                     if force_offset_64:
@@ -3574,24 +3601,22 @@ class TestTableCollection:
                     else:
                         assert column.dtype == np.uint32
 
-    def test_asdict_force_offset_64_default(self, ts_fixture):
-        tables = ts_fixture.dump_tables()
-        d = tables.asdict()
-        for table in tables.table_name_map:
+    def test_asdict_force_offset_64_default(self, tc):
+        d = tc.asdict()
+        for table in tc.table_name_map:
             for name, column in d[table].items():
                 if name.endswith("_offset"):
                     assert column.dtype == np.uint32
 
-    def test_asdict_lifecycle(self, ts_fixture):
-        tables = ts_fixture.dump_tables()
-        tables_dict = tables.asdict()
-        del tables
+    def test_asdict_lifecycle(self, tc, ts_fixture):
+        tables_dict = tc.asdict()
+        del tc
         tskit.TableCollection.fromdict(tables_dict).assert_equals(
             ts_fixture.dump_tables()
         )
 
-    def test_from_dict(self, ts_fixture):
-        t1 = ts_fixture.tables
+    def test_from_dict(self, tc):
+        t1 = tc
         d = {
             "encoding_version": (1, 1),
             "sequence_length": t1.sequence_length,
@@ -3612,34 +3637,34 @@ class TestTableCollection:
         t2 = tskit.TableCollection.fromdict(d)
         t1.assert_equals(t2)
 
-    def test_roundtrip_dict(self, ts_fixture):
-        t1 = ts_fixture.tables
+    def test_roundtrip_dict(self, tc):
+        t1 = tc
         t2 = tskit.TableCollection.fromdict(t1.asdict())
         t1.assert_equals(t2)
 
-    def test_table_name_map(self, ts_fixture):
-        tables = ts_fixture.tables
+    def test_table_name_map(self, tc):
         td1 = {
-            "individuals": tables.individuals,
-            "populations": tables.populations,
-            "nodes": tables.nodes,
-            "edges": tables.edges,
-            "sites": tables.sites,
-            "mutations": tables.mutations,
-            "migrations": tables.migrations,
-            "provenances": tables.provenances,
+            "individuals": tc.individuals,
+            "populations": tc.populations,
+            "nodes": tc.nodes,
+            "edges": tc.edges,
+            "sites": tc.sites,
+            "mutations": tc.mutations,
+            "migrations": tc.migrations,
+            "provenances": tc.provenances,
         }
-        td2 = tables.table_name_map
+        td2 = tc.table_name_map
         assert isinstance(td2, dict)
         assert set(td1.keys()) == set(td2.keys())
         for name in td2.keys():
             assert td1[name] == td2[name]
         assert td1 == td2
 
-        # Deprecated in 0.4.1
-        with pytest.warns(FutureWarning):
-            td1 = tables.name_map
-        assert td1 == td2
+        # Deprecated in 0.4.1 - only test for mutable TableCollection
+        if isinstance(tc, tskit.TableCollection):
+            with pytest.warns(FutureWarning):
+                td1 = tc.name_map
+            assert td1 == td2
 
     def test_equals_empty(self):
         assert tskit.TableCollection() == tskit.TableCollection()
@@ -3805,14 +3830,77 @@ class TestTableCollection:
         with pytest.raises(AssertionError, match="EdgeTable row 0 differs"):
             t1.assert_equals(t2)
 
+    def test_equals_cross_type(self, tc):
+        """Test that ImmutableTableCollection and TableCollection can compare"""
+        # Get both mutable and immutable versions of the same data
+        mutable_tc = tc.copy()  # Always returns TableCollection
+        immutable_tc = (
+            mutable_tc.tree_sequence().tables
+        )  # Always returns ImmutableTableCollection
+
+        # Test all cross-type comparisons
+        assert mutable_tc == immutable_tc
+        assert immutable_tc == mutable_tc
+        assert mutable_tc.equals(immutable_tc)
+        assert immutable_tc.equals(mutable_tc)
+        mutable_tc.assert_equals(immutable_tc)
+        immutable_tc.assert_equals(mutable_tc)
+
+        # Test that tc (which might be either type) equals both versions
+        assert tc == mutable_tc
+        assert tc == immutable_tc
+        tc.assert_equals(mutable_tc)
+        tc.assert_equals(immutable_tc)
+
+        # Test ignore_provenance across types
+        mutable_tc.provenances.add_row("extra provenance")
+        assert not mutable_tc.equals(immutable_tc)
+        assert not immutable_tc.equals(mutable_tc)
+        mutable_tc.assert_equals(immutable_tc, ignore_provenance=True)
+        immutable_tc.assert_equals(mutable_tc, ignore_provenance=True)
+
+        # Test ignore_ts_metadata across types
+        # Start fresh to avoid provenance confusion
+        mutable_tc2 = tc.copy()
+        mutable_tc2.metadata_schema = tskit.MetadataSchema(
+            {"codec": "json", "type": "object"}
+        )
+        mutable_tc2.metadata = {"hello": "world"}
+        immutable_tc2 = (
+            tc.copy().tree_sequence().tables
+        )  # Original without metadata changes
+        assert not mutable_tc2.equals(immutable_tc2)
+        assert not immutable_tc2.equals(mutable_tc2)
+        mutable_tc2.assert_equals(immutable_tc2, ignore_ts_metadata=True)
+        immutable_tc2.assert_equals(mutable_tc2, ignore_ts_metadata=True)
+
+        # Test ignore_metadata across types (table-level metadata like edges)
+        # Start fresh again
+        mutable_tc3 = tc.copy()
+        child = mutable_tc3.nodes.add_row(time=0)
+        parent = mutable_tc3.nodes.add_row(time=1)
+        mutable_tc3.edges.add_row(0, 1, parent, child, metadata={"key": "extra"})
+        mutable_tc3.sort()
+
+        mutable_tc4 = tc.copy()
+        child = mutable_tc4.nodes.add_row(time=0)
+        parent = mutable_tc4.nodes.add_row(time=1)
+        mutable_tc4.edges.add_row(0, 1, parent, child, metadata={"key": "different"})
+        mutable_tc4.sort()
+        immutable_tc4 = mutable_tc4.tree_sequence().tables
+
+        assert not mutable_tc3.equals(immutable_tc4)
+        assert not immutable_tc4.equals(mutable_tc3)
+        mutable_tc3.assert_equals(immutable_tc4, ignore_metadata=True)
+        immutable_tc4.assert_equals(mutable_tc3, ignore_metadata=True)
+
     def test_sequence_length(self):
         for sequence_length in [0, 1, 100.1234]:
             tables = tskit.TableCollection(sequence_length=sequence_length)
             assert tables.sequence_length == sequence_length
 
-    def test_uuid_simulation(self, ts_fixture):
-        tables = ts_fixture.tables
-        assert tables.file_uuid is None, None
+    def test_uuid_simulation(self, tc):
+        assert tc.file_uuid is None, None
 
     def test_uuid_empty(self):
         tables = tskit.TableCollection(sequence_length=1)
@@ -3848,14 +3936,18 @@ class TestTableCollection:
         ts = tables.tree_sequence()
         assert ts.tables == tables
 
-    def test_index_from_ts(self, ts_fixture):
-        tables = ts_fixture.dump_tables()
-        assert tables.has_index()
-        tables.drop_index()
-        assert not tables.has_index()
-        ts = tables.tree_sequence()
-        assert ts.tables == tables
-        assert tables.has_index()
+    def test_index_from_ts(self, tc):
+        assert tc.has_index()
+
+        # For mutable tables, test that tree_sequence() rebuilds the index
+        if isinstance(tc, tskit.TableCollection):
+            # Save a copy with index for comparison
+            indexed_tc = tc.copy()
+            tc.drop_index()
+            assert not tc.has_index()
+            ts = tc.tree_sequence()
+            assert ts.tables == indexed_tc
+            assert tc.has_index()
 
     def test_set_sequence_length_errors(self):
         tables = tskit.TableCollection(1)
@@ -3904,7 +3996,7 @@ class TestTableCollection:
     def test_indexes(self, simple_degree1_ts_fixture):
         tc = tskit.TableCollection(sequence_length=1)
         assert tc.indexes == tskit.TableCollectionIndexes()
-        tc = simple_degree1_ts_fixture.tables
+        tc = simple_degree1_ts_fixture.dump_tables()
         assert np.array_equal(
             tc.indexes.edge_insertion_order, np.arange(18, dtype=np.int32)
         )
@@ -3943,7 +4035,7 @@ class TestTableCollection:
         tables.drop_index()
         assert not tskit.TableCollection.fromdict(tables.asdict()).has_index()
 
-    def test_asdict_lwt_concordance(self, ts_fixture):
+    def test_asdict_lwt_concordance(self, tc):
         def check_concordance(d1, d2):
             assert set(d1.keys()) == set(d2.keys())
             for k1, v1 in d1.items():
@@ -3967,29 +4059,29 @@ class TestTableCollection:
                 else:
                     assert v1 == v2
 
-        tables = ts_fixture.dump_tables()
-        assert tables.has_index()
+        # Test with index
+        assert tc.has_index()
         lwt = _tskit.LightweightTableCollection()
-        lwt.fromdict(tables.asdict())
-        check_concordance(lwt.asdict(), tables.asdict())
+        lwt.fromdict(tc.asdict())
+        check_concordance(lwt.asdict(), tc.asdict())
 
+        # Test without index - only for mutable
+        tables = tc.copy()
         tables.drop_index()
         lwt = _tskit.LightweightTableCollection()
         lwt.fromdict(tables.asdict())
         check_concordance(lwt.asdict(), tables.asdict())
 
-    def test_dump_pathlib(self, ts_fixture, tmp_path):
+    def test_dump_pathlib(self, tc, tmp_path):
         path = pathlib.Path(tmp_path) / "tmp.trees"
         assert path.exists
         assert path.is_file
-        tc = ts_fixture.dump_tables()
         tc.dump(path)
         other_tc = tskit.TableCollection.load(path)
         tc.assert_equals(other_tc)
 
     @pytest.mark.skipif(platform.system() == "Windows", reason="Windows doesn't raise")
-    def test_dump_load_errors(self, ts_fixture):
-        tc = ts_fixture.dump_tables()
+    def test_dump_load_errors(self, tc):
         # Try to dump/load files we don't have access to or don't exist.
         for func in [tc.dump, tskit.TableCollection.load]:
             for f in ["/", "/test.trees", "/dir_does_not_exist/x.trees"]:
@@ -4389,7 +4481,7 @@ class TestTableCollectionMetadata:
         assert tc._ll_tables.metadata == b""
 
 
-def add_table_collection_metadata(tc):
+def add_tc_metadata(tc):
     tc.metadata_schema = tskit.MetadataSchema(
         {
             "codec": "struct",
@@ -4417,7 +4509,7 @@ class TestTableCollectionPickle:
     """
 
     def verify(self, tables):
-        add_table_collection_metadata(tables)
+        add_tc_metadata(tables)
         other_tables = pickle.loads(pickle.dumps(tables))
         tables.assert_equals(other_tables)
 
@@ -4558,18 +4650,18 @@ class TestDeduplicateSites:
             assert site.metadata == site.id * b"A"
 
 
-class TestBaseTable:
+class TestMutableBaseTable:
     """
     Tests of the table superclass.
     """
 
     def test_set_columns_not_implemented(self):
-        t = tskit.BaseTable(None, None)
+        t = tskit.MutableBaseTable(None, None)
         with pytest.raises(NotImplementedError):
             t.set_columns()
 
     def test_replace_with(self, ts_fixture):
-        # Although replace_with is a BaseTable method, it is simpler to test it
+        # Although replace_with is a MutableBaseTable method, it is simpler to test it
         # on the subclasses directly, as some differ e.g. in having metadata schemas
         original_tables = ts_fixture.dump_tables()
         original_tables.nodes.metadata_schema = tskit.MetadataSchema.permissive_json()
@@ -4606,7 +4698,7 @@ class TestSubsetTables:
         # adding metadata and locations
         ts = tsutil.add_random_metadata(ts, seed)
         ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=1)
-        return ts.tables
+        return ts.dump_tables()
 
     def get_wf_example(self, N=5, ngens=2, seed=1249):
         tables = wf.wf_sim(N, N, num_pops=2, seed=seed)
@@ -4615,7 +4707,7 @@ class TestSubsetTables:
         ts = tsutil.jukes_cantor(ts, 1, 10, seed=seed)
         ts = tsutil.add_random_metadata(ts, seed)
         ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=2)
-        return ts.tables
+        return ts.dump_tables()
 
     def get_examples(self, seed):
         yield self.get_msprime_example(seed=seed)
@@ -4827,7 +4919,7 @@ class TestSubsetTables:
         assert tables.populations == sub_tables.populations
         assert tables.individuals == sub_tables.individuals
         ts = tables.tree_sequence()
-        sub_tables = ts.subset([], remove_unreferenced=False).tables
+        sub_tables = ts.subset([], remove_unreferenced=False).dump_tables()
         assert tables.sites == sub_tables.sites
         assert tables.populations == sub_tables.populations
         assert tables.individuals == sub_tables.individuals
@@ -4911,8 +5003,12 @@ class TestUnionTables(unittest.TestCase):
         shared_nodes = [n.id for n in ts.nodes() if n.time >= T]
         pop1 = list(ts.samples(population=0))
         pop2 = list(ts.samples(population=1))
-        tables1 = ts.simplify(shared_nodes + pop1, record_provenance=False).tables
-        tables2 = ts.simplify(shared_nodes + pop2, record_provenance=False).tables
+        tables1 = ts.simplify(
+            shared_nodes + pop1, record_provenance=False
+        ).dump_tables()
+        tables2 = ts.simplify(
+            shared_nodes + pop2, record_provenance=False
+        ).dump_tables()
         node_mapping = [
             i if i < len(shared_nodes) else tskit.NULL
             for i in range(tables2.nodes.num_rows)
@@ -5085,9 +5181,10 @@ class TestUnionTables(unittest.TestCase):
                 assert s2.position == su.position
                 assert s2.ancestral_state == su.ancestral_state
         # check mutation parents
-        tables_union = tsu.tables
+        expected_tables = tsu.dump_tables()
+        tables_union = expected_tables.copy()
         tables_union.compute_mutation_parents()
-        assert tables_union.mutations == tsu.tables.mutations
+        assert tables_union.mutations == expected_tables.mutations
 
     def test_union_empty(self):
         tables = self.get_msprime_example(sample_size=3, T=2, seed=9328).dump_tables()
@@ -5112,7 +5209,9 @@ class TestUnionTables(unittest.TestCase):
         node_mapping = np.full(ts2.num_nodes, tskit.NULL, dtype="int32")
         uni1 = ts1.union(ts2, node_mapping, record_provenance=False)
         uni2_tables = ts1.dump_tables()
-        tsutil.py_union(uni2_tables, ts2.tables, node_mapping, record_provenance=False)
+        tsutil.py_union(
+            uni2_tables, ts2.dump_tables(), node_mapping, record_provenance=False
+        )
         assert uni1.tables == uni2_tables
 
     def test_all_shared_example(self):
@@ -5161,13 +5260,13 @@ class TestUnionTables(unittest.TestCase):
                     with self.subTest(N=N, T=T):
                         ts = self.get_msprime_example(N, T=T, seed=888)
                         if mut_times:
-                            tables = ts.tables
+                            tables = ts.dump_tables()
                             tables.compute_mutation_times()
                             ts = tables.tree_sequence()
                         self.verify_union(*self.split_example(ts, T))
                         ts = self.get_wf_example(N=N, T=T, seed=827)
                         if mut_times:
-                            tables = ts.tables
+                            tables = ts.dump_tables()
                             tables.compute_mutation_times()
                             ts = tables.tree_sequence()
                         self.verify_union(*self.split_example(ts, T))
@@ -5176,7 +5275,7 @@ class TestUnionTables(unittest.TestCase):
 class TestTableSetitemMetadata:
     @pytest.mark.parametrize("table_name", tskit.TABLE_NAMES)
     def test_setitem_metadata(self, ts_fixture, table_name):
-        table = getattr(ts_fixture.tables, table_name)
+        table = getattr(ts_fixture.dump_tables(), table_name)
         if hasattr(table, "metadata_schema"):
             assert table.metadata_schema == tskit.MetadataSchema({"codec": "json"})
             assert table[0].metadata != table[1].metadata
@@ -5541,3 +5640,27 @@ class TestKeepRowsExamples:
         # ╚══╧═════╧════════╧═══════╧════════╝
         parents = [list(ind.parents) for ind in individuals]
         assert parents == [[], [-1, -1], [-1], [2], [3], [4], [5], [6, 6]]
+
+
+def test_ragged_selection_indices_with_lengths():
+    indexed_offsets = np.array([0, 3], dtype=np.uint32)
+    lengths64 = np.array([3, 2], dtype=np.int64)
+    gather = _ragged_selection_indices(indexed_offsets, lengths64)
+    expected = np.array([0, 1, 2, 3, 4], dtype=np.int64)
+    assert np.array_equal(gather, expected)
+
+
+def test_ragged_selection_indices_with_zeros():
+    indexed_offsets = np.array([0, 2, 2, 5], dtype=np.uint32)
+    lengths64 = np.array([2, 0, 3, 0], dtype=np.int64)
+    gather = _ragged_selection_indices(indexed_offsets, lengths64)
+    expected = np.array([0, 1, 2, 3, 4], dtype=np.int64)
+    assert np.array_equal(gather, expected)
+
+
+def test_ragged_selection_indices_non_monotonic():
+    indexed_offsets = np.array([5, 0], dtype=np.uint32)
+    lengths64 = np.array([1, 2], dtype=np.int64)
+    gather = _ragged_selection_indices(indexed_offsets, lengths64)
+    expected = np.array([5, 0, 1], dtype=np.int64)
+    assert np.array_equal(gather, expected)

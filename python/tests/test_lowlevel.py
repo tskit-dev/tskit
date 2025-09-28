@@ -253,7 +253,7 @@ class TestTableCollection(LowLevelTestCase):
 
     def test_reference_deletion(self):
         ts = msprime.simulate(10, mutation_rate=1, random_seed=1)
-        tc = ts.tables._ll_tables
+        tc = ts.dump_tables()._ll_tables
         # Get references to all the tables
         tables = [
             tc.individuals,
@@ -334,7 +334,7 @@ class TestTableCollection(LowLevelTestCase):
 
     def test_simplify_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables._ll_tables
+        tc = ts.dump_tables()._ll_tables
         with pytest.raises(TypeError):
             tc.simplify()
         with pytest.raises(ValueError):
@@ -375,7 +375,7 @@ class TestTableCollection(LowLevelTestCase):
 
     def test_link_ancestors_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables._ll_tables
+        tc = ts.dump_tables()._ll_tables
         with pytest.raises(TypeError):
             tc.link_ancestors()
         with pytest.raises(TypeError):
@@ -391,7 +391,7 @@ class TestTableCollection(LowLevelTestCase):
 
     def test_link_ancestors(self):
         ts = msprime.simulate(2, random_seed=1)
-        tc = ts.tables._ll_tables
+        tc = ts.dump_tables()._ll_tables
         edges = tc.link_ancestors([0, 1], [3])
         assert isinstance(edges, _tskit.EdgeTable)
         del edges
@@ -399,7 +399,7 @@ class TestTableCollection(LowLevelTestCase):
 
     def test_subset_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables._ll_tables
+        tc = ts.dump_tables()._ll_tables
         with pytest.raises(TypeError):
             tc.subset(np.array(["a"]))
         with pytest.raises(ValueError):
@@ -411,7 +411,7 @@ class TestTableCollection(LowLevelTestCase):
 
     def test_union_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables._ll_tables
+        tc = ts.dump_tables()._ll_tables
         tc2 = tc
         with pytest.raises(TypeError):
             tc.union(tc2, np.array(["a"]))
@@ -435,7 +435,7 @@ class TestTableCollection(LowLevelTestCase):
 
     def test_equals_bad_args(self):
         ts = msprime.simulate(10, random_seed=1242)
-        tc = ts.tables._ll_tables
+        tc = ts.dump_tables()._ll_tables
         with pytest.raises(TypeError):
             tc.equals()
         with pytest.raises(TypeError):
@@ -477,7 +477,7 @@ class TestTableCollection(LowLevelTestCase):
 
     def test_asdict_bad_args(self):
         ts = msprime.simulate(10, random_seed=1242)
-        tc = ts.tables._ll_tables
+        tc = ts.dump_tables()._ll_tables
         for bad_type in [None, 0.1, "str"]:
             with pytest.raises(TypeError):
                 tc.asdict(force_offset_64=bad_type)
@@ -517,14 +517,14 @@ class TestIbd:
 
     def test_get_keys(self):
         ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables._ll_tables
+        tc = ts.dump_tables()._ll_tables
         pairs = [[0, 1], [0, 2], [1, 2]]
         result = tc.ibd_segments_within([0, 1, 2], store_pairs=True)
         np.testing.assert_array_equal(result.get_keys(), pairs)
 
     def test_store_pairs(self):
         ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables._ll_tables
+        tc = ts.dump_tables()._ll_tables
         # By default we can't get any information about pairs.
         result = tc.ibd_segments_within()
         with pytest.raises(_tskit.IdentityPairsNotStoredError):
@@ -551,7 +551,7 @@ class TestIbd:
 
     def test_within_all_pairs(self):
         ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables._ll_tables
+        tc = ts.dump_tables()._ll_tables
         num_pairs = ts.num_samples * (ts.num_samples - 1) / 2
         result = tc.ibd_segments_within(store_pairs=True)
         assert result.num_pairs == num_pairs
@@ -560,7 +560,7 @@ class TestIbd:
 
     def test_between_all_pairs(self):
         ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables._ll_tables
+        tc = ts.dump_tables()._ll_tables
         result = tc.ibd_segments_between([5, 5], range(10), store_pairs=True)
         assert result.num_pairs == 25
         pairs = np.array(list(itertools.product(range(5), range(5, 10))))
@@ -568,7 +568,7 @@ class TestIbd:
 
     def test_within_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables._ll_tables
+        tc = ts.dump_tables()._ll_tables
         for bad_samples in ["sdf", {}]:
             with pytest.raises(ValueError):
                 tc.ibd_segments_within(bad_samples)
@@ -587,7 +587,7 @@ class TestIbd:
 
     def test_between_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables._ll_tables
+        tc = ts.dump_tables()._ll_tables
         with pytest.raises(TypeError):
             tc.ibd_segments_between()
         with pytest.raises(TypeError):
@@ -615,7 +615,7 @@ class TestIbd:
 
     def test_get_output(self):
         ts = msprime.simulate(5, random_seed=1)
-        tc = ts.tables._ll_tables
+        tc = ts.dump_tables()._ll_tables
         pairs = [(0, 1), (2, 3)]
         result = tc.ibd_segments_within([0, 1, 2, 3], store_segments=True)
         assert isinstance(result, _tskit.IdentitySegments)
@@ -634,7 +634,7 @@ class TestIbd:
 
     def test_get_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables._ll_tables
+        tc = ts.dump_tables()._ll_tables
         result = tc.ibd_segments_within([0, 1, 2], store_segments=True)
         with pytest.raises(TypeError):
             result.get()
@@ -651,7 +651,7 @@ class TestIbd:
 
     def test_print_state(self):
         ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables._ll_tables
+        tc = ts.dump_tables()._ll_tables
         result = tc.ibd_segments_within()
         with pytest.raises(TypeError):
             result.print_state()
@@ -687,7 +687,7 @@ class TestIdentitySegmentList:
 
     def test_memory_management_within(self):
         ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables._ll_tables
+        tc = ts.dump_tables()._ll_tables
         result = tc.ibd_segments_within(store_segments=True)
         del ts, tc
         lst = result.get(0, 1)
@@ -702,7 +702,7 @@ class TestIdentitySegmentList:
 
     def test_memory_management_between(self):
         ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables._ll_tables
+        tc = ts.dump_tables()._ll_tables
         result = tc.ibd_segments_between([2, 2], range(4), store_segments=True)
         del ts, tc
         lst = result.get(0, 2)
@@ -723,7 +723,7 @@ class TestTableMethods:
 
     @pytest.mark.parametrize("table_name", tskit.TABLE_NAMES)
     def test_table_extend(self, table_name, ts_fixture):
-        table = getattr(ts_fixture.tables, table_name)
+        table = getattr(ts_fixture.dump_tables(), table_name)
         assert len(table) >= 5
         ll_table = table.ll_table
         table_copy = table.copy()
@@ -753,7 +753,7 @@ class TestTableMethods:
     def test_table_extend_types(
         self, ts_fixture, table_name, row_indexes, expected_rows
     ):
-        table = getattr(ts_fixture.tables, table_name)
+        table = getattr(ts_fixture.dump_tables(), table_name)
         assert len(table) >= 5
         ll_table = table.ll_table
         table_copy = table.copy()
@@ -765,7 +765,7 @@ class TestTableMethods:
 
     @pytest.mark.parametrize("table_name", tskit.TABLE_NAMES)
     def test_table_keep_rows_errors(self, table_name, ts_fixture):
-        table = getattr(ts_fixture.tables, table_name)
+        table = getattr(ts_fixture.dump_tables(), table_name)
         n = len(table)
         ll_table = table.ll_table
         with pytest.raises(ValueError, match="must be of length"):
@@ -777,7 +777,7 @@ class TestTableMethods:
 
     @pytest.mark.parametrize("table_name", tskit.TABLE_NAMES)
     def test_table_keep_rows_all(self, table_name, ts_fixture):
-        table = getattr(ts_fixture.tables, table_name)
+        table = getattr(ts_fixture.dump_tables(), table_name)
         n = len(table)
         ll_table = table.ll_table
         a = ll_table.keep_rows(np.ones(n, dtype=bool))
@@ -788,7 +788,7 @@ class TestTableMethods:
 
     @pytest.mark.parametrize("table_name", tskit.TABLE_NAMES)
     def test_table_keep_rows_none(self, table_name, ts_fixture):
-        table = getattr(ts_fixture.tables, table_name)
+        table = getattr(ts_fixture.dump_tables(), table_name)
         n = len(table)
         ll_table = table.ll_table
         a = ll_table.keep_rows(np.zeros(n, dtype=bool))
@@ -821,7 +821,7 @@ class TestTableMethods:
         ],
     )
     def test_table_update(self, ts_fixture, table_name, column_name):
-        table = getattr(ts_fixture.tables, table_name)
+        table = getattr(ts_fixture.dump_tables(), table_name)
         copy = table.copy()
         ll_table = table.ll_table
 
@@ -985,7 +985,7 @@ class TestTableMethodsErrors:
     """
 
     def yield_tables(self, ts):
-        for table in ts.tables.table_name_map.values():
+        for table in ts.dump_tables().table_name_map.values():
             yield table.ll_table
 
     @pytest.mark.parametrize(
@@ -993,7 +993,7 @@ class TestTableMethodsErrors:
         tskit.TABLE_NAMES,
     )
     def test_table_extend_bad_args(self, ts_fixture, table_name):
-        table = getattr(ts_fixture.tables, table_name)
+        table = getattr(ts_fixture.dump_tables(), table_name)
         ll_table = table.ll_table
         ll_table_copy = table.copy().ll_table
 
@@ -1026,7 +1026,7 @@ class TestTableMethodsErrors:
 
     @pytest.mark.parametrize("table_name", tskit.TABLE_NAMES)
     def test_update_bad_row_index(self, ts_fixture, table_name):
-        table = getattr(ts_fixture.tables, table_name)
+        table = getattr(ts_fixture.dump_tables(), table_name)
         ll_table = table.ll_table
         row_data = ll_table.get_row(0)
         with pytest.raises(_tskit.LibraryError, match="out of bounds"):
@@ -1077,7 +1077,7 @@ class TestTableMethodsErrors:
             table.add_row(flags=-1)
 
     def test_index(self):
-        tc = msprime.simulate(10, random_seed=42).tables._ll_tables
+        tc = msprime.simulate(10, random_seed=42).dump_tables()._ll_tables
         assert tc.indexes["edge_insertion_order"].dtype == np.int32
         assert tc.indexes["edge_removal_order"].dtype == np.int32
         assert np.array_equal(
@@ -1110,12 +1110,12 @@ class TestTableMethodsErrors:
         )
 
     def test_no_indexes(self):
-        tc = msprime.simulate(10, random_seed=42).tables._ll_tables
+        tc = msprime.simulate(10, random_seed=42).dump_tables()._ll_tables
         tc.drop_index()
         assert tc.indexes == {}
 
     def test_bad_indexes(self):
-        tc = msprime.simulate(10, random_seed=42).tables._ll_tables
+        tc = msprime.simulate(10, random_seed=42).dump_tables()._ll_tables
         for col in ("insertion", "removal"):
             d = tc.indexes
             d[f"edge_{col}_order"] = d[f"edge_{col}_order"][:-1]
@@ -1148,9 +1148,11 @@ class TestTableMethodsErrors:
             ):
                 tc.indexes = d
 
-        tc = msprime.simulate(
-            10, recombination_rate=10, random_seed=42
-        ).tables._ll_tables
+        tc = (
+            msprime.simulate(10, recombination_rate=10, random_seed=42)
+            .dump_tables()
+            ._ll_tables
+        )
         modify_indexes = tc.indexes
         shape = modify_indexes["edge_insertion_order"].shape
         modify_indexes["edge_insertion_order"] = np.zeros(shape, dtype=np.int32)

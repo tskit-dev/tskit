@@ -29,6 +29,7 @@ import dataclasses
 import datetime
 import json
 import numbers
+import operator
 import warnings
 from dataclasses import dataclass
 from typing import Dict
@@ -43,9 +44,24 @@ import tskit.metadata as metadata
 import tskit.provenance as provenance
 import tskit.util as util
 from tskit import UNKNOWN_TIME
-from tskit.metadata import TableMetadataWriter
+from tskit.exceptions import ImmutableTableError
 
 dataclass_options = {"frozen": True}
+
+
+def _ragged_selection_indices(indexed_offsets, lengths64):
+    """
+    Return absolute indices into a ragged column for the provided row selection.
+    """
+    total = int(lengths64.sum())
+    if total == 0:
+        return np.empty(0, dtype=np.int64)
+    row_ids = np.repeat(np.arange(lengths64.size, dtype=np.int64), lengths64)
+    start_offsets = indexed_offsets.astype(np.int64, copy=False)[row_ids]
+    within_row = np.arange(total, dtype=np.int64) - np.repeat(
+        np.cumsum(lengths64, dtype=np.int64) - lengths64, lengths64
+    )
+    return start_offsets + within_row
 
 
 @metadata.lazy_decode()
@@ -329,31 +345,17 @@ def keep_with_offset(keep, data, offset):
 
 
 class BaseTable:
-    # Base class for all tables
+    # Base class for all tables, with only immutable methods,
+    # or those that don't use separate low-level table implementations.
 
     # The list of columns in the table. Must be set by subclasses.
     column_names = []
-
-    def __init__(self, ll_table, row_class):
-        self.ll_table = ll_table
-        self.row_class = row_class
+    mutable = None
 
     def _check_required_args(self, **kwargs):
         for k, v in kwargs.items():
             if v is None:
                 raise TypeError(f"{k} is required")
-
-    @property
-    def num_rows(self) -> int:
-        return self.ll_table.num_rows
-
-    @property
-    def max_rows(self) -> int:
-        return self.ll_table.max_rows
-
-    @property
-    def max_rows_increment(self) -> int:
-        return self.ll_table.max_rows_increment
 
     @property
     def nbytes(self) -> int:
@@ -377,6 +379,25 @@ class BaseTable:
         nbytes += sum(col.nbytes for col in d.values())
         return nbytes
 
+    def _equals_internal(
+        self, other, ignore_metadata=False, *, ignore_timestamps=False
+    ):
+
+        if self is other:
+            return True
+
+        if not isinstance(other, BaseTable) or self.table_name != other.table_name:
+            return False
+
+        # Can only use mutable fast path if both tables are mutable
+        base = self
+        if self.mutable and not other.mutable:
+            base = other
+            other = self
+        return base._fast_equals(
+            other, ignore_metadata=ignore_metadata, ignore_timestamps=ignore_timestamps
+        )
+
     def equals(self, other, ignore_metadata=False):
         """
         Returns True if  `self` and `other` are equal. By default, two tables
@@ -389,13 +410,26 @@ class BaseTable:
         :return: True if other is equal to this table; False otherwise.
         :rtype: bool
         """
-        # Note: most tables support ignore_metadata, we can override for those that don't
-        ret = False
-        if type(other) is type(self):
-            ret = bool(
-                self.ll_table.equals(other.ll_table, ignore_metadata=ignore_metadata)
+        return self._equals_internal(
+            other, ignore_metadata=ignore_metadata, ignore_timestamps=False
+        )
+
+    def _assert_equals_internal(
+        self, other, *, ignore_metadata=False, ignore_timestamps=False
+    ):
+        if self is other:
+            return
+        if not isinstance(other, BaseTable) or self.table_name != other.table_name:
+            raise AssertionError(f"Types differ: self={type(self)} other={type(other)}")
+
+        if not self._equals_internal(
+            other, ignore_metadata=ignore_metadata, ignore_timestamps=ignore_timestamps
+        ):
+            self._assert_equals(
+                other,
+                ignore_metadata=ignore_metadata,
+                ignore_timestamps=ignore_timestamps,
             )
-        return ret
 
     def assert_equals(self, other, *, ignore_metadata=False):
         """
@@ -406,14 +440,17 @@ class BaseTable:
         :param bool ignore_metadata: If True exclude metadata and metadata schemas
             from the comparison.
         """
-        if type(other) is not type(self):
-            raise AssertionError(f"Types differ: self={type(self)} other={type(other)}")
+        self._assert_equals_internal(
+            other, ignore_metadata=ignore_metadata, ignore_timestamps=False
+        )
 
-        # Check using the low-level method to avoid slowly going through everything
-        if self.equals(other, ignore_metadata=ignore_metadata):
-            return
-
-        if not ignore_metadata and self.metadata_schema != other.metadata_schema:
+    def _assert_equals(self, other, *, ignore_metadata=False, ignore_timestamps=False):
+        if (
+            not ignore_metadata
+            and hasattr(self, "metadata_schema")
+            and hasattr(other, "metadata_schema")
+            and self.metadata_schema != other.metadata_schema
+        ):
             raise AssertionError(
                 f"{type(self).__name__} metadata schemas differ: "
                 f"self={self.metadata_schema} "
@@ -424,11 +461,16 @@ class BaseTable:
             if ignore_metadata:
                 row_self = dataclasses.replace(row_self, metadata=None)
                 row_other = dataclasses.replace(row_other, metadata=None)
+            if ignore_timestamps:
+                row_self = dataclasses.replace(row_self, timestamp=None)
+                row_other = dataclasses.replace(row_other, timestamp=None)
             if row_self != row_other:
                 self_dict = dataclasses.asdict(self[n])
                 other_dict = dataclasses.asdict(other[n])
                 diff_string = []
                 for col in self_dict.keys():
+                    if ignore_timestamps and col == "timestamp":
+                        continue
                     if isinstance(self_dict[col], np.ndarray):
                         equal = np.array_equal(self_dict[col], other_dict[col])
                     else:
@@ -452,6 +494,8 @@ class BaseTable:
         # differ when the decoded schema is the same
         if (
             not ignore_metadata
+            and hasattr(self, "ll_table")
+            and hasattr(other, "ll_table")
             and self.ll_table.metadata_schema != other.ll_table.metadata_schema
             and self.metadata_schema == other.metadata_schema
         ):
@@ -467,6 +511,194 @@ class BaseTable:
 
     def __len__(self):
         return self.num_rows
+
+    def asdict(self):
+        """
+        Returns a dictionary mapping the names of the columns in this table
+        to the corresponding numpy arrays.
+        """
+        ret = {col: getattr(self, col) for col in self.column_names}
+        # Not all tables have metadata
+        try:
+            ret["metadata_schema"] = repr(self.metadata_schema)
+        except AttributeError:
+            pass
+        return ret
+
+    def __str__(self):
+        headers, rows = self._text_header_and_rows(
+            limit=tskit._print_options["max_lines"]
+        )
+        return util.unicode_table(rows, header=headers, row_separator=False)
+
+    def _repr_html_(self):
+        """
+        Called e.g. by jupyter notebooks to render tables
+        """
+        headers, rows = self._text_header_and_rows(
+            limit=tskit._print_options["max_lines"]
+        )
+        return util.html_table(rows, header=headers)
+
+    def _columns_all_integer(self, *colnames):
+        # For displaying floating point values without loads of decimal places
+        return all(
+            np.all(getattr(self, col) == np.floor(getattr(self, col)))
+            for col in colnames
+        )
+
+    def _text_header_and_rows(self, limit=None):
+        """
+        Returns headers and rows for table display.
+        """
+        # Generate headers: "id" + column names (excluding offset columns)
+        display_columns = [
+            col for col in self.column_names if not col.endswith("_offset")
+        ]
+        headers = ("id",) + tuple(display_columns)
+
+        rows = []
+        row_indexes = util.truncate_rows(self.num_rows, limit)
+
+        float_columns = {}
+        for col in display_columns:
+            arr = getattr(self, col)
+            if np.issubdtype(arr.dtype, np.floating):
+                float_columns[col] = 0 if self._columns_all_integer(col) else 8
+
+        for j in row_indexes:
+            if j == -1:
+                rows.append(f"__skipped__{self.num_rows - limit}")
+            else:
+                row = self[j]
+                formatted_values = [f"{j:,}"]  # ID column
+                for col in display_columns:
+                    value = getattr(row, col)
+                    if col == "metadata":
+                        formatted_values.append(util.render_metadata(value))
+                    elif col in ["location", "parents"]:
+                        # Array columns - join with commas
+                        if col == "parents":
+                            formatted_values.append(
+                                ", ".join([f"{p:,}" for p in value])
+                            )
+                        else:
+                            formatted_values.append(", ".join(map(str, value)))
+                    elif col in float_columns:
+                        dp = float_columns[col]
+                        formatted_values.append(f"{value:,.{dp}f}")
+                    elif isinstance(value, (int, np.integer)):
+                        formatted_values.append(f"{value:,}")
+                    else:
+                        formatted_values.append(str(value))
+                rows.append(formatted_values)
+        return headers, rows
+
+
+def _assert_table_collections_equal(
+    tc1,
+    tc2,
+    *,
+    ignore_metadata=False,
+    ignore_ts_metadata=False,
+    ignore_provenance=False,
+    ignore_timestamps=False,
+    ignore_reference_sequence=False,
+    ignore_tables=False,
+):
+    # This is shared between TableCollection and ImmutableTableCollection,
+    # could go in a base class, but there's not much else in common
+
+    if not (ignore_metadata or ignore_ts_metadata):
+        if tc1.metadata_schema != tc2.metadata_schema:
+            raise AssertionError(
+                f"Metadata schemas differ: self={tc1.metadata_schema} "
+                f"other={tc2.metadata_schema}"
+            )
+        if tc1.metadata != tc2.metadata:
+            raise AssertionError(
+                f"Metadata differs: self={tc1.metadata} other={tc2.metadata}"
+            )
+
+    if not ignore_reference_sequence:
+        tc1.reference_sequence.assert_equals(
+            tc2.reference_sequence, ignore_metadata=ignore_metadata
+        )
+
+    if tc1.time_units != tc2.time_units:
+        raise AssertionError(
+            f"Time units differs: self={tc1.time_units} other={tc2.time_units}"
+        )
+
+    if tc1.sequence_length != tc2.sequence_length:
+        raise AssertionError(
+            f"Sequence Length differs: self={tc1.sequence_length} "
+            f"other={tc2.sequence_length}"
+        )
+
+    if not ignore_tables:
+        for table_name, table in tc1.table_name_map.items():
+            if table_name == "provenances":
+                continue
+            other_table = getattr(tc2, table_name)
+            if isinstance(table, ImmutableBaseTable):
+                table.assert_equals(other_table, ignore_metadata=ignore_metadata)
+            elif isinstance(other_table, ImmutableBaseTable):
+                other_table.assert_equals(table, ignore_metadata=ignore_metadata)
+            else:
+                table.assert_equals(other_table, ignore_metadata=ignore_metadata)
+
+    if not ignore_provenance and not ignore_tables:
+        prov1 = tc1.provenances
+        prov2 = tc2.provenances
+        if isinstance(prov1, ImmutableProvenanceTable):
+            prov1.assert_equals(prov2, ignore_timestamps=ignore_timestamps)
+        elif isinstance(prov2, ImmutableProvenanceTable):
+            prov2.assert_equals(prov1, ignore_timestamps=ignore_timestamps)
+        else:
+            prov1.assert_equals(prov2, ignore_timestamps=ignore_timestamps)
+
+    if (
+        not ignore_metadata
+        and hasattr(tc1, "_ll_object")
+        and hasattr(tc2, "_ll_object")
+        and hasattr(tc1._ll_object, "metadata_schema")
+        and hasattr(tc2._ll_object, "metadata_schema")
+        and tc1._ll_object.metadata_schema != tc2._ll_object.metadata_schema
+        and tc1.metadata_schema == tc2.metadata_schema
+    ):
+        # Schemas differ in byte representation but are equivalent when decoded
+        return
+
+    # If we reach here, all comparisons matched; treat collections as equal.
+    return
+
+
+class MutableBaseTable(BaseTable):
+    # Abstract base class for mutable tables that use the low-level table implementation.
+
+    mutable = True
+
+    def __init__(self, ll_table, row_class):
+        self.ll_table = ll_table
+        self.row_class = row_class
+
+    def _fast_equals(self, other, **kwargs):
+        return self.ll_table.equals(
+            other.ll_table, **{k: v for k, v in kwargs.items() if v is True}
+        )
+
+    @property
+    def num_rows(self) -> int:
+        return self.ll_table.num_rows
+
+    @property
+    def max_rows(self) -> int:
+        return self.ll_table.max_rows
+
+    @property
+    def max_rows_increment(self) -> int:
+        return self.ll_table.max_rows_increment
 
     def __getattr__(self, name):
         if name in self.column_names:
@@ -527,7 +759,11 @@ class BaseTable:
             index = util.safe_np_int_cast(index, np.int32)
 
         ret = self.__class__()
-        ret.metadata_schema = self.metadata_schema
+        # Not all tables have metadata schemas; guard access
+        try:
+            ret.metadata_schema = self.metadata_schema
+        except AttributeError:
+            pass
         ret.ll_table.extend(self.ll_table, row_indexes=index)
 
         return ret
@@ -653,19 +889,6 @@ class BaseTable:
         copy.set_columns(**self.asdict())
         return copy
 
-    def asdict(self):
-        """
-        Returns a dictionary mapping the names of the columns in this table
-        to the corresponding numpy arrays.
-        """
-        ret = {col: getattr(self, col) for col in self.column_names}
-        # Not all tables have metadata
-        try:
-            ret["metadata_schema"] = repr(self.metadata_schema)
-        except AttributeError:
-            pass
-        return ret
-
     def set_columns(self, **kwargs):
         """
         Sets the values for each column in this :class:`Table` using values
@@ -673,78 +896,306 @@ class BaseTable:
         """
         raise NotImplementedError()
 
-    def __str__(self):
-        headers, rows = self._text_header_and_rows(
-            limit=tskit._print_options["max_lines"]
-        )
-        return util.unicode_table(rows, header=headers, row_separator=False)
 
-    def _repr_html_(self):
-        """
-        Called e.g. by jupyter notebooks to render tables
-        """
-        headers, rows = self._text_header_and_rows(
-            limit=tskit._print_options["max_lines"]
-        )
-        return util.html_table(rows, header=headers)
+class ImmutableBaseTable(BaseTable):
+    # List of all mutation methods that should give a nice error
+    _MUTATION_METHODS = {
+        "add_row",
+        "clear",
+        "set_columns",
+        "truncate",
+        "replace_with",
+        "append_columns",
+        "keep_rows",
+        "append",
+        "reset",
+        "drop_metadata",
+        "packset_metadata",
+        "packset_location",
+        "packset_parents",
+        "packset_ancestral_state",
+        "packset_derived_state",
+        "packset_record",
+        "packset_timestamp",
+        "squash",
+    }
 
-    def _columns_all_integer(self, *colnames):
-        # For displaying floating point values without loads of decimal places
-        return all(
-            np.all(getattr(self, col) == np.floor(getattr(self, col)))
-            for col in colnames
-        )
+    mutable = False
+    # These are set by subclasses.
+    _row_field_indices = None
+    table_name = None
+    mutable_class = None
 
-    def _text_header_and_rows(self, limit=None):
-        display_columns = [
-            col for col in self.column_names if not col.endswith("_offset")
-        ]
-        headers = ("id",) + tuple(display_columns)
+    def __init__(self, ll_tree_sequence, row_indices=None, row_slice=None):
+        object.__setattr__(self, "_initialised", False)
+        self._llts = ll_tree_sequence
+        singular_name = self.table_name.rstrip("s")
+        self.row_class = globals()[f"{singular_name.capitalize()}TableRow"]
+        self._ll_row_getter = f"get_{singular_name}"
+        self._set_column_names = set(self.column_names)
 
-        rows = []
-        row_indexes = util.truncate_rows(self.num_rows, limit)
-
-        float_columns = {}
-        for col in display_columns:
-            arr = getattr(self, col)
-            if np.issubdtype(arr.dtype, np.floating):
-                float_columns[col] = 0 if self._columns_all_integer(col) else 8
-
-        for j in row_indexes:
-            if j == -1:
-                rows.append(f"__skipped__{self.num_rows - limit}")
+        self._row_indices = row_indices
+        self._row_slice = row_slice
+        if row_indices is None:
+            if row_slice is None:
+                self.num_rows = getattr(self._llts, f"get_num_{self.table_name}")()
             else:
-                row = self[j]
-                formatted_values = [f"{j:,}"]
-                for col in display_columns:
-                    value = getattr(row, col)
-                    if col == "metadata":
-                        formatted_values.append(util.render_metadata(value))
-                    elif col in ["location", "parents"]:
-                        if col == "parents":
-                            formatted_values.append(", ".join(f"{p:,}" for p in value))
-                        else:
-                            formatted_values.append(", ".join(map(str, value)))
-                    elif col in float_columns:
-                        dp = float_columns[col]
-                        formatted_values.append(f"{value:,.{dp}f}")
-                    elif isinstance(value, (int, np.integer)):
-                        formatted_values.append(f"{value:,}")
-                    else:
-                        formatted_values.append(str(value))
-                rows.append(formatted_values)
+                self.num_rows = max(0, row_slice.stop - row_slice.start)
+                self._row_slice = row_slice
+        else:
+            self.num_rows = len(row_indices)
+            self._row_slice = None
+        object.__setattr__(self, "_initialised", True)
 
-        return headers, rows
+    def copy(self):
+        """
+        Returns a mutable deep copy of this ImmutableTableCollection.
+
+        :return: A deep copy of this ImmutableTableCollection.
+        :rtype: tskit.TableCollection
+        """
+        mutable_table = self.mutable_class()
+        column_data = self.asdict()
+        mutable_table.set_columns(**column_data)
+        return mutable_table
+
+    def __len__(self):
+        return self.num_rows
+
+    def __iter__(self):
+        row_factory = self._create_row_object
+        if self._row_indices is not None:
+            for ll_index in self._row_indices:
+                yield row_factory(ll_index)
+            return
+        if self._row_slice is None:
+            start = 0
+            stop = self.num_rows
+        else:
+            start = self._row_slice.start
+            stop = self._row_slice.stop
+        for ll_index in range(start, stop):
+            yield row_factory(ll_index)
+
+    def _fast_equals(self, other, *, ignore_metadata=False, ignore_timestamps=False):
+        if self.num_rows != other.num_rows:
+            return False
+        if (
+            not ignore_metadata
+            and hasattr(self, "metadata_schema")
+            and hasattr(other, "metadata_schema")
+            and self.metadata_schema != other.metadata_schema
+        ):
+            return False
+        for column_name in self.column_names:
+            if ignore_metadata and column_name.startswith("metadata"):
+                continue
+            if (
+                ignore_timestamps
+                and getattr(self, "table_name", None) == "provenances"
+                and column_name in ("timestamp", "timestamp_offset")
+            ):
+                continue
+            if not np.array_equal(
+                getattr(self, column_name), getattr(other, column_name), equal_nan=True
+            ):
+                return False
+        return True
+
+    def __getattr__(self, name):
+        # Handle attribute access. This method is only called when an attribute
+        # is not found through normal lookup, so we can lazily calculate column
+        # contents.
+        if name in self._set_column_names:
+            full_array = getattr(self._llts, f"{self.table_name}_{name}")
+            # TableCollection methods use the LWT code, which is stuck returning
+            # int8 for compatibility see https://github.com/tskit-dev/tskit/issues/3284
+            if name == "metadata":
+                full_array = full_array.view(np.int8)
+            if not (self._row_indices is None and self._row_slice is None):
+                is_offset = name.endswith("_offset")
+                is_ragged = f"{name}_offset" in self._set_column_names
+                if self._row_indices is None:
+                    subset_array = self._slice_column(
+                        full_array, name, is_offset, is_ragged
+                    )
+                else:
+                    subset_array = self._select_column(
+                        full_array, name, is_offset, is_ragged
+                    )
+            else:
+                subset_array = full_array
+            # Store the result, so on the next access we don't need to calculate it again
+            object.__setattr__(self, name, subset_array)
+            return subset_array
+
+        if name in self._MUTATION_METHODS:
+            raise ImmutableTableError(
+                f"Cannot call {name}() on immutable {self.table_name} table. "
+                f"Use TreeSequence.dump_tables() for mutable copy."
+            )
+
+        # If it's not a blocked method or column, delegate to parent classes
+        # This allows metadata mixins to handle metadata_schema and other attributes
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        )
+
+    def _slice_column(self, full_array, name, is_offset, is_ragged):
+        row_slice = self._row_slice
+        start = row_slice.start
+        stop = row_slice.stop
+        if is_offset:
+            return full_array[start : stop + 1]
+        elif is_ragged:
+            offset_array = getattr(self._llts, f"{self.table_name}_{name}_offset")
+            return full_array[offset_array[start] : offset_array[stop]]
+        else:
+            return full_array[row_slice]
+
+    def _select_column(self, full_array, name, is_offset, is_ragged):
+        indices = self._row_indices
+        if is_ragged:
+            ragged, offsets = self._select_column_ragged(full_array, name, indices)
+            # We calculated _offset, so might as well store it so it doesn't
+            # need to be recalculated if accessed
+            object.__setattr__(self, f"{name}_offset", offsets)
+            return ragged
+        elif is_offset:
+            return self._select_column_offset(full_array, indices)
+        else:
+            return full_array[indices]
+
+    def _select_column_offset(self, offset_array, indices):
+        lengths = offset_array[indices + 1] - offset_array[indices]
+        result = np.empty(lengths.size + 1, dtype=offset_array.dtype)
+        result[0] = 0
+        if lengths.size > 0:
+            np.cumsum(lengths, dtype=offset_array.dtype, out=result[1:])
+        return result
+
+    def _select_column_ragged(self, full_array, name, indices):
+        offset_array = getattr(self._llts, f"{self.table_name}_{name}_offset")
+        indexed_offsets = offset_array[indices]
+        lengths64 = (offset_array[indices + 1] - indexed_offsets).astype(
+            np.int64, copy=False
+        )
+        gather_indices = _ragged_selection_indices(indexed_offsets, lengths64)
+        result = full_array[gather_indices]
+        offsets_result = self._select_column_offset(offset_array, indices)
+        return result, offsets_result
+
+    def __getitem__(self, index):
+        try:
+            row_index = operator.index(index)
+        except TypeError:
+            selector = self._resolve_selector(index)
+            if isinstance(selector, slice):
+                return self.__class__(self._llts, row_slice=selector)
+            return self.__class__(self._llts, row_indices=selector)
+
+        if row_index < 0:
+            row_index += self.num_rows
+        if row_index < 0 or row_index >= self.num_rows:
+            raise IndexError("Index out of bounds")
+        ll_index = self._resolve_single_index(row_index)
+        return self._create_row_object(ll_index)
+
+    def _current_ll_indices(self):
+        if self._row_indices is None:
+            if self._row_slice is None:
+                start = 0
+                stop = self.num_rows
+            else:
+                start = self._row_slice.start
+                stop = self._row_slice.stop
+            return np.arange(start, stop, dtype=np.int64)
+        return np.asarray(self._row_indices)
+
+    def _resolve_single_index(self, row_index):
+        if self._row_indices is None:
+            base_start = 0 if self._row_slice is None else self._row_slice.start
+            return int(base_start + row_index)
+        return int(self._row_indices[row_index])
+
+    def _resolve_selector(self, selector):
+        if isinstance(selector, slice):
+            step = selector.step or 1
+            if step == 1 and self._row_indices is None:
+                start, stop, _ = selector.indices(self.num_rows)
+                base_start = 0 if self._row_slice is None else self._row_slice.start
+                return slice(base_start + start, base_start + stop)
+            indices = np.arange(self.num_rows, dtype=np.int64)
+            selector = indices[selector]
+
+        selector = np.asarray(selector)
+        if selector.dtype == np.bool_:
+            if len(selector) != self.num_rows:
+                raise IndexError("Boolean index must be same length as table")
+            selector = np.flatnonzero(selector)
+        else:
+            selector = util.safe_np_int_cast(selector, np.int64)
+
+        ll_indices = self._current_ll_indices()
+        resolved = ll_indices[selector]
+        if resolved.dtype != np.int32:
+            resolved = util.safe_np_int_cast(resolved, np.int32)
+        return resolved
+
+    def _create_row_object(self, ll_index):
+        raw_row = getattr(self._llts, self._ll_row_getter)(int(ll_index))
+        spec = self._row_field_indices
+        if spec is None:
+            values = list(raw_row)
+        else:
+            values = [raw_row[i] for i in spec]
+        try:
+            return self.row_class(
+                *values, metadata_decoder=self.metadata_schema.decode_row
+            )
+        except AttributeError:
+            return self.row_class(*values)
+
+    def __setattr__(self, name, value):
+        # Allow all assignments during initialization
+        if not self._initialised:
+            object.__setattr__(self, name, value)
+            return
+        # Allow internal/private attributes
+        if name.startswith("_"):
+            object.__setattr__(self, name, value)
+            return
+        raise ImmutableTableError(
+            f"Cannot set attribute '{name}' on immutable {self.table_name} table. "
+            f"Use TreeSequence.dump_tables() for mutable copy."
+        )
 
 
-class MetadataTable(BaseTable, TableMetadataWriter):
-    # Base class for tables that have a metadata column
-
-    def __init__(self, ll_table, row_class):
-        super().__init__(ll_table, row_class)
+class MutableMetadataTable(MutableBaseTable, metadata.TableMetadataWriter):
+    pass
 
 
-class IndividualTable(MetadataTable):
+class ImmutableMetadataTable(ImmutableBaseTable, metadata.TableMetadataReader):
+    @property
+    def metadata_schema(self):
+        """
+        The :class:`tskit.MetadataSchema` for this table.
+        Overrides the base implementation to access schema from tree sequence.
+        """
+        try:
+            return self._metadata_schema
+        except AttributeError:
+            self._metadata_schema = metadata.parse_metadata_schema(
+                getattr(
+                    self._llts.get_table_metadata_schemas(),
+                    # Use singular form for table name
+                    self.table_name.rstrip("s"),
+                )
+            )
+            return self._metadata_schema
+
+
+class IndividualTable(MutableMetadataTable):
     """
     A table defining the individuals in a tree sequence. Note that although
     each Individual has associated nodes, reference to these is not stored in
@@ -778,6 +1229,7 @@ class IndividualTable(MetadataTable):
     :vartype metadata_schema: tskit.MetadataSchema
     """
 
+    table_name = "individuals"
     column_names = [
         "flags",
         "location",
@@ -1002,7 +1454,7 @@ class IndividualTable(MetadataTable):
         return super().keep_rows(keep)
 
 
-class NodeTable(MetadataTable):
+class NodeTable(MutableMetadataTable):
     """
     A table defining the nodes in a tree sequence. See the
     :ref:`definitions <sec_node_table_definition>` for details on the columns
@@ -1030,6 +1482,7 @@ class NodeTable(MetadataTable):
     :vartype metadata_schema: tskit.MetadataSchema
     """
 
+    table_name = "nodes"
     column_names = [
         "time",
         "flags",
@@ -1173,7 +1626,7 @@ class NodeTable(MetadataTable):
         )
 
 
-class EdgeTable(MetadataTable):
+class EdgeTable(MutableMetadataTable):
     """
     A table defining the edges in a tree sequence. See the
     :ref:`definitions <sec_edge_table_definition>` for details on the columns
@@ -1201,6 +1654,7 @@ class EdgeTable(MetadataTable):
     :vartype metadata_schema: tskit.MetadataSchema
     """
 
+    table_name = "edges"
     column_names = [
         "left",
         "right",
@@ -1358,7 +1812,7 @@ class EdgeTable(MetadataTable):
         self.ll_table.squash()
 
 
-class MigrationTable(MetadataTable):
+class MigrationTable(MutableMetadataTable):
     """
     A table defining the migrations in a tree sequence. See the
     :ref:`definitions <sec_migration_table_definition>` for details on the columns
@@ -1391,6 +1845,7 @@ class MigrationTable(MetadataTable):
     :vartype metadata_schema: tskit.MetadataSchema
     """
 
+    table_name = "migrations"
     column_names = [
         "left",
         "right",
@@ -1551,7 +2006,7 @@ class MigrationTable(MetadataTable):
         )
 
 
-class SiteTable(MetadataTable):
+class SiteTable(MutableMetadataTable):
     """
     A table defining the sites in a tree sequence. See the
     :ref:`definitions <sec_site_table_definition>` for details on the columns
@@ -1580,6 +2035,7 @@ class SiteTable(MetadataTable):
     :vartype metadata_schema: tskit.MetadataSchema
     """
 
+    table_name = "sites"
     column_names = [
         "position",
         "ancestral_state",
@@ -1737,7 +2193,7 @@ class SiteTable(MetadataTable):
         self.set_columns(**d)
 
 
-class MutationTable(MetadataTable):
+class MutationTable(MutableMetadataTable):
     """
     A table defining the mutations in a tree sequence. See the
     :ref:`definitions <sec_mutation_table_definition>` for details on the columns
@@ -1772,6 +2228,7 @@ class MutationTable(MetadataTable):
     :vartype metadata_schema: tskit.MetadataSchema
     """
 
+    table_name = "mutations"
     column_names = [
         "site",
         "node",
@@ -1998,7 +2455,7 @@ class MutationTable(MetadataTable):
         return super().keep_rows(keep)
 
 
-class PopulationTable(MetadataTable):
+class PopulationTable(MutableMetadataTable):
     """
     A table defining the populations referred to in a tree sequence.
     The PopulationTable stores metadata for populations that may be referred to
@@ -2019,6 +2476,7 @@ class PopulationTable(MetadataTable):
     :vartype metadata_schema: tskit.MetadataSchema
     """
 
+    table_name = "populations"
     column_names = ["metadata", "metadata_offset"]
 
     def __init__(self, max_rows_increment=0, ll_table=None):
@@ -2098,7 +2556,7 @@ class PopulationTable(MetadataTable):
         )
 
 
-class ProvenanceTable(BaseTable):
+class ProvenanceTable(MutableBaseTable):
     """
     A table recording the provenance (i.e., history) of this table, so that the
     origin of the underlying data and sequence of subsequent operations can be
@@ -2123,77 +2581,13 @@ class ProvenanceTable(BaseTable):
     :vartype timestamp_offset: numpy.ndarray, dtype=np.uint32
     """
 
+    table_name = "provenances"
     column_names = ["record", "record_offset", "timestamp", "timestamp_offset"]
 
     def __init__(self, max_rows_increment=0, ll_table=None):
         if ll_table is None:
             ll_table = _tskit.ProvenanceTable(max_rows_increment=max_rows_increment)
         super().__init__(ll_table, ProvenanceTableRow)
-
-    def equals(self, other, ignore_timestamps=False):
-        """
-        Returns True if  `self` and `other` are equal. By default, two provenance
-        tables are considered equal if their columns are byte-for-byte identical.
-
-        :param other: Another provenance table instance
-        :param bool ignore_timestamps: If True exclude the timestamp column
-            from the comparison.
-        :return: True if other is equal to this provenance table; False otherwise.
-        :rtype: bool
-        """
-        ret = False
-        if type(other) is type(self):
-            ret = bool(
-                self.ll_table.equals(
-                    other.ll_table, ignore_timestamps=ignore_timestamps
-                )
-            )
-        return ret
-
-    def assert_equals(self, other, *, ignore_timestamps=False):
-        """
-        Raise an AssertionError for the first found difference between
-        this and another provenance table.
-
-        :param other: Another provenance table instance
-        :param bool ignore_timestamps: If True exclude the timestamp column
-            from the comparison.
-        """
-        if type(other) is not type(self):
-            raise AssertionError(f"Types differ: self={type(self)} other={type(other)}")
-
-        # Check using the low-level method to avoid slowly going through everything
-        if self.equals(other, ignore_timestamps=ignore_timestamps):
-            return
-
-        for n, (row_self, row_other) in enumerate(zip(self, other)):
-            if ignore_timestamps:
-                row_self = dataclasses.replace(row_self, timestamp=None)
-                row_other = dataclasses.replace(row_other, timestamp=None)
-            if row_self != row_other:
-                self_dict = dataclasses.asdict(self[n])
-                other_dict = dataclasses.asdict(other[n])
-                diff_string = []
-                for col in self_dict.keys():
-                    if self_dict[col] != other_dict[col]:
-                        diff_string.append(
-                            f"self.{col}={self_dict[col]} other.{col}={other_dict[col]}"
-                        )
-                diff_string = "\n".join(diff_string)
-                raise AssertionError(
-                    f"{type(self).__name__} row {n} differs:\n{diff_string}"
-                )
-
-        if self.num_rows != other.num_rows:
-            raise AssertionError(
-                f"{type(self).__name__} number of rows differ: self={self.num_rows} "
-                f"other={other.num_rows}"
-            )
-
-        raise AssertionError(
-            "Tables differ in an undetected way - "
-            "this is a bug, please report an issue on github"
-        )  # pragma: no cover
 
     def add_row(self, record, timestamp=None):
         """
@@ -2313,6 +2707,30 @@ class ProvenanceTable(BaseTable):
         d["timestamp"] = packed
         d["timestamp_offset"] = offset
         self.set_columns(**d)
+
+    def equals(self, other, ignore_timestamps=False):
+        """
+        Returns True if  `self` and `other` are equal. By default, two provenance
+        tables are considered equal if their columns are byte-for-byte identical.
+
+        :param other: Another provenance table instance
+        :param bool ignore_timestamps: If True exclude the timestamp column
+            from the comparison.
+        :return: True if other is equal to this provenance table; False otherwise.
+        :rtype: bool
+        """
+        return self._equals_internal(other, ignore_timestamps=ignore_timestamps)
+
+    def assert_equals(self, other, *, ignore_timestamps=False):
+        """
+        Raise an AssertionError for the first found difference between
+        this and another provenance table.
+
+        :param other: Another provenance table instance
+        :param bool ignore_timestamps: If True exclude the timestamp column
+            from the comparison.
+        """
+        self._assert_equals_internal(other, ignore_timestamps=ignore_timestamps)
 
 
 # We define segment ordering by (left, right, node) tuples
@@ -2947,6 +3365,9 @@ class TableCollection(metadata.MetadataProvider):
         :return: True if other is equal to this table collection; False otherwise.
         :rtype: bool
         """
+        if self is other:
+            return True
+
         ret = False
         if type(other) is type(self):
             ret = bool(
@@ -2959,6 +3380,16 @@ class TableCollection(metadata.MetadataProvider):
                     ignore_tables=bool(ignore_tables),
                     ignore_reference_sequence=bool(ignore_reference_sequence),
                 )
+            )
+        elif hasattr(other, "_llts") and not hasattr(other, "_ll_tables"):
+            ret = other.equals(
+                self,
+                ignore_metadata=ignore_metadata,
+                ignore_ts_metadata=ignore_ts_metadata,
+                ignore_provenance=ignore_provenance,
+                ignore_timestamps=ignore_timestamps,
+                ignore_tables=ignore_tables,
+                ignore_reference_sequence=ignore_reference_sequence,
             )
         return ret
 
@@ -2977,7 +3408,8 @@ class TableCollection(metadata.MetadataProvider):
         Raise an AssertionError for the first found difference between
         this and another table collection. Note that table indexes are not checked.
 
-        :param TableCollection other: Another table collection.
+        :param other: Another table collection (TableCollection or
+            ImmutableTableCollection).
         :param bool ignore_metadata: If True *all* metadata and metadata schemas
             will be excluded from the comparison. This includes the top-level
             tree sequence and constituent table metadata (default=False).
@@ -2994,11 +3426,8 @@ class TableCollection(metadata.MetadataProvider):
         :param bool ignore_reference_sequence: If True the reference sequence
             is not included in the comparison.
         """
-        if type(other) is not type(self):
-            raise AssertionError(f"Types differ: self={type(self)} other={type(other)}")
-
         # Check using the low-level method to avoid slowly going through everything
-        if self.equals(
+        if type(other) is type(self) and self.equals(
             other,
             ignore_metadata=ignore_metadata,
             ignore_ts_metadata=ignore_ts_metadata,
@@ -3009,50 +3438,20 @@ class TableCollection(metadata.MetadataProvider):
         ):
             return
 
-        if not (ignore_metadata or ignore_ts_metadata):
-            super().assert_equals(other)
+        valid_types = (TableCollection, ImmutableTableCollection)
+        if not isinstance(other, valid_types):
+            raise AssertionError(f"Types differ: self={type(self)} other={type(other)}")
 
-        if not ignore_reference_sequence:
-            self.reference_sequence.assert_equals(
-                other.reference_sequence, ignore_metadata=ignore_metadata
-            )
-
-        if self.time_units != other.time_units:
-            raise AssertionError(
-                f"Time units differs: self={self.time_units} "
-                f"other={other.time_units}"
-            )
-
-        if self.sequence_length != other.sequence_length:
-            raise AssertionError(
-                f"Sequence Length"
-                f" differs: self={self.sequence_length} other={other.sequence_length}"
-            )
-
-        for table_name, table in self.table_name_map.items():
-            if table_name != "provenances":
-                table.assert_equals(
-                    getattr(other, table_name), ignore_metadata=ignore_metadata
-                )
-
-        if not ignore_provenance:
-            self.provenances.assert_equals(
-                other.provenances, ignore_timestamps=ignore_timestamps
-            )
-
-        # We can reach this point if the metadata schemas byte representations
-        # differ when the decoded schema is the same
-        if (
-            not ignore_metadata
-            and self._ll_object.metadata_schema != other._ll_object.metadata_schema
-            and self.metadata_schema == other.metadata_schema
-        ):
-            return
-
-        raise AssertionError(
-            "TableCollections differ in an undetected way - "
-            "this is a bug, please report an issue on github"
-        )  # pragma: no cover
+        _assert_table_collections_equal(
+            self,
+            other,
+            ignore_metadata=ignore_metadata,
+            ignore_ts_metadata=ignore_ts_metadata,
+            ignore_provenance=ignore_provenance,
+            ignore_timestamps=ignore_timestamps,
+            ignore_tables=ignore_tables,
+            ignore_reference_sequence=ignore_reference_sequence,
+        )
 
     def __eq__(self, other):
         return self.equals(other)
@@ -4059,4 +4458,376 @@ class TableCollection(metadata.MetadataProvider):
             min_span=min_span,
             store_pairs=store_pairs,
             store_segments=store_segments,
+        )
+
+
+class ImmutableNodeTable(ImmutableMetadataTable):
+    table_name = "nodes"
+    mutable_class = NodeTable
+
+    column_names = [
+        "time",
+        "flags",
+        "population",
+        "individual",
+        "metadata",
+        "metadata_offset",
+    ]
+
+
+class ImmutableIndividualTable(ImmutableMetadataTable):
+    table_name = "individuals"
+    mutable_class = IndividualTable
+
+    _row_field_indices = (0, 1, 2, 3)
+
+    column_names = [
+        "flags",
+        "location",
+        "location_offset",
+        "parents",
+        "parents_offset",
+        "metadata",
+        "metadata_offset",
+    ]
+
+
+class ImmutableEdgeTable(ImmutableMetadataTable):
+    table_name = "edges"
+    mutable_class = EdgeTable
+
+    column_names = [
+        "left",
+        "right",
+        "parent",
+        "child",
+        "metadata",
+        "metadata_offset",
+    ]
+
+
+class ImmutableMigrationTable(ImmutableMetadataTable):
+    table_name = "migrations"
+    mutable_class = MigrationTable
+
+    column_names = [
+        "left",
+        "right",
+        "node",
+        "source",
+        "dest",
+        "time",
+        "metadata",
+        "metadata_offset",
+    ]
+
+
+class ImmutableSiteTable(ImmutableMetadataTable):
+    table_name = "sites"
+    mutable_class = SiteTable
+
+    _row_field_indices = (0, 1, 4)
+
+    column_names = [
+        "position",
+        "ancestral_state",
+        "ancestral_state_offset",
+        "metadata",
+        "metadata_offset",
+    ]
+
+
+class ImmutableMutationTable(ImmutableMetadataTable):
+    table_name = "mutations"
+    mutable_class = MutationTable
+
+    _row_field_indices = (0, 1, 2, 3, 4, 5)
+
+    column_names = [
+        "site",
+        "node",
+        "time",
+        "derived_state",
+        "derived_state_offset",
+        "parent",
+        "metadata",
+        "metadata_offset",
+    ]
+
+
+class ImmutablePopulationTable(ImmutableMetadataTable):
+    table_name = "populations"
+    mutable_class = PopulationTable
+
+    column_names = ["metadata", "metadata_offset"]
+
+
+class ImmutableProvenanceTable(ImmutableBaseTable):
+    table_name = "provenances"
+    mutable_class = ProvenanceTable
+
+    column_names = [
+        "record",
+        "record_offset",
+        "timestamp",
+        "timestamp_offset",
+    ]
+
+    def equals(self, other, ignore_timestamps=False):
+        return self._equals_internal(other, ignore_timestamps=bool(ignore_timestamps))
+
+    def assert_equals(self, other, *, ignore_timestamps=False):
+        if ignore_timestamps and getattr(self, "table_name", None) != "provenances":
+            raise ValueError("ignore_timestamps is only valid for Provenance tables")
+        self._assert_equals_internal(other, ignore_timestamps=bool(ignore_timestamps))
+
+
+class ImmutableTableCollection(metadata.MetadataProvider):
+    """
+    An immutable view of a table collection backed by a :class:`TreeSequence`.
+    Provides zero-copy read access to all table data without allowing mutation.
+
+    This class is returned by :attr:`TreeSequence.tables` and provides efficient,
+    read-only access to the underlying table data. Since it's backed directly by
+    the low-level TreeSequence representation, no copying of data is required.
+
+    All methods from TableCollection that do not mutate the data are reflected here.
+
+    To obtain a mutable copy of this table collection, use the :meth:`.copy`
+    method which returns a :class:`TableCollection` instance that can be modified.
+    Alternatively, use :meth:`TreeSequence.dump_tables` to get a mutable copy
+    directly from the tree sequence.
+
+    All mutator methods present on :class:`TableCollection` (such as ``sort()``,
+    ``simplify()``, ``clear()``, etc.) will raise an :class:`ImmutableTableError`
+    if called on an immutable table collection.
+    """
+
+    def __init__(self, ll_tree_sequence):
+        object.__setattr__(self, "_initialised", False)
+        self._llts = ll_tree_sequence
+        super().__init__(ll_tree_sequence)
+
+        # Create immutable table views - lazy initialization could be added later
+        self.individuals = ImmutableIndividualTable(ll_tree_sequence)
+        self.nodes = ImmutableNodeTable(ll_tree_sequence)
+        self.edges = ImmutableEdgeTable(ll_tree_sequence)
+        self.migrations = ImmutableMigrationTable(ll_tree_sequence)
+        self.sites = ImmutableSiteTable(ll_tree_sequence)
+        self.mutations = ImmutableMutationTable(ll_tree_sequence)
+        self.populations = ImmutablePopulationTable(ll_tree_sequence)
+        self.provenances = ImmutableProvenanceTable(ll_tree_sequence)
+        object.__setattr__(self, "_initialised", True)
+
+    @property
+    def sequence_length(self):
+        return self._llts.get_sequence_length()
+
+    @property
+    def file_uuid(self):
+        return self._llts.get_file_uuid()
+
+    @property
+    def time_units(self):
+        return self._llts.get_time_units()
+
+    @property
+    def reference_sequence(self):
+        return ReferenceSequence(self._llts.reference_sequence)
+
+    @property
+    def metadata_schema(self):
+        return metadata.parse_metadata_schema(self._llts.get_metadata_schema())
+
+    @property
+    def metadata(self):
+        return self.metadata_schema.decode_row(self.metadata_bytes)
+
+    @property
+    def metadata_bytes(self):
+        return self._llts.get_metadata()
+
+    @property
+    def table_name_map(self):
+        return {
+            "edges": self.edges,
+            "individuals": self.individuals,
+            "migrations": self.migrations,
+            "mutations": self.mutations,
+            "nodes": self.nodes,
+            "populations": self.populations,
+            "provenances": self.provenances,
+            "sites": self.sites,
+        }
+
+    @property
+    def indexes(self) -> TableCollectionIndexes:
+        return TableCollectionIndexes(
+            **{
+                "edge_insertion_order": self._llts.indexes_edge_insertion_order,
+                "edge_removal_order": self._llts.indexes_edge_removal_order,
+            }
+        )
+
+    def has_index(self):
+        return (
+            self._llts.indexes_edge_insertion_order is not None
+            and self._llts.indexes_edge_removal_order is not None
+        )
+
+    def asdict(self, force_offset_64=False):
+        # TODO Could avoid the copy here
+        return self.copy().asdict(force_offset_64=force_offset_64)
+
+    def equals(
+        self,
+        other,
+        *,
+        ignore_metadata=False,
+        ignore_ts_metadata=False,
+        ignore_provenance=False,
+        ignore_timestamps=False,
+        ignore_tables=False,
+        ignore_reference_sequence=False,
+    ):
+        if self is other:
+            return True
+        try:
+            self.assert_equals(
+                other,
+                ignore_metadata=ignore_metadata,
+                ignore_ts_metadata=ignore_ts_metadata,
+                ignore_provenance=ignore_provenance,
+                ignore_timestamps=ignore_timestamps,
+                ignore_tables=ignore_tables,
+                ignore_reference_sequence=ignore_reference_sequence,
+            )
+            return True
+        except AssertionError:
+            return False
+
+    def assert_equals(
+        self,
+        other,
+        *,
+        ignore_metadata=False,
+        ignore_ts_metadata=False,
+        ignore_provenance=False,
+        ignore_timestamps=False,
+        ignore_tables=False,
+        ignore_reference_sequence=False,
+    ):
+        _assert_table_collections_equal(
+            self,
+            other,
+            ignore_metadata=ignore_metadata,
+            ignore_ts_metadata=ignore_ts_metadata,
+            ignore_provenance=ignore_provenance,
+            ignore_timestamps=ignore_timestamps,
+            ignore_tables=ignore_tables,
+            ignore_reference_sequence=ignore_reference_sequence,
+        )
+
+    @property
+    def nbytes(self):
+        return sum(
+            (
+                8,  # sequence length
+                len(self.metadata_bytes) + len(self._llts.get_metadata_schema()),
+                len(self.time_units.encode()),
+                self.indexes.nbytes,
+                self.reference_sequence.nbytes,
+                sum(table.nbytes for table in self.table_name_map.values()),
+            )
+        )
+
+    def __eq__(self, other):
+        return self.equals(other)
+
+    def __str__(self):
+        return "\n".join(
+            [
+                "ImmutableTableCollection",
+                "",
+                f"Sequence Length: {self.sequence_length}",
+                f"Time units: {self.time_units}",
+                "",
+                "Individuals",
+                str(self.individuals),
+                "Nodes",
+                str(self.nodes),
+                "Edges",
+                str(self.edges),
+                "Sites",
+                str(self.sites),
+                "Mutations",
+                str(self.mutations),
+                "Migrations",
+                str(self.migrations),
+                "Populations",
+                str(self.populations),
+                "Provenances",
+                str(self.provenances),
+            ]
+        )
+
+    _MUTATOR_METHODS = {
+        "clear",
+        "sort",
+        "sort_individuals",
+        "canonicalise",
+        "compute_mutation_parents",
+        "compute_mutation_times",
+        "deduplicate_sites",
+        "delete_sites",
+        "delete_intervals",
+        "keep_intervals",
+        "ltrim",
+        "rtrim",
+        "trim",
+        "shift",
+        "delete_older",
+        "build_index",
+        "drop_index",
+        "subset",
+        "union",
+        "ibd_segments",
+        "fromdict",
+        "simplify",
+        "link_ancestors",
+        "map_ancestors",
+    }
+
+    def copy(self):
+        ll_tables = _tskit.TableCollection(self.sequence_length)
+        self._llts.dump_tables(ll_tables)
+        return TableCollection(ll_tables=ll_tables)
+
+    def dump(self, file_or_path):
+        return self.copy().dump(file_or_path)
+
+    def tree_sequence(self):
+        return tskit.TreeSequence(self._llts)
+
+    def has_reference_sequence(self):
+        return self._llts.has_reference_sequence()
+
+    def __getattr__(self, name):
+        if name in self._MUTATOR_METHODS:
+            raise ImmutableTableError(
+                f"Cannot call {name}() on immutable table collection. "
+                f"Use TreeSequence.dump_tables() for mutable copy."
+            )
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        )
+
+    def __setattr__(self, name, value):
+        # Allow all assignments during initialization
+        if not self._initialised:
+            object.__setattr__(self, name, value)
+            return
+        raise ImmutableTableError(
+            f"Cannot set attribute '{name}' on immutable table collection. "
+            f"Use TreeSequence.dump_tables() for mutable copy."
         )

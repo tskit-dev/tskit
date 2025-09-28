@@ -117,7 +117,7 @@ def insert_branch_mutations(ts, mutations_per_branch=1):
 
 
 def remove_mutation_times(ts):
-    tables = ts.tables
+    tables = ts.dump_tables()
     tables.mutations.time = np.full_like(tables.mutations.time, tskit.UNKNOWN_TIME)
     return tables.tree_sequence()
 
@@ -128,7 +128,7 @@ def insert_discrete_time_mutations(ts, num_times=4, num_sites=10):
     positions, at only a discrete set of times (the same for all trees): at
     num_times times evenly spaced between 0 and the maximum time.
     """
-    tables = ts.tables
+    tables = ts.dump_tables()
     tables.sites.clear()
     tables.mutations.clear()
     height = max(t.time(t.roots[0]) for t in ts.trees())

@@ -132,7 +132,7 @@ class TestRoundTrip:
 
     def test_simple(self):
         ts = msprime.simulate(10, mutation_rate=1, random_seed=2)
-        self.verify(ts.tables)
+        self.verify(ts.dump_tables())
 
     def test_empty(self):
         tables = tskit.TableCollection(sequence_length=1)
@@ -152,7 +152,7 @@ class TestRoundTrip:
         ts = msprime.simulate(
             10, recombination_rate=0.1, mutation_rate=1, length=0.99, random_seed=2
         )
-        self.verify(ts.tables)
+        self.verify(ts.dump_tables())
 
     def test_migration(self):
         pop_configs = [msprime.PopulationConfiguration(5) for _ in range(2)]
@@ -164,7 +164,7 @@ class TestRoundTrip:
             record_migrations=True,
             random_seed=1,
         )
-        self.verify(ts.tables)
+        self.verify(ts.dump_tables())
 
     def test_example(self, tables):
         tables.metadata_schema = tskit.MetadataSchema(

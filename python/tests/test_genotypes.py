@@ -863,7 +863,7 @@ class TestHaplotypeGenerator:
     def test_acgt_mutations(self):
         ts = msprime.simulate(10, mutation_rate=10)
         assert ts.num_sites > 0
-        tables = ts.tables
+        tables = ts.dump_tables()
         sites = tables.sites
         mutations = tables.mutations
         sites.set_columns(
@@ -883,7 +883,7 @@ class TestHaplotypeGenerator:
 
     def test_fails_multiletter_mutations(self):
         ts = msprime.simulate(10, random_seed=2)
-        tables = ts.tables
+        tables = ts.dump_tables()
         tables.sites.add_row(0, "ACTG")
         tsp = tables.tree_sequence()
         with pytest.raises(TypeError):
@@ -891,7 +891,7 @@ class TestHaplotypeGenerator:
 
     def test_fails_deletion_mutations(self):
         ts = msprime.simulate(10, random_seed=2)
-        tables = ts.tables
+        tables = ts.dump_tables()
         tables.sites.add_row(0, "")
         tsp = tables.tree_sequence()
         with pytest.raises(TypeError):
@@ -899,7 +899,7 @@ class TestHaplotypeGenerator:
 
     def test_nonascii_mutations(self):
         ts = msprime.simulate(10, random_seed=2)
-        tables = ts.tables
+        tables = ts.dump_tables()
         tables.sites.add_row(0, chr(169))  # Copyright symbol
         tsp = tables.tree_sequence()
         with pytest.raises(TypeError):

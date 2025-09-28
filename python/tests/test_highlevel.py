@@ -1292,7 +1292,7 @@ class TestTreeSequence(HighLevelTestCase):
                     tskit.Edge(edgeset.left, edgeset.right, edgeset.parent, child)
                 )
         # squash the edges.
-        t = ts.dump_tables().nodes.time
+        t = ts.tables.nodes.time
         new_edges.sort(key=lambda e: (t[e.parent], e.parent, e.child, e.left))
 
         squashed = []
@@ -1916,24 +1916,20 @@ class TestTreeSequence(HighLevelTestCase):
         with pytest.raises(
             _tskit.LibraryError, match="Table collection must be indexed"
         ):
-            assert tskit.TreeSequence.load_tables(tables).dump_tables().has_index()
+            assert tskit.TreeSequence.load_tables(tables).tables.has_index()
 
         # Tables not in tc, but rebuilt
-        assert (
-            tskit.TreeSequence.load_tables(tables, build_indexes=True)
-            .dump_tables()
-            .has_index()
-        )
+        assert tskit.TreeSequence.load_tables(
+            tables, build_indexes=True
+        ).tables.has_index()
 
         tables.build_index()
         # Tables in tc, not rebuilt
-        assert (
-            tskit.TreeSequence.load_tables(tables, build_indexes=False)
-            .dump_tables()
-            .has_index()
-        )
+        assert tskit.TreeSequence.load_tables(
+            tables, build_indexes=False
+        ).tables.has_index()
         # Tables in tc, and rebuilt
-        assert tskit.TreeSequence.load_tables(tables).dump_tables().has_index()
+        assert tskit.TreeSequence.load_tables(tables).tables.has_index()
 
     @pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
     def test_html_repr(self, ts):
@@ -1958,14 +1954,14 @@ class TestTreeSequence(HighLevelTestCase):
         assert "Could not parse provenance" in ts._repr_html_()
 
     def test_provenance_summary_html(self, ts_fixture):
-        tables = ts_fixture.tables
+        tables = ts_fixture.dump_tables()
         for _ in range(20):
             # Add a row with isotimestamp
             tables.provenances.add_row("foo", "bar")
         assert "... 15 more" in tables.tree_sequence()._repr_html_()
 
     def test_html_repr_limit(self, ts_fixture):
-        tables = ts_fixture.tables
+        tables = ts_fixture.dump_tables()
         d = {n: n for n in range(50)}
         d[0] = "N" * 200
         tables.metadata = d
@@ -2656,7 +2652,8 @@ class TestSimplify:
             tables = ts.dump_tables()
             tables.simplify(samples=samples)
             tables.assert_equals(
-                ts.simplify(samples=samples).tables, ignore_timestamps=True
+                ts.simplify(samples=samples).dump_tables(),
+                ignore_timestamps=True,
             )
 
     @pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
@@ -4012,7 +4009,7 @@ class TestTree(HighLevelTestCase):
 
     def test_eq_different_tree_sequence(self):
         ts = msprime.simulate(4, recombination_rate=1, length=2, random_seed=42)
-        copy = ts.tables.tree_sequence()
+        copy = ts.dump_tables().tree_sequence()
         for tree1, tree2 in zip(ts.aslist(), copy.aslist()):
             assert tree1 != tree2
 
@@ -5607,6 +5604,21 @@ class TestRaggedArrays:
             match="requires numpy 2.0",
         ):
             getattr(ts, column)
+
+    @pytest.mark.skipif(_tskit.HAS_NUMPY_2, reason="Test only on Numpy 1.X")
+    def test_tables_emits_warning(self):
+        tables = tskit.TableCollection(sequence_length=1)
+        ts = tables.tree_sequence()
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", UserWarning)
+            result = ts.tables
+
+        assert isinstance(result, tskit.TableCollection)
+        assert len(caught) == 1
+        warning = caught[0]
+        assert warning.category is UserWarning
+        assert "Immutable table views require tskit" in str(warning.message)
 
 
 class TestSampleNodesByPloidy:

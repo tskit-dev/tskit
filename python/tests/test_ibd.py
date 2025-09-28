@@ -275,7 +275,7 @@ class TestIbdInterface:
 
     @pytest.mark.parametrize("ts", example_ts())
     def test_tables_interface(self, ts):
-        ibd_tab = ts.tables.ibd_segments(store_segments=True)
+        ibd_tab = ts.dump_tables().ibd_segments(store_segments=True)
         ibd_ts = ts.ibd_segments(store_segments=True)
         assert ibd_tab == ibd_ts
 

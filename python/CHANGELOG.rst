@@ -4,6 +4,10 @@
 
 **Breaking Changes**
 
+- `TreeSequence.tables` now returns a zero-copy immutable view of the tables.
+  To get a mutable copy, use `TreeSequence.dump_tables()`.
+  (:user:`benjeffery`, :pr:`3288`, :issue:`760`)
+  
 - For a tree seqeunce to be valid mutation parents in the table collection
   must be correct and consistent with the topology of the tree at each mutation site.
   ``TableCollection.tree_sequence()`` will raise a ``_tskit.LibraryError`` if this
