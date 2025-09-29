@@ -4357,8 +4357,8 @@ TableCollection_union(TableCollection *self, PyObject *args, PyObject *kwds)
         goto out;
     }
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!O|iiii", kwlist,
-            &TableCollectionType, &other, &other_node_mapping, &check_shared,
-            &add_populations)) {
+            &TableCollectionType, &other, &other_node_mapping, &all_edges,
+            &all_mutations, &check_shared, &add_populations)) {
         goto out;
     }
     nmap_array = (PyArrayObject *) PyArray_FROMANY(
