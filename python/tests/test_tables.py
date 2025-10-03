@@ -5271,6 +5271,51 @@ class TestUnionTables(unittest.TestCase):
                             ts = tables.tree_sequence()
                         self.verify_union(*self.split_example(ts, T))
 
+    def test_split_and_rejoin(self):
+        ts = self.get_msprime_example(5, T=2, seed=928)
+        cutpoints = np.array([0, 0.25, 0.5, 0.75, 1]) * ts.sequence_length
+        tables1 = ts.dump_tables()
+        tables1.delete_intervals([cutpoints[0:2], cutpoints[2:4]], simplify=False)
+        tables2 = ts.dump_tables()
+        tables2.delete_intervals([cutpoints[1:3], cutpoints[3:]], simplify=False)
+        tables1.union(
+            tables2,
+            all_edges=True,
+            all_mutations=True,
+            node_mapping=np.arange(ts.num_nodes),
+            check_shared_equality=False,
+        )
+        tables1.edges.squash()
+        tables1.sort()
+        tables1.assert_equals(ts.tables, ignore_provenance=True)
+
+    def test_add_from_empty(self):
+        # reciprocally add mutations from one table and edges from the other
+        edges_table = tskit.Tree.generate_comb(6, span=6).tree_sequence.dump_tables()
+        muts_table = tskit.TableCollection(sequence_length=6)
+        muts_table.nodes.replace_with(edges_table.nodes)  # same nodes, no edges
+        for j in range(0, 6):
+            site_id = muts_table.sites.add_row(position=j, ancestral_state="0")
+            if j % 2 == 0:
+                # Some sites empty
+                muts_table.mutations.add_row(site=site_id, node=j, derived_state="1")
+        identity_map = np.arange(len(muts_table.nodes), dtype="int32")
+        params = {"node_mapping": identity_map, "check_shared_equality": False}
+
+        edges_table.union(muts_table, **params, all_edges=True)  # null op
+        assert len(edges_table.sites) == 0
+        assert len(edges_table.mutations) == 0
+        edges_table.union(muts_table, **params, all_mutations=True)
+        assert len(edges_table.sites) == 6
+        assert len(edges_table.mutations) == 3
+
+        muts_table.union(edges_table, **params, all_mutations=True)  # null op
+        assert len(muts_table.edges) == 0
+        muts_table.union(edges_table, **params, all_edges=True)  # null op
+        assert len(muts_table.edges) != 0
+
+        edges_table.assert_equals(muts_table, ignore_provenance=True)
+
 
 class TestTableSetitemMetadata:
     @pytest.mark.parametrize("table_name", tskit.TABLE_NAMES)

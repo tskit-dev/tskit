@@ -7215,18 +7215,22 @@ class TestShift:
 class TestConcatenate:
     def test_simple(self):
         ts1 = tskit.Tree.generate_comb(5, span=2).tree_sequence
+        ts1 = msprime.sim_mutations(ts1, rate=1, random_seed=1)
         ts2 = tskit.Tree.generate_balanced(5, arity=3, span=3).tree_sequence
+        ts2 = msprime.sim_mutations(ts2, rate=1, random_seed=2)
         assert ts1.num_samples == ts2.num_samples
         assert ts1.num_nodes != ts2.num_nodes
         joint_ts = ts1.concatenate(ts2)
         assert joint_ts.num_nodes == ts1.num_nodes + ts2.num_nodes - 5
         assert joint_ts.sequence_length == ts1.sequence_length + ts2.sequence_length
         assert joint_ts.num_samples == ts1.num_samples
+        assert joint_ts.num_sites == ts1.num_sites + ts2.num_sites
+        assert joint_ts.num_mutations == ts1.num_mutations + ts2.num_mutations
         ts3 = joint_ts.delete_intervals([[2, 5]]).rtrim()
         # Have to simplify here, to remove the redundant nodes
-        assert ts3.equals(ts1.simplify(), ignore_provenance=True)
+        ts3.tables.assert_equals(ts1.tables, ignore_provenance=True)
         ts4 = joint_ts.delete_intervals([[0, 2]]).ltrim()
-        assert ts4.equals(ts2.simplify(), ignore_provenance=True)
+        ts4.tables.assert_equals(ts2.tables, ignore_provenance=True)
 
     def test_multiple(self):
         np.random.seed(42)
@@ -7278,15 +7282,47 @@ class TestConcatenate:
         assert joint_ts.sequence_length == ts.sequence_length * 2
 
     def test_some_shared_samples(self):
-        ts1 = tskit.Tree.generate_comb(4, span=2).tree_sequence
-        ts2 = tskit.Tree.generate_balanced(8, arity=3, span=3).tree_sequence
-        shared = np.full(ts2.num_nodes, tskit.NULL)
-        shared[0] = 1
-        shared[1] = 0
-        joint_ts = ts1.concatenate(ts2, node_mappings=[shared])
-        assert joint_ts.sequence_length == ts1.sequence_length + ts2.sequence_length
-        assert joint_ts.num_samples == ts1.num_samples + ts2.num_samples - 2
-        assert joint_ts.num_nodes == ts1.num_nodes + ts2.num_nodes - 2
+        tables = tskit.Tree.generate_comb(5).tree_sequence.dump_tables()
+        tables.nodes[5] = tables.nodes[5].replace(flags=tskit.NODE_IS_SAMPLE)
+        ts1 = tables.tree_sequence()
+        tables = tskit.Tree.generate_balanced(5).tree_sequence.dump_tables()
+        tables.nodes[5] = tables.nodes[5].replace(flags=tskit.NODE_IS_SAMPLE)
+        ts2 = tables.tree_sequence()
+        assert ts1.num_samples == ts2.num_samples
+        joint_ts = ts1.concatenate(ts2)
+        assert joint_ts.num_samples == ts1.num_samples
+        assert joint_ts.num_edges == ts1.num_edges + ts2.num_edges
+        for tree in joint_ts.trees():
+            assert tree.num_roots == 1
+
+    @pytest.mark.parametrize("simplify", [True, False])
+    def test_wf_sim(self, simplify):
+        # Test that we can split & concat a wf_sim ts, which has internal samples
+        tables = wf.wf_sim(
+            6,
+            5,
+            seed=3,
+            deep_history=True,
+            initial_generation_samples=True,
+            num_loci=10,
+        )
+        tables.sort()
+        tables.simplify()
+        ts = msprime.mutate(tables.tree_sequence(), rate=0.05, random_seed=234)
+        assert ts.num_trees > 2
+        assert len(np.unique(ts.nodes_time[ts.samples()])) > 1
+        ts1 = ts.keep_intervals([[0, 4.5]], simplify=False).trim()
+        ts2 = ts.keep_intervals([[4.5, ts.sequence_length]], simplify=False).trim()
+        if simplify:
+            ts1 = ts1.simplify(filter_nodes=False)
+            ts2, node_map = ts2.simplify(map_nodes=True)
+            node_mapping = np.zeros_like(node_map, shape=ts2.num_nodes)
+            kept = node_map != tskit.NULL
+            node_mapping[node_map[kept]] = np.arange(len(node_map))[kept]
+        else:
+            node_mapping = np.arange(ts.num_nodes)
+        ts_new = ts1.concatenate(ts2, node_mappings=[node_mapping]).simplify()
+        ts_new.tables.assert_equals(ts.tables, ignore_provenance=True)
 
     def test_provenance(self):
         ts = tskit.Tree.generate_comb(2).tree_sequence
@@ -7304,9 +7340,6 @@ class TestConcatenate:
         with pytest.raises(ValueError, match="must have the same number of samples"):
             ts1.concatenate(ts2)
 
-    @pytest.mark.skip(
-        reason="union bug: https://github.com/tskit-dev/tskit/issues/3168"
-    )
     def test_duplicate_ts(self):
         ts1 = tskit.Tree.generate_comb(3, span=4).tree_sequence
         ts = ts1.keep_intervals([[0, 1]]).trim()  # a quarter of the original

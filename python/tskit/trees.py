@@ -7252,6 +7252,8 @@ class TreeSequence:
                 other_tables,
                 node_mapping=node_mapping,
                 check_shared_equality=False,  # Else checks fail with internal samples
+                all_mutations=True,
+                all_edges=True,
                 record_provenance=False,
                 add_populations=add_populations,
             )
