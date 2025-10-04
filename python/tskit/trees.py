@@ -7529,9 +7529,9 @@ class TreeSequence:
         :param list node_mapping: An array of node IDs that relate nodes in
             ``other`` to nodes in ``self``.
         :param bool all_edges: If True, then all edges in ``other`` are added
-            to ``self``. Must have ``check_shared_equality=False``.
-        :param bool all_mutations: If True, then all mutations in ``other`` are added
-            to ``self``. Must have ``check_shared_equality=False``.
+            to ``self``.
+        :param bool all_mutations: If True, then all mutations and sites in
+            ``other`` are added to ``self``.
         :param bool check_shared_equality: If True, the shared portions of the
             tree sequences will be checked for equality. It does so by
             running :meth:`TreeSequence.subset` on both ``self`` and ``other``

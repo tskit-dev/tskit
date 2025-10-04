@@ -13300,7 +13300,24 @@ tsk_table_collection_union(tsk_table_collection_t *self,
         }
     }
 
-    // mutations and sites
+    // sites
+    // first do the "disjoint" (all_mutations) case, where we just add all sites;
+    // otherwise we want to just add sites for new mutations
+    if (all_mutations) {
+        for (k = 0; k < (tsk_id_t) other->sites.num_rows; k++) {
+            tsk_site_table_get_row_unsafe(&other->sites, k, &site);
+            ret_id = tsk_site_table_add_row(&self->sites, site.position,
+                site.ancestral_state, site.ancestral_state_length, site.metadata,
+                site.metadata_length);
+            if (ret_id < 0) {
+                ret = (int) ret_id;
+                goto out;
+            }
+            site_map[site.id] = ret_id;
+        }
+    }
+
+    // mutations (and maybe sites)
     i = 0;
     for (k = 0; k < (tsk_id_t) other->sites.num_rows; k++) {
         tsk_site_table_get_row_unsafe(&other->sites, k, &site);
