@@ -1205,6 +1205,14 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         "mutations_time",
         "mutations_metadata",
         "mutations_metadata_offset",
+        "sites_ancestral_state",
+        "sites_ancestral_state_offset",
+        "mutations_derived_state",
+        "mutations_derived_state_offset",
+        "provenances_record",
+        "provenances_record_offset",
+        "provenances_timestamp",
+        "provenances_timestamp_offset",
         "migrations_left",
         "migrations_right",
         "migrations_node",
@@ -2198,11 +2206,11 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
     @pytest.mark.parametrize(
         "string_array",
         [
-            "sites_ancestral_state",
-            "mutations_derived_state",
-            "mutations_inherited_state",
-            "provenances_timestamp",
-            "provenances_record",
+            "sites_ancestral_state_string",
+            "mutations_derived_state_string",
+            "mutations_inherited_state_string",
+            "provenances_timestamp_string",
+            "provenances_record_string",
         ],
     )
     @pytest.mark.parametrize(
@@ -2215,19 +2223,19 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         else:
             if str_lengths == "all-1":
                 ts = ts_fixture
-                if string_array == "sites_ancestral_state":
+                if string_array == "sites_ancestral_state_string":
                     assert ts.num_sites > 0
                     assert {len(site.ancestral_state) for site in ts.sites()} == {1}
-                elif string_array == "mutations_derived_state":
+                elif string_array == "mutations_derived_state_string":
                     assert ts.num_mutations > 0
                     assert {len(mut.derived_state) for mut in ts.mutations()} == {1}
-                elif string_array == "mutations_inherited_state":
+                elif string_array == "mutations_inherited_state_string":
                     assert ts.num_mutations > 0
                     assert {len(mut.inherited_state) for mut in ts.mutations()} == {1}
-                elif string_array == "provenances_timestamp":
+                elif string_array == "provenances_timestamp_string":
                     assert ts.num_provenances > 0
                     assert len(ts.provenance(3).timestamp) == 1
-                elif string_array == "provenances_record":
+                elif string_array == "provenances_record_string":
                     assert ts.num_provenances > 0
                     assert len(ts.provenance(3).record) == 1
             else:
@@ -2241,7 +2249,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
                     "unicode": lambda i, item: "🧬" * (i + 1),
                 }
 
-                if string_array == "sites_ancestral_state":
+                if string_array == "sites_ancestral_state_string":
                     sites = tables.sites.copy()
                     tables.sites.clear()
                     get_ancestral_state = str_map[str_lengths]
@@ -2249,7 +2257,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
                         tables.sites.append(
                             site.replace(ancestral_state=get_ancestral_state(i, site))
                         )
-                elif string_array == "mutations_derived_state":
+                elif string_array == "mutations_derived_state_string":
                     mutations = tables.mutations.copy()
                     tables.mutations.clear()
                     get_derived_state = str_map[str_lengths]
@@ -2259,7 +2267,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
                                 derived_state=get_derived_state(i, mutation)
                             )
                         )
-                elif string_array == "mutations_inherited_state":
+                elif string_array == "mutations_inherited_state_string":
                     # For inherited state, we modify sites and mutations to create
                     # varied lengths
                     sites = tables.sites.copy()
@@ -2278,7 +2286,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
                                 derived_state=get_derived_state(i, mutation)
                             )
                         )
-                elif string_array == "provenances_timestamp":
+                elif string_array == "provenances_timestamp_string":
                     provenances = tables.provenances.copy()
                     tables.provenances.clear()
                     get_timestamp = str_map[str_lengths]
@@ -2286,7 +2294,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
                         tables.provenances.append(
                             provenance.replace(timestamp=get_timestamp(i, provenance))
                         )
-                elif string_array == "provenances_record":
+                elif string_array == "provenances_record_string":
                     provenances = tables.provenances.copy()
                     tables.provenances.clear()
                     get_record = str_map[str_lengths]
@@ -2304,19 +2312,19 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         if str_lengths == "none":
             assert a.size == 0
         else:
-            if string_array == "sites_ancestral_state":
+            if string_array == "sites_ancestral_state_string":
                 for site in ts.sites():
                     assert a[site.id] == site.ancestral_state
-            elif string_array == "mutations_derived_state":
+            elif string_array == "mutations_derived_state_string":
                 for mutation in ts.mutations():
                     assert a[mutation.id] == mutation.derived_state
-            elif string_array == "mutations_inherited_state":
+            elif string_array == "mutations_inherited_state_string":
                 for mutation in ts.mutations():
                     assert a[mutation.id] == mutation.inherited_state
-            elif string_array == "provenances_timestamp":
+            elif string_array == "provenances_timestamp_string":
                 for provenance in ts.provenances():
                     assert a[provenance.id] == provenance.timestamp
-            elif string_array == "provenances_record":
+            elif string_array == "provenances_record_string":
                 for provenance in ts.provenances():
                     assert a[provenance.id] == provenance.record
 
