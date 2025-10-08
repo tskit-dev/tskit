@@ -5978,7 +5978,9 @@ class TreeSequence:
                 "The sites_ancestral_state property requires numpy 2.0 or later."
             )
         if self._sites_ancestral_state is None:
-            self._sites_ancestral_state = self._ll_tree_sequence.sites_ancestral_state
+            self._sites_ancestral_state = (
+                self._ll_tree_sequence.sites_ancestral_state_string
+            )
         return self._sites_ancestral_state
 
     @property
@@ -6050,7 +6052,7 @@ class TreeSequence:
             )
         if self._mutations_derived_state is None:
             self._mutations_derived_state = (
-                self._ll_tree_sequence.mutations_derived_state
+                self._ll_tree_sequence.mutations_derived_state_string
             )
         return self._mutations_derived_state
 
@@ -6098,7 +6100,7 @@ class TreeSequence:
             )
         if self._mutations_inherited_state is None:
             self._mutations_inherited_state = (
-                self._ll_tree_sequence.mutations_inherited_state
+                self._ll_tree_sequence.mutations_inherited_state_string
             )
         return self._mutations_inherited_state
 
