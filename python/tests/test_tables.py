@@ -5289,7 +5289,36 @@ class TestUnionTables(unittest.TestCase):
         tables1.sort()
         tables1.assert_equals(ts.tables, ignore_provenance=True)
 
-    def test_add_from_empty(self):
+    def test_both_empty(self):
+        tables = tskit.TableCollection(sequence_length=1)
+        t1 = tables.copy()
+        t2 = tables.copy()
+        t1.union(t2, node_mapping=np.arange(0), all_edges=True, all_mutations=True)
+        t1.assert_equals(tables, ignore_provenance=True)
+
+    def test_one_empty(self):
+        ts = self.get_msprime_example(5, T=2, seed=928)
+        tables = ts.dump_tables()
+        empty = tskit.TableCollection(sequence_length=tables.sequence_length)
+        empty.time_units = tables.time_units
+
+        # union with empty should be no-op
+        tables.union(
+            empty, node_mapping=np.arange(0), all_edges=True, all_mutations=True
+        )
+        tables.assert_equals(ts.dump_tables(), ignore_provenance=True)
+
+        # empty union with tables should be tables
+        empty.union(
+            tables,
+            node_mapping=np.full(tables.nodes.num_rows, tskit.NULL),
+            all_edges=True,
+            all_mutations=True,
+            check_shared_equality=False,
+        )
+        empty.assert_equals(tables, ignore_provenance=True)
+
+    def test_reciprocal_empty(self):
         # reciprocally add mutations from one table and edges from the other
         edges_table = tskit.Tree.generate_comb(6, span=6).tree_sequence.dump_tables()
         muts_table = tskit.TableCollection(sequence_length=6)
@@ -5302,19 +5331,20 @@ class TestUnionTables(unittest.TestCase):
         identity_map = np.arange(len(muts_table.nodes), dtype="int32")
         params = {"node_mapping": identity_map, "check_shared_equality": False}
 
-        edges_table.union(muts_table, **params, all_edges=True)  # null op
-        assert len(edges_table.sites) == 0
-        assert len(edges_table.mutations) == 0
-        edges_table.union(muts_table, **params, all_mutations=True)
-        assert len(edges_table.sites) == 6
-        assert len(edges_table.mutations) == 3
+        test_table = edges_table.copy()
+        test_table.union(muts_table, **params, all_edges=True)  # null op
+        assert len(test_table.sites) == 0
+        assert len(test_table.mutations) == 0
+        test_table.union(muts_table, **params, all_mutations=True)
+        assert test_table.sites == muts_table.sites
+        assert test_table.mutations == muts_table.mutations
 
         muts_table.union(edges_table, **params, all_mutations=True)  # null op
         assert len(muts_table.edges) == 0
-        muts_table.union(edges_table, **params, all_edges=True)  # null op
-        assert len(muts_table.edges) != 0
+        muts_table.union(edges_table, **params, all_edges=True)
+        assert muts_table.edges == edges_table.edges
 
-        edges_table.assert_equals(muts_table, ignore_provenance=True)
+        muts_table.assert_equals(test_table, ignore_provenance=True)
 
 
 class TestTableSetitemMetadata:
