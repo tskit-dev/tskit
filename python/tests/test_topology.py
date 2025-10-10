@@ -7232,6 +7232,38 @@ class TestConcatenate:
         ts4 = joint_ts.delete_intervals([[0, 2]]).ltrim()
         ts4.tables.assert_equals(ts2.tables, ignore_provenance=True)
 
+    def test_metadata(self, ts_fixture):
+        tables = ts_fixture.dump_tables()
+        tables.reference_sequence.clear()
+        tables.migrations.clear()
+        ts = tables.tree_sequence()
+        num_sites = ts.num_sites
+        assert num_sites > 0
+        joint_ts = ts.concatenate(ts)
+        for s1, s2 in zip(range(num_sites), range(num_sites, num_sites * 2)):
+            site1 = joint_ts.site(s1)
+            site2 = joint_ts.site(s2)
+            assert site1.metadata == site2.metadata
+            assert site1.ancestral_state == site2.ancestral_state
+            assert len(site1.mutations) == len(site2.mutations)
+            for m1, m2 in zip(site1.mutations, site2.mutations):
+                assert m1.metadata == m2.metadata
+                assert m1.derived_state == m2.derived_state
+                assert m1.time == m2.time
+        ns_nodes = np.where(ts.tables.nodes.flags & tskit.NODE_IS_SAMPLE == 0)[0]
+        assert len(ns_nodes) > 0
+        for u1, u2 in zip(ns_nodes[: len(ns_nodes)], ns_nodes[len(ns_nodes) :]):
+            node1 = joint_ts.node(u1)
+            node2 = joint_ts.node(u2)
+            assert node1.metadata == node2.metadata
+            assert node1.flags == node2.flags
+            assert node1.time == node2.time
+            ind1 = joint_ts.individual(node1.individual)
+            ind2 = joint_ts.individual(node2.individual)
+            assert ind1.metadata == ind2.metadata
+            assert ind1.flags == ind2.flags
+            assert ind1.location == ind2.location
+
     def test_multiple(self):
         np.random.seed(42)
         ts3 = [

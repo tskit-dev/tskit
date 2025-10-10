@@ -5298,6 +5298,7 @@ class TestUnionTables(unittest.TestCase):
 
     def test_one_empty(self):
         ts = self.get_msprime_example(5, T=2, seed=928)
+        ts = ts.simplify()  # the example has a load of unreferenced individuals
         tables = ts.dump_tables()
         empty = tskit.TableCollection(sequence_length=tables.sequence_length)
         empty.time_units = tables.time_units
