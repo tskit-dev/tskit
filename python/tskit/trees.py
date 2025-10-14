@@ -7532,8 +7532,10 @@ class TreeSequence:
         where for instance the two tree sequences contain information about
         disjoint segments of the genome (see :meth:`.concatenate`).
         For some such applications it may be necessary to set
-        ``check_shared_overlap=False`` (but also easier to check for validity
-        separately).
+        ``check_shared_equality=False``: for instance, if `other` has an
+        an identical copy of the node table but no edges, then
+        ``all_mutations=True, check_shared_equality=False`` can be used
+        to add mutations to ``self``.
 
         If the resulting tree sequence is invalid (for instance, a node is
         specified to have two distinct parents on the same interval),
