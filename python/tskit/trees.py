@@ -7517,6 +7517,24 @@ class TreeSequence:
         nodes are in entirely new populations, then you must set up the
         population table first, and then union with ``add_populations=False``.
 
+        This method makes sense if the "shared" portions of the tree sequences
+        are equal; the option ``check_shared_equality`` performs a consistency
+        check that this is true. If this check is disabled, it is very easy to
+        produce nonsensical results via subtle inconsistencies.
+
+        The behavior above can be changed by ``all_edges`` and ``all_mutations``.
+        If ``all_edges`` is True, then all edges in ``other` are added to
+        ``self``, instead of only edges adjacent to added nodes. If
+        ``all_mutations`` is True, then similarly all mutations in ``other``
+        are added (not just those on added nodes); furthermore, all sites
+        at positions without a site already present are added to ``self``.
+        The intended use case for these options is a "disjoint" union,
+        where for instance the two tree sequences contain information about
+        disjoint segments of the genome (see :meth:`.concatenate`).
+        For some such applications it may be necessary to set
+        ``check_shared_overlap=False`` (but also easier to check for validity
+        separately).
+
         If the resulting tree sequence is invalid (for instance, a node is
         specified to have two distinct parents on the same interval),
         an error will be raised.
