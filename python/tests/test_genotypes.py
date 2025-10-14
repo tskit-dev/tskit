@@ -1286,6 +1286,22 @@ class TestBinaryTreeExample:
         with pytest.raises(tskit.LibraryError, match="MUST_IMPUTE_NON_SAMPLES"):
             list(ts.alignments(samples=[4]))
 
+    def test_internal_nodes_with_imputation(self):
+        ts = self.ts()
+        internal = [u for u in range(ts.num_nodes) if u not in set(ts.samples())]
+        seqs = list(ts.alignments(samples=internal, isolated_as_missing=False))
+        assert seqs == ["NNANNNNNNC", "NNANNNNNNT"]
+
+    def test_internal_and_sample_nodes_with_imputation(self):
+        ts = self.ts()
+        samples = ts.samples()
+        internal = next(u for u in range(ts.num_nodes) if u not in set(samples))
+        seqs = list(
+            ts.alignments(samples=[internal, samples[0]], isolated_as_missing=False)
+        )
+        assert seqs[0] == "NNANNNNNNC"
+        assert seqs[1] == "NNGNNNNNNT"
+
     def test_alignments_missing_data_char(self):
         A = list(self.ts().alignments(missing_data_character="x"))
         assert A[0] == "xxGxxxxxxT"

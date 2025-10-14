@@ -5596,6 +5596,7 @@ class TreeSequence:
         samples=None,
         left=None,
         right=None,
+        isolated_as_missing=None,
     ):
         """
         Returns an iterator over the full sequence alignments for the defined samples
@@ -5660,7 +5661,13 @@ class TreeSequence:
            currently supported by this method and it will raise a ValueError
            if called on tree sequences containing isolated samples.
            See https://github.com/tskit-dev/tskit/issues/1896 for more
-           information.
+           information; that issue tracks the remaining work needed for full
+           missing-data support in this method. To avoid returning incorrect
+           alignments, the default behaviour is to treat isolated nodes as
+           missing data and raise an error if any are present. If you wish to
+           include non-sample nodes (e.g., internal ARG nodes) in the output, set
+           ``isolated_as_missing=False`` to opt out of this guard and impute
+           missing data as the ancestral state.
 
         See also the :meth:`.variants` iterator for site-centric access
         to sample genotypes and :meth:`.haplotypes` for access to sample sequences
@@ -5679,6 +5686,13 @@ class TreeSequence:
             (default) alignments start at 0.
         :param int right: Alignments will stop before this genomic position. If ``None``
             (default) alignments will continue until the end of the tree sequence.
+        :param bool isolated_as_missing: If True (default), isolated samples without
+            mutations are treated as missing data and this method raises an error
+            when any are detected. If False, missing data are imputed with the
+            ancestral state, which also permits alignments to be generated for
+            non-sample nodes such as internal ARG nodes. This flag provides an
+            interim opt-out while full missing-data support is developed in
+            :issue:`1896`.
         :return: An iterator over the alignment strings for specified samples in
             this tree sequence, in the order given in ``samples``.
         :rtype: collections.abc.Iterable
@@ -5693,6 +5707,8 @@ class TreeSequence:
         missing_data_character = (
             "N" if missing_data_character is None else missing_data_character
         )
+        if isolated_as_missing is None:
+            isolated_as_missing = True
 
         L = interval.span
         a = np.empty(L, dtype=np.int8)
@@ -5730,17 +5746,21 @@ class TreeSequence:
         # incorrectly if have a sample isolated over the region (a, b],
         # and if we have sites at each position from a to b, and at
         # each site there is a mutation over the isolated sample.
-        if any(tree._has_isolated_samples() for tree in self.trees()):
+        if isolated_as_missing and any(
+            tree._has_isolated_samples() for tree in self.trees()
+        ):
             raise ValueError(
                 "Missing data not currently supported in alignments; see "
-                "https://github.com/tskit-dev/tskit/issues/1896 for details."
-                "The current implementation may also incorrectly identify an "
-                "input tree sequence has having missing data."
+                "https://github.com/tskit-dev/tskit/issues/1896 for details. "
+                "To include isolated nodes, call with isolated_as_missing=False. "
+                "The current implementation may also incorrectly identify an input "
+                "tree sequence as having missing data."
             )
         H, (first_site_id, last_site_id) = self._haplotypes_array(
             interval=interval,
             missing_data_character=missing_data_character,
             samples=samples,
+            isolated_as_missing=isolated_as_missing,
         )
         site_pos = self.sites_position.astype(np.int64)[
             first_site_id : last_site_id + 1

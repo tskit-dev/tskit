@@ -1,5 +1,5 @@
 ----------------------
-[1.0.0b1] - 2025-09-24
+[1.0.0b2] - 2025-XX-XX
 ----------------------
 
 **Breaking Changes**
@@ -20,6 +20,11 @@
 
 - ``draw_svg()`` methods now associate tree branches with edge IDs
   (:user:`hyanwong`, :pr:`3193`, :issue:`557`)
+
+- ``TreeSequence.alignments`` now accepts ``isolated_as_missing=False`` so that
+  alignments can be emitted for non-sample nodes (e.g., internal ARG nodes) when
+  missing data are imputed to the ancestral state. Full missing-data support
+  remains tracked in :issue:`1896`. (:user:`benjeffery`, :issue:`3293`)
 
 - ``draw_svg()`` methods now allow the y-axis to be placed on the right-hand side
   using ``y_axis="right"`` (:user:`hyanwong`, :pr:`3201`)
