@@ -869,8 +869,8 @@ this option adds all edges.
  */
 #define TSK_UNION_ALL_EDGES (1 << 2)
 /**
-By default, union only adds only mutations on newly added edges;
-this option adds all mutations.
+By default, union only adds only mutations on newly added edges, and
+sites for those mutations; this option adds all mutations and all sites.
  */
 #define TSK_UNION_ALL_MUTATIONS (1 << 3)
 /** @} */
