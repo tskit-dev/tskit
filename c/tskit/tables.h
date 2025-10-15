@@ -864,7 +864,7 @@ population IDs they have in ``other``.
  */
 #define TSK_UNION_NO_ADD_POP (1 << 1)
 /**
-By default, union only adds only edges adjacent to a newly added node;
+By default, union only adds edges adjacent to a newly added node;
 this option adds all edges.
  */
 #define TSK_UNION_ALL_EDGES (1 << 2)

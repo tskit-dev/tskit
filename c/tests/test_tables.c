@@ -11293,7 +11293,7 @@ test_table_collection_disjoint_union(void)
     ret = tsk_table_collection_copy(&tables1, &tables12, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    // for tables2; and need to add it to tables12 also:
+    // for tables2; and need to add to tables12 also:
     // on [1, 2] we have 0, 1 inherit from 3
     // left, right, parent, child, metadata, metadata_length
     ret_id = tsk_edge_table_add_row(&tables2.edges, 1.0, 2.0, 3, 0, NULL, 0);
@@ -11303,7 +11303,7 @@ test_table_collection_disjoint_union(void)
     ret_id = tsk_site_table_add_row(&tables2.sites, 1.4, "A", 1, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
     ret_id = tsk_mutation_table_add_row(
-        &tables2.mutations, ret_id, 0, TSK_NULL, TSK_UNKNOWN_TIME, "T", 1, NULL, 0);
+        &tables2.mutations, ret_id, 1, TSK_NULL, TSK_UNKNOWN_TIME, "T", 1, NULL, 0);
     CU_ASSERT_FATAL(ret_id >= 0);
     ret = tsk_table_collection_build_index(&tables2, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -11334,6 +11334,8 @@ test_table_collection_disjoint_union(void)
     ret = tsk_table_collection_union(&tables, &tables2, node_mapping,
         TSK_UNION_NO_CHECK_SHARED | TSK_UNION_ALL_EDGES | TSK_UNION_ALL_MUTATIONS);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FATAL(
+        tsk_table_collection_equals(&tables, &tables12, TSK_CMP_IGNORE_PROVENANCE));
 
     tsk_table_collection_free(&tables12);
     tsk_table_collection_free(&tables2);

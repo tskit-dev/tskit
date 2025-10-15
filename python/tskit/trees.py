@@ -7524,7 +7524,7 @@ class TreeSequence:
         produce nonsensical results via subtle inconsistencies.
 
         The behavior above can be changed by ``all_edges`` and ``all_mutations``.
-        If ``all_edges`` is True, then all edges in ``other` are added to
+        If ``all_edges`` is True, then all edges in ``other`` are added to
         ``self``, instead of only edges adjacent to added nodes. If
         ``all_mutations`` is True, then similarly all mutations in ``other``
         are added (not just those on added nodes); furthermore, all sites
@@ -7533,7 +7533,7 @@ class TreeSequence:
         where for instance the two tree sequences contain information about
         disjoint segments of the genome (see :meth:`.concatenate`).
         For some such applications it may be necessary to set
-        ``check_shared_equality=False``: for instance, if `other` has an
+        ``check_shared_equality=False``: for instance, if ``other`` has
         an identical copy of the node table but no edges, then
         ``all_mutations=True, check_shared_equality=False`` can be used
         to add mutations to ``self``.

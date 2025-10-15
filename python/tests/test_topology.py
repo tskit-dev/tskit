@@ -7252,9 +7252,9 @@ class TestConcatenate:
                 assert m1.time == m2.time
         ns_nodes = np.where(ts.tables.nodes.flags & tskit.NODE_IS_SAMPLE == 0)[0]
         assert len(ns_nodes) > 0
-        for u1, u2 in zip(ns_nodes[: len(ns_nodes)], ns_nodes[len(ns_nodes) :]):
-            node1 = joint_ts.node(u1)
-            node2 = joint_ts.node(u2)
+        for u in ns_nodes:
+            node1 = joint_ts.node(u)
+            node2 = joint_ts.node(u)
             assert node1.metadata == node2.metadata
             assert node1.flags == node2.flags
             assert node1.time == node2.time
@@ -7262,7 +7262,7 @@ class TestConcatenate:
             ind2 = joint_ts.individual(node2.individual)
             assert ind1.metadata == ind2.metadata
             assert ind1.flags == ind2.flags
-            assert ind1.location == ind2.location
+            assert np.all(ind1.location == ind2.location)
 
     def test_multiple(self):
         np.random.seed(42)
