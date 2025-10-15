@@ -4,11 +4,11 @@
 
 **Breaking Changes**
 
-- `TreeSequence.tables` now returns a zero-copy immutable view of the tables.
-  To get a mutable copy, use `TreeSequence.dump_tables()`.
+- ``TreeSequence.tables`` now returns a zero-copy immutable view of the tables.
+  To get a mutable copy, use ``TreeSequence.dump_tables()``.
   (:user:`benjeffery`, :pr:`3288`, :issue:`760`)
   
-- For a tree seqeunce to be valid mutation parents in the table collection
+- For a tree sequence to be valid mutation parents in the table collection
   must be correct and consistent with the topology of the tree at each mutation site.
   ``TableCollection.tree_sequence()`` will raise a ``_tskit.LibraryError`` if this
   is not the case.
@@ -52,9 +52,9 @@
 
 **Bugfixes**
 
-- In some tables with mutations out-of-order `TableCollection.sort` did not re-order
-  the mutations so they formed a valid TreeSequence. `TableCollection.sort` and
-  `TableCollection.canonicalise` now sort mutations by site, then time (if known),
+- In some tables with mutations out-of-order ``TableCollection.sort`` did not re-order
+  the mutations so they formed a valid TreeSequence. ``TableCollection.sort`` and
+  ``TableCollection.canonicalise`` now sort mutations by site, then time (if known),
   then the mutation's node's time, then number of descendant mutations
   (ensuring that parent mutations occur before children), then node, then
   their original order in the tables. (:user:`benjeffery`, :pr:`3257`, :issue:`3253`)
@@ -68,7 +68,7 @@
   (:user:`benjeffery`, :pr:`3246`, :issue:`3244`)
 
 - k-way statistics no longer require k sample sets, allowing in particular
-  "self" comparisons for `TreeSequence.genetic_relatedness`. This changes the
+  "self" comparisons for ``TreeSequence.genetic_relatedness``. This changes the
   error code returned in some situations.
   (:user:`andrewkern`, :user:`petrelharp`, :pr:`3235`, :issue:`3055`)
 
@@ -107,6 +107,7 @@
 - Add ``TreeSequence.map_to_vcf_model`` method to return a mapping of
   the tree sequence to the VCF model. 
   (:user:`benjeffery`, :pr:`3163`)
+
 - Use a thin space as the thousands separator in HTML output,
   and a comma in CLI output.
   (:user:`hossam26644`, :pr:`3167`, :issue:`2951`)
