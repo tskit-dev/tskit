@@ -7198,15 +7198,16 @@ class TreeSequence:
         self, *args, node_mappings=None, record_provenance=True, add_populations=None
     ):
         r"""
-        Concatenate a set of tree sequences to the right of this one, by repeatedly
-        calling :meth:`~TreeSequence.union` with an (optional)
-        node mapping for each of the ``others``. If any node mapping is ``None``
-        only map the sample nodes between the input tree sequence and this one,
-        based on the numerical order of sample node IDs.
+        Concatenate a set of tree sequences to the right of this one, by shifting
+        their coordinate systems and repeatedly calling :meth:`~TreeSequence.union`.
+        By default, the samples in current and input tree sequences are assumed to
+        refer to the same nodes, and are matched based on the numerical order of
+        sample node IDs. This can be changed by providing explicit ``node_mappings``
+        for each input tree sequence.
 
         .. note::
-            To add gaps between the concatenated tables, use :meth:`shift` or
-            to remove gaps, use :meth:`trim` before concatenating.
+            To add gaps between the concatenated tree sequences, use :meth:`shift`
+            or to remove gaps, use :meth:`trim` before concatenating.
 
         :param TreeSequence \*args: A list of other tree sequences to append to
             the right of this one.
