@@ -5262,31 +5262,54 @@ class TreeSequence:
         # return an array of haplotypes and the first and last site positions
         if missing_data_character is None:
             missing_data_character = "N"
+        if len(missing_data_character) != 1:
+            raise ValueError("missing_data_character must be a single character")
+        try:
+            missing_data_character.encode("ascii")
+        except UnicodeEncodeError:
+            raise TypeError("missing_data_character must be ASCII")
 
         start_site, stop_site = np.searchsorted(self.sites_position, interval)
-        H = np.empty(
-            (
-                self.num_samples if samples is None else len(samples),
-                stop_site - start_site,
-            ),
-            dtype=np.int8,
-        )
-        missing_int8 = ord(missing_data_character.encode("ascii"))
+        num_sites = stop_site - start_site
+
+        if samples is None:
+            sample_nodes = self.samples()
+        else:
+            sample_nodes = np.array(samples, dtype=np.int64)
+        num_samples = len(sample_nodes)
+
+        H = np.empty((num_samples, num_sites), dtype=np.int8)
+        if num_samples == 0 or num_sites == 0:
+            return H, (start_site, stop_site - 1)
+
+        missing_int8 = ord(missing_data_character)
+
         for var in self.variants(
             samples=samples,
             isolated_as_missing=isolated_as_missing,
             left=interval.left,
             right=interval.right,
         ):
-            alleles = np.full(len(var.alleles), missing_int8, dtype=np.int8)
-            for i, allele in enumerate(var.alleles):
-                if allele is not None:
-                    if len(allele) != 1:
-                        raise TypeError(
-                            "Multi-letter allele or deletion detected at site {}".format(
-                                var.site.id
-                            )
+            ancestral = var.site.ancestral_state
+            if ancestral is None or len(ancestral) != 1:
+                raise TypeError(
+                    "Multi-letter allele or deletion detected at site {}".format(
+                        var.site.id
+                    )
+                )
+            else:
+                raise TypeError(f"Non-ascii character in allele at site {var.site.id}")
+            alleles = var.alleles
+            for allele in alleles:
+                if allele is None:
+                    continue
+                if len(allele) != 1:
+                    raise TypeError(
+                        "Multi-letter allele or deletion detected at site {}".format(
+                            var.site.id
                         )
+                    )
+                if isinstance(allele, str):
                     try:
                         ascii_allele = allele.encode("ascii")
                     except UnicodeEncodeError:
@@ -5295,16 +5318,35 @@ class TreeSequence:
                                 var.site.id
                             )
                         )
-                    allele_int8 = ord(ascii_allele)
-                    if allele_int8 == missing_int8:
-                        raise ValueError(
-                            "The missing data character '{}' clashes with an "
-                            "existing allele at site {}".format(
-                                missing_data_character, var.site.id
-                            )
+                elif isinstance(allele, bytes):
+                    ascii_allele = allele
+                else:
+                    raise TypeError(
+                        f"Non-ascii character in allele at site {var.site.id}"
+                    )
+                allele_int8 = ascii_allele[0]
+                if allele_int8 == missing_int8:
+                    raise ValueError(
+                        "The missing data character '{}' clashes with an "
+                        "existing allele at site {}".format(
+                            missing_data_character, var.site.id
                         )
-                    alleles[i] = allele_int8
-            H[:, var.site.id - start_site] = alleles[var.genotypes]
+                    )
+
+        isolated = isolated_as_missing if isolated_as_missing is not None else True
+
+        hap = _tskit.Haplotype(
+            self._ll_tree_sequence,
+            int(start_site),
+            int(stop_site),
+            isolated_as_missing=bool(isolated),
+            missing_data_character=missing_data_character,
+        )
+
+        for row, node in enumerate(sample_nodes):
+            data = hap.decode(int(node))
+            H[row, :] = np.frombuffer(data, dtype=np.int8, count=num_sites)
+
         return H, (start_site, stop_site - 1)
 
     def haplotypes(
@@ -5702,9 +5744,10 @@ class TreeSequence:
         missing_data_character = (
             "N" if missing_data_character is None else missing_data_character
         )
+        if len(missing_data_character) != 1:
+            raise ValueError("missing_data_character must be length 1")
 
         L = interval.span
-        a = np.empty(L, dtype=np.int8)
         if reference_sequence is None:
             if self.has_reference_sequence():
                 # This may be inefficient - see #1989. However, since we're
@@ -5728,7 +5771,7 @@ class TreeSequence:
                     "The reference sequence ends before the requested stop position"
                 )
         ref_bytes = reference_sequence.encode("ascii")
-        a[:] = np.frombuffer(ref_bytes, dtype=np.int8)
+        a = np.frombuffer(ref_bytes, dtype=np.int8).copy()
 
         # To do this properly we'll have to detect the missing data as
         # part of a full implementation of alignments in C. The current
@@ -5748,15 +5791,21 @@ class TreeSequence:
             )
         H, (first_site_id, last_site_id) = self._haplotypes_array(
             interval=interval,
+            isolated_as_missing=False,
             missing_data_character=missing_data_character,
             samples=samples,
         )
-        site_pos = self.sites_position.astype(np.int64)[
-            first_site_id : last_site_id + 1
-        ]
-        for h in H:
-            a[site_pos - interval.left] = h
-            yield a.tobytes().decode("ascii")
+        if first_site_id <= last_site_id:
+            site_pos = self.sites_position.astype(np.int64)[
+                first_site_id : last_site_id + 1
+            ]
+        else:
+            site_pos = np.array([], dtype=np.int64)
+        for hap in H:
+            a_copy = a.copy()
+            if site_pos.size > 0:
+                a_copy[site_pos - interval.left] = hap
+            yield a_copy.tobytes().decode("ascii")
 
     @property
     def individuals_population(self):

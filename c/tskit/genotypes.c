@@ -23,12 +23,672 @@
  * SOFTWARE.
  */
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <limits.h>
+
+#if defined(_MSC_VER)
+#include <intrin.h>
+#endif
 
 #include <tskit/genotypes.h>
+
+typedef struct {
+    tsk_id_t edge_id;
+    tsk_id_t child;
+    double left;
+} tsk_haplotype_edge_sort_t;
+
+static int
+tsk_haplotype_edge_sort_cmp(const void *aa, const void *bb)
+{
+    const tsk_haplotype_edge_sort_t *a = (const tsk_haplotype_edge_sort_t *) aa;
+    const tsk_haplotype_edge_sort_t *b = (const tsk_haplotype_edge_sort_t *) bb;
+
+    if (a->child == b->child) {
+        if (a->left < b->left) {
+            return -1;
+        } else if (a->left > b->left) {
+            return 1;
+        }
+        if (a->edge_id < b->edge_id) {
+            return -1;
+        } else if (a->edge_id > b->edge_id) {
+            return 1;
+        }
+        return 0;
+    }
+    return a->child < b->child ? -1 : 1;
+}
+
+static inline uint32_t
+tsk_haplotype_ctz64(uint64_t x)
+{
+#if defined(_MSC_VER)
+    unsigned long index;
+    _BitScanForward64(&index, x);
+    return (uint32_t) index;
+#else
+    return (uint32_t) __builtin_ctzll(x);
+#endif
+}
+
+static inline void
+tsk_haplotype_bitset_clear(uint64_t *bits, tsk_size_t idx)
+{
+    tsk_size_t word = idx >> 6;
+    uint64_t mask = UINT64_C(1) << (idx & 63);
+    bits[word] &= ~mask;
+}
+
+static inline tsk_size_t
+tsk_haplotype_bitset_next(
+    const uint64_t *bits, tsk_size_t num_words, tsk_size_t start, tsk_size_t limit)
+{
+    tsk_size_t word = start >> 6;
+    uint64_t mask, value;
+
+    if (start >= limit || word >= num_words) {
+        return limit;
+    }
+    mask = UINT64_MAX << (start & 63);
+    value = bits[word] & mask;
+    while (value == 0) {
+        word++;
+        if (word >= num_words) {
+            return limit;
+        }
+        value = bits[word];
+    }
+    start = (word << 6) + tsk_haplotype_ctz64(value);
+    return start < limit ? start : limit;
+}
+
+static void
+tsk_haplotype_reset_bitset(const tsk_haplotype_t *self)
+{
+    if (self->num_bit_words > 0) {
+        tsk_memcpy(self->unresolved_bits, self->initial_bits,
+            self->num_bit_words * sizeof(*self->unresolved_bits));
+    }
+}
+
+static int
+tsk_haplotype_build_child_index(tsk_haplotype_t *self)
+{
+    int ret = 0;
+    tsk_size_t j;
+    const tsk_table_collection_t *tables = self->tree_sequence->tables;
+    const tsk_edge_table_t *edges = &tables->edges;
+    tsk_size_t num_edges = edges->num_rows;
+    tsk_haplotype_edge_sort_t *sorted = NULL;
+
+    if (num_edges == 0) {
+        self->child_order = NULL;
+        self->child_offsets
+            = tsk_calloc(self->num_nodes + 1, sizeof(*self->child_offsets));
+        if (self->child_offsets == NULL) {
+            ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
+            goto out;
+        }
+        goto out;
+    }
+
+    sorted = tsk_malloc(num_edges * sizeof(*sorted));
+    self->child_order = tsk_malloc(num_edges * sizeof(*self->child_order));
+    self->child_offsets = tsk_calloc(self->num_nodes + 1, sizeof(*self->child_offsets));
+    if (sorted == NULL || self->child_order == NULL || self->child_offsets == NULL) {
+        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
+        goto out;
+    }
+
+    for (j = 0; j < num_edges; j++) {
+        sorted[j].edge_id = (tsk_id_t) j;
+        sorted[j].child = edges->child[j];
+        sorted[j].left = edges->left[j];
+    }
+    qsort(sorted, num_edges, sizeof(*sorted), tsk_haplotype_edge_sort_cmp);
+
+    for (j = 0; j < num_edges; j++) {
+        tsk_id_t child = sorted[j].child;
+        if (child >= 0 && child < (tsk_id_t) self->num_nodes) {
+            self->child_offsets[child + 1]++;
+        }
+        self->child_order[j] = sorted[j].edge_id;
+    }
+    for (j = 0; j < self->num_nodes; j++) {
+        self->child_offsets[j + 1] += self->child_offsets[j];
+    }
+
+out:
+    tsk_safe_free(sorted);
+    return ret;
+}
+
+static int
+tsk_haplotype_build_mutation_index(tsk_haplotype_t *self)
+{
+    int ret = 0;
+    tsk_size_t j;
+    const tsk_table_collection_t *tables = self->tree_sequence->tables;
+    const tsk_mutation_table_t *mutations = &tables->mutations;
+    int32_t *counts = NULL;
+    tsk_size_t total_mutations = 0;
+    tsk_id_t site_start = self->site_start;
+    tsk_id_t site_stop = self->site_stop;
+
+    counts = tsk_calloc(self->num_nodes, sizeof(*counts));
+    if (self->num_nodes > 0 && counts == NULL) {
+        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
+        goto out;
+    }
+
+    for (j = 0; j < mutations->num_rows; j++) {
+        tsk_id_t node = mutations->node[j];
+        tsk_id_t site = mutations->site[j];
+        if (site < site_start || site >= site_stop) {
+            continue;
+        }
+        if (node >= 0 && node < (tsk_id_t) self->num_nodes) {
+            if (counts[node] == INT32_MAX) {
+                ret = tsk_trace_error(TSK_ERR_UNSUPPORTED_OPERATION);
+                goto out;
+            }
+            counts[node]++;
+        }
+    }
+
+    self->node_mutation_offsets
+        = tsk_malloc((self->num_nodes + 1) * sizeof(*self->node_mutation_offsets));
+    if (self->node_mutation_offsets == NULL) {
+        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
+        goto out;
+    }
+    self->node_mutation_offsets[0] = 0;
+    for (j = 0; j < self->num_nodes; j++) {
+        total_mutations += counts[j];
+        if (total_mutations > INT32_MAX) {
+            ret = tsk_trace_error(TSK_ERR_UNSUPPORTED_OPERATION);
+            goto out;
+        }
+        self->node_mutation_offsets[j + 1] = (int32_t) total_mutations;
+    }
+
+    self->node_mutation_sites
+        = tsk_malloc(total_mutations * sizeof(*self->node_mutation_sites));
+    self->node_mutation_states
+        = tsk_malloc(total_mutations * sizeof(*self->node_mutation_states));
+    if ((total_mutations > 0)
+        && (self->node_mutation_sites == NULL || self->node_mutation_states == NULL)) {
+        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
+        goto out;
+    }
+
+    for (j = 0; j < self->num_nodes; j++) {
+        counts[j] = self->node_mutation_offsets[j];
+    }
+    for (j = 0; j < mutations->num_rows; j++) {
+        tsk_id_t node = mutations->node[j];
+        tsk_id_t site = mutations->site[j];
+        if (site < site_start || site >= site_stop) {
+            continue;
+        }
+        if (node >= 0 && node < (tsk_id_t) self->num_nodes) {
+            tsk_size_t start = mutations->derived_state_offset[j];
+            tsk_size_t stop = mutations->derived_state_offset[j + 1];
+            tsk_size_t length = stop - start;
+            uint8_t allele;
+
+            if (length != 1) {
+                ret = tsk_trace_error(TSK_ERR_UNSUPPORTED_OPERATION);
+                goto out;
+            }
+            allele = (uint8_t) mutations->derived_state[start];
+            if (allele > 0x7F) {
+                ret = tsk_trace_error(TSK_ERR_UNSUPPORTED_OPERATION);
+                goto out;
+            }
+            if (allele == (uint8_t) self->missing_char) {
+                ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+                goto out;
+            }
+            self->node_mutation_sites[counts[node]] = (int32_t)(site - site_start);
+            self->node_mutation_states[counts[node]] = allele;
+            counts[node]++;
+        }
+    }
+
+out:
+    tsk_safe_free(counts);
+    return ret;
+}
+
+static int
+tsk_haplotype_build_ancestral_states(tsk_haplotype_t *self)
+{
+    int ret = 0;
+    const tsk_table_collection_t *tables = self->tree_sequence->tables;
+    const tsk_site_table_t *sites = &tables->sites;
+    tsk_id_t site_start = self->site_start;
+    tsk_id_t site_stop = self->site_stop;
+    tsk_size_t j;
+
+    if (self->num_sites == 0) {
+        self->ancestral_states = NULL;
+        return 0;
+    }
+
+    self->ancestral_states
+        = tsk_malloc(self->num_sites * sizeof(*self->ancestral_states));
+    if (self->ancestral_states == NULL) {
+        return tsk_trace_error(TSK_ERR_NO_MEMORY);
+    }
+
+    for (j = 0; j < (tsk_size_t) self->num_sites; j++) {
+        tsk_id_t site = site_start + (tsk_id_t) j;
+        tsk_size_t start = sites->ancestral_state_offset[site];
+        tsk_size_t stop = sites->ancestral_state_offset[site + 1];
+        tsk_size_t length = stop - start;
+        uint8_t allele;
+        if (length != 1) {
+            ret = tsk_trace_error(TSK_ERR_UNSUPPORTED_OPERATION);
+            goto out;
+        }
+        allele = (uint8_t) sites->ancestral_state[start];
+        if (allele > 0x7F) {
+            ret = tsk_trace_error(TSK_ERR_UNSUPPORTED_OPERATION);
+            goto out;
+        }
+        if (allele == (uint8_t) self->missing_char) {
+            ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+            goto out;
+        }
+        self->ancestral_states[j] = allele;
+    }
+
+out:
+    if (ret != 0) {
+        tsk_safe_free(self->ancestral_states);
+        self->ancestral_states = NULL;
+    }
+    return ret;
+}
+
+static int
+tsk_haplotype_build_edge_intervals(tsk_haplotype_t *self)
+{
+    int ret = 0;
+    const tsk_table_collection_t *tables = self->tree_sequence->tables;
+    const tsk_edge_table_t *edges = &tables->edges;
+    const double *positions = tables->sites.position + self->site_start;
+    tsk_size_t num_edges = edges->num_rows;
+    tsk_size_t j;
+
+    if (num_edges == 0) {
+        self->edge_start_index = NULL;
+        self->edge_end_index = NULL;
+        return 0;
+    }
+
+    self->edge_start_index = tsk_malloc(num_edges * sizeof(*self->edge_start_index));
+    self->edge_end_index = tsk_malloc(num_edges * sizeof(*self->edge_end_index));
+    if (self->edge_start_index == NULL || self->edge_end_index == NULL) {
+        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
+        goto out;
+    }
+
+    if (self->num_sites == 0) {
+        for (j = 0; j < num_edges; j++) {
+            self->edge_start_index[j] = 0;
+            self->edge_end_index[j] = 0;
+        }
+        goto out;
+    }
+
+    for (j = 0; j < num_edges; j++) {
+        double left = edges->left[j];
+        double right = edges->right[j];
+        tsk_size_t start
+            = tsk_search_sorted(positions, (tsk_size_t) self->num_sites, left);
+        tsk_size_t end
+            = tsk_search_sorted(positions, (tsk_size_t) self->num_sites, right);
+        if (start > (tsk_size_t) self->num_sites) {
+            start = (tsk_size_t) self->num_sites;
+        }
+        if (end > (tsk_size_t) self->num_sites) {
+            end = (tsk_size_t) self->num_sites;
+        }
+        self->edge_start_index[j] = (int32_t) start;
+        self->edge_end_index[j] = (int32_t) end;
+    }
+
+out:
+    if (ret != 0) {
+        tsk_safe_free(self->edge_start_index);
+        tsk_safe_free(self->edge_end_index);
+        self->edge_start_index = NULL;
+        self->edge_end_index = NULL;
+    }
+    return ret;
+}
+
+static int
+tsk_haplotype_alloc_bitset(tsk_haplotype_t *self)
+{
+    tsk_size_t j;
+
+    self->num_bit_words = ((tsk_size_t) self->num_sites + 63) >> 6;
+    if (self->num_bit_words == 0) {
+        self->unresolved_bits = NULL;
+        self->initial_bits = NULL;
+        return 0;
+    }
+    self->unresolved_bits
+        = tsk_malloc(self->num_bit_words * sizeof(*self->unresolved_bits));
+    self->initial_bits = tsk_malloc(self->num_bit_words * sizeof(*self->initial_bits));
+    if (self->unresolved_bits == NULL || self->initial_bits == NULL) {
+        return tsk_trace_error(TSK_ERR_NO_MEMORY);
+    }
+    for (j = 0; j < self->num_bit_words; j++) {
+        self->initial_bits[j] = UINT64_MAX;
+    }
+    if ((tsk_size_t) self->num_sites % 64 != 0) {
+        uint32_t bits = (uint32_t)((tsk_size_t) self->num_sites & 63);
+        self->initial_bits[self->num_bit_words - 1] = (UINT64_C(1) << bits) - 1;
+    }
+    return 0;
+}
+
+int
+tsk_haplotype_init(tsk_haplotype_t *self, const tsk_treeseq_t *tree_sequence,
+    tsk_id_t site_start, tsk_id_t site_stop, int8_t missing_char, tsk_flags_t options)
+{
+    int ret = 0;
+    const tsk_table_collection_t *tables;
+    const tsk_site_table_t *sites;
+    tsk_size_t total_sites;
+
+    if (tree_sequence == NULL) {
+        return tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+    }
+
+    tsk_memset(self, 0, sizeof(*self));
+    self->tree_sequence = tree_sequence;
+    self->missing_char = missing_char;
+    self->isolated_as_missing = !(options & TSK_ISOLATED_NOT_MISSING);
+
+    tables = tree_sequence->tables;
+    sites = &tables->sites;
+    total_sites = sites->num_rows;
+
+    if (site_start < 0 || site_stop < site_start || site_stop > (tsk_id_t) total_sites) {
+        ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+        goto out;
+    }
+    if ((unsigned char) missing_char > 0x7F) {
+        ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+        goto out;
+    }
+
+    self->site_start = (int32_t) site_start;
+    self->site_stop = (int32_t) site_stop;
+    self->num_sites = (int32_t)(site_stop - site_start);
+    self->num_nodes = tables->nodes.num_rows;
+    self->num_edges = tables->edges.num_rows;
+    self->node_flags = tables->nodes.flags;
+    self->site_positions = sites->position + site_start;
+
+    if (!tsk_treeseq_get_discrete_genome(tree_sequence)) {
+        ret = tsk_trace_error(TSK_ERR_UNSUPPORTED_OPERATION);
+        goto out;
+    }
+
+    ret = tsk_haplotype_build_child_index(self);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_haplotype_build_mutation_index(self);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_haplotype_build_ancestral_states(self);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_haplotype_build_edge_intervals(self);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_haplotype_alloc_bitset(self);
+    if (ret != 0) {
+        goto out;
+    }
+    if (self->num_edges > 0) {
+        self->edge_stack = tsk_malloc(self->num_edges * sizeof(*self->edge_stack));
+        self->stack_interval_start
+            = tsk_malloc(self->num_edges * sizeof(*self->stack_interval_start));
+        self->stack_interval_end
+            = tsk_malloc(self->num_edges * sizeof(*self->stack_interval_end));
+        self->parent_interval_start
+            = tsk_malloc(self->num_edges * sizeof(*self->parent_interval_start));
+        self->parent_interval_end
+            = tsk_malloc(self->num_edges * sizeof(*self->parent_interval_end));
+        if (self->edge_stack == NULL || self->stack_interval_start == NULL
+            || self->stack_interval_end == NULL || self->parent_interval_start == NULL
+            || self->parent_interval_end == NULL) {
+            ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
+            goto out;
+        }
+    }
+
+    self->initialised = true;
+
+out:
+    if (ret != 0) {
+        tsk_haplotype_free(self);
+    }
+    return ret;
+}
+
+int
+tsk_haplotype_decode(tsk_haplotype_t *self, tsk_id_t node, int8_t *haplotype)
+{
+    tsk_size_t stack_top = 0;
+    const tsk_table_collection_t *tables;
+    const tsk_edge_table_t *edges;
+    const tsk_id_t *edge_parent;
+    int32_t interval_start, interval_end;
+    int32_t mut_start, mut_end;
+    tsk_size_t idx;
+    tsk_size_t parent_count;
+    uint64_t *bits;
+
+    if (self == NULL || haplotype == NULL) {
+        return tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+    }
+    if (!self->initialised) {
+        return tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+    }
+    if (node < 0 || node >= (tsk_id_t) self->num_nodes) {
+        return tsk_trace_error(TSK_ERR_NODE_OUT_OF_BOUNDS);
+    }
+    if (self->isolated_as_missing && !(self->node_flags[node] & TSK_NODE_IS_SAMPLE)) {
+        return tsk_trace_error(TSK_ERR_MUST_IMPUTE_NON_SAMPLES);
+    }
+    if (self->num_sites == 0) {
+        return 0;
+    }
+
+    tables = self->tree_sequence->tables;
+    edges = &tables->edges;
+    edge_parent = edges->parent;
+    bits = self->unresolved_bits;
+
+    for (idx = 0; idx < (tsk_size_t) self->num_sites; idx++) {
+        haplotype[idx] = (int8_t) self->ancestral_states[idx];
+    }
+    tsk_haplotype_reset_bitset(self);
+
+    mut_start = self->node_mutation_offsets[node];
+    mut_end = self->node_mutation_offsets[node + 1];
+    for (int32_t m = mut_start; m < mut_end; m++) {
+        int32_t site = self->node_mutation_sites[m];
+        if (site >= 0 && site < self->num_sites) {
+            haplotype[site] = (int8_t) self->node_mutation_states[m];
+            tsk_haplotype_bitset_clear(bits, (tsk_size_t) site);
+        }
+    }
+
+    int32_t child_start = self->child_offsets[node];
+    int32_t child_stop = self->child_offsets[node + 1];
+    for (int32_t i = child_start; i < child_stop; i++) {
+        tsk_id_t edge = self->child_order[i];
+        int32_t start = self->edge_start_index[edge];
+        int32_t end = self->edge_end_index[edge];
+        if (start >= end) {
+            continue;
+        }
+        if (tsk_haplotype_bitset_next(
+                bits, self->num_bit_words, (tsk_size_t) start, (tsk_size_t) end)
+            < (tsk_size_t) end) {
+            self->edge_stack[stack_top] = edge;
+            self->stack_interval_start[stack_top] = start;
+            self->stack_interval_end[stack_top] = end;
+            stack_top++;
+        }
+    }
+
+    while (stack_top > 0) {
+        stack_top--;
+        tsk_id_t edge = self->edge_stack[stack_top];
+        tsk_id_t ancestor = edge_parent[edge];
+        interval_start = self->stack_interval_start[stack_top];
+        interval_end = self->stack_interval_end[stack_top];
+
+        if (ancestor >= 0) {
+            mut_start = self->node_mutation_offsets[ancestor];
+            mut_end = self->node_mutation_offsets[ancestor + 1];
+            for (int32_t m = mut_start; m < mut_end; m++) {
+                int32_t site = self->node_mutation_sites[m];
+                if (site >= interval_start && site < interval_end
+                    && tsk_haplotype_bitset_next(bits, self->num_bit_words,
+                           (tsk_size_t) site, (tsk_size_t) site + 1)
+                           == (tsk_size_t) site) {
+                    haplotype[site] = (int8_t) self->node_mutation_states[m];
+                    tsk_haplotype_bitset_clear(bits, (tsk_size_t) site);
+                }
+            }
+        }
+
+        parent_count = 0;
+        if (ancestor >= 0) {
+            child_start = self->child_offsets[ancestor];
+            child_stop = self->child_offsets[ancestor + 1];
+            for (int32_t i = child_start; i < child_stop; i++) {
+                tsk_id_t parent_edge = self->child_order[i];
+                int32_t parent_start = self->edge_start_index[parent_edge];
+                int32_t parent_end = self->edge_end_index[parent_edge];
+                if (parent_start < interval_start) {
+                    parent_start = interval_start;
+                }
+                if (parent_end > interval_end) {
+                    parent_end = interval_end;
+                }
+                if (parent_start >= parent_end) {
+                    continue;
+                }
+                if (tsk_haplotype_bitset_next(bits, self->num_bit_words,
+                        (tsk_size_t) parent_start, (tsk_size_t) parent_end)
+                    < (tsk_size_t) parent_end) {
+                    self->edge_stack[stack_top] = parent_edge;
+                    self->stack_interval_start[stack_top] = parent_start;
+                    self->stack_interval_end[stack_top] = parent_end;
+                    stack_top++;
+                    self->parent_interval_start[parent_count] = parent_start;
+                    self->parent_interval_end[parent_count] = parent_end;
+                    parent_count++;
+                }
+            }
+        }
+
+        idx = tsk_haplotype_bitset_next(bits, self->num_bit_words,
+            (tsk_size_t) interval_start, (tsk_size_t) interval_end);
+        while ((int32_t) idx < interval_end) {
+            bool covered = false;
+            for (tsk_size_t p = 0; p < parent_count; p++) {
+                if (self->parent_interval_start[p] <= (int32_t) idx
+                    && (int32_t) idx < self->parent_interval_end[p]) {
+                    covered = true;
+                    break;
+                }
+            }
+            if (covered) {
+                idx = tsk_haplotype_bitset_next(
+                    bits, self->num_bit_words, idx + 1, (tsk_size_t) interval_end);
+            } else {
+                if (self->isolated_as_missing) {
+                    haplotype[idx] = self->missing_char;
+                }
+                tsk_haplotype_bitset_clear(bits, idx);
+                idx = tsk_haplotype_bitset_next(
+                    bits, self->num_bit_words, idx, (tsk_size_t) interval_end);
+            }
+        }
+    }
+
+    if (self->isolated_as_missing) {
+        idx = tsk_haplotype_bitset_next(
+            bits, self->num_bit_words, 0, (tsk_size_t) self->num_sites);
+        while (idx < (tsk_size_t) self->num_sites) {
+            haplotype[idx] = self->missing_char;
+            tsk_haplotype_bitset_clear(bits, idx);
+            idx = tsk_haplotype_bitset_next(
+                bits, self->num_bit_words, idx, (tsk_size_t) self->num_sites);
+        }
+    } else {
+        idx = tsk_haplotype_bitset_next(
+            bits, self->num_bit_words, 0, (tsk_size_t) self->num_sites);
+        while (idx < (tsk_size_t) self->num_sites) {
+            tsk_haplotype_bitset_clear(bits, idx);
+            idx = tsk_haplotype_bitset_next(
+                bits, self->num_bit_words, idx, (tsk_size_t) self->num_sites);
+        }
+    }
+
+    return 0;
+}
+
+int
+tsk_haplotype_free(tsk_haplotype_t *self)
+{
+    if (self == NULL) {
+        return 0;
+    }
+    tsk_safe_free(self->ancestral_states);
+    tsk_safe_free(self->node_mutation_offsets);
+    tsk_safe_free(self->node_mutation_sites);
+    tsk_safe_free(self->node_mutation_states);
+    tsk_safe_free(self->child_order);
+    tsk_safe_free(self->child_offsets);
+    tsk_safe_free(self->edge_start_index);
+    tsk_safe_free(self->edge_end_index);
+    tsk_safe_free(self->edge_stack);
+    tsk_safe_free(self->stack_interval_start);
+    tsk_safe_free(self->stack_interval_end);
+    tsk_safe_free(self->parent_interval_start);
+    tsk_safe_free(self->parent_interval_end);
+    tsk_safe_free(self->unresolved_bits);
+    tsk_safe_free(self->initial_bits);
+    self->tree_sequence = NULL;
+    self->node_flags = NULL;
+    self->site_positions = NULL;
+    self->initialised = false;
+    return 0;
+}
 
 /* ======================================================== *
  * Variant generator

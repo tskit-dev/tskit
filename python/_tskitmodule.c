@@ -157,6 +157,12 @@ typedef struct {
 typedef struct {
     PyObject_HEAD
     TreeSequence *tree_sequence;
+    tsk_haplotype_t *haplotype;
+} Haplotype;
+
+typedef struct {
+    PyObject_HEAD
+    TreeSequence *tree_sequence;
     tsk_variant_t *variant;
 } Variant;
 
@@ -10595,6 +10601,166 @@ static PyTypeObject TreeType = {
 };
 
 /*===================================================================
+ * Haplotype
+ *===================================================================
+ */
+
+/* Forward declaration */
+static PyTypeObject HaplotypeType;
+
+static int
+Haplotype_check_state(Haplotype *self)
+{
+    int ret = 0;
+    if (self->haplotype == NULL) {
+        PyErr_SetString(PyExc_SystemError, "haplotype not initialised");
+        ret = -1;
+    }
+    return ret;
+}
+
+static void
+Haplotype_dealloc(Haplotype *self)
+{
+    if (self->haplotype != NULL) {
+        tsk_haplotype_free(self->haplotype);
+        PyMem_Free(self->haplotype);
+        self->haplotype = NULL;
+    }
+    Py_XDECREF(self->tree_sequence);
+    Py_TYPE(self)->tp_free((PyObject *) self);
+}
+
+static int
+Haplotype_init(Haplotype *self, PyObject *args, PyObject *kwds)
+{
+    int ret = -1;
+    int err;
+    static char *kwlist[] = { "tree_sequence", "site_start", "site_stop",
+        "isolated_as_missing", "missing_data_character", NULL };
+    TreeSequence *tree_sequence = NULL;
+    Py_ssize_t site_start;
+    Py_ssize_t site_stop;
+    int isolated_as_missing = 1;
+    PyObject *missing_obj = NULL;
+    PyObject *missing_bytes = NULL;
+    const char *missing_ptr = NULL;
+    Py_ssize_t missing_length = 0;
+    char missing_char = 'N';
+    tsk_flags_t options = 0;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!nn|pO", kwlist, &TreeSequenceType,
+            &tree_sequence, &site_start, &site_stop, &isolated_as_missing,
+            &missing_obj)) {
+        goto out;
+    }
+
+    if (missing_obj != NULL && missing_obj != Py_None) {
+        if (PyBytes_Check(missing_obj)) {
+            missing_ptr = PyBytes_AS_STRING(missing_obj);
+            missing_length = PyBytes_GET_SIZE(missing_obj);
+        } else {
+            missing_bytes = PyUnicode_AsASCIIString(missing_obj);
+            if (missing_bytes == NULL) {
+                goto out;
+            }
+            missing_ptr = PyBytes_AS_STRING(missing_bytes);
+            missing_length = PyBytes_GET_SIZE(missing_bytes);
+        }
+        if (missing_length != 1) {
+            PyErr_SetString(PyExc_ValueError,
+                "missing_data_character must be a single ASCII character");
+            goto out;
+        }
+        missing_char = missing_ptr[0];
+    }
+
+    self->haplotype = PyMem_Malloc(sizeof(*self->haplotype));
+    if (self->haplotype == NULL) {
+        PyErr_NoMemory();
+        goto out;
+    }
+
+    self->tree_sequence = tree_sequence;
+    Py_INCREF(tree_sequence);
+
+    if (!isolated_as_missing) {
+        options |= TSK_ISOLATED_NOT_MISSING;
+    }
+
+    err = tsk_haplotype_init(self->haplotype, tree_sequence->tree_sequence,
+        (tsk_id_t) site_start, (tsk_id_t) site_stop, (int8_t) missing_char, options);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    if (ret != 0) {
+        if (self->haplotype != NULL) {
+            tsk_haplotype_free(self->haplotype);
+            PyMem_Free(self->haplotype);
+            self->haplotype = NULL;
+        }
+        Py_XDECREF(self->tree_sequence);
+        self->tree_sequence = NULL;
+    }
+    Py_XDECREF(missing_bytes);
+    return ret;
+}
+
+static PyObject *
+Haplotype_decode(Haplotype *self, PyObject *args)
+{
+    int err;
+    PyObject *ret = NULL;
+    tsk_id_t node;
+
+    if (Haplotype_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTuple(args, "O&", &tsk_id_converter, &node)) {
+        goto out;
+    }
+
+    ret = PyBytes_FromStringAndSize(NULL, (Py_ssize_t) self->haplotype->num_sites);
+    if (ret == NULL) {
+        goto out;
+    }
+    err = tsk_haplotype_decode(self->haplotype, node, (int8_t *) PyBytes_AS_STRING(ret));
+    if (err != 0) {
+        handle_library_error(err);
+        Py_CLEAR(ret);
+        goto out;
+    }
+out:
+    return ret;
+}
+
+static PyMethodDef Haplotype_methods[] = {
+    { .ml_name = "decode",
+        .ml_meth = (PyCFunction) Haplotype_decode,
+        .ml_flags = METH_VARARGS,
+        .ml_doc = "Decode the haplotype for the specified node." },
+    { NULL },
+};
+
+static PyTypeObject HaplotypeType = {
+    // clang-format off
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_tskit.Haplotype",
+    .tp_basicsize = sizeof(Haplotype),
+    .tp_dealloc = (destructor) Haplotype_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = "Low-level haplotype decoder",
+    .tp_methods = Haplotype_methods,
+    .tp_init = (initproc) Haplotype_init,
+    .tp_new = PyType_GenericNew,
+    // clang-format on
+};
+
+/*===================================================================
  * Variant
  *===================================================================
  */
@@ -11923,6 +12089,13 @@ PyInit__tskit(void)
     }
     Py_INCREF(&TreeType);
     PyModule_AddObject(module, "Tree", (PyObject *) &TreeType);
+
+    /* Haplotype type */
+    if (PyType_Ready(&HaplotypeType) < 0) {
+        return NULL;
+    }
+    Py_INCREF(&HaplotypeType);
+    PyModule_AddObject(module, "Haplotype", (PyObject *) &HaplotypeType);
 
     /* Variant type */
     if (PyType_Ready(&VariantType) < 0) {

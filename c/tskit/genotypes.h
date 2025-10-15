@@ -86,6 +86,36 @@ typedef struct {
     tsk_variant_t variant;
 } tsk_vargen_t;
 
+typedef struct {
+    const tsk_treeseq_t *tree_sequence;
+    tsk_size_t num_nodes;
+    tsk_size_t num_edges;
+    int32_t site_start;
+    int32_t site_stop;
+    int32_t num_sites;
+    int8_t missing_char;
+    bool isolated_as_missing;
+    const tsk_flags_t *node_flags;
+    const double *site_positions;
+    uint8_t *ancestral_states;
+    int32_t *node_mutation_offsets;
+    int32_t *node_mutation_sites;
+    uint8_t *node_mutation_states;
+    tsk_id_t *child_order;
+    int32_t *child_offsets;
+    int32_t *edge_start_index;
+    int32_t *edge_end_index;
+    tsk_id_t *edge_stack;
+    int32_t *stack_interval_start;
+    int32_t *stack_interval_end;
+    int32_t *parent_interval_start;
+    int32_t *parent_interval_end;
+    uint64_t *unresolved_bits;
+    uint64_t *initial_bits;
+    tsk_size_t num_bit_words;
+    bool initialised;
+} tsk_haplotype_t;
+
 /**
 @defgroup VARIANT_API_GROUP Variant API for obtaining genotypes.
 @{
@@ -179,6 +209,10 @@ void tsk_variant_print_state(const tsk_variant_t *self, FILE *out);
 /** @} */
 
 /* Deprecated vargen methods (since C API v1.0) */
+int tsk_haplotype_init(tsk_haplotype_t *self, const tsk_treeseq_t *tree_sequence,
+    tsk_id_t site_start, tsk_id_t site_stop, int8_t missing_char, tsk_flags_t options);
+int tsk_haplotype_decode(tsk_haplotype_t *self, tsk_id_t node, int8_t *haplotype);
+int tsk_haplotype_free(tsk_haplotype_t *self);
 int tsk_vargen_init(tsk_vargen_t *self, const tsk_treeseq_t *tree_sequence,
     const tsk_id_t *samples, tsk_size_t num_samples, const char **alleles,
     tsk_flags_t options);
