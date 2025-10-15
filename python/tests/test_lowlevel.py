@@ -445,8 +445,8 @@ class TestTableCollection(LowLevelTestCase):
     )
     def test_union_options(self, flag, value):
         ts = msprime.simulate(10, random_seed=1)
-        tc = ts.tables._ll_tables
-        empty_tables = ts.tables.copy()
+        tc = ts.dump_tables()._ll_tables
+        empty_tables = ts.dump_tables()
         for table in empty_tables.table_name_map.keys():
             getattr(empty_tables, table).clear()
         tc2 = empty_tables._ll_tables
