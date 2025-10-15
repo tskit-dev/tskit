@@ -50,6 +50,9 @@
 - Add ``Mutation.inherited_state`` property which returns the inherited state
   for a single mutation. (:user:`benjeffery`, :pr:`3277`, :issue:`2631`)
 
+- Add `all_mutations` and `all_edges` parameters to `union()`, allowing disjoint unioning
+  (:user:`petrelharp`, :user:`hyanwong`, :pr:`3283`, :issue:`3181`)
+
 **Bugfixes**
 
 - In some tables with mutations out-of-order `TableCollection.sort` did not re-order
@@ -79,6 +82,9 @@
 - Prevent iterating over a ``TopologyCounter``
   (:user:`benjeffery` , :pr:`3202`, :issue:`1462`)
 
+- Fix `TreeSequence.concatenate()` to work with internal samples by using the
+  `all_mutations` and `all_edges` parameters in `union()`
+  (:user:`hyanwong`, :pr:`3283`, :issue:`3181`)
 
 **Breaking changes**
 
