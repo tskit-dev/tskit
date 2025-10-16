@@ -4347,15 +4347,18 @@ TableCollection_union(TableCollection *self, PyObject *args, PyObject *kwds)
     npy_intp *shape;
     tsk_flags_t options = 0;
     int check_shared = true;
+    int all_edges = false;
+    int all_mutations = false;
     int add_populations = true;
     static char *kwlist[] = { "other", "other_node_mapping", "check_shared_equality",
-        "add_populations", NULL };
+        "add_populations", "all_edges", "all_mutations", NULL };
 
     if (TableCollection_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!O|ii", kwlist, &TableCollectionType,
-            &other, &other_node_mapping, &check_shared, &add_populations)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!O|iiii", kwlist,
+            &TableCollectionType, &other, &other_node_mapping, &check_shared,
+            &add_populations, &all_edges, &all_mutations)) {
         goto out;
     }
     nmap_array = (PyArrayObject *) PyArray_FROMANY(
@@ -4369,6 +4372,12 @@ TableCollection_union(TableCollection *self, PyObject *args, PyObject *kwds)
             "The length of the node mapping array should be equal to the"
             " number of nodes in the other tree sequence.");
         goto out;
+    }
+    if (all_edges) {
+        options |= TSK_UNION_ALL_EDGES;
+    }
+    if (all_mutations) {
+        options |= TSK_UNION_ALL_MUTATIONS;
     }
     if (!check_shared) {
         options |= TSK_UNION_NO_CHECK_SHARED;

@@ -2536,6 +2536,28 @@ class TestTreeSequence(HighLevelTestCase):
         else:
             tables.tree_sequence()
 
+    def test_union(self, ts_fixture):
+        # most of the union tests are in test_tables.py, here we just sanity check
+        tables = ts_fixture.dump_tables()
+        tables.migrations.clear()  # migrations not supported in union()
+        ts = tables.tree_sequence()
+        tables = tskit.TableCollection(ts.sequence_length)
+        tables.time_units = ts.time_units
+        empty = tables.tree_sequence()
+        union_ts = empty.union(
+            ts,
+            node_mapping=np.full(ts.num_nodes, tskit.NULL, dtype=int),
+            all_edges=True,
+            all_mutations=True,
+            check_shared_equality=False,
+        )
+        union_ts.tables.assert_equals(
+            ts.tables,
+            ignore_metadata=True,
+            ignore_reference_sequence=True,
+            ignore_provenance=True,
+        )
+
 
 class TestSimplify:
     # This class was factored out of the old TestHighlevel class 2022-12-13,

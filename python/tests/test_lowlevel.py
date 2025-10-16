@@ -433,6 +433,25 @@ class TestTableCollection(LowLevelTestCase):
         with pytest.raises(ValueError):
             tc.union(tc2, np.array([[1], [2]], dtype="int32"))
 
+    @pytest.mark.parametrize("value", [True, False])
+    @pytest.mark.parametrize(
+        "flag",
+        [
+            "all_edges",
+            "all_mutations",
+            "check_shared_equality",
+            "add_populations",
+        ],
+    )
+    def test_union_options(self, flag, value):
+        ts = msprime.simulate(10, random_seed=1)
+        tc = ts.dump_tables()._ll_tables
+        empty_tables = ts.dump_tables()
+        for table in empty_tables.table_name_map.keys():
+            getattr(empty_tables, table).clear()
+        tc2 = empty_tables._ll_tables
+        tc.union(tc2, np.arange(0, dtype="int32"), **{flag: value})
+
     def test_equals_bad_args(self):
         ts = msprime.simulate(10, random_seed=1242)
         tc = ts.dump_tables()._ll_tables
