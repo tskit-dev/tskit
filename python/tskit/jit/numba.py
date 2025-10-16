@@ -679,12 +679,13 @@ def _bitset_init(bitset, num_sites):
     # Initialise all bits to 1 (meaning "unresolved") and mask any unused bits
     # in the final word when the number of sites is not a multiple of 64.
     n_words = bitset.shape[0]
+    all_bits = np.uint64((1 << 64) - 1)
     for w in range(n_words):
-        bitset[w] = np.uint64(-1)
+        bitset[w] = all_bits
     if n_words > 0:
         excess = n_words * 64 - num_sites
         if excess > 0:
-            mask = np.uint64(-1) >> excess
+            mask = all_bits >> excess
             bitset[n_words - 1] = mask
 
 
