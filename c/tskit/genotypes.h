@@ -98,8 +98,8 @@ typedef struct {
     int32_t *node_mutation_offsets;
     int32_t *node_mutation_sites;
     uint8_t *node_mutation_states;
-    tsk_id_t *child_order;
-    int32_t *child_offsets;
+    tsk_id_t *parent_edge_index;
+    int32_t *parent_index_range;
     int32_t *edge_start_index;
     int32_t *edge_end_index;
     tsk_id_t *edge_stack;
