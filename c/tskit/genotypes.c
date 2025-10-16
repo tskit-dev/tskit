@@ -37,34 +37,6 @@
 
 #include <tskit/genotypes.h>
 
-typedef struct {
-    tsk_id_t edge_id;
-    tsk_id_t child;
-    double left;
-} tsk_haplotype_edge_sort_t;
-
-static int
-tsk_haplotype_edge_sort_cmp(const void *aa, const void *bb)
-{
-    const tsk_haplotype_edge_sort_t *a = (const tsk_haplotype_edge_sort_t *) aa;
-    const tsk_haplotype_edge_sort_t *b = (const tsk_haplotype_edge_sort_t *) bb;
-
-    if (a->child == b->child) {
-        if (a->left < b->left) {
-            return -1;
-        } else if (a->left > b->left) {
-            return 1;
-        }
-        if (a->edge_id < b->edge_id) {
-            return -1;
-        } else if (a->edge_id > b->edge_id) {
-            return 1;
-        }
-        return 0;
-    }
-    return a->child < b->child ? -1 : 1;
-}
-
 static inline uint32_t
 tsk_haplotype_ctz64(uint64_t x)
 {
@@ -121,12 +93,11 @@ static int
 tsk_haplotype_build_parent_index(tsk_haplotype_t *self)
 {
     int ret = 0;
-    tsk_size_t j;
     const tsk_table_collection_t *tables = self->tree_sequence->tables;
     const tsk_edge_table_t *edges = &tables->edges;
+    const tsk_id_t *edges_child = edges->child;
     tsk_size_t num_edges = edges->num_rows;
-    tsk_haplotype_edge_sort_t *sorted = NULL;
-    int32_t *offsets = NULL;
+    int32_t *child_counts = NULL;
 
     if (num_edges == 0) {
         self->parent_edge_index = NULL;
@@ -143,48 +114,60 @@ tsk_haplotype_build_parent_index(tsk_haplotype_t *self)
         goto out;
     }
 
-    sorted = tsk_malloc(num_edges * sizeof(*sorted));
     self->parent_edge_index = tsk_malloc(num_edges * sizeof(*self->parent_edge_index));
     self->parent_index_range
         = tsk_malloc(self->num_nodes * 2 * sizeof(*self->parent_index_range));
-    offsets = tsk_calloc(self->num_nodes + 1, sizeof(*offsets));
-    if (sorted == NULL || self->parent_edge_index == NULL
+    child_counts = tsk_calloc(self->num_nodes, sizeof(*child_counts));
+    if (self->parent_edge_index == NULL
         || (self->num_nodes > 0 && self->parent_index_range == NULL)
-        || offsets == NULL) {
+        || child_counts == NULL) {
         ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
 
-    for (j = 0; j < num_edges; j++) {
-        sorted[j].edge_id = (tsk_id_t) j;
-        sorted[j].child = edges->child[j];
-        sorted[j].left = edges->left[j];
-    }
-    qsort(sorted, num_edges, sizeof(*sorted), tsk_haplotype_edge_sort_cmp);
-
-    for (j = 0; j < num_edges; j++) {
-        tsk_id_t child = sorted[j].child;
+    for (tsk_size_t j = 0; j < num_edges; j++) {
+        tsk_id_t child = edges_child[j];
         if (child >= 0 && child < (tsk_id_t) self->num_nodes) {
-            offsets[child + 1]++;
+            if (child_counts[child] == INT32_MAX) {
+                ret = tsk_trace_error(TSK_ERR_UNSUPPORTED_OPERATION);
+                goto out;
+            }
+            child_counts[child]++;
         }
     }
-    for (j = 0; j < (tsk_size_t) self->num_nodes; j++) {
-        offsets[j + 1] += offsets[j];
-        self->parent_index_range[2 * j] = offsets[j];
-        self->parent_index_range[2 * j + 1] = offsets[j + 1];
+
+    int32_t current_start = 0;
+    for (tsk_size_t u = 0; u < (tsk_size_t) self->num_nodes; u++) {
+        int32_t offset = (int32_t)(u * 2);
+        self->parent_index_range[offset] = current_start;
+        self->parent_index_range[offset + 1] = current_start;
+        current_start += child_counts[u];
     }
 
-    for (j = 0; j < num_edges; j++) {
-        tsk_id_t child = sorted[j].child;
+    for (tsk_size_t j = 0; j < num_edges; j++) {
+        tsk_id_t child = edges_child[j];
         if (child >= 0 && child < (tsk_id_t) self->num_nodes) {
-            int32_t pos = offsets[child]++;
-            self->parent_edge_index[pos] = sorted[j].edge_id;
+            int32_t end_offset = (int32_t)(child * 2 + 1);
+            int32_t pos = self->parent_index_range[end_offset];
+            self->parent_edge_index[pos] = (tsk_id_t) j;
+            self->parent_index_range[end_offset] = pos + 1;
         }
+    }
+
+    for (tsk_size_t u = 0; u < (tsk_size_t) self->num_nodes; u++) {
+        int32_t offset = (int32_t)(u * 2);
+        int32_t end = self->parent_index_range[offset + 1];
+        self->parent_index_range[offset] = end - child_counts[u];
     }
 
 out:
-    tsk_safe_free(sorted);
-    tsk_safe_free(offsets);
+    if (ret != 0) {
+        tsk_safe_free(self->parent_edge_index);
+        self->parent_edge_index = NULL;
+        tsk_safe_free(self->parent_index_range);
+        self->parent_index_range = NULL;
+    }
+    tsk_safe_free(child_counts);
     return ret;
 }
 
