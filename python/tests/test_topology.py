@@ -7253,7 +7253,7 @@ class TestConcatenate:
         ns_nodes = np.where(ts.tables.nodes.flags & tskit.NODE_IS_SAMPLE == 0)[0]
         assert len(ns_nodes) > 0
         for u in ns_nodes:
-            node1 = joint_ts.node(u)
+            node1 = ts.node(u)
             node2 = joint_ts.node(u)
             assert node1.metadata == node2.metadata
             assert node1.flags == node2.flags
