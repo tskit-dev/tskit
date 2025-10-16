@@ -37,6 +37,8 @@
 
 #include <tskit/genotypes.h>
 
+// FIXME Tskit already has a bitset implementation that maybe we could use
+
 static inline uint32_t
 tsk_haplotype_ctz64(uint64_t x)
 {
@@ -151,6 +153,7 @@ tsk_haplotype_find_next_uncovered(tsk_haplotype_t *self, tsk_size_t start,
     if (word >= self->num_bit_words) {
         return false;
     }
+    // FIXME Horrendous logic here, needs jeromeifying.
     uint64_t start_mask = UINT64_MAX << (start & 63);
     for (; word <= last_word && word < self->num_bit_words; word++) {
         if (self->unresolved_counts[word] == 0) {
@@ -231,6 +234,8 @@ tsk_haplotype_reset_bitset(tsk_haplotype_t *self)
     }
 }
 
+// FIXME We're building the whole index here, which is a bit sad when we're clipping a
+// region.
 static int
 tsk_haplotype_build_parent_index(tsk_haplotype_t *self)
 {
@@ -313,6 +318,7 @@ out:
     return ret;
 }
 
+// FIXME No point adding mutations who are above nodes we have no interest in.
 static int
 tsk_haplotype_build_mutation_index(tsk_haplotype_t *self)
 {
@@ -408,6 +414,7 @@ out:
     return ret;
 }
 
+// FIXME Not sure this is even needed
 static int
 tsk_haplotype_build_ancestral_states(tsk_haplotype_t *self)
 {
@@ -659,6 +666,7 @@ tsk_haplotype_decode(tsk_haplotype_t *self, tsk_id_t node, int8_t *haplotype)
     edge_parent = edges->parent;
     bits = self->unresolved_bits;
 
+    // Create a bitset that tracks which sites are still unresolved
     for (idx = 0; idx < (tsk_size_t) self->num_sites; idx++) {
         haplotype[idx] = (int8_t) self->ancestral_states[idx];
     }
@@ -666,6 +674,7 @@ tsk_haplotype_decode(tsk_haplotype_t *self, tsk_id_t node, int8_t *haplotype)
 
     mut_start = self->node_mutation_offsets[node];
     mut_end = self->node_mutation_offsets[node + 1];
+    // Apply mutations above this node
     for (int32_t m = mut_start; m < mut_end; m++) {
         int32_t site = self->node_mutation_sites[m];
         if (site >= 0 && site < self->num_sites
@@ -682,6 +691,8 @@ tsk_haplotype_decode(tsk_haplotype_t *self, tsk_id_t node, int8_t *haplotype)
         child_start = self->parent_index_range[range_offset];
         child_stop = self->parent_index_range[range_offset + 1];
     }
+    // Push all edges from this node (that are still relavent to resolving sites) onto
+    // the stack
     for (int32_t i = child_start; i < child_stop; i++) {
         tsk_id_t edge = self->parent_edge_index[i];
         int32_t start = self->edge_start_index[edge];
@@ -700,6 +711,7 @@ tsk_haplotype_decode(tsk_haplotype_t *self, tsk_id_t node, int8_t *haplotype)
         }
     }
 
+    // Now process the stack until we run out of edges or have resolved all sites
     while (stack_top > 0) {
         stack_top--;
         tsk_id_t edge = self->edge_stack[stack_top];
@@ -707,6 +719,7 @@ tsk_haplotype_decode(tsk_haplotype_t *self, tsk_id_t node, int8_t *haplotype)
         interval_start = self->stack_interval_start[stack_top];
         interval_end = self->stack_interval_end[stack_top];
 
+        // Apply mutations above this ancestor
         if (ancestor >= 0) {
             mut_start = self->node_mutation_offsets[ancestor];
             mut_end = self->node_mutation_offsets[ancestor + 1];
@@ -720,6 +733,8 @@ tsk_haplotype_decode(tsk_haplotype_t *self, tsk_id_t node, int8_t *haplotype)
             }
         }
 
+        // Going up the tree push all edges from this ancestor (that are still relavent
+        // to resolving sites)
         parent_count = 0;
         if (ancestor >= 0 && self->parent_index_range != NULL) {
             int32_t range_offset = ancestor * 2;
@@ -756,6 +771,8 @@ tsk_haplotype_decode(tsk_haplotype_t *self, tsk_id_t node, int8_t *haplotype)
             child_stop = 0;
         }
 
+        // Clear out any sites that are still unresolved in this interval but not covered
+        // by any parent edges
         tsk_size_t uncovered_idx;
         while (tsk_haplotype_find_next_uncovered(self, (tsk_size_t) interval_start,
             (tsk_size_t) interval_end, self->parent_interval_start,
@@ -766,6 +783,7 @@ tsk_haplotype_decode(tsk_haplotype_t *self, tsk_id_t node, int8_t *haplotype)
         }
     }
 
+    // Reset the bitset for next time
     for (tsk_size_t w = 0; w < self->num_bit_words; w++) {
         self->unresolved_bits[w] = 0;
         self->unresolved_counts[w] = 0;

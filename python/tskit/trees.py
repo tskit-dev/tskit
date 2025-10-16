@@ -5274,6 +5274,8 @@ class TreeSequence:
         num_sites = stop_site - start_site
         missing_int8 = ord(missing_data_character)
 
+        # FIXME! The low-level code doesn't support isolated_as_missing
+        # yet so we do this ugly check here
         want_missing = (
             True if isolated_as_missing is None else bool(isolated_as_missing)
         )
@@ -5323,7 +5325,9 @@ class TreeSequence:
         if num_samples == 0 or num_sites == 0:
             return H, (start_site, stop_site - 1)
 
-        # For now deal with missing data using the variants iterator
+        # FIXME! The low-level code doesn't support isolated_as_missing
+        # yet so we do this ugly thing of using the variants code to find
+        # sites with missing data
         missing_mask = None
         if want_missing:
             for var in self.variants(
