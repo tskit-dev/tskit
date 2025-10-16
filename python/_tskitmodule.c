@@ -10636,43 +10636,14 @@ Haplotype_init(Haplotype *self, PyObject *args, PyObject *kwds)
 {
     int ret = -1;
     int err;
-    static char *kwlist[] = { "tree_sequence", "site_start", "site_stop",
-        "isolated_as_missing", "missing_data_character", NULL };
+    static char *kwlist[] = { "tree_sequence", "site_start", "site_stop", NULL };
     TreeSequence *tree_sequence = NULL;
     Py_ssize_t site_start;
     Py_ssize_t site_stop;
-    int isolated_as_missing = 1;
-    PyObject *missing_obj = NULL;
-    PyObject *missing_bytes = NULL;
-    const char *missing_ptr = NULL;
-    Py_ssize_t missing_length = 0;
-    char missing_char = 'N';
-    tsk_flags_t options = 0;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!nn|pO", kwlist, &TreeSequenceType,
-            &tree_sequence, &site_start, &site_stop, &isolated_as_missing,
-            &missing_obj)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!nn", kwlist, &TreeSequenceType,
+            &tree_sequence, &site_start, &site_stop)) {
         goto out;
-    }
-
-    if (missing_obj != NULL && missing_obj != Py_None) {
-        if (PyBytes_Check(missing_obj)) {
-            missing_ptr = PyBytes_AS_STRING(missing_obj);
-            missing_length = PyBytes_GET_SIZE(missing_obj);
-        } else {
-            missing_bytes = PyUnicode_AsASCIIString(missing_obj);
-            if (missing_bytes == NULL) {
-                goto out;
-            }
-            missing_ptr = PyBytes_AS_STRING(missing_bytes);
-            missing_length = PyBytes_GET_SIZE(missing_bytes);
-        }
-        if (missing_length != 1) {
-            PyErr_SetString(PyExc_ValueError,
-                "missing_data_character must be a single ASCII character");
-            goto out;
-        }
-        missing_char = missing_ptr[0];
     }
 
     self->haplotype = PyMem_Malloc(sizeof(*self->haplotype));
@@ -10684,12 +10655,8 @@ Haplotype_init(Haplotype *self, PyObject *args, PyObject *kwds)
     self->tree_sequence = tree_sequence;
     Py_INCREF(tree_sequence);
 
-    if (!isolated_as_missing) {
-        options |= TSK_ISOLATED_NOT_MISSING;
-    }
-
     err = tsk_haplotype_init(self->haplotype, tree_sequence->tree_sequence,
-        (tsk_id_t) site_start, (tsk_id_t) site_stop, (int8_t) missing_char, options);
+        (tsk_id_t) site_start, (tsk_id_t) site_stop);
     if (err != 0) {
         handle_library_error(err);
         goto out;
@@ -10706,7 +10673,6 @@ out:
         Py_XDECREF(self->tree_sequence);
         self->tree_sequence = NULL;
     }
-    Py_XDECREF(missing_bytes);
     return ret;
 }
 

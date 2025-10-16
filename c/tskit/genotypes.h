@@ -93,9 +93,6 @@ typedef struct {
     int32_t site_start;
     int32_t site_stop;
     int32_t num_sites;
-    int8_t missing_char;
-    bool isolated_as_missing;
-    const tsk_flags_t *node_flags;
     const double *site_positions;
     uint8_t *ancestral_states;
     int32_t *node_mutation_offsets;
@@ -103,7 +100,6 @@ typedef struct {
     uint8_t *node_mutation_states;
     tsk_id_t *child_order;
     int32_t *child_offsets;
-    int32_t *parent_edge_counts;
     int32_t *edge_start_index;
     int32_t *edge_end_index;
     tsk_id_t *edge_stack;
@@ -211,7 +207,7 @@ void tsk_variant_print_state(const tsk_variant_t *self, FILE *out);
 
 /* Deprecated vargen methods (since C API v1.0) */
 int tsk_haplotype_init(tsk_haplotype_t *self, const tsk_treeseq_t *tree_sequence,
-    tsk_id_t site_start, tsk_id_t site_stop, int8_t missing_char, tsk_flags_t options);
+    tsk_id_t site_start, tsk_id_t site_stop);
 int tsk_haplotype_decode(tsk_haplotype_t *self, tsk_id_t node, int8_t *haplotype);
 int tsk_haplotype_free(tsk_haplotype_t *self);
 int tsk_vargen_init(tsk_vargen_t *self, const tsk_treeseq_t *tree_sequence,

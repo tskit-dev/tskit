@@ -5272,6 +5272,38 @@ class TreeSequence:
 
         start_site, stop_site = np.searchsorted(self.sites_position, interval)
         num_sites = stop_site - start_site
+        missing_int8 = ord(missing_data_character)
+
+        want_missing = (
+            True if isolated_as_missing is None else bool(isolated_as_missing)
+        )
+
+        if want_missing and num_sites > 0:
+            ll_ts = self._ll_tree_sequence
+            anc_offsets = ll_ts.sites_ancestral_state_offset
+            anc_data = ll_ts.sites_ancestral_state
+            anc_slice = anc_offsets[start_site : stop_site + 1]
+            anc_lengths = np.diff(anc_slice)
+            if np.any(anc_lengths > 0):
+                anc_index = anc_slice[:-1][anc_lengths > 0]
+                if np.any(anc_data[anc_index] == missing_int8):
+                    raise ValueError(
+                        "missing_data_character must differ from existing allele states"
+                    )
+            mut_sites = ll_ts.mutations_site
+            if mut_sites.size > 0:
+                mut_offsets = ll_ts.mutations_derived_state_offset
+                mut_lengths = np.diff(mut_offsets)
+                mask = (mut_sites >= start_site) & (mut_sites < stop_site)
+                valid = mask & (mut_lengths > 0)
+                if np.any(valid):
+                    mut_start = mut_offsets[:-1][valid]
+                    derived_chars = ll_ts.mutations_derived_state[mut_start]
+                    if np.any(derived_chars == missing_int8):
+                        raise ValueError(
+                            "missing_data_character must differ from existing allele "
+                            "states"
+                        )
 
         if samples is None:
             sample_nodes = self.samples()
@@ -5279,9 +5311,6 @@ class TreeSequence:
             sample_nodes = np.array(samples, dtype=np.int64)
         num_samples = len(sample_nodes)
 
-        want_missing = (
-            True if isolated_as_missing is None else bool(isolated_as_missing)
-        )
         if want_missing and samples is not None and num_samples > 0:
             flags = self.nodes_flags[sample_nodes]
             if np.any((flags & NODE_IS_SAMPLE) == 0):
@@ -5294,19 +5323,20 @@ class TreeSequence:
         if num_samples == 0 or num_sites == 0:
             return H, (start_site, stop_site - 1)
 
-        missing_int8 = ord(missing_data_character)
+        # For now deal with missing data using the variants iterator
         missing_mask = None
         if want_missing:
-            missing_mask = np.zeros((num_samples, num_sites), dtype=bool)
-
-        for var in self.variants(
-            samples=samples,
-            isolated_as_missing=isolated_as_missing,
-            left=interval.left,
-            right=interval.right,
-            copy=False,
-        ):
-            if want_missing and missing_mask is not None:
+            for var in self.variants(
+                samples=samples,
+                isolated_as_missing=isolated_as_missing,
+                left=interval.left,
+                right=interval.right,
+                copy=False,
+            ):
+                if not var.has_missing_data:
+                    continue
+                if missing_mask is None:
+                    missing_mask = np.zeros((num_samples, num_sites), dtype=bool)
                 genotypes = np.asarray(var.genotypes, dtype=np.int32)
                 missing_mask[:, var.site.id - start_site] = (
                     genotypes == tskit.MISSING_DATA
@@ -5317,8 +5347,6 @@ class TreeSequence:
                 self._ll_tree_sequence,
                 int(start_site),
                 int(stop_site),
-                isolated_as_missing=False,
-                missing_data_character=missing_data_character,
             )
         except exceptions.LibraryError as err:
             if "TSK_ERR_UNSUPPORTED_OPERATION" in str(err):
@@ -5331,7 +5359,7 @@ class TreeSequence:
             data = hap.decode(int(node))
             H[row, :] = np.frombuffer(data, dtype=np.int8, count=num_sites)
 
-        if want_missing and missing_mask is not None:
+        if missing_mask is not None:
             H[missing_mask] = missing_int8
 
         return H, (start_site, stop_site - 1)
