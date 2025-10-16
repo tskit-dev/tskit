@@ -123,6 +123,21 @@ tsk_haplotype_bitset_next(
     return start < limit ? start : limit;
 }
 
+static inline uint64_t
+tsk_haplotype_mask_from_offsets(uint32_t start_offset, uint32_t end_offset)
+{
+    if (start_offset >= end_offset) {
+        return 0;
+    }
+    if (start_offset == 0 && end_offset >= 64) {
+        return UINT64_MAX;
+    }
+    uint64_t high_mask
+        = end_offset >= 64 ? UINT64_MAX : ((UINT64_C(1) << end_offset) - 1);
+    uint64_t low_mask = start_offset == 0 ? 0 : ((UINT64_C(1) << start_offset) - 1);
+    return high_mask & ~low_mask;
+}
+
 static bool
 tsk_haplotype_find_next_uncovered(tsk_haplotype_t *self, tsk_size_t start,
     tsk_size_t end, const int32_t *interval_start, const int32_t *interval_end,
@@ -139,6 +154,7 @@ tsk_haplotype_find_next_uncovered(tsk_haplotype_t *self, tsk_size_t start,
     uint64_t start_mask = UINT64_MAX << (start & 63);
     for (; word <= last_word && word < self->num_bit_words; word++) {
         if (self->unresolved_counts[word] == 0) {
+            start_mask = UINT64_MAX;
             continue;
         }
         uint64_t word_bits = self->unresolved_bits[word];
@@ -149,26 +165,55 @@ tsk_haplotype_find_next_uncovered(tsk_haplotype_t *self, tsk_size_t start,
             uint64_t end_mask = UINT64_MAX >> (63 - ((end - 1) & 63));
             word_bits &= end_mask;
         }
+        if (word_bits == 0) {
+            start_mask = UINT64_MAX;
+            continue;
+        }
+        if (interval_count > 0) {
+            int32_t word_left = (int32_t)(word << 6);
+            int32_t word_right = word_left + 64;
+            uint64_t coverage_mask = 0;
+            for (tsk_size_t p = 0; p < interval_count; p++) {
+                int32_t interval_left = interval_start[p];
+                int32_t interval_right = interval_end[p];
+                if (interval_left >= interval_right) {
+                    continue;
+                }
+                if (interval_right <= word_left || interval_left >= word_right) {
+                    continue;
+                }
+                int32_t clipped_left
+                    = interval_left > word_left ? interval_left : word_left;
+                int32_t clipped_right
+                    = interval_right < word_right ? interval_right : word_right;
+                if ((int32_t) start > clipped_left) {
+                    clipped_left = (int32_t) start;
+                }
+                if ((int32_t) end < clipped_right) {
+                    clipped_right = (int32_t) end;
+                }
+                if (clipped_left >= clipped_right) {
+                    continue;
+                }
+                uint32_t start_offset = (uint32_t)(clipped_left - word_left);
+                uint32_t end_offset = (uint32_t)(clipped_right - word_left);
+                coverage_mask
+                    |= tsk_haplotype_mask_from_offsets(start_offset, end_offset);
+                if (coverage_mask == UINT64_MAX) {
+                    break;
+                }
+            }
+            word_bits &= ~coverage_mask;
+        }
         while (word_bits != 0) {
-            uint64_t lowest_bit = word_bits & (~word_bits + 1);
             tsk_size_t bit = tsk_haplotype_ctz64(word_bits);
-            word_bits ^= lowest_bit;
+            word_bits &= word_bits - 1;
             tsk_size_t bit_index = (word << 6) + bit;
             if (bit_index >= end) {
                 break;
             }
-            bool covered = false;
-            for (tsk_size_t p = 0; p < interval_count; p++) {
-                if (interval_start[p] <= (int32_t) bit_index
-                    && (int32_t) bit_index < interval_end[p]) {
-                    covered = true;
-                    break;
-                }
-            }
-            if (!covered) {
-                *out_index = bit_index;
-                return true;
-            }
+            *out_index = bit_index;
+            return true;
         }
         start_mask = UINT64_MAX;
     }
