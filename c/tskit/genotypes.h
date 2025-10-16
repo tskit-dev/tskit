@@ -110,6 +110,8 @@ typedef struct {
     uint64_t *unresolved_bits;
     uint64_t *initial_bits;
     tsk_size_t num_bit_words;
+    uint32_t *unresolved_counts;
+    uint32_t *initial_counts;
     bool initialised;
 } tsk_haplotype_t;
 
