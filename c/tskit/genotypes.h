@@ -103,6 +103,7 @@ typedef struct {
     uint8_t *node_mutation_states;
     tsk_id_t *child_order;
     int32_t *child_offsets;
+    int32_t *parent_edge_counts;
     int32_t *edge_start_index;
     int32_t *edge_end_index;
     tsk_id_t *edge_stack;

@@ -127,6 +127,13 @@ tsk_haplotype_build_child_index(tsk_haplotype_t *self)
     tsk_size_t num_edges = edges->num_rows;
     tsk_haplotype_edge_sort_t *sorted = NULL;
 
+    self->parent_edge_counts
+        = tsk_calloc(self->num_nodes, sizeof(*self->parent_edge_counts));
+    if (self->num_nodes > 0 && self->parent_edge_counts == NULL) {
+        ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
+        goto out;
+    }
+
     if (num_edges == 0) {
         self->child_order = NULL;
         self->child_offsets
@@ -150,6 +157,14 @@ tsk_haplotype_build_child_index(tsk_haplotype_t *self)
         sorted[j].edge_id = (tsk_id_t) j;
         sorted[j].child = edges->child[j];
         sorted[j].left = edges->left[j];
+        tsk_id_t parent = edges->parent[j];
+        if (parent >= 0 && parent < (tsk_id_t) self->num_nodes) {
+            if (self->parent_edge_counts[parent] == INT32_MAX) {
+                ret = tsk_trace_error(TSK_ERR_UNSUPPORTED_OPERATION);
+                goto out;
+            }
+            self->parent_edge_counts[parent]++;
+        }
     }
     qsort(sorted, num_edges, sizeof(*sorted), tsk_haplotype_edge_sort_cmp);
 
@@ -231,15 +246,16 @@ tsk_haplotype_build_mutation_index(tsk_haplotype_t *self)
     for (j = 0; j < self->num_nodes; j++) {
         counts[j] = self->node_mutation_offsets[j];
     }
-    for (j = 0; j < mutations->num_rows; j++) {
-        tsk_id_t node = mutations->node[j];
-        tsk_id_t site = mutations->site[j];
+    for (j = mutations->num_rows; j > 0; j--) {
+        tsk_size_t mut_index = j - 1;
+        tsk_id_t node = mutations->node[mut_index];
+        tsk_id_t site = mutations->site[mut_index];
         if (site < site_start || site >= site_stop) {
             continue;
         }
         if (node >= 0 && node < (tsk_id_t) self->num_nodes) {
-            tsk_size_t start = mutations->derived_state_offset[j];
-            tsk_size_t stop = mutations->derived_state_offset[j + 1];
+            tsk_size_t start = mutations->derived_state_offset[mut_index];
+            tsk_size_t stop = mutations->derived_state_offset[mut_index + 1];
             tsk_size_t length = stop - start;
             uint8_t allele;
 
@@ -442,11 +458,6 @@ tsk_haplotype_init(tsk_haplotype_t *self, const tsk_treeseq_t *tree_sequence,
     self->node_flags = tables->nodes.flags;
     self->site_positions = sites->position + site_start;
 
-    if (!tsk_treeseq_get_discrete_genome(tree_sequence)) {
-        ret = tsk_trace_error(TSK_ERR_UNSUPPORTED_OPERATION);
-        goto out;
-    }
-
     ret = tsk_haplotype_build_child_index(self);
     if (ret != 0) {
         goto out;
@@ -537,7 +548,10 @@ tsk_haplotype_decode(tsk_haplotype_t *self, tsk_id_t node, int8_t *haplotype)
     mut_end = self->node_mutation_offsets[node + 1];
     for (int32_t m = mut_start; m < mut_end; m++) {
         int32_t site = self->node_mutation_sites[m];
-        if (site >= 0 && site < self->num_sites) {
+        if (site >= 0 && site < self->num_sites
+            && tsk_haplotype_bitset_next(
+                   bits, self->num_bit_words, (tsk_size_t) site, (tsk_size_t) site + 1)
+                   == (tsk_size_t) site) {
             haplotype[site] = (int8_t) self->node_mutation_states[m];
             tsk_haplotype_bitset_clear(bits, (tsk_size_t) site);
         }
@@ -630,9 +644,6 @@ tsk_haplotype_decode(tsk_haplotype_t *self, tsk_id_t node, int8_t *haplotype)
                 idx = tsk_haplotype_bitset_next(
                     bits, self->num_bit_words, idx + 1, (tsk_size_t) interval_end);
             } else {
-                if (self->isolated_as_missing) {
-                    haplotype[idx] = self->missing_char;
-                }
                 tsk_haplotype_bitset_clear(bits, idx);
                 idx = tsk_haplotype_bitset_next(
                     bits, self->num_bit_words, idx, (tsk_size_t) interval_end);
@@ -640,23 +651,19 @@ tsk_haplotype_decode(tsk_haplotype_t *self, tsk_id_t node, int8_t *haplotype)
         }
     }
 
-    if (self->isolated_as_missing) {
-        idx = tsk_haplotype_bitset_next(
-            bits, self->num_bit_words, 0, (tsk_size_t) self->num_sites);
-        while (idx < (tsk_size_t) self->num_sites) {
+    bool has_incoming = self->child_offsets[node + 1] != self->child_offsets[node];
+    bool has_outgoing
+        = self->parent_edge_counts != NULL && self->parent_edge_counts[node] > 0;
+    bool mark_missing = self->isolated_as_missing && !(has_incoming || has_outgoing);
+    idx = tsk_haplotype_bitset_next(
+        bits, self->num_bit_words, 0, (tsk_size_t) self->num_sites);
+    while (idx < (tsk_size_t) self->num_sites) {
+        if (mark_missing) {
             haplotype[idx] = self->missing_char;
-            tsk_haplotype_bitset_clear(bits, idx);
-            idx = tsk_haplotype_bitset_next(
-                bits, self->num_bit_words, idx, (tsk_size_t) self->num_sites);
         }
-    } else {
+        tsk_haplotype_bitset_clear(bits, idx);
         idx = tsk_haplotype_bitset_next(
-            bits, self->num_bit_words, 0, (tsk_size_t) self->num_sites);
-        while (idx < (tsk_size_t) self->num_sites) {
-            tsk_haplotype_bitset_clear(bits, idx);
-            idx = tsk_haplotype_bitset_next(
-                bits, self->num_bit_words, idx, (tsk_size_t) self->num_sites);
-        }
+            bits, self->num_bit_words, idx, (tsk_size_t) self->num_sites);
     }
 
     return 0;
@@ -674,6 +681,7 @@ tsk_haplotype_free(tsk_haplotype_t *self)
     tsk_safe_free(self->node_mutation_states);
     tsk_safe_free(self->child_order);
     tsk_safe_free(self->child_offsets);
+    tsk_safe_free(self->parent_edge_counts);
     tsk_safe_free(self->edge_start_index);
     tsk_safe_free(self->edge_end_index);
     tsk_safe_free(self->edge_stack);
