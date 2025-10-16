@@ -212,7 +212,7 @@ tsk_haplotype_build_mutation_index(tsk_haplotype_t *self)
     }
     self->node_mutation_offsets[0] = 0;
     for (j = 0; j < self->num_nodes; j++) {
-        total_mutations += counts[j];
+        total_mutations += (tsk_size_t) counts[j];
         if (total_mutations > INT32_MAX) {
             ret = tsk_trace_error(TSK_ERR_UNSUPPORTED_OPERATION);
             goto out;
@@ -281,7 +281,7 @@ tsk_haplotype_build_ancestral_states(tsk_haplotype_t *self)
     }
 
     self->ancestral_states
-        = tsk_malloc(self->num_sites * sizeof(*self->ancestral_states));
+        = tsk_malloc((tsk_size_t) self->num_sites * sizeof(*self->ancestral_states));
     if (self->ancestral_states == NULL) {
         return tsk_trace_error(TSK_ERR_NO_MEMORY);
     }
