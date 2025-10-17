@@ -671,3 +671,163 @@ def test_jit_ancestral_edges(ts):
         a1 = ancestral_edges(numba_ts, u)
         a2 = ancestral_edges_tskit(ts, u)
         nt.assert_array_equal(a1, a2)
+
+
+def build_alignment_example():
+    tables = tskit.TableCollection(sequence_length=3)
+    tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)  # 0
+    tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)  # 1
+    tables.nodes.add_row(flags=0, time=1)  # 2
+    tables.edges.add_row(0, 3, parent=2, child=0)
+    tables.edges.add_row(0, 3, parent=2, child=1)
+    tables.sites.add_row(0, "A")
+    tables.mutations.add_row(site=0, node=2, derived_state="G")
+    tables.sites.add_row(1, "A")
+    tables.mutations.add_row(site=1, node=0, derived_state="C")
+    tables.sites.add_row(2, "A")
+    tables.mutations.add_row(site=2, node=1, derived_state="T")
+    tables.sort()
+    return tables.tree_sequence()
+
+
+def build_missing_alignment_example():
+    tables = tskit.TableCollection(sequence_length=3)
+    tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)  # 0 isolated
+    tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)  # 1
+    tables.nodes.add_row(flags=0, time=1)  # ancestor for sample 1
+    tables.edges.add_row(0, 3, parent=2, child=1)
+    tables.sites.add_row(0, "A")
+    tables.sites.add_row(1, "A")
+    tables.mutations.add_row(site=1, node=2, derived_state="T")
+    tables.sites.add_row(2, "A")
+    tables.sort()
+    return tables.tree_sequence()
+
+
+def build_internal_sample_example():
+    tables = tskit.TableCollection(sequence_length=3)
+    tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)  # 0
+    tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=1)  # 1 internal sample
+    tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)  # 2
+    tables.nodes.add_row(flags=0, time=2)  # 3 root
+    tables.edges.add_row(0, 3, parent=1, child=0)
+    tables.edges.add_row(0, 3, parent=3, child=1)
+    tables.edges.add_row(0, 3, parent=3, child=2)
+    tables.sites.add_row(0, "A")
+    tables.mutations.add_row(site=0, node=3, derived_state="G")
+    tables.sites.add_row(1, "A")
+    tables.mutations.add_row(site=1, node=1, derived_state="C")
+    tables.sites.add_row(2, "A")
+    tables.mutations.add_row(site=2, node=0, derived_state="T")
+    tables.sort()
+    return tables.tree_sequence()
+
+
+def build_overlapping_edges_example():
+    tables = tskit.TableCollection(sequence_length=4)
+    tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)  # 0
+    tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)  # 1
+    tables.nodes.add_row(flags=0, time=1)  # 2
+    tables.nodes.add_row(flags=0, time=1)  # 3
+    tables.nodes.add_row(flags=0, time=2)  # 4 root
+    tables.edges.add_row(0, 2, parent=2, child=0)
+    tables.edges.add_row(2, 4, parent=3, child=0)
+    tables.edges.add_row(0, 4, parent=3, child=1)
+    tables.edges.add_row(0, 4, parent=4, child=2)
+    tables.edges.add_row(0, 4, parent=4, child=3)
+    tables.sites.add_row(1, "A")
+    tables.mutations.add_row(site=0, node=2, derived_state="G")
+    tables.sites.add_row(3, "A")
+    tables.mutations.add_row(site=1, node=3, derived_state="T")
+    tables.sort()
+    return tables.tree_sequence()
+
+
+def build_deep_mutation_example():
+    tables = tskit.TableCollection(sequence_length=2)
+    tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)  # 0
+    tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)  # 1
+    tables.nodes.add_row(flags=0, time=1)  # 2
+    tables.nodes.add_row(flags=0, time=2)  # 3
+    tables.nodes.add_row(flags=0, time=3)  # 4 root
+    tables.edges.add_row(0, 2, parent=2, child=0)
+    tables.edges.add_row(0, 2, parent=4, child=1)
+    tables.edges.add_row(0, 2, parent=3, child=2)
+    tables.edges.add_row(0, 2, parent=4, child=3)
+    tables.sites.add_row(0, "A")
+    m0 = tables.mutations.add_row(site=0, node=4, derived_state="C")
+    m1 = tables.mutations.add_row(site=0, node=3, derived_state="G", parent=m0)
+    tables.mutations.add_row(site=0, node=2, derived_state="T", parent=m1)
+    tables.sort()
+    return tables.tree_sequence()
+
+
+def build_multiple_roots_example():
+    tables = tskit.TableCollection(sequence_length=3)
+    tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)  # 0
+    tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)  # 1
+    tables.nodes.add_row(flags=0, time=1)  # 2 root A
+    tables.nodes.add_row(flags=0, time=1)  # 3 root B
+    tables.edges.add_row(0, 3, parent=2, child=0)
+    tables.edges.add_row(0, 3, parent=3, child=1)
+    tables.sites.add_row(0, "A")
+    tables.mutations.add_row(site=0, node=2, derived_state="G")
+    tables.sites.add_row(2, "A")
+    tables.mutations.add_row(site=1, node=3, derived_state="T")
+    tables.sort()
+    return tables.tree_sequence()
+
+
+def _check_alignments(ts):
+    expected = list(ts.haplotypes())
+    sites = list(ts.sites())
+    adjusted = []
+    for hap in expected:
+        chars = list(hap)
+        for j, c in enumerate(chars):
+            if c == "N":
+                chars[j] = sites[j].ancestral_state
+        adjusted.append("".join(chars))
+    numba_ts = jit_numba.jitwrap(ts)
+    observed = list(jit_numba.alignments(numba_ts))
+    samples = [node for node, _ in observed]
+    haplotypes = [hap for _, hap in observed]
+    assert samples == list(ts.samples())
+    assert haplotypes == adjusted
+
+
+def test_jit_alignments_basic():
+    ts = build_alignment_example()
+    _check_alignments(ts)
+
+
+def test_jit_alignments_missing_data():
+    ts = build_missing_alignment_example()
+    _check_alignments(ts)
+
+
+def test_jit_alignments_internal_sample():
+    ts = build_internal_sample_example()
+    _check_alignments(ts)
+
+
+def test_jit_alignments_overlapping_edges():
+    ts = build_overlapping_edges_example()
+    _check_alignments(ts)
+
+
+def test_jit_alignments_deep_mutations():
+    ts = build_deep_mutation_example()
+    _check_alignments(ts)
+
+
+def test_jit_alignments_multiple_roots():
+    ts = build_multiple_roots_example()
+    _check_alignments(ts)
+
+
+def test_jit_alignments_msprime_example():
+    ts = msprime.sim_ancestry(5, sequence_length=8, ploidy=1, random_seed=5)
+    ts = msprime.sim_mutations(ts, rate=0.5, random_seed=13)
+    assert ts.discrete_genome
+    _check_alignments(ts)

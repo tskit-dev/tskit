@@ -672,3 +672,298 @@ def jitwrap(ts):
     )
 
     return numba_ts
+
+
+@numba.njit
+def _bitset_init(bitset, num_sites):
+    # Initialise all bits to 1 (meaning "unresolved") and mask any unused bits
+    # in the final word when the number of sites is not a multiple of 64.
+    n_words = bitset.shape[0]
+    all_bits = np.uint64((1 << 64) - 1)
+    for w in range(n_words):
+        bitset[w] = all_bits
+    if n_words > 0:
+        excess = n_words * 64 - num_sites
+        if excess > 0:
+            mask = all_bits >> excess
+            bitset[n_words - 1] = mask
+
+
+@numba.njit
+def _bitset_clear(bitset, idx):
+    word = idx >> 6
+    bit = np.uint64(1) << (idx & 63)
+    bitset[word] &= ~bit
+
+
+@numba.njit
+def _bitset_is_set(bitset, idx):
+    word = idx >> 6
+    bit = np.uint64(1) << (idx & 63)
+    return (bitset[word] & bit) != 0
+
+
+@numba.njit
+def _ctz64(x):
+    count = 0
+    while (x & 1) == 0:
+        x >>= 1
+        count += 1
+    return count
+
+
+@numba.njit
+def _bitset_next(bitset, start, num_sites):
+    # Return the index of the first set bit >= start, or num_sites if none.
+    if start >= num_sites:
+        return num_sites
+    n_words = bitset.shape[0]
+    word = start >> 6
+    offset = start & 63
+    if word >= n_words:
+        return num_sites
+    mask = np.uint64(-1) << offset
+    value = bitset[word] & mask
+    while value == 0:
+        word += 1
+        if word >= n_words:
+            return num_sites
+        value = bitset[word]
+    return (word << 6) + _ctz64(value)
+
+
+def _build_node_mutation_index(numba_ts):
+    num_nodes = numba_ts.num_nodes
+    num_mutations = numba_ts.num_mutations
+
+    counts = np.zeros(num_nodes, dtype=np.int32)
+    mutations_node = numba_ts.mutations_node
+    mutations_site = numba_ts.mutations_site
+    mutations_derived_state = numba_ts.mutations_derived_state
+
+    for mut_id in range(num_mutations - 1, -1, -1):
+        node = mutations_node[mut_id]
+        if 0 <= node < num_nodes:
+            counts[node] += 1
+
+    offsets = np.zeros(num_nodes + 1, dtype=np.int32)
+    total = 0
+    for u in range(num_nodes):
+        offsets[u] = total
+        total += counts[u]
+    offsets[num_nodes] = total
+
+    node_sites = np.empty(total, dtype=np.int32)
+    node_alleles = np.empty(total, dtype=np.uint8)
+    insert_pos = offsets.copy()
+
+    for mut_id in range(num_mutations - 1, -1, -1):
+        node = mutations_node[mut_id]
+        if 0 <= node < num_nodes:
+            site = mutations_site[mut_id]
+            allele = mutations_derived_state[mut_id]
+            if len(allele) != 1:
+                raise ValueError("Expected single-character derived alleles")
+            pos = insert_pos[node]
+            node_sites[pos] = site
+            node_alleles[pos] = ord(allele[0])
+            insert_pos[node] += 1
+
+    return node_sites, node_alleles, offsets
+
+
+def _compute_next_site_index(numba_ts, sequence_length):
+    num_sites = numba_ts.num_sites
+    next_site = np.empty(sequence_length + 1, dtype=np.int32)
+    site_positions = numba_ts.sites_position.astype(np.int64)
+    j = 0
+    for pos in range(sequence_length + 1):
+        while j < num_sites and site_positions[j] < pos:
+            j += 1
+        next_site[pos] = j
+    return next_site
+
+
+@numba.njit
+def _node_haplotype(
+    numba_ts,
+    parent_index,
+    edge_start_index,
+    edge_end_index,
+    next_site_index,
+    node_mut_sites,
+    node_mut_alleles,
+    node_mut_offsets,
+    ancestral_codes,
+    node,
+    hap,
+    unresolved_bits,
+    stack_edges,
+    stack_start,
+    stack_end,
+    parent_interval_start,
+    parent_interval_end,
+):
+    num_sites = ancestral_codes.shape[0]
+    if num_sites == 0:
+        return
+    for j in range(num_sites):
+        hap[j] = ancestral_codes[j]
+    _bitset_init(unresolved_bits, num_sites)
+
+    edges_parent = numba_ts.edges_parent
+    edge_index = parent_index.edge_index
+    index_range = parent_index.index_range
+
+    stack_top = 0
+
+    mut_start = node_mut_offsets[node]
+    mut_stop = node_mut_offsets[node + 1]
+    for m in range(mut_start, mut_stop):
+        site_idx = node_mut_sites[m]
+        if site_idx >= num_sites:
+            continue
+        if _bitset_is_set(unresolved_bits, site_idx):
+            hap[site_idx] = node_mut_alleles[m]
+            _bitset_clear(unresolved_bits, site_idx)
+
+    start_edge, stop_edge = index_range[node, 0], index_range[node, 1]
+    for i in range(start_edge, stop_edge):
+        edge = edge_index[i]
+        start_idx = edge_start_index[edge]
+        end_idx = edge_end_index[edge]
+        if start_idx >= end_idx:
+            continue
+        unresolved = _bitset_next(unresolved_bits, start_idx, num_sites)
+        if unresolved < end_idx:
+            stack_edges[stack_top] = edge
+            stack_start[stack_top] = start_idx
+            stack_end[stack_top] = end_idx
+            stack_top += 1
+
+    while stack_top > 0:
+        stack_top -= 1
+        edge = stack_edges[stack_top]
+        interval_start = stack_start[stack_top]
+        interval_end = stack_end[stack_top]
+        ancestor = edges_parent[edge]
+
+        mut_start = node_mut_offsets[ancestor]
+        mut_stop = node_mut_offsets[ancestor + 1]
+        for m in range(mut_start, mut_stop):
+            site_idx = node_mut_sites[m]
+            if interval_start <= site_idx < interval_end:
+                if _bitset_is_set(unresolved_bits, site_idx):
+                    hap[site_idx] = node_mut_alleles[m]
+                    _bitset_clear(unresolved_bits, site_idx)
+
+        parent_count = 0
+        start_edge, stop_edge = index_range[ancestor, 0], index_range[ancestor, 1]
+        for idx in range(start_edge, stop_edge):
+            parent_edge = edge_index[idx]
+            parent_start = edge_start_index[parent_edge]
+            parent_end = edge_end_index[parent_edge]
+            if parent_start < interval_start:
+                parent_start = interval_start
+            if parent_end > interval_end:
+                parent_end = interval_end
+            if parent_start >= parent_end:
+                continue
+            unresolved = _bitset_next(unresolved_bits, parent_start, num_sites)
+            if unresolved < parent_end:
+                # Push this parent edge because it still covers unresolved sites.
+                stack_edges[stack_top] = parent_edge
+                stack_start[stack_top] = parent_start
+                stack_end[stack_top] = parent_end
+                stack_top += 1
+                parent_interval_start[parent_count] = parent_start
+                parent_interval_end[parent_count] = parent_end
+                parent_count += 1
+
+        idx = _bitset_next(unresolved_bits, interval_start, num_sites)
+        while idx < interval_end:
+            needs_parent = False
+            for j in range(parent_count):
+                if parent_interval_start[j] <= idx < parent_interval_end[j]:
+                    needs_parent = True
+                    break
+            if needs_parent:
+                # This site is still covered by a parent edge that hasn't been
+                # processed yet, so leave it for that ancestor.
+                idx = _bitset_next(unresolved_bits, idx + 1, num_sites)
+            else:
+                # No higher ancestor will supply a mutation, so the ancestral
+                # allele stands and we can mark the site resolved.
+                _bitset_clear(unresolved_bits, idx)
+                idx = _bitset_next(unresolved_bits, idx, num_sites)
+
+
+def alignments(numba_ts):
+    num_sites = numba_ts.num_sites
+    sequence_length = numba_ts.sequence_length
+    if not float(sequence_length).is_integer():
+        raise ValueError("This prototype requires discrete genomic coordinates")
+    sequence_length = int(sequence_length)
+
+    ancestral_codes = np.empty(num_sites, dtype=np.uint8)
+    for site_id in range(num_sites):
+        allele = numba_ts.sites_ancestral_state[site_id]
+        if len(allele) != 1:
+            raise ValueError("Expected single-character ancestral alleles")
+        ancestral_codes[site_id] = ord(allele[0])
+
+    node_mut_sites, node_mut_alleles, node_mut_offsets = _build_node_mutation_index(
+        numba_ts
+    )
+    next_site_index = _compute_next_site_index(numba_ts, sequence_length)
+    parent_index = numba_ts.parent_index()
+    edge_start_index = np.empty(numba_ts.num_edges, dtype=np.int32)
+    edge_end_index = np.empty(numba_ts.num_edges, dtype=np.int32)
+    seq_len = int(sequence_length)
+    for e in range(numba_ts.num_edges):
+        left = int(numba_ts.edges_left[e])
+        if left < 0:
+            left = 0
+        if left > seq_len:
+            left = seq_len
+        right = int(numba_ts.edges_right[e])
+        if right < 0:
+            right = 0
+        if right > seq_len:
+            right = seq_len
+        edge_start_index[e] = next_site_index[left]
+        edge_end_index[e] = next_site_index[right]
+
+    hap = np.empty(num_sites, dtype=np.uint8)
+    bitset_size = (num_sites + 63) // 64
+    unresolved_bits = np.empty(bitset_size, dtype=np.uint64)
+    stack_edges = np.empty(numba_ts.num_edges, dtype=np.int32)
+    stack_start = np.empty(numba_ts.num_edges, dtype=np.int32)
+    stack_end = np.empty(numba_ts.num_edges, dtype=np.int32)
+    parent_interval_start = np.empty(numba_ts.num_edges, dtype=np.int32)
+    parent_interval_end = np.empty(numba_ts.num_edges, dtype=np.int32)
+
+    nodes_flags = numba_ts.nodes_flags
+    for node in range(numba_ts.num_nodes):
+        if nodes_flags[node] & NODE_IS_SAMPLE:
+            # Decode the haplotype for this sample node using the ancestor walk.
+            _node_haplotype(
+                numba_ts,
+                parent_index,
+                edge_start_index,
+                edge_end_index,
+                next_site_index,
+                node_mut_sites,
+                node_mut_alleles,
+                node_mut_offsets,
+                ancestral_codes,
+                node,
+                hap,
+                unresolved_bits,
+                stack_edges,
+                stack_start,
+                stack_end,
+                parent_interval_start,
+                parent_interval_end,
+            )
+            yield int(node), hap.tobytes().decode("ascii")

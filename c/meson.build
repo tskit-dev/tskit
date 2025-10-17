@@ -113,6 +113,9 @@ if not meson.is_subproject()
       executable('tree_traversal',
           sources: ['examples/tree_traversal.c'], 
           link_with: [tskit_lib], dependencies: lib_deps)
+      executable('haplotype_benchmark',
+          sources: ['examples/haplotype_benchmark.c'],
+          link_with: [tskit_lib], dependencies: lib_deps)
       executable('streaming',
           sources: ['examples/streaming.c'], 
           link_with: [tskit_lib], dependencies: lib_deps)
