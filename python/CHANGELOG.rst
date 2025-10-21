@@ -59,6 +59,11 @@
   (ensuring that parent mutations occur before children), then node, then
   their original order in the tables. (:user:`benjeffery`, :pr:`3257`, :issue:`3253`)
 
+- Fix bug in ``TreeSequence.genetic_relatedness_vector`` that previously ignored
+    ``span_normalise``: previously, ``span_normalise`` was always set to ``False``;
+    now the default is ``True`` in agreement with other statistics, so the returned
+    values will change. (:user:`petrelharp`, :pr:`3300`, :issue:`3241`)
+
 - Fix bug in ``TreeSequence.pair_coalescence_counts`` when ``span_normalise=True``
   and a window breakpoint falls within an internal missing interval.
   (:user:`nspope`, :pr:`3176`, :issue:`3175`)

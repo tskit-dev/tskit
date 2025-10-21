@@ -10771,6 +10771,9 @@ tsk_matvec_calculator_run(tsk_matvec_calculator_t *self)
             tsk_matvec_calculator_print_state(self, tsk_get_debug_stream());
         }
     }
+    if (!!(self->options & TSK_STAT_SPAN_NORMALISE)) {
+        span_normalise(self->num_windows, windows, out_size, self->result);
+    }
 
     /* out: */
     return ret;

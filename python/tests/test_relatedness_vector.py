@@ -57,6 +57,7 @@ class RelatednessVector:
         verbosity=0,
         internal_checks=False,
         centre=True,
+        span_normalise=True,
     ):
         self.sample_weights = np.asarray(sample_weights, dtype=np.float64)
         self.num_weights = self.sample_weights.shape[1]
@@ -80,6 +81,7 @@ class RelatednessVector:
         self.verbosity = verbosity
         self.internal_checks = internal_checks
         self.centre = centre
+        self.span_normalise = span_normalise
 
         if self.centre:
             self.sample_weights -= np.mean(self.sample_weights, axis=0)
@@ -285,6 +287,12 @@ class RelatednessVector:
         if self.centre:
             for m in range(num_windows):
                 out[m] -= np.mean(out[m], axis=0)
+
+        if self.span_normalise:
+            window_lengths = np.diff(self.windows)
+            for m in range(num_windows):
+                out[m] /= window_lengths[m]
+
         return out
 
 
@@ -326,7 +334,7 @@ def relatedness_vector(ts, sample_weights, windows=None, nodes=None, **kwargs):
     return out
 
 
-def relatedness_matrix(ts, windows, centre, nodes=None):
+def relatedness_matrix(ts, windows, centre, nodes=None, span_normalise=True):
     if nodes is None:
         keep_rows = np.arange(ts.num_samples)
         keep_cols = np.arange(ts.num_samples)
@@ -356,7 +364,7 @@ def relatedness_matrix(ts, windows, centre, nodes=None):
         indexes=[(i, j) for i in range(ts.num_samples) for j in range(ts.num_samples)],
         windows=use_windows,
         mode="branch",
-        span_normalise=False,
+        span_normalise=span_normalise,
         proportion=False,
         centre=centre,
     )
@@ -375,7 +383,15 @@ def relatedness_matrix(ts, windows, centre, nodes=None):
 
 
 def verify_relatedness_vector(
-    ts, w, windows, *, internal_checks=False, verbosity=0, centre=True, nodes=None
+    ts,
+    w,
+    windows,
+    *,
+    internal_checks=False,
+    verbosity=0,
+    centre=True,
+    nodes=None,
+    span_normalise=True,
 ):
     R1 = relatedness_vector(
         ts,
@@ -385,10 +401,13 @@ def verify_relatedness_vector(
         verbosity=verbosity,
         centre=centre,
         nodes=nodes,
+        span_normalise=span_normalise,
     )
     nrows = ts.num_samples if nodes is None else len(nodes)
     wvec = w if len(w.shape) > 1 else w[:, np.newaxis]
-    Sigma = relatedness_matrix(ts, windows=windows, centre=centre, nodes=nodes)
+    Sigma = relatedness_matrix(
+        ts, windows=windows, centre=centre, nodes=nodes, span_normalise=span_normalise
+    )
     if windows is None:
         R2 = Sigma.dot(wvec)
     else:
@@ -396,7 +415,12 @@ def verify_relatedness_vector(
         for k in range(len(windows) - 1):
             R2[k] = Sigma[k].dot(wvec)
     R3 = ts.genetic_relatedness_vector(
-        w, windows=windows, mode="branch", centre=centre, nodes=nodes
+        w,
+        windows=windows,
+        mode="branch",
+        centre=centre,
+        nodes=nodes,
+        span_normalise=span_normalise,
     )
     if verbosity > 0:
         print(ts.draw_text())
@@ -425,6 +449,7 @@ def check_relatedness_vector(
     verbosity=0,
     seed=123,
     centre=True,
+    span_normalise=True,
     do_nodes=True,
 ):
     rng = np.random.default_rng(seed=seed)
@@ -456,6 +481,7 @@ def check_relatedness_vector(
                 verbosity=verbosity,
                 centre=centre,
                 nodes=nodes,
+                span_normalise=span_normalise,
             )
     return R
 
@@ -568,8 +594,9 @@ class TestRelatednessVector:
     @pytest.mark.parametrize("n", [2, 3, 5])
     @pytest.mark.parametrize("seed", range(1, 4))
     @pytest.mark.parametrize("centre", (True, False))
+    @pytest.mark.parametrize("span_normalise", (True, False))
     @pytest.mark.parametrize("num_windows", (0, 1, 2, 3))
-    def test_small_internal_checks(self, n, seed, centre, num_windows):
+    def test_small_internal_checks(self, n, seed, centre, span_normalise, num_windows):
         ts = msprime.sim_ancestry(
             n,
             ploidy=1,
@@ -579,14 +606,19 @@ class TestRelatednessVector:
         )
         assert ts.num_trees >= 2
         check_relatedness_vector(
-            ts, num_windows=num_windows, internal_checks=True, centre=centre
+            ts,
+            num_windows=num_windows,
+            internal_checks=True,
+            centre=centre,
+            span_normalise=span_normalise,
         )
 
     @pytest.mark.parametrize("n", [2, 3, 5, 15])
     @pytest.mark.parametrize("seed", range(1, 5))
     @pytest.mark.parametrize("centre", (True, False))
+    @pytest.mark.parametrize("span_normalise", (True, False))
     @pytest.mark.parametrize("num_windows", (0, 1, 2, 3))
-    def test_simple_sims(self, n, seed, centre, num_windows):
+    def test_simple_sims(self, n, seed, centre, span_normalise, num_windows):
         ts = msprime.sim_ancestry(
             n,
             ploidy=1,
@@ -597,7 +629,11 @@ class TestRelatednessVector:
         )
         assert ts.num_trees >= 2
         check_relatedness_vector(
-            ts, num_windows=num_windows, centre=centre, verbosity=0
+            ts,
+            num_windows=num_windows,
+            centre=centre,
+            verbosity=0,
+            span_normalise=span_normalise,
         )
 
     def test_simple_sims_windows(self):
@@ -613,17 +649,41 @@ class TestRelatednessVector:
         assert ts.num_trees >= 2
         W = np.linspace(0, 1, 2 * ts.num_samples).reshape((ts.num_samples, 2))
         kwargs = {"centre": False, "mode": "branch"}
-        total = ts.genetic_relatedness_vector(W, **kwargs)
+        total = ts.genetic_relatedness_vector(W, span_normalise=False, **kwargs)
         for windows in [[0, L], [0, L / 3, L / 2, L]]:
-            pieces = ts.genetic_relatedness_vector(W, windows=windows, **kwargs)
+            pieces = ts.genetic_relatedness_vector(
+                W, windows=windows, span_normalise=False, **kwargs
+            )
             np.testing.assert_allclose(total, pieces.sum(axis=0), atol=1e-13)
             assert len(pieces) == len(windows) - 1
             for k in range(len(pieces)):
                 piece = ts.genetic_relatedness_vector(
-                    W, windows=windows[k : k + 2], **kwargs
+                    W, windows=windows[k : k + 2], span_normalise=False, **kwargs
                 )
                 assert piece.shape[0] == 1
                 np.testing.assert_allclose(piece[0], pieces[k], atol=1e-13)
+
+    @pytest.mark.parametrize("mode", ("branch",))
+    def test_simple_span_normalise(self, mode):
+        ts = msprime.sim_ancestry(
+            4,
+            ploidy=1,
+            population_size=20,
+            sequence_length=100,
+            recombination_rate=0.01,
+            random_seed=123,
+        )
+        assert ts.num_trees >= 2
+        x = np.linspace(0, 1, ts.num_samples)
+        w = np.linspace(0, ts.sequence_length, 11)[[0, 3, 4, -1]]
+        a = ts.genetic_relatedness_vector(x, windows=w, mode=mode)  # default is True
+        ax = ts.genetic_relatedness_vector(x, windows=w, mode=mode, span_normalise=True)
+        assert np.all(ax == a)
+        b = ts.genetic_relatedness_vector(x, windows=w, span_normalise=False, mode=mode)
+        assert a.shape == b.shape
+        dw = np.diff(w)
+        for aa, bb, ww in zip(a, b, dw, strict=True):
+            assert np.allclose(aa * ww, bb)
 
     @pytest.mark.parametrize("n", [2, 3, 5, 15])
     @pytest.mark.parametrize("centre", (True, False))
@@ -680,9 +740,15 @@ class TestRelatednessVector:
 
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
     @pytest.mark.parametrize("centre", (True, False))
-    def test_suite_examples(self, ts, centre):
+    def test_suite_examples_centre(self, ts, centre):
         if ts.num_samples > 0:
             check_relatedness_vector(ts, centre=centre)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    @pytest.mark.parametrize("span_normalise", (True, False))
+    def test_suite_examples_span_normalise(self, ts, span_normalise):
+        if ts.num_samples > 0:
+            check_relatedness_vector(ts, span_normalise=span_normalise)
 
     @pytest.mark.parametrize("n", [2, 3, 10])
     def test_dangling_on_samples(self, n):
@@ -750,21 +816,21 @@ def pca(ts, windows, centre, samples=None, individuals=None, time_windows=None):
     if drop_dimension:
         windows = [0, ts.sequence_length]
     if time_windows is None:
-        Sigma = relatedness_matrix(ts=ts, windows=windows, centre=False)[:, ii, :][
-            :, :, ii
-        ]
+        Sigma = relatedness_matrix(
+            ts=ts, windows=windows, centre=False, span_normalise=False
+        )[:, ii, :][:, :, ii]
     else:
         assert time_windows[0] < time_windows[1]
         ts_low, ts_high = (
             ts.decapitate(time_windows[0]),
             ts.decapitate(time_windows[1]),
         )
-        Sigma_low = relatedness_matrix(ts=ts_low, windows=windows, centre=False)[
-            :, ii, :
-        ][:, :, ii]
-        Sigma_high = relatedness_matrix(ts=ts_high, windows=windows, centre=False)[
-            :, ii, :
-        ][:, :, ii]
+        Sigma_low = relatedness_matrix(
+            ts=ts_low, windows=windows, centre=False, span_normalise=False
+        )[:, ii, :][:, :, ii]
+        Sigma_high = relatedness_matrix(
+            ts=ts_high, windows=windows, centre=False, span_normalise=False
+        )[:, ii, :][:, :, ii]
         Sigma = Sigma_high - Sigma_low
     if individuals is not None:
         ni = len(individuals)

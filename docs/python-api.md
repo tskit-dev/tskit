@@ -322,6 +322,7 @@ Single site
       TreeSequence.genetic_relatedness
       TreeSequence.genetic_relatedness_weighted
       TreeSequence.genetic_relatedness_vector
+      TreeSequence.genetic_relatedness_matrix
       TreeSequence.general_stat
       TreeSequence.segregating_sites
       TreeSequence.sample_count_stat
