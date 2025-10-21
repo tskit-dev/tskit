@@ -2068,7 +2068,7 @@ test_empty_genetic_relatedness_vector(void)
     int ret;
     tsk_treeseq_t ts;
     tsk_size_t num_samples;
-    double *weights, *result;
+    double *weights, *result, *result2;
     tsk_size_t j;
     tsk_size_t num_weights = 2;
     double windows[] = { 0, 0 };
@@ -2079,6 +2079,7 @@ test_empty_genetic_relatedness_vector(void)
     windows[1] = tsk_treeseq_get_sequence_length(&ts);
     weights = tsk_malloc(num_weights * num_samples * sizeof(double));
     result = tsk_malloc(num_weights * num_samples * sizeof(double));
+    result2 = tsk_malloc(num_weights * num_samples * sizeof(double));
     for (j = 0; j < num_samples; j++) {
         weights[j] = 1.0;
     }
@@ -2099,10 +2100,17 @@ test_empty_genetic_relatedness_vector(void)
     ret = tsk_treeseq_genetic_relatedness_vector(
         &ts, num_weights, weights, 1, windows, num_samples, ts.samples, result, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_treeseq_genetic_relatedness_vector(&ts, num_weights, weights, 1, windows,
+        num_samples, ts.samples, result2, TSK_STAT_SPAN_NORMALISE);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    for (j = 0; j < num_samples * num_weights; j++) {
+        CU_ASSERT_EQUAL_FATAL(result[j] / (windows[1] - windows[0]), result2[j]);
+    }
 
     tsk_treeseq_free(&ts);
     free(weights);
     free(result);
+    free(result2);
 }
 
 static void
