@@ -785,12 +785,6 @@ than 0.
 @{
 */
 /**
-Genotypes were requested for non-samples at the same time
-as asking that isolated nodes be marked as missing. This is not
-supported.
-*/
-#define TSK_ERR_MUST_IMPUTE_NON_SAMPLES                            -1100
-/**
 A user-specified allele map was used, but didn't contain an allele
 found in the tree sequence.
 */

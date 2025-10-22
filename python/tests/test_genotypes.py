@@ -1283,8 +1283,8 @@ class TestBinaryTreeExample:
 
     def test_non_sample_samples(self):
         ts = self.ts()
-        with pytest.raises(tskit.LibraryError, match="MUST_IMPUTE_NON_SAMPLES"):
-            list(ts.alignments(samples=[4]))
+        alignment = list(ts.alignments(samples=[4]))
+        assert alignment == ["NNANNNNNNT"]
 
     def test_alignments_missing_data_char(self):
         A = list(self.ts().alignments(missing_data_character="x"))
@@ -1307,6 +1307,23 @@ class TestBinaryTreeExample:
         assert A[0] == "01G3\x005678T"
         assert A[1] == "01A3\x005678C"
         assert A[2] == "01A3\x005678C"
+
+    def test_internal_node_missing_alignments(self):
+        tables = tskit.TableCollection(sequence_length=2)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        tables.nodes.add_row(time=1)
+        tables.nodes.add_row(time=1)
+        tables.edges.add_row(left=0, right=1, parent=2, child=0)
+        tables.edges.add_row(left=0, right=1, parent=2, child=1)
+        tables.edges.add_row(left=1, right=2, parent=3, child=0)
+        tables.edges.add_row(left=1, right=2, parent=3, child=1)
+        tables.sites.add_row(position=0, ancestral_state="A")
+        tables.sites.add_row(position=1, ancestral_state="C")
+        ts = tables.tree_sequence()
+        alignments = list(ts.alignments(samples=[2, 3]))
+        assert alignments[0] == "AN"
+        assert alignments[1] == "NC"
 
     def test_fasta_default(self):
         expected = textwrap.dedent(
