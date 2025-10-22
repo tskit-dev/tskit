@@ -9088,6 +9088,7 @@ class TreeSequence:
             mode=mode,
             centre=False,
             nodes=indices,
+            span_normalise=False,  # <- non-default!
         )[0]
         x = x - x.mean(axis=0) if centre else x
 
@@ -9118,6 +9119,7 @@ class TreeSequence:
             mode=mode,
             centre=False,
             nodes=samples,
+            span_normalise=False,  # <- non-default!
         )[0]
 
         def bincount_fn(w):
