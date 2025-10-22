@@ -72,6 +72,8 @@ appears beside the listed method.
         * {meth}`~TreeSequence.divergence`
         * {meth}`~TreeSequence.genetic_relatedness`
           {meth}`~TreeSequence.genetic_relatedness_weighted`
+          {meth}`~TreeSequence.genetic_relatedness_vector`
+          {meth}`~TreeSequence.genetic_relatedness_matrix`
         * {meth}`~TreeSequence.f4`
           {meth}`~TreeSequence.f3`
           {meth}`~TreeSequence.f2`
