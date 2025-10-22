@@ -481,6 +481,7 @@ def check_relatedness_vector(
                 verbosity=verbosity,
                 centre=centre,
                 nodes=nodes,
+                span_normalise=span_normalise,
             )
     return R
 
@@ -815,21 +816,21 @@ def pca(ts, windows, centre, samples=None, individuals=None, time_windows=None):
     if drop_dimension:
         windows = [0, ts.sequence_length]
     if time_windows is None:
-        Sigma = relatedness_matrix(ts=ts, windows=windows, centre=False)[:, ii, :][
-            :, :, ii
-        ]
+        Sigma = relatedness_matrix(
+            ts=ts, windows=windows, centre=False, span_normalise=False
+        )[:, ii, :][:, :, ii]
     else:
         assert time_windows[0] < time_windows[1]
         ts_low, ts_high = (
             ts.decapitate(time_windows[0]),
             ts.decapitate(time_windows[1]),
         )
-        Sigma_low = relatedness_matrix(ts=ts_low, windows=windows, centre=False)[
-            :, ii, :
-        ][:, :, ii]
-        Sigma_high = relatedness_matrix(ts=ts_high, windows=windows, centre=False)[
-            :, ii, :
-        ][:, :, ii]
+        Sigma_low = relatedness_matrix(
+            ts=ts_low, windows=windows, centre=False, span_normalise=False
+        )[:, ii, :][:, :, ii]
+        Sigma_high = relatedness_matrix(
+            ts=ts_high, windows=windows, centre=False, span_normalise=False
+        )[:, ii, :][:, :, ii]
         Sigma = Sigma_high - Sigma_low
     if individuals is not None:
         ni = len(individuals)
