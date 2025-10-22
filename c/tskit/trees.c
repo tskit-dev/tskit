@@ -10810,9 +10810,6 @@ tsk_treeseq_genetic_relatedness_vector(const tsk_treeseq_t *self, tsk_size_t num
         tsk_matvec_calculator_print_state(&calc, tsk_get_debug_stream());
     }
     ret = tsk_matvec_calculator_run(&calc);
-    if (ret != 0) {
-        goto out;
-    }
 out:
     tsk_matvec_calculator_free(&calc);
     return ret;
