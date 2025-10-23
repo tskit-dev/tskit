@@ -569,10 +569,6 @@ tsk_strerror_internal(int err)
             break;
 
         /* Genotype decoding errors */
-        case TSK_ERR_MUST_IMPUTE_NON_SAMPLES:
-            ret = "Cannot generate genotypes for non-samples when isolated nodes are "
-                  "considered as missing. (TSK_ERR_MUST_IMPUTE_NON_SAMPLES)";
-            break;
         case TSK_ERR_ALLELE_NOT_FOUND:
             ret = "An allele was not found in the user-specified allele map. "
                   "(TSK_ERR_ALLELE_NOT_FOUND)";

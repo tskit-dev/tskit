@@ -70,12 +70,14 @@ typedef struct {
     tsk_id_t *samples;
 
     const tsk_id_t *sample_index_map;
+    bool *sample_is_present;
     bool user_alleles;
     char *user_alleles_mem;
     tsk_id_t *traversal_stack;
     tsk_flags_t options;
     tsk_id_t *alt_samples;
     tsk_id_t *alt_sample_index_map;
+    tsk_id_t missingmess_cache_tree_index;
 
 } tsk_variant_t;
 

@@ -512,10 +512,48 @@ test_single_tree_non_samples(void)
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
         single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
-    /* It's an error to hand in non-samples without imputation turned on */
     ret = tsk_vargen_init(&vargen, &ts, samples, 2, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUST_IMPUTE_NON_SAMPLES);
-    tsk_vargen_free(&vargen);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_print_state(&vargen, _devnull);
+
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_FALSE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes[1], 0);
+    CU_ASSERT_EQUAL(var->num_alleles, 2);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
+    CU_ASSERT_EQUAL(var->site.id, 0);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 1);
+
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_FALSE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes[1], 0);
+    CU_ASSERT_EQUAL(var->genotypes[0], 1);
+    CU_ASSERT_EQUAL(var->num_alleles, 2);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
+    CU_ASSERT_EQUAL(var->site.id, 1);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 2);
+
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_FALSE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes[1], 0);
+    CU_ASSERT_EQUAL(var->num_alleles, 2);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
+    CU_ASSERT_EQUAL(var->site.id, 2);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 4);
+
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_vargen_free(&vargen);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_vargen_init(&vargen, &ts, samples, 2, NULL, TSK_ISOLATED_NOT_MISSING);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -550,6 +588,52 @@ test_single_tree_non_samples(void)
     CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
     CU_ASSERT_EQUAL(var->site.id, 2);
     CU_ASSERT_EQUAL(var->site.mutations_length, 4);
+
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_vargen_free(&vargen);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_internal_node_missing_data(void)
+{
+    int ret = 0;
+    const char *nodes = "1  0   -1   -1\n"
+                        "1  0   -1   -1\n"
+                        "0  1   -1   -1\n"
+                        "0  1   -1   -1\n";
+    const char *edges = "0  1   2   0\n"
+                        "0  1   2   1\n"
+                        "1  2   3   0\n"
+                        "1  2   3   1\n";
+    const char *sites = "0.5    0\n"
+                        "1.5    0\n";
+    tsk_treeseq_t ts;
+    tsk_vargen_t vargen;
+    tsk_variant_t *var;
+    tsk_id_t samples[] = { 2, 3 };
+
+    tsk_treeseq_from_text(&ts, 2, nodes, edges, NULL, sites, NULL, NULL, NULL, 0);
+
+    ret = tsk_vargen_init(&vargen, &ts, samples, 2, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_TRUE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->site.id, 0);
+    CU_ASSERT_EQUAL(var->genotypes[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes[1], TSK_MISSING_DATA);
+
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_TRUE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->site.id, 1);
+    CU_ASSERT_EQUAL(var->genotypes[0], TSK_MISSING_DATA);
+    CU_ASSERT_EQUAL(var->genotypes[1], 0);
 
     ret = tsk_vargen_next(&vargen, &var);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -1123,6 +1207,7 @@ main(int argc, char **argv)
         { "test_single_tree_char_alphabet", test_single_tree_char_alphabet },
         { "test_single_tree_binary_alphabet", test_single_tree_binary_alphabet },
         { "test_single_tree_non_samples", test_single_tree_non_samples },
+        { "test_internal_node_missing_data", test_internal_node_missing_data },
         { "test_single_tree_errors", test_single_tree_errors },
         { "test_single_tree_user_alleles_errors", test_single_tree_user_alleles_errors },
         { "test_single_tree_subsample", test_single_tree_subsample },
