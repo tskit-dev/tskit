@@ -216,13 +216,9 @@ tsk_variant_init(tsk_variant_t *self, const tsk_treeseq_t *tree_sequence,
     if (self->alt_samples != NULL) {
         self->traversal_stack = tsk_malloc(
             tsk_treeseq_get_num_nodes(tree_sequence) * sizeof(*self->traversal_stack));
-        if (self->traversal_stack == NULL) {
-            ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
-            goto out;
-        }
         self->sample_is_present
             = tsk_malloc(num_samples_alloc * sizeof(*self->sample_is_present));
-        if (self->sample_is_present == NULL) {
+        if (self->traversal_stack == NULL || self->sample_is_present == NULL) {
             ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
             goto out;
         }
@@ -446,17 +442,20 @@ tsk_variant_mark_missing(tsk_variant_t *self)
         tsk_memset(present, 0, self->num_samples * sizeof(*present));
 
         for (root = left_child[N]; root != TSK_NULL; root = right_sib[root]) {
-            stack[++stack_top] = root;
+            stack_top++;
+            stack[stack_top] = root;
         }
 
         while (stack_top >= 0) {
-            u = stack[stack_top--];
+            u = stack[stack_top];
+            stack_top--;
             sample_index = sample_index_map[u];
             if (sample_index != TSK_NULL) {
                 present[sample_index] = true;
             }
             for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
-                stack[++stack_top] = v;
+                stack_top++;
+                stack[stack_top] = v;
             }
         }
 
