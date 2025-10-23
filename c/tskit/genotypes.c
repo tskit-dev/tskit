@@ -134,6 +134,7 @@ tsk_variant_init(tsk_variant_t *self, const tsk_treeseq_t *tree_sequence,
     tsk_size_t num_samples_alloc;
 
     tsk_memset(self, 0, sizeof(tsk_variant_t));
+    self->missingmess_cache_tree_index = TSK_NULL;
 
     /* Set site id to NULL to indicate the variant is not decoded */
     self->site.id = TSK_NULL;
@@ -412,6 +413,55 @@ tsk_variant_update_genotypes_traversal(
     return tsk_variant_traverse(self, node, derived, tsk_variant_visit);
 }
 
+static void
+tsk_variant_update_missing_cache(tsk_variant_t *self)
+{
+    const tsk_id_t *restrict left_child = self->tree.left_child;
+    const tsk_id_t *restrict right_sib = self->tree.right_sib;
+    const tsk_id_t *restrict sample_index_map = self->sample_index_map;
+    const tsk_id_t N = self->tree.virtual_root;
+    const tsk_flags_t *restrict flags = self->tree_sequence->tables->nodes.flags;
+    bool *restrict present = self->sample_is_present;
+    tsk_id_t *restrict stack = self->traversal_stack;
+    tsk_id_t root, u, v, sample_index;
+    tsk_size_t j;
+    int stack_top;
+
+    tsk_bug_assert(self->alt_samples != NULL);
+    tsk_bug_assert(self->tree.index != TSK_NULL);
+
+    tsk_memset(present, 0, self->num_samples * sizeof(*present));
+
+    stack_top = -1;
+    for (root = left_child[N]; root != TSK_NULL; root = right_sib[root]) {
+        stack_top++;
+        stack[stack_top] = root;
+    }
+
+    while (stack_top >= 0) {
+        u = stack[stack_top];
+        stack_top--;
+        sample_index = sample_index_map[u];
+        if (sample_index != TSK_NULL) {
+            present[sample_index] = true;
+        }
+        for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
+            stack_top++;
+            stack[stack_top] = v;
+        }
+    }
+
+    for (j = 0; j < self->num_samples; j++) {
+        u = self->samples[j];
+        present[j]
+            = present[j]
+              && !((flags[u] & TSK_NODE_IS_SAMPLE) != 0
+                     && self->tree.parent[u] == TSK_NULL && left_child[u] == TSK_NULL);
+    }
+
+    self->missingmess_cache_tree_index = self->tree.index;
+}
+
 static tsk_size_t
 tsk_variant_mark_missing(tsk_variant_t *self)
 {
@@ -421,12 +471,8 @@ tsk_variant_mark_missing(tsk_variant_t *self)
     const tsk_id_t *restrict sample_index_map = self->sample_index_map;
     const tsk_id_t N = self->tree.virtual_root;
     int32_t *restrict genotypes = self->genotypes;
-    tsk_id_t root, sample_index, u, v;
-    const tsk_flags_t *restrict flags = self->tree_sequence->tables->nodes.flags;
-    bool *restrict present = self->sample_is_present;
-    tsk_id_t *restrict stack = self->traversal_stack;
-    int stack_top = -1;
-    tsk_size_t j = 0;
+    tsk_id_t root, sample_index;
+    tsk_size_t j;
 
     if (self->alt_samples == NULL) {
         for (root = left_child[N]; root != TSK_NULL; root = right_sib[root]) {
@@ -439,37 +485,14 @@ tsk_variant_mark_missing(tsk_variant_t *self)
             }
         }
     } else {
-        tsk_memset(present, 0, self->num_samples * sizeof(*present));
-
-        for (root = left_child[N]; root != TSK_NULL; root = right_sib[root]) {
-            stack_top++;
-            stack[stack_top] = root;
-        }
-
-        while (stack_top >= 0) {
-            u = stack[stack_top];
-            stack_top--;
-            sample_index = sample_index_map[u];
-            if (sample_index != TSK_NULL) {
-                present[sample_index] = true;
-            }
-            for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
-                stack_top++;
-                stack[stack_top] = v;
-            }
-        }
-
         for (j = 0; j < self->num_samples; j++) {
-            u = self->samples[j];
-            if (!present[j]
-                || ((flags[u] & TSK_NODE_IS_SAMPLE) != 0
-                       && self->tree.parent[u] == TSK_NULL
-                       && left_child[u] == TSK_NULL)) {
+            if (!self->sample_is_present[j]) {
                 genotypes[j] = TSK_MISSING_DATA;
                 num_missing++;
             }
         }
     }
+
     return num_missing;
 }
 
@@ -570,6 +593,10 @@ tsk_variant_decode(
      * mutations directly over samples should not be missing */
     num_missing = 0;
     if (!impute_missing) {
+        if (self->alt_samples != NULL
+            && self->missingmess_cache_tree_index != self->tree.index) {
+            tsk_variant_update_missing_cache(self);
+        }
         num_missing = mark_missing(self);
     }
     for (j = 0; j < self->site.mutations_length; j++) {
@@ -627,6 +654,7 @@ tsk_variant_restricted_copy(const tsk_variant_t *self, tsk_variant_t *other)
     other->alt_sample_index_map = NULL;
     other->sample_is_present = NULL;
     other->user_alleles_mem = NULL;
+    other->missingmess_cache_tree_index = TSK_NULL;
 
     total_len = 0;
     for (j = 0; j < self->num_alleles; j++) {

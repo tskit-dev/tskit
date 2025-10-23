@@ -77,6 +77,7 @@ typedef struct {
     tsk_flags_t options;
     tsk_id_t *alt_samples;
     tsk_id_t *alt_sample_index_map;
+    tsk_id_t missingmess_cache_tree_index;
 
 } tsk_variant_t;
 
