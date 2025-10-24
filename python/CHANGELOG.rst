@@ -54,6 +54,9 @@
   allowing greater flexibility in "disjoint union" situations.
   (:user:`hyanwong`, :user:`petrelharp`, :issue:`3181`)
 
+- Add ``json+binary`` metadata codec that allows storing binary data
+  alongside JSON metadata. (:user:`benjeffery`, :pr:`3306`)
+
 **Bugfixes**
 
 - In some tables with mutations out-of-order ``TableCollection.sort`` did not re-order
