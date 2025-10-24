@@ -10945,12 +10945,48 @@ class TreeSequence:
     def ld_matrix(
         self,
         sample_sets=None,
-        sites=None,
-        positions=None,
         mode="site",
         stat="r2",
+        sites=None,
+        positions=None,
         indexes=None,
     ):
+        r"""
+        Returns a matrix of the selected two-locus statistic (default
+        :math:`r^2`) computed from sample allelic states or branch lengths.
+        This method is implemented to run as either an LD matrix representing
+        the LD between all selected sites ("site" mode, producing a site×site
+        matrix) or from the branch lengths of all subtree partitions generated
+        by each node in a tree ("branch" mode, producing a tree×tree matrix).
+
+        In the site mode, the sites can be restricted by...
+
+        Similarly, in the branch mode, the trees can be restricted by...
+
+        Multi sample stats...
+
+        link to online docs -- at least mention?
+
+        :param list sample_sets: A list of lists of Node IDs, specifying the
+            groups of nodes to compute the statistic with.
+            Defaults to all samples grouped by population.
+        :param str mode: A string giving the "type" of the statistic to be computed.
+            (defaults to "site", can be "site" or "branch").
+        :param str stat: A string giving the selected two-locus statistic to compute.
+            (defaults to "r2").
+        :param list sites: A list of sites to compute LD with. Can be specified as a
+            list of lists to control the row and column sites. Only applicable in site
+            mode. [[row_sites], [col_sites]] or [all_sites].
+        :param list positions: A list of genomic positions to restrict. Can be
+            specified as a list of lists to control the row and column sites.
+            [[row_sites], [col_sites]] or [all_sites].
+        :param list indexes: A list of 2-tuples or a single 2-tuple, specifying
+            the indexes of two populations on which to compute two-way LD
+            statistics. Only :math:`r^2`, :math:`D^2`, and :math:`\hat{D^2}` are
+            implemented for two-way statistics.
+        :return: A 2D array of node IDs, where each row has length `ploidy`.
+        :rtype: numpy.ndarray
+        """
         one_way_stats = {
             "D": self._ll_tree_sequence.D_matrix,
             "D2": self._ll_tree_sequence.D2_matrix,

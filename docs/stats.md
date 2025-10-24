@@ -88,6 +88,7 @@ appears beside the listed method.
         * {meth}`~TreeSequence.Fst` (see {ref}`sec_stats_notes_derived`)
 * Multi site
     * {meth}`~LdCalculator` (note this is soon to be deprecated)
+    * {meth}`~TreeSequence.ld_matrix` (see {ref}`sec_stats_multi_site_two_locus`)
 
 :::{note}
 There is a general framework provided for calculating additional single site
@@ -683,6 +684,7 @@ and boolean expressions (e.g., {math}`(x > 0)`) are interpreted as 0/1.
   {math}`z_j` is the sum of the j-th normalised covariate values below the node,
   and {math}`v_j` is the covariance of the trait with the j-th covariate.
 
+(sec_stats_multi_site)=
 
 ## Multi site statistics
 
@@ -692,6 +694,151 @@ LdCalculator (and perhaps reference {ref}`sec_identity`). Note that if we have a
 framework which has the same calling conventions as the single site stats,
 we can rework the sections above.
 :::
+
+(sec_stats_multi_site_two_locus)=
+
+### Two-locus statistics
+
+The {meth}`~TreeSequence.ld_matrix` method provides an interface to a collection
+of two-locus statistics with predefined summary functions (see
+{ref}`sec_two_locus_summary_functions`) with two {ref}`modes <sec_stats_mode>`,
+`site` and `branch`. Site statistics can be computed from multi-allelic data,
+while branch statistics are necessarily biallelic. Within this framework, we
+also implement polarisation, but do not expose it to the user because some
+two-locus statistics are inherently polarised, while some are not.
+
+#### Site
+
+Because we implement two-locus statistics for multi-allelic data, we need a
+method for combining the statistical results from each allele into one summary
+for a pair of sites. We have two normalisation methods for combining these
+results:
+
+`hap_weighted`
+: {math}`\sum_{i=1}^{n}\sum_{j=1}^{m}p(A_{i}B_{j})F_{ij}`
+  where {math}`F` is the summary function and {math}`p(A_{i}B_{j})` is the
+  frequency of haplotype {math}`A_{i}B_{j}`. This method was first introduced in
+  [Karlin (1981)](https://doi.org/10.1111/j.1469-1809.1981.tb00308.x), and was
+  reviewed in [Zhao (2007)](https://doi.org/10.1017/S0016672307008634).
+
+  This method multiplies each result by the frequency of the haplotype under
+  consideration (the {math}`[i,j]` alleles for a given pair of sites), then sums
+  the results to obtain the statistic for the two focal sites.
+
+`total_weighted`
+: {math}`\frac{1}{(n-\mathbb{1}_{p}) (m-\mathbb{1}_{p})}\sum_{i=1}^{n}\sum_{j=1}^{m}F_{ij}`
+
+  where {math}`\mathbb{1}_{p}` is an indicator function conditioned on whether
+  or not our statistic is polarized, {math}`n` is the number of alleles in site
+  {math}`a`, and {math}`m` is the number of alleles in site {math}`b`.
+
+  This method assigns equal weight to each of the possible haplotypes for a
+  given pair of sites, it might be more aptly named "uniform_weighted". In
+  essence, we are taking the arithmetic mean of each statistic.
+
+Out of all of the available summary functions, only {math}`r^2` uses
+`hap_weighted` polarisation. The rest behave correctly under a uniform weighting
+(`total_weighted`).
+
+
+#### Branch
+
+#### Sample Sets
+
+
+The mechanism by which we can specify a multi-population (or two-way) statistic
+is by providing the `indexes` argument.
+
+In other words, for a one-way statistic, a user would specify:
+```python
+ts.ld_matrix(stat="D2", sample_sets=[ss1, ss2])
+```
+Which would output a 3D array containing one LD matrix per sample set.
+
+```python
+ts.ld_matrix(stat="D2", sample_sets=[ss1, ss2], indexes=(0, 1))
+```
+Will output a 2D array containing one LD matrix for the index
+pair. This would use our `D2_ij_summary_func`, instead of the
+`D2_summary_func`. Finally,
+```python
+ts.ld_matrix(stat="D2", sample_sets=[ss1, ss2], indexes=[(0, 1), (1, 1)])
+```
+will output a 3D array containing one LD matrix _per_ index pair
+provided.
+
+Perhaps this is a nice summary to include at the end for clarity?
+```
+# one-way
+ts.ld_matrix(sample_sets=None) -> 2 dimensions
+ts.ld_matrix(samples=[...]) -> 2 dimensions
+ts.ld_matrix(samples=[[...]]) -> 3 dimensions
+# two-way
+ts.ld_matrix(samples=[[...]], indexes=(i, j)) -> 2 dimensions
+ts.ld_matrix(samples=[[...]], indexes=[(i, j)]) -> 3 dimensions
+```
+
+##### One-way Statistics
+
+##### Two-way Statistics
+
+<!-- #### TODO: Multi-way? -- only with user-defined summary function -->
+
+(sec_two_locus_summary_functions)=
+
+#### Summary Functions
+
+TODO: add two-way and unbiased summary functions
+
+The two-locus statistics all take frequencies of haplotype configurations as
+input. The function signature below ({math}`f(f_a, f_b, f_{ab})`) describes a
+function that takes the frequencies of all haplotypes with the derived allele at
+the left locus ({math}`f_{a}`), the derived allele at the right locus
+({math}`f_{b}`), and derived alleles at both loci ({math}`f_{ab}`).
+
+`D`
+: {math}`f(f_a, f_b, f_{ab}) = f_{ab} - f_{a}f_{b}`
+
+  This statistic is inherently polarised, as the unpolarised result of this
+  statistic is expected to be zero. Uses the `total` normalisation method.
+
+`D_prime`
+: {math}`f(f_a, f_b, f_{ab}) = \frac{D}{D_{\max}}`
+
+  Where {math}```D_{\max} = \begin{cases}
+        \min\{f_{a}(1-f_{b}),f_{b}(1-f_{b})\} & \text{if }D>=0 \\
+        \min\{f_{a}f_{b},(1-f_{b})(1-f_{b})\} & \text{otherwise}
+        \end{cases}```
+  and {math}`D` is defined above.
+
+`D2`
+: {math}`f(f_a, f_b, f_{ab}) = (f_{ab} - f_{a}f_{b})^2`
+
+  Unpolarised, total weighted.
+
+`Dz`
+:  {math}`f(f_a, f_b, f_{ab}) = D (1 - 2 f_{a})(1-2f_{b})`
+
+  Where {math}`D` is defined above. {math}`D_z` measures positive covariance of
+  low frequency genomic variants and is sensitive to changes in demographic
+  history. Unpolarised, total weighted.
+
+`pi2`
+: {math}`f(f_a, f_b, f_{ab}) = f_{a}f_{b}(1-f_{a})(1-f_{b})`
+
+  Joint heterozygosity, which can be used for normalizing D statistics to
+  control for variable mutation rate and for estimating coalescent
+  times. Unpolarised, total weighted.
+
+`r`
+: {math}`f(f_a, f_b, f_{ab}) = \frac{D}{\sqrt{f_{a}f_{b}(1-f_{a})(1-f_{b})}}`
+
+  Where {math}`D` is defined above. Polarised, total weighted.
+
+`r2`
+: {math}`f(f_a, f_b, f_{ab}) = \frac{D^{2}}{f_{a}f_{b}(1-f_{a})(1-f_{b})}`
+
+  Where {math}`D` is defined above. Unpolarised, haplotype weighted.
 
 
 (sec_stats_notes)=
