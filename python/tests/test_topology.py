@@ -5256,6 +5256,24 @@ class TestMutationParent:
         for mutations_per_branch in [1, 2, 3]:
             self.verify_branch_mutations(ts, mutations_per_branch)
 
+    def test_ignores_current_parents(self):
+        # make sure that existing stuff in mutation parents is ignored
+        # even if it would raise an error
+        t = tskit.TableCollection(sequence_length=2.0)
+        t.nodes.add_row(time=0)
+        t.sites.add_row(position=0.0, ancestral_state="A")
+        t.sites.add_row(position=1.0, ancestral_state="A")
+        t.mutations.add_row(node=0, site=0, derived_state="C", parent=0)
+        t.build_index()
+        t.compute_mutation_parents()
+        assert t.mutations[0].parent == tskit.NULL
+        t.mutations.add_row(node=0, site=0, derived_state="G", parent=10)
+        t.compute_mutation_parents()
+        assert np.all(t.mutations.parent == (tskit.NULL, 0))
+        t.mutations.add_row(node=0, site=1, derived_state="G", parent=0)
+        t.compute_mutation_parents()
+        assert np.all(t.mutations.parent == (tskit.NULL, 0, tskit.NULL))
+
 
 class TestMutationEdge:
     def verify_mutation_edge(self, ts):
