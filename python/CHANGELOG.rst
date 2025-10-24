@@ -87,6 +87,9 @@
   also around 10% faster.
   (:user:`benjeffery`, :pr:`3313`, :pr:`3317`, :issue:`1896`)
 
+- Add ``json+binary`` metadata codec that allows storing binary data
+  alongside JSON metadata. (:user:`benjeffery`, :pr:`3306`)
+
 **Bugfixes**
 
 - In some tables with mutations out-of-order ``TableCollection.sort`` did not re-order

@@ -193,6 +193,72 @@ class NOOPCodec(AbstractMetadataCodec):
         return data
 
 
+class JSONBinaryCodec(JSONCodec):
+    """
+    A JSON codec that optionally packs a single binary blob alongside the
+    canonical JSON bytes. The JSON portion is validated using the normal JSON
+    schema rules; a reserved top-level key "_binary" is ignored for validation
+    purposes and, if present at encode time, is stored as raw bytes appended
+    after a small header and the JSON payload.
+
+    On encode, callers MUST supply a top-level "_binary" bytes-like value,
+    even if zero length. On decode, the returned object will include a
+    "_binary" key whose value is a memoryview over the decoded bytes.
+    """
+
+    MAGIC = b"JBLB"
+    VERSION = 1
+    _HDR = struct.Struct("<4sBQQ")  # magic, version, json_len, blob_len
+
+    # Use the same validator behavior as JSONCodec; we do not special-case
+    # validation for the reserved _binary key. If users set additionalProperties
+    # to False, providing _binary will fail validation unless declared.
+
+    def encode(self, obj: Any) -> bytes:
+        # Require a top-level _binary bytes-like entry; zero-length allowed
+        if not isinstance(obj, dict) or "_binary" not in obj:
+            raise exceptions.MetadataEncodingError(
+                "json+binary requires top-level '_binary' bytes-like value"
+            )
+        try:
+            blob_bytes = memoryview(obj["_binary"]).tobytes()
+        except TypeError as e:
+            raise exceptions.MetadataEncodingError(
+                "_binary must be bytes-like (buffer protocol)"
+            ) from e
+
+        try:
+            json_bytes = tskit.canonical_json(
+                {k: v for k, v in obj.items() if k != "_binary"}
+            ).encode()
+        except TypeError as e:
+            raise exceptions.MetadataEncodingError(
+                f"Could not encode metadata of type {str(e).split()[3]}"
+            )
+
+        header = self._HDR.pack(
+            self.MAGIC, self.VERSION, len(json_bytes), len(blob_bytes)
+        )
+        return header + json_bytes + blob_bytes
+
+    def decode(self, encoded: bytes) -> Any:
+        if len(encoded) >= self._HDR.size and encoded[:4] == self.MAGIC:
+            _, version, jlen, blen = self._HDR.unpack_from(encoded)
+            if version != self.VERSION:
+                raise ValueError("Unsupported json+binary version")
+            start = self._HDR.size
+            json_bytes = encoded[start : start + jlen]
+            blob_bytes = encoded[start + jlen : start + jlen + blen]
+
+            result = super().decode(json_bytes)
+            result["_binary"] = memoryview(blob_bytes)
+            return result
+        raise ValueError("Invalid json+binary payload: missing magic header")
+
+
+register_metadata_codec(JSONBinaryCodec, "json+binary")
+
+
 def binary_format_validator(validator, types, instance, schema):
     # We're hooking into jsonschemas validation code here, which works by creating
     # generators of exceptions, hence the yielding
