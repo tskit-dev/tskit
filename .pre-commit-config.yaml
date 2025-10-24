@@ -42,3 +42,11 @@ repos:
         args: [--skip-errors]
         additional_dependencies: [black==22.3.0]
         language_version: python3
+  - repo: local
+    hooks:
+    - id: mypy
+      name: mypy
+      language: system
+      entry: mypy
+      files: \.py$
+
