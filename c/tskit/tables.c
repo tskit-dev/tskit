@@ -10573,16 +10573,6 @@ tsk_table_collection_check_mutation_integrity(
             ret = tsk_trace_error(TSK_ERR_NODE_OUT_OF_BOUNDS);
             goto out;
         }
-        /* Integrity check for mutation parent */
-        parent_mut = mutations.parent[j];
-        if (parent_mut < TSK_NULL || parent_mut >= num_mutations) {
-            ret = tsk_trace_error(TSK_ERR_MUTATION_OUT_OF_BOUNDS);
-            goto out;
-        }
-        if (parent_mut == (tsk_id_t) j) {
-            ret = tsk_trace_error(TSK_ERR_MUTATION_PARENT_EQUAL);
-            goto out;
-        }
         /* Check that time is finite and not more recent than node time */
         mutation_time = mutations.time[j];
         unknown_time = tsk_is_unknown_time(mutation_time);
@@ -10615,19 +10605,32 @@ tsk_table_collection_check_mutation_integrity(
             goto out;
         }
 
-        /* check parent site agrees */
-        if (parent_mut != TSK_NULL) {
-            if (mutations.site[parent_mut] != mutations.site[j]) {
-                ret = tsk_trace_error(TSK_ERR_MUTATION_PARENT_DIFFERENT_SITE);
+        if (!!(options & TSK_CHECK_MUTATION_PARENTS)) {
+            /* Integrity check for mutation parent */
+            parent_mut = mutations.parent[j];
+            if (parent_mut < TSK_NULL || parent_mut >= num_mutations) {
+                ret = tsk_trace_error(TSK_ERR_MUTATION_OUT_OF_BOUNDS);
                 goto out;
             }
-            /* If this mutation time is known, then the parent time
-             * must also be, or else the
-             * TSK_ERR_MUTATION_TIME_HAS_BOTH_KNOWN_AND_UNKNOWN check
-             * above will fail. */
-            if (!unknown_time && mutation_time > mutations.time[parent_mut]) {
-                ret = tsk_trace_error(TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION);
+            if (parent_mut == (tsk_id_t) j) {
+                ret = tsk_trace_error(TSK_ERR_MUTATION_PARENT_EQUAL);
                 goto out;
+            }
+            /* check parent site agrees */
+            if (parent_mut != TSK_NULL) {
+                if (mutations.site[parent_mut] != mutations.site[j]) {
+                    ret = tsk_trace_error(TSK_ERR_MUTATION_PARENT_DIFFERENT_SITE);
+                    goto out;
+                }
+                /* If this mutation time is known, then the parent time
+                 * must also be, or else the
+                 * TSK_ERR_MUTATION_TIME_HAS_BOTH_KNOWN_AND_UNKNOWN check
+                 * above will fail. */
+                if (!unknown_time && mutation_time > mutations.time[parent_mut]) {
+                    ret = tsk_trace_error(
+                        TSK_ERR_MUTATION_TIME_OLDER_THAN_PARENT_MUTATION);
+                    goto out;
+                }
             }
         }
 
@@ -10638,10 +10641,12 @@ tsk_table_collection_check_mutation_integrity(
                 goto out;
             }
 
-            /* Check if parents are listed before their children */
-            if (parent_mut != TSK_NULL && parent_mut > (tsk_id_t) j) {
-                ret = tsk_trace_error(TSK_ERR_MUTATION_PARENT_AFTER_CHILD);
-                goto out;
+            if (!!(options & TSK_CHECK_MUTATION_PARENTS)) {
+                /* Check if parents are listed before their children */
+                if (parent_mut != TSK_NULL && parent_mut > (tsk_id_t) j) {
+                    ret = tsk_trace_error(TSK_ERR_MUTATION_PARENT_AFTER_CHILD);
+                    goto out;
+                }
             }
 
             /* Check time ordering. We do this after the other checks above,
