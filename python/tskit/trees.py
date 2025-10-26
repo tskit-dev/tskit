@@ -10940,6 +10940,7 @@ class TreeSequence:
         sites=None,
         positions=None,
         mode="site",
+        drop_dimensions=True,
     ):
         row_sites, col_sites = self.parse_sites(sites)
         row_positions, col_positions = self.parse_positions(positions)
@@ -10948,7 +10949,7 @@ class TreeSequence:
         )
         result = self._ll_tree_sequence.two_locus_count_stat(
             sample_set_sizes,
-            sample_sets,
+            flattened,
             f,
             result_dim,
             polarised,
@@ -10957,6 +10958,7 @@ class TreeSequence:
             row_positions,
             col_positions,
             mode,
+            drop_dimensions,
         )
         if drop_dimension:
             result = result.reshape(result.shape[:2])
