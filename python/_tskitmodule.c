@@ -7947,6 +7947,7 @@ out:
 }
 
 typedef struct {
+    bool drop_dimensions;
     PyArrayObject *sample_set_sizes;
     PyObject *callable;
 } two_locus_general_stat_params;
@@ -7956,29 +7957,33 @@ general_two_locus_count_stat_func(
     tsk_size_t K, const double *X, tsk_size_t M, double *Y, void *params)
 {
     int ret = TSK_PYTHON_CALLBACK_ERROR;
-    two_locus_general_stat_params *tl_params = params;
-    PyObject *callable = tl_params->callable;
-    PyArrayObject *sample_set_sizes = tl_params->sample_set_sizes;
     PyObject *arglist = NULL;
     PyObject *result = NULL;
     PyArrayObject *X_array = NULL;
     PyArrayObject *Y_array = NULL;
-    npy_intp X_dims[2] = { K, 3 };
-    // Convert "n" to a column array
-    PyArray_Dims n_dims = { (npy_intp[2]){ PyArray_DIMS(sample_set_sizes)[0], 1 }, 2 };
+    two_locus_general_stat_params *tl_params = params;
+    PyObject *callable = tl_params->callable;
+    PyArrayObject *ss_sizes = tl_params->sample_set_sizes;
+    bool drop = (K == 1 && tl_params->drop_dimensions);
+    // Convert "n" to a column array -- reshape(-1, K) or a scalar if K=1 and drop=True
+    PyArray_Dims ss_sizes_dims = (drop ? (PyArray_Dims){ (npy_intp[1]){ 1 }, 0 }
+                                       : (PyArray_Dims){ (npy_intp[2]){ K, 1 }, 2 });
+    int X_ndims = drop ? 1 : 2;
+    npy_intp *X_dims = drop ? (npy_intp[1]){ 3 } : (npy_intp[2]){ K, 3 };
     npy_intp *Y_dims;
 
     // Create a read only view of X as a numpy array
     X_array = (PyArrayObject *) PyArray_SimpleNewFromData(
-        2, X_dims, NPY_FLOAT64, (void *) X);
+        X_ndims, X_dims, NPY_FLOAT64, (void *) X);
     if (X_array == NULL) {
         goto out;
     }
-    sample_set_sizes
-        = (PyArrayObject *) PyArray_Newshape(sample_set_sizes, &n_dims, NPY_CORDER);
-
+    ss_sizes = (PyArrayObject *) PyArray_Newshape(ss_sizes, &ss_sizes_dims, NPY_CORDER);
+    if (ss_sizes == NULL) {
+        goto out;
+    }
     PyArray_CLEARFLAGS(X_array, NPY_ARRAY_WRITEABLE);
-    arglist = Py_BuildValue("OO", X_array, sample_set_sizes);
+    arglist = Py_BuildValue("OO", X_array, ss_sizes);
     if (arglist == NULL) {
         goto out;
     }
@@ -8014,6 +8019,7 @@ out:
     Py_XDECREF(arglist);
     Py_XDECREF(result);
     Py_XDECREF(Y_array);
+    Py_XDECREF(ss_sizes);
     return ret;
 }
 
@@ -8023,7 +8029,7 @@ TreeSequence_two_locus_count_stat(TreeSequence *self, PyObject *args, PyObject *
     PyObject *ret = NULL;
     static char *kwlist[] = { "sample_set_sizes", "sample_sets", "summary_func",
         "output_dim", "polarised", "row_sites", "col_sites", "row_positions",
-        "column_positions", "mode", NULL };
+        "column_positions", "mode", "drop_dimensions", NULL };
     two_locus_general_stat_params *params;
     PyObject *summary_func = NULL;
     unsigned int output_dim;
@@ -8048,15 +8054,17 @@ TreeSequence_two_locus_count_stat(TreeSequence *self, PyObject *args, PyObject *
     npy_intp result_dim[3] = { 0, 0, 0 };
     tsk_size_t num_sample_sets;
     tsk_flags_t options = 0;
+    int drop_dimensions = 0;
     int polarised = 0;
     int err;
 
     if (TreeSequence_check_state(self) != 0) {
         goto out;
     }
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOIiOOOO|s", kwlist,
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOIiOOOO|si", kwlist,
             &sample_set_sizes, &sample_sets, &summary_func, &output_dim, &polarised,
-            &row_sites, &col_sites, &row_positions, &col_positions, &mode)) {
+            &row_sites, &col_sites, &row_positions, &col_positions, &mode,
+            &drop_dimensions)) {
         Py_XINCREF(summary_func);
         goto out;
     }
@@ -8115,6 +8123,7 @@ TreeSequence_two_locus_count_stat(TreeSequence *self, PyObject *args, PyObject *
     params = &(two_locus_general_stat_params){
         .sample_set_sizes = sample_set_sizes_array,
         .callable = summary_func,
+        .drop_dimensions = drop_dimensions,
     };
     // TODO: deal with null norm func, need general stat.
     err = tsk_treeseq_two_locus_count_general_stat(self->tree_sequence, num_sample_sets,
