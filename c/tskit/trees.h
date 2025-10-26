@@ -1120,6 +1120,13 @@ typedef int general_sample_stat_method(const tsk_treeseq_t *self,
     const tsk_id_t *sample_sets, tsk_size_t num_indexes, const tsk_id_t *indexes,
     tsk_size_t num_windows, const double *windows, tsk_flags_t options, double *result);
 
+int tsk_treeseq_two_locus_count_general_stat(const tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes,
+    const tsk_id_t *sample_sets, tsk_size_t result_dim, general_stat_func_t *f,
+    void *f_params, norm_func_t *norm_f, tsk_size_t out_rows, const tsk_id_t *row_sites,
+    const double *row_positions, tsk_size_t out_cols, const tsk_id_t *col_sites,
+    const double *col_positions, tsk_flags_t options, double *result);
+
 typedef int two_locus_count_stat_method(const tsk_treeseq_t *self,
     tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes,
     const tsk_id_t *sample_sets, tsk_size_t num_rows, const tsk_id_t *row_sites,
