@@ -8249,19 +8249,7 @@ class TreeSequence:
                 )
         return row_positions, col_positions
 
-    def __two_locus_sample_set_stat(
-        self,
-        ll_method,
-        sample_sets,
-        sites=None,
-        positions=None,
-        mode=None,
-    ):
-        if sample_sets is None:
-            sample_sets = self.samples()
-        row_sites, col_sites = self.parse_sites(sites)
-        row_positions, col_positions = self.parse_positions(positions)
-
+    def __convert_sample_sets(self, sample_sets):
         # First try to convert to a 1D numpy array. If we succeed, then we strip off
         # the corresponding dimension from the output.
         drop_dimension = False
@@ -8283,7 +8271,23 @@ class TreeSequence:
             raise ValueError("Sample sets must contain at least one element")
 
         flattened = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
+        return drop_dimension, flattened, sample_set_sizes
 
+    def __two_locus_sample_set_stat(
+        self,
+        ll_method,
+        sample_sets,
+        sites=None,
+        positions=None,
+        mode=None,
+    ):
+        if sample_sets is None:
+            sample_sets = self.samples()
+        row_sites, col_sites = self.parse_sites(sites)
+        row_positions, col_positions = self.parse_positions(positions)
+        drop_dimension, flattened, sample_set_sizes = self.__convert_sample_sets(
+            sample_sets
+        )
         result = ll_method(
             sample_set_sizes,
             flattened,
@@ -10926,6 +10930,41 @@ class TreeSequence:
             unknown = tskit.is_unknown_time(mutations_time)
             mutations_time[unknown] = self.nodes_time[self.mutations_node[unknown]]
             return mutations_time
+
+    def two_locus_count_stat(
+        self,
+        sample_sets,
+        f,
+        result_dim,
+        polarised=False,
+        sites=None,
+        positions=None,
+        mode="site",
+    ):
+        row_sites, col_sites = self.parse_sites(sites)
+        row_positions, col_positions = self.parse_positions(positions)
+        drop_dimension, flattened, sample_set_sizes = self.__convert_sample_sets(
+            sample_sets
+        )
+        result = self._ll_tree_sequence.two_locus_count_stat(
+            sample_set_sizes,
+            sample_sets,
+            f,
+            result_dim,
+            polarised,
+            row_sites,
+            col_sites,
+            row_positions,
+            col_positions,
+            mode,
+        )
+        if drop_dimension:
+            result = result.reshape(result.shape[:2])
+        else:
+            # Orient the data so that the first dimension is the sample set.
+            # With this orientation, we get one LD matrix per sample set.
+            result = result.swapaxes(0, 2).swapaxes(1, 2)
+        return result
 
     def ld_matrix(
         self,

@@ -7946,6 +7946,203 @@ out:
     return array;
 }
 
+typedef struct {
+    PyArrayObject *sample_set_sizes;
+    PyObject *callable;
+} two_locus_general_stat_params;
+
+static int
+general_two_locus_count_stat_func(
+    tsk_size_t K, const double *X, tsk_size_t M, double *Y, void *params)
+{
+    int ret = TSK_PYTHON_CALLBACK_ERROR;
+    two_locus_general_stat_params *tl_params = params;
+    PyObject *callable = tl_params->callable;
+    PyArrayObject *sample_set_sizes = tl_params->sample_set_sizes;
+    PyObject *arglist = NULL;
+    PyObject *result = NULL;
+    PyArrayObject *X_array = NULL;
+    PyArrayObject *Y_array = NULL;
+    npy_intp X_dims[2] = { K, 3 };
+    // Convert "n" to a column array
+    PyArray_Dims n_dims = { (npy_intp[2]){ PyArray_DIMS(sample_set_sizes)[0], 1 }, 2 };
+    npy_intp *Y_dims;
+
+    // Create a read only view of X as a numpy array
+    X_array = (PyArrayObject *) PyArray_SimpleNewFromData(
+        2, X_dims, NPY_FLOAT64, (void *) X);
+    if (X_array == NULL) {
+        goto out;
+    }
+    sample_set_sizes
+        = (PyArrayObject *) PyArray_Newshape(sample_set_sizes, &n_dims, NPY_CORDER);
+
+    PyArray_CLEARFLAGS(X_array, NPY_ARRAY_WRITEABLE);
+    arglist = Py_BuildValue("OO", X_array, sample_set_sizes);
+    if (arglist == NULL) {
+        goto out;
+    }
+    result = PyObject_CallObject(callable, arglist);
+    if (result == NULL) {
+        goto out;
+    }
+    Y_array = (PyArrayObject *) PyArray_FromAny(
+        result, PyArray_DescrFromType(NPY_FLOAT64), 0, 0, NPY_ARRAY_IN_ARRAY, NULL);
+    if (Y_array == NULL) {
+        goto out;
+    }
+    if (PyArray_NDIM(Y_array) != 1) {
+        PyErr_Format(PyExc_ValueError,
+            "Array returned by general_stat callback is %d dimensional; "
+            "must be 1D",
+            (int) PyArray_NDIM(Y_array));
+        goto out;
+    }
+    Y_dims = PyArray_DIMS(Y_array);
+    if (Y_dims[0] != (npy_intp) M) {
+        PyErr_Format(PyExc_ValueError,
+            "Array returned by general_stat callback is of length %d; "
+            "must be %d",
+            Y_dims[0], M);
+        goto out;
+    }
+    /* Copy the contents of the return Y array into Y */
+    memcpy(Y, PyArray_DATA(Y_array), M * sizeof(*Y));
+    ret = 0;
+out:
+    Py_XDECREF(X_array);
+    Py_XDECREF(arglist);
+    Py_XDECREF(result);
+    Py_XDECREF(Y_array);
+    return ret;
+}
+
+static PyObject *
+TreeSequence_two_locus_count_stat(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *ret = NULL;
+    static char *kwlist[] = { "sample_set_sizes", "sample_sets", "summary_func",
+        "output_dim", "polarised", "row_sites", "col_sites", "row_positions",
+        "column_positions", "mode", NULL };
+    two_locus_general_stat_params *params;
+    PyObject *summary_func = NULL;
+    unsigned int output_dim;
+    PyObject *sample_set_sizes = NULL;
+    PyObject *sample_sets = NULL;
+    PyObject *row_sites = NULL;
+    PyObject *col_sites = NULL;
+    PyObject *row_positions = NULL;
+    PyObject *col_positions = NULL;
+    char *mode = NULL;
+    PyArrayObject *sample_set_sizes_array = NULL;
+    PyArrayObject *sample_sets_array = NULL;
+    PyArrayObject *row_sites_array = NULL;
+    PyArrayObject *col_sites_array = NULL;
+    PyArrayObject *row_positions_array = NULL;
+    PyArrayObject *col_positions_array = NULL;
+    PyArrayObject *result_matrix = NULL;
+    tsk_id_t *row_sites_parsed = NULL;
+    tsk_id_t *col_sites_parsed = NULL;
+    double *row_positions_parsed = NULL;
+    double *col_positions_parsed = NULL;
+    npy_intp result_dim[3] = { 0, 0, 0 };
+    tsk_size_t num_sample_sets;
+    tsk_flags_t options = 0;
+    int polarised = 0;
+    int err;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOOIiOOOO|s", kwlist,
+            &sample_set_sizes, &sample_sets, &summary_func, &output_dim, &polarised,
+            &row_sites, &col_sites, &row_positions, &col_positions, &mode)) {
+        Py_XINCREF(summary_func);
+        goto out;
+    }
+    Py_INCREF(summary_func);
+    if (!PyCallable_Check(summary_func)) {
+        PyErr_SetString(PyExc_TypeError, "summary_func must be callable");
+        goto out;
+    }
+    if (parse_stats_mode(mode, &options) != 0) {
+        goto out;
+    }
+    if (polarised) {
+        options |= TSK_STAT_POLARISED;
+    }
+
+    if (parse_sample_sets(sample_set_sizes, &sample_set_sizes_array, sample_sets,
+            &sample_sets_array, &num_sample_sets)
+        != 0) {
+        goto out;
+    }
+    PyArray_CLEARFLAGS(sample_set_sizes_array, NPY_ARRAY_WRITEABLE);
+
+    if (options & TSK_STAT_SITE) {
+        if (row_positions != Py_None || col_positions != Py_None) {
+            PyErr_SetString(PyExc_ValueError, "Cannot specify positions in site mode");
+            goto out;
+        }
+        row_sites_array = parse_sites(self, row_sites, &(result_dim[0]));
+        col_sites_array = parse_sites(self, col_sites, &(result_dim[1]));
+        if (row_sites_array == NULL || col_sites_array == NULL) {
+            goto out;
+        }
+        row_sites_parsed = PyArray_DATA(row_sites_array);
+        col_sites_parsed = PyArray_DATA(col_sites_array);
+    } else if (options & TSK_STAT_BRANCH) {
+        if (row_sites != Py_None || col_sites != Py_None) {
+            PyErr_SetString(PyExc_ValueError, "Cannot specify sites in branch mode");
+            goto out;
+        }
+        row_positions_array = parse_positions(self, row_positions, &(result_dim[0]));
+        col_positions_array = parse_positions(self, col_positions, &(result_dim[1]));
+        if (col_positions_array == NULL || row_positions_array == NULL) {
+            goto out;
+        }
+        row_positions_parsed = PyArray_DATA(row_positions_array);
+        col_positions_parsed = PyArray_DATA(col_positions_array);
+    }
+
+    result_dim[2] = num_sample_sets;
+    result_matrix = (PyArrayObject *) PyArray_ZEROS(3, result_dim, NPY_FLOAT64, 0);
+    if (result_matrix == NULL) {
+        PyErr_NoMemory();
+        goto out;
+    }
+
+    params = &(two_locus_general_stat_params){
+        .sample_set_sizes = sample_set_sizes_array,
+        .callable = summary_func,
+    };
+    // TODO: deal with null norm func, need general stat.
+    err = tsk_treeseq_two_locus_count_general_stat(self->tree_sequence, num_sample_sets,
+        PyArray_DATA(sample_set_sizes_array), PyArray_DATA(sample_sets_array),
+        output_dim, general_two_locus_count_stat_func, params, NULL, result_dim[0],
+        row_sites_parsed, row_positions_parsed, result_dim[1], col_sites_parsed,
+        col_positions_parsed, options, PyArray_DATA(result_matrix));
+
+    if (err == TSK_PYTHON_CALLBACK_ERROR) {
+        goto out;
+    } else if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = (PyObject *) result_matrix;
+    result_matrix = NULL;
+out:
+    Py_XDECREF(summary_func);
+    Py_XDECREF(row_sites_array);
+    Py_XDECREF(col_sites_array);
+    Py_XDECREF(row_positions_array);
+    Py_XDECREF(col_positions_array);
+    Py_XDECREF(sample_sets_array);
+    Py_XDECREF(sample_set_sizes_array);
+    Py_XDECREF(result_matrix);
+    return ret;
+}
+
 static PyObject *
 TreeSequence_ld_matrix(TreeSequence *self, PyObject *args, PyObject *kwds,
     two_locus_count_stat_method *method)
@@ -8831,6 +9028,11 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_general_stat,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Runs the general stats algorithm for a given summary function." },
+    { .ml_name = "two_locus_count_stat",
+        .ml_meth = (PyCFunction) TreeSequence_two_locus_count_stat,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc
+        = "Runs the general two locus stats algorithm for a given summary function." },
     { .ml_name = "diversity",
         .ml_meth = (PyCFunction) TreeSequence_diversity,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
