@@ -46,6 +46,7 @@ import _tskit
 import tskit
 import tskit.combinatorics as combinatorics
 import tskit.drawing as drawing
+import tskit.exceptions as exceptions
 import tskit.metadata as metadata_module
 import tskit.provenance as provenance
 import tskit.tables as tables
@@ -5266,49 +5267,109 @@ class TreeSequence:
         # return an array of haplotypes and the first and last site positions
         if missing_data_character is None:
             missing_data_character = "N"
+        if len(missing_data_character) != 1:
+            raise ValueError("missing_data_character must be a single character")
+        try:
+            missing_data_character.encode("ascii")
+        except UnicodeEncodeError:
+            raise TypeError("missing_data_character must be ASCII")
 
         start_site, stop_site = np.searchsorted(self.sites_position, interval)
-        H = np.empty(
-            (
-                self.num_samples if samples is None else len(samples),
-                stop_site - start_site,
-            ),
-            dtype=np.int8,
+        num_sites = stop_site - start_site
+        missing_int8 = ord(missing_data_character)
+
+        # FIXME! The low-level code doesn't support isolated_as_missing
+        # yet so we do this ugly check here
+        want_missing = (
+            True if isolated_as_missing is None else bool(isolated_as_missing)
         )
-        missing_int8 = ord(missing_data_character.encode("ascii"))
-        for var in self.variants(
-            samples=samples,
-            isolated_as_missing=isolated_as_missing,
-            left=interval.left,
-            right=interval.right,
-        ):
-            alleles = np.full(len(var.alleles), missing_int8, dtype=np.int8)
-            for i, allele in enumerate(var.alleles):
-                if allele is not None:
-                    if len(allele) != 1:
-                        raise TypeError(
-                            "Multi-letter allele or deletion detected at site {}".format(
-                                var.site.id
-                            )
-                        )
-                    try:
-                        ascii_allele = allele.encode("ascii")
-                    except UnicodeEncodeError:
-                        raise TypeError(
-                            "Non-ascii character in allele at site {}".format(
-                                var.site.id
-                            )
-                        )
-                    allele_int8 = ord(ascii_allele)
-                    if allele_int8 == missing_int8:
+
+        if want_missing and num_sites > 0:
+            ll_ts = self._ll_tree_sequence
+            anc_offsets = ll_ts.sites_ancestral_state_offset
+            anc_data = ll_ts.sites_ancestral_state
+            anc_slice = anc_offsets[start_site : stop_site + 1]
+            anc_lengths = np.diff(anc_slice)
+            if np.any(anc_lengths > 0):
+                anc_index = anc_slice[:-1][anc_lengths > 0]
+                if np.any(anc_data[anc_index] == missing_int8):
+                    raise ValueError(
+                        "missing_data_character must differ from existing allele states"
+                    )
+            mut_sites = ll_ts.mutations_site
+            if mut_sites.size > 0:
+                mut_offsets = ll_ts.mutations_derived_state_offset
+                mut_lengths = np.diff(mut_offsets)
+                mask = (mut_sites >= start_site) & (mut_sites < stop_site)
+                valid = mask & (mut_lengths > 0)
+                if np.any(valid):
+                    mut_start = mut_offsets[:-1][valid]
+                    derived_chars = ll_ts.mutations_derived_state[mut_start]
+                    if np.any(derived_chars == missing_int8):
                         raise ValueError(
-                            "The missing data character '{}' clashes with an "
-                            "existing allele at site {}".format(
-                                missing_data_character, var.site.id
-                            )
+                            "missing_data_character must differ from existing allele "
+                            "states"
                         )
-                    alleles[i] = allele_int8
-            H[:, var.site.id - start_site] = alleles[var.genotypes]
+
+        if samples is None:
+            sample_nodes = self.samples()
+        else:
+            sample_nodes = np.array(samples, dtype=np.int64)
+        num_samples = len(sample_nodes)
+
+        if want_missing and samples is not None and num_samples > 0:
+            flags = self.nodes_flags[sample_nodes]
+            if np.any((flags & NODE_IS_SAMPLE) == 0):
+                raise exceptions.LibraryError(
+                    "Cannot generate genotypes for non-samples when isolated nodes "
+                    "are considered as missing. (TSK_ERR_MUST_IMPUTE_NON_SAMPLES)"
+                )
+
+        H = np.empty((num_samples, num_sites), dtype=np.int8)
+        if num_samples == 0 or num_sites == 0:
+            return H, (start_site, stop_site - 1)
+
+        # FIXME! The low-level code doesn't support isolated_as_missing
+        # yet so we do this ugly thing of using the variants code to find
+        # sites with missing data
+        missing_mask = None
+        if want_missing:
+            for var in self.variants(
+                samples=samples,
+                isolated_as_missing=isolated_as_missing,
+                left=interval.left,
+                right=interval.right,
+                copy=False,
+            ):
+                if not var.has_missing_data:
+                    continue
+                if missing_mask is None:
+                    missing_mask = np.zeros((num_samples, num_sites), dtype=bool)
+                genotypes = np.asarray(var.genotypes, dtype=np.int32)
+                missing_mask[:, var.site.id - start_site] = (
+                    genotypes == tskit.MISSING_DATA
+                )
+
+        try:
+            hap = _tskit.Haplotype(
+                self._ll_tree_sequence,
+                int(start_site),
+                int(stop_site),
+            )
+        except exceptions.LibraryError as err:
+            if "TSK_ERR_UNSUPPORTED_OPERATION" in str(err):
+                raise TypeError(str(err)) from err
+            if "TSK_ERR_BAD_PARAM_VALUE" in str(err):
+                raise ValueError(str(err)) from err
+            raise
+
+        for row, node in enumerate(sample_nodes):
+            data = hap.decode(int(node))
+            H[row, :] = np.frombuffer(data, dtype=np.int8, count=num_sites)
+
+        if missing_mask is not None:
+            H[missing_mask] = missing_int8
+
         return H, (start_site, stop_site - 1)
 
     def haplotypes(
@@ -5706,9 +5767,10 @@ class TreeSequence:
         missing_data_character = (
             "N" if missing_data_character is None else missing_data_character
         )
+        if len(missing_data_character) != 1:
+            raise ValueError("missing_data_character must be length 1")
 
         L = interval.span
-        a = np.empty(L, dtype=np.int8)
         if reference_sequence is None:
             if self.has_reference_sequence():
                 # This may be inefficient - see #1989. However, since we're
@@ -5732,7 +5794,7 @@ class TreeSequence:
                     "The reference sequence ends before the requested stop position"
                 )
         ref_bytes = reference_sequence.encode("ascii")
-        a[:] = np.frombuffer(ref_bytes, dtype=np.int8)
+        a = np.frombuffer(ref_bytes, dtype=np.int8).copy()
 
         # To do this properly we'll have to detect the missing data as
         # part of a full implementation of alignments in C. The current
@@ -5750,17 +5812,32 @@ class TreeSequence:
                 "The current implementation may also incorrectly identify an "
                 "input tree sequence has having missing data."
             )
+        if samples is not None:
+            samples = np.array(samples, dtype=np.int64)
+            if samples.size > 0:
+                flags = self.nodes_flags[samples]
+                if np.any((flags & NODE_IS_SAMPLE) == 0):
+                    raise exceptions.LibraryError(
+                        "Cannot generate genotypes for non-samples when isolated nodes "
+                        "are considered as missing. (TSK_ERR_MUST_IMPUTE_NON_SAMPLES)"
+                    )
         H, (first_site_id, last_site_id) = self._haplotypes_array(
             interval=interval,
+            isolated_as_missing=False,
             missing_data_character=missing_data_character,
             samples=samples,
         )
-        site_pos = self.sites_position.astype(np.int64)[
-            first_site_id : last_site_id + 1
-        ]
-        for h in H:
-            a[site_pos - interval.left] = h
-            yield a.tobytes().decode("ascii")
+        if first_site_id <= last_site_id:
+            site_pos = self.sites_position.astype(np.int64)[
+                first_site_id : last_site_id + 1
+            ]
+        else:
+            site_pos = np.array([], dtype=np.int64)
+        for hap in H:
+            a_copy = a.copy()
+            if site_pos.size > 0:
+                a_copy[site_pos - interval.left] = hap
+            yield a_copy.tobytes().decode("ascii")
 
     @property
     def individuals_population(self):
