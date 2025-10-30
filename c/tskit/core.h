@@ -1096,6 +1096,28 @@ bool tsk_isfinite(double val);
 #define TSK_UUID_SIZE 36
 int tsk_generate_uuid(char *dest, int flags);
 
+/**
+@brief Extract the binary payload from ``json+binary`` encoded metadata.
+
+@rst
+Metadata produced by :py:class:`tskit.metadata.JSONBinaryCodec` consists of a fixed-size
+header followed by canonical JSON bytes and an optional binary payload. This helper
+validates the ``json+binary`` framing, returning a pointer to the binary portion
+without copying.
+
+The output pointer references memory owned by the caller and remains valid only while
+the original metadata buffer is alive.
+@endrst
+
+@param[in] metadata Pointer to the encoded metadata bytes.
+@param[in] metadata_length Number of bytes available at ``metadata``.
+@param[out] blob On success, set to the start of the binary payload.
+@param[out] blob_length On success, set to the payload length in bytes.
+@return 0 on success, or a :ref:`TSK_ERR <c_api_errors>` code on failure.
+*/
+int tsk_json_binary_metadata_get_blob(const char *metadata, tsk_size_t metadata_length,
+    const uint8_t **blob, tsk_size_t *blob_length);
+
 /* TODO most of these can probably be macros so they compile out as no-ops.
  * Lets do the 64 bit tsk_size_t switch first though. */
 void *tsk_malloc(tsk_size_t size);
