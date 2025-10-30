@@ -19,6 +19,11 @@
 
 **Features**
 
+- Add ``tskit.jit.numba.jitwrap`` and ``NumbaTreeSequence`` to allow simplified
+  use and development of numba-jitted functions with tree sequences. See the 
+  `documentation <https://tskit.dev/tskit/docs/stable/numba.html>`_ for details.
+  (:user:`andrewkern`, :pr:`3295`, :issue:`3294`)
+
 - ``TreeSequence.map_to_vcf_model`` now also returns the transformed positions and
   contig length. (:user:`benjeffery`, :pr:`3174`, :issue:`3173`)
 
