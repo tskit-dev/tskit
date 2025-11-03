@@ -10776,6 +10776,85 @@ test_check_integrity_bad_mutation_parent_topology(void)
 }
 
 static void
+test_table_collection_compute_mutation_parents_tolerates_invalid_input(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_table_collection_t tables;
+    tsk_id_t site;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1.0;
+
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 1.0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_node_table_add_row(
+        &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_edge_table_add_row(&tables.edges, 0.0, 1.0, 0, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    site = tsk_site_table_add_row(&tables.sites, 0.0, "A", 1, NULL, 0);
+    CU_ASSERT_FATAL(site >= 0);
+    ret_id = tsk_mutation_table_add_row(
+        &tables.mutations, site, 1, TSK_NULL, TSK_UNKNOWN_TIME, "C", 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.mutations.parent[0] = 42;
+
+    ret = tsk_table_collection_compute_mutation_parents(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_FATAL(tables.mutations.parent[0] == TSK_NULL);
+
+    tsk_table_collection_free(&tables);
+}
+
+static void
+test_table_collection_compute_mutation_parents_restores_on_error(void)
+{
+    int ret;
+    tsk_id_t ret_id;
+    tsk_table_collection_t tables;
+    tsk_id_t site;
+
+    ret = tsk_table_collection_init(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tables.sequence_length = 1.0;
+
+    ret_id = tsk_node_table_add_row(&tables.nodes, 0, 1.0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_node_table_add_row(
+        &tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, TSK_NULL, TSK_NULL, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_edge_table_add_row(&tables.edges, 0.0, 1.0, 0, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret_id, 0);
+    site = tsk_site_table_add_row(&tables.sites, 0.5, "A", 1, NULL, 0);
+    CU_ASSERT_FATAL(site >= 0);
+
+    ret_id = tsk_mutation_table_add_row(
+        &tables.mutations, site, 1, TSK_NULL, TSK_UNKNOWN_TIME, "C", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+    ret_id = tsk_mutation_table_add_row(
+        &tables.mutations, site, 0, TSK_NULL, TSK_UNKNOWN_TIME, "G", 1, NULL, 0);
+    CU_ASSERT_FATAL(ret_id >= 0);
+
+    ret = tsk_table_collection_build_index(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tables.mutations.parent[0] = 111;
+    tables.mutations.parent[1] = 222;
+
+    ret = tsk_table_collection_compute_mutation_parents(&tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_PARENT_AFTER_CHILD);
+    CU_ASSERT_EQUAL(tables.mutations.parent[0], 111);
+    CU_ASSERT_EQUAL(tables.mutations.parent[1], 222);
+
+    tsk_table_collection_free(&tables);
+}
+
+static void
 test_table_collection_subset_with_options(tsk_flags_t options)
 {
     int ret;
@@ -11934,6 +12013,10 @@ main(int argc, char **argv)
             test_table_collection_check_integrity_bad_indexes },
         { "test_check_integrity_bad_mutation_parent_topology",
             test_check_integrity_bad_mutation_parent_topology },
+        { "test_table_collection_compute_mutation_parents_tolerates_invalid_input",
+            test_table_collection_compute_mutation_parents_tolerates_invalid_input },
+        { "test_table_collection_compute_mutation_parents_restores_on_error",
+            test_table_collection_compute_mutation_parents_restores_on_error },
         { "test_table_collection_subset", test_table_collection_subset },
         { "test_table_collection_subset_unsorted",
             test_table_collection_subset_unsorted },
