@@ -143,16 +143,19 @@ out:
 
 int
 tsk_json_binary_metadata_get_blob(const char *metadata, tsk_size_t metadata_length,
-    const uint8_t **blob, tsk_size_t *blob_length)
+    const char **json, tsk_size_t *json_length, const uint8_t **blob,
+    tsk_size_t *blob_length)
 {
     int ret;
     uint8_t version;
-    uint64_t json_length;
-    uint64_t binary_length;
+    uint64_t json_length_u64;
+    uint64_t binary_length_u64;
     const uint8_t *bytes;
     const uint8_t *blob_start;
+    const char *json_start;
 
-    if (metadata == NULL || blob == NULL || blob_length == NULL) {
+    if (metadata == NULL || json == NULL || json_length == NULL || blob == NULL
+        || blob_length == NULL) {
         ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
         goto out;
     }
@@ -170,16 +173,19 @@ tsk_json_binary_metadata_get_blob(const char *metadata, tsk_size_t metadata_leng
         ret = tsk_trace_error(TSK_ERR_FILE_VERSION_TOO_NEW);
         goto out;
     }
-    json_length = tsk_load_u64_le(bytes + 5);
-    binary_length = tsk_load_u64_le(bytes + 13);
+    json_length_u64 = tsk_load_u64_le(bytes + 5);
+    binary_length_u64 = tsk_load_u64_le(bytes + 13);
     if ((uint64_t) metadata_length
-        < (uint64_t) TSK_JSON_BINARY_HEADER_SIZE + json_length + binary_length) {
+        < (uint64_t) TSK_JSON_BINARY_HEADER_SIZE + json_length_u64 + binary_length_u64) {
         ret = tsk_trace_error(TSK_ERR_FILE_FORMAT);
         goto out;
     }
-    blob_start = bytes + TSK_JSON_BINARY_HEADER_SIZE + json_length;
+    json_start = (const char *) bytes + TSK_JSON_BINARY_HEADER_SIZE;
+    blob_start = bytes + TSK_JSON_BINARY_HEADER_SIZE + json_length_u64;
+    *json = json_start;
+    *json_length = (tsk_size_t) json_length_u64;
     *blob = blob_start;
-    *blob_length = (tsk_size_t) binary_length;
+    *blob_length = (tsk_size_t) binary_length_u64;
     ret = 0;
 out:
     return ret;
