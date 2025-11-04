@@ -4393,6 +4393,22 @@ class TreeSequence:
         self._ll_tree_sequence.dump_tables(ll_tables)
         return tables.TableCollection(ll_tables=ll_tables)
 
+    def link_ancestors(self, samples, ancestors):
+        """
+        Equivalent to :meth:`TableCollection.link_ancestors`; see that method for full
+        documentation and parameter semantics.
+
+        :param list[int] samples: Node IDs to retain as samples.
+        :param list[int] ancestors: Node IDs to treat as ancestors.
+        :return: An :class:`tables.EdgeTable` containing the genealogical links between
+            the supplied ``samples`` and ``ancestors``.
+        :rtype: tables.EdgeTable
+        """
+        samples = util.safe_np_int_cast(samples, np.int32)
+        ancestors = util.safe_np_int_cast(ancestors, np.int32)
+        ll_edge_table = self._ll_tree_sequence.link_ancestors(samples, ancestors)
+        return tables.EdgeTable(ll_table=ll_edge_table)
+
     def dump_text(
         self,
         nodes=None,

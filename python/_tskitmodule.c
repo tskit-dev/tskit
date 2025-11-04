@@ -5345,6 +5345,69 @@ out:
 }
 
 static PyObject *
+TreeSequence_link_ancestors(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    int err;
+    PyObject *ret = NULL;
+    PyObject *samples = NULL;
+    PyObject *ancestors = NULL;
+    PyArrayObject *samples_array = NULL;
+    PyArrayObject *ancestors_array = NULL;
+    npy_intp *shape;
+    tsk_size_t num_samples, num_ancestors;
+    EdgeTable *result = NULL;
+    PyObject *result_args = NULL;
+    static char *kwlist[] = { "samples", "ancestors", NULL };
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO", kwlist, &samples, &ancestors)) {
+        goto out;
+    }
+
+    samples_array = (PyArrayObject *) PyArray_FROMANY(
+        samples, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
+    if (samples_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(samples_array);
+    num_samples = (tsk_size_t) shape[0];
+
+    ancestors_array = (PyArrayObject *) PyArray_FROMANY(
+        ancestors, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
+    if (ancestors_array == NULL) {
+        goto out;
+    }
+    shape = PyArray_DIMS(ancestors_array);
+    num_ancestors = (tsk_size_t) shape[0];
+
+    result_args = PyTuple_New(0);
+    if (result_args == NULL) {
+        goto out;
+    }
+    result = (EdgeTable *) PyObject_CallObject((PyObject *) &EdgeTableType, result_args);
+    if (result == NULL) {
+        goto out;
+    }
+    err = tsk_table_collection_link_ancestors(self->tree_sequence->tables,
+        PyArray_DATA(samples_array), num_samples, PyArray_DATA(ancestors_array),
+        num_ancestors, 0, result->table);
+    if (err != 0) {
+        handle_library_error(err);
+        goto out;
+    }
+    ret = (PyObject *) result;
+    result = NULL;
+out:
+    Py_XDECREF(samples_array);
+    Py_XDECREF(ancestors_array);
+    Py_XDECREF(result);
+    Py_XDECREF(result_args);
+    return ret;
+}
+
+static PyObject *
 TreeSequence_load(TreeSequence *self, PyObject *args, PyObject *kwds)
 {
     int err;
@@ -8624,6 +8687,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_dump_tables,
         .ml_flags = METH_VARARGS | METH_KEYWORDS,
         .ml_doc = "Dumps the tree sequence to the specified set of tables" },
+    { .ml_name = "link_ancestors",
+        .ml_meth = (PyCFunction) TreeSequence_link_ancestors,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Returns an EdgeTable linking the specified samples and ancestors." },
     { .ml_name = "get_node",
         .ml_meth = (PyCFunction) TreeSequence_get_node,
         .ml_flags = METH_VARARGS,

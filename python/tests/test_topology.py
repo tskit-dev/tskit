@@ -4901,6 +4901,10 @@ class TestMapToAncestors:
         if compare_lib:
             lib_result = ts.dump_tables().link_ancestors(samples, ancestors)
             assert ancestor_table == lib_result
+            ts_result = ts.link_ancestors(samples, ancestors)
+            assert ancestor_table == ts_result
+            tables_result = ts.tables.link_ancestors(samples, ancestors)
+            assert ancestor_table == tables_result
         return ancestor_table
 
     def test_deprecated_name(self):
@@ -4914,6 +4918,10 @@ class TestMapToAncestors:
         tss = s.link_ancestors()
         lib_result = ts.dump_tables().map_ancestors(samples, ancestors)
         assert tss == lib_result
+        ts_result = ts.link_ancestors(samples, ancestors)
+        assert tss == ts_result
+        immutable_result = ts.tables.map_ancestors(samples, ancestors)
+        assert tss == immutable_result
         assert list(tss.parent) == [8, 8, 8, 8, 8]
         assert list(tss.child) == [0, 1, 2, 3, 4]
         assert all(tss.left) == 0

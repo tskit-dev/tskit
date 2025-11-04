@@ -128,6 +128,27 @@ class TestCollectionParity:
         s = str(immutable)
         assert "ImmutableTableCollection" in s
 
+    def test_link_ancestors_parity(self, ts):
+        # Can't link ancestors when edges have metadata.
+        if ts.tables.edges.metadata_schema != tskit.MetadataSchema(schema=None):
+            pytest.skip("link_ancestors does not support edges with metadata")
+
+        mutable, immutable = get_mutable_and_immutable(ts)
+        samples = ts.samples()
+        if len(samples) == 0:
+            pytest.skip("Tree sequence has no samples")
+
+        ancestor_nodes = [u.id for u in ts.nodes() if not u.is_sample()]
+        if len(ancestor_nodes) == 0:
+            ancestor_nodes = list(samples)
+
+        samples = samples[: min(len(samples), 10)]
+        ancestors = ancestor_nodes[: min(len(ancestor_nodes), 10)]
+
+        mutable_result = mutable.link_ancestors(samples, ancestors)
+        immutable_result = immutable.link_ancestors(samples, ancestors)
+        assert mutable_result == immutable_result
+
 
 @pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
 class TestTablesParity:
