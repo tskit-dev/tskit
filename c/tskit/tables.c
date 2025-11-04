@@ -12436,8 +12436,27 @@ tsk_table_collection_compute_mutation_parents(
     tsk_table_collection_t *self, tsk_flags_t options)
 {
     int ret = 0;
+    tsk_mutation_table_t *mutations = &self->mutations;
+    tsk_id_t *parent_backup = NULL;
+    bool restore_parents = false;
 
     if (!(options & TSK_NO_CHECK_INTEGRITY)) {
+        if (mutations->num_rows > 0) {
+            /* We need to wipe the parent column before computing, as otherwise invalid
+             * parents can cause integrity checks to fail. We take a copy to restore on
+             * error */
+            parent_backup = tsk_malloc(mutations->num_rows * sizeof(*parent_backup));
+            if (parent_backup == NULL) {
+                ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
+                goto out;
+            }
+            tsk_memcpy(parent_backup, mutations->parent,
+                mutations->num_rows * sizeof(*parent_backup));
+            /* Set the parent pointers to TSK_NULL */
+            tsk_memset(mutations->parent, 0xff,
+                mutations->num_rows * sizeof(*mutations->parent));
+            restore_parents = true;
+        }
         /* Safe to cast here as we're not counting trees */
         ret = (int) tsk_table_collection_check_integrity(self, TSK_CHECK_TREES);
         if (ret < 0) {
@@ -12452,6 +12471,11 @@ tsk_table_collection_compute_mutation_parents(
     }
 
 out:
+    if (ret != 0 && restore_parents) {
+        tsk_memcpy(mutations->parent, parent_backup,
+            mutations->num_rows * sizeof(*parent_backup));
+    }
+    tsk_safe_free(parent_backup);
     return ret;
 }
 

@@ -3540,6 +3540,34 @@ class TestTableCollection:
         assert str(populations) == before_populations
         assert str(provenances) == before_provenances
 
+    def test_compute_mutation_parents_ignores_existing_values(self):
+        tables = tskit.TableCollection(sequence_length=1.0)
+        parent = tables.nodes.add_row(time=1.0)
+        child = tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
+        tables.edges.add_row(left=0.0, right=1.0, parent=parent, child=child)
+        site = tables.sites.add_row(position=0.0, ancestral_state="A")
+        tables.mutations.add_row(site=site, node=child, derived_state="C")
+        tables.build_index()
+        tables.mutations.parent[:] = 42
+        tables.compute_mutation_parents()
+        assert tables.mutations.parent[0] == tskit.NULL
+
+    def test_compute_mutation_parents_restores_on_index_error(self):
+        tables = tskit.TableCollection(sequence_length=1.0)
+        parent = tables.nodes.add_row(time=1.0)
+        child = tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
+        tables.edges.add_row(left=0.0, right=1.0, parent=parent, child=child)
+        site = tables.sites.add_row(position=0.0, ancestral_state="A")
+        tables.mutations.add_row(site=site, node=child, derived_state="C")
+
+        mutation_columns = tables.mutations.asdict()
+        mutation_columns["parent"] = np.array([123], dtype=np.int32)
+        tables.mutations.set_columns(**mutation_columns)
+
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_TABLES_NOT_INDEXED"):
+            tables.compute_mutation_parents()
+        assert tables.mutations.parent[0] == 123
+
     def test_str(self):
         ts = msprime.simulate(10, random_seed=1)
         tables = ts.tables
