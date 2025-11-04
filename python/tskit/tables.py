@@ -4780,6 +4780,21 @@ class ImmutableTableCollection(metadata.MetadataProvider):
             ]
         )
 
+    def link_ancestors(self, samples, ancestors):
+        """
+        See :meth:`TableCollection.link_ancestors`.
+        """
+        samples = util.safe_np_int_cast(samples, np.int32)
+        ancestors = util.safe_np_int_cast(ancestors, np.int32)
+        ll_edge_table = self._llts.link_ancestors(samples, ancestors)
+        return EdgeTable(ll_table=ll_edge_table)
+
+    def map_ancestors(self, *args, **kwargs):
+        """
+        Deprecated alias for :meth:`link_ancestors`.
+        """
+        return self.link_ancestors(*args, **kwargs)
+
     _MUTATOR_METHODS = {
         "clear",
         "sort",
@@ -4803,8 +4818,6 @@ class ImmutableTableCollection(metadata.MetadataProvider):
         "ibd_segments",
         "fromdict",
         "simplify",
-        "link_ancestors",
-        "map_ancestors",
     }
 
     def copy(self):
