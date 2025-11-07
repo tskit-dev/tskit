@@ -5326,13 +5326,13 @@ class TreeSequence:
         Returns an iterator over the strings of haplotypes that result from
         the trees and mutations in this tree sequence. Each haplotype string
         is guaranteed to be of the same length. A tree sequence with
-        :math:`n` samples and with :math:`s` sites lying between ``left`` and
-        ``right`` will return a total of :math:`n`
-        strings of :math:`s` alleles concatenated together, where an allele
+        :math:`n` requested nodes (default: the number of sample nodes) and with
+        :math:`s` sites lying between ``left`` and ``right`` will return a total
+        of :math:`n` strings of :math:`s` alleles concatenated together, where an allele
         consists of a single ascii character (tree sequences that include alleles
         which are not a single character in length, or where the character is
         non-ascii, will raise an error). The first string returned is the
-        haplotype for the first requested sample, and so on.
+        haplotype for the first requested node, and so on.
 
         The alleles at each site must be represented by single byte characters,
         (i.e., variants must be single nucleotide polymorphisms, or SNPs), hence
@@ -5341,8 +5341,8 @@ class TreeSequence:
         haplotype ``h``, the value of ``h[j]`` will therefore be the observed
         allelic state at site ``j``.
 
-        If ``isolated_as_missing`` is True (the default), isolated samples without
-        mutations directly above them will be treated as
+        If ``isolated_as_missing`` is True (the default), isolated nodes without
+        mutations directly above them (whether samples or non-samples) will be treated as
         :ref:`missing data<sec_data_model_missing_data>` and will be
         represented in the string by the ``missing_data_character``. If
         instead it is set to False, missing data will be assigned the ancestral state
@@ -5351,8 +5351,10 @@ class TreeSequence:
         behaviour in versions prior to 0.2.0. Prior to 0.3.0 the `impute_missing_data`
         argument controlled this behaviour.
 
+        It is also possible to provide **non-sample** nodes via the ``samples``
+        argument if you wish to output haplotypes for (e.g.) internal nodes.
         See also the :meth:`.variants` iterator for site-centric access
-        to sample genotypes.
+        to genotypes for the requested nodes.
 
         .. warning::
             For large datasets, this method can consume a **very large** amount of
@@ -5370,9 +5372,10 @@ class TreeSequence:
             be used to represent missing data.
             If any normal allele contains this character, an error is raised.
             Default: 'N'.
-        :param list[int] samples: The samples for which to output haplotypes. If
-            ``None`` (default), return haplotypes for all the samples in the tree
-            sequence, in the order given by the :meth:`.samples` method.
+        :param list[int] samples: The node IDs for which to output haplotypes. If
+            ``None`` (default), return haplotypes for all the sample nodes in the tree
+            sequence, in the order given by the :meth:`.samples` method. Non-sample
+            nodes may also be provided.
         :param int left: Haplotype strings will start with the first site at or after
             this genomic position. If ``None`` (default) start at the first site.
         :param int right: Haplotype strings will end with the last site before this
@@ -5443,9 +5446,13 @@ class TreeSequence:
         generated; output order of genotypes in the returned variants
         corresponds to the order of the samples in this list. It is also
         possible to provide **non-sample** nodes as an argument here, if you
-        wish to generate genotypes for (e.g.) internal nodes. However,
-        ``isolated_as_missing`` must be False in this case, as it is not
-        possible to detect missing data for non-sample nodes.
+        wish to generate genotypes for (e.g.) internal nodes. Missingness is
+        detected for any requested node (sample or non-sample) when
+        ``isolated_as_missing`` is True: if a node is isolated at a site (i.e.,
+        has no parent and no children in the marginal tree) and has no mutation
+        above it at that site, its genotype will be reported as
+        :data:`MISSING_DATA` (-1). If ``isolated_as_missing`` is False, such
+        nodes are assigned the site's ancestral allele index.
 
         If isolated samples are present at a given site without mutations above them,
         they are interpreted by default as
@@ -5535,19 +5542,23 @@ class TreeSequence:
         """
         Returns an :math:`m \\times n` numpy array of the genotypes in this
         tree sequence, where :math:`m` is the number of sites and :math:`n`
-        the number of samples. The genotypes are the indexes into the array
-        of ``alleles``, as described for the :class:`Variant` class.
+        is the number of requested nodes (default: the number of sample nodes).
+        The genotypes are the indexes into the array of ``alleles``, as
+        described for the :class:`Variant` class.
 
-        If isolated samples are present at a given site without mutations above them,
-        they will be interpreted as :ref:`missing data<sec_data_model_missing_data>`
-        the genotypes array will contain a special value :data:`MISSING_DATA`
-        (-1) to identify these missing samples.
+        It is possible to provide **non-sample** nodes via the ``samples``
+        argument if you wish to generate genotypes for (e.g.) internal nodes.
+        Missingness is detected for any requested node (sample or non-sample)
+        when ``isolated_as_missing`` is True: if a node is isolated at a site
+        (i.e., has no parent and no children in the marginal tree) and has no
+        mutation above it at that site, its genotype will be reported as
+        :data:`MISSING_DATA` (-1).
 
-        Such samples are treated as missing data by default, but if
-        ``isolated_as_missing`` is set to to False, they will not be treated as missing,
-        and so assigned the ancestral state. This was the default behaviour in
-        versions prior to 0.2.0. Prior to 0.3.0 the `impute_missing_data`
-        argument controlled this behaviour.
+        Such nodes are treated as missing data by default. If
+        ``isolated_as_missing`` is set to False, they will not be treated as
+        missing, and will instead be assigned the ancestral state. This was the
+        default behaviour in versions prior to 0.2.0. Prior to 0.3.0 the
+        ``impute_missing_data`` argument controlled this behaviour.
 
         .. warning::
             This method can consume a **very large** amount of memory! If
@@ -5555,10 +5566,12 @@ class TreeSequence:
             access them sequentially using the :meth:`.variants` iterator.
 
         :param array_like samples: An array of node IDs for which to generate
-            genotypes, or None for all sample nodes. Default: None.
+            genotypes. If ``None`` (default), generate genotypes for all sample
+            nodes. Non-sample nodes may also be provided, in which case genotypes
+            will be generated for those nodes too.
         :param bool isolated_as_missing: If True, the genotype value assigned to
-            missing samples (i.e., isolated samples without mutations) is
-            :data:`.MISSING_DATA` (-1). If False, missing samples will be
+            isolated nodes without mutations (samples or non-samples) is
+            :data:`.MISSING_DATA` (-1). If False, such nodes will be
             assigned the allele index for the ancestral state.
             Default: True.
         :param tuple alleles: A tuple of strings describing the encoding of
@@ -5689,7 +5702,8 @@ class TreeSequence:
             Default: 'N'.
         :param list[int] samples: The samples for which to output alignments. If
             ``None`` (default), return alignments for all the samples in the tree
-            sequence, in the order given by the :meth:`.samples` method.
+            sequence, in the order given by the :meth:`.samples` method. Only
+            sample nodes are supported for alignments.
         :param int left: Alignments will start at this genomic position. If ``None``
             (default) alignments start at 0.
         :param int right: Alignments will stop before this genomic position. If ``None``
@@ -5708,6 +5722,20 @@ class TreeSequence:
         missing_data_character = (
             "N" if missing_data_character is None else missing_data_character
         )
+
+        # Temporary check until alignments support missing data properly
+        if samples is not None:
+            requested = list(samples)
+            n = self.num_nodes
+            flags = self.nodes_flags
+            if any(
+                (u < 0) or (u >= n) or ((flags[u] & NODE_IS_SAMPLE) == 0)
+                for u in requested
+            ):
+                raise tskit.LibraryError(
+                    "Cannot generate genotypes for non-samples when isolated nodes "
+                    "are considered as missing. (TSK_ERR_MUST_IMPUTE_NON_SAMPLES)"
+                )
 
         L = interval.span
         a = np.empty(L, dtype=np.int8)

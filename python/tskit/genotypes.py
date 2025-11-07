@@ -38,12 +38,13 @@ import tskit.util as util
 class Variant:
     """
     A variant in a tree sequence, describing the observed genetic variation
-    among samples for a given site. A variant consists of (a) a tuple of
-    **alleles** listing the potential allelic states which samples at this site
-    can possess; (b) an array of **genotypes** mapping sample IDs to the observed
-    alleles (c) a reference to the :class:`Site` at which the Variant has been decoded
-    and (d) an array of **samples** giving the node id to which the each element of
-    the genotypes array corresponds.
+    among the specified nodes (by default, the sample nodes) for a given site.
+    A variant consists of (a) a tuple of **alleles** listing the potential
+    allelic states which the requested nodes at this site can possess; (b) an
+    array of **genotypes** mapping node IDs to the observed alleles; (c) a
+    reference to the :class:`Site` at which the Variant has been decoded; and
+    (d) an array of **samples** giving the node ID to which each element of the
+    genotypes array corresponds.
 
     After creation a Variant is not yet decoded, and has no genotypes.
     To decode a Variant, call the :meth:`decode` method. The Variant class will then
@@ -72,12 +73,13 @@ class Variant:
     In this case, there is no indication of which allele is the ancestral state,
     as the ordering is determined by the user.
 
-    The ``genotypes`` represent the observed allelic states for each sample,
-    such that ``var.alleles[var.genotypes[j]]`` gives the string allele
-    for sample ID ``j``. Thus, the elements of the genotypes array are
+    The ``genotypes`` represent the observed allelic states for each requested
+    node, such that ``var.alleles[var.genotypes[j]]`` gives the string allele
+    for the node at index ``j`` (i.e., for ``variant.samples[j]``). Thus, the
+    elements of the genotypes array are
     indexes into the ``alleles`` list. The genotypes are provided in this
     way via a numpy numeric array to enable efficient calculations. To obtain a
-    (less efficient) array of allele strings for each sample, you can use e.g.
+    (less efficient) array of allele strings for each node, you can use e.g.
     ``np.asarray(variant.alleles)[variant.genotypes]``.
 
     When :ref:`missing data<sec_data_model_missing_data>` is present at a given
@@ -95,10 +97,11 @@ class Variant:
     :param TreeSequence tree_sequence: The tree sequence to which this variant
         belongs.
     :param array_like samples: An array of node IDs for which to generate
-        genotypes, or None for all sample nodes. Default: None.
+        genotypes, or ``None`` for all sample nodes. Non-sample nodes may also
+        be provided to generate genotypes for internal nodes. Default: ``None``.
     :param bool isolated_as_missing: If True, the genotype value assigned to
-        missing samples (i.e., isolated samples without mutations) is
-        :data:`.MISSING_DATA` (-1). If False, missing samples will be
+        isolated nodes without mutations (samples or non-samples) is
+        :data:`.MISSING_DATA` (-1). If False, such nodes will be
         assigned the allele index for the ancestral state.
         Default: True.
     :param tuple alleles: A tuple of strings defining the encoding of
@@ -143,7 +146,7 @@ class Variant:
     @property
     def alleles(self) -> tuple[str | None, ...]:
         """
-        A tuple of the allelic values which samples can possess at the current
+        A tuple of the allelic values which nodes can possess at the current
         site. Unless an encoding of alleles is specified when creating this
         variant instance, the first element of this tuple is always the site's
         ancestral state.
@@ -162,7 +165,7 @@ class Variant:
     def genotypes(self) -> np.ndarray:
         """
         An array of indexes into the list ``alleles``, giving the
-        state of each sample at the current site.
+        state of each requested node at the current site.
         """
         self._check_decoded()
         return self._ll_variant.genotypes
@@ -170,8 +173,8 @@ class Variant:
     @property
     def isolated_as_missing(self) -> bool:
         """
-        True if isolated samples are decoded to missing data. If False, isolated
-        samples are decoded to the ancestral state.
+        True if isolated nodes are decoded to missing data. If False, isolated
+        nodes are decoded to the ancestral state.
         """
         return self._ll_variant.isolated_as_missing
 
@@ -179,7 +182,7 @@ class Variant:
     def has_missing_data(self) -> bool:
         """
         True if there is missing data for any of the
-        samples at the current site.
+        requested nodes at the current site.
         """
         alleles = self._ll_variant.alleles
         return len(alleles) > 0 and alleles[-1] is None
@@ -187,7 +190,7 @@ class Variant:
     @property
     def num_missing(self) -> int:
         """
-        The number of samples with missing data at this site.
+        The number of requested nodes with missing data at this site.
         """
         return np.sum(self.genotypes == tskit.NULL)
 
@@ -199,7 +202,7 @@ class Variant:
         array: firstly missing data is not counted as an allele, and secondly,
         the site may contain mutations to alternative allele states (which are
         counted in the number of alleles) without the mutation being inherited
-        by any of the samples.
+        by any of the requested nodes.
         """
         return len(self.alleles) - self.has_missing_data
 

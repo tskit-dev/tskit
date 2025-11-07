@@ -771,13 +771,14 @@ def variant_html(variant):
             + f"""
                 <tr><td>Site Id</td><td>{format_number(site_id)}</td></tr>
                 <tr><td>Site Position</td><td>{format_number(site_position)}</td></tr>
-                <tr><td>Number of Samples</td><td>{format_number(num_samples)}</td></tr>
+                <tr><td>Number of Nodes</td><td>{format_number(num_samples)}</td></tr>
                 <tr><td>Number of Alleles</td><td>{format_number(num_alleles)}</td></tr>
             """
             + "\n".join(
                 [
-                    f"""<tr><td>Samples with Allele {'missing' if k is None
-                                                     else "'" + k + "'"}</td><td>"""
+                    "<tr><td>Nodes with Allele "
+                    + ("missing" if k is None else "'" + k + "'")
+                    + "</td><td>"
                     + f"{format_number(counts[k])}"
                     + " "
                     + f"({format_number(freqs[k] * 100, 2)}%)"

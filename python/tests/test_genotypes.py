@@ -1286,6 +1286,52 @@ class TestBinaryTreeExample:
         with pytest.raises(tskit.LibraryError, match="MUST_IMPUTE_NON_SAMPLES"):
             list(ts.alignments(samples=[4]))
 
+    def test_variants_internal_nodes(self):
+        ts = self.ts()
+        # Root node 4: present across span, no mutations directly; always ancestral
+        vars4 = list(ts.variants(samples=[4]))
+        assert len(vars4) == 2
+        assert [v.alleles[v.genotypes[0]] for v in vars4] == ["A", "T"]
+        assert [v.has_missing_data for v in vars4] == [False, False]
+        # isolated_as_missing=False should not change results here
+        vars4_i = list(ts.variants(samples=[4], isolated_as_missing=False))
+        assert [v.alleles[v.genotypes[0]] for v in vars4_i] == ["A", "T"]
+        assert [v.has_missing_data for v in vars4_i] == [False, False]
+        # Internal node 3: mutation at site 1 gives derived state there
+        vars3 = list(ts.variants(samples=[3]))
+        assert len(vars3) == 2
+        assert [v.alleles[v.genotypes[0]] for v in vars3] == ["A", "C"]
+        assert [v.has_missing_data for v in vars3] == [False, False]
+        vars3_i = list(ts.variants(samples=[3], isolated_as_missing=False))
+        assert [v.alleles[v.genotypes[0]] for v in vars3_i] == ["A", "C"]
+        assert [v.has_missing_data for v in vars3_i] == [False, False]
+
+    def test_genotype_matrix_internal_nodes(self):
+        ts = self.ts()
+        import numpy as np
+
+        np.testing.assert_array_equal(
+            ts.genotype_matrix(samples=[4]), np.array([[0], [0]], dtype=np.int32)
+        )
+        np.testing.assert_array_equal(
+            ts.genotype_matrix(samples=[4], isolated_as_missing=False),
+            ts.genotype_matrix(samples=[4]),
+        )
+        np.testing.assert_array_equal(
+            ts.genotype_matrix(samples=[3]), np.array([[0], [1]], dtype=np.int32)
+        )
+        np.testing.assert_array_equal(
+            ts.genotype_matrix(samples=[3], isolated_as_missing=False),
+            ts.genotype_matrix(samples=[3]),
+        )
+
+    def test_haplotypes_internal_nodes(self):
+        ts = self.ts()
+        assert list(ts.haplotypes(samples=[4])) == ["AT"]
+        assert list(ts.haplotypes(samples=[4], isolated_as_missing=False)) == ["AT"]
+        assert list(ts.haplotypes(samples=[3])) == ["AC"]
+        assert list(ts.haplotypes(samples=[3], isolated_as_missing=False)) == ["AC"]
+
     def test_alignments_missing_data_char(self):
         A = list(self.ts().alignments(missing_data_character="x"))
         assert A[0] == "xxGxxxxxxT"
@@ -1844,6 +1890,284 @@ class TestMultiRootExample:
             """
         )
         assert expected == self.ts().as_fasta(reference_sequence=ref)
+
+
+class TestInternalNodeMissingness:
+    @tests.cached_example
+    def ts_missing(self):
+        # Start from a balanced tree with span=10
+        # then delete ancestry over [4,6]
+        # Internal node is then isolated across [4,6)
+        ts = tskit.Tree.generate_balanced(3, span=10).tree_sequence
+        tables = ts.dump_tables()
+        tables.delete_intervals([[4, 6]], simplify=False)
+        # Ensure there are sites within the deleted region
+        tables.sites.add_row(4, ancestral_state="A")
+        tables.sites.add_row(5, ancestral_state="A")
+        tables.sites.add_row(5.999999, ancestral_state="A")
+        tables.sort()
+        return tables.tree_sequence()
+
+    def test_variants_internal_isolated(self):
+        ts = self.ts_missing()
+        # Choose an internal node id (3) in this balanced tree
+        vars3 = list(ts.variants(samples=[3], isolated_as_missing=True))
+        assert len(vars3) == 3
+        assert all(v.has_missing_data for v in vars3)
+        assert all(v.alleles[-1] is None for v in vars3)
+        assert all(v.genotypes[0] == tskit.MISSING_DATA for v in vars3)
+        # With imputation, internal isolated node maps to ancestral
+        vars3_i = list(ts.variants(samples=[3], isolated_as_missing=False))
+        assert [v.genotypes[0] for v in vars3_i] == [0, 0, 0]
+        assert not any(v.has_missing_data for v in vars3_i)
+
+    def test_genotype_matrix_internal_isolated(self):
+        import numpy as np
+
+        ts = self.ts_missing()
+        Gm = ts.genotype_matrix(samples=[3], isolated_as_missing=True)
+        np.testing.assert_array_equal(
+            Gm.flatten(), np.array([-1, -1, -1], dtype=np.int32)
+        )
+        Gi = ts.genotype_matrix(samples=[3], isolated_as_missing=False)
+        np.testing.assert_array_equal(Gi.flatten(), np.array([0, 0, 0], dtype=np.int32))
+
+    def test_haplotypes_internal_isolated(self):
+        ts = self.ts_missing()
+        H = list(ts.haplotypes(samples=[3], isolated_as_missing=True))
+        assert H == ["NNN"]
+        Hq = list(
+            ts.haplotypes(
+                samples=[3], isolated_as_missing=True, missing_data_character="?"
+            )
+        )
+        assert Hq == ["???"]
+
+
+class TestVariantTopologyCombos:
+    def test_all_parent_child_combinations(self):
+        # Build a simple tree with one site and add an isolated node. Then request
+        # genotypes for nodes that realise each combination of (parent, left_child)
+        # nullness in tsk_variant_mark_missing_any.
+        tables = tskit.Tree.generate_balanced(3, span=10).tree_sequence.dump_tables()
+        # Add an isolated node (no edges present anywhere)
+        iso = tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        # Add a single site with ancestral allele only
+        tables.sites.add_row(1.0, ancestral_state="A")
+        ts = tables.tree_sequence()
+
+        tree = ts.first()
+        # Select a root that has children (exclude isolated root(s))
+        root_candidates = [r for r in tree.roots if tree.left_child(r) != tskit.NULL]
+        assert len(root_candidates) >= 1
+        root = root_candidates[0]  # parent NULL, left_child != NULL
+        # Choose a leaf sample present in the tree: parent != NULL, left_child NULL
+        leaf = next(
+            u
+            for u in ts.samples()
+            if tree.parent(u) != tskit.NULL and tree.left_child(u) == tskit.NULL
+        )
+        # Choose an internal non-root node: parent != NULL, left_child != NULL
+        internal = next(
+            u
+            for u in tree.nodes()
+            if tree.parent(u) != tskit.NULL and tree.left_child(u) != tskit.NULL
+        )
+
+        v = next(
+            ts.variants(samples=[iso, root, leaf, internal], isolated_as_missing=True)
+        )
+        # Only the isolated node should be marked missing; others should be ancestral (0)
+        np.testing.assert_array_equal(
+            v.genotypes, np.array([tskit.MISSING_DATA, 0, 0, 0], dtype=np.int32)
+        )
+        assert v.has_missing_data
+
+
+class TestInternalNode:
+    @tests.cached_example
+    def ts_single_tree(self):
+        return tskit.Tree.generate_balanced(3, span=10).tree_sequence
+
+    @tests.cached_example
+    def ts_isolated_internal(self):
+        # Add a non-sample internal node u=6 (no edges), and add sites.
+        ts = self.ts_single_tree()
+        tables = ts.dump_tables()
+        u = tables.nodes.add_row(flags=0, time=1)
+        tables.sites.add_row(2, ancestral_state="A")
+        tables.sites.add_row(9, ancestral_state="T")
+        return tables.tree_sequence(), u
+
+    def test_isolated_internal_node_all_missing(self):
+        ts, u = self.ts_isolated_internal()
+        # Both sites missing for internal node
+        V = list(ts.variants(samples=[u], isolated_as_missing=True))
+        assert [v.genotypes[0] for v in V] == [tskit.MISSING_DATA] * len(V)
+        assert all(v.has_missing_data and v.alleles[-1] is None for v in V)
+        np.testing.assert_array_equal(
+            ts.genotype_matrix(samples=[u], isolated_as_missing=True).flatten(),
+            np.array([-1, -1], dtype=np.int32),
+        )
+        assert list(ts.haplotypes(samples=[u], isolated_as_missing=True)) == ["NN"]
+        assert [
+            v.genotypes[0] for v in ts.variants(samples=[u], isolated_as_missing=False)
+        ] == [0, 0]
+
+    @tests.cached_example
+    def ts_dead_branch(self):
+        # Create a dead branch: two non-sample nodes x (root) -> y (leaf) over full span.
+        # This topology is not reachable from sample roots, but present in the
+        # tree arrays for the current tree.
+        #
+        # Dead branch (x to y) unattached to sample-reachable roots
+        # 2.00┊      x         ┊
+        #     ┊      ┃         ┊
+        # 1.00┊      y         ┊
+        #     ┊                ┊
+        # 0.00┊ 0     1     2  ┊  (main balanced tree; x/y not reachable)
+        #     0             10
+        # Sites: pos 3 (anc=A), pos 7 (anc=C); mutation at pos 7 on x 'T'
+        ts = self.ts_single_tree()
+        tables = ts.dump_tables()
+        x = tables.nodes.add_row(flags=0, time=2)
+        y = tables.nodes.add_row(flags=0, time=1)
+        tables.edges.add_row(0, tables.sequence_length, parent=x, child=y)
+        # Sites to probe ancestral/derived states
+        tables.sites.add_row(3, ancestral_state="A")
+        s1 = tables.sites.add_row(7, ancestral_state="C")
+        # Mutation on x at s1
+        tables.mutations.add_row(site=s1, node=x, derived_state="T")
+        tables.sort()
+        return tables.tree_sequence(), x, y
+
+    def test_dead_branch_internal_and_leaf(self):
+        ts, x, y = self.ts_dead_branch()
+        # y is a leaf on a dead branch (no children, parent=x),
+        # so not isolated (parent != NULL).
+        Vy = list(ts.variants(samples=[y], isolated_as_missing=True))
+        # y inherits ancestral at site 3 and derived at site 7 via parent x
+        assert [vy.alleles[vy.genotypes[0]] for vy in Vy] == ["A", "T"]
+        assert not any(vy.has_missing_data for vy in Vy)
+        # x is internal (has child), so not isolated.
+        # At site 7 it is mutated; site 3 ancestral.
+        Vx = list(ts.variants(samples=[x], isolated_as_missing=True))
+        assert [vx.alleles[vx.genotypes[0]] for vx in Vx] == ["A", "T"]
+        assert not any(vx.has_missing_data for vx in Vx)
+
+    @tests.cached_example
+    def ts_presence_switch(self):
+        # Construct two trees with a breakpoint at 5. Internal node a present on [0,5),
+        # absent on [5,10).
+        #
+        # Two trees; breakpoint at 5
+        # Tree 0: [0,5)                Tree 1: [5,10)
+        # 1.00┊  a                     1.00┊  b
+        # 0.00┊  0    (1 isolated)     0.00┊  0   (1 isolated)
+        #     0         5              5          10
+        # Sites: pos 2 (anc=A), pos 7 (anc=C)
+        # Mutation: pos 2 on a 'G'
+        tables = tskit.TableCollection(10)
+        s0 = tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        s1 = tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)  # s1 (isolated)
+        a = tables.nodes.add_row(flags=0, time=1)
+        b = tables.nodes.add_row(flags=0, time=1)
+        # Left tree: a->s0 on [0,5); right tree: b->s0 on [5,10)
+        tables.edges.add_row(0, 5, parent=a, child=s0)
+        tables.edges.add_row(5, 10, parent=b, child=s0)
+        # s1 remains isolated across entire span
+        # Sites: one on each side of breakpoint
+        s_left = tables.sites.add_row(2, ancestral_state="A")
+        tables.sites.add_row(7, ancestral_state="C")
+        # Mutation on a at s_left so a has derived there
+        tables.mutations.add_row(site=s_left, node=a, derived_state="G")
+        tables.sort()
+        ts = tables.tree_sequence()
+        return ts, a, s1
+
+    def test_internal_presence_switch(self):
+        ts, a, _ = self.ts_presence_switch()
+        # Site at 2 (left): a present & derived; Site at 7 (right): a absent - isolated
+        V = list(ts.variants(samples=[a], isolated_as_missing=True))
+        assert [v.genotypes[0] for v in V] == [1, tskit.MISSING_DATA]
+        assert [
+            (v.alleles[v.genotypes[0]] if v.genotypes[0] != -1 else None) for v in V
+        ] == [
+            "G",
+            None,
+        ]
+        # Imputed ancestral at right site
+        assert [
+            vi.genotypes[0]
+            for vi in ts.variants(samples=[a], isolated_as_missing=False)
+        ] == [1, 0]
+        assert list(ts.haplotypes(samples=[a], isolated_as_missing=False)) == ["GC"]
+        assert list(ts.haplotypes(samples=[a], isolated_as_missing=True)) == ["GN"]
+
+    def test_isolated_sample_mark_missing_any(self):
+        ts, _, s1 = self.ts_presence_switch()
+        V = list(ts.variants(samples=[s1], isolated_as_missing=True))
+        assert len(V) == 2
+        assert [v.genotypes[0] for v in V] == [tskit.MISSING_DATA] * len(V)
+        assert all(v.has_missing_data and v.alleles[-1] is None for v in V)
+        np.testing.assert_array_equal(
+            ts.genotype_matrix(samples=[s1], isolated_as_missing=True),
+            np.full((2, 1), tskit.MISSING_DATA, dtype=np.int32),
+        )
+
+    @tests.cached_example
+    def ts_mutation_overrides_missing(self):
+        # Similar to presence_switch, but add a mutation on a at the right-side site.
+        # Even though a is absent over [5,10), a mutation at the site (pos 7) makes
+        # the allele known (overrides missingness at the site).
+        ts, a, _ = self.ts_presence_switch()
+        tables = ts.dump_tables()
+        # Add a mutation on a at the right-side site (position 7)
+        # Find the site id for position 7
+        pos_to_id = {s.position: s.id for s in ts.sites()}
+        s_right = pos_to_id[7.0]
+        tables.mutations.add_row(site=s_right, node=a, derived_state="T")
+        tables.sort()
+        return tables.tree_sequence(), a
+
+    def test_mutation_overrides_missing(self):
+        ts, a = self.ts_mutation_overrides_missing()
+        # Now both sites have derived alleles for a,
+        # even though a is absent on the right interval.
+        V = list(ts.variants(samples=[a], isolated_as_missing=True))
+        assert [v.alleles[v.genotypes[0]] for v in V] == ["G", "T"]
+        assert not any(v.has_missing_data for v in V)
+
+    def test_mixed_samples_ordering(self):
+        # Combine internal and sample nodes; ensure order and mapping preserved
+        ts, a, _ = self.ts_presence_switch()
+        samples = [a] + list(ts.samples())  # [internal, sample0, sample1]
+        # Build expected by joining per-node results
+        rows = []
+        for u in samples:
+            row = [
+                v.genotypes[0]
+                for v in ts.variants(samples=[u], isolated_as_missing=True)
+            ]
+            rows.append(row)
+        # Single call with mixed samples should match stacked rows
+        # Build matrix via variants over mixed sample list
+        G_rows = []
+        for v in ts.variants(samples=samples, isolated_as_missing=True):
+            G_rows.append(v.genotypes.tolist())
+        # Compare
+        assert G_rows == [list(col) for col in zip(*rows)]
+
+    def test_variants_copy_false_internal(self):
+        ts, a, _ = self.ts_presence_switch()
+        it = ts.variants(samples=[a], isolated_as_missing=True, copy=False)
+        v1 = next(it)
+        # Hold onto v1, decode next site updates same object
+        val1 = (v1.site.position, v1.genotypes.copy())
+        v2 = next(it)
+        assert v1 is v2
+        # v1 now reflects second site
+        assert v1.site.position != val1[0]
 
 
 class TestAlignmentsErrors:

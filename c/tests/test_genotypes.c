@@ -512,10 +512,45 @@ test_single_tree_non_samples(void)
 
     tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
         single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
-    /* It's an error to hand in non-samples without imputation turned on */
     ret = tsk_vargen_init(&vargen, &ts, samples, 2, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUST_IMPUTE_NON_SAMPLES);
-    tsk_vargen_free(&vargen);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_print_state(&vargen, _devnull);
+
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->genotypes[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes[1], 0);
+    CU_ASSERT_EQUAL(var->num_alleles, 2);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
+    CU_ASSERT_EQUAL(var->site.id, 0);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 1);
+
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->genotypes[1], 0);
+    CU_ASSERT_EQUAL(var->genotypes[0], 1);
+    CU_ASSERT_EQUAL(var->num_alleles, 2);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
+    CU_ASSERT_EQUAL(var->site.id, 1);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 2);
+
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->genotypes[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes[1], 0);
+    CU_ASSERT_EQUAL(var->num_alleles, 2);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[0], "0", 1);
+    CU_ASSERT_NSTRING_EQUAL(var->alleles[1], "1", 1);
+    CU_ASSERT_EQUAL(var->site.id, 2);
+    CU_ASSERT_EQUAL(var->site.mutations_length, 4);
+
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_vargen_free(&vargen);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_vargen_init(&vargen, &ts, samples, 2, NULL, TSK_ISOLATED_NOT_MISSING);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -556,6 +591,60 @@ test_single_tree_non_samples(void)
 
     ret = tsk_vargen_free(&vargen);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_isolated_internal_node(void)
+{
+    int ret = 0;
+    tsk_treeseq_t ts;
+    tsk_vargen_t vargen;
+    tsk_variant_t *var;
+    /* Two sample nodes (0,1), plus an internal non-sample node u=2 with no edges */
+    const char *nodes = "1  0   -1   -1\n"
+                        "1  0   -1   -1\n"
+                        "0  1   -1   -1\n";
+    const char *sites = "2.0    A\n"
+                        "9.0    T\n";
+    tsk_id_t samples[] = { 2 };
+
+    tsk_treeseq_from_text(&ts, 10, nodes, "", NULL, sites, NULL, NULL, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(tsk_treeseq_get_num_nodes(&ts), 3);
+    CU_ASSERT_EQUAL_FATAL(tsk_treeseq_get_num_samples(&ts), 2);
+    CU_ASSERT_EQUAL_FATAL(tsk_treeseq_get_num_sites(&ts), 2);
+
+    /* Default options (isolated_as_missing=True): internal node is isolated everywhere
+     */
+    ret = tsk_vargen_init(&vargen, &ts, samples, 1, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_TRUE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes[0], TSK_MISSING_DATA);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_TRUE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes[0], TSK_MISSING_DATA);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_free(&vargen);
+
+    /* Impute missing (isolated_as_missing=False): genotypes should be ancestral (0) */
+    ret = tsk_vargen_init(&vargen, &ts, samples, 1, NULL, TSK_ISOLATED_NOT_MISSING);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_FALSE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes[0], 0);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_FALSE(var->has_missing_data);
+    CU_ASSERT_EQUAL(var->genotypes[0], 0);
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_vargen_free(&vargen);
+
     tsk_treeseq_free(&ts);
 }
 
@@ -1123,6 +1212,7 @@ main(int argc, char **argv)
         { "test_single_tree_char_alphabet", test_single_tree_char_alphabet },
         { "test_single_tree_binary_alphabet", test_single_tree_binary_alphabet },
         { "test_single_tree_non_samples", test_single_tree_non_samples },
+        { "test_isolated_internal_node", test_isolated_internal_node },
         { "test_single_tree_errors", test_single_tree_errors },
         { "test_single_tree_user_alleles_errors", test_single_tree_user_alleles_errors },
         { "test_single_tree_subsample", test_single_tree_subsample },
