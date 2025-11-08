@@ -276,6 +276,7 @@ verify_divergence_matrix(tsk_treeseq_t *ts, tsk_flags_t options)
     tsk_id_t index_tuples[2 * n * n];
     double D1[n * n], D2[n * n];
     tsk_size_t i, j, k;
+    tsk_flags_t lib_options = options;
 
     for (j = 0; j < n; j++) {
         sample_set_sizes[j] = 1;
@@ -284,8 +285,13 @@ verify_divergence_matrix(tsk_treeseq_t *ts, tsk_flags_t options)
             index_tuples[2 * (j * n + k) + 1] = (tsk_id_t) k;
         }
     }
+    /* Until we have mutation mode for divergence: */
+    if (!!(lib_options & TSK_STAT_MUTATION)) {
+        lib_options &= (tsk_flags_t) ~TSK_STAT_MUTATION;
+        lib_options |= (tsk_flags_t) TSK_STAT_SITE;
+    }
     ret = tsk_treeseq_divergence(
-        ts, n, sample_set_sizes, samples, n * n, index_tuples, 0, NULL, options, D1);
+        ts, n, sample_set_sizes, samples, n * n, index_tuples, 0, NULL, lib_options, D1);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     ret = tsk_treeseq_divergence_matrix(
