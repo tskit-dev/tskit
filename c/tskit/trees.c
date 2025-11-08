@@ -2041,12 +2041,17 @@ tsk_treeseq_general_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
     bool stat_site = !!(options & TSK_STAT_SITE);
     bool stat_branch = !!(options & TSK_STAT_BRANCH);
     bool stat_node = !!(options & TSK_STAT_NODE);
+    bool stat_mutation = !!(options & TSK_STAT_MUTATION);
     double default_windows[] = { 0, self->tables->sequence_length };
     tsk_size_t row_size;
 
     /* If no mode is specified, we default to site mode */
-    if (!(stat_site || stat_branch || stat_node)) {
+    if (!(stat_site || stat_branch || stat_node || stat_mutation)) {
         stat_site = true;
+    }
+    if (stat_mutation) {
+        ret = tsk_trace_error(TSK_ERR_UNSUPPORTED_STAT_MODE);
+        goto out;
     }
     /* It's an error to specify more than one mode */
     if (stat_site + stat_branch + stat_node > 1) {
@@ -8751,11 +8756,11 @@ remap_to_sample_sets(const tsk_size_t num_samples, const tsk_id_t *restrict samp
 }
 
 static int
-tsk_treeseq_divergence_matrix_site(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
-    const tsk_id_t *restrict sample_set_index_map, const tsk_size_t num_samples,
-    const tsk_id_t *restrict samples, tsk_size_t num_windows,
-    const double *restrict windows, tsk_flags_t TSK_UNUSED(options),
-    double *restrict result)
+tsk_treeseq_divergence_matrix_mutation(const tsk_treeseq_t *self,
+    tsk_size_t num_sample_sets, const tsk_id_t *restrict sample_set_index_map,
+    const tsk_size_t num_samples, const tsk_id_t *restrict samples,
+    tsk_size_t num_windows, const double *restrict windows,
+    tsk_flags_t TSK_UNUSED(options), double *restrict result)
 {
     int ret = 0;
     tsk_size_t i;
@@ -8913,20 +8918,21 @@ tsk_treeseq_divergence_matrix(const tsk_treeseq_t *self, tsk_size_t num_sample_s
     bool stat_site = !!(options & TSK_STAT_SITE);
     bool stat_branch = !!(options & TSK_STAT_BRANCH);
     bool stat_node = !!(options & TSK_STAT_NODE);
+    bool stat_mutation = !!(options & TSK_STAT_MUTATION);
     tsk_id_t *sample_set_index_map
         = tsk_malloc(num_nodes * sizeof(*sample_set_index_map));
     tsk_size_t j;
 
-    if (stat_node) {
+    if (stat_node || stat_site) {
         ret = tsk_trace_error(TSK_ERR_UNSUPPORTED_STAT_MODE);
         goto out;
     }
-    /* If no mode is specified, we default to site mode */
-    if (!(stat_site || stat_branch)) {
-        stat_site = true;
+    /* If no mode is specified, we default to mutation mode */
+    if (!(stat_mutation || stat_branch)) {
+        stat_mutation = true;
     }
     /* It's an error to specify more than one mode */
-    if (stat_site + stat_branch > 1) {
+    if (stat_mutation + stat_branch > 1) {
         ret = tsk_trace_error(TSK_ERR_MULTIPLE_STAT_MODES);
         goto out;
     }
@@ -8982,8 +8988,8 @@ tsk_treeseq_divergence_matrix(const tsk_treeseq_t *self, tsk_size_t num_sample_s
         ret = tsk_treeseq_divergence_matrix_branch(self, N, sample_set_sizes,
             sample_sets, num_windows, windows, options, result);
     } else {
-        tsk_bug_assert(stat_site);
-        ret = tsk_treeseq_divergence_matrix_site(self, N, sample_set_index_map,
+        tsk_bug_assert(stat_mutation);
+        ret = tsk_treeseq_divergence_matrix_mutation(self, N, sample_set_index_map,
             total_samples, sample_sets, num_windows, windows, options, result);
     }
     if (ret != 0) {

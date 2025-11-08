@@ -14,6 +14,10 @@
   is not the case.
   (:user:`benjeffery`, :issue:`2729`, :issue:`2732`, :pr:`3212`).
 
+- The previous behavior of ``genetic_relatedness_matrix`` with ``mode="site"`` is
+  now provided by ``mode="branch"``, and ``mode="site"`` is not supported.
+  (:user:`petrelharp`, :pr:`3314`)
+
 - Drop Python 3.9 support, require Python >= 3.10 (:pr:`3267`, :user:`benjeffery`)
 
 
@@ -59,6 +63,12 @@
   allowing greater flexibility in "disjoint union" situations.
   (:user:`hyanwong`, :user:`petrelharp`, :issue:`3181`)
 
+- Add a new statistics mode, ``mode="mutation"``, that counts numbers of mutations
+  rather than branch length (``mode="branch"``) or allelic state (``mode="site"``)
+  (:user:`petrelharp`, :pr:`3314`).
+
+- Add ``TreeSequence.divergence_matrix``, which was previously undocumented.
+
 **Bugfixes**
 
 - In some tables with mutations out-of-order ``TableCollection.sort`` did not re-order
@@ -101,6 +111,7 @@
 
 - ``ltrim``, ``rtrim``, ``trim`` and ``shift`` raise an error if used on a tree sequence
   containing a reference sequence (:user:`hyanwong`, :pr:`3210`, :issue:`2091`)
+
 
 --------------------
 [0.6.4] - 2025-05-21

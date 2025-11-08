@@ -204,28 +204,42 @@ statistics API in use.
 
 #### Mode
 
-There are three **modes** of statistic: `site`, `branch`, and `node`,
+There are four **modes** of statistic: `site`, `branch`, `mutation`, and `node`,
 that each summarize aspects of the tree sequence in different but related ways.
 Roughly speaking, these answer the following sorts of question:
 
 site
-: How many mutations differentiate these two genomes?
+: At how many sites do these two genomes differ?
 
 branch
 : How long since these genomes' common ancestor?
 
+branch
+: How many mutations have occurred since these genomes' common ancestor?
+
 node
 : On how much of the genome is each node an ancestor of only one of these genomes, but not both?
 
-These three examples can all be answered in the same way with the tree sequence:
+These examples can all be answered in the same way with the tree sequence:
 first, draw all the paths from one genome to the other through the tree sequence
 (back up to their common ancestor and back down in each marginal tree).
 Then,
-(`site`) count the number of mutations falling on the paths,
+(`site`) check if the allelic state at the endpoints is the same, or
 (`branch`) measure the length of the paths, or
+(`mutation`) count the number of mutations falling on the paths, or
 (`node`) count how often the path goes through each node.
 There is more discussion of this correspondence in the paper describing these statistics,
 and precise definitions are given in each statistic.
+
+Furthermore, since mutations are rare, if two genomes differ in state at a site,
+then it's probably because there was a single mutation.
+This means that `site` and `mutation` are *almost* the same:
+and, they will be identical if there is at most one mutation per site
+and no mutations are silent.
+So, we tend to think of `site` in the same way, as counting numbers of mutations;
+with a small correction due to multiple mutations.
+Furthermore, `mutation` mode is not implemented for many statistics at this point,
+so use `site` to answer the same questions.
 
 Here's an example of using the {meth}`~TreeSequence.diversity` statistic to return the
 average branch length between all pairs of samples:
@@ -235,7 +249,7 @@ ts.diversity(mode="branch")
 ```
 
 One important thing to know is that `node` statistics have somewhat different output.
-While `site` and `branch` statistics naturally return one number
+While `site`, `branch`, and `mutation` statistics naturally return one number
 for each portion of the genome (and thus incorporates information about many nodes: see below),
 the `node` statistics return one number **for each node** in the tree sequence (and for each window).
 There can be a lot of nodes in the tree sequence, so beware.
@@ -795,8 +809,9 @@ pairwise) and Patterson's f statistics (which are four-way).
 ### Derived statistics
 
 Most statistics have the property that `mode="branch"` and
-`mode="site"` are "dual" in the sense that they are equal, on average, under
-a high neutral mutation rate. {meth}`~TreeSequence.Fst` and {meth}`~TreeSequence.Tajimas_D`
+`mode="mutation"` are "dual" in the sense that they are equal, on average, 
+and so is `mode="site"` under the infinite sites model of mutation.
+{meth}`~TreeSequence.Fst` and {meth}`~TreeSequence.Tajimas_D`
 do not have this property (since both are ratios of statistics that do have this property).
 
 

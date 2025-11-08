@@ -37,7 +37,7 @@ from tests.tsutil import get_example_tree_sequences
 # ↑ See https://github.com/tskit-dev/tskit/issues/1804 for when
 # we can remove this.
 
-DIVMAT_MODES = ["branch", "site"]
+DIVMAT_MODES = ["branch", "mutation"]
 
 # NOTE: this implementation of Schieber-Vishkin algorithm is done like
 # this so it's easy to run with numba. It would be more naturally
@@ -237,9 +237,14 @@ def branch_divergence_matrix(ts, sample_sets=None, windows=None, span_normalise=
 
 
 def divergence_matrix(
-    ts, windows=None, sample_sets=None, samples=None, mode="site", span_normalise=True
+    ts,
+    windows=None,
+    sample_sets=None,
+    samples=None,
+    mode="mutation",
+    span_normalise=True,
 ):
-    assert mode in ["site", "branch"]
+    assert mode in ["mutation", "branch"]
     if samples is not None and sample_sets is not None:
         raise ValueError("Cannot specify both")
     if samples is None and sample_sets is None:
@@ -249,8 +254,8 @@ def divergence_matrix(
     else:
         assert sample_sets is not None
 
-    if mode == "site":
-        return site_divergence_matrix(
+    if mode == "mutation":
+        return mutation_divergence_matrix(
             ts, sample_sets, windows=windows, span_normalise=span_normalise
         )
     else:
@@ -274,9 +279,12 @@ def stats_api_matrix_method(
     windows=None,
     samples=None,
     sample_sets=None,
-    mode="site",
+    mode="mutation",
     span_normalise=True,
 ):
+    # Until we have mutation mode for general stats:
+    if mode == "mutation":
+        mode = "site"
     if samples is not None and sample_sets is not None:
         raise ValueError("Cannot specify both")
     if samples is None and sample_sets is None:
@@ -344,7 +352,7 @@ def group_alleles(genotypes, num_alleles):
     return A, offsets
 
 
-def site_divergence_matrix(ts, sample_sets, *, windows=None, span_normalise=True):
+def mutation_divergence_matrix(ts, sample_sets, *, windows=None, span_normalise=True):
     windows_specified = windows is not None
     windows = ts.parse_windows(windows)
     num_windows = len(windows) - 1
@@ -403,7 +411,7 @@ def check_divmat(
     verbosity=0,
     compare_stats_api=True,
     compare_lib=True,
-    mode="site",
+    mode="mutation",
 ):
     # print("samples = ", samples, sample_sets)
     # print(ts.draw_text())
@@ -479,7 +487,7 @@ class TestExamplesWithAnswer:
         #     0         1
         ts = tskit.Tree.generate_balanced(4).tree_sequence
         ts = tsutil.insert_branch_sites(ts, m)
-        D1 = check_divmat(ts, mode="site")
+        D1 = check_divmat(ts, mode="mutation")
         D2 = np.array(
             [
                 [0.0, 2.0, 4.0, 4.0],
@@ -497,7 +505,7 @@ class TestExamplesWithAnswer:
         for j in range(n):
             tables.mutations.add_row(site=0, node=j, derived_state=f"{j + 1}")
         ts = tables.tree_sequence()
-        D1 = check_divmat(ts, mode="site")
+        D1 = check_divmat(ts, mode="mutation")
         D2 = np.ones((n, n))
         np.fill_diagonal(D2, 0)
         np.testing.assert_array_equal(D1, D2)
@@ -708,7 +716,7 @@ class TestExamplesWithAnswer:
     @pytest.mark.parametrize("n", [2, 3, 5])
     def test_single_tree_no_sites(self, n):
         ts = tskit.Tree.generate_balanced(n, span=10).tree_sequence
-        D = check_divmat(ts, mode="site")
+        D = check_divmat(ts, mode="mutation")
         np.testing.assert_array_equal(D, np.zeros((n, n)))
 
 
@@ -954,7 +962,7 @@ class TestSuiteExamples:
             atol = 1e-11 if has_missing_data else 0
             np.testing.assert_allclose(D1, D2, atol=atol)
         else:
-            assert mode == "site"
+            assert mode == "mutation"
             np.testing.assert_allclose(D1, D2)
 
     @pytest.mark.parametrize("ts", get_example_tree_sequences())
@@ -1350,7 +1358,7 @@ class TestGeneticRelatednessMatrix:
     def check(self, ts, mode, *, sample_sets=None, windows=None, span_normalise=True):
         # These are *only* expected to be the same
         # under infinite-sites mutations
-        if mode == "site" and np.any([len(s.mutations) > 1 for s in ts.sites()]):
+        if mode == "mutation" and np.any([len(s.mutations) > 1 for s in ts.sites()]):
             ts = msprime.sim_mutations(
                 ts,
                 rate=100 / ts.segregating_sites(mode="branch", span_normalise=False),
