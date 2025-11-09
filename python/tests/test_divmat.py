@@ -463,6 +463,7 @@ def check_divmat(
 
 
 class TestExamplesWithAnswer:
+
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
     def test_single_tree_zero_samples(self, mode):
         ts = tskit.Tree.generate_balanced(2).tree_sequence
@@ -1380,6 +1381,16 @@ class TestGeneticRelatednessMatrix:
             span_normalise=span_normalise,
         )
         np.testing.assert_array_almost_equal(G1, G2)
+
+    def test_bad_modes(self):
+        ts = tskit.Tree.generate_balanced(4).tree_sequence
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_UNSUPPORTED_STAT_MODE"):
+            ts.genetic_relatedness_matrix([0, 5], mode="node")
+        with pytest.warns(UserWarning, match="mutation' instead"):
+            with pytest.raises(
+                tskit.LibraryError, match="TSK_ERR_UNSUPPORTED_STAT_MODE"
+            ):
+                ts.genetic_relatedness_matrix([0, 5], mode="site")
 
     @pytest.mark.parametrize("mode", DIVMAT_MODES)
     def test_single_tree(self, mode):

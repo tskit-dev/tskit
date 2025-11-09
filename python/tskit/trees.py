@@ -8951,6 +8951,12 @@ class TreeSequence:
             If there is one pair of sample sets and windows=None, a numpy scalar is
             returned.
         """
+        if mode == "site":
+            warnings.warn(
+                "Passing mode='site' to genetic_relatedness_matrix is "
+                "no longer allowed; please pass mode='mutation' instead.",
+                stacklevel=4,
+            )
         D = self.divergence_matrix(
             sample_sets,
             windows=windows,
