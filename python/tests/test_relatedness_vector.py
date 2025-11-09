@@ -1179,7 +1179,7 @@ class TestPCA:
             sequence_length=10,
             random_seed=123,
         )
-        for bad_mode in ("site", "node"):
+        for bad_mode in ("site", "node", "mutation"):
             with pytest.raises(
                 tskit.LibraryError, match="TSK_ERR_UNSUPPORTED_STAT_MODE"
             ):

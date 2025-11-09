@@ -4566,6 +4566,20 @@ class TestBranchAlleleFrequencySpectrumProperties(StatsTestCase, TopologyExample
                 self.assertArrayAlmostEqual(afs_sum, tbl)
 
 
+class TestAlleleFrequencySpectrumErrors:
+
+    def test_errors(self):
+        ts = msprime.simulate(10, recombination_rate=2, random_seed=1)
+        with pytest.raises(
+            exceptions.LibraryError, match="TSK_ERR_UNSUPPORTED_STAT_MODE"
+        ):
+            _ = ts.allele_frequency_spectrum(mode="node")
+        with pytest.raises(
+            exceptions.LibraryError, match="TSK_ERR_UNSUPPORTED_STAT_MODE"
+        ):
+            _ = ts.allele_frequency_spectrum(mode="mutation")
+
+
 ############################################
 # End of specific stats tests.
 ############################################

@@ -3407,8 +3407,8 @@ tsk_treeseq_two_locus_count_stat(const tsk_treeseq_t *self, tsk_size_t num_sampl
         .sample_set_sizes = sample_set_sizes,
         .set_indexes = set_indexes };
 
-    // We do not support two-locus node stats
-    if (!!(options & TSK_STAT_NODE)) {
+    // We do not support two-locus node or mutation stats
+    if (!!(options & (TSK_STAT_NODE | TSK_STAT_MUTATION))) {
         ret = tsk_trace_error(TSK_ERR_UNSUPPORTED_STAT_MODE);
         goto out;
     }
@@ -3826,7 +3826,6 @@ tsk_treeseq_allele_frequency_spectrum(const tsk_treeseq_t *self,
     int ret = 0;
     bool stat_site = !!(options & TSK_STAT_SITE);
     bool stat_branch = !!(options & TSK_STAT_BRANCH);
-    bool stat_node = !!(options & TSK_STAT_NODE);
     const double default_windows[] = { 0, self->tables->sequence_length };
     const double default_time_windows[] = { 0, INFINITY };
     const tsk_size_t num_nodes = self->tables->nodes.num_rows;
@@ -3838,7 +3837,7 @@ tsk_treeseq_allele_frequency_spectrum(const tsk_treeseq_t *self,
      * reuse code from the general_stats code paths. */
     double *counts = NULL;
     double *count_row;
-    if (stat_node) {
+    if (!!(options & (TSK_STAT_NODE | TSK_STAT_MUTATION))) {
         ret = tsk_trace_error(TSK_ERR_UNSUPPORTED_STAT_MODE);
         goto out;
     }
@@ -10794,11 +10793,12 @@ tsk_treeseq_genetic_relatedness_vector(const tsk_treeseq_t *self, tsk_size_t num
     int ret = 0;
     bool stat_site = !!(options & TSK_STAT_SITE);
     bool stat_node = !!(options & TSK_STAT_NODE);
+    bool stat_mutation = !!(options & TSK_STAT_MUTATION);
     tsk_matvec_calculator_t calc;
 
     memset(&calc, 0, sizeof(calc));
 
-    if (stat_node || stat_site) {
+    if (stat_node || stat_site || stat_mutation) {
         ret = tsk_trace_error(TSK_ERR_UNSUPPORTED_STAT_MODE);
         goto out;
     }

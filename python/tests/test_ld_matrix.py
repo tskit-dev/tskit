@@ -40,6 +40,7 @@ import msprime
 import numpy as np
 import pytest
 
+import _tskit
 import tskit
 import tskit.util as util
 from tests import tsutil
@@ -1774,6 +1775,14 @@ def test_ld_empty_examples(ts):
         ts.ld_matrix()
     with pytest.raises(ValueError, match="at least one element"):
         ts.ld_matrix(mode="branch")
+
+
+def test_bad_modes():
+    ts = get_paper_ex_ts()
+    with pytest.raises(_tskit.LibraryError, match="UNSUPPORTED_STAT_MODE"):
+        ts.ld_matrix(mode="node")
+    with pytest.raises(_tskit.LibraryError, match="UNSUPPORTED_STAT_MODE"):
+        ts.ld_matrix(mode="mutation")
 
 
 def test_input_validation():

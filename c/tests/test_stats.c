@@ -2270,6 +2270,9 @@ test_paper_ex_genetic_relatedness_vector_errors(void)
     ret = tsk_treeseq_genetic_relatedness_vector(&ts, num_weights, weights, 2, windows,
         num_samples, ts.samples, result, TSK_STAT_NODE);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSUPPORTED_STAT_MODE);
+    ret = tsk_treeseq_genetic_relatedness_vector(&ts, num_weights, weights, 2, windows,
+        num_samples, ts.samples, result, TSK_STAT_MUTATION);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSUPPORTED_STAT_MODE);
 
     tsk_treeseq_free(&ts);
     free(weights);
@@ -2521,6 +2524,10 @@ test_paper_ex_afs_errors(void)
 
     ret = tsk_treeseq_allele_frequency_spectrum(
         &ts, 2, sample_set_sizes, samples, 0, NULL, 0, NULL, TSK_STAT_NODE, result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSUPPORTED_STAT_MODE);
+
+    ret = tsk_treeseq_allele_frequency_spectrum(
+        &ts, 2, sample_set_sizes, samples, 0, NULL, 0, NULL, TSK_STAT_MUTATION, result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSUPPORTED_STAT_MODE);
 
     ret = tsk_treeseq_allele_frequency_spectrum(&ts, 2, sample_set_sizes, samples, 0,
@@ -3808,6 +3815,10 @@ test_two_locus_stat_input_errors(void)
 
     ret = tsk_treeseq_r2(&ts, num_sample_sets, sample_set_sizes, sample_sets, 10, NULL,
         positions, 10, NULL, positions, TSK_STAT_NODE, result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSUPPORTED_STAT_MODE);
+
+    ret = tsk_treeseq_r2(&ts, num_sample_sets, sample_set_sizes, sample_sets, 10, NULL,
+        positions, 10, NULL, positions, TSK_STAT_MUTATION, result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_UNSUPPORTED_STAT_MODE);
 
     num_sample_sets = 2;
