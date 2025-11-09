@@ -1462,7 +1462,8 @@ def ld_matrix(
     )
 
 
-def get_paper_ex_ts():
+@pytest.fixture(scope="session")
+def paper_ex_ts():
     """Generate the tree sequence example from the tskit paper
 
     Data taken from the tests:
@@ -1568,7 +1569,7 @@ def get_matrix_partitions(n):
 
 # Generate all partitions of the LD matrix, then pass into test_subset
 @pytest.mark.parametrize("partition", get_matrix_partitions(len(PAPER_EX_TRUTH_MATRIX)))
-def test_subset_sites(partition):
+def test_subset_sites(paper_ex_ts, partition):
     """Given a partition of the truth matrix, check that we can successfully
     compute the LD matrix for that given partition, effectively ensuring that
     our handling of site subsets is correct.
@@ -1576,7 +1577,7 @@ def test_subset_sites(partition):
     :param partition: length 2 list of [row_sites, column_sites].
     """
     a, b = partition
-    ts = get_paper_ex_ts()
+    ts = paper_ex_ts
     np.testing.assert_allclose(
         ld_matrix(ts, sites=partition),
         PAPER_EX_TRUTH_MATRIX[a[0] : a[-1] + 1, b[0] : b[-1] + 1],
@@ -1589,7 +1590,7 @@ def test_subset_sites(partition):
 @pytest.mark.parametrize(
     "partition", get_matrix_partitions(len(PAPER_EX_BRANCH_TRUTH_MATRIX))
 )
-def test_subset_positions(partition):
+def test_subset_positions(paper_ex_ts, partition):
     """Given a partition of the truth matrix, check that we can successfully
     compute the LD matrix for that given partition, effectively ensuring that
     our handling of positions is correct. We use the midpoint inside of the
@@ -1598,7 +1599,7 @@ def test_subset_positions(partition):
     :param partition: length 2 list of [row_positions, column_positions].
     """
     a, b = partition
-    ts = get_paper_ex_ts()
+    ts = paper_ex_ts
     bp = ts.breakpoints(as_array=True)
     mid = (bp[1:] + bp[:-1]) / 2
     np.testing.assert_allclose(
@@ -1634,20 +1635,20 @@ def test_bad_positions():
 
 
 @pytest.mark.parametrize("sites", [[0, 1, 2], [1, 2], [0, 1], [0], [1]])
-def test_subset_sites_one_list(sites):
+def test_subset_sites_one_list(paper_ex_ts, sites):
     """Test the case where we only pass only one list of sites to compute. This
     should return a square matrix comparing the sites to themselves.
     """
-    ts = get_paper_ex_ts()
+    ts = paper_ex_ts
     np.testing.assert_equal(ld_matrix(ts, sites=[sites]), ts.ld_matrix(sites=[sites]))
 
 
 @pytest.mark.parametrize("tree_index", [[0, 1, 2], [1, 2], [0, 1], [0], [1]])
-def test_subset_positions_one_list(tree_index):
+def test_subset_positions_one_list(paper_ex_ts, tree_index):
     """Test the case where we only pass only one list of positions to compute. This
     should return a square matrix comparing the positions to themselves.
     """
-    ts = get_paper_ex_ts()
+    ts = paper_ex_ts
     bp = ts.breakpoints(as_array=True)
     mid = (bp[1:] + bp[:-1]) / 2
     np.testing.assert_allclose(
@@ -1675,11 +1676,11 @@ def test_subset_positions_one_list(tree_index):
         ([0, 0, 0, 1, 1, 1, 2, 2, 2], [0, 0, 0, 1, 1, 1, 2, 2, 2]),
     ],
 )
-def test_repeated_position_elements(tree_index):
+def test_repeated_position_elements(paper_ex_ts, tree_index):
     """Test that we repeat positions in the LD matrix when we have multiple positions
     that overlap the same tree when specifying positions in branch mode.
     """
-    ts = get_paper_ex_ts()
+    ts = paper_ex_ts
     l, r = tree_index
     bp = ts.breakpoints(as_array=True)
     val, count = np.unique(l, return_counts=True)
@@ -1708,16 +1709,14 @@ def test_repeated_position_elements(tree_index):
 
 
 # Generate all partitions of the samples, producing pairs of sample sets
-@pytest.mark.parametrize(
-    "partition", get_matrix_partitions(get_paper_ex_ts().num_samples)
-)
-def test_sample_sets(partition):
+@pytest.mark.parametrize("partition", get_matrix_partitions(4))
+def test_sample_sets(paper_ex_ts, partition):
     """Test all partitions of sample sets, ensuring that we are correctly
     computing stats for various subsets of the samples in a given tree.
 
     :param partition: length 2 list of [ss_1, ss_2].
     """
-    ts = get_paper_ex_ts()
+    ts = paper_ex_ts
     np.testing.assert_allclose(
         ld_matrix(ts, sample_sets=partition), ts.ld_matrix(sample_sets=partition)
     )
@@ -1777,16 +1776,16 @@ def test_ld_empty_examples(ts):
         ts.ld_matrix(mode="branch")
 
 
-def test_bad_modes():
-    ts = get_paper_ex_ts()
+def test_bad_modes(paper_ex_ts):
+    ts = paper_ex_ts
     with pytest.raises(_tskit.LibraryError, match="UNSUPPORTED_STAT_MODE"):
         ts.ld_matrix(mode="node")
     with pytest.raises(_tskit.LibraryError, match="UNSUPPORTED_STAT_MODE"):
         ts.ld_matrix(mode="mutation")
 
 
-def test_input_validation():
-    ts = get_paper_ex_ts()
+def test_input_validation(paper_ex_ts):
+    ts = paper_ex_ts
     with pytest.raises(ValueError, match="Unknown two-locus statistic"):
         ts.ld_matrix(stat="bad_stat")
 
