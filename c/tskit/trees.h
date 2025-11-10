@@ -933,16 +933,19 @@ path from `p` to `c`. For instance, if `p` is the parent of `n` and `n`
 is the parent of `c`, then the span of the edges from `p` to `n` and
 `n` to `c` are extended, and the span of the edge from `p` to `c` is
 reduced. However, any edges whose child node is a sample are not
-modified.  The `node` of certain mutations may also be remapped; to do this
+modified.  See Fritze et al. (2025):
+https://doi.org/10.1093/genetics/iyaf198 for more details.
+
+The method works by iterating over the genome to look for edges that can
+be extended in this way; the maximum number of such iterations is
+controlled by ``max_iter``.
+
+The `node` of certain mutations may also be remapped; to do this
 unambiguously we need to know mutation times. If mutations times are unknown,
 use `tsk_table_collection_compute_mutation_times` first.
 
 The method will not affect any tables except the edge table, or the node
 column in the mutation table.
-
-The method works by iterating over the genome to look for edges that can
-be extended in this way; the maximum number of such iterations is
-controlled by ``max_iter``.
 
 @rst
 

@@ -7397,7 +7397,9 @@ class TreeSequence:
         `n` to `c` are extended, and the span of the edge from `p` to `c` is
         reduced. Thus, the ancestral haplotype represented by `n` is extended
         to a longer span of the genome. However, any edges whose child node is
-        a sample are not modified.
+        a sample are not modified. See
+        `Fritze et al. (2025) <https://doi.org/10.1093/genetics/iyaf198>`_
+        for more details.
 
         Since some edges may be removed entirely, this process usually reduces
         the number of edges in the tree sequence.
@@ -7420,15 +7422,15 @@ class TreeSequence:
         known mutation times.  See :meth:`.impute_unknown_mutations_time` if
         mutation times are not known.
 
-        The method will not affect the marginal trees (so, if the original tree
-        sequence was simplified, then following up with `simplify` will recover
-        the original tree sequence, possibly with edges in a different order).
-        It will also not affect the genotype matrix, or any of the tables other
-        than the edge table or the node column in the mutation table.
+        .. note::
+            The method will not affect the marginal trees (so, if the original tree
+            sequence was simplified, then following up with `simplify` will recover
+            the original tree sequence, possibly with edges in a different order).
+            It will also not affect the genotype matrix, or any of the tables other
+            than the edge table or the node column in the mutation table.
 
-        :param int max_iters: The maximum number of iterations over the tree
+        :param int max_iter: The maximum number of iterations over the tree
             sequence. Defaults to 10.
-
         :return: A new tree sequence with unary nodes extended.
         :rtype: tskit.TreeSequence
         """
