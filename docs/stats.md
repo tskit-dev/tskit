@@ -214,7 +214,7 @@ site
 branch
 : How long since these genomes' common ancestor?
 
-branch
+mutation
 : How many mutations have occurred since these genomes' common ancestor?
 
 node
