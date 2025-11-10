@@ -4771,7 +4771,8 @@ class TreeSequence:
         Returns an iterable sequence of all the :ref:`nodes <sec_node_table_definition>`
         in this tree sequence.
 
-        .. note:: Although node ids are commonly ordered by node time, this is not a
+        .. note::
+            Although node ids are commonly ordered by node time, this is not a
             formal tree sequence requirement. If you wish to iterate over nodes in
             time order, you should therefore use ``order="timeasc"`` (and wrap the
             resulting sequence in the standard Python :func:`python:reversed` function
@@ -5620,7 +5621,8 @@ class TreeSequence:
         By default ``L`` is therefore equal to the :attr:`.sequence_length`,
         and ``a[j]`` is the nucleotide value at genomic position ``j``.
 
-        .. note:: This is inherently a **zero-based** representation of the sequence
+        .. note::
+            This is inherently a **zero-based** representation of the sequence
             coordinate space. Care will be needed when interacting with other
             libraries and upstream coordinate spaces.
 
@@ -6585,13 +6587,13 @@ class TreeSequence:
         to the sites in the tree sequence object.
 
         .. note::
-           Older code often uses the ``ploidy=2`` argument, because old
-           versions of msprime did not output individual data. Specifying
-           individuals in the tree sequence is more robust, and since tree
-           sequences now  typically contain individuals (e.g., as produced by
-           ``msprime.sim_ancestry( )``), this is not necessary, and the
-           ``ploidy`` argument can safely be removed as part of the process
-           of updating from the msprime 0.x legacy API.
+            Older code often uses the ``ploidy=2`` argument, because old
+            versions of msprime did not output individual data. Specifying
+            individuals in the tree sequence is more robust, and since tree
+            sequences now  typically contain individuals (e.g., as produced by
+            ``msprime.sim_ancestry( )``), this is not necessary, and the
+            ``ploidy`` argument can safely be removed as part of the process
+            of updating from the msprime 0.x legacy API.
 
         :param io.IOBase output: The file-like object to write the VCF output.
         :param int ploidy: The ploidy of the individuals to be written to
@@ -7359,7 +7361,7 @@ class TreeSequence:
         is its associated ``time`` value, or the time of its node if the
         mutation's time was marked as unknown (:data:`UNKNOWN_TIME`).
 
-        Migrations are not supported, and a LibraryError will be raise if
+        Migrations are not supported, and a LibraryError will be raised if
         called on a tree sequence containing migration information.
 
         .. seealso:: This method is implemented using the :meth:`.split_edges`
@@ -7517,8 +7519,8 @@ class TreeSequence:
         1. Individuals whose nodes are new to ``self``.
         2. Edges whose parent or child are new to ``self``.
         3. Mutations whose nodes are new to ``self``.
-        4. Sites which were not present in ``self``, if the site contains a newly
-           added mutation.
+        4. Sites whose positions are not present in the site positions in
+           ``self``, if the site contains a newly added mutation.
 
         This can be thought of as a "node-wise" union: for instance, it can not
         be used to add new edges between two nodes already in ``self`` or new
@@ -7555,13 +7557,19 @@ class TreeSequence:
         ``all_mutations=True, check_shared_equality=False`` can be used
         to add mutations to ``self``.
 
-        If the resulting tree sequence is invalid (for instance, a node is
-        specified to have two distinct parents on the same interval),
-        an error will be raised.
+        .. warning::
+            If an equivalent node is specified in ``other``, the
+            version in ``self`` is used without checking the node
+            properties are the same. Similarly, if the same site position
+            is present in both ``self`` and ``other``, the version in
+            ``self`` is used without checking that site properties are
+            the same. In these cases metadata and e.g. node times or ancestral
+            states in ``other`` are simply ignored.
 
-        Note that this operation also sorts the resulting tables, so the
-        resulting tree sequence may not be equal to ``self`` even if nothing
-        new was added (although it would differ only in ordering of the tables).
+        .. note::
+            This operation also sorts the resulting tables, so the resulting
+            tree sequence may not be equal to ``self`` even if nothing new
+            was added (although it would differ only in ordering of the tables).
 
         :param TreeSequence other: Another tree sequence.
         :param list node_mapping: An array of node IDs that relate nodes in
@@ -7579,6 +7587,11 @@ class TreeSequence:
             assigned new population IDs.
         :param bool record_provenance: Whether to record a provenance entry
             in the provenance table for this operation.
+        :return: The union of the two tree sequences.
+        :rtype: tskit.TreeSequence
+        :raises: **tskit.LibraryError** -- If the resulting tree sequence is invalid
+            (for instance, a node is specified to have two distinct
+            parents on the same interval)
         """
         tables = self.dump_tables()
         other_tables = other.dump_tables()
@@ -10374,7 +10387,8 @@ class TreeSequence:
 
         For an precise mathematical definition of GNN, see https://doi.org/10.1101/458067
 
-        .. note:: The reference sets need not include all the samples, hence the most
+        .. note::
+            The reference sets need not include all the samples, hence the most
             recent common ancestral node of the reference sets, :math:`a`, need not be
             the immediate ancestor of the focal node. If the reference sets only comprise
             sequences from relatively distant individuals, the GNN statistic may end up
