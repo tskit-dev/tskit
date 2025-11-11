@@ -90,12 +90,10 @@ out:
 static int
 variant_init_samples_and_index_map(tsk_variant_t *self,
     const tsk_treeseq_t *tree_sequence, const tsk_id_t *samples, tsk_size_t num_samples,
-    size_t num_samples_alloc, tsk_flags_t options)
+    size_t num_samples_alloc, tsk_flags_t TSK_UNUSED(options))
 {
     int ret = 0;
-    const tsk_flags_t *flags = tree_sequence->tables->nodes.flags;
     tsk_size_t j, num_nodes;
-    bool impute_missing = !!(options & TSK_ISOLATED_NOT_MISSING);
     tsk_id_t u;
 
     num_nodes = tsk_treeseq_get_num_nodes(tree_sequence);
@@ -118,11 +116,6 @@ variant_init_samples_and_index_map(tsk_variant_t *self,
         }
         if (self->alt_sample_index_map[u] != TSK_NULL) {
             ret = tsk_trace_error(TSK_ERR_DUPLICATE_SAMPLE);
-            goto out;
-        }
-        /* We can only detect missing data for samples */
-        if (!impute_missing && !(flags[u] & TSK_NODE_IS_SAMPLE)) {
-            ret = tsk_trace_error(TSK_ERR_MUST_IMPUTE_NON_SAMPLES);
             goto out;
         }
         self->alt_sample_index_map[samples[j]] = (tsk_id_t) j;
@@ -439,6 +432,27 @@ tsk_variant_mark_missing(tsk_variant_t *self)
     return num_missing;
 }
 
+/* Mark missing for any requested node (sample or non-sample) that is isolated
+ * in the current tree, i.e., has no parent and no children at this position. */
+static tsk_size_t
+tsk_variant_mark_missing_any(tsk_variant_t *self)
+{
+    tsk_size_t num_missing = 0;
+    int32_t *restrict genotypes = self->genotypes;
+    const tsk_id_t *restrict parent = self->tree.parent;
+    const tsk_id_t *restrict left_child = self->tree.left_child;
+    tsk_size_t j;
+
+    for (j = 0; j < self->num_samples; j++) {
+        tsk_id_t u = self->samples[j];
+        if (parent[u] == TSK_NULL && left_child[u] == TSK_NULL) {
+            genotypes[j] = TSK_MISSING_DATA;
+            num_missing++;
+        }
+    }
+    return num_missing;
+}
+
 static tsk_id_t
 tsk_variant_get_allele_index(tsk_variant_t *self, const char *allele, tsk_size_t length)
 {
@@ -502,6 +516,10 @@ tsk_variant_decode(
     update_genotypes = tsk_variant_update_genotypes_sample_list;
     if (by_traversal) {
         update_genotypes = tsk_variant_update_genotypes_traversal;
+        /* When decoding a user-provided list of nodes (which may include
+         * non-samples), mark isolated nodes as missing directly by checking
+         * isolation status for each requested node. */
+        mark_missing = tsk_variant_mark_missing_any;
     }
 
     if (self->user_alleles) {
