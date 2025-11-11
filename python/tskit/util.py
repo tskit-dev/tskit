@@ -776,9 +776,8 @@ def variant_html(variant):
             """
             + "\n".join(
                 [
-                    "<tr><td>Nodes with Allele "
-                    + ("missing" if k is None else "'" + k + "'")
-                    + "</td><td>"
+                    f"""<tr><td>Nodes with Allele {'missing' if k is None
+                                                   else "'" + k + "'"}</td><td>"""
                     + f"{format_number(counts[k])}"
                     + " "
                     + f"({format_number(freqs[k] * 100, 2)}%)"

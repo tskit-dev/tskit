@@ -5620,6 +5620,7 @@ class TreeSequence:
         *,
         reference_sequence=None,
         missing_data_character=None,
+        isolated_as_missing=None,
         samples=None,
         left=None,
         right=None,
@@ -5684,26 +5685,36 @@ class TreeSequence:
            single byte characters, (i.e., variants must be single nucleotide
            polymorphisms, or SNPs).
 
-        .. warning:: :ref:`Missing data<sec_data_model_missing_data>` is not
-           currently supported by this method and it will raise a ValueError
-           if called on tree sequences containing isolated samples.
-           See https://github.com/tskit-dev/tskit/issues/1896 for more
-           information.
+        Missing data handling
+
+        - If ``isolated_as_missing=True`` (default), nodes that are isolated
+          (no parent and no children) are rendered as the missing character across
+          each tree interval. At site positions, the per-site allele overrides the
+          missing character; if a genotype is missing (``-1``), the missing
+          character is retained.
+        - If ``isolated_as_missing=False``, no missing overlay is applied. At sites,
+          genotypes are decoded as usual; at non-sites, bases come from the
+          reference sequence.
 
         See also the :meth:`.variants` iterator for site-centric access
         to sample genotypes and :meth:`.haplotypes` for access to sample sequences
         at just the sites in the tree sequence.
 
         :param str reference_sequence: The reference sequence to fill in
-            gaps between sites in the alignments.
+            gaps between sites in the alignments. If provided, it must be a
+            string of length equal to :attr:`.sequence_length`; the sequence is
+            sliced internally to the requested ``[left, right)`` interval.
         :param str missing_data_character: A single ascii character that will
             be used to represent missing data.
             If any normal allele contains this character, an error is raised.
             Default: 'N'.
-        :param list[int] samples: The samples for which to output alignments. If
-            ``None`` (default), return alignments for all the samples in the tree
-            sequence, in the order given by the :meth:`.samples` method. Only
-            sample nodes are supported for alignments.
+        :param bool isolated_as_missing: If True, treat isolated nodes as missing
+            across the covered tree intervals (see above). If None (default), this
+            is treated as True.
+        :param list[int] samples: The nodes for which to output alignments. If
+            ``None`` (default), return alignments for all sample nodes in the order
+            given by the :meth:`.samples` method. Non-sample nodes are also supported
+            and will be decoded at sites in the same way as samples.
         :param int left: Alignments will start at this genomic position. If ``None``
             (default) alignments start at 0.
         :param int right: Alignments will stop before this genomic position. If ``None``
@@ -5723,73 +5734,61 @@ class TreeSequence:
             "N" if missing_data_character is None else missing_data_character
         )
 
-        # Temporary check until alignments support missing data properly
-        if samples is not None:
-            requested = list(samples)
-            n = self.num_nodes
-            flags = self.nodes_flags
-            if any(
-                (u < 0) or (u >= n) or ((flags[u] & NODE_IS_SAMPLE) == 0)
-                for u in requested
-            ):
-                raise tskit.LibraryError(
-                    "Cannot generate genotypes for non-samples when isolated nodes "
-                    "are considered as missing. (TSK_ERR_MUST_IMPUTE_NON_SAMPLES)"
-                )
+        if isolated_as_missing is None:
+            isolated_as_missing = True
 
         L = interval.span
         a = np.empty(L, dtype=np.int8)
-        if reference_sequence is None:
-            if self.has_reference_sequence():
-                # This may be inefficient - see #1989. However, since we're
-                # n copies of the reference sequence anyway, this is a relatively
-                # minor tweak. We may also want to recode the below not to use direct
-                # access to the .data attribute, e.g. if we allow reference sequences
-                # to start at non-zero positions
-                reference_sequence = self.reference_sequence.data[
-                    interval.left : interval.right
-                ]
-            else:
-                reference_sequence = missing_data_character * L
+        full_ref = None
+        if reference_sequence is not None:
+            full_ref = reference_sequence
+        elif self.has_reference_sequence():
+            # This may be inefficient - see #1989. However, since we're
+            # n copies of the reference sequence anyway, this is a relatively
+            # minor tweak. We may also want to recode the below not to use direct
+            # access to the .data attribute, e.g. if we allow reference sequences
+            # to start at non-zero positions
+            full_ref = self.reference_sequence.data
 
-        if len(reference_sequence) != L:
-            if interval.right == int(self.sequence_length):
+        if full_ref is None:
+            ref_slice = missing_data_character * L
+        else:
+            if len(full_ref) != int(self.sequence_length):
                 raise ValueError(
-                    "The reference sequence is shorter than the tree sequence length"
+                    "The reference sequence must be equal to the tree sequence length"
                 )
-            else:
-                raise ValueError(
-                    "The reference sequence ends before the requested stop position"
-                )
-        ref_bytes = reference_sequence.encode("ascii")
-        a[:] = np.frombuffer(ref_bytes, dtype=np.int8)
+            ref_slice = full_ref[interval.left : interval.right]
 
-        # To do this properly we'll have to detect the missing data as
-        # part of a full implementation of alignments in C. The current
-        # definition might not be calling some degenerate cases correctly;
-        # see https://github.com/tskit-dev/tskit/issues/1908
-        #
-        # Note also that this will call the presence of missing data
-        # incorrectly if have a sample isolated over the region (a, b],
-        # and if we have sites at each position from a to b, and at
-        # each site there is a mutation over the isolated sample.
-        if any(tree._has_isolated_samples() for tree in self.trees()):
-            raise ValueError(
-                "Missing data not currently supported in alignments; see "
-                "https://github.com/tskit-dev/tskit/issues/1896 for details."
-                "The current implementation may also incorrectly identify an "
-                "input tree sequence has having missing data."
-            )
+        # TODO Replace this readable Python version with a C backend
+        # Reusable reference buffer for this interval
+        ref_bytes = ref_slice.encode("ascii")
+        ref_array = np.frombuffer(ref_bytes, dtype=np.int8)
+
         H, (first_site_id, last_site_id) = self._haplotypes_array(
             interval=interval,
+            isolated_as_missing=isolated_as_missing,
             missing_data_character=missing_data_character,
             samples=samples,
         )
         site_pos = self.sites_position.astype(np.int64)[
             first_site_id : last_site_id + 1
         ]
-        for h in H:
-            a[site_pos - interval.left] = h
+        # Determine the requested node order
+        sample_ids = self.samples() if samples is None else list(samples)
+        missing_val = ord(missing_data_character)
+        for i, u in enumerate(sample_ids):
+            # Reset to the reference for this row
+            a[:] = ref_array
+            if isolated_as_missing:
+                # Mark isolated intervals as missing for this node
+                for t in self.trees():
+                    li = max(interval.left, int(t.interval.left))
+                    ri = min(interval.right, int(t.interval.right))
+                    if ri > li and t.is_isolated(u):
+                        a[li - interval.left : ri - interval.left] = missing_val
+            # Overlay site alleles for this node
+            if H.shape[1] > 0:
+                a[site_pos - interval.left] = H[i]
             yield a.tobytes().decode("ascii")
 
     @property
@@ -6706,6 +6705,7 @@ class TreeSequence:
         wrap_width=60,
         reference_sequence=None,
         missing_data_character=None,
+        isolated_as_missing=None,
     ):
         """
         Writes the :meth:`.alignments` for this tree sequence to file in
@@ -6730,12 +6730,6 @@ class TreeSequence:
 
             ts.write_fasta("output.fa")
 
-        .. warning:: :ref:`Missing data<sec_data_model_missing_data>` is not
-            currently supported by this method and it will raise a ValueError
-            if called on tree sequences containing isolated samples.
-            See https://github.com/tskit-dev/tskit/issues/1896 for more
-            information.
-
         :param file_or_path: The file object or path to write the output.
             Paths can be either strings or :class:`python:pathlib.Path` objects.
         :param int wrap_width: The number of sequence
@@ -6744,6 +6738,7 @@ class TreeSequence:
             (Default=60).
         :param str reference_sequence: As for the :meth:`.alignments` method.
         :param str missing_data_character: As for the :meth:`.alignments` method.
+        :param bool isolated_as_missing: As for the :meth:`.alignments` method.
         """
         text_formats.write_fasta(
             self,
@@ -6751,6 +6746,7 @@ class TreeSequence:
             wrap_width=wrap_width,
             reference_sequence=reference_sequence,
             missing_data_character=missing_data_character,
+            isolated_as_missing=isolated_as_missing,
         )
 
     def as_fasta(self, **kwargs):
@@ -6774,6 +6770,7 @@ class TreeSequence:
         include_alignments=None,
         reference_sequence=None,
         missing_data_character=None,
+        isolated_as_missing=None,
     ):
         """
         Returns a `nexus encoding <https://en.wikipedia.org/wiki/Nexus_file>`_
@@ -6857,10 +6854,7 @@ class TreeSequence:
             as our convention of using trees with multiple roots
             is not often supported by newick parsers. Thus, the method
             will raise a ValueError if we try to output trees with
-            multiple roots. Additionally, missing data
-            is not currently supported for alignment data.
-            See https://github.com/tskit-dev/tskit/issues/1896 for more
-            information.
+            multiple roots.
 
         .. seealso: See also the :meth:`.as_nexus` method which will
             return this nexus representation as a string.
@@ -6875,6 +6869,7 @@ class TreeSequence:
         :param str reference_sequence: As for the :meth:`.alignments` method.
         :param str missing_data_character: As for the :meth:`.alignments` method,
             but defaults to "?".
+        :param bool isolated_as_missing: As for the :meth:`.alignments` method.
         :return: A nexus representation of this :class:`TreeSequence`
         :rtype: str
         """
@@ -6886,6 +6881,7 @@ class TreeSequence:
             include_alignments=include_alignments,
             reference_sequence=reference_sequence,
             missing_data_character=missing_data_character,
+            isolated_as_missing=isolated_as_missing,
         )
 
     def as_nexus(self, **kwargs):
