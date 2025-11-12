@@ -119,6 +119,7 @@ def write_nexus(
     include_alignments,
     reference_sequence,
     missing_data_character,
+    isolated_as_missing=None,
 ):
     # See TreeSequence.write_nexus for documentation on parameters.
     if precision is None:
@@ -154,6 +155,7 @@ def write_nexus(
         alignments = ts.alignments(
             reference_sequence=reference_sequence,
             missing_data_character=missing_data_character,
+            isolated_as_missing=isolated_as_missing,
         )
         for u, alignment in zip(ts.samples(), alignments):
             print(2 * indent, f"n{u}", " ", alignment, sep="", file=out)
@@ -196,6 +198,7 @@ def write_fasta(
     wrap_width,
     reference_sequence,
     missing_data_character,
+    isolated_as_missing=None,
 ):
     # See TreeSequence.write_fasta for documentation
     if wrap_width < 0 or int(wrap_width) != wrap_width:
@@ -208,6 +211,7 @@ def write_fasta(
     alignments = ts.alignments(
         reference_sequence=reference_sequence,
         missing_data_character=missing_data_character,
+        isolated_as_missing=isolated_as_missing,
     )
     for u, alignment in zip(ts.samples(), alignments):
         print(">", f"n{u}", sep="", file=output)

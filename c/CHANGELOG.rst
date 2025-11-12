@@ -1,3 +1,12 @@
+----------
+Unreleased
+----------
+
+- ``tsk_variant_init`` and associated variant decoding methods now
+  fully support TSK_ISOLATED_NOT_MISSING not being set for internal nodes.
+  (:user:`benjeffery`, :pr:`3313`)
+
+
 --------------------
 [1.2.0] - 2025-09-24
 --------------------

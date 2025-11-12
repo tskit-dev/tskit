@@ -1,3 +1,20 @@
+----------
+Unreleased
+----------
+
+**Features**
+
+- ``TreeSequence.variants``, ``.genotype_matrix``, ``.haplotypes``, and ``.alignments`` methods
+  now fully support ``isolated_as_missing`` behaviour with internal nodes.
+  (:user:`benjeffery`, :pr:`3313`, :pr:`3317`, :issue:`1896`)
+
+**Breaking Changes**
+
+- The ``reference_sequence`` argument to ``TreeSequence.alignments`` is now required
+  to be the same length as the tree sequence. Previously it was required to be the length
+  of the requested interval.
+  (:user:`benjeffery`, :pr:`3317`)
+
 ----------------------
 [1.0.0b3] - 2025-10-15
 ----------------------

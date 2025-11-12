@@ -1316,7 +1316,6 @@ class TestFastaBioPythonRoundTrip:
         ts = alignment_example(20)
         self.verify(ts, reference_sequence="A" * 20)
 
-    @pytest.mark.skip("Missing data in alignments: #1896")
     def test_missing_data(self):
         self.verify(missing_data_example())
 
@@ -1344,7 +1343,6 @@ class TestFastaDendropyRoundTrip:
         alignment_map = self.parse(text)
         assert get_alignment_map(ts) == alignment_map
 
-    @pytest.mark.skip("Missing data in alignments: #1896")
     def test_missing_data(self):
         ts = missing_data_example()
         text = ts.as_fasta()
@@ -1422,7 +1420,6 @@ class TestDendropyMissingReference:
         assert str(d["n0"][0]) == "N"
 
 
-@pytest.mark.skip("Missing data in alignments: #1896")
 class TestDendropyMissingData:
     """
     Test that we detect missing data correctly in dendropy under
@@ -1462,10 +1459,9 @@ class TestDendropyMissingData:
         # Do we detect that we have an ambiguous state for the missing sample?
 
         a5 = d["n5"]
-        # a5 is missing along the full length of the genome, so all sites are
-        # missing.
+        # a5 is missing along the full length of the genome, so all sites are missing.
         assert all(
-            a5.state_denomination == dendropy.StateAlphabet.AMBIGUOUS_STATE
+            a5[j].state_denomination == dendropy.StateAlphabet.AMBIGUOUS_STATE
             for j in range(10)
         )
 
