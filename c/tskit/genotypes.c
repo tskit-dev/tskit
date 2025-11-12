@@ -27,6 +27,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include <tskit/genotypes.h>
 
@@ -659,6 +660,208 @@ tsk_vargen_next(tsk_vargen_t *self, tsk_variant_t **variant)
         *variant = &self->variant;
         ret = 1;
     }
+out:
+    return ret;
+}
+
+static int
+tsk_treeseq_decode_alignments_overlay_missing(const tsk_treeseq_t *self,
+    const tsk_id_t *nodes, tsk_size_t num_nodes, double left, double right,
+    char missing_data_character, tsk_size_t L, char *alignments_out)
+{
+    int ret = 0;
+    tsk_tree_t tree;
+    tsk_size_t i, seg_left, seg_right;
+    char *row = NULL;
+    tsk_id_t u;
+
+    tsk_memset(&tree, 0, sizeof(tree));
+
+    ret = tsk_tree_init(&tree, self, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    ret = tsk_tree_seek(&tree, left, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    while (tree.index != -1 && tree.interval.left < right) {
+        seg_left = TSK_MAX((tsk_size_t) tree.interval.left, (tsk_size_t) left);
+        seg_right = TSK_MIN((tsk_size_t) tree.interval.right, (tsk_size_t) right);
+        if (seg_right > seg_left) {
+            for (i = 0; i < num_nodes; i++) {
+                u = nodes[i];
+                if (tree.parent[u] == TSK_NULL && tree.left_child[u] == TSK_NULL) {
+                    row = alignments_out + i * L;
+                    /* memset takes an `int`, `missing_data_character` is a `char` which
+                     * can be signed or unsigned depending on the platform, so we need to
+                     * cast. Some tools/compilers will warn if we just cast
+                     * to `unsigned char` and leave the cast to `int` as implicit, hence
+                     * the double cast. */
+                    tsk_memset(row + (seg_left - (tsk_size_t) left),
+                        (int) (unsigned char) missing_data_character,
+                        seg_right - seg_left);
+                }
+            }
+        }
+        ret = tsk_tree_next(&tree);
+        if (ret < 0) {
+            goto out;
+        }
+    }
+
+out:
+    tsk_tree_free(&tree);
+    return ret;
+}
+
+static int
+tsk_treeseq_decode_alignments_overlay_sites(const tsk_treeseq_t *self,
+    const tsk_id_t *nodes, tsk_size_t num_nodes, double left, double right,
+    char missing_data_character, tsk_size_t L, char *alignments_out, tsk_flags_t options)
+{
+    int ret = 0;
+    tsk_variant_t var;
+    tsk_id_t site_id;
+    tsk_site_t site;
+    char *allele_byte = NULL;
+    tsk_size_t allele_cap = 0;
+    tsk_size_t i, j;
+    char *row = NULL;
+    int32_t g;
+    char c;
+    char *tmp = NULL;
+
+    tsk_memset(&var, 0, sizeof(var));
+
+    ret = tsk_variant_init(&var, self, nodes, num_nodes, NULL, options);
+    if (ret != 0) {
+        goto out;
+    }
+    for (site_id = 0; site_id < (tsk_id_t) tsk_treeseq_get_num_sites(self); site_id++) {
+        ret = tsk_treeseq_get_site(self, site_id, &site);
+        if (ret != 0) {
+            goto out;
+        }
+        if (site.position < left) {
+            continue;
+        }
+        if (site.position >= right) {
+            break;
+        }
+        ret = tsk_variant_decode(&var, site_id, 0);
+        if (ret != 0) {
+            goto out;
+        }
+        if (var.num_alleles > 0) {
+            if (var.num_alleles > allele_cap) {
+                tmp = tsk_realloc(allele_byte, var.num_alleles * sizeof(*allele_byte));
+                if (tmp == NULL) {
+                    ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
+                    goto out;
+                }
+                allele_byte = tmp;
+                allele_cap = var.num_alleles;
+            }
+            for (j = 0; j < var.num_alleles; j++) {
+                if (var.allele_lengths[j] != 1) {
+                    ret = tsk_trace_error(TSK_ERR_BAD_ALLELE_LENGTH);
+                    goto out;
+                }
+                allele_byte[j] = var.alleles[j][0];
+                if (allele_byte[j] == missing_data_character) {
+                    ret = tsk_trace_error(TSK_ERR_MISSING_CHAR_COLLISION);
+                    goto out;
+                }
+            }
+            for (i = 0; i < num_nodes; i++) {
+                row = alignments_out + i * L;
+                g = var.genotypes[i];
+                c = missing_data_character;
+                if (g != TSK_MISSING_DATA) {
+                    tsk_bug_assert(g >= 0);
+                    tsk_bug_assert((tsk_size_t) g < var.num_alleles);
+                    c = allele_byte[g];
+                }
+                row[((tsk_size_t) site.position) - (tsk_size_t) left] = (char) c;
+            }
+        }
+    }
+
+out:
+    tsk_safe_free(allele_byte);
+    tsk_variant_free(&var);
+    return ret;
+}
+
+/* NOTE: We usually keep functions with a tsk_treeseq_t signature in trees.c.
+ * tsk_treeseq_decode_alignments is implemented here instead because it
+ * depends directly on tsk_variant_t and the genotype/allele machinery in
+ * this file (and thus on genotypes.h). This slightly breaks that layering
+ * convention but keeps the implementation close to the variant code. */
+int
+tsk_treeseq_decode_alignments(const tsk_treeseq_t *self, const char *ref_seq,
+    tsk_size_t ref_seq_length, const tsk_id_t *nodes, tsk_size_t num_nodes, double left,
+    double right, char missing_data_character, char *alignments_out, tsk_flags_t options)
+{
+    int ret = 0;
+    tsk_size_t i, L;
+    char *row = NULL;
+
+    if (!tsk_treeseq_get_discrete_genome(self)) {
+        ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+        goto out;
+    }
+    if (ref_seq == NULL) {
+        ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+        goto out;
+    }
+    if (ref_seq_length != (tsk_size_t) tsk_treeseq_get_sequence_length(self)) {
+        ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+        goto out;
+    }
+    if (trunc(left) != left || trunc(right) != right) {
+        ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+        goto out;
+    }
+    if (left < 0 || right > tsk_treeseq_get_sequence_length(self)
+        || (tsk_size_t) left >= (tsk_size_t) right) {
+        ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+        goto out;
+    }
+    L = (tsk_size_t) right - (tsk_size_t) left;
+    if (num_nodes == 0) {
+        return 0;
+    }
+    if (nodes == NULL || alignments_out == NULL) {
+        ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+        goto out;
+    }
+    for (i = 0; i < num_nodes; i++) {
+        if (nodes[i] < 0 || nodes[i] >= (tsk_id_t) tsk_treeseq_get_num_nodes(self)) {
+            ret = tsk_trace_error(TSK_ERR_NODE_OUT_OF_BOUNDS);
+            goto out;
+        }
+    }
+
+    /* Fill rows with the reference slice */
+    for (i = 0; i < num_nodes; i++) {
+        row = alignments_out + i * L;
+        tsk_memcpy(row, ref_seq + (tsk_size_t) left, L);
+    }
+    if (!(options & TSK_ISOLATED_NOT_MISSING)) {
+        ret = tsk_treeseq_decode_alignments_overlay_missing(self, nodes, num_nodes, left,
+            right, missing_data_character, L, alignments_out);
+        if (ret != 0) {
+            goto out;
+        }
+    }
+    ret = tsk_treeseq_decode_alignments_overlay_sites(self, nodes, num_nodes, left,
+        right, missing_data_character, L, alignments_out, options);
+    if (ret != 0) {
+        goto out;
+    }
+
 out:
     return ret;
 }

@@ -584,6 +584,14 @@ tsk_strerror_internal(int err)
             ret = "Must have at least one allele when specifying an allele map. "
                   "(TSK_ERR_ZERO_ALLELES)";
             break;
+        case TSK_ERR_BAD_ALLELE_LENGTH:
+            ret = "Alleles used when decoding alignments must have length one. "
+                  "(TSK_ERR_BAD_ALLELE_LENGTH)";
+            break;
+        case TSK_ERR_MISSING_CHAR_COLLISION:
+            ret = "Alleles used when decoding alignments must not match the missing "
+                  "data character. (TSK_ERR_MISSING_CHAR_COLLISION)";
+            break;
 
         /* Distance metric errors */
         case TSK_ERR_SAMPLE_SIZE_MISMATCH:
