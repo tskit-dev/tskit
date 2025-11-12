@@ -872,7 +872,8 @@ test_load_bad_file_formats(void)
         ret = tsk_table_collection_dump(&tables, _tmp_file_name, 0);
         CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-        truncate(_tmp_file_name, offset);
+        ret2 = truncate(_tmp_file_name, offset);
+        CU_ASSERT_EQUAL_FATAL(ret2, 0);
         ret = tsk_table_collection_load(&tables, _tmp_file_name, TSK_NO_INIT);
         CU_ASSERT_EQUAL_FATAL(ret ^ (1 << TSK_KAS_ERR_BIT), KAS_ERR_BAD_FILE_FORMAT);
         tsk_table_collection_free(&tables);
