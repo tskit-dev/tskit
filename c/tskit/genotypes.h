@@ -77,6 +77,11 @@ typedef struct {
     tsk_id_t *alt_samples;
     tsk_id_t *alt_sample_index_map;
 
+    /* Cached state for isolated nodes */
+    tsk_id_t cached_tree_index;        /* Last tree index for which cache valid */
+    tsk_size_t num_isolated_cached;    /* Number of cached isolated requested nodes */
+    tsk_id_t *isolated_sample_indexes; /* Indices into `genotypes`/`samples` to mark */
+
 } tsk_variant_t;
 
 /* All vargen related structs and methods were deprecated in C API v1.0 */

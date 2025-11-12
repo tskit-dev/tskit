@@ -158,6 +158,11 @@ tsk_variant_init(tsk_variant_t *self, const tsk_treeseq_t *tree_sequence,
 
     self->options = options;
 
+    /* Initialise cached isolation state */
+    self->cached_tree_index = -2; /* distinct from null tree index (-1) */
+    self->num_isolated_cached = 0;
+    self->isolated_sample_indexes = NULL;
+
     max_alleles_limit = INT32_MAX;
 
     if (alleles == NULL) {
@@ -216,7 +221,9 @@ tsk_variant_init(tsk_variant_t *self, const tsk_treeseq_t *tree_sequence,
     if (self->alt_samples != NULL) {
         self->traversal_stack = tsk_malloc(
             tsk_treeseq_get_num_nodes(tree_sequence) * sizeof(*self->traversal_stack));
-        if (self->traversal_stack == NULL) {
+        self->isolated_sample_indexes = tsk_malloc(
+            (size_t) num_samples_alloc * sizeof(*self->isolated_sample_indexes));
+        if (self->traversal_stack == NULL || self->isolated_sample_indexes == NULL) {
             ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
             goto out;
         }
@@ -268,6 +275,7 @@ tsk_variant_free(tsk_variant_t *self)
     tsk_safe_free(self->alt_samples);
     tsk_safe_free(self->alt_sample_index_map);
     tsk_safe_free(self->traversal_stack);
+    tsk_safe_free(self->isolated_sample_indexes);
     return 0;
 }
 
@@ -432,25 +440,40 @@ tsk_variant_mark_missing(tsk_variant_t *self)
     return num_missing;
 }
 
-/* Mark missing for any requested node (sample or non-sample) that is isolated
- * in the current tree, i.e., has no parent and no children at this position. */
+/* Mark missing using precomputed list of requested node indexes that are
+ * isolated in the current tree. */
 static tsk_size_t
-tsk_variant_mark_missing_any(tsk_variant_t *self)
+tsk_variant_mark_missing_any_cached(tsk_variant_t *self)
 {
-    tsk_size_t num_missing = 0;
+    tsk_size_t num_missing = self->num_isolated_cached;
     int32_t *restrict genotypes = self->genotypes;
-    const tsk_id_t *restrict parent = self->tree.parent;
-    const tsk_id_t *restrict left_child = self->tree.left_child;
-    tsk_size_t j;
+    const tsk_id_t *restrict idxs = self->isolated_sample_indexes;
 
-    for (j = 0; j < self->num_samples; j++) {
-        tsk_id_t u = self->samples[j];
-        if (parent[u] == TSK_NULL && left_child[u] == TSK_NULL) {
-            genotypes[j] = TSK_MISSING_DATA;
-            num_missing++;
-        }
+    for (tsk_size_t k = 0; k < num_missing; k++) {
+        genotypes[idxs[k]] = TSK_MISSING_DATA;
     }
     return num_missing;
+}
+
+/* Compute and cache indices (into samples/genotypes) for requested nodes that are
+ * isolated in the current tree. Only used for the traversal path (alt_samples). */
+static void
+tsk_variant_update_isolation_cache(tsk_variant_t *self)
+{
+    const tsk_id_t *restrict parent = self->tree.parent;
+    const tsk_id_t *restrict left_child = self->tree.left_child;
+    tsk_size_t n = 0;
+    tsk_size_t j;
+    tsk_id_t u;
+
+    for (j = 0; j < self->num_samples; j++) {
+        u = self->samples[j];
+        if (parent[u] == TSK_NULL && left_child[u] == TSK_NULL) {
+            self->isolated_sample_indexes[n++] = (tsk_id_t) j;
+        }
+    }
+    self->num_isolated_cached = n;
+    self->cached_tree_index = self->tree.index;
 }
 
 static tsk_id_t
@@ -516,10 +539,13 @@ tsk_variant_decode(
     update_genotypes = tsk_variant_update_genotypes_sample_list;
     if (by_traversal) {
         update_genotypes = tsk_variant_update_genotypes_traversal;
-        /* When decoding a user-provided list of nodes (which may include
-         * non-samples), mark isolated nodes as missing directly by checking
-         * isolation status for each requested node. */
-        mark_missing = tsk_variant_mark_missing_any;
+        /* For a user-provided list of nodes (may include non-samples),
+         * maintain a per-tree cache of which requested nodes are isolated.
+         * This avoids re-checking isolation at every site. */
+        if (self->cached_tree_index != self->tree.index) {
+            tsk_variant_update_isolation_cache(self);
+        }
+        mark_missing = tsk_variant_mark_missing_any_cached;
     }
 
     if (self->user_alleles) {
@@ -610,6 +636,10 @@ tsk_variant_restricted_copy(const tsk_variant_t *self, tsk_variant_t *other)
     other->alt_samples = NULL;
     other->alt_sample_index_map = NULL;
     other->user_alleles_mem = NULL;
+    /* Ensure new cached/misc pointers are not freed from the restricted copy */
+    other->isolated_sample_indexes = NULL;
+    other->num_isolated_cached = 0;
+    other->cached_tree_index = -2;
 
     total_len = 0;
     for (j = 0; j < self->num_alleles; j++) {
