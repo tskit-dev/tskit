@@ -47,6 +47,7 @@ extern "C" {
 #define TSK_STAT_SITE               (1 << 0)
 #define TSK_STAT_BRANCH             (1 << 1)
 #define TSK_STAT_NODE               (1 << 2)
+#define TSK_STAT_MUTATION           (1 << 3)
 
 /* Leave room for other stat types */
 #define TSK_STAT_POLARISED               (1 << 10)

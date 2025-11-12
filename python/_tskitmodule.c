@@ -6442,6 +6442,8 @@ parse_stats_mode(char *mode, tsk_flags_t *ret)
         value = TSK_STAT_BRANCH;
     } else if (strcmp(mode, "node") == 0) {
         value = TSK_STAT_NODE;
+    } else if (strcmp(mode, "mutation") == 0) {
+        value = TSK_STAT_MUTATION;
     } else {
         PyErr_SetString(PyExc_ValueError, "Unrecognised stats mode");
         return -1;
