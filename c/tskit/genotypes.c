@@ -100,25 +100,30 @@ variant_init_samples_and_index_map(tsk_variant_t *self,
     self->alt_samples = tsk_malloc(num_samples_alloc * sizeof(*samples));
     self->alt_sample_index_map
         = tsk_malloc(num_nodes * sizeof(*self->alt_sample_index_map));
-    if (self->alt_samples == NULL || self->alt_sample_index_map == NULL) {
+    self->alt_sample_next_index
+        = tsk_malloc(num_samples_alloc * sizeof(*self->alt_sample_next_index));
+    if (self->alt_samples == NULL || self->alt_sample_index_map == NULL
+        || self->alt_sample_next_index == NULL) {
         ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
     tsk_memcpy(self->alt_samples, samples, num_samples * sizeof(*samples));
     tsk_memset(self->alt_sample_index_map, 0xff,
         num_nodes * sizeof(*self->alt_sample_index_map));
-    /* Create the reverse mapping */
+    /* Initialise next-index links to NULL */
+    tsk_memset(self->alt_sample_next_index, 0xff,
+        num_samples_alloc * sizeof(*self->alt_sample_next_index));
+    /* Create the reverse mapping. Allow duplicates by building a per-node linked list
+     * of indices into the samples array. */
     for (j = 0; j < num_samples; j++) {
         u = samples[j];
         if (u < 0 || u >= (tsk_id_t) num_nodes) {
             ret = tsk_trace_error(TSK_ERR_NODE_OUT_OF_BOUNDS);
             goto out;
         }
-        if (self->alt_sample_index_map[u] != TSK_NULL) {
-            ret = tsk_trace_error(TSK_ERR_DUPLICATE_SAMPLE);
-            goto out;
-        }
-        self->alt_sample_index_map[samples[j]] = (tsk_id_t) j;
+        /* Push-front onto the index list for node u */
+        self->alt_sample_next_index[j] = self->alt_sample_index_map[u];
+        self->alt_sample_index_map[u] = (tsk_id_t) j;
     }
 out:
     return ret;
@@ -267,6 +272,7 @@ tsk_variant_free(tsk_variant_t *self)
     tsk_safe_free(self->samples);
     tsk_safe_free(self->alt_samples);
     tsk_safe_free(self->alt_sample_index_map);
+    tsk_safe_free(self->alt_sample_next_index);
     tsk_safe_free(self->traversal_stack);
     return 0;
 }
@@ -360,7 +366,7 @@ tsk_variant_traverse(
     const tsk_id_t *restrict left_child = self->tree.left_child;
     const tsk_id_t *restrict right_sib = self->tree.right_sib;
     const tsk_id_t *restrict sample_index_map = self->sample_index_map;
-    tsk_id_t u, v, sample_index;
+    tsk_id_t u, v, sample_index, idx;
     int stack_top;
     int no_longer_missing = 0;
 
@@ -370,11 +376,24 @@ tsk_variant_traverse(
         u = stack[stack_top];
         sample_index = sample_index_map[u];
         if (sample_index != TSK_NULL) {
-            ret = visit(self, sample_index, derived);
-            if (ret < 0) {
-                goto out;
+            if (self->alt_samples != NULL) {
+                /* Iterate all duplicate indices for this node */
+                idx = sample_index;
+                while (idx != TSK_NULL) {
+                    ret = visit(self, idx, derived);
+                    if (ret < 0) {
+                        goto out;
+                    }
+                    no_longer_missing += ret;
+                    idx = self->alt_sample_next_index[idx];
+                }
+            } else {
+                ret = visit(self, sample_index, derived);
+                if (ret < 0) {
+                    goto out;
+                }
+                no_longer_missing += ret;
             }
-            no_longer_missing += ret;
         }
         stack_top--;
         for (v = left_child[u]; v != TSK_NULL; v = right_sib[v]) {
@@ -609,6 +628,7 @@ tsk_variant_restricted_copy(const tsk_variant_t *self, tsk_variant_t *other)
     other->sample_index_map = NULL;
     other->alt_samples = NULL;
     other->alt_sample_index_map = NULL;
+    other->alt_sample_next_index = NULL;
     other->user_alleles_mem = NULL;
 
     total_len = 0;

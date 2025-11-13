@@ -308,6 +308,20 @@ class TestVariantGenerator:
         assert np.array_equal(G, G2)
         assert G2.dtype == np.int32
 
+    def test_genotype_matrix_duplicate_samples(self):
+        ts = self.get_tree_sequence()
+        s = ts.samples()
+        # Duplicate the second sample
+        dup_samples = [int(s[0]), int(s[1]), int(s[1]), int(s[2])]
+        G_dup = ts.genotype_matrix(samples=dup_samples)
+        G_unique = ts.genotype_matrix(samples=[int(s[0]), int(s[1]), int(s[2])])
+        assert G_dup.shape[1] == 4
+        assert G_unique.shape[1] == 3
+        assert np.array_equal(G_dup[:, 0], G_unique[:, 0])
+        assert np.array_equal(G_dup[:, 1], G_unique[:, 1])
+        assert np.array_equal(G_dup[:, 2], G_unique[:, 1])
+        assert np.array_equal(G_dup[:, 3], G_unique[:, 2])
+
     def test_recurrent_mutations_over_samples(self):
         ts = self.get_tree_sequence()
         tables = ts.dump_tables()
@@ -2823,3 +2837,27 @@ class TestVariant:
         assert re.search(rf"position={v.position}", str_rep)
         assert re.search(rf"\'has_missing_data\': {v.has_missing_data}", str_rep)
         assert re.search(rf"\'isolated_as_missing\': {v.isolated_as_missing}", str_rep)
+
+    def test_variants_allow_duplicate_samples(self):
+        ts = msprime.sim_ancestry(4, random_seed=123)
+        ts = tsutil.insert_branch_sites(ts)
+        samples = ts.samples()
+        s0 = int(samples[0])
+        s1 = int(samples[1])
+        dup_samples = [s0, s1, s1]
+        # Iterate until we find a site where the two base samples differ,
+        # so the duplicate check is informative.
+        for v_dup, v_unique in zip(
+            ts.variants(samples=dup_samples), ts.variants(samples=[s0, s1])
+        ):
+            assert len(v_dup.genotypes) == 3
+            # Ensure the pattern can detect duplicate errors
+            if v_unique.genotypes[0] != v_unique.genotypes[1]:
+                assert v_dup.genotypes[0] == v_unique.genotypes[0]
+                assert v_dup.genotypes[1] == v_unique.genotypes[1]
+                assert v_dup.genotypes[2] == v_unique.genotypes[1]
+                break
+        else:
+            pytest.fail(
+                "No variant with differing genotypes between selected samples found"
+            )

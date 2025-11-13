@@ -6,6 +6,12 @@ Unreleased
   fully support TSK_ISOLATED_NOT_MISSING not being set for internal nodes.
   (:user:`benjeffery`, :pr:`3313`)
 
+- ``tsk_variant_init`` now accepts duplicate user-provided samples. When
+  a samples array contains the same node more than once, genotypes are
+  produced for each occurrence. This relaxes a previous restriction that
+  raised ``TSK_ERR_DUPLICATE_SAMPLE``.
+  (:user:`benjeffery`, :issue:`XXXX`, :pr:`YYYY`)
+
 
 --------------------
 [1.2.0] - 2025-09-24

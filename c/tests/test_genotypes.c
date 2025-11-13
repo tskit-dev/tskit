@@ -501,6 +501,34 @@ test_single_tree_binary_alphabet(void)
 }
 
 static void
+test_duplicate_samples_repeat_genotypes(void)
+{
+    int ret = 0;
+    tsk_treeseq_t ts;
+    tsk_vargen_t vargen;
+    tsk_variant_t *var;
+    /* Use a duplicate of sample 1 */
+    tsk_id_t samples[] = { 0, 1, 1, 2 };
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL,
+        single_tree_ex_sites, single_tree_ex_mutations, NULL, NULL, 0);
+    ret = tsk_vargen_init(&vargen, &ts, samples, 4, NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_vargen_next(&vargen, &var);
+    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQUAL(var->num_samples, 4);
+    CU_ASSERT_EQUAL(var->site.id, 0);
+    CU_ASSERT_EQUAL(var->genotypes[0], 0);
+    CU_ASSERT_EQUAL(var->genotypes[1], 0);
+    CU_ASSERT_EQUAL(var->genotypes[2], 0);
+    CU_ASSERT_EQUAL(var->genotypes[3], 1);
+
+    tsk_vargen_free(&vargen);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_single_tree_non_samples(void)
 {
     int ret = 0;
@@ -670,11 +698,6 @@ test_single_tree_errors(void)
     samples[0] = 7;
     ret = tsk_vargen_init(&vargen, &ts, samples, 2, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
-    tsk_vargen_free(&vargen);
-
-    samples[0] = 3;
-    ret = tsk_vargen_init(&vargen, &ts, samples, 2, NULL, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_DUPLICATE_SAMPLE);
     tsk_vargen_free(&vargen);
 
     tsk_treeseq_free(&ts);
@@ -1211,6 +1234,8 @@ main(int argc, char **argv)
         { "test_single_tree_user_alleles", test_single_tree_user_alleles },
         { "test_single_tree_char_alphabet", test_single_tree_char_alphabet },
         { "test_single_tree_binary_alphabet", test_single_tree_binary_alphabet },
+        { "test_duplicate_samples_repeat_genotypes",
+            test_duplicate_samples_repeat_genotypes },
         { "test_single_tree_non_samples", test_single_tree_non_samples },
         { "test_isolated_internal_node", test_isolated_internal_node },
         { "test_single_tree_errors", test_single_tree_errors },
