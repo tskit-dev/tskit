@@ -398,7 +398,7 @@ class TestInterface:
     def test_duplicate_individuals(self):
         ts = msprime.sim_ancestry(3, random_seed=2)
         ts = tsutil.insert_branch_sites(ts)
-        with pytest.raises(tskit.LibraryError, match="TSK_ERR_DUPLICATE_SAMPLE"):
+        with pytest.raises(ValueError, match="Duplicate individuals"):
             ts.as_vcf(individuals=[0, 0], allow_position_zero=True)
 
     def test_samples_with_and_without_individuals(self):

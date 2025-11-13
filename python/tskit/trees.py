@@ -5444,7 +5444,9 @@ class TreeSequence:
         By default, genotypes are generated for all samples. The ``samples``
         parameter allows us to specify the nodes for which genotypes are
         generated; output order of genotypes in the returned variants
-        corresponds to the order of the samples in this list. It is also
+        corresponds to the order of the samples in this list. Duplicate node IDs
+        are permitted and will result in repeated entries in the returned genotypes.
+        It is also
         possible to provide **non-sample** nodes as an argument here, if you
         wish to generate genotypes for (e.g.) internal nodes. Missingness is
         detected for any requested node (sample or non-sample) when
@@ -5567,8 +5569,9 @@ class TreeSequence:
 
         :param array_like samples: An array of node IDs for which to generate
             genotypes. If ``None`` (default), generate genotypes for all sample
-            nodes. Non-sample nodes may also be provided, in which case genotypes
-            will be generated for those nodes too.
+            nodes. Duplicate node IDs are permitted and will result in repeated
+            columns in the returned matrix. Non-sample nodes may also be provided,
+            in which case genotypes will be generated for those nodes too.
         :param bool isolated_as_missing: If True, the genotype value assigned to
             isolated nodes without mutations (samples or non-samples) is
             :data:`.MISSING_DATA` (-1). If False, such nodes will be
@@ -11075,6 +11078,9 @@ class TreeSequence:
                 individuals = np.arange(self.num_individuals, dtype=np.int32)
             if len(individuals) == 0:
                 raise ValueError("No individuals specified")
+            # Reject duplicate individuals explicitly to preserve VCF semantics
+            if len(np.unique(individuals)) != len(individuals):
+                raise ValueError("Duplicate individuals specified")
             if min(individuals) < 0 or max(individuals) >= self.num_individuals:
                 raise ValueError("Invalid individual ID")
 

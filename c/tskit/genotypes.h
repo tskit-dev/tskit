@@ -76,6 +76,10 @@ typedef struct {
     tsk_flags_t options;
     tsk_id_t *alt_samples;
     tsk_id_t *alt_sample_index_map;
+    /* For user-specified samples (alt_samples != NULL), map from an index in the
+     * samples array to the next index for the same node, forming a linked list.
+     * The head of the list for node u is alt_sample_index_map[u]. */
+    tsk_id_t *alt_sample_next_index;
 
 } tsk_variant_t;
 
