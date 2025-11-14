@@ -27,6 +27,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include <tskit/genotypes.h>
 
@@ -660,5 +661,161 @@ tsk_vargen_next(tsk_vargen_t *self, tsk_variant_t **variant)
         ret = 1;
     }
 out:
+    return ret;
+}
+
+int
+tsk_treeseq_decode_alignments(const tsk_treeseq_t *self, const char *ref_seq,
+    tsk_size_t ref_seq_length, const tsk_id_t *nodes, tsk_size_t num_nodes, double left,
+    double right, char missing_data_character, char *alignments_out, tsk_flags_t options)
+{
+    int ret = 0;
+    tsk_size_t i, j, L, seg_left, seg_right;
+    tsk_tree_t tree;
+    tsk_variant_t var;
+    tsk_id_t site_id = 0;
+    tsk_site_t site;
+    char *allele_byte = NULL;
+    tsk_size_t allele_cap = 0;
+    char *row = NULL;
+    int32_t g = 0;
+    char c = 0;
+
+    tsk_memset(&tree, 0, sizeof(tree));
+    tsk_memset(&var, 0, sizeof(var));
+
+    if (!tsk_treeseq_get_discrete_genome(self)) {
+        ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+        goto out;
+    }
+    if (ref_seq == NULL) {
+        ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+        goto out;
+    }
+    if (ref_seq_length != (tsk_size_t) tsk_treeseq_get_sequence_length(self)) {
+        ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+        goto out;
+    }
+    if (trunc(left) != left || trunc(right) != right) {
+        ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+        goto out;
+    }
+    if (left < 0 || right > tsk_treeseq_get_sequence_length(self)
+        || (tsk_size_t) left >= (tsk_size_t) right) {
+        ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+        goto out;
+    }
+    L = (tsk_size_t) right - (tsk_size_t) left;
+    if (num_nodes == 0) {
+        ret = 0;
+        goto out;
+    }
+    if (nodes == NULL || alignments_out == NULL) {
+        ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+        goto out;
+    }
+    for (i = 0; i < num_nodes; i++) {
+        if (nodes[i] < 0 || nodes[i] >= (tsk_id_t) tsk_treeseq_get_num_nodes(self)) {
+            ret = tsk_trace_error(TSK_ERR_NODE_OUT_OF_BOUNDS);
+            goto out;
+        }
+    }
+
+    /* 1) Fill rows with the reference slice */
+    for (i = 0; i < num_nodes; i++) {
+        row = alignments_out + i * L;
+        tsk_memcpy(row, ref_seq + (tsk_size_t) left, L);
+    }
+
+    /* 2) Overlay missing for isolated intervals */
+    if (!(options & TSK_ISOLATED_NOT_MISSING)) {
+        ret = tsk_tree_init(&tree, self, 0);
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_tree_seek(&tree, left, 0);
+        if (ret != 0) {
+            goto out;
+        }
+        while (tree.index != -1 && tree.interval.left < right) {
+            seg_left = TSK_MAX((tsk_size_t) tree.interval.left, (tsk_size_t) left);
+            seg_right = TSK_MIN((tsk_size_t) tree.interval.right, (tsk_size_t) right);
+            if (seg_right > seg_left) {
+                for (i = 0; i < num_nodes; i++) {
+                    tsk_id_t u = nodes[i];
+                    if (tree.parent[u] == TSK_NULL && tree.left_child[u] == TSK_NULL) {
+                        row = alignments_out + i * L;
+                        tsk_memset(row + (seg_left - (tsk_size_t) left),
+                            (int) (unsigned char) missing_data_character,
+                            seg_right - seg_left);
+                    }
+                }
+            }
+            ret = tsk_tree_next(&tree);
+            if (ret < 0) {
+                goto out;
+            }
+        }
+    }
+
+    /* 3) Overlay per-site alleles */
+    ret = tsk_variant_init(&var, self, nodes, num_nodes, NULL, options);
+    if (ret != 0) {
+        goto out;
+    }
+    for (site_id = 0; site_id < (tsk_id_t) tsk_treeseq_get_num_sites(self); site_id++) {
+        ret = tsk_treeseq_get_site(self, site_id, &site);
+        if (ret != 0) {
+            goto out;
+        }
+        if (site.position < left || site.position >= right) {
+            continue;
+        }
+        ret = tsk_variant_decode(&var, site_id, 0);
+        if (ret != 0) {
+            goto out;
+        }
+        if (var.num_alleles > 0) {
+            if (var.num_alleles > allele_cap) {
+                char *tmp
+                    = tsk_realloc(allele_byte, var.num_alleles * sizeof(*allele_byte));
+                if (tmp == NULL) {
+                    ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
+                    goto out;
+                }
+                allele_byte = tmp;
+                allele_cap = var.num_alleles;
+            }
+            for (j = 0; j < var.num_alleles; j++) {
+                if (var.allele_lengths[j] != 1) {
+                    ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+                    goto out;
+                }
+                allele_byte[j] = var.alleles[j][0];
+                if (allele_byte[j] == missing_data_character) {
+                    ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+                    goto out;
+                }
+            }
+            for (i = 0; i < num_nodes; i++) {
+                row = alignments_out + i * L;
+                g = var.genotypes[i];
+                c = missing_data_character;
+                if (g != TSK_MISSING_DATA) {
+                    if (g < 0 || (tsk_size_t) g >= var.num_alleles) {
+                        ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
+                        goto out;
+                    }
+                    c = allele_byte[g];
+                }
+                row[((tsk_size_t) site.position) - (tsk_size_t) left] = (char) c;
+            }
+        }
+    }
+
+out:
+    tsk_safe_free(allele_byte);
+    tsk_variant_free(&var);
+    tsk_tree_free(&tree);
     return ret;
 }

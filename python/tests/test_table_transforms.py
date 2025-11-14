@@ -868,7 +868,7 @@ class TestDecapitateSimpleTreeMutationExamples:
         # 0.00┊ 0 1 2 ┊
         #     0       1
         before.tables.mutations.assert_equals(ts.tables.mutations)
-        assert list(before.alignments()) == list(ts.alignments())
+        np.testing.assert_array_equal(before.alignments(), ts.alignments())
 
     def test_single_mutation_at_decap_time(self):
         # 2.00┊   4   ┊
@@ -894,7 +894,7 @@ class TestDecapitateSimpleTreeMutationExamples:
         # 0.00┊ 0 1 2 ┊
         #     0       1
         assert ts.num_mutations == 0
-        assert list(ts.alignments()) == ["A", "A", "A"]
+        np.testing.assert_array_equal(ts.alignments(), ["A", "A", "A"])
 
     def test_multi_mutation_over_sample(self):
         # 2.00┊   4   ┊
@@ -918,7 +918,7 @@ class TestDecapitateSimpleTreeMutationExamples:
         # 0.00┊ 0 1 2 ┊
         #     0       1
         before.tables.mutations.assert_equals(ts.tables.mutations)
-        assert list(before.alignments()) == list(ts.alignments())
+        np.testing.assert_array_equal(before.alignments(), ts.alignments())
 
     def test_multi_mutation_over_sample_time(self):
         # 2.00┊   4   ┊
@@ -943,7 +943,7 @@ class TestDecapitateSimpleTreeMutationExamples:
         #     0       1
         assert ts.num_mutations == 1
         # Alignments are equal because the ancestral mutation was silent anyway.
-        assert list(before.alignments()) == list(ts.alignments())
+        np.testing.assert_array_equal(before.alignments(), ts.alignments())
 
     def test_multi_mutation_over_root(self):
         #         x
@@ -968,9 +968,9 @@ class TestDecapitateSimpleTreeMutationExamples:
         # 0.00┊ 0 1 2 ┊
         #     0       1
         assert ts.num_mutations == 1
-        assert list(before.alignments()) == ["T", "G", "G"]
+        np.testing.assert_array_equal(before.alignments(), ["T", "G", "G"])
         # The states inherited by samples changes because we drop the old mutation
-        assert list(ts.alignments()) == ["T", "A", "A"]
+        np.testing.assert_array_equal(ts.alignments(), ["T", "A", "A"])
 
 
 class TestDecapitateSimpleTsExample:
