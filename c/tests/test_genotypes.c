@@ -1368,6 +1368,64 @@ test_alignments_discrete_genome_required(void)
 }
 
 static void
+test_alignments_null_reference(void)
+{
+    int ret = 0;
+    tsk_treeseq_t ts;
+    const tsk_id_t *samples;
+    tsk_size_t n;
+    char buf[10];
+
+    build_balanced_three_example_align(&ts);
+    samples = tsk_treeseq_get_samples(&ts);
+    n = tsk_treeseq_get_num_samples(&ts);
+
+    ret = tsk_treeseq_decode_alignments(&ts, NULL, 10, samples, n, 0, 10, 'N', buf, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_alignments_null_nodes_or_buf(void)
+{
+    int ret = 0;
+    tsk_treeseq_t ts;
+    const char *ref = "NNNNNNNNNN";
+    const tsk_id_t *samples;
+    tsk_size_t n;
+    char buf[30];
+
+    build_balanced_three_example_align(&ts);
+    samples = tsk_treeseq_get_samples(&ts);
+    n = tsk_treeseq_get_num_samples(&ts);
+
+    ret = tsk_treeseq_decode_alignments(&ts, ref, 10, NULL, n, 0, 10, 'N', buf, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+
+    ret = tsk_treeseq_decode_alignments(&ts, ref, 10, samples, n, 0, 10, 'N', NULL, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_alignments_node_out_of_bounds(void)
+{
+    int ret = 0;
+    tsk_treeseq_t ts;
+    const char *ref = "NNNNNNNNNN";
+    tsk_id_t bad_node;
+    char buf[10];
+
+    build_balanced_three_example_align(&ts);
+    bad_node = (tsk_id_t) tsk_treeseq_get_num_nodes(&ts);
+
+    ret = tsk_treeseq_decode_alignments(&ts, ref, 10, &bad_node, 1, 0, 10, 'N', buf, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_alignments_isolated_as_not_missing(void)
 {
     int ret = 0;
@@ -1610,6 +1668,9 @@ main(int argc, char **argv)
         { "test_alignments_non_integer_bounds", test_alignments_non_integer_bounds },
         { "test_alignments_discrete_genome_required",
             test_alignments_discrete_genome_required },
+        { "test_alignments_null_reference", test_alignments_null_reference },
+        { "test_alignments_null_nodes_or_buf", test_alignments_null_nodes_or_buf },
+        { "test_alignments_node_out_of_bounds", test_alignments_node_out_of_bounds },
         { "test_alignments_missing_char_collision",
             test_alignments_missing_char_collision },
         { "test_alignments_zero_nodes_ok", test_alignments_zero_nodes_ok },

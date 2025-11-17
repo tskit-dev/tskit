@@ -3348,6 +3348,61 @@ class TestDecodeAlignmentsLowLevel(LowLevelTestCase):
         with pytest.raises(TypeError, match="single character"):
             ts.decode_alignments(ref, nodes, 0, ts.get_sequence_length(), "NN", True)
 
+    def test_argument_parsing_error(self):
+        ts = self.get_simple_example()
+        ref = b"NNNNNNNNNN"
+        nodes = np.array(ts.get_samples(), dtype=np.int32)
+        # left must be a float-like value
+        with pytest.raises(TypeError):
+            ts.decode_alignments(
+                ref, nodes, "bad_left", ts.get_sequence_length(), "N", True
+            )
+
+    def test_reference_sequence_type_validation(self):
+        ts = self.get_simple_example()
+        ref = "NNNNNNNNNN"
+        nodes = np.array(ts.get_samples(), dtype=np.int32)
+        with pytest.raises(TypeError, match="must be bytes"):
+            ts.decode_alignments(ref, nodes, 0, ts.get_sequence_length(), "N", True)
+
+    def test_missing_char_type_validation(self):
+        ts = self.get_simple_example()
+        ref = b"NNNNNNNNNN"
+        nodes = np.array(ts.get_samples(), dtype=np.int32)
+        with pytest.raises(TypeError, match="length 1"):
+            ts.decode_alignments(ref, nodes, 0, ts.get_sequence_length(), b"N", True)
+
+    def test_missing_char_unicode_error(self):
+        ts = self.get_simple_example()
+        ref = b"NNNNNNNNNN"
+        nodes = np.array(ts.get_samples(), dtype=np.int32)
+        with pytest.raises(UnicodeEncodeError):
+            ts.decode_alignments(
+                ref,
+                nodes,
+                0,
+                ts.get_sequence_length(),
+                NON_UTF8_STRING,
+                True,
+            )
+
+    def test_isolated_as_missing_flag_false(self):
+        ts = self.get_simple_example()
+        ref = b"NNNNNNNNNN"
+        nodes = np.array(ts.get_samples(), dtype=np.int32)
+        buf = ts.decode_alignments(
+            ref,
+            nodes,
+            0,
+            ts.get_sequence_length(),
+            "N",
+            False,
+        )
+        assert isinstance(buf, (bytes, bytearray))
+        L = int(ts.get_sequence_length())
+        rows = [buf[i * L : (i + 1) * L].decode("ascii") for i in range(nodes.shape[0])]
+        assert rows == ["NNGNNNNNNT", "NNANNNNNNC", "NNANNNNNNC"]
+
     def test_length_and_interval_validation(self):
         ts = self.get_simple_example()
         nodes = np.array(ts.get_samples(), dtype=np.int32)
