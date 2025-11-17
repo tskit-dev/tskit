@@ -566,12 +566,12 @@ Most statistics are not affected by invariant sites,
 and hence do not depend on any part of the tree that is not ancestral to any of the sample sets.
 However, some statistics are different: for instance, 
 given a pair of samples, {meth}`TreeSequence.genetic_relatedness`
-with `centre=False` (and `polarised=True`, the default for that method)
+with `centre=False` and `polarised=False`
 adds up the total number of alleles (or total area of branches) that is
 either ancestral to both samples *or ancestral to neither*.
 So, it depends on what else is in the tree sequence.
 (For this reason, we don't recommend actually *using* this combination of options for genetic
-relatedness.)
+relatedness; the default for that method is `polarised=True`.)
 
 In terms of the summary function {math}`f(x)`, "not affected by invariant sites" translates to
 {math}`f(0) = f(n) = 0`, where {math}`n` is the vector of sample set sizes.
