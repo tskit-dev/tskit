@@ -9929,7 +9929,7 @@ class TreeSequence:
             b = 2 * (n**2 + n + 3) / (9 * n * (n - 1)) - (n + 2) / (h * n) + g / h**2
             c = h**2 + g
 
-        What is computed for diversity and divergence depends on ``mode``;
+        What is computed for diversity and segregating sites depends on ``mode``;
         see those functions for more details.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
