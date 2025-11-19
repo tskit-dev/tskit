@@ -3568,6 +3568,57 @@ class TestTableCollection:
             tables.compute_mutation_parents()
         assert tables.mutations.parent[0] == 123
 
+    def test_compute_mutation_parents_tolerates_various_invalid_values(self):
+        tables = tskit.TableCollection(sequence_length=1.0)
+        parent = tables.nodes.add_row(time=1.0)
+        child = tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
+        tables.edges.add_row(left=0.0, right=1.0, parent=parent, child=child)
+        site = tables.sites.add_row(position=0.0, ancestral_state="A")
+        tables.mutations.add_row(site=site, node=child, derived_state="C")
+        tables.build_index()
+
+        # A range of nonsensical parent values should be ignored
+        invalid_values = [
+            -2,  # less than NULL sentinel
+            0,  # equal to self for single-row case
+            1,  # out of bounds (>= num_rows)
+            42,  # arbitrary out of bounds
+            np.iinfo(np.int32).max,
+        ]
+        for val in invalid_values:
+            tables.mutations.parent[:] = val
+            tables.compute_mutation_parents()
+            assert tables.mutations.parent[0] == tskit.NULL
+
+    def test_compute_mutation_parents_tolerates_cross_site_and_loops(self):
+        # Build a simple tree with 2 samples under a common parent
+        tables = tskit.TableCollection(sequence_length=1.0)
+        root = tables.nodes.add_row(time=2.0)
+        a = tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
+        b = tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
+        tables.edges.add_row(0.0, 1.0, root, a)
+        tables.edges.add_row(0.0, 1.0, root, b)
+        s0 = tables.sites.add_row(0.0, "A")
+        s1 = tables.sites.add_row(0.5, "A")
+        m0 = tables.mutations.add_row(site=s0, node=a, derived_state="C")
+        m1 = tables.mutations.add_row(site=s1, node=b, derived_state="G")
+        assert m0 == 0 and m1 == 1
+        tables.build_index()
+
+        # Cross-site parent should be ignored by compute_mutation_parents
+        tables.mutations.parent[:] = np.array([tskit.NULL, 0], dtype=np.int32)
+        tables.compute_mutation_parents()
+        assert np.array_equal(
+            tables.mutations.parent, np.array([tskit.NULL, tskit.NULL])
+        )
+
+        # Explicit loop in parents should be ignored by compute_mutation_parents
+        tables.mutations.parent[:] = np.array([1, 0], dtype=np.int32)
+        tables.compute_mutation_parents()
+        assert np.array_equal(
+            tables.mutations.parent, np.array([tskit.NULL, tskit.NULL])
+        )
+
     def test_str(self):
         ts = msprime.simulate(10, random_seed=1)
         tables = ts.tables
@@ -5768,3 +5819,90 @@ def test_ragged_selection_indices_non_monotonic():
     gather = _ragged_selection_indices(indexed_offsets, lengths64)
     expected = np.array([5, 0, 1], dtype=np.int64)
     assert np.array_equal(gather, expected)
+
+
+class TestMutationParentValidation:
+    def _two_leaf_tree(self):
+        tables = tskit.TableCollection(sequence_length=1.0)
+        root = tables.nodes.add_row(time=2.0)
+        a = tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
+        b = tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
+        tables.edges.add_row(0.0, 1.0, root, a)
+        tables.edges.add_row(0.0, 1.0, root, b)
+        return tables, a, b
+
+    def _chain_tree(self):
+        tables = tskit.TableCollection(sequence_length=1.0)
+        root = tables.nodes.add_row(time=2.0)
+        mid = tables.nodes.add_row(time=1.0)
+        leaf = tables.nodes.add_row(time=0, flags=tskit.NODE_IS_SAMPLE)
+        tables.edges.add_row(0.0, 1.0, root, mid)
+        tables.edges.add_row(0.0, 1.0, mid, leaf)
+        return tables, mid, leaf
+
+    def test_tree_sequence_bad_mutation_parent_topology(self):
+        tables, a, b = self._two_leaf_tree()
+        s = tables.sites.add_row(0.0, "A")
+        tables.mutations.add_row(site=s, node=a, derived_state="C")  # id 0
+        tables.mutations.add_row(site=s, node=b, derived_state="G")  # id 1
+        # Make a mutation on a parallel branch the parent
+        mut_cols = tables.mutations.asdict()
+        mut_cols["parent"] = np.array([tskit.NULL, 0], dtype=np.int32)
+        tables.mutations.set_columns(**mut_cols)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_BAD_MUTATION_PARENT"):
+            tables.tree_sequence()
+
+    def test_tree_sequence_mutation_parent_after_child(self):
+        tables, mid, leaf = self._chain_tree()
+        s = tables.sites.add_row(0.0, "A")
+        tables.mutations.add_row(site=s, node=leaf, derived_state="C")  # id 0 (child)
+        tables.mutations.add_row(site=s, node=mid, derived_state="G")  # id 1 (parent)
+        tables.sort()
+        mut_cols = tables.mutations.asdict()
+        mut_cols["parent"] = np.array([1, tskit.NULL], dtype=np.int32)
+        tables.mutations.set_columns(**mut_cols)
+        with pytest.raises(
+            tskit.LibraryError, match="TSK_ERR_MUTATION_PARENT_AFTER_CHILD"
+        ):
+            tables.tree_sequence()
+
+    def test_tree_sequence_mutation_parent_different_site(self):
+        tables, a, _ = self._two_leaf_tree()
+        s0 = tables.sites.add_row(0.0, "A")
+        s1 = tables.sites.add_row(0.5, "A")
+        tables.mutations.add_row(site=s0, node=a, derived_state="C")  # id 0
+        tables.mutations.add_row(site=s1, node=a, derived_state="G")  # id 1
+        mut_cols = tables.mutations.asdict()
+        mut_cols["parent"] = np.array([tskit.NULL, 0], dtype=np.int32)
+        tables.mutations.set_columns(**mut_cols)
+        with pytest.raises(
+            tskit.LibraryError, match="TSK_ERR_MUTATION_PARENT_DIFFERENT_SITE"
+        ):
+            tables.tree_sequence()
+
+    def test_tree_sequence_mutation_parent_equal(self):
+        tables, a, _ = self._two_leaf_tree()
+        s = tables.sites.add_row(0.0, "A")
+        tables.mutations.add_row(site=s, node=a, derived_state="C")  # id 0
+        mut_cols = tables.mutations.asdict()
+        mut_cols["parent"] = np.array([0], dtype=np.int32)
+        tables.mutations.set_columns(**mut_cols)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_MUTATION_PARENT_EQUAL"):
+            tables.tree_sequence()
+
+    def test_tree_sequence_mutation_parent_out_of_bounds(self):
+        tables, a, _ = self._two_leaf_tree()
+        s = tables.sites.add_row(0.0, "A")
+        tables.mutations.add_row(site=s, node=a, derived_state="C")  # id 0
+        # >= num_rows
+        mut_cols = tables.mutations.asdict()
+        mut_cols["parent"] = np.array([1], dtype=np.int32)
+        tables.mutations.set_columns(**mut_cols)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_MUTATION_OUT_OF_BOUNDS"):
+            tables.tree_sequence()
+        # < NULL
+        mut_cols = tables.mutations.asdict()
+        mut_cols["parent"] = np.array([-2], dtype=np.int32)
+        tables.mutations.set_columns(**mut_cols)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_MUTATION_OUT_OF_BOUNDS"):
+            tables.tree_sequence()
