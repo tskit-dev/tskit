@@ -2,9 +2,23 @@
 Unreleased
 ----------
 
+**Breaking changes**
+
+- ``trees.c`` now depends on ``genotypes.c`` (via ``tskit/genotypes.h``) and must
+  be built and linked together with it.
+  (:user:`benjeffery`, :pr:`3324`)
+
+
+**Features**
+
 - ``tsk_variant_init`` and associated variant decoding methods now
   fully support TSK_ISOLATED_NOT_MISSING not being set for internal nodes.
   (:user:`benjeffery`, :pr:`3313`)
+
+- Add ``tsk_treeseq_decode_alignments`` to decode full-length reference-based
+  sequence alignments for specified nodes over a genomic interval, respecting
+  ``TSK_ISOLATED_NOT_MISSING`` semantics.
+  (:user:`benjeffery` , :pr:`3324`, :issue:`3319`)
 
 
 --------------------

@@ -31,6 +31,7 @@
 #include <assert.h>
 
 #include <tskit/trees.h>
+#include <tskit/genotypes.h>
 
 static inline bool
 is_discrete(double x)

@@ -803,6 +803,14 @@ More than 2147483647 alleles were specified.
 A user-specified allele map was used, but it contained zero alleles.
 */
 #define TSK_ERR_ZERO_ALLELES                                       -1103
+/**
+An allele used when decoding alignments had length other than one.
+*/
+#define TSK_ERR_BAD_ALLELE_LENGTH                                  -1104
+/**
+An allele used when decoding alignments matched the missing data character.
+*/
+#define TSK_ERR_MISSING_CHAR_COLLISION                             -1105
 /** @} */
 
 /**
