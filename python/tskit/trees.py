@@ -8726,13 +8726,10 @@ class TreeSequence:
         :param list windows: The breakpoints of the windows (including start
             and end, so has one more entry than number of windows).
         :param str mode: A string giving the "type" of the statistic to be computed
-            (defaults to "mutation"; "site" and "node" not supported).
+            (defaults to "site"; the other option is "branch").
         :return: A list of the upper triangle of mean TMRCA values in row-major
             order, including the diagonal.
         """
-        # NOTE: see older definition of divmat here, which may be useful when documenting
-        # this function. See https://github.com/tskit-dev/tskit/issues/2781
-
         # NOTE for documentation of sample_sets. We *must* use samples currently because
         # the normalisation for non-sample nodes is tricky. Do we normalise by the
         # total span of the ts where the node is 'present' in the tree? We avoid this
