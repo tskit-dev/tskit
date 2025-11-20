@@ -319,6 +319,18 @@ the individual IDs are 2 and 3. See the
 these default labels.
 :::
 
+If some individuals have no associated nodes, they are omitted from the
+VCF output. By default, only nodes that are marked as samples contribute
+to the VCF genotypes; to include non-sample nodes as well (e.g., internal
+nodes that have been marked as individuals), set
+``include_non_sample_nodes=True`` when calling :meth:`TreeSequence.write_vcf`.
+
+:::{note}
+At present, :meth:`TreeSequence.write_vcf` only supports sites with up to
+9 distinct alleles; attempting to write a site with more than 9 alleles
+will result in a :class:`ValueError`.
+:::
+
 (sec_export_vcf_individual_names)=
 
 ### Individual names
@@ -369,31 +381,53 @@ id and individual id, and two underscores will throw an error.
 
 ### Modifying coordinates
 
-Tskit supports continuous genome coordinates, but VCF only supports discrete
-genome positions. Thus, when we convert a tree sequence that has sites
-at continuous positions we must discretise the coordinates in some way.
+Tree sequence site positions can be floating point values, whereas VCF
+requires discrete, 1-based integers. The ``position_transform`` argument
+controls how tskit maps coordinates into VCF. Translating non-integral
+positions necessarily loses precision; by default we round to the nearest
+integer, so multiple sites may share the same output position. Because VCF
+parsers differ, we do **not** automatically shift from tskit's 0-based
+convention to VCF's 1-based convention.
 
-The ``position_transform`` argument provides a way to flexibly translate
-the genomic location of sites in tskit to the appropriate value in VCF.
-There are two fundamental differences in the way that tskit and VCF define
-genomic coordinates. The first is that tskit uses floating point values
-to encode positions, whereas VCF uses integers. Thus, if the tree sequence
-contains positions at non-integral locations there is an information loss
-incurred by translating to VCF. By default, we round the site positions
-to the nearest integer, such that there may be several sites with the
-same integer position in the output. The second difference between VCF
-and tskit is that VCF is defined to be a 1-based coordinate system, whereas
-tskit uses 0-based. However, how coordinates are transformed depends
-on the VCF parser, and so we do **not** account for this change in
-coordinate system by default.
+:::{warning}
+Most VCF tools expect POS and contig coordinates to be 1-based. If your tree
+sequence already uses discrete, 0-based integer positions, leaving the default
+transform will produce off-by-one coordinates in the VCF. Supply an explicit
+``position_transform`` (for example, add 1 after rounding) or use the
+``"legacy"`` option to shift to 1-based coordinates.
+:::
+
+Internally, the coordinates used in the VCF output are obtained by applying
+the ``position_transform`` function to the array of site positions (and, for
+the contig length, to the tree sequence :attr:`.TreeSequence.sequence_length`).
+This function must return a one-dimensional array of the same length as its
+input; otherwise a :class:`ValueError` is raised. In addition to accepting a
+callable, tskit also supports the string value ``"legacy"`` here, which
+selects the pre-0.2.0 behaviour used by the original VCF exporter:
+positions are rounded to the nearest integer, starting at 1, and are forced
+to be strictly increasing by incrementing ties.
+
+The VCF specification does not allow positions to be 0. By default, if any
+transformed position is 0, :meth:`TreeSequence.write_vcf` will raise a
+:class:`ValueError`. If you wish to retain these records you can either:
+
+- set ``allow_position_zero=True`` to write such sites anyway;
+- mask the offending sites using the ``site_mask`` argument; or
+- choose a ``position_transform`` that maps 0 to a valid positive position.
+
+For example, to shift all coordinates by 1 to make them strictly
+1-based, we could define:
+
+```{code-cell}
+def one_based_positions(positions):
+    return [int(round(x)) + 1 for x in positions]
+
+ts.write_vcf(sys.stdout, position_transform=one_based_positions)
+```
 
 :::{note}
 The msprime 0.x legacy API simulates using continuous coordinates. It may
 be simpler to update your code to use the msprime 1.0 API (which uses
 discrete coordinates by default) than to work out how to transform
 coordinates in a way that is suitable for your application.
-:::
-
-:::{todo}
-Provide some examples of using position transform.
 :::
