@@ -217,6 +217,35 @@ class TestLoadTextMetadata:
         for a, b in zip(expected, n):
             assert a.encode("utf8") == b.metadata
 
+    @pytest.mark.parametrize(
+        "base64_metadata,metadata_text,expected",
+        [(True, "YWJj", b"abc"), (False, "plain", b"plain")],
+    )
+    def test_edges_metadata(self, base64_metadata, metadata_text, expected):
+        edges = io.StringIO(
+            f"""\
+        left    right    parent    child    metadata
+        0.0     1.0      2         0,1      {metadata_text}
+        """
+        )
+        table = tskit.parse_edges(
+            edges, strict=False, encoding="utf8", base64_metadata=base64_metadata
+        )
+        assert len(table) == 2
+        for row in table:
+            assert row.metadata == expected
+
+    def test_edges_without_metadata_column(self):
+        edges = io.StringIO(
+            """\
+        left    right    parent    child
+        0.0     1.0      2         3
+        """
+        )
+        table = tskit.parse_edges(edges, strict=False, encoding="utf8")
+        assert len(table) == 1
+        assert table[0].metadata == b""
+
     def test_sites(self):
         sites = io.StringIO(
             """\
