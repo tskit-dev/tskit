@@ -35,11 +35,14 @@ Please see the {ref}`tutorial <tutorials:sec_tutorial_stats>` for examples of th
 statistics API in use.
 
 :::{warning}
-{ref}`sec_data_model_missing_data` is not currently
-handled correctly by site statistics defined here, as we always
-assign missing data to be equal to the ancestral state. Later
-versions will add this behaviour as an option and will account
-for the presence of missing data by default.
+Site statistics defined here currently treat :ref:`missing data<sec_data_model_missing_data>`
+in the same way as in earlier versions of tskit: when computing site-based
+statistics, isolated samples without mutations directly above them are treated
+as carrying the ancestral allele rather than as missing. Future versions of
+tskit may expose options to treat missing data differently in statistics; for
+now, if you need explicit control over how missing data is handled you should
+use the low-level genotype/variant APIs (for example with
+``isolated_as_missing=True``) together with your own summary logic.
 :::
 
 (sec_stats_available)=
