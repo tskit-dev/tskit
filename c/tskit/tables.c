@@ -11078,7 +11078,7 @@ tsk_table_collection_check_integrity(
                    | TSK_CHECK_MIGRATION_ORDERING | TSK_CHECK_INDEXES;
     }
 
-    if (self->sequence_length <= 0) {
+    if (!tsk_isfinite(self->sequence_length) || self->sequence_length <= 0) {
         ret = tsk_trace_error(TSK_ERR_BAD_SEQUENCE_LENGTH);
         goto out;
     }

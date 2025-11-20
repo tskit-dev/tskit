@@ -399,6 +399,10 @@ error message. Some more complex requirements may not be detectable at load-time
 and errors may not occur until certain operations are attempted.
 These are documented below.
 
+At the tree-sequence level, we require that the coordinate space has a finite,
+strictly positive length; that is, the `sequence_length` attribute must be a
+finite value greater than zero.
+
 The Python API also provides tools that can transform a collection of
 tables into a valid collection of tables, so long as they are logically
 consistent, see {ref}`sec_tables_api_creating_valid_tree_sequence`.
