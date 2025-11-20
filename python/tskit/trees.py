@@ -5626,14 +5626,15 @@ class TreeSequence:
         right=None,
     ):
         """
-        Returns a numpy array of the full sequence alignments for the defined samples
-        in this tree sequence. Each alignment ``a`` is a string of length ``L`` where
-        the first character is the genomic sequence at the ``start`` position in the
-        genome (defaulting to 0) and the last character is the genomic sequence one
-        position before the ``stop`` value (defaulting to the :attr:`.sequence_length`
-        of this tree sequence, which must have :attr:`.discrete_genome` equal to True).
-        By default ``L`` is therefore equal to the :attr:`.sequence_length`,
-        and ``a[j]`` is the nucleotide value at genomic position ``j``.
+        Returns an iterator over the full sequence alignments for the defined samples
+        in this tree sequence. Each yielded alignment ``a`` is a string of length
+        ``L`` where the first character is the genomic sequence at the ``start``
+        position in the genome (defaulting to 0) and the last character is the
+        genomic sequence one position before the ``stop`` value (defaulting to the
+        :attr:`.sequence_length` of this tree sequence, which must have
+        :attr:`.discrete_genome` equal to True). By default ``L`` is therefore equal
+        to the :attr:`.sequence_length`, and ``a[j]`` is the nucleotide value at
+        genomic position ``j``.
 
         .. note::
             This is inherently a **zero-based** representation of the sequence
@@ -5720,11 +5721,10 @@ class TreeSequence:
         :param int right: Alignments will stop before this genomic position.
             If ``None`` (default) alignments will continue until the end of the
             tree sequence.
-        :return: A 1D numpy array of alignment strings for specified samples in
-            this tree sequence, in the order given in ``samples``. The array
-            has dtype ``'<U{L}'`` where ``L = right - left`` is the alignment
-            length.
-        :rtype: numpy.ndarray
+        :return: An iterator over the alignment strings for specified samples in
+            this tree sequence, in the order given in ``samples``. Each string has
+            length ``L = right - left``.
+        :rtype: collections.abc.Iterable
         :raises ValueError: if any genome coordinate in this tree sequence is not
             discrete, or if the ``reference_sequence`` is not of the correct length.
         :raises TypeError: if any of the alleles at a site are not a
@@ -5780,10 +5780,10 @@ class TreeSequence:
             bool(isolated_as_missing),
         )
 
-        flat_arr = np.frombuffer(
-            flat, dtype=f"S{int(interval.span)}", count=len(sample_ids)
-        )
-        return flat_arr.astype(f"U{int(interval.span)}")
+        span = int(interval.span)
+        for j in range(len(sample_ids)):
+            offset = j * span
+            yield flat[offset : offset + span].decode("ascii")
 
     @property
     def individuals_population(self):

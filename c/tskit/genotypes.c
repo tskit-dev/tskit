@@ -710,6 +710,8 @@ tsk_treeseq_decode_alignments_overlay_missing(const tsk_treeseq_t *self,
         }
     }
 
+    /* On success we should return 0, not TSK_TREE_OK from the last tsk_tree_next */
+    ret = 0;
 out:
     tsk_tree_free(&tree);
     return ret;

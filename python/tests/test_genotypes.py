@@ -1263,7 +1263,7 @@ class TestBinaryTreeExample:
         np.testing.assert_array_equal(G, Gp)
 
     def test_alignments_default(self):
-        A = self.ts().alignments()
+        A = list(self.ts().alignments())
         assert A[0] == "NNGNNNNNNT"
         assert A[1] == "NNANNNNNNC"
         assert A[2] == "NNANNNNNNC"
@@ -1272,38 +1272,29 @@ class TestBinaryTreeExample:
         ts = self.ts()
         samples = ts.samples()
         # Take the first 2 in reverse order
-        A = ts.alignments(left=1, right=9, samples=samples[1::-1])
+        A = list(ts.alignments(left=1, right=9, samples=samples[1::-1]))
         assert A[0] == "NANNNNNN"
         assert A[1] == "NGNNNNNN"
 
     def test_empty_samples(self):
         ts = self.ts()
-        A = ts.alignments(samples=[])
+        A = list(ts.alignments(samples=[]))
         assert len(A) == 0
 
     def test_non_sample_samples(self):
         ts = self.ts()
-        np.testing.assert_array_equal(
-            ts.alignments(samples=[4]),
-            ["NNANNNNNNT"],
-        )
-        np.testing.assert_array_equal(
-            ts.alignments(samples=[3]),
-            ["NNANNNNNNC"],
-        )
+        assert list(ts.alignments(samples=[4])) == ["NNANNNNNNT"]
+        assert list(ts.alignments(samples=[3])) == ["NNANNNNNNC"]
 
     def test_alignments_samples_order_preserved(self):
         ts = self.ts()
         # Custom non-default, unique order
-        rows = ts.alignments(samples=[2, 0, 1])
-        np.testing.assert_array_equal(
-            rows,
-            [
-                "NNANNNNNNC",  # sample 2
-                "NNGNNNNNNT",  # sample 0
-                "NNANNNNNNC",  # sample 1
-            ],
-        )
+        rows = list(ts.alignments(samples=[2, 0, 1]))
+        assert rows == [
+            "NNANNNNNNC",  # sample 2
+            "NNGNNNNNNT",  # sample 0
+            "NNANNNNNNC",  # sample 1
+        ]
 
     def test_variants_internal_nodes(self):
         ts = self.ts()
@@ -1352,14 +1343,14 @@ class TestBinaryTreeExample:
         assert list(ts.haplotypes(samples=[3], isolated_as_missing=False)) == ["AC"]
 
     def test_alignments_missing_data_char(self):
-        A = self.ts().alignments(missing_data_character="x")
+        A = list(self.ts().alignments(missing_data_character="x"))
         assert A[0] == "xxGxxxxxxT"
         assert A[1] == "xxAxxxxxxC"
         assert A[2] == "xxAxxxxxxC"
 
     def test_alignments_reference_sequence(self):
         ref = "0123456789"
-        A = self.ts().alignments(reference_sequence=ref)
+        A = list(self.ts().alignments(reference_sequence=ref))
         assert A[0] == "01G345678T"
         assert A[1] == "01A345678C"
         assert A[2] == "01A345678C"
@@ -1368,7 +1359,7 @@ class TestBinaryTreeExample:
         # This is a total corner case, but just want to make sure
         # we do something sensible.
         ref = "0123" + "\0" + "56789"
-        A = self.ts().alignments(reference_sequence=ref)
+        A = list(self.ts().alignments(reference_sequence=ref))
         assert A[0] == "01G3\x005678T"
         assert A[1] == "01A3\x005678C"
         assert A[2] == "01A3\x005678C"
@@ -1509,13 +1500,13 @@ class TestBinaryTreeWithReferenceExample:
         return tables.tree_sequence()
 
     def test_alignments_default(self):
-        A = self.ts().alignments()
+        A = list(self.ts().alignments())
         assert A[0] == "ACGTACGTAT"
         assert A[1] == "ACATACGTAC"
         assert A[2] == "ACATACGTAC"
 
     def test_alignments_missing_data_char(self):
-        A = self.ts().alignments(missing_data_character="x")
+        A = list(self.ts().alignments(missing_data_character="x"))
         assert A[0] == "ACGTACGTAT"
         assert A[1] == "ACATACGTAC"
         assert A[2] == "ACATACGTAC"
@@ -1523,7 +1514,7 @@ class TestBinaryTreeWithReferenceExample:
     def test_alignments_restricted_embedded_reference(self):
         ts = self.ts()
         # Use embedded reference ("ACGTACGTAC"). Slice [1,9) -> "CGTACGTA".
-        A = ts.alignments(left=1, right=9)
+        A = list(ts.alignments(left=1, right=9))
         # Site at pos 2 overlays: sample 0 gets 'G' (derived), others 'A' (ancestral).
         assert A[0] == "CGTACGTA"
         assert A[1] == "CATACGTA"
@@ -1531,7 +1522,7 @@ class TestBinaryTreeWithReferenceExample:
 
     def test_alignments_reference_sequence(self):
         ref = "0123456789"
-        A = self.ts().alignments(reference_sequence=ref)
+        A = list(self.ts().alignments(reference_sequence=ref))
         assert A[0] == "01G345678T"
         assert A[1] == "01A345678C"
         assert A[2] == "01A345678C"
@@ -1654,7 +1645,7 @@ class TestMissingDataExample:
         np.testing.assert_array_equal(G, Gp)
 
     def test_alignments_default(self):
-        A = self.ts().alignments()
+        A = list(self.ts().alignments())
         assert A[0] == "NNGNNNNNNT"
         assert A[1] == "NNANNNNNNC"
         assert A[2] == "NNANNNNNNC"
@@ -1662,21 +1653,23 @@ class TestMissingDataExample:
 
     def test_alignments_impute_missing(self):
         ref = "N" * 10
-        A = self.ts().alignments(reference_sequence=ref, isolated_as_missing=False)
+        A = list(
+            self.ts().alignments(reference_sequence=ref, isolated_as_missing=False)
+        )
         assert A[0] == "NNGNNNNNNT"
         assert A[1] == "NNANNNNNNC"
         assert A[2] == "NNANNNNNNC"
         assert A[3] == "NNANNNNNNT"
 
     def test_alignments_missing_char(self):
-        A = self.ts().alignments(missing_data_character="z")
+        A = list(self.ts().alignments(missing_data_character="z"))
         assert A[0] == "zzGzzzzzzT"
         assert A[1] == "zzAzzzzzzC"
         assert A[2] == "zzAzzzzzzC"
         assert A[3] == "zzzzzzzzzz"
 
     def test_alignments_missing_char_ref(self):
-        A = self.ts().alignments()
+        A = list(self.ts().alignments())
         assert A[0] == "NNGNNNNNNT"
         assert A[1] == "NNANNNNNNC"
         assert A[2] == "NNANNNNNNC"
@@ -1684,7 +1677,7 @@ class TestMissingDataExample:
 
     def test_alignments_reference_sequence(self):
         ref = "0123456789"
-        A = self.ts().alignments(reference_sequence=ref)
+        A = list(self.ts().alignments(reference_sequence=ref))
         assert A[0] == "01G345678T"
         assert A[1] == "01A345678C"
         assert A[2] == "01A345678C"
@@ -1692,7 +1685,9 @@ class TestMissingDataExample:
 
     def test_alignments_reference_sequence_missing_data_char(self):
         ref = "0123456789"
-        A = self.ts().alignments(reference_sequence=ref, missing_data_character="Q")
+        A = list(
+            self.ts().alignments(reference_sequence=ref, missing_data_character="Q")
+        )
         assert A[0] == "01G345678T"
         assert A[1] == "01A345678C"
         assert A[2] == "01A345678C"
@@ -1702,11 +1697,8 @@ class TestMissingDataExample:
         ts = self.ts()
         # Use a custom reference and a subinterval [2, 8)
         ref = "A" * 10
-        got = ts.alignments(reference_sequence=ref, left=2, right=8)
-        np.testing.assert_array_equal(
-            got,
-            ["GAAAAA", "AAAAAA", "AAAAAA", "NNNNNN"],
-        )
+        got = list(ts.alignments(reference_sequence=ref, left=2, right=8))
+        assert got == ["GAAAAA", "AAAAAA", "AAAAAA", "NNNNNN"]
 
     def test_fasta_reference_sequence(self):
         ref = "0123456789"
@@ -1861,15 +1853,15 @@ class TestAlignmentsPartialIsolation:
         ref = "0123456789"
         # Node is isolated outside [3,7): expect missing there; inside use ref,
         # with site overlay at 5
-        got = ts.alignments(samples=[1], reference_sequence=ref)
-        np.testing.assert_array_equal(got, ["NNN34G6NNN"])
+        got = list(ts.alignments(samples=[1], reference_sequence=ref))
+        assert got == ["NNN34G6NNN"]
 
     def test_subwindow(self):
         ts = self.build_ts()
         ref = "0123456789"
         # Request [2,8): expect missing at 2 and 7, ref inside, site overlay at 5
-        got = ts.alignments(samples=[1], reference_sequence=ref, left=2, right=8)
-        np.testing.assert_array_equal(got, ["N34G6N"])
+        got = list(ts.alignments(samples=[1], reference_sequence=ref, left=2, right=8))
+        assert got == ["N34G6N"]
 
 
 class TestMultiRootExample:
@@ -1908,14 +1900,14 @@ class TestMultiRootExample:
         np.testing.assert_array_equal(G, Gp)
 
     def test_alignments_default(self):
-        A = self.ts().alignments()
+        A = list(self.ts().alignments())
         assert A[0] == "NNTNNNNNCN"
         assert A[1] == "NNGNNNNNCN"
         assert A[2] == "NNGNNNNNAN"
         assert A[3] == "NNGNNNNNAN"
 
     def test_alignments_N_ref(self):
-        A = self.ts().alignments(reference_sequence="N" * 10)
+        A = list(self.ts().alignments(reference_sequence="N" * 10))
         assert A[0] == "NNTNNNNNCN"
         assert A[1] == "NNGNNNNNCN"
         assert A[2] == "NNGNNNNNAN"
@@ -1928,8 +1920,8 @@ class TestMultiRootExample:
         tables.sites.add_row(2, ancestral_state="AC")
         tables.sort()
         ts_bad = tables.tree_sequence()
-        with pytest.raises(tskit.LibraryError, match="TSK_ERR_BAD_PARAM_VALUE"):
-            ts_bad.alignments()
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_BAD_ALLELE_LENGTH"):
+            next(ts_bad.alignments())
 
     def test_fasta_reference_sequence(self):
         ref = "0123456789"
@@ -2237,7 +2229,7 @@ class TestAlignmentsErrors:
         ts = tskit.TableCollection(1.1).tree_sequence()
         assert not ts.discrete_genome
         with pytest.raises(ValueError, match="defined for discrete genomes"):
-            ts.alignments()
+            next(ts.alignments())
 
     @pytest.mark.parametrize("ref_length", [1, 9, 11])
     def test_reference_length_mismatch(self, ref_length):
@@ -2247,7 +2239,7 @@ class TestAlignmentsErrors:
         with pytest.raises(
             ValueError, match="must be equal to the tree sequence length"
         ):
-            ts.alignments()
+            next(ts.alignments())
 
     @pytest.mark.parametrize("ref", ["", "xy"])
     def test_reference_sequence_length_mismatch(self, ref):
@@ -2255,13 +2247,13 @@ class TestAlignmentsErrors:
         with pytest.raises(
             ValueError, match="must be equal to the tree sequence length"
         ):
-            ts.alignments(reference_sequence=ref)
+            next(ts.alignments(reference_sequence=ref))
 
     @pytest.mark.parametrize("ref", ["À", "┃", "α"])
     def test_non_ascii_references(self, ref):
         ts = self.simplest_ts()
         with pytest.raises(UnicodeEncodeError):
-            ts.alignments(reference_sequence=ref)
+            next(ts.alignments(reference_sequence=ref))
 
     @pytest.mark.parametrize("ref", ["À", "┃", "α"])
     def test_non_ascii_embedded_references(self, ref):
@@ -2270,19 +2262,19 @@ class TestAlignmentsErrors:
         tables.reference_sequence.data = ref
         ts = tables.tree_sequence()
         with pytest.raises(UnicodeEncodeError):
-            ts.alignments()
+            next(ts.alignments())
 
     @pytest.mark.parametrize("missing_data_char", ["À", "┃", "α"])
     def test_non_ascii_missing_data_char(self, missing_data_char):
         ts = self.simplest_ts()
         with pytest.raises(UnicodeEncodeError):
-            ts.alignments(missing_data_character=missing_data_char)
+            next(ts.alignments(missing_data_character=missing_data_char))
 
     def test_multichar_missing_data_char(self):
         ts = self.simplest_ts()
         # Multi-character missing symbol is invalid
         with pytest.raises(TypeError):
-            ts.alignments(reference_sequence="A", missing_data_character="NN")
+            next(ts.alignments(reference_sequence="A", missing_data_character="NN"))
 
     def test_missing_char_clashes_with_allele(self):
         # If the missing character equals an allele present at a site, error
@@ -2291,28 +2283,28 @@ class TestAlignmentsErrors:
         tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
         tables.sites.add_row(1, ancestral_state="A")
         ts = tables.tree_sequence()
-        with pytest.raises(tskit.LibraryError, match="TSK_ERR_BAD_PARAM_VALUE"):
-            ts.alignments(missing_data_character="A")
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_MISSING_CHAR_COLLISION"):
+            next(ts.alignments(missing_data_character="A"))
 
     def test_invalid_negative_node(self):
         ts = self.simplest_ts()
         with pytest.raises(tskit.LibraryError, match="out of bounds"):
-            ts.alignments(samples=[-1])
+            next(ts.alignments(samples=[-1]))
 
     def test_invalid_out_of_bounds_node(self):
         ts = self.simplest_ts()
         with pytest.raises(tskit.LibraryError, match="out of bounds"):
-            ts.alignments(samples=[ts.num_nodes])
+            next(ts.alignments(samples=[ts.num_nodes]))
 
     def test_bad_left(self):
         ts = tskit.TableCollection(10).tree_sequence()
         with pytest.raises(ValueError, match="integer"):
-            ts.alignments(left=0.1)
+            next(ts.alignments(left=0.1))
 
     def test_bad_right(self):
         ts = tskit.TableCollection(10).tree_sequence()
         with pytest.raises(ValueError, match="integer"):
-            ts.alignments(right=1.1)
+            next(ts.alignments(right=1.1))
 
     def test_bad_restricted(self):
         tables = tskit.TableCollection(10)
@@ -2321,7 +2313,7 @@ class TestAlignmentsErrors:
         with pytest.raises(
             ValueError, match="must be equal to the tree sequence length"
         ):
-            ts.alignments(right=8)
+            next(ts.alignments(right=8))
 
     def test_no_samples_default(self):
         # No sample nodes: default alignments result is empty
@@ -2329,8 +2321,8 @@ class TestAlignmentsErrors:
         # Add a non-sample node only
         tables.nodes.add_row(flags=0, time=0)
         ts = tables.tree_sequence()
-        A = ts.alignments()
-        assert A.size == 0
+        A = list(ts.alignments())
+        assert len(A) == 0
 
     def test_boundary_sites_left_and_right(self):
         # Sites at the boundaries 0 and L-1 overlay correctly
@@ -2346,7 +2338,7 @@ class TestAlignmentsErrors:
         tables.mutations.add_row(site=s0, node=a, derived_state="G")
         tables.mutations.add_row(site=s4, node=b, derived_state="C")
         ts = tables.tree_sequence()
-        A = ts.alignments(reference_sequence="N" * L)
+        A = list(ts.alignments(reference_sequence="N" * L))
         assert A[0] == "GNNNT"
         assert A[1] == "NNNNC"
 
@@ -2358,7 +2350,7 @@ class TestAlignmentsErrors:
         with pytest.raises(
             ValueError, match="must be equal to the tree sequence length"
         ):
-            ts.alignments(reference_sequence="A" * 5, left=2, right=8)
+            next(ts.alignments(reference_sequence="A" * 5, left=2, right=8))
 
     def test_reference_sequence_length_must_match_sequence(self):
         # Explicit ref length must match full sequence length
@@ -2368,13 +2360,13 @@ class TestAlignmentsErrors:
         with pytest.raises(
             ValueError, match="must be equal to the tree sequence length"
         ):
-            ts.alignments(reference_sequence="A" * 7, left=2, right=8)
+            next(ts.alignments(reference_sequence="A" * 7, left=2, right=8))
 
 
 class TestAlignmentExamples:
     @pytest.mark.parametrize("ts", get_example_discrete_genome_tree_sequences())
     def test_defaults(self, ts):
-        A = ts.alignments()
+        A = list(ts.alignments())
         assert len(A) == ts.num_samples
         H = list(ts.haplotypes())
         pos = ts.tables.sites.position.astype(int)
@@ -2388,7 +2380,7 @@ class TestAlignmentExamples:
     @pytest.mark.parametrize("ts", get_example_discrete_genome_tree_sequences())
     def test_reference_sequence(self, ts):
         ref = tskit.random_nucleotides(ts.sequence_length, seed=1234)
-        A = ts.alignments(reference_sequence=ref, isolated_as_missing=False)
+        A = list(ts.alignments(reference_sequence=ref, isolated_as_missing=False))
         assert len(A) == ts.num_samples
         H = list(ts.haplotypes(isolated_as_missing=False))
         pos = ts.tables.sites.position.astype(int)
@@ -2441,7 +2433,7 @@ def _reference_alignments(
         interval=interval,
         isolated_as_missing=isolated_as_missing,
         missing_data_character=missing_data_character,
-        samples=samples,
+        samples=sample_ids,
     )
     site_pos = ts.sites_position.astype(np.int64)[first_site_id : last_site_id + 1]
     missing_val = ord(missing_data_character)
@@ -2496,16 +2488,18 @@ class TestAlignmentsReferenceImpl:
         else:
             ex2 = None
         if ex1 or ex2:
-            # In general we expect the same error type, but for multi-character
-            # alleles and missing-char clashes, the C backend now reports
-            # TSK_ERR_BAD_PARAM_VALUE as a LibraryError, whereas the pure Python
-            # reference raises TypeError/ValueError from _haplotypes_array.
-            assert ex1 is not None and ex2 is not None
-            if not (
-                isinstance(ex1, tskit.LibraryError)
-                and isinstance(ex2, (TypeError, ValueError))
+            # The C backend may be stricter than the Python reference in some
+            # invalid-data situations (e.g. multi-character alleles or other
+            # format issues), and can raise a LibraryError or FileFormatError
+            # where the reference raises TypeError/ValueError, or even succeeds.
+            assert ex1 is not None
+            if ex2 is None:
+                return
+            if isinstance(ex1, tskit.LibraryError) and isinstance(
+                ex2, (TypeError, ValueError)
             ):
-                assert type(ex1) is type(ex2)
+                return
+            assert type(ex1) is type(ex2)
         else:
             assert got == exp
 

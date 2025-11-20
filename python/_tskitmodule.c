@@ -6146,18 +6146,21 @@ TreeSequence_decode_alignments(TreeSequence *self, PyObject *args, PyObject *kwd
     num_nodes = (tsk_size_t) PyArray_DIM(nodes_array, 0);
     nodes = PyArray_DATA(nodes_array);
 
-    Py_ssize_t total
-        = (Py_ssize_t)((size_t) num_nodes * (size_t)((tsk_size_t)(right - left)));
-    buf_obj = PyBytes_FromStringAndSize(NULL, total);
+    buf_obj = PyBytes_FromStringAndSize(
+        NULL, (Py_ssize_t)(num_nodes * (tsk_size_t)(right - left)));
     if (buf_obj == NULL) {
         goto out;
     }
     buf = PyBytes_AS_STRING(buf_obj);
 
-    Py_BEGIN_ALLOW_THREADS err = tsk_treeseq_decode_alignments(self->tree_sequence,
+    // clang-format off
+    Py_BEGIN_ALLOW_THREADS 
+    err = tsk_treeseq_decode_alignments(self->tree_sequence,
         ref_seq, (tsk_size_t) ref_len, nodes, num_nodes, left, right, missing_char, buf,
         options);
-    Py_END_ALLOW_THREADS if (err != 0)
+    Py_END_ALLOW_THREADS
+        // clang-format on
+        if (err != 0)
     {
         handle_library_error(err);
         goto out;
