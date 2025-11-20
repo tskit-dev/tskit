@@ -6575,6 +6575,14 @@ test_empty_tree_kc(void)
     ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SEQUENCE_LENGTH);
     tsk_treeseq_free(&ts);
+    tables.sequence_length = NAN;
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SEQUENCE_LENGTH);
+    tsk_treeseq_free(&ts);
+    tables.sequence_length = INFINITY;
+    ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_SEQUENCE_LENGTH);
+    tsk_treeseq_free(&ts);
     tables.sequence_length = 1.0;
     ret = tsk_treeseq_init(&ts, &tables, TSK_TS_INIT_BUILD_INDEXES);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
