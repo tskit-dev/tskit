@@ -20,14 +20,10 @@ kernelspec:
 # Identity by descent
 
 The {meth}`.TreeSequence.ibd_segments` method allows us to compute
-segments of identity by descent.
+segments of identity by descent along a tree sequence.
 
 :::{note}
 This documentation page is preliminary
-:::
-
-:::{todo}
-Relate the concept of identity by descent to the MRCA spans in the tree sequence.
 :::
 
 ## Examples
@@ -77,7 +73,20 @@ coordinate ``[left, right)`` and ancestral node ``a`` iff the most
 recent common ancestor of the segment ``[left, right)`` in nodes ``u``
 and ``v`` is ``a``, and the segment has been inherited along the same
 genealogical path (ie. it has not been broken by recombination). The
-segments returned are the longest possible ones.
+segments returned are the longest possible ones: for a fixed pair
+``(u, v)`` we follow the ancestral paths from ``u`` and ``v`` up the
+trees and merge together adjacent genomic intervals whenever both the
+MRCA ``a`` and the full ancestral paths from ``u`` and ``v`` to ``a``
+are identical.
+
+This definition is purely genealogical: it depends only on the tree
+sequence topology and node times, and does not inspect allelic
+states or mutations. In particular, if we compute the MRCA of ``(u, v)``
+in each tree along the sequence, then (up to the additional refinement
+by genealogical path) the IBD segments are obtained by merging together
+adjacent MRCA intervals that share the same ancestor and paths to that
+ancestor. Intervals in which ``u`` and ``v`` lie in different roots
+have no MRCA and therefore do not contribute IBD segments.
 
 Consider the IBD segments that we get from our example tree sequence:
 
@@ -109,7 +118,11 @@ By default this class only stores the high-level summaries of the
 IBD segments discovered. As we can see in this example, we have a
 total of six segments and
 the total span (i.e., the sum lengths of the genomic intervals spanned
-by IBD segments) is 30.
+by IBD segments) is 30. In this default mode the object does not
+store information about individual sample pairs, and methods that
+inspect per-pair information (such as indexing with ``[(a, b)]`` or
+iterating over the mapping) will raise an
+``IdentityPairsNotStoredError``.
 
 If required, we can get more detailed information about particular
 segment pairs and the actual segments using the ``store_pairs``
@@ -148,8 +161,12 @@ segments = ts.ibd_segments(store_pairs=True, store_segments=True)
 segments[(0, 1)]
 ```
 
-The {class}`.IdentitySegmentList` behaves like a Python list,
-where each element is an instance of {class}`.IdentitySegment`.
+When ``store_segments=True``, the {class}`.IdentitySegmentList` behaves
+like a Python list, where each element is an instance of
+{class}`.IdentitySegment`. When only ``store_pairs=True`` is specified,
+the number of segments and their total span are still available, but
+attempting to iterate over the list or access the per-segment arrays
+will raise an ``IdentitySegmentsNotStoredError``.
 
 :::{warning}
 The order of segments in an {class}`.IdentitySegmentList`
@@ -168,18 +185,25 @@ By default we get the IBD segments between all pairs of
 {ref}`sample<sec_data_model_definitions_sample>` nodes.
 
 #### IBD within a sample set
+
 We can reduce this to pairs within a specific set using the
 ``within`` argument:
-
-
-```{eval-rst}
-.. todo:: More detail and better examples here.
-```
 
 ```{code-cell}
 segments = ts.ibd_segments(within=[0, 2], store_pairs=True)
 print(list(segments.keys()))
 ```
+
+Here we have restricted attention to the samples with node IDs 0 and 2,
+so only the pair ``(0, 2)`` appears in the result. In general:
+
+- ``within`` should be a one-dimensional array-like of node IDs
+  (typically sample nodes). All unordered pairs from this set are
+  considered.
+- If ``within`` is omitted (the default), all nodes flagged as samples
+  in the node table are used.
+- Passing an empty list, e.g. ``within=[]``, is allowed and simply
+  yields a result with zero pairs and zero segments.
 
 #### IBD between sample sets
 
@@ -189,6 +213,19 @@ We can also compute IBD **between** sample sets:
 segments = ts.ibd_segments(between=[[0,1], [2]], store_pairs=True)
 print(list(segments.keys()))
 ```
+
+In this example we have two sample sets, ``[0, 1]`` and ``[2]``, so the
+identity segments are computed only for pairs in which one sample lies
+in the first set and the other lies in the second. More generally:
+
+- ``between`` should be a list of non-overlapping lists of node IDs.
+- All pairs ``(u, v)`` are considered such that ``u`` and ``v`` belong
+  to different sample sets.
+- Empty sample sets are permitted (e.g., ``between=[[0, 1], []]``) and
+  simply do not contribute any pairs.
+
+The ``within`` and ``between`` arguments are mutually exclusive: passing
+both at the same time raises a :class:`ValueError`.
 
 :::{seealso}
 See the {meth}`.TreeSequence.ibd_segments` documentation for
@@ -200,6 +237,51 @@ more details.
 The ``max_time`` and ``min_span`` arguments allow us to constrain the
 segments that we consider.
 
-```{eval-rst}
-.. todo:: Add examples for these arguments.
+The ``max_time`` argument specifies an upper bound on the time of the
+common ancestor node: only IBD segments whose MRCA node has a time
+no greater than ``max_time`` are returned. The time is measured in
+the same units as the node times in the tree sequence (e.g., generations).
+
+The ``min_span`` argument filters by genomic length: only segments with
+span strictly greater than ``min_span`` are included. This threshold is
+measured in the same units as the ``sequence_length`` (for example,
+base pairs).
+
+For example:
+
+```{code-cell}
+import io
+
+nodes = io.StringIO(
+    """\
+    id      is_sample   time
+    0       1           0
+    1       1           0
+    2       0           1
+    3       0           1.5
+    """
+)
+edges = io.StringIO(
+    """\
+    left    right   parent  child
+    0.0     0.4     2       0,1
+    0.4     1.0     3       0,1
+    """
+)
+ts2 = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+
+segments = ts2.ibd_segments(store_segments=True)
+print("all segments:", list(segments.values())[0])
+
+segments_recent = ts2.ibd_segments(max_time=1.2, store_segments=True)
+print("max_time=1.2:", list(segments_recent.values())[0])
+
+segments_long = ts2.ibd_segments(min_span=0.5, store_segments=True)
+print("min_span=0.5:", list(segments_long.values())[0])
 ```
+
+Here the full result contains two IBD segments for the single sample
+pair, one inherited via ancestor 2 over ``[0.0, 0.4)`` and one via
+ancestor 3 over ``[0.4, 1.0)``. The ``max_time`` constraint removes the
+segment inherited from the older ancestor (time 1.5), while the
+``min_span`` constraint keeps only the longer of the two segments.
