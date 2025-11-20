@@ -3597,7 +3597,7 @@ def parse_nodes(source, strict=True, encoding="utf8", base64_metadata=True, tabl
     return table
 
 
-def parse_edges(source, strict=True, table=None):
+def parse_edges(source, strict=True, table=None, encoding="utf8", base64_metadata=True):
     """
     Parse the specified file-like object containing a whitespace delimited
     description of a edge table and returns the corresponding :class:`EdgeTable`
@@ -3613,6 +3613,9 @@ def parse_edges(source, strict=True, table=None):
         False, a relaxed whitespace splitting algorithm is used.
     :param EdgeTable table: If specified, write the edges into this table. If
         not, create a new :class:`EdgeTable` instance and return.
+    :param str encoding: Encoding used for text representation.
+    :param bool base64_metadata: If True, metadata is encoded using Base64
+        encoding; otherwise, as plain text.
     """
     sep = None
     if strict:
@@ -3624,6 +3627,12 @@ def parse_edges(source, strict=True, table=None):
     right_index = header.index("right")
     parent_index = header.index("parent")
     children_index = header.index("child")
+    metadata_index = None
+    try:
+        metadata_index = header.index("metadata")
+    except ValueError:
+        pass
+    default_metadata = b""
     for line in source:
         tokens = line.rstrip("\n").split(sep)
         if len(tokens) >= 4:
@@ -3631,8 +3640,19 @@ def parse_edges(source, strict=True, table=None):
             right = float(tokens[right_index])
             parent = int(tokens[parent_index])
             children = tuple(map(int, tokens[children_index].split(",")))
+            metadata = default_metadata
+            if metadata_index is not None and metadata_index < len(tokens):
+                metadata = tokens[metadata_index].encode(encoding)
+                if base64_metadata:
+                    metadata = base64.b64decode(metadata)
             for child in children:
-                table.add_row(left=left, right=right, parent=parent, child=child)
+                table.add_row(
+                    left=left,
+                    right=right,
+                    parent=parent,
+                    child=child,
+                    metadata=metadata,
+                )
     return table
 
 
