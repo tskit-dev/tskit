@@ -2907,6 +2907,12 @@ class TestTablesToTreeSequence:
         b = tables.tree_sequence()
         assert a.tables == b.tables
 
+    @pytest.mark.parametrize("sequence_length", [np.inf, np.nan])
+    def test_nonfinite_sequence_length(self, sequence_length):
+        tables = tskit.TableCollection(sequence_length=sequence_length)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_BAD_SEQUENCE_LENGTH"):
+            tables.tree_sequence()
+
 
 class TestMutationTimeErrors:
     def test_younger_than_node_below(self):

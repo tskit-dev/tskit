@@ -43,9 +43,13 @@ e.g. ``python -m kastore ls file.trees``.
 
 ### Legacy Versions
 
-Tree sequence files written by older versions of tskit are not readable by
-newer versions of tskit. For tskit releases<0.6.2, `tskit upgrade`
-will convert older tree sequence files to the latest version.
+Tree sequence files are versioned. This version of tskit can read
+``.trees`` files produced by earlier releases that use the same *major*
+file format version (see ``format/version`` in a kastore listing).
+Files written using the pre-kastore HDF5 format (for example, by
+msprime < 0.6.0 or tskit < 0.6.2) cannot be read directly. To convert
+such legacy files, use the ``tskit upgrade`` command from an older
+tskit version (< 0.6.2) to produce a modern ``.trees`` file.
 
 
 (sec_text_file_format)=
@@ -234,8 +238,13 @@ ts.dump_text(sites=sys.stdout)
 The mutation text format must contain the columns `site`,
 `node` and `derived_state`. The `time`, `parent` and `metadata` columns
 may also be optionally present (but `parent` must be specified if
-more than one mutation occurs at the same site). If `time` is absent
-`UNKNOWN_TIME` will be used to fill the column. See the
+more than one mutation occurs at the same site). If the `time` column
+is absent, the mutation times in the resulting tree sequence are set to
+{data}`tskit.UNKNOWN_TIME`. Unknown mutation times written out by
+{meth}`TreeSequence.dump_text` are represented in the text file by the
+literal string ``\"unknown\"`` in the `time` column, and
+{func}`tskit.load_text` treats this string as `UNKNOWN_TIME` on input.
+See the
 {ref}`mutation table definitions <sec_mutation_table_definition>`
 for details on these columns.
 
@@ -280,5 +289,4 @@ ts.dump_text(populations=sys.stdout)
 ```
 
 The `metadata` contains base64-encoded data (in this case, the strings
-`pop1` and `pop1`).
-
+`pop1` and `pop2`).
