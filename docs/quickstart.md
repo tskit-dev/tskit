@@ -19,15 +19,15 @@ kernelspec:
 import msprime
 
 def basic_sim():
-    ts = msprime.sim_ancestry(
+    arg = msprime.sim_ancestry(
         3,
         population_size=1000,
         model="dtwf",
         sequence_length=1e4,
         recombination_rate=1e-7,
         random_seed=665)
-    ts = msprime.sim_mutations(ts, rate=2e-7, random_seed=123)
-    ts.dump("data/basic_tree_seq.trees")
+    arg = msprime.sim_mutations(arg, rate=2e-7, random_seed=123)
+    arg.dump("data/basic_tree_seq.trees")
     
 def create_notebook_data():
     basic_sim()
@@ -53,8 +53,9 @@ sites.
 ```{code-cell}
 import tskit
 
-ts = tskit.load("data/basic_tree_seq.trees")  # Or generate using e.g. msprime.sim_ancestry()
-ts  # In a Jupyter notebook this displays a summary table. Otherwise use print(ts)
+# By convention we use `arg` or `ts` to refer to a tree sequence object
+arg = tskit.load("data/basic_tree_seq.trees")  # Or generate using e.g. msprime.sim_ancestry()
+arg  # In a Jupyter notebook this displays a summary table. Otherwise use print(arg)
 ```
 
 ## Individual trees
@@ -62,20 +63,20 @@ ts  # In a Jupyter notebook this displays a summary table. Otherwise use print(t
 You can get e.g. the first tree in the tree sequence and analyse it.
 
 ```{code-cell}
-first_tree = ts.first()
-print("Total branch length in first tree is", first_tree.total_branch_length, ts.time_units)
-print("The first of", ts.num_trees, "trees is plotted below")
+first_tree = arg.first()
+print("Total branch length in first tree is", first_tree.total_branch_length, arg.time_units)
+print("The first of", arg.num_trees, "trees is plotted below")
 first_tree.draw_svg(y_axis=True)  # plot the tree: only useful for small trees
 ```
 
 ## Extracting genetic data
 
-A tree sequence provides an extremely compact way to
+The tree sequence format provides an extremely compact way to
 {ref}`store genetic variation data <tutorials:sec_what_is_dna_data>`. The trees allow
 this data to be {meth}`decoded <Variant.decode>` at each site:
 
 ```{code-cell}
-for variant in ts.variants():
+for variant in arg.variants():
     print(
         "Variable site", variant.site.id,
         "at genome position", variant.site.position,
@@ -89,11 +90,11 @@ Tree sequences enable {ref}`efficient analysis <tutorials:sec_what_is_analysis>`
 of genetic variation using a comprehensive range of built-in {ref}`sec_stats`:
 
 ```{code-cell}
-genetic_diversity = ts.diversity()
+genetic_diversity = arg.diversity()
 print("Av. genetic diversity across the genome is", genetic_diversity)
 
-branch_diversity = ts.diversity(mode="branch")
-print("Av. genealogical dist. between pairs of tips is", branch_diversity,  ts.time_units)
+branch_diversity = arg.diversity(mode="branch")
+print("Av. genealogical dist. between pairs of tips is", branch_diversity,  arg.time_units)
 ```
 
 ## Plotting the whole tree sequence
@@ -101,10 +102,10 @@ print("Av. genealogical dist. between pairs of tips is", branch_diversity,  ts.t
 This can give you a visual feel for small genealogies:
 
 ```{code-cell}
-ts.draw_svg(
+arg.draw_svg(
     size=(800, 300),
     y_axis=True,
-    mutation_labels={m.id: m.derived_state for m in ts.mutations()},
+    mutation_labels={m.id: m.derived_state for m in arg.mutations()},
 )
 ```
 
@@ -115,7 +116,7 @@ can be viewed, and copies of the tables can be edited to create a new tree seque
 
 ```{code-cell}
 # The sites table is one of several tables that underlie a tree sequence
-ts.tables.sites
+arg.tables.sites
 ```
 
 The rest of this documentation gives a comprehensive description of the entire `tskit`
