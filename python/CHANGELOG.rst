@@ -76,6 +76,8 @@ Unreleased
   allowing greater flexibility in "disjoint union" situations.
   (:user:`hyanwong`, :user:`petrelharp`, :issue:`3181`)
 
+- Add ``TreeSequence.divergence_matrix``, which was previously undocumented.
+
 **Bugfixes**
 
 - In some tables with mutations out-of-order ``TableCollection.sort`` did not re-order

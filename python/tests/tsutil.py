@@ -79,7 +79,7 @@ def subsample_sites(ts, num_sites):
     return t.tree_sequence()
 
 
-def insert_branch_mutations(ts, mutations_per_branch=1):
+def insert_branch_mutations(ts, mutations_per_branch=1, num_states=2):
     """
     Returns a copy of the specified tree sequence with a mutation on every branch
     in every tree.
@@ -102,7 +102,7 @@ def insert_branch_mutations(ts, mutations_per_branch=1):
                 state[u] = state[v]
                 parent = mutation[v]
                 for _ in range(mutations_per_branch):
-                    state[u] = (state[u] + 1) % 2
+                    state[u] = (state[u] + 1) % num_states
                     metadata = f"{len(tables.mutations)}".encode()
                     mutation[u] = tables.mutations.add_row(
                         site=site,

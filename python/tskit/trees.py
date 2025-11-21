@@ -8698,52 +8698,6 @@ class TreeSequence:
             sizes = np.array(sizes, dtype=size_dtype)
         return flat, sizes
 
-    # def divergence_matrix(self, sample_sets, windows=None, mode="site"):
-    #     """
-    #     Finds the mean divergence  between pairs of samples from each set of
-    #     samples and in each window. Returns a numpy array indexed by (window,
-    #     sample_set, sample_set).  Diagonal entries are corrected so that the
-    #     value gives the mean divergence for *distinct* samples, but it is not
-    #     checked whether the sample_sets are disjoint (so offdiagonals are not
-    #     corrected).  For this reason, if an element of `sample_sets` has only
-    #     one element, the corresponding diagonal will be NaN.
-
-    #     The mean divergence between two samples is defined to be the mean: (as
-    #     a TreeStat) length of all edges separating them in the tree, or (as a
-    #     SiteStat) density of segregating sites, at a uniformly chosen position
-    #     on the genome.
-
-    #     :param list sample_sets: A list of sets of IDs of samples.
-    #     :param iterable windows: The breakpoints of the windows (including start
-    #         and end, so has one more entry than number of windows).
-    #     :return: A list of the upper triangle of mean TMRCA values in row-major
-    #         order, including the diagonal.
-    #     """
-    #     ns = len(sample_sets)
-    #     indexes = [(i, j) for i in range(ns) for j in range(i, ns)]
-    #     x = self.divergence(sample_sets, indexes, windows, mode=mode)
-    #     nw = len(windows) - 1
-    #     A = np.ones((nw, ns, ns), dtype=float)
-    #     for w in range(nw):
-    #         k = 0
-    #         for i in range(ns):
-    #             for j in range(i, ns):
-    #                 A[w, i, j] = A[w, j, i] = x[w][k]
-    #                 k += 1
-    #     return A
-    # NOTE: see older definition of divmat here, which may be useful when documenting
-    # this function. See https://github.com/tskit-dev/tskit/issues/2781
-
-    # NOTE for documentation of sample_sets. We *must* use samples currently because
-    # the normalisation for non-sample nodes is tricky. Do we normalise by the
-    # total span of the ts where the node is 'present' in the tree? We avoid this
-    # by insisting on sample nodes.
-
-    # NOTE for documentation of num_threads. Need to explain that the
-    # its best to think of as the number of background *worker* threads.
-    # default is to run without any worker threads. If you want to run
-    # with all the cores on the machine, use num_threads=os.cpu_count().
-
     def divergence_matrix(
         self,
         sample_sets=None,
@@ -8753,6 +8707,41 @@ class TreeSequence:
         mode=None,
         span_normalise=True,
     ):
+        """
+        Finds the matrix of pairwise :meth:`.divergence` values between groups
+        of sample nodes. Returns a numpy array indexed by (window,
+        sample_set, sample_set): the [k,i,j]th value of the result gives the
+        mean divergence between pairs of samples from the i-th and j-th
+        sample sets in the k-th window. As for :meth:`.divergence`,
+        diagonal entries are corrected so that the
+        value gives the mean divergence for *distinct* samples,
+        and so diagonal entries are given by the :meth:`.diversity` of that
+        sample set.  For this reason, if an element of `sample_sets` has only
+        one element, the corresponding :meth:`.diversity` will be NaN.
+        However, this method will place a value of 0 in the diagonal instead of NaN
+        in such cases; otherwise, this is equivalent to computing values with
+        `meth`:.divergence`.
+        However, this is (usually) more efficient than computing many
+        pairwise values using the `indexes` argument to :meth:`.divergence`,
+        so see :meth:`.divergence` for a description of what exactly is computed.
+
+        :param list sample_sets: A list of sets of IDs of samples.
+        :param list windows: The breakpoints of the windows (including start
+            and end, so has one more entry than number of windows).
+        :param str mode: A string giving the "type" of the statistic to be computed
+            (defaults to "site"; the other option is "branch").
+        :return: An array indexed by (window, sample_set, sample_set), or if windows is
+            `None`, an array indexed by (sample_set, sample_set).
+        """
+        # NOTE for documentation of sample_sets. We *must* use samples currently because
+        # the normalisation for non-sample nodes is tricky. Do we normalise by the
+        # total span of the ts where the node is 'present' in the tree? We avoid this
+        # by insisting on sample nodes.
+
+        # NOTE for documentation of num_threads. Need to explain that the
+        # its best to think of as the number of background *worker* threads.
+        # default is to run without any worker threads. If you want to run
+        # with all the cores on the machine, use num_threads=os.cpu_count().
         windows_specified = windows is not None
         windows = self.parse_windows(windows)
         mode = "site" if mode is None else mode
@@ -8960,7 +8949,16 @@ class TreeSequence:
         """
         Computes the full matrix of pairwise genetic relatedness values
         between (and within) pairs of sets of nodes from ``sample_sets``.
-        *Warning:* this does not compute exactly the same thing as
+        Returns a numpy array indexed by (window, sample_set, sample_set):
+        the [k,i,j]th value of the result gives the
+        genetic relatedness between pairs of samples from the i-th and j-th
+        sample sets in the k-th window.
+        This is (usually) more efficient than computing many pairwise
+        values using the `indexes` argument to :meth:`.genetic_relatedness`.
+        Specifically, this computes :meth:`.genetic_relatedness` with
+        ``centre=True`` and ``proportion=False`` (with caveats, see below).
+
+        *Warning:* in some cases, this does not compute exactly the same thing as
         :meth:`.genetic_relatedness`: see below for more details.
 
         If `mode="branch"`, then the value obtained is the same as that from
@@ -8968,29 +8966,35 @@ class TreeSequence:
         `proportion=False`. The same is true if `mode="site"` and all sites have
         at most one mutation.
 
-        However, if some sites have more than one mutation, the value may differ.
+        However, if some sites have more than one mutation, the value may differ
+        from that given by :meth:`.genetic_relatedness`:, although if the proportion
+        of such sites is small, the difference will be small.
         The reason is that this function (for efficiency) computes relatedness
-        using :meth:`.divergence` and the following relationship.
+        using :meth:`.divergence_matrix` and the following relationship.
         "Relatedness" measures the number of *shared* alleles (or branches),
         while "divergence" measures the number of *non-shared* alleles (or branches).
         Let :math:`T_i` be the total distance from sample :math:`i` up to the root;
-        then if :math:`D_{ij}` is the divergence between :math:`i` and :math:`j`
-        and :math:`R_{ij}` is the relatedness between :math:`i` and :math:`j`, then
-        :math:`T_i + T_j = D_{ij} + 2 R_{ij}.`
+        then if :math:`D_{ij}` is the branch-mode divergence between :math:`i` and
+        :math:`j` and :math:`R_{ij}` is the branch-mode relatedness between :math:`i`
+        and :math:`j`, then :math:`T_i + T_j = D_{ij} + 2 R_{ij}.`
         So, for any samples :math:`I`, :math:`J`, :math:`S`, :math:`T`
         (that may now be random choices),
         :math:`R_{IJ}-R_{IS}-R_{JT}+R_{ST} = (D_{IJ}-D_{IS}-D_{JT}+D_{ST})/ (-2)`.
-        Note, however, that this relationship only holds for `mode="site"`
-        if we can treat "number of differing alleles" as distances on the tree;
-        this is not necessarily the case in the presence of multiple mutations.
+        This is exactly what we want for (centered) relatedness.
+        However, this relationship does not necessarily hold for `mode="site"`:
+        it does hold if we can treat "number of differing alleles" as distances
+        on the tree, but this is not necessarily the case in the presence of
+        multiple mutations.
 
-        Another caveat in the above relationship between :math:`R` and :math:`D`
+        Another note regarding the above relationship between :math:`R` and :math:`D`
         is that :meth:`.divergence` of a sample set to itself does not include
         the "self" comparisons (so as to provide an unbiased estimator of a
         population quantity), while the usual definition of genetic relatedness
         *does* include such comparisons (to provide, for instance, an appropriate
         value for prospective results beginning with only a given set of
-        individuals).
+        individuals). So, diagonal entries in the relatedness matrix returned here
+        are obtained from :meth:`divergence_matrix` after first correcting
+        diagonals to include these "self" comparisons.
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of nodes to compute the statistic with.
@@ -8999,11 +9003,35 @@ class TreeSequence:
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
         :param bool span_normalise: Whether to divide the result by the span of the
-            window (defaults to True). Has no effect if ``proportion`` is True.
-        :return: A ndarray with shape equal to (num windows, num statistics).
-            If there is one pair of sample sets and windows=None, a numpy scalar is
-            returned.
+            window (defaults to True).
+        :return: An array indexed by (window, sample_set, sample_set), or if windows is
+            `None`, an array indexed by (sample_set, sample_set).
         """
+        # Further notes on the relationship between relatedness (R)
+        # and divergence (D) in mode="site":
+        # The summary function for divergence is "p (1-q)",
+        # where p and q are the allele frequencies in the two sample sets;
+        # while for relatedness it is "pq". Summing across *all* alleles,
+        # we get that relatedness plus divergence is
+        # p1 (1-q1) + p1 q1 + ... + pk (1-qk) + pk qk = p1 + ... + pk = 1 .
+        # This implies that
+        # ts.divergence(..., span_normalise=False)
+        # + ts.genetic_relatedness(..., span_normalise=False, centre=False,
+        #       proportion=False, polarised=False)
+        # == ts.num_sites
+        # This could be the basis for a similar relationship between R and D.
+        # However, that relationship holds only with polarised=False, which is not
+        # the default, or what this function does (for good reason).
+        # So, without setting polarised=False, we have that that for samples i and j,
+        # divergence plus relatedness is equal to (something like)
+        # the total number of sites at which both i and j are ancestral;
+        # this depends on the samples and so does not cancel out of the centred
+        # version. We could work through these relationships to figure out what exactly
+        # the difference between genetic_relatedness_matrix(mode="site") and
+        # genetic_relatedness(mode="site") is, in the general case of multiple
+        # mutations... but that would be confusing, probably not that useful,
+        # and the short version of all this is that "it's complicated".
+
         D = self.divergence_matrix(
             sample_sets,
             windows=windows,
