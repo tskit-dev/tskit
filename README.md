@@ -11,22 +11,21 @@
 [![Docs Build](https://github.com/tskit-dev/tskit/actions/workflows/docs.yml/badge.svg)](https://github.com/tskit-dev/tskit/actions/workflows/docs.yml) [![Binary wheels](https://github.com/tskit-dev/tskit/actions/workflows/wheels.yml/badge.svg)](https://github.com/tskit-dev/tskit/actions/workflows/wheels.yml) [![Tests](https://github.com/tskit-dev/tskit/actions/workflows/tests.yml/badge.svg)](https://github.com/tskit-dev/tskit/actions/workflows/tests.yml)
 
 
-Succinct tree sequences are a highly efficient way of storing a set of related DNA
-sequences by encoding their ancestral history as a set of correlated trees along the
-genome. The tree sequence format is output by a number of software libraries and programs
-(such as [msprime](https://github.com/tskit-dev/msprime),
+The succinct tree sequence (`tskit) format is an efficient way of representing
+the genetic history - sometimes known as an Ancestral Recombination Graph or ARG -
+of a set of related DNA sequences. `Tskit` is used
+by a number of software libraries and programs (such as
+[msprime](https://github.com/tskit-dev/msprime),
 [SLiM](https://github.com/MesserLab/SLiM),
 [fwdpp](http://molpopgen.github.io/fwdpp/), and
 [tsinfer](https://tskit.dev/tsinfer/docs/stable/)) that either simulate or infer
-the evolutionary history of genetic sequences. The evolutionary history of genetic
-sequences is often technically referred to as an Ancestral Recombination Graph (ARG);
-succinct tree sequences are fully compatible with this formulation, and tskit is a
-therefore a powerful platform for processing ARGs.
+the evolutionary ancestry of genetic sequences.
 
 The `tskit` library provides the underlying functionality used to load, examine, and
-manipulate tree sequences, including efficient methods for calculating genetic
-statistics. It often forms part of an installation of other software packages such as
-those listed above. Please see the
+manipulate ARGs in the tree sequence format, including efficient access to the
+sequence of correlated trees along a genome and general methods to calculate
+genetic statistics. `Tskit` often forms part of an installation of other
+software packages such as those listed above. Please see the
 [documentation](https://tskit.dev/tskit/docs/stable/) for further details, which
 includes
 [installation instructions](https://tskit.dev/tskit/docs/stable/installation.html).
