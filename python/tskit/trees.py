@@ -8708,27 +8708,30 @@ class TreeSequence:
         span_normalise=True,
     ):
         """
-        Finds the matrix of pairwise mean :meth:`.divergence` values between groups
+        Finds the matrix of pairwise :meth:`.divergence` values between groups
         of sample nodes. Returns a numpy array indexed by (window,
         sample_set, sample_set): the [k,i,j]th value of the result gives the
         mean divergence between pairs of samples from the i-th and j-th
-        sample sets in the k-th window. Diagonal entries are corrected so that the
-        value gives the mean divergence for *distinct* samples, but it is not
-        checked whether the sample_sets are disjoint (so offdiagonals are not
-        corrected).  For this reason, if an element of `sample_sets` has only
-        one element, the corresponding diagonal will be NaN.
-        This is (usually) more efficient than computing many pairwise
-        values using the `indexes` argument to :meth:`.divergence`.
-
-        See :meth:`.divergence` for a description of what exactly is computed.
+        sample sets in the k-th window. As for :meth:`.divergence`,
+        diagonal entries are corrected so that the
+        value gives the mean divergence for *distinct* samples,
+        and so diagonal entries are given by the :meth:`.diversity` of that
+        sample set.  For this reason, if an element of `sample_sets` has only
+        one element, the corresponding :meth:`.diversity` will be NaN.
+        However, this method will place a value of 0 in the diagonal instead of NaN
+        in such cases; otherwise, this is equivalent to computing values with
+        `meth`:.divergence`.
+        However, this is (usually) more efficient than computing many
+        pairwise values using the `indexes` argument to :meth:`.divergence`,
+        so see :meth:`.divergence` for a description of what exactly is computed.
 
         :param list sample_sets: A list of sets of IDs of samples.
         :param list windows: The breakpoints of the windows (including start
             and end, so has one more entry than number of windows).
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site"; the other option is "branch").
-        :return: A list of the upper triangle of mean TMRCA values in row-major
-            order, including the diagonal.
+        :return: An array indexed by (window, sample_set, sample_set), or if windows is
+            `None`, an array indexed by (sample_set, sample_set).
         """
         # NOTE for documentation of sample_sets. We *must* use samples currently because
         # the normalisation for non-sample nodes is tricky. Do we normalise by the
@@ -8952,6 +8955,8 @@ class TreeSequence:
         sample sets in the k-th window.
         This is (usually) more efficient than computing many pairwise
         values using the `indexes` argument to :meth:`.genetic_relatedness`.
+        Specifically, this computes :meth:`.genetic_relatedness` with
+        ``centre=True`` and ``proportion=False`` (with caveats, see below).
 
         *Warning:* in some cases, this does not compute exactly the same thing as
         :meth:`.genetic_relatedness`: see below for more details.
@@ -8969,12 +8974,13 @@ class TreeSequence:
         "Relatedness" measures the number of *shared* alleles (or branches),
         while "divergence" measures the number of *non-shared* alleles (or branches).
         Let :math:`T_i` be the total distance from sample :math:`i` up to the root;
-        then if :math:`D_{ij}` is the divergence between :math:`i` and :math:`j`
-        and :math:`R_{ij}` is the relatedness between :math:`i` and :math:`j`, then
-        :math:`T_i + T_j = D_{ij} + 2 R_{ij}.`
+        then if :math:`D_{ij}` is the branch-mode divergence between :math:`i` and
+        :math:`j` and :math:`R_{ij}` is the branch-mode relatedness between :math:`i`
+        and :math:`j`, then :math:`T_i + T_j = D_{ij} + 2 R_{ij}.`
         So, for any samples :math:`I`, :math:`J`, :math:`S`, :math:`T`
         (that may now be random choices),
         :math:`R_{IJ}-R_{IS}-R_{JT}+R_{ST} = (D_{IJ}-D_{IS}-D_{JT}+D_{ST})/ (-2)`.
+        This is exactly what we want for (centered) relatedness.
         However, this relationship does not necessarily hold for `mode="site"`:
         it does hold if we can treat "number of differing alleles" as distances
         on the tree, but this is not necessarily the case in the presence of
@@ -8997,10 +9003,9 @@ class TreeSequence:
         :param str mode: A string giving the "type" of the statistic to be computed
             (defaults to "site").
         :param bool span_normalise: Whether to divide the result by the span of the
-            window (defaults to True). Has no effect if ``proportion`` is True.
-        :return: A ndarray with shape equal to (num windows, num statistics).
-            If there is one pair of sample sets and windows=None, a numpy scalar is
-            returned.
+            window (defaults to True).
+        :return: An array indexed by (window, sample_set, sample_set), or if windows is
+            `None`, an array indexed by (sample_set, sample_set).
         """
         # Further notes on the relationship between relatedness (R)
         # and divergence (D) in mode="site":
