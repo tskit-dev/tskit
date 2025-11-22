@@ -6080,6 +6080,102 @@ out:
 }
 
 static PyObject *
+TreeSequence_decode_alignments(TreeSequence *self, PyObject *args, PyObject *kwds)
+{
+    int err;
+    PyObject *ret = NULL;
+    PyObject *py_ref, *py_nodes, *py_missing;
+    PyArrayObject *nodes_array = NULL;
+    const char *ref_seq;
+    Py_ssize_t ref_len, missing_len;
+    tsk_id_t *nodes;
+    tsk_size_t num_nodes;
+    double left, right;
+    char missing_char;
+    const char *missing_utf8;
+    int isolated_as_missing = 1;
+    tsk_flags_t options = 0;
+    PyObject *buf_obj = NULL;
+    char *buf = NULL;
+
+    static char *kwlist[] = { "reference_sequence", "nodes", "left", "right",
+        "missing_data_character", "isolated_as_missing", NULL };
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "OOddOp", kwlist, &py_ref, &py_nodes,
+            &left, &right, &py_missing, &isolated_as_missing)) {
+        goto out;
+    }
+
+    if (!PyBytes_Check(py_ref)) {
+        PyErr_SetString(PyExc_TypeError, "reference_sequence must be bytes");
+        goto out;
+    }
+    if (PyBytes_AsStringAndSize(py_ref, (char **) &ref_seq, &ref_len) < 0) {
+        goto out;
+    }
+
+    if (!PyUnicode_Check(py_missing)) {
+        PyErr_SetString(
+            PyExc_TypeError, "missing_data_character must be a (length 1) string");
+        goto out;
+    }
+    missing_utf8 = PyUnicode_AsUTF8AndSize(py_missing, &missing_len);
+    if (missing_utf8 == NULL) {
+        goto out;
+    }
+    if (missing_len != 1) {
+        PyErr_SetString(
+            PyExc_TypeError, "missing_data_character must be a single character");
+        goto out;
+    }
+    missing_char = missing_utf8[0];
+
+    if (!isolated_as_missing) {
+        options |= TSK_ISOLATED_NOT_MISSING;
+    }
+
+    nodes_array = (PyArrayObject *) PyArray_FROMANY(
+        py_nodes, NPY_INT32, 1, 1, NPY_ARRAY_IN_ARRAY);
+    if (nodes_array == NULL) {
+        goto out;
+    }
+    num_nodes = (tsk_size_t) PyArray_DIM(nodes_array, 0);
+    nodes = PyArray_DATA(nodes_array);
+
+    buf_obj = PyBytes_FromStringAndSize(
+        NULL, (Py_ssize_t)(num_nodes * (tsk_size_t)(right - left)));
+    if (buf_obj == NULL) {
+        goto out;
+    }
+    buf = PyBytes_AS_STRING(buf_obj);
+
+    // clang-format off
+    Py_BEGIN_ALLOW_THREADS 
+    err = tsk_treeseq_decode_alignments(self->tree_sequence,
+        ref_seq, (tsk_size_t) ref_len, nodes, num_nodes, left, right, missing_char, buf,
+        options);
+    Py_END_ALLOW_THREADS
+        // clang-format on
+        if (err != 0)
+    {
+        handle_library_error(err);
+        goto out;
+    }
+
+    ret = buf_obj;
+    buf_obj = NULL;
+
+out:
+    Py_XDECREF(nodes_array);
+    Py_XDECREF(buf_obj);
+    return ret;
+}
+
+static PyObject *
 TreeSequence_get_mutations_edge(TreeSequence *self)
 {
     PyObject *ret = NULL;
@@ -8660,6 +8756,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_get_individuals_nodes,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns an array of the node ids for each individual" },
+    { .ml_name = "decode_alignments",
+        .ml_meth = (PyCFunction) TreeSequence_decode_alignments,
+        .ml_flags = METH_VARARGS | METH_KEYWORDS,
+        .ml_doc = "Decode full alignments for given nodes and interval." },
     { .ml_name = "get_mutations_edge",
         .ml_meth = (PyCFunction) TreeSequence_get_mutations_edge,
         .ml_flags = METH_NOARGS,
