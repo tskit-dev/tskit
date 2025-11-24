@@ -575,8 +575,8 @@ class Migration(util.Dataclass):
     """
     id: int  # noqa A003
     """
-    The integer ID of this mutation. Varies from 0 to
-    :attr:`TreeSequence.num_mutations` - 1.
+    The integer ID of this migration. Varies from 0 to
+    :attr:`TreeSequence.num_migrations` - 1.
     """
 
 
@@ -774,7 +774,7 @@ class Tree:
         calling the :meth:`TreeSequence.trees` iterator.
 
         :return: The root threshold.
-        :rtype: :class:`TreeSequence`
+        :rtype: int
         """
         return self._ll_tree.get_root_threshold()
 
@@ -885,7 +885,8 @@ class Tree:
 
         :param float position: The position along the sequence length to
             seek to.
-        :raises ValueError: If 0 < position or position >=
+        :raises ValueError: If ``position`` is less than 0 or ``position`` is greater
+            than or equal to
             :attr:`TreeSequence.sequence_length`.
         """
         if position < 0 or position >= self.tree_sequence.sequence_length:
@@ -922,7 +923,7 @@ class Tree:
             the interval :math:`[0, \\text{span})` and the :attr:`~Tree.tree_sequence`
             from which the tree is taken will have its
             :attr:`~tskit.TreeSequence.sequence_length` equal to ``span``.
-        :param: float branch_length: The minimum length of a branch in this tree.
+        :param float branch_length: The minimum length of a branch in this tree.
         :raises ValueError: If the given rank is out of bounds for trees
             with ``num_leaves`` leaves.
         """
@@ -3597,7 +3598,7 @@ def parse_nodes(source, strict=True, encoding="utf8", base64_metadata=True, tabl
     return table
 
 
-def parse_edges(source, strict=True, table=None):
+def parse_edges(source, strict=True, table=None, encoding="utf8", base64_metadata=True):
     """
     Parse the specified file-like object containing a whitespace delimited
     description of a edge table and returns the corresponding :class:`EdgeTable`
@@ -3613,6 +3614,9 @@ def parse_edges(source, strict=True, table=None):
         False, a relaxed whitespace splitting algorithm is used.
     :param EdgeTable table: If specified, write the edges into this table. If
         not, create a new :class:`EdgeTable` instance and return.
+    :param str encoding: Encoding used for text representation.
+    :param bool base64_metadata: If True, metadata is encoded using Base64
+        encoding; otherwise, as plain text.
     """
     sep = None
     if strict:
@@ -3624,6 +3628,12 @@ def parse_edges(source, strict=True, table=None):
     right_index = header.index("right")
     parent_index = header.index("parent")
     children_index = header.index("child")
+    metadata_index = None
+    try:
+        metadata_index = header.index("metadata")
+    except ValueError:
+        pass
+    default_metadata = b""
     for line in source:
         tokens = line.rstrip("\n").split(sep)
         if len(tokens) >= 4:
@@ -3631,8 +3641,19 @@ def parse_edges(source, strict=True, table=None):
             right = float(tokens[right_index])
             parent = int(tokens[parent_index])
             children = tuple(map(int, tokens[children_index].split(",")))
+            metadata = default_metadata
+            if metadata_index is not None and metadata_index < len(tokens):
+                metadata = tokens[metadata_index].encode(encoding)
+                if base64_metadata:
+                    metadata = base64.b64decode(metadata)
             for child in children:
-                table.add_row(left=left, right=right, parent=parent, child=child)
+                table.add_row(
+                    left=left,
+                    right=right,
+                    parent=parent,
+                    child=child,
+                    metadata=metadata,
+                )
     return table
 
 
@@ -11012,12 +11033,12 @@ class TreeSequence:
         return an integer numpy array the same dimension as the input. By default,
         this is set to ``numpy.round()`` which will round values to the nearest integer.
 
-        If neither `name_metadata_key` nor `individual_names` is not specified, the
-        individual names are set to "tsk_{individual_id}" for each individual. If
+        If neither `name_metadata_key` nor `individual_names` is specified, the
+        individual names are set to ``"tsk_{individual_id}"`` for each individual. If
         no individuals are present, the individual names are set to "tsk_{i}" with
         `0 <= i < num_sample_nodes/ploidy`.
 
-        A Warning are emmitted if any sample nodes do not have an individual ID.
+        A warning is emitted if any sample nodes do not have an individual ID.
 
         :param list individuals: Specific individual IDs to include in the VCF. If not
             specified and the tree sequence contains individuals, all individuals are

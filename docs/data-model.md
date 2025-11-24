@@ -356,14 +356,10 @@ required for a valid set of populations.
 
 #### Provenance Table
 
-:::{todo}
-Document the provenance table.
-:::
-
 | Column    | Type  | Description                                                             |
 | :-------- | ----- | ----------------------------------------------------------------------: |
 | timestamp | char  | Timestamp in [ISO-8601](https://en.wikipedia.org/wiki/ISO_8601) format. |
-| record    | char  | Provenance record.                                                      |
+| record    | char  | Provenance record as JSON.                                              |
 
 
 (sec_metadata_definition)=
@@ -374,10 +370,16 @@ Each table (excluding provenance) has a metadata column for storing and passing 
 information that tskit does not use or interpret. See {ref}`sec_metadata` for details.
 The metadata columns are {ref}`binary columns <sec_tables_api_binary_columns>`.
 
-When using the {ref}`sec_text_file_format`, to ensure that metadata can be safely
-interchanged, each row is [base 64 encoded](https://en.wikipedia.org/wiki/Base64).
-Thus, binary information can be safely printed and exchanged, but may not be
-human readable.
+When using the {ref}`sec_text_file_format`, metadata values are written as opaque
+text. By default, :meth:`TreeSequence.dump_text` will base64-encode metadata values
+that are stored as raw bytes (when ``base64_metadata=True``) so that binary data can
+be safely printed and exchanged; in this case :func:`tskit.load_text` will base64-decode
+the corresponding text fields back to bytes. When metadata has already been decoded
+to a structured Python object (for example via a metadata schema), the textual
+representation written by :meth:`TreeSequence.dump_text` is the ``repr`` of that
+object, and :func:`tskit.load_text` does not attempt to reconstruct the original
+structured value from this representation. For reliable metadata round-tripping,
+prefer the native binary tree sequence file format over the text formats.
 
 The tree sequence itself also has metadata stored as a byte array.
 
@@ -399,6 +401,10 @@ error message. Some more complex requirements may not be detectable at load-time
 and errors may not occur until certain operations are attempted.
 These are documented below.
 
+At the tree-sequence level, we require that the coordinate space has a finite,
+strictly positive length; that is, the `sequence_length` attribute must be a
+finite value greater than zero.
+
 The Python API also provides tools that can transform a collection of
 tables into a valid collection of tables, so long as they are logically
 consistent, see {ref}`sec_tables_api_creating_valid_tree_sequence`.
@@ -410,7 +416,8 @@ consistent, see {ref}`sec_tables_api_creating_valid_tree_sequence`.
 
 Individuals are a basic type in a tree sequence and are not defined with
 respect to any other tables. Individuals can have a reference to their parent
-individuals, if present these references must be valid or null (-1).
+individuals, if present these references must be valid or null (-1). An
+individual cannot list itself as its own parent.
 
 A valid tree sequence does not require individuals to be sorted in any
 particular order, and sorting a set of tables using {meth}`TableCollection.sort`
@@ -424,6 +431,7 @@ using {meth}`TableCollection.sort_individuals`.
 Given a valid set of individuals and populations, the requirements for
 each node are:
 
+- `time` must be a finite (non-NaN, non-infinite) value;
 - `population` must either be null (-1) or refer to a valid population ID;
 - `individual` must either be null (-1) or refer to a valid individual ID.
 
@@ -443,7 +451,7 @@ has no effect on nodes.
 Given a valid set of nodes and a sequence length {math}`L`, the simple
 requirements for each edge are:
 
-- We must have {math}`0 \leq` `left` {math}`<` `right` {math}`\leq L`;
+- We must have finite coordinates with {math}`0 \leq` `left` {math}`<` `right` {math}`\leq L`;
 - `parent` and `child` must be valid node IDs;
 - `time[parent]` > `time[child]`;
 - edges must be unique (i.e., no duplicate edges are allowed).
@@ -480,7 +488,7 @@ properties are fulfilled.
 Given a valid set of nodes and a sequence length {math}`L`, the simple
 requirements for a valid set of sites are:
 
-- We must have {math}`0 \leq` `position` {math}`< L`;
+- We must have a finite coordinate with {math}`0 \leq` `position` {math}`< L`;
 - `position` values must be unique.
 
 For simplicity and algorithmic efficiency, sites must also:
@@ -546,19 +554,33 @@ will always fail. Use `tskit.is_unknown_time` to detect unknown values.
 
 #### Migration requirements
 
-Given a valid set of nodes and edges, the requirements for a value set of
+Given a valid set of nodes and edges, the requirements for a valid set of
 migrations are:
 
-- `left` and `right` must lie within the tree sequence coordinate space (i.e.,
-  from 0 to `sequence_length`).
-- `time` must be strictly between the time of its `node` and the time of any
-  ancestral node from which that node inherits on the segment `[left, right)`.
-- The `population` of any such ancestor matching `source`, if another
-  `migration` does not intervene.
+- `left` and `right` must be finite values that lie within the tree sequence
+  coordinate space (i.e., from 0 to `sequence_length`), with {math}`0 \leq`
+  `left` {math}`<` `right` {math}`\leq L`;
+- `node` must be a valid node ID;
+- if population references are checked, `source` and `dest` must be valid
+  population IDs;
+- `time` must be a finite value.
 
-To enable efficient processing, migrations must also be:
+To enable efficient processing, migrations must also be sorted by
+nondecreasing `time` value.
 
-- Sorted by nondecreasing `time` value.
+Conceptually, a migration records that a segment of ancestry for the given
+`node` moves between populations along the tree. In typical demographic
+models we expect:
+
+- `time` to lie strictly between the time of the migrating `node` and the time
+  of any ancestral node from which that node inherits on the segment
+  `[left, right)`;
+- the `population` of any such ancestor to match the `source` population,
+  until another `migration` intervenes.
+
+These conceptual relationships are not currently validated. It is
+the responsibility of code that creates migrations to satisfy them where
+required.
 
 Note in particular that there is no requirement that adjacent migration records
 should be "squashed". That is, we can have two records `m1` and `m2`
@@ -582,8 +604,10 @@ There are no requirements on a population table.
 The `timestamp` column of a provenance table should be in
 [ISO-8601](https://en.wikipedia.org/wiki/ISO_8601) format.
 
-The `record` should be valid JSON with structure defined in the Provenance
-Schema section (TODO).
+The `record` column stores a JSON document describing how and where the tree sequence
+was produced. For tree sequences generated by tskit and related tools, this JSON is
+expected to conform to the :ref:`provenance schema <sec_provenance_schema>` described
+in {ref}`sec_provenance`. 
 
 
 (sec_table_indexes)=
@@ -1148,4 +1172,3 @@ you won't see those parts of the tree sequence that are unrelated to the samples
 If you need to get those, too, you could either
 work with the {meth}`TreeSequence.edge_diffs` directly,
 or iterate over all nodes (instead of over {meth}`Tree.nodes`).
-
