@@ -382,19 +382,34 @@ id and individual id, and two underscores will throw an error.
 ### Modifying coordinates
 
 Tree sequence site positions can be floating point values, whereas VCF
-requires discrete, 1-based integers. The ``position_transform`` argument
-controls how tskit maps coordinates into VCF. Translating non-integral
+requires positive integers. The ``position_transform`` argument
+controls how tskit maps coordinates into VCF. Translating non-integer
 positions necessarily loses precision; by default we round to the nearest
-integer, so multiple sites may share the same output position. Because VCF
-parsers differ, we do **not** automatically shift from tskit's 0-based
-convention to VCF's 1-based convention.
+integer, so multiple sites may share the same output position. 
+Furthermore, tskit's coordinate system starts at zero,
+whereas the VCF standard requires positions to be positive,
+and so a site at position 0 is not valid in the VCF standard.
+Because VCF parsers differ, we do **not** do anything to account for this.
+
+The simplest resolution of this discrepancy in convention between tskit and VCF
+positions is deal with any site at position 0 as a special case (for instance,
+by discarding or ignoring it).
+A different interpretation of this difference between tskit's position
+and VCF's POS field
+is that they are different coordinate systems: tskit coordinates are
+"distance to the right of the left end of the chromosome",
+while VCF coordinates are "which number site, counting from the left end
+of the chromosome and starting at one".
+Under this interpretation, the solution is to supply an explicit
+``position_transform`` that adds 1 to the coordinate when outputting
+to VCF (or, using the ``"legacy"`` option described below). However, this can
+easily lead to off-by-one errors converting between the coordinate systems,
+so should only be used if you really are using 0-based coordinates for your
+tree sequence.
 
 :::{warning}
-Most VCF tools expect POS and contig coordinates to be 1-based. If your tree
-sequence already uses discrete, 0-based integer positions, leaving the default
-transform will produce off-by-one coordinates in the VCF. Supply an explicit
-``position_transform`` (for example, add 1 after rounding) or use the
-``"legacy"`` option to shift to 1-based coordinates.
+Most VCF tools cannot deal with a POS value of 0. If your tree
+sequence contains a site with position 0, this will likely cause an error.
 :::
 
 Internally, the coordinates used in the VCF output are obtained by applying
@@ -415,8 +430,7 @@ transformed position is 0, :meth:`TreeSequence.write_vcf` will raise a
 - mask the offending sites using the ``site_mask`` argument; or
 - choose a ``position_transform`` that maps 0 to a valid positive position.
 
-For example, to shift all coordinates by 1 to make them strictly
-1-based, we could define:
+For example, to shift all coordinates by 1, we could define:
 
 ```{code-cell}
 def one_based_positions(positions):

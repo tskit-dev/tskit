@@ -240,7 +240,8 @@ The mutation text format must contain the columns `site`,
 may also be optionally present (but `parent` must be specified if
 more than one mutation occurs at the same site). If the `time` column
 is absent, the mutation times in the resulting tree sequence are set to
-{data}`tskit.UNKNOWN_TIME`. Unknown mutation times written out by
+{data}`tskit.UNKNOWN_TIME`, which is a numeric value that behaves like NaN.
+Unknown mutation times written out by
 {meth}`TreeSequence.dump_text` are represented in the text file by the
 literal string ``\"unknown\"`` in the `time` column, and
 {func}`tskit.load_text` treats this string as `UNKNOWN_TIME` on input.

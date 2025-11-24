@@ -554,7 +554,7 @@ will always fail. Use `tskit.is_unknown_time` to detect unknown values.
 
 #### Migration requirements
 
-Given a valid set of nodes and edges, the requirements for a value set of
+Given a valid set of nodes and edges, the requirements for a valid set of
 migrations are:
 
 - `left` and `right` must be finite values that lie within the tree sequence
