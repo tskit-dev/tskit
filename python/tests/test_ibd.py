@@ -100,7 +100,6 @@ def naive_ibd_all_pairs(ts, samples=None):
 
 
 class TestIbdDefinition:
-    @pytest.mark.skip("help")
     @pytest.mark.xfail()
     @pytest.mark.parametrize("ts", get_example_tree_sequences(custom_max=15))
     def test_all_pairs(self, ts):
@@ -113,7 +112,6 @@ class TestIbdDefinition:
         ibd_def = naive_ibd_all_pairs(ts, samples=samples)
         assert_ibd_equal(ibd_lib, ibd_def)
 
-    @pytest.mark.skip("help")
     @pytest.mark.parametrize("ts", get_example_tree_sequences(custom_max=15))
     def test_all_pairs_python_only(self, ts):
         samples = ts.samples()[:10]
@@ -121,7 +119,6 @@ class TestIbdDefinition:
         ibd_def = naive_ibd_all_pairs(ts, samples=samples)
         assert_ibd_equal(ibd_pylib, ibd_def)
 
-    @pytest.mark.skip("help")
     @pytest.mark.parametrize("N", [2, 5, 10])
     @pytest.mark.parametrize("T", [2, 5, 10])
     def test_wright_fisher_examples(self, N, T):
@@ -137,7 +134,6 @@ class TestIbdDefinition:
 
 
 class TestIbdImplementations:
-    @pytest.mark.skip("help")
     @pytest.mark.xfail()
     @pytest.mark.parametrize("ts", get_example_tree_sequences(custom_max=15))
     def test_all_pairs(self, ts):
