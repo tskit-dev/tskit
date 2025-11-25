@@ -5,7 +5,8 @@ Unreleased
 **Features**
 
 - ``TreeSequence.variants``, ``.genotype_matrix``, ``.haplotypes``, and ``.alignments`` methods
-  now fully support ``isolated_as_missing`` behaviour with internal nodes.
+  now fully support ``isolated_as_missing`` behaviour with internal nodes. ``.alignments`` is
+  also around 10% faster.
   (:user:`benjeffery`, :pr:`3313`, :pr:`3317`, :issue:`1896`)
 
 **Breaking Changes**
