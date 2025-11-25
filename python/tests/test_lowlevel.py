@@ -3301,6 +3301,128 @@ class TestGeneticRelatednessVector(LowLevelTestCase):
                 )
 
 
+class TestDecodeAlignmentsLowLevel(LowLevelTestCase):
+    def get_simple_example(self):
+        # Simple 3-sample balanced tree with two sites, mirroring high-level tests.
+        ts = tskit.Tree.generate_balanced(3, span=10).tree_sequence
+        tables = ts.dump_tables()
+        tables.sites.add_row(2, ancestral_state="A")
+        tables.sites.add_row(9, ancestral_state="T")
+        tables.mutations.add_row(site=0, node=0, derived_state="G")
+        tables.mutations.add_row(site=1, node=3, derived_state="C")
+        return tables.tree_sequence().ll_tree_sequence
+
+    def test_basic_bytes_roundtrip(self):
+        ts = self.get_simple_example()
+        ref = b"NNNNNNNNNN"
+        nodes = np.array(ts.get_samples(), dtype=np.int32)
+        buf = ts.decode_alignments(
+            ref,
+            nodes,
+            0,
+            ts.get_sequence_length(),
+            "N",
+            True,
+        )
+        assert isinstance(buf, (bytes, bytearray))
+        L = int(ts.get_sequence_length())
+        rows = [buf[i * L : (i + 1) * L].decode("ascii") for i in range(nodes.shape[0])]
+        assert rows == ["NNGNNNNNNT", "NNANNNNNNC", "NNANNNNNNC"]
+
+    def test_nodes_type_and_bounds(self):
+        ts = self.get_simple_example()
+        ref = b"NNNNNNNNNN"
+        # Bad nodes type
+        with pytest.raises(ValueError, match="desired array"):
+            ts.decode_alignments(ref, [[0, 1]], 0, ts.get_sequence_length(), "N", True)
+        # Out of bounds
+        bad_nodes = np.array([ts.get_num_nodes()], dtype=np.int32)
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_NODE_OUT_OF_BOUNDS"):
+            ts.decode_alignments(ref, bad_nodes, 0, ts.get_sequence_length(), "N", True)
+
+    def test_missing_char_validation(self):
+        ts = self.get_simple_example()
+        ref = b"NNNNNNNNNN"
+        nodes = np.array(ts.get_samples(), dtype=np.int32)
+        # missing_data_character must be str of length 1
+        with pytest.raises(TypeError, match="single character"):
+            ts.decode_alignments(ref, nodes, 0, ts.get_sequence_length(), "NN", True)
+
+    def test_argument_parsing_error(self):
+        ts = self.get_simple_example()
+        ref = b"NNNNNNNNNN"
+        nodes = np.array(ts.get_samples(), dtype=np.int32)
+        # left must be a float-like value
+        with pytest.raises(TypeError):
+            ts.decode_alignments(
+                ref, nodes, "bad_left", ts.get_sequence_length(), "N", True
+            )
+
+    def test_reference_sequence_type_validation(self):
+        ts = self.get_simple_example()
+        ref = "NNNNNNNNNN"
+        nodes = np.array(ts.get_samples(), dtype=np.int32)
+        with pytest.raises(TypeError, match="must be bytes"):
+            ts.decode_alignments(ref, nodes, 0, ts.get_sequence_length(), "N", True)
+
+    def test_missing_char_type_validation(self):
+        ts = self.get_simple_example()
+        ref = b"NNNNNNNNNN"
+        nodes = np.array(ts.get_samples(), dtype=np.int32)
+        with pytest.raises(TypeError, match="length 1"):
+            ts.decode_alignments(ref, nodes, 0, ts.get_sequence_length(), b"N", True)
+
+    def test_missing_char_unicode_error(self):
+        ts = self.get_simple_example()
+        ref = b"NNNNNNNNNN"
+        nodes = np.array(ts.get_samples(), dtype=np.int32)
+        with pytest.raises(UnicodeEncodeError):
+            ts.decode_alignments(
+                ref,
+                nodes,
+                0,
+                ts.get_sequence_length(),
+                NON_UTF8_STRING,
+                True,
+            )
+
+    def test_isolated_as_missing_flag_false(self):
+        ts = self.get_simple_example()
+        ref = b"NNNNNNNNNN"
+        nodes = np.array(ts.get_samples(), dtype=np.int32)
+        buf = ts.decode_alignments(
+            ref,
+            nodes,
+            0,
+            ts.get_sequence_length(),
+            "N",
+            False,
+        )
+        assert isinstance(buf, (bytes, bytearray))
+        L = int(ts.get_sequence_length())
+        rows = [buf[i * L : (i + 1) * L].decode("ascii") for i in range(nodes.shape[0])]
+        assert rows == ["NNGNNNNNNT", "NNANNNNNNC", "NNANNNNNNC"]
+
+    def test_length_and_interval_validation(self):
+        ts = self.get_simple_example()
+        nodes = np.array(ts.get_samples(), dtype=np.int32)
+        # Wrong reference length
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_BAD_PARAM_VALUE"):
+            ts.decode_alignments(
+                b"NNNNNNNNN", nodes, 0, ts.get_sequence_length(), "N", True
+            )
+        # Negative left
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_BAD_PARAM_VALUE"):
+            ts.decode_alignments(
+                b"NNNNNNNNNN", nodes, -1, ts.get_sequence_length(), "N", True
+            )
+        # Non-integer left
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_BAD_PARAM_VALUE"):
+            ts.decode_alignments(
+                b"NNNNNNNNNN", nodes, 0.5, ts.get_sequence_length(), "N", True
+            )
+
+
 class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):
     """
     Tests for the general stats interface.
