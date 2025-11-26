@@ -1495,6 +1495,47 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             A = ts.mean_descendants([focal[2:], focal[:2]])
             assert A.shape == (ts.get_num_nodes(), 2)
 
+    def test_link_ancestors_bad_args(self):
+        ts = self.get_example_tree_sequence()
+        with pytest.raises(TypeError):
+            ts.link_ancestors()
+        with pytest.raises(TypeError):
+            ts.link_ancestors([0, 1])
+        with pytest.raises(ValueError):
+            ts.link_ancestors(samples=[0, 1], ancestors="sdf")
+        with pytest.raises(ValueError):
+            ts.link_ancestors(samples="sdf", ancestors=[0, 1])
+        with pytest.raises(_tskit.LibraryError):
+            ts.link_ancestors(samples=[0, 1], ancestors=[ts.get_num_nodes(), -1])
+        with pytest.raises(_tskit.LibraryError):
+            ts.link_ancestors(samples=[0, -1], ancestors=[0])
+
+    def test_link_ancestors(self):
+        # Check that the low-level method runs and does not mutate the tree sequence
+        # and that it matches the TableCollection implementation.
+        high_ts = msprime.simulate(4, random_seed=1)
+        ts = high_ts.ll_tree_sequence
+        samples = list(range(ts.get_num_samples()))
+        ancestors = list(range(ts.get_num_nodes()))
+        num_edges_before = ts.get_num_edges()
+        edges = ts.link_ancestors(samples, ancestors)
+        assert isinstance(edges, _tskit.EdgeTable)
+        assert edges.num_rows >= 0
+        if edges.num_rows > 0:
+            assert np.all(edges.left >= 0)
+            assert np.all(edges.right <= ts.get_sequence_length())
+            assert np.all(edges.left < edges.right)
+            assert np.all(edges.parent >= 0)
+            assert np.all(edges.parent < ts.get_num_nodes())
+            assert np.all(edges.child >= 0)
+            assert np.all(edges.child < ts.get_num_nodes())
+        assert ts.get_num_edges() == num_edges_before
+
+        # Parity with low-level TableCollection.link_ancestors
+        tc = high_ts.dump_tables()._ll_tables
+        edges_from_tables = tc.link_ancestors(samples, ancestors)
+        assert edges.equals(edges_from_tables)
+
     def test_metadata_schemas(self):
         tables = _tskit.TableCollection(1.0)
         # Set the schema

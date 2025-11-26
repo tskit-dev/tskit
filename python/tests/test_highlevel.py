@@ -163,6 +163,47 @@ def simplify_tree_sequence(ts, samples, filter_sites=True):
     return s.simplify()
 
 
+@pytest.mark.parametrize("ts", tsutil.get_example_tree_sequences())
+class TestLinkAncestorsExamples:
+    def test_link_ancestors_runs_and_is_sane(self, ts):
+        # Can't link ancestors when edges have metadata.
+        if ts.tables.edges.metadata_schema != tskit.MetadataSchema(schema=None):
+            pytest.skip("link_ancestors does not support edges with metadata")
+
+        samples = ts.samples()
+        if len(samples) == 0:
+            pytest.skip("Tree sequence has no samples")
+
+        # Prefer internal nodes as ancestors; fall back to samples if none.
+        ancestor_nodes = [u.id for u in ts.nodes() if not u.is_sample()]
+        if len(ancestor_nodes) == 0:
+            ancestor_nodes = list(samples)
+
+        # Keep argument sizes modest for large examples.
+        samples = samples[: min(len(samples), 10)]
+        ancestors = ancestor_nodes[: min(len(ancestor_nodes), 10)]
+
+        result = ts.link_ancestors(samples, ancestors)
+        assert isinstance(result, tskit.EdgeTable)
+
+        # Basic invariants on the returned table.
+        assert np.all(result.left >= 0)
+        assert np.all(result.right <= ts.sequence_length)
+        if result.num_rows > 0:
+            assert np.all(result.left < result.right)
+            assert set(result.parent).issubset(set(range(ts.num_nodes)))
+            assert set(result.child).issubset(set(range(ts.num_nodes)))
+
+        # Parity with mutable TableCollection implementation.
+        mutable_result = ts.dump_tables().link_ancestors(samples, ancestors)
+        assert result == mutable_result
+
+        # Parity with immutable TableCollection, when available.
+        if getattr(_tskit, "HAS_NUMPY_2", False):
+            immutable_result = ts.tables.link_ancestors(samples, ancestors)
+            assert result == immutable_result
+
+
 def oriented_forests(n):
     """
     Implementation of Algorithm O from TAOCP section 7.2.1.6.
