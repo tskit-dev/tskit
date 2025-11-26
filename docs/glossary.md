@@ -36,11 +36,16 @@ tree
 (sec_data_model_definitions_tree_sequence)=
 
 tree sequence
-: A "succinct tree sequence" (or tree sequence, for brevity) is an efficient
-  encoding of a sequence of correlated trees, such as one encounters looking
-  at the gene trees along a genome. A tree sequence efficiently captures the
-  structure shared by adjacent trees, (essentially) storing only what differs
-  between them.
+: A "succinct tree sequence" (or tree sequence, for brevity) is an object
+  that stores the genetic ancestry and mutational history of a set of
+  aligned DNA sequences. The name reflects the idea that a common
+  way to treat genetic ancestry is as a sequence of correlated
+  "trees" along the genome; a tree sequence provides an efficient
+  way to store differences between these trees. Technically, ancestry
+  is encoded by linking *nodes* (genomes) via *edges*, forming a network
+  or graph. Graphs of this sort are sometimes known as ancestral
+  recombination graphs (ARGs), so that tree sequences provide a
+  flexible way to encode multiple types of ARG.
 
 (sec_data_model_definitions_node)=
 
