@@ -498,6 +498,11 @@ class TestMethodParity:
         for name in dir(tc):
             if name.startswith("_"):
                 continue
+            # Use getattr_static first so we don't trigger properties like
+            # the deprecated ``name_map`` attribute, which emits warnings.
+            attr = inspect.getattr_static(tc, name)
+            if isinstance(attr, property):
+                continue
             attr = getattr(tc, name)
             if inspect.ismethod(attr) and getattr(attr, "__self__", None) is tc:
                 tc_methods.append(name)
