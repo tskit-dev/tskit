@@ -286,12 +286,10 @@ and also inefficient, because the allele frequencies for one population
 gets used in computing many of those values.
 So, statistics that take a `sample_sets` argument also take an `indexes` argument,
 which for a statistic that operates on `k` sample sets will be a list of `k`-tuples.
-If `indexes` is a length `n` list of `k`-tuples,
-then the output will have `n` columns,
-and if `indexes[j]` is a tuple `(i0, ..., ik)`,
-then the `j`-th column will contain values of the statistic computed on
-`(sample_sets[i0], sample_sets[i1], ..., sample_sets[ik])`.
-
+If `indexes` is a length `n` list of `k`-tuples, then the output will have `n`
+columns, so if `indexes[j]` is the tuple `(i0, ..., ik)`
+the `j`-th column will contain values of the statistic computed on
+`(sample_sets[i0], sample_sets[i1], ..., sample_sets[ik])`. 
 
 How multiple statistics are handled differs slightly between statistics
 that operate on single sample sets and multiple sample sets.
@@ -352,6 +350,21 @@ The `indexes` parameter is interpreted in the following way:
   of integers between `0` and `len(sample_sets) - 1`) of length `n` we
   compute `n` statistics based on these selections of sample sets.
 
+For instance, a common requirement in the case of a pairwise (i.e. `k=2`) symmetrical
+statistic such as `divergence` is to obtain the statistic between all pairs of
+sample sets. This can be done by indexing all possible pairs as follows:
+
+```{code-cell} ipython3
+# Compute all pairwise divergences between diploid individuals. Or e.g. for pairwise
+# divergences between each sampled genome, use `sample_sets=[[s] for s in ts.samples()]`
+sample_sets=[i.nodes for i in ts.individuals()]
+index_all_pairs = np.tril_indices(len(sample_sets))  # ((0,0), (1,0), (1,1), (2,0), ...)
+d = ts.divergence(sample_sets, indexes=tuple(zip(*index_all_pairs))) 
+pairwise_matrix = np.zeros((len(sample_sets), len(sample_sets)))
+pairwise_matrix[index_all_pairs] = d
+
+print(pairwise_matrix)  # NB: only lower triangular values filled
+```
 
 (sec_stats_windows)=
 
