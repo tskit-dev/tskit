@@ -1,4 +1,14 @@
 --------------------
+[1.0.x] - YYYY-MM-DD
+--------------------
+
+**Bugfixes**
+
+- ``ts.samples(population=...)`` now raises a ``ValueError`` if the population
+  ID is e.g. a population name, rather than silently returning no samples.
+  (:user:`hyanwong`, :pr:`3344`)
+
+--------------------
 [1.0.0] - 2025-11-27
 --------------------
 
