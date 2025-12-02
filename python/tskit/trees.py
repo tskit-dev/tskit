@@ -6514,15 +6514,32 @@ class TreeSequence:
         time is approximately equal to the specified time. If `time` is a pair
         of values of the form `(min_time, max_time)`, only return sample IDs
         whose node time `t` is in this interval such that `min_time <= t < max_time`.
+        If both `population` and `time` are specified, the returned samples
+        will satisfy both criteria.
 
-        :param int population: The population of interest. If None, do not
-            filter samples by population.
+        .. note::
+            The population can be specified either by an integer (in which case
+            this is the population ID) or a dictionary matching information in the
+            population metadata. If a dictionary, it should contain key-value pair(s)
+            that match the metadata of the desired population; for instance,
+            ``population={'name': 'abc'}`` will select the population that has a
+            'name' of 'abc' in metadata: there should be exactly one population
+            that has matching key-value pair(s), if not, an error is raised.
+
+        :param Union[int, dict] population: The population of interest. If an
+            integer, this is the population ID. If a dictionary, the keys
+            in the dictionary specify metadata key-value pairs to match (see note
+            above). If None, do not filter samples by population.
         :param int population_id: Deprecated alias for ``population``.
         :param float,tuple time: The time or time interval of interest. If
             None, do not filter samples by time.
         :return: A numpy array of the node IDs for the samples of interest,
             listed in numerical order.
         :rtype: numpy.ndarray (dtype=np.int32)
+        :raises ValueError: If population or time is specified incorrectly.
+        :raises ValueError: If multiple or no populations match the specified metadata.
+        :raises ValueError: If a dictionary is specified to select a population
+            but existing population metadata entries cannot be treated as dictionaries.
         """
         if population is not None and population_id is not None:
             raise ValueError(
@@ -6533,8 +6550,24 @@ class TreeSequence:
         samples = self._ll_tree_sequence.get_samples()
         keep = np.full(shape=samples.shape, fill_value=True)
         if population is not None:
+            if isinstance(population, dict):
+                # look for the key names in the population metadata: we don't expect
+                # there to be many populations, so a simple loop is fine.
+                pops = []
+                for pop in self.populations():
+                    if not isinstance(pop.metadata, dict):
+                        raise ValueError("Population metadata is not a dictionary")
+                    if set(population.items()).issubset(pop.metadata.items()):
+                        pops.append(pop.id)
+                if len(pops) == 0:
+                    raise ValueError("No populations match the specified metadata")
+                if len(pops) > 1:
+                    raise ValueError(
+                        f"Multiple populations ({pops}) match the specified metadata"
+                    )
+                population = pops[0]
             if not isinstance(population, numbers.Integral):
-                raise ValueError("`population` must be an integer ID")
+                raise ValueError("`population` must be an integer ID or a dictionary")
             population = int(population)
             sample_population = self.nodes_population[samples]
             keep = np.logical_and(keep, sample_population == population)

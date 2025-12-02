@@ -2,6 +2,11 @@
 [1.0.x] - YYYY-MM-DD
 --------------------
 
+**Features**
+
+- ``ts.samples(population=...)`` now accepts dictionaries to filter samples
+  by population metadata. (:user:`hyanwong`, :issue:`1697` :pr:`3345`)
+
 **Bugfixes**
 
 - ``ts.samples(population=...)`` now raises a ``ValueError`` if the population

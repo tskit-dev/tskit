@@ -998,10 +998,90 @@ class TestNumpySamples:
         with pytest.raises(ValueError, match="must be an integer ID"):
             ts.samples(population=pop)
 
-    @pytest.mark.parametrize("pop", [0, np.int32(0), np.int64(0), np.uint32(0)])
+    @pytest.mark.parametrize(
+        "pop", [0, np.int32(0), np.int64(0), np.uint32(0), {"name": "pop_0"}, {}]
+    )
     def test_good_samples(self, pop):
         ts = msprime.sim_ancestry(2)
+        assert ts.num_populations == 1
         assert np.array_equiv(ts.samples(population=pop), ts.samples())
+
+    @pytest.mark.parametrize(
+        "pop",
+        [
+            {"name": "nonexistent"},
+            {"name": "pop_0", "description": "nonexistent"},
+            {"name": "pop_0", "nonexistent": ""},
+        ],
+    )
+    def test_samples_metadata_no_selected(self, pop):
+        ts = msprime.sim_ancestry(2)
+        with pytest.raises(
+            ValueError, match="No populations match the specified metadata"
+        ):
+            ts.samples(population=pop)
+
+    @pytest.mark.parametrize("pop", [{"name": "pop_0"}, {}])
+    def test_samples_metadata_nopop(self, pop):
+        ts = tskit.Tree.generate_balanced(4).tree_sequence
+        assert ts.num_populations == 0
+        with pytest.raises(
+            ValueError, match="No populations match the specified metadata"
+        ):
+            ts.samples(population=pop)
+
+    def test_samples_metadata_multipop(self):
+        demography = msprime.Demography()
+        demography.add_population(name="A", initial_size=10_000)
+        demography.add_population(name="B", initial_size=5_000)
+        demography.add_population(name="C", initial_size=1_000)
+        demography.add_population_split(time=1000, derived=["A", "B"], ancestral="C")
+        samples = {"A": 1, "B": 1}
+        ts = msprime.sim_ancestry(samples, demography=demography, random_seed=12)
+        with pytest.raises(ValueError, match=r"populations \(\[0, 1, 2\]\) match"):
+            ts.samples(population={"description": ""})
+
+    @pytest.mark.parametrize(
+        "pop_param",
+        [
+            {"name": "B"},
+            {"name": "B", "description": "A&B"},
+            {"description": "A&B", "+": "B⊕C"},
+        ],
+    )
+    def test_samples_metadata_onepop(self, pop_param):
+        demography = msprime.Demography()
+        N = 100
+        demography.add_population(name="A", description="A&B", initial_size=N)
+        demography.add_population(
+            name="B", description="A&B", extra_metadata={"+": "B⊕C"}, initial_size=N
+        )
+        demography.add_population(name="C", extra_metadata={"+": "B⊕C"}, initial_size=N)
+        demography.add_population_split(time=1000, derived=["A", "B"], ancestral="C")
+        ts = msprime.sim_ancestry(
+            samples={"A": 1, "B": 1}, demography=demography, random_seed=12
+        )
+        samp = ts.samples(population=pop_param)
+        id_B = {pop.metadata["name"]: pop.id for pop in ts.populations()}["B"]
+        assert np.array_equiv(samp, ts.samples(population=id_B))
+
+    @pytest.mark.parametrize("md", [b"{}", b"", None])
+    def test_bad_pop_metadata(self, md):
+        tables = tskit.Tree.generate_balanced(4).tree_sequence.dump_tables()
+        tables.populations.add_row(metadata=md)
+        ts = tables.tree_sequence()
+        with pytest.raises(ValueError, match="metadata is not a dictionary"):
+            ts.samples(population={})
+
+    def test_empty_pop_metadata(self):
+        # The docs state "Tskit deviates from standard JSON in that
+        # empty metadata is interpreted as an empty object." - test this
+        tables = tskit.Tree.generate_balanced(4).tree_sequence.dump_tables()
+        tables.populations.add_row()
+        tables.populations.metadata_schema = tskit.MetadataSchema.permissive_json()
+        tables.nodes.population = np.zeros_like(tables.nodes.population)  # all in pop 0
+        ts = tables.tree_sequence()
+        assert np.array_equiv(ts.samples(population={}), ts.samples())
 
     @pytest.mark.parametrize("time", [0, 0.1, 1 / 3, 1 / 4, 5 / 7])
     def test_samples_time(self, time):
