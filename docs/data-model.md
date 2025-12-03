@@ -369,19 +369,15 @@ required for a valid set of populations.
 
 #### Provenance Table
 
-The provenance table optionally records the sequence of steps used to generate
-this particular tree sequence. The `timestamp` column records when each step
-was performed, and the `record` column contains a JSON string describing
-the details of the step itself (see {sec}`sec_provenance`).
+:::{todo}
+Document the provenance table.
+:::
 
 | Column    | Type  | Description                                                             |
 | :-------- | ----- | ----------------------------------------------------------------------: |
 | timestamp | char  | Timestamp in [ISO-8601](https://en.wikipedia.org/wiki/ISO_8601) format. |
 | record    | char  | Provenance record.                                                      |
 
-Rows in the provenance table cannot have associated {ref}`sec_metadata_definition`.
-
-See the {ref}`sec_provenance_requirements` section for details of the required column formats.
 
 (sec_metadata_definition)=
 
@@ -598,12 +594,8 @@ There are no requirements on a population table.
 The `timestamp` column of a provenance table should be in
 [ISO-8601](https://en.wikipedia.org/wiki/ISO_8601) format.
 
-The `record` should be valid JSON as defined in the Provenance
-Schema (see {sec}`sec_provenance`).
-
-Note that although it is best-practice, operations operating on
-a tree sequence are not required to store details in the
-provenance table.
+The `record` should be valid JSON with structure defined in the Provenance
+Schema section (TODO).
 
 
 (sec_table_indexes)=
