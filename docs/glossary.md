@@ -30,30 +30,36 @@ Here are some definitions of some key ideas encountered in this documentation.
 tree
 : A "gene tree", i.e., the genealogical tree describing how a collection of
   genomes (usually at the tips of the tree) are related to each other at some
-  chromosomal location. See {ref}`sec_nodes_or_individuals` for discussion
-  of what a "genome" is.
+  chromosomal {ref}`position <sec_data_model_definitions_position>` or location.
+  As the trees may vary depending on this location, they are also known as "local
+  trees". See {ref}`sec_nodes_or_individuals` for discussion of what a "genome" is.
 
 (sec_data_model_definitions_tree_sequence)=
 
 tree sequence
 : A "succinct tree sequence" (or tree sequence, for brevity) is an object
   that stores the genetic ancestry and mutational history of a set of
-  aligned DNA sequences. The name reflects the idea that a common
+  aligned DNA sequences or genomes. The name reflects the idea that a common
   way to treat genetic ancestry is as a sequence of correlated
-  "trees" along the genome; a tree sequence provides an efficient
-  way to store differences between these trees. Technically, ancestry
-  is encoded by linking *nodes* (genomes) via *edges*, forming a network
-  or graph. Graphs of this sort are sometimes known as ancestral
-  recombination graphs (ARGs), so that tree sequences provide a
+  {ref}`trees <sec_data_model_definitions_tree>` at different chromosomal
+  {ref}`positions <sec_data_model_definitions_position>`.
+  Branches that are shared between these trees are efficiently stored as a
+  single {ref}`edge <sec_data_model_definitions_edge>`, and adjacent trees
+  may differ by only a few such edges. These edges connect
+  {ref}`nodes <sec_data_model_definitions_node>` (genomes) in
+  the tree sequence, forming a structure which is technically known as a
+  network or graph. Graphs of this sort are sometimes called ancestral
+  recombination graphs (ARGs), hence tree sequences provide a
   flexible way to encode multiple types of ARG.
 
 (sec_data_model_definitions_node)=
 
 node
-: Each branching point in each tree is associated with a particular genome
+: Any point in a tree can be associated with a particular genome
   in a particular ancestor, called a "node".  Since each node represents a
-  specific genome it has a unique `time`, thought of as its birth time,
-  which determines the height of any branching points it is associated with.
+  specific genome it has a unique `time`, thought of as its birth time. Any
+  branching point in a tree much be associated with a node; that node's time
+  determines the height of the branching point.
   See {ref}`sec_nodes_or_individuals` for discussion of what a "node" is.
 
 (sec_data_model_definitions_individual)=
@@ -71,7 +77,7 @@ individual
 sample
 : The focal nodes of a tree sequence, usually thought of as those from which
   we have obtained data. The specification of these affects various
-  methods: (1) {meth}`TreeSequence.variants` and
+  methods: {meth}`TreeSequence.variants` and
   {meth}`TreeSequence.haplotypes` will output the genotypes of the samples,
   and {attr}`Tree.roots` only return roots ancestral to at least one
   sample.
@@ -86,13 +92,15 @@ edge
 : The topology of a tree sequence is defined by a set of **edges**. Each
   edge is a tuple `(left, right, parent, child)`, which records a
   parent-child relationship among a pair of nodes on the
-  on the half-open interval of chromosome `[left, right)`.
+  on the half-open interval `[left, right)` along the genome. The difference
+  between `left` and `right` is known as the "span" of the edge.
 
 (sec_data_model_definitions_site)=
 
 site
 : Tree sequences can define the mutational state of nodes as well as their
-  topological relationships. A **site** is thought of as some position along
+  topological relationships. A **site** is thought of as some
+  {ref}`position <sec_data_model_definitions_position>` along
   the genome at which variation occurs. Each site is associated with
   a unique position and ancestral state.
 
@@ -118,6 +126,14 @@ migration
 
 population
 : A grouping of nodes, e.g., by sampling location.
+
+(sec_data_model_definitions_position)=
+
+position
+: A location along the genome, from 0 to the 
+  {ref}`sequence length<sec_data_model_definitions_sequence_length>`. In `tskit`
+  positions are stored as floating-point numbers, although it is common to
+  restrict positions to occur at discrete integer locations.
 
 (sec_data_model_definitions_provenance)=
 
