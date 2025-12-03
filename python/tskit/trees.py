@@ -10051,6 +10051,11 @@ class TreeSequence:
         What is computed for diversity and divergence depends on ``mode``;
         see those functions for more details.
 
+        For ``mode='site'``, this definition of Fst appears as equation (6) in
+        `Slatkin (1991) <https://doi.org/10.1017/S0016672300029827>`_, and
+        is also found as equation (9) in
+        `Nei (1973) <https://doi.org/10.1073/pnas.70.12.3321>`_.
+
         :param list sample_sets: A list of lists of Node IDs, specifying the
             groups of nodes to compute the statistic with.
         :param list indexes: A list of 2-tuples.
