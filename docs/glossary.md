@@ -58,7 +58,7 @@ node
 : Any point in a tree can be associated with a particular genome
   in a particular ancestor, called a "node".  Since each node represents a
   specific genome it has a unique `time`, thought of as its birth time. Any
-  branching point in a tree much be associated with a node; that node's time
+  branching point in a tree must be associated with a node; that node's time
   determines the height of the branching point.
   See {ref}`sec_nodes_or_individuals` for discussion of what a "node" is.
 
