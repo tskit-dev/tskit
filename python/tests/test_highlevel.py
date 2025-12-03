@@ -992,6 +992,17 @@ class TestNumpySamples:
             ]
         assert total == ts.num_samples
 
+    @pytest.mark.parametrize("pop", ["string", "", "0", np.arange(2), 0.0, 0.5, np.nan])
+    def test_bad_samples(self, pop):
+        ts = tskit.Tree.generate_balanced(4).tree_sequence
+        with pytest.raises(ValueError, match="must be an integer ID"):
+            ts.samples(population=pop)
+
+    @pytest.mark.parametrize("pop", [0, np.int32(0), np.int64(0), np.uint32(0)])
+    def test_good_samples(self, pop):
+        ts = msprime.sim_ancestry(2)
+        assert np.array_equiv(ts.samples(population=pop), ts.samples())
+
     @pytest.mark.parametrize("time", [0, 0.1, 1 / 3, 1 / 4, 5 / 7])
     def test_samples_time(self, time):
         ts = self.get_tree_sequence(num_demes=2, n=20, times=[time, 0.2, 1, 15])

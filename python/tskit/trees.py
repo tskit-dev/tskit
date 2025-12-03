@@ -6533,6 +6533,9 @@ class TreeSequence:
         samples = self._ll_tree_sequence.get_samples()
         keep = np.full(shape=samples.shape, fill_value=True)
         if population is not None:
+            if not isinstance(population, numbers.Integral):
+                raise ValueError("`population` must be an integer ID")
+            population = int(population)
             sample_population = self.nodes_population[samples]
             keep = np.logical_and(keep, sample_population == population)
         if time is not None:
