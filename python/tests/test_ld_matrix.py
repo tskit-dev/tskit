@@ -22,7 +22,6 @@
 """
 Test cases for two-locus statistics
 """
-
 import contextlib
 import io
 from collections.abc import Callable, Generator
