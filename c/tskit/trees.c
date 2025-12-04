@@ -8707,8 +8707,8 @@ update_site_divergence(const tsk_variant_t *var, const tsk_id_t *restrict A,
                 for (k = offsets[b]; k < offsets[b + 1]; k++) {
                     u = A[j];
                     v = A[k];
-                    /* Only increment the upper triangle to (hopefully) improve
-                     * memory access patterns */
+                    /* Only increment the upper triangle to (hopefully) improve memory
+                     * access patterns */
                     if (u > v) {
                         u = A[k];
                         v = A[j];
