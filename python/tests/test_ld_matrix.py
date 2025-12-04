@@ -2634,8 +2634,10 @@ def test_general_two_way_two_locus_stat_multiallelic(stat):
     (ts,) = {t.id: t for t in get_example_tree_sequences()}["all_fields"].values
     func = getattr(GeneralStatFuncs, stat)
     if stat == "r2_ij":
+
         def norm_f(X, n, nA, nB):
             return np.expand_dims(X[0].sum() / n.sum(), axis=0)
+
         result = ts.two_locus_count_stat([ts.samples(), ts.samples()], func, 1, norm_f)
     else:
         # default norm func is lambda X, n, nA, nB: np.expand_dims(1 / (nA * nB), axis=0)
