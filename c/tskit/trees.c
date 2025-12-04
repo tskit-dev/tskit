@@ -2298,8 +2298,9 @@ out:
 }
 
 static int
-norm_hap_weighted(tsk_size_t result_dim, const double *hap_weights,
-    tsk_size_t TSK_UNUSED(n_a), tsk_size_t TSK_UNUSED(n_b), double *result, void *params)
+norm_hap_weighted(tsk_size_t TSK_UNUSED(state_dim), const double *hap_weights,
+    tsk_size_t result_dim, tsk_size_t TSK_UNUSED(n_a), tsk_size_t TSK_UNUSED(n_b),
+    double *result, void *params)
 {
     sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
     const double *weight_row;
@@ -2315,8 +2316,9 @@ norm_hap_weighted(tsk_size_t result_dim, const double *hap_weights,
 }
 
 static int
-norm_hap_weighted_ij(tsk_size_t result_dim, const double *hap_weights,
-    tsk_size_t TSK_UNUSED(n_a), tsk_size_t TSK_UNUSED(n_b), double *result, void *params)
+norm_hap_weighted_ij(tsk_size_t TSK_UNUSED(state_dim), const double *hap_weights,
+    tsk_size_t result_dim, tsk_size_t TSK_UNUSED(n_a), tsk_size_t TSK_UNUSED(n_b),
+    double *result, void *params)
 {
     sample_count_stat_params_t args = *(sample_count_stat_params_t *) params;
     const double *weight_row;
@@ -2341,8 +2343,9 @@ norm_hap_weighted_ij(tsk_size_t result_dim, const double *hap_weights,
 }
 
 static int
-norm_total_weighted(tsk_size_t result_dim, const double *TSK_UNUSED(hap_weights),
-    tsk_size_t n_a, tsk_size_t n_b, double *result, void *TSK_UNUSED(params))
+norm_total_weighted(tsk_size_t TSK_UNUSED(state_dim),
+    const double *TSK_UNUSED(hap_weights), tsk_size_t result_dim, tsk_size_t n_a,
+    tsk_size_t n_b, double *result, void *TSK_UNUSED(params))
 {
     tsk_size_t k;
     double norm = 1 / (double) (n_a * n_b);
@@ -2445,7 +2448,7 @@ compute_general_normed_two_site_stat_result(const tsk_bitset_t *state,
             if (ret != 0) {
                 goto out;
             }
-            ret = norm_f(result_dim, weights, num_a_alleles - is_polarised,
+            ret = norm_f(state_dim, weights, result_dim, num_a_alleles - is_polarised,
                 num_b_alleles - is_polarised, norm, f_params);
             if (ret != 0) {
                 goto out;

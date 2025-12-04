@@ -7953,8 +7953,8 @@ typedef struct {
 } two_locus_general_stat_params;
 
 static int
-general_two_locus_norm_func(tsk_size_t result_dim, const double *X, tsk_size_t n_a,
-    tsk_size_t n_b, double *Y, void *params)
+general_two_locus_norm_func(tsk_size_t K, const double *X, tsk_size_t result_dim,
+    tsk_size_t n_a, tsk_size_t n_b, double *Y, void *params)
 {
     int ret = TSK_PYTHON_CALLBACK_ERROR;
     PyObject *arglist = NULL;
@@ -7966,7 +7966,7 @@ general_two_locus_norm_func(tsk_size_t result_dim, const double *X, tsk_size_t n
     two_locus_general_stat_params *tl_params = params;
     PyObject *summary_func = tl_params->norm_func;
     PyArrayObject *ss_sizes = tl_params->sample_set_sizes;
-    npy_intp X_dims[2] = { result_dim, 3 };
+    npy_intp X_dims[2] = { K, 3 };
 
     // Create a read only view of X as a numpy array
     X_array = (PyArrayObject *) PyArray_SimpleNewFromData(
