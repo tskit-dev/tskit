@@ -696,7 +696,8 @@ class Tree:
         options = 0
         if sample_counts is not None:
             warnings.warn(
-                "The sample_counts option is not supported since 0.2.4 and is ignored",
+                "The sample_counts option is not supported since 0.2.4 "
+                "and is ignored",
                 RuntimeWarning,
                 stacklevel=4,
             )
@@ -6945,7 +6946,7 @@ class TreeSequence:
             bytes_genotypes[:] = lookup[variant.genotypes]
             genotypes = bytes_genotypes.tobytes().decode()
             output.append(
-                f"SITE:\t{variant.index}\t{variant.position / m}\t0.0\t{genotypes}"
+                f"SITE:\t{variant.index}\t{variant.position / m}\t0.0\t" f"{genotypes}"
             )
         return "\n".join(output) + "\n"
 
@@ -9391,9 +9392,9 @@ class TreeSequence:
         if time_windows is None:
             tree_sequence_low, tree_sequence_high = None, self
         else:
-            assert time_windows[0] < time_windows[1], (
-                "The second argument should be larger."
-            )
+            assert (
+                time_windows[0] < time_windows[1]
+            ), "The second argument should be larger."
             tree_sequence_low, tree_sequence_high = (
                 self.decapitate(time_windows[0]),
                 self.decapitate(time_windows[1]),
@@ -10936,21 +10937,20 @@ class TreeSequence:
         sample_sets,
         f,
         result_dim,
+        norm_f=lambda X, n, nA, nB: np.expand_dims(1 / (nA * nB), axis=0),
         polarised=False,
         sites=None,
         positions=None,
         mode="site",
-        drop_dimensions=True,
     ):
         row_sites, col_sites = self.parse_sites(sites)
         row_positions, col_positions = self.parse_positions(positions)
-        drop_dimension, flattened, sample_set_sizes = self.__convert_sample_sets(
-            sample_sets
-        )
+        _, sample_sets, sample_set_sizes = self.__convert_sample_sets(sample_sets)
         result = self._ll_tree_sequence.two_locus_count_stat(
             sample_set_sizes,
-            flattened,
+            sample_sets,
             f,
+            norm_f,
             result_dim,
             polarised,
             row_sites,
@@ -10958,15 +10958,12 @@ class TreeSequence:
             row_positions,
             col_positions,
             mode,
-            drop_dimensions,
         )
-        if drop_dimension:
-            result = result.reshape(result.shape[:2])
-        else:
-            # Orient the data so that the first dimension is the sample set.
-            # With this orientation, we get one LD matrix per sample set.
-            result = result.swapaxes(0, 2).swapaxes(1, 2)
-        return result
+        if result_dim == 1:  # drop dimension
+            return result.reshape(result.shape[:2])
+        # Orient the data so that the first dimension is the sample set so that
+        # we get one LD matrix per sample set.
+        return result.swapaxes(0, 2).swapaxes(1, 2)
 
     def ld_matrix(
         self,
