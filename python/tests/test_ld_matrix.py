@@ -2398,3 +2398,257 @@ def test_multipopulation_r2_varying_unequal_set_sizes(genotypes, sample_sets, ex
         norm_hap_weighted_ij(1, state, max(a) + 1, max(b) + 1, norm[i, j], params)
 
     np.testing.assert_allclose((result * norm).sum(), expected)
+
+
+class GeneralStatFuncs:
+    """
+    functions take X, n as parameters where
+
+    X: shape=(3, #ss)
+                sample sets
+    count AB [[             ]
+    count Ab  [             ]
+    count aB  [             ]]
+
+    n: shape=(#ss, )
+              [             ]
+    """
+
+    @staticmethod
+    def D(X, n):
+        pAB, pAb, paB = X / n
+        pA = pAb + pAB
+        pB = paB + pAB
+        return pAB - (pA * pB)
+
+    @staticmethod
+    def D2(X, n):
+        pAB, pAb, paB = X / n
+        pA = pAb + pAB
+        pB = paB + pAB
+        return (pAB - (pA * pB)) ** 2
+
+    @staticmethod
+    def r2(X, n):
+        pAB, pAb, paB = X / n
+        pA = pAb + pAB
+        pB = paB + pAB
+        D = pAB - (pA * pB)
+        denom = pA * pB * (1 - pA) * (1 - pB)
+        with suppress_overflow_div0_warning():
+            return D**2 / denom
+
+    @staticmethod
+    def r(X, n):
+        pAB, pAb, paB = X / n
+        pA = pAb + pAB
+        pB = paB + pAB
+        D = pAB - (pA * pB)
+        denom = pA * pB * (1 - pA) * (1 - pB)
+        with suppress_overflow_div0_warning():
+            return D / np.sqrt(denom)
+
+    @staticmethod
+    def D_prime(X, n):
+        pAB, pAb, paB = X / n
+        pA = pAb + pAB
+        pB = paB + pAB
+        D = pAB - (pA * pB)
+        denom = np.vstack(
+            [
+                np.min([pA * (1 - pB), (1 - pA) * pB], axis=0),
+                np.min([pA * pB, (1 - pA) * (1 - pB)], axis=0),
+            ]
+        )
+        with suppress_overflow_div0_warning():
+            return D / denom[(D < 0).astype(int), range(len(D))]
+
+    @staticmethod
+    def Dz(X, n):
+        pAB, pAb, paB = X / n
+        pA = pAb + pAB
+        pB = paB + pAB
+        D = pAB - (pA * pB)
+        return D * (1 - 2 * pA) * (1 - 2 * pB)
+
+    @staticmethod
+    def pi2(X, n):
+        pAB, pAb, paB = X / n
+        pA = pAb + pAB
+        pB = paB + pAB
+        return pA * (1 - pA) * pB * (1 - pB)
+
+    @staticmethod
+    def D2_unbiased(X, n):
+        AB, Ab, aB = X
+        ab = n - X.sum(0)
+        return (1 / (n * (n - 1) * (n - 2) * (n - 3))) * (
+            ((aB**2) * (Ab - 1) * Ab)
+            + ((ab - 1) * ab * (AB - 1) * AB)
+            - (aB * Ab * (Ab + (2 * ab * AB) - 1))
+        )
+
+    @staticmethod
+    def Dz_unbiased(X, n):
+        AB, Ab, aB = X
+        ab = n - X.sum(0)
+        return (1 / (n * (n - 1) * (n - 2) * (n - 3))) * (
+            (((AB * ab) - (Ab * aB)) * (aB + ab - AB - Ab) * (Ab + ab - AB - aB))
+            - ((AB * ab) * (AB + ab - Ab - aB - 2))
+            - ((Ab * aB) * (Ab + aB - AB - ab - 2))
+        )
+
+    @staticmethod
+    def pi2_unbiased(X, n):
+        AB, Ab, aB = X
+        ab = n - X.sum(0)
+        return (1 / (n * (n - 1) * (n - 2) * (n - 3))) * (
+            ((AB + Ab) * (aB + ab) * (AB + aB) * (Ab + ab))
+            - ((AB * ab) * (AB + ab + (3 * Ab) + (3 * aB) - 1))
+            - ((Ab * aB) * (Ab + aB + (3 * AB) + (3 * ab) - 1))
+        )
+
+    @staticmethod
+    def r2_ij(X, n):
+        pAB, pAb, paB = X / n
+        pA = pAb + pAB
+        pB = paB + pAB
+        D = np.prod(pAB - (pA * pB))
+        denom = np.prod(np.sqrt(pA * pB * (1 - pA) * (1 - pB)))
+        with suppress_overflow_div0_warning():
+            return np.expand_dims(D / denom, axis=0)
+
+    @staticmethod
+    def D2_ij(X, n):
+        pAB, pAb, paB = X / n
+        pA = pAb + pAB
+        pB = paB + pAB
+        D = pAB - (pA * pB)
+        return np.expand_dims(np.prod(D), axis=0)
+
+    @staticmethod
+    def D2_ij_unbiased(X, n):
+        """
+        NB: the two sample sets must be disjoint
+            we have no way for testing equality
+        """
+        AB, Ab, aB = X
+        ab = n - X.sum(0)
+        return np.expand_dims(
+            (Ab[0] * aB[0] - AB[0] * ab[0])
+            * (Ab[1] * aB[1] - AB[1] * ab[1])
+            / n[0]
+            / (n[0] - 1)
+            / n[1]
+            / (n[1] - 1),
+            axis=0,
+        )
+
+
+@pytest.mark.parametrize(
+    "ts,stat",
+    [
+        (
+            ts := [
+                p for p in get_example_tree_sequences() if p.id == "n=100_m=32_rho=0.5"
+            ][0].values[0],
+            "D",
+        ),
+        (ts, "D2"),
+        (ts, "r2"),
+        (ts, "r"),
+        (ts, "D_prime"),
+        (ts, "Dz"),
+        (ts, "pi2"),
+        (ts, "D2_unbiased"),
+        (ts, "Dz_unbiased"),
+        (ts, "pi2_unbiased"),
+    ],
+)
+def test_general_two_locus_site_stat(ts, stat):
+    sample_sets = [ts.samples()[0:50], ts.samples()[50:100]]
+    ldg = ts.two_locus_count_stat(sample_sets, getattr(GeneralStatFuncs, stat), 2)
+    ld = ts.ld_matrix(sample_sets=sample_sets, stat=stat)
+    np.testing.assert_equal(ldg, ld)
+
+
+@pytest.mark.parametrize(
+    "ts,stat",
+    [
+        (
+            ts := [
+                p for p in get_example_tree_sequences() if p.id == "n=100_m=32_rho=0.5"
+            ][0].values[0],
+            "r2_ij",
+        ),
+        (ts, "D2_ij"),
+        (ts, "D2_ij_unbiased"),
+    ],
+)
+def test_general_two_locus_two_way_site_stat(ts, stat):
+    sample_sets = [ts.samples()[0:50], ts.samples()[50:100]]
+    ldg = ts.two_locus_count_stat(sample_sets, getattr(GeneralStatFuncs, stat), 1)
+    ld = ts.ld_matrix(
+        sample_sets=sample_sets, stat=stat.replace("_ij", ""), indexes=(0, 1)
+    )
+    np.testing.assert_allclose(ldg, ld)
+
+
+@pytest.mark.parametrize(
+    "stat",
+    [
+        "D",
+        "D2",
+        "r2",
+        "r",
+        "D_prime",
+        "Dz",
+        "pi2",
+        "D2_unbiased",
+        "Dz_unbiased",
+        "pi2_unbiased",
+    ],
+)
+def test_general_one_way_two_locus_stat_multiallelic(stat):
+    (ts,) = {t.id: t for t in get_example_tree_sequences()}["all_fields"].values
+    func = getattr(GeneralStatFuncs, stat)
+    if stat == "r2":
+        result = ts.two_locus_count_stat(
+            [ts.samples()], func, 1, lambda X, n, nA, nB: X[0] / n
+        )
+    elif stat in {"D", "r", "D_prime"}:
+        result = ts.two_locus_count_stat([ts.samples()], func, 1, polarised=True)
+    else:
+        # default norm func is lambda X, n, nA, nB: np.expand_dims(1 / (nA * nB), axis=0)
+        result = ts.two_locus_count_stat([ts.samples()], func, 1)
+    np.testing.assert_allclose(ts.ld_matrix(stat=stat), result)
+
+
+@pytest.mark.parametrize(
+    "stat",
+    [
+        "r2_ij",
+        "D2_ij",
+        "D2_ij_unbiased",
+    ],
+)
+def test_general_two_way_two_locus_stat_multiallelic(stat):
+    (ts,) = {t.id: t for t in get_example_tree_sequences()}["all_fields"].values
+    func = getattr(GeneralStatFuncs, stat)
+    if stat == "r2_ij":
+        result = ts.two_locus_count_stat(
+            [ts.samples(), ts.samples()], func, 1, lambda X, n, nA, nB: X[0] / n
+        )
+    elif stat in {"D", "r", "D_prime"}:
+        result = ts.two_locus_count_stat([ts.samples()], func, 1, polarised=True)
+    else:
+        # default norm func is lambda X, n, nA, nB: np.expand_dims(1 / (nA * nB), axis=0)
+        result = ts.two_locus_count_stat([ts.samples(), ts.samples()], func, 1)
+    np.testing.assert_allclose(
+        ts.ld_matrix(
+            stat=stat.replace("_ij", ""),
+            indexes=(0, 1),
+            sample_sets=[ts.samples(), ts.samples()],
+        ),
+        result,
+    )
