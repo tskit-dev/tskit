@@ -1036,8 +1036,8 @@ int tsk_treeseq_general_stat(const tsk_treeseq_t *self, tsk_size_t K, const doub
     tsk_size_t M, general_stat_func_t *f, void *f_params, tsk_size_t num_windows,
     const double *windows, tsk_flags_t options, double *result);
 
-typedef int norm_func_t(tsk_size_t result_dim, const double *hap_weights, tsk_size_t n_a,
-    tsk_size_t n_b, double *result, void *params);
+typedef int norm_func_t(tsk_size_t state_dim, const double *hap_weights,
+    tsk_size_t result_dim, tsk_size_t n_a, tsk_size_t n_b, double *result, void *params);
 
 int tsk_treeseq_two_locus_count_stat(const tsk_treeseq_t *self,
     tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes,
