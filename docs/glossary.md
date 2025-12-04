@@ -47,7 +47,7 @@ tree sequence
   single {ref}`edge <sec_data_model_definitions_edge>`, and adjacent trees
   may differ by only a few such edges. These edges connect
   {ref}`nodes <sec_data_model_definitions_node>` (genomes) in
-  the tree sequence, forming a structure which is technically known as a
+  the tree sequence, forming  a
   network or graph. Graphs of this sort are sometimes called ancestral
   recombination graphs (ARGs), hence tree sequences provide a
   flexible way to encode multiple types of ARG.
