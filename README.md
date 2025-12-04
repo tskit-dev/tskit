@@ -12,7 +12,8 @@
 
 
 The succinct tree sequence (`tskit`) format is an efficient way of representing
-the genetic history - sometimes known as an Ancestral Recombination Graph or ARG -
+the genetic history - sometimes known as an
+[Ancestral Recombination Graph or ARG](https://doi.org/10.1093/genetics/iyae100) -
 of a set of related DNA sequences. `Tskit` is used
 by a number of software libraries and programs (such as
 [msprime](https://github.com/tskit-dev/msprime),
