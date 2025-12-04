@@ -57,10 +57,12 @@ tree sequence
 node
 : Any point in a tree can be associated with a particular genome
   in a particular ancestor, called a "node".  Since each node represents a
-  specific genome it has a unique `time`, thought of as its birth time. Any
-  branching point in a tree must be associated with a node; that node's time
-  determines the height of the branching point.
-  See {ref}`sec_nodes_or_individuals` for discussion of what a "node" is.
+  specific genome it has a unique `time`, thought of as its birth time. Nodes
+  may or may not correspond to branching points, either in a local
+  {ref}`tree <sec_data_model_definitions_tree>` or in the whole graph.
+  However a branching point must always be associated with a node.
+  See {ref}`sec_nodes_or_individuals` for discussion of what a "node"
+  represents.
 
 (sec_data_model_definitions_individual)=
 
