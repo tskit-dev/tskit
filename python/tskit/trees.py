@@ -696,7 +696,8 @@ class Tree:
         options = 0
         if sample_counts is not None:
             warnings.warn(
-                "The sample_counts option is not supported since 0.2.4 and is ignored",
+                "The sample_counts option is not supported since 0.2.4 "
+                "and is ignored",
                 RuntimeWarning,
                 stacklevel=4,
             )
@@ -6945,7 +6946,7 @@ class TreeSequence:
             bytes_genotypes[:] = lookup[variant.genotypes]
             genotypes = bytes_genotypes.tobytes().decode()
             output.append(
-                f"SITE:\t{variant.index}\t{variant.position / m}\t0.0\t{genotypes}"
+                f"SITE:\t{variant.index}\t{variant.position / m}\t0.0\t" f"{genotypes}"
             )
         return "\n".join(output) + "\n"
 
@@ -9391,9 +9392,9 @@ class TreeSequence:
         if time_windows is None:
             tree_sequence_low, tree_sequence_high = None, self
         else:
-            assert time_windows[0] < time_windows[1], (
-                "The second argument should be larger."
-            )
+            assert (
+                time_windows[0] < time_windows[1]
+            ), "The second argument should be larger."
             tree_sequence_low, tree_sequence_high = (
                 self.decapitate(time_windows[0]),
                 self.decapitate(time_windows[1]),
