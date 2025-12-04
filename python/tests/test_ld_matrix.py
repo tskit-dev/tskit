@@ -2512,18 +2512,17 @@ class GeneralStatFuncs:
         pAB, pAb, paB = X / n
         pA = pAb + pAB
         pB = paB + pAB
-        D = np.prod(pAB - (pA * pB))
+        D2_ij = np.prod(pAB - (pA * pB))
         denom = np.prod(np.sqrt(pA * pB * (1 - pA) * (1 - pB)))
         with suppress_overflow_div0_warning():
-            return np.expand_dims(D / denom, axis=0)
+            return np.expand_dims(D2_ij / denom, axis=0)
 
     @staticmethod
     def D2_ij(X, n):
         pAB, pAb, paB = X / n
         pA = pAb + pAB
         pB = paB + pAB
-        D = pAB - (pA * pB)
-        return np.expand_dims(np.prod(D), axis=0)
+        return np.expand_dims(np.prod(pAB - (pA * pB)), axis=0)
 
     @staticmethod
     def D2_ij_unbiased(X, n):
@@ -2635,11 +2634,8 @@ def test_general_two_way_two_locus_stat_multiallelic(stat):
     (ts,) = {t.id: t for t in get_example_tree_sequences()}["all_fields"].values
     func = getattr(GeneralStatFuncs, stat)
     if stat == "r2_ij":
-        result = ts.two_locus_count_stat(
-            [ts.samples(), ts.samples()], func, 1, lambda X, n, nA, nB: X[0] / n
-        )
-    elif stat in {"D", "r", "D_prime"}:
-        result = ts.two_locus_count_stat([ts.samples()], func, 1, polarised=True)
+        norm_f = lambda X, n, nA, nB: np.expand_dims(X[0].sum() / n.sum(), axis=0)
+        result = ts.two_locus_count_stat([ts.samples(), ts.samples()], func, 1, norm_f)
     else:
         # default norm func is lambda X, n, nA, nB: np.expand_dims(1 / (nA * nB), axis=0)
         result = ts.two_locus_count_stat([ts.samples(), ts.samples()], func, 1)
