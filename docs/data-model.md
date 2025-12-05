@@ -295,14 +295,35 @@ required for a valid set of mutations.
 
 #### Migration Table
 
+:::{note}
+Encoding migration in the migrations table is a legacy approach
+associated with older versions of `msprime`; recording movement between
+populations in the migration table is entirely optional, even when related
+nodes are assigned to different populations.
+:::
+
+:::{warning}
+The migration table may be entirely removed from the `tskit` data model
+in the future. Meanwhile, a number of `tskit` functions, such as
+{meth}`~TreeSequence.simplify()` will raise an error if data exists in
+the migrations table. 
+:::
+
+:::{seealso}
+The {ref}`msprime:sec_ancestry_record_migrations`
+sections and the associated discussion of
+{ref}`msprime:sec_demography_migration` in the `msprime` documentation.
+:::
+
 In simulations, trees can be thought of as spread across space, and it is
 helpful for inferring demographic history to record this history.
-Migrations are performed by individual ancestors, but most likely not by an
+Migrations are performed by individual ancestors, but might not be tagged by an
 individual whose genome is tracked as a `node` (as in a discrete-deme model they are
 unlikely to be both a migrant and a most recent common ancestor).  So,
-`tskit` records when a segment of ancestry has moved between
+`tskit` can record separately when a segment of ancestry has moved between
 populations. This table is not required, even if different nodes come from
 different populations.
+
 
 | Column     | Type     | Description                                            |
 | :--------- | -------- | -----------------------------------------------------: |
@@ -316,18 +337,23 @@ different populations.
 
 
 The `left` and `right` columns are floating point values defining the
-half-open segment of genome affected. The `source` and `dest` columns
-record the IDs of the respective populations. The `node` column records the
-ID of the node that was associated with the ancestry segment in question
-at the time of the migration event. The `time` column is holds floating
-point values recording the time of the event.
+half-open segment of genome affected (these need not exactly correspond to
+breakpoints between edges). The `source` and `dest` columns record the IDs of
+the respective populations (note that by `msprime` convention, "source" and
+"destination" are defined in reverse time, see
+{ref}`msprime:sec_demography_direction_of_time`.). The `time` column
+holds floating point values recording the time of the event, with migrations
+assumed to occur instantaneously. The `node` column records the ID of the child
+node of the migrating segment; in consequence the population ID of the `node` will
+match the `src` ID (unless sequential migrations affect the same `node`, in which
+case it will match the `src` value of the youngest of those migrations).
 
 The `metadata` column provides a location for client code to store
 information about each migration. See the {ref}`sec_metadata_definition` section for
 more details on how metadata columns should be used.
 
 See the {ref}`sec_migration_requirements` section for details on the properties
-required for a valid set of mutations.
+required for a valid set of migrations.
 
 
 (sec_population_table_definition)=
