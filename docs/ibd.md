@@ -73,18 +73,24 @@ coordinate ``[left, right)`` and ancestral node ``a`` iff the most
 recent common ancestor of the segment ``[left, right)`` in nodes ``u``
 and ``v`` is ``a``, and the segment has been inherited along the same
 genealogical path (ie. it has not been broken by recombination). The
-segments returned are the longest possible ones: for a fixed pair
-``(u, v)`` we follow the ancestral paths from ``u`` and ``v`` up the
-trees and merge together adjacent genomic intervals whenever both the
-MRCA ``a`` and the full ancestral paths from ``u`` and ``v`` to ``a``
-are identical.
+definition of a "genealogical path" used here is
+the sequence of edges, rather than nodes.
+So, for instance, if ``u`` inherits a segment ``[x, z)`` from ``a``,
+but that inheritance is represented by two edges,
+one spanning ``[x, y)`` and the other spanning ``[y, z)``,
+then this represents two genealogical paths,
+and any IBD segments would be split at ``y``.
+In other words, the method assumes that the end
+of an edge represents a recombination,
+an assumption that may not reflect how the tree sequence
+is used -- see below for more discussion.
 
 This definition is purely genealogical: it depends only on the tree
 sequence topology and node times, and does not inspect allelic
 states or mutations. In particular, if we compute the MRCA of ``(u, v)``
 in each tree along the sequence, then (up to the additional refinement
-by genealogical path) the IBD segments are obtained by merging together
-adjacent MRCA intervals that share the same ancestor and paths to that
+by genealogical path) the IBD segments are those
+that share the same ancestor and paths to that
 ancestor. Intervals in which ``u`` and ``v`` lie in different roots
 have no MRCA and therefore do not contribute IBD segments.
 
@@ -202,8 +208,6 @@ so only the pair ``(0, 2)`` appears in the result. In general:
   considered.
 - If ``within`` is omitted (the default), all nodes flagged as samples
   in the node table are used.
-- Passing an empty list, e.g. ``within=[]``, is allowed and simply
-  yields a result with zero pairs and zero segments.
 
 #### IBD between sample sets
 
@@ -221,8 +225,6 @@ in the first set and the other lies in the second. More generally:
 - ``between`` should be a list of non-overlapping lists of node IDs.
 - All pairs ``(u, v)`` are considered such that ``u`` and ``v`` belong
   to different sample sets.
-- Empty sample sets are permitted (e.g., ``between=[[0, 1], []]``) and
-  simply do not contribute any pairs.
 
 The ``within`` and ``between`` arguments are mutually exclusive: passing
 both at the same time raises a :class:`ValueError`.
@@ -239,17 +241,16 @@ segments that we consider.
 
 The ``max_time`` argument specifies an upper bound on the time of the
 common ancestor node: only IBD segments whose MRCA node has a time
-no greater than ``max_time`` are returned. The time is measured in
-the same units as the node times in the tree sequence (e.g., generations).
+no greater than ``max_time`` are returned.
 
 The ``min_span`` argument filters by genomic length: only segments with
-span strictly greater than ``min_span`` are included. This threshold is
-measured in the same units as the ``sequence_length`` (for example,
-base pairs).
+span strictly greater than ``min_span`` are included.
 
-For example:
+For example, working with ``ts2`` as the following tree sequence:
 
 ```{code-cell}
+:tags: [hide-input]
+
 import io
 
 nodes = io.StringIO(
@@ -258,30 +259,118 @@ nodes = io.StringIO(
     0       1           0
     1       1           0
     2       0           1
-    3       0           1.5
+    3       0           3
     """
 )
 edges = io.StringIO(
     """\
     left    right   parent  child
-    0.0     0.4     2       0,1
-    0.4     1.0     3       0,1
+    0      4     2       0,1
+    4     10     3       0,1
     """
 )
 ts2 = tskit.load_text(nodes=nodes, edges=edges, strict=False)
+SVG(ts2.draw_svg())
+```
 
+There are two segments:
+```{code-cell}
 segments = ts2.ibd_segments(store_segments=True)
 print("all segments:", list(segments.values())[0])
-
-segments_recent = ts2.ibd_segments(max_time=1.2, store_segments=True)
+```
+... but only the left-hand one is more recent than 2 time units ago:
+```{code-cell}
+segments_recent = ts2.ibd_segments(max_time=2, store_segments=True)
 print("max_time=1.2:", list(segments_recent.values())[0])
+```
+... and only the right-hand one is longer than 5 units.
+```{code-cell}
 
-segments_long = ts2.ibd_segments(min_span=0.5, store_segments=True)
+segments_long = ts2.ibd_segments(min_span=5, store_segments=True)
 print("min_span=0.5:", list(segments_long.values())[0])
 ```
 
-Here the full result contains two IBD segments for the single sample
-pair, one inherited via ancestor 2 over ``[0.0, 0.4)`` and one via
-ancestor 3 over ``[0.4, 1.0)``. The ``max_time`` constraint removes the
-segment inherited from the older ancestor (time 1.5), while the
+So: the full result contains two IBD segments for the single sample
+pair, one inherited via ancestor 2 over ``[0, 4)`` and one via
+ancestor 3 over ``[4, 10)``. The ``max_time`` constraint removes the
+segment inherited from the older ancestor (time 3), while the
 ``min_span`` constraint keeps only the longer of the two segments.
+
+### More on the "pathwise" definition of IBD segments
+
+We said above that the definition of IBD used by
+{meth}`.TreeSequence.ibd_segments` says that a given segment
+must be inherited from the MRCA along a single genealogical path,
+and that "genealogical paths" are defined *edgewise*.
+This can lead to surprising consequences.
+
+Returning to our example above:
+```{code-cell}
+:tags: [hide-input]
+
+SVG(ts.draw_svg())
+```
+there are two IBD segments between ``1`` and ``2``:
+```{code-cell}
+segments = ts.ibd_segments(within=[1, 2], store_pairs=True)
+for pair, value in segments.items():
+    print(pair, "::", value)
+```
+This might be surprising, because the MRCA of ``1`` and ``2``
+is node ``4`` over the entire sequence.
+In fact, some definitions of IBD segments
+would have this as a single segment,
+because the MRCA does not change,
+even if there are distinct genealogical paths.
+
+The reason this is split into two segments
+is because the path from ``4`` to ``2`` changes:
+on the left-hand segment ``[0, 2)``, the node ``2``
+inherits from node ``4``
+via node ``3``, while on the right-hand segment ``[2, 10)``
+it inherits from node ``4`` directly.
+The tree sequence doesn't say directly whether node ``2``
+also inherits from node ``3`` on the right-hand segment,
+so whether or not this should be one IBD segment or two
+depends on our interpretation
+of what's stored in the tree sequence.
+As discussed in 
+[Fritze et al](https://doi.org/10.1093/genetics/iyaf198),
+most tree sequence simulators (at time of writing)
+will produce this tree sequence even if node ``2``
+does in fact inherit from ``3`` over the entire sequence.
+Using {meth}`.TreeSequence.extend_haplotypes` will
+"put the unary nodes back":
+```{code-cell}
+ets = ts.extend_haplotypes()
+SVG(ets.draw_svg())
+```
+and once this is done, there is only a single IBD segment:
+```{code-cell}
+segments = ets.ibd_segments(within=[1, 2], store_pairs=True)
+for pair, value in segments.items():
+    print(pair, "::", value)
+```
+So, extending haplotypes may produce IBD segments
+more in line with theory, if the desired definition if IBD
+is the "pathwise" definition.
+However, this will also probably introduce erroneous
+portions of IBD segments,
+so caution is needed.
+Another approach would be to merge adjacent segments of IBD
+that have the same MRCA.
+
+Summarizing this section --
+there is a confusing array of possible definitions
+of what it means to be "an IBD segment";
+and these may be extracted from a tree sequence
+in subtly different ways.
+How much of a problem is this?
+The answer depends on the precise situation,
+but it seems likely that in practice,
+differences due to definition are small
+relative to errors due to tree sequence inference.
+Indeed, empirical haplotype-matching methods
+for identifying IBD segments can differ substantially
+depending on the values of various hyperparameters.
+More work is needed to develop a complete picture.
