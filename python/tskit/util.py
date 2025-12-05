@@ -534,6 +534,20 @@ def html_table(rows, *, header):
     """
 
 
+def metadata_codec(table):
+    if hasattr(table, "metadata_schema"):
+        schema = table.metadata_schema.schema
+        return "raw" if schema is None else schema.get("codec", "unknown")
+    return ""
+
+
+def metadata_size(table):
+    if hasattr(table, "metadata"):
+        frac = len(table.metadata) / table.nbytes
+        return f"{naturalsize(len(table.metadata))} ({frac:.0%})"
+    return ""
+
+
 def tree_sequence_html(ts):
     table_rows = "".join(
         f"""
@@ -541,10 +555,8 @@ def tree_sequence_html(ts):
                 <td>{name.capitalize()}</td>
                 <td>{format_number(table.num_rows)}</td>
                 <td>{naturalsize(table.nbytes)}</td>
-                <td style="text-align: center;">
-                    {'✅' if hasattr(table, "metadata") and len(table.metadata) > 0
-                     else ''}
-                </td>
+                <td style="text-align: center;">{metadata_codec(table)}</td>
+                <td>{metadata_size(table)}</td>
             </tr>
         """
         for name, table in ts.tables.table_name_map.items()
@@ -637,7 +649,8 @@ def tree_sequence_html(ts):
                                 <th style="line-height:21px;">Table</th>
                                 <th>Rows</th>
                                 <th>Size</th>
-                                <th>Has Metadata</th>
+                                <th>Metadata</th>
+                                <th>Metadata size</th>
                             </tr>
                         </thead>
                         <tbody>

@@ -8,6 +8,11 @@
   ID is e.g. a population name, rather than silently returning no samples.
   (:user:`hyanwong`, :pr:`3344`)
 
+**Features**
+
+- Displaying a summary of the tree sequence now shows the metadata codec and
+  size of the metadata for each table. (:user:`hyanwong`, :pr:`3343`, :issue:`2637`)
+
 --------------------
 [1.0.0] - 2025-11-27
 --------------------
