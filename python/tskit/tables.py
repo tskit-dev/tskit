@@ -2737,8 +2737,8 @@ class ProvenanceTable(MutableBaseTable):
 @dataclasses.dataclass(eq=True, order=True)
 class IdentitySegment:
     """
-    A single segment of identity spanning a genomic interval for a
-    a specific ancestor node.
+    A single segment of identity by descent spanning a genomic interval
+    for a specific ancestor node.
     """
 
     left: float
@@ -2758,7 +2758,7 @@ class IdentitySegment:
 
 class IdentitySegmentList(collections.abc.Iterable, collections.abc.Sized):
     """
-    A summary of identity segments for some pair of samples in a
+    A summary of identity-by-descent segments for some pair of samples in a
     :class:`.IdentitySegments` result. If the ``store_segments`` argument
     has been specified to :meth:`.TreeSequence.ibd_segments`, this class
     can be treated as a sequence of :class:`.IdentitySegment` objects.
@@ -2769,7 +2769,9 @@ class IdentitySegmentList(collections.abc.Iterable, collections.abc.Sized):
 
     If ``store_segments`` is False, only the overall summary values
     such as :attr:`.IdentitySegmentList.total_span` and ``len()`` are
-    available.
+    available. Attempting to iterate over the list or access per-segment
+    arrays (``left``, ``right``, or ``node``) in this case will raise an
+    ``IdentitySegmentsNotStoredError``.
 
     .. warning:: The order of segments within an IdentitySegmentList is
         arbitrary and may change in the future
@@ -2833,7 +2835,7 @@ class IdentitySegmentList(collections.abc.Iterable, collections.abc.Sized):
 class IdentitySegments(collections.abc.Mapping):
     """
     A class summarising and optionally storing the segments of identity
-    by state returned by :meth:`.TreeSequence.ibd_segments`. See the
+    by descent returned by :meth:`.TreeSequence.ibd_segments`. See the
     :ref:`sec_identity` for more information and examples.
 
     Along with the documented methods and attributes, the class supports
@@ -2845,9 +2847,10 @@ class IdentitySegments(collections.abc.Mapping):
        for a given instance of this class are determined by the
        ``store_pairs`` and ``store_segments`` arguments provided to
        :meth:`.TreeSequence.ibd_segments`. For example, attempting
-       to access per-sample pair information if ``store_pairs``
-       is False will result in a (hopefully informative) error being
-       raised.
+       to access per-sample pair information (such as indexing with
+       ``[(a, b)]``, iterating over the mapping, or accessing
+       :attr:`.IdentitySegments.pairs`) if ``store_pairs`` is False will
+       result in an ``IdentityPairsNotStoredError`` being raised.
 
     .. warning:: This class should not be instantiated directly.
     """
