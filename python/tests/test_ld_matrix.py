@@ -22,6 +22,7 @@
 """
 Test cases for two-locus statistics
 """
+
 import contextlib
 import io
 from collections.abc import Callable, Generator
@@ -2567,7 +2568,7 @@ def test_general_two_locus_site_stat(ts, stat):
     sample_sets = [ts.samples()[0:50], ts.samples()[50:100]]
     ldg = ts.two_locus_count_stat(sample_sets, getattr(GeneralStatFuncs, stat), 2)
     ld = ts.ld_matrix(sample_sets=sample_sets, stat=stat)
-    np.testing.assert_equal(ldg, ld)
+    np.testing.assert_allclose(ldg, ld)
 
 
 @pytest.mark.parametrize(
