@@ -1097,13 +1097,13 @@ bool tsk_isfinite(double val);
 int tsk_generate_uuid(char *dest, int flags);
 
 /**
-@brief Extract the binary payload from ``json+binary`` encoded metadata.
+@brief Extract the binary payload from ``json+struct`` encoded metadata.
 
 @rst
-Metadata produced by :py:class:`tskit.metadata.JSONBinaryCodec` consists of a fixed-size
+Metadata produced by :py:class:`tskit.metadata.JSONStructCodec` consists of a fixed-size
 header followed by canonical JSON bytes and an optional binary payload. This helper
-validates the ``json+binary`` framing, returning pointers to the embedded JSON and binary
-sections without copying.
+validates the framing, returning pointers to the embedded JSON and binary sections
+without copying.
 
 The output pointers reference memory owned by the caller and remain valid only while
 the original metadata buffer is alive.
@@ -1117,7 +1117,7 @@ the original metadata buffer is alive.
 @param[out] blob_length On success, set to the payload length in bytes.
 @return 0 on success, or a :ref:`TSK_ERR <c_api_errors>` code on failure.
 */
-int tsk_json_binary_metadata_get_blob(const char *metadata, tsk_size_t metadata_length,
+int tsk_json_struct_metadata_get_blob(const char *metadata, tsk_size_t metadata_length,
     const char **json, tsk_size_t *json_length, const uint8_t **blob,
     tsk_size_t *blob_length);
 

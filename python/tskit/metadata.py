@@ -193,49 +193,104 @@ class NOOPCodec(AbstractMetadataCodec):
         return data
 
 
-class JSONBinaryCodec(JSONCodec):
+class JSONStructCodec(AbstractMetadataCodec):
     """
-    A JSON codec that optionally packs a single binary blob alongside the
-    canonical JSON bytes. The JSON portion is validated using the normal JSON
-    schema rules; a reserved top-level key "_binary" is ignored for validation
-    purposes and, if present at encode time, is stored as raw bytes appended
-    after a small header and the JSON payload.
-
-    On encode, callers MUST supply a top-level "_binary" bytes-like value,
-    even if zero length. On decode, the returned object will include a
-    "_binary" key whose value is a memoryview over the decoded bytes.
+    Pack canonical JSON metadata together with a struct-encoded binary payload.
+    The codec expects a metadata schema with separate ``json`` and ``struct``
+    subschemas and produces a single dict containing the union of the keys from
+    those subschemas after decoding.
     """
 
     MAGIC = b"JBLB"
     VERSION = 1
     _HDR = struct.Struct("<4sBQQ")  # magic, version, json_len, blob_len
 
-    # Use the same validator behavior as JSONCodec; we do not special-case
-    # validation for the reserved _binary key. If users set additionalProperties
-    # to False, providing _binary will fail validation unless declared.
+    @classmethod
+    def is_schema_trivial(self, schema: Mapping) -> bool:
+        return False
+
+    def __init__(self, schema: Mapping[str, Any]) -> None:
+        json_schema = schema.get("json")
+        struct_schema = schema.get("struct")
+        if not isinstance(json_schema, Mapping) or not isinstance(
+            struct_schema, Mapping
+        ):
+            raise exceptions.MetadataSchemaValidationError(
+                "json+struct requires 'json' and 'struct' schema mappings"
+            )
+
+        json_schema = copy.deepcopy(dict(json_schema, codec="json"))
+        struct_schema = copy.deepcopy(dict(struct_schema, codec="struct"))
+
+        try:
+            json_schema = JSONCodec.modify_schema(json_schema)
+            JSONCodec.schema_validator.check_schema(json_schema)
+        except jsonschema.exceptions.SchemaError as ve:
+            raise exceptions.MetadataSchemaValidationError(str(ve)) from ve
+        try:
+            struct_schema = StructCodec.modify_schema(struct_schema)
+            StructCodecSchemaValidator.check_schema(struct_schema)
+        except jsonschema.exceptions.SchemaError as ve:
+            raise exceptions.MetadataSchemaValidationError(str(ve)) from ve
+
+        self.json_schema = json_schema
+        self.struct_schema = struct_schema
+        json_props = self.json_schema.get("properties", {})
+        struct_props = self.struct_schema.get("properties", {})
+        overlap = set(json_props).intersection(struct_props)
+        if overlap:
+            raise exceptions.MetadataSchemaValidationError(
+                "json and struct schemas must not share property names: "
+                + ", ".join(sorted(overlap))
+            )
+        for name, sub_schema in (
+            ("json", self.json_schema),
+            ("struct", self.struct_schema),
+        ):
+            sub_type = sub_schema.get("type")
+            if sub_type is None:
+                continue
+            if isinstance(sub_type, list):
+                is_object = "object" in sub_type
+            else:
+                is_object = sub_type == "object"
+            if not is_object:
+                raise exceptions.MetadataSchemaValidationError(
+                    f"{name} subschema must describe an object for json+struct codec"
+                )
+
+        self.json_codec = JSONCodec(self.json_schema)
+        self.struct_codec = StructCodec(self.struct_schema)
+        self._struct_keys = set(struct_props.keys())
+        self._validate_json = TSKITMetadataSchemaValidator(self.json_schema).validate
+        self._validate_struct = TSKITMetadataSchemaValidator(
+            self.struct_schema
+        ).validate
+
+    def validate_row(self, row: Any) -> None:
+        if not isinstance(row, dict):
+            raise exceptions.MetadataValidationError(
+                "json+struct metadata must be a mapping"
+            )
+        struct_data = {k: v for k, v in row.items() if k in self._struct_keys}
+        json_data = {k: v for k, v in row.items() if k not in self._struct_keys}
+        try:
+            self._validate_json(json_data)
+            self._validate_struct(struct_data)
+        except jsonschema.exceptions.ValidationError as ve:
+            raise exceptions.MetadataValidationError(str(ve)) from ve
 
     def encode(self, obj: Any) -> bytes:
-        # Require a top-level _binary bytes-like entry; zero-length allowed
-        if not isinstance(obj, dict) or "_binary" not in obj:
+        if not isinstance(obj, dict):
             raise exceptions.MetadataEncodingError(
-                "json+binary requires top-level '_binary' bytes-like value"
+                "json+struct metadata must be a mapping"
             )
-        try:
-            blob_bytes = memoryview(obj["_binary"]).tobytes()
-        except TypeError as e:
-            raise exceptions.MetadataEncodingError(
-                "_binary must be bytes-like (buffer protocol)"
-            ) from e
-
-        try:
-            json_bytes = tskit.canonical_json(
-                {k: v for k, v in obj.items() if k != "_binary"}
-            ).encode()
-        except TypeError as e:
-            raise exceptions.MetadataEncodingError(
-                f"Could not encode metadata of type {str(e).split()[3]}"
-            )
-
+        json_bytes = self.json_codec.encode(
+            {k: v for k, v in obj.items() if k not in self._struct_keys}
+        )
+        blob_bytes = self.struct_codec.encode(
+            {k: v for k, v in obj.items() if k in self._struct_keys}
+        )
         header = self._HDR.pack(
             self.MAGIC, self.VERSION, len(json_bytes), len(blob_bytes)
         )
@@ -245,18 +300,28 @@ class JSONBinaryCodec(JSONCodec):
         if len(encoded) >= self._HDR.size and encoded[:4] == self.MAGIC:
             _, version, jlen, blen = self._HDR.unpack_from(encoded)
             if version != self.VERSION:
-                raise ValueError("Unsupported json+binary version")
+                raise ValueError("Unsupported json+struct version")
             start = self._HDR.size
+            if jlen > len(encoded) - start or blen > len(encoded) - start - jlen:
+                raise ValueError(
+                    "Invalid json+struct payload: declared lengths exceed buffer size"
+                )
             json_bytes = encoded[start : start + jlen]
             blob_bytes = encoded[start + jlen : start + jlen + blen]
+            json_data = self.json_codec.decode(json_bytes)
+            struct_data = self.struct_codec.decode(blob_bytes)
+            overlap = set(json_data).intersection(struct_data)
+            if overlap:
+                raise ValueError(
+                    "json+struct decoded duplicate keys: " + ", ".join(sorted(overlap))
+                )
+            combined = dict(json_data)
+            combined.update(struct_data)
+            return combined
+        raise ValueError("Invalid json+struct payload: missing magic header")
 
-            result = super().decode(json_bytes)
-            result["_binary"] = memoryview(blob_bytes)
-            return result
-        raise ValueError("Invalid json+binary payload: missing magic header")
 
-
-register_metadata_codec(JSONBinaryCodec, "json+binary")
+register_metadata_codec(JSONStructCodec, "json+struct")
 
 
 def binary_format_validator(validator, types, instance, schema):
@@ -872,7 +937,11 @@ class MetadataSchema:
             self._schema = codec_cls.modify_schema(schema)
             self.codec_instance = codec_cls(self._schema)
             self._string = tskit.canonical_json(self._schema)
-            self._validate_row = TSKITMetadataSchemaValidator(self._schema).validate
+            self._validate_row = getattr(
+                self.codec_instance,
+                "validate_row",
+                TSKITMetadataSchemaValidator(self._schema).validate,
+            )
             self._bypass_validation = codec_cls.is_schema_trivial(schema)
             self.encode_row = self.codec_instance.encode
             self.decode_row = self.codec_instance.decode

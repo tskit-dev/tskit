@@ -87,8 +87,8 @@
   also around 10% faster.
   (:user:`benjeffery`, :pr:`3313`, :pr:`3317`, :issue:`1896`)
 
-- Add ``json+binary`` metadata codec that allows storing binary data
-  alongside JSON metadata. (:user:`benjeffery`, :pr:`3306`)
+- Add ``json+struct`` metadata codec that allows storing binary data using a struct
+  schema alongside JSON metadata. (:user:`benjeffery`, :pr:`3306`)
 
 **Bugfixes**
 
