@@ -838,54 +838,6 @@ ts.ld_matrix(samples=[[...]], indexes=(i, j)) -> 2 dimensions
 ts.ld_matrix(samples=[[...]], indexes=[(i, j)]) -> 3 dimensions
 ```
 
-<!-- For example, the following would output a 3D array containing one LD matrix per -->
-<!-- sample set. -->
-<!-- ```python -->
-<!-- ts.ld_matrix(stat="D2", sample_sets=[ss1, ss2]) -->
-<!-- ``` -->
-
-<!-- This will produce a n×n matrix that describes the correlation of correlations of -->
-<!-- allele frequencies between sample sets 1 and 2 for each site in the tree -->
-<!-- sequence. -->
-<!-- ```python -->
-<!-- ts.ld_matrix( -->
-<!--     sample_sets=[ts.samples(population=0), ts.samples(population=1)], -->
-<!--     index=(0, 1) -->
-<!-- ) -->
-<!-- ``` -->
-
-<!-- The mechanism by which we can specify a multi-population (or two-way) statistic -->
-<!-- is by providing the `indexes` argument. -->
-
-<!-- In other words, for a one-way statistic, a user would specify: -->
-<!-- ```python -->
-<!-- ts.ld_matrix(stat="D2", sample_sets=[ss1, ss2]) -->
-<!-- ``` -->
-<!-- Which would output a 3D array containing one LD matrix per sample set. -->
-
-<!-- ```python -->
-<!-- ts.ld_matrix(stat="D2", sample_sets=[ss1, ss2], indexes=(0, 1)) -->
-<!-- ``` -->
-<!-- Will output a 2D array containing one LD matrix for the index -->
-<!-- pair. This would use our `D2_ij_summary_func`, instead of the -->
-<!-- `D2_summary_func`. Finally, -->
-<!-- ```python -->
-<!-- ts.ld_matrix(stat="D2", sample_sets=[ss1, ss2], indexes=[(0, 1), (1, 1)]) -->
-<!-- ``` -->
-<!-- will output a 3D array containing one LD matrix _per_ index pair -->
-<!-- provided. -->
-
-<!-- Perhaps this is a nice summary to include at the end for clarity? -->
-<!-- ``` -->
-<!-- # one-way -->
-<!-- ts.ld_matrix(sample_sets=None) -> 2 dimensions -->
-<!-- ts.ld_matrix(samples=[...]) -> 2 dimensions -->
-<!-- ts.ld_matrix(samples=[[...]]) -> 3 dimensions -->
-<!-- # two-way -->
-<!-- ts.ld_matrix(samples=[[...]], indexes=(i, j)) -> 2 dimensions -->
-<!-- ts.ld_matrix(samples=[[...]], indexes=[(i, j)]) -> 3 dimensions -->
-<!-- ``` -->
-
 (sec_stats_two_locus_sample_one_way_stats)=
 
 ##### One-way Statistics
