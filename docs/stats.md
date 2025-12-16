@@ -963,11 +963,6 @@ Where {math}`D` is defined above.
 `r2`
 : {math}`f(w_{Ab}, w_{aB}, w_{AB}, n) = \frac{(p_{AB_i} - (p_{A_i}  p_{B_i})) (p_{AB_j} - (p_{A_j}  p_{B_j}))}{\sqrt{p_{A_i} (1 - p_{A_i}) p_{B_i} (1 - p_{B_i})}\sqrt{p_{A_j} (1 - p_{A_j}) p_{B_j} (1 - p_{B_j})}}`
 
-
-<!-- `r2` -->
-<!-- : {math}`` -->
-
-
 (sec_stats_notes)=
 
 ## Notes
