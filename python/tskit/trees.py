@@ -7513,11 +7513,15 @@ class TreeSequence:
         the ancestry of these nodes - for that, see :meth:`.simplify`.
 
         This has the side effect that it may change the order of the nodes,
-        individuals, populations, and migrations in the tree sequence: the nodes
-        in the new tree sequence will be in the order provided in ``nodes``, and
-        both individuals and populations will be ordered by the earliest retained
-        node that refers to them. (However, ``reorder_populations`` may be set to
-        False to keep the population table unchanged.)
+        populations, individuals, and migrations in the tree sequence. Nodes
+        in the new tree sequence will be in the order provided in ``nodes``.
+        Populations will be ordered in ascending order of the lowest ID of
+        the nodes that refer to them. Individuals will be not only ordered
+        so that :attr:`~Individual.parents` come before children (see
+        :meth:`~TableCollection.sort_individuals`) but in addition
+        will be secondarily sorted in ascending order of the lowest ID of
+        their referring nodes. (However, ``reorder_populations`` may be set
+        to ``False`` to keep the population table unchanged.)
 
         By default, the method removes all individuals and populations not
         referenced by any nodes, and all sites not referenced by any mutations.
