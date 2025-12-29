@@ -349,7 +349,7 @@ The `indexes` parameter is interpreted in the following way:
   that we also drop the outer dimension of the result array in this case**.
 
 - If it is a list of `k`-tuples (each consisting of integers
-  of integers between `0` and `len(sample_sets) - 1`) of length `n` we
+  between `0` and `len(sample_sets) - 1`) of length `n` we
   compute `n` statistics based on these selections of sample sets.
 
 
