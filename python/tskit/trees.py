@@ -9299,23 +9299,28 @@ class TreeSequence:
         eigenvectors of the genetic relatedness matrix, which are obtained by a
         randomized singular value decomposition (rSVD) algorithm.
 
-        Concretely, if :math:`M` is the matrix of genetic relatedness values, with
-        :math:`M_{ij}` the output of
-        :meth:`genetic_relatedness <.TreeSequence.genetic_relatedness>`
-        between sample :math:`i` and sample :math:`j`, then by default this returns
-        the top ``num_components`` eigenvectors of :math:`M`, so that
+        Concretely, take :math:`M` as the matrix of non-span-normalised
+        branch-based genetic relatedness values, for instance obtained by
+        setting :math:`M_{ij}` to be the :meth:`~.TreeSequence.genetic_relatedness`
+        between sample :math:`i` and sample :math:`j` with ``mode="branch"``,
+        ``proportion=False`` and ``span_normalise=False``. Then by default this
+        returns the top ``num_components`` eigenvectors of :math:`M`, so that
         ``output.factors[i,k]`` is the position of sample `i` on the `k` th PC.
-        If ``samples`` or ``individuals`` are provided, then this does the same thing,
-        except with :math:`M_{ij}` either the relatedness between ``samples[i]``
-        and ``samples[j]`` or the nodes of ``individuals[i]`` and ``individuals[j]``,
-        respectively.
+        If ``samples`` or ``individuals`` are provided, then this does the same
+        thing, except with :math:`M_{ij}` either the relatedness between
+        ``samples[i]`` and ``samples[j]`` or the average relatedness between the
+        nodes of ``individuals[i]`` and ``individuals[j]``, respectively.
+        Factors are normalized to have L2 norm 1, i.e.,
+        ``output.factors[:,k] ** 2).sum() == 1)`` for any ``k``.
 
         The parameters ``centre`` and ``mode`` are passed to
-        :meth:`genetic_relatedness <.TreeSequence.genetic_relatedness>`;
-        if ``windows`` are provided then PCA is carried out separately in each window.
-        If ``time_windows`` is provided, then genetic relatedness is measured using only
-        ancestral material within the given time window (see
-        :meth:`decapitate <.TreeSequence.decapitate>` for how this is defined).
+        :meth:`~.TreeSequence.genetic_relatedness`: the default ``centre=True`` results
+        in factors whose elements sum to zero; ``mode`` currently only supports the
+        ``"branch"`` setting. If ``windows`` are provided then PCA is carried out
+        separately in each genomic window. If ``time_windows`` is provided, then genetic
+        relatedness is measured using only ancestral material within the given time
+        window (see :meth:`decapitate <.TreeSequence.decapitate>` for how this is
+        defined).
 
         So that the method scales to large tree sequences, the underlying method
         relies on a randomized SVD algorithm, using
