@@ -3807,7 +3807,8 @@ class TableCollection(metadata.MetadataProvider):
         """
         Sorts the individual table in place, so that parents come before children,
         and the parent column is remapped as required. Node references to individuals
-        are also updated.
+        are also updated. This is a stricter order than is required for a valid tree
+        sequence.
         """
         self._ll_tables.sort_individuals()
         # TODO add provenance
@@ -3816,9 +3817,11 @@ class TableCollection(metadata.MetadataProvider):
         """
         This puts the tables in *canonical* form, imposing a stricter order on the
         tables than :ref:`required <sec_valid_tree_sequence_requirements>` for
-        a valid tree sequence. In particular, the individual
-        and population tables are sorted by the first node that refers to each
-        (see :meth:`TreeSequence.subset`). Then, the remaining tables are sorted
+        a valid tree sequence. In particular, the population table is sorted to
+        place populations with the lowest node IDs first, and the individual table
+        is sorted firstly as in :meth:`.sort_individuals` and secondarily
+        by the lowest ID of the nodes that refer to each individual
+        (see :meth:`TreeSequence.subset`). The remaining tables are sorted
         as in :meth:`.sort`, with the modification that mutations are sorted by
         site, then time (if known), then the mutation's node's time, then number
         of descendant mutations (ensuring that parent mutations occur before
