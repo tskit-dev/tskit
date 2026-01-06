@@ -9304,9 +9304,9 @@ class TreeSequence:
         randomized singular value decomposition (rSVD) algorithm.
 
         Concretely, take :math:`M` as the matrix of non-span-normalised
-        branch-based genetic relatedness values, for instance obtained by
+        genetic relatedness values, for instance obtained by
         setting :math:`M_{ij}` to be the :meth:`~.TreeSequence.genetic_relatedness`
-        between sample :math:`i` and sample :math:`j` with ``mode="branch"``,
+        between sample :math:`i` and sample :math:`j` with the specified ``mode``,
         ``proportion=False`` and ``span_normalise=False``. Then by default this
         returns the top ``num_components`` eigenvectors of :math:`M`, so that
         ``output.factors[i,k]`` is the position of sample `i` on the `k` th PC.
@@ -9314,7 +9314,7 @@ class TreeSequence:
         thing, except with :math:`M_{ij}` either the relatedness between
         ``samples[i]`` and ``samples[j]`` or the average relatedness between the
         nodes of ``individuals[i]`` and ``individuals[j]``, respectively.
-        Factors are normalized to have L2 norm 1, i.e.,
+        Factors are normalized to have norm 1, i.e.,
         ``output.factors[:,k] ** 2).sum() == 1)`` for any ``k``.
 
         The parameters ``centre`` and ``mode`` are passed to
