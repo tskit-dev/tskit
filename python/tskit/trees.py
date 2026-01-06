@@ -10597,7 +10597,7 @@ class TreeSequence:
         represented by the tree sequence.
 
         :param list within: A list of node IDs defining set of nodes that
-            we finding IBD segments for. If not specified, this defaults to
+            we find IBD segments for. If not specified, this defaults to
             all samples in the tree sequence.
         :param list[list] between: A list of lists of sample node IDs. Given
             two sample sets A and B, only IBD segments will be returned such
@@ -10612,7 +10612,7 @@ class TreeSequence:
             segment) is greater than this value will be included. (Default=0)
         :param bool store_pairs: If True store information separately for each
             pair of samples ``(a, b)`` that are found to be IBD. Otherwise
-            store summary information about all sample apirs. (Default=False)
+            store summary information about all sample pairs. (Default=False)
         :param bool store_segments: If True store each IBD segment
             ``(left, right, c)`` and associate it with the corresponding
             sample pair ``(a, b)``. If True, implies ``store_pairs``.
