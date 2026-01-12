@@ -1041,7 +1041,7 @@ FILE *
 tsk_get_debug_stream(void)
 {
     if (_tsk_debug_stream == NULL) {
-        _tsk_debug_stream = stdout;
+        _tsk_debug_stream = TSK_DEFAULT_DEBUG_STREAM;
     }
     return _tsk_debug_stream;
 }
