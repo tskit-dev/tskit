@@ -511,7 +511,7 @@ disallowed (use compute_mutation_times?).
 */
 #define TSK_ERR_DISALLOWED_UNKNOWN_MUTATION_TIME                    -510
 
-/** 
+/**
 A mutation's parent was not consistent with the topology of the tree.
  */
 #define TSK_ERR_BAD_MUTATION_PARENT                                 -511
@@ -971,6 +971,12 @@ not be freed by client code.
 */
 const char *tsk_strerror(int err);
 
+/* Redefine this macro in downstream builds if stdout is not the
+ * approriate stream to emit debug information when the TSK_DEBUG
+ * flag is passed to supporting functions (e.g. in R).
+ */
+#define TSK_DEFAULT_DEBUG_STREAM stdout
+
 #ifdef TSK_TRACE_ERRORS
 
 static inline int
@@ -981,6 +987,11 @@ _tsk_trace_error(int err, int line, const char *file)
     return err;
 }
 
+/*
+Developer note: this macro may be redefined as part of compilation for
+an R package, and should be treated as part of the documented API
+(no changes).
+*/
 #define tsk_trace_error(err) (_tsk_trace_error(err, __LINE__, __FILE__))
 #else
 #define tsk_trace_error(err) (err)
@@ -1000,6 +1011,11 @@ We often wish to assert a condition that is unexpected, but using the normal `as
 means compiling without NDEBUG. This macro still asserts when NDEBUG is defined.
 If you are using this macro in your own software then please set TSK_BUG_ASSERT_MESSAGE
 to point users to your issue tracker.
+*/
+/*
+Developer note: this macro may redefined as part of compilation for
+an R package, and should be treated as part of the documented API
+(no changes).
 */
 #define tsk_bug_assert(condition)                                                       \
     do {                                                                                \
