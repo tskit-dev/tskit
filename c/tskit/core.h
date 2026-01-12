@@ -511,7 +511,7 @@ disallowed (use compute_mutation_times?).
 */
 #define TSK_ERR_DISALLOWED_UNKNOWN_MUTATION_TIME                    -510
 
-/** 
+/**
 A mutation's parent was not consistent with the topology of the tree.
  */
 #define TSK_ERR_BAD_MUTATION_PARENT                                 -511
@@ -970,6 +970,12 @@ not be freed by client code.
 @return A description of the error.
 */
 const char *tsk_strerror(int err);
+
+/* Redefine this macro in downstream builds if stdout is not the
+ * approriate stream to emit debug information when the TSK_DEBUG
+ * flag is passed to supporting functions (e.g. in R).
+ */
+#define TSK_DEFAULT_DEBUG_STREAM stdout
 
 #ifdef TSK_TRACE_ERRORS
 
