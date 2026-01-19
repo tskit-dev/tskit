@@ -11048,7 +11048,7 @@ class TreeSequence:
         mapping is created by first checking if the tree sequence contains individuals.
         If it does, the mapping is created using the individuals in the tree sequence.
         By default only the sample nodes of the individuals are included in the mapping,
-        unless `include_non_sample_nodes` is set to True, in which case all nodes
+        unless ``include_non_sample_nodes`` is set to True, in which case all nodes
         belonging to the individuals are included. Any individuals without any nodes
         will have no nodes in their row of the mapping, being essentially of zero ploidy.
         If no individuals are present, the mapping is created using only the sample nodes
@@ -11056,20 +11056,22 @@ class TreeSequence:
 
         As the tskit data model allows non-integer positions, site positions and contig
         length are transformed to integer values suitable for VCF output. The
-        transformation is done using the `position_transform` function, which must
+        transformation is done using the ``position_transform`` function, which must
         return an integer numpy array the same dimension as the input. By default,
         this is set to ``numpy.round()`` which will round values to the nearest integer.
 
-        If neither `name_metadata_key` nor `individual_names` is specified, the
+        If neither ``name_metadata_key`` nor ``individual_names`` is specified, the
         individual names are set to ``"tsk_{individual_id}"`` for each individual. If
-        no individuals are present, the individual names are set to "tsk_{i}" with
-        `0 <= i < num_sample_nodes/ploidy`.
+        no individuals are present, the individual names are set to ``"tsk_{i}"`` with
+        ``0 <= i < num_sample_nodes/ploidy``.
 
         A warning is emitted if any sample nodes do not have an individual ID.
 
         :param list individuals: Specific individual IDs to include in the VCF. If not
             specified and the tree sequence contains individuals, all individuals are
-            included at least one node.
+            included that are associated with least one sample node (or at least one of
+            any node if ``include_non_sample_nodes`` is True), and the mapping arrays
+            will be in ascending order of the ID of the individual in the tree sequence.
         :param int ploidy: The ploidy, or number of nodes per individual. Only used when
             the tree sequence does not contain individuals. Cannot be used if the tree
             sequence contains individuals. Defaults to 1 if not specified.
