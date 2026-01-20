@@ -119,9 +119,9 @@ jobs:
     strategy:
       matrix:
         python: ["3.10", 3.11, 3.12, 3.13]
-        runner: [macos-13, macos-15]
+        runner: [macos-14, macos-15]
         include:
-          - runner: macos-13
+          - runner: macos-14
             arch: x86_64
           - runner: macos-15
             arch: arm64
