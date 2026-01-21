@@ -10,6 +10,10 @@ on:
   release:
     types: [published]
 
+
+env:
+  FORCE_COLOR: 1
+
 jobs:
   OSX:
     runs-on: macos-latest

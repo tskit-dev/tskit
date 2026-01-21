@@ -6,6 +6,10 @@ on:
     branches: [main]
     tags:
       - '*'
+
+env:
+  FORCE_COLOR: 1
+
 jobs:
   Docs:
     uses: tskit-dev/.github/.github/workflows/docs-build-template.yml@v1

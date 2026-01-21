@@ -6,6 +6,8 @@ on:
   push:
     branches: [main, test]
 
+env:
+  FORCE_COLOR: 1
 jobs:
   pre-commit:
     name: Lint
