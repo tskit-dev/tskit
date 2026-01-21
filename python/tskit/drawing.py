@@ -31,10 +31,8 @@ import numbers
 import operator
 import warnings
 import xml.dom.minidom
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import List
-from typing import Mapping
-from typing import Union
 
 import numpy as np
 
@@ -538,7 +536,7 @@ def clip_ts(ts, x_min, x_max, max_num_trees=None):
     return ts, tree_status, offsets
 
 
-def check_y_ticks(ticks: Union[List, Mapping, None]) -> Mapping:
+def check_y_ticks(ticks: list | Mapping | None) -> Mapping:
     """
     Later we might want to implement a tick locator function, such that e.g. ticks=5
     selects ~5 nicely spaced tick locations (with sensible behaviour for log scales)

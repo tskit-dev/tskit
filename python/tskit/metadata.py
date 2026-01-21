@@ -33,9 +33,9 @@ import json
 import pprint
 import struct
 import types
+from collections.abc import Mapping
 from itertools import islice
 from typing import Any
-from typing import Mapping
 
 import jsonschema
 import numpy as np

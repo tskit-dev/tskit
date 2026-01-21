@@ -24,17 +24,13 @@ Test cases for two-locus statistics
 """
 import contextlib
 import io
+from collections.abc import Callable
+from collections.abc import Generator
 from dataclasses import dataclass
 from itertools import combinations_with_replacement
 from itertools import permutations
 from itertools import product
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Generator
-from typing import List
-from typing import Tuple
-from typing import Union
 
 import msprime
 import numpy as np
@@ -224,7 +220,7 @@ def norm_hap_weighted(
     n_a: int,
     n_b: int,
     result: np.ndarray,
-    params: Dict[str, Any],
+    params: dict[str, Any],
 ) -> None:
     """Create a vector of normalizing coefficients, length of the number of
     sample sets. In this normalization strategy, we weight each allele's
@@ -250,7 +246,7 @@ def norm_hap_weighted_ij(
     n_a: int,
     n_b: int,
     result: np.ndarray,
-    params: Dict[str, Any],
+    params: dict[str, Any],
 ) -> None:
     """
     Create a vector of normalizing coefficients, length of the number of
@@ -286,7 +282,7 @@ def norm_total_weighted(
     n_a: int,
     n_b: int,
     result: np.ndarray,
-    params: Dict[str, Any],
+    params: dict[str, Any],
 ) -> None:
     """Create a vector of normalizing coefficients, length of the number of
     sample sets. In this normalization strategy, we weight each allele's
@@ -332,7 +328,7 @@ def check_order_bounds_dups(values, max_value):
 
 def get_site_row_col_indices(
     row_sites: np.ndarray, col_sites: np.ndarray
-) -> Tuple[List[int], List[int], List[int]]:
+) -> tuple[list[int], list[int], list[int]]:
     """Co-iterate over the row and column sites, keeping a sorted union of
     site values and an index into the unique list of sites for both the row
     and column sites. This function produces a list of sites of interest and
@@ -448,8 +444,8 @@ def get_allele_samples(
 
 
 def get_mutation_samples(
-    ts: tskit.TreeSequence, sites: List[int], sample_index_map: np.ndarray
-) -> Tuple[np.ndarray, np.ndarray, BitSet]:
+    ts: tskit.TreeSequence, sites: list[int], sample_index_map: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, BitSet]:
     """For a given set of sites, generate a BitSet of all samples posessing
     each allelic state for each site. This includes the ancestral state, along
     with any mutations contained in the site.
@@ -507,8 +503,8 @@ def get_mutation_samples(
     return num_alleles, site_offsets, allele_samples
 
 
-SummaryFunc = Callable[[int, np.ndarray, int, np.ndarray, Dict[str, Any]], None]
-NormFunc = Callable[[int, np.ndarray, int, int, np.ndarray, Dict[str, Any]], None]
+SummaryFunc = Callable[[int, np.ndarray, int, np.ndarray, dict[str, Any]], None]
+NormFunc = Callable[[int, np.ndarray, int, int, np.ndarray, dict[str, Any]], None]
 
 
 def compute_general_two_site_stat_result(
@@ -523,7 +519,7 @@ def compute_general_two_site_stat_result(
     result_dim: int,
     func: SummaryFunc,
     norm_func: NormFunc,
-    params: Dict[str, Any],
+    params: dict[str, Any],
     polarised: bool,
     result: np.ndarray,
 ) -> None:
@@ -777,8 +773,8 @@ def two_branch_count_stat(
 
 
 def sample_sets_to_bit_array(
-    ts: tskit.TreeSequence, sample_sets: Union[List[List[int]], List[np.ndarray]]
-) -> Tuple[np.ndarray, np.ndarray, BitSet]:
+    ts: tskit.TreeSequence, sample_sets: list[list[int]] | list[np.ndarray]
+) -> tuple[np.ndarray, np.ndarray, BitSet]:
     """Convert the list of sample ids to a bit array. This function takes
     sample identifiers and maps them to their enumerated integer values, then
     stores these values in a bit array. We produce a BitArray and a numpy
@@ -994,7 +990,7 @@ def r2_summary_func(
     state: np.ndarray,
     result_dim: int,
     result: np.ndarray,
-    params: Dict[str, Any],
+    params: dict[str, Any],
 ) -> None:
     """Summary function for the r2 statistic. We first compute the proportion of
     AB, A, and B haplotypes, then we compute the r2 statistic, storing the outputs
@@ -1028,7 +1024,7 @@ def r2_ij_summary_func(
     state: np.ndarray,
     result_dim: int,
     result: np.ndarray,
-    params: Dict[str, Any],
+    params: dict[str, Any],
 ) -> None:
     sample_set_sizes = params["sample_set_sizes"]
     set_indexes = params["set_indexes"]
@@ -1062,7 +1058,7 @@ def D_summary_func(
     state: np.ndarray,
     result_dim: int,
     result: np.ndarray,
-    params: Dict[str, Any],
+    params: dict[str, Any],
 ) -> None:
     sample_set_sizes = params["sample_set_sizes"]
     for k in range(state_dim):
@@ -1082,7 +1078,7 @@ def D2_summary_func(
     state: np.ndarray,
     result_dim: int,
     result: np.ndarray,
-    params: Dict[str, Any],
+    params: dict[str, Any],
 ) -> None:
     sample_set_sizes = params["sample_set_sizes"]
     for k in range(state_dim):
@@ -1103,7 +1099,7 @@ def D_prime_summary_func(
     state: np.ndarray,
     result_dim: int,
     result: np.ndarray,
-    params: Dict[str, Any],
+    params: dict[str, Any],
 ) -> None:
     sample_set_sizes = params["sample_set_sizes"]
     for k in range(state_dim):
@@ -1128,7 +1124,7 @@ def r_summary_func(
     state: np.ndarray,
     result_dim: int,
     result: np.ndarray,
-    params: Dict[str, Any],
+    params: dict[str, Any],
 ) -> None:
     sample_set_sizes = params["sample_set_sizes"]
     for k in range(state_dim):
@@ -1152,7 +1148,7 @@ def Dz_summary_func(
     state: np.ndarray,
     result_dim: int,
     result: np.ndarray,
-    params: Dict[str, Any],
+    params: dict[str, Any],
 ) -> None:
     sample_set_sizes = params["sample_set_sizes"]
     for k in range(state_dim):
@@ -1174,7 +1170,7 @@ def pi2_summary_func(
     state: np.ndarray,
     result_dim: int,
     result: np.ndarray,
-    params: Dict[str, Any],
+    params: dict[str, Any],
 ) -> None:
     sample_set_sizes = params["sample_set_sizes"]
     for k in range(state_dim):
@@ -1205,7 +1201,7 @@ def pi2_unbiased_summary_func(
     state: np.ndarray,
     result_dim: int,
     result: np.ndarray,
-    params: Dict[str, Any],
+    params: dict[str, Any],
 ):
     sample_set_sizes = params["sample_set_sizes"]
     for k in range(state_dim):
@@ -1227,7 +1223,7 @@ def Dz_unbiased_summary_func(
     state: np.ndarray,
     result_dim: int,
     result: np.ndarray,
-    params: Dict[str, Any],
+    params: dict[str, Any],
 ):
     sample_set_sizes = params["sample_set_sizes"]
     for k in range(state_dim):
@@ -1253,7 +1249,7 @@ def D2_unbiased_summary_func(
     state: np.ndarray,
     result_dim: int,
     result: np.ndarray,
-    params: Dict[str, Any],
+    params: dict[str, Any],
 ):
     sample_set_sizes = params["sample_set_sizes"]
     for k in range(state_dim):
@@ -1275,7 +1271,7 @@ def D2_ij_summary_func(
     state: np.ndarray,
     result_dim: int,
     result: np.ndarray,
-    params: Dict[str, Any],
+    params: dict[str, Any],
 ):
     sample_set_sizes = params["sample_set_sizes"]
     set_indexes = params["set_indexes"]
@@ -1307,7 +1303,7 @@ def D2_ij_unbiased_summary_func(
     state: np.ndarray,
     result_dim: int,
     result: np.ndarray,
-    params: Dict[str, Any],
+    params: dict[str, Any],
 ):
     sample_set_sizes = params["sample_set_sizes"]
     set_indexes = params["set_indexes"]
@@ -1831,8 +1827,8 @@ class TreeState:
     # 0    1
     # 1    0
     # 1    1
-    edges_out: List[int]  # list of edges removed during iteration
-    edges_in: List[int]  # list of edges added during iteration
+    edges_out: list[int]  # list of edges removed during iteration
+    edges_in: list[int]  # list of edges added during iteration
 
     def __init__(self, ts, sample_sets, num_sample_sets, sample_index_map):
         self.pos = tsutil.TreeIndexes(ts)
