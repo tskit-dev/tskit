@@ -32,9 +32,6 @@ import numbers
 import operator
 import warnings
 from dataclasses import dataclass
-from typing import Dict
-from typing import Optional
-from typing import Union
 
 import numpy as np
 
@@ -84,7 +81,7 @@ class IndividualTableRow(util.Dataclass):
     """
     See :attr:`Individual.parents`
     """
-    metadata: Optional[Union[bytes, dict]]
+    metadata: bytes | dict | None
     """
     See :attr:`Individual.metadata`
     """
@@ -124,7 +121,7 @@ class NodeTableRow(util.Dataclass):
     """
     See :attr:`Node.individual`
     """
-    metadata: Optional[Union[bytes, dict]]
+    metadata: bytes | dict | None
     """
     See :attr:`Node.metadata`
     """
@@ -154,7 +151,7 @@ class EdgeTableRow(util.Dataclass):
     """
     See :attr:`Edge.child`
     """
-    metadata: Optional[Union[bytes, dict]]
+    metadata: bytes | dict | None
     """
     See :attr:`Edge.metadata`
     """
@@ -192,7 +189,7 @@ class MigrationTableRow(util.Dataclass):
     """
     See :attr:`Migration.time`
     """
-    metadata: Optional[Union[bytes, dict]]
+    metadata: bytes | dict | None
     """
     See :attr:`Migration.metadata`
     """
@@ -214,7 +211,7 @@ class SiteTableRow(util.Dataclass):
     """
     See :attr:`Site.ancestral_state`
     """
-    metadata: Optional[Union[bytes, dict]]
+    metadata: bytes | dict | None
     """
     See :attr:`Site.metadata`
     """
@@ -244,7 +241,7 @@ class MutationTableRow(util.Dataclass):
     """
     See :attr:`Mutation.parent`
     """
-    metadata: Optional[Union[bytes, dict]]
+    metadata: bytes | dict | None
     """
     See :attr:`Mutation.metadata`
     """
@@ -279,7 +276,7 @@ class PopulationTableRow(util.Dataclass):
     """
 
     __slots__ = ["metadata"]
-    metadata: Optional[Union[bytes, dict]]
+    metadata: bytes | dict | None
     """
     See :attr:`Population.metadata`
     """
@@ -3247,7 +3244,7 @@ class TableCollection(metadata.MetadataProvider):
         return self._ll_tables.asdict(force_offset_64)
 
     @property
-    def table_name_map(self) -> Dict:
+    def table_name_map(self) -> dict:
         """
         Returns a dictionary mapping table names to the corresponding
         table instances. For example, the returned dictionary will contain the
@@ -3265,7 +3262,7 @@ class TableCollection(metadata.MetadataProvider):
         }
 
     @property
-    def name_map(self) -> Dict:
+    def name_map(self) -> dict:
         # Deprecated in 0.4.1
         warnings.warn(
             "name_map is deprecated; use table_name_map instead",

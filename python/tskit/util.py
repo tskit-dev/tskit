@@ -31,7 +31,6 @@ import json
 import numbers
 import os
 import textwrap
-from typing import Union
 
 import numpy as np
 
@@ -86,9 +85,9 @@ def is_unknown_time(time):
     non-NAN value.
 
     :param time: Value or array to check.
-    :type time: Union[float, array-like]
+    :type time: float | array-like
     :return: A single boolean or array of booleans the same shape as ``time``.
-    :rtype: Union[bool, numpy.ndarray[bool]]
+    :rtype: bool | numpy.ndarray[bool]
     """
     return np.asarray(time, dtype=np.float64).view(np.uint64) == np.float64(
         UNKNOWN_TIME
@@ -855,7 +854,7 @@ def truncate_rows(num_rows, limit=None):
     )
 
 
-def random_nucleotides(length: numbers.Number, *, seed: Union[int, None] = None) -> str:
+def random_nucleotides(length: numbers.Number, *, seed: int | None = None) -> str:
     """
     Returns a random string of nucleotides of the specified length. Characters
     are drawn uniformly from the alphabet "ACTG".
