@@ -18,6 +18,7 @@ jobs:
   OSX:
     runs-on: macos-latest
     strategy:
+      fail-fast: false
       matrix:
         python: ["3.10", 3.11, 3.12, 3.13]
     steps:
@@ -48,6 +49,7 @@ jobs:
   windows:
     runs-on: windows-latest
     strategy:
+      fail-fast: false
       matrix:
         python: ["3.10", 3.11, 3.12, 3.13]
         wordsize: [64]
@@ -121,14 +123,15 @@ jobs:
   OSX-test:
     needs: ['OSX']
     strategy:
+      fail-fast: false
       matrix:
         python: ["3.10", 3.11, 3.12, 3.13]
-        runner: [macos-14, macos-15]
+        runner: [macos-15, macos-15-intel]
         include:
-          - runner: macos-14
-            arch: x86_64
           - runner: macos-15
             arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Download wheels
@@ -158,6 +161,7 @@ jobs:
     needs: ['windows']
     runs-on: windows-latest
     strategy:
+      fail-fast: false
       matrix:
         python: ["3.10", 3.11, 3.12, 3.13]
         wordsize: [64]
@@ -182,6 +186,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: ['manylinux']
     strategy:
+      fail-fast: false
       matrix:
         python: ["3.10", 3.11, 3.12, 3.13]
         include:
