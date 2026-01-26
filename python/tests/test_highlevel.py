@@ -1991,8 +1991,25 @@ class TestTreeSequence(HighLevelTestCase):
         assert len(html) > 5000
         assert f"<tr><td>Trees</td><td>{ts.num_trees:,}</td></tr>" in html
         assert f"<tr><td>Time Units</td><td>{ts.time_units}</td></tr>" in html
-        for table in ts.tables.table_name_map:
-            assert f"<td>{table.capitalize()}</td>" in html
+        codecs = collections.defaultdict(int)
+        for table_name, table in ts.tables.table_name_map.items():
+            assert f"<td>{table_name.capitalize()}</td>" in html
+            if hasattr(table, "metadata_schema"):
+                schema = table.metadata_schema.schema
+                codec = schema["codec"] if schema else "raw"
+                codecs[codec] += 1
+        assert "<td>Metadata</td>" in html
+        assert "<th>Metadata</th>" in html
+        assert "<th>Metadata size</th>" in html
+        num_tables_with_metadata = 0
+        for codec, count in codecs.items():
+            assert html.count(f">{codec}</td>") == count
+            num_tables_with_metadata += count
+        # Only one table (provenances) has no metadata
+        assert num_tables_with_metadata == len(ts.tables.table_name_map) - 1
+        # All metadata tables should show the percentage metadata size
+        assert html.count("%)</td>") == num_tables_with_metadata
+
         if ts.num_provenances > 0:
             assert (
                 f"<td>{json.loads(ts.provenance(0).record)['software']['name']}</td>"
@@ -2027,8 +2044,21 @@ class TestTreeSequence(HighLevelTestCase):
         assert len(s) > 999
         assert re.search(rf"║Trees *│ *{ts.num_trees}║", s)
         assert re.search(rf"║Time Units *│ *{ts.time_units}║", s)
-        for table in ts.tables.table_name_map:
-            assert re.search(rf"║{table.capitalize()} *│", s)
+        codecs = collections.defaultdict(int)
+        for table_name, table in ts.tables.table_name_map.items():
+            assert re.search(rf"║{table_name.capitalize()} *│", s)
+            if hasattr(table, "metadata_schema"):
+                schema = table.metadata_schema.schema
+                codec = schema["codec"] if schema else "raw"
+                codecs[codec] += 1
+        num_tables_with_metadata = 0
+        for codec, count in codecs.items():
+            assert s.count(codec) == count
+            num_tables_with_metadata += count
+        # Only one table (provenances) has no metadata
+        assert num_tables_with_metadata == len(ts.tables.table_name_map) - 1
+        # All metadata tables should show the percentage metadata size
+        assert s.count("%)") == num_tables_with_metadata
 
     @pytest.mark.skip("FIXME nbytes")
     def test_nbytes(self, tmp_path, ts_fixture):

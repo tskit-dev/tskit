@@ -4476,7 +4476,7 @@ class TreeSequence:
             ["Sample Nodes", util.format_number(self.num_samples, sep=",")],
             ["Total Size", util.naturalsize(self.nbytes)],
         ]
-        header = ["Table", "Rows", "Size", "Has Metadata"]
+        header = ["Table", "Rows", "Size", "Metadata", "Metadata size"]
         table_rows = []
         for name, table in self.tables.table_name_map.items():
             table_rows.append(
@@ -4484,11 +4484,8 @@ class TreeSequence:
                     name.capitalize(),
                     f"{util.format_number(table.num_rows, sep=',')}",
                     util.naturalsize(table.nbytes),
-                    (
-                        "Yes"
-                        if hasattr(table, "metadata") and len(table.metadata) > 0
-                        else "No"
-                    ),
+                    util.metadata_codec(table),
+                    util.metadata_size(table),
                 ]
             )
         return util.unicode_table(ts_rows, title="TreeSequence") + util.unicode_table(
