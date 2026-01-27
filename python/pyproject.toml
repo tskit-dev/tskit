@@ -10,7 +10,7 @@ authors = [
 ]
 description = "The tree sequence toolkit."
 readme = "README.rst"
-license = {text = "MIT"}
+license = "MIT"
 classifiers = [
     "Programming Language :: C",
     "Programming Language :: Python",
@@ -23,7 +23,6 @@ classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Other Environment",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: POSIX",
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows",
