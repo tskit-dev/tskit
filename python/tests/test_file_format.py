@@ -261,12 +261,12 @@ class TestLoadLegacyExamples(TestFileFormat):
 
             with pytest.raises(
                 exceptions.FileFormatError,
-                match="appears to be in HDF5 format",
+                match=f"{filename}.*appears to be in HDF5 format",
             ):
                 tskit.load(path)
             with pytest.raises(
                 exceptions.FileFormatError,
-                match="appears to be in HDF5 format",
+                match=f"{filename}.*appears to be in HDF5 format",
             ):
                 tskit.TableCollection.load(path)
 
@@ -284,9 +284,15 @@ class TestErrors(TestFileFormat):
     def test_tszip_file(self):
         ts = msprime.simulate(5)
         tszip.compress(ts, self.temp_file)
-        with pytest.raises(tskit.FileFormatError, match="appears to be in zip format"):
+        with pytest.raises(
+            tskit.FileFormatError,
+            match=f"{self.temp_file}.*appears to be in zip format",
+        ):
             tskit.load(self.temp_file)
-        with pytest.raises(tskit.FileFormatError, match="appears to be in zip format"):
+        with pytest.raises(
+            tskit.FileFormatError,
+            match=f"{self.temp_file}.*appears to be in zip format",
+        ):
             tskit.TableCollection.load(self.temp_file)
 
 
@@ -897,7 +903,10 @@ class TestFileFormatErrors(TestFileFormat):
                 data = dict(store)
             data["format/name"] = np.array(bytearray(bad_name.encode()), dtype=np.int8)
             kastore.dump(data, self.temp_file)
-            with pytest.raises(exceptions.FileFormatError):
+            with pytest.raises(
+                exceptions.FileFormatError,
+                match=f"While trying to load {self.temp_file}",
+            ):
                 tskit.load(self.temp_file)
 
     def test_load_bad_formats(self):
@@ -908,12 +917,16 @@ class TestFileFormatErrors(TestFileFormat):
         # Now some ascii text
         with open(self.temp_file, "wb") as f:
             f.write(b"Some ASCII text")
-        with pytest.raises(exceptions.FileFormatError):
+        with pytest.raises(
+            exceptions.FileFormatError, match=f"While trying to load {self.temp_file}"
+        ):
             tskit.load(self.temp_file)
         # Now write 8k of random bytes
         with open(self.temp_file, "wb") as f:
             f.write(os.urandom(8192))
-        with pytest.raises(exceptions.FileFormatError):
+        with pytest.raises(
+            exceptions.FileFormatError, match=f"While trying to load {self.temp_file}"
+        ):
             tskit.load(self.temp_file)
 
     def test_load_bad_formats_fileobj(self):
@@ -925,7 +938,9 @@ class TestFileFormatErrors(TestFileFormat):
             load()
         with open(self.temp_file, "wb") as f:
             f.write(b"Some ASCII text")
-        with pytest.raises(exceptions.FileFormatError):
+        with pytest.raises(
+            exceptions.FileFormatError, match=f"While trying to load {self.temp_file}"
+        ):
             load()
 
 

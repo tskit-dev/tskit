@@ -7,3 +7,6 @@ python/benchmark/*.html
 .env
 .vscode
 env
+# pixi environments
+.pixi/*
+!.pixi/config.toml
