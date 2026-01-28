@@ -25,6 +25,7 @@
 #include "testlib.h"
 #include <tskit/core.h>
 #include <math.h>
+#include <string.h>
 
 #include <unistd.h>
 
@@ -80,6 +81,161 @@ test_generate_uuid(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL_FATAL(strlen(other_uuid), uuid_size);
     CU_ASSERT_STRING_NOT_EQUAL(uuid, other_uuid);
+}
+
+static void
+set_u64_le(uint8_t *dest, uint64_t value)
+{
+    dest[0] = (uint8_t)(value & 0xFF);
+    dest[1] = (uint8_t)((value >> 8) & 0xFF);
+    dest[2] = (uint8_t)((value >> 16) & 0xFF);
+    dest[3] = (uint8_t)((value >> 24) & 0xFF);
+    dest[4] = (uint8_t)((value >> 32) & 0xFF);
+    dest[5] = (uint8_t)((value >> 40) & 0xFF);
+    dest[6] = (uint8_t)((value >> 48) & 0xFF);
+    dest[7] = (uint8_t)((value >> 56) & 0xFF);
+}
+
+static void
+test_json_struct_metadata_get_blob(void)
+{
+    int ret;
+    char metadata[128];
+    const char *json;
+    tsk_size_t json_buffer_length;
+    const uint8_t *blob;
+    tsk_size_t blob_length;
+    uint8_t *bytes;
+    tsk_size_t metadata_length;
+    size_t header_length;
+    size_t json_length;
+    size_t payload_length;
+    size_t total_length;
+    const char json_payload[] = "{\"a\":1}";
+    const uint8_t binary_payload[] = { 0x01, 0x02, 0x03, 0x04 };
+    const uint8_t empty_payload[] = { 0 };
+
+    bytes = (uint8_t *) metadata;
+    header_length = 4 + 1 + 8 + 8;
+    json_length = strlen(json_payload);
+    payload_length = sizeof(binary_payload);
+    total_length = header_length + json_length + payload_length;
+    CU_ASSERT_FATAL(total_length <= sizeof(metadata));
+    memset(metadata, 0, sizeof(metadata));
+    bytes[0] = 'J';
+    bytes[1] = 'B';
+    bytes[2] = 'L';
+    bytes[3] = 'B';
+    bytes[4] = 1;
+    set_u64_le(bytes + 5, (uint64_t) json_length);
+    set_u64_le(bytes + 13, (uint64_t) payload_length);
+    memcpy(bytes + header_length, json_payload, json_length);
+    memcpy(bytes + header_length + json_length, binary_payload, payload_length);
+    metadata_length = (tsk_size_t) total_length;
+    ret = tsk_json_struct_metadata_get_blob(
+        metadata, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
+    CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_PTR_EQUAL(json, (const char *) bytes + header_length);
+    CU_ASSERT_EQUAL(json_buffer_length, (tsk_size_t) json_length);
+    if (json_length > 0) {
+        CU_ASSERT_EQUAL(memcmp(json, json_payload, json_length), 0);
+    }
+    CU_ASSERT_PTR_EQUAL(blob, bytes + header_length + json_length);
+    CU_ASSERT_EQUAL(blob_length, (tsk_size_t) payload_length);
+    CU_ASSERT_EQUAL(memcmp(blob, binary_payload, payload_length), 0);
+
+    payload_length = 0;
+    total_length = header_length + json_length + payload_length;
+    CU_ASSERT_FATAL(total_length <= sizeof(metadata));
+    set_u64_le(bytes + 13, (uint64_t) payload_length);
+    metadata_length = (tsk_size_t) total_length;
+    ret = tsk_json_struct_metadata_get_blob(
+        metadata, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
+    CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_PTR_EQUAL(json, (const char *) bytes + header_length);
+    CU_ASSERT_EQUAL(json_buffer_length, (tsk_size_t) json_length);
+    CU_ASSERT_EQUAL(blob_length, (tsk_size_t) payload_length);
+    CU_ASSERT_PTR_EQUAL(blob, bytes + header_length + json_length);
+
+    json_length = 0;
+    payload_length = sizeof(empty_payload);
+    total_length = header_length + json_length + payload_length;
+    CU_ASSERT_FATAL(total_length <= sizeof(metadata));
+    set_u64_le(bytes + 5, (uint64_t) json_length);
+    set_u64_le(bytes + 13, (uint64_t) payload_length);
+    memcpy(bytes + header_length + json_length, empty_payload, payload_length);
+    metadata_length = (tsk_size_t) total_length;
+    ret = tsk_json_struct_metadata_get_blob(
+        metadata, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
+    CU_ASSERT_EQUAL(ret, 0);
+    CU_ASSERT_PTR_EQUAL(json, (const char *) bytes + header_length);
+    CU_ASSERT_EQUAL(json_buffer_length, (tsk_size_t) json_length);
+    CU_ASSERT_EQUAL(blob_length, (tsk_size_t) payload_length);
+    CU_ASSERT_PTR_EQUAL(blob, bytes + header_length + json_length);
+    CU_ASSERT_EQUAL(memcmp(blob, empty_payload, payload_length), 0);
+
+    blob = NULL;
+    blob_length = 0;
+    json = NULL;
+    json_buffer_length = 0;
+    metadata_length = header_length - 1;
+    ret = tsk_json_struct_metadata_get_blob(
+        metadata, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_FILE_FORMAT);
+
+    metadata_length = (tsk_size_t) total_length;
+    bytes[0] = 'X';
+    ret = tsk_json_struct_metadata_get_blob(
+        metadata, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_FILE_FORMAT);
+    bytes[0] = 'J';
+
+    bytes[4] = 2;
+    ret = tsk_json_struct_metadata_get_blob(
+        metadata, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_FILE_VERSION_TOO_NEW);
+    bytes[4] = 1;
+
+    metadata_length = (tsk_size_t)(total_length - 1);
+    ret = tsk_json_struct_metadata_get_blob(
+        metadata, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_FILE_FORMAT);
+
+    ret = tsk_json_struct_metadata_get_blob(
+        NULL, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_json_struct_metadata_get_blob(
+        metadata, metadata_length, NULL, &json_buffer_length, &blob, &blob_length);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_json_struct_metadata_get_blob(
+        metadata, metadata_length, &json, NULL, &blob, &blob_length);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_json_struct_metadata_get_blob(
+        metadata, metadata_length, &json, &json_buffer_length, NULL, &blob_length);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+    ret = tsk_json_struct_metadata_get_blob(
+        metadata, metadata_length, &json, &json_buffer_length, &blob, NULL);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_BAD_PARAM_VALUE);
+
+    memset(metadata, 0, sizeof(metadata));
+    bytes[0] = 'J';
+    bytes[1] = 'B';
+    bytes[2] = 'L';
+    bytes[3] = 'B';
+    bytes[4] = 1;
+    metadata_length = (tsk_size_t) header_length;
+
+    set_u64_le(bytes + 5, UINT64_MAX - (uint64_t) header_length + 1);
+    set_u64_le(bytes + 13, 0);
+    ret = tsk_json_struct_metadata_get_blob(
+        metadata, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_FILE_FORMAT);
+
+    set_u64_le(bytes + 5, 8);
+    set_u64_le(bytes + 13, UINT64_MAX - (uint64_t)(header_length + 8) + 1);
+    ret = tsk_json_struct_metadata_get_blob(
+        metadata, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_FILE_FORMAT);
 }
 
 static void
@@ -652,6 +808,7 @@ main(int argc, char **argv)
         { "test_strerror", test_strerror },
         { "test_strerror_kastore", test_strerror_kastore },
         { "test_generate_uuid", test_generate_uuid },
+        { "test_json_struct_metadata_get_blob", test_json_struct_metadata_get_blob },
         { "test_double_round", test_double_round },
         { "test_blkalloc", test_blkalloc },
         { "test_unknown_time", test_unknown_time },
