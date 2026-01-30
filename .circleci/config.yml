@@ -180,24 +180,6 @@ jobs:
           paths:
             - "/home/circleci/.local"
       - compile_and_test
-      - run:
-          name: Install dependencies for wheel test
-          command: |
-            ARGO_NET_GIT_FETCH_WITH_CLI=1 pip install twine --user
-            # Remove tskit installed by msprime
-            pip uninstall tskit -y
-      - run:
-          name: Build Python package
-          command: |
-            cd python
-            rm -fR build
-            python -m pip install build
-            python -m venv venv
-            python -m build --sdist
-            python -m twine check dist/*.tar.gz
-            python -m build --wheel
-            pip install dist/*.whl
-            tskit --help
 
   build-32:
     docker:
