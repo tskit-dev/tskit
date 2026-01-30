@@ -8,10 +8,18 @@ on:
 
 env:
   FORCE_COLOR: 1
+
 jobs:
   pre-commit:
     name: Lint
-    uses: tskit-dev/.github/.github/workflows/lint.yml@v2
+    uses: tskit-dev/.github/.github/workflows/lint.yml@v4
+
+  packaging:
+    name: Python packaging
+    uses: tskit-dev/.github/.github/workflows/python-packaging.yml@v4
+    with:
+      working-directory: python
+      cli-test-cmd: tskit --help
 
   test:
     name: Python
@@ -53,7 +61,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           version: "0.8.15"
-      
+
       - name: Install dependencies
         working-directory: python
         run: |
