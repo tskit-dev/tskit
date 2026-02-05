@@ -8,6 +8,10 @@
   ID is e.g. a population name, rather than silently returning no samples.
   (:user:`hyanwong`, :pr:`3344`)
 
+**Maintenance**
+
+- Add support for Python 3.14
+
 --------------------
 [1.0.0] - 2025-11-27
 --------------------
@@ -22,7 +26,7 @@
 - ``TreeSequence.tables`` now returns a zero-copy immutable view of the tables.
   To get a mutable copy, use ``TreeSequence.dump_tables()``.
   (:user:`benjeffery`, :pr:`3288`, :issue:`760`)
-  
+
 - For a tree sequence to be valid, the mutation parents in the table collection
   must be correct and consistent with the topology of the tree at each mutation site.
   ``TableCollection.tree_sequence()`` will raise a ``_tskit.LibraryError`` if this
@@ -146,7 +150,7 @@
   (:user:`hyanwong`, :pr:`3165`, :issue:`3164`)
 
 - Add ``TreeSequence.map_to_vcf_model`` method to return a mapping of
-  the tree sequence to the VCF model. 
+  the tree sequence to the VCF model.
   (:user:`benjeffery`, :pr:`3163`)
 
 - Use a thin space as the thousands separator in HTML output,
@@ -157,14 +161,14 @@
 
 - Correct assertion message when tables are compared with metadata ignored.
   (:user:`benjeffery`, :pr:`3162`, :issue:`3161`)
-  
-**Breaking changes** 
+
+**Breaking changes**
 
 - ``TreeSequence.write_vcf`` now filters non-sample nodes from individuals
   by default, instead of raising an error. These nodes can be included using the
-  new ``include_non_sample_nodes`` argument. 
+  new ``include_non_sample_nodes`` argument.
   By default individual names (sample IDs) in VCF output are now of the form
-  ``tsk_{individual.id}`` Previously these were always 
+  ``tsk_{individual.id}`` Previously these were always
   ``"tsk_{j}" for j in range(num_individuals)``. This may break some downstream
   code if individuals are specified. To fix, manually specify ``individual_names``
   to the required pattern.
