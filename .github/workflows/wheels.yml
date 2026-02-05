@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", 3.11, 3.12, 3.13]
+        python: ["3.10", 3.11, 3.12, 3.13, 3.14]
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -51,7 +51,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", 3.11, 3.12, 3.13]
+        python: ["3.10", 3.11, 3.12, 3.13, 3.14]
         wordsize: [64]
     steps:
       - name: Checkout
@@ -125,7 +125,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", 3.11, 3.12, 3.13]
+        python: ["3.10", 3.11, 3.12, 3.13, 3.14]
         runner: [macos-15, macos-15-intel]
         include:
           - runner: macos-15
@@ -163,7 +163,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", 3.11, 3.12, 3.13]
+        python: ["3.10", 3.11, 3.12, 3.13, 3.14]
         wordsize: [64]
     steps:
       - name: Download wheels
@@ -188,7 +188,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", 3.11, 3.12, 3.13]
+        python: ["3.10", 3.11, 3.12, 3.13, 3.14]
         include:
           - python: "3.10"
             wheel: cp310
@@ -198,6 +198,8 @@ jobs:
             wheel: cp312
           - python: 3.13
             wheel: cp313
+          - python: 3.14
+            wheel: cp314
     steps:
       - name: Download wheels
         uses: actions/download-artifact@v7.0.0
