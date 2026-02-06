@@ -336,13 +336,13 @@ on GitHub, and help us fix any, or add issues for anything that's wrong or missi
 If you see a typo or some other small problem that you'd like to fix,
 this is most easily done through the GitHub UI.
 
-Mouse over the GitHub icon at the top right of the page and 
-click on the "Suggest edit" button. This will bring you to a web 
+Mouse over the GitHub icon at the top right of the page and
+click on the "Suggest edit" button. This will bring you to a web
 editor on GitHub for the source file in question, allowing you to
 quickly fix the typo and submit a pull request with the changes.
-Fix the typo, click the "Commit changes", add a commit message like 
-"Fixed typo" and click on the green "Propose file change" button. 
-Then follow the dialogues until you've created a new pull request 
+Fix the typo, click the "Commit changes", add a commit message like
+"Fixed typo" and click on the green "Propose file change" button.
+Then follow the dialogues until you've created a new pull request
 with your changes, so that we can incorporate them.
 
 If the change you'd like to make is in the API documentation
@@ -766,7 +766,7 @@ Generate coverage data:
    $ find ../tskit/*.c -type f -printf "%f\n" | xargs -i gcov -pb libtskit.a.p/tskit_{}.gcno ../tskit/{}
    ```
 
-The generated `.gcov` files can then be viewed directly with `cat filename.c.gcov`. 
+The generated `.gcov` files can then be viewed directly with `cat filename.c.gcov`.
 Lines prefixed with `#####` were never executed, lines with numbers show execution counts, and lines with `-` are non-executable code.
 
 `lcov` can be used to create browsable HTML coverage reports:
@@ -1156,7 +1156,7 @@ shown in the header of the report.
 
 ### Adding a new benchmark
 
-The benchmarks are specified by the `config.yaml` file in `python/benchmark`. To add a new benchmark 
+The benchmarks are specified by the `config.yaml` file in `python/benchmark`. To add a new benchmark
 add an entry to the `benchmarks` dictionary. For example:
 
 ```yaml
@@ -1173,7 +1173,23 @@ add an entry to the `benchmarks` dictionary. For example:
 Strings are interpreted as Python f-strings, so you can use the `parameters` dictionary to provide
 values that will be interpolated into both the `setup` and `code` strings.
 
-The suite can be run for all released versions with the `run-for-all-releases.py` script. 
+The suite can be run for all released versions with the `run-for-all-releases.py` script.
+
+## Python version support
+
+:::{todo}
+Document Python version support policy (see
+[issue #3381](https://github.com/tskit-dev/tskit/issues/3381))
+:::
+
+To add or remove support for a given Python version we need to update
+the following files:
+
+- Update the ``.github/workflows/tests.yml`` workflow. We run two Python
+  versions for CI (oldest and newest).
+- Update the ``.github/workflows/wheels.yml`` workflow.
+- Update the ``.github/workflows/docker/shared.env`` file.
+- Update the ``python/pyproject.toml`` file
 
 ## Releasing a new version
 
@@ -1213,7 +1229,13 @@ e.g. 1.0.0b1. Update the Python CHANGELOG.rst, ensuring that all significant
 changes since the last release have been listed. Comparing
 `git log --follow --oneline -- python`
 with `git log --follow --oneline -- python/CHANGELOG.rst` may help here.
-Once this PR is merged, push a tag to github:
+
+Once this PR is merged, the release is ready. This can be done in one of
+two ways.
+
+#### Manual tagging via git
+
+To do this push a tag to github:
 
 ```bash
 git tag -a MAJOR.MINOR.PATCH -m "Python version MAJOR.MINOR.PATCH"
@@ -1227,6 +1249,19 @@ the release looks good there, then publish the draft release on the
 [releases page](https://github.com/tskit-dev/tskit/releases) (Click on the little pencil).
 Publishing this release will cause the github
 action to deploy to the [production PyPI](https://pypi.org/project/tskit/).
+
+#### Automatic tagging via GitHub UI
+
+Once the repo is in a ready state to tag, it is also possible to create the
+release directly in the GitHub UI. Click on the "Draft new release" button on
+the "releases" page, and update the release notes based on the changelog. Then
+set the tag number appropriately (create tag on release) and create the release.
+This will trigger the wheel build and should result in the artefacts being
+uploaded to PyPI. It is a good idea to go the "actions" tab to check that
+this completes and uploads.
+
+#### Post release
+
 After release, start a section in the changelog for new developments, close the
 GitHub issue milestone of the release and update the python version to a `.dev`.
 For a major release the website (github repo tskit-dev/tskit-site) should then
