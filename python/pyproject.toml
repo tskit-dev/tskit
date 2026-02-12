@@ -15,7 +15,6 @@ classifiers = [
     "Programming Language :: C",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -39,7 +38,7 @@ keywords = [
     "phylogenetics",
     "tskit",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "jsonschema>=3.0.0",
     "numpy>=2",
@@ -63,36 +62,36 @@ version = {attr = "tskit._version.tskit_version"}
 
 [project.optional-dependencies]
 test = [
-    "biopython==1.85",
-    "coverage==7.7.0", 
-    "dendropy==5.0.1",
-    "kastore==0.3.3",
-    "lshmm==0.0.8",
-    "msgpack==1.1.0",
-    "msprime==1.4.0",
-    "networkx==3.2.1",
-    "numba==0.63.1",
-    "portion==2.6.0",
-    "pytest==8.3.5",
-    "pytest-cov==6.0.0",
-    "pytest-xdist==3.6.1",
-    "tszip==0.2.5",
-    "xmlunittest==1.0.1",
-    "svgwrite==1.4.3",
-    "newick==1.10.0",
+    "biopython",
+    "coverage",
+    "dendropy",
+    "kastore",
+    "lshmm",
+    "msgpack",
+    "msprime",
+    "networkx",
+    "numba",
+    "portion",
+    "pytest",
+    "pytest-cov",
+    "pytest-xdist",
+    "tszip",
+    "xmlunittest",
+    "svgwrite",
+    "newick",
     "zarr<3",
 ]
 
 docs = [
-    "jupyter-book==1.0.4.post1",
-    "breathe==4.35.0",
-    "sphinx-autodoc-typehints==2.3.0",
-    "sphinx-issues==5.0.0",
-    "sphinx-argparse==0.5.2",
-    "msprime==1.4.0",
-    "numba==0.63.1",
+    "jupyter-book<2",
+    "breathe",
+    "sphinx-autodoc-typehints",
+    "sphinx-issues",
+    "sphinx-argparse",
+    "msprime",
+    "numba",
     "sphinx-book-theme",
-    "pandas==2.2.3",
+    "pandas",
 ]
 
 dev = [
