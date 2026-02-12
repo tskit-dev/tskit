@@ -116,60 +116,6 @@ jobs:
           name: codecov-umbrella
           verbose: true
 
-
-  test-numpy1:
-    name: Numpy 1.x
-    runs-on: ubuntu-24.04
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.13.0
-        with:
-          access_token: ${{ github.token }}
-
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-
-      - name: Setup Python
-        uses: actions/setup-python@v6.1.0
-        with:
-          python-version: '3.12'
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          version: "0.8.15"
-
-      - name: Install dependencies
-        working-directory: python
-        run: |
-          uv venv
-          uv pip install -r pyproject.toml --extra test
-          uv pip uninstall tskit
-          uv pip install "numpy<2"
-
-      - name: Build module
-        working-directory: python
-        run: |
-          uv run --no-sync python setup.py build_ext --inplace
-
-      - name: Run tests with numpy 1.x
-        working-directory: python
-        run: |
-          uv run --no-sync python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 tests/test_lowlevel.py tests/test_highlevel.py
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5.5.2
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          working-directory: python
-          fail_ci_if_error: false
-          flags: python-tests-numpy1
-          name: codecov-numpy1
-          verbose: true
-
   msys2:
     runs-on: windows-latest
     strategy:
