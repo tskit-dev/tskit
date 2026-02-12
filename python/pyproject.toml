@@ -60,7 +60,7 @@ packages = ["tskit", "tskit.jit"]
 [tool.setuptools.dynamic]
 version = {attr = "tskit._version.tskit_version"}
 
-[project.optional-dependencies]
+[dependency-groups]
 test = [
     "biopython",
     "coverage",
