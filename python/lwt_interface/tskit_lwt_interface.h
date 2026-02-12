@@ -189,7 +189,7 @@ table_read_offset_array(
         }
         *num_rows -= 1;
     }
-    if (shape[0] != (npy_intp)(*num_rows + 1)) {
+    if (shape[0] != (npy_intp) (*num_rows + 1)) {
         PyErr_SetString(PyExc_ValueError, "offset columns must have n + 1 rows.");
         goto out;
     }
@@ -1730,7 +1730,7 @@ write_table_dict(const tsklwt_table_desc_t *table_desc, bool force_offset_64)
     }
     if (table_desc->ragged_cols != NULL) {
         for (ragged_col = table_desc->ragged_cols; ragged_col->name != NULL;
-             ragged_col++) {
+            ragged_col++) {
             if (write_ragged_col(ragged_col, table_dict, force_offset_64) != 0) {
                 goto out;
             }

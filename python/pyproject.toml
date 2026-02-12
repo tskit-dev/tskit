@@ -69,7 +69,7 @@ test = [
     "kastore==0.3.3",
     "lshmm==0.0.8",
     "msgpack==1.1.0",
-    "msprime==1.4.0b2",
+    "msprime==1.4.0",
     "networkx==3.2.1",
     "numba==0.63.1",
     "portion==2.6.0",
@@ -89,7 +89,7 @@ docs = [
     "sphinx-autodoc-typehints==2.3.0",
     "sphinx-issues==5.0.0",
     "sphinx-argparse==0.5.2",
-    "msprime==1.4.0b2",
+    "msprime==1.4.0",
     "numba==0.63.1",
     "sphinx-book-theme",
     "pandas==2.2.3",
@@ -125,6 +125,7 @@ dev = [
     "sphinx-argparse",
     "sphinx-book-theme",
     "pandas",
+    "clang-format==21.1.8",
 ]
 
 [tool.pytest.ini_options]

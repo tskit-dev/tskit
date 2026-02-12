@@ -6210,7 +6210,7 @@ TreeSequence_decode_alignments(TreeSequence *self, PyObject *args, PyObject *kwd
     nodes = PyArray_DATA(nodes_array);
 
     buf_obj = PyBytes_FromStringAndSize(
-        NULL, (Py_ssize_t)(num_nodes * (tsk_size_t)(right - left)));
+        NULL, (Py_ssize_t) (num_nodes * (tsk_size_t) (right - left)));
     if (buf_obj == NULL) {
         goto out;
     }

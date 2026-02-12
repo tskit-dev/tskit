@@ -864,7 +864,7 @@ test_table_collection_metadata(void)
     takeset_metadata = tsk_malloc(example_metadata_length * sizeof(char));
     CU_ASSERT_FATAL(takeset_metadata != NULL);
     memcpy(takeset_metadata, &example_metadata,
-        (size_t)(example_metadata_length * sizeof(char)));
+        (size_t) (example_metadata_length * sizeof(char)));
 
     ret = tsk_table_collection_init(&tc1, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
@@ -982,7 +982,7 @@ test_node_table(void)
         CU_ASSERT_EQUAL(table.individual[j], j);
         CU_ASSERT_EQUAL(table.num_rows, (tsk_size_t) j + 1);
         CU_ASSERT_EQUAL(
-            table.metadata_length, (tsk_size_t)(j + 1) * test_metadata_length);
+            table.metadata_length, (tsk_size_t) (j + 1) * test_metadata_length);
         CU_ASSERT_EQUAL(table.metadata_offset[j + 1], table.metadata_length);
         /* check the metadata */
         tsk_memcpy(metadata_copy, table.metadata + table.metadata_offset[j],
@@ -1641,7 +1641,7 @@ test_edge_table_with_options(tsk_flags_t options)
             CU_ASSERT_EQUAL(table.metadata_offset, NULL);
         } else {
             CU_ASSERT_EQUAL(
-                table.metadata_length, (tsk_size_t)(j + 1) * test_metadata_length);
+                table.metadata_length, (tsk_size_t) (j + 1) * test_metadata_length);
             CU_ASSERT_EQUAL(table.metadata_offset[j + 1], table.metadata_length);
             /* check the metadata */
             tsk_memcpy(metadata_copy, table.metadata + table.metadata_offset[j],
@@ -4274,7 +4274,7 @@ test_migration_table(void)
         CU_ASSERT_EQUAL(table.time[j], j);
         CU_ASSERT_EQUAL(table.num_rows, (tsk_size_t) j + 1);
         CU_ASSERT_EQUAL(
-            table.metadata_length, (tsk_size_t)(j + 1) * test_metadata_length);
+            table.metadata_length, (tsk_size_t) (j + 1) * test_metadata_length);
         CU_ASSERT_EQUAL(table.metadata_offset[j + 1], table.metadata_length);
         /* check the metadata */
         tsk_memcpy(metadata_copy, table.metadata + table.metadata_offset[j],
@@ -4995,7 +4995,7 @@ test_individual_table(void)
                 table.location[spatial_dimension * (size_t) j + k], test_location[k]);
         }
         CU_ASSERT_EQUAL(
-            table.metadata_length, (tsk_size_t)(j + 1) * test_metadata_length);
+            table.metadata_length, (tsk_size_t) (j + 1) * test_metadata_length);
         CU_ASSERT_EQUAL(table.metadata_offset[j + 1], table.metadata_length);
         /* check the metadata */
         tsk_memcpy(metadata_copy, table.metadata + table.metadata_offset[j],
@@ -5049,7 +5049,7 @@ test_individual_table(void)
     flags = tsk_malloc(num_rows * sizeof(tsk_flags_t));
     CU_ASSERT_FATAL(flags != NULL);
     for (k = 0; k < num_rows; k++) {
-        flags[k] = (tsk_flags_t)(k + num_rows);
+        flags[k] = (tsk_flags_t) (k + num_rows);
     }
     location = tsk_malloc(spatial_dimension * num_rows * sizeof(double));
     CU_ASSERT_FATAL(location != NULL);
@@ -5064,7 +5064,7 @@ test_individual_table(void)
     parents = tsk_malloc(num_parents * num_rows * sizeof(tsk_id_t));
     CU_ASSERT_FATAL(parents != NULL);
     for (k = 0; k < num_parents * num_rows; k++) {
-        parents[k] = (tsk_id_t)(k + (num_rows * 4));
+        parents[k] = (tsk_id_t) (k + (num_rows * 4));
     }
     parents_offset = tsk_malloc((num_rows + 1) * sizeof(tsk_size_t));
     CU_ASSERT_FATAL(parents_offset != NULL);
@@ -11805,9 +11805,9 @@ test_table_collection_takeset_indexes(void)
     rem = tsk_malloc(t1.edges.num_rows * sizeof(*rem));
     CU_ASSERT_FATAL(rem != NULL);
     memcpy(ins, t1.indexes.edge_insertion_order,
-        (size_t)(t1.edges.num_rows * sizeof(*ins)));
+        (size_t) (t1.edges.num_rows * sizeof(*ins)));
     memcpy(
-        rem, t1.indexes.edge_removal_order, (size_t)(t1.edges.num_rows * sizeof(*rem)));
+        rem, t1.indexes.edge_removal_order, (size_t) (t1.edges.num_rows * sizeof(*rem)));
 
     ret = tsk_table_collection_copy(&t1, &t2, 0);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
