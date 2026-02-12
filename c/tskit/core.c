@@ -883,8 +883,8 @@ tsk_search_sorted(const double *restrict array, tsk_size_t size, double value)
             upper = mid;
         }
     }
-    offset = (int64_t)(array[lower] < value);
-    return (tsk_size_t)(lower + offset);
+    offset = (int64_t) (array[lower] < value);
+    return (tsk_size_t) (lower + offset);
 }
 
 /* Rounds the specified double to the closest multiple of 10**-num_digits. If

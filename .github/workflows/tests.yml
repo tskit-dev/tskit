@@ -12,7 +12,9 @@ env:
 jobs:
   pre-commit:
     name: Lint
-    uses: tskit-dev/.github/.github/workflows/lint.yml@v4
+    uses: tskit-dev/.github/.github/workflows/lint.yml@v5
+    with:
+      clang-format-version: 21.1.8
 
   packaging:
     name: Python packaging

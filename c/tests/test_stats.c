@@ -349,7 +349,7 @@ verify_pair_coalescence_counts(tsk_treeseq_t *ts, tsk_flags_t options)
 
     /* test various bin assignments */
     for (i = 0; i < N; i++) {
-        node_bin_map[i] = ((tsk_id_t)(i % B));
+        node_bin_map[i] = ((tsk_id_t) (i % B));
     }
     ret = tsk_treeseq_pair_coalescence_counts(ts, P, sample_set_sizes, sample_sets, I,
         index_tuples, T, breakpoints, B, node_bin_map, options, C_B);
@@ -439,7 +439,7 @@ verify_pair_coalescence_quantiles(tsk_treeseq_t *ts)
 
     for (i = 0; i < N; i++) {
         node_bin_map_empty[i] = TSK_NULL;
-        node_bin_map_shuff[i] = (tsk_id_t)(i % B);
+        node_bin_map_shuff[i] = (tsk_id_t) (i % B);
         for (j = 0; j < B; j++) {
             if (nodes_time[i] >= epochs[j] && nodes_time[i] < epochs[j + 1]) {
                 node_bin_map[i] = (tsk_id_t) j;
@@ -612,7 +612,7 @@ verify_pair_coalescence_rates(tsk_treeseq_t *ts)
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_BIN_MAP_DIM);
     node_bin_map[0] = 0;
 
-    node_bin_map[0] = (tsk_id_t)(B - 1);
+    node_bin_map[0] = (tsk_id_t) (B - 1);
     ret = tsk_treeseq_pair_coalescence_rates(ts, P, sample_set_sizes, sample_sets, I,
         index_tuples, T, breakpoints, B, node_bin_map, epochs, 0, C);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_NODE_TIME_WINDOW);
@@ -3154,14 +3154,14 @@ test_two_site_correlated_multiallelic(void)
     num_sample_sets = 2;
     tsk_memset(result, 0, sizeof(*result) * result_size);
     ret = tsk_treeseq_r2_ij(&ts, num_sample_sets, sample_set_sizes, sample_sets, 1,
-        (tsk_id_t[2]){ 0, 0 }, num_sites, sites, NULL, num_sites, sites, NULL, 0,
+        (tsk_id_t[2]) { 0, 0 }, num_sites, sites, NULL, num_sites, sites, NULL, 0,
         result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     assert_arrays_almost_equal(result_size, result, truth_r2);
 
     tsk_memset(result, 0, sizeof(*result) * result_size);
     ret = tsk_treeseq_D2_ij(&ts, num_sample_sets, sample_set_sizes, sample_sets, 1,
-        (tsk_id_t[2]){ 0, 0 }, num_sites, sites, NULL, num_sites, sites, NULL, 0,
+        (tsk_id_t[2]) { 0, 0 }, num_sites, sites, NULL, num_sites, sites, NULL, 0,
         result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     assert_arrays_almost_equal(result_size, result, truth_D2);
@@ -3170,7 +3170,7 @@ test_two_site_correlated_multiallelic(void)
     // population case
     tsk_memset(result, 0, sizeof(*result) * result_size);
     ret = tsk_treeseq_D2_ij_unbiased(&ts, num_sample_sets, sample_set_sizes, sample_sets,
-        1, (tsk_id_t[2]){ 0, 0 }, num_sites, sites, NULL, num_sites, sites, NULL, 0,
+        1, (tsk_id_t[2]) { 0, 0 }, num_sites, sites, NULL, num_sites, sites, NULL, 0,
         result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     assert_arrays_almost_equal(result_size, result, truth_D2_unbiased);
@@ -3180,7 +3180,7 @@ test_two_site_correlated_multiallelic(void)
     sample_set_sizes[1] = 4;
     tsk_memset(result, 0, sizeof(*result) * result_size);
     ret = tsk_treeseq_D2_ij_unbiased(&ts, num_sample_sets, sample_set_sizes, sample_sets,
-        1, (tsk_id_t[2]){ 0, 1 }, num_sites, sites, NULL, num_sites, sites, NULL, 0,
+        1, (tsk_id_t[2]) { 0, 1 }, num_sites, sites, NULL, num_sites, sites, NULL, 0,
         result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     assert_arrays_almost_equal(result_size, result, truth_D2_unbiased_disjoint);
@@ -3347,14 +3347,14 @@ test_two_site_uncorrelated_multiallelic(void)
     num_sample_sets = 2;
     tsk_memset(result, 0, sizeof(*result) * result_size);
     ret = tsk_treeseq_r2_ij(&ts, num_sample_sets, sample_set_sizes, sample_sets, 1,
-        (tsk_id_t[2]){ 0, 0 }, num_sites, sites, NULL, num_sites, sites, NULL, 0,
+        (tsk_id_t[2]) { 0, 0 }, num_sites, sites, NULL, num_sites, sites, NULL, 0,
         result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     assert_arrays_almost_equal(result_size, result, truth_r2);
 
     tsk_memset(result, 0, sizeof(*result) * result_size);
     ret = tsk_treeseq_D2_ij(&ts, num_sample_sets, sample_set_sizes, sample_sets, 1,
-        (tsk_id_t[2]){ 0, 0 }, num_sites, sites, NULL, num_sites, sites, NULL, 0,
+        (tsk_id_t[2]) { 0, 0 }, num_sites, sites, NULL, num_sites, sites, NULL, 0,
         result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     assert_arrays_almost_equal(result_size, result, truth_D2);
@@ -3363,7 +3363,7 @@ test_two_site_uncorrelated_multiallelic(void)
     // population case
     tsk_memset(result, 0, sizeof(*result) * result_size);
     ret = tsk_treeseq_D2_ij_unbiased(&ts, num_sample_sets, sample_set_sizes, sample_sets,
-        1, (tsk_id_t[2]){ 0, 0 }, num_sites, sites, NULL, num_sites, sites, NULL, 0,
+        1, (tsk_id_t[2]) { 0, 0 }, num_sites, sites, NULL, num_sites, sites, NULL, 0,
         result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     assert_arrays_almost_equal(result_size, result, truth_D2_unbiased);
@@ -3373,7 +3373,7 @@ test_two_site_uncorrelated_multiallelic(void)
     sample_set_sizes[1] = 4;
     tsk_memset(result, 0, sizeof(*result) * result_size);
     ret = tsk_treeseq_D2_ij_unbiased(&ts, num_sample_sets, sample_set_sizes, sample_sets,
-        1, (tsk_id_t[2]){ 0, 1 }, num_sites, sites, NULL, num_sites, sites, NULL, 0,
+        1, (tsk_id_t[2]) { 0, 1 }, num_sites, sites, NULL, num_sites, sites, NULL, 0,
         result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     assert_arrays_almost_equal(result_size, result, truth_D2_unbiased_disjoint);
