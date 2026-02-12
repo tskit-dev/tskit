@@ -29,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: [ "3.10", 3.14 ]
+        python: [ 3.11, 3.14 ]
         os:  [ macos-latest, ubuntu-24.04, windows-latest ]
     defaults:
       run:
@@ -67,27 +67,26 @@ jobs:
       - name: Install dependencies
         working-directory: python
         run: |
-          uv venv
-          uv pip install -r pyproject.toml --extra test
+          uv sync --locked --group test
           # Remove tskit installed as a dep of msprime
           uv pip uninstall tskit
 
       - name: Build module
         working-directory: python
         run: |
-          uv run --no-sync python setup.py build_ext --inplace
+          uv run python setup.py build_ext --inplace
 
       - name: Minidom test
         working-directory: python
         # Importing either IPython or pytest causes import of xml.dom.minidom
         # So to actually test that tskit imports it, we need a minimal test
         run: |
-          uv run --no-sync python -c "import tskit;tskit.Tree.generate_star(5).tree_sequence.draw_svg(path='test.svg')"
+          uv run python -c "import tskit;tskit.Tree.generate_star(5).tree_sequence.draw_svg(path='test.svg')"
 
       - name: Run JIT code coverage
         working-directory: python
         run: |
-          NUMBA_DISABLE_JIT=1 uv run --no-sync python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 tests/test_jit.py
+          NUMBA_DISABLE_JIT=1 uv run pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 tests/test_jit.py
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5.5.2
@@ -102,9 +101,9 @@ jobs:
         working-directory: python
         run: |
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            uv run --no-sync python -m pytest -x --skip-slow --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
+            uv run pytest -x --skip-slow --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
           else
-            uv run --no-sync python -m pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
+            uv run pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
           fi
 
       - name: Upload coverage to Codecov
