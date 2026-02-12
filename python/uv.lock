@@ -2699,7 +2699,7 @@ dev = [
     { name = "svgwrite" },
     { name = "tszip" },
     { name = "xmlunittest" },
-    { name = "zarr", specifier = "<3" },
+    { name = "zarr" },
 ]
 docs = [
     { name = "breathe" },
@@ -2730,7 +2730,7 @@ test = [
     { name = "svgwrite" },
     { name = "tszip" },
     { name = "xmlunittest" },
-    { name = "zarr", specifier = "<3" },
+    { name = "zarr" },
 ]
 
 [[package]]

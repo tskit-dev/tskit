@@ -79,7 +79,7 @@ test = [
     "xmlunittest",
     "svgwrite",
     "newick",
-    "zarr<3",
+    "zarr",
 ]
 
 docs = [
@@ -116,7 +116,7 @@ dev = [
     "tszip",
     "xmlunittest",
     "newick",
-    "zarr<3",
+    "zarr",
     "jupyter-book<2",
     "breathe",
     "sphinx-autodoc-typehints",
