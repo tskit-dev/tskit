@@ -88,6 +88,7 @@ appears beside the listed method.
         * {meth}`~TreeSequence.Fst` (see {ref}`sec_stats_notes_derived`)
 * Multi site
     * {meth}`~LdCalculator` (note this is soon to be deprecated)
+    * {meth}`~TreeSequence.ld_matrix` (see {ref}`sec_stats_two_locus`)
 
 :::{note}
 There is a general framework provided for calculating additional single site
@@ -683,6 +684,7 @@ and boolean expressions (e.g., {math}`(x > 0)`) are interpreted as 0/1.
   {math}`z_j` is the sum of the j-th normalised covariate values below the node,
   and {math}`v_j` is the covariance of the trait with the j-th covariate.
 
+(sec_stats_multi_site)=
 
 ## Multi site statistics
 
@@ -693,6 +695,273 @@ framework which has the same calling conventions as the single site stats,
 we can rework the sections above.
 :::
 
+(sec_stats_two_locus)=
+
+### Two-locus statistics
+
+The {meth}`~TreeSequence.ld_matrix` method provides an interface to a collection
+of two-locus statistics with predefined summary functions (see
+{ref}`sec_stats_two_locus_summary_functions`) and `site` and `branch` {ref}`modes
+<sec_stats_mode>`. This method differs from the other stats methods because it
+provides a collection of statistics, instead of the usual one method per
+stat. Otherwise, it behaves similarly to most other functions with respect to
+`sample_sets` and `indexes`. Site statistics can be computed from multi-allelic
+data, while branch statistics are inherently biallelic. Within this framework,
+we also implement polarisation, but do not expose it to the user, opting to
+provide statistics that are polarised where appropriate.
+
+(sec_stats_two_locus_site)=
+
+#### Site
+
+The `site` mode computes two-locus statistics from pairs of alleles on sites. By
+default, this method will compute a matrix for all pairs of sites, with rows and
+columns representing each site in the tree sequence (ie an n×n matrix where n is
+the number of sites in the tree sequence). We can also restrict the output to a
+subset of sites, either by specifying a single vector for both rows and columns
+or a pair of vectors for the row sites and column sites separately.
+
+The following example produces a matrix containing {math}`r^2` computed pairwise
+between the first 4 sites in the tree sequence (all samples included). In our
+computations, row sites are used as the lefthand locus and column sites are used
+as the righthand locus (though in most cases, the LD matrix will be symmetric).
+
+```{code-cell} ipython3
+ld = ts.ld_matrix(sites=[[0, 1, 2, 3]])
+print(ld)
+```
+
+Here's an example demonstrating how we can specify the row and column sites
+independently of each other. We're specifying 4 columns and 1 row, selecting the
+first row from the matrix shown above.
+```{code-cell} ipython3
+ld = ts.ld_matrix(sites=[[0], [0, 1, 2, 3]])
+print(ld)
+```
+
+Because we implement two-locus statistics for multi-allelic data, we need a
+method for combining the statistical results from each allele into one summary
+for a pair of sites. We have two methods for combining results from multiple
+alleles:
+
+`hap_weighted`
+: {math}`\sum_{i=1}^{n}\sum_{j=1}^{m}p(A_{i}B_{j})f_{ij}`
+
+  where {math}`f_{ij}` is the result of computing the summary function on data
+  from the {math}`i`th row site and the {math}`j`th column site and
+  {math}`p(A_{i}B_{j})` is the frequency of haplotype {math}`A_{i}B_{j}`. This
+  method was first introduced in
+  [Karlin (1981)](https://doi.org/10.1111/j.1469-1809.1981.tb00308.x), and was
+  reviewed in [Zhao (2007)](https://doi.org/10.1017/S0016672307008634).
+
+  This method multiplies each result by the frequency of the haplotype under
+  consideration (the {math}`[i,j]` alleles for a given pair of sites), then sums
+  the results to obtain the statistic for the two focal sites.
+
+`total_weighted`
+: {math}`\frac{1}{(n-\mathbb{1}_{p}) (m-\mathbb{1}_{p})}\sum_{i=1}^{n}\sum_{j=1}^{m}f_{ij}`
+
+  where {math}`\mathbb{1}_{p}` is an indicator function conditioned on whether
+  or not our statistic is polarized, {math}`n` is the number of alleles in site
+  {math}`a`, and {math}`m` is the number of alleles in site {math}`b`.
+
+  This method assigns equal weight to each of the possible haplotypes for a
+  given pair of sites, it might be more aptly named "uniform_weighted". In
+  essence, we are taking the arithmetic mean of each statistic.
+
+Out of all of the available summary functions, only {math}`r^2` uses
+`hap_weighted` normalisation. The rest behave correctly under a uniform weighting
+(`total_weighted`).
+
+(sec_stats_two_locus_branch)=
+
+#### Branch
+
+The `branch` mode computes two-locus statistics between pairs of trees, the
+resulting statistic is a summary of the branch lengths between both trees, over
+the area formed by multiplying the spans of the two trees. To perform this
+computation, we use the partition formed by each node in the tree to generate
+haplotype counts, then we sum each pairwise comparison weighted by the branch
+length above the node. The time complexity of this method is quadratic, due to
+the pairwise comparisons of nodes from a pair of trees. By default, this method
+computes a symmetric matrix for all pairs of trees, with rows and columns
+representing each tree in the tree sequence. Similar to the site method, we can
+restrict the output to a subset of trees, either by specifying a vector of
+positions or a pair of vectors for row and column positions separately. To
+select a specific tree, the specified positions must land in the tree span
+(`[start, end)`).
+
+The following example produces a matrix containing {math}`r^2` computed pairwise
+between the first 4 trees in the tree sequence. The tree breakpoints are a
+convenient way to address each tree.
+
+```{code-cell} ipython3
+ld = ts.ld_matrix(mode="branch", positions=[ts.breakpoints(as_array=True)[0:4]])
+print(ld)
+```
+
+We can also specify the row and column trees separately.
+
+```{code-cell} ipython3
+breakpoints = ts.breakpoints(as_array=True)
+ld = ts.ld_matrix(mode="branch", positions=[breakpoints[[0]], breakpoints[0:4]])
+print(ld)
+```
+
+(sec_stats_two_locus_sample_sets)=
+
+#### Sample Sets
+
+The two-locus API provides a mechanism by which to subset the samples under
+consideration, providing the ability to compute a separate LD matrix for each
+sample set or an LD matrix between sample sets. Output dimensions are handled in
+the same manner as the rest of the stats api (see
+{ref}`sec_stats_output_dimensions`). The two-locus API differs from the rest of
+the stats API in that we handle one-way and two-way statistics in the same
+function call. To compute a two-way two-locus statistic, the `index` argument
+must be provided. The statistics are selected in the same way (with the `stat`
+argument), but we provide a restricted set of two-way statistics (see
+{ref}`sec_stats_two_locus_summary_functions_two_way`). The dimension-dropping
+rules for the result follow the rest of the tskit stats API in that scalar
+indexes will produce a n×m matrix, while lists of indexes will produce a k×n×m
+matrix, even if there is only one index present in the list.
+
+Here's a summary of the dimensions we would expect to observe for all of the
+possible types of sample set inputs.
+```
+# one-way
+ts.ld_matrix(sample_sets=None) -> 2 dimensions
+ts.ld_matrix(samples=[...]) -> 2 dimensions
+ts.ld_matrix(samples=[[...]]) -> 3 dimensions
+# two-way
+ts.ld_matrix(samples=[[...]], indexes=(i, j)) -> 2 dimensions
+ts.ld_matrix(samples=[[...]], indexes=[(i, j)]) -> 3 dimensions
+```
+
+(sec_stats_two_locus_sample_one_way_stats)=
+
+##### One-way Statistics
+
+One-way statistics are summaries of two loci in a single sample set, using a
+triple of haplotype counts {math}`\{w_{Ab}, w_{aB}, w_{AB}\}` and the size of
+the sample set {math}`n`, where the capitalized letter in our notation
+represents the derived allele and lowercase represents the ancestral
+allele. When the statistics are polarised and we're considering a multi-allelic
+site, we exclude the ancestral state, computing our two-locus summary only on
+the derived alleles. When we're considering a pair of biallelic sites or a pair
+of trees (branch statistics), we compute our summary stat for both derived
+alleles ({math}`A`/{math}`B`).
+
+(sec_stats_two_locus_sample_two_way_stats)=
+
+##### Two-way Statistics
+
+Two-way statistics are summaries of haplotype counts between two sample sets,
+which operate on the three mentioned haplotype counts computed from each
+sample set, indexed by `(i, j)`. These statistics take on a different
+meaning from their one-way counterparts. For instance {math}`D_i D_j` can be
+thought of as the covariance between two loci when computed for a haplotype in a
+single sample set. When computed between sample sets {math}`i` and {math}`j`, we
+have a measure of the covariance of covariance between two loci in two
+populations (or, more succinctly, the covariance of LD). Only a subset of our
+summary functions are two-way statistics (see
+{ref}`sec_two_locus_summary_functions_two_way`). Note that the unbiased two-way
+statistics expect nonoverlapping sample sets, we do not make any assertions
+about the sample sets and assume that `i` and `j` represent disjoint sets of
+samples (see also the note in {meth}`~TreeSequence.divergence`).
+
+(sec_stats_two_locus_summary_functions)=
+
+#### Summary Functions
+
+(sec_stats_two_locus_summary_functions_one_way)=
+
+##### One-way
+
+The two-locus summary functions all take haplotype counts and sample set size as
+input. Each of our summary functions has the signature
+{math}`f(w_{Ab}, w_{aB}, w_{AB}, n)`, converting to haplotype frequencies
+{math}`\{p_{Ab}, p_{aB}, p_{AB}\}` where appropriate by dividing by {math}`n`.
+
+`D`
+: {math}`f(w_{Ab}, w_{aB}, w_{AB}, n) = p_{ab} - p_{a}p_{b}`
+
+  This statistic is inherently polarised, as the unpolarised result of this
+  statistic is expected to be zero. Uses the `total` normalisation method.
+
+`D_prime`
+: {math}`f(w_{Ab}, w_{aB}, w_{AB}, n) = \frac{D}{D_{\max}}`
+
+  Where {math}```D_{\max} = \begin{cases}
+        \min\{p_A (1-p_B), p_B (1-p_B)\} & \textrm{if }D>=0 \\
+        \min\{p_A p_B, (1-p_B) (1-p_B)\} & \textrm{otherwise}
+        \end{cases}```
+  and {math}`D` is defined above.
+
+`D2`
+: {math}`f(w_{Ab}, w_{aB}, w_{AB}, n) = (p_{ab} - p_{a}p_{b})^2`
+
+  Unpolarised, total weighted.
+
+`Dz`
+:  {math}`f(w_{Ab}, w_{aB}, w_{AB}, n) = D (1 - 2 p_{a})(1-2p_{b})`
+
+  Where {math}`D` is defined above. {math}`D_z` measures positive covariance of
+  low frequency genomic variants and is sensitive to changes in demographic
+  history. Unpolarised, total weighted.
+
+`pi2`
+: {math}`f(w_{Ab}, w_{aB}, w_{AB}, n) = p_{a}p_{b}(1-p_{a})(1-p_{b})`
+
+  {math}`\pi2` is the joint heterozygosity between two loci and can be used for
+  normalizing D statistics to control for variable mutation rate and for
+  estimating coalescent times. Unpolarised, total weighted.
+
+`r`
+: {math}`f(w_{Ab}, w_{aB}, w_{AB}, n) = \frac{D}{\sqrt{p_{a}p_{b}(1-p_{a})(1-p_{b})}}`
+
+  Where {math}`D` is defined above. Polarised, total weighted.
+
+`r2`
+: {math}`f(w_{Ab}, w_{aB}, w_{AB}, n) = \frac{D^{2}}{p_{a}p_{b}(1-p_{a})(1-p_{b})}`
+
+  Where {math}`D` is defined above. Unpolarised, haplotype weighted.
+
+Unbiased two-locus statistics are computed from haplotype counts Derivations for
+these unbiased estimators can be found in [Ragsdale and Gravel
+(2020)](https://doi.org/10.1093/molbev/msz265). They require at least 4 samples
+to be valid.
+
+`D2_unbiased`
+: {math}`f(w_{Ab}, w_{aB}, w_{AB}, n) = \frac{1}{n (n - 1) (n - 2) (n - 3)} \begin{pmatrix} w_{aB}^2 (w_{Ab} - 1) w_{Ab} \\ + (w_{ab} - 1) w_{ab} (w_{AB} - 1) w_{AB} \\ - w_{aB} w_{Ab} (w_{Ab} + (2 w_{ab} w_{AB}) - 1) \end{pmatrix} `
+
+`Dz_unbiased`
+: {math}`f(w_{Ab}, w_{aB}, w_{AB}, n) = \\ \frac{1}{n (n - 1) (n - 2) (n - 3))} \begin{pmatrix} ((w_{Ab} + w_{ab} - w_{AB} - w_{aB}) \\ (w_{AB} w_{ab} - w_{Ab} w_{aB})(w_{aB} + w_{ab} - w_{AB} - w_{Ab})) \\ - w_{AB} w_{ab} (w_{AB} + w_{ab} - w_{Ab} - w_{aB} - 2) \\ - w_{Ab} w_{aB} (w_{Ab} + w_{aB} - w_{AB} - w_{ab} - 2) \end{pmatrix}`
+
+`pi2_unbiased`
+: {math}`f(w_{Ab}, w_{aB}, w_{AB}, n) = \\ \frac{1}{n (n - 1) (n - 2) (n - 3)} \begin{pmatrix} (w_{AB} + w_{Ab}) (w_{aB} + w_{ab}) (w_{AB} + w_{aB}) (w_{Ab} + w_{ab}) \\ - w_{AB} w_{ab} (w_{AB} + w_{ab} + 3 w_{Ab} + 3 w_{aB} - 1) \\ - w_{Ab} w_{aB} (w_{Ab} + w_{aB} + 3 w_{AB} + 3 w_{ab} - 1) \\ \end{pmatrix}`
+
+(sec_two_locus_summary_functions_two_way)=
+
+(sec_stats_two_locus_summary_functions_two_way)=
+
+##### Two-way
+
+Our two-way statistics index into a collection of haplotype counts with their
+user provided sample set index {math}`i, j` (i.e. {math}`w_{AB_i}`).
+
+`D2`
+: {math}`f(w_{Ab}, w_{aB}, w_{AB}, n) = D_i * D_j`
+
+Where {math}`D` is defined above.
+
+`D2_unbiased`
+: {math}`f(w_{Ab}, w_{aB}, w_{AB}, n) = \begin{cases} \frac {w_{AB_i} (w_{AB_i} - 1) w_{ab_i} (w_{ab_i} - 1) + w_{Ab_i} (w_{Ab_i} - 1) w_{aB_i} (w_{aB_i} - 1) - 2 w_{AB_i} w_{Ab_i} w_{aB_i} w_{ab_i}} {n_i (n_i - 1) (n_i - 2) (n_i - 3)} & \textrm{if }i=j \\ \frac {(w_{Ab_i} w_{aB_i} - w_{AB_i} w_{ab_i}) (w_{Ab_j} w_{aB_j} - w_{AB_j} w_{ab_j})} {n_i (n_i - 1) n_j (n_j - 1)} & \textrm{if }i \neq j \\ \end{cases}`
+
+  Where {math}`w_{ab_i} = n_i - (w_{AB_i} + w_{Ab_i} + w_{aB_i})`
+  
+`r2`
+: {math}`f(w_{Ab}, w_{aB}, w_{AB}, n) = \frac{(p_{AB_i} - (p_{A_i}  p_{B_i})) (p_{AB_j} - (p_{A_j}  p_{B_j}))}{\sqrt{p_{A_i} (1 - p_{A_i}) p_{B_i} (1 - p_{B_i})}\sqrt{p_{A_j} (1 - p_{A_j}) p_{B_j} (1 - p_{B_j})}}`
 
 (sec_stats_notes)=
 
