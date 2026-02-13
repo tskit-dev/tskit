@@ -11,7 +11,8 @@ env:
   FORCE_COLOR: 1
 
 jobs:
-  docs:
-    uses: tskit-dev/.github/.github/workflows/docs.yml@v6
+  Docs:
+    uses: tskit-dev/.github/.github/workflows/docs.yml@main
     with:
       pyproject-directory: python
+      doxygen-directory: docs/doxygen
