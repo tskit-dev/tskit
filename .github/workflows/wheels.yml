@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", 3.11, 3.12, 3.13, 3.14]
+        python: [3.11, 3.12, 3.13, 3.14]
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -51,7 +51,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", 3.11, 3.12, 3.13, 3.14]
+        python: [3.11, 3.12, 3.13, 3.14]
         wordsize: [64]
     steps:
       - name: Checkout
@@ -91,10 +91,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6.0.2
 
-      - name: Set up Python 3.10
+      - name: Set up Python 3.11
         uses: actions/setup-python@v6.1.0
         with:
-          python-version: "3.10"
+          python-version: 3.11
 
       - name: Build sdist
         shell: bash
@@ -125,7 +125,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", 3.11, 3.12, 3.13, 3.14]
+        python: [3.11, 3.12, 3.13, 3.14]
         runner: [macos-15, macos-15-intel]
         include:
           - runner: macos-15
@@ -163,7 +163,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", 3.11, 3.12, 3.13, 3.14]
+        python: [3.11, 3.12, 3.13, 3.14]
         wordsize: [64]
     steps:
       - name: Download wheels
@@ -188,10 +188,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", 3.11, 3.12, 3.13, 3.14]
+        python: [3.11, 3.12, 3.13, 3.14]
         include:
-          - python: "3.10"
-            wheel: cp310
           - python: 3.11
             wheel: cp311
           - python: 3.12
