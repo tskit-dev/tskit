@@ -11,7 +11,7 @@ env:
   FORCE_COLOR: 1
 
 jobs:
-  Docs:
-    uses: tskit-dev/.github/.github/workflows/docs-build-template.yml@main
+  docs:
+    uses: tskit-dev/.github/.github/workflows/docs.yml@v6
     with:
       pyproject-directory: python
