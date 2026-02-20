@@ -38,9 +38,9 @@ Fixtures can be parameterised etc. see https://docs.pytest.org/en/stable/fixture
 Note that fixtures have a "scope" for example `ts_fixture` below is only created once
 per test session and re-used for subsequent tests.
 """
+
 import msprime
 import pytest
-from pytest import fixture
 
 from . import tsutil
 
@@ -93,29 +93,29 @@ def pytest_collection_modifyitems(config, items):
                 item.add_marker(skip_network)
 
 
-@fixture
+@pytest.fixture
 def overwrite_viz(request):
     return request.config.getoption("--overwrite-expected-visualizations")
 
 
-@fixture
+@pytest.fixture
 def draw_plotbox(request):
     return request.config.getoption("--draw-svg-debug-box")
 
 
-@fixture(scope="session")
+@pytest.fixture(scope="session")
 def simple_degree1_ts_fixture():
     return msprime.simulate(10, random_seed=42)
 
 
-@fixture(scope="session")
+@pytest.fixture(scope="session")
 def simple_degree2_ts_fixture():
     ts = msprime.simulate(10, recombination_rate=0.2, random_seed=42)
     assert ts.num_trees == 2
     return ts
 
 
-@fixture(scope="session")
+@pytest.fixture(scope="session")
 def ts_fixture():
     """
     A tree sequence with data in all fields
@@ -123,7 +123,7 @@ def ts_fixture():
     return tsutil.all_fields_ts()
 
 
-@fixture(scope="session")
+@pytest.fixture(scope="session")
 def ts_fixture_for_simplify():
     """
     A tree sequence with data in all fields execpt edge metadata and migrations
@@ -131,7 +131,7 @@ def ts_fixture_for_simplify():
     return tsutil.all_fields_ts(edge_metadata=False, migrations=False)
 
 
-@fixture(scope="session")
+@pytest.fixture(scope="session")
 def replicate_ts_fixture():
     """
     A list of tree sequences

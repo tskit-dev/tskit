@@ -22,6 +22,7 @@
 """
 Python implementation of the IBD-finding algorithms.
 """
+
 import argparse
 import collections
 

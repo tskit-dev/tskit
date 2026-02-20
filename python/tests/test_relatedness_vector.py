@@ -22,6 +22,7 @@
 """
 Test cases for matrix-vector product stats
 """
+
 import msprime
 import numpy as np
 import pytest
@@ -487,7 +488,6 @@ def check_relatedness_vector(
 
 
 class TestRelatednessVector:
-
     def test_bad_weights(self):
         n = 5
         ts = msprime.sim_ancestry(
@@ -924,20 +924,19 @@ def assert_errors_bound(pca_res, D, U, w=None):
     Sigma = U @ np.diag(D) @ U.T
     Q = rs[:, :n]
     err = np.linalg.svd(Sigma - Q @ Q.T @ Sigma).S[0]
-    assert (
-        err <= 5 * eps**2
-    ), "Reconstruction error should be smaller than the bound squared."
-    assert (
-        np.max(np.abs(ev - D[:n])) < 5 * eps
-    ), "Eigenvalue error should be smaller than error bound."
+    assert err <= 5 * eps**2, (
+        "Reconstruction error should be smaller than the bound squared."
+    )
+    assert np.max(np.abs(ev - D[:n])) < 5 * eps, (
+        "Eigenvalue error should be smaller than error bound."
+    )
     for k in range(n):
-        assert (
-            np.sum((f[:, k] - U[:, k]) ** 2) < 5 * eps**2 / ev[-1]
-        ), "Factor error should be smaller than the bound squared."
+        assert np.sum((f[:, k] - U[:, k]) ** 2) < 5 * eps**2 / ev[-1], (
+            "Factor error should be smaller than the bound squared."
+        )
 
 
 class TestPCA:
-
     def verify_error_est(
         self,
         ts,
@@ -1257,12 +1256,8 @@ class TestPCA:
         range_sketch = np.linspace(0, 1, n * ploidy * (nc + no)).reshape(
             (n * ploidy, nc + no)
         )
-        pca_res0 = ts.pca(
-            num_components=nc, range_sketch=range_sketch, num_iterations=5
-        )
-        pca_res1 = ts.pca(
-            num_components=nc, range_sketch=range_sketch, num_iterations=1
-        )
+        pca_res0 = ts.pca(num_components=nc, range_sketch=range_sketch, num_iterations=5)
+        pca_res1 = ts.pca(num_components=nc, range_sketch=range_sketch, num_iterations=1)
         for _ in range(4):
             pca_res1 = ts.pca(
                 num_components=nc, range_sketch=pca_res1.range_sketch, num_iterations=1

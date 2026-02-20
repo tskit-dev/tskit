@@ -21,8 +21,7 @@ main(int argc, char **argv)
     }
     printf("Loaded tree sequence with %lld nodes and %lld edges from %s\n",
         (long long) tsk_treeseq_get_num_nodes(&ts),
-        (long long) tsk_treeseq_get_num_edges(&ts),
-        argv[1]);
+        (long long) tsk_treeseq_get_num_edges(&ts), argv[1]);
     tsk_treeseq_free(&ts);
 
     return EXIT_SUCCESS;

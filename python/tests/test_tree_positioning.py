@@ -23,6 +23,7 @@
 Tests for tree iterator schemes. Mostly used to develop the incremental
 iterator infrastructure.
 """
+
 import msprime
 import numpy as np
 import pytest

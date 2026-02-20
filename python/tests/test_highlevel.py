@@ -23,6 +23,7 @@
 """
 Test cases for the high level interface to tskit.
 """
+
 import collections
 import dataclasses
 import decimal
@@ -930,7 +931,7 @@ class HighLevelTestCase:
                 assert st1.root == list(roots)[0]
             else:
                 with pytest.raises(ValueError):
-                    st1.root
+                    _ = st1.root
             assert st2 == st1
             assert not (st2 != st1)
             left, right = st1.get_interval()
@@ -1529,7 +1530,7 @@ class TestTreeSequence(HighLevelTestCase):
         for kwargs in [{}, {"tracked_samples": ts.samples()}]:
             t1 = ts.first(**kwargs)
             t2 = next(ts.trees())
-            assert not (t1 is t2)
+            assert t1 is not t2
             assert t1.parent_dict == t2.parent_dict
             assert t1.index == 0
             if "tracked_samples" in kwargs:
@@ -1539,7 +1540,7 @@ class TestTreeSequence(HighLevelTestCase):
 
             t1 = ts.last(**kwargs)
             t2 = next(reversed(ts.trees()))
-            assert not (t1 is t2)
+            assert t1 is not t2
             assert t1.parent_dict == t2.parent_dict
             assert t1.index == ts.num_trees - 1
             if "tracked_samples" in kwargs:
@@ -2690,9 +2691,7 @@ class TestSimplify:
                 sample, map_nodes=True, filter_sites=filter_sites
             )
             t1 = s1.dump_tables()
-            s2, node_map2 = simplify_tree_sequence(
-                ts, sample, filter_sites=filter_sites
-            )
+            s2, node_map2 = simplify_tree_sequence(ts, sample, filter_sites=filter_sites)
             t2 = s2.dump_tables()
             assert s1.num_samples == len(sample)
             assert s2.num_samples == len(sample)
@@ -2772,9 +2771,12 @@ class TestSimplify:
             edges_file = os.path.join(prefix, f"{j:02d}-edges.txt")
             sites_file = os.path.join(prefix, f"{j:02d}-sites.txt")
             mutations_file = os.path.join(prefix, f"{j:02d}-mutations.txt")
-            with open(nodes_file) as nodes, open(edges_file) as edges, open(
-                sites_file
-            ) as sites, open(mutations_file) as mutations:
+            with (
+                open(nodes_file) as nodes,
+                open(edges_file) as edges,
+                open(sites_file) as sites,
+                open(mutations_file) as mutations,
+            ):
                 ts = tskit.load_text(
                     nodes=nodes,
                     edges=edges,
@@ -3096,9 +3098,7 @@ class TestTreeSequenceMetadata:
             assert repr(getattr(tables, f"{table}s").metadata_schema) == repr(schema)
             for other_table in self.metadata_tables:
                 if other_table != table:
-                    assert (
-                        repr(getattr(tables, f"{other_table}s").metadata_schema) == ""
-                    )
+                    assert repr(getattr(tables, f"{other_table}s").metadata_schema) == ""
             # Check via tree-sequence API
             new_ts = tskit.TreeSequence.load_tables(tables)
             assert repr(getattr(new_ts.table_metadata_schemas, table)) == repr(schema)
@@ -4027,7 +4027,7 @@ class TestTree(HighLevelTestCase):
         # Deprecated and will be removed
         t1 = self.get_tree()
         with pytest.warns(FutureWarning, match="Tree.tree_sequence.num_nodes"):
-            t1.num_nodes
+            _ = t1.num_nodes
 
     @pytest.mark.parametrize("skip", [False, True])
     def test_seek_index(self, skip):
@@ -5254,10 +5254,10 @@ class TestTreeSequenceGetSite:
             ts.site(None, position=None)
 
     def test_site_id_and_position_are_specified(self):
+        ts = self.get_example_ts_discrete_coordinates()
         with pytest.raises(
             TypeError, match="Only one of site id or position needs to be provided."
         ):
-            ts = self.get_example_ts_discrete_coordinates()
             ts.site(0, position=3)
 
 
@@ -5365,7 +5365,6 @@ class TestNumLineages:
             (0, 2),
             (1, 2),
             (2, 2),
-            (3, 2),
             (3, 2),
             (4, 0),
         ],

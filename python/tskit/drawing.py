@@ -23,6 +23,7 @@
 """
 Module responsible for visualisations.
 """
+
 import collections
 import itertools
 import logging
@@ -38,8 +39,7 @@ import numpy as np
 
 import tskit
 import tskit.util as util
-from _tskit import NODE_IS_SAMPLE
-from _tskit import NULL
+from _tskit import NODE_IS_SAMPLE, NULL
 
 LEFT = "left"
 RIGHT = "right"
@@ -322,9 +322,7 @@ def check_min_time(min_time, allow_numeric=True):
     if allow_numeric:
         is_numeric = isinstance(min_time, numbers.Real)
         if min_time not in ["tree", "ts"] and not is_numeric:
-            raise ValueError(
-                "min_time must be a numeric value or one of 'tree' or 'ts'"
-            )
+            raise ValueError("min_time must be a numeric value or one of 'tree' or 'ts'")
     else:
         if min_time not in ["tree", "ts"]:
             raise ValueError("min_time must be 'tree' or 'ts'")
@@ -385,7 +383,7 @@ def check_x_scale(x_scale):
     x_scales = ["physical", "treewise"]
     if x_scale not in x_scales:
         raise ValueError(
-            f"Unknown display x_scale '{x_scale}'. " f"Supported orders are {x_scales}"
+            f"Unknown display x_scale '{x_scale}'. Supported orders are {x_scales}"
         )
     return x_scale
 
@@ -529,9 +527,9 @@ def clip_ts(ts, x_min, x_max, max_num_trees=None):
         num_start_trees = max_num_trees // 2 + (1 if max_num_trees % 2 else 0)
         num_end_trees = max_num_trees // 2
         assert num_start_trees + num_end_trees == max_num_trees
-        tree_status[
-            (first_tree + num_start_trees) : (last_tree - num_end_trees + 1)
-        ] = (OMIT | OMIT_MIDDLE)
+        tree_status[(first_tree + num_start_trees) : (last_tree - num_end_trees + 1)] = (
+            OMIT | OMIT_MIDDLE
+        )
 
     return ts, tree_status, offsets
 
@@ -586,9 +584,7 @@ def edge_and_sample_nodes(ts, omit_regions=None):
         for left, right in use_regions:
             used_edges = edges[np.logical_and(edges.left >= left, edges.right < right)]
             ids = np.concatenate((ids, used_edges.child, used_edges.parent))
-    return np.unique(
-        np.concatenate((ids, np.where(ts.nodes_flags & NODE_IS_SAMPLE)[0]))
-    )
+    return np.unique(np.concatenate((ids, np.where(ts.nodes_flags & NODE_IS_SAMPLE)[0])))
 
 
 def _postorder_tracked_node_traversal(tree, root, collapse_tracked, key_dict=None):
@@ -618,8 +614,7 @@ def _postorder_tracked_node_traversal(tree, root, collapse_tracked, key_dict=Non
             elif (
                 collapse_tracked is not None
                 and tree.num_children(u) != 1
-                and tree.num_tracked_samples(u)
-                >= collapse_tracked * tree.num_samples(u)
+                and tree.num_tracked_samples(u) >= collapse_tracked * tree.num_samples(u)
             ):
                 yield u
             else:
@@ -1068,9 +1063,7 @@ class SvgAxisPlot(SvgPlot):
             right = self.y_axis_offset
         self.plotbox.set_padding(top, left, bottom, right)
         if self.debug_box:
-            self.root_groups["debug"] = self.dwg_base.add(
-                self.drawing.g(class_="debug")
-            )
+            self.root_groups["debug"] = self.dwg_base.add(self.drawing.g(class_="debug"))
             self.plotbox.draw(self.drawing, self.root_groups["debug"])
 
     def get_axes(self):
@@ -1118,9 +1111,7 @@ class SvgAxisPlot(SvgPlot):
                 x2 = self.x_transform(right)
                 y = self.plotbox.max_y - self.x_axis_offset
                 region = regions_group.add(dwg.g(class_=f"r{i}"))
-                region.add(
-                    dwg.rect((x1, y), (x2 - x1, self.line_height), class_="r{i}")
-                )
+                region.add(dwg.rect((x1, y), (x2 - x1, self.line_height), class_="r{i}"))
                 self.add_text_in_group(
                     label,
                     region,
@@ -1611,8 +1602,8 @@ class SvgTreeSequence(SvgAxisPlot):
             # For a treewise plot, the only time the x_transform is used is to apply
             # to tick positions, so simply use positions 0..num_used_breaks for the
             # positions, and a simple transform
-            self.x_transform = (
-                lambda x: self.plotbox.left + x / (len(breaks) - 1) * self.plotbox.width
+            self.x_transform = lambda x: (
+                self.plotbox.left + x / (len(breaks) - 1) * self.plotbox.width
             )
             tick_positions = np.arange(len(breaks))
 
@@ -1787,9 +1778,7 @@ class SvgTree(SvgAxisPlot):
             mutation_nodes = mut_t.node[focal_mutations]
             mutation_positions = ts.tables.sites.position[mut_t.site][focal_mutations]
             mutation_ids = np.arange(ts.num_mutations, dtype=int)[focal_mutations]
-            for m_id, node, pos in zip(
-                mutation_ids, mutation_nodes, mutation_positions
-            ):
+            for m_id, node, pos in zip(mutation_ids, mutation_nodes, mutation_positions):
                 curr_edge = node_edges[node]
                 if curr_edge >= 0:
                     if (
@@ -1975,9 +1964,7 @@ class SvgTree(SvgAxisPlot):
             # In pathological cases, all the nodes are at the same time
             if max_time == min_time:
                 max_time = min_time + 1
-            self.node_height = {
-                u: depth[node_time[u]] for u in self.node_x_coord.keys()
-            }
+            self.node_height = {u: depth[node_time[u]] for u in self.node_x_coord.keys()}
             for u in self.node_mutations.keys():
                 if u in self.node_height:
                     parent = self.tree.parent(u)
@@ -2260,9 +2247,7 @@ class SvgTree(SvgAxisPlot):
                 root_branch_l = self.min_root_branch_plot_length
                 if root_branch_l > 0:
                     if len(self.node_mutations[u]) > 0:
-                        mtop = self.timescaling.transform(
-                            self.node_mutations[u][0].time
-                        )
+                        mtop = self.timescaling.transform(self.node_mutations[u][0].time)
                         root_branch_l = max(root_branch_l, pu[1] - mtop)
                     dx, dy = 0, -root_branch_l
                     draw_edge_above_node = True
@@ -2283,7 +2268,7 @@ class SvgTree(SvgAxisPlot):
                 dy = self.timescaling.transform(mutation.time) - pu[1]
                 mutation_id = mutation.id + self.offsets.mutation
                 mutation_class = (
-                    f"mut m{mutation_id} " f"s{mutation.site + self.offsets.site}"
+                    f"mut m{mutation_id} s{mutation.site + self.offsets.site}"
                 )
                 # Use the real mutation ID here, since we are referencing into the ts
                 if util.is_unknown_time(self.ts.mutation(mutation.id).time):
@@ -2318,9 +2303,7 @@ class SvgTree(SvgAxisPlot):
             else:
                 symbol = curr_svg_group.add(dwg.circle(**self.node_attrs[u]))
             multi_samples = None
-            if (
-                is_tip and tree.num_samples(u) > 1
-            ):  # Multi-sample tip => trapezium shape
+            if is_tip and tree.num_samples(u) > 1:  # Multi-sample tip => trapezium shape
                 multi_samples = tree.num_samples(u)
                 trapezium_attrs = self.node_attrs[u].copy()
                 # Remove the shape-styling attributes

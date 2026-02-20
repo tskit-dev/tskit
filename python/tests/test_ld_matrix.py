@@ -22,14 +22,12 @@
 """
 Test cases for two-locus statistics
 """
+
 import contextlib
 import io
-from collections.abc import Callable
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from dataclasses import dataclass
-from itertools import combinations_with_replacement
-from itertools import permutations
-from itertools import product
+from itertools import combinations_with_replacement, permutations, product
 from typing import Any
 
 import msprime
@@ -900,9 +898,7 @@ def two_locus_count_stat(
         indexes = tskit.util.safe_np_int_cast(indexes, np.int32)
         idx_lens = {len(i) for i in indexes}
         if idx_lens != {2}:
-            raise ValueError(
-                f"Sample set indexes must be length 2, lengths: {idx_lens}"
-            )
+            raise ValueError(f"Sample set indexes must be length 2, lengths: {idx_lens}")
         check_sample_stat_inputs(num_sample_sets, 2, result_dim, indexes)
     if mode == "site":
         if positions is not None:
@@ -1840,9 +1836,7 @@ class TreeState:
         for n in range(ts.num_nodes):
             for k in range(num_sample_sets):
                 if sample_sets.contains(k, sample_index_map[n]):
-                    self.node_samples.add(
-                        (num_sample_sets * n) + k, sample_index_map[n]
-                    )
+                    self.node_samples.add((num_sample_sets * n) + k, sample_index_map[n])
         # these are empty for the uninitialized state (index = -1)
         self.edges_in = []
         self.edges_out = []

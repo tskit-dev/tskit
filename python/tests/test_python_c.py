@@ -23,6 +23,7 @@
 """
 Test cases for the low level C interface to tskit.
 """
+
 import collections
 import gc
 import inspect
@@ -37,7 +38,6 @@ import pytest
 
 import _tskit
 import tskit
-
 
 NON_UTF8_STRING = "\ud861\udd37"
 
@@ -1117,9 +1117,7 @@ class TestTableMethodsErrors:
 
         modify_indexes = tc.indexes
         modify_indexes["edge_insertion_order"] = np.arange(42, 42 + 18, dtype=np.int32)
-        modify_indexes["edge_removal_order"] = np.arange(
-            4242, 4242 + 18, dtype=np.int32
-        )
+        modify_indexes["edge_removal_order"] = np.arange(4242, 4242 + 18, dtype=np.int32)
         tc.indexes = modify_indexes
         assert np.array_equal(
             tc.indexes["edge_insertion_order"], np.arange(42, 42 + 18, dtype=np.int32)
@@ -1650,9 +1648,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         # happy path
         a = stat_method(ss_sizes, ss, row_sites, col_sites, None, None, "site")
         assert a.shape == (10, 10, 1)
-        a = stat_method(
-            ss_sizes, ss, row_sites_list, col_sites_list, None, None, "site"
-        )
+        a = stat_method(ss_sizes, ss, row_sites_list, col_sites_list, None, None, "site")
         assert a.shape == (10, 10, 1)
         a = stat_method(ss_sizes, ss, None, None, None, None, "site")
         assert a.shape == (10, 10, 1)
@@ -1740,14 +1736,10 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_UNSORTED_POSITIONS"):
             bad_pos = np.array([0.7, 0, 0.8], dtype=np.float64)
             stat_method(ss_sizes, ss, None, None, row_pos, bad_pos, "branch")
-        with pytest.raises(
-            tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_POSITIONS"
-        ):
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_POSITIONS"):
             bad_pos = np.array([0.7, 0.7, 0.8], dtype=np.float64)
             stat_method(ss_sizes, ss, None, None, bad_pos, col_pos, "branch")
-        with pytest.raises(
-            tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_POSITIONS"
-        ):
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_POSITIONS"):
             bad_pos = np.array([0.7, 0.7, 0.8], dtype=np.float64)
             stat_method(ss_sizes, ss, None, None, row_pos, bad_pos, "branch")
         with pytest.raises(tskit.LibraryError, match="TSK_ERR_POSITION_OUT_OF_BOUNDS"):
@@ -1923,14 +1915,10 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_UNSORTED_POSITIONS"):
             bad_pos = np.array([0.7, 0, 0.8], dtype=np.float64)
             stat_method(ss_sizes, ss, indexes, None, None, row_pos, bad_pos, "branch")
-        with pytest.raises(
-            tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_POSITIONS"
-        ):
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_POSITIONS"):
             bad_pos = np.array([0.7, 0.7, 0.8], dtype=np.float64)
             stat_method(ss_sizes, ss, indexes, None, None, bad_pos, col_pos, "branch")
-        with pytest.raises(
-            tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_POSITIONS"
-        ):
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_POSITIONS"):
             bad_pos = np.array([0.7, 0.7, 0.8], dtype=np.float64)
             stat_method(ss_sizes, ss, indexes, None, None, row_pos, bad_pos, "branch")
         with pytest.raises(tskit.LibraryError, match="TSK_ERR_POSITION_OUT_OF_BOUNDS"):
@@ -2101,9 +2089,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             assert tables4.has_index()
 
     def test_clear_table(self, ts_fixture):
-        tables = _tskit.TableCollection(
-            sequence_length=ts_fixture.get_sequence_length()
-        )
+        tables = _tskit.TableCollection(sequence_length=ts_fixture.get_sequence_length())
         ts_fixture.ll_tree_sequence.dump_tables(tables)
         tables.clear()
         data_tables = [t for t in tskit.TABLE_NAMES if t != "provenances"]
@@ -3318,9 +3304,7 @@ class TestGeneticRelatednessVector(LowLevelTestCase):
         del params["windows"]
         for bad_array in ["asdf", None, [[[[]], [[]]]], np.zeros((10, 3, 4))]:
             with pytest.raises(ValueError):
-                ts.genetic_relatedness_vector(
-                    windows=bad_array, mode="branch", **params
-                )
+                ts.genetic_relatedness_vector(windows=bad_array, mode="branch", **params)
 
         for bad_windows in [[], [0]]:
             with pytest.raises(ValueError):
@@ -3562,7 +3546,10 @@ class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):
         for bad_array in [[1, 1], range(10)]:
             with pytest.raises(ValueError):
                 ts.general_stat(
-                    W, lambda x: bad_array, 1, ts.get_breakpoints()  # noqa:B023
+                    W,
+                    lambda x: bad_array,  # noqa:B023
+                    1,
+                    ts.get_breakpoints(),
                 )
         with pytest.raises(ValueError):
             ts.general_stat(W, lambda x: [1], 2, ts.get_breakpoints())
@@ -3571,7 +3558,10 @@ class TestGeneralStatsInterface(LowLevelTestCase, StatsInterfaceMixin):
         for bad_array in [["sdf"], 0, "w4", None]:
             with pytest.raises(ValueError):
                 ts.general_stat(
-                    W, lambda x: bad_array, 1, ts.get_breakpoints()  # noqa:B023
+                    W,
+                    lambda x: bad_array,  # noqa:B023
+                    1,
+                    ts.get_breakpoints(),
                 )
 
 
@@ -3738,9 +3728,7 @@ class TestVariant(LowLevelTestCase):
         alleles = variant.alleles
         site_id = variant.site_id
         variant.decode(1)
-        with pytest.raises(
-            tskit.LibraryError, match="Can't decode a copy of a variant"
-        ):
+        with pytest.raises(tskit.LibraryError, match="Can't decode a copy of a variant"):
             variant2.decode(1)
         assert site_id == variant2.site_id
         assert alleles == variant2.alleles

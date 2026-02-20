@@ -23,6 +23,7 @@
 """
 Test cases for stats calculations in tskit.
 """
+
 import contextlib
 import io
 

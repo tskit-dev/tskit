@@ -24,6 +24,7 @@
 """
 Tree sequence IO via the tables API.
 """
+
 import collections
 import dataclasses
 import datetime
@@ -261,9 +262,7 @@ class MutationTableRow(util.Dataclass):
             and self.metadata == other.metadata
             and (
                 self.time == other.time
-                or (
-                    util.is_unknown_time(self.time) and util.is_unknown_time(other.time)
-                )
+                or (util.is_unknown_time(self.time) and util.is_unknown_time(other.time))
             )
         )
 
@@ -376,9 +375,7 @@ class BaseTable:
         nbytes += sum(col.nbytes for col in d.values())
         return nbytes
 
-    def _equals_internal(
-        self, other, ignore_metadata=False, *, ignore_timestamps=False
-    ):
+    def _equals_internal(self, other, ignore_metadata=False, *, ignore_timestamps=False):
 
         if self is other:
             return True
@@ -576,9 +573,7 @@ class BaseTable:
                     elif col in ["location", "parents"]:
                         # Array columns - join with commas
                         if col == "parents":
-                            formatted_values.append(
-                                ", ".join([f"{p:,}" for p in value])
-                            )
+                            formatted_values.append(", ".join([f"{p:,}" for p in value]))
                         else:
                             formatted_values.append(", ".join(map(str, value)))
                     elif col in float_columns:
@@ -3018,12 +3013,11 @@ class ReferenceSequence(metadata.MetadataProvider):
 
         if self.data != other.data:
             raise AssertionError(
-                f"Reference sequence data differs: self={self.data} "
-                f"other={other.data}"
+                f"Reference sequence data differs: self={self.data} other={other.data}"
             )
         if self.url != other.url:
             raise AssertionError(
-                f"Reference sequence url differs: self={self.url} " f"other={other.url}"
+                f"Reference sequence url differs: self={self.url} other={other.url}"
             )
 
     @property
@@ -3494,8 +3488,8 @@ class TableCollection(metadata.MetadataProvider):
         self.__init__()
         self._ll_tables.fromdict(state)
 
-    @classmethod
-    def fromdict(self, tables_dict):
+    @staticmethod
+    def fromdict(tables_dict):
         ll_tc = _tskit.TableCollection()
         ll_tc.fromdict(tables_dict)
         return TableCollection(ll_tables=ll_tc)
@@ -4018,9 +4012,7 @@ class TableCollection(metadata.MetadataProvider):
                 self.sites.position >= s, self.sites.position < e
             )
             keep_sites = np.logical_or(keep_sites, curr_keep_sites)
-            keep_edges = np.logical_not(
-                np.logical_or(edges.right <= s, edges.left >= e)
-            )
+            keep_edges = np.logical_not(np.logical_or(edges.right <= s, edges.left >= e))
             metadata, metadata_offset = keep_with_offset(
                 keep_edges, edges.metadata, edges.metadata_offset
             )

@@ -22,6 +22,7 @@
 import base64
 
 import tskit
+
 from . import tsutil
 from .simplify import *  # NOQA
 

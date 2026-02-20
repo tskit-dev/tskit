@@ -28,6 +28,7 @@ https://commandlinefanatic.com/cgi-bin/showarticle.cgi?article=art070
 Note there is a bug in that Python translation which is missing
 P.B = 0 at the end of A9.
 """
+
 from __future__ import annotations
 
 import dataclasses
@@ -35,7 +36,6 @@ from typing import Any
 
 import numpy as np
 import pytest
-
 
 # The nodes of the tree are assumed to contain KEY, LLINK, and RLINK fields.
 # We also have a new field
@@ -60,8 +60,7 @@ class Node:
         llink = None if self.llink is None else self.llink.key
         rlink = None if self.rlink is None else self.rlink.key
         return (
-            f"Node(key={self.key}, balance={self.balance}, "
-            f"llink={llink}, rlink={rlink})"
+            f"Node(key={self.key}, balance={self.balance}, llink={llink}, rlink={rlink})"
         )
 
 

@@ -23,6 +23,7 @@
 """
 Test cases for generalized statistic computation.
 """
+
 import collections
 import contextlib
 import copy
@@ -41,7 +42,6 @@ import tests.test_wright_fisher as wf
 import tests.tsutil as tsutil
 import tskit
 import tskit.exceptions as exceptions
-
 
 np.random.seed(5)
 
@@ -77,7 +77,7 @@ def cached_np(func):
     cache = {}
 
     def f(*args):
-        nonlocal cache  # noqa: F824
+        nonlocal cache
         key = tuple(x.tobytes() for x in args)
         if key not in cache:
             cache[key] = func(*args)
@@ -191,8 +191,7 @@ def naive_branch_general_stat(
             s = sum(tree.branch_length(u) * f(x[u]) for u in tree.nodes())
         else:
             s = sum(
-                tree.branch_length(u) * (f(x[u]) + f(total - x[u]))
-                for u in tree.nodes()
+                tree.branch_length(u) * (f(x[u]) + f(total - x[u])) for u in tree.nodes()
             )
         sigma[tree.index] = s * tree.span
     if isinstance(windows, str) and windows == "trees":
@@ -506,9 +505,7 @@ def node_general_stat(
             w_right = windows[window_index + 1]
             # Flush the contribution of all nodes to the current window.
             for u in range(ts.num_nodes):
-                result[window_index, u] += (w_right - last_update[u]) * current_values[
-                    u
-                ]
+                result[window_index, u] += (w_right - last_update[u]) * current_values[u]
                 last_update[u] = w_right
             window_index += 1
 
@@ -1287,9 +1284,7 @@ class KWaySampleSetStatsMixin(SampleSetStatsMixin):
         M = len(wrapped_summary_func(W[0]))
         sigma1 = ts.general_stat(W, wrapped_summary_func, M, windows, mode=self.mode)
         sigma2 = general_stat(ts, W, wrapped_summary_func, windows, mode=self.mode)
-        sigma3 = ts_method(
-            sample_sets, indexes=indexes, windows=windows, mode=self.mode
-        )
+        sigma3 = ts_method(sample_sets, indexes=indexes, windows=windows, mode=self.mode)
         sigma4 = definition(
             ts, sample_sets, indexes=indexes, windows=windows, mode=self.mode
         )
@@ -1503,9 +1498,7 @@ def site_segregating_sites(ts, sample_sets, windows=None, span_normalise=True):
         site_positions = [x.position for x in ts.sites()]
         for i, X in enumerate(sample_sets):
             set_X = set(X)
-            X_index = np.where(np.fromiter((s in set_X for s in samples), dtype=bool))[
-                0
-            ]
+            X_index = np.where(np.fromiter((s in set_X for s in samples), dtype=bool))[0]
             for k in range(ts.num_sites):
                 if (site_positions[k] >= begin) and (site_positions[k] < end):
                     num_alleles = len(set(haps[k, X_index]))
@@ -1654,9 +1647,7 @@ def site_tajimas_d(ts, sample_sets, windows=None):
             S = 0
             T = 0
             set_X = set(X)
-            X_index = np.where(np.fromiter((s in set_X for s in samples), dtype=bool))[
-                0
-            ]
+            X_index = np.where(np.fromiter((s in set_X for s in samples), dtype=bool))[0]
             for k in range(ts.num_sites):
                 if (site_positions[k] >= begin) and (site_positions[k] < end):
                     hX = haps[k, X_index]
@@ -3647,8 +3638,7 @@ def node_f3(ts, sample_sets, indexes, windows=None, span_normalise=True):
                         + (tA - nA) * (tA - nA - 1) * nB * nC
                     )
                     SS[u] -= (
-                        nA * nC * (tA - nA) * (tB - nB)
-                        + (tA - nA) * (tC - nC) * nA * nB
+                        nA * nC * (tA - nA) * (tB - nB) + (tA - nA) * (tC - nC) * nA * nB
                     )
                 S += SS * (min(end, t1.interval.right) - max(begin, t1.interval.left))
             with suppress_division_by_zero_warning():
@@ -3834,12 +3824,10 @@ def node_f4(ts, sample_sets, indexes, windows=None, span_normalise=True):
                     nD = t4.num_tracked_samples(u)
                     # ac|bd - ad|bc
                     SS[u] += (
-                        nA * nC * (tB - nB) * (tD - nD)
-                        + (tA - nA) * (tC - nC) * nB * nD
+                        nA * nC * (tB - nB) * (tD - nD) + (tA - nA) * (tC - nC) * nB * nD
                     )
                     SS[u] -= (
-                        nA * nD * (tB - nB) * (tC - nC)
-                        + (tA - nA) * (tD - nD) * nB * nC
+                        nA * nD * (tB - nB) * (tC - nC) + (tA - nA) * (tD - nD) * nB * nC
                     )
                 S += SS * (min(end, t1.interval.right) - max(begin, t1.interval.left))
             with suppress_division_by_zero_warning():
@@ -3943,9 +3931,7 @@ class TestFold:
 
     def test_examples(self):
         A = np.arange(12)
-        Af = np.array(
-            [11.0, 11.0, 11.0, 11.0, 11.0, 11.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        )
+        Af = np.array([11.0, 11.0, 11.0, 11.0, 11.0, 11.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
         assert np.all(foldit(A) == Af)
 
@@ -4403,9 +4389,7 @@ class TestAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
         self.assertArrayEqual(a1, a2)
         for windows in [None, (0, L), (0, L / 2, L)]:
             a1 = ts.allele_frequency_spectrum(mode=self.mode, windows=windows)
-            a2 = ts.allele_frequency_spectrum(
-                [samples], mode=self.mode, windows=windows
-            )
+            a2 = ts.allele_frequency_spectrum([samples], mode=self.mode, windows=windows)
             self.assertArrayEqual(a1, a2)
         for polarised in [True, False]:
             a1 = ts.allele_frequency_spectrum(mode=self.mode, polarised=polarised)
@@ -4427,9 +4411,7 @@ class TestAlleleFrequencySpectrum(StatsTestCase, SampleSetStatsMixin):
         # print(ts.draw_text())
         # print("sample_sets = ", sample_sets)
         windows = ts.parse_windows(windows)
-        for span_normalise, polarised in itertools.product(
-            [True, False], [True, False]
-        ):
+        for span_normalise, polarised in itertools.product([True, False], [True, False]):
             try:
                 _ = [len(x) for x in sample_sets]
             except TypeError:
@@ -5271,9 +5253,7 @@ def branch_trait_covariance(ts, W, windows=None, span_normalise=True):
                 SS = 0
                 for u in range(ts.num_nodes):
                     tree_samples = set(tr.samples(u))
-                    below = np.fromiter(
-                        (s in tree_samples for s in samples), dtype=bool
-                    )
+                    below = np.fromiter((s in tree_samples for s in samples), dtype=bool)
                     branch_length = tr.branch_length(u)
                     SS += covsq(w, below) * branch_length
                 S += SS * (min(end, tr.interval.right) - max(begin, tr.interval.left))
@@ -5309,9 +5289,7 @@ def node_trait_covariance(ts, W, windows=None, span_normalise=True):
                 SS = np.zeros(ts.num_nodes)
                 for u in range(ts.num_nodes):
                     tree_samples = set(tr.samples(u))
-                    below = np.fromiter(
-                        (s in tree_samples for s in samples), dtype=bool
-                    )
+                    below = np.fromiter((s in tree_samples for s in samples), dtype=bool)
                     SS[u] += covsq(w, below)
                 S += SS * (min(end, tr.interval.right) - max(begin, tr.interval.left))
             out[j, :, i] = S
@@ -5488,9 +5466,7 @@ def branch_trait_correlation(ts, W, windows=None, span_normalise=True):
                 SS = 0
                 for u in range(ts.num_nodes):
                     tree_samples = set(tr.samples(u))
-                    below = np.fromiter(
-                        (s in tree_samples for s in samples), dtype=bool
-                    )
+                    below = np.fromiter((s in tree_samples for s in samples), dtype=bool)
                     p = np.mean(below)
                     if p > 0 and p < 1:
                         branch_length = tr.branch_length(u)
@@ -5532,9 +5508,7 @@ def node_trait_correlation(ts, W, windows=None, span_normalise=True):
                 SS = np.zeros(ts.num_nodes)
                 for u in range(ts.num_nodes):
                     tree_samples = set(tr.samples(u))
-                    below = np.fromiter(
-                        (s in tree_samples for s in samples), dtype=bool
-                    )
+                    below = np.fromiter((s in tree_samples for s in samples), dtype=bool)
                     p = np.mean(below)
                     if p > 0 and p < 1:
                         # SS[u] += sum(w[below])**2 / 2
@@ -5758,9 +5732,7 @@ def branch_trait_linear_model(ts, W, Z, windows=None, span_normalise=True):
                 SS = 0
                 for u in range(ts.num_nodes):
                     tree_samples = set(tr.samples(u))
-                    below = np.fromiter(
-                        (s in tree_samples for s in samples), dtype=bool
-                    )
+                    below = np.fromiter((s in tree_samples for s in samples), dtype=bool)
                     branch_length = tr.branch_length(u)
                     SS += linear_model(w, below, Z) * branch_length
                 S += SS * (min(end, tr.interval.right) - max(begin, tr.interval.left))
@@ -5796,9 +5768,7 @@ def node_trait_linear_model(ts, W, Z, windows=None, span_normalise=True):
                 SS = np.zeros(ts.num_nodes)
                 for u in range(ts.num_nodes):
                     tree_samples = set(tr.samples(u))
-                    below = np.fromiter(
-                        (s in tree_samples for s in samples), dtype=bool
-                    )
+                    below = np.fromiter((s in tree_samples for s in samples), dtype=bool)
                     SS[u] += linear_model(w, below, Z)
                 S += SS * (min(end, tr.interval.right) - max(begin, tr.interval.left))
             out[j, :, i] = S
@@ -6363,9 +6333,7 @@ class SpecificTreesTestCase(StatsTestCase):
         def f(x):
             return np.array(
                 [
-                    float(
-                        ((x[0] == 1) and (x[1] == 0)) or ((x[0] == 0) and (x[1] == 2))
-                    )
+                    float(((x[0] == 1) and (x[1] == 0)) or ((x[0] == 0) and (x[1] == 2)))
                     / 2.0
                 ]
             )
@@ -6468,9 +6436,7 @@ class SpecificTreesTestCase(StatsTestCase):
         )
         self.assertArrayAlmostEqual(py_r, ts_r)
         self.assertArrayAlmostEqual(true_cov, py_r * (geno_var[:, np.newaxis] ** 2))
-        self.assertArrayAlmostEqual(
-            true_cor, ts_r * geno_var[:, np.newaxis] / trait_var
-        )
+        self.assertArrayAlmostEqual(true_cor, ts_r * geno_var[:, np.newaxis] / trait_var)
 
     def test_case_odds_and_ends(self):
         # Tests having (a) the first site after the first window, and
@@ -6800,9 +6766,7 @@ class SpecificTreesTestCase(StatsTestCase):
         def f(x):
             return np.array(
                 [
-                    float(
-                        ((x[0] == 1) and (x[1] == 0)) or ((x[0] == 0) and (x[1] == 2))
-                    )
+                    float(((x[0] == 1) and (x[1] == 0)) or ((x[0] == 0) and (x[1] == 2)))
                     / 2.0
                 ]
             )
@@ -7128,9 +7092,7 @@ class TestOutputDimensions(StatsTestCase):
             self.assertArrayEqual(x, y)
 
         mode = "node"
-        x = method(
-            [A, B, C], indexes=[[0, 1, 2], [0, 2, 1]], windows=windows, mode=mode
-        )
+        x = method([A, B, C], indexes=[[0, 1, 2], [0, 2, 1]], windows=windows, mode=mode)
         # Three windows, N nodes and 2 triples
         assert x.shape == (3, N, 2)
 
@@ -7235,7 +7197,6 @@ class TestGeneralStatCallbackErrors:
 
 
 class TestTimeWindows:
-
     def test_bad_time_windows(self, four_taxa_test_case):
         ts = four_taxa_test_case
         for bad_windows in ([0], [-1], [math.inf]):

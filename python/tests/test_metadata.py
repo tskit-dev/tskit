@@ -23,6 +23,7 @@
 """
 Tests for metadata handling.
 """
+
 import collections
 import io
 import json

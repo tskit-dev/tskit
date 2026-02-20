@@ -22,6 +22,7 @@
 """
 Python implementation of the Li and Stephens forwards and backwards algorithms.
 """
+
 import warnings
 
 import lshmm as ls
@@ -162,9 +163,7 @@ class LsHmmAlgorithm:
             optimal_set[u, value_count == max_value_count] = 1
 
         optimal_set = np.zeros((tree.tree_sequence.num_nodes, len(values)), dtype=int)
-        t_node_time = [
-            -1 if st.tree_node == -1 else tree.time(st.tree_node) for st in T
-        ]
+        t_node_time = [-1 if st.tree_node == -1 else tree.time(st.tree_node) for st in T]
         order = np.argsort(t_node_time)
         for j in order:
             st = T[j]

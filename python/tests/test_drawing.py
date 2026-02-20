@@ -23,6 +23,7 @@
 """
 Test cases for visualisation in tskit.
 """
+
 import collections
 import io
 import logging
@@ -42,7 +43,6 @@ import tests.test_wright_fisher as wf
 import tests.tsutil as tsutil
 import tskit
 from tskit import drawing
-
 
 IS_WINDOWS = platform.system() == "Windows"
 
@@ -250,7 +250,7 @@ class TestTreeDraw:
         """
         Required for xmlunittest.XmlTestMixin to work with pytest not unittest
         """
-        pytest.fail(*args, **kwargs)
+        pytest.fail(*args, **kwargs)  # noqa: PT016
 
 
 def closest_left_node(tree, u):
@@ -685,13 +685,13 @@ class TestDrawTextExamples(TestTreeDraw):
         0       1       2       1
         """
         )
+        # fmt: off
         tree = (
-            # fmt: off
             " 2 \n"
             "┏┻┓\n"
             "0 1"
-            # fmt: on
         )
+        # fmt: on
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
         drawn = t.draw(format="unicode", order="tree")
@@ -699,32 +699,32 @@ class TestDrawTextExamples(TestTreeDraw):
         drawn = t.draw_text()
         self.verify_text_rendering(drawn, tree)
 
+        # fmt: off
         tree = (
-            # fmt: off
             " 2 \n"
             "+++\n"
             "0 1\n"
-            # fmt: on
         )
+        # fmt: on
         drawn = t.draw_text(use_ascii=True, order="tree")
         self.verify_text_rendering(drawn, tree)
 
+        # fmt: off
         tree = (
-            # fmt: off
             " ┏0\n"
             "2┫  \n"
             " ┗1\n"
-            # fmt: on
         )
+        # fmt: on
         drawn = t.draw_text(orientation="left", order="tree")
         self.verify_text_rendering(drawn, tree)
+        # fmt: off
         tree = (
-            # fmt: off
             " +0\n"
             "2+  \n"
             " +1\n"
-            # fmt: on
         )
+        # fmt: on
         drawn = t.draw_text(orientation="left", use_ascii=True, order="tree")
         self.verify_text_rendering(drawn, tree)
 
@@ -744,25 +744,25 @@ class TestDrawTextExamples(TestTreeDraw):
         0       1       2       1
         """
         )
+        # fmt: off
         tree = (
-            # fmt: off
             "ABCDEF\n"
             "┏┻┓   \n"
             "0 1   \n"
-            # fmt: on
         )
+        # fmt: on
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
         drawn = t.draw_text(node_labels={0: "0", 1: "1", 2: "ABCDEF"}, order="tree")
         self.verify_text_rendering(drawn, tree)
 
+        # fmt: off
         tree = (
-            # fmt: off
             "0┓      \n"
             " ┣ABCDEF\n"
             "1┛      \n"
-            # fmt: on
         )
+        # fmt: on
         drawn = t.draw_text(
             node_labels={0: "0", 1: "1", 2: "ABCDEF"}, orientation="right", order="tree"
         )
@@ -771,22 +771,22 @@ class TestDrawTextExamples(TestTreeDraw):
         drawn = t.draw_text(
             node_labels={0: "ABCDEF", 1: "1", 2: "2"}, orientation="right", order="tree"
         )
+        # fmt: off
         tree = (
-            # fmt: off
             "ABCDEF┓ \n"
             "      ┣2\n"
             "1━━━━━┛ \n"
-            # fmt: on
         )
+        # fmt: on
         self.verify_text_rendering(drawn, tree)
 
+        # fmt: off
         tree = (
-            # fmt: off
             "      ┏0\n"
             "ABCDEF┫ \n"
             "      ┗1\n"
-            # fmt: on
         )
+        # fmt: on
         drawn = t.draw_text(
             node_labels={0: "0", 1: "1", 2: "ABCDEF"}, orientation="left", order="tree"
         )
@@ -816,6 +816,7 @@ class TestDrawTextExamples(TestTreeDraw):
         0.00000000      1.00000000      6       5
         """
         )
+        # fmt: off
         tree = (
             "  6     \n"
             "┏━┻━┓   \n"
@@ -825,6 +826,7 @@ class TestDrawTextExamples(TestTreeDraw):
             "┃ ┃ ┏┻┓ \n"
             "1 2 0 3 \n"
         )
+        # fmt: on
         ts = tskit.load_text(nodes, edges, strict=False)
         t = ts.first()
         drawn = t.draw(format="unicode", order="tree")
@@ -832,6 +834,7 @@ class TestDrawTextExamples(TestTreeDraw):
         self.verify_text_rendering(t.draw_text(order="tree"), tree)
 
         drawn = t.draw_text(orientation="bottom", order="tree")
+        # fmt: off
         tree = (
             "1 2 0 3\n"
             "┃ ┃ ┗┳┛\n"
@@ -841,8 +844,10 @@ class TestDrawTextExamples(TestTreeDraw):
             "┗━┳━┛  \n"
             "  6    \n"
         )
+        # fmt: on
         self.verify_text_rendering(drawn, tree)
 
+        # fmt: off
         tree = (
             " ┏━━━━1\n"
             " ┃     \n"
@@ -852,8 +857,10 @@ class TestDrawTextExamples(TestTreeDraw):
             "   ┗4┫  \n"
             "     ┗3\n"
         )
+        # fmt: on
         self.verify_text_rendering(t.draw_text(orientation="left", order="tree"), tree)
 
+        # fmt: off
         tree = (
             "2.92┊   6     ┊\n"
             "    ┊ ┏━┻━┓   ┊\n"
@@ -864,8 +871,10 @@ class TestDrawTextExamples(TestTreeDraw):
             "0.00┊ 1 2 0 3 ┊\n"
             "    0         1\n"
         )
+        # fmt: on
         self.verify_text_rendering(ts.draw_text(order="tree"), tree)
 
+        # fmt: off
         tree = (
             "  6    \n"
             "+-+-+  \n"
@@ -875,9 +884,11 @@ class TestDrawTextExamples(TestTreeDraw):
             "| | +++\n"
             "1 2 0 3\n"
         )
+        # fmt: on
         drawn = t.draw(format="ascii", order="tree")
         self.verify_text_rendering(drawn, tree)
 
+        # fmt: off
         tree = (
             "  6     \n"
             "┏━┻━┓   \n"
@@ -887,11 +898,13 @@ class TestDrawTextExamples(TestTreeDraw):
             "┃ ┃ ┏┻┓ \n"
             "1 2 0 3 \n"
         )
+        # fmt: on
         labels = {u: str(u) for u in t.nodes()}
         labels[5] = "xxxxxxxxxx"
         drawn = t.draw_text(node_labels=labels, order="tree")
         self.verify_text_rendering(drawn, tree)
 
+        # fmt: off
         tree = (
             " ┏━━━━━━━━━━━━━1\n"
             " ┃              \n"
@@ -901,9 +914,11 @@ class TestDrawTextExamples(TestTreeDraw):
             "            ┗4┫ \n"
             "              ┗3\n"
         )
+        # fmt: on
         drawn = t.draw_text(node_labels=labels, orientation="left", order="tree")
         self.verify_text_rendering(drawn, tree)
 
+        # fmt: off
         tree = (
             "2.92┊   6         ┊\n"
             "    ┊ ┏━┻━┓       ┊\n"
@@ -914,6 +929,7 @@ class TestDrawTextExamples(TestTreeDraw):
             "0.00┊ 1 2 0 3     ┊\n"
             "    0             1\n"
         )
+        # fmt: on
         drawn = ts.draw_text(node_labels=labels, order="tree")
         self.verify_text_rendering(drawn, tree)
 
@@ -935,40 +951,40 @@ class TestDrawTextExamples(TestTreeDraw):
         0       1       3       2
         """
         )
+        # fmt: off
         tree = (
-            # fmt: off
             "  3  \n"
             "┏━╋━┓\n"
             "0 1 2\n"
-            # fmt: on
         )
+        # fmt: on
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
         drawn = t.draw(format="unicode", order="tree")
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(), tree)
 
+        # fmt: off
         tree = (
-            # fmt: off
             " ┏0\n"
             " ┃\n"
             "3╋1\n"
             " ┃\n"
             " ┗2\n"
-            # fmt: on
         )
+        # fmt: on
         drawn = t.draw_text(orientation="left")
         self.verify_text_rendering(drawn, tree)
 
+        # fmt: off
         tree = (
-            # fmt: off
             "0┓\n"
             " ┃\n"
             "1╋3\n"
             " ┃\n"
             "2┛\n"
-            # fmt: on
         )
+        # fmt: on
         drawn = t.draw_text(orientation="right")
         self.verify_text_rendering(drawn, tree)
 
@@ -994,43 +1010,43 @@ class TestDrawTextExamples(TestTreeDraw):
         )
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
+        # fmt: off
         tree = (
-            # fmt: off
             "   4   \n"
             "┏━┳┻┳━┓\n"
             "0 1 2 3\n"
-            # fmt: on
         )
+        # fmt: on
         drawn = t.draw(format="unicode", order="tree")
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(), tree)
 
         # No labels
+        # fmt: off
         tree = (
-            # fmt: off
             "   ┃   \n"
             "┏━┳┻┳━┓\n"
             "┃ ┃ ┃ ┃\n"
-            # fmt: on
         )
+        # fmt: on
         drawn = t.draw(format="unicode", node_labels={}, order="tree")
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(node_labels={}), tree)
         # Some labels
+        # fmt: off
         tree = (
-            # fmt: off
             "   ┃   \n"
             "┏━┳┻┳━┓\n"
             "0 ┃ ┃ 3\n"
-            # fmt: on
         )
+        # fmt: on
         labels = {0: "0", 3: "3"}
         drawn = t.draw(format="unicode", node_labels=labels, order="tree")
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(node_labels=labels), tree)
 
+        # fmt: off
         tree = (
-            # fmt: off
             " ┏0\n"
             " ┃\n"
             " ┣1\n"
@@ -1038,13 +1054,13 @@ class TestDrawTextExamples(TestTreeDraw):
             " ┣2\n"
             " ┃\n"
             " ┗3\n"
-            # fmt: on
         )
+        # fmt: on
         drawn = t.draw_text(orientation="left")
         self.verify_text_rendering(drawn, tree)
 
+        # fmt: off
         tree = (
-            # fmt: off
             "0┓\n"
             " ┃\n"
             "1┫\n"
@@ -1052,8 +1068,8 @@ class TestDrawTextExamples(TestTreeDraw):
             "2┫\n"
             " ┃\n"
             "3┛\n"
-            # fmt: on
         )
+        # fmt: on
         drawn = t.draw_text(orientation="right")
         self.verify_text_rendering(drawn, tree)
 
@@ -1073,30 +1089,30 @@ class TestDrawTextExamples(TestTreeDraw):
         0       1       2       1
         """
         )
+        # fmt: off
         tree = (
-            # fmt: off
             "2\n"
             "┃\n"
             "1\n"
             "┃\n"
             "0\n"
-            # fmt: on
         )
+        # fmt: on
         ts = tskit.load_text(nodes, edges, strict=False)
         t = next(ts.trees())
         drawn = t.draw(format="unicode", order="tree")
         self.verify_text_rendering(drawn, tree)
         self.verify_text_rendering(t.draw_text(), tree)
 
+        # fmt: off
         tree = (
-            # fmt: off
             "0\n"
             "┃\n"
             "1\n"
             "┃\n"
             "2\n"
-            # fmt: on
         )
+        # fmt: on
         drawn = t.draw_text(orientation="bottom")
         self.verify_text_rendering(drawn, tree)
 
@@ -1436,6 +1452,7 @@ class TestDrawTextExamples(TestTreeDraw):
         t = ts.first()
         self.verify_text_rendering(t.draw_text(max_time="ts"), tree)
 
+        # fmt: off
         tree = (
             "   9   \n"
             " ┏━┻━┓ \n"
@@ -1445,6 +1462,7 @@ class TestDrawTextExamples(TestTreeDraw):
             "┏┻┓ ┃ ┃\n"
             "0 1 2 3\n"
         )
+        # fmt: on
         t = ts.first()
         self.verify_text_rendering(t.draw_text(max_time="tree"), tree)
         for bad_max_time in [1, "sdfr", ""]:
@@ -1956,9 +1974,7 @@ class TestDrawSvg(TestDrawSvgBase):
 
     def test_all_mutations_colour(self):
         t = self.get_binary_tree()
-        colours = {
-            mut.id: f"rgb({mut.id}, {mut.id}, {mut.id})" for mut in t.mutations()
-        }
+        colours = {mut.id: f"rgb({mut.id}, {mut.id}, {mut.id})" for mut in t.mutations()}
         svg = t.draw(format="svg", mutation_colours=colours)
         self.verify_basic_svg(svg)
         for colour in colours.values():
@@ -2258,7 +2274,7 @@ class TestDrawSvg(TestDrawSvgBase):
         assert svg_no_css.count("y-axis") == 1
         assert svg_no_css.count('"tick"') == 0
 
-    def test_y_axis_tick_warning(sefl, caplog):
+    def test_y_axis_tick_warning(self, caplog):
         tree = msprime.simulate(4, random_seed=2).first()
         upper = int(tree.time(tree.root))
         with caplog.at_level(logging.WARNING):
@@ -2404,9 +2420,7 @@ class TestDrawSvg(TestDrawSvgBase):
         svg = ts.draw_svg(x_lim=[breaks[1], breaks[4]])
         assert "t0" not in svg
         assert "t4" not in svg
-        svg = ts.draw_svg(
-            x_lim=[np.nextafter(breaks[1], 0), np.nextafter(breaks[4], 1)]
-        )
+        svg = ts.draw_svg(x_lim=[np.nextafter(breaks[1], 0), np.nextafter(breaks[4], 1)])
         assert "t0" in svg
         assert "t4" in svg
 
@@ -2556,9 +2570,7 @@ class TestDrawSvg(TestDrawSvgBase):
             3, sequence_length=100, recombination_rate=0.1, random_seed=1
         )
         regions = [(0, 10), (9, 20), (50, 90)]
-        svg = ts.draw_svg(
-            x_regions={r: f"reg{'ABC'[i]}" for i, r in enumerate(regions)}
-        )
+        svg = ts.draw_svg(x_regions={r: f"reg{'ABC'[i]}" for i, r in enumerate(regions)})
         self.verify_basic_svg(svg, width=200 * ts.num_trees)
         assert svg.count("x-regions") == 2  # one in stylesheet, one in svg
         assert svg.count("r0") == 1
@@ -2642,9 +2654,7 @@ class TestDrawSvg(TestDrawSvgBase):
             assert "Ticks {10: '10'} lie outside the plotted axis" in caplog.text
 
     def test_polytomy_collapsing(self):
-        tree = tskit.Tree.generate_balanced(
-            20, arity=4, tracked_samples=np.arange(2, 8)
-        )
+        tree = tskit.Tree.generate_balanced(20, arity=4, tracked_samples=np.arange(2, 8))
         svg = tree.draw_svg(pack_untracked_polytomies=True)
         # Should have one collapsed node (untracked samples 8 and 9)
         # and two "polytomy lines" (from nodes 21 and 28 (the root))
@@ -2663,9 +2673,7 @@ class TestDrawSvg(TestDrawSvgBase):
         svg = tree_or_ts.draw_svg(
             size=(200, 200),
             canvas_size=(400, 200),
-            preamble=embed.draw_svg(
-                root_svg_attributes={"x": 200, "class": "embedded"}
-            ),
+            preamble=embed.draw_svg(root_svg_attributes={"x": 200, "class": "embedded"}),
         )
         self.verify_basic_svg(svg, width=400, height=200)
         assert svg.count("<svg") == 2
@@ -2690,9 +2698,7 @@ class TestDrawKnownSvg(TestDrawSvgBase):
 
     def verify_known_svg(self, svg, filename, save=False, **kwargs):
         # expected SVG files can be inspected in tests/data/svg/*.svg
-        svg = xml.dom.minidom.parseString(
-            svg
-        ).toprettyxml()  # Prettify for easy viewing
+        svg = xml.dom.minidom.parseString(svg).toprettyxml()  # Prettify for easy viewing
         self.verify_basic_svg(svg, **kwargs)
         svg_fn = pathlib.Path(__file__).parent / "data" / "svg" / filename
         if save:
@@ -2976,9 +2982,7 @@ class TestDrawKnownSvg(TestDrawSvgBase):
             else:
                 assert f"<title>NoDe{nd.id}!</title>" in svg
         for m in ts.mutations():
-            assert (
-                svg.count(f"<title>MuT{m.id}!</title>") == 2
-            )  # 1 on tree, 1 on x-axis
+            assert svg.count(f"<title>MuT{m.id}!</title>") == 2  # 1 on tree, 1 on x-axis
         self.verify_known_svg(
             svg, "ts_mut_times_titles.svg", overwrite_viz, width=200 * ts.num_trees
         )
@@ -3160,9 +3164,7 @@ class TestDrawKnownSvg(TestDrawSvgBase):
             size=(600, 200),
             style="".join(f".n{u} > .sym {{fill: cyan}}" for u in tracked_nodes + [39]),
         )
-        self.verify_known_svg(
-            svg, "tree_poly.svg", overwrite_viz, width=600, height=200
-        )
+        self.verify_known_svg(svg, "tree_poly.svg", overwrite_viz, width=600, height=200)
 
     def test_known_svg_tree_polytomy_tracked(self, overwrite_viz, draw_plotbox):
         tracked_nodes = [20, 24, 25, 27, 28, 29]
@@ -3179,9 +3181,7 @@ class TestDrawKnownSvg(TestDrawSvgBase):
             svg, "tree_poly_tracked.svg", overwrite_viz, width=600, height=200
         )
 
-    def test_known_svg_tree_polytomy_tracked_collapse(
-        self, overwrite_viz, draw_plotbox
-    ):
+    def test_known_svg_tree_polytomy_tracked_collapse(self, overwrite_viz, draw_plotbox):
         tracked_nodes = [20, 24, 25, 27, 28, 29]
         tree = tskit.Tree.generate_balanced(30, arity=4, tracked_samples=tracked_nodes)
         svg = tree.draw_svg(

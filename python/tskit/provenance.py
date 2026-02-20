@@ -24,6 +24,7 @@
 Common provenance methods used to determine the state and versions
 of various dependencies and the OS.
 """
+
 import json
 import os.path
 import platform
@@ -39,6 +40,7 @@ import jsonschema
 
 import _tskit
 import tskit.exceptions as exceptions
+
 from . import _version
 
 __version__ = _version.tskit_version

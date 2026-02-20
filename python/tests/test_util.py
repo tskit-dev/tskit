@@ -22,6 +22,7 @@
 """
 Tests for functions in util.py
 """
+
 import collections
 import itertools
 import math

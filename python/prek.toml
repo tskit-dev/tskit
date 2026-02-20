@@ -1,0 +1,66 @@
+# The prek configuration defining linting requirements. This
+# setup is optimised for long-term stability and determinism,
+# and therefore only uses either "builtin" rules or "local"
+# rules implementing lint workflows.  We do not use any remote
+# workflow repos.
+
+# files = { glob = [
+#     "tskit/**",
+#     "benchmark/**",
+#     "tests/**",
+#     "_tskitmodule.c",
+#     "*.toml",
+#     "docs/**",
+# ]}
+
+# exclude = { glob = ["lib/avl.*", "lib/subprojects/**"]}
+
+[[repos]]
+repo = "builtin"
+hooks = [
+    # { id = "trailing-whitespace" },
+    # { id = "end-of-file-fixer" },
+    { id = "check-added-large-files" },
+    { id = "check-merge-conflict" },
+    { id = "mixed-line-ending" },
+    { id = "check-case-conflict" },
+    { id = "check-yaml" },
+    { id = "check-toml" },
+]
+
+[[repos]]
+repo = "local"
+hooks = [
+  {
+    id = "ruff-check",
+    name = "ruff check",
+    language = "system",
+    entry = "ruff check --fix --force-exclude",
+    types = ["python"],
+  },
+]
+
+[[repos]]
+repo = "local"
+hooks = [
+  {
+    id = "ruff-format",
+    name = "ruff format",
+    language = "system",
+    entry = "ruff format --force-exclude",
+    types = ["python"],
+  },
+]
+
+[[repos]]
+repo = "local"
+hooks = [
+  {
+    id = "clang-format",
+    name = "clang-format",
+    language = "system",
+    entry = "clang-format -i",
+    types = ["c"],
+    verbose = true,
+  },
+]

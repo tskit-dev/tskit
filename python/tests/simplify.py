@@ -23,6 +23,7 @@
 """
 Python implementation of the simplify algorithm.
 """
+
 import sys
 
 import numpy as np
@@ -335,8 +336,7 @@ class Simplifier:
                 # Fill in any gaps in the ancestry for the sample
                 self.add_ancestry(input_id, prev_right, left, output_id)
             if self.keep_unary or (
-                self.keep_unary_in_individuals
-                and self.ts.node(input_id).individual >= 0
+                self.keep_unary_in_individuals and self.ts.node(input_id).individual >= 0
             ):
                 ancestry_node = output_id
             self.add_ancestry(input_id, left, right, ancestry_node)
@@ -639,9 +639,7 @@ class AncestorMap:
             x = self.A_head[edge.child]
             while x is not None:
                 if x.right > edge.left and edge.right > x.left:
-                    y = Segment(
-                        max(x.left, edge.left), min(x.right, edge.right), x.node
-                    )
+                    y = Segment(max(x.left, edge.left), min(x.right, edge.right), x.node)
                     S.append(y)
                 x = x.next
         self.merge_labeled_ancestors(S, parent)

@@ -22,6 +22,7 @@
 """
 Module responsible for working with text format data.
 """
+
 import base64
 
 import numpy as np
@@ -73,7 +74,7 @@ def parse_fam(fam_file):
     )
     for plink_fid, plink_iid, pat, mat, sex in individuals:
         sex = int(sex)
-        if not (sex in range(3)):
+        if sex not in range(3):
             raise ValueError(
                 "Sex must be one of the following: 0 (unknown), 1 (male), 2 (female)"
             )
@@ -326,9 +327,7 @@ def dump_text(
         print("position", "ancestral_state", "metadata", sep="\t", file=sites)
         for site in ts.sites():
             metadata = text_metadata(base64_metadata, encoding, site)
-            row = (
-                "{position:.{precision}f}\t" "{ancestral_state}\t" "{metadata}"
-            ).format(
+            row = ("{position:.{precision}f}\t{ancestral_state}\t{metadata}").format(
                 precision=precision,
                 position=site.position,
                 ancestral_state=site.ancestral_state,
@@ -351,12 +350,7 @@ def dump_text(
             for mutation in site.mutations:
                 metadata = text_metadata(base64_metadata, encoding, mutation)
                 row = (
-                    "{site}\t"
-                    "{node}\t"
-                    "{time}\t"
-                    "{derived_state}\t"
-                    "{parent}\t"
-                    "{metadata}"
+                    "{site}\t{node}\t{time}\t{derived_state}\t{parent}\t{metadata}"
                 ).format(
                     site=mutation.site,
                     node=mutation.node,
@@ -385,9 +379,7 @@ def dump_text(
             metadata = text_metadata(base64_metadata, encoding, individual)
             location = ",".join(map(str, individual.location))
             parents = ",".join(map(str, individual.parents))
-            row = (
-                "{id}\t" "{flags}\t" "{location}\t" "{parents}\t" "{metadata}"
-            ).format(
+            row = ("{id}\t{flags}\t{location}\t{parents}\t{metadata}").format(
                 id=individual.id,
                 flags=individual.flags,
                 location=location,
@@ -400,7 +392,7 @@ def dump_text(
         print("id", "metadata", sep="\t", file=populations)
         for population in ts.populations():
             metadata = text_metadata(base64_metadata, encoding, population)
-            row = ("{id}\t" "{metadata}").format(id=population.id, metadata=metadata)
+            row = ("{id}\t{metadata}").format(id=population.id, metadata=metadata)
             print(row, file=populations)
 
     if migrations is not None:
@@ -418,13 +410,7 @@ def dump_text(
         for migration in ts.migrations():
             metadata = text_metadata(base64_metadata, encoding, migration)
             row = (
-                "{left}\t"
-                "{right}\t"
-                "{node}\t"
-                "{source}\t"
-                "{dest}\t"
-                "{time}\t"
-                "{metadata}\t"
+                "{left}\t{right}\t{node}\t{source}\t{dest}\t{time}\t{metadata}\t"
             ).format(
                 left=migration.left,
                 right=migration.right,
@@ -439,7 +425,7 @@ def dump_text(
     if provenances is not None:
         print("id", "timestamp", "record", sep="\t", file=provenances)
         for provenance in ts.provenances():
-            row = ("{id}\t" "{timestamp}\t" "{record}\t").format(
+            row = ("{id}\t{timestamp}\t{record}\t").format(
                 id=provenance.id,
                 timestamp=provenance.timestamp,
                 record=provenance.record,

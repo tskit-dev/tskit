@@ -26,16 +26,14 @@ main(int argc, char **argv)
 
     printf("Iterate forwards\n");
     for (ret = tsk_tree_first(&tree); ret == TSK_TREE_OK; ret = tsk_tree_next(&tree)) {
-        printf("\ttree %lld has %lld roots\n",
-            (long long) tree.index,
+        printf("\ttree %lld has %lld roots\n", (long long) tree.index,
             (long long) tsk_tree_get_num_roots(&tree));
     }
     check_tsk_error(ret);
 
     printf("Iterate backwards\n");
     for (ret = tsk_tree_last(&tree); ret == TSK_TREE_OK; ret = tsk_tree_prev(&tree)) {
-        printf("\ttree %lld has %lld roots\n",
-            (long long) tree.index,
+        printf("\ttree %lld has %lld roots\n", (long long) tree.index,
             (long long) tsk_tree_get_num_roots(&tree));
     }
     check_tsk_error(ret);

@@ -1,0 +1,10 @@
+name: Lint
+
+on:
+  pull_request:
+
+jobs:
+  Lint:
+    uses: tskit-dev/.github/.github/workflows/lint.yml@main
+    with:
+      pyproject-directory: python

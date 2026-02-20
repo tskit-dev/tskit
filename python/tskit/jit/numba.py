@@ -623,9 +623,7 @@ def jitwrap(ts):
     """
     max_ancestral_length = max(1, max(map(len, ts.sites_ancestral_state), default=1))
     max_derived_length = max(1, max(map(len, ts.mutations_derived_state), default=1))
-    max_inherited_length = max(
-        1, max(map(len, ts.mutations_inherited_state), default=1)
-    )
+    max_inherited_length = max(1, max(map(len, ts.mutations_inherited_state), default=1))
 
     JittedTreeSequence = _jitwrap(
         max_ancestral_length, max_derived_length, max_inherited_length

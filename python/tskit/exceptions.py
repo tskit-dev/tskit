@@ -23,13 +23,14 @@
 """
 Exceptions defined in tskit.
 """
-from _tskit import FileFormatError  # noqa: F401
-from _tskit import IdentityPairsNotStoredError  # noqa: F401
-from _tskit import IdentitySegmentsNotStoredError  # noqa: F401
-from _tskit import LibraryError  # noqa: F401
-from _tskit import TskitException  # noqa: F401
-from _tskit import VersionTooNewError  # noqa: F401
-from _tskit import VersionTooOldError  # noqa: F401
+
+from _tskit import FileFormatError  # noqa F401
+from _tskit import IdentityPairsNotStoredError  # noqa F401
+from _tskit import IdentitySegmentsNotStoredError  # noqa F401
+from _tskit import LibraryError  # noqa F401
+from _tskit import TskitException
+from _tskit import VersionTooNewError  # noqa F401
+from _tskit import VersionTooOldError  # noqa F401
 
 
 class DuplicatePositionsError(TskitException):

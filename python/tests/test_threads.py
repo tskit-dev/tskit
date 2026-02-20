@@ -23,6 +23,7 @@
 """
 Test cases for threading enabled aspects of the API.
 """
+
 import platform
 import threading
 
@@ -58,9 +59,7 @@ class TestLdCalculatorReplicates:
     num_test_sites = 25
 
     def get_tree_sequence(self):
-        ts = msprime.simulate(
-            20, mutation_rate=10, recombination_rate=10, random_seed=8
-        )
+        ts = msprime.simulate(20, mutation_rate=10, recombination_rate=10, random_seed=8)
         return tsutil.subsample_sites(ts, self.num_test_sites)
 
     def test_get_r2_multiple_instances(self):
@@ -142,9 +141,7 @@ class TestLdCalculatorReplicates:
 # Temporarily skipping these on Windows and OSX See
 # https://github.com/tskit-dev/tskit/issues/344
 # https://github.com/tskit-dev/tskit/issues/1041
-@pytest.mark.skipif(
-    IS_WINDOWS or IS_OSX, reason="Can't test thread support on Windows."
-)
+@pytest.mark.skipif(IS_WINDOWS or IS_OSX, reason="Can't test thread support on Windows.")
 class TestTables:
     """
     Tests to ensure that attempts to access tables in threads correctly

@@ -24,6 +24,7 @@
 """
 Test cases for the intervals module.
 """
+
 import decimal
 import fractions
 import gzip
