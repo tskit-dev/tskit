@@ -22,6 +22,7 @@
 """
 Test cases for loading and dumping different types of files and streams
 """
+
 import io
 import multiprocessing
 import os
@@ -36,17 +37,15 @@ import traceback
 
 import pytest
 import tszip
-from pytest import fixture
 
 import tskit
-
 
 IS_WINDOWS = platform.system() == "Windows"
 IS_OSX = platform.system() == "Darwin"
 
 
 class TestPath:
-    @fixture
+    @pytest.fixture
     def tempfile_name(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             yield f"{tmp_dir}/plain_path"
@@ -58,7 +57,7 @@ class TestPath:
 
 
 class TestPathLib:
-    @fixture
+    @pytest.fixture
     def pathlib_tempfile(self):
         fd, path = tempfile.mkstemp(prefix="tskit_test_pathlib")
         os.close(fd)
@@ -73,7 +72,7 @@ class TestPathLib:
 
 
 class TestFileObj:
-    @fixture
+    @pytest.fixture
     def fileobj(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             with open(f"{tmp_dir}/fileobj", "wb") as f:
@@ -100,7 +99,7 @@ class TestFileObj:
 
 
 class TestFileObjRW:
-    @fixture
+    @pytest.fixture
     def fileobj(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             pathlib.Path(f"{tmp_dir}/fileobj").touch()
@@ -127,7 +126,7 @@ class TestFileObjRW:
 
 
 class TestFD:
-    @fixture
+    @pytest.fixture
     def fd(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             pathlib.Path(f"{tmp_dir}/fd").touch()
@@ -246,7 +245,7 @@ def stream(fifo, ts_list):
 @pytest.mark.skipif(IS_WINDOWS, reason="No FIFOs on Windows")
 @pytest.mark.skipif(IS_OSX, reason="FIFO flakey on OS X, issue #1170")
 class TestFIFO:
-    @fixture
+    @pytest.fixture
     def fifo(self):
         temp_dir = tempfile.mkdtemp(prefix="tsk_test_streaming")
         temp_fifo = os.path.join(temp_dir, "fifo")
@@ -290,7 +289,7 @@ def server_process(q):
 @pytest.mark.network
 @pytest.mark.skipif(IS_WINDOWS or IS_OSX, reason="Errors on systems without proper fds")
 class TestSocket:
-    @fixture
+    @pytest.fixture
     def client_fd(self):
         # Use a queue to synchronise the startup of the server and the client.
         q = multiprocessing.Queue()

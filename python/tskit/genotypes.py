@@ -323,9 +323,7 @@ class Variant:
         if remove_missing:
             total -= self.num_missing
         if total == 0:
-            logging.warning(
-                "No non-missing samples at this site, frequencies undefined"
-            )
+            logging.warning("No non-missing samples at this site, frequencies undefined")
         return {
             allele: count / total if total > 0 else np.nan
             for allele, count in self.counts().items()
@@ -353,7 +351,7 @@ class Variant:
                 + [
                     [
                         f"Samples with allele "
-                        f"""{'missing' if k is None else "'" + k + "'"}""",
+                        f"""{"missing" if k is None else "'" + k + "'"}""",
                         f"{util.format_number(counts[k], sep=',')} "
                         f"({util.format_number(freqs[k] * 100, 2, sep=',')}%)",
                     ]

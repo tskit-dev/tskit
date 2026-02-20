@@ -22,6 +22,7 @@
 """
 Test cases for coalescence rate calculation in tskit.
 """
+
 import itertools
 
 import msprime
@@ -45,9 +46,7 @@ def _single_tree_example(L, T):
     tables.edges.set_columns(
         left=np.repeat([0], 13),
         right=np.repeat([L], 13),
-        parent=np.array(
-            [8, 8, 9, 9, 10, 10, 11, 11, 11, 12, 12, 13, 13], dtype="int32"
-        ),
+        parent=np.array([8, 8, 9, 9, 10, 10, 11, 11, 11, 12, 12, 13, 13], dtype="int32"),
         child=np.array([1, 2, 3, 8, 0, 7, 4, 5, 10, 6, 11, 9, 12], dtype="int32"),
     )
     tables.populations.add_row()
@@ -1523,9 +1522,7 @@ class TestCoalescingPairsUsage:
                 windows=np.array([0.0, 0.3, 0.2, 1.0]) * ts.sequence_length
             )
         with pytest.raises(tskit.LibraryError, match="must be increasing list"):
-            ts.pair_coalescence_counts(
-                windows=np.array([0.0, 2.0]) * ts.sequence_length
-            )
+            ts.pair_coalescence_counts(windows=np.array([0.0, 2.0]) * ts.sequence_length)
 
     def test_bad_sample_sets(self):
         ts = self.example_ts()
@@ -1586,18 +1583,14 @@ class TestCoalescingPairsUsage:
         implm = ts.pair_coalescence_counts(sample_sets=ss, windows=None, indexes=None)
         assert implm.shape == (ts.num_nodes,)
         windows = np.linspace(0.0, ts.sequence_length, 2)
-        implm = ts.pair_coalescence_counts(
-            sample_sets=ss, windows=windows, indexes=None
-        )
+        implm = ts.pair_coalescence_counts(sample_sets=ss, windows=windows, indexes=None)
         assert implm.shape == (1, ts.num_nodes)
         indexes = [(0, 1), (1, 1)]
         implm = ts.pair_coalescence_counts(
             sample_sets=ss, windows=windows, indexes=indexes
         )
         assert implm.shape == (1, 2, ts.num_nodes)
-        implm = ts.pair_coalescence_counts(
-            sample_sets=ss, windows=None, indexes=indexes
-        )
+        implm = ts.pair_coalescence_counts(sample_sets=ss, windows=None, indexes=indexes)
         assert implm.shape == (2, ts.num_nodes)
 
     def test_extra_time_windows(self):

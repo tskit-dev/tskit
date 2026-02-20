@@ -22,6 +22,7 @@
 """
 Test cases for generating genotypes/haplotypes.
 """
+
 import itertools
 import logging
 import random
@@ -699,9 +700,7 @@ class TestVariantGenerator:
         tables.delete_intervals([[0, ts.site(4).position]])
         tables.sites.replace_with(ts.tables.sites)
         ts = tables.tree_sequence()
-        states = np.array(
-            [v.states() for v in ts.variants(isolated_as_missing=missing)]
-        )
+        states = np.array([v.states() for v in ts.variants(isolated_as_missing=missing)])
         for h1, h2 in zip(ts.haplotypes(isolated_as_missing=missing), states.T):
             assert h1 == "".join(h2)
 
@@ -974,9 +973,7 @@ class TestHaplotypeGenerator:
             h = list(ts.haplotypes(isolated_as_missing=False, impute_missing_data=True))
         assert h == ["A", "A"]
         with pytest.warns(FutureWarning):
-            h = list(
-                ts.haplotypes(isolated_as_missing=False, impute_missing_data=False)
-            )
+            h = list(ts.haplotypes(isolated_as_missing=False, impute_missing_data=False))
         assert h == ["A", "A"]
 
     def test_restrict_samples(self):
@@ -1028,9 +1025,7 @@ class TestUserAlleles:
         alleles = ("0", "1", "2", "xxxxx")
         G2 = ts.genotype_matrix(alleles=alleles)
         assert np.array_equal(G1, G2)
-        for v1, v2 in itertools.zip_longest(
-            ts.variants(), ts.variants(alleles=alleles)
-        ):
+        for v1, v2 in itertools.zip_longest(ts.variants(), ts.variants(alleles=alleles)):
             assert v2.alleles == alleles
             assert v1.site == v2.site
             assert np.array_equal(v1.genotypes, v2.genotypes)
@@ -1042,9 +1037,7 @@ class TestUserAlleles:
         alleles = ("A", "B", "C", "0", "1")
         G2 = ts.genotype_matrix(alleles=alleles)
         assert np.array_equal(G1 + 3, G2)
-        for v1, v2 in itertools.zip_longest(
-            ts.variants(), ts.variants(alleles=alleles)
-        ):
+        for v1, v2 in itertools.zip_longest(ts.variants(), ts.variants(alleles=alleles)):
             assert v2.alleles == alleles
             assert v1.site == v2.site
             assert np.array_equal(v1.genotypes + 3, v2.genotypes)
@@ -1058,9 +1051,7 @@ class TestUserAlleles:
         index = np.where(G1 == 1)
         G1[index] = 2
         assert np.array_equal(G1, G2)
-        for v1, v2 in itertools.zip_longest(
-            ts.variants(), ts.variants(alleles=alleles)
-        ):
+        for v1, v2 in itertools.zip_longest(ts.variants(), ts.variants(alleles=alleles)):
             assert v2.alleles == alleles
             assert v1.site == v2.site
             g = np.array(v1.genotypes)
@@ -1076,9 +1067,7 @@ class TestUserAlleles:
         assert ts.num_sites > 2
         alleles = tskit.ALLELES_ACGT
         G = ts.genotype_matrix(alleles=alleles)
-        for v1, v2 in itertools.zip_longest(
-            ts.variants(), ts.variants(alleles=alleles)
-        ):
+        for v1, v2 in itertools.zip_longest(ts.variants(), ts.variants(alleles=alleles)):
             assert v2.alleles == alleles
             assert v1.site == v2.site
             h1 = "".join(v1.alleles[g] for g in v1.genotypes)
@@ -1152,9 +1141,7 @@ class TestUserAllelesRoundTrip:
     """
 
     def verify(self, ts, alleles):
-        for v1, v2 in itertools.zip_longest(
-            ts.variants(), ts.variants(alleles=alleles)
-        ):
+        for v1, v2 in itertools.zip_longest(ts.variants(), ts.variants(alleles=alleles)):
             h1 = [v1.alleles[g] for g in v1.genotypes]
             h2 = [v2.alleles[g] for g in v2.genotypes]
             assert h1 == h2
@@ -1653,9 +1640,7 @@ class TestMissingDataExample:
 
     def test_alignments_impute_missing(self):
         ref = "N" * 10
-        A = list(
-            self.ts().alignments(reference_sequence=ref, isolated_as_missing=False)
-        )
+        A = list(self.ts().alignments(reference_sequence=ref, isolated_as_missing=False))
         assert A[0] == "NNGNNNNNNT"
         assert A[1] == "NNANNNNNNC"
         assert A[2] == "NNANNNNNNC"
@@ -2146,8 +2131,7 @@ class TestInternalNode:
         ]
         # Imputed ancestral at right site
         assert [
-            vi.genotypes[0]
-            for vi in ts.variants(samples=[a], isolated_as_missing=False)
+            vi.genotypes[0] for vi in ts.variants(samples=[a], isolated_as_missing=False)
         ] == [1, 0]
         assert list(ts.haplotypes(samples=[a], isolated_as_missing=False)) == ["GC"]
         assert list(ts.haplotypes(samples=[a], isolated_as_missing=True)) == ["GN"]
@@ -2596,14 +2580,14 @@ class TestVariant:
         variant = tskit.Variant(ts_fixture)
         assert variant.index == tskit.NULL
         with pytest.raises(ValueError, match="not yet been decoded"):
-            variant.site
+            _ = variant.site
         assert variant.alleles == ()
         with pytest.raises(ValueError, match="not yet been decoded"):
             assert variant.genotypes
         assert not variant.has_missing_data
         assert variant.num_alleles == 0
         with pytest.raises(ValueError, match="not yet been decoded"):
-            variant.position
+            _ = variant.position
         assert np.array_equal(variant.samples, np.array(ts_fixture.samples()))
 
     def test_variant_decode(self, ts_fixture):
@@ -2649,9 +2633,7 @@ class TestVariant:
         tables.sites.add_row(position=0.6, ancestral_state="AS1")
         tables.mutations.add_row(site=0, derived_state="DS0_0", node=0)
         tables.mutations.add_row(site=0, derived_state="DS0_3", node=3)
-        tables.mutations.add_row(
-            site=1, derived_state="DS1", node=simple_tree.parent(0)
-        )
+        tables.mutations.add_row(site=1, derived_state="DS1", node=simple_tree.parent(0))
         ts = tables.tree_sequence()
         variant_0 = next(ts.variants())
         freqs = variant_0.frequencies()
@@ -2775,9 +2757,7 @@ class TestVariant:
                 ╟─+┼─+╢
                 ║Isolated as missing\s*│\s*True║
                 ╚═+╧═+╝
-                """[
-                    1:
-                ]
+                """[1:]
             ),
             str(v),
         )

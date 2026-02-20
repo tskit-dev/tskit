@@ -527,8 +527,7 @@ class LsHmmAlgorithm:
                 if st1.tree_node != tskit.NULL:
                     for st2 in st1.value_list:
                         st2.value = (
-                            ((self.rho[site.id] / self.ts.num_samples) ** 2)
-                            * b_last_sum
+                            ((self.rho[site.id] / self.ts.num_samples) ** 2) * b_last_sum
                             + (1 - self.rho[site.id])
                             * (self.rho[site.id] / self.ts.num_samples)
                             * st2.inner_summation
@@ -1169,9 +1168,7 @@ def ls_forward_tree(g, ts, rho, mu, precision=30):
 
 def ls_backward_tree(g, ts_mirror, rho, mu, normalisation_factor, precision=30):
     """Backward matrix computation based on a tree sequence."""
-    ba = BackwardAlgorithm(
-        ts_mirror, rho, mu, normalisation_factor, precision=precision
-    )
+    ba = BackwardAlgorithm(ts_mirror, rho, mu, normalisation_factor, precision=precision)
     return ba.run_backward(g)
 
 

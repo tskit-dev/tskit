@@ -23,6 +23,7 @@
 """
 Tests for the provenance information attached to tree sequences.
 """
+
 import json
 import os
 import platform

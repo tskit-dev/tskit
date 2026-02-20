@@ -22,6 +22,7 @@
 """
 Tests for reference sequence support.
 """
+
 import pytest
 
 import tskit
@@ -133,9 +134,7 @@ class TestTablesProperties:
 
     def test_fromdict_all_values_empty(self):
         d = tskit.TableCollection(1).asdict()
-        d["reference_sequence"] = dict(
-            data="", url="", metadata_schema="", metadata=b""
-        )
+        d["reference_sequence"] = dict(data="", url="", metadata_schema="", metadata=b"")
         tables = tskit.TableCollection.fromdict(d)
         assert not tables.has_reference_sequence()
 

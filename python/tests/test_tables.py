@@ -24,6 +24,7 @@
 Test cases for the low-level tables used to transfer information
 between simulations and the tree sequence.
 """
+
 import dataclasses
 import io
 import json
@@ -108,9 +109,7 @@ class CommonTestsMixin:
                     if len(data) == num_rows
                     else (
                         bytes(
-                            data[
-                                cols[f"{col}_offset"][j] : cols[f"{col}_offset"][j + 1]
-                            ]
+                            data[cols[f"{col}_offset"][j] : cols[f"{col}_offset"][j + 1]]
                         )
                         if "metadata" in col
                         else data[
@@ -576,9 +575,7 @@ class CommonTestsMixin:
                     input_data[offset_col.name][: num_rows + 1], offset
                 )
                 list_data = getattr(table, list_col.name)
-                assert np.array_equal(
-                    list_data, input_data[list_col.name][: offset[-1]]
-                )
+                assert np.array_equal(list_data, input_data[list_col.name][: offset[-1]])
                 used.add(offset_col.name)
                 used.add(list_col.name)
             for name, data in input_data.items():
@@ -1102,8 +1099,7 @@ class MetadataTestsMixin:
             del input_data["metadata_offset"]
             metadata_column = [self.metadata_example_data() for _ in range(num_rows)]
             encoded_metadata_column = [
-                table.metadata_schema.validate_and_encode_row(r)
-                for r in metadata_column
+                table.metadata_schema.validate_and_encode_row(r) for r in metadata_column
             ]
             packed_metadata, metadata_offset = tskit.util.pack_bytes(
                 encoded_metadata_column
@@ -1236,9 +1232,7 @@ class MetadataTestsMixin:
         # does this more elegantly
         has_default = default_value != 9999
         if has_default:
-            md_vec = table.metadata_vector(
-                key, default_value=default_value, dtype=dtype
-            )
+            md_vec = table.metadata_vector(key, default_value=default_value, dtype=dtype)
         else:
             md_vec = table.metadata_vector(key, dtype=dtype)
         assert isinstance(md_vec, np.ndarray)
@@ -1706,9 +1700,7 @@ class TestIndividualTable(*common_tests):
     def test_simple_example(self):
         t = tskit.IndividualTable()
         t.add_row(flags=0, location=[], parents=[], metadata=b"123")
-        t.add_row(
-            flags=1, location=(0, 1, 2, 3), parents=(4, 5, 6, 7), metadata=b"\xf0"
-        )
+        t.add_row(flags=1, location=(0, 1, 2, 3), parents=(4, 5, 6, 7), metadata=b"\xf0")
         s = str(t)
         assert len(s) > 0
         assert len(t) == 2
@@ -2219,16 +2211,14 @@ class TestProvenanceTable(CommonTestsMixin, AssertEqualsMixin):
         with pytest.raises(
             AssertionError,
             match=re.escape(
-                "ProvenanceTable row 0 differs:\n"
-                "self.record={} other.record=different"
+                "ProvenanceTable row 0 differs:\nself.record={} other.record=different"
             ),
         ):
             t1.assert_equals(t2, ignore_timestamps=True)
         with pytest.raises(
             AssertionError,
             match=re.escape(
-                "ProvenanceTable row 0 differs:\n"
-                "self.record=different other.record={}"
+                "ProvenanceTable row 0 differs:\nself.record=different other.record={}"
             ),
         ):
             t2.assert_equals(t1, ignore_timestamps=True)
@@ -4323,9 +4313,7 @@ class TestTableCollectionAssertEquals:
         t2.metadata = {"foo": "bar"}
         with pytest.raises(
             AssertionError,
-            match=re.escape(
-                "Metadata differs: self=Test metadata other={'foo': 'bar'}"
-            ),
+            match=re.escape("Metadata differs: self=Test metadata other={'foo': 'bar'}"),
         ):
             t1.assert_equals(t2)
         t1.assert_equals(t2, ignore_metadata=True)
@@ -5066,9 +5054,7 @@ class TestUnionTables(unittest.TestCase):
             random_seed=seed,
         )
         ts = tsutil.add_random_metadata(ts, seed)
-        ts = tsutil.insert_random_ploidy_individuals(
-            ts, max_ploidy=1, samples_only=True
-        )
+        ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=1, samples_only=True)
         return ts
 
     def get_wf_example(self, N, T, seed):
@@ -5078,9 +5064,7 @@ class TestUnionTables(unittest.TestCase):
         ts = ts.simplify()
         ts = tsutil.jukes_cantor(ts, 1, 10, seed=seed)
         ts = tsutil.add_random_metadata(ts, seed)
-        ts = tsutil.insert_random_ploidy_individuals(
-            ts, max_ploidy=2, samples_only=True
-        )
+        ts = tsutil.insert_random_ploidy_individuals(ts, max_ploidy=2, samples_only=True)
         return ts
 
     def split_example(self, ts, T):
@@ -5088,12 +5072,8 @@ class TestUnionTables(unittest.TestCase):
         shared_nodes = [n.id for n in ts.nodes() if n.time >= T]
         pop1 = list(ts.samples(population=0))
         pop2 = list(ts.samples(population=1))
-        tables1 = ts.simplify(
-            shared_nodes + pop1, record_provenance=False
-        ).dump_tables()
-        tables2 = ts.simplify(
-            shared_nodes + pop2, record_provenance=False
-        ).dump_tables()
+        tables1 = ts.simplify(shared_nodes + pop1, record_provenance=False).dump_tables()
+        tables2 = ts.simplify(shared_nodes + pop2, record_provenance=False).dump_tables()
         node_mapping = [
             i if i < len(shared_nodes) else tskit.NULL
             for i in range(tables2.nodes.num_rows)
@@ -5219,13 +5199,9 @@ class TestUnionTables(unittest.TestCase):
                 assert np.sum(i2.parents == tskit.NULL) == np.sum(
                     iu.parents == tskit.NULL
                 )
-                md2 = [
-                    ts2.individual(p).metadata for p in i2.parents if p != tskit.NULL
-                ]
+                md2 = [ts2.individual(p).metadata for p in i2.parents if p != tskit.NULL]
                 md2u = [indivs21[md] for md in md2]
-                mdu = [
-                    tsu.individual(p).metadata for p in iu.parents if p != tskit.NULL
-                ]
+                mdu = [tsu.individual(p).metadata for p in iu.parents if p != tskit.NULL]
                 assert set(md2u) == set(mdu)
             else:
                 # the individual *should* be there, but by a different name
@@ -5324,9 +5300,7 @@ class TestUnionTables(unittest.TestCase):
         )
         tables_copy = tables.copy()
         tables.union(other, node_mapping)
-        uni_other_dict = json.loads(tables.provenances[-1].record)["parameters"][
-            "other"
-        ]
+        uni_other_dict = json.loads(tables.provenances[-1].record)["parameters"]["other"]
         recovered_prov_table = tskit.ProvenanceTable()
         assert len(uni_other_dict["timestamp"]) == len(uni_other_dict["record"])
         for timestamp, record in zip(

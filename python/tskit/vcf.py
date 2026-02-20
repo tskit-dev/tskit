@@ -23,6 +23,7 @@
 """
 Convert tree sequences to VCF.
 """
+
 import numpy as np
 
 from . import provenance

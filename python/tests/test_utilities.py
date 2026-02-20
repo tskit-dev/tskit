@@ -22,6 +22,7 @@
 """
 Tests for the various testing utilities.
 """
+
 import msprime
 import numpy as np
 import pytest
@@ -59,10 +60,7 @@ class TestJukesCantor:
         ts = tsutil.jukes_cantor(ts, 5, 2, seed=2)
         num_silent = 0
         for m in ts.mutations():
-            if (
-                m.parent != -1
-                and ts.mutation(m.parent).derived_state == m.derived_state
-            ):
+            if m.parent != -1 and ts.mutation(m.parent).derived_state == m.derived_state:
                 num_silent += 1
         assert num_silent > 20
 
@@ -116,9 +114,7 @@ class TestCaterpillarTree:
     def test_n_many_mutations(self):
         for n in range(10, 15):
             for num_mutations in range(0, n - 1):
-                ts = tsutil.caterpillar_tree(
-                    n, num_sites=1, num_mutations=num_mutations
-                )
+                ts = tsutil.caterpillar_tree(n, num_sites=1, num_mutations=num_mutations)
                 self.verify(ts, n)
                 assert ts.num_sites == 1
                 assert ts.num_mutations == num_mutations

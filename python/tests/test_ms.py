@@ -26,6 +26,7 @@ msprime.simulate generates a tree_sequence object if the num_replicates argument
 is not used but an iterator over tree_sequences if the num_replicates argument
 is used.
 """
+
 import collections
 import itertools
 import os

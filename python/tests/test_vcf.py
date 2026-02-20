@@ -23,6 +23,7 @@
 """
 Test cases for VCF output in tskit.
 """
+
 import contextlib
 import io
 import math
@@ -190,9 +191,7 @@ class ExamplesMixin:
 
     def test_simple_infinite_sites_random_ploidy(self):
         ts = msprime.simulate(10, mutation_rate=1, random_seed=2)
-        ts = tsutil.insert_random_ploidy_individuals(
-            ts, min_ploidy=1, samples_only=True
-        )
+        ts = tsutil.insert_random_ploidy_individuals(ts, min_ploidy=1, samples_only=True)
         assert ts.num_sites > 2
         self.verify(ts)
 
@@ -212,9 +211,7 @@ class ExamplesMixin:
     def test_simple_jukes_cantor_random_ploidy(self):
         ts = msprime.simulate(10, random_seed=2)
         ts = tsutil.jukes_cantor(ts, num_sites=10, mu=1, seed=2)
-        ts = tsutil.insert_random_ploidy_individuals(
-            ts, min_ploidy=1, samples_only=True
-        )
+        ts = tsutil.insert_random_ploidy_individuals(ts, min_ploidy=1, samples_only=True)
         self.verify(ts)
 
     def test_single_tree_multichar_mutations(self):
@@ -570,13 +567,13 @@ class TestIndividualNames:
     def test_bad_type(self):
         ts = msprime.simulate(2, mutation_rate=2, random_seed=1)
         with pytest.raises(
-            TypeError, match="sequence item 0: expected str instance," " NoneType found"
+            TypeError, match="sequence item 0: expected str instance, NoneType found"
         ):
             ts.write_vcf(
                 io.StringIO(), individual_names=[None, "b"], allow_position_zero=True
             )
         with pytest.raises(
-            TypeError, match="sequence item 0: expected str instance," " bytes found"
+            TypeError, match="sequence item 0: expected str instance, bytes found"
         ):
             ts.write_vcf(
                 io.StringIO(), individual_names=[b"a", "b"], allow_position_zero=True
@@ -630,8 +627,7 @@ class TestMasking:
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0|0|1"""
         expected = textwrap.dedent(s)
         assert (
-            drop_header(self.ts().as_vcf(ploidy=3, allow_position_zero=True))
-            == expected
+            drop_header(self.ts().as_vcf(ploidy=3, allow_position_zero=True)) == expected
         )
 
     def test_site_0_masked(self):
@@ -924,8 +920,7 @@ class TestSampleOptions:
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0|1"""
         expected = textwrap.dedent(s)
         assert (
-            drop_header(ts.as_vcf(individuals=[0], allow_position_zero=True))
-            == expected
+            drop_header(ts.as_vcf(individuals=[0], allow_position_zero=True)) == expected
         )
 
     def test_individual_1(self):
@@ -938,8 +933,7 @@ class TestSampleOptions:
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0"""
         expected = textwrap.dedent(s)
         assert (
-            drop_header(ts.as_vcf(individuals=[1], allow_position_zero=True))
-            == expected
+            drop_header(ts.as_vcf(individuals=[1], allow_position_zero=True)) == expected
         )
 
     def test_reversed(self):

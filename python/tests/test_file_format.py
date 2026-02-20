@@ -23,6 +23,7 @@
 """
 Test cases for tskit's file format.
 """
+
 import os
 import tempfile
 import unittest
@@ -397,9 +398,7 @@ class TestDumpFormat(TestFileFormat):
 
         assert np.array_equal(tables.metadata, b"".join(store["metadata"]))
         assert np.array_equal(tables.individuals.flags, store["individuals/flags"])
-        assert np.array_equal(
-            tables.individuals.location, store["individuals/location"]
-        )
+        assert np.array_equal(tables.individuals.location, store["individuals/location"])
         assert np.array_equal(
             tables.individuals.location_offset, store["individuals/location_offset"]
         )
@@ -407,9 +406,7 @@ class TestDumpFormat(TestFileFormat):
         assert np.array_equal(
             tables.individuals.parents_offset, store["individuals/parents_offset"]
         )
-        assert np.array_equal(
-            tables.individuals.metadata, store["individuals/metadata"]
-        )
+        assert np.array_equal(tables.individuals.metadata, store["individuals/metadata"])
         assert np.array_equal(
             tables.individuals.metadata_offset, store["individuals/metadata_offset"]
         )
@@ -513,9 +510,7 @@ class TestDumpFormat(TestFileFormat):
             store["mutations/metadata_schema"].astype("U")
         )
 
-        assert np.array_equal(
-            tables.populations.metadata, store["populations/metadata"]
-        )
+        assert np.array_equal(tables.populations.metadata, store["populations/metadata"])
         assert np.array_equal(
             tables.populations.metadata_offset, store["populations/metadata_offset"]
         )

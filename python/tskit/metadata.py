@@ -22,6 +22,7 @@
 """
 Classes for metadata decoding, encoding and validation
 """
+
 from __future__ import annotations
 
 import abc
@@ -89,11 +90,11 @@ class AbstractMetadataCodec(metaclass=abc.ABCMeta):
         raise NotImplementedError  # pragma: no cover
 
     @classmethod
-    def modify_schema(self, schema: Mapping) -> Mapping:
+    def modify_schema(cls, schema: Mapping) -> Mapping:
         return schema
 
     @classmethod
-    def is_schema_trivial(self, schema: Mapping) -> bool:
+    def is_schema_trivial(cls, schema: Mapping) -> bool:
         return False
 
     @abc.abstractmethod
@@ -126,6 +127,7 @@ def register_metadata_codec(
 
 
 class JSONCodec(AbstractMetadataCodec):
+    @staticmethod
     def default_validator(validator, types, instance, schema):
         # For json codec defaults must be at the top level
         if validator.is_type(instance, "object"):
@@ -142,7 +144,7 @@ class JSONCodec(AbstractMetadataCodec):
     )
 
     @classmethod
-    def is_schema_trivial(self, schema: Mapping) -> bool:
+    def is_schema_trivial(cls, schema: Mapping) -> bool:
         return len(schema.get("properties", {})) == 0
 
     def __init__(self, schema: Mapping[str, Any]) -> None:
@@ -266,9 +268,7 @@ def array_length_validator(validator, types, instance, schema):
 def required_validator(validator, required, instance, schema):
     # Do the normal validation
     try:
-        yield from jsonschema._validators.required(
-            validator, required, instance, schema
-        )
+        yield from jsonschema._validators.required(validator, required, instance, schema)
     except AttributeError:
         # Needed since jsonschema==4.19.1
         yield from jsonschema._keywords.required(validator, required, instance, schema)
@@ -277,7 +277,7 @@ def required_validator(validator, required, instance, schema):
     for prop, sub_schema in instance["properties"].items():
         if prop not in instance["required"] and "default" not in sub_schema:
             yield jsonschema.ValidationError(
-                f"Optional property '{prop}' must have" f" a default value"
+                f"Optional property '{prop}' must have a default value"
             )
 
 
@@ -460,8 +460,7 @@ class StructCodec(AbstractMetadataCodec):
             else:
                 buffer = iter(buffer)
                 return {
-                    key: sub_decoder(buffer)
-                    for key, sub_decoder in sub_decoders.items()
+                    key: sub_decoder(buffer) for key, sub_decoder in sub_decoders.items()
                 }
 
         return decode_object_or_null
@@ -1040,7 +1039,7 @@ class MetadataProvider:
             )
         if self.metadata != other.metadata:
             raise AssertionError(
-                f"Metadata differs: self={self.metadata} " f"other={other.metadata}"
+                f"Metadata differs: self={self.metadata} other={other.metadata}"
             )
 
 

@@ -24,6 +24,7 @@
 Module for ranking and unranking trees. Trees are considered only
 leaf-labelled and unordered, so order of children does not influence equality.
 """
+
 import collections
 import functools
 import heapq
@@ -543,8 +544,7 @@ class TopologyCounter:
 
     def __iter__(self):
         raise TypeError(
-            "TopologyCounter object is not iterable, "
-            "iterate over '.topologies' instead"
+            "TopologyCounter object is not iterable, iterate over '.topologies' instead"
         )
 
     @staticmethod

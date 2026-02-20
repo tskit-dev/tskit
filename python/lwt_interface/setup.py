@@ -1,17 +1,15 @@
 import os.path
 import platform
 
-from setuptools import Extension
-from setuptools import setup
+from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
-
 
 IS_WINDOWS = platform.system() == "Windows"
 
 
 # Obscure magic required to allow numpy be used as a 'setup_requires'.
 # Based on https://stackoverflow.com/questions/19919905
-class local_build_ext(build_ext):
+class local_build_ext(build_ext):  # noqa N801
     def finalize_options(self):
         build_ext.finalize_options(self)
         import builtins

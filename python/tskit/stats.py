@@ -22,6 +22,7 @@
 """
 Module responsible for computing various statistics on tree sequences.
 """
+
 import sys
 import threading
 

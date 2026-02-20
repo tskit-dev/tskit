@@ -46,8 +46,8 @@ simulate(
              * research code and proper random number generator
              * libraries should be preferred.
              */
-            left_parent = parents[(size_t)((rand() / (1. + RAND_MAX)) * N)];
-            right_parent = parents[(size_t)((rand() / (1. + RAND_MAX)) * N)];
+            left_parent = parents[(size_t) ((rand() / (1. + RAND_MAX)) * N)];
+            right_parent = parents[(size_t) ((rand() / (1. + RAND_MAX)) * N)];
             left_is_first = rand() < 0.5;
             chunk_left = 0.0;
             for (k = 0; k < num_chroms; k++) {
@@ -68,18 +68,15 @@ simulate(
             children[j] = child;
         }
         if (t % simplify_interval == 0) {
-            printf("Simplify at generation %lld: (%lld nodes %lld edges)",
-                (long long) t,
-                (long long) tables->nodes.num_rows,
-                (long long) tables->edges.num_rows);
+            printf("Simplify at generation %lld: (%lld nodes %lld edges)", (long long) t,
+                (long long) tables->nodes.num_rows, (long long) tables->edges.num_rows);
             /* Note: Edges must be sorted for simplify to work, and we use a brute force
              * approach of sorting each time here for simplicity. This is inefficient. */
             ret = tsk_table_collection_sort(tables, NULL, 0);
             check_tsk_error(ret);
             ret = tsk_table_collection_simplify(tables, children, N, 0, NULL);
             check_tsk_error(ret);
-            printf(" -> (%lld nodes %lld edges)\n",
-                (long long) tables->nodes.num_rows,
+            printf(" -> (%lld nodes %lld edges)\n", (long long) tables->nodes.num_rows,
                 (long long) tables->edges.num_rows);
             for (j = 0; j < N; j++) {
                 children[j] = j;
@@ -104,7 +101,7 @@ main(int argc, char **argv)
     }
     ret = tsk_table_collection_init(&tables, 0);
     check_tsk_error(ret);
-    srand((unsigned)atoi(argv[5]));
+    srand((unsigned) atoi(argv[5]));
     simulate(&tables, atoi(argv[6]), atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
 
     /* Sort and index so that the result can be opened as a tree sequence */

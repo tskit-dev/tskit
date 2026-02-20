@@ -23,6 +23,7 @@
 """
 A collection of utilities to edit and construct tree sequences.
 """
+
 import collections
 import dataclasses
 import functools

@@ -26,6 +26,7 @@ but should be imported into another test module that imports a
 compiled module exporting the LightweightTableCollection class.
 See the test_example_c_module file for an example.
 """
+
 import copy
 
 import kastore
@@ -183,9 +184,7 @@ class TestRoundTrip:
                     {
                         "codec": "struct",
                         "type": "object",
-                        "properties": {
-                            table: {"type": "string", "binaryFormat": "50p"}
-                        },
+                        "properties": {table: {"type": "string", "binaryFormat": "50p"}},
                     }
                 )
 
@@ -578,9 +577,7 @@ class TestRequiredAndOptionalColumns:
         self.verify_required_columns(
             tables, "migrations", ["left", "right", "node", "source", "dest", "time"]
         )
-        self.verify_offset_pair(
-            tables, len(tables.migrations), "migrations", "metadata"
-        )
+        self.verify_offset_pair(tables, len(tables.migrations), "migrations", "metadata")
         self.verify_optional_column(tables, len(tables.nodes), "nodes", "individual")
         self.verify_metadata_schema(tables, "migrations")
 
@@ -674,9 +671,7 @@ class TestRequiredAndOptionalColumns:
         assert get_refseq(d).is_null()
 
         # All empty strings is the same thing
-        d["reference_sequence"] = dict(
-            data="", url="", metadata_schema="", metadata=b""
-        )
+        d["reference_sequence"] = dict(data="", url="", metadata_schema="", metadata=b"")
         assert get_refseq(d).is_null()
 
         del refseq_dict["metadata_schema"]  # handled above

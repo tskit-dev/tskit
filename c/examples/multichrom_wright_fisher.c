@@ -212,8 +212,8 @@ simulate(
              * research code and proper random number generator
              * libraries should be preferred.
              */
-            left_parent = parents[(size_t)((rand() / (1. + RAND_MAX)) * N)];
-            right_parent = parents[(size_t)((rand() / (1. + RAND_MAX)) * N)];
+            left_parent = parents[(size_t) ((rand() / (1. + RAND_MAX)) * N)];
+            right_parent = parents[(size_t) ((rand() / (1. + RAND_MAX)) * N)];
             left_is_first = rand() < 0.5;
             chunk_left = 0.0;
             for (k = 0; k < num_chroms; k++) {

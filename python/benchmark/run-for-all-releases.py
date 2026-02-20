@@ -1,9 +1,9 @@
 import json
 import subprocess
+from distutils.version import StrictVersion
 from urllib.request import urlopen
 
 import tqdm
-from distutils.version import StrictVersion
 
 
 def versions(package_name):

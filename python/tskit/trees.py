@@ -23,6 +23,7 @@
 """
 Module responsible for managing trees and tree sequences.
 """
+
 from __future__ import annotations
 
 import base64
@@ -37,8 +38,7 @@ import math
 import numbers
 import warnings
 from dataclasses import dataclass
-from typing import Any
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import numpy as np
 
@@ -52,9 +52,7 @@ import tskit.tables as tables
 import tskit.text_formats as text_formats
 import tskit.util as util
 import tskit.vcf as vcf
-from tskit import NODE_IS_SAMPLE
-from tskit import NULL
-from tskit import UNKNOWN_TIME
+from tskit import NODE_IS_SAMPLE, NULL, UNKNOWN_TIME
 
 LEGACY_MS_LABELS = "legacy_ms"
 
@@ -522,9 +520,7 @@ class Mutation(util.Dataclass):
             and self.metadata == other.metadata
             and (
                 self.time == other.time
-                or (
-                    util.is_unknown_time(self.time) and util.is_unknown_time(other.time)
-                )
+                or (util.is_unknown_time(self.time) and util.is_unknown_time(other.time))
             )
         )
 
@@ -700,8 +696,7 @@ class Tree:
         options = 0
         if sample_counts is not None:
             warnings.warn(
-                "The sample_counts option is not supported since 0.2.4 "
-                "and is ignored",
+                "The sample_counts option is not supported since 0.2.4 and is ignored",
                 RuntimeWarning,
                 stacklevel=4,
             )
@@ -4867,10 +4862,7 @@ class TreeSequence:
                 children[edge.parent].add(edge.child)
             # Update the active edgesets
             for edge in itertools.chain(edges_out, edges_in):
-                if (
-                    len(children[edge.parent]) > 0
-                    and edge.parent not in active_edgesets
-                ):
+                if len(children[edge.parent]) > 0 and edge.parent not in active_edgesets:
                     active_edgesets[edge.parent] = Edgeset(left, right, edge.parent, [])
 
         for parent in active_edgesets.keys():
@@ -6953,7 +6945,7 @@ class TreeSequence:
             bytes_genotypes[:] = lookup[variant.genotypes]
             genotypes = bytes_genotypes.tobytes().decode()
             output.append(
-                f"SITE:\t{variant.index}\t{variant.position / m}\t0.0\t" f"{genotypes}"
+                f"SITE:\t{variant.index}\t{variant.position / m}\t0.0\t{genotypes}"
             )
         return "\n".join(output) + "\n"
 
@@ -7304,9 +7296,7 @@ class TreeSequence:
         if add_populations is None:
             add_populations = True
         if len(node_mappings) != len(args):
-            raise ValueError(
-                "You must provide the same number of node_mappings as args"
-            )
+            raise ValueError("You must provide the same number of node_mappings as args")
 
         samples = self.samples()
         tables = self.dump_tables()
@@ -8053,7 +8043,8 @@ class TreeSequence:
 
         .. code-block:: python
 
-            ts.sample_count_stat([A, B], f, 1, windows="sites", polarised=False, mode="site")
+            ts.sample_count_stat(
+                [A, B], f, 1, windows="sites", polarised=False, mode="site")
 
         would compute, for each site, the product of the derived allele
         frequencies in the two sample sets, in a (num sites, 1) array.  If
@@ -8083,7 +8074,7 @@ class TreeSequence:
             window (defaults to True).
         :param bool strict: Whether to check that f(0) and f(total weight) are zero.
         :return: A ndarray with shape equal to (num windows, num statistics).
-        """  # noqa: B950
+        """
         # helper function for common case where weights are indicators of sample sets
         for U in sample_sets:
             if len(U) != len(set(U)):
@@ -8337,8 +8328,9 @@ class TreeSequence:
             drop_dimension = True
         if len(indexes.shape) != 2 or indexes.shape[1] != k:
             raise ValueError(
-                "Indexes must be convertable to a 2D numpy array with {} "
-                "columns".format(k)
+                "Indexes must be convertable to a 2D numpy array with {} columns".format(
+                    k
+                )
             )
         result = ll_method(
             sample_set_sizes,
@@ -8392,8 +8384,9 @@ class TreeSequence:
             drop_dimension = True
         if len(indexes.shape) != 2 or indexes.shape[1] != k:
             raise ValueError(
-                "Indexes must be convertable to a 2D numpy array with {} "
-                "columns".format(k)
+                "Indexes must be convertable to a 2D numpy array with {} columns".format(
+                    k
+                )
             )
         stat = self.__run_windowed_stat(
             windows,
@@ -8439,8 +8432,9 @@ class TreeSequence:
             drop_dimension = True
         if len(indexes.shape) != 2 or indexes.shape[1] != k:
             raise ValueError(
-                "Indexes must be convertable to a 2D numpy array with {} "
-                "columns".format(k)
+                "Indexes must be convertable to a 2D numpy array with {} columns".format(
+                    k
+                )
             )
         stat = self.__run_windowed_stat(
             windows,
@@ -9141,9 +9135,7 @@ class TreeSequence:
         :return: A ndarray with shape equal to (num windows, num statistics).
         """
         if len(W) != self.num_samples:
-            raise ValueError(
-                "First trait dimension must be equal to number of samples."
-            )
+            raise ValueError("First trait dimension must be equal to number of samples.")
         return self.__k_way_weighted_stat(
             self._ll_tree_sequence.genetic_relatedness_weighted,
             2,
@@ -9395,9 +9387,9 @@ class TreeSequence:
         if time_windows is None:
             tree_sequence_low, tree_sequence_high = None, self
         else:
-            assert (
-                time_windows[0] < time_windows[1]
-            ), "The second argument should be larger."
+            assert time_windows[0] < time_windows[1], (
+                "The second argument should be larger."
+            )
             tree_sequence_low, tree_sequence_high = (
                 self.decapitate(time_windows[0]),
                 self.decapitate(time_windows[1]),
@@ -9465,9 +9457,7 @@ class TreeSequence:
             """
             Algorithm 9 in https://arxiv.org/pdf/2002.01387
             """
-            assert (
-                num_vectors >= rank > 0
-            ), "num_vectors should not be smaller than rank"
+            assert num_vectors >= rank > 0, "num_vectors should not be smaller than rank"
             for _ in range(depth):
                 Q = np.linalg.qr(Q)[0]
                 Q = operator(Q)
@@ -9613,9 +9603,7 @@ class TreeSequence:
             If windows=None and W is a single column, a numpy scalar is returned.
         """
         if W.shape[0] != self.num_samples:
-            raise ValueError(
-                "First trait dimension must be equal to number of samples."
-            )
+            raise ValueError("First trait dimension must be equal to number of samples.")
         return self.__run_windowed_stat(
             windows,
             self._ll_tree_sequence.trait_covariance,
@@ -9679,9 +9667,7 @@ class TreeSequence:
             If windows=None and W is a single column, a numpy scalar is returned.
         """
         if W.shape[0] != self.num_samples:
-            raise ValueError(
-                "First trait dimension must be equal to number of samples."
-            )
+            raise ValueError("First trait dimension must be equal to number of samples.")
         sds = np.std(W, axis=0)
         if np.any(sds == 0):
             raise ValueError(
@@ -9772,9 +9758,7 @@ class TreeSequence:
             If windows=None and W is a single column, a numpy scalar is returned.
         """
         if W.shape[0] != self.num_samples:
-            raise ValueError(
-                "First trait dimension must be equal to number of samples."
-            )
+            raise ValueError("First trait dimension must be equal to number of samples.")
         if Z is None:
             Z = np.ones((self.num_samples, 1))
         else:
@@ -10023,11 +10007,7 @@ class TreeSequence:
             g = np.array([np.sum(1 / np.arange(1, nn) ** 2) for nn in n])
             with np.errstate(invalid="ignore", divide="ignore"):
                 a = (n + 1) / (3 * (n - 1) * h) - 1 / h**2
-                b = (
-                    2 * (n**2 + n + 3) / (9 * n * (n - 1))
-                    - (n + 2) / (h * n)
-                    + g / h**2
-                )
+                b = 2 * (n**2 + n + 3) / (9 * n * (n - 1)) - (n + 2) / (h * n) + g / h**2
                 D = (T - S / h) / np.sqrt(a * S + (b / (h**2 + g)) * S * (S - 1))
             return D
 
@@ -10556,9 +10536,7 @@ class TreeSequence:
             internal samples.
         """
         if sample_sets is None:
-            sample_sets = [
-                self.samples(population=pop.id) for pop in self.populations()
-            ]
+            sample_sets = [self.samples(population=pop.id) for pop in self.populations()]
 
         yield from combinatorics.treeseq_count_topologies(self, sample_sets)
 
@@ -10718,16 +10696,14 @@ class TreeSequence:
         sample_sets = util.safe_np_int_cast(np.hstack(sample_sets), np.int32)
 
         coalescing_pairs = np.zeros((num_windows, num_indexes, num_time_windows))
-        coalescing_pairs[..., :num_bins] = (
-            self.ll_tree_sequence.pair_coalescence_counts(
-                sample_sets=sample_sets,
-                sample_set_sizes=sample_set_sizes,
-                windows=windows,
-                indexes=indexes,
-                node_bin_map=node_bin_map,
-                span_normalise=span_normalise,
-                pair_normalise=pair_normalise,
-            )
+        coalescing_pairs[..., :num_bins] = self.ll_tree_sequence.pair_coalescence_counts(
+            sample_sets=sample_sets,
+            sample_set_sizes=sample_set_sizes,
+            windows=windows,
+            indexes=indexes,
+            node_bin_map=node_bin_map,
+            span_normalise=span_normalise,
+            pair_normalise=pair_normalise,
         )
 
         if drop_middle_dimension:

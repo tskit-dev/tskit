@@ -22,6 +22,7 @@
 """
 Tests for tree distance metrics.
 """
+
 import io
 import itertools
 import math

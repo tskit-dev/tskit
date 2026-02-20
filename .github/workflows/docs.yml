@@ -12,7 +12,7 @@ env:
 
 jobs:
   Docs:
-    uses: tskit-dev/.github/.github/workflows/docs-build-template.yml@v1
+    uses: tskit-dev/.github/.github/workflows/docs.yml@main
     with:
-      additional-setup: sudo apt-get install -y doxygen
-      make-command: make -C python
+      pyproject-directory: python
+      doxygen-directory: docs/doxygen

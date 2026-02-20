@@ -10,11 +10,6 @@ env:
   FORCE_COLOR: 1
 
 jobs:
-  pre-commit:
-    name: Lint
-    uses: tskit-dev/.github/.github/workflows/lint.yml@v5
-    with:
-      clang-format-version: 21.1.8
 
   packaging:
     name: Python packaging
@@ -23,13 +18,27 @@ jobs:
       working-directory: python
       cli-test-cmd: tskit --help
 
+  test-c:
+    name: C tests
+    uses: tskit-dev/.github/.github/workflows/c-tests.yml@main
+    with:
+      library-directory: c
+    secrets: inherit
+
+  test-python-c:
+    name: Python-C tests
+    uses: tskit-dev/.github/.github/workflows/python-c-tests.yml@main
+    with:
+      pyproject-directory: python
+    secrets: inherit
+
   test:
     name: Python
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python: [ 3.11, 3.14 ]
+        python: [ 3.11, 3.13 ]
         os:  [ macos-latest, ubuntu-24.04, windows-latest ]
     defaults:
       run:
@@ -97,6 +106,7 @@ jobs:
           flags: python-tests-no-jit
           name: codecov-umbrella
           verbose: true
+
       - name: Run tests
         working-directory: python
         run: |
@@ -113,7 +123,7 @@ jobs:
           working-directory: python
           fail_ci_if_error: false
           flags: python-tests
-          name: codecov-umbrella
+          gcov_args: --preserve-paths
           verbose: true
 
   msys2:

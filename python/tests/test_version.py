@@ -22,6 +22,7 @@
 """
 Test python package versioning
 """
+
 from packaging.version import Version
 
 from tskit import _version

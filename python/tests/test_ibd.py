@@ -39,7 +39,7 @@ def ibd_segments(
     compare_lib=True,
     print_c=False,
     print_py=False,
-    squash=False
+    squash=False,
 ):
     """
     Calculates IBD segments using Python and converts output to lists of segments.
@@ -101,7 +101,7 @@ def naive_ibd_all_pairs(ts, samples=None):
 
 class TestIbdDefinition:
     @pytest.mark.skip("help")
-    @pytest.mark.xfail()
+    @pytest.mark.xfail
     @pytest.mark.parametrize("ts", get_example_tree_sequences(custom_max=15))
     def test_all_pairs(self, ts):
         if ts.num_samples > 10:
@@ -138,7 +138,7 @@ class TestIbdDefinition:
 
 class TestIbdImplementations:
     @pytest.mark.skip("help")
-    @pytest.mark.xfail()
+    @pytest.mark.xfail
     @pytest.mark.parametrize("ts", get_example_tree_sequences(custom_max=15))
     def test_all_pairs(self, ts):
         # Automatically compares the two implementations
@@ -629,9 +629,7 @@ class TestIbdDifferentPaths2:
         return tskit.load_text(nodes=nodes, edges=edges, strict=False)
 
     def test_defaults(self):
-        ibd_segs = ibd_segments(
-            self.ts(), within=[1, 2], squash=True, compare_lib=False
-        )
+        ibd_segs = ibd_segments(self.ts(), within=[1, 2], squash=True, compare_lib=False)
         true_segs = {
             (1, 2): [
                 tskit.IdentitySegment(0.0, 1.0, 4),
@@ -776,7 +774,7 @@ class TestIbdPolytomies:
             (1, 3): [tskit.IdentitySegment(0.3, 1, 4)],
             (2, 3): [tskit.IdentitySegment(0, 1, 5)],
         }
-        (ibd_segs, true_segs)
+        assert_ibd_equal(ibd_segs, true_segs)
 
     def test_input_within(self):
         ibd_segs = ibd_segments(self.ts(), within=[0, 1, 2])

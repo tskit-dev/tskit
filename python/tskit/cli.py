@@ -24,6 +24,7 @@
 """
 Command line utilities for tskit.
 """
+
 import argparse
 import json
 import os

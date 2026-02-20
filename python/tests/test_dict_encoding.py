@@ -23,13 +23,13 @@
 Test cases for the low-level dictionary encoding used to move
 data around in C.
 """
+
 import pathlib
 import pickle
 
 import _tskit
 import lwt_interface.dict_encoding_testlib
 import tskit
-
 
 lwt_interface.dict_encoding_testlib.lwt_module = _tskit
 # Bring the tests defined in dict_encoding_testlib into the current namespace

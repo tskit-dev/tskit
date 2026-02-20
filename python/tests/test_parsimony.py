@@ -22,6 +22,7 @@
 """
 Tests for the tree parsimony methods.
 """
+
 import dataclasses
 import io
 import itertools
@@ -33,7 +34,6 @@ import pytest
 
 import tests.tsutil as tsutil
 import tskit
-
 
 INF = np.inf
 
@@ -384,9 +384,7 @@ class TestSankoff:
         assert ts.num_sites > 5
         tree = ts.first()
         for variant in ts.variants():
-            ancestral_state, transitions = sankoff_map_mutations(
-                tree, variant.genotypes
-            )
+            ancestral_state, transitions = sankoff_map_mutations(tree, variant.genotypes)
             assert len(transitions) == 1
             assert ancestral_state == 0
             assert transitions[variant.site.mutations[0].node] == 1

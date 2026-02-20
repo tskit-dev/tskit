@@ -23,6 +23,7 @@
 """
 Test cases for combinatorial algorithms.
 """
+
 import collections
 import io
 import itertools
@@ -38,8 +39,7 @@ import tests.test_wright_fisher as wf
 import tskit
 import tskit.combinatorics as comb
 from tests import test_stats
-from tskit.combinatorics import Rank
-from tskit.combinatorics import RankTree
+from tskit.combinatorics import Rank, RankTree
 
 
 class TestCombination:

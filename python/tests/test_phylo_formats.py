@@ -23,6 +23,7 @@
 """
 Tests for phylogenetics export functions, newick, nexus, FASTA etc.
 """
+
 import functools
 import io
 import textwrap
@@ -938,7 +939,7 @@ class TestFloatTimeTreeSequence:
               TREE t0^2 = [&R] (n0:3.25000000000000000,(n1:2.00000000000000000,n2:2.00000000000000000):1.25000000000000000);
               TREE t2^10 = [&R] (n1:2.00000000000000000,(n0:1.00000000000000000,n2:1.00000000000000000):1.00000000000000000);
             END;
-            """  # noqa: B950
+            """  # noqa: E501
         )
         assert ts.as_nexus() == expected
 
@@ -1009,7 +1010,7 @@ class TestFloatPositionTreeSequence:
               TREE t0.00000000000000000^2.50000000000000000 = [&R] (n0:3,(n1:2,n2:2):1);
               TREE t2.50000000000000000^10.00000000000000000 = [&R] (n1:2,(n0:1,n2:1):1);
             END;
-            """  # noqa: B950
+            """  # noqa: E501
         )
         assert ts.as_nexus() == expected
 
@@ -1387,8 +1388,7 @@ class TestDendropyMissingReference:
                     )
                 else:
                     assert (
-                        a[j].state_denomination
-                        == dendropy.StateAlphabet.AMBIGUOUS_STATE
+                        a[j].state_denomination == dendropy.StateAlphabet.AMBIGUOUS_STATE
                     )
 
     def test_fasta(self):

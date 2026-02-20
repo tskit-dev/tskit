@@ -46,7 +46,7 @@ sphinx:
         pygments_dark_style: monokai
         navigation_with_keys: false
         logo:
-          text: "Version __TSKIT_VERSION__"
+          text: "Version __PKG_VERSION__"
         repository_url: https://github.com/tskit-dev/tskit
         repository_branch: main
         path_to_docs: docs
