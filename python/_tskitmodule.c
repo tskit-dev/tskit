@@ -36,10 +36,10 @@
 #define NPY_NO_DEPRECATED_API NPY_2_0_API_VERSION
 #undef NPY_FEATURE_VERSION
 #define NPY_FEATURE_VERSION NPY_2_0_API_VERSION
-#define HAVE_NUMPY_2 1
+#define HAVE_NUMPY_2        1
 #else
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
-#define HAVE_NUMPY_2 0
+#define HAVE_NUMPY_2          0
 #endif
 #include <numpy/arrayobject.h>
 
@@ -49,7 +49,7 @@
 #include "kastore.h"
 #include "tskit.h"
 
-#define SET_COLS 0
+#define SET_COLS    0
 #define APPEND_COLS 1
 
 /* TskitException is the superclass of all exceptions that can be thrown by
@@ -6216,15 +6216,11 @@ TreeSequence_decode_alignments(TreeSequence *self, PyObject *args, PyObject *kwd
     }
     buf = PyBytes_AS_STRING(buf_obj);
 
-    // clang-format off
-    Py_BEGIN_ALLOW_THREADS 
-    err = tsk_treeseq_decode_alignments(self->tree_sequence,
-        ref_seq, (tsk_size_t) ref_len, nodes, num_nodes, left, right, missing_char, buf,
-        options);
+    Py_BEGIN_ALLOW_THREADS
+    err = tsk_treeseq_decode_alignments(self->tree_sequence, ref_seq,
+        (tsk_size_t) ref_len, nodes, num_nodes, left, right, missing_char, buf, options);
     Py_END_ALLOW_THREADS
-        // clang-format on
-        if (err != 0)
-    {
+    if (err != 0) {
         handle_library_error(err);
         goto out;
     }
@@ -6337,11 +6333,12 @@ TreeSequence_genealogical_nearest_neighbours(
         goto out;
     }
 
-    Py_BEGIN_ALLOW_THREADS err = tsk_treeseq_genealogical_nearest_neighbours(
-        self->tree_sequence, PyArray_DATA(focal_array), num_focal, reference_sets,
-        reference_set_size, num_reference_sets, 0, PyArray_DATA(ret_array));
-    Py_END_ALLOW_THREADS if (err != 0)
-    {
+    Py_BEGIN_ALLOW_THREADS
+    err = tsk_treeseq_genealogical_nearest_neighbours(self->tree_sequence,
+        PyArray_DATA(focal_array), num_focal, reference_sets, reference_set_size,
+        num_reference_sets, 0, PyArray_DATA(ret_array));
+    Py_END_ALLOW_THREADS
+    if (err != 0) {
         handle_library_error(err);
         goto out;
     }
@@ -6457,11 +6454,11 @@ TreeSequence_mean_descendants(TreeSequence *self, PyObject *args, PyObject *kwds
         goto out;
     }
 
-    Py_BEGIN_ALLOW_THREADS err
-        = tsk_treeseq_mean_descendants(self->tree_sequence, reference_sets,
-            reference_set_size, num_reference_sets, 0, PyArray_DATA(ret_array));
-    Py_END_ALLOW_THREADS if (err != 0)
-    {
+    Py_BEGIN_ALLOW_THREADS
+    err = tsk_treeseq_mean_descendants(self->tree_sequence, reference_sets,
+        reference_set_size, num_reference_sets, 0, PyArray_DATA(ret_array));
+    Py_END_ALLOW_THREADS
+    if (err != 0) {
         handle_library_error(err);
         goto out;
     }
@@ -7265,12 +7262,12 @@ TreeSequence_weighted_stat_vector_method(
     if (result_array == NULL) {
         goto out;
     }
-    Py_BEGIN_ALLOW_THREADS err
-        = method(self->tree_sequence, w_shape[1], PyArray_DATA(weights_array),
-            num_windows, PyArray_DATA(windows_array), num_focal_nodes,
-            PyArray_DATA(focal_nodes_array), PyArray_DATA(result_array), options);
-    Py_END_ALLOW_THREADS if (err != 0)
-    {
+    Py_BEGIN_ALLOW_THREADS
+    err = method(self->tree_sequence, w_shape[1], PyArray_DATA(weights_array),
+        num_windows, PyArray_DATA(windows_array), num_focal_nodes,
+        PyArray_DATA(focal_nodes_array), PyArray_DATA(result_array), options);
+    Py_END_ALLOW_THREADS
+    if (err != 0) {
         handle_library_error(err);
         goto out;
     }
@@ -7492,18 +7489,12 @@ TreeSequence_divergence_matrix(TreeSequence *self, PyObject *args, PyObject *kwd
         options |= TSK_STAT_SPAN_NORMALISE;
     }
 
-    // clang-format off
     Py_BEGIN_ALLOW_THREADS
-    err = tsk_treeseq_divergence_matrix(
-        self->tree_sequence,
-        num_sample_sets, sample_set_sizes, sample_sets,
-        num_windows, PyArray_DATA(windows_array),
-        options, PyArray_DATA(result_array));
+    err = tsk_treeseq_divergence_matrix(self->tree_sequence, num_sample_sets,
+        sample_set_sizes, sample_sets, num_windows, PyArray_DATA(windows_array), options,
+        PyArray_DATA(result_array));
     Py_END_ALLOW_THREADS
-        // clang-format on
-        /* Clang-format insists on doing this in spite of the "off" instruction above */
-        if (err != 0)
-    {
+    if (err != 0) {
         handle_library_error(err);
         goto out;
     }
@@ -8035,17 +8026,13 @@ TreeSequence_ld_matrix(TreeSequence *self, PyObject *args, PyObject *kwds,
         goto out;
     }
 
-    // clang-format off
     Py_BEGIN_ALLOW_THREADS
     err = method(self->tree_sequence, num_sample_sets,
         PyArray_DATA(sample_set_sizes_array), PyArray_DATA(sample_sets_array),
         result_dim[0], row_sites_parsed, row_positions_parsed, result_dim[1],
         col_sites_parsed, col_positions_parsed, options, PyArray_DATA(result_matrix));
     Py_END_ALLOW_THREADS
-        // clang-format on
-
-        if (err != 0)
-    {
+    if (err != 0) {
         handle_library_error(err);
         goto out;
     }
@@ -8218,7 +8205,6 @@ TreeSequence_k_way_ld_matrix(TreeSequence *self, PyObject *args, PyObject *kwds,
         goto out;
     }
 
-    // clang-format off
     Py_BEGIN_ALLOW_THREADS
     err = method(self->tree_sequence, num_sample_sets,
         PyArray_DATA(sample_set_sizes_array), PyArray_DATA(sample_sets_array),
@@ -8226,9 +8212,7 @@ TreeSequence_k_way_ld_matrix(TreeSequence *self, PyObject *args, PyObject *kwds,
         row_sites_parsed, row_positions_parsed, result_dim[1], col_sites_parsed,
         col_positions_parsed, options, PyArray_DATA(result_matrix));
     Py_END_ALLOW_THREADS
-        // clang-format on
-        if (err != 0)
-    {
+    if (err != 0) {
         handle_library_error(err);
         goto out;
     }
