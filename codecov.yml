@@ -1,11 +1,16 @@
 # ignore:
 #   - "lib/tests/"
-#   - "lib/dev-tools/"
-#   - "lib/avl.c"
 #   - "lib/subprojects/**/*"
+
+codecov:
+  require_ci_to_pass: false
 
 comment:
   layout: "header, diff, flags, components"  # show component info in the PR comment
+
+# fixes:
+#   - "tskit/::python/tskit/"
+#   - "^_tskitmodule.*::python/_tskitmodule.*"
 
 component_management:
   individual_components:
@@ -18,6 +23,7 @@ component_management:
       name: Python C interface
       paths:
         - python/_tskitmodule.c
+        - python/lwt_interface/tskit_lwt_interface.h
 
     - component_id: c_code
       name: C library

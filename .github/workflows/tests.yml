@@ -29,6 +29,7 @@ jobs:
     name: Python-C tests
     uses: tskit-dev/.github/.github/workflows/python-c-tests.yml@main
     with:
+      tests: python/tests/test_python_c.py python/tests/test_dict_encoding.py
       pyproject-directory: python
     secrets: inherit
 
@@ -75,15 +76,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: python
-        run: |
-          uv sync --locked --group test
-          # Remove tskit installed as a dep of msprime
-          uv pip uninstall tskit
-
-      - name: Build module
-        working-directory: python
-        run: |
-          uv run python setup.py build_ext --inplace
+        run: uv sync --locked --group test
 
       - name: Minidom test
         working-directory: python
@@ -93,9 +86,10 @@ jobs:
           uv run python -c "import tskit;tskit.Tree.generate_star(5).tree_sequence.draw_svg(path='test.svg')"
 
       - name: Run JIT code coverage
-        working-directory: python
         run: |
-          NUMBA_DISABLE_JIT=1 uv run pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 tests/test_jit.py
+          NUMBA_DISABLE_JIT=1 uv run --project=python \
+            pytest --cov=tskit --cov-report=xml --cov-branch -n2 \
+            python/tests/test_jit.py
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5.5.2
@@ -103,27 +97,29 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           working-directory: python
           fail_ci_if_error: false
-          flags: python-tests-no-jit
-          name: codecov-umbrella
+          files: coverage.xml
+          disable_search: true
           verbose: true
+          flags: python-tests-no-jit
 
       - name: Run tests
-        working-directory: python
         run: |
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            uv run pytest -x --skip-slow --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
+            uv run --project=python \
+              pytest --cov=tskit --skip-slow --cov-report=xml --cov-branch -n2 python/tests
           else
-            uv run pytest -x --cov=tskit --cov-report=xml --cov-branch -n2 --durations=20 tests
+            uv run --project=python \
+              pytest --cov=tskit --cov-report=xml --cov-branch -n2 python/tests
           fi
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5.5.2
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          working-directory: python
           fail_ci_if_error: false
           flags: python-tests
-          gcov_args: --preserve-paths
+          files: coverage.xml
+          disable_search: true
           verbose: true
 
   msys2:
