@@ -42,7 +42,7 @@ extern "C" {
 
 #ifdef __GNUC__
 #define TSK_WARN_UNUSED __attribute__((warn_unused_result))
-#define TSK_UNUSED(x) TSK_UNUSED_##x __attribute__((__unused__))
+#define TSK_UNUSED(x)   TSK_UNUSED_##x __attribute__((__unused__))
 #else
 #define TSK_WARN_UNUSED
 #define TSK_UNUSED(x) TSK_UNUSED_##x
@@ -93,11 +93,11 @@ missing data.
  * on the thread above.
  */
 typedef int64_t tsk_id_t;
-#define TSK_MAX_ID INT64_MAX - 1
+#define TSK_MAX_ID          INT64_MAX - 1
 #define TSK_ID_STORAGE_TYPE KAS_INT64
 #else
 typedef int32_t tsk_id_t;
-#define TSK_MAX_ID INT32_MAX - 1
+#define TSK_MAX_ID          INT32_MAX - 1
 #define TSK_ID_STORAGE_TYPE KAS_INT32
 #endif
 
@@ -109,7 +109,7 @@ The ``tsk_size_t`` type is an unsigned integer used for any size or count value.
 @endrst
 */
 typedef uint64_t tsk_size_t;
-#define TSK_MAX_SIZE UINT64_MAX
+#define TSK_MAX_SIZE          UINT64_MAX
 #define TSK_SIZE_STORAGE_TYPE KAS_UINT64
 
 /**

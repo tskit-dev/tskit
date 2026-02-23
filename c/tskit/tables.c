@@ -100,7 +100,7 @@ check_offset_overflow(tsk_size_t current_size, tsk_size_t additional_elements)
            || current_size > (max_val - additional_elements);
 }
 
-#define TSK_NUM_ROWS_UNSET ((tsk_size_t) - 1)
+#define TSK_NUM_ROWS_UNSET   ((tsk_size_t) - 1)
 #define TSK_MAX_COL_NAME_LEN 64
 
 static int
