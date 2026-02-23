@@ -13,7 +13,7 @@
 #     "docs/**",
 # ]}
 
-# exclude = { glob = ["lib/avl.*", "lib/subprojects/**"]}
+exclude = { glob = ["c/subprojects/**"]}
 
 [[repos]]
 repo = "builtin"
