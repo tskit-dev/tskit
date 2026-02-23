@@ -19,7 +19,7 @@ def main(stdscr):
     if len(sys.argv) > 1:
         args = sys.argv[1:]
     else:
-        args = ["-n0", "tests/test_lowlevel.py"]
+        args = ["-n0", "tests/test_python_c.py"]
 
     class StressPlugin:
         def __init__(self):
