@@ -33,94 +33,21 @@ jobs:
       pyproject-directory: python
     secrets: inherit
 
+
   test:
     name: Python
-    runs-on: ${{ matrix.os }}
+    uses: tskit-dev/.github/.github/workflows/python-tests.yml@main
+    with:
+      os: ${{ matrix.os }}
+      python-version: ${{ matrix.python }}
+      pyproject-directory: python
+      coverage-directory: python/tskit
+    secrets: inherit
     strategy:
-      fail-fast: false
       matrix:
         python: [ 3.11, 3.13 ]
         os:  [ macos-latest, ubuntu-24.04, windows-latest ]
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.13.0
-        with:
-          access_token: ${{ github.token }}
 
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-
-      - name: Install OSX libs
-        if: matrix.os == 'macos-latest'
-        run: |
-          brew install libxml2 libxslt
-
-      - name: Fix windows symlinks
-        working-directory: python
-        if: matrix.os == 'windows-latest'
-        run: |
-          rm -r lib
-          mkdir lib
-          cp -r --dereference ../c/subprojects lib/.
-          cp -r --dereference ../c/tskit lib/.
-          cp ../c/tskit.h lib/.
-
-      - name: Install uv and set the python version
-        uses: astral-sh/setup-uv@v7
-        with:
-          python-version: ${{ matrix.python }}
-          version: "0.8.15"
-
-      - name: Install dependencies
-        working-directory: python
-        run: uv sync --locked --group test
-
-      - name: Minidom test
-        working-directory: python
-        # Importing either IPython or pytest causes import of xml.dom.minidom
-        # So to actually test that tskit imports it, we need a minimal test
-        run: |
-          uv run python -c "import tskit;tskit.Tree.generate_star(5).tree_sequence.draw_svg(path='test.svg')"
-
-      - name: Run JIT code coverage
-        run: |
-          NUMBA_DISABLE_JIT=1 uv run --project=python \
-            pytest --cov=tskit --cov-report=xml --cov-branch -n2 \
-            python/tests/test_jit.py
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5.5.2
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          working-directory: python
-          fail_ci_if_error: false
-          files: coverage.xml
-          disable_search: true
-          verbose: true
-          flags: python-tests-no-jit
-
-      - name: Run tests
-        run: |
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            uv run --project=python \
-              pytest --cov=tskit --skip-slow --cov-report=xml --cov-branch -n2 python/tests
-          else
-            uv run --project=python \
-              pytest --cov=tskit --cov-report=xml --cov-branch -n2 python/tests
-          fi
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5.5.2
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          flags: python-tests
-          files: coverage.xml
-          disable_search: true
-          verbose: true
 
   msys2:
     runs-on: windows-latest
@@ -164,3 +91,53 @@ jobs:
       working-directory: c
       run: |
         ninja -C build test
+
+  bespoke-python-test:
+    name: Bespoke Python tests
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.13.0
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          submodules: true
+
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: 3.11
+          version: "0.8.15"
+
+      - name: Install Python dependencies
+        working-directory: python
+        run: uv sync --locked --group test --no-default-groups
+
+      - name: Minidom test
+        working-directory: python
+        # Importing either IPython or pytest causes import of xml.dom.minidom
+        # So to actually test that tskit imports it, we need a minimal test
+        run: |
+          uv run --locked --group test --no-default-groups \
+            python -c "import tskit;tskit.Tree.generate_star(5).tree_sequence.draw_svg(path='test.svg')"
+
+      - name: Run JIT code coverage
+        run: |
+          NUMBA_DISABLE_JIT=1 uv run --locked --project=python --no-default-groups\
+            pytest --cov=python/tskit --cov-report=xml --cov-branch \
+            python/tests/test_jit.py
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5.5.2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          files: coverage.xml
+          disable_search: true
+          verbose: true
+          flags: python-tests-no-jit
+
