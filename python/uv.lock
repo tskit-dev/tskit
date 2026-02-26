@@ -1123,7 +1123,7 @@ wheels = [
 
 [[package]]
 name = "msprime"
-version = "1.4.0"
+version = "1.4.1b1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "demes" },
@@ -1131,32 +1131,24 @@ dependencies = [
     { name = "numpy" },
     { name = "tskit" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f9/95/d0f074148498f1261b03b3efef7672bc95a06b1282b894e90585e627e76e/msprime-1.4.0.tar.gz", hash = "sha256:6a409765db3a5d40dcac024a3ae8966698b45050f13fe8e823c8124f750883bf", size = 963581, upload-time = "2026-02-06T12:50:33.034Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7a/c0/f2731c877ab076ebad7ef30c2d1e2ee47f6f8d70736f6199a4cfe6c9af02/msprime-1.4.1b1.tar.gz", hash = "sha256:d4701e9218aae5b541efafb3465a53b1dbfaad9fcfd4fab707c5ced4d13278e7", size = 1094105, upload-time = "2026-02-26T14:38:30.51Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/46/20/cfa1a781ff33e4644d7ba1e91db11fc2ba81ad44200f14df6d020ebf1db7/msprime-1.4.0-cp311-cp311-macosx_14_0_arm64.whl", hash = "sha256:c50f84b71516f775c20fbc8e1d0d8154d75a1396cde3e77ee0cd7623f7a803df", size = 1262586, upload-time = "2026-02-06T12:49:49.878Z" },
-    { url = "https://files.pythonhosted.org/packages/23/d3/5110b4a0b55833ab10eda2b91aedd7627ff90df7b313155b4e59acc4cbb1/msprime-1.4.0-cp311-cp311-macosx_14_0_x86_64.whl", hash = "sha256:d22fd327aca2ca45767448353fe395e377bf8dcc16c500665f70f1a03517b394", size = 1446528, upload-time = "2026-02-06T12:49:51.529Z" },
-    { url = "https://files.pythonhosted.org/packages/aa/28/66908da764dfcbd96da8c57aac0dc95c9996a407dcabef09e72b468620f1/msprime-1.4.0-cp311-cp311-macosx_15_0_arm64.whl", hash = "sha256:57f3e967e7cff8ec23f87a4ce7ee9dcc492a724eaa7b0b3fd48aa5bc44952b5e", size = 1258335, upload-time = "2026-02-06T12:49:53.471Z" },
-    { url = "https://files.pythonhosted.org/packages/2e/07/0cf742c3551626c2e150ee937977e9fb29a8790720735caa08af0a287118/msprime-1.4.0-cp311-cp311-macosx_26_0_arm64.whl", hash = "sha256:2a0b3bbb0bdbac8abd3a0a21e6abe72adc4c83aff2934310a588072fc0d89820", size = 1262119, upload-time = "2026-02-06T12:49:54.946Z" },
-    { url = "https://files.pythonhosted.org/packages/7a/e8/b5d4e831317a25a679d3395eaebc42c222b53dada227f563284a5af7eb5d/msprime-1.4.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:1370d593c5761fb3750f874a459c5b825de1d63c6a41e24ea4c21bcf271562c1", size = 5908541, upload-time = "2026-02-06T12:49:57.591Z" },
-    { url = "https://files.pythonhosted.org/packages/ff/5a/7dfddedb2bcbd561285a0d13ec2f2bfa574db16cb458888776c30c961131/msprime-1.4.0-cp311-cp311-win_amd64.whl", hash = "sha256:f204ddb74aa45d3076381871ca665b93a898d2d053857aedfa24c05ec8cad6c1", size = 1675551, upload-time = "2026-02-06T12:49:59.302Z" },
-    { url = "https://files.pythonhosted.org/packages/69/06/b47fb2cfdbde6c806560a66705952cba1ae4c1b747cec4945914a253bd19/msprime-1.4.0-cp312-cp312-macosx_14_0_arm64.whl", hash = "sha256:7b14bd8d5e3803141edb7da42114c3c01806c0bfd160cdc90ebc54e31c15933f", size = 1262931, upload-time = "2026-02-06T12:50:00.983Z" },
-    { url = "https://files.pythonhosted.org/packages/71/a2/e27582a017a3a5faa2de05fbfbf5f7a7f22e5eab451196601fc297fb8328/msprime-1.4.0-cp312-cp312-macosx_14_0_x86_64.whl", hash = "sha256:3bf28c2435a2f6a0249cdd33e378411ed2e3242f598fe3c89e484feb0d71236e", size = 1443685, upload-time = "2026-02-06T12:50:02.958Z" },
-    { url = "https://files.pythonhosted.org/packages/e5/82/088c34648bed0bbc1347b50fc86ade9ab305036960155bbc17f6e735dd97/msprime-1.4.0-cp312-cp312-macosx_15_0_arm64.whl", hash = "sha256:68c1061ed95d2b09a95620846ab413db1eff648b40788b63bf760cb2a63bf356", size = 1258758, upload-time = "2026-02-06T12:50:04.51Z" },
-    { url = "https://files.pythonhosted.org/packages/8f/b8/44b9b6a4d5d4883be26c1b80329a374c956875ad127b0957b60f272c4947/msprime-1.4.0-cp312-cp312-macosx_26_0_arm64.whl", hash = "sha256:1c3f4b738c9fdc04dee33f278518c6691aff49ff173ecf3e9cad13208dfdf8ac", size = 1262531, upload-time = "2026-02-06T12:50:06.761Z" },
-    { url = "https://files.pythonhosted.org/packages/81/f5/15140a96e3313883fb34d0c4148a612135268ee7f3192e51f401f287a473/msprime-1.4.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:fb9a68c42451e6e0cdbc263013d25d3b036b6783e579606fcd630b7fde8f1d25", size = 5912785, upload-time = "2026-02-06T12:50:08.511Z" },
-    { url = "https://files.pythonhosted.org/packages/15/85/a83333ba0d77edd1a965cbac260ad25c821f2d7cd699793682a129a9e4b7/msprime-1.4.0-cp312-cp312-win_amd64.whl", hash = "sha256:0e4b6b54f645a710873119ce5a65574a98102de701c50eb40b2363f869d6488b", size = 1675018, upload-time = "2026-02-06T12:50:10.394Z" },
-    { url = "https://files.pythonhosted.org/packages/a3/77/6b40c5f800791a71993c6b0b750417f3677ef1ff34ef96259f9ba45ff61e/msprime-1.4.0-cp313-cp313-macosx_14_0_arm64.whl", hash = "sha256:f04fce038b46a4e183a50ec6fd76314ec385694b5f86f888d6ed48f86be2dbcd", size = 1262961, upload-time = "2026-02-06T12:50:11.838Z" },
-    { url = "https://files.pythonhosted.org/packages/d8/b6/9a00f87f21dd7f97a4b45831f4b1a324df988ed2afd25e769ef4cea12b6e/msprime-1.4.0-cp313-cp313-macosx_14_0_x86_64.whl", hash = "sha256:a9ece99d5fbbe0d54b61b98caf79d80e0d5b49769edbf436179300b14e010cb4", size = 1443734, upload-time = "2026-02-06T12:50:14.098Z" },
-    { url = "https://files.pythonhosted.org/packages/b9/0e/5018ba3c729415258620eefa16a146020cb9fcec15c8259fe44e13d58c12/msprime-1.4.0-cp313-cp313-macosx_15_0_arm64.whl", hash = "sha256:8df16d7b4db155517887d06936d0669c80447605aed6803a4b75c10b6d101b1a", size = 1258780, upload-time = "2026-02-06T12:50:15.678Z" },
-    { url = "https://files.pythonhosted.org/packages/36/e3/c7eef3b772ac80ca077db77ca06382e68d50bbb8c53595156177d3989754/msprime-1.4.0-cp313-cp313-macosx_26_0_arm64.whl", hash = "sha256:dab2c9b500a0d80b312706c89e30f865464d68904cb19b6db2e96c2bfc48914a", size = 1262550, upload-time = "2026-02-06T12:50:17.321Z" },
-    { url = "https://files.pythonhosted.org/packages/aa/de/eacf239601ed9d3f2125012b4c47b36a0540a9215a4ebfb655493e1785fa/msprime-1.4.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:2fbbe78b331070f4ee55ec500c3bc7f6f69ab780777d5da1645cd599e2ee8d97", size = 5912742, upload-time = "2026-02-06T12:50:19.352Z" },
-    { url = "https://files.pythonhosted.org/packages/07/78/82d98e432b553e46fd7ac2652e398451606dfe46d31b5fe509946a3d35e4/msprime-1.4.0-cp313-cp313-win_amd64.whl", hash = "sha256:94bb7d8048413ff0fc532f1df5679478e4a06889571447910c032f269bfef10f", size = 1675013, upload-time = "2026-02-06T12:50:21.125Z" },
-    { url = "https://files.pythonhosted.org/packages/5a/07/58bfc16a589aee1a04aeb1282a655b1f01587b49f044195d7be66b14f037/msprime-1.4.0-cp314-cp314-macosx_14_0_arm64.whl", hash = "sha256:9a30a3adb1171aa178d2d684cc49d2e27bae70f346b6602b360f8b8110442aeb", size = 1262927, upload-time = "2026-02-06T12:50:22.724Z" },
-    { url = "https://files.pythonhosted.org/packages/d7/1a/2e3877ad8d19000245e4c16fa1cb5f2ab5353e5c88abd35fa547a7bce0e7/msprime-1.4.0-cp314-cp314-macosx_14_0_x86_64.whl", hash = "sha256:443993a22e8d9436f8e12844e8eb92365eefee3ab87f802ec587572c70055d7f", size = 1443879, upload-time = "2026-02-06T12:50:24.227Z" },
-    { url = "https://files.pythonhosted.org/packages/5f/6d/f946400df634bbc90da68b6bffdec0f972301bb2899d11724981d75434be/msprime-1.4.0-cp314-cp314-macosx_15_0_arm64.whl", hash = "sha256:c186b2f38c48c2582507b392b825e35d597bc0a4c26f7a2ef3d2b2350ad7fc65", size = 1258737, upload-time = "2026-02-06T12:50:25.693Z" },
-    { url = "https://files.pythonhosted.org/packages/4b/8e/c450bf92589806011be6daa8673cc4e0ca9efdd7e8b0f89df29be3fe6854/msprime-1.4.0-cp314-cp314-macosx_26_0_arm64.whl", hash = "sha256:ea6626b0fc9b1410b8dc794045fc5a2c336fa20d6e2cf3b2476de44d9df9c24c", size = 1262514, upload-time = "2026-02-06T12:50:27.334Z" },
-    { url = "https://files.pythonhosted.org/packages/1d/7c/ab45f707a257b415b22e0c92e9afebee85a96141d959977cb1b5cef39b17/msprime-1.4.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:b4fb3e2c355be313540e24f377005c30400d71e6e74fd5ea202982fe6537f87a", size = 5912591, upload-time = "2026-02-06T12:50:29.552Z" },
-    { url = "https://files.pythonhosted.org/packages/bb/c2/6f95ebc88cc43ad47884c32359cc2238c2996739da3c87248fdb8de99537/msprime-1.4.0-cp314-cp314-win_amd64.whl", hash = "sha256:c870f0ad9661807cbcf638972dc2156682133578faab6ada94fa217e62247537", size = 1728329, upload-time = "2026-02-06T12:50:31.395Z" },
+    { url = "https://files.pythonhosted.org/packages/5b/62/a3eef288edb03447048689fddcb68cc15ef158d1f2bc1e220cc75401c158/msprime-1.4.1b1-cp311-cp311-macosx_14_0_arm64.whl", hash = "sha256:79f2b804955306649d422f4e0f631a6a078aecf4394b5cb17a36e387da34f6b5", size = 1290734, upload-time = "2026-02-26T14:38:05.302Z" },
+    { url = "https://files.pythonhosted.org/packages/39/cf/df1985356dae3843fc7657796fab0c729e07bbf8a49d018b0b863880fe24/msprime-1.4.1b1-cp311-cp311-macosx_14_0_x86_64.whl", hash = "sha256:66a68c49307e278c3fa6108ce23ad311c81ae8315fc14c4fc5b391ad46307da9", size = 1515377, upload-time = "2026-02-26T14:38:07.09Z" },
+    { url = "https://files.pythonhosted.org/packages/f9/93/efa9aa58d01f268862ae652a0f17c2b2279047c44fa77d68d3ab1407f3f5/msprime-1.4.1b1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:ccbcc7991e330b6bcf4623f6fd1b9a0ecbc97f5838ac177d44a54d32f5fa434b", size = 2440807, upload-time = "2026-02-26T14:38:08.797Z" },
+    { url = "https://files.pythonhosted.org/packages/36/39/a2271f3a618e052893ef44572e131665ed374c06ea819fdc0a248df18984/msprime-1.4.1b1-cp311-cp311-win_amd64.whl", hash = "sha256:2f28e0c911996491541c3027371cd2c57cce780410cc686688839e98d28bea9f", size = 1673709, upload-time = "2026-02-26T14:38:10.715Z" },
+    { url = "https://files.pythonhosted.org/packages/b8/7e/1e2b0163f5e9a17cc93c443877cab1b68fd558186d5ffc26981b04d3dc39/msprime-1.4.1b1-cp312-cp312-macosx_14_0_arm64.whl", hash = "sha256:dd54e200e29af92aa7274cd8b93ba1b83e18285b766f9812956d45498ea71fd8", size = 1290962, upload-time = "2026-02-26T14:38:12.302Z" },
+    { url = "https://files.pythonhosted.org/packages/e9/21/356ba963c80ecc4d536c8bba522a189fdc5fe8fc979415ecdcf568d58ca4/msprime-1.4.1b1-cp312-cp312-macosx_14_0_x86_64.whl", hash = "sha256:fc0324a7b9a6835c0227fc48c63fca28674aa66fb883cf2f6a033e244f392520", size = 1516438, upload-time = "2026-02-26T14:38:13.643Z" },
+    { url = "https://files.pythonhosted.org/packages/0f/c9/730982df43391310f3db0d4e3a5b75faeb9820f6d220a36d87407a1e17da/msprime-1.4.1b1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:9168ee87df869f270740ab4ac3277a62625761f4cf4ed64212e53848ba5dafdf", size = 2446449, upload-time = "2026-02-26T14:38:15.296Z" },
+    { url = "https://files.pythonhosted.org/packages/3e/de/a2ec2b004587041eb717c36f7f8496172ae6ee853bc5e2ea5408f9a2280e/msprime-1.4.1b1-cp312-cp312-win_amd64.whl", hash = "sha256:a7f06f5744228a6129cf41ec376d55fe9cbcc93e250a91c590fed47dacfc3f5a", size = 1673181, upload-time = "2026-02-26T14:38:16.995Z" },
+    { url = "https://files.pythonhosted.org/packages/e1/fc/27dc590907a156169f9d8707db07f2dc522575710b9840db7c43abbfcaa2/msprime-1.4.1b1-cp313-cp313-macosx_14_0_arm64.whl", hash = "sha256:f5c5f42a5e5b4ef6720a8cb317bcccb42d3c706350ef3625ac8f45861806fb35", size = 1290986, upload-time = "2026-02-26T14:38:18.647Z" },
+    { url = "https://files.pythonhosted.org/packages/83/64/37595e5645903b6021ce311b272e9f0e7949c27c282534a4967d4b3e0462/msprime-1.4.1b1-cp313-cp313-macosx_14_0_x86_64.whl", hash = "sha256:ad1f97390134696144d1c4f201a520028515444a15504a231db4244a701156e6", size = 1516440, upload-time = "2026-02-26T14:38:19.923Z" },
+    { url = "https://files.pythonhosted.org/packages/d4/90/957c5656f663a5ca33d273fdc0bd36ddf1c36446046bcc677b5208640cdc/msprime-1.4.1b1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:79b8ca6cee186a40ce0754305caac80cf82a00a56e3c958762b8d63aacd1ef87", size = 2446365, upload-time = "2026-02-26T14:38:21.415Z" },
+    { url = "https://files.pythonhosted.org/packages/60/ac/32d9f5917d8a2a38be44343c9f3dbe29ab10d14ca98a27b359866f7e9ca7/msprime-1.4.1b1-cp313-cp313-win_amd64.whl", hash = "sha256:e732a11ed65524d2aadfafce5779219b756dab9249592cf0a53e1590abfc7f84", size = 1673176, upload-time = "2026-02-26T14:38:22.837Z" },
+    { url = "https://files.pythonhosted.org/packages/28/c7/aa2eb0427a7e6bd2bcbdb2ed616b0cd6d36ee5d8d4b4106bd155116b0d03/msprime-1.4.1b1-cp314-cp314-macosx_14_0_arm64.whl", hash = "sha256:a2602028a03d208e42cb7b07c76e61a4d0540dd0a6286776abc84020c1e5d664", size = 1290983, upload-time = "2026-02-26T14:38:24.32Z" },
+    { url = "https://files.pythonhosted.org/packages/6d/a6/ad94780526107542381119f0084afc505ce71435e5402ed15a77f672e1ac/msprime-1.4.1b1-cp314-cp314-macosx_14_0_x86_64.whl", hash = "sha256:fee475d36f0be51cfaafdc3722b609878fb5b9881276e881e019b454b63eb295", size = 1516212, upload-time = "2026-02-26T14:38:25.594Z" },
+    { url = "https://files.pythonhosted.org/packages/8a/9f/7ec142b1d66840081f6b2a486903ee0feccc34068bf932281f3937ed6cc2/msprime-1.4.1b1-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:59710f81afd2093e6cdef11ab03b6ca3518b58ad177719ad946f11bf4a6be289", size = 2446375, upload-time = "2026-02-26T14:38:27.228Z" },
+    { url = "https://files.pythonhosted.org/packages/d6/02/33a249c74149550d7468d39c148d90b1e2145c203fa4842e743d3be47dd1/msprime-1.4.1b1-cp314-cp314-win_amd64.whl", hash = "sha256:3a748241648ab0c4a663e686f5d57b74a2c2fb2e27bedaf406a08d49908c2a23", size = 1726587, upload-time = "2026-02-26T14:38:28.857Z" },
 ]
 
 [[package]]
@@ -2497,6 +2489,7 @@ dev = [
     { name = "lshmm" },
     { name = "msgpack" },
     { name = "msprime" },
+    { name = "msprime", specifier = "==1.4.1b1" },
     { name = "networkx" },
     { name = "newick" },
     { name = "numba" },
@@ -2539,7 +2532,7 @@ test = [
     { name = "kastore" },
     { name = "lshmm" },
     { name = "msgpack" },
-    { name = "msprime" },
+    { name = "msprime", specifier = "==1.4.1b1" },
     { name = "networkx" },
     { name = "newick" },
     { name = "numba" },
