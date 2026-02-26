@@ -8,7 +8,7 @@
 
 [Documentation (stable)](https://tskit.dev/tskit/docs/stable/) • [Documentation (latest)](https://tskit.dev/tskit/docs/latest/)
 
-[![Docs Build](https://github.com/tskit-dev/tskit/actions/workflows/docs.yml/badge.svg)](https://github.com/tskit-dev/tskit/actions/workflows/docs.yml) [![Binary wheels](https://github.com/tskit-dev/tskit/actions/workflows/wheels.yml/badge.svg)](https://github.com/tskit-dev/tskit/actions/workflows/wheels.yml) [![Tests](https://github.com/tskit-dev/tskit/actions/workflows/tests.yml/badge.svg)](https://github.com/tskit-dev/tskit/actions/workflows/tests.yml)
+[![Docs Build](https://github.com/tskit-dev/tskit/actions/workflows/docs.yml/badge.svg)](https://github.com/tskit-dev/tskit/actions/workflows/docs.yml)[![Tests](https://github.com/tskit-dev/tskit/actions/workflows/tests.yml/badge.svg)](https://github.com/tskit-dev/tskit/actions/workflows/tests.yml)
 
 
 The succinct tree sequence (`tskit`) format is an efficient way of representing
