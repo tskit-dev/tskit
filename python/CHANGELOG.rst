@@ -99,6 +99,9 @@ Maintenance release.
   also around 10% faster.
   (:user:`benjeffery`, :pr:`3313`, :pr:`3317`, :issue:`1896`)
 
+- Add ``json+struct`` metadata codec that allows storing binary data using a struct
+  schema alongside JSON metadata. (:user:`benjeffery`, :pr:`3306`)
+
 **Bugfixes**
 
 - In some tables with mutations out-of-order ``TableCollection.sort`` did not re-order
