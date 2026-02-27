@@ -6,7 +6,7 @@
 
 REPORTDIR=_build/html/reports
 
-jupyter-book build -Wn --keep-going .
+uv run --project=../python --group docs jupyter-book build . -vnW --keep-going
 RETVAL=$?
 if [ $RETVAL -ne 0 ]; then
     if [ -e $REPORTDIR ]; then
