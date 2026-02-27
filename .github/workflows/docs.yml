@@ -15,4 +15,5 @@ jobs:
     uses: tskit-dev/.github/.github/workflows/docs.yml@main
     with:
       pyproject-directory: python
-      doxygen-directory: docs/doxygen
+      additional-apt-packages: doxygen
+      pre-build-command: cd docs/doxygen && doxygen
