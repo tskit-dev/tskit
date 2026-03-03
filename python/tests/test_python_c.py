@@ -5073,7 +5073,7 @@ class TestModuleFunctions:
 
     def test_kastore_version(self):
         version = _tskit.get_kastore_version()
-        assert version == (2, 1, 1)
+        assert version == (2, 1, 2)
 
     def test_tskit_version(self):
         version = _tskit.get_tskit_version()
@@ -5365,15 +5365,6 @@ class TestPairCoalescenceQuantilesErrors:
         with pytest.raises(TypeError, match="cast array data"):
             self.pair_coalescence_quantiles(ts, node_bin_map=np.zeros(num_nodes))
 
-    def test_cpy_bad_quantiles(self):
-        ts = self.example_ts()
-        quantiles = np.zeros(0)
-        with pytest.raises(ValueError, match="at least one quantile"):
-            self.pair_coalescence_quantiles(ts, quantiles=quantiles)
-        quantiles = np.zeros((3, 3))
-        with pytest.raises(ValueError, match="object too deep"):
-            self.pair_coalescence_quantiles(ts, quantiles=quantiles)
-
     def test_cpy_bad_inputs(self):
         ts = self.example_ts()
         with pytest.raises(TypeError, match="at most 6 keyword"):
@@ -5386,6 +5377,15 @@ class TestPairCoalescenceQuantilesErrors:
                 node_bin_map=None,
                 foo="bar",
             )
+
+    def test_cpy_bad_quantiles(self):
+        ts = self.example_ts()
+        quantiles = np.zeros(0)
+        with pytest.raises(ValueError, match="at least one quantile"):
+            self.pair_coalescence_quantiles(ts, quantiles=quantiles)
+        quantiles = np.zeros((3, 3))
+        with pytest.raises(ValueError, match="object too deep"):
+            self.pair_coalescence_quantiles(ts, quantiles=quantiles)
 
 
 class TestPairCoalescenceRatesErrors:
