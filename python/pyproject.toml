@@ -82,6 +82,12 @@ test = [
     "zarr",
 ]
 
+test-lwt = [
+    "cython",
+    "pytest",
+    "pytest-cov",
+]
+
 docs = [
     "jupyter-book<2",
     "breathe",
@@ -93,7 +99,6 @@ docs = [
     "sphinx-book-theme",
     "pandas",
 ]
-
 
 wheels = [
   "cibuildwheel",

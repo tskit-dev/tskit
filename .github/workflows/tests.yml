@@ -141,19 +141,15 @@ jobs:
           verbose: true
           flags: python-tests-no-jit
 
-      # - name: Build example LWT interface code and test
-      #   run: |
-      #     # We're assuming that the tskit C module has already
-      #     # been built, as we're testing against the local tskit version.
-      #     cd python/lwt_interface
-      #     make allchecks
-      #     uv run python -m pytest -n2
+      - name: Build example LWT interface code and test
+        working-directory: python/lwt_interface/
+        run: |
+          make allchecks
+          uv run --project=../ --group=test pytest -vs
 
-      # - run:
-      #     name: Build cython example LWT interface code and run
-      #     command: |
-      #       cd python/lwt_interface/cython_example
-      #       make
+      - name: Build cython example LWT interface code and run
+        working-directory: python/lwt_interface/cython_example
+        run: make
 
 
   bespoke-c-test:

@@ -1,10 +1,10 @@
 all: compile run
 
 compile:
-	pip install -e . --use-pep517
+	uv run --project=../../ --group=test-lwt setup.py build_ext --inplace
 
 run:
-	PYTHONPATH=../.. python -c "import example; example.main()"
+	uv run --project=../../ --group=test-lwt python -c "import example; example.main()"
 
 clean:
 	rm -rf build/
