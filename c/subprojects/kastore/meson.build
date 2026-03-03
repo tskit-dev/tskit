@@ -26,25 +26,29 @@ if not meson.is_subproject()
     shared_library('kastore', 'kastore.c', install: true)
     executable('example', ['example.c'], link_with: kastore)
 
-    # Note: we don't declare these as meson tests because they depend on 
-    # being run from the current working directory because of the paths
-    # to example files.
     cunit_dep = dependency('cunit')
-    executable('tests', ['tests.c', 'kastore.c'], dependencies: cunit_dep,
+    src_root = meson.project_source_root()
+
+    tests_exe = executable('tests', ['tests.c', 'kastore.c'], dependencies: cunit_dep,
       c_args: ['-DMESON_VERSION="@0@"'.format(meson.project_version())])
+    test('tests', tests_exe,
+      env: ['KAS_TEST_DATA_PREFIX=' + src_root + '/test-data/'])
 
-    executable('cpp_tests', ['cpp_tests.cpp'], link_with: kastore)
+    cpp_tests_exe = executable('cpp_tests', ['cpp_tests.cpp'], link_with: kastore)
+    test('cpp_tests', cpp_tests_exe)
 
-    executable('malloc_tests', ['malloc_tests.c', 'kastore.c'], 
-        dependencies: cunit_dep, 
+    malloc_tests_exe = executable('malloc_tests', ['malloc_tests.c', 'kastore.c'],
+        dependencies: cunit_dep,
         link_args:['-Wl,--wrap=malloc', '-Wl,--wrap=realloc', '-Wl,--wrap=calloc'])
+    test('malloc_tests', malloc_tests_exe, workdir: src_root)
 
-    executable('io_tests', ['io_tests.c', 'kastore.c'], 
-        dependencies: cunit_dep, 
+    io_tests_exe = executable('io_tests', ['io_tests.c', 'kastore.c'],
+        dependencies: cunit_dep,
         link_args:[
-            '-Wl,--wrap=fwrite', 
-            '-Wl,--wrap=fread', 
+            '-Wl,--wrap=fwrite',
+            '-Wl,--wrap=fread',
             '-Wl,--wrap=fclose',
             '-Wl,--wrap=ftell',
             '-Wl,--wrap=fseek'])
+    test('io_tests', io_tests_exe, workdir: src_root)
 endif
