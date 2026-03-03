@@ -141,3 +141,74 @@ jobs:
           verbose: true
           flags: python-tests-no-jit
 
+      # - name: Build example LWT interface code and test
+      #   run: |
+      #     # We're assuming that the tskit C module has already
+      #     # been built, as we're testing against the local tskit version.
+      #     cd python/lwt_interface
+      #     make allchecks
+      #     uv run python -m pytest -n2
+
+      # - run:
+      #     name: Build cython example LWT interface code and run
+      #     command: |
+      #       cd python/lwt_interface/cython_example
+      #       make
+
+
+  bespoke-c-test:
+    name: Bespoke C tests
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.13.0
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          submodules: true
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcunit1-dev ninja-build clang
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.10.2"
+
+      - name: Install uv deps
+        run: |
+          uv tool install meson==1.10.1
+
+      - name: Configure code
+        run: CFLAGS=-D_TSK_BIG_TABLES CPPFLAGS=-D_TSK_BIG_TABLES meson setup build-bt c/
+
+      - name: Compile
+        run: ninja -C build-bt
+
+      - name: Run tests
+        run: ninja -C build-bt test
+
+
+      - name: Test building with meson subproject
+        run: |
+          meson build-subproject c/tests/meson-subproject
+          ninja -C build-subproject
+          ./build-subproject/example
+
+      - name: Install shared library and hand-compile program.
+        run: |
+          meson build-install c --prefix=/usr
+          sudo ninja -C build-install install
+          clang c/examples/api_structure.c -I c/subprojects/kastore -o api_structure -ltskit
+          ./api_structure
+
+      - name: Run example make file
+        run: |
+          make -C c/examples
+
