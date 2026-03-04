@@ -35,7 +35,7 @@ hooks = [
     id = "ruff-check",
     name = "ruff check",
     language = "system",
-    entry = "ruff check --fix --force-exclude",
+    entry = "uv run --project=python --group=lint ruff check --fix --force-exclude",
     types = ["python"],
   },
 ]
@@ -47,7 +47,7 @@ hooks = [
     id = "ruff-format",
     name = "ruff format",
     language = "system",
-    entry = "ruff format --force-exclude",
+    entry = "uv run --project=python --group=lint ruff format --force-exclude",
     types = ["python"],
   },
 ]
@@ -59,7 +59,7 @@ hooks = [
     id = "clang-format",
     name = "clang-format",
     language = "system",
-    entry = "clang-format -i",
+    entry = "uv run --project=python --group=lint clang-format -i",
     types = ["c"],
     verbose = true,
   },
