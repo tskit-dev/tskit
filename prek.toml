@@ -4,22 +4,11 @@
 # rules implementing lint workflows.  We do not use any remote
 # workflow repos.
 
-# files = { glob = [
-#     "tskit/**",
-#     "benchmark/**",
-#     "tests/**",
-#     "_tskitmodule.c",
-#     "*.toml",
-#     "docs/**",
-# ]}
-
 exclude = { glob = ["c/subprojects/**"]}
 
 [[repos]]
 repo = "builtin"
 hooks = [
-    # { id = "trailing-whitespace" },
-    # { id = "end-of-file-fixer" },
     { id = "check-added-large-files" },
     { id = "check-merge-conflict" },
     { id = "mixed-line-ending" },
@@ -35,7 +24,7 @@ hooks = [
     id = "ruff-check",
     name = "ruff check",
     language = "system",
-    entry = "uv run --project=python --group=lint ruff check --fix --force-exclude",
+    entry = "uv run --project=python --only-group=lint ruff check --fix --force-exclude",
     types = ["python"],
   },
 ]
@@ -47,7 +36,7 @@ hooks = [
     id = "ruff-format",
     name = "ruff format",
     language = "system",
-    entry = "uv run --project=python --group=lint ruff format --force-exclude",
+    entry = "uv run --project=python --only-group=lint ruff format --force-exclude",
     types = ["python"],
   },
 ]
@@ -59,7 +48,7 @@ hooks = [
     id = "clang-format",
     name = "clang-format",
     language = "system",
-    entry = "uv run --project=python --group=lint clang-format -i",
+    entry = "uv run --project=python --only-group=lint clang-format -i",
     types = ["c"],
     verbose = true,
   },
