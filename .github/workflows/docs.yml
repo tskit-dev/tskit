@@ -12,7 +12,7 @@ env:
 
 jobs:
   Docs:
-    uses: tskit-dev/.github/.github/workflows/docs.yml@v12
+    uses: tskit-dev/.github/.github/workflows/docs.yml@v14
     with:
       pyproject-directory: python
       additional-apt-packages: doxygen
