@@ -10930,12 +10930,106 @@ class TreeSequence:
     def ld_matrix(
         self,
         sample_sets=None,
-        sites=None,
-        positions=None,
         mode="site",
         stat="r2",
+        sites=None,
+        positions=None,
         indexes=None,
     ):
+        r"""
+
+        Returns a matrix of the specified two-locus statistic (default
+        :math:`r^2`) computed from sample allelic states or branch lengths.
+        The resulting linkage disequilibrium (LD) matrix represents either the
+        two-locus statistic as computed between all pairs of specified
+        ``sites`` (``"site"`` mode, producing a
+        ``len(sites)``-by-``len(sites)`` sized matrix), or as computed from the
+        branch structures at marginal trees between pairs of trees at all
+        specified ``positions`` (``"branch"`` mode, producing a
+        ``len(positions)``-by-``len(positions)`` sized matrix).
+
+        The sites considered for ``"site"`` mode defaults to all sites (which may
+        result in a very large matrix!), but can be restricted using
+        the ``sites`` argument. Sites must be passed as a list of lists,
+        specifying the ``[row_sites, col_sites]``, resulting in a
+        rectangular matrix, or by specifying a single list of ``[sites]``, in
+        which a square matrix will be produced (see
+        :ref:`sec_stats_two_locus_site` for examples). Here, ``sites``,
+        ``row_sites``, and ``col_sites`` are each lists of site indexes.
+
+        Similarly, in the ``"branch"`` mode, the ``positions`` argument specifies
+        genomic coordinates at which the expectation for the two-locus statistic
+        is computed, given the local tree structure.
+        (See :ref:`sec_stats_two_locus_branch` for explanation of in what sense
+        this is an expectation.) This defaults to computing
+        the LD for each pair of distinct trees (this is equivalent to passing in
+        the leftmost coordinates of each tree's span, since intervals are closed on
+        the left and open on the right). Similar to the site mode, a nested list
+        of row and column positions can be specified separately (resulting in a
+        rectangular matrix) or a single list of a specified positions results
+        in a square matrix (see :ref:`sec_stats_two_locus_branch` for
+        examples). Like ``sites``, the ``positions`` must be specified as a list
+        of lists.
+
+        Some LD statistics are defined for both within a single set of samples
+        and for two sample sets. If the ``indexes`` argument is specified, then
+        ``indexes`` specifies the indexes of the sample sets in the
+        ``sample_sets`` list between which to compute LD. For instance, this
+        results in a 3D array whose ``[k,:,:]``-th slice contains LD values
+        between ``sample_sets[i]`` and ``sample_sets[j]``, where ``(i, j)`` is
+        the ``k``-th element of ``indexes``.
+
+        For more on how the ``indexes`` and ``sample_sets`` interact with the
+        output dimensions, see the :ref:`sec_stats_two_locus_sample_sets`
+        section. Statistics are defined in the
+        :ref:`sec_stats_two_locus_summary_functions_two_way` section.
+
+        **Available Stats** (use ``Stat Name`` in the ``stat`` keyword
+        argument). Statistics marked as "multi sample set" allow
+        (but do not require) computation from two sample sets
+        via the ``indexes`` argument.
+
+        ======================= ========== ================ ==============
+        Stat                     Polarised Multi Sample Set Stat Name
+        ======================= ========== ================ ==============
+        :math:`r^2`              n          y               "r2"
+        :math:`r`                y          n               "r"
+        :math:`D^2`              n          y               "D2"
+        :math:`D`                y          n               "D"
+        :math:`D'`               y          n               "D_prime"
+        :math:`D_z`              n          n               "Dz"
+        :math:`\pi_2`            n          n               "pi2"
+        :math:`\widehat{D^2}`    n          y               "D2_unbiased"
+        :math:`\widehat{D_z}`    n          n               "Dz_unbiased"
+        :math:`\widehat{\pi_2}`  n          n               "pi2_unbiased"
+        ======================= ========== ================ ==============
+
+        :param list sample_sets: A list, or a list of lists of sample node IDs,
+            specifying the groups of nodes to compute the statistic with. Defaults
+            to all samples.
+        :param str mode: A string giving the "type" of the statistic to be
+            computed. Defaults to "site", can be "site" or "branch".
+        :param str stat: A string giving the selected two-locus statistic to
+            compute. Defaults to "r2".
+        :param list sites: A list of lists of sites over which to compute an
+            LD matrix. Can be specified as a list of lists to control the row
+            and column sites. Only available in "site" mode. Specify as
+            ``[row_sites, col_sites]`` or ``[all_sites]``.
+            Defaults to all sites.
+        :param list positions: A list of lists of genomic positions where
+            expected LD is computed based on tree topologies and branch
+            lengths. Only applicable in "branch" mode. Specify as a list of
+            two lists to control the row and column positions, as
+            ``[row_positions, col_positions]``, or ``[all_positions]``.
+            Defaults to the leftmost coordinates of all trees and computes
+            LD between all pairs of trees.
+        :param list indexes: A list of 2-tuples or a single 2-tuple, specifying
+            the indexes of two sample sets over which to compute a two-way LD
+            statistic. Only :math:`r^2`, :math:`D^2`, and :math:`\widehat{D^2}`
+            are implemented for two-way statistics.
+        :return: A 2D or 3D array of LD matrices.
+        :rtype: numpy.ndarray
+        """
         one_way_stats = {
             "D": self._ll_tree_sequence.D_matrix,
             "D2": self._ll_tree_sequence.D2_matrix,
