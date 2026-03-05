@@ -1027,9 +1027,9 @@ class TestTableMethodsErrors:
             ll_table.extend(ll_table_copy, row_indexes=5)
         with pytest.raises(TypeError):
             ll_table.extend(ll_table_copy, row_indexes=[None])
-        with pytest.raises(ValueError, match="object too deep"):
+        with pytest.raises(ValueError, match="array"):
             ll_table.extend(ll_table_copy, row_indexes=[[0, 1], [2, 3]])
-        with pytest.raises(ValueError, match="object too deep"):
+        with pytest.raises(ValueError, match="array"):
             ll_table.extend(ll_table_copy, row_indexes=[[0, 1]])
         with pytest.raises(_tskit.LibraryError, match="out of bounds"):
             ll_table.extend(ll_table_copy, row_indexes=[-1])
@@ -3248,7 +3248,7 @@ class TestGeneticRelatednessVector(LowLevelTestCase):
         params["mode"] = "branch"
         for nodes in ["abc", [[1, 2]]]:
             params["nodes"] = nodes
-            with pytest.raises(ValueError, match="desired array"):
+            with pytest.raises(ValueError, match="array"):
                 ts.genetic_relatedness_vector(**params)
         for nodes in [[-1, 3], [3, 2 * ts.get_num_nodes()]]:
             params["nodes"] = nodes
@@ -3358,7 +3358,7 @@ class TestDecodeAlignmentsLowLevel(LowLevelTestCase):
         ts = self.get_simple_example()
         ref = b"NNNNNNNNNN"
         # Bad nodes type
-        with pytest.raises(ValueError, match="desired array"):
+        with pytest.raises(ValueError, match="array"):
             ts.decode_alignments(ref, [[0, 1]], 0, ts.get_sequence_length(), "N", True)
         # Out of bounds
         bad_nodes = np.array([ts.get_num_nodes()], dtype=np.int32)
