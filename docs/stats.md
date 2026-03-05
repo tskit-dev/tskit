@@ -684,14 +684,394 @@ and boolean expressions (e.g., {math}`(x > 0)`) are interpreted as 0/1.
   and {math}`v_j` is the covariance of the trait with the j-th covariate.
 
 
+(sec_stats_multi_site)=
+
 ## Multi site statistics
 
-:::{todo}
-Document statistics that use information about correlation between sites, such as
-LdCalculator (and perhaps reference {ref}`sec_identity`). Note that if we have a general
-framework which has the same calling conventions as the single site stats,
-we can rework the sections above.
+(sec_stats_two_locus)=
+
+### Two-locus statistics
+
+The {meth}`~TreeSequence.ld_matrix` method provides an interface to
+a collection of two-locus statistics with predefined summary functions (see
+{ref}`sec_stats_two_locus_summary_functions`).
+The LD matrix method differs from other
+statistics methods in that it provides a unified API with an argument to
+specify different two-locus summaries of the data. It otherwise behaves
+similarly to most other functions with respect to `sample_sets` and `indexes`.
+
+Two-locus statistics can be computed using two {ref}`modes <sec_stats_mode>`,
+either `site` or `branch`, and these should be interpreted in the same way as
+these modes in the single-site statistics. That is, the `site` mode computes LD
+over observed alleles at pairs of sites, while the `branch` model computes
+expected LD conditioned on pairs of trees.
+
+(sec_stats_two_locus_site)=
+
+#### Site mode
+
+The `"site"` mode computes two-locus statistics summarized over alleles between
+all pairs of specified sites. The default behavior, leaving `sites`
+unspecified, will compute a matrix for all pairs of sites, with one row and
+column for each site in the tree sequence (i.e., an {math}`n \times n` matrix
+where {math}`n` is the number of sites in the tree sequence). We can also
+restrict the output to a subset of sites, either by specifying a single vector
+of site indexes for both rows and columns or a pair of vectors for the row
+sites and column sites separately.
+
+The following computes a matrix of the {math}`r^2` measure of linkage
+disequilibrium (LD) computed pairwise between the first 4 sites in the tree
+sequence among all samples. The `sites` must be given as a list of lists, and
+with a single list of sites specified, we obtain a symmetric square matrix. 
+
+```{code-cell} ipython3
+ld = ts.ld_matrix(sites=[[0, 1, 2, 3]])
+print(ld)
+```
+
+If a list of two lists of site indexes is provided, these specify the row and
+column sites. For instance, here we specify 2 rows and 3 columns, which
+computes a subset of the matrix shown above.
+
+```{code-cell} ipython3
+ld = ts.ld_matrix(sites=[[1, 2], [1, 2, 3]])
+print(ld)
+```
+
+#### Computational details
+
+Because we allow for two-locus statistics to be computed for multi-allelic
+data, we need to be able to combine statistical results from each pair of
+alleles into one summary for a pair of sites. This does not affect biallelic
+data (and so this section can be skipped on first reading).
+We use two implementations for
+combining results from multiple alleles: `hap_weighted` and `total_weighted`.
+These are statistic-specific and not chosen by the user, with choices motivated
+by [Zhao (2007)](https://doi.org/10.1017/S0016672307008634).
+
+Briefly, consider a pair of sites with {math}`n` alleles at the first locus and
+{math}`m` alleles at the second. (Whether this includes the ancestral allele
+depends on whether the statistic is polarised.) Write {math}`f_{ij}` as the
+statistic computed for focal alleles {math}`A_i` and {math}`B_j`. Then the
+weighting schemes are defined as:
+
+- `hap_weighted`: {math}`\sum_{i=1}^{n}\sum_{j=1}^{m}p(A_{i}B_{j})f_{ij}`,
+  where {math}`p(A_{i}B_{j})` is the frequency of haplotype {math}`A_{i}B_{j}`.
+  This method was first introduced in [Karlin
+  (1981)](https://doi.org/10.1111/j.1469-1809.1981.tb00308.x) and reviewed in
+  [Zhao (2007)](https://doi.org/10.1017/S0016672307008634).
+
+- `total_weighted`: {math}`\frac{1}{n m}\sum_{i=1}^{n}\sum_{j=1}^{m}f_{ij}`.
+  This method assigns equal weight to each of the possible pairs of focal
+  alleles at the two sites, taking the arithmetic mean of statistics over
+  focal haplotypes.
+
+Out of all of the available summary functions, only {math}`r^2` uses
+`hap_weighted` normalisation, with the remainder using uniform weighting
+(`total_weighted`).
+
+Within this framework, statistics may be either polarised or unpolarised. For
+statistics that are polarised, we compute statistic values for pairs of derived
+alleles. (For this purpose, the "derived" alleles at a site are all alleles
+except that stored as the ``ancestral_state`` for the site.) Unpolarised
+statistics compute statistics over all pairs of alleles, derived and ancestral.
+In either case, the result is averaged over these values, using one of the
+weighting scheme (described below for each statistics). The option for
+polarisation is not exposed to the user, and we list which statistics are
+polarised below.
+
+(sec_stats_two_locus_branch)=
+
+#### Branch mode
+
+The `"branch"` mode computes expected two-locus statistics between pairs of
+trees, conditioned on the marginal topologies and branch lengths of those
+trees. The trees for which we compute statistics are specified by positions,
+and for a pair of positions we consider all possible haplotypes that could be
+generated by a single mutation occurring on each of the two trees.
+
+For two trees, one with {math}`n` branches and the other with {math}`m`
+branches, there are {math}`nm` possible pairs of branches that may carry the
+pair of mutations. For each pair, we compute the two-locus statistic, and then
+sum these values weighted by the product of the two branch lengths. Given that
+the two mutations occur, this accounts for the relative probability that the
+two mutations fall on any pair of branches.
+
+In other words, imagine we place two mutations uniformly, one on each tree, and
+then compute the statistic. The branch mode computes the expected value of the
+statistic over this process, multiplied by the product of the total branch
+lengths of each tree. This weighting accounts for mutational opportunity, so that
+the sum of the branch-mode statistic over all positions in a genomic region,
+multiplied by a mutation rate,  is equal to the expected sum of the two-locus site
+statistic over all mutations falling in that region under an infinite-sites model.
+
+The time complexity of this method is quadratic in the number of samples,
+due to the pairwise comparisons of branches from each pair of trees.
+By default, this method computes
+a symmetric matrix for all pairs of trees, with rows and columns representing
+each tree in the tree sequence. Similar to the site method, we can restrict the
+output to a subset of trees, either by specifying a vector of positions or
+a pair of vectors for row and column positions separately. To select a specific
+tree, the specified positions must land in the tree span (`[start, end)`).
+
+In the following, we compute a matrix of expected {math}`r^2` within and
+between the first 4 trees in the tree sequence. The tree breakpoints are
+a convenient way to specify those first four trees.
+
+```{code-cell} ipython3
+ld = ts.ld_matrix(
+    mode="branch",
+    positions=[ts.breakpoints(as_array=True)[0:4]]
+)
+print(ld)
+```
+
+We note that these values are quite large: as described above, the statistic is
+scaled by the product of the total branch lengths of each pair of trees. To
+compute the expected {math}`r^2` value for a pair of mutations that each land
+uniformly on the pair of trees, we can divide by the product of the total
+branch lengths:
+
+```{code-cell} ipython3
+total_branch_lengths = [tree.total_branch_length for tree in ts.trees()]
+prod_branch_lengths = np.outer(total_branch_lengths, total_branch_lengths)
+print(ld / prod_branch_lengths[0:4, 0:4])
+```
+
+To compute the average {math}`r^2` for a uniformly chosen pair of mutations, we also
+weight by tree span:
+
+```{code-cell} ipython3
+tree_spans = np.array([t.span for t in ts.trees()])
+total_opportunity = np.sum(tree_spans * total_branch_lengths)
+all_ld = ts.ld_matrix(mode="branch")
+mean_ld = np.sum(all_ld * np.outer(tree_spans, tree_spans)) / total_opportunity ** 2
+print("mean infinite-sites LD:", mean_ld)
+```
+
+As with the `"site"` mode above, we can specify the row and column trees
+separately.
+
+```{code-cell} ipython3
+breakpoints = ts.breakpoints(as_array=True)
+ld = ts.ld_matrix(
+    mode="branch",
+    positions=[breakpoints[[0]], breakpoints[0:4]]
+)
+print(ld)
+```
+
+(sec_stats_two_locus_sample_sets)=
+
+#### Sample Sets
+
+Without specifying `sample_sets` or `indexes`, the `ld_matrix()` method
+computes statistics over a single sample set that includes all samples in the
+tree sequence. The API allows for the specification of a subset or multiple
+subsets of samples, so that a separate LD matrix can be computed for each. If
+`sample_sets` is specified as a single list of samples, then a single LD matrix
+is returned. A list of lists of samples will return a 3D array containing an LD
+matrix for each list of samples.
+
+Some LD statistics can be computed between sample sets (two-way statistics are
+specified below), in which case `indexes` must be specified that reference the
+indexes of the `sample_sets`, which must be a list of lists of sample nodes.
+This results in an LD matrix computed for each list of indexes. The statistics
+are selected in the same way (with the `stat` argument), and these are limited
+to a handful of statistics (see
+{ref}`sec_stats_two_locus_summary_functions_two_way`). The dimension-dropping
+rules for the result follow the rest of the tskit stats API in that a single
+list or tuple will produce a single two-dimensional matrix, while a list of
+these will produce a three-dimensional array, with the first dimension of
+length equal to the length of the list.
+
+For example, to compute the {math}`r^2` LD matrix over a subset of samples in
+the tree sequence (such as sample nodes 0 through 7), we would specify the
+samples as follows:
+
+```{code-cell} ipython3
+ts = msprime.sim_ancestry(
+    20,
+    population_size=10000,
+    sequence_length=1000,
+    recombination_rate=2e-8,
+    random_seed=12)
+ts = msprime.sim_mutations(ts, rate=2e-8, random_seed=12)
+
+ld = ts.ld_matrix(mode="site", sample_sets=range(8))
+print(ld)
+```
+
+We would get the following dimensions with the specified
+`sample_sets` and `indexes` arguments.
+
+```
+# one-way
+ts.ld_matrix(sample_sets=None) # -> 2 dimensions
+ts.ld_matrix(sample_sets=[0, 1, 2, 3]) # -> 2 dimensions
+ts.ld_matrix(sample_sets=[[0, 1, 2, 3]]) # -> 3 dimensions
+# two-way
+ts.ld_matrix(sample_sets=[[0, 1, 2, 3], [4, 5, 6, 7]], indexes=(0, 1)) # -> 2 dimensions
+ts.ld_matrix(sample_sets=[[0, 1, 2, 3], [4, 5, 6, 7]], indexes=[(0, 1)]) # -> 3 dimensions
+```
+
+#### Why are there `nan` values in the LD matrix?
+
+For some statistics, it is possible to observe `nan` entries in the LD matrix,
+which can be surprising and may numerically impact downstream analyses. A `nan`
+entry occurs if the denominator of a ratio statistic (including {math}`r` and
+{math}`r^2`) is zero, indicating that one or both of the alleles in the pair is
+fixed or absent in the given sample set(s). This can happen for
+a number of reasons:
+
+- Some mutation models allow for reversible mutations, so a back mutation at
+  a site can result in a single allele despite multiple mutations in the
+  history of the sample.
+- LD is computed for a subsample of individuals, and some sites are not
+  variable among the sample nodes in the subsample.
+- A mutation exists above the root of the local tree, so that all samples carry
+  the mutation, and one or more sites are not variable.
+
+The `branch` mode will also return `nan` values for ratio statistics if there
+are branches in either tree on which a mutation would not result in
+a polymorphism within a sample set.
+
+:::{warning}
+This means there are two common situations in which many or all LD values will be `nan`.
+These are:
+
+1. A branch-mode ratio statistic computed on less than the full set of samples
+    will always be `nan`, since part of the trees are ancestral to none of the samples.
+2. A site-mode ratio statistic will be `nan` at any sites at which there are alleles found
+    in the entire set of samples that are not seen in the provided sample set.
+
+This behavior **may change in the future**,
+because possibly more natural behavior not currently implemented
+would be to ignore the branches/alleles not ancestral
+to any of the provided samples.
 :::
+
+(sec_stats_two_locus_sample_one_way_stats)=
+
+#### One-way Statistics
+
+One-way statistics are summaries of two loci in a single sample set, using
+a triple of haplotype counts {math}`\{n_{AB}, n_{Ab}, n_{aB}\}` and the size of
+the sample set {math}`n`, where the capitalized and lowercase letters in our
+notation represent alternate alleles.
+
+(sec_stats_two_locus_sample_two_way_stats)=
+
+#### Two-way Statistics
+
+Two-way statistics are summaries of haplotype counts between two sample sets,
+which operate on the three haplotype counts (as in one-way stats, above)
+computed from each sample set, indexed by `(i, j)`. These statistics take on
+a different meaning from their one-way counterparts. For instance `stat="D2"`
+over a pair of sample sets computes {math}`D_i D_j`, which is the product of
+the covariance measure of LD within each sample set and is related to the
+covariance of {math}`D` between sample sets.
+
+Only a subset of our summary functions are two-way statistics (see
+{ref}`sec_two_locus_summary_functions_two_way`). Note that the unbiased two-way
+statistics expect non-overlapping sample sets (see [Ragsdale and Gravel
+(2020)](https://doi.org/10.1093/molbev/msz265)), and we do not make any
+assertions about the sample sets and assume that `i` and `j` represent disjoint
+sets of samples (see also the note in {meth}`~TreeSequence.divergence`).
+
+(sec_stats_two_locus_summary_functions)=
+
+#### Summary Functions
+
+(sec_stats_two_locus_summary_functions_one_way)=
+
+##### One-way
+
+The two-locus summary functions all take haplotype counts and sample set size
+as input. Each of our summary functions has the signature
+{math}`f(n_{AB}, n_{Ab}, n_{aB}, n)`, converting to haplotype frequencies
+{math}`\{p_{AB}, p_{Ab}, p_{aB}\}` by dividing by {math}`n`. Below,
+{math}`n_{ab} = n - n_{AB} - n_{Ab} - n_{aB}`, {math}`n_A = n_{AB} + n_{Ab}`
+and {math}`n_B = n_{AB} + n_{aB}`, with frequencies {math}`p` found by dividing
+by {math}`n`.
+
+Our convention is to use {math}`A,B` to denote derived alleles, and {math}`a,b`
+ancestral alleles (or other alleles, if the site is multi-allelic). For
+polarised statistics, we average statistics over all non-ancestral alleles. For
+unpolarised statistics, the labeling is arbitrary as we average over all
+alleles (derived and ancestral).
+
+`D`
+: {math}`f(n_{AB}, n_{Ab}, n_{aB}, n) = p_{AB}p_{ab} - p_{Ab}p_{aB} \, (=p_{AB} - p_A p_B)`
+
+  This statistic is polarised, as the unpolarised result, which averages over
+  allele labelings, is zero. Uses the `total` weighting method.
+
+`D_prime`
+: {math}`f(n_{AB}, n_{Ab}, n_{aB}, n) = \frac{D}{D_{\max}}`,
+
+  where {math}`D_{\max} = \begin{cases}
+            \min\{p_A (1-p_B), p_B (1-p_B)\} & \textrm{if }D>=0 \\
+            \min\{p_A p_B, (1-p_B) (1-p_B)\} & \textrm{if }D<0
+        \end{cases}`
+
+  and {math}`D` is defined above. Polarised, `total` weighted.
+
+`D2`
+: {math}`f(n_{AB}, n_{Ab}, n_{aB}, n) = D^2`
+
+  and {math}`D` is defined above. Unpolarised, `total` weighted.
+
+`Dz`
+:  {math}`f(n_{AB}, n_{Ab}, n_{aB}, n) = D (1 - 2 p_A) (1 - 2 p_B)`,
+
+  where {math}`D` is defined above. Unpolarised, `total` weighted.
+
+`pi2`
+: {math}`f(n_{AB}, n_{Ab}, n_{aB}, n) = p_A (1-p_A) p_B (1-p_B)`
+
+  Unpolarised, `total` weighted.
+
+`r`
+: {math}`f(n_{AB}, n_{Ab}, n_{aB}, n) = \frac{D}{\sqrt{p_A (1-p_A) p_B (1-p_B)}}`,
+
+  where {math}`D` is defined above. Polarised, `total` weighted.
+
+`r2`
+: {math}`f(n_{AB}, n_{Ab}, n_{aB}, n) = \frac{D^{2}}{p_A (1-p_A) p_B (1-p_B))}`,
+
+  where {math}`D` is defined above. Unpolarised, `haplotype` weighted.
+
+Unbiased two-locus statistics from the Hill-Robertson (1968) system are
+computed from haplotype counts. Definitions of these unbiased estimators can
+be found in [Ragsdale and Gravel
+(2020)](https://doi.org/10.1093/molbev/msz265). They require at least 4 samples
+to be valid and are specified as `stat="D2_unbiased"`, `"Dz_unbiased"`, or
+`"pi2_unbiased"`.
+
+(sec_two_locus_summary_functions_two_way)=
+
+(sec_stats_two_locus_summary_functions_two_way)=
+
+##### Two-way
+
+Two-way statistics are indexed by sample sets {math}`i, j` and compute values
+using haplotype counts within pairs of sample sets.
+
+`D2`
+: {math}`f(n_{AB}, n_{Ab}, n_{aB}, n) = D_i D_j`,
+
+  where {math}`D_i` denotes {math}`D` computed within sample set {math}`i`,
+  and {math}`D` is defined above. Unpolarised, `total` weighted.
+
+`r2`
+: {math}`f(n_{AB}, n_{Ab}, n_{aB}, n) = r_i r_j`,
+
+  where {math}`r_i` denotes {math}`r` computed within sample set {math}`i`,
+  and {math}`r` is defined above. Unpolarised, `haplotype` weighted.
+
+And `D2_unbiased`, which can be found in [Ragsdale and Gravel
+(2020)](https://doi.org/10.1093/molbev/msz265).
 
 
 (sec_stats_notes)=
