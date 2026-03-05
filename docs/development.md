@@ -33,6 +33,19 @@ details. We wish our code and documentation to be
 [inclusive](https://chromium.googlesource.com/chromium/src/+/master/styleguide/inclusive_code.md)
 and in particular to be gender and racially neutral.
 
+(sec_development_repo_admin)=
+
+
+## Repo administration
+
+tskit is one of several packages in the tskit-dev ecosystem. Shared conventions
+for CI workflows, dependency management, repository layout, and releases are
+documented in the
+[repo administration guide](https://github.com/tskit-dev/.github/blob/main/repo_administration.md)
+in the `tskit-dev/.github` repository. Maintainers should read that document
+before making changes to CI configuration, dependency groups, or the release process.
+
+
 (sec_development_structure)=
 
 
@@ -71,58 +84,38 @@ an overview of how to contribute a new feature to `tskit`.
 ### Requirements
 
 To develop the Python code you will need a working C compiler and a
-development installation of Python (>= 3.9). On Debian/Ubuntu we can install these
-with:
+and some build utilities. Additionally, the doxygen package
+is required for building the C API documentation.
+On Debian/Ubuntu we can install these with:
 
 ```bash
-$ sudo apt install python3-dev python-is-python3 build-essential doxygen
+$ sudo apt install build-essential doxygen
 ```
 
-The packages needed for development are specified as optional dependencies
-in the ``python/pyproject.toml`` file. Install these using:
+All Python development is managed using [uv](https://docs.astral.sh/uv/).
+It is not strictly necessary to use uv in order to make small changes, but
+the development workflows of all tskit-dev packages are organised around
+using uv, and therefore we strongly recommend using it. Uv is straightforward
+to install, and not invasive (existing Python installations can be completely
+isolated if you don't use features like ``uv tool`` etc which update your
+$HOME/.local/bin). Uv manages an isolated local environment per project
+and allows us to deterministically pin package versions and easily switch
+between Python versions, so that CI environments can be replicated exactly
+locally.
+
+The packages needed for development are specified as dependency groups
+in ``python/pyproject.toml`` and managed with [uv](https://docs.astral.sh/uv/).
+Install all development dependencies using:
 
 ```bash
-$ python3 -m venv env
-$ source env/bin/activate
-$ cd python
-$ python3 -m pip install -e ".[dev]"
+$ uv sync
 ```
+
+The lock file lives at `python/uv.lock` and must be kept up to date. Run
+`uv lock` after any change to the dependencies in `python/pyproject.toml`.
 
 A few extra dependencies are required if you wish to work on the
 {ref}`C library <sec_development_c_requirements>`.
-
-For OSX and Windows users we recommend using
-[conda](https://docs.conda.io/projects/conda/en/latest/),
-and isolating development in a dedicated environment as follows:
-
-```bash
-$ conda env create -f python/development.yml
-$ conda activate tskit-dev
-```
-
-The environment includes macOS-specific clang packages when needed.
-
-In order to make sure that these compilers work correctly (*e.g.*, so that they can find
-other dependencies installed via `conda`), you need to compile `tskit` with this command
-on versions of macOS older than "Mojave":
-
-```bash
-$ cd python
-$ CONDA_BUILD_SYSROOT=/ python3 setup.py build_ext -i
-```
-
-On more recent macOS releases, you may omit the `CONDA_BUILD_SYSROOT` prefix.
-
-If you run into issues with the conda compiler, be sure that your command line tools are installed
-and up to date (you should also reboot your system after installing CLI tools). Note that you may
-also have to install a
-[specific version of the Xcode command line tools](https://stackoverflow.com/a/64416852/2752221).
-
-:::{note}
-The use of the C toolchain on macOS is a moving target.  The above advice
-was updated on 22 June, 2021 and was validated by a few `tskit` contributors.
-Caveat emptor, etc..
-:::
 
 (sec_development_getting_started_environment)=
 
@@ -136,11 +129,10 @@ To get a local git development environment, please follow these steps:
   ```bash
   $ git clone git@github.com:YOUR_GITHUB_USERNAME/tskit.git
   ```
-- Install the {ref}`sec_development_workflow_pre_commit`:
+- Install the {ref}`sec_development_workflow_prek` pre-commit hook:
   ```bash
-  $ pre-commit install
+  $ uv run prek install
   ```
-  If you later have trouble with these checks, you can skip them with ``git commit --no-verify``.
 
 See the {ref}`sec_development_workflow_git` section for detailed information
 on the recommended way to use git and GitHub.
@@ -270,7 +262,7 @@ If you then execute `python` from this subdirectory (and only this one!),
 it will use the modified version of the package.
 (For instance, you might want to
 open an interactive `python` shell from the `python/` subdirectory,
-or running `python3 -m pytest` from this subdirectory.)
+or running `uv run pytest` from this subdirectory.)
 
 After you're done, you should do:
 
@@ -284,27 +276,29 @@ then first *delete* your local copy (by doing `git branch -d my_pr_copy`)
 and repeat the steps again.
 
 
-(sec_development_workflow_pre_commit)=
+(sec_development_workflow_prek)=
 
 
-### Pre-commit checks
+### Lint checks (prek)
 
-On each commit a [pre-commit hook](https://pre-commit.com/)  will run
-that checks for violations of code style
-(see the {ref}`sec_development_python_style` section for details)
+On each commit a [prek](https://prek.j178.dev) hook will run checks for
+code style (see the {ref}`sec_development_python_style` section for details)
 and other common problems.
-Where possible, these hooks will try to fix any problems that they find (including reformatting
-your code to conform to the required style). In this case, the commit
-will *not complete* and report that "files were modified by this hook".
-To include the changes that the hooks made, `git add` any
-files that were modified and run `git commit` (or, use `git commit -a`
-to commit all changed files.)
 
-If you would like to run the checks without committing, use `pre-commit run`
-(but, note that this will *only* check changes that have been *staged*;
-do `pre-commit run --all` to check unstaged changes as well).
-To bypass the checks (to save or get feedback on work-in-progress) use
-`git commit --no-verify`
+To install the hook:
+
+```bash
+$ uv run prek install
+```
+
+To run checks manually without committing:
+
+```bash
+$ uv run prek --all-files
+```
+
+If local results differ from CI, run `uv run prek cache clean` to clear the cache.
+To bypass the checks temporarily use `git commit --no-verify`.
 
 (sec_development_documentation)=
 
@@ -402,10 +396,7 @@ open a pull request on GitHub.
 
 The Python library is defined in the `python` directory. We assume throughout
 this section that you have `cd`'d into this directory.
-We also assume that the `tskit` package is built and
-run locally *within* this directory. That is, `tskit` is *not* installed
-into the Python installation using `pip install -e` or setuptools
-[development mode](http://setuptools.readthedocs.io/en/latest/setuptools.html#id23).
+The low-level C extension is built automatically as part of `uv sync`.
 Please see the {ref}`sec_development_python_troubleshooting` section for help
 if you encounter problems with compiling or running the tests.
 
@@ -414,16 +405,8 @@ if you encounter problems with compiling or running the tests.
 
 After you have installed the basic {ref}`sec_development_getting_started_requirements`
 and created a {ref}`development environment <sec_development_getting_started_environment>`,
-you will need to compile the low-level {ref}`sec_development_python_c` module.
-This is most easily done using `make`:
-
-```bash
-$ make
-```
-
-If this has completed successfully you should see a file `_tskit.cpython-XXXXXX.so`
-in the current directory (the suffix depends on your platform and Python version;
-with Python 3.11 on Linux it's `_tskit.cpython-311-x86_64-linux-gnu.so`).
+run `uv sync` at the repo root. This will install all dependencies and build
+the low-level {ref}`sec_development_python_c` module automatically.
 
 To make sure that your development environment is working, run some
 {ref}`tests <sec_development_python_tests>`.
@@ -440,37 +423,21 @@ by function, so that tests for the `drawing` module are in the
 `tests/test_drawing.py` file. This is not a one-to-one mapping, though.
 
 Development dependencies are specified in the `pyproject.toml` file
-and can be installed using pip or conda (via `development.yml`).
+and can be installed using `uv sync`.
 
 (sec_development_python_style)=
 
 
 ### Code style
 
-Python code in tskit is formatted using [Black](https://github.com/psf/black).
-Any code submitted as a pull request will be checked to
-see if it conforms to this format as part of the
-{ref}`sec_development_continuous_integration`. Black is very strict, which seems
-unhelpful and nitpicky at first but is actually very useful. This is because it
-can also automatically *format* code for you, removing tedious and subjective
-choices (and even more tedious and subjective discussions!)
-about exactly how a particular code block should be aligned and indented.
+Python code in tskit is formatted and linted using
+[ruff](https://docs.astral.sh/ruff/). These checks run automatically as part of
+the {ref}`prek checks <sec_development_workflow_prek>` on each commit.
 
-In addition to Black autoformatting, code is checked for common problems using
-[flake8](https://flake8.pycqa.org/en/latest/)
-
-Black autoformatting and flake8 checks are performed as part of the
-{ref}`pre-commit checks <sec_development_workflow_pre_commit>`, which
-ensures that your code is always formatted correctly.
-
-Vim users may find the
-[black](https://github.com/psf/black),
-and
-[vim-flake8](https://github.com/nvie/vim-flake8)
-plugins useful for automatically formatting code and lint checking
-within vim.
-There is good support for Black in a number of
-[other editors](https://black.readthedocs.io/en/stable/editor_integration.html#editor-integration).
+Ruff is quite opinionated and it gains more opinions on each version.
+We therefore pin ruff to an exact version and maintain a list of "ignore"
+classes in pyproject.toml. The version of ruff should be updated periodically
+with fixes applied or the the list ignore extended as necessary.
 
 
 (sec_development_python_tests)=
@@ -483,27 +450,27 @@ The tests are defined in the `tests` directory, and run using
 If you want to run the tests in a particular module (say, `test_tables.py`), use:
 
 ```bash
-$ python3 -m pytest tests/test_tables.py
+$ uv run pytest tests/test_tables.py
 ```
 
 To run all the tests in a particular class in this module (say, `TestNodeTable`)
 use:
 
 ```bash
-$ python3 -m pytest tests/test_tables.py::TestNodeTable
+$ uv run pytest tests/test_tables.py::TestNodeTable
 ```
 
 To run a specific test case in this class (say, `test_copy`) use:
 
 ```bash
-$ python3 -m pytest tests/test_tables.py::TestNodeTable::test_copy
+$ uv run pytest tests/test_tables.py::TestNodeTable::test_copy
 ```
 
 You can also run tests with a keyword expression search. For example this will
 run all tests that have `TestNodeTable` but not `copy` in their name:
 
 ```bash
-$ python3 -m pytest -k "TestNodeTable and not copy"
+$ uv run pytest -k "TestNodeTable and not copy"
 ```
 
 When developing your own tests, it is much quicker to run the specific tests
@@ -513,41 +480,41 @@ suite each time.
 To run all of the tests, we can use:
 
 ```bash
-$ python3 -m pytest
+$ uv run pytest
 ```
 
 By default the tests are run on 4 cores, if you have more you can specify:
 
 ```bash
-$ python3 -m pytest -n8
+$ uv run pytest -n8
 ```
 
 A few of the tests take most of the time, we can skip the slow tests to get the test run
 under 20 seconds on an modern workstation:
 
 ```bash
-$ python3 -m pytest --skip-slow
+$ uv run pytest --skip-slow
 ```
 
 If you have an agent running the tests in a sandboxed environment, you may need to
 skip tests thsat require network access or FIFOs:
 
 ```bash
-$ python3 -m pytest --skip-network
+$ uv run pytest --skip-network
 ```
 
 If you have a lot of failing tests it can be useful to have a shorter summary
 of the failing lines:
 
 ```bash
-$ python3 -m pytest --tb=line
+$ uv run pytest --tb=line
 ```
 
 If you need to see the output of tests (e.g. `print` statements) then you need to use
 these flags to run a single thread and capture output:
 
 ```bash
-$ python3 -m pytest -n0 -vs
+$ uv run pytest -n0 -vs
 ```
 
 All new code must have high test coverage, which will be checked as part of the
@@ -581,13 +548,11 @@ a private instance variable such as `self._ll_tree`.
 ### Command line interface
 
 The command line interface for `tskit` is defined in the `tskit/cli.py` file.
-The CLI has a single entry point (e.g. `tskit_main`) which is invoked to run the
-program. These entry points are registered with `setuptools` using the
-`console_scripts` argument in `setup.py`, which allows them to be deployed as
-first-class executable programs in a cross-platform manner.
+The entry point `tskit_main` is declared under `[project.scripts]` in
+`python/pyproject.toml`, which makes `tskit` available as a command after
+installation.
 
-The CLI can also be run using `python3 -m tskit`. This is the recommended
-approach for running the CLI during development.
+The CLI can also be run using `uv run python -m tskit` during development.
 
 (sec_development_installing)=
 
@@ -644,19 +609,17 @@ to automatically format code.
 On Debian/Ubuntu, these can be installed using
 
 ```bash
-$ sudo apt install libcunit1-dev ninja-build meson clang-format-6.0
+$ sudo apt install libcunit1-dev ninja-build meson
 ```
 
-**Notes:**
-
-1. A more recent version of meson can alternatively be installed using `pip`, if you wish.
-2. Recent versions of Debian do not have clang-format-6.0 available;
-    if so, you can install it instead with `pip` by running
-    `pip3 install clang-format==6.0.1 && ln -s clang-format $(which clang-format)-6.0`.
-
-Conda users can install the development environment using `python/development.yml`.
-
-Unfortunately clang-format is not available on conda, but it is not essential.
+An exact version of clang-format is required because formatting rules
+change from version to version. This is why we pin to an exact version
+of clang-format in pyproject.toml, which gets used by prek linting.
+If you wish to run clang-format yourself (e.g., within your editor)
+a straightforward way to do this is to use ``uv tool install clang-format==[version]``,
+which will install to your PATH.
+However, you will need to manually keep track of what version is installed
+(``uv tool list`` is useful for this).
 
 
 (sec_development_c_code_style)=
@@ -665,16 +628,24 @@ Unfortunately clang-format is not available on conda, but it is not essential.
 
 C code is formatted using
 [clang-format](https://clang.llvm.org/docs/ClangFormat.html)
-with a custom configuration and version 6.0. This is checked as part of the pre-commit
-checks. To manually format run:
+with a custom configuration. This is checked as part of the
+{ref}`prek checks <sec_development_workflow_prek>`. To manually format all files run:
 
 ```bash
-$ clang-format-6.0 -i c/tskit/* c/tests/*.c c/tests/*.h
+$ uv run prek --all-files
 ```
 
-Vim users may find the
-[vim-clang-format](https://github.com/rhysd/vim-clang-format)
-plugin useful for automatically formatting code.
+If you are doing this in the ``c`` directory, use
+``uv run --project=../python prek --all-files``.
+
+
+If you are getting obscure errors from prek, sometimes this is caused by
+prek searching for configuration within subdirectories. To avoid this, tell
+prek where to find its config explicitly:
+
+```bash
+$ uv run prek --all-files -c prek.toml
+```
 
 
 ### Building
@@ -687,7 +658,7 @@ directory, run
 
 ```bash
 $ cd c
-$ meson build
+$ meson setup build
 ```
 
 To setup a debug build add `--buildtype=debug` to the above command. This will set the `TSK_TRACE_ERRORS`
@@ -903,8 +874,9 @@ The `_tskitmodule.c` file follows the standard conventions given in the
 ### Compiling and debugging
 
 The `setup.py` file describes the requirements for the low-level `_tskit`
-module and how it is built from source. The simplest way to compile the
-low-level module is to run `make` in the `python` directory:
+module and how it is built from source. The module is built automatically by
+`uv sync`, but if you modify the C extension code you will need to rebuild it.
+The simplest way to do this is to run `make` in the `python` directory:
 
 ```bash
 $ make
@@ -913,7 +885,7 @@ $ make
 If `make` is not available, you can run the same command manually:
 
 ```bash
-$ python3 setup.py build_ext --inplace
+$ uv run python setup.py build_ext --inplace
 ```
 
 It is sometimes useful to specify compiler flags when building the low
@@ -928,8 +900,8 @@ be very useful. For example, to run a particular test case, we can do:
 
 
 ```bash
-$ gdb python3
-(gdb) run -m pytest tests/test_lowlevel.py
+$ gdb python
+(gdb) run -m pytest tests/test_python_c.py
 
 
 (gdb) run  -m pytest -vs tests/test_tables.py::TestNodeTable::test_copy
@@ -969,20 +941,18 @@ memory usage statistics.
 
 ## Continuous Integration tests
 
-A number of different continuous integration providers are used, which run different
-combinations of tests on different platforms, as well as running various
-checks for code quality.
+Continuous integration is handled by [GitHub Actions](https://help.github.com/en/actions).
+tskit uses shared workflows defined in the
+[tskit-dev/.github](https://github.com/tskit-dev/.github) repository:
 
-- A [Github action](https://help.github.com/en/actions) runs some code style and
-  quality checks along with running the Python test suite on Linux, OSX and Windows. It
-  uses conda for those dependencies which are tricky to compile on all systems. An
-  additional action builds the docs and posts a link to preview them.
+- **lint** — runs prek against all files
+- **python-tests** — runs the pytest suite with coverage on Linux, macOS and Windows
+- **python-c-tests** — builds the C extension with coverage and runs low-level tests
+- **c-tests** — runs C unit tests under gcc, clang, and valgrind
+- **docs** — builds the documentation and deploys it on merge to `main`
+- **python-packaging** — validates the sdist and wheel
 
-- [CircleCI](https://circleci.com/) runs all Python tests using the apt-get
-  infrastructure for system requirements. We also runs C tests, compiled
-  using gcc and clang, and check for memory leaks using valgrind.
-
-- [CodeCov](https://codecov.io/gh)_ tracks test coverage in Python and C.
+[CodeCov](https://codecov.io/gh) tracks test coverage for Python and C.
 
 
 (sec_development_best_practices)=
@@ -1019,8 +989,8 @@ the C and Python APIs.
     wrote earlier.
 5.  Create a low-level definition of your function using Python's C API: this will
     go in [_tskitmodule.c](https://github.com/tskit-dev/tskit/blob/main/python/_tskitmodule.c).
-6.  Test your low-level implementation in [tskit/python/tests/test_lowlevel.py
-   ](https://github.com/tskit-dev/tskit/blob/main/python/tests/test_lowlevel.py):
+6.  Test your low-level implementation in [tskit/python/tests/test_python_c.py
+   ](https://github.com/tskit-dev/tskit/blob/main/python/tests/test_python_c.py):
     again, these tests don't need to be as comprehensive as your first python tests,
     instead, they should focus on the interface, e.g., does the function behave
     correctly on malformed inputs?
@@ -1040,87 +1010,29 @@ the C and Python APIs.
 
 ## Troubleshooting
 
-### pre-commit is blocking me!
+### prek is blocking me!
 
-You might be having a hard time committing because of the "pre-commit" checks
-(described above). First, consider: the pre-commit hooks are supposed to make your life *easier*,
-not add a layer of frustration to contributing.
-So, you should feel free to just ask git to skip the pre-commit!
-There's no shame in a broken build - you can get it fixed up (and we'll help)
-before it's merged into the rest of the project.
-To skip, just append `--no-verify` to the `git commit` command.
-Below are some more specific situations.
-
-
-### pre-commit complains about files I didn't edit
-
-For instance, suppose you have *not* edited `util.py` and yet:
+The prek hook is designed to make things easier, not harder. If the checks are
+blocking you, feel free to skip them with `--no-verify` and sort it out before
+the PR is merged. There’s no shame in a broken build.
 
 ```bash
-> git commit -a -m 'dev docs'
-python/tskit/util.py:117:26: E203 whitespace before ':'
-python/tskit/util.py:135:31: E203 whitespace before ':'
-python/tskit/util.py:195:23: E203 whitespace before ':'
-python/tskit/util.py:213:36: E203 whitespace before ':'
-... lots more, gah, what is this ...
+> git commit -a -m ‘my changes’ --no-verify
 ```
 
-First, check (with `git status`) that you didn't actually edit `util.py`.
-Then, you should **not** try to fix these errors; this is **not your problem**.
-You might first try restarting your pre-commit, by running
+### prek reports unexpected failures
+
+If prek reports failures on files you didn’t edit, try clearing the cache:
 
 ```bash
-pre-commit clean
-pre-commit gc
+> uv run prek cache clean
 ```
 
-You might also check you don't have other pre-commit hook files in `.git/hooks`.
-If this doesn't fix the problem,
-then you should just *skip* the pre-commit (but alert us to the problem),
-by appending `--no-verify`:
+If that doesn’t help, you can reinstall the hook:
 
 ```bash
-> git commit -a -m 'dev docs' --no-verify
-[main 46f3f2e] dev docs
- 1 file changed, 43 insertions(+)
-```
-
-Now you can go ahead and push your changes!
-
-
-### pre-commit won't run
-
-For instance:
-
-```bash
-> git commit -a -m 'fixed all the things'
-/usr/bin/env: ‘python3.8’: No such file or directory
-```
-
-What the heck? Why is this even looking for python3.8?
-This is because of the "pre-commit hook", mentioned above.
-As above, you can proceed by just appending `--no-verify`:
-
-```bash
-> git commit -a -m 'fixed all the things' --no-verify
-[main 99a01da] fixed all the things
- 1 file changed, 10 insertions(+)
-```
-
-We'll help you sort it out in the PR.
-But, you should fix the problem at some point. In this case,
-uninstalling and reinstalling the pre-commit hooks fixed the problem:
-
-```bash
-> pre-commit uninstall
-pre-commit uninstalled
-Restored previous hooks to .git/hooks/pre-commit
-> pre-commit install -f
-pre-commit installed at .git/hooks/pre-commit
-> # do some more edits
-> git commit -a -m 'wrote the docs'
-[main 79b81ff] fixed all the things
- 1 file changed, 42 insertions(+)
+> uv run prek uninstall
+> uv run prek install
 ```
 
 
@@ -1185,11 +1097,12 @@ Document Python version support policy (see
 To add or remove support for a given Python version we need to update
 the following files:
 
-- Update the ``.github/workflows/tests.yml`` workflow. We run two Python
-  versions for CI (oldest and newest).
-- Update the ``.github/workflows/wheels.yml`` workflow.
-- Update the ``.github/workflows/docker/shared.env`` file.
-- Update the ``python/pyproject.toml`` file
+- ``.github/workflows/tests.yml`` — update the Python version matrix
+  (we run two versions: oldest and newest supported).
+- ``.github/workflows/wheels.yml`` — the shared `build-wheels` workflow
+  picks up versions from the matrix in `pyproject.toml` classifiers.
+- ``python/pyproject.toml`` — update `requires-python` and the
+  `Programming Language :: Python :: 3.x` classifiers.
 
 ## Releasing a new version
 
@@ -1223,42 +1136,35 @@ GitHub issue milestone of the release.
 
 It is worth running the benchmarks as above before release to check for any unexpected
 major regressions. To make a release first prepare a pull request that sets the correct
-version number in `tskit/_version.py`  following PEP440 format. For a normal release
-this should be MAJOR.MINOR.PATCH, for a beta release use MAJOR.MINOR.PATCHbX
-e.g. 1.0.0b1. Update the Python CHANGELOG.rst, ensuring that all significant
+version number in `python/tskit/_version.py` following PEP440 format. For a normal
+release this should be MAJOR.MINOR.PATCH, for a beta release use MAJOR.MINOR.PATCHbX
+e.g. 1.0.0b1. Update `python/CHANGELOG.rst`, ensuring that all significant
 changes since the last release have been listed. Comparing
 `git log --follow --oneline -- python`
 with `git log --follow --oneline -- python/CHANGELOG.rst` may help here.
 
-Once this PR is merged, the release is ready. This can be done in one of
-two ways.
+Once this PR is merged, the release process is:
 
-#### Manual tagging via git
+1. **Test on TestPyPI**: push to the `test-publish` branch. The `wheels.yml`
+   workflow will build wheels and publish them to
+   [TestPyPI](https://test.pypi.org/project/tskit/). Check the release looks
+   correct there.
 
-To do this push a tag to github:
+2. **Tag the release**: push a tag to trigger the draft GitHub release:
 
-```bash
-git tag -a MAJOR.MINOR.PATCH -m "Python version MAJOR.MINOR.PATCH"
-git push upstream --tags
-```
+   ```bash
+   git tag -a MAJOR.MINOR.PATCH -m "Python version MAJOR.MINOR.PATCH"
+   git push upstream --tags
+   ```
 
-This will trigger a build of the distribution artifacts for Python
-on [Github Actions](https://github.com/tskit-dev/tskit/actions). and deploy
-them to the [test PyPI](https://test.pypi.org/project/tskit/). Check
-the release looks good there, then publish the draft release on the
-[releases page](https://github.com/tskit-dev/tskit/releases) (Click on the little pencil).
-Publishing this release will cause the github
-action to deploy to the [production PyPI](https://pypi.org/project/tskit/).
+   The `release.yml` workflow will create a draft release on the
+   [releases page](https://github.com/tskit-dev/tskit/releases) with the
+   changelog. Review the draft and publish it.
 
-#### Automatic tagging via GitHub UI
-
-Once the repo is in a ready state to tag, it is also possible to create the
-release directly in the GitHub UI. Click on the "Draft new release" button on
-the "releases" page, and update the release notes based on the changelog. Then
-set the tag number appropriately (create tag on release) and create the release.
-This will trigger the wheel build and should result in the artefacts being
-uploaded to PyPI. It is a good idea to go the "actions" tab to check that
-this completes and uploads.
+3. **Publish to PyPI**: publishing the GitHub release triggers `wheels.yml`,
+   which builds wheels and uploads them to
+   [production PyPI](https://pypi.org/project/tskit/) via Trusted Publisher.
+   Check the Actions tab to confirm the upload completes.
 
 #### Post release
 
