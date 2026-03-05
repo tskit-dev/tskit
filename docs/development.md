@@ -306,19 +306,15 @@ To bypass the checks temporarily use `git commit --no-verify`.
 ## Documentation
 
 The documentation for tskit is written using
-[Sphinx](http://www.sphinx-doc.org/en/stable/)
-and contained in the `docs` directory. The files in this directory are
-markdown files that serve as an input to [jupyterbook](https://jupyterbook.org/),
-which allows jupyter notebook code, primarily in Python, to be automatically
-executed and the output inserted before deployment. The docs are then
-deployed automatically to the [tskit.dev website](https://tskit.dev/).
-API documentation for both Python and C are generated automatically from
-source: documentation embedded in the source code makes use of sphinx and
-the [reStructuredText](http://docutils.sourceforge.net/rst.html) format to
-alloow formating and cross referencing.
-For the C code, a combination of [Doxygen](http://www.doxygen.nl/)
-and [breathe](https://breathe.readthedocs.io/en/latest/) is used to
-generate API documentation.
+[Sphinx](http://www.sphinx-doc.org/en/stable/) and contained in the `docs`
+directory. Narrative pages are written in
+[MyST Markdown](https://jupyterbook.org/content/myst.html) and built with
+[JupyterBook](https://jupyterbook.org/), which executes embedded Python code
+cells and inserts their output before deployment. API docstrings are written in
+[reStructuredText](http://docutils.sourceforge.net/rst.html). For the C code,
+a combination of [Doxygen](http://www.doxygen.nl/) and
+[breathe](https://breathe.readthedocs.io/en/latest/) generates API documentation.
+The docs are deployed automatically to the [tskit.dev website](https://tskit.dev/).
 
 Please help us to improve the documentation! You can check on the list of
 [documentation issues](https://github.com/tskit-dev/tskit/issues?q=is%3Aissue+is%3Aopen+label%3Adocumentation)
@@ -369,25 +365,107 @@ Once you are happy with the changes, commit your updates and
 open a pull request on GitHub.
 
 
-### Tips and resources
+(sec_development_documentation_markup)=
 
-- The reStructuredText
-  [primer](https://www.sphinx-doc.org/en/1.8/usage/restructuredtext/basics.html)
-  is a useful general resource on rst.
+### Markup languages
 
-- See also the sphinx and rst [cheatsheet
- ](https://docs.typo3.org/m/typo3/docs-how-to-document/master/en-us/WritingReST/CheatSheet.html)
+Because of the mixture of API documentation and notebook content, documentation
+is written using **two different markup languages**:
 
-- The Sphinx Python and C
-  [domains](https://www.sphinx-doc.org/en/master/usage/restructuredtext/domains.html)
-  have extensive options for marking up code.
+- **MyST Markdown** for all narrative pages, thematic sections, and code
+  examples. This is a superset of [CommonMark](https://commonmark.org) that
+  enables executable Jupyter content and Sphinx cross-referencing.
+- **reStructuredText (rST)** for API docstrings embedded in the source code.
+  These are processed by Sphinx and appear in the API reference pages.
 
-- Make extensive use of
-  [cross referencing](https://docs.typo3.org/m/typo3/docs-how-to-document/master/en-us/WritingReST/Hyperlinks.html).
-  When linking to sections in the documentation, use the
-  `` :ref:`sec_some_section_label` `` form rather than matching on the section
-  title (which is brittle). Use `` :meth:`.Tree.some_method` ``,
-  `` :func:`some_function` `` etc to refer to parts of the API.
+Some useful links for MyST:
+
+- The [MyST cheat sheet](https://jupyterbook.org/reference/cheatsheet.html)
+- The "Write Book Content" section of the [Jupyter Book](https://jupyterbook.org/) docs
+- The [MyST Syntax Guide](https://myst-parser.readthedocs.io/en/latest/using/syntax.html)
+- The [Sphinx domains reference](https://www.sphinx-doc.org/en/master/usage/restructuredtext/domains.html)
+  for marking up Python and C API elements
+- The [types of source files](https://jupyterbook.org/file-types/index.html)
+  in the Jupyter Book docs (useful for understanding the MyST/rST mix)
+
+Some directives are only available in rST and must be wrapped in an
+``eval-rst`` block within a Markdown file:
+
+````md
+```{eval-rst}
+.. autoclass:: tskit.TreeSequence
+```
+````
+
+(sec_development_documentation_api)=
+
+### API Reference
+
+API reference documentation comes from
+[docstrings](https://www.python.org/dev/peps/pep-0257/) in the source code,
+written in rST. Docstrings should be **concise** and **precise**. Examples
+should not be embedded directly in docstrings; instead, each significant
+parameter should link to the relevant section in the narrative documentation.
+
+(sec_development_documentation_examples)=
+
+### Examples
+
+Narrative sections should provide context and worked examples using inline
+Jupyter code cells. These behave exactly like cells in a Jupyter notebook —
+the whole page is executed as one notebook during the build.
+
+Code cells are written like this:
+
+````md
+```{code-cell}
+import tskit
+# example code here
+```
+````
+
+:::{warning}
+For a page to be executed as a notebook you **must** have the correct
+[YAML frontmatter](https://jupyterbook.org/reference/cheatsheet.html#executable-code)
+at the top of the file.
+:::
+
+(sec_development_documentation_cross_referencing)=
+
+### Cross referencing
+
+Use the ``{ref}`` role to link to labelled sections within the docs:
+
+````md
+See the {ref}`sec_development_documentation_cross_referencing` section for details.
+````
+
+Sections should be labelled hierarchically immediately above the heading:
+
+````md
+(sec_development_documentation_cross_referencing)=
+### Cross referencing
+````
+
+The label is used as link text automatically, but can be overridden:
+
+````md
+See {ref}`this section <sec_development_documentation_cross_referencing>` for more.
+````
+
+To refer to API elements, use the appropriate inline role:
+
+````md
+The {class}`.TreeSequence` class, the {meth}`.TreeSequence.trees` method,
+and the {func}`.load` function.
+````
+
+From an rST docstring, use the colon-prefixed equivalents:
+
+````rst
+See :ref:`sec_development_documentation_cross_referencing` for details.
+The :meth:`.TreeSequence.trees` method returns an iterator.
+````
 
 (sec_development_python)=
 
