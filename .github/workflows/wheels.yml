@@ -9,7 +9,7 @@ on:
 jobs:
   build-wheels:
     if: "!startsWith(github.ref, 'refs/tags/C_')"
-    uses: tskit-dev/.github/.github/workflows/build-wheels.yml@main
+    uses: tskit-dev/.github/.github/workflows/build-wheels.yml@v15
     with:
       pyproject-directory: python
 
