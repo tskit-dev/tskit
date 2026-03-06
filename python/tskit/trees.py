@@ -10956,7 +10956,7 @@ class TreeSequence:
 
         Similarly, in the branch mode, the ``positions`` argument specifies
         loci for which the expectation for the two-locus statistic is computed
-        over pairs of trees at those positions. LD statis are computed between
+        over pairs of trees at those positions. LD stats are computed between
         trees whose ``[start, end)`` contains the given position (such that
         repeats of trees are possible). Similar to the site mode, a nested list
         of row and column positions can be specified separately (resulting in a
