@@ -10930,12 +10930,89 @@ class TreeSequence:
     def ld_matrix(
         self,
         sample_sets=None,
-        sites=None,
-        positions=None,
         mode="site",
         stat="r2",
+        sites=None,
+        positions=None,
         indexes=None,
     ):
+        r"""
+
+        Returns a matrix of the specified two-locus statistic (default
+        :math:`r^2`) computed from sample allelic states or branch lengths.
+        The resulting linkage disequilibrium (LD) matrix represents either the
+        two-locus statistic as computed between all pairs of specified
+        ``sites`` ("site" mode, producing a num_sites-by-num_sites sized
+        matrix), or as computed from the branch structures at marginal trees
+        between pairs of trees at all specified ``positions`` ("branch" mode,
+        producing a num_positions-by-num_positions sized matrix).
+
+        In the site mode, the sites under consideration can be restricted using
+        the ``sites`` argument. Sites can be passed as a list of lists,
+        specifying the ``[[row_sites], [col_sites]]``, resulting in a
+        rectangular matrix, or by specifying a single list of ``[sites]``, in
+        which a square matrix will be produced (see
+        :ref:`sec_stats_two_locus_site` for examples).
+
+        Similarly, in the branch mode, the ``positions`` argument specifies
+        loci for which the expectation for the two-locus statistic is computed
+        over pairs of trees at those positions. LD stats are computed between
+        trees whose ``[start, end)`` contains the given position (such that
+        repeats of trees are possible). Similar to the site mode, a nested list
+        of row and column positions can be specified separately (resulting in a
+        rectangular matrix) or a single list of a specified positions results
+        in a square matrix (see :ref:`sec_stats_two_locus_branch` for
+        examples).
+
+        Some LD statistics are defined for two sample sets instead of within a
+        single set of samples. If the ``indexes`` argument is specified, at
+        least two sample sets must also be specified. ``indexes`` specifies the
+        sample set indexes between which to compute LD.
+
+        For more on how the ``indexes`` and ``sample_sets`` interact with the
+        output dimensions, see the :ref:`sec_stats_two_locus_sample_sets`
+        section.
+
+        **Available Stats** (use ``Stat Name`` in the ``stat`` keyword
+        argument).
+
+        ======================= ========== ================ ==============
+        Stat                     Polarised Multi Sample Set Stat Name
+        ======================= ========== ================ ==============
+        :math:`r^2`              n          y               "r2"
+        :math:`r`                y          n               "r"
+        :math:`D^2`              n          y               "D2"
+        :math:`D`                y          n               "D"
+        :math:`D'`               y          n               "D_prime"
+        :math:`D_z`              n          n               "Dz"
+        :math:`\pi2`             n          n               "pi2"
+        :math:`\widehat{D^2}`    n          y               "D2_unbiased"
+        :math:`\widehat{D_z}`    n          n               "Dz_unbiased"
+        :math:`\widehat{\pi_2}`  n          n               "pi2_unbiased"
+        ======================= ========== ================ ==============
+
+        :param list sample_sets: A list of lists of sample Node IDs, specifying
+            the groups of nodes to compute the statistic with. Defaults to all
+            samples grouped by population.
+        :param str mode: A string giving the "type" of the statistic to be
+            computed. Defaults to "site", can be "site" or "branch".
+        :param str stat: A string giving the selected two-locus statistic to
+            compute. Defaults to "r2".
+        :param list sites: A list of sites over which to compute LD. Can be
+            specified as a list of lists to control the row and column sites.
+            Only applicable in site mode. Specify as
+            ``[[row_sites], [col_sites]]`` or ``[all_sites]``.
+        :param list positions: A list of genomic positions where expected LD is
+            computed. Only applicable in branch mode. Can be specified as a list
+            of lists to control the row and column positions. Specify as
+            ``[[row_positions], [col_positions]]`` or ``[all_positions]``.
+        :param list indexes: A list of 2-tuples or a single 2-tuple, specifying
+            the indexes of two sample sets over which to compute a two-way LD
+            statistic. Only :math:`r^2`, :math:`D^2`, and :math:`\widehat{D^2}`
+            are implemented for two-way statistics.
+        :return: A 2D or 3D array of LD matrices.
+        :rtype: numpy.ndarray
+        """
         one_way_stats = {
             "D": self._ll_tree_sequence.D_matrix,
             "D2": self._ll_tree_sequence.D2_matrix,
