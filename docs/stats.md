@@ -789,6 +789,8 @@ ld = ts.ld_matrix(mode="branch", positions=[breakpoints[[0]], breakpoints[0:4]])
 print(ld)
 ```
 
+(sec_stats_two_locus_sample_sets)=
+
 #### Sample Sets
 
 The two-locus API provides a mechanism by which to subset the samples under
