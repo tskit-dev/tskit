@@ -1171,23 +1171,6 @@ values that will be interpolated into both the `setup` and `code` strings.
 
 The suite can be run for all released versions with the `run-for-all-releases.py` script.
 
-## Python version support
-
-:::{todo}
-Document Python version support policy (see
-[issue #3381](https://github.com/tskit-dev/tskit/issues/3381))
-:::
-
-To add or remove support for a given Python version we need to update
-the following files:
-
-- ``.github/workflows/tests.yml`` — update the Python version matrix
-  (we run two versions: oldest and newest supported).
-- ``.github/workflows/wheels.yml`` — the shared `build-wheels` workflow
-  picks up versions from the matrix in `pyproject.toml` classifiers.
-- ``python/pyproject.toml`` — update `requires-python` and the
-  `Programming Language :: Python :: 3.x` classifiers.
-
 ## Releasing a new version
 
 See the [repo administration guide](https://github.com/tskit-dev/.github/blob/main/repo_administration.md)
