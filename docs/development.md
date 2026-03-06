@@ -684,10 +684,16 @@ We use the
 Unit tests use the [CUnit](http://cunit.sourceforge.net) library
 and we use [clang-format](https://clang.llvm.org/docs/ClangFormat.html)
 to automatically format code.
-On Debian/Ubuntu, these can be installed using
+On Debian/Ubuntu, install the system dependencies with:
 
 ```bash
-$ sudo apt install libcunit1-dev ninja-build meson
+$ sudo apt install libcunit1-dev ninja-build
+```
+
+Install meson using uv:
+
+```bash
+$ uv tool install meson
 ```
 
 An exact version of clang-format is required because formatting rules
@@ -1184,70 +1190,11 @@ the following files:
 
 ## Releasing a new version
 
-Tskit maintains separate versioning for the C API and Python package, each has its own
-release process.
+See the [repo administration guide](https://github.com/tskit-dev/.github/blob/main/repo_administration.md)
+for the release process. Tskit has both a C API release and a Python package release,
+each covered in the tskit/kastore section of that document.
 
-
-### C API
-
-To release the C API, the ``TSK_VERSION_*`` macros should be updated,
-along with ``VERSION.txt`` and the changelog  updated with the release
-date and version. The changelog should also be checked for
-completeness. Comparing  ``git log --follow --oneline -- c`` with
-`git log --follow --oneline -- c/CHANGELOG.rst` may help here.
-After the commit including these changes has been merged, tag a
-release on GitHub using the pattern `C_MAJOR.MINOR.PATCH`, with:
-
-```bash
-git tag -a C_MAJOR.MINOR.PATCH -m "C API version C_MAJOR.MINOR.PATCH"
-git push upstream --tags
-```
-
-After a couple of minutes a github action will make a draft release with the changelog
-at the [releases page](https://github.com/tskit-dev/tskit/releases). Check it looks
-right and publish the release (Click on the little pencil).
-After release, start a section in the changelog for new developments and close the
-GitHub issue milestone of the release.
-
-
-### Python
-
-It is worth running the benchmarks as above before release to check for any unexpected
-major regressions. To make a release first prepare a pull request that sets the correct
-version number in `python/tskit/_version.py` following PEP440 format. For a normal
-release this should be MAJOR.MINOR.PATCH, for a beta release use MAJOR.MINOR.PATCHbX
-e.g. 1.0.0b1. Update `python/CHANGELOG.rst`, ensuring that all significant
-changes since the last release have been listed. Comparing
-`git log --follow --oneline -- python`
-with `git log --follow --oneline -- python/CHANGELOG.rst` may help here.
-
-Once this PR is merged, the release process is:
-
-1. **Test on TestPyPI**: push to the `test-publish` branch. The `wheels.yml`
-   workflow will build wheels and publish them to
-   [TestPyPI](https://test.pypi.org/project/tskit/). Check the release looks
-   correct there.
-
-2. **Tag the release**: push a tag to trigger the draft GitHub release:
-
-   ```bash
-   git tag -a MAJOR.MINOR.PATCH -m "Python version MAJOR.MINOR.PATCH"
-   git push upstream --tags
-   ```
-
-   The `release.yml` workflow will create a draft release on the
-   [releases page](https://github.com/tskit-dev/tskit/releases) with the
-   changelog. Review the draft and publish it.
-
-3. **Publish to PyPI**: publishing the GitHub release triggers `wheels.yml`,
-   which builds wheels and uploads them to
-   [production PyPI](https://pypi.org/project/tskit/) via Trusted Publisher.
-   Check the Actions tab to confirm the upload completes.
-
-#### Post release
-
-After release, start a section in the changelog for new developments, close the
-GitHub issue milestone of the release and update the python version to a `.dev`.
-For a major release the website (github repo tskit-dev/tskit-site) should then
-be updated with a notebook of new features. The benchmarks should be run as above
-and the `bench-results.html` updated on the website.
+It is worth running the benchmarks (see above) before a Python release to check
+for any unexpected major regressions. For a major release the website
+(github repo tskit-dev/tskit-site) should be updated with a notebook of new
+features and the `bench-results.html` updated.
