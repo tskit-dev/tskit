@@ -700,12 +700,11 @@ statistics methods in that it provides a unified API with an argument to
 specify different two-locus summaries of the data. It otherwise behaves
 similarly to most other functions with respect to `sample_sets` and `indexes`.
 
-Two-locus statistics can be computed using two modes, either `sites` or
+Two-locus statistics can be computed using two modes, either `site` or
 `branch`, and these should be interpreted in the same way as these modes in the
-single-site statistics. Site statistics allow for multi-allelic data, while
-branch statistics assume an infinite sites model. Within this framework, we
-also implement polarisation, but do not expose it to the user, opting to
-provide statistics that are polarised where appropriate.
+single-site statistics. Within this framework, we also implement polarisation,
+but do not expose it to the user, opting to provide statistics that are
+polarised where appropriate.
 
 (sec_stats_two_locus_site)=
 
@@ -762,7 +761,7 @@ each tree.
 
 Similar to the single-site statistics computed in `branch` mode, this results
 in a statistic that is proportional to the expected statistic under an infinite
-sites model (which mutation rate 1), conditioned on the pair of trees.
+sites model (with mutation rate 1), conditioned on the pair of trees.
 
 The time complexity of this method is quadratic, due to the pairwise
 comparisons of branches from a pair of trees. By default, this method computes
@@ -930,13 +929,6 @@ Where {math}`D` is defined above.
 
 And `D2_unbiased`, which can be found in [Ragsdale and Gravel
 (2020)](https://doi.org/10.1093/molbev/msz265).
-
-:::{todo}
-Document statistics that use information about correlation between sites, such as
-LdCalculator (and perhaps reference {ref}`sec_identity`). Note that if we have a general
-framework which has the same calling conventions as the single site stats,
-we can rework the sections above.
-:::
 
 
 (sec_stats_notes)=
