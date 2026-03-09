@@ -620,6 +620,7 @@ Miscellaneous functions
 
 .. doxygenfunction:: tsk_is_unknown_time
 
+.. doxygenfunction:: tsk_json_struct_metadata_get_blob
 
 *************************
 Function Specific Options

@@ -4,6 +4,9 @@
 
 In development
 
+- Add ``tsk_json_struct_metadata_get_blob`` function
+  (:user:`benjeffery`, :pr:`3306`)
+
 --------------------
 [1.3.1] - 2026-03-06
 --------------------
