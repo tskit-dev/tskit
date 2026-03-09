@@ -2590,7 +2590,7 @@ def test_general_two_locus_two_way_site_stat(ts, stat):
     ld = ts.ld_matrix(
         sample_sets=sample_sets, stat=stat.replace("_ij", ""), indexes=(0, 1)
     )
-    np.testing.assert_allclose(ldg, ld)
+    np.testing.assert_array_almost_equal(ldg, ld)
 
 
 @pytest.mark.parametrize(
@@ -2620,7 +2620,7 @@ def test_general_one_way_two_locus_stat_multiallelic(stat):
     else:
         # default norm func is lambda X, n, nA, nB: np.expand_dims(1 / (nA * nB), axis=0)
         result = ts.two_locus_count_stat([ts.samples()], func, 1)
-    np.testing.assert_allclose(ts.ld_matrix(stat=stat), result)
+    np.testing.assert_array_almost_equal(ts.ld_matrix(stat=stat), result)
 
 
 @pytest.mark.parametrize(
@@ -2643,7 +2643,7 @@ def test_general_two_way_two_locus_stat_multiallelic(stat):
     else:
         # default norm func is lambda X, n, nA, nB: np.expand_dims(1 / (nA * nB), axis=0)
         result = ts.two_locus_count_stat([ts.samples(), ts.samples()], func, 1)
-    np.testing.assert_allclose(
+    np.testing.assert_array_almost_equal(
         ts.ld_matrix(
             stat=stat.replace("_ij", ""),
             indexes=(0, 1),
