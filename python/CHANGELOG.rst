@@ -4,6 +4,9 @@
 
 In development
 
+- Add ``json+struct`` metadata codec that allows storing binary data using a struct
+  schema alongside JSON metadata. (:user:`benjeffery`, :pr:`3306`)
+
 --------------------
 [1.0.2] - 2026-03-06
 --------------------
@@ -107,8 +110,6 @@ Maintenance release.
   also around 10% faster.
   (:user:`benjeffery`, :pr:`3313`, :pr:`3317`, :issue:`1896`)
 
-- Add ``json+struct`` metadata codec that allows storing binary data using a struct
-  schema alongside JSON metadata. (:user:`benjeffery`, :pr:`3306`)
 
 **Bugfixes**
 

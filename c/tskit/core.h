@@ -309,6 +309,26 @@ not found in the file.
 An unsupported type was provided for a column in the file.
 */
 #define TSK_ERR_BAD_COLUMN_TYPE                                     -105
+
+/**
+The JSON binary struct metadata does not begin with the expected magic bytes.
+*/
+#define TSK_ERR_JSON_STRUCT_METADATA_BAD_MAGIC                      -106
+
+/**
+The JSON binary struct metadata is shorter than the expected size.
+*/
+#define TSK_ERR_JSON_STRUCT_METADATA_TRUNCATED                      -107
+
+/**
+A length field in the JSON binary struct metadata header is invalid.
+*/
+#define TSK_ERR_JSON_STRUCT_METADATA_INVALID_LENGTH                 -108
+
+/**
+The JSON binary struct metadata uses an unsupported version number.
+*/
+#define TSK_ERR_JSON_STRUCT_METADATA_BAD_VERSION                    -109
 /** @} */
 
 /**
@@ -1116,7 +1136,7 @@ int tsk_generate_uuid(char *dest, int flags);
 @brief Extract the binary payload from ``json+struct`` encoded metadata.
 
 @rst
-Metadata produced by :py:class:`tskit.metadata.JSONStructCodec` consists of a fixed-size
+Metadata produced by the JSONStructCodec consists of a fixed-size
 header followed by canonical JSON bytes and an optional binary payload. This helper
 validates the framing, returning pointers to the embedded JSON and binary sections
 without copying.
@@ -1131,10 +1151,10 @@ the original metadata buffer is alive.
 @param[out] json_length On success, set to the JSON length in bytes.
 @param[out] blob On success, set to the start of the binary payload.
 @param[out] blob_length On success, set to the payload length in bytes.
-@return 0 on success, or a :ref:`TSK_ERR <c_api_errors>` code on failure.
+@return Return 0 on success or a negative value on failure.
 */
 int tsk_json_struct_metadata_get_blob(const char *metadata, tsk_size_t metadata_length,
-    const char **json, tsk_size_t *json_length, const uint8_t **blob,
+    const char **json, tsk_size_t *json_length, const char **blob,
     tsk_size_t *blob_length);
 
 /* TODO most of these can probably be macros so they compile out as no-ops.

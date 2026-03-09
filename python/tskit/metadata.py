@@ -208,7 +208,7 @@ class JSONStructCodec(AbstractMetadataCodec):
     _HDR = struct.Struct("<4sBQQ")  # magic, version, json_len, blob_len
 
     @classmethod
-    def is_schema_trivial(self, schema: Mapping) -> bool:
+    def is_schema_trivial(cls, schema: Mapping) -> bool:
         return False
 
     def __init__(self, schema: Mapping[str, Any]) -> None:
@@ -265,9 +265,7 @@ class JSONStructCodec(AbstractMetadataCodec):
         self.struct_codec = StructCodec(self.struct_schema)
         self._struct_keys = set(struct_props.keys())
         self._validate_json = TSKITMetadataSchemaValidator(self.json_schema).validate
-        self._validate_struct = TSKITMetadataSchemaValidator(
-            self.struct_schema
-        ).validate
+        self._validate_struct = TSKITMetadataSchemaValidator(self.struct_schema).validate
 
     def validate_row(self, row: Any) -> None:
         if not isinstance(row, dict):

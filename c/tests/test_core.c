@@ -86,14 +86,14 @@ test_generate_uuid(void)
 static void
 set_u64_le(uint8_t *dest, uint64_t value)
 {
-    dest[0] = (uint8_t)(value & 0xFF);
-    dest[1] = (uint8_t)((value >> 8) & 0xFF);
-    dest[2] = (uint8_t)((value >> 16) & 0xFF);
-    dest[3] = (uint8_t)((value >> 24) & 0xFF);
-    dest[4] = (uint8_t)((value >> 32) & 0xFF);
-    dest[5] = (uint8_t)((value >> 40) & 0xFF);
-    dest[6] = (uint8_t)((value >> 48) & 0xFF);
-    dest[7] = (uint8_t)((value >> 56) & 0xFF);
+    dest[0] = (uint8_t) (value & 0xFF);
+    dest[1] = (uint8_t) ((value >> 8) & 0xFF);
+    dest[2] = (uint8_t) ((value >> 16) & 0xFF);
+    dest[3] = (uint8_t) ((value >> 24) & 0xFF);
+    dest[4] = (uint8_t) ((value >> 32) & 0xFF);
+    dest[5] = (uint8_t) ((value >> 40) & 0xFF);
+    dest[6] = (uint8_t) ((value >> 48) & 0xFF);
+    dest[7] = (uint8_t) ((value >> 56) & 0xFF);
 }
 
 static void
@@ -103,7 +103,7 @@ test_json_struct_metadata_get_blob(void)
     char metadata[128];
     const char *json;
     tsk_size_t json_buffer_length;
-    const uint8_t *blob;
+    const char *blob;
     tsk_size_t blob_length;
     uint8_t *bytes;
     tsk_size_t metadata_length;
@@ -181,25 +181,25 @@ test_json_struct_metadata_get_blob(void)
     metadata_length = header_length - 1;
     ret = tsk_json_struct_metadata_get_blob(
         metadata, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
-    CU_ASSERT_EQUAL(ret, TSK_ERR_FILE_FORMAT);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_JSON_STRUCT_METADATA_TRUNCATED);
 
     metadata_length = (tsk_size_t) total_length;
     bytes[0] = 'X';
     ret = tsk_json_struct_metadata_get_blob(
         metadata, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
-    CU_ASSERT_EQUAL(ret, TSK_ERR_FILE_FORMAT);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_JSON_STRUCT_METADATA_BAD_MAGIC);
     bytes[0] = 'J';
 
     bytes[4] = 2;
     ret = tsk_json_struct_metadata_get_blob(
         metadata, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
-    CU_ASSERT_EQUAL(ret, TSK_ERR_FILE_VERSION_TOO_NEW);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_JSON_STRUCT_METADATA_BAD_VERSION);
     bytes[4] = 1;
 
-    metadata_length = (tsk_size_t)(total_length - 1);
+    metadata_length = (tsk_size_t) (total_length - 1);
     ret = tsk_json_struct_metadata_get_blob(
         metadata, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
-    CU_ASSERT_EQUAL(ret, TSK_ERR_FILE_FORMAT);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_JSON_STRUCT_METADATA_TRUNCATED);
 
     ret = tsk_json_struct_metadata_get_blob(
         NULL, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
@@ -229,13 +229,13 @@ test_json_struct_metadata_get_blob(void)
     set_u64_le(bytes + 13, 0);
     ret = tsk_json_struct_metadata_get_blob(
         metadata, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
-    CU_ASSERT_EQUAL(ret, TSK_ERR_FILE_FORMAT);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_JSON_STRUCT_METADATA_INVALID_LENGTH);
 
     set_u64_le(bytes + 5, 8);
-    set_u64_le(bytes + 13, UINT64_MAX - (uint64_t)(header_length + 8) + 1);
+    set_u64_le(bytes + 13, UINT64_MAX - (uint64_t) (header_length + 8) + 1);
     ret = tsk_json_struct_metadata_get_blob(
         metadata, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
-    CU_ASSERT_EQUAL(ret, TSK_ERR_FILE_FORMAT);
+    CU_ASSERT_EQUAL(ret, TSK_ERR_JSON_STRUCT_METADATA_INVALID_LENGTH);
 }
 
 static void
