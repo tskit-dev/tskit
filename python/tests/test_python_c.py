@@ -2101,7 +2101,9 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         # with pytest.raises(ValueError, match="summary function.*must be 1D"):
         #     method(ss_sizes, ss, stat_func, lambda a, b, c, d: 1, 1, True, *site_args)
         # with pytest.raises(ValueError, match="length 2; must be 1"):
-        #     method(ss_sizes, ss, stat_func, lambda a, b, c, d: [1, 2], 1, True, *site_args)
+        #     method(
+        #         ss_sizes, ss, stat_func, lambda a, b, c, d: [1, 2], 1, True, *site_args
+        #     )
         # C API errors
         with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_UNSORTED_SITES"):
             bad_sites = np.array([1, 0, 2], dtype=np.int32)

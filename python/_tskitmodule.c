@@ -8198,7 +8198,7 @@ TreeSequence_two_locus_count_stat(TreeSequence *self, PyObject *args, PyObject *
         goto out;
     }
 
-    params = &(two_locus_general_stat_params){
+    params = &(two_locus_general_stat_params) {
         .sample_set_sizes = sample_set_sizes_array,
         .summary_func = summary_func,
         .norm_func = norm_func,
