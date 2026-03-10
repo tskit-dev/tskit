@@ -8203,7 +8203,6 @@ TreeSequence_two_locus_count_stat(TreeSequence *self, PyObject *args, PyObject *
         .summary_func = summary_func,
         .norm_func = norm_func,
     };
-    // TODO: deal with null norm func, need general stat.
     err = tsk_treeseq_two_locus_count_general_stat(self->tree_sequence, num_sample_sets,
         PyArray_DATA(sample_set_sizes_array), PyArray_DATA(sample_sets_array),
         output_dim, general_two_locus_count_stat_func, params,
