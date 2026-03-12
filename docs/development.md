@@ -98,14 +98,14 @@ the development workflows of all tskit-dev packages are organised around
 using uv, and therefore we strongly recommend using it. Uv is straightforward
 to install, and not invasive (existing Python installations can be completely
 isolated if you don't use features like ``uv tool`` etc which update your
-$HOME/.local/bin). Uv manages an isolated local environment per project
+``$HOME/.local/bin``). Uv manages an isolated local environment per project
 and allows us to deterministically pin package versions and easily switch
 between Python versions, so that CI environments can be replicated exactly
 locally.
 
 The packages needed for development are specified as dependency groups
 in ``python/pyproject.toml`` and managed with [uv](https://docs.astral.sh/uv/).
-Install all development dependencies using:
+Install all development dependencies by running, from the `python/` directory:
 
 ```bash
 $ uv sync
@@ -129,7 +129,8 @@ To get a local git development environment, please follow these steps:
   ```bash
   $ git clone git@github.com:YOUR_GITHUB_USERNAME/tskit.git
   ```
-- Install the {ref}`sec_development_workflow_prek` pre-commit hook:
+- Install the {ref}`sec_development_workflow_prek` pre-commit hook
+  (again from the ``python/`` subdirectory):
   ```bash
   $ uv run prek install
   ```
@@ -201,7 +202,7 @@ skip to {ref}`sec_development_workflow_anothers_commit`.
    to document any breaking changes separately in a "breaking changes" section.
 
 8. Push your changes to your topic branch and either open the PR or, if you
-   opened a draft PR above change it to a non-draft PR by clicking "Ready to
+   already opened a draft PR change it to a non-draft PR by clicking "Ready to
    Review".
 
 9. The tskit community will review the code, asking you to make changes where appropriate.
@@ -258,10 +259,10 @@ subdirectory.
 
 To test out changes to the *code*, you can change to the `python/` subdirectory,
 and run `make` to compile the C code.
-If you then execute `python` from this subdirectory (and only this one!),
+If you then execute python commands from this subdirectory (and only this one!),
 it will use the modified version of the package.
-(For instance, you might want to
-open an interactive `python` shell from the `python/` subdirectory,
+(For instance, you might want to open an interactive python shell by running
+`uv run python` in the `python/` subdirectory,
 or running `uv run pytest` from this subdirectory.)
 
 After you're done, you should do:
@@ -272,7 +273,8 @@ $ git checkout main
 
 to get your repository back to the "main" branch of development.
 If the pull request is changed and you want to do the same thing again,
-then first *delete* your local copy (by doing `git branch -d my_pr_copy`)
+then to avoid conflicts with any changes you might have made,
+first *delete* your local copy (by doing `git branch -d my_pr_copy`)
 and repeat the steps again.
 
 
@@ -285,13 +287,7 @@ On each commit a [prek](https://prek.j178.dev) hook will run checks for
 code style (see the {ref}`sec_development_python_style` section for details)
 and other common problems.
 
-To install the hook:
-
-```bash
-$ uv run prek install
-```
-
-To run checks manually without committing:
+To run checks manually without committing, from the `python/` subdirectory:
 
 ```bash
 $ uv run prek --all-files
@@ -467,6 +463,9 @@ See :ref:`sec_development_documentation_cross_referencing` for details.
 The :meth:`.TreeSequence.trees` method returns an iterator.
 ````
 
+Some errors may occur because of out-of-date cached results,
+which can be cleared by running `make clean`.
+
 (sec_development_python)=
 
 
@@ -543,6 +542,10 @@ To run a specific test case in this class (say, `test_copy`) use:
 ```bash
 $ uv run pytest tests/test_tables.py::TestNodeTable::test_copy
 ```
+
+In general, you can copy-paste the string describing a failed test from the
+output of pytest to re-run just that test (including specific parametrized
+arguments present as `[args]`).
 
 You can also run tests with a keyword expression search. For example this will
 run all tests that have `TestNodeTable` but not `copy` in their name:
@@ -793,6 +796,13 @@ this test name as a command line argument, e.g.:
 $ ./build/test_tables test_node_table
 ```
 
+After making sure tests pass, you should next run the tests through valgrind,
+to check for memory leaks, for instance:
+
+```bash
+$ valgrind ./build/test_tables test_node_table
+```
+
 While 100% test coverage is not feasible for C code, we aim to cover all code
 that can be reached. (Some classes of error such as malloc failures
 and IO errors are difficult to simulate in C.) Code coverage statistics are
@@ -1029,7 +1039,7 @@ Continuous integration is handled by [GitHub Actions](https://help.github.com/en
 tskit uses shared workflows defined in the
 [tskit-dev/.github](https://github.com/tskit-dev/.github) repository:
 
-- **lint** — runs prek against all files
+- **lint** — runs ruff and clang (using prek) against all files
 - **python-tests** — runs the pytest suite with coverage on Linux, macOS and Windows
 - **python-c-tests** — builds the C extension with coverage and runs low-level tests
 - **c-tests** — runs C unit tests under gcc, clang, and valgrind
@@ -1050,6 +1060,9 @@ tskit codebase.
 Note that this guide covers the most complex case of adding a new function to both
 the C and Python APIs.
 
+0.  Draft a docstring for your function, that describes exactly what the function
+    takes as arguments and what it returns under what conditions. Update this
+    docstring as you go along and make modifications.
 1.  Write your function in Python: in `python/tests/` find the test module that
     pertains to the functionality you wish to add. For instance, the kc_distance
     metric was added to
@@ -1085,7 +1098,7 @@ the C and Python APIs.
     the example of other tests, you might need to only add a single line of code
     here. In this case, the tests are well factored so that we can easily compare
     the results from both the Python and C versions.
-9.  Write a docstring for your function in the Python API: for instance, the kc_distance
+9.  Finalize your docstring and insert it into the Python API: for instance, the kc_distance
     docstring is in
     [tskit/python/tskit/trees.py](https://github.com/tskit-dev/tskit/blob/main/python/tskit/trees.py).
     Ensure that your docstring renders correctly by building the documentation
