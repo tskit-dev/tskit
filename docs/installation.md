@@ -46,7 +46,7 @@ Packages for recent version of Python are available for Linux, OSX and Windows. 
 using:
 
 ```bash
-$ conda install -c conda-forge tskit
+conda install -c conda-forge tskit
 ```
 
 ### Quick Start
@@ -75,7 +75,7 @@ may result in code that is (slightly) faster on your specific hardware.
 installations. Installation is straightforward:
 
 ```bash
-$ python3 -m pip install tskit
+python3 -m pip install tskit
 ```
 
 (sec_installation_development_versions)=
