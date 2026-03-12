@@ -97,9 +97,12 @@ On macOS, either `brew install doxygen` or
 You'll also need a "essential build" tools:
 a compiler (`gcc`) and a few other things (e.g., `make`).
 
-All Python development is managed using [uv](https://docs.astral.sh/uv/).
+All Python development is managed using [uv](https://docs.astral.sh/uv/),
+which takes the place of virtual/conda environments.
 It is not strictly necessary to use uv in order to make small changes, but
-the development workflows of all tskit-dev packages are organised around
+if you don't use it, you'll need to figure out how to install python
+dependencies on your own,
+and the development workflows of all tskit-dev packages are organised around
 using uv, and therefore we strongly recommend using it. Uv is straightforward
 to install, and not invasive (existing Python installations can be completely
 isolated if you don't use features like ``uv tool`` etc which update your
@@ -759,7 +762,9 @@ cd c
 meson setup build
 ```
 
-To setup a debug build add `--buildtype=debug` to the above command. This will set the `TSK_TRACE_ERRORS`
+To setup a debug build add `--buildtype=debug` to the above command.
+(Re-running the command with this argument will have the desired effect.)
+This will set the `TSK_TRACE_ERRORS`
 flag, which will print error messages to `stderr` when errors occur which is useful for debugging.
 
 To compile the code run
