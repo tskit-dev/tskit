@@ -175,8 +175,7 @@ skip to {ref}`sec_development_workflow_anothers_commit`.
    is to follow this recipe:
    ```bash
    $ git fetch upstream
-   $ git checkout upstream/main
-   $ git checkout -b topic_branch_name
+   $ git checkout -b topic_branch_name upstream/main
    ```
 
 4. Write your code following the outline in {ref}`sec_development_best_practices`.
