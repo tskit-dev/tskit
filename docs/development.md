@@ -105,12 +105,16 @@ locally.
 
 The packages needed for development are specified as dependency groups
 in ``python/pyproject.toml`` and managed with [uv](https://docs.astral.sh/uv/).
-Install all development dependencies by running, from the `python/` directory:
+Install all development dependencies by running:
 
 ```bash
+cd python
 uv sync
 ```
 
+Since `uv` operates from the `python/` subdirectory,
+**all `uv` commands below must be run from within that subdirectory**;
+otherwise errors like "No such file or directory" will occur.
 The lock file lives at `python/uv.lock` and must be kept up to date. Run
 `uv lock` after any change to the dependencies in `python/pyproject.toml`.
 
