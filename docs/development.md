@@ -89,28 +89,40 @@ is required for building the C API documentation.
 On Debian/Ubuntu we can install these with:
 
 ```bash
-$ sudo apt install build-essential doxygen
+sudo apt install build-essential doxygen
 ```
 
-All Python development is managed using [uv](https://docs.astral.sh/uv/).
+On macOS, either `brew install doxygen` or
+`sudo port install doxygen` should get doxygen.
+You'll also need a "essential build" tools:
+a compiler (`gcc`) and a few other things (e.g., `make`).
+
+All Python development is managed using [uv](https://docs.astral.sh/uv/),
+which takes the place of virtual/conda environments.
 It is not strictly necessary to use uv in order to make small changes, but
-the development workflows of all tskit-dev packages are organised around
+if you don't use it, you'll need to figure out how to install python
+dependencies on your own,
+and the development workflows of all tskit-dev packages are organised around
 using uv, and therefore we strongly recommend using it. Uv is straightforward
 to install, and not invasive (existing Python installations can be completely
 isolated if you don't use features like ``uv tool`` etc which update your
-$HOME/.local/bin). Uv manages an isolated local environment per project
+``$HOME/.local/bin``). Uv manages an isolated local environment per project
 and allows us to deterministically pin package versions and easily switch
 between Python versions, so that CI environments can be replicated exactly
 locally.
 
 The packages needed for development are specified as dependency groups
 in ``python/pyproject.toml`` and managed with [uv](https://docs.astral.sh/uv/).
-Install all development dependencies using:
+Install all development dependencies by running:
 
 ```bash
-$ uv sync
+cd python
+uv sync
 ```
 
+Since `uv` operates from the `python/` subdirectory,
+**all `uv` commands below must be run from within that subdirectory**;
+otherwise errors like "No such file or directory" will occur.
 The lock file lives at `python/uv.lock` and must be kept up to date. Run
 `uv lock` after any change to the dependencies in `python/pyproject.toml`.
 
@@ -127,11 +139,12 @@ To get a local git development environment, please follow these steps:
 - Make a fork of the tskit repo on [GitHub](http://github.com/tskit-dev/tskit)
 - Clone your fork into a local directory:
   ```bash
-  $ git clone git@github.com:YOUR_GITHUB_USERNAME/tskit.git
+  git clone git@github.com:YOUR_GITHUB_USERNAME/tskit.git
   ```
-- Install the {ref}`sec_development_workflow_prek` pre-commit hook:
+- Install the {ref}`sec_development_workflow_prek` pre-commit hook
+  (again from the ``python/`` subdirectory):
   ```bash
-  $ uv run prek install
+  uv run prek install
   ```
 
 See the {ref}`sec_development_workflow_git` section for detailed information
@@ -167,15 +180,14 @@ skip to {ref}`sec_development_workflow_anothers_commit`.
    [upstream remote](
    https://help.github.com/articles/configuring-a-remote-for-a-fork/):
    ```bash
-   $ git remote add upstream https://github.com/tskit-dev/tskit.git
+   git remote add upstream https://github.com/tskit-dev/tskit.git
    ```
 
 3. Create a "topic branch" to work on. One reliable way to do it
    is to follow this recipe:
    ```bash
-   $ git fetch upstream
-   $ git checkout upstream/main
-   $ git checkout -b topic_branch_name
+   git fetch upstream
+   git checkout -b topic_branch_name upstream/main
    ```
 
 4. Write your code following the outline in {ref}`sec_development_best_practices`.
@@ -201,7 +213,7 @@ skip to {ref}`sec_development_workflow_anothers_commit`.
    to document any breaking changes separately in a "breaking changes" section.
 
 8. Push your changes to your topic branch and either open the PR or, if you
-   opened a draft PR above change it to a non-draft PR by clicking "Ready to
+   already opened a draft PR change it to a non-draft PR by clicking "Ready to
    Review".
 
 9. The tskit community will review the code, asking you to make changes where appropriate.
@@ -235,7 +247,7 @@ Then, continuing from above:
 3. Fetch the pull request, and store it as a local branch.
    For instance, to name the local branch `my_pr_copy`:
    ```bash
-   $ git fetch upstream pull/854/head:my_pr_copy
+   git fetch upstream pull/854/head:my_pr_copy
    ```
    You should probably call the branch something more descriptive,
    though. (Also note that you might need to put `origin` instead
@@ -244,7 +256,7 @@ Then, continuing from above:
 
 4. Check out the pull request's local branch:
    ```bash
-   $ git checkout my_pr_copy
+   git checkout my_pr_copy
    ```
 
 Now, your repository will be in exactly the same state as
@@ -258,21 +270,22 @@ subdirectory.
 
 To test out changes to the *code*, you can change to the `python/` subdirectory,
 and run `make` to compile the C code.
-If you then execute `python` from this subdirectory (and only this one!),
+If you then execute python commands from this subdirectory (and only this one!),
 it will use the modified version of the package.
-(For instance, you might want to
-open an interactive `python` shell from the `python/` subdirectory,
+(For instance, you might want to open an interactive python shell by running
+`uv run python` in the `python/` subdirectory,
 or running `uv run pytest` from this subdirectory.)
 
 After you're done, you should do:
 
 ```bash
-$ git checkout main
+git checkout main
 ```
 
 to get your repository back to the "main" branch of development.
 If the pull request is changed and you want to do the same thing again,
-then first *delete* your local copy (by doing `git branch -d my_pr_copy`)
+then to avoid conflicts with any changes you might have made,
+first *delete* your local copy (by doing `git branch -d my_pr_copy`)
 and repeat the steps again.
 
 
@@ -285,16 +298,10 @@ On each commit a [prek](https://prek.j178.dev) hook will run checks for
 code style (see the {ref}`sec_development_python_style` section for details)
 and other common problems.
 
-To install the hook:
+To run checks manually without committing, from the `python/` subdirectory:
 
 ```bash
-$ uv run prek install
-```
-
-To run checks manually without committing:
-
-```bash
-$ uv run prek --all-files
+uv run prek --all-files
 ```
 
 If local results differ from CI, run `uv run prek cache clean` to clear the cache.
@@ -467,6 +474,9 @@ See :ref:`sec_development_documentation_cross_referencing` for details.
 The :meth:`.TreeSequence.trees` method returns an iterator.
 ````
 
+Some errors may occur because of out-of-date cached results,
+which can be cleared by running `make clean`.
+
 (sec_development_python)=
 
 
@@ -528,27 +538,31 @@ The tests are defined in the `tests` directory, and run using
 If you want to run the tests in a particular module (say, `test_tables.py`), use:
 
 ```bash
-$ uv run pytest tests/test_tables.py
+uv run pytest tests/test_tables.py
 ```
 
 To run all the tests in a particular class in this module (say, `TestNodeTable`)
 use:
 
 ```bash
-$ uv run pytest tests/test_tables.py::TestNodeTable
+uv run pytest tests/test_tables.py::TestNodeTable
 ```
 
 To run a specific test case in this class (say, `test_copy`) use:
 
 ```bash
-$ uv run pytest tests/test_tables.py::TestNodeTable::test_copy
+uv run pytest tests/test_tables.py::TestNodeTable::test_copy
 ```
+
+In general, you can copy-paste the string describing a failed test from the
+output of pytest to re-run just that test (including specific parametrized
+arguments present as `[args]`).
 
 You can also run tests with a keyword expression search. For example this will
 run all tests that have `TestNodeTable` but not `copy` in their name:
 
 ```bash
-$ uv run pytest -k "TestNodeTable and not copy"
+uv run pytest -k "TestNodeTable and not copy"
 ```
 
 When developing your own tests, it is much quicker to run the specific tests
@@ -558,41 +572,41 @@ suite each time.
 To run all of the tests, we can use:
 
 ```bash
-$ uv run pytest
+uv run pytest
 ```
 
 By default the tests are run on 4 cores, if you have more you can specify:
 
 ```bash
-$ uv run pytest -n8
+uv run pytest -n8
 ```
 
 A few of the tests take most of the time, we can skip the slow tests to get the test run
 under 20 seconds on an modern workstation:
 
 ```bash
-$ uv run pytest --skip-slow
+uv run pytest --skip-slow
 ```
 
 If you have an agent running the tests in a sandboxed environment, you may need to
 skip tests thsat require network access or FIFOs:
 
 ```bash
-$ uv run pytest --skip-network
+uv run pytest --skip-network
 ```
 
 If you have a lot of failing tests it can be useful to have a shorter summary
 of the failing lines:
 
 ```bash
-$ uv run pytest --tb=line
+uv run pytest --tb=line
 ```
 
 If you need to see the output of tests (e.g. `print` statements) then you need to use
 these flags to run a single thread and capture output:
 
 ```bash
-$ uv run pytest -n0 -vs
+uv run pytest -n0 -vs
 ```
 
 All new code must have high test coverage, which will be checked as part of the
@@ -642,7 +656,7 @@ However, if you really need to be on the bleeding edge, you can use
 the following command to install:
 
 ```bash
-$ python3 -m pip install git+https://github.com/tskit-dev/tskit.git#subdirectory=python
+python3 -m pip install git+https://github.com/tskit-dev/tskit.git#subdirectory=python
 ```
 
 (Because the Python package is not defined in the project root directory, using pip to
@@ -687,13 +701,16 @@ to automatically format code.
 On Debian/Ubuntu, install the system dependencies with:
 
 ```bash
-$ sudo apt install libcunit1-dev ninja-build
+sudo apt install libcunit1-dev ninja-build
 ```
 
-Install meson using uv:
+On macOS, you can run `brew install cunit ninja`
+or `sudo port install cunit ninja`.
+
+You can install meson using uv:
 
 ```bash
-$ uv tool install meson
+uv tool install meson
 ```
 
 An exact version of clang-format is required because formatting rules
@@ -716,7 +733,7 @@ with a custom configuration. This is checked as part of the
 {ref}`prek checks <sec_development_workflow_prek>`. To manually format all files run:
 
 ```bash
-$ uv run prek --all-files
+uv run prek --all-files
 ```
 
 If you are doing this in the ``c`` directory, use
@@ -728,7 +745,7 @@ prek searching for configuration within subdirectories. To avoid this, tell
 prek where to find its config explicitly:
 
 ```bash
-$ uv run prek --all-files -c prek.toml
+uv run prek --all-files -c prek.toml
 ```
 
 
@@ -741,17 +758,19 @@ is defined in `meson.build`. To set up the initial build
 directory, run
 
 ```bash
-$ cd c
-$ meson setup build
+cd c
+meson setup build
 ```
 
-To setup a debug build add `--buildtype=debug` to the above command. This will set the `TSK_TRACE_ERRORS`
+To setup a debug build add `--buildtype=debug` to the above command.
+(Re-running the command with this argument will have the desired effect.)
+This will set the `TSK_TRACE_ERRORS`
 flag, which will print error messages to `stderr` when errors occur which is useful for debugging.
 
 To compile the code run
 
 ```bash
-$ ninja -C build
+ninja -C build
 ```
 
 All the tests and other artefacts are in the build directory. Individual test
@@ -759,7 +778,7 @@ suites can be run, via (e.g.) `./build/test_trees`. To run all of the tests,
 run
 
 ```bash
-$ ninja -C build test
+ninja -C build test
 ```
 
 For vim users, the [mesonic](https://www.vim.org/scripts/script.php?script_id=5378) plugin
@@ -790,7 +809,14 @@ To just run a specific test on its own, provide
 this test name as a command line argument, e.g.:
 
 ```bash
-$ ./build/test_tables test_node_table
+./build/test_tables test_node_table
+```
+
+After making sure tests pass, you should next run the tests through valgrind,
+to check for memory leaks, for instance:
+
+```bash
+valgrind ./build/test_tables test_node_table
 ```
 
 While 100% test coverage is not feasible for C code, we aim to cover all code
@@ -805,20 +831,20 @@ To generate and view coverage reports for the C tests locally:
 
 Compile with coverage enabled:
    ```bash
-   $ cd c
-   $ meson build -D b_coverage=true
-   $ ninja -C build
+   cd c
+   meson build -D b_coverage=true
+   ninja -C build
    ```
 
 Run the tests:
    ```bash
-   $ ninja -C build test
+   ninja -C build test
    ```
 
 Generate coverage data:
    ```bash
-   $ cd build
-   $ find ../tskit/*.c -type f -printf "%f\n" | xargs -i gcov -pb libtskit.a.p/tskit_{}.gcno ../tskit/{}
+   cd build
+   find ../tskit/*.c -type f -printf "%f\n" | xargs -i gcov -pb libtskit.a.p/tskit_{}.gcno ../tskit/{}
    ```
 
 The generated `.gcov` files can then be viewed directly with `cat filename.c.gcov`.
@@ -826,10 +852,10 @@ Lines prefixed with `#####` were never executed, lines with numbers show executi
 
 `lcov` can be used to create browsable HTML coverage reports:
   ```bash
-  $ sudo apt-get install lcov  # if needed
-  $ lcov --capture --directory build-gcc --output-file coverage.info
-  $ genhtml coverage.info --output-directory coverage_html
-  $ firefox coverage_html/index.html
+  sudo apt-get install lcov  # if needed
+  lcov --capture --directory build-gcc --output-file coverage.info
+  genhtml coverage.info --output-directory coverage_html
+  firefox coverage_html/index.html
   ```
 
 ### Coding conventions
@@ -963,20 +989,20 @@ module and how it is built from source. The module is built automatically by
 The simplest way to do this is to run `make` in the `python` directory:
 
 ```bash
-$ make
+make
 ```
 
 If `make` is not available, you can run the same command manually:
 
 ```bash
-$ uv run python setup.py build_ext --inplace
+uv run python setup.py build_ext --inplace
 ```
 
 It is sometimes useful to specify compiler flags when building the low
 level module. For example, to make a debug build you can use:
 
 ```bash
-$ CFLAGS='-Wall -O0 -g' make
+CFLAGS='-Wall -O0 -g' make
 ```
 
 If you need to track down a segfault etc, running some code through gdb can
@@ -984,7 +1010,7 @@ be very useful. For example, to run a particular test case, we can do:
 
 
 ```bash
-$ gdb python
+gdb python
 (gdb) run -m pytest tests/test_python_c.py
 
 
@@ -1029,7 +1055,7 @@ Continuous integration is handled by [GitHub Actions](https://help.github.com/en
 tskit uses shared workflows defined in the
 [tskit-dev/.github](https://github.com/tskit-dev/.github) repository:
 
-- **lint** — runs prek against all files
+- **lint** — runs ruff and clang (using prek) against all files
 - **python-tests** — runs the pytest suite with coverage on Linux, macOS and Windows
 - **python-c-tests** — builds the C extension with coverage and runs low-level tests
 - **c-tests** — runs C unit tests under gcc, clang, and valgrind
@@ -1050,6 +1076,9 @@ tskit codebase.
 Note that this guide covers the most complex case of adding a new function to both
 the C and Python APIs.
 
+0.  Draft a docstring for your function, that describes exactly what the function
+    takes as arguments and what it returns under what conditions. Update this
+    docstring as you go along and make modifications.
 1.  Write your function in Python: in `python/tests/` find the test module that
     pertains to the functionality you wish to add. For instance, the kc_distance
     metric was added to
@@ -1085,7 +1114,7 @@ the C and Python APIs.
     the example of other tests, you might need to only add a single line of code
     here. In this case, the tests are well factored so that we can easily compare
     the results from both the Python and C versions.
-9.  Write a docstring for your function in the Python API: for instance, the kc_distance
+9.  Finalize your docstring and insert it into the Python API: for instance, the kc_distance
     docstring is in
     [tskit/python/tskit/trees.py](https://github.com/tskit-dev/tskit/blob/main/python/tskit/trees.py).
     Ensure that your docstring renders correctly by building the documentation
