@@ -89,7 +89,7 @@ is required for building the C API documentation.
 On Debian/Ubuntu we can install these with:
 
 ```bash
-$ sudo apt install build-essential doxygen
+sudo apt install build-essential doxygen
 ```
 
 All Python development is managed using [uv](https://docs.astral.sh/uv/).
@@ -108,7 +108,7 @@ in ``python/pyproject.toml`` and managed with [uv](https://docs.astral.sh/uv/).
 Install all development dependencies by running, from the `python/` directory:
 
 ```bash
-$ uv sync
+uv sync
 ```
 
 The lock file lives at `python/uv.lock` and must be kept up to date. Run
@@ -127,12 +127,12 @@ To get a local git development environment, please follow these steps:
 - Make a fork of the tskit repo on [GitHub](http://github.com/tskit-dev/tskit)
 - Clone your fork into a local directory:
   ```bash
-  $ git clone git@github.com:YOUR_GITHUB_USERNAME/tskit.git
+  git clone git@github.com:YOUR_GITHUB_USERNAME/tskit.git
   ```
 - Install the {ref}`sec_development_workflow_prek` pre-commit hook
   (again from the ``python/`` subdirectory):
   ```bash
-  $ uv run prek install
+  uv run prek install
   ```
 
 See the {ref}`sec_development_workflow_git` section for detailed information
@@ -168,14 +168,14 @@ skip to {ref}`sec_development_workflow_anothers_commit`.
    [upstream remote](
    https://help.github.com/articles/configuring-a-remote-for-a-fork/):
    ```bash
-   $ git remote add upstream https://github.com/tskit-dev/tskit.git
+   git remote add upstream https://github.com/tskit-dev/tskit.git
    ```
 
 3. Create a "topic branch" to work on. One reliable way to do it
    is to follow this recipe:
    ```bash
-   $ git fetch upstream
-   $ git checkout -b topic_branch_name upstream/main
+   git fetch upstream
+   git checkout -b topic_branch_name upstream/main
    ```
 
 4. Write your code following the outline in {ref}`sec_development_best_practices`.
@@ -235,7 +235,7 @@ Then, continuing from above:
 3. Fetch the pull request, and store it as a local branch.
    For instance, to name the local branch `my_pr_copy`:
    ```bash
-   $ git fetch upstream pull/854/head:my_pr_copy
+   git fetch upstream pull/854/head:my_pr_copy
    ```
    You should probably call the branch something more descriptive,
    though. (Also note that you might need to put `origin` instead
@@ -244,7 +244,7 @@ Then, continuing from above:
 
 4. Check out the pull request's local branch:
    ```bash
-   $ git checkout my_pr_copy
+   git checkout my_pr_copy
    ```
 
 Now, your repository will be in exactly the same state as
@@ -267,7 +267,7 @@ or running `uv run pytest` from this subdirectory.)
 After you're done, you should do:
 
 ```bash
-$ git checkout main
+git checkout main
 ```
 
 to get your repository back to the "main" branch of development.
@@ -289,7 +289,7 @@ and other common problems.
 To run checks manually without committing, from the `python/` subdirectory:
 
 ```bash
-$ uv run prek --all-files
+uv run prek --all-files
 ```
 
 If local results differ from CI, run `uv run prek cache clean` to clear the cache.
@@ -526,20 +526,20 @@ The tests are defined in the `tests` directory, and run using
 If you want to run the tests in a particular module (say, `test_tables.py`), use:
 
 ```bash
-$ uv run pytest tests/test_tables.py
+uv run pytest tests/test_tables.py
 ```
 
 To run all the tests in a particular class in this module (say, `TestNodeTable`)
 use:
 
 ```bash
-$ uv run pytest tests/test_tables.py::TestNodeTable
+uv run pytest tests/test_tables.py::TestNodeTable
 ```
 
 To run a specific test case in this class (say, `test_copy`) use:
 
 ```bash
-$ uv run pytest tests/test_tables.py::TestNodeTable::test_copy
+uv run pytest tests/test_tables.py::TestNodeTable::test_copy
 ```
 
 In general, you can copy-paste the string describing a failed test from the
@@ -550,7 +550,7 @@ You can also run tests with a keyword expression search. For example this will
 run all tests that have `TestNodeTable` but not `copy` in their name:
 
 ```bash
-$ uv run pytest -k "TestNodeTable and not copy"
+uv run pytest -k "TestNodeTable and not copy"
 ```
 
 When developing your own tests, it is much quicker to run the specific tests
@@ -560,41 +560,41 @@ suite each time.
 To run all of the tests, we can use:
 
 ```bash
-$ uv run pytest
+uv run pytest
 ```
 
 By default the tests are run on 4 cores, if you have more you can specify:
 
 ```bash
-$ uv run pytest -n8
+uv run pytest -n8
 ```
 
 A few of the tests take most of the time, we can skip the slow tests to get the test run
 under 20 seconds on an modern workstation:
 
 ```bash
-$ uv run pytest --skip-slow
+uv run pytest --skip-slow
 ```
 
 If you have an agent running the tests in a sandboxed environment, you may need to
 skip tests thsat require network access or FIFOs:
 
 ```bash
-$ uv run pytest --skip-network
+uv run pytest --skip-network
 ```
 
 If you have a lot of failing tests it can be useful to have a shorter summary
 of the failing lines:
 
 ```bash
-$ uv run pytest --tb=line
+uv run pytest --tb=line
 ```
 
 If you need to see the output of tests (e.g. `print` statements) then you need to use
 these flags to run a single thread and capture output:
 
 ```bash
-$ uv run pytest -n0 -vs
+uv run pytest -n0 -vs
 ```
 
 All new code must have high test coverage, which will be checked as part of the
@@ -644,7 +644,7 @@ However, if you really need to be on the bleeding edge, you can use
 the following command to install:
 
 ```bash
-$ python3 -m pip install git+https://github.com/tskit-dev/tskit.git#subdirectory=python
+python3 -m pip install git+https://github.com/tskit-dev/tskit.git#subdirectory=python
 ```
 
 (Because the Python package is not defined in the project root directory, using pip to
@@ -689,13 +689,13 @@ to automatically format code.
 On Debian/Ubuntu, install the system dependencies with:
 
 ```bash
-$ sudo apt install libcunit1-dev ninja-build
+sudo apt install libcunit1-dev ninja-build
 ```
 
 Install meson using uv:
 
 ```bash
-$ uv tool install meson
+uv tool install meson
 ```
 
 An exact version of clang-format is required because formatting rules
@@ -718,7 +718,7 @@ with a custom configuration. This is checked as part of the
 {ref}`prek checks <sec_development_workflow_prek>`. To manually format all files run:
 
 ```bash
-$ uv run prek --all-files
+uv run prek --all-files
 ```
 
 If you are doing this in the ``c`` directory, use
@@ -730,7 +730,7 @@ prek searching for configuration within subdirectories. To avoid this, tell
 prek where to find its config explicitly:
 
 ```bash
-$ uv run prek --all-files -c prek.toml
+uv run prek --all-files -c prek.toml
 ```
 
 
@@ -743,8 +743,8 @@ is defined in `meson.build`. To set up the initial build
 directory, run
 
 ```bash
-$ cd c
-$ meson setup build
+cd c
+meson setup build
 ```
 
 To setup a debug build add `--buildtype=debug` to the above command. This will set the `TSK_TRACE_ERRORS`
@@ -753,7 +753,7 @@ flag, which will print error messages to `stderr` when errors occur which is use
 To compile the code run
 
 ```bash
-$ ninja -C build
+ninja -C build
 ```
 
 All the tests and other artefacts are in the build directory. Individual test
@@ -761,7 +761,7 @@ suites can be run, via (e.g.) `./build/test_trees`. To run all of the tests,
 run
 
 ```bash
-$ ninja -C build test
+ninja -C build test
 ```
 
 For vim users, the [mesonic](https://www.vim.org/scripts/script.php?script_id=5378) plugin
@@ -792,14 +792,14 @@ To just run a specific test on its own, provide
 this test name as a command line argument, e.g.:
 
 ```bash
-$ ./build/test_tables test_node_table
+./build/test_tables test_node_table
 ```
 
 After making sure tests pass, you should next run the tests through valgrind,
 to check for memory leaks, for instance:
 
 ```bash
-$ valgrind ./build/test_tables test_node_table
+valgrind ./build/test_tables test_node_table
 ```
 
 While 100% test coverage is not feasible for C code, we aim to cover all code
@@ -814,20 +814,20 @@ To generate and view coverage reports for the C tests locally:
 
 Compile with coverage enabled:
    ```bash
-   $ cd c
-   $ meson build -D b_coverage=true
-   $ ninja -C build
+   cd c
+   meson build -D b_coverage=true
+   ninja -C build
    ```
 
 Run the tests:
    ```bash
-   $ ninja -C build test
+   ninja -C build test
    ```
 
 Generate coverage data:
    ```bash
-   $ cd build
-   $ find ../tskit/*.c -type f -printf "%f\n" | xargs -i gcov -pb libtskit.a.p/tskit_{}.gcno ../tskit/{}
+   cd build
+   find ../tskit/*.c -type f -printf "%f\n" | xargs -i gcov -pb libtskit.a.p/tskit_{}.gcno ../tskit/{}
    ```
 
 The generated `.gcov` files can then be viewed directly with `cat filename.c.gcov`.
@@ -835,10 +835,10 @@ Lines prefixed with `#####` were never executed, lines with numbers show executi
 
 `lcov` can be used to create browsable HTML coverage reports:
   ```bash
-  $ sudo apt-get install lcov  # if needed
-  $ lcov --capture --directory build-gcc --output-file coverage.info
-  $ genhtml coverage.info --output-directory coverage_html
-  $ firefox coverage_html/index.html
+  sudo apt-get install lcov  # if needed
+  lcov --capture --directory build-gcc --output-file coverage.info
+  genhtml coverage.info --output-directory coverage_html
+  firefox coverage_html/index.html
   ```
 
 ### Coding conventions
@@ -972,20 +972,20 @@ module and how it is built from source. The module is built automatically by
 The simplest way to do this is to run `make` in the `python` directory:
 
 ```bash
-$ make
+make
 ```
 
 If `make` is not available, you can run the same command manually:
 
 ```bash
-$ uv run python setup.py build_ext --inplace
+uv run python setup.py build_ext --inplace
 ```
 
 It is sometimes useful to specify compiler flags when building the low
 level module. For example, to make a debug build you can use:
 
 ```bash
-$ CFLAGS='-Wall -O0 -g' make
+CFLAGS='-Wall -O0 -g' make
 ```
 
 If you need to track down a segfault etc, running some code through gdb can
@@ -993,7 +993,7 @@ be very useful. For example, to run a particular test case, we can do:
 
 
 ```bash
-$ gdb python
+gdb python
 (gdb) run -m pytest tests/test_python_c.py
 
 
