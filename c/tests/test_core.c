@@ -101,9 +101,9 @@ test_json_struct_metadata_get_blob(void)
 {
     int ret;
     char metadata[128];
-    const char *json;
+    char *json;
     tsk_size_t json_buffer_length;
-    const char *blob;
+    char *blob;
     tsk_size_t blob_length;
     uint8_t *bytes;
     tsk_size_t metadata_length;
@@ -111,9 +111,9 @@ test_json_struct_metadata_get_blob(void)
     size_t json_length;
     size_t payload_length;
     size_t total_length;
-    const char json_payload[] = "{\"a\":1}";
-    const uint8_t binary_payload[] = { 0x01, 0x02, 0x03, 0x04 };
-    const uint8_t empty_payload[] = { 0 };
+    char json_payload[] = "{\"a\":1}";
+    uint8_t binary_payload[] = { 0x01, 0x02, 0x03, 0x04 };
+    uint8_t empty_payload[] = { 0 };
 
     bytes = (uint8_t *) metadata;
     header_length = 4 + 1 + 8 + 8;
@@ -135,7 +135,7 @@ test_json_struct_metadata_get_blob(void)
     ret = tsk_json_struct_metadata_get_blob(
         metadata, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
     CU_ASSERT_EQUAL(ret, 0);
-    CU_ASSERT_PTR_EQUAL(json, (const char *) bytes + header_length);
+    CU_ASSERT_PTR_EQUAL(json, (char *) bytes + header_length);
     CU_ASSERT_EQUAL(json_buffer_length, (tsk_size_t) json_length);
     if (json_length > 0) {
         CU_ASSERT_EQUAL(memcmp(json, json_payload, json_length), 0);
@@ -152,7 +152,7 @@ test_json_struct_metadata_get_blob(void)
     ret = tsk_json_struct_metadata_get_blob(
         metadata, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
     CU_ASSERT_EQUAL(ret, 0);
-    CU_ASSERT_PTR_EQUAL(json, (const char *) bytes + header_length);
+    CU_ASSERT_PTR_EQUAL(json, (char *) bytes + header_length);
     CU_ASSERT_EQUAL(json_buffer_length, (tsk_size_t) json_length);
     CU_ASSERT_EQUAL(blob_length, (tsk_size_t) payload_length);
     CU_ASSERT_PTR_EQUAL(blob, bytes + header_length + json_length);
@@ -168,7 +168,7 @@ test_json_struct_metadata_get_blob(void)
     ret = tsk_json_struct_metadata_get_blob(
         metadata, metadata_length, &json, &json_buffer_length, &blob, &blob_length);
     CU_ASSERT_EQUAL(ret, 0);
-    CU_ASSERT_PTR_EQUAL(json, (const char *) bytes + header_length);
+    CU_ASSERT_PTR_EQUAL(json, (char *) bytes + header_length);
     CU_ASSERT_EQUAL(json_buffer_length, (tsk_size_t) json_length);
     CU_ASSERT_EQUAL(blob_length, (tsk_size_t) payload_length);
     CU_ASSERT_PTR_EQUAL(blob, bytes + header_length + json_length);

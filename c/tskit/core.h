@@ -1153,9 +1153,8 @@ the original metadata buffer is alive.
 @param[out] blob_length On success, set to the payload length in bytes.
 @return Return 0 on success or a negative value on failure.
 */
-int tsk_json_struct_metadata_get_blob(const char *metadata, tsk_size_t metadata_length,
-    const char **json, tsk_size_t *json_length, const char **blob,
-    tsk_size_t *blob_length);
+int tsk_json_struct_metadata_get_blob(char *metadata, tsk_size_t metadata_length,
+    char **json, tsk_size_t *json_length, char **blob, tsk_size_t *blob_length);
 
 /* TODO most of these can probably be macros so they compile out as no-ops.
  * Lets do the 64 bit tsk_size_t switch first though. */
