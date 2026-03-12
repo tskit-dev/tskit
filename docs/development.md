@@ -92,6 +92,11 @@ On Debian/Ubuntu we can install these with:
 sudo apt install build-essential doxygen
 ```
 
+On macOS, either `brew install doxygen` or
+`sudo port install doxygen` should get doxygen.
+You'll also need a "essential build" tools:
+a compiler (`gcc`) and a few other things (e.g., `make`).
+
 All Python development is managed using [uv](https://docs.astral.sh/uv/).
 It is not strictly necessary to use uv in order to make small changes, but
 the development workflows of all tskit-dev packages are organised around
@@ -696,7 +701,10 @@ On Debian/Ubuntu, install the system dependencies with:
 sudo apt install libcunit1-dev ninja-build
 ```
 
-Install meson using uv:
+On macOS, you can run `brew install cunit ninja`
+or `sudo port install cunit ninja`.
+
+You can install meson using uv:
 
 ```bash
 uv tool install meson
