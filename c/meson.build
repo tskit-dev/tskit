@@ -125,6 +125,9 @@ if not meson.is_subproject()
       executable('multichrom_wright_fisher_singlethreaded',
           sources: ['examples/multichrom_wright_fisher_singlethreaded.c'], 
           link_with: [tskit_lib], dependencies: lib_deps)
+      executable('json_struct_metadata',
+          sources: ['examples/json_struct_metadata.c'], 
+          link_with: [tskit_lib], dependencies: lib_deps)
 
       thread_dep = dependency('threads')
       executable('multichrom_wright_fisher',

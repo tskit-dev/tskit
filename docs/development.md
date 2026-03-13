@@ -832,7 +832,7 @@ To generate and view coverage reports for the C tests locally:
 Compile with coverage enabled:
    ```bash
    cd c
-   meson build -D b_coverage=true
+   meson setup build -D b_coverage=true
    ninja -C build
    ```
 
@@ -853,7 +853,7 @@ Lines prefixed with `#####` were never executed, lines with numbers show executi
 `lcov` can be used to create browsable HTML coverage reports:
   ```bash
   sudo apt-get install lcov  # if needed
-  lcov --capture --directory build-gcc --output-file coverage.info
+  lcov --capture --directory build --output-file coverage.info
   genhtml coverage.info --output-directory coverage_html
   firefox coverage_html/index.html
   ```

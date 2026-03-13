@@ -947,3 +947,60 @@ nodes need to be retained, and use
 .. literalinclude:: ../c/examples/multichrom_wright_fisher.c
     :language: c
 
+----------------------------
+Reading and writing metadata
+----------------------------
+
+The C API does not provide any functionality for manipulating
+the contents of metadata. For JSON metadata it is easy to
+parse metadata using an external JSON library, and for
+struct-encoded metadata the values can be directly unpacked.
+Examples of both can be found in 
+`the SLiM code <https://messerlab.github.com/slim/>`_.
+
+The :ref:`"json+struct" <sec_metadata_codecs_jsonstruct>`
+metadata codec is a little less straightforward to use,
+so we provide here an example of how to write to it
+and read from it in C. See :ref:`sec_metadata_codecs_jsonstruct` 
+for details of how the metadata is encoded.
+(In Python, tskit automatically decodes both JSON and binary
+metadata and provides it as Python-data-typed metadata,
+just as for other codecs.)
+
+The structure of this example is as follows:
+
+1. Values specific to the metadata's header (e.g., the magic bytes `JBLB`).
+2. Functions that encode/decode `uint64_t`, used to store the lengths
+    of the two components in the header.
+3. A method to "read" the metadata: really, to get pointers to the
+    json and struct components.
+4. A method to "write" the metadata, again just given pointers to
+    and lengths of the two components.
+5. The program itself just round-trips a very simple chunk of metadata,
+    consisting of the JSON "`{"a": 1}`" and some binary `uint8_t` bytes ("`1234`").
+
+.. literalinclude:: ../c/examples/json_struct_metadata.c
+    :language: c
+
+Much of the complexity of the code is careful error checking of the lengths.
+
+Here ``json_struct_codec_get_components`` takes a pointer to binary metadata
+and returns pointers to *within that memory*.
+A different approach might have copied the two portions of the metadata
+into two buffers (to then be decoded, for instance).
+However, that would double the memory footprint,
+and since this codec is intended for large metadata,
+we did not use that approach in this example.
+
+Along the same lines, it is worth noting that this example does make a copy of
+the JSON and binary data when writing, in ``json_struct_codec_create_buffer()``,
+which doubles the memory footprint at that point, and adds the
+overhead of copying the data.  A more efficient approach would be to calculate
+the buffer length needed for the codec’s data, allocate the buffer with that
+length, and then generate the necessary JSON and binary metadata directly into
+that buffer.  This would require the metadata-generating code to be more
+closely entwined with the code for handling the json+struct codec header and
+padding bytes, and so we have chosen not to adopt that approach here, for
+pedagogical purposes; but if your use of this codec will involve large
+metadata, such an approach is recommended.
+
