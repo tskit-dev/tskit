@@ -527,7 +527,7 @@ of `B`, `H`, `I`, `L` or `Q` which have the same meaning as in the numeric
 types above. `L` is the default. As an example:
 
 ```
-{"type": "array", {"items": {"type":"number", "binaryFormat":"h"}}, "arrayLengthFormat":"B"}
+{"type": "array", "items": {"type":"number", "binaryFormat":"h"}, "arrayLengthFormat":"B"}
 ```
 
 Will result in an array of 2 byte integers, prepended by a single-byte array-length.
@@ -555,9 +555,86 @@ As a special case under the `struct` codec, the top-level type of metadata can b
 union of `object` and `null`. Set `"type": ["object", "null"]`. Properties should
 be defined as normal, and will be ignored if the metadata is `None`.
 
+(sec_metadata_codecs_jsonstruct)=
+
+### `json+struct`
+
+An additional codec provides the ability to store *both* JSON and binary-encoded data.
+This is provided for the case where we want to store some arbitrary metadata
+(as JSON) along with a relatively large amount of data (as binary, for efficiency).
+For instance, we might want to record a raster map of the sampled area
+along with a few pieces of generic information (e.g., the name of the area).
+
+The metadata schema for "json+struct" metadata basically just specifies both
+a JSON metadata schema and a struct metadata schema.
+Each entry in the metadata is encoded with either the JSON or the struct codec.
+
+Specifically, the schema must contain:
+
+1. a `"json"` entry that is a valid JSON metadata schema (except it does
+    not need to specify the codec), and
+2. a `"struct"` entry that is a valid struct metadata schema (except it also does
+    not need to specify the codec).
+
+Furthermore, these two sub-schemas must both define objects,
+and must not both define the same property:
+in other words, the  names of the properties in these must not overlap.
+
+When you use this codec, the decoded metadata in python is just a dictionary,
+as usual with either the JSON or struct codecs. There is no separation
+between the binary-encoded and JSON-encoded entries in metadata;
+this happens purely under the hood when encoding (and decoding) the metadata.
+See the example below.
+
+#### Binary representation
+
+The underlying structure of the JSON+struct codec is as follows.
+(If you're just working with metadata in python via the tskit interface,
+you don't need to worry about this; this is important if you need to write
+metadata in C, for instance.)
+(1) four magic bytes, the ASCII characters `J`, `B`, `L`, and `B`;
+(2) a one-byte (`uint8_t`) version number (currently, `1`);
+(3) a 64-bit (`uint64_t`) length in bytes for the JSON data;
+(4) a 64-bit length in bytes for the binary (struct) data, also in little-endian format;
+(5) the JSON data itself;
+(6) zero-ed "padding" bytes to bring the start of the binary section
+into 8-byte alignment; and
+(7) the binary data.
+The JSON data is encoded as ASCII, without a null terminating byte,
+and the format of the binary data is specified using the "struct" portion
+of the metadata schema, described :ref:`above <sec_metadata_codecs_struct>`.
+
 (sec_metadata_schema_examples)=
 
 ## Schema examples
+
+### JSON codec
+
+The JSON codec requires very little: for instance,
+``tskit.MetadataSchema.permissive_json()`` simply returns the schema
+``{"codec":"json"}``.
+Using this schema allows you to include arbitrary data in an entry.
+
+Here is a more structured schema:
+
+```{code-cell}
+schema = {
+    "codec": "json",
+    "title": "Example Metadata",
+    "type": "object",
+    "properties": {"name": {"type": "string"}, "size": {"type": "number"}},
+    "required": ["name", "size"],
+    "additionalProperties": False,
+}
+ms = tskit.MetadataSchema(schema)
+encoded = ms.validate_and_encode_row({
+    "name": "abc", "size": 123
+})
+```
+
+This schema has two properties: "name" and "size";
+"name" is a string and "size" is a number;
+both are required, and no additional properties are allowed.
 
 ### Struct codec
 
@@ -621,6 +698,45 @@ default set, they must be marked as "required" (in the JSON codec if no default 
 unspecified properties will simply be missing in the returned metadata dictionary).
 Also because this is a struct codec, `additionalProperties` must be set to False. This
 is assumed by default in the struct codec, but has been shown above for clarity.
+
+### JSON+Struct codec
+
+A schema using the `"json+struct"` codec simply needs to specify
+the JSON part and the struct part, and be sure the two do not share any keys.
+Here is a simple example:
+
+```{code-cell}
+schema = {
+    "codec": "json+struct",
+    "json": {
+        "type": "object",
+        "properties": {
+            "label": {"type": "string"},
+            "id": {"type": "number"},
+        },
+        "required": ["label"],
+    },
+    "struct": {
+        "type": "object",
+        "properties": {
+            "values": {
+                "type": "array",
+                "arrayLengthFormat": "B",
+                "items": {"type": "number", "binaryFormat": "i"},
+            }, 
+        },
+    },
+}
+ms = tskit.MetadataSchema(schema)
+row = {"label": "alpha", "id": 7, "values": [5, 10, 2, 12]}
+encoded = ms.validate_and_encode_row(row)
+print("Encoded:", encoded)
+print("Decoded:", ms.decode_row(encoded))
+```
+
+This encodes two things in JSON: a label and an ID number,
+and the uses the ``struct`` codec to encode an array of integers in binary.
+
 
 (sec_metadata_api_overview)=
 
