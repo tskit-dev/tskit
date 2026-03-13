@@ -657,19 +657,99 @@ class TestJSONStructCodec:
                 "properties": {
                     "label": {"type": "string"},
                     "count": {"type": "number"},
+                    "stuff": {"type": "array"},
                 },
                 "required": ["label"],
             },
             "struct": {
                 "type": "object",
-                "properties": {"blob": {"type": "integer", "binaryFormat": "i"}},
+                "properties": {
+                    "b0": {"type": "number", "binaryFormat": "i"},
+                    "b1": {"type": "number", "binaryFormat": "i"},
+                    "xyz": {
+                        "type": "array",
+                        "arrayLengthFormat": "H",
+                        "items": {"type": "number", "binaryFormat": "i"},
+                    },
+                },
             },
         }
         ms = tskit.MetadataSchema(schema)
-        row = {"label": "alpha", "count": 7, "blob": 5}
-        encoded = ms.validate_and_encode_row(row)
-        out = ms.decode_row(encoded)
-        assert out == row
+        for v in [[], [0, 2, 12], [5] * 1000]:
+            row = {
+                "label": "abcdef xyz",
+                "count": 7,
+                "b0": 123,
+                "b1": 0,
+                "stuff": [1, 3, 2, -1.5, "abc", None],
+                "xyz": v,
+                "another_thing": "since JSON is permissive this is allowed",
+            }
+            encoded = ms.validate_and_encode_row(row)
+            out = ms.decode_row(encoded)
+            assert out == row
+
+    def schema_with_binary(self, num_binary_ints):
+        # produces a json+struct schema having num_binary_ints integers
+        # encoded in binary, labeled b0, ... bX
+        schema = {
+            "codec": "json+struct",
+            "json": {
+                "type": "object",
+                "properties": {
+                    "label": {"type": "string"},
+                    "count": {"type": "number"},
+                },
+                "required": ["label"],
+            },
+            "struct": {
+                "type": "object",
+                "properties": {
+                    f"b{j}": {
+                        "type": "integer",
+                        "binaryFormat": "i",
+                    }
+                    for j in range(num_binary_ints)
+                },
+            },
+        }
+        return tskit.MetadataSchema(schema)
+
+    @pytest.mark.parametrize("k", (0, 1, 5, 1001))
+    def test_byte_alignment(self, k):
+        # We want to test whether the binary portion begins byte-aligned.
+        # To verify this, we (somewhat pedantically) let:
+        # X = (bytes to encode the json without any binary)
+        # Y = (bytes to encode the same json with k ints in binary)
+        # and then:
+        # (a) if padding is correct, X should be divisible by 8;
+        # but to make sure that in fact the binary portion starts after X bytes,
+        # we also check that:
+        # (b) Y-X is equal to k * (bytes per int)
+        ms = self.schema_with_binary(k)
+        ms0 = self.schema_with_binary(0)
+        bytes_per_int = len(struct.pack("i", 0))
+        for s in [
+            "",
+            "a",
+            "ab",
+            "abc",
+            "abcd",
+            "abcde",
+            "abcdef",
+            "abcdefg",
+            "abcdefgh",
+            " " * 1000 + "foo" + " " * 1000,
+        ]:
+            row = {"label": s, "count": 7}
+            encoded0 = ms0.validate_and_encode_row(row)
+            row.update({f"b{j}": j for j in range(k)})
+            encoded = ms.validate_and_encode_row(row)
+            out = ms.decode_row(encoded)
+            assert out == row
+            # validate byte alignment
+            assert len(encoded0) % 8 == 0
+            assert len(encoded) - len(encoded0) == k * bytes_per_int
 
     def test_json_defaults_applied(self):
         schema = {
