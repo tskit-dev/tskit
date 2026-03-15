@@ -2463,6 +2463,28 @@ def get_back_mutation_examples():
         yield insert_branch_mutations(ts)
 
 
+@functools.lru_cache
+def get_sim_example(
+    sample_size, sequence_length, recombination_rate, mutation_rate, seed
+):
+    recomb_map = msprime.RecombinationMap.uniform_map(
+        sequence_length, recombination_rate
+    )
+    ts = msprime.simulate(
+        recombination_map=recomb_map,
+        mutation_rate=mutation_rate,
+        random_seed=seed,
+        population_configurations=[
+            msprime.PopulationConfiguration(sample_size),
+            msprime.PopulationConfiguration(0),
+        ],
+        migration_matrix=[[0, 1], [1, 0]],
+    )
+    ts = insert_random_ploidy_individuals(ts, 4, seed=seed)
+    ts = add_random_metadata(ts, seed=seed)
+    return ts
+
+
 def make_example_tree_sequences(custom_max=None):
     yield from get_decapitated_examples(custom_max=custom_max)
     yield from get_gap_examples(custom_max=custom_max)
@@ -2475,22 +2497,14 @@ def make_example_tree_sequences(custom_max=None):
     for n in n_list:
         for m in [1, 2, 32]:
             for rho in [0, 0.1, 0.5]:
-                recomb_map = msprime.RecombinationMap.uniform_map(m, rho, num_loci=m)
-                ts = msprime.simulate(
-                    recombination_map=recomb_map,
+                ts = get_sim_example(
+                    sample_size=n,
+                    sequence_length=m,
+                    recombination_rate=rho,
                     mutation_rate=0.1,
-                    random_seed=seed,
-                    population_configurations=[
-                        msprime.PopulationConfiguration(n),
-                        msprime.PopulationConfiguration(0),
-                    ],
-                    migration_matrix=[[0, 1], [1, 0]],
+                    seed=seed,
                 )
-                ts = insert_random_ploidy_individuals(ts, 4, seed=seed)
-                yield (
-                    f"n={n}_m={m}_rho={rho}",
-                    add_random_metadata(ts, seed=seed),
-                )
+                yield (f"n={n}_m={m}_rho={rho}", ts)
                 seed += 1
     for name, ts in get_bottleneck_examples(custom_max=custom_max):
         yield (

@@ -2063,38 +2063,36 @@ def compute_branch_stat(
         ts
         for ts in get_example_tree_sequences()
         if ts.id
-        not in {
-            "no_samples",
-            "empty_ts",
-            # We must skip these cases so that tests run in a reasonable
-            # amount of time. To get more complete testing, these filters
-            # can be commented out. (runtime ~1hr)
-            "gap_0",
-            "gap_0.1",
-            "gap_0.5",
-            "gap_0.75",
-            "n=2_m=32_rho=0",
-            "n=10_m=1_rho=0",
-            "n=10_m=1_rho=0.1",
-            "n=10_m=2_rho=0",
-            "n=10_m=2_rho=0.1",
-            "n=10_m=32_rho=0",
-            "n=10_m=32_rho=0.1",
-            "n=10_m=32_rho=0.5",
+        in {
+            # We run only these cases so that tests run in a reasonable
+            # amount of time. All examples takes ~1hr.
+            "decapitate_recomb",
+            "gap_at_end",
+            "all_nodes_samples",
+            "internal_nodes_samples",
+            "mixed_internal_leaf_samples",
+            "bottleneck_n=3_mutated",
+            "bottleneck_n=10_mutated",
+            "rev_node_order",
+            "empty_tree",
+            "n=3_m=2_rho=0.5",
+            "n=3_m=32_rho=0",
+            "n=3_m=32_rho=0.1",
+            "n=2_m=1_rho=0",
+            "n=2_m=1_rho=0.1",
+            "n=2_m=1_rho=0.5",
+            "n=2_m=2_rho=0",
+            "n=2_m=2_rho=0.1",
+            "n=2_m=2_rho=0.5",
+            "n=2_m=32_rho=0.1",
+            "n=2_m=32_rho=0.5",
+            "n=3_m=1_rho=0",
+            "n=3_m=1_rho=0.5",
+            "n=3_m=2_rho=0",
+            "n=10_m=1_rho=0.5",
+            "n=10_m=2_rho=0.5",
             # we keep one n=100 case to ensure bit arrays are working
-            "n=100_m=1_rho=0.1",
-            "n=100_m=1_rho=0.5",
-            "n=100_m=2_rho=0",
-            "n=100_m=2_rho=0.1",
-            "n=100_m=2_rho=0.5",
-            "n=100_m=32_rho=0",
-            "n=100_m=32_rho=0.1",
-            "n=100_m=32_rho=0.5",
-            "all_fields",
-            "back_mutations",
-            "multichar",
-            "multichar_no_metadata",
-            "bottleneck_n=100_mutated",
+            "n=100_m=1_rho=0",
         }
     ],
 )
@@ -2548,9 +2546,13 @@ class GeneralStatFuncs:
     "ts,stat",
     [
         (
-            ts := [
-                p for p in get_example_tree_sequences() if p.id == "n=100_m=32_rho=0.5"
-            ][0].values[0],
+            ts := tsutil.get_sim_example(
+                sample_size=100,
+                sequence_length=32,
+                recombination_rate=0.5,
+                mutation_rate=0.1,
+                seed=123,
+            ),
             "D",
         ),
         (ts, "D2"),
@@ -2575,9 +2577,13 @@ def test_general_two_locus_site_stat(ts, stat):
     "ts,stat",
     [
         (
-            ts := [
-                p for p in get_example_tree_sequences() if p.id == "n=100_m=32_rho=0.5"
-            ][0].values[0],
+            ts := tsutil.get_sim_example(
+                sample_size=100,
+                sequence_length=32,
+                recombination_rate=0.5,
+                mutation_rate=0.1,
+                seed=123,
+            ),
             "r2_ij",
         ),
         (ts, "D2_ij"),
@@ -2609,7 +2615,7 @@ def test_general_two_locus_two_way_site_stat(ts, stat):
     ],
 )
 def test_general_one_way_two_locus_stat_multiallelic(stat):
-    (ts,) = {t.id: t for t in get_example_tree_sequences()}["all_fields"].values
+    ts = tsutil.all_fields_ts()
     func = getattr(GeneralStatFuncs, stat)
     if stat == "r2":
         result = ts.two_locus_count_stat(
@@ -2632,7 +2638,7 @@ def test_general_one_way_two_locus_stat_multiallelic(stat):
     ],
 )
 def test_general_two_way_two_locus_stat_multiallelic(stat):
-    (ts,) = {t.id: t for t in get_example_tree_sequences()}["all_fields"].values
+    ts = tsutil.all_fields_ts()
     func = getattr(GeneralStatFuncs, stat)
     if stat == "r2_ij":
 
