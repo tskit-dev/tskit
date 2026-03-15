@@ -671,6 +671,51 @@ class TestJSONStructCodec:
         out = ms.decode_row(encoded)
         assert out == row
 
+    def test_blob_bytes_aligned(self):
+        # test that the portion of the encoded metadata up until the struct
+        # is 8-byte aligned; we do that in the pedantic way
+        # of figuring out how much memory is being used per int
+        # in the struct part and subtracting that off
+        def schema_with_blobs(k):
+            schema = {
+                "codec": "json+struct",
+                "json": {
+                    "type": "object",
+                    "properties": {
+                        "label": {"type": "string"},
+                        "count": {"type": "number"},
+                    },
+                    "required": ["label"],
+                },
+                "struct": {
+                    "type": "object",
+                    "properties": {},
+                },
+            }
+            for j in range(k):
+                schema["struct"]["properties"][f"b{j}"] = {
+                    "type": "integer",
+                    "binaryFormat": "i",
+                }
+            return tskit.MetadataSchema(schema)
+
+        k_list = (0, 1, 2, 3)
+        schemas = [schema_with_blobs(k) for k in k_list]
+        rows = []
+        for k in k_list:
+            row = {"label": "alpha", "count": 7}
+            for j in range(k):
+                row[f"b{j}"] = j
+            rows.append(row)
+        encoded = [ms.validate_and_encode_row(row) for ms, row in zip(schemas, rows)]
+        dbytes = len(encoded[2]) - len(encoded[1])
+        assert len(encoded[3]) - len(encoded[2]) == dbytes
+        for k, en in zip(k_list, encoded):
+            assert (len(en) - k * dbytes) % 8 == 0
+        for ms, en, row in zip(schemas, encoded, rows):
+            decoded = ms.decode_row(en)
+            assert decoded == row
+
     def test_json_defaults_applied(self):
         schema = {
             "codec": "json+struct",

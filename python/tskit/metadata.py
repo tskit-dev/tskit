@@ -294,7 +294,8 @@ class JSONStructCodec(AbstractMetadataCodec):
         header = self._HDR.pack(
             self.MAGIC, self.VERSION, len(json_bytes), len(blob_bytes)
         )
-        return header + json_bytes + blob_bytes
+        padding_bytes = bytes((-(len(header) + len(json_bytes))) % 8)
+        return header + json_bytes + padding_bytes + blob_bytes
 
     def decode(self, encoded: bytes) -> Any:
         if len(encoded) >= self._HDR.size and encoded[:4] == self.MAGIC:
@@ -302,12 +303,16 @@ class JSONStructCodec(AbstractMetadataCodec):
             if version != self.VERSION:
                 raise ValueError("Unsupported json+struct version")
             start = self._HDR.size
-            if jlen > len(encoded) - start or blen > len(encoded) - start - jlen:
+            padding_length = (-(start + jlen)) % 8
+            if (
+                jlen > len(encoded) - start
+                or blen > len(encoded) - start - jlen - padding_length
+            ):
                 raise ValueError(
                     "Invalid json+struct payload: declared lengths exceed buffer size"
                 )
             json_bytes = encoded[start : start + jlen]
-            blob_bytes = encoded[start + jlen : start + jlen + blen]
+            blob_bytes = encoded[start + jlen : start + jlen + blen + padding_length]
             json_data = self.json_codec.decode(json_bytes)
             struct_data = self.struct_codec.decode(blob_bytes)
             overlap = set(json_data).intersection(struct_data)
