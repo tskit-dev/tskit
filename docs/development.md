@@ -1010,10 +1010,7 @@ be very useful. For example, to run a particular test case, we can do:
 
 
 ```bash
-gdb python
-(gdb) run -m pytest tests/test_python_c.py
-
-
+uv run gdb python
 (gdb) run  -m pytest -vs tests/test_tables.py::TestNodeTable::test_copy
 Starting program: /usr/bin/python3 run  -m pytest tests/test_tables.py::TestNodeTable::test_copy
 [Thread debugging using libthread_db enabled]
