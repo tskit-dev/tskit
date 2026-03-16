@@ -138,6 +138,23 @@ class LowLevelTestCase:
         )
         return ts.ll_tree_sequence
 
+    def get_example_tree_sequence_multiallelic(self, sample_size=10):
+        ts = msprime.sim_mutations(
+            msprime.sim_ancestry(
+                sample_size,
+                recombination_rate=0.1,
+                sequence_length=100,
+                ploidy=1,
+                random_seed=123,
+            ),
+            rate=0.1,
+            random_seed=123,
+        )
+        assert max({len(s.mutations) for s in ts.sites()}) > 2, (
+            "At least one multiallelic site required"
+        )
+        return ts.ll_tree_sequence
+
     def verify_iterator(self, iterator):
         """
         Checks that the specified non-empty iterator implements the
@@ -1989,6 +2006,12 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
 
     def test_two_locus_count_stat(self):
         ts = self.get_example_tree_sequence(10)
+        # Multiallelic test case to test norm function
+        ts_multi = self.get_example_tree_sequence_multiallelic()
+        assert (ts.get_samples() == ts_multi.get_samples()).all(), (
+            "biallelic and multiallelic test case are expected "
+            "to have the same sample nodes"
+        )
         ss = ts.get_samples()  # sample sets
         ss_sizes = np.array([len(ss)], dtype=np.uint32)
         row_sites = np.arange(ts.get_num_sites(), dtype=np.int32)
@@ -2007,10 +2030,9 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             return pAB - (pA * pB)
 
         def norm_func(X, n, nA, nB):
-            return np.expand_dims(X[0].sum() / n.sum(), axis=0)
+            return X[0].sum(keepdims=True) / n.sum()
 
-        method = ts.two_locus_count_stat
-
+        method = ts.two_locus_count_stat  # most tests on biallelic
         site_args = row_sites, col_sites, None, None, "site"
         branch_args = None, None, row_pos, col_pos, "branch"
         a = method(ss_sizes, ss, stat_func, norm_func, 1, True, *site_args)
@@ -2019,10 +2041,20 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         assert a.shape == (2, 2, 1)
         site_list_args = row_sites_list, col_sites_list, None, None, "site"
         branch_list_args = None, None, row_pos_list, col_pos_list, "branch"
+
+        # happy path
         a = method(ss_sizes, ss, stat_func, norm_func, 1, True, *site_list_args)
-        assert a.shape == (10, 10, 1)
+        assert a.shape == (10, 10, 1)  # ts has 10 sites
         a = method(ss_sizes, ss, stat_func, norm_func, 1, True, *branch_list_args)
-        assert a.shape == (2, 2, 1)
+        assert a.shape == (2, 2, 1)  # ts has 2 trees
+        a = ts_multi.two_locus_count_stat(
+            ss_sizes, ss, stat_func, norm_func, 1, True, None, None, None, None, "site"
+        )
+        assert a.shape == (56, 56, 1)  # ts has 56 sites
+        a = ts_multi.two_locus_count_stat(
+            ss_sizes, ss, stat_func, norm_func, 1, True, None, None, None, None, "branch"
+        )
+        assert a.shape == (48, 48, 1)  # ts has 48 trees
         # CPython API errors
         with pytest.raises(ValueError, match="Sum of sample_set_sizes"):
             bad_ss = np.array([], dtype=np.int32)
@@ -2094,10 +2126,55 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         with pytest.raises(TypeError, match="norm_func must be callable"):
             method(ss_sizes, ss, stat_func, "uncallable", 1, True, *site_args)
         with pytest.raises(ValueError, match="summary function.*must be 1D"):
-            method(ss_sizes, ss, lambda a, b: 1, norm_func, 1, True, *site_args)
-        with pytest.raises(ValueError, match="length 2; must be 1"):
-            method(ss_sizes, ss, lambda a, b: [1, 2], norm_func, 1, True, *site_args)
+            method(ss_sizes, ss, lambda *_: 1, norm_func, 1, True, *site_args)
+        with pytest.raises(ValueError, match="summary function.*length 2; must be 1"):
+            method(ss_sizes, ss, lambda *_: [1, 2], norm_func, 1, True, *site_args)
+        with pytest.raises(ValueError, match="could not convert string to float"):
+            method(ss_sizes, ss, lambda *_: ["nonfloat"], norm_func, 1, True, *site_args)
+        with pytest.raises(ValueError, match="norm function.*must be 1D"):
+            ts_multi.two_locus_count_stat(
+                ss_sizes, ss, stat_func, lambda *_: 1, 1, True, *site_args
+            )
+        with pytest.raises(
+            TypeError, match="takes 1 positional argument but 2 were given"
+        ):
+            ts_multi.two_locus_count_stat(
+                ss_sizes, ss, lambda _: 1, norm_func, 1, True, *site_args
+            )
+        with pytest.raises(ValueError, match="norm function.*length 2; must be 1"):
+            ts_multi.two_locus_count_stat(
+                ss_sizes, ss, stat_func, lambda *_: [1, 2], 1, True, *site_args
+            )
+        with pytest.raises(
+            TypeError, match="takes 1 positional argument but 4 were given"
+        ):
+            ts_multi.two_locus_count_stat(
+                ss_sizes, ss, stat_func, lambda _: [1, 2], 1, True, *site_args
+            )
+        with pytest.raises(ValueError, match="could not convert string to float"):
+            ts_multi.two_locus_count_stat(
+                ss_sizes, ss, stat_func, lambda *_: ["nonfloat"], 1, True, *site_args
+            )
+        # Exceptions within stat_func and norm_func are correctly raised.
+        for exception in [ValueError, TypeError]:
+
+            def stat_func_except(*_):
+                raise exception("test")
+
+            def norm_func_except(*_):
+                raise exception("test")
+
+            with pytest.raises(exception, match="test"):
+                method(
+                    ss_sizes, ss, stat_func_except, norm_func, 1, True, *site_list_args
+                )
+            with pytest.raises(exception, match="test"):
+                ts_multi.two_locus_count_stat(
+                    ss_sizes, ss, stat_func, norm_func_except, 1, True, *site_list_args
+                )
         # C API errors
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_BAD_RESULT_DIMS"):
+            method(ss_sizes, ss, stat_func, norm_func, 0, True, *site_list_args)
         with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_UNSORTED_SITES"):
             bad_sites = np.array([1, 0, 2], dtype=np.int32)
             bad_site_args = bad_sites, col_sites, None, None, "site"

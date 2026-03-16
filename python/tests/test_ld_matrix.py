@@ -2538,55 +2538,49 @@ class GeneralStatFuncs:
         )
 
 
-@pytest.mark.parametrize(
-    "ts,stat",
-    [
-        (
-            ts := tsutil.get_sim_example(
-                sample_size=100,
-                sequence_length=32,
-                recombination_rate=0.5,
-                mutation_rate=0.1,
-                seed=123,
-            ),
-            "D",
+@pytest.fixture(scope="module")
+def ts_100_samp_with_sites_fixture():
+    ts = tsutil.get_sim_example(
+        sample_size=100,
+        sequence_length=32,
+        recombination_rate=0.5,
+        mutation_rate=0.1,
+        seed=123,
+    )
+    assert ts.num_sites > 0, "sites are required"
+    assert ts.num_samples == 100, "100 samples are required"
+    return ts
+
+
+@pytest.fixture(scope="module")
+def ts_multiallelic_fixture():
+    ts = msprime.sim_mutations(
+        msprime.sim_ancestry(
+            2, recombination_rate=0.1, sequence_length=100, random_seed=123
         ),
-        (ts, "D2"),
-        (ts, "r2"),
-        (ts, "r"),
-        (ts, "D_prime"),
-        (ts, "Dz"),
-        (ts, "pi2"),
-        (ts, "D2_unbiased"),
-        (ts, "Dz_unbiased"),
-        (ts, "pi2_unbiased"),
-    ],
-)
-def test_general_two_locus_site_stat(ts, stat):
+        rate=0.1,
+        random_seed=123,
+    )
+    # Need at least 4 samples to test unbiased statistics
+    assert ts.num_samples >= 4, "At least 4 samples required"
+    assert max({len(s.mutations) for s in ts.sites()}) > 2, (
+        "At least one multiallelic site required"
+    )
+    return ts
+
+
+@pytest.mark.parametrize("stat", SUMMARY_FUNCS.keys())
+def test_general_two_locus_site_stat(stat, ts_100_samp_with_sites_fixture):
+    ts = ts_100_samp_with_sites_fixture
     sample_sets = [ts.samples()[0:50], ts.samples()[50:100]]
     ldg = ts.two_locus_count_stat(sample_sets, getattr(GeneralStatFuncs, stat), 2)
     ld = ts.ld_matrix(sample_sets=sample_sets, stat=stat)
     np.testing.assert_array_almost_equal(ldg, ld)
 
 
-@pytest.mark.parametrize(
-    "ts,stat",
-    [
-        (
-            ts := tsutil.get_sim_example(
-                sample_size=100,
-                sequence_length=32,
-                recombination_rate=0.5,
-                mutation_rate=0.1,
-                seed=123,
-            ),
-            "r2_ij",
-        ),
-        (ts, "D2_ij"),
-        (ts, "D2_ij_unbiased"),
-    ],
-)
-def test_general_two_locus_two_way_site_stat(ts, stat):
+@pytest.mark.parametrize("stat", ["r2_ij", "D2_ij", "D2_ij_unbiased"])
+def test_general_two_locus_two_way_site_stat(stat, ts_100_samp_with_sites_fixture):
+    ts = ts_100_samp_with_sites_fixture
     sample_sets = [ts.samples()[0:50], ts.samples()[50:100]]
     ldg = ts.two_locus_count_stat(sample_sets, getattr(GeneralStatFuncs, stat), 1)
     ld = ts.ld_matrix(
@@ -2595,62 +2589,31 @@ def test_general_two_locus_two_way_site_stat(ts, stat):
     np.testing.assert_array_almost_equal(ldg, ld)
 
 
-@pytest.mark.parametrize(
-    "stat",
-    [
-        "D",
-        "D2",
-        "r2",
-        "r",
-        "D_prime",
-        "Dz",
-        "pi2",
-        "D2_unbiased",
-        "Dz_unbiased",
-        "pi2_unbiased",
-    ],
-)
-def test_general_one_way_two_locus_stat_multiallelic(stat):
-    ts = tsutil.all_fields_ts()
-    func = getattr(GeneralStatFuncs, stat)
-    if stat == "r2":
-        result = ts.two_locus_count_stat(
-            [ts.samples()], func, 1, lambda X, n, nA, nB: X[0] / n
-        )
-    elif stat in {"D", "r", "D_prime"}:
-        result = ts.two_locus_count_stat([ts.samples()], func, 1, polarised=True)
-    else:
-        # default norm func is `lambda X, n, nA, nB: 1 / (nA * nB)[np.newaxis,]`
-        result = ts.two_locus_count_stat([ts.samples()], func, 1)
-    np.testing.assert_array_almost_equal(ts.ld_matrix(stat=stat), result)
-
-
-@pytest.mark.parametrize(
-    "stat",
-    [
-        "r2_ij",
-        "D2_ij",
-        "D2_ij_unbiased",
-    ],
-)
-def test_general_two_way_two_locus_stat_multiallelic(stat):
-    ts = tsutil.all_fields_ts()
-    func = getattr(GeneralStatFuncs, stat)
-    if stat == "r2_ij":
-        result = ts.two_locus_count_stat(
-            [ts.samples(), ts.samples()],
-            func,
-            1,
-            lambda X, n, nA, nB: X[0].sum(keepdims=True) / n.sum(),
-        )
-    else:
-        # default norm func is `lambda X, n, nA, nB: 1 / (nA * nB)[np.newaxis,]`
-        result = ts.two_locus_count_stat([ts.samples(), ts.samples()], func, 1)
-    np.testing.assert_array_almost_equal(
-        ts.ld_matrix(
-            stat=stat.replace("_ij", ""),
-            indexes=(0, 1),
-            sample_sets=[ts.samples(), ts.samples()],
-        ),
-        result,
+@pytest.mark.parametrize("stat", SUMMARY_FUNCS.keys())
+def test_general_one_way_two_locus_stat_multiallelic(stat, ts_multiallelic_fixture):
+    ts = ts_multiallelic_fixture
+    general_func = getattr(GeneralStatFuncs, stat)
+    norm_func = (lambda X, n, nA, nB: X[0] / n) if stat == "r2" else None
+    polarised = POLARIZATION[SUMMARY_FUNCS[stat]]
+    ldg = ts.two_locus_count_stat(
+        [ts.samples()], general_func, 1, norm_f=norm_func, polarised=polarised
     )
+    ld = ts.ld_matrix(stat=stat)
+    np.testing.assert_array_almost_equal(ld, ldg)
+
+
+@pytest.mark.parametrize("stat", ["r2_ij", "D2_ij", "D2_ij_unbiased"])
+def test_general_two_way_two_locus_stat_multiallelic(stat, ts_multiallelic_fixture):
+    ts = ts_multiallelic_fixture
+    general_func = getattr(GeneralStatFuncs, stat)
+    norm_func = (
+        (lambda X, n, nA, nB: X[0].sum(keepdims=True) / n.sum())
+        if stat == "r2_ij"
+        else None
+    )
+    sample_sets = [ts.samples(), ts.samples()]
+    ldg = ts.two_locus_count_stat(sample_sets, general_func, 1, norm_f=norm_func)
+    ld = ts.ld_matrix(
+        stat=stat.replace("_ij", ""), indexes=(0, 1), sample_sets=sample_sets
+    )
+    np.testing.assert_array_almost_equal(ld, ldg)
