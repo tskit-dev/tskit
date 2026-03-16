@@ -10936,7 +10936,7 @@ class TreeSequence:
         sample_sets,
         f,
         result_dim,
-        norm_f=lambda X, n, nA, nB: np.expand_dims(1 / (nA * nB), axis=0),
+        norm_f=lambda X, n, nA, nB: 1 / (nA * nB)[np.newaxis,],
         polarised=False,
         sites=None,
         positions=None,
