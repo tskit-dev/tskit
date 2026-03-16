@@ -201,6 +201,12 @@ class JSONStructCodec(AbstractMetadataCodec):
     The codec expects a metadata schema with separate ``json`` and ``struct``
     subschemas and produces a single dict containing the union of the keys from
     those subschemas after decoding.
+
+    The structure of the encoded metadata is as follows: first, a fixed-size
+    header that contains the number of bytes for both ``json`` and ``struct``
+    portions; next, the json; then a variable number of zeroed padding bytes
+    that brings the length to a multiple of 8 for alignment; and finally
+    the struct-encoded binary portion.
     """
 
     MAGIC = b"JBLB"
