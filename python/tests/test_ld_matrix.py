@@ -2400,16 +2400,19 @@ def test_multipopulation_r2_varying_unequal_set_sizes(genotypes, sample_sets, ex
 
 class GeneralStatFuncs:
     """
-    functions take X, n as parameters where
+    Summary functions take X, n as parameters where X is a matrix of haplotype
+    counts per sample set and n is a vector of sample set sizes. X has shape (3, k)
+    and n has shape (k, ), where k is the number of sample sets. The rows of X
+    contain haplotype counts for AB, Ab, aB (capitalized == derived).
 
-    X: shape=(3, #ss)
+    X: shape=(3, k)
                 sample sets
-    count AB [[             ]
-    count Ab  [             ]
-    count aB  [             ]]
+    count AB [[ #ss1, #ss2, ... ]
+    count Ab  [ #ss1, #ss2, ... ]
+    count aB  [ #ss1, #ss2, ... ]]
 
-    n: shape=(#ss, )
-              [             ]
+    n: shape=(k, )
+              [ #ss1, #ss2, ... ]
     """
 
     @staticmethod
@@ -2480,37 +2483,39 @@ class GeneralStatFuncs:
     def D2_unbiased(X, n):
         AB, Ab, aB = X
         ab = n - X.sum(0)
-        return (1 / (n * (n - 1) * (n - 2) * (n - 3))) * (
+        return (
             ((aB**2) * (Ab - 1) * Ab)
             + ((ab - 1) * ab * (AB - 1) * AB)
             - (aB * Ab * (Ab + (2 * ab * AB) - 1))
-        )
+        ) / (n * (n - 1) * (n - 2) * (n - 3))
 
     @staticmethod
     def Dz_unbiased(X, n):
         AB, Ab, aB = X
         ab = n - X.sum(0)
-        return (1 / (n * (n - 1) * (n - 2) * (n - 3))) * (
+        return (
             (((AB * ab) - (Ab * aB)) * (aB + ab - AB - Ab) * (Ab + ab - AB - aB))
             - ((AB * ab) * (AB + ab - Ab - aB - 2))
             - ((Ab * aB) * (Ab + aB - AB - ab - 2))
-        )
+        ) / (n * (n - 1) * (n - 2) * (n - 3))
 
     @staticmethod
     def pi2_unbiased(X, n):
         AB, Ab, aB = X
         ab = n - X.sum(0)
-        return (1 / (n * (n - 1) * (n - 2) * (n - 3))) * (
+        return (
             ((AB + Ab) * (aB + ab) * (AB + aB) * (Ab + ab))
             - ((AB * ab) * (AB + ab + (3 * Ab) + (3 * aB) - 1))
             - ((Ab * aB) * (Ab + aB + (3 * AB) + (3 * ab) - 1))
-        )
+        ) / (n * (n - 1) * (n - 2) * (n - 3))
 
+    # Two-way statistics have the _ij suffix.
     @staticmethod
     def r2_ij(X, n):
         pAB, pAb, paB = X / n
         pA = pAb + pAB
         pB = paB + pAB
+        # keepdims preserves the output shape of (1, )
         D2_ij = np.prod(pAB - (pA * pB), keepdims=True)
         denom = np.prod(np.sqrt(pA * pB * (1 - pA) * (1 - pB)), keepdims=True)
         with suppress_overflow_div0_warning():
@@ -2525,17 +2530,37 @@ class GeneralStatFuncs:
 
     @staticmethod
     def D2_ij_unbiased(X, n):
-        """NB: We use double brackets here to preserve the output shape of (1,)"""
+        """The identity of the sample sets is up to the user."""
         AB, Ab, aB = X
         ab = n - X.sum(0)
-        return (
-            (Ab[[0]] * aB[[0]] - AB[[0]] * ab[[0]])
-            * (Ab[[1]] * aB[[1]] - AB[[1]] * ab[[1]])
-            / n[[0]]
-            / (n[[0]] - 1)
-            / n[[1]]
-            / (n[[1]] - 1)
+        return [
+            (Ab[0] * aB[0] - AB[0] * ab[0])
+            * (Ab[1] * aB[1] - AB[1] * ab[1])
+            / (n[0] * (n[0] - 1) * n[1] * (n[1] - 1))
+        ]
+
+    @staticmethod
+    def D2_ii_ij_jj_unbiased(X, n):
+        """
+        Multiple stats can be computed from the same data. The identity of the
+        sample sets is up to the user. This function assumes two sample sets.
+        """
+        AB, Ab, aB = X
+        ab = n - X.sum(0)
+
+        # unbiased estimator for equal sample sets
+        ii, jj = (
+            AB * (AB - 1) * ab * (ab - 1)
+            + Ab * (Ab - 1) * aB * (aB - 1)
+            - 2 * AB * Ab * aB * ab
+        ) / (n * (n - 1) * (n - 2) * (n - 3))
+        # unbiased estimator for disjoint sample sets
+        ij = (
+            (Ab[0] * aB[0] - AB[0] * ab[0])
+            * (Ab[1] * aB[1] - AB[1] * ab[1])
+            / (n[0] * (n[0] - 1) * n[1] * (n[1] - 1))
         )
+        return [ii, ij, jj]
 
 
 @pytest.fixture(scope="module")
@@ -2573,7 +2598,17 @@ def ts_multiallelic_fixture():
 def test_general_two_locus_site_stat(stat, ts_100_samp_with_sites_fixture):
     ts = ts_100_samp_with_sites_fixture
     sample_sets = [ts.samples()[0:50], ts.samples()[50:100]]
-    ldg = ts.two_locus_count_stat(sample_sets, getattr(GeneralStatFuncs, stat), 2)
+
+    # In addition to not needing a normalisation function, normalisation is also
+    # not required because these sites are biallelic.
+    def assert_no_norm_func(*_):
+        raise Exception(
+            "Normalisation function should not be called for biallelic sites"
+        )
+
+    ldg = ts.two_locus_count_stat(
+        sample_sets, getattr(GeneralStatFuncs, stat), 2, norm_f=assert_no_norm_func
+    )
     ld = ts.ld_matrix(sample_sets=sample_sets, stat=stat)
     np.testing.assert_array_almost_equal(ldg, ld)
 
@@ -2584,7 +2619,7 @@ def test_general_two_locus_two_way_site_stat(stat, ts_100_samp_with_sites_fixtur
     sample_sets = [ts.samples()[0:50], ts.samples()[50:100]]
     ldg = ts.two_locus_count_stat(sample_sets, getattr(GeneralStatFuncs, stat), 1)
     ld = ts.ld_matrix(
-        sample_sets=sample_sets, stat=stat.replace("_ij", ""), indexes=(0, 1)
+        sample_sets=sample_sets, stat=stat.replace("_ij", ""), indexes=[(0, 1)]
     )
     np.testing.assert_array_almost_equal(ldg, ld)
 
@@ -2599,7 +2634,24 @@ def test_general_one_way_two_locus_stat_multiallelic(stat, ts_multiallelic_fixtu
         [ts.samples()], general_func, 1, norm_f=norm_func, polarised=polarised
     )
     ld = ts.ld_matrix(stat=stat)
-    np.testing.assert_array_almost_equal(ld, ldg)
+    # ld_matrix drops dims, expand for comparison
+    np.testing.assert_array_almost_equal(ldg, np.expand_dims(ld, 0))
+
+
+@pytest.mark.parametrize("stat", SUMMARY_FUNCS.keys())
+def test_general_one_way_two_locus_stat_multiallelic_multi_sample_set(
+    stat, ts_multiallelic_fixture
+):
+    ts = ts_multiallelic_fixture
+    general_func = getattr(GeneralStatFuncs, stat)
+    norm_func = (lambda X, n, nA, nB: X[0] / n) if stat == "r2" else None
+    polarised = POLARIZATION[SUMMARY_FUNCS[stat]]
+    sample_sets = [ts.samples(), ts.samples()]
+    ldg = ts.two_locus_count_stat(
+        sample_sets, general_func, 2, norm_f=norm_func, polarised=polarised
+    )
+    ld = ts.ld_matrix(stat=stat, sample_sets=sample_sets)
+    np.testing.assert_array_almost_equal(ldg, ld)
 
 
 @pytest.mark.parametrize("stat", ["r2_ij", "D2_ij", "D2_ij_unbiased"])
@@ -2616,4 +2668,25 @@ def test_general_two_way_two_locus_stat_multiallelic(stat, ts_multiallelic_fixtu
     ld = ts.ld_matrix(
         stat=stat.replace("_ij", ""), indexes=(0, 1), sample_sets=sample_sets
     )
-    np.testing.assert_array_almost_equal(ld, ldg)
+    # ld_matrix drops dims, expand for comparison
+    np.testing.assert_array_almost_equal(ldg, np.expand_dims(ld, 0))
+
+
+def test_general_two_locus_multi_outputs():
+    ts = msprime.sim_mutations(
+        msprime.sim_ancestry(
+            4, recombination_rate=0.1, sequence_length=100, random_seed=123
+        ),
+        rate=0.1,
+        random_seed=123,
+    )
+    assert ts.num_samples == 8, "8 samples are required"
+    assert max({len(s.mutations) for s in ts.sites()}) > 2, (
+        "At least one multiallelic site required"
+    )
+    A = ts.samples()[0:4]
+    B = ts.samples()[4:]
+
+    ldg = ts.two_locus_count_stat([A, B], GeneralStatFuncs.D2_ii_ij_jj_unbiased, 3)
+    ld = ts.ld_matrix([A, B], stat="D2_unbiased", indexes=[(0, 0), (0, 1), (1, 1)])
+    np.testing.assert_array_almost_equal(ldg, ld)
