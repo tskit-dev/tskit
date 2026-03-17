@@ -11029,7 +11029,7 @@ class TreeSequence:
             mode,
         )
         # Orient the data so that the first dimension is the sample set so that
-        # we get one LD matrix per sample set.
+        # we get one LD matrix per result dimension
         return np.moveaxis(result, -1, 0)
 
     def ld_matrix(
