@@ -11014,12 +11014,14 @@ class TreeSequence:
         row_sites, col_sites = self.parse_sites(sites)
         row_positions, col_positions = self.parse_positions(positions)
         _, sample_sets, sample_set_sizes = self.__convert_sample_sets(sample_sets)
+        if norm_f is None:
+            # produce the same number of dims as output dimensions with [val] * dim
+            norm_f = lambda X, n, nA, nB: [1 / (nA * nB)] * result_dim
         result = self._ll_tree_sequence.two_locus_count_stat(
             sample_set_sizes,
             sample_sets,
             f,
-            # produce the same number of dims as output dimensions
-            norm_f or (lambda X, n, nA, nB: [1 / (nA * nB)] * result_dim),
+            norm_f,
             result_dim,
             polarised,
             row_sites,
