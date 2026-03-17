@@ -11016,7 +11016,9 @@ class TreeSequence:
         _, sample_sets, sample_set_sizes = self.__convert_sample_sets(sample_sets)
         if norm_f is None:
             # produce the same number of dims as output dimensions with [val] * dim
-            norm_f = lambda X, n, nA, nB: [1 / (nA * nB)] * result_dim
+            def norm_f(X, n, nA, nB):
+                return [1 / (nA * nB)] * result_dim
+
         result = self._ll_tree_sequence.two_locus_count_stat(
             sample_set_sizes,
             sample_sets,
