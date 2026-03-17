@@ -2005,13 +2005,8 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             stat_method(ss_sizes, ss, indexes, col_sites, row_sites, None, None, "node")
 
     def test_two_locus_count_stat(self):
+        """Test two_locus_count_stat on biallelic data (no norm function)"""
         ts = self.get_example_tree_sequence(10)
-        # Multiallelic test case to test norm function
-        ts_multi = self.get_example_tree_sequence_multiallelic()
-        assert (ts.get_samples() == ts_multi.get_samples()).all(), (
-            "biallelic and multiallelic test case are expected "
-            "to have the same sample nodes"
-        )
         ss = ts.get_samples()  # sample sets
         ss_sizes = np.array([len(ss)], dtype=np.uint32)
         row_sites = np.arange(ts.get_num_sites(), dtype=np.int32)
@@ -2029,37 +2024,33 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             pB = paB + pAB
             return pAB - (pA * pB)
 
-        def norm_func(X, n, nA, nB):
-            return X[0].sum(keepdims=True) / n.sum()
+        def norm_func(*_):
+            raise Exception  # norm function will not be used
 
-        method = ts.two_locus_count_stat  # most tests on biallelic
+        method = ts.two_locus_count_stat
         site_args = row_sites, col_sites, None, None, "site"
         branch_args = None, None, row_pos, col_pos, "branch"
+        # happy path
         a = method(ss_sizes, ss, stat_func, norm_func, 1, True, *site_args)
-        assert a.shape == (10, 10, 1)
+        assert a.shape == (ts.get_num_sites(), ts.get_num_sites(), 1)
         a = method(ss_sizes, ss, stat_func, norm_func, 1, True, *branch_args)
-        assert a.shape == (2, 2, 1)
+        assert a.shape == (ts.get_num_trees(), ts.get_num_trees(), 1)
+        # happy path - sample sets as lists are also valid
         site_list_args = row_sites_list, col_sites_list, None, None, "site"
         branch_list_args = None, None, row_pos_list, col_pos_list, "branch"
-
-        # happy path
         a = method(ss_sizes, ss, stat_func, norm_func, 1, True, *site_list_args)
-        assert a.shape == (10, 10, 1)  # ts has 10 sites
+        assert a.shape == (ts.get_num_sites(), ts.get_num_sites(), 1)
         a = method(ss_sizes, ss, stat_func, norm_func, 1, True, *branch_list_args)
-        assert a.shape == (2, 2, 1)  # ts has 2 trees
-        a = ts_multi.two_locus_count_stat(
+        assert a.shape == (ts.get_num_trees(), ts.get_num_trees(), 1)
+        # happy path - default array filling
+        a = method(
             ss_sizes, ss, stat_func, norm_func, 1, True, None, None, None, None, "site"
         )
-        import platform
-
-        if platform.system() == "Darwin":
-            assert a.shape == (54, 54, 1)  # ts has 54 sites on macos?
-        else:
-            assert a.shape == (56, 56, 1)  # ts has 56 sites
-        a = ts_multi.two_locus_count_stat(
+        assert a.shape == (ts.get_num_sites(), ts.get_num_sites(), 1)
+        a = method(
             ss_sizes, ss, stat_func, norm_func, 1, True, None, None, None, None, "branch"
         )
-        assert a.shape == (48, 48, 1)  # ts has 48 trees
+        assert a.shape == (ts.get_num_trees(), ts.get_num_trees(), 1)
         # CPython API errors
         with pytest.raises(ValueError, match="Sum of sample_set_sizes"):
             bad_ss = np.array([], dtype=np.int32)
@@ -2136,98 +2127,115 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             method(ss_sizes, ss, lambda *_: [1, 2], norm_func, 1, True, *site_args)
         with pytest.raises(ValueError, match="could not convert string to float"):
             method(ss_sizes, ss, lambda *_: ["nonfloat"], norm_func, 1, True, *site_args)
-        with pytest.raises(ValueError, match="norm function.*must be 1D"):
-            ts_multi.two_locus_count_stat(
-                ss_sizes, ss, stat_func, lambda *_: 1, 1, True, *site_args
-            )
-        with pytest.raises(
-            TypeError, match="takes 1 positional argument but 2 were given"
-        ):
-            ts_multi.two_locus_count_stat(
-                ss_sizes, ss, lambda _: 1, norm_func, 1, True, *site_args
-            )
-        with pytest.raises(ValueError, match="norm function.*length 2; must be 1"):
-            ts_multi.two_locus_count_stat(
-                ss_sizes, ss, stat_func, lambda *_: [1, 2], 1, True, *site_args
-            )
-        with pytest.raises(
-            TypeError, match="takes 1 positional argument but 4 were given"
-        ):
-            ts_multi.two_locus_count_stat(
-                ss_sizes, ss, stat_func, lambda _: [1, 2], 1, True, *site_args
-            )
-        with pytest.raises(ValueError, match="could not convert string to float"):
-            ts_multi.two_locus_count_stat(
-                ss_sizes, ss, stat_func, lambda *_: ["nonfloat"], 1, True, *site_args
-            )
-        # Exceptions within stat_func and norm_func are correctly raised.
+        # Exceptions within stat_func are correctly raised.
         for exception in [ValueError, TypeError]:
 
             def stat_func_except(*_):
                 raise exception("test")  # noqa: B023
 
+            with pytest.raises(exception, match="test"):
+                method(ss_sizes, ss, stat_func_except, norm_func, 1, True, *site_args)
+        # C API errors
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_BAD_RESULT_DIMS"):
+            method(ss_sizes, ss, stat_func, norm_func, 0, True, *site_args)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_UNSORTED_SITES"):
+            bad_sites = np.array([1, 0, 2], dtype=np.int32)
+            bad_site_args = bad_sites, col_sites, None, None, "site"
+            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_site_args)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_UNSORTED_SITES"):
+            bad_sites = np.array([1, 0, 2], dtype=np.int32)
+            bad_site_args = row_sites, bad_sites, None, None, "site"
+            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_site_args)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_SITES"):
+            bad_sites = np.array([1, 1, 2], dtype=np.int32)
+            bad_site_args = bad_sites, col_sites, None, None, "site"
+            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_site_args)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_SITES"):
+            bad_sites = np.array([1, 1, 2], dtype=np.int32)
+            bad_site_args = row_sites, bad_sites, None, None, "site"
+            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_site_args)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_SITE_OUT_OF_BOUNDS"):
+            bad_sites = np.array([-1, 0, 2], dtype=np.int32)
+            bad_site_args = bad_sites, col_sites, None, None, "site"
+            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_site_args)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_SITE_OUT_OF_BOUNDS"):
+            bad_sites = np.array([-1, 0, 2], dtype=np.int32)
+            bad_site_args = row_sites, bad_sites, None, None, "site"
+            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_site_args)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_UNSORTED_POSITIONS"):
+            bad_pos = np.array([0.7, 0, 0.8], dtype=np.float64)
+            bad_branch_args = None, None, bad_pos, col_pos, "branch"
+            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_branch_args)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_UNSORTED_POSITIONS"):
+            bad_pos = np.array([0.7, 0, 0.8], dtype=np.float64)
+            bad_branch_args = None, None, row_pos, bad_pos, "branch"
+            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_branch_args)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_POSITIONS"):
+            bad_pos = np.array([0.7, 0.7, 0.8], dtype=np.float64)
+            bad_branch_args = None, None, bad_pos, col_pos, "branch"
+            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_branch_args)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_POSITIONS"):
+            bad_pos = np.array([0.7, 0.7, 0.8], dtype=np.float64)
+            bad_branch_args = None, None, row_pos, bad_pos, "branch"
+            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_branch_args)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_POSITION_OUT_OF_BOUNDS"):
+            bad_pos = np.array([-0.1, 0.7, 0.8], dtype=np.float64)
+            bad_branch_args = None, None, bad_pos, col_pos, "branch"
+            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_branch_args)
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_POSITION_OUT_OF_BOUNDS"):
+            bad_pos = np.array([-0.1, 0.7, 0.8], dtype=np.float64)
+            bad_branch_args = None, None, row_pos, bad_pos, "branch"
+            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_branch_args)
+
+    def test_two_locus_count_stat_multialleliic(self):
+        """
+        Test two_locus_count_stat on multiallelic sites to test the behavior of
+        the norm function.
+        """
+        ts = self.get_example_tree_sequence_multiallelic()
+
+        def stat_func(X, n):
+            pAB, pAb, paB = X / n
+            pA = pAb + pAB
+            pB = paB + pAB
+            return pAB - (pA * pB)
+
+        def norm_func(X, n, nA, nB):
+            return X[0].sum(keepdims=True) / n.sum()
+
+        ss = ts.get_samples()  # sample sets
+        ss_sizes = np.array([len(ss)], dtype=np.uint32)
+        row_sites = np.arange(ts.get_num_sites(), dtype=np.int32)
+        col_sites = row_sites
+        method = ts.two_locus_count_stat
+        site_args = row_sites, col_sites, None, None, "site"
+
+        # happy path
+        a = method(ss_sizes, ss, stat_func, norm_func, 1, True, *site_args)
+        assert a.shape == (ts.get_num_sites(), ts.get_num_sites(), 1)
+        # CPython API errors
+        with pytest.raises(ValueError, match="norm function.*must be 1D"):
+            method(ss_sizes, ss, stat_func, lambda *_: 1, 1, True, *site_args)
+        with pytest.raises(
+            TypeError, match="takes 1 positional argument but 2 were given"
+        ):
+            method(ss_sizes, ss, lambda _: 1, norm_func, 1, True, *site_args)
+        with pytest.raises(ValueError, match="norm function.*length 2; must be 1"):
+            method(ss_sizes, ss, stat_func, lambda *_: [1, 2], 1, True, *site_args)
+        with pytest.raises(
+            TypeError, match="takes 1 positional argument but 4 were given"
+        ):
+            method(ss_sizes, ss, stat_func, lambda _: [1, 2], 1, True, *site_args)
+        with pytest.raises(ValueError, match="could not convert string to float"):
+            method(ss_sizes, ss, stat_func, lambda *_: ["nonfloat"], 1, True, *site_args)
+        # Exceptions within stat_func are correctly raised.
+        for exception in [ValueError, TypeError]:
+
             def norm_func_except(*_):
                 raise exception("test")  # noqa: B023
 
             with pytest.raises(exception, match="test"):
-                method(
-                    ss_sizes, ss, stat_func_except, norm_func, 1, True, *site_list_args
-                )
-            with pytest.raises(exception, match="test"):
-                ts_multi.two_locus_count_stat(
-                    ss_sizes, ss, stat_func, norm_func_except, 1, True, *site_list_args
-                )
-        # C API errors
-        with pytest.raises(tskit.LibraryError, match="TSK_ERR_BAD_RESULT_DIMS"):
-            method(ss_sizes, ss, stat_func, norm_func, 0, True, *site_list_args)
-        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_UNSORTED_SITES"):
-            bad_sites = np.array([1, 0, 2], dtype=np.int32)
-            bad_site_args = bad_sites, col_sites, None, None, "site"
-            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_site_args)
-        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_UNSORTED_SITES"):
-            bad_sites = np.array([1, 0, 2], dtype=np.int32)
-            bad_site_args = row_sites, bad_sites, None, None, "site"
-            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_site_args)
-        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_SITES"):
-            bad_sites = np.array([1, 1, 2], dtype=np.int32)
-            bad_site_args = bad_sites, col_sites, None, None, "site"
-            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_site_args)
-        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_SITES"):
-            bad_sites = np.array([1, 1, 2], dtype=np.int32)
-            bad_site_args = row_sites, bad_sites, None, None, "site"
-            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_site_args)
-        with pytest.raises(tskit.LibraryError, match="TSK_ERR_SITE_OUT_OF_BOUNDS"):
-            bad_sites = np.array([-1, 0, 2], dtype=np.int32)
-            bad_site_args = bad_sites, col_sites, None, None, "site"
-            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_site_args)
-        with pytest.raises(tskit.LibraryError, match="TSK_ERR_SITE_OUT_OF_BOUNDS"):
-            bad_sites = np.array([-1, 0, 2], dtype=np.int32)
-            bad_site_args = row_sites, bad_sites, None, None, "site"
-            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_site_args)
-        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_UNSORTED_POSITIONS"):
-            bad_pos = np.array([0.7, 0, 0.8], dtype=np.float64)
-            bad_branch_args = None, None, bad_pos, col_pos, "branch"
-            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_branch_args)
-        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_UNSORTED_POSITIONS"):
-            bad_pos = np.array([0.7, 0, 0.8], dtype=np.float64)
-            bad_branch_args = None, None, row_pos, bad_pos, "branch"
-            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_branch_args)
-        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_POSITIONS"):
-            bad_pos = np.array([0.7, 0.7, 0.8], dtype=np.float64)
-            bad_branch_args = None, None, bad_pos, col_pos, "branch"
-            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_branch_args)
-        with pytest.raises(tskit.LibraryError, match="TSK_ERR_STAT_DUPLICATE_POSITIONS"):
-            bad_pos = np.array([0.7, 0.7, 0.8], dtype=np.float64)
-            bad_branch_args = None, None, row_pos, bad_pos, "branch"
-            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_branch_args)
-        with pytest.raises(tskit.LibraryError, match="TSK_ERR_POSITION_OUT_OF_BOUNDS"):
-            bad_pos = np.array([-0.1, 0.7, 0.8], dtype=np.float64)
-            bad_branch_args = None, None, bad_pos, col_pos, "branch"
-            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_branch_args)
-        with pytest.raises(tskit.LibraryError, match="TSK_ERR_POSITION_OUT_OF_BOUNDS"):
-            bad_pos = np.array([-0.1, 0.7, 0.8], dtype=np.float64)
-            bad_branch_args = None, None, row_pos, bad_pos, "branch"
-            method(ss_sizes, ss, stat_func, norm_func, 1, True, *bad_branch_args)
+                method(ss_sizes, ss, stat_func, norm_func_except, 1, True, *site_args)
 
     def test_kc_distance_errors(self):
         ts1 = self.get_example_tree_sequence(10)
