@@ -2594,33 +2594,18 @@ def ts_multiallelic_fixture():
     return ts
 
 
-def assert_no_norm_func(*_):
-    """Used in biallelic tests"""
-    raise Exception("Normalisation function should not be called for biallelic sites")
-
-
 @pytest.mark.parametrize("stat", SUMMARY_FUNCS.keys())
-def test_general_two_locus_site_stat_default_sample_sets(
-    stat, ts_100_samp_with_sites_fixture
-):
-    ts = ts_100_samp_with_sites_fixture
-    # In addition to not needing a normalisation function, normalisation is also
-    # not required because these sites are biallelic.
-    ldg = ts.two_locus_count_stat(
-        [ts.samples()], getattr(GeneralStatFuncs, stat), 2, norm_f=assert_no_norm_func
-    )
-    ld = ts.ld_matrix(stat=stat)  # use default sample sets
-    np.testing.assert_array_almost_equal(ldg, ld)
-
-
-@pytest.mark.parametrize("stat", SUMMARY_FUNCS.keys())
-def test_general_two_locus_site_stat_two_sample_sets(
-    stat, ts_100_samp_with_sites_fixture
-):
+def test_general_two_locus_site_stat(stat, ts_100_samp_with_sites_fixture):
     ts = ts_100_samp_with_sites_fixture
     sample_sets = [ts.samples()[0:50], ts.samples()[50:100]]
+
     # In addition to not needing a normalisation function, normalisation is also
     # not required because these sites are biallelic.
+    def assert_no_norm_func(*_):
+        raise Exception(
+            "Normalisation function should not be called for biallelic sites"
+        )
+
     ldg = ts.two_locus_count_stat(
         sample_sets, getattr(GeneralStatFuncs, stat), 2, norm_f=assert_no_norm_func
     )
