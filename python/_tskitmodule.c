@@ -7916,6 +7916,7 @@ parse_sites(TreeSequence *self, PyObject *sites, npy_intp *out_dim)
         if (array == NULL) {
             goto out;
         }
+        PyArray_CLEARFLAGS(array, NPY_ARRAY_WRITEABLE);
         *out_dim = PyArray_DIM(array, 0);
     }
 
@@ -7940,6 +7941,7 @@ parse_positions(TreeSequence *self, PyObject *positions, npy_intp *out_dim)
         if (array == NULL) {
             goto out;
         }
+        PyArray_CLEARFLAGS(array, NPY_ARRAY_WRITEABLE);
         *out_dim = PyArray_DIM(array, 0);
     }
 out:
@@ -7966,17 +7968,13 @@ general_two_locus_norm_func(tsk_size_t K, const double *X, tsk_size_t result_dim
     two_locus_general_stat_params *tl_params = params;
     PyObject *summary_func = tl_params->norm_func;
     PyArrayObject *ss_sizes = tl_params->sample_set_sizes;
-    npy_intp X_dims[2] = { K, 3 };
+    npy_intp X_dims[2] = { 3, K };
+    npy_intp X_strides[2] = { sizeof(double), sizeof(double) * 3 };
 
-    // Create a read only view of X as a numpy array
-    X_array = (PyArrayObject *) PyArray_SimpleNewFromData(
-        2, X_dims, NPY_FLOAT64, (void *) X);
-    if (X_array == NULL) {
-        goto out;
-    }
-    PyArray_CLEARFLAGS(X_array, NPY_ARRAY_WRITEABLE);
-    // Transpose into column arrays, so that we can easily decompose the results
-    X_array = (PyArrayObject *) PyArray_Transpose(X_array, NULL);
+    // Create a read only view of X as a numpy array. X is transposed from its
+    // native memory layout (K, 3) -> (3, K). More detailed comment below.
+    X_array = (PyArrayObject *) PyArray_New(&PyArray_Type, 2, X_dims, NPY_FLOAT64,
+        X_strides, (void *) X, -1, NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_ALIGNED, NULL);
     if (X_array == NULL) {
         goto out;
     }
@@ -8041,21 +8039,17 @@ general_two_locus_count_stat_func(
     two_locus_general_stat_params *tl_params = params;
     PyObject *summary_func = tl_params->summary_func;
     PyArrayObject *ss_sizes = tl_params->sample_set_sizes;
-    npy_intp X_dims[2] = { K, 3 };
+    npy_intp X_dims[2] = { 3, K };
+    npy_intp X_strides[2] = { sizeof(double), sizeof(double) * 3 };
 
-    // Create a read only view of X as a numpy array
-    X_array = (PyArrayObject *) PyArray_SimpleNewFromData(
-        2, X_dims, NPY_FLOAT64, (void *) X);
-    if (X_array == NULL) {
-        goto out;
-    }
-    PyArray_CLEARFLAGS(X_array, NPY_ARRAY_WRITEABLE);
-    // Transpose into column arrays, so that we can easily decompose the results
-    // For example: pAB, pAb, paB = X / n
-    // which works with K>1. In addition, the data is not reordered, meaning
-    // that the data is still oriented where samples are rows, meaning that
-    // we'll preserve data locality in ops over samples.
-    X_array = (PyArrayObject *) PyArray_Transpose(X_array, NULL);
+    // Create a transposed, read only view of X as a numpy array. The native
+    // memory layout of X is (K, 3), we wrap it in a numpy array with dimensions
+    // (3, K), creating row arrays of haplotype counts so that we can easily
+    // decompose the results. For example: `pAB, pAb, paB = X / n` which works
+    // with K>1. Itemsize is -1 because we specify the dtype. NB: we do not set
+    // NPY_ARRAY_WRITEABLE, so X_array is read only.
+    X_array = (PyArrayObject *) PyArray_New(&PyArray_Type, 2, X_dims, NPY_FLOAT64,
+        X_strides, (void *) X, -1, NPY_ARRAY_C_CONTIGUOUS | NPY_ARRAY_ALIGNED, NULL);
     if (X_array == NULL) {
         goto out;
     }
@@ -8074,8 +8068,7 @@ general_two_locus_count_stat_func(
     }
     if (PyArray_NDIM(Y_array) != 1) {
         PyErr_Format(PyExc_ValueError,
-            "Array returned by summary function callback is %d dimensional; "
-            "must be 1D",
+            "Array returned by summary function callback is %d dimensional; must be 1D",
             (int) PyArray_NDIM(Y_array));
         goto out;
     }
@@ -8220,6 +8213,7 @@ TreeSequence_two_locus_count_stat(TreeSequence *self, PyObject *args, PyObject *
     result_matrix = NULL;
 out:
     Py_XDECREF(summary_func);
+    Py_XDECREF(norm_func);
     Py_XDECREF(row_sites_array);
     Py_XDECREF(col_sites_array);
     Py_XDECREF(row_positions_array);
