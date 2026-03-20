@@ -3440,21 +3440,22 @@ tsk_treeseq_two_locus_count_general_stat(const tsk_treeseq_t *self,
             sample_set_sizes, sample_sets, result_dim, f, f_params, norm_f, out_rows,
             row_sites, out_cols, col_sites, options, result);
         goto out;
+    } else {
+        tsk_bug_assert(stat_branch);
+        ret = check_positions(
+            row_positions, out_rows, tsk_treeseq_get_sequence_length(self));
+        if (ret != 0) {
+            goto out;
+        }
+        ret = check_positions(
+            col_positions, out_cols, tsk_treeseq_get_sequence_length(self));
+        if (ret != 0) {
+            goto out;
+        }
+        ret = tsk_treeseq_two_branch_count_stat(self, state_dim, num_sample_sets,
+            sample_set_sizes, sample_sets, result_dim, f, f_params, norm_f, out_rows,
+            row_positions, out_cols, col_positions, options, result);
     }
-    tsk_bug_assert(stat_branch);
-    ret = check_positions(
-        row_positions, out_rows, tsk_treeseq_get_sequence_length(self));
-    if (ret != 0) {
-        goto out;
-    }
-    ret = check_positions(
-        col_positions, out_cols, tsk_treeseq_get_sequence_length(self));
-    if (ret != 0) {
-        goto out;
-    }
-    ret = tsk_treeseq_two_branch_count_stat(self, state_dim, num_sample_sets,
-        sample_set_sizes, sample_sets, result_dim, f, f_params, norm_f, out_rows,
-        row_positions, out_cols, col_positions, options, result);
 out:
     return ret;
 }
