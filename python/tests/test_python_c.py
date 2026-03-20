@@ -2127,6 +2127,13 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
             method(ss_sizes, ss, lambda *_: [1, 2], norm_func, 1, True, *site_args)
         with pytest.raises(ValueError, match="could not convert string to float"):
             method(ss_sizes, ss, lambda *_: ["nonfloat"], norm_func, 1, True, *site_args)
+        with pytest.raises(ValueError, match="assignment destination is read-only"):
+
+            def bad_stat_func(X, n):
+                X[0] = [1]
+                return [1]
+
+            method(ss_sizes, ss, bad_stat_func, norm_func, 1, True, *site_args)
         # Exceptions within stat_func are correctly raised.
         for exception in [ValueError, TypeError]:
 
