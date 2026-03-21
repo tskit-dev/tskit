@@ -3188,8 +3188,11 @@ compute_two_tree_branch_stat(const tsk_treeseq_t *ts, const iter_state *l_state,
     while (n_updates != 0) {
         n_updates--;
         c = updated_nodes[n_updates];
-        compute_two_tree_branch_state_update(ts, c, l_state, r_state, state_dim,
+        ret = compute_two_tree_branch_state_update(ts, c, l_state, r_state, state_dim,
             result_dim, -1, f, f_params, &work, result);
+        if (ret != 0) {
+            goto out;
+        }
     }
     // Remove samples under nodes from removed edges to parent nodes
     for (j = 0; j < r_state->n_edges_out; j++) {
@@ -3229,8 +3232,11 @@ compute_two_tree_branch_stat(const tsk_treeseq_t *ts, const iter_state *l_state,
     while (n_updates != 0) {
         n_updates--;
         c = updated_nodes[n_updates];
-        compute_two_tree_branch_state_update(ts, c, l_state, r_state, state_dim,
+        ret = compute_two_tree_branch_state_update(ts, c, l_state, r_state, state_dim,
             result_dim, +1, f, f_params, &work, result);
+        if (ret != 0) {
+            goto out;
+        }
     }
 out:
     tsk_safe_free(updated_nodes);
