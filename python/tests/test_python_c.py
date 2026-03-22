@@ -2042,7 +2042,7 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         assert a.shape == (ts.get_num_sites(), ts.get_num_sites(), 1)
         a = method(ss_sizes, ss, stat_func, norm_func, 1, True, *branch_list_args)
         assert a.shape == (ts.get_num_trees(), ts.get_num_trees(), 1)
-        # happy path - default array filling
+        # happy path - default values for site and position lists
         a = method(
             ss_sizes, ss, stat_func, norm_func, 1, True, None, None, None, None, "site"
         )
