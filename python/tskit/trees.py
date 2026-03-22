@@ -10945,42 +10945,47 @@ class TreeSequence:
         """
         Compute two-locus statistics with a user-defined python function that
         operates on haplotype counts. TODO: reference modes in two-locus docs.
-        On each pair of sites or trees, the summary function is provided with
-        ``X``, a matrix with shape (3, k) and ``n``, a vector with shape (k,),
-        where k is the number of sample sets provided. ``X`` is a read-only
-        matrix whose rows contain haplotype counts per sample set (counts of AB,
-        Ab, aB) and ``n`` is a vector of sample set sizes.
+        On each pair of sites or trees, the summary function is called with
+        haplotype counts for all provided sample sets. The summary function
+        (``f``) must accept two parameters: ``X``, a matrix with shape (3, k)
+        and ``n``, a vector with shape (k,), where k is the number of sample
+        sets provided. ``X`` is a read-only matrix whose rows contain haplotype
+        counts (AB, Ab, aB) per sample set and ``n`` is a vector of sample set
+        sizes. ``f`` must return a list of results with length ``result_dim``.
 
-        .. note::
-            Because we are operating on very small matrices/vectors, vectorised
-            operations are often times slower than operations on scalars. Simply
-            returning ``[value]`` can be faster than returning
-            ``value[np.newaxis,]`` or ``np.expand_dims(value, 0)``.
-
-        What follows is an example of computing ``D`` from a tree sequence. Many
-        more examples can be found in the test suite
-        ``test_ld_matrix.py::GeneralStatsFuncs``. Let's begin with our summary
-        function, ``D``. We convert counts to proportions, then compute ``D``,
-        returning a numpy array with length equal to the number of sample sets.
+        What follows is an example of computing ``D`` from a tree sequence
+        (TODO: cite two-locus docs for more details). We convert counts to
+        proportions, then compute ``D``, returning a numpy array with length
+        equal to the number of ``result_dim``s.
 
         .. code-block:: python
+
             def D(X, n):
                 pAB, pAb, paB = X / n
                 pA = pAb + pAB
                 pB = paB + pAB
                 return pAB - (pA * pB)
 
-        ``norm_f`` is a normalisation function used to combine all computed
-        statistics for multiallelic allele pairs (TODO: see two-locus
-        docs). Biallelic sites do not require any normalisation (in fact, the
-        normalisation function is never called for biallelic sites). If one of
-        either site A or site B is multiallelic, then the normalisation function
-        will be called. The default normalisation function is identical to
-        ``total_norm`` shown in the example below. ``hap_norm`` is required for
-        normalising :math:`r^2`. Both of these examples return a numpy array
-        with length equal to the number of sample sets (for one-way stats).
+        The summary function is called for each pair of sites or trees,
+        producing results that must be combined when multiallelic sites are
+        present (``site`` mode only), summary function results must
+        need to be normalised in order to be aggragated for all pairs of alleles
+        between both sites. Branch statistics and biallelic sites do not require
+        any normalisation, ``norm_f`` is only called if one of the two sites
+        under consideration is multiallelic. TODO: reference two-locus docs for
+        further information about normalisation. ``norm_f`` is a normalisation
+        function that must accept four parameters: ``X`` and ``n`` are the same
+        inputs that ``f`` accepts, along with ``nA`` and ``nB``, which hold the
+        count of ``A`` alleles and ``B`` alleles. For example, if ``A`` is
+        biallelic and ``B`` is triallelic, ``nA=2`` and ``nB=3``. ``f`` must
+        return a list of results with length ``result_dim``. The default
+        normalisation function is identical to ``total_norm`` shown in the
+        example below. ``hap_norm`` is required for normalising
+        :math:`r^2`. Both of these examples return a numpy array with length
+        equal to the number of ``result_dim``s.
 
         .. code-block:: python
+
             def total_norm(X, n, nA, nB):
                 [1 / (nA * nB)] * result_dim
 
@@ -10990,6 +10995,7 @@ class TreeSequence:
         A simple call (without specifying normalisation) would look like this
 
         .. code-block::python
+
             ts.two_locus_count_stat([ts.samples()], D, 1, polarised=True)
 
         :param list sample_sets: A list of lists of Node IDs, specifying the
@@ -11000,7 +11006,8 @@ class TreeSequence:
         :param int result_dim: The length of ``f`` and ``norm_f``'s return value.
         :param norm_f: A function that takes four arguments - the first two are
             the same as ``f``, the second two are scalars representing the
-            number of A and B alleles, respectively.
+            number of A and B alleles, respectively. If ``None``, then defaults
+            to the "total" normalization described above.
         :param bool polarised: Whether to leave the ancestral state out of
             computations: see :ref:`sec_stats` for more details.
         :param list sites: TODO: two-locus docs
@@ -11008,14 +11015,14 @@ class TreeSequence:
         :param str mode: A string giving the "type" of the statistic to be
             computed (defaults to "site").
         :return: A ndarray with shape equal to (TODO: reference two-locus docs,
-            no dimension dropping shape=(k, m, m) where k=num_sample_sets,
+            no dimension dropping shape=(k, m, m) where k=result_dim,
             m=num_sites or num_trees).
         """
         row_sites, col_sites = self.parse_sites(sites)
         row_positions, col_positions = self.parse_positions(positions)
         _, sample_sets, sample_set_sizes = self.__convert_sample_sets(sample_sets)
         if norm_f is None:
-            # produce the same number of dims as output dimensions with [val] * dim
+            # produce the same number of dims as result dimensions with [val] * dim
             def norm_f(X, n, nA, nB):
                 return [1 / (nA * nB)] * result_dim
 
@@ -11032,7 +11039,7 @@ class TreeSequence:
             col_positions,
             mode,
         )
-        # Orient the data so that the first dimension is the sample set so that
+        # Orient the data so that the first dimension is the result_dim so that
         # we get one LD matrix per result dimension
         return np.moveaxis(result, -1, 0)
 
