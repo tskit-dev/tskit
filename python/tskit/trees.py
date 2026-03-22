@@ -10956,7 +10956,7 @@ class TreeSequence:
         What follows is an example of computing ``D`` from a tree sequence
         (TODO: cite two-locus docs for more details). We convert counts to
         proportions, then compute ``D``, returning a numpy array with length
-        equal to the number of ``result_dim``s.
+        equal to the number of ``result_dim``.
 
         .. code-block:: python
 
@@ -10982,7 +10982,7 @@ class TreeSequence:
         normalisation function is identical to ``total_norm`` shown in the
         example below. ``hap_norm`` is required for normalising
         :math:`r^2`. Both of these examples return a numpy array with length
-        equal to the number of ``result_dim``s.
+        equal to the number of ``result_dim``.
 
         .. code-block:: python
 
