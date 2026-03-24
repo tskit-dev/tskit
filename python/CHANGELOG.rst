@@ -11,7 +11,8 @@ In development
 
 - Add ``TreeSequence.ld_matrix`` stats method and documentation, for computing
   two-locus statistics in site and branch mode.
-  (:user:`lkirk`, :user:`apragsdale`, :pr:`3416`) 
+  (:user:`lkirk`, :user:`apragsdale`, :pr:`3416`)
+- Add `node_labels` parameter to `write_nexus`. (:user:`kaathewisegit`, :pr:`3442`)
 
 --------------------
 [1.0.2] - 2026-03-06

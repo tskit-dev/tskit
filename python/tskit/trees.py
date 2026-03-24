@@ -6797,6 +6797,7 @@ class TreeSequence:
         reference_sequence=None,
         missing_data_character=None,
         isolated_as_missing=None,
+        node_labels=None,
     ):
         """
         Returns a `nexus encoding <https://en.wikipedia.org/wiki/Nexus_file>`_
@@ -6896,6 +6897,10 @@ class TreeSequence:
         :param str missing_data_character: As for the :meth:`.alignments` method,
             but defaults to "?".
         :param bool isolated_as_missing: As for the :meth:`.alignments` method.
+        :param node_labels: A map of type `{node_id: name}`.  Samples present
+            in the map will have the given name instead of `n{node_id}`.  Note
+            that the names must not have whitespace (spaces should be replaced
+            by underscores) or puncuation in them.
         :return: A nexus representation of this :class:`TreeSequence`
         :rtype: str
         """
@@ -6908,6 +6913,7 @@ class TreeSequence:
             reference_sequence=reference_sequence,
             missing_data_character=missing_data_character,
             isolated_as_missing=isolated_as_missing,
+            node_labels=node_labels,
         )
 
     def as_nexus(self, **kwargs):
