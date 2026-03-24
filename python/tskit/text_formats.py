@@ -120,6 +120,7 @@ def write_nexus(
     include_alignments,
     reference_sequence,
     missing_data_character,
+    node_labels,
     isolated_as_missing=None,
 ):
     # See TreeSequence.write_nexus for documentation on parameters.
@@ -134,7 +135,13 @@ def write_nexus(
     print("#NEXUS", file=out)
     print("BEGIN TAXA;", file=out)
     print("", f"DIMENSIONS NTAX={ts.num_samples};", sep=indent, file=out)
-    taxlabels = " ".join(f"n{u}" for u in ts.samples())
+
+    if node_labels is not None:
+        taxlabels = " ".join(
+            node_labels[u] if u in node_labels else f"n{u}" for u in ts.samples()
+        )
+    else:
+        taxlabels = " ".join(f"n{u}" for u in ts.samples())
     print("", f"TAXLABELS {taxlabels};", sep=indent, file=out)
     print("END;", file=out)
 
@@ -166,6 +173,11 @@ def write_nexus(
     include_trees = True if include_trees is None else include_trees
     if include_trees:
         print("BEGIN TREES;", file=out)
+
+        if node_labels is not None:
+            translations = ", ".join(f"n{u} {name}" for u, name in node_labels.items())
+            print(f"  TRANSLATE {translations};", file=out)
+
         for tree in ts.trees():
             start_interval = "{0:.{1}f}".format(tree.interval.left, pos_precision)
             end_interval = "{0:.{1}f}".format(tree.interval.right, pos_precision)

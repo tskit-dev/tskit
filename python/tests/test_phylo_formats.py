@@ -26,6 +26,7 @@ Tests for phylogenetics export functions, newick, nexus, FASTA etc.
 
 import functools
 import io
+import random
 import textwrap
 
 import dendropy
@@ -332,6 +333,97 @@ class TestNexusIncludeSections:
         assert expected == self.ts().as_nexus(
             include_trees=False, include_alignments=False
         )
+
+
+class TestNexusNodeLabels:
+    @tests.cached_example
+    def balanced_tree(self):
+        #   4
+        # ┏━┻┓
+        # ┃  3
+        # ┃ ┏┻┓
+        # 0 1 2
+        return tskit.Tree.generate_balanced(3)
+
+    def test_as_nexus_labels_basic(self):
+        ts = self.balanced_tree().tree_sequence
+        labels = {0: "human", 1: "chimp", 2: "bonobo"}
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=3;
+              TAXLABELS human chimp bonobo;
+            END;
+            BEGIN TREES;
+              TRANSLATE n0 human, n1 chimp, n2 bonobo;
+              TREE t0^1 = [&R] (n0:2,(n1:1,n2:1):1);
+            END;
+            """
+        )
+        assert expected == ts.as_nexus(include_alignments=False, node_labels=labels)
+
+    def test_as_nexus_labels_partial(self):
+        ts = self.balanced_tree().tree_sequence
+        labels = {0: "human", 2: "bonobo"}
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=3;
+              TAXLABELS human n1 bonobo;
+            END;
+            BEGIN TREES;
+              TRANSLATE n0 human, n2 bonobo;
+              TREE t0^1 = [&R] (n0:2,(n1:1,n2:1):1);
+            END;
+            """
+        )
+        assert expected == ts.as_nexus(include_alignments=False, node_labels=labels)
+
+    def test_as_nexus_labels_none(self):
+        ts = self.balanced_tree().tree_sequence
+        expected = textwrap.dedent(
+            """\
+            #NEXUS
+            BEGIN TAXA;
+              DIMENSIONS NTAX=3;
+              TAXLABELS n0 n1 n2;
+            END;
+            BEGIN TREES;
+              TREE t0^1 = [&R] (n0:2,(n1:1,n2:1):1);
+            END;
+            """
+        )
+        assert expected == ts.as_nexus(include_alignments=False, node_labels=None)
+
+    @pytest.mark.parametrize("ts", get_example_tree_sequences())
+    def test_parseable(self, ts):
+        def all_samples_are_leaves(ts):
+            internal_nodes = np.unique(ts.edges_parent)
+            is_internal_sample = np.isin(ts.samples(), internal_nodes)
+            return not np.any(is_internal_sample)
+
+        if not all_samples_are_leaves(ts):
+            # TRANSLATE doesn't support translating internal nodes
+            return
+
+        for tree in ts.trees():
+            if not tree.has_single_root:
+                return
+
+        labels = {}
+        samples = ts.samples()
+        k = random.randint(1, len(samples))
+        for node in random.sample(list(samples), k):
+            labels[node] = f"new_node_which_was_{node}"
+
+        nexus = ts.as_nexus(include_alignments=False, node_labels=labels)
+        ds = dendropy.DataSet.get(data=nexus, schema="nexus")
+        tree = ds.tree_lists[0][0]
+        dendropy_labels = [node.taxon.label for node in tree.nodes() if node.taxon]
+        for label in labels.values():
+            assert label.replace("_", " ") in dendropy_labels
 
 
 class TestNewickCodePaths:
