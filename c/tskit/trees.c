@@ -3467,7 +3467,7 @@ out:
 }
 
 /* Called by summary functions implemented in C */
-int
+static int
 tsk_treeseq_two_locus_count_stat(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
     const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
     tsk_size_t result_dim, const tsk_id_t *set_indexes, general_stat_func_t *f,
