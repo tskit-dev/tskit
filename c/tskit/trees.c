@@ -3392,7 +3392,7 @@ out:
 
 /* Called directly by C python interface `two_locus_count_stat` */
 int
-tsk_treeseq_two_locus_count_general_stat(const tsk_treeseq_t *self,
+tsk_treeseq_two_locus_general_count_stat(const tsk_treeseq_t *self,
     tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes,
     const tsk_id_t *sample_sets, tsk_size_t result_dim, general_stat_func_t *f,
     void *f_params, norm_func_t *norm_f, tsk_size_t out_rows, const tsk_id_t *row_sites,
@@ -3466,7 +3466,7 @@ out:
     return ret;
 }
 
-/* Wrapper of `tsk_treeseq_two_locus_count_general_stat` for C summary Functions */
+/* Wrapper of `tsk_treeseq_two_locus_general_count_stat` for C summary Functions */
 static int
 tsk_treeseq_two_locus_count_stat(const tsk_treeseq_t *self, tsk_size_t num_sample_sets,
     const tsk_size_t *sample_set_sizes, const tsk_id_t *sample_sets,
@@ -3479,7 +3479,7 @@ tsk_treeseq_two_locus_count_stat(const tsk_treeseq_t *self, tsk_size_t num_sampl
         .num_sample_sets = num_sample_sets,
         .sample_set_sizes = sample_set_sizes,
         .set_indexes = set_indexes };
-    return tsk_treeseq_two_locus_count_general_stat(self, num_sample_sets,
+    return tsk_treeseq_two_locus_general_count_stat(self, num_sample_sets,
         sample_set_sizes, sample_sets, result_dim, f, &f_params, norm_f, out_rows,
         row_sites, row_positions, out_cols, col_sites, col_positions, options, result);
 }

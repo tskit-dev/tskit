@@ -8196,7 +8196,7 @@ TreeSequence_two_locus_count_stat(TreeSequence *self, PyObject *args, PyObject *
         .summary_func = summary_func,
         .norm_func = norm_func,
     };
-    err = tsk_treeseq_two_locus_count_general_stat(self->tree_sequence, num_sample_sets,
+    err = tsk_treeseq_two_locus_general_count_stat(self->tree_sequence, num_sample_sets,
         PyArray_DATA(sample_set_sizes_array), PyArray_DATA(sample_sets_array),
         output_dim, general_two_locus_count_stat_func, params,
         general_two_locus_norm_func, result_dim[0], row_sites_parsed,
