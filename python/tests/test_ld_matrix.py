@@ -2592,7 +2592,7 @@ class GeneralStatNormFuncs:
                 return cls.k_way_hap_norm
             case (_, "branch", _):  # branch stats do not need a norm func
                 return cls.assert_no_norm_func
-            case (_, _, False):  # biallelic sites do not need a norm func
+            case (_, _, False):  # biallelic sites should not use the norm func
                 return cls.assert_no_norm_func
             case _:  # total_norm is default (1 / (nA * nB)). handles multi-way stats
                 return None
