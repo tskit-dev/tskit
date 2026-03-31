@@ -3680,9 +3680,8 @@ test_two_locus_stat_input_errors(void)
         row_sites, NULL, num_sites, col_sites, NULL, 0, result);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
-    ret = tsk_treeseq_two_locus_count_stat(&ts, num_sample_sets, sample_set_sizes,
-        sample_sets, 0, NULL, NULL, NULL, num_sites, row_sites, NULL, num_sites,
-        col_sites, NULL, 0, result);
+    ret = tsk_treeseq_r2(&ts, num_sample_sets, 0, sample_sets, num_sites, row_sites,
+        NULL, num_sites, col_sites, NULL, 0, result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_BAD_RESULT_DIMS);
 
     ret = tsk_treeseq_r2(&ts, 1, sample_set_sizes, sample_sets, num_sites, row_sites,
