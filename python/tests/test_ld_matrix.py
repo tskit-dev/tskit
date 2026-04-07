@@ -2530,7 +2530,6 @@ class GeneralStatFuncs:
 
     @staticmethod
     def D2_ij_unbiased(X, n):
-        """The identity of the sample sets is up to the user."""
         AB, Ab, aB = X
         ab = n - X.sum(0)
         return [
@@ -2541,10 +2540,6 @@ class GeneralStatFuncs:
 
     @staticmethod
     def D2_ii_ij_jj_unbiased(X, n):
-        """
-        Multiple stats can be computed from the same data. The identity of the
-        sample sets is up to the user. This function assumes two sample sets.
-        """
         AB, Ab, aB = X
         ab = n - X.sum(0)
 
