@@ -10944,19 +10944,24 @@ class TreeSequence:
     ):
         """
         Compute two-locus statistics with a user-defined python function that
-        operates on haplotype counts. TODO: reference modes in two-locus docs.
-        On each pair of sites or trees, the summary function is called with
-        haplotype counts for all provided sample sets. The summary function
-        (``f``) must accept two parameters: ``X``, a matrix with shape (3, k)
-        and ``n``, a vector with shape (k,), where k is the number of sample
-        sets provided. ``X`` is a read-only matrix whose rows contain haplotype
-        counts (AB, Ab, aB) per sample set and ``n`` is a vector of sample set
-        sizes. ``f`` must return a list of results with length ``result_dim``.
+        operates on haplotype counts. Statistics can be computed in ``site``
+        mode (see :ref:`sec_stats_two_locus_site`) or ``branch`` mode (see
+        :ref:`sec_stats_two_locus_branch`). On each pair of sites or trees, the
+        summary function is called with haplotype counts for all provided sample
+        sets. The summary function (``f``) must accept two parameters: ``X``, a
+        matrix with shape (3, k) and ``n``, a vector with shape (k,), where k is
+        the number of sample sets provided. ``X`` is a read-only matrix whose
+        rows contain haplotype counts (AB, Ab, aB) per sample set and ``n`` is a
+        read-only vector of sample set sizes. ``f`` and ``norm_f`` must return a
+        list of results with length ``result_dim``.
 
-        What follows is an example of computing ``D`` from a tree sequence
-        (TODO: cite two-locus docs for more details). We convert counts to
-        proportions, then compute ``D``, returning a numpy array with length
-        equal to the number of ``result_dim``.
+        What follows is an example of computing ``D`` from a tree sequence. The
+        result will be equivalent to using ``ts.ld_matrix(stat="D")`` (see
+        :ref:`sec_stats_two_locus` for usage of the built-in LD matrix
+        calculation, and :ref:`sec_stats_two_locus_summary_functions` for
+        available statistics). In the example summary function, we convert
+        counts to proportions, then compute ``D``, returning a numpy array with
+        length equal to the number of sample sets.
 
         .. code-block:: python
 
@@ -10968,21 +10973,21 @@ class TreeSequence:
 
         The summary function is called for each pair of sites or trees,
         producing results that must be combined when multiallelic sites are
-        present (``site`` mode only), summary function results must
-        need to be normalised in order to be aggragated for all pairs of alleles
-        between both sites. Branch statistics and biallelic sites do not require
-        any normalisation, ``norm_f`` is only called if one of the two sites
-        under consideration is multiallelic. TODO: reference two-locus docs for
-        further information about normalisation. ``norm_f`` is a normalisation
-        function that must accept four parameters: ``X`` and ``n`` are the same
-        inputs that ``f`` accepts, along with ``nA`` and ``nB``, which hold the
-        count of ``A`` alleles and ``B`` alleles. For example, if ``A`` is
-        biallelic and ``B`` is triallelic, ``nA=2`` and ``nB=3``. ``f`` must
-        return a list of results with length ``result_dim``. The default
-        normalisation function is identical to ``total_norm`` shown in the
-        example below. ``hap_norm`` is required for normalising
-        :math:`r^2`. Both of these examples return a numpy array with length
-        equal to the number of ``result_dim``.
+        present (``site`` mode only), so summary function results must need to
+        be normalised in order to be aggragated for all pairs of alleles between
+        both sites. Branch statistics and biallelic sites do not require any
+        normalisation, and ``norm_f`` is only called if one of the two sites
+        under consideration is multiallelic. See
+        :ref:`sec_stats_two_locus_computational_details` for further information
+        about normalisation. ``norm_f`` is a normalisation function that must
+        accept four parameters: ``X`` and ``n`` are the same inputs that ``f``
+        accepts, along with ``nA`` and ``nB``, which hold the count of ``A``
+        alleles and ``B`` alleles. For example, if ``A`` is biallelic and ``B``
+        is triallelic, ``nA=2`` and ``nB=3``. ``f`` must return a list of
+        results with length ``result_dim``. The default normalisation function
+        is identical to ``total_norm`` shown in the example below. ``hap_norm``
+        is required for normalising :math:`r^2`. Both of these examples return a
+        numpy array with length equal to the number of sample sets.
 
         .. code-block:: python
 
@@ -10994,7 +10999,7 @@ class TreeSequence:
 
         A simple call (without specifying normalisation) would look like this
 
-        .. code-block::python
+        .. code-block:: python
 
             ts.two_locus_count_stat([ts.samples()], D, 1, polarised=True)
 
@@ -11010,13 +11015,25 @@ class TreeSequence:
             to the "total" normalization described above.
         :param bool polarised: Whether to leave the ancestral state out of
             computations: see :ref:`sec_stats` for more details.
-        :param list sites: TODO: two-locus docs
-        :param list positions: TODO: two-locus docs
+        :param list sites: A list of lists of sites over which to compute an
+            LD matrix. Can be specified as a list of lists to control the row
+            and column sites. Only available in "site" mode. Specify as
+            ``[row_sites, col_sites]`` or ``[all_sites]``.
+            Defaults to all sites. More information can be found in the
+            docstring of :meth:`.ld_matrix`
+        :param list positions: A list of lists of genomic positions where
+            expected LD is computed based on tree topologies and branch
+            lengths. Only applicable in "branch" mode. Specify as a list of
+            two lists to control the row and column positions, as
+            ``[row_positions, col_positions]``, or ``[all_positions]``. More
+            information can be found in the docstring of :meth:`.ld_matrix`
+            Defaults to the leftmost coordinates of all trees and computes
+            LD between all pairs of trees.
         :param str mode: A string giving the "type" of the statistic to be
             computed (defaults to "site").
-        :return: A ndarray with shape equal to (TODO: reference two-locus docs,
-            no dimension dropping shape=(k, m, m) where k=result_dim,
-            m=num_sites or num_trees).
+        :return: A ndarray with shape equal to shape=(k, m, m) where
+            k=result_dim, m=(num_sites or num_trees, restricted by ``sites`` or
+            ``positions``).
         """
         row_sites, col_sites = self.parse_sites(sites)
         row_positions, col_positions = self.parse_positions(positions)
