@@ -738,6 +738,8 @@ ld = ts.ld_matrix(sites=[[1, 2], [1, 2, 3]])
 print(ld)
 ```
 
+(sec_stats_two_locus_computational_details)=
+
 #### Computational details
 
 Because we allow for two-locus statistics to be computed for multi-allelic
