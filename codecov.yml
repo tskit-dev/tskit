@@ -25,4 +25,4 @@ component_management:
     - component_id: c_code
       name: C library
       paths:
-        - c
+        - c/tskit
