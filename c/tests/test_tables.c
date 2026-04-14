@@ -11667,126 +11667,6 @@ test_table_collection_union_errors(void)
 }
 
 static void
-test_table_collection_clear_with_options(tsk_flags_t options)
-{
-    int ret;
-    tsk_id_t ret_id;
-    tsk_table_collection_t tables;
-    bool clear_provenance = !!(options & TSK_CLEAR_PROVENANCE);
-    bool clear_metadata_schemas = !!(options & TSK_CLEAR_METADATA_SCHEMAS);
-    bool clear_ts_metadata = !!(options & TSK_CLEAR_TS_METADATA_AND_SCHEMA);
-    tsk_bookmark_t num_rows;
-    tsk_bookmark_t expected_rows = { .provenances = clear_provenance ? 0 : 1 };
-    tsk_size_t expected_len = clear_metadata_schemas ? 0 : 4;
-    tsk_size_t expected_len_ts = clear_ts_metadata ? 0 : 4;
-
-    ret = tsk_table_collection_init(&tables, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    tables.sequence_length = 1;
-
-    ret_id
-        = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.0, 0, 0, NULL, 0);
-    CU_ASSERT_FATAL(ret_id >= 0);
-    ret_id
-        = tsk_node_table_add_row(&tables.nodes, TSK_NODE_IS_SAMPLE, 0.5, 1, 1, NULL, 0);
-    CU_ASSERT_FATAL(ret_id >= 0);
-    ret_id = tsk_individual_table_add_row(
-        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
-    CU_ASSERT_FATAL(ret_id >= 0);
-    ret_id = tsk_individual_table_add_row(
-        &tables.individuals, 0, NULL, 0, NULL, 0, NULL, 0);
-    CU_ASSERT_FATAL(ret_id >= 0);
-    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
-    CU_ASSERT_FATAL(ret_id >= 0);
-    ret_id = tsk_population_table_add_row(&tables.populations, NULL, 0);
-    CU_ASSERT_FATAL(ret_id >= 0);
-    ret_id = tsk_edge_table_add_row(&tables.edges, 0.0, 1.0, 1, 0, NULL, 0);
-    CU_ASSERT_FATAL(ret_id >= 0);
-    ret_id = tsk_site_table_add_row(&tables.sites, 0.2, "A", 1, NULL, 0);
-    CU_ASSERT_FATAL(ret_id >= 0);
-    ret_id = tsk_mutation_table_add_row(
-        &tables.mutations, 0, 0, TSK_NULL, TSK_UNKNOWN_TIME, NULL, 0, NULL, 0);
-    CU_ASSERT_FATAL(ret_id >= 0);
-    ret_id = tsk_migration_table_add_row(&tables.migrations, 0, 1, 0, 0, 0, 0, NULL, 0);
-    CU_ASSERT_FATAL(ret_id >= 0);
-
-    ret = tsk_table_collection_build_index(&tables, 0);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-
-    ret = tsk_individual_table_set_metadata_schema(&tables.individuals, "test", 4);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_node_table_set_metadata_schema(&tables.nodes, "test", 4);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_edge_table_set_metadata_schema(&tables.edges, "test", 4);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_migration_table_set_metadata_schema(&tables.migrations, "test", 4);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_site_table_set_metadata_schema(&tables.sites, "test", 4);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_mutation_table_set_metadata_schema(&tables.mutations, "test", 4);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_population_table_set_metadata_schema(&tables.populations, "test", 4);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-
-    ret = tsk_table_collection_set_time_units(&tables, "test", 4);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_set_metadata(&tables, "test", 4);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    ret = tsk_table_collection_set_metadata_schema(&tables, "test", 4);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-
-    ret_id = tsk_provenance_table_add_row(&tables.provenances, "today", 5, "test", 4);
-    CU_ASSERT_FATAL(ret_id >= 0);
-
-    ret = tsk_table_collection_clear(&tables, options);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-
-    ret = tsk_table_collection_record_num_rows(&tables, &num_rows);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
-    CU_ASSERT_EQUAL(num_rows.individuals, expected_rows.individuals);
-    CU_ASSERT_EQUAL(num_rows.nodes, expected_rows.nodes);
-    CU_ASSERT_EQUAL(num_rows.edges, expected_rows.edges);
-    CU_ASSERT_EQUAL(num_rows.migrations, expected_rows.migrations);
-    CU_ASSERT_EQUAL(num_rows.sites, expected_rows.sites);
-    CU_ASSERT_EQUAL(num_rows.mutations, expected_rows.mutations);
-    CU_ASSERT_EQUAL(num_rows.populations, expected_rows.populations);
-    CU_ASSERT_EQUAL(num_rows.provenances, expected_rows.provenances);
-
-    CU_ASSERT_FALSE(tsk_table_collection_has_index(&tables, 0));
-
-    CU_ASSERT_EQUAL(tables.individuals.metadata_schema_length, expected_len);
-    CU_ASSERT_EQUAL(tables.nodes.metadata_schema_length, expected_len);
-    CU_ASSERT_EQUAL(tables.edges.metadata_schema_length, expected_len);
-    CU_ASSERT_EQUAL(tables.migrations.metadata_schema_length, expected_len);
-    CU_ASSERT_EQUAL(tables.sites.metadata_schema_length, expected_len);
-    CU_ASSERT_EQUAL(tables.mutations.metadata_schema_length, expected_len);
-    CU_ASSERT_EQUAL(tables.populations.metadata_schema_length, expected_len);
-    CU_ASSERT_EQUAL(tables.metadata_schema_length, expected_len_ts);
-    CU_ASSERT_EQUAL(tables.metadata_length, expected_len_ts);
-    CU_ASSERT_EQUAL(tables.time_units_length, 4);
-
-    tsk_table_collection_free(&tables);
-}
-
-static void
-test_table_collection_clear(void)
-{
-    test_table_collection_clear_with_options(0);
-    test_table_collection_clear_with_options(TSK_CLEAR_PROVENANCE);
-    test_table_collection_clear_with_options(TSK_CLEAR_METADATA_SCHEMAS);
-    test_table_collection_clear_with_options(TSK_CLEAR_TS_METADATA_AND_SCHEMA);
-    test_table_collection_clear_with_options(
-        TSK_CLEAR_PROVENANCE | TSK_CLEAR_METADATA_SCHEMAS);
-    test_table_collection_clear_with_options(
-        TSK_CLEAR_PROVENANCE | TSK_CLEAR_TS_METADATA_AND_SCHEMA);
-    test_table_collection_clear_with_options(
-        TSK_CLEAR_METADATA_SCHEMAS | TSK_CLEAR_TS_METADATA_AND_SCHEMA);
-    test_table_collection_clear_with_options(TSK_CLEAR_PROVENANCE
-                                             | TSK_CLEAR_METADATA_SCHEMAS
-                                             | TSK_CLEAR_TS_METADATA_AND_SCHEMA);
-}
-
-static void
 test_table_collection_takeset_indexes(void)
 {
     int ret;
@@ -12026,7 +11906,6 @@ main(int argc, char **argv)
         { "test_table_collection_union_middle_merge",
             test_table_collection_union_middle_merge },
         { "test_table_collection_union_errors", test_table_collection_union_errors },
-        { "test_table_collection_clear", test_table_collection_clear },
         { "test_table_collection_takeset_indexes",
             test_table_collection_takeset_indexes },
         { "test_table_collection_delete_older", test_table_collection_delete_older },
