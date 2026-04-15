@@ -988,18 +988,46 @@ sets of samples (see also the note in {meth}`~TreeSequence.divergence`).
 ##### One-way
 
 The two-locus summary functions all take haplotype counts and sample set size
-as input. Each of our summary functions has the signature
+as input. Suppose that at the first site there are alleles
+{math}`(a_1, a_2, ...)`, and at the second site there are alleles
+{math}`(b_1, b_2, ...)`. For a pair of focal alleles {math}`a_i` and
+{math}`b_j`, we define two-locus counts
+{math}`(n(a_i,b_j), n(a_i,\sim b_j), n(\sim a_i, b_j))`, where
+{math}`n(a_i,b_j)` is the number of two-locus haplotypes in the sample set that
+carry both alleles {math}`a_i` and {math}`b_j`,
+{math}`n(a_i,\sim b_j)` is the number that carry the allele {math}`a_i`
+and do not carry the allele {math}`b_j`, and
+{math}`n(\sim a_i, b_j)` is the number that carry the allele {math}`b_j`
+and do not carry the allele {math}`a_i`. That is,
+{math}`n(\sim a_i, b_j) = \sum_{k\not=i} n(a_k, b_j)`, and
+{math}`n(a_i, \sim b_j) = \sum_{l\not=j} n(a_i, b_l)`.
+
+We informally refer to focal alleles as {math}`A,B` and the above sets of
+haplotypes as {math}`(AB, Ab, aB)`, so that {math}`Ab` refers to the set
+of all haplotypes {math}`(a_i, \sim b_j)` and {math}`aB` refers to
+{math}`(\sim a_i, b_j)`.
+Their counts are labeled similarly: {math}`n_{AB} = n(A,B)`,
+{math}`n_{Ab} = n(A, \sim B)`, and {math}`n_{aB} = n(\sim A, B)`.
+Then each of our summary functions has the signature
 {math}`f(n_{AB}, n_{Ab}, n_{aB}, n)`, converting to haplotype frequencies
-{math}`\{p_{AB}, p_{Ab}, p_{aB}\}` by dividing by {math}`n`. Below,
+{math}`\{p_{AB}, p_{Ab}, p_{aB}\}` by dividing by the number {math}`n` of
+samples in the sample set. Then
 {math}`n_{ab} = n - n_{AB} - n_{Ab} - n_{aB}`, {math}`n_A = n_{AB} + n_{Ab}`
 and {math}`n_B = n_{AB} + n_{aB}`, with frequencies {math}`p` found by dividing
 by {math}`n`.
 
-Our convention is to use {math}`A,B` to denote derived alleles, and {math}`a,b`
-ancestral alleles (or other alleles, if the site is multi-allelic). For
-polarised statistics, we average statistics over all non-ancestral alleles. For
-unpolarised statistics, the labeling is arbitrary as we average over all
-alleles (derived and ancestral).
+For polarised statistics, we compute the statistic using all pairs of
+non-ancestral alleles as focal alleles: so, we do not compute the summary
+function with haplotype counts for which the focal alleles are the ancestral
+allele at either of the two loci.
+For unpolarised statistics, we compute the summary function over all
+pairs of alleles. Thus, for polarised statistics, the summary function is
+called {math}`(n_1-1)\times(n_2-1)` times, where {math}`n_1` and {math}`n_2`
+are the total number of alleles at the first and second locus, respectively.
+For unpolarised statistics, the summary function is called {math}`n_1 n_2`
+times. The result is then averaged over the results computed for
+each pair of focal alleles, using the specified weighting approach for a
+given summary function.
 
 `D`
 : {math}`f(n_{AB}, n_{Ab}, n_{aB}, n) = p_{AB}p_{ab} - p_{Ab}p_{aB} \, (=p_{AB} - p_A p_B)`
