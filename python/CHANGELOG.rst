@@ -13,6 +13,7 @@ In development
   two-locus statistics in site and branch mode.
   (:user:`lkirk`, :user:`apragsdale`, :pr:`3416`)
 - Add `node_labels` parameter to `write_nexus`. (:user:`kaathewisegit`, :pr:`3442`)
+- Document ``TableCollection.load`` (:user:`hyanwong`, :issue:`3406` :pr:`3453`)
 
 --------------------
 [1.0.2] - 2026-03-06

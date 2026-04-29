@@ -3455,6 +3455,24 @@ class TableCollection(metadata.MetadataProvider):
 
     @classmethod
     def load(cls, file_or_path, *, skip_tables=False, skip_reference_sequence=False):
+        """
+        Load a :class:`TableCollection` from a file or path, saved in the format defined
+        by :meth:`.dump`. Although the file must be in the correct format, unlike
+        :func:`tskit.load` further validation is not performed to check that the tables
+        meet the :ref:`sec_valid_tree_sequence_requirements`. For instance,
+        unsorted tables can be loaded without error and then sorted before
+        :meth:`creating <TableCollection.tree_sequence>` a :class:`TreeSequence`.
+
+        :param file_or_path: The file object or path from which to load the
+            TableCollection.
+        :param bool skip_tables: If True, no tables are read from the file and
+            only the top-level information is populated in the returned TableCollection.
+        :param bool skip_reference_sequence: If True, tables are read
+            without loading any reference sequence.
+        :return: A TableCollection instance
+        :rtype: TableCollection
+        :raises: **tskit.FileFormatError** -- If the file is not in a valid format.
+        """
         file, local_file = util.convert_file_like_to_open_file(file_or_path, "rb")
         ll_tc = _tskit.TableCollection()
         try:
@@ -3474,7 +3492,8 @@ class TableCollection(metadata.MetadataProvider):
         """
         Writes the table collection to the specified path or file object.
 
-        :param str file_or_path: The file object or path to write the TreeSequence to.
+        :param str file_or_path: The file object or path to which to write this
+            TableCollection.
         """
         file, local_file = util.convert_file_like_to_open_file(file_or_path, "wb")
         try:
