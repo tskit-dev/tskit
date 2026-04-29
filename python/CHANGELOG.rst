@@ -15,6 +15,11 @@ In development
 - Add `node_labels` parameter to `write_nexus`. (:user:`kaathewisegit`, :pr:`3442`)
 - Document ``TableCollection.load`` (:user:`hyanwong`, :issue:`3406` :pr:`3453`)
 
+**Bugfixes**
+
+- Fix a Y-axis positioning bug in `draw_svg` when a title was provided.
+  (:user:`hyanwong`, :issue:`3451`, :pr:`3452`)
+
 --------------------
 [1.0.2] - 2026-03-06
 --------------------
