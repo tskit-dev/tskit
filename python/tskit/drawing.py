@@ -283,6 +283,15 @@ class Timescaling:
         y_scale = self.plot_range / (self.max_time - self.min_time)
         return self.plot_min - (y - self.min_time) * y_scale
 
+    def with_offset(self, y_offset):
+        return Timescaling(
+            max_time=self.max_time,
+            min_time=self.min_time,
+            plot_min=self.plot_min + y_offset,
+            plot_range=self.plot_range,
+            use_log_transform=self.use_log_transform,
+        )
+
 
 class SVGString(str):
     "A string containing an SVG representation"
@@ -1460,7 +1469,7 @@ class SvgTreeSequence(SvgAxisPlot):
                         size=subplot_size, num_skipped=tree.index - last_used_index
                     )
                 )
-        y = self.plotbox.top
+        y_offset = self.plotbox.top
         if title is not None:
             self.add_text_in_group(
                 title,
@@ -1481,14 +1490,16 @@ class SvgTreeSequence(SvgAxisPlot):
             tick_length_upper=self.default_tick_length_site,  # TODO - parameterize
             x_regions=x_regions,
         )
-        y_low = self.tree_plotbox.bottom
-        if y_axis is not None:
+        y_low = self.tree_plotbox.bottom + y_offset
+        if self.y_axis:
             tscales = {s.timescaling for s in subplots if s.timescaling}
             if len(tscales) > 1:
                 raise ValueError(
                     "Can't draw a tree sequence Y axis if trees vary in timescale"
                 )
-            self.timescaling = tscales.pop()
+            # The timescaling of all subplots is used for outer box, but we
+            # need to shift it by the top padding to account for e.g. titles
+            self.timescaling = tscales.pop().with_offset(y_offset)
             y_low = self.timescaling.transform(self.timescaling.min_time)
             if y_ticks is None:
                 used_nodes = edge_and_sample_nodes(ts, breaks[skipbreaks])
@@ -1499,11 +1510,11 @@ class SvgTreeSequence(SvgAxisPlot):
 
         self.draw_y_axis(
             ticks=check_y_ticks(y_ticks),
-            upper=self.tree_plotbox.top,
+            upper=self.tree_plotbox.top + y_offset,
             lower=y_low,
             tick_length_outer=self.default_tick_length,
             gridlines=y_gridlines,
-            side="right" if y_axis == "right" else "left",
+            side="right" if self.y_axis == "right" else "left",
         )
 
         subplot_x = self.plotbox.left
@@ -1513,7 +1524,7 @@ class SvgTreeSequence(SvgAxisPlot):
             svg_subplot = container.add(
                 self.drawing.g(
                     class_=subplot.svg_class,
-                    transform=f"translate({rnd(subplot_x)} {y})",
+                    transform=f"translate({rnd(subplot_x)} {y_offset})",
                 )
             )
             for svg_items in subplot.root_groups.values():

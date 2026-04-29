@@ -2929,11 +2929,9 @@ class TestDrawKnownSvg(TestDrawSvgBase):
         # set units
         tables.time_units = "generations"
         ts = tables.tree_sequence()
-        svg = ts.draw_svg(y_axis=True, debug_box=draw_plotbox)
+        svg = ts.draw_svg(y_axis=True, title="Y axis test", debug_box=draw_plotbox)
         assert "Time ago (generations)" in svg
-        self.verify_known_svg(
-            svg, "ts_y_axis.svg", overwrite_viz, width=200 * ts.num_trees
-        )
+        self.verify_known_svg(svg, "ts_y_axis.svg", True, width=200 * ts.num_trees)
 
     def test_known_svg_ts_y_axis_regular(self, overwrite_viz, draw_plotbox):
         # This should have gridlines
