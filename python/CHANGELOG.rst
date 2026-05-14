@@ -2,13 +2,11 @@
 [1.0.3] - 2026-05-14
 --------------------
 
-In development
-
-- Add ``json+struct`` metadata codec that allows storing binary data using a struct
-  schema alongside JSON metadata. (:user:`benjeffery`, :pr:`3306`)
-
 **Features**
 
+- Add ``json+struct`` metadata codec that allows storing binary data using a struct
+  schema alongside JSON metadata. (:user:`benjeffery`, :user:`petrelharp`,
+  :pr:`3306`, :pr:`3439`, :pr:`3440`)
 - Add ``TreeSequence.ld_matrix`` stats method and documentation, for computing
   two-locus statistics in site and branch mode.
   (:user:`lkirk`, :user:`apragsdale`, :pr:`3416`)
