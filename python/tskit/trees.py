@@ -10630,7 +10630,10 @@ class TreeSequence:
     ):
         """
         Calculate the number of coalescing sample pairs per node, summed over
-        trees and weighted by tree span.
+        trees and weighted by tree span. Precisely, if `c_i(x)` is the
+        number of pairs that coalesce in node `i` at position `x` (which may be
+        zero), then the output for the `i`th node is the integral of `c_i` over
+        the tree sequence (or the intervals defined by `windows`).
 
         The number of coalescing pairs may be calculated within or between the
         non-overlapping lists of samples contained in `sample_sets`. In the
@@ -10647,6 +10650,21 @@ class TreeSequence:
         The argument `time_windows` may be used to count coalescence
         events within time intervals (if an array of breakpoints is supplied)
         rather than for individual nodes (the default).
+
+        The flags `span_normalise` and `pair_normalise` control the units of
+        the output. Let `p(x)` be the number of pairs that could potentially
+        coalesce at position `x` (omitting "isolated" samples). If both
+        `span_normalise` and `pair_normalise` are true, then the output is
+        divided by the integral of `p(x)` over the sequence, will thus sum to
+        one over the "time" dimension (provided all non-isolated samples trace
+        back to a single common ancestor per tree). If only `span_normalise` is
+        set, then the output is divided by `(integral p(x) dx) / (num_samples *
+        (num_samples - 1) / 2)` (the average non-missing sequence length per
+        sample pair).  Similarly, if only `pair_normalise` is set, the output
+        is divided by `(integral p(x) dx) / (nonmissing sequence)` ( the
+        average number of sample pairs per base). The default is
+        `span_normalise` so that the units of the output are "number of sample
+        pairs".
 
         The output array has dimension `(windows, indexes, nodes)` with
         dimensions dropped when the corresponding argument is set to None.
