@@ -10664,8 +10664,8 @@ class TreeSequence:
         sample pair).  Similarly, if only `pair_normalise` is set, the output
         is divided by `(integral p(x) dx) / (nonmissing sequence)` ( the
         average number of sample pairs per base). The default is
-        `span_normalise` so that the units of the output are "number of sample
-        pairs".
+        `span_normalise=True, pair_normalise=False`, so that the units
+        of the output are "number of sample pairs".
 
         The output array has dimension `(windows, indexes, nodes)` with
         dimensions dropped when the corresponding argument is set to None.
