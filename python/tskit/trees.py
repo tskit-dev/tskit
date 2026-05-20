@@ -10633,7 +10633,8 @@ class TreeSequence:
         trees and weighted by tree span. Precisely, if `c_i(x)` is the
         number of pairs that coalesce in node `i` at position `x` (which may be
         zero), then the output for the `i`th node is the integral of `c_i` over
-        the tree sequence (or the intervals defined by `windows`).
+        the tree sequence (or the intervals defined by `windows`),
+        possibly normalized as described below.
 
         The number of coalescing pairs may be calculated within or between the
         non-overlapping lists of samples contained in `sample_sets`. In the
