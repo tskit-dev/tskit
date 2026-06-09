@@ -6656,7 +6656,7 @@ class TreeSequence:
         :param list(int) individuals: A list containing the individual IDs to
             corresponding to the VCF samples. Defaults to all individuals
             associated with sample nodes in the tree sequence.
-            See the {ref}`sec_export_vcf_constructing_gt` section for more
+            See the :ref:`sec_export_vcf_constructing_gt` section for more
             details and examples.
         :param list(str) individual_names: A list of string names to identify
             individual columns in the VCF. In VCF nomenclature, these are the
