@@ -182,6 +182,8 @@ with gzip.open("output.vcf.gz", "wt") as f:
 
 However, this gzipped VCF won't be fully compatible with downstream tools
 such as tabix, which usually require the VCF to use the specialised bgzip format.
+If you want to write bgzip files directly within python, you could try the `Bio.bgzf`
+library provided by [biopython](https://biopython.org).
 
 (sec_export_vcf_masking_output)=
 
