@@ -6,6 +6,6 @@ on:
 
 jobs:
   Lint:
-    uses: tskit-dev/.github/.github/workflows/lint.yml@v15
+    uses: tskit-dev/.github/.github/workflows/lint.yml@v17
     with:
       pyproject-directory: python
