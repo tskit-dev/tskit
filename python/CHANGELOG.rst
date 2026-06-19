@@ -2,6 +2,11 @@
 [1.0.4] - 2026-XX-XX
 --------------------
 
+**Features**
+
+- CLI commands that load a tree sequence now accept ``-`` as the input path to
+  read from stdin. (:issue:`3468`)
+
 --------------------
 [1.0.3] - 2026-05-14
 --------------------
