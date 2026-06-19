@@ -73,6 +73,11 @@ def capture_output(func, *args, **kwargs):
     return stdout_output, stderr_output
 
 
+class MockStdIn:
+    def __init__(self, buffer):
+        self.buffer = buffer
+
+
 class TestCli(unittest.TestCase):
     """
     Superclass of tests for the CLI needing temp files.
@@ -309,6 +314,16 @@ class TestTskitArgumentParser:
         args = parser.parse_args([cmd, tree_sequence, *flags])
         assert args.tree_sequence == tree_sequence
         assert args.allow_position_zero == expected
+
+    def test_vcf_stdin_file(self):
+        parser = cli.get_tskit_parser()
+        args = parser.parse_args(["vcf", "-"])
+        assert args.tree_sequence == "-"
+
+    def test_vcf_requires_tree_sequence(self):
+        parser = cli.get_tskit_parser()
+        with pytest.raises(SystemExit):
+            parser.parse_args(["vcf"])
 
     def test_info_default_values(self):
         parser = cli.get_tskit_parser()
@@ -557,6 +572,13 @@ class TestTskitConversionOutput(unittest.TestCase):
         stdout, stderr = capture_output(
             cli.tskit_main, [cmd, "-0", self._tree_sequence_file]
         )
+        assert len(stderr) == 0
+        self.verify_vcf(stdout)
+
+    def test_vcf_stdin(self):
+        with open(self._tree_sequence_file, "rb") as f:
+            with mock.patch("sys.stdin", MockStdIn(f)):
+                stdout, stderr = capture_output(cli.tskit_main, ["vcf", "-0", "-"])
         assert len(stderr) == 0
         self.verify_vcf(stdout)
 

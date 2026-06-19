@@ -45,10 +45,15 @@ def sys_exit(message):
 
 
 def load_tree_sequence(path):
+    if path in [None, "-"]:
+        path = getattr(sys.stdin, "buffer", sys.stdin)
     try:
         return tskit.load(path)
-    except OSError as e:
-        sys_exit(f"Load error: {e}")
+    except (OSError, EOFError, tskit.FileFormatError) as e:
+        message = str(e)
+        if isinstance(e, EOFError) and len(message) == 0:
+            message = "End of file"
+        sys_exit(f"Load error: {message}")
 
 
 def run_info(args):
@@ -134,7 +139,10 @@ def run_vcf(args):
 
 
 def add_tree_sequence_argument(parser):
-    parser.add_argument("tree_sequence", help="The tskit tree sequence file")
+    parser.add_argument(
+        "tree_sequence",
+        help="The tskit tree sequence file, or '-' for stdin",
+    )
 
 
 def add_precision_argument(parser):
