@@ -26,6 +26,7 @@ Test cases for the command line interfaces to tskit
 
 import io
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -71,11 +72,6 @@ def capture_output(func, *args, **kwargs):
         sys.stderr.close()
         sys.stderr = stderr
     return stdout_output, stderr_output
-
-
-class MockStdIn:
-    def __init__(self, buffer):
-        self.buffer = buffer
 
 
 class TestCli(unittest.TestCase):
@@ -315,15 +311,28 @@ class TestTskitArgumentParser:
         assert args.tree_sequence == tree_sequence
         assert args.allow_position_zero == expected
 
-    def test_vcf_stdin_file(self):
+    @pytest.mark.parametrize(
+        "cmd",
+        [
+            "info",
+            "trees",
+            "vcf",
+            "nodes",
+            "edges",
+            "sites",
+            "mutations",
+            "migrations",
+            "individuals",
+            "populations",
+            "provenances",
+        ],
+    )
+    def test_tree_sequence_argument_optional(self, cmd):
+        # Omitting the positional argument selects stdin (tree_sequence is None);
+        # providing a path stores the path string.
         parser = cli.get_tskit_parser()
-        args = parser.parse_args(["vcf", "-"])
-        assert args.tree_sequence == "-"
-
-    def test_vcf_requires_tree_sequence(self):
-        parser = cli.get_tskit_parser()
-        with pytest.raises(SystemExit):
-            parser.parse_args(["vcf"])
+        assert parser.parse_args([cmd]).tree_sequence is None
+        assert parser.parse_args([cmd, "test.trees"]).tree_sequence == "test.trees"
 
     def test_info_default_values(self):
         parser = cli.get_tskit_parser()
@@ -576,9 +585,12 @@ class TestTskitConversionOutput(unittest.TestCase):
         self.verify_vcf(stdout)
 
     def test_vcf_stdin(self):
+        # Omitting the path argument reads the tree sequence from stdin. The
+        # low-level loader requires a real file descriptor, so sys.stdin must be
+        # patched with an actual open binary file (not e.g. an io.BytesIO).
         with open(self._tree_sequence_file, "rb") as f:
-            with mock.patch("sys.stdin", MockStdIn(f)):
-                stdout, stderr = capture_output(cli.tskit_main, ["vcf", "-0", "-"])
+            with mock.patch("sys.stdin", f):
+                stdout, stderr = capture_output(cli.tskit_main, ["vcf", "-0"])
         assert len(stderr) == 0
         self.verify_vcf(stdout)
 
@@ -664,3 +676,129 @@ class TestBadFile:
 
     def test_provenances(self):
         self.verify("provenances")
+
+
+@pytest.fixture(scope="module")
+def treeseq_file(tmp_path_factory):
+    """
+    A tree sequence dumped to file, containing migrations, mutations and
+    individuals so that every loading subcommand has something to output.
+    """
+    ts = msprime.simulate(
+        length=1,
+        recombination_rate=2,
+        mutation_rate=2,
+        random_seed=1,
+        migration_matrix=[[0, 1], [1, 0]],
+        population_configurations=[msprime.PopulationConfiguration(5) for _ in range(2)],
+        record_migrations=True,
+    )
+    assert ts.num_migrations > 0
+    ts = tsutil.insert_random_ploidy_individuals(ts, samples_only=True)
+    path = tmp_path_factory.mktemp("tsk_cli_stdin") / "stdin.trees"
+    ts.dump(path)
+    return str(path)
+
+
+# The loading subcommands and any extra flags they need to produce output.
+STDIN_SUBCOMMANDS = [
+    ["info"],
+    ["trees"],
+    ["vcf", "-0"],
+    ["nodes"],
+    ["edges"],
+    ["sites"],
+    ["mutations"],
+    ["migrations"],
+    ["individuals"],
+    ["populations"],
+    ["provenances"],
+]
+
+
+class TestStdin:
+    """
+    Tests that reading from stdin (omitting the path argument) produces the same
+    output as loading from a file, for every loading subcommand.
+    """
+
+    @pytest.mark.parametrize("subcommand", STDIN_SUBCOMMANDS)
+    def test_stdin_matches_file(self, treeseq_file, subcommand):
+        file_stdout, file_stderr = capture_output(
+            cli.tskit_main, [*subcommand, treeseq_file]
+        )
+        with open(treeseq_file, "rb") as f:
+            with mock.patch("sys.stdin", f):
+                stdin_stdout, stdin_stderr = capture_output(cli.tskit_main, subcommand)
+        assert file_stderr == ""
+        assert stdin_stderr == ""
+        assert len(file_stdout) > 0
+        assert stdin_stdout == file_stdout
+
+
+class TestStdinErrors:
+    """
+    Tests that errors loading from stdin are reported cleanly.
+    """
+
+    def run_info_stdin(self, path):
+        with mock.patch("sys.exit", side_effect=TestException) as mocked_exit:
+            with open(path, "rb") as f:
+                with mock.patch("sys.stdin", f):
+                    with pytest.raises(TestException):
+                        capture_output(cli.tskit_main, ["info"])
+        return mocked_exit.call_args[0][0]
+
+    def test_empty_stdin(self, tmp_path):
+        path = tmp_path / "empty.trees"
+        path.write_bytes(b"")
+        assert self.run_info_stdin(path) == "Load error: End of file"
+
+    def test_garbage_stdin(self, tmp_path):
+        path = tmp_path / "garbage.trees"
+        path.write_bytes(b"not a tree sequence at all")
+        message = self.run_info_stdin(path)
+        assert message.startswith("Load error: File not in kastore format")
+
+    def test_truncated_stdin(self, tmp_path, treeseq_file):
+        path = tmp_path / "truncated.trees"
+        with open(treeseq_file, "rb") as f:
+            path.write_bytes(f.read(100))
+        message = self.run_info_stdin(path)
+        assert message.startswith("Load error: File not in kastore format")
+
+
+class TestStdinSubprocess:
+    """
+    End-to-end tests that feed the tree sequence through a real OS pipe. Unlike
+    the in-process tests (which mock sys.stdin with a seekable file), these
+    exercise the genuine non-seekable stdin path.
+    """
+
+    def run_cli(self, args, input_bytes):
+        return subprocess.run(
+            [sys.executable, "-m", "tskit", *args],
+            input=input_bytes,
+            capture_output=True,
+        )
+
+    @pytest.mark.parametrize("subcommand", [["info"], ["vcf", "-0"], ["nodes"]])
+    def test_stdin_pipe_matches_file(self, treeseq_file, subcommand):
+        with open(treeseq_file, "rb") as f:
+            ts_bytes = f.read()
+        stdin_result = self.run_cli(subcommand, ts_bytes)
+        file_result = self.run_cli([*subcommand, treeseq_file], b"")
+        assert stdin_result.returncode == 0
+        assert stdin_result.stderr == b""
+        assert len(stdin_result.stdout) > 0
+        assert stdin_result.stdout == file_result.stdout
+
+    def test_empty_pipe(self):
+        result = self.run_cli(["info"], b"")
+        assert result.returncode != 0
+        assert b"End of file" in result.stderr
+
+    def test_garbage_pipe(self):
+        result = self.run_cli(["info"], b"not a tree sequence")
+        assert result.returncode != 0
+        assert b"not in kastore format" in result.stderr

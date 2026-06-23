@@ -4,8 +4,9 @@
 
 **Features**
 
-- CLI commands that load a tree sequence now accept ``-`` as the input path to
-  read from stdin. (:issue:`3468`)
+- CLI commands that load a tree sequence now read from stdin when the input
+  path argument is omitted. (:user:`chris-a-talbot`, :user:`jeromekelleher`,
+  :issue:`3468`, :pr:`3469`)
 
 --------------------
 [1.0.3] - 2026-05-14

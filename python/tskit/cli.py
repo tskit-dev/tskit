@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2018-2025 Tskit Developers
+# Copyright (c) 2018-2026 Tskit Developers
 # Copyright (c) 2015-2018 University of Oxford
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -45,15 +45,12 @@ def sys_exit(message):
 
 
 def load_tree_sequence(path):
-    if path in [None, "-"]:
-        path = getattr(sys.stdin, "buffer", sys.stdin)
+    if path is None:
+        path = sys.stdin
     try:
         return tskit.load(path)
     except (OSError, EOFError, tskit.FileFormatError) as e:
-        message = str(e)
-        if isinstance(e, EOFError) and len(message) == 0:
-            message = "End of file"
-        sys_exit(f"Load error: {message}")
+        sys_exit(f"Load error: {e}")
 
 
 def run_info(args):
@@ -141,7 +138,9 @@ def run_vcf(args):
 def add_tree_sequence_argument(parser):
     parser.add_argument(
         "tree_sequence",
-        help="The tskit tree sequence file, or '-' for stdin",
+        help="The tskit tree sequence file. If not provided, read from stdin.",
+        default=None,
+        nargs="?",
     )
 
 
