@@ -776,10 +776,15 @@ class TestStdinSubprocess:
     """
 
     def run_cli(self, args, input_bytes):
+        # Force UTF-8 stdout in the child so that commands printing unicode (e.g.
+        # the box-drawing characters from "info") don't fail when stdout is a
+        # pipe on platforms that default to a non-UTF-8 codec (e.g. Windows).
+        env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
         return subprocess.run(
             [sys.executable, "-m", "tskit", *args],
             input=input_bytes,
             capture_output=True,
+            env=env,
         )
 
     @pytest.mark.parametrize("subcommand", [["info"], ["vcf", "-0"], ["nodes"]])
