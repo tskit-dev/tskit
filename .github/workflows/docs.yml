@@ -10,6 +10,9 @@ on:
 env:
   FORCE_COLOR: 1
 
+permissions:
+  contents: read
+
 jobs:
   Docs:
     uses: tskit-dev/.github/.github/workflows/docs.yml@v17
