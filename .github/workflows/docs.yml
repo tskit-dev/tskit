@@ -19,4 +19,3 @@ jobs:
     with:
       pyproject-directory: python
       additional-apt-packages: doxygen
-      pre-build-command: cd docs/doxygen && doxygen
