@@ -16,21 +16,21 @@ jobs:
 
   packaging:
     name: Python packaging
-    uses: tskit-dev/.github/.github/workflows/python-packaging.yml@v17
+    uses: tskit-dev/.github/.github/workflows/python-packaging.yml@v18
     with:
       pyproject-directory: python
       cli-test-cmd: tskit --help
 
   test-c:
     name: C tests
-    uses: tskit-dev/.github/.github/workflows/c-tests.yml@v17
+    uses: tskit-dev/.github/.github/workflows/c-tests.yml@v18
     with:
       library-directory: c
     secrets: inherit  # zizmor: ignore[secrets-inherit] trusted first-party tskit-dev reusable workflow; needs CODECOV_TOKEN
 
   test-python-c:
     name: Python-C tests
-    uses: tskit-dev/.github/.github/workflows/python-c-tests.yml@v17
+    uses: tskit-dev/.github/.github/workflows/python-c-tests.yml@v18
     with:
       tests: python/tests/test_python_c.py python/tests/test_dict_encoding.py
       pyproject-directory: python
@@ -39,7 +39,7 @@ jobs:
 
   test:
     name: Python
-    uses: tskit-dev/.github/.github/workflows/python-tests.yml@v17
+    uses: tskit-dev/.github/.github/workflows/python-tests.yml@v18
     with:
       os: ${{ matrix.os }}
       python-version: ${{ matrix.python }}
