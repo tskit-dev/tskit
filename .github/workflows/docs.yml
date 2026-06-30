@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   Docs:
-    uses: tskit-dev/.github/.github/workflows/docs.yml@v18
+    uses: tskit-dev/.github/.github/workflows/docs.yml@v19
     with:
       pyproject-directory: python
       additional-apt-packages: doxygen
