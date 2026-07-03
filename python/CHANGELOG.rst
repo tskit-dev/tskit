@@ -7,6 +7,9 @@
 - CLI commands that load a tree sequence now read from stdin when the input
   path argument is omitted. (:user:`chris-a-talbot`, :user:`jeromekelleher`,
   :issue:`3468`, :pr:`3469`)
+- The returned object from ``variant.counts()`` and ``variant.frequencies()``
+  now stores alleles in the order defined in ``variant.alleles``.
+  (:user:`hyanwong`, :pr:`3471`)
 
 --------------------
 [1.0.3] - 2026-05-14
