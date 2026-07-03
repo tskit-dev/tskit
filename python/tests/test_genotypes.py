@@ -2609,7 +2609,7 @@ class TestVariant:
         assert len(variant.alleles) > 2
         assert None in variant.alleles
         counts = variant.counts()
-        assert len(counts) == len(variant.alleles)
+        assert list(counts.keys()) == list(variant.alleles)
         assert np.sum(list(counts.values())) == ts_fixture.num_samples
         assert counts[None] == variant.num_missing
         assert ts_fixture.num_samples > variant.num_missing

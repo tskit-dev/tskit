@@ -283,16 +283,19 @@ class Variant:
         possible :attr:`allele <Variant.alleles>` at this site: i.e. the number of
         samples possessing that allele among the set of samples specified when creating
         this Variant (by default, this is all the sample nodes in the tree sequence).
-        Missing data is represented by an allelic state of ``None``.
+        Missing data is represented by an allelic state of ``None``. The order of
+        alleles in the Counter is the same as the order of alleles in the
+        :attr:`alleles <Variant.alleles>` tuple.
 
         :return: A counter of the number of samples associated with each allele.
         """
         counts = collections.Counter()
         if self.alleles[-1] is None:
             # we have to treat the last element of the genotypes array as special
-            counts[None] = np.sum(self.genotypes == tskit.MISSING_DATA)
             for i, allele in enumerate(self.alleles[:-1]):
                 counts[allele] = np.sum(self.genotypes == i)
+            # Add the count of missing data as the last item
+            counts[None] = np.sum(self.genotypes == tskit.MISSING_DATA)
         else:
             bincounts = np.bincount(self.genotypes, minlength=self.num_alleles)
             for i, allele in enumerate(self.alleles):
@@ -308,6 +311,8 @@ class Variant:
         sample nodes in the tree sequence). Note, therefore, that if a restricted set
         of samples was specified on creation, the allele frequencies returned here
         will *not* be the global allele frequencies in the whole tree sequence.
+        The order of alleles in the returned dictionary is the same as the order
+        of alleles in the :attr:`alleles <Variant.alleles>` tuple.
 
         :param bool remove_missing: If True, only samples with non-missing data will
             be counted in the total number of samples used to calculate the frequency,
