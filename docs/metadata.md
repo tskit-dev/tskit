@@ -147,6 +147,18 @@ tables.metadata = {"generation_time": "two of your earth years"}
 ```
 
 :::{note}
+You *cannot directly edit* metadata in an existing `TableCollection`
+(or `TreeSequence`): for instance,
+`tables.metadata["taxonomy"]["subspecies"] = "lyrata"`
+will *silently do nothing*.
+(This is because `tables.metadata` returns a copy of the decoded metadata,
+rather than a view of the metadata itself.)
+Instead, first copy out the metadata (e.g., `md = tables.metadata`);
+edit it (e.g., `md["taxonomy"]["species"] = "lyrata"`),
+and put it back (`tables.metadata = md`).
+:::
+
+:::{note}
 Although we have stored the generation time in metadata, the
 time *units* of a tree sequence should be stored in the 
 {attr}`~TreeSequence.time_units` attribute, not in
@@ -284,8 +296,9 @@ must be encoded and decoded. The C API does not do this, but the Python API will
 use the schema to decode the metadata to Python objects.
 The encoding for doing this is specified in the top-level schema property `codec`.
 Currently the Python API supports the `json` codec which encodes metadata as
-[JSON](https://www.json.org/json-en.html), and the `struct` codec which encodes
-metadata in an efficient schema-defined binary format using {func}`python:struct.pack` .
+[JSON](https://www.json.org/json-en.html), the `struct` codec which encodes
+metadata in an efficient schema-defined binary format using {func}`python:struct.pack`,
+and the `json+struct` codec which is a combination of the two.
 
 (sec_metadata_codecs_json)=
 
@@ -435,6 +448,12 @@ The supported numeric and boolean types are:
   - float64
   - 8
 ```
+
+In addition to the `binaryFormat` encoding given in the table above,
+the `type` key must also be set to the appropriate value.
+For boolean values the `type` should be `boolean` (not bool);
+for integer binary formats it should be `integer` (not number),
+and for floating-point binary formats it should be `number`.
 
 When attempting to pack a non-integer using any of the integer conversion
 codes, if the non-integer has a `__index__` method then that method is
@@ -602,7 +621,7 @@ into 8-byte alignment; and
 (7) the binary data.
 The JSON data is encoded as ASCII, without a null terminating byte,
 and the format of the binary data is specified using the "struct" portion
-of the metadata schema, described :ref:`above <sec_metadata_codecs_struct>`.
+of the metadata schema, described {ref}`above <sec_metadata_codecs_struct>`.
 
 (sec_metadata_schema_examples)=
 
