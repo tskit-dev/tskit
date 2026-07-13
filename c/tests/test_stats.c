@@ -4030,6 +4030,23 @@ test_pair_coalescence_counts_missing(void)
         &ts, 5, missing_ex_nodes, missing_ex_edges, NULL, NULL, NULL, NULL, NULL, 0);
     verify_pair_coalescence_counts(&ts, 0);
     verify_pair_coalescence_counts(&ts, TSK_STAT_SPAN_NORMALISE);
+    verify_pair_coalescence_counts(&ts, TSK_STAT_PAIR_NORMALISE);
+    verify_pair_coalescence_counts(
+        &ts, TSK_STAT_SPAN_NORMALISE | TSK_STAT_PAIR_NORMALISE);
+    tsk_treeseq_free(&ts);
+}
+
+static void
+test_pair_coalescence_counts_internal(void)
+{
+    tsk_treeseq_t ts;
+    tsk_treeseq_from_text(&ts, 10, internal_sample_ex_nodes, internal_sample_ex_edges,
+        NULL, NULL, NULL, NULL, NULL, 0);
+    verify_pair_coalescence_counts(&ts, 0);
+    verify_pair_coalescence_counts(&ts, TSK_STAT_SPAN_NORMALISE);
+    verify_pair_coalescence_counts(&ts, TSK_STAT_PAIR_NORMALISE);
+    verify_pair_coalescence_counts(
+        &ts, TSK_STAT_SPAN_NORMALISE | TSK_STAT_PAIR_NORMALISE);
     tsk_treeseq_free(&ts);
 }
 
@@ -4164,6 +4181,8 @@ main(int argc, char **argv)
 
         { "test_pair_coalescence_counts", test_pair_coalescence_counts },
         { "test_pair_coalescence_counts_missing", test_pair_coalescence_counts_missing },
+        { "test_pair_coalescence_counts_internal",
+            test_pair_coalescence_counts_internal },
         { "test_pair_coalescence_quantiles", test_pair_coalescence_quantiles },
         { "test_pair_coalescence_rates", test_pair_coalescence_rates },
 
