@@ -27,7 +27,6 @@ Module responsible for managing trees and tree sequences.
 from __future__ import annotations
 
 import base64
-import builtins
 import collections
 import concurrent.futures
 import functools
@@ -118,7 +117,7 @@ def store_tree_sequence(cls):
 
     # Intercept the init to record the tree_sequence
     def new_init(self, *args, tree_sequence=None, **kwargs):
-        builtins.object.__setattr__(self, "_tree_sequence", tree_sequence)
+        object.__setattr__(self, "_tree_sequence", tree_sequence)
         wrapped_init(self, *args, **kwargs)
 
     cls.__init__ = new_init
@@ -4166,6 +4165,7 @@ class TreeSequence:
             if not name.startswith("_")
         }
         self._table_metadata_schemas = TableMetadataSchemas(**metadata_schema_instances)
+        self._metadata_access_counter = 0
         self._individuals_time = None
         self._individuals_population = None
         self._individuals_location = None
@@ -4610,10 +4610,25 @@ class TreeSequence:
         return self._ll_tree_sequence.get_sequence_length()
 
     @property
+    def metadata_size(self):
+        """
+        The size of the top-level metadata, in bytes.
+        """
+        return self._ll_tree_sequence.get_metadata_size()
+
+    @property
     def metadata(self) -> Any:
         """
         The decoded metadata for this TreeSequence.
+
+        This is a *property*, so each time you call TreeSequence.metadata,
+        the underlying metadata is decoded, and a new copy of the result is
+        returned (usually as a dictionary). So, calling this many times is
+        inefficient, and for repeated use the metadata should be stored. For
+        instance, instead of ``[ts.metadata['t'] - m.time for m in ts.mutations()]``,
+        do ``md = ts.metadata; [md['t'] - m.time for m in ts.mutations()]``.
         """
+        metadata_module.metadata_access_warning(self, "tree sequence")
         return self.metadata_schema.decode_row(self._ll_tree_sequence.get_metadata())
 
     @property
@@ -7503,7 +7518,7 @@ class TreeSequence:
         Returns a tree sequence containing only information directly
         referencing the provided list of nodes to retain.  The result will
         retain only the nodes whose IDs are listed in ``nodes``, only edges for
-        which both parent and child are in ``nodes```, only mutations whose
+        which both parent and child are in ``nodes``, only mutations whose
         node is in ``nodes``, and only individuals that are referred to by one
         of the retained nodes.  Note that this does *not* retain
         the ancestry of these nodes - for that, see :meth:`.simplify`.

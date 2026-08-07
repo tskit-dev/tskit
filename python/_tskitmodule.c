@@ -4050,6 +4050,19 @@ out:
     return ret;
 }
 
+static PyObject *
+TableCollection_get_metadata_size(TableCollection *self, void *closure)
+{
+    PyObject *ret = NULL;
+
+    if (TableCollection_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue("n", (Py_ssize_t) self->tables->metadata_length);
+out:
+    return ret;
+}
+
 static int
 TableCollection_set_metadata(TableCollection *self, PyObject *arg, void *closure)
 {
@@ -5075,6 +5088,9 @@ static PyGetSetDef TableCollection_getsetters[] = {
         .get = (getter) TableCollection_get_metadata,
         .set = (setter) TableCollection_set_metadata,
         .doc = "The metadata." },
+    { .name = "metadata_size",
+        .get = (getter) TableCollection_get_metadata_size,
+        .doc = "Returns the size of the metadata, in bytes." },
     { .name = "metadata_schema",
         .get = (getter) TableCollection_get_metadata_schema,
         .set = (setter) TableCollection_set_metadata_schema,
@@ -5586,6 +5602,19 @@ TreeSequence_get_metadata(TreeSequence *self)
     }
     ret = PyBytes_FromStringAndSize(self->tree_sequence->tables->metadata,
         self->tree_sequence->tables->metadata_length);
+out:
+    return ret;
+}
+
+static PyObject *
+TreeSequence_get_metadata_size(TreeSequence *self)
+{
+    PyObject *ret = NULL;
+
+    if (TreeSequence_check_state(self) != 0) {
+        goto out;
+    }
+    ret = Py_BuildValue("n", (Py_ssize_t) self->tree_sequence->tables->metadata_length);
 out:
     return ret;
 }
@@ -8759,6 +8788,10 @@ static PyMethodDef TreeSequence_methods[] = {
         .ml_meth = (PyCFunction) TreeSequence_get_metadata,
         .ml_flags = METH_NOARGS,
         .ml_doc = "Returns the metadata for the tree sequence" },
+    { .ml_name = "get_metadata_size",
+        .ml_meth = (PyCFunction) TreeSequence_get_metadata_size,
+        .ml_flags = METH_NOARGS,
+        .ml_doc = "Returns the size of the metadata, in bytes." },
     { .ml_name = "get_metadata_schema",
         .ml_meth = (PyCFunction) TreeSequence_get_metadata_schema,
         .ml_flags = METH_NOARGS,

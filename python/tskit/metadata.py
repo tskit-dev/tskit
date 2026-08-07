@@ -34,6 +34,7 @@ import json
 import pprint
 import struct
 import types
+import warnings
 from collections.abc import Mapping
 from itertools import islice
 from typing import Any
@@ -79,6 +80,24 @@ deref_meta_schema["properties"]["type"] = {"enum": ["object", ["object", "null"]
 # Change the schema URL to avoid jsonschema's cache
 deref_meta_schema["$schema"] = "http://json-schema.org/draft-o=07/schema#tskit"
 TSKITMetadataSchemaValidator.META_SCHEMA = deref_meta_schema
+
+
+def metadata_access_warning(obj, name):
+    if obj.metadata_size > tskit.METADATA_ACCESS_WARNING_SIZE:
+        # Some users of this function are marked immutable
+        object.__setattr__(
+            obj, "_metadata_access_counter", obj._metadata_access_counter + 1
+        )
+        if obj._metadata_access_counter == tskit.METADATA_ACCESS_WARNING_COUNT + 1:
+            warnings.warn(
+                "It looks like you're making repeated calls to "
+                f"<{name}>.metadata. "
+                "If metadata is large, this can slow scripts down considerably. "
+                "Instead, assign metadata to an object and use that, e.g.: "
+                "ts_metadata = ts.metadata",
+                UserWarning,
+                stacklevel=2,
+            )
 
 
 class AbstractMetadataCodec(metaclass=abc.ABCMeta):

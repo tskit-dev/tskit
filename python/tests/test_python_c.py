@@ -311,10 +311,12 @@ class TestTableCollection(LowLevelTestCase):
     def test_set_metadata(self):
         tables = _tskit.TableCollection(1)
         assert tables.metadata == b""
+        assert tables.metadata_size == 0
         for value in [b"foo", b"", "💩".encode(), b"null char \0 in string"]:
             tables.metadata = value
             tables.metadata_schema = "Test we have two separate fields"
             assert tables.metadata == value
+            assert tables.metadata_size == len(value)
 
     def test_set_metadata_schema_errors(self):
         tables = _tskit.TableCollection(1)
@@ -1562,11 +1564,13 @@ class TestTreeSequence(LowLevelTestCase, MetadataTestMixin):
         ts = _tskit.TreeSequence()
         ts.load_tables(tables)
         assert ts.get_metadata() == b""
+        assert ts.get_metadata_size() == 0
         for value in [b"foo", b"", "💩".encode(), b"null char \0 in string"]:
             tables.metadata = value
             ts = _tskit.TreeSequence()
             ts.load_tables(tables)
             assert ts.get_metadata() == value
+            assert ts.get_metadata_size() == len(value)
 
     def test_metadata_schema(self):
         tables = _tskit.TableCollection(1)

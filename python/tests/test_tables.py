@@ -4484,18 +4484,23 @@ class TestTableCollectionMetadata:
         # Default is empty bytes
         assert tc.metadata == b""
         assert tc.metadata_bytes == b""
+        assert tc.metadata_size == 0
 
         tc.metadata_schema = self.metadata_schema
         md1 = self.metadata_example_data()
+        md1_enc = tskit.canonical_json(md1).encode()
         md2 = self.metadata_example_data(val=2)
+        md2_enc = tskit.canonical_json(md2).encode()
         # Set
         tc.metadata = md1
         assert tc.metadata == md1
-        assert tc.metadata_bytes == tskit.canonical_json(md1).encode()
+        assert tc.metadata_bytes == md1_enc
+        assert tc.metadata_size == len(md1_enc)
         # Overwrite
         tc.metadata = md2
         assert tc.metadata == md2
-        assert tc.metadata_bytes == tskit.canonical_json(md2).encode()
+        assert tc.metadata_bytes == md2_enc
+        assert tc.metadata_size == len(md2_enc)
         # Del should fail
         with pytest.raises(AttributeError):
             del tc.metadata
@@ -4507,6 +4512,9 @@ class TestTableCollectionMetadata:
         # Setting bytes should fail
         with pytest.raises(AttributeError):
             tc.metadata_bytes = b"123"
+        # Setting size should fail
+        with pytest.raises(AttributeError):
+            tc.metadata_size = 0
 
     def test_set_time_units(self):
         tc = tskit.TableCollection(1)
@@ -5368,7 +5376,8 @@ class TestUnionTables(unittest.TestCase):
         )
         tables.assert_equals(ts.dump_tables(), ignore_provenance=True)
 
-        # empty union with tables should be tables
+        # empty union with tables should be tables,
+        # except for top-level metadata (which should be empty)
         empty.union(
             tables,
             node_mapping=np.full(tables.nodes.num_rows, tskit.NULL),
@@ -5376,7 +5385,8 @@ class TestUnionTables(unittest.TestCase):
             all_mutations=True,
             check_shared_equality=False,
         )
-        empty.assert_equals(tables, ignore_provenance=True)
+        empty.assert_equals(tables, ignore_provenance=True, ignore_ts_metadata=True)
+        assert empty.metadata == b""
 
     def test_reciprocal_empty(self):
         # reciprocally add mutations from one table and edges from the other
