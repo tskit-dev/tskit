@@ -3058,6 +3058,7 @@ class TableCollection(metadata.MetadataProvider):
         self._mutations = MutationTable(ll_table=self._ll_tables.mutations)
         self._populations = PopulationTable(ll_table=self._ll_tables.populations)
         self._provenances = ProvenanceTable(ll_table=self._ll_tables.provenances)
+        self._metadata_access_counter = 0
 
     @property
     def individuals(self) -> IndividualTable:
@@ -3195,6 +3196,24 @@ class TableCollection(metadata.MetadataProvider):
         :ref:`reference sequence<sec_data_model_reference_sequence>`.
         """
         return bool(self._ll_tables.has_reference_sequence())
+
+    @property
+    def metadata_size(self):
+        """
+        The size of the top-level metadata, in bytes.
+        """
+        return self._ll_tables.metadata_size
+
+    @property
+    def metadata(self):
+        metadata.metadata_access_warning(self, "table collection")
+        return self.metadata_schema.decode_row(self.metadata_bytes)
+
+    @metadata.setter
+    def metadata(self, metadata):
+        encoded = self.metadata_schema.validate_and_encode_row(metadata)
+        self._metadata_access_counter = 0
+        self._ll_object.metadata = encoded
 
     @property
     def reference_sequence(self):
@@ -4640,6 +4659,7 @@ class ImmutableTableCollection(metadata.MetadataProvider):
         self.mutations = ImmutableMutationTable(ll_tree_sequence)
         self.populations = ImmutablePopulationTable(ll_tree_sequence)
         self.provenances = ImmutableProvenanceTable(ll_tree_sequence)
+        self._metadata_access_counter = 0
         object.__setattr__(self, "_initialised", True)
 
     @property
@@ -4663,7 +4683,12 @@ class ImmutableTableCollection(metadata.MetadataProvider):
         return metadata.parse_metadata_schema(self._llts.get_metadata_schema())
 
     @property
+    def metadata_size(self):
+        return self._llts.get_metadata_size()
+
+    @property
     def metadata(self):
+        metadata.metadata_access_warning(self, "table collection")
         return self.metadata_schema.decode_row(self.metadata_bytes)
 
     @property

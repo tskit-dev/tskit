@@ -30,6 +30,7 @@ class TestCollectionParity:
         assert mutable.file_uuid == immutable.file_uuid
         assert mutable.metadata_schema == immutable.metadata_schema
         assert mutable.metadata == immutable.metadata
+        assert mutable.metadata_size == immutable.metadata_size
         assert mutable.metadata_schema.encode_row(mutable.metadata) == bytes(
             immutable.metadata_bytes
         )

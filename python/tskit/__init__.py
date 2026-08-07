@@ -70,6 +70,13 @@ TABLE_NAMES = [
     "provenances",
 ]
 
+#: Threshhold for warning about multiple top-level metadata use.
+#: A warning will be thrown if top-level metadata is larger than "size" bytes and is
+#: accessed more that "threshhold" times.  To disable, set threshhold to a large number,
+#: for instance: ``tskit.METADATA_ACCESS_WARNING_COUNT = 2**32``.
+METADATA_ACCESS_WARNING_COUNT = 20
+#: The minimum size of top-level metadata before a multiple access warning is produced.
+METADATA_ACCESS_WARNING_SIZE = 200_000
 
 from tskit.provenance import __version__  # NOQA
 from tskit.provenance import validate_provenance  # NOQA

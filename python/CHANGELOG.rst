@@ -10,6 +10,13 @@
 - The returned object from ``variant.counts()`` and ``variant.frequencies()``
   now stores alleles in the order defined in ``variant.alleles``.
   (:user:`hyanwong`, :pr:`3471`)
+- If top-level metadata is large, then repeatedly accessing it can be costly,
+  so now it throws a warning if the metadata is more than 200Kb and it is
+  accessed more than 20 times alerting the user to this possibility (both
+  constants are modifiable, however).
+  (:user:`petrelharp`, :issue:`3472`, :pr:`3475`)
+- TreeSequences and TableCollections now have a ``metadata_size`` property,
+  returning their size in bytes. (:user:`petrelharp`, :pr:`3475`)
 
 --------------------
 [1.0.3] - 2026-05-14

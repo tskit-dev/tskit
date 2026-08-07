@@ -153,6 +153,70 @@ time *units* of a tree sequence should be stored in the
 metadata. For example, we could set `tables.time_units = "generations"`.
 :::
 
+
+(sec_metadata_top_level_pitfalls)=
+
+### Pitfalls related to metadata
+
+Briefly, the pitfalls are:
+
+1. editing metadata directly can silently do nothing, and
+2. making repeated calls to top-level metadata will make your code very slow
+    if that metadata is large.
+
+One thing that it is important to know about metadata is that metadata access methods
+return a *copy* of the *decoded* information.
+So, for instance, each time you call
+```{code-cell}
+tables.metadata
+```
+(or ``ts.metadata``), it gives you a dictionary containing a *new copy* of the
+underlying information. So, this means that you cannot edit metadata
+by direct assignment. For instance, trying to change the metadata like this
+silently does nothing:
+```{code-cell}
+tables.metadata["taxonomy"]["subspecies"] = "lyrata"
+print(tables.metadata["taxonomy"]["subspecies"])
+```
+This is true for all types of metadata:
+for instance, editing `ts.mutation(0).metadata` will not change the metadata
+of the underlying mutation.
+See {ref}`sec_tutorial_metadata` for examples of modifying metadata in tables.
+To edit top-level metadata, first copy out the metadata, edit *that*,
+and then put it back:
+```{code-cell}
+md = tables.metadata
+md["taxonomy"]["species"] = "lyrata"
+tables.metadata = md
+```
+
+This fact about metadata can have important consequences for performance.
+For instance, if we'd like to convert all mutation times to generations,
+we should **definitely not** run
+``[mut.time / ts.metadata["generation_time"] for mut in ts.mutations()]``.
+This is because a new copy of the top-level metadata will be created
+for *every* mutation in the tree sequence.
+This may not be a big deal for some tree sequences,
+but this will take prohibitively long for tree sequences
+that have a large amount of information in top-level metadata
+(for instance, those produced by SLiM v6).
+Instead, it is good practice to make a copy of the top-level metadata,
+and use that copy henceforth, like so:
+```{code-cell}
+:tags: ["skip-execution"]
+top_md = ts.metadata
+mut_times = [
+    mut.time / top_md["generation_time"] for mut in ts.mutations()
+]
+```
+
+Because of this, tskit will produce a Warning if the top-level metadata
+is large (greater than 100Kb) and is accessed many times (more than 20 times).
+This behavior can be changed, by setting
+{data}`tskit.METADATA_ACCESS_WARNING_COUNT`
+or {data}`tskit.METADATA_ACCESS_WARNING_SIZE`.
+
+
 (sec_metadata_examples_reference_sequence)=
 
 ### Reference sequence
@@ -284,8 +348,9 @@ must be encoded and decoded. The C API does not do this, but the Python API will
 use the schema to decode the metadata to Python objects.
 The encoding for doing this is specified in the top-level schema property `codec`.
 Currently the Python API supports the `json` codec which encodes metadata as
-[JSON](https://www.json.org/json-en.html), and the `struct` codec which encodes
-metadata in an efficient schema-defined binary format using {func}`python:struct.pack` .
+[JSON](https://www.json.org/json-en.html), the `struct` codec which encodes
+metadata in an efficient schema-defined binary format using {func}`python:struct.pack`,
+and the `json+struct` codec which is a combination of the two.
 
 (sec_metadata_codecs_json)=
 
@@ -435,6 +500,12 @@ The supported numeric and boolean types are:
   - float64
   - 8
 ```
+
+In addition to the `binaryFormat` encoding given in the table above,
+the `type` key must also be set to the appropriate value.
+For boolean values the `type` should be `boolean` (not bool);
+for integer binary formats it should be `integer` (not number),
+and for floating-point binary formats it should be `number`.
 
 When attempting to pack a non-integer using any of the integer conversion
 codes, if the non-integer has a `__index__` method then that method is
@@ -602,7 +673,7 @@ into 8-byte alignment; and
 (7) the binary data.
 The JSON data is encoded as ASCII, without a null terminating byte,
 and the format of the binary data is specified using the "struct" portion
-of the metadata schema, described :ref:`above <sec_metadata_codecs_struct>`.
+of the metadata schema, described {ref}`above <sec_metadata_codecs_struct>`.
 
 (sec_metadata_schema_examples)=
 

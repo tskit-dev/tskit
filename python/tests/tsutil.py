@@ -397,7 +397,7 @@ def single_childify(ts):
 def add_random_metadata(ts, seed=1, max_length=10):
     """
     Returns a copy of the specified tree sequence with random metadata assigned
-    to the nodes, sites and mutations.
+    to the nodes, sites, mutations, and mutations.
     """
     tables = ts.dump_tables()
     np.random.seed(seed)
@@ -463,6 +463,12 @@ def add_random_metadata(ts, seed=1, max_length=10):
     metadata = np.random.randint(-127, 127, offset[-1]).astype(np.int8)
     populations = tables.populations
     populations.set_columns(metadata_offset=offset, metadata=metadata)
+
+    tables.metadata_schema = tskit.MetadataSchema.permissive_json()
+    tables.metadata = {
+        "test": [int(x) for x in np.random.randint(0, max_length, 25)],
+        "foo": "top-level metadata: 🌲🌴🌳",
+    }
 
     add_provenance(tables.provenances, "add_random_metadata")
     ts = tables.tree_sequence()

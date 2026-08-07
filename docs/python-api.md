@@ -54,6 +54,7 @@ sequences.
   TreeSequence.discrete_genome
   TreeSequence.discrete_time
   TreeSequence.metadata
+  TreeSequence.metadata_size
   TreeSequence.metadata_schema
   TreeSequence.reference_sequence
 ```
@@ -723,6 +724,7 @@ Other properties
       TableCollection.nbytes
       TableCollection.table_name_map
       TableCollection.metadata
+      TableCollection.metadata_size
       TableCollection.metadata_bytes
       TableCollection.metadata_schema
       TableCollection.sequence_length

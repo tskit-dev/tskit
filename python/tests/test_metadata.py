@@ -2775,3 +2775,117 @@ class TestStructuredArrays:
 
         dtype = metadata.MetadataSchema(schema).numpy_dtype()
         assert dtype.names == ("id", "name", "age")
+
+
+class TestMetadataAccessCounter:
+    """
+    Test for top-level metadata multiple access warnings.
+    """
+
+    big_size = tskit.METADATA_ACCESS_WARNING_SIZE
+
+    def get_example(self, n, what):
+        # note this cannot be a fixture because the _metadata_access_counter
+        # will then persist across tests
+        t = tskit.TableCollection(sequence_length=1)
+        schema = metadata.MetadataSchema(
+            {
+                "codec": "json+struct",
+                "json": {
+                    "codec": "json",
+                    "type": "object",
+                    "properties": {
+                        "a": {"type": "string"},
+                    },
+                },
+                "struct": {
+                    "codec": "struct",
+                    "type": "object",
+                    "properties": {
+                        "x": {
+                            "type": "array",
+                            "arrayLengthFormat": "Q",
+                            "items": {"type": "integer", "binaryFormat": "q"},
+                        }
+                    },
+                },
+            }
+        )
+        md = {"a": "bcde", "x": list(range(n))}
+        t.metadata_schema = schema
+        t.metadata = md
+        if what != "tables":
+            t = t.tree_sequence()
+        if what == "immutable_tables":
+            t = t.tables
+        return t
+
+    def check_not_warns(self, t, num_checks=None):
+        if num_checks is None:
+            num_checks = tskit.METADATA_ACCESS_WARNING_COUNT + 5
+        md = t.metadata
+        for _ in range(num_checks):
+            x = t.metadata
+            assert md == x
+            x["a"] = "this should have no effect"
+
+    def check_warns(self, t):
+        md = t.metadata
+        # should warn after METADATA_ACCESS_WARNING_COUNT times
+        for _ in range(tskit.METADATA_ACCESS_WARNING_COUNT - 1):
+            x = t.metadata
+            assert md == x
+            x["a"] = "this should have no effect"
+        with pytest.warns(UserWarning, match="metadata is large"):
+            assert md == t.metadata
+        # and no more after that
+        for _ in range(5):
+            x = t.metadata
+            assert md == x
+            x["a"] = "this should have no effect"
+
+    @pytest.mark.parametrize("what", ["tables", "ts", "immutable_tables"])
+    def test_warns(self, what):
+        t = self.get_example(self.big_size, what)
+        self.check_warns(t)
+
+    @pytest.mark.parametrize("what", ["tables", "ts", "immutable_tables"])
+    def test_not_warns(self, what):
+        t = self.get_example(5, what)
+        self.check_not_warns(t)
+
+    @pytest.mark.parametrize("what", ["tables", "ts", "immutable_tables"])
+    def test_change_threshhold_not_warns(self, what, monkeypatch):
+        orig_threshhold = tskit.METADATA_ACCESS_WARNING_COUNT
+        t = self.get_example(self.big_size, what)
+        monkeypatch.setattr(tskit, "METADATA_ACCESS_WARNING_COUNT", 1000)
+        self.check_not_warns(t, num_checks=orig_threshhold + 5)
+
+    @pytest.mark.parametrize("what", ["tables", "ts", "immutable_tables"])
+    def test_change_threshhold_warns(self, what, monkeypatch):
+        t = self.get_example(self.big_size, what)
+        monkeypatch.setattr(tskit, "METADATA_ACCESS_WARNING_COUNT", 0)
+        with pytest.warns(UserWarning, match="metadata is large"):
+            _ = t.metadata
+
+    @pytest.mark.parametrize("what", ["tables", "ts", "immutable_tables"])
+    def test_change_size_warns(self, what, monkeypatch):
+        t = self.get_example(5, what)
+        monkeypatch.setattr(tskit, "METADATA_ACCESS_WARNING_SIZE", 1)
+        self.check_warns(t)
+
+    @pytest.mark.parametrize("what", ["tables", "ts", "immutable_tables"])
+    def test_change_size_not_warns(self, what, monkeypatch):
+        t = self.get_example(self.big_size, what)
+        # put down the threshhold so this doesn't take forever
+        monkeypatch.setattr(tskit, "METADATA_ACCESS_WARNING_SIZE", 2**32)
+        monkeypatch.setattr(tskit, "METADATA_ACCESS_WARNING_COUNT", 2)
+        self.check_not_warns(t)
+
+    def test_set_resets_counter(self, monkeypatch):
+        monkeypatch.setattr(tskit, "METADATA_ACCESS_WARNING_COUNT", 5)
+        t = self.get_example(self.big_size, "tables")
+        self.check_warns(t)
+        self.check_not_warns(t)
+        t.metadata = t.metadata
+        self.check_warns(t)

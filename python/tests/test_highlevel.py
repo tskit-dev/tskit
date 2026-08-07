@@ -42,7 +42,7 @@ import tempfile
 import unittest
 import uuid as _uuid
 import warnings
-from xml.etree import ElementTree
+from html.parser import HTMLParser
 
 import kastore
 import msprime
@@ -1988,7 +1988,7 @@ class TestTreeSequence(HighLevelTestCase):
     def test_html_repr(self, ts):
         html = ts._repr_html_()
         # Parse to check valid
-        ElementTree.fromstring(html)
+        HTMLParser().feed(html)
         assert len(html) > 5000
         assert f"<tr><td>Trees</td><td>{ts.num_trees:,}</td></tr>" in html
         assert f"<tr><td>Time Units</td><td>{ts.time_units}</td></tr>" in html
@@ -3059,19 +3059,24 @@ class TestTreeSequenceMetadata:
         tc = tskit.TableCollection(1)
         ts = tc.tree_sequence()
         assert ts.metadata == b""
+        assert ts.metadata_size == 0
         tc.metadata_schema = self.metadata_schema
         data = {
             "table": "tree-sequence",
             "string_prop": "stringy",
             "num_prop": 42,
         }
+        data_enc = self.metadata_schema.validate_and_encode_row(data)
         tc.metadata = data
         ts = tc.tree_sequence()
         assert ts.metadata == data
+        assert ts.metadata_size == len(data_enc)
         with pytest.raises(AttributeError):
             ts.metadata = {"should": "fail"}
         with pytest.raises(AttributeError):
             del ts.metadata
+        with pytest.raises(AttributeError):
+            ts.metadata_size = 0
 
     def test_tree_sequence_time_units(self):
         tc = tskit.TableCollection(1)
@@ -3712,7 +3717,7 @@ class TestTree(HighLevelTestCase):
     def test_html_repr(self, ts_fixture):
         html = ts_fixture.first()._repr_html_()
         # Parse to check valid
-        ElementTree.fromstring(html)
+        HTMLParser().feed(html)
         assert len(html) > 1900
         assert "<tr><td>Total Branch Length</td><td>" in html
 
