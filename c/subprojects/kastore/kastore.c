@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <stdbool.h>
+#include <limits.h>
 
 #include "kastore.h"
 
@@ -292,12 +293,21 @@ kastore_read_descriptors(kastore_t *self)
             goto out;
         }
         self->items[j].type = (int) type;
-        if (key_start + key_len > self->file_size) {
+        if (key_len == 0) {
+            /* Keys must be non-empty, matching the write-side invariant. */
+            goto out;
+        }
+        /* The bounds checks below are written using subtraction and division so
+         * that they cannot themselves overflow on these attacker-controlled
+         * 64-bit values (e.g. key_start + key_len or array_len * type_size
+         * wrapping around past file_size). */
+        if (key_start > self->file_size || key_len > self->file_size - key_start) {
             goto out;
         }
         self->items[j].key_start = (size_t) key_start;
         self->items[j].key_len = (size_t) key_len;
-        if (array_start + array_len * type_size(type) > self->file_size) {
+        if (array_start > self->file_size
+            || array_len > (self->file_size - array_start) / type_size(type)) {
             goto out;
         }
         self->items[j].array_start = (size_t) array_start;
@@ -387,11 +397,11 @@ kastore_read_file(kastore_t *self)
 
     offset = KAS_HEADER_SIZE + self->num_items * KAS_ITEM_DESCRIPTOR_SIZE;
 
-    /* Read in up to the start of first array. This will contain all the keys. */
-    size = self->items[0].array_start;
-
-    assert(size > offset);
-    size -= offset;
+    /* Read in up to the start of first array. This will contain all the keys.
+     * kastore_read_descriptors rejects zero-length keys and validates the key
+     * and array packing, so items[0].array_start is always strictly greater
+     * than offset and the subtraction below cannot underflow. */
+    size = self->items[0].array_start - offset;
 
     self->key_read_buffer = (char *) malloc(size);
     if (self->key_read_buffer == NULL) {
@@ -445,6 +455,12 @@ kastore_read_item(kastore_t *self, kaitem_t *item)
         goto out;
     }
     if (size > 0) {
+        /* array_start is a size_t but fseek takes a long, which is only 32 bits
+         * on LLP64 platforms (e.g. 64-bit Windows). Guard against truncation. */
+        if (item->array_start > (size_t) (LONG_MAX - self->file_offset)) {
+            ret = KAS_ERR_IO;
+            goto out;
+        }
         err = fseek(self->file, self->file_offset + (long) item->array_start, SEEK_SET);
         if (err != 0) {
             ret = KAS_ERR_IO;

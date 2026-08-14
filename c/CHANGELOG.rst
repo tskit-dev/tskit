@@ -7,6 +7,9 @@ In development
 - Add ``tsk_json_struct_metadata_get_blob`` function
   (:user:`benjeffery`, :pr:`3306`)
 
+- Update to kastore 2.1.3 to include file security fix (:user:`jeromekelleher`,
+  :pr:`3478`).
+
 --------------------
 [1.3.1] - 2026-03-06
 --------------------
