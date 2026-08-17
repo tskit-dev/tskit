@@ -18,6 +18,11 @@
 - TreeSequences and TableCollections now have a ``metadata_size`` property,
   returning their size in bytes. (:user:`petrelharp`, :pr:`3475`)
 
+**Bugfixes**
+
+- Update to kastore C version 2.1.3 to include file security fix (:user:`jeromekelleher`, 
+  :pr:`3478`).
+
 --------------------
 [1.0.3] - 2026-05-14
 --------------------
