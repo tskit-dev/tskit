@@ -404,6 +404,27 @@ Some directives are only available in rST and must be wrapped in an
 ```
 ````
 
+(sec_development_documentation_debugging)=
+
+### Debugging the documentation
+
+The portions of the documentation written in markdown (`.md` files)
+evaluate their code chunks, and so it can be annoying to debug issues.
+One way to do this is to [convert the files to ipynb, and then open
+them with jupyter. This can be done, for instance, as follows:
+```sh
+uv run --project=.. --group docs --with jupytext jupytext --to ipynb tutorial.md
+uv run --project=.. --group docs --with jupyterlab jupyter lab
+```
+This would create the file `tutorial.ipynb`, which you can open (and execute)
+in the jupyter lab instance that this also runs.
+The resulting `ipynb` file cannot be cleanly round-tripped back, however,
+so to cleanly get those edits back to the `md` file, one route is to
+"save and export" the notebook as Markdown from jupyter lab (without overwriting
+the original markdown file), then using a visual diff program
+(such as [meld](https://meldmerge.org/)) to choose the changes you wish to keep.
+
+
 (sec_development_documentation_api)=
 
 ### API Reference
