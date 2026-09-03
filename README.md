@@ -53,7 +53,7 @@ and [C](https://tskit.dev/tskit/docs/stable/c-api.html) API. A Rust API is provi
 
 Most users of `tskit` will use the python API as it provides a convenient, high-level API
 to access, analyse and create tree sequences. Full documentation is
-[here](https://tskit.dev/tskit/docs/stable/python-api.html).   
+[here](https://tskit.dev/tskit/docs/stable/python-api.html).
 
 #### C API
 [![C99](https://img.shields.io/badge/Language-C99-steelblue.svg)](https://en.wikipedia.org/wiki/C99)
@@ -71,3 +71,14 @@ python -m pip install tskit
 # or
 conda install -c conda-forge tskit
 ```
+
+## Funding and acknowledgements
+
+The tskit software has benefited from input and contributions from
+too many people to list here
+(but see the author list for [the tskit paper](https://arxiv.org/abs/2602.09649)).
+We also gratefully acknowledge funding from the Robertson Foundation, the NIH
+(research grants HG011395 and HG012473), and the NSF 
+(research grant [OAC-2104115](https://www.nsf.gov/awardsearch/show-award/?AWD_ID=2104115)),
+that has supported core tskit development.
+
