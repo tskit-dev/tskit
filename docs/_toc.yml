@@ -27,6 +27,7 @@ parts:
 - caption: For developers
   chapters:
   - file: development
+  - file: debugging
   - file: changelogs
 - caption: Miscellaneous
   chapters:
