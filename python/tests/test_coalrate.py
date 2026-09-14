@@ -57,6 +57,26 @@ def _single_tree_example(L, T):
     return tables.tree_sequence()
 
 
+def _remove_partial_ancestry(tables, sample, left, right):
+    """
+    Remove ancestry for a particular sample over [left, right)
+    """
+    for position in [left, right]:
+        singletons = tables.edges.child == sample
+        for i in np.flatnonzero(singletons):
+            if tables.edges.left[i] < position < tables.edges.right[i]:
+                tables.edges.append(tables.edges[i].replace(left=position))
+                tables.edges[i] = tables.edges[i].replace(right=position)
+    drop = np.logical_and.reduce(
+        [
+            tables.edges.left >= left,
+            tables.edges.right <= right,
+            tables.edges.child == sample,
+        ]
+    )
+    tables.edges.keep_rows(~drop)
+
+
 # --- prototype --- #
 
 
@@ -88,6 +108,18 @@ def _nonmissing_window_span(ts, windows):
             w += 1
     window_span = np.diff(windows) - missing_span
     return window_span
+
+
+def _sample_set_pairs(ts, sample_sets, indexes):
+    sample_set_sizes = np.array([len(x) for x in sample_sets])
+    total_pairs = np.zeros(len(indexes))
+    for i, (j, k) in enumerate(indexes):
+        total_pairs[i] = (
+            sample_set_sizes[j] * sample_set_sizes[k]
+            if j != k
+            else sample_set_sizes[j] * (sample_set_sizes[j] - 1) / 2
+        )
+    return total_pairs
 
 
 def _pair_coalescence_weights(
@@ -234,6 +266,9 @@ def _pair_coalescence_stat(
         nodes_map[nodes_oob] = tskit.NULL
         num_time_windows = time_windows.size - 1
 
+    window_span = _nonmissing_window_span(ts, windows)
+    total_pairs = _sample_set_pairs(ts, sample_sets, indexes)
+
     num_nodes = ts.num_nodes
     num_windows = windows.size - 1
     num_sample_sets = len(sample_sets)
@@ -246,28 +281,45 @@ def _pair_coalescence_stat(
     output_size = summary_func_dim
     samples = np.concatenate(sample_sets)
 
+    nodes_set = np.full(num_nodes, tskit.NULL)
     nodes_parent = np.full(num_nodes, tskit.NULL)
     nodes_sample = np.zeros((num_nodes, num_sample_sets))
     nodes_weight = np.zeros((num_time_windows, num_indexes))
     nodes_values = np.zeros((num_time_windows, num_indexes))
+    nodes_degree = np.zeros(num_nodes, dtype=np.int32)
+    window_denom = np.zeros(num_indexes)
     coalescing_pairs = np.zeros((num_time_windows, num_indexes))
     coalescence_time = np.zeros((num_time_windows, num_indexes))
+    total_pair_spans = np.zeros(num_indexes)
+    sample_sizes = np.zeros(num_sample_sets)
     output = np.zeros((num_windows, output_size, num_indexes))
     visited = np.full(num_nodes, False)
 
-    total_pairs = np.zeros(num_indexes)
-    sizes = [len(s) for s in sample_sets]
-    for i, (j, k) in enumerate(indexes):
-        if j == k:
-            total_pairs[i] = sizes[j] * (sizes[k] - 1) / 2
-        else:
-            total_pairs[i] = sizes[j] * sizes[k]
+    # Jointly update numerator (observed number of coalescing pairs at a node)
+    # and denominator (the total number of coalescing pairs, integrated over
+    # nonmissing span). The denominator is complicated by the fact that samples
+    # may be ancestral to other samples: we do not permit a pair composed of a
+    # sample and its descendant to coalesce.
 
-    if span_normalise:
-        window_span = _nonmissing_window_span(ts, windows)
+    def update_numerator(u, n, m, r, t, x, y):
+        assert u != tskit.NULL
+        for i, (j, k) in enumerate(indexes):
+            w = n[j] * m[k]
+            if j != k:
+                w += n[k] * m[j]
+            x[u, i] += w * r
+            y[u, i] += w * r * t
+
+    def update_denominator(s, n, r, x):
+        assert s != tskit.NULL
+        for i, (j, k) in enumerate(indexes):
+            if s == j or s == k:
+                v = k if s == j else j
+                x[i] += n[v] * r
 
     for i, s in enumerate(sample_sets):  # initialize
         nodes_sample[s, i] = 1
+        nodes_set[s] = i
     sample_counts = nodes_sample.copy()
 
     w = 0
@@ -284,22 +336,55 @@ def _pair_coalescence_stat(
             c = edges_child[e]
             nodes_parent[c] = tskit.NULL
             inside = sample_counts[c]
+            # decrement numerator
             while p != tskit.NULL:
-                u = nodes_map[p]
-                t = nodes_time[p]
-                if u != tskit.NULL:
+                if nodes_map[p] != tskit.NULL:
                     outside = sample_counts[p] - sample_counts[c] - nodes_sample[p]
-                    for i, (j, k) in enumerate(indexes):
-                        weight = inside[j] * outside[k]
-                        if j != k:
-                            weight += inside[k] * outside[j]
-                        coalescing_pairs[u, i] -= weight * remainder
-                        coalescence_time[u, i] -= weight * remainder * t
+                    update_numerator(
+                        nodes_map[p],
+                        inside,
+                        outside,
+                        -remainder,
+                        nodes_time[p],
+                        coalescing_pairs,
+                        coalescence_time,
+                    )
                 c, p = p, nodes_parent[p]
             p = edges_parent[e]
+            c = edges_child[e]
+            # decrement denominator at insertion
+            nodes_degree[c] -= 1
+            assert not nodes_degree[c] < 0
+            if nodes_set[c] != tskit.NULL and nodes_degree[c] == 0:
+                update_denominator(
+                    nodes_set[c],
+                    sample_sizes - sample_counts[c],
+                    -remainder,
+                    total_pair_spans,
+                )
+                sample_sizes[nodes_set[c]] -= 1
+            nodes_degree[p] -= 1
+            assert not nodes_degree[p] < 0
+            if nodes_set[p] != tskit.NULL and nodes_degree[p] == 0:
+                update_denominator(
+                    nodes_set[p],
+                    sample_sizes - sample_counts[p],
+                    -remainder,
+                    total_pair_spans,
+                )
+                sample_sizes[nodes_set[p]] -= 1
+            # decrement denominator above insertion and sample counts
             while p != tskit.NULL:
+                if nodes_set[p] != tskit.NULL and nodes_degree[p] > 0:
+                    update_denominator(
+                        nodes_set[p],
+                        inside,
+                        remainder,
+                        total_pair_spans,
+                    )
                 sample_counts[p] -= inside
                 p = nodes_parent[p]
+            p = edges_parent[e]
 
         for b in range(in_range.start, in_range.stop):  # edges_in
             e = in_range.order[b]
@@ -307,49 +392,104 @@ def _pair_coalescence_stat(
             c = edges_child[e]
             nodes_parent[c] = p
             inside = sample_counts[c]
+            # increment sample counts and denominator above insertion
             while p != tskit.NULL:
                 sample_counts[p] += inside
+                if nodes_set[p] != tskit.NULL and nodes_degree[p] > 0:
+                    update_denominator(
+                        nodes_set[p],
+                        -inside,
+                        remainder,
+                        total_pair_spans,
+                    )
                 p = nodes_parent[p]
             p = edges_parent[e]
+            # increment denominator at insertion
+            if nodes_set[c] != tskit.NULL and nodes_degree[c] == 0:
+                sample_sizes[nodes_set[c]] += 1
+                update_denominator(
+                    nodes_set[c],
+                    sample_sizes - sample_counts[c],
+                    remainder,
+                    total_pair_spans,
+                )
+            if nodes_set[p] != tskit.NULL and nodes_degree[p] == 0:
+                sample_sizes[nodes_set[p]] += 1
+                update_denominator(
+                    nodes_set[p],
+                    sample_sizes - sample_counts[p],
+                    remainder,
+                    total_pair_spans,
+                )
+            nodes_degree[c] += 1
+            nodes_degree[p] += 1
+            # increment numerator
             while p != tskit.NULL:
-                u = nodes_map[p]
-                t = nodes_time[p]
-                if u != tskit.NULL:
+                if nodes_map[p] != tskit.NULL:
                     outside = sample_counts[p] - sample_counts[c] - nodes_sample[p]
-                    for i, (j, k) in enumerate(indexes):
-                        weight = inside[j] * outside[k]
-                        if j != k:
-                            weight += inside[k] * outside[j]
-                        coalescing_pairs[u, i] += weight * remainder
-                        coalescence_time[u, i] += weight * remainder * t
+                    update_numerator(
+                        nodes_map[p],
+                        inside,
+                        outside,
+                        remainder,
+                        nodes_time[p],
+                        coalescing_pairs,
+                        coalescence_time,
+                    )
                 c, p = p, nodes_parent[p]
+            p = edges_parent[e]
+            c = edges_child[e]
 
         while w < num_windows and windows[w + 1] <= right:  # flush window
             remainder = sequence_length - windows[w + 1]
             nodes_weight[:] = coalescing_pairs[:]
             nodes_values[:] = coalescence_time[:]
+            window_denom[:] = total_pair_spans[:]
             coalescing_pairs[:] = 0.0
             coalescence_time[:] = 0.0
+            total_pair_spans[:] = 0.0
             for c in samples:
+                # split denominator
+                if nodes_degree[c] > 0:
+                    update_denominator(
+                        nodes_set[c],
+                        nodes_sample[c] + sample_sizes - 2 * sample_counts[c],
+                        -remainder / 2,
+                        window_denom,
+                    )
+                    update_denominator(
+                        nodes_set[c],
+                        nodes_sample[c] + sample_sizes - 2 * sample_counts[c],
+                        remainder / 2,
+                        total_pair_spans,
+                    )
+                # split numerator
                 p = nodes_parent[c]
                 while not visited[c] and p != tskit.NULL:
-                    u = nodes_map[p]
-                    t = nodes_time[p]
-                    if u != tskit.NULL:
+                    if nodes_map[p] != tskit.NULL:
                         inside = sample_counts[c]
                         outside = sample_counts[p] - sample_counts[c] - nodes_sample[p]
-                        for i, (j, k) in enumerate(indexes):
-                            weight = inside[j] * outside[k]
-                            if j != k:
-                                weight += inside[k] * outside[j]
-                            x = weight * remainder / 2
-                            nodes_weight[u, i] -= x
-                            nodes_values[u, i] -= t * x
-                            coalescing_pairs[u, i] += x
-                            coalescence_time[u, i] += t * x
+                        update_numerator(
+                            nodes_map[p],
+                            inside,
+                            outside,
+                            -remainder / 2,
+                            nodes_time[p],
+                            nodes_weight,
+                            nodes_values,
+                        )
+                        update_numerator(
+                            nodes_map[p],
+                            inside,
+                            outside,
+                            remainder / 2,
+                            nodes_time[p],
+                            coalescing_pairs,
+                            coalescence_time,
+                        )
                     visited[c] = True
                     p, c = nodes_parent[p], p
-            for c in samples:
+            for c in samples:  # reset guard
                 p = nodes_parent[c]
                 while visited[c] and p != tskit.NULL:
                     visited[c] = False
@@ -358,11 +498,20 @@ def _pair_coalescence_stat(
                 nonzero = nodes_weight[:, i] > 0
                 nodes_values[nonzero, i] /= nodes_weight[nonzero, i]
                 nodes_values[~nonzero, i] = np.nan
-            if span_normalise:
-                nodes_weight /= window_span[w]
-            if pair_normalise:
-                nodes_weight /= total_pairs[np.newaxis, :]
-            for i in range(num_indexes):  # apply function to empirical distribution
+            # normalise weights
+            if pair_normalise or span_normalise:
+                nodes_weight = np.divide(
+                    nodes_weight,
+                    window_denom[np.newaxis],
+                    out=np.zeros_like(nodes_weight),
+                    where=window_denom[np.newaxis] > 0,
+                )
+                if span_normalise and not pair_normalise:
+                    nodes_weight *= total_pairs[np.newaxis]
+                if pair_normalise and not span_normalise:
+                    nodes_weight *= window_span[w]
+            # apply function to empirical distribution
+            for i in range(num_indexes):
                 output[w, :, i] = summary_func(
                     nodes_weight[:, i],
                     nodes_values[:, i],
@@ -510,7 +659,7 @@ def proto_pair_coalescence_rates(
     :param list windows: An increasing list of breakpoints between the
         sequence windows to compute the statistic in, or None.
     """
-    # TODO^^^
+    # TODO: update for parity with main method docstring
 
     if not (isinstance(time_windows, np.ndarray) and time_windows.size > 1):
         raise ValueError("Time windows must be an array of breakpoints")
@@ -614,6 +763,17 @@ def naive_pair_coalescence_counts(ts, sample_set_0, sample_set_1):
     given node is the product of the number of samples subtended by the left
     and right child. For higher arities, the count is summed over all possible
     pairs of children.
+
+    Two properties worth noting:
+
+      - Ancestor-descendant pairs are not counted at any node: at an
+        internal sample S, S itself is not in any of S's children's subtrees;
+        at any ancestor of S, S and its descendants live in the same
+        child-subtree, so they are never paired via the cross-children sum.
+
+      - Samples detached from the tree over an interval are not enumerated
+        by t.samples(p) for any internal p, and so contribute zero pair
+        count over those intervals.
     """
     output = np.zeros(ts.num_nodes)
     for t in ts.trees():
@@ -772,7 +932,6 @@ class TestCoalescingPairsOneTree:
         check = np.array([0.0] * 8 + [1, 2, 1, 5, 4, 15])
         implm = ts.pair_coalescence_counts()
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(ts)
         np.testing.assert_allclose(proto, check)
 
@@ -800,7 +959,6 @@ class TestCoalescingPairsOneTree:
         check[1] = np.array([0.0] * 8 + [0, 0, 0, 0, 4, 12])
         check[2] = np.array([0.0] * 8 + [1, 2, 0, 0, 0, 3])
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(
             ts, sample_sets=[ss0, ss1], indexes=indexes
         )
@@ -831,9 +989,32 @@ class TestCoalescingPairsOneTree:
         implm = ts.pair_coalescence_counts(span_normalise=False)
         check = np.array([0] * 8 + [1, 2, 1, 5, 5, 24]) * ts.sequence_length
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(ts, span_normalise=False)
         np.testing.assert_allclose(proto, check)
+
+    def test_internal_samples_normalised(self):
+        """
+        See `test_internal_samples`, but checking correctness of
+        normalisation
+        """
+        ts = self.example_ts()
+        tables = ts.dump_tables()
+        nodes_flags = tables.nodes.flags.copy()
+        nodes_flags[9] = tskit.NODE_IS_SAMPLE
+        nodes_flags[11] = tskit.NODE_IS_SAMPLE
+        tables.nodes.flags = nodes_flags
+        ts = tables.tree_sequence()
+        assert ts.num_samples == 10
+        unnormalised = ts.pair_coalescence_counts(span_normalise=False)
+        implm = ts.pair_coalescence_counts(span_normalise=True, pair_normalise=True)
+        check = unnormalised / unnormalised.sum()
+        np.testing.assert_allclose(implm, check)
+        np.testing.assert_allclose(implm.sum(), 1.0)
+        proto = proto_pair_coalescence_counts(
+            ts, span_normalise=True, pair_normalise=True
+        )
+        np.testing.assert_allclose(proto, check)
+        np.testing.assert_allclose(proto.sum(), 1.0)
 
     def test_windows(self):
         ts = self.example_ts()
@@ -843,7 +1024,6 @@ class TestCoalescingPairsOneTree:
         )
         np.testing.assert_allclose(implm[0], check)
         np.testing.assert_allclose(implm[1], check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(
             ts, windows=np.linspace(0, ts.sequence_length, 3), span_normalise=False
         )
@@ -871,7 +1051,6 @@ class TestCoalescingPairsOneTree:
             span_normalise=False, time_windows=time_windows
         )
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(
             ts, span_normalise=False, time_windows=time_windows
         )
@@ -894,7 +1073,6 @@ class TestCoalescingPairsOneTree:
         total_pairs = np.array([6, 16, 6])
         check /= total_pairs[:, np.newaxis]
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(
             ts,
             sample_sets=[ss0, ss1],
@@ -910,7 +1088,6 @@ class TestCoalescingPairsOneTree:
         check = np.array([0.0] * 8 + [1, 2, 1, 5, 0, 0, 0, 0])
         check /= total_pairs
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(ts, pair_normalise=True)
         np.testing.assert_allclose(proto, check)
 
@@ -965,7 +1142,6 @@ class TestCoalescingPairsTwoTree:
         implm = ts.pair_coalescence_counts(span_normalise=False)
         check = np.array([0] * 4 + [1 * (L - S), 2 * (L - S) + 1 * S, 2 * S, 3 * L])
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(ts, span_normalise=False)
         np.testing.assert_allclose(proto, check)
 
@@ -994,7 +1170,6 @@ class TestCoalescingPairsTwoTree:
         check[1] = np.array([0] * 4 + [1 * (L - S), 1 * (L - S), 2 * S, 2 * L])
         check[2] = np.array([0] * 4 + [0, 1 * L, 0, 0])
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(
             ts, sample_sets=[[0, 1], [2, 3]], indexes=indexes, span_normalise=False
         )
@@ -1023,9 +1198,31 @@ class TestCoalescingPairsTwoTree:
         implm = ts.pair_coalescence_counts(span_normalise=False)
         check = np.array([0.0] * 4 + [(L - S), S + 2 * (L - S), 3 * S, 4 * L])
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(ts, span_normalise=False)
         np.testing.assert_allclose(proto, check)
+
+    def test_internal_samples_normalised(self):
+        """
+        See `test_internal_samples`, but checking correctness of
+        normalisation
+        """
+        L, S = 200, 100
+        ts = self.example_ts(S, L)
+        tables = ts.dump_tables()
+        nodes_flags = tables.nodes.flags.copy()
+        nodes_flags[5] = tskit.NODE_IS_SAMPLE
+        tables.nodes.flags = nodes_flags
+        ts = tables.tree_sequence()
+        unnormalised = ts.pair_coalescence_counts(span_normalise=False)
+        implm = ts.pair_coalescence_counts(span_normalise=True, pair_normalise=True)
+        check = unnormalised / unnormalised.sum()
+        np.testing.assert_allclose(implm, check)
+        np.testing.assert_allclose(implm.sum(), 1.0)
+        proto = proto_pair_coalescence_counts(
+            ts, span_normalise=True, pair_normalise=True
+        )
+        np.testing.assert_allclose(proto, check)
+        np.testing.assert_allclose(proto.sum(), 1.0)
 
     def test_windows(self):
         """
@@ -1048,7 +1245,6 @@ class TestCoalescingPairsTwoTree:
         implm = ts.pair_coalescence_counts(windows=windows, span_normalise=False)
         np.testing.assert_allclose(implm[0], check_0)
         np.testing.assert_allclose(implm[1], check_1)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(ts, windows=windows, span_normalise=False)
         np.testing.assert_allclose(proto[0], check_0)
         np.testing.assert_allclose(proto[1], check_1)
@@ -1079,7 +1275,6 @@ class TestCoalescingPairsTwoTree:
         )
         np.testing.assert_allclose(implm[0], check_0)
         np.testing.assert_allclose(implm[1], check_1)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(
             ts,
             span_normalise=False,
@@ -1106,7 +1301,6 @@ class TestCoalescingPairsTwoTree:
         total_pairs = np.array([1, 4, 1])
         check /= total_pairs[:, np.newaxis]
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(
             ts,
             sample_sets=[[0, 1], [2, 3]],
@@ -1124,10 +1318,533 @@ class TestCoalescingPairsTwoTree:
         check = np.array([0.0] * 4 + [1 * (L - S), 2 * (L - S) + 1 * S, 0, 0, 0, 0])
         check /= total_pairs
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(
             ts, pair_normalise=True, span_normalise=False
         )
+        np.testing.assert_allclose(proto, check)
+
+
+class TestCoalescingPairsMissingSamples:
+    """
+    Test against a worked example where samples are partially missing
+    """
+
+    def example_ts(self):
+        """
+        3.00┊       8   ┊           ┊           ┊           ┊
+            ┊    ┏━━┻━┓ ┊           ┊           ┊           ┊
+        2.00┊    7    ┃ ┊   7       ┊       9   ┊           ┊
+            ┊  ┏━┻━┓  ┃ ┊  ┏┻━┓     ┊      ┏┻━┓ ┊           ┊
+        1.00┊  5   6  ┃ ┊  5  ┃     ┊      6  ┃ ┊           ┊
+            ┊ ┏┻┓ ┏┻┓ ┃ ┊ ┏┻┓ ┃     ┊     ┏┻┓ ┃ ┊           ┊
+        0.00┊ 0 1 2 3 4 ┊ 0 1 2 3 4 ┊ 0 1 2 3 4 ┊ 0 1 2 3 4 ┊
+            0           1           2           3           5
+              A A B B B   A A B           B B B
+        """
+        tables = tskit.TableCollection(sequence_length=5)
+        for _ in range(2):
+            tables.populations.add_row()
+        tables.nodes.set_columns(
+            time=np.array([0, 0, 0, 0, 0, 1, 1, 2, 3, 2]),
+            flags=np.array([tskit.NODE_IS_SAMPLE] * 5 + [0] * 5, dtype=np.uint32),
+            population=np.array([0, 0, 1, 1, 1] + [tskit.NULL] * 5, dtype=np.int32),
+        )
+        tables.edges.set_columns(
+            left=np.array([0, 0, 0, 2, 0, 2, 1, 0, 0, 2, 2, 0, 0]),
+            right=np.array([2, 2, 1, 3, 1, 3, 2, 2, 1, 3, 3, 1, 1]),
+            parent=np.array([5, 5, 6, 6, 6, 6, 7, 7, 7, 9, 9, 8, 8], dtype=np.int32),
+            child=np.array([0, 1, 2, 2, 3, 3, 2, 5, 6, 4, 6, 4, 7], dtype=np.int32),
+        )
+        return tables.tree_sequence()
+
+    def test_total_pairs_unnormalised(self):
+        """
+        With no normalisation the counts should sum to the total number of
+        span-weighted pairs.
+        """
+        total_pair_span = 16.0
+        ts = self.example_ts()
+        implm = ts.pair_coalescence_counts(span_normalise=False)
+        proto = proto_pair_coalescence_counts(ts, span_normalise=False)
+        np.testing.assert_allclose(implm.sum(), total_pair_span)
+        np.testing.assert_allclose(proto.sum(), total_pair_span)
+
+    def test_pair_normalise_only(self):
+        """
+        With `pair_normalise=True, span_normalise=False` the denominator
+        should equal `E[pair count] = total_pair_span / nonmissing_sequence`
+        """
+        total_pair_span = 16.0
+        nonmissing_sequence = 3.0
+        ts = self.example_ts()
+        unnormalised = ts.pair_coalescence_counts(
+            span_normalise=False, pair_normalise=False
+        )
+        check = unnormalised * nonmissing_sequence / total_pair_span
+        implm = ts.pair_coalescence_counts(span_normalise=False, pair_normalise=True)
+        proto = proto_pair_coalescence_counts(
+            ts, span_normalise=False, pair_normalise=True
+        )
+        np.testing.assert_allclose(implm, check)
+        np.testing.assert_allclose(proto, check)
+
+    def test_span_normalise_only(self):
+        """
+        With `pair_normalise=False, span_normalise=True` the denominator
+        should equal `E[pair span] = total_pair_span / total_pairs`
+        """
+        total_pair_span = 16.0
+        total_pairs = 5 * (5 - 1) / 2
+        ts = self.example_ts()
+        unnormalised = ts.pair_coalescence_counts(
+            span_normalise=False, pair_normalise=False
+        )
+        check = unnormalised * total_pairs / total_pair_span
+        implm = ts.pair_coalescence_counts(span_normalise=True, pair_normalise=False)
+        proto = proto_pair_coalescence_counts(
+            ts, span_normalise=True, pair_normalise=False
+        )
+        np.testing.assert_allclose(implm, check)
+        np.testing.assert_allclose(proto, check)
+
+    def test_pair_and_span_normalise(self):
+        """
+        With `pair_normalise=True, span_normalise=True` the denominator
+        should equal `total_pair_span` so that the "counts" sum to one
+        """
+        total_pair_span = 16.0
+        ts = self.example_ts()
+        unnormalised = ts.pair_coalescence_counts(
+            span_normalise=False, pair_normalise=False
+        )
+        check = unnormalised / total_pair_span
+        implm = ts.pair_coalescence_counts(span_normalise=True, pair_normalise=True)
+        proto = proto_pair_coalescence_counts(
+            ts, span_normalise=True, pair_normalise=True
+        )
+        np.testing.assert_allclose(implm, check)
+        np.testing.assert_allclose(proto, check)
+        np.testing.assert_allclose(implm.sum(), 1.0)
+        np.testing.assert_allclose(proto.sum(), 1.0)
+
+    def test_normalised_sums_to_unity(self):
+        """
+        With both `pair_normalise=True, span_normalise=True` each window and
+        index pair should sum to one (over nodes) unless there are multiple
+        roots
+        """
+        ts = self.example_ts()
+        ss = [[0, 1], [2, 3, 4]]
+        idx = [(0, 0), (0, 1), (1, 1)]
+        windows = ts.breakpoints(as_array=True)
+        check = np.array(
+            [
+                [1, 1, 1],  # tree 1
+                [1, 1, 0],  # tree 2
+                [0, 0, 1],  # tree 3
+                [0, 0, 0],  # tree 4
+            ]
+        )
+        implm = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            indexes=idx,
+            windows=windows,
+            span_normalise=True,
+            pair_normalise=True,
+        )
+        proto = proto_pair_coalescence_counts(
+            ts,
+            sample_sets=ss,
+            indexes=idx,
+            windows=windows,
+            span_normalise=True,
+            pair_normalise=True,
+        )
+        np.testing.assert_allclose(implm.sum(axis=-1), check)
+        np.testing.assert_allclose(proto.sum(axis=-1), check)
+
+    def test_population_pairs(self):
+        """
+        Number of span-weighted pairs across sample sets
+        """
+        ts = self.example_ts()
+        ss = [[0, 1], [2, 3, 4]]
+        idx = [(0, 0), (0, 1), (1, 1)]
+        unnormalised = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=False,
+            pair_normalise=False,
+        )
+        denom = np.array([2.0, 8.0, 6.0])  # (AA, AB, BB)
+        check = unnormalised / denom[:, np.newaxis]
+        implm = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=True,
+            pair_normalise=True,
+        )
+        proto = proto_pair_coalescence_counts(
+            ts,
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=True,
+            pair_normalise=True,
+        )
+        np.testing.assert_allclose(implm, check)
+        np.testing.assert_allclose(proto, check)
+
+    def test_trees(self):
+        """
+        Per-tree denominator equals the pair count for unit-width trees, and
+        zero for the empty tree. By convention the "normalised" result returns
+        zero for the empty tree.
+        """
+        ts = self.example_ts()
+        windows = ts.breakpoints(as_array=True)
+        expected_denominator = np.array([10.0, 3.0, 3.0, 0.0])[:, np.newaxis]
+        unnormalised = ts.pair_coalescence_counts(
+            windows=windows, span_normalise=False, pair_normalise=False
+        )
+        check = np.zeros_like(unnormalised)
+        np.divide(
+            unnormalised, expected_denominator, out=check, where=expected_denominator > 0
+        )
+        implm = ts.pair_coalescence_counts(
+            windows=windows, span_normalise=True, pair_normalise=True
+        )
+        proto = proto_pair_coalescence_counts(
+            ts, windows=windows, span_normalise=True, pair_normalise=True
+        )
+        np.testing.assert_allclose(implm, check)
+        np.testing.assert_allclose(proto, check)
+
+    def test_windows(self):
+        """
+        Expanding overlapped trees, window [0, 1.5) has denominator (10 + 3 *
+        0.5), whereas window [1.5, 3.5) has denominator (3 * 0.5 + 3 + 0)
+        """
+        ts = self.example_ts()
+        windows = np.array([0.0, 1.5, 3.5, 5.0])
+        unnormalised = ts.pair_coalescence_counts(
+            windows=windows, span_normalise=False, pair_normalise=False
+        )
+        denom_0 = 10 * 1.0 + 3 * 0.5
+        denom_1 = 3 * 0.5 + 3 * 1.0 + 2.0 * 0.0
+        check_0 = unnormalised[0] / denom_0
+        check_1 = unnormalised[1] / denom_1
+        implm = ts.pair_coalescence_counts(
+            windows=windows, span_normalise=True, pair_normalise=True
+        )
+        proto = proto_pair_coalescence_counts(
+            ts, windows=windows, span_normalise=True, pair_normalise=True
+        )
+        np.testing.assert_allclose(implm[0], check_0)
+        np.testing.assert_allclose(implm[1], check_1)
+        np.testing.assert_allclose(implm[2], 0.0)
+        np.testing.assert_allclose(proto[0], check_0)
+        np.testing.assert_allclose(proto[1], check_1)
+        np.testing.assert_allclose(proto[2], 0.0)
+
+    def test_internal_sample(self):
+        """
+        Flag node 6 (internal, time 1, population B) as a sample. It is present
+        in two trees, and cannot coalesce with its descendents, so the pair
+        counts per tree are:
+
+        tree 1: AA=1, BB=4, AB=8
+        tree 2: AA=1, BB=0, AB=2
+        tree 3: AA=0, BB=4, AB=0
+        tree 4: AA=0, BB=0, AB=0
+        """
+        tab = self.example_ts().dump_tables()
+        tab.nodes[6] = tab.nodes[6].replace(flags=tskit.NODE_IS_SAMPLE, population=1)
+        ts = tab.tree_sequence()
+        ss = [[0, 1], [2, 3, 4, 6]]
+        idx = [(0, 0), (0, 1), (1, 1)]
+        unnormalised = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=False,
+            pair_normalise=False,
+        )
+        denominators = np.array([2.0, 10.0, 8.0])  # AA, AB, BB
+        check = unnormalised / denominators[:, np.newaxis]
+        implm = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=True,
+            pair_normalise=True,
+        )
+        proto = proto_pair_coalescence_counts(
+            ts,
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=True,
+            pair_normalise=True,
+        )
+        np.testing.assert_allclose(implm, check)
+        np.testing.assert_allclose(proto, check)
+
+    def test_internal_sample_windowed(self):
+        """
+        Flag node 6 (internal, time 1, population B) as a sample, use windows;
+        see docstring for 'test_internal_sample'
+        """
+        tab = self.example_ts().dump_tables()
+        tab.nodes[6] = tab.nodes[6].replace(flags=tskit.NODE_IS_SAMPLE, population=1)
+        ts = tab.tree_sequence()
+        ss = [[0, 1], [2, 3, 4, 6]]
+        idx = [(0, 0), (0, 1), (1, 1)]
+        windows = np.array([0.0, 1.5, 3.5, 5.0])
+        unnormalised = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            indexes=idx,
+            windows=windows,
+            span_normalise=False,
+            pair_normalise=False,
+        )
+        denom_0 = np.array([1.5, 9.0, 4.0])  # (AA, AB, BB)
+        denom_1 = np.array([0.5, 1.0, 4.0])
+        check_0 = unnormalised[0] / denom_0[:, np.newaxis]
+        check_1 = unnormalised[1] / denom_1[:, np.newaxis]
+        implm = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            indexes=idx,
+            windows=windows,
+            span_normalise=True,
+            pair_normalise=True,
+        )
+        proto = proto_pair_coalescence_counts(
+            ts,
+            sample_sets=ss,
+            indexes=idx,
+            windows=windows,
+            span_normalise=True,
+            pair_normalise=True,
+        )
+        np.testing.assert_allclose(implm[0], check_0)
+        np.testing.assert_allclose(implm[1], check_1)
+        np.testing.assert_allclose(implm[2], 0.0)
+        np.testing.assert_allclose(proto[0], check_0)
+        np.testing.assert_allclose(proto[1], check_1)
+        np.testing.assert_allclose(proto[2], 0.0)
+
+    def test_internal_sample_cross_coalescence(self):
+        """
+        See docstring for `test_internal_sample`, but placing ancestor (node
+        6) and its descendants (2, 3) in different sample sets
+        """
+        tab = self.example_ts().dump_tables()
+        tab.nodes[6] = tab.nodes[6].replace(flags=tskit.NODE_IS_SAMPLE)
+        ts = tab.tree_sequence()
+        ss = [[0, 1, 6], [2, 3]]
+        idx = [(0, 0), (0, 1), (1, 1)]
+        unnormalised = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=False,
+            pair_normalise=False,
+        )
+        denominators = np.array([4.0, 6.0, 2.0])  # AA, AB, BB
+        check = unnormalised / denominators[:, np.newaxis]
+        implm = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=True,
+            pair_normalise=True,
+        )
+        proto = proto_pair_coalescence_counts(
+            ts,
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=True,
+            pair_normalise=True,
+        )
+        np.testing.assert_allclose(implm, check)
+        np.testing.assert_allclose(proto, check)
+
+    def test_nested_internal_samples(self):
+        """
+        Flag internal node 5 and its ancestor node 7 as samples
+        """
+        tab = self.example_ts().dump_tables()
+        tab.nodes[5] = tab.nodes[5].replace(flags=tskit.NODE_IS_SAMPLE)
+        tab.nodes[7] = tab.nodes[7].replace(flags=tskit.NODE_IS_SAMPLE)
+        ts = tab.tree_sequence()
+        ss = [[0, 1, 2, 5, 7]]
+        idx = [(0, 0)]
+        unnormalised = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=False,
+            pair_normalise=False,
+        )
+        denominator = 8.0
+        check = unnormalised / denominator
+        implm = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=True,
+            pair_normalise=True,
+        )
+        proto = proto_pair_coalescence_counts(
+            ts,
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=True,
+            pair_normalise=True,
+        )
+        np.testing.assert_allclose(implm, check)
+        np.testing.assert_allclose(proto, check)
+
+    def test_nested_internal_samples_with_span_normalise(self):
+        """
+        Flag internal node 5 and its ancestor node 7 as samples. Verify
+        that `span_normalise` alone gives output proportional to the total
+        number of pairs (not the effective number of pairs).
+        """
+        tab = self.example_ts().dump_tables()
+        tab.nodes[5] = tab.nodes[5].replace(flags=tskit.NODE_IS_SAMPLE)
+        tab.nodes[7] = tab.nodes[7].replace(flags=tskit.NODE_IS_SAMPLE)
+        ts = tab.tree_sequence()
+        ss = [[0, 1, 2, 5, 7]]
+        idx = [(0, 0)]
+        P_raw = 10  # choose(5, 2)
+        unnormalised = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=False,
+            pair_normalise=False,
+        )
+        total_pair_span = unnormalised.sum()
+        check = unnormalised * P_raw / total_pair_span
+        implm = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=True,
+            pair_normalise=False,
+        )
+        proto = proto_pair_coalescence_counts(
+            ts,
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=True,
+            pair_normalise=False,
+        )
+        np.testing.assert_allclose(implm, check)
+        np.testing.assert_allclose(proto, check)
+
+    def test_mixed_descendants(self):
+        """
+        Flag internal node 7 as a sample and put its descendants in two
+        different sample sets
+        """
+        tab = self.example_ts().dump_tables()
+        tab.nodes[7] = tab.nodes[7].replace(flags=tskit.NODE_IS_SAMPLE)
+        ts = tab.tree_sequence()
+        ss = [[0, 1, 7], [2, 3]]
+        idx = [(0, 0), (0, 1), (1, 1)]
+        unnormalised = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=False,
+            pair_normalise=False,
+        )
+        denominators = np.array([2.0, 6.0, 2.0])  # AA, AB, BB
+        check = unnormalised / denominators[:, np.newaxis]
+        implm = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=True,
+            pair_normalise=True,
+        )
+        proto = proto_pair_coalescence_counts(
+            ts,
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=True,
+            pair_normalise=True,
+        )
+        np.testing.assert_allclose(implm, check)
+        np.testing.assert_allclose(proto, check)
+
+    def test_internal_sample_window_boundary(self):
+        """
+        Test window flush when an internal sample crosses the window boundary
+        """
+        tab = self.example_ts().dump_tables()
+        tab.nodes[6] = tab.nodes[6].replace(flags=tskit.NODE_IS_SAMPLE)
+        ts = tab.tree_sequence()
+        ss = [[2, 3, 4, 6]]
+        idx = [(0, 0)]
+        windows = np.array([0.0, 0.5, 1.5, 5.0])
+        unnormalised = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            indexes=idx,
+            windows=windows,
+            span_normalise=False,
+            pair_normalise=False,
+        )
+        denominators = np.array([2.0, 2.0, 4.0])
+        check = unnormalised / denominators[:, np.newaxis, np.newaxis]
+        implm = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            indexes=idx,
+            windows=windows,
+            span_normalise=True,
+            pair_normalise=True,
+        )
+        proto = proto_pair_coalescence_counts(
+            ts,
+            sample_sets=ss,
+            indexes=idx,
+            windows=windows,
+            span_normalise=True,
+            pair_normalise=True,
+        )
+        np.testing.assert_allclose(implm, check)
+        np.testing.assert_allclose(implm.sum(axis=-1), np.ones((3, 1)))
+        np.testing.assert_allclose(proto, check)
+        np.testing.assert_allclose(proto.sum(axis=-1), np.ones((3, 1)))
+
+    def test_root_sample(self):
+        """
+        Flag node 9 (root, time 2, population B) as a sample. It cannot
+        coalesce with its descendents, so the pair counts per tree are:
+
+        tree 1: AA=1, BB=3, AB=6
+        tree 2: AA=1, BB=0, AB=2
+        tree 3: AA=0, BB=3, AB=0
+        tree 4: AA=0, BB=0, AB=0
+        """
+        tab = self.example_ts().dump_tables()
+        tab.nodes[9] = tab.nodes[9].replace(flags=tskit.NODE_IS_SAMPLE, population=1)
+        ts = tab.tree_sequence()
+        ss = [[0, 1], [2, 3, 4, 9]]
+        idx = [(0, 0), (0, 1), (1, 1)]
+        unnormalised = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=False,
+            pair_normalise=False,
+        )
+        denominators = np.array([2.0, 8.0, 6.0])  # AA, AB, BB
+        check = unnormalised / denominators[:, np.newaxis]
+        implm = ts.pair_coalescence_counts(
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=True,
+            pair_normalise=True,
+        )
+        proto = proto_pair_coalescence_counts(
+            ts,
+            sample_sets=ss,
+            indexes=idx,
+            span_normalise=True,
+            pair_normalise=True,
+        )
+        np.testing.assert_allclose(implm, check)
         np.testing.assert_allclose(proto, check)
 
 
@@ -1158,6 +1875,34 @@ class TestCoalescingPairsSimulated:
         assert ts.num_trees > 1
         return ts
 
+    @tests.cached_example
+    def messy_ts(self):
+        """
+        with only some samples missing over intervals,
+        and many internal nodes flagged as samples
+        """
+        rng = np.random.default_rng(seed=2048)
+        ts = self.example_ts()
+        orig_num_samples = ts.num_samples
+        orig_segsites = ts.segregating_sites(mode="branch")
+        tables = ts.dump_tables()
+        for s in ts.samples():
+            a, b = ts.sequence_length * rng.uniform([0.0, 0.6], [0.4, 1.0])
+            _remove_partial_ancestry(tables, s, a, b)
+        nodes_flags = tables.nodes.flags
+        nodes_population = tables.nodes.population
+        internal = rng.integers(ts.num_samples, ts.num_nodes, size=30)
+        population = rng.integers(0, 2, size=30)
+        nodes_flags[internal] = tskit.NODE_IS_SAMPLE
+        nodes_population[internal] = population
+        tables.nodes.flags = nodes_flags
+        tables.nodes.population = nodes_population
+        tables.sort()
+        ts = tables.tree_sequence()
+        assert ts.num_samples > orig_num_samples
+        assert ts.segregating_sites(mode="branch") < orig_segsites
+        return ts
+
     @staticmethod
     def _check_total_pairs(ts, windows):
         samples = list(ts.samples())
@@ -1168,14 +1913,13 @@ class TestCoalescingPairsSimulated:
             tsw = ts.keep_intervals(np.array([[a, b]]), simplify=False)
             check[w] = naive_pair_coalescence_counts(tsw, samples, samples) / 2
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(ts, windows=windows, span_normalise=False)
         np.testing.assert_allclose(proto, check)
 
     @staticmethod
     def _check_subset_pairs(ts, windows):
-        ss0 = np.flatnonzero(ts.nodes_population == 0)
-        ss1 = np.flatnonzero(ts.nodes_population == 1)
+        ss0 = list(ts.samples(population=0))
+        ss1 = list(ts.samples(population=1))
         idx = [(0, 1), (1, 1), (0, 0)]
         implm = ts.pair_coalescence_counts(
             sample_sets=[ss0, ss1], indexes=idx, windows=windows, span_normalise=False
@@ -1188,7 +1932,6 @@ class TestCoalescingPairsSimulated:
             check[w, 1] = naive_pair_coalescence_counts(tsw, ss1, ss1) / 2
             check[w, 2] = naive_pair_coalescence_counts(tsw, ss0, ss0) / 2
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(
             ts,
             sample_sets=[ss0, ss1],
@@ -1289,7 +2032,6 @@ class TestCoalescingPairsSimulated:
         implm = ts.pair_coalescence_counts(windows=windows, span_normalise=False)
         check = ts.pair_coalescence_counts(windows=windows) * window_size[:, np.newaxis]
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(ts, windows=windows, span_normalise=False)
         np.testing.assert_allclose(proto, check)
 
@@ -1308,7 +2050,6 @@ class TestCoalescingPairsSimulated:
         )
         implm = ts.pair_coalescence_counts(windows=windows, span_normalise=True)
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(ts, windows=windows, span_normalise=True)
         np.testing.assert_allclose(proto, check)
 
@@ -1336,6 +2077,45 @@ class TestCoalescingPairsSimulated:
         ).flatten()
         np.testing.assert_array_almost_equal(proto, check)
 
+    def test_messy(self):
+        """
+        test when only some samples are missing and there are
+        internal samples
+        """
+        ts = self.messy_ts()
+        windows = np.linspace(0, ts.sequence_length, 5)
+        self._check_total_pairs(ts, windows)
+        self._check_subset_pairs(ts, windows)
+
+    def test_normalised_sums_to_unity(self):
+        """
+        test that fully normalised counts sum to one across all nodes,
+        even with missingness and internal samples
+        """
+        ts = self.messy_ts()
+        sample_sets = [
+            list(ts.samples(population=0)),
+            list(ts.samples(population=1)),
+        ]
+        windows = np.linspace(0, ts.sequence_length, 5)
+        implm = ts.pair_coalescence_counts(
+            sample_sets=sample_sets,
+            indexes=[(0, 0), (0, 1), (1, 1)],
+            windows=windows,
+            pair_normalise=True,
+            span_normalise=True,
+        )
+        proto = proto_pair_coalescence_counts(
+            ts,
+            sample_sets=sample_sets,
+            indexes=[(0, 0), (0, 1), (1, 1)],
+            windows=windows,
+            pair_normalise=True,
+            span_normalise=True,
+        )
+        np.testing.assert_allclose(implm.sum(axis=-1), 1.0)
+        np.testing.assert_allclose(proto.sum(axis=-1), 1.0)
+
     def test_empty_windows(self):
         """
         test that windows without nodes contain zeros
@@ -1362,7 +2142,6 @@ class TestCoalescingPairsSimulated:
         check = ts.pair_coalescence_counts(windows=windows) * window_size[:, np.newaxis]
         check /= total_pairs
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(
             ts, windows=windows, span_normalise=False, pair_normalise=True
         )
@@ -1401,7 +2180,6 @@ class TestCoalescingPairsSimulated:
         nodes_map = np.searchsorted(time_windows, ts.nodes_time, side="right") - 1
         check = np.bincount(nodes_map, weights=check)
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(
             ts, span_normalise=False, time_windows=time_windows
         )
@@ -1430,7 +2208,6 @@ class TestCoalescingPairsSimulated:
         oob = np.logical_or(nodes_map < 0, nodes_map >= time_windows.size)
         check = np.bincount(nodes_map[~oob], weights=check[~oob])
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(
             ts, span_normalise=False, time_windows=time_windows
         )
@@ -1454,7 +2231,6 @@ class TestCoalescingPairsSimulated:
         nodes_map = np.searchsorted(time_windows, ts.nodes_time, side="right") - 1
         check = np.bincount(nodes_map, weights=check)
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(
             ts, span_normalise=False, time_windows=time_windows
         )
@@ -1471,7 +2247,6 @@ class TestCoalescingPairsSimulated:
         implm = ts.pair_coalescence_counts(windows=windows)
         implm = 2 * (implm @ ts.nodes_time) / implm.sum(axis=1)
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(ts, windows=windows)
         proto = 2 * (proto @ ts.nodes_time) / proto.sum(axis=1)
         np.testing.assert_allclose(proto, check)
@@ -1488,7 +2263,6 @@ class TestCoalescingPairsSimulated:
         implm = ts.pair_coalescence_counts(sample_sets=[ss0, ss1], windows=windows)
         implm = 2 * (implm @ ts.nodes_time) / implm.sum(axis=1)
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_counts(
             ts, sample_sets=[ss0, ss1], windows=windows
         )
@@ -1645,7 +2419,6 @@ class TestPairCoalescenceQuantiles:
         check = _numpy_weighted_quantile(ts.nodes_time, weights, quantiles)
         implm = ts.pair_coalescence_quantiles(quantiles)
         np.testing.assert_allclose(implm, check)
-        # TODO: remove with prototype
         proto = proto_pair_coalescence_quantiles(ts, quantiles=quantiles)
         np.testing.assert_allclose(proto, check)
 
