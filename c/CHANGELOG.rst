@@ -10,6 +10,11 @@ In development
 - Update to kastore 2.1.3 to include file security fix (:user:`jeromekelleher`,
   :pr:`3478`).
 
+**Bugfixes**
+
+- Fix off-by-one node ID bounds check in ``tsk_table_collection_link_ancestors``
+  which allowed out-of-bounds memory access (:user:`jeromekelleher`, :issue:`3484`).
+
 --------------------
 [1.3.1] - 2026-03-06
 --------------------

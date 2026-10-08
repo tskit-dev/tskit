@@ -7905,7 +7905,7 @@ ancestor_mapper_init_samples(ancestor_mapper_t *self, tsk_id_t *samples)
 
     /* Go through the samples to check for errors. */
     for (j = 0; j < self->num_samples; j++) {
-        if (samples[j] < 0 || samples[j] > (tsk_id_t) self->tables->nodes.num_rows) {
+        if (samples[j] < 0 || samples[j] >= (tsk_id_t) self->tables->nodes.num_rows) {
             ret = tsk_trace_error(TSK_ERR_NODE_OUT_OF_BOUNDS);
             goto out;
         }
@@ -7932,7 +7932,8 @@ ancestor_mapper_init_ancestors(ancestor_mapper_t *self, tsk_id_t *ancestors)
 
     /* Go through the samples to check for errors. */
     for (j = 0; j < self->num_ancestors; j++) {
-        if (ancestors[j] < 0 || ancestors[j] > (tsk_id_t) self->tables->nodes.num_rows) {
+        if (ancestors[j] < 0
+            || ancestors[j] >= (tsk_id_t) self->tables->nodes.num_rows) {
             ret = tsk_trace_error(TSK_ERR_NODE_OUT_OF_BOUNDS);
             goto out;
         }
