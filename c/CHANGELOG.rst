@@ -23,6 +23,10 @@ In development
   modifying any tables, avoiding out-of-bounds memory access for invalid node
   or mutation references (:user:`jeromekelleher`, :issue:`3486`).
 
+- Check parameters before allocating memory in
+  ``tsk_treeseq_genealogical_nearest_neighbours``, avoiding a very large
+  allocation request for invalid numbers of reference sets (:user:`jeromekelleher`).
+
 --------------------
 [1.3.1] - 2026-03-06
 --------------------
