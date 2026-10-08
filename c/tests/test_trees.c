@@ -7873,7 +7873,7 @@ test_zero_edges(void)
                             "1    1     1\n";
     tsk_treeseq_t ts, tss;
     tsk_tree_t t;
-    tsk_id_t samples, node_map;
+    tsk_id_t samples, node_map[2];
     const tsk_id_t z = TSK_NULL;
     tsk_id_t parents[] = {
         z,
@@ -7921,9 +7921,12 @@ test_zero_edges(void)
     tsk_tree_print_state(&t, _devnull);
     tsk_tree_free(&t);
 
-    /* We give pointers ot samples and node_map here as they must be non null */
-    ret = tsk_treeseq_simplify(&ts, &samples, 0, 0, &tss, &node_map);
+    /* We give a pointer to samples here as it must be non null; node_map must
+     * have space for all input nodes */
+    ret = tsk_treeseq_simplify(&ts, &samples, 0, 0, &tss, node_map);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQUAL(node_map[0], TSK_NULL);
+    CU_ASSERT_EQUAL(node_map[1], TSK_NULL);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_samples(&tss), 0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_sequence_length(&tss), 2.0);
     CU_ASSERT_EQUAL(tsk_treeseq_get_num_nodes(&tss), 0);
