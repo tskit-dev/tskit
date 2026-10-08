@@ -7765,6 +7765,44 @@ test_link_ancestors_samples_and_ancestors_overlap(void)
 }
 
 static void
+test_link_ancestors_skip_internal_node(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t tables;
+    tsk_edge_table_t result;
+    /* Node 4 is the parent of 0 and 1 but is not an ancestor, so it carries
+     * separate ancestry segments mapping to 0 and 1 up to node 6. */
+    tsk_id_t samples[] = { 0, 1 };
+    tsk_id_t ancestors[] = { 6 };
+    tsk_id_t res_child[] = { 0, 1 };
+    size_t i;
+
+    tsk_treeseq_from_text(&ts, 1, single_tree_ex_nodes, single_tree_ex_edges, NULL, NULL,
+        NULL, NULL, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &tables, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_edge_table_init(&result, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    ret = tsk_table_collection_link_ancestors(
+        &tables, samples, 2, ancestors, 1, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    CU_ASSERT_EQUAL_FATAL(result.num_rows, 2);
+    for (i = 0; i < result.num_rows; i++) {
+        CU_ASSERT_EQUAL(result.parent[i], 6);
+        CU_ASSERT_EQUAL(result.child[i], res_child[i]);
+        CU_ASSERT_EQUAL(result.left[i], 0);
+        CU_ASSERT_EQUAL(result.right[i], 1);
+    }
+
+    tsk_table_collection_free(&tables);
+    tsk_edge_table_free(&result);
+    tsk_treeseq_free(&ts);
+}
+
+static void
 test_link_ancestors_paper(void)
 {
     int ret;
@@ -8394,6 +8432,7 @@ test_ibd_segments_errors(void)
     tsk_id_t samples[] = { 0, 1, 2 };
     tsk_id_t duplicate_samples[] = { 0, 1, 0 };
     tsk_id_t samples2[] = { -1, 1 };
+    tsk_id_t samples3[] = { 0, 1, 2 };
     tsk_size_t sample_set_sizes[] = { 3 };
     tsk_identity_segments_t result;
     tsk_identity_segment_list_t *list;
@@ -8411,6 +8450,17 @@ test_ibd_segments_errors(void)
 
     ret = tsk_table_collection_ibd_between(&tables, &result, 1, sample_set_sizes,
         samples2, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    tsk_identity_segments_free(&result);
+
+    samples3[0] = (tsk_id_t) tables.nodes.num_rows;
+    ret = tsk_table_collection_ibd_within(
+        &tables, &result, samples3, 3, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    tsk_identity_segments_free(&result);
+
+    ret = tsk_table_collection_ibd_between(&tables, &result, 1, sample_set_sizes,
+        samples3, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
     tsk_identity_segments_free(&result);
 
@@ -11971,6 +12021,8 @@ main(int argc, char **argv)
         { "test_link_ancestors_no_edges", test_link_ancestors_no_edges },
         { "test_link_ancestors_input_errors", test_link_ancestors_input_errors },
         { "test_link_ancestors_single_tree", test_link_ancestors_single_tree },
+        { "test_link_ancestors_skip_internal_node",
+            test_link_ancestors_skip_internal_node },
         { "test_link_ancestors_paper", test_link_ancestors_paper },
         { "test_link_ancestors_samples_and_ancestors_overlap",
             test_link_ancestors_samples_and_ancestors_overlap },
