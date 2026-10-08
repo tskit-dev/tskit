@@ -12630,6 +12630,10 @@ tsk_table_collection_delete_older(
     memset(&mutations, 0, sizeof(mutations));
     memset(&migrations, 0, sizeof(migrations));
 
+    ret = (int) tsk_table_collection_check_integrity(self, 0);
+    if (ret != 0) {
+        goto out;
+    }
     ret = tsk_edge_table_copy(&self->edges, &edges, 0);
     if (ret != 0) {
         goto out;
