@@ -1264,7 +1264,7 @@ test_node_table(void)
     const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_length = (tsk_size_t) strlen(example);
     const char *example2 = "A different example 🎄🌳🌴🌲🎋";
-    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_size_t example2_length = (tsk_size_t) strlen(example2);
     tsk_node_table_set_metadata_schema(&table, example, example_length);
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
     CU_ASSERT_EQUAL(tsk_memcmp(table.metadata_schema, example, example_length), 0);
@@ -1963,7 +1963,7 @@ test_edge_table_with_options(tsk_flags_t options)
     const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_length = (tsk_size_t) strlen(example);
     const char *example2 = "A different example 🎄🌳🌴🌲🎋";
-    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_size_t example2_length = (tsk_size_t) strlen(example2);
     ret = tsk_edge_table_set_metadata_schema(&table, example, example_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
@@ -2998,7 +2998,7 @@ test_site_table(void)
     const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_length = (tsk_size_t) strlen(example);
     const char *example2 = "A different example 🎄🌳🌴🌲🎋";
-    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_size_t example2_length = (tsk_size_t) strlen(example2);
     tsk_site_table_set_metadata_schema(&table, example, example_length);
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
     CU_ASSERT_EQUAL(tsk_memcmp(table.metadata_schema, example, example_length), 0);
@@ -3726,7 +3726,7 @@ test_mutation_table(void)
     const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_length = (tsk_size_t) strlen(example);
     const char *example2 = "A different example 🎄🌳🌴🌲🎋";
-    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_size_t example2_length = (tsk_size_t) strlen(example2);
     tsk_mutation_table_set_metadata_schema(&table, example, example_length);
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
     CU_ASSERT_EQUAL(tsk_memcmp(table.metadata_schema, example, example_length), 0);
@@ -4568,7 +4568,7 @@ test_migration_table(void)
     const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_length = (tsk_size_t) strlen(example);
     const char *example2 = "A different example 🎄🌳🌴🌲🎋";
-    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_size_t example2_length = (tsk_size_t) strlen(example2);
     tsk_migration_table_set_metadata_schema(&table, example, example_length);
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
     CU_ASSERT_EQUAL(tsk_memcmp(table.metadata_schema, example, example_length), 0);
@@ -5365,7 +5365,7 @@ test_individual_table(void)
     const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_length = (tsk_size_t) strlen(example);
     const char *example2 = "A different example 🎄🌳🌴🌲🎋";
-    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_size_t example2_length = (tsk_size_t) strlen(example2);
     tsk_individual_table_set_metadata_schema(&table, example, example_length);
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
     CU_ASSERT_EQUAL(tsk_memcmp(table.metadata_schema, example, example_length), 0);
@@ -6072,7 +6072,7 @@ test_population_table(void)
     const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_length = (tsk_size_t) strlen(example);
     const char *example2 = "A different example 🎄🌳🌴🌲🎋";
-    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_size_t example2_length = (tsk_size_t) strlen(example2);
     tsk_population_table_set_metadata_schema(&table, example, example_length);
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
     CU_ASSERT_EQUAL(tsk_memcmp(table.metadata_schema, example, example_length), 0);
