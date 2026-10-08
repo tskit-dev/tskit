@@ -11908,6 +11908,60 @@ test_table_collection_delete_older(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_table_collection_delete_older_errors(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t t, copy;
+
+    const char *mutations = "0      2   1   -1\n"
+                            "0      2   0   0\n"
+                            "1      0   1   -1\n"
+                            "2      5   1   -1\n";
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        mutations, paper_ex_individuals, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &t, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+
+    /* Bad edge parent */
+    t.edges.parent[0] = (tsk_id_t) t.nodes.num_rows;
+    ret = tsk_table_collection_copy(&t, &copy, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_delete_older(&t, 0.09, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t, &copy, 0));
+    t.edges.parent[0] = 4;
+    tsk_table_collection_free(&copy);
+
+    /* Bad mutation node */
+    t.mutations.node[0] = (tsk_id_t) t.nodes.num_rows;
+    ret = tsk_table_collection_copy(&t, &copy, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_delete_older(&t, 0.09, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t, &copy, 0));
+    t.mutations.node[0] = 2;
+    tsk_table_collection_free(&copy);
+
+    /* Bad mutation parent */
+    t.mutations.parent[1] = (tsk_id_t) t.mutations.num_rows;
+    ret = tsk_table_collection_copy(&t, &copy, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_delete_older(&t, 0.09, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_OUT_OF_BOUNDS);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t, &copy, 0));
+    t.mutations.parent[1] = 0;
+    tsk_table_collection_free(&copy);
+
+    ret = tsk_table_collection_delete_older(&t, 0.09, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tsk_table_collection_free(&t);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -12052,6 +12106,8 @@ main(int argc, char **argv)
         { "test_table_collection_takeset_indexes",
             test_table_collection_takeset_indexes },
         { "test_table_collection_delete_older", test_table_collection_delete_older },
+        { "test_table_collection_delete_older_errors",
+            test_table_collection_delete_older_errors },
         { NULL, NULL },
     };
 

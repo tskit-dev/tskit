@@ -19,6 +19,10 @@ In development
   ``tsk_table_collection_ibd_between`` which allowed out-of-bounds memory access
   (:user:`jeromekelleher`, :issue:`3485`).
 
+- ``tsk_table_collection_delete_older`` now checks table integrity before
+  modifying any tables, avoiding out-of-bounds memory access for invalid node
+  or mutation references (:user:`jeromekelleher`, :issue:`3486`).
+
 --------------------
 [1.3.1] - 2026-03-06
 --------------------

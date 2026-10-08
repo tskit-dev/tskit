@@ -148,6 +148,36 @@ class TestDeleteOlderSimpleTree:
         tables.delete_older(time)
         tables.assert_equals(before, ignore_provenance=True)
 
+    @pytest.mark.parametrize("bad_node", [5, 2**30])
+    def test_bad_edge_parent(self, bad_node):
+        tables = self.tables()
+        parent = tables.edges.parent
+        parent[0] = bad_node
+        tables.edges.parent = parent
+        before = tables.copy()
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_NODE_OUT_OF_BOUNDS"):
+            tables.delete_older(1)
+        tables.assert_equals(before)
+
+    @pytest.mark.parametrize("bad_node", [5, 2**30])
+    def test_bad_mutation_node(self, bad_node):
+        tables = self.tables()
+        tables.sites.add_row(0.5, "A")
+        tables.mutations.add_row(site=0, node=bad_node, derived_state="T")
+        before = tables.copy()
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_NODE_OUT_OF_BOUNDS"):
+            tables.delete_older(1)
+        tables.assert_equals(before)
+
+    def test_bad_mutation_parent(self):
+        tables = self.tables()
+        tables.sites.add_row(0.5, "A")
+        tables.mutations.add_row(site=0, node=0, derived_state="T", parent=2**30)
+        before = tables.copy()
+        with pytest.raises(tskit.LibraryError, match="TSK_ERR_MUTATION_OUT_OF_BOUNDS"):
+            tables.delete_older(1)
+        tables.assert_equals(before)
+
 
 class TestDeleteOlderSimpleTreeMutationExamples:
     def test_single_mutation_no_time(self):
