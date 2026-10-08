@@ -394,10 +394,19 @@ class TestTableCollection(LowLevelTestCase):
     def test_link_ancestors(self):
         ts = msprime.simulate(2, random_seed=1)
         tc = ts.dump_tables()._ll_tables
-        edges = tc.link_ancestors([0, 1], [3])
+        edges = tc.link_ancestors([0, 1], [2])
         assert isinstance(edges, _tskit.EdgeTable)
         del edges
         assert tc.edges.num_rows == 2
+
+    @pytest.mark.parametrize(
+        ["samples", "ancestors"], [([0, 1], [3]), ([0, 3], [2]), ([0, 1], [-1])]
+    )
+    def test_link_ancestors_bad_node(self, samples, ancestors):
+        ts = msprime.simulate(2, random_seed=1)
+        tc = ts.dump_tables()._ll_tables
+        with pytest.raises(_tskit.LibraryError, match="TSK_ERR_NODE_OUT_OF_BOUNDS"):
+            tc.link_ancestors(samples, ancestors)
 
     def test_subset_bad_args(self):
         ts = msprime.simulate(10, random_seed=1)
