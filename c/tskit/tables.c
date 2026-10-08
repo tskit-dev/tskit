@@ -8633,7 +8633,7 @@ tsk_ibd_finder_init_samples_from_set(
     for (j = 0; j < num_samples; j++) {
         u = samples[j];
 
-        if (u < 0 || u > (tsk_id_t) self->tables->nodes.num_rows) {
+        if (u < 0 || u >= (tsk_id_t) self->tables->nodes.num_rows) {
             ret = tsk_trace_error(TSK_ERR_NODE_OUT_OF_BOUNDS);
             goto out;
         }
@@ -8887,7 +8887,7 @@ tsk_ibd_finder_init_between(tsk_ibd_finder_t *self, tsk_size_t num_sample_sets,
     for (j = 0; j < num_sample_sets; j++) {
         for (k = 0; k < sample_set_sizes[j]; k++) {
             u = sample_sets[index];
-            if (u < 0 || u > (tsk_id_t) self->tables->nodes.num_rows) {
+            if (u < 0 || u >= (tsk_id_t) self->tables->nodes.num_rows) {
                 ret = tsk_trace_error(TSK_ERR_NODE_OUT_OF_BOUNDS);
                 goto out;
             }

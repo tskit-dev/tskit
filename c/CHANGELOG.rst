@@ -15,6 +15,10 @@ In development
 - Fix off-by-one node ID bounds check in ``tsk_table_collection_link_ancestors``
   which allowed out-of-bounds memory access (:user:`jeromekelleher`, :issue:`3484`).
 
+- Fix off-by-one node ID bounds check in ``tsk_table_collection_ibd_within`` and
+  ``tsk_table_collection_ibd_between`` which allowed out-of-bounds memory access
+  (:user:`jeromekelleher`, :issue:`3485`).
+
 --------------------
 [1.3.1] - 2026-03-06
 --------------------

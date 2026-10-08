@@ -8394,6 +8394,7 @@ test_ibd_segments_errors(void)
     tsk_id_t samples[] = { 0, 1, 2 };
     tsk_id_t duplicate_samples[] = { 0, 1, 0 };
     tsk_id_t samples2[] = { -1, 1 };
+    tsk_id_t samples3[] = { 0, 1, 2 };
     tsk_size_t sample_set_sizes[] = { 3 };
     tsk_identity_segments_t result;
     tsk_identity_segment_list_t *list;
@@ -8411,6 +8412,17 @@ test_ibd_segments_errors(void)
 
     ret = tsk_table_collection_ibd_between(&tables, &result, 1, sample_set_sizes,
         samples2, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    tsk_identity_segments_free(&result);
+
+    samples3[0] = (tsk_id_t) tables.nodes.num_rows;
+    ret = tsk_table_collection_ibd_within(
+        &tables, &result, samples3, 3, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    tsk_identity_segments_free(&result);
+
+    ret = tsk_table_collection_ibd_between(&tables, &result, 1, sample_set_sizes,
+        samples3, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
     tsk_identity_segments_free(&result);
 
