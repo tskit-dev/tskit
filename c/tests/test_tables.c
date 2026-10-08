@@ -1264,7 +1264,7 @@ test_node_table(void)
     const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_length = (tsk_size_t) strlen(example);
     const char *example2 = "A different example 🎄🌳🌴🌲🎋";
-    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_size_t example2_length = (tsk_size_t) strlen(example2);
     tsk_node_table_set_metadata_schema(&table, example, example_length);
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
     CU_ASSERT_EQUAL(tsk_memcmp(table.metadata_schema, example, example_length), 0);
@@ -1963,7 +1963,7 @@ test_edge_table_with_options(tsk_flags_t options)
     const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_length = (tsk_size_t) strlen(example);
     const char *example2 = "A different example 🎄🌳🌴🌲🎋";
-    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_size_t example2_length = (tsk_size_t) strlen(example2);
     ret = tsk_edge_table_set_metadata_schema(&table, example, example_length);
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
@@ -2998,7 +2998,7 @@ test_site_table(void)
     const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_length = (tsk_size_t) strlen(example);
     const char *example2 = "A different example 🎄🌳🌴🌲🎋";
-    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_size_t example2_length = (tsk_size_t) strlen(example2);
     tsk_site_table_set_metadata_schema(&table, example, example_length);
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
     CU_ASSERT_EQUAL(tsk_memcmp(table.metadata_schema, example, example_length), 0);
@@ -3726,7 +3726,7 @@ test_mutation_table(void)
     const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_length = (tsk_size_t) strlen(example);
     const char *example2 = "A different example 🎄🌳🌴🌲🎋";
-    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_size_t example2_length = (tsk_size_t) strlen(example2);
     tsk_mutation_table_set_metadata_schema(&table, example, example_length);
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
     CU_ASSERT_EQUAL(tsk_memcmp(table.metadata_schema, example, example_length), 0);
@@ -4568,7 +4568,7 @@ test_migration_table(void)
     const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_length = (tsk_size_t) strlen(example);
     const char *example2 = "A different example 🎄🌳🌴🌲🎋";
-    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_size_t example2_length = (tsk_size_t) strlen(example2);
     tsk_migration_table_set_metadata_schema(&table, example, example_length);
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
     CU_ASSERT_EQUAL(tsk_memcmp(table.metadata_schema, example, example_length), 0);
@@ -5365,7 +5365,7 @@ test_individual_table(void)
     const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_length = (tsk_size_t) strlen(example);
     const char *example2 = "A different example 🎄🌳🌴🌲🎋";
-    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_size_t example2_length = (tsk_size_t) strlen(example2);
     tsk_individual_table_set_metadata_schema(&table, example, example_length);
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
     CU_ASSERT_EQUAL(tsk_memcmp(table.metadata_schema, example, example_length), 0);
@@ -6072,7 +6072,7 @@ test_population_table(void)
     const char *example = "An example of metadata schema with unicode 🎄🌳🌴🌲🎋";
     tsk_size_t example_length = (tsk_size_t) strlen(example);
     const char *example2 = "A different example 🎄🌳🌴🌲🎋";
-    tsk_size_t example2_length = (tsk_size_t) strlen(example);
+    tsk_size_t example2_length = (tsk_size_t) strlen(example2);
     tsk_population_table_set_metadata_schema(&table, example, example_length);
     CU_ASSERT_EQUAL(table.metadata_schema_length, example_length);
     CU_ASSERT_EQUAL(tsk_memcmp(table.metadata_schema, example, example_length), 0);
@@ -7618,9 +7618,19 @@ test_link_ancestors_input_errors(void)
         &tables, samples, 2, ancestors, 2, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
+    samples[0] = (tsk_id_t) tables.nodes.num_rows;
+    ret = tsk_table_collection_link_ancestors(
+        &tables, samples, 2, ancestors, 2, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
     /* Bad ancestor IDs */
     samples[0] = 0;
     ancestors[0] = -1;
+    ret = tsk_table_collection_link_ancestors(
+        &tables, samples, 2, ancestors, 2, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    ancestors[0] = (tsk_id_t) tables.nodes.num_rows;
     ret = tsk_table_collection_link_ancestors(
         &tables, samples, 2, ancestors, 2, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
@@ -8384,6 +8394,7 @@ test_ibd_segments_errors(void)
     tsk_id_t samples[] = { 0, 1, 2 };
     tsk_id_t duplicate_samples[] = { 0, 1, 0 };
     tsk_id_t samples2[] = { -1, 1 };
+    tsk_id_t samples3[] = { 0, 1, 2 };
     tsk_size_t sample_set_sizes[] = { 3 };
     tsk_identity_segments_t result;
     tsk_identity_segment_list_t *list;
@@ -8401,6 +8412,17 @@ test_ibd_segments_errors(void)
 
     ret = tsk_table_collection_ibd_between(&tables, &result, 1, sample_set_sizes,
         samples2, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    tsk_identity_segments_free(&result);
+
+    samples3[0] = (tsk_id_t) tables.nodes.num_rows;
+    ret = tsk_table_collection_ibd_within(
+        &tables, &result, samples3, 3, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    tsk_identity_segments_free(&result);
+
+    ret = tsk_table_collection_ibd_between(&tables, &result, 1, sample_set_sizes,
+        samples3, 0.0, DBL_MAX, TSK_IBD_STORE_SEGMENTS);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
     tsk_identity_segments_free(&result);
 
@@ -11886,6 +11908,60 @@ test_table_collection_delete_older(void)
     tsk_treeseq_free(&ts);
 }
 
+static void
+test_table_collection_delete_older_errors(void)
+{
+    int ret;
+    tsk_treeseq_t ts;
+    tsk_table_collection_t t, copy;
+
+    const char *mutations = "0      2   1   -1\n"
+                            "0      2   0   0\n"
+                            "1      0   1   -1\n"
+                            "2      5   1   -1\n";
+
+    tsk_treeseq_from_text(&ts, 10, paper_ex_nodes, paper_ex_edges, NULL, paper_ex_sites,
+        mutations, paper_ex_individuals, NULL, 0);
+    ret = tsk_treeseq_copy_tables(&ts, &t, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    tsk_treeseq_free(&ts);
+
+    /* Bad edge parent */
+    t.edges.parent[0] = (tsk_id_t) t.nodes.num_rows;
+    ret = tsk_table_collection_copy(&t, &copy, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_delete_older(&t, 0.09, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t, &copy, 0));
+    t.edges.parent[0] = 4;
+    tsk_table_collection_free(&copy);
+
+    /* Bad mutation node */
+    t.mutations.node[0] = (tsk_id_t) t.nodes.num_rows;
+    ret = tsk_table_collection_copy(&t, &copy, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_delete_older(&t, 0.09, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t, &copy, 0));
+    t.mutations.node[0] = 2;
+    tsk_table_collection_free(&copy);
+
+    /* Bad mutation parent */
+    t.mutations.parent[1] = (tsk_id_t) t.mutations.num_rows;
+    ret = tsk_table_collection_copy(&t, &copy, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    ret = tsk_table_collection_delete_older(&t, 0.09, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_MUTATION_OUT_OF_BOUNDS);
+    CU_ASSERT_TRUE(tsk_table_collection_equals(&t, &copy, 0));
+    t.mutations.parent[1] = 0;
+    tsk_table_collection_free(&copy);
+
+    ret = tsk_table_collection_delete_older(&t, 0.09, 0);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+
+    tsk_table_collection_free(&t);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -12030,6 +12106,8 @@ main(int argc, char **argv)
         { "test_table_collection_takeset_indexes",
             test_table_collection_takeset_indexes },
         { "test_table_collection_delete_older", test_table_collection_delete_older },
+        { "test_table_collection_delete_older_errors",
+            test_table_collection_delete_older_errors },
         { NULL, NULL },
     };
 

@@ -911,12 +911,10 @@ tsk_treeseq_genealogical_nearest_neighbours(const tsk_treeseq_t *self,
     const double sequence_length = self->tables->sequence_length;
     tsk_id_t tj, tk, h;
     double left, right, *A_row, scale, tree_length;
-    tsk_id_t *restrict parent = tsk_malloc(num_nodes * sizeof(*parent));
-    double *restrict length = tsk_calloc(num_focal, sizeof(*length));
-    uint32_t *restrict ref_count
-        = tsk_calloc(((tsk_size_t) K) * num_nodes, sizeof(*ref_count));
-    int16_t *restrict reference_set_map
-        = tsk_malloc(num_nodes * sizeof(*reference_set_map));
+    tsk_id_t *restrict parent = NULL;
+    double *restrict length = NULL;
+    uint32_t *restrict ref_count = NULL;
+    int16_t *restrict reference_set_map = NULL;
     uint32_t *restrict row = NULL;
     uint32_t *restrict child_row = NULL;
     uint32_t total, delta;
@@ -927,6 +925,10 @@ tsk_treeseq_genealogical_nearest_neighbours(const tsk_treeseq_t *self,
         ret = tsk_trace_error(TSK_ERR_BAD_PARAM_VALUE);
         goto out;
     }
+    parent = tsk_malloc(num_nodes * sizeof(*parent));
+    length = tsk_calloc(num_focal, sizeof(*length));
+    ref_count = tsk_calloc(((tsk_size_t) K) * num_nodes, sizeof(*ref_count));
+    reference_set_map = tsk_malloc(num_nodes * sizeof(*reference_set_map));
     if (parent == NULL || ref_count == NULL || reference_set_map == NULL
         || length == NULL) {
         ret = tsk_trace_error(TSK_ERR_NO_MEMORY);

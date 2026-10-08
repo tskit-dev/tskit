@@ -7905,7 +7905,7 @@ ancestor_mapper_init_samples(ancestor_mapper_t *self, tsk_id_t *samples)
 
     /* Go through the samples to check for errors. */
     for (j = 0; j < self->num_samples; j++) {
-        if (samples[j] < 0 || samples[j] > (tsk_id_t) self->tables->nodes.num_rows) {
+        if (samples[j] < 0 || samples[j] >= (tsk_id_t) self->tables->nodes.num_rows) {
             ret = tsk_trace_error(TSK_ERR_NODE_OUT_OF_BOUNDS);
             goto out;
         }
@@ -7932,7 +7932,8 @@ ancestor_mapper_init_ancestors(ancestor_mapper_t *self, tsk_id_t *ancestors)
 
     /* Go through the samples to check for errors. */
     for (j = 0; j < self->num_ancestors; j++) {
-        if (ancestors[j] < 0 || ancestors[j] > (tsk_id_t) self->tables->nodes.num_rows) {
+        if (ancestors[j] < 0
+            || ancestors[j] >= (tsk_id_t) self->tables->nodes.num_rows) {
             ret = tsk_trace_error(TSK_ERR_NODE_OUT_OF_BOUNDS);
             goto out;
         }
@@ -8632,7 +8633,7 @@ tsk_ibd_finder_init_samples_from_set(
     for (j = 0; j < num_samples; j++) {
         u = samples[j];
 
-        if (u < 0 || u > (tsk_id_t) self->tables->nodes.num_rows) {
+        if (u < 0 || u >= (tsk_id_t) self->tables->nodes.num_rows) {
             ret = tsk_trace_error(TSK_ERR_NODE_OUT_OF_BOUNDS);
             goto out;
         }
@@ -8886,7 +8887,7 @@ tsk_ibd_finder_init_between(tsk_ibd_finder_t *self, tsk_size_t num_sample_sets,
     for (j = 0; j < num_sample_sets; j++) {
         for (k = 0; k < sample_set_sizes[j]; k++) {
             u = sample_sets[index];
-            if (u < 0 || u > (tsk_id_t) self->tables->nodes.num_rows) {
+            if (u < 0 || u >= (tsk_id_t) self->tables->nodes.num_rows) {
                 ret = tsk_trace_error(TSK_ERR_NODE_OUT_OF_BOUNDS);
                 goto out;
             }
@@ -12629,6 +12630,10 @@ tsk_table_collection_delete_older(
     memset(&mutations, 0, sizeof(mutations));
     memset(&migrations, 0, sizeof(migrations));
 
+    ret = (int) tsk_table_collection_check_integrity(self, 0);
+    if (ret != 0) {
+        goto out;
+    }
     ret = tsk_edge_table_copy(&self->edges, &edges, 0);
     if (ret != 0) {
         goto out;

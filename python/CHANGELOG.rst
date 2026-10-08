@@ -22,6 +22,9 @@
 
 - Update to kastore C version 2.1.3 to include file security fix (:user:`jeromekelleher`, 
   :pr:`3478`).
+- ``TableCollection.delete_older`` now checks table integrity first, raising an
+  error for invalid node or mutation references instead of reading out of bounds
+  (:user:`jeromekelleher`, :issue:`3486`).
 
 --------------------
 [1.0.3] - 2026-05-14

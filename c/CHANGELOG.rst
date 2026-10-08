@@ -10,6 +10,23 @@ In development
 - Update to kastore 2.1.3 to include file security fix (:user:`jeromekelleher`,
   :pr:`3478`).
 
+**Bugfixes**
+
+- Fix off-by-one node ID bounds check in ``tsk_table_collection_link_ancestors``
+  which allowed out-of-bounds memory access (:user:`jeromekelleher`, :issue:`3484`).
+
+- Fix off-by-one node ID bounds check in ``tsk_table_collection_ibd_within`` and
+  ``tsk_table_collection_ibd_between`` which allowed out-of-bounds memory access
+  (:user:`jeromekelleher`, :issue:`3485`).
+
+- ``tsk_table_collection_delete_older`` now checks table integrity before
+  modifying any tables, avoiding out-of-bounds memory access for invalid node
+  or mutation references (:user:`jeromekelleher`, :issue:`3486`).
+
+- Check parameters before allocating memory in
+  ``tsk_treeseq_genealogical_nearest_neighbours``, avoiding a very large
+  allocation request for invalid numbers of reference sets (:user:`jeromekelleher`).
+
 --------------------
 [1.3.1] - 2026-03-06
 --------------------
