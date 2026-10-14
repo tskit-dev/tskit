@@ -1709,6 +1709,16 @@ class TestTajimasD(StatsTestCase, SampleSetStatsMixin):
 class TestSiteTajimasD(TestTajimasD, MutatedTopologyExamplesMixin):
     mode = "site"
 
+    @pytest.mark.parametrize("num_samples", [21845, 21846, 65536])
+    def test_large_sample_size(self, num_samples):
+        tables = tskit.Tree.generate_star(num_samples).tree_sequence.dump_tables()
+        for position, node in [(0.25, 0), (0.75, 1)]:
+            site = tables.sites.add_row(position, ancestral_state="A")
+            tables.mutations.add_row(site, node, derived_state="T")
+        ts = tables.tree_sequence()
+        expected = site_tajimas_d(ts, [ts.samples()])[0, 0]
+        self.assertArrayAlmostEqual(ts.Tajimas_D(), expected)
+
 
 ############################################
 # Y1

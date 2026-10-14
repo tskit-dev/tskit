@@ -10024,6 +10024,7 @@ class TreeSequence:
             n = sample_set_sizes
             T = self.ll_tree_sequence.diversity(n, flattened, **kwargs)
             S = self.ll_tree_sequence.segregating_sites(n, flattened, **kwargs)
+            n = n.astype(np.float64)
             h = np.array([np.sum(1 / np.arange(1, nn)) for nn in n])
             g = np.array([np.sum(1 / np.arange(1, nn) ** 2) for nn in n])
             with np.errstate(invalid="ignore", divide="ignore"):
