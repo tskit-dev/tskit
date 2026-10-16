@@ -337,10 +337,13 @@ of what's stored in the tree sequence.
 As discussed in 
 [Fritze et al](https://doi.org/10.1093/genetics/iyaf198),
 most tree sequence simulators (at time of writing)
-will produce this tree sequence even if node ``2``
+will produce this tree sequence by default, even if node ``2``
 does in fact inherit from ``3`` over the entire sequence.
-Using {meth}`.TreeSequence.extend_haplotypes` will
-"put the unary nodes back":
+For the [msprime](https://tskit.dev/msprime/) simulator, intermediate
+nodes can be retained using
+{ref}`coalescing_segments_only=False<msprime:sec_additional_nodes_cso>`.
+More generally, {meth}`.TreeSequence.extend_haplotypes` will
+attempt to "put the unary nodes back":
 ```{code-cell}
 ets = ts.extend_haplotypes()
 SVG(ets.draw_svg())
