@@ -53,15 +53,19 @@ Here are the statistics that can be computed using `tskit`,
 grouped by basic classification and type. Single-site statistics are ones that are
 averages across sites in windows of the genome, returning numpy arrays whose
 dimensions are determined by the parameters (see {ref}`sec_stats_output_dimensions`).
+Multi-site statistics summarize relationships between different sites along the genome,
+such as linkage disequilibium (LD).
 
-{ref}`sec_stats_sample_sets_one_way` are defined over a single sample set, 
-whereas {ref}`sec_stats_sample_sets_multi_way` compare 2 or more sets of samples.
+Both single and multi-site approaches require specifying the sample genomes on which
+a statistic is based. {ref}`sec_stats_sample_sets_one_way` are defined over a single
+sample set,  whereas {ref}`sec_stats_sample_sets_multi_way` compare 2 or more sets
+of samples.
 
 Some of the methods below benefit from a little extra discussion, provided in the
 {ref}`sec_stats_notes` section at the end of this chapter: if so, a link to the note
 appears beside the listed method.
 
-* Single site
+* {ref}`Single site<sec_stats_single_site>`
     * One-way
         * {meth}`~TreeSequence.allele_frequency_spectrum` (see {ref}`notes<sec_stats_notes_afs>`)
         * {meth}`~TreeSequence.diversity`
@@ -86,8 +90,8 @@ appears beside the listed method.
           (see {ref}`sec_stats_notes_y`)
         * {meth}`~TreeSequence.genealogical_nearest_neighbours` (see {ref}`sec_stats_notes_gnn`)
         * {meth}`~TreeSequence.Fst` (see {ref}`sec_stats_notes_derived`)
-* Multi site
-    * {meth}`~LdCalculator` (note this is soon to be deprecated)
+* {ref}`Multi site<sec_stats_multi_site>`
+    * {meth}`~TreeSequence.ld_matrix` (see {ref}`sec_stats_two_locus`)
 
 :::{note}
 There is a general framework provided for calculating additional single site
