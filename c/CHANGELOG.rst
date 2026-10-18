@@ -13,7 +13,7 @@ In development
 - Fix ``tsk_table_collection_link_ancestors`` accepting a sample or ancestor ID
   equal to the number of nodes, which indexed node-sized arrays one past their
   end. Such IDs now return ``TSK_ERR_NODE_OUT_OF_BOUNDS``.
-  (:user:`asystemoffields`, :issue:`3484`, :pr:`TBD`)
+  (:user:`asystemoffields`, :issue:`3484`, :pr:`3492`)
 
 --------------------
 [1.3.1] - 2026-03-06

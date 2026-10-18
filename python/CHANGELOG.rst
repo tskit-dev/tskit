@@ -24,7 +24,7 @@
   :pr:`3478`).
 - ``link_ancestors`` now raises ``LibraryError`` (node out of bounds) for a sample or
   ancestor ID equal to the number of nodes, instead of reading and writing past the
-  end of its node arrays. (:user:`asystemoffields`, :issue:`3484`, :pr:`TBD`)
+  end of its node arrays. (:user:`asystemoffields`, :issue:`3484`, :pr:`3492`)
 
 --------------------
 [1.0.3] - 2026-05-14
