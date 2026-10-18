@@ -7625,6 +7625,19 @@ test_link_ancestors_input_errors(void)
         &tables, samples, 2, ancestors, 2, 0, &result);
     CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
 
+    /* Sample and ancestor IDs one past the last node */
+    ancestors[0] = 4;
+    samples[0] = (tsk_id_t) tables.nodes.num_rows;
+    ret = tsk_table_collection_link_ancestors(
+        &tables, samples, 2, ancestors, 2, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
+    samples[0] = 0;
+    ancestors[0] = (tsk_id_t) tables.nodes.num_rows;
+    ret = tsk_table_collection_link_ancestors(
+        &tables, samples, 2, ancestors, 2, 0, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, TSK_ERR_NODE_OUT_OF_BOUNDS);
+
     /* Duplicate sample IDs */
     ancestors[0] = 4;
     samples[0] = 1;

@@ -10,6 +10,11 @@ In development
 - Update to kastore 2.1.3 to include file security fix (:user:`jeromekelleher`,
   :pr:`3478`).
 
+- Fix ``tsk_table_collection_link_ancestors`` accepting a sample or ancestor ID
+  equal to the number of nodes, which indexed node-sized arrays one past their
+  end. Such IDs now return ``TSK_ERR_NODE_OUT_OF_BOUNDS``.
+  (:user:`asystemoffields`, :issue:`3484`, :pr:`TBD`)
+
 --------------------
 [1.3.1] - 2026-03-06
 --------------------

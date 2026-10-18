@@ -390,11 +390,16 @@ class TestTableCollection(LowLevelTestCase):
             tc.link_ancestors(samples=[0, 1], ancestors=[11, -1])
         with pytest.raises(_tskit.LibraryError):
             tc.link_ancestors(samples=[0, -1], ancestors=[11])
+        # One past the last node ID is out of bounds too
+        with pytest.raises(_tskit.LibraryError, match="out of bounds"):
+            tc.link_ancestors(samples=[0, tc.nodes.num_rows], ancestors=[11])
+        with pytest.raises(_tskit.LibraryError, match="out of bounds"):
+            tc.link_ancestors(samples=[0, 1], ancestors=[tc.nodes.num_rows])
 
     def test_link_ancestors(self):
         ts = msprime.simulate(2, random_seed=1)
         tc = ts.dump_tables()._ll_tables
-        edges = tc.link_ancestors([0, 1], [3])
+        edges = tc.link_ancestors([0, 1], [2])
         assert isinstance(edges, _tskit.EdgeTable)
         del edges
         assert tc.edges.num_rows == 2
