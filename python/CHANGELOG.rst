@@ -20,6 +20,9 @@
 
 **Bugfixes**
 
+- Improve numerical stability of ``TreeSequence.trait_correlation`` for traits
+  with large common offsets by computing variance from centered weights
+  (:user:`ArtificialZeng`).
 - Update to kastore C version 2.1.3 to include file security fix (:user:`jeromekelleher`, 
   :pr:`3478`).
 - ``TableCollection.delete_older`` now checks table integrity first, raising an

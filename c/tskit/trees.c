@@ -4071,28 +4071,35 @@ tsk_treeseq_trait_correlation(const tsk_treeseq_t *self, tsk_size_t num_weights,
         goto out;
     }
 
-    // center and scale weights
+    // Subtract the first sample before finding the mean, so a common large
+    // offset does not obscure the variation between samples.
     for (j = 0; j < num_samples; j++) {
         row = GET_2D_ROW(weights, num_weights, j);
         for (k = 0; k < num_weights; k++) {
-            means[k] += row[k];
-            meansqs[k] += row[k] * row[k];
+            means[k] += row[k] - weights[k];
         }
     }
     for (k = 0; k < num_weights; k++) {
         means[k] /= (double) num_samples;
-        meansqs[k] -= means[k] * means[k] * (double) num_samples;
-        meansqs[k] /= (double) (num_samples - 1);
-        sds[k] = sqrt(meansqs[k]);
     }
     for (j = 0; j < num_samples; j++) {
         row = GET_2D_ROW(weights, num_weights, j);
         new_row = GET_2D_ROW(new_weights, num_weights + 1, j);
         for (k = 0; k < num_weights; k++) {
-            new_row[k] = (row[k] - means[k]) / sds[k];
+            new_row[k] = (row[k] - weights[k]) - means[k];
+            meansqs[k] += new_row[k] * new_row[k];
         }
         // set final row to 1/n to compute frequency
         new_row[num_weights] = 1.0 / (double) num_samples;
+    }
+    for (k = 0; k < num_weights; k++) {
+        sds[k] = sqrt(meansqs[k] / (double) (num_samples - 1));
+    }
+    for (j = 0; j < num_samples; j++) {
+        new_row = GET_2D_ROW(new_weights, num_weights + 1, j);
+        for (k = 0; k < num_weights; k++) {
+            new_row[k] /= sds[k];
+        }
     }
 
     ret = tsk_treeseq_general_stat(self, num_weights + 1, new_weights, num_weights,

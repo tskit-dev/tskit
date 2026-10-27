@@ -5630,6 +5630,49 @@ class TestSiteTraitCorrelation(
     mode = "site"
 
 
+class TestTraitCorrelationLargeOffsets:
+    @pytest.mark.parametrize("mode", ["site", "branch", "node"])
+    @pytest.mark.parametrize("offset", [2**26, 2**27, 2**40, -(2**40)])
+    def test_centered_variance(self, mode, offset):
+        tables = tskit.TableCollection(sequence_length=1)
+        for _ in range(4):
+            tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+        root = tables.nodes.add_row(time=1)
+        inner = tables.nodes.add_row(time=0.5)
+        for parent, child in [
+            (root, 0),
+            (root, 1),
+            (root, inner),
+            (inner, 2),
+            (inner, 3),
+        ]:
+            tables.edges.add_row(0, 1, parent, child)
+        site = tables.sites.add_row(0.5, ancestral_state="A")
+        tables.mutations.add_row(site, inner, derived_state="T")
+        tables.sort()
+        ts = tables.tree_sequence()
+        weights = np.array([[0, 0], [1, 2], [2, -1], [3, 3]], dtype=float)
+        # Exact Pearson correlations for the explicit allele/descendant sets.
+        expected = {
+            "site": [4 / 5, 0],
+            "branch": [7 / 5, 4 / 5],
+            "node": [
+                [3 / 5, 2 / 15],
+                [1 / 15, 2 / 15],
+                [1 / 15, 8 / 15],
+                [3 / 5, 8 / 15],
+                [0, 0],
+                [4 / 5, 0],
+            ],
+        }[mode]
+        nt.assert_allclose(
+            ts.trait_correlation(weights + offset, mode=mode),
+            expected,
+            rtol=1e-12,
+            atol=1e-12,
+        )
+
+
 ##############################
 # Trait linear_model
 ##############################

@@ -12,6 +12,10 @@ In development
 
 **Bugfixes**
 
+- Improve numerical stability of ``tsk_treeseq_trait_correlation`` for weights
+  with large common offsets by centering before computing variance
+  (:user:`ArtificialZeng`).
+
 - Fix off-by-one node ID bounds check in ``tsk_table_collection_link_ancestors``
   which allowed out-of-bounds memory access (:user:`jeromekelleher`, :issue:`3484`).
 
