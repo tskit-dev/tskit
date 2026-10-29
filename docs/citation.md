@@ -15,8 +15,8 @@ If you use `tskit` in your work, we recommend citing the "tskit paper":
 > Rebollo, Kumar Saunack, Ruhollah Shemirani, Alexis Simon, Chris Smith, Jeet
 > Sukumaran, Jonathan Terhorst, Per Unneberg, Ao Zhang, Peter Ralph, Jerome
 > Kelleher, *Population-scale Ancestral Recombination Graphs with tskit 1.0*,
-> arXiv:2602.09649v2,
-> doi: [10.48550/arXiv.2602.09649](https://doi.org/10.48550/arXiv.2602.09649)
+> Nature Methods (2026),
+> doi: [10.1038/s41592-026-03325-1](https://doi.org/10.1038/s41592-026-03325-1)
 
 For citations that discuss ARGs and how these are represented in a tree sequence,
 we recommend the [2024 ARG Genetics paper](<https://doi.org/10.1093/genetics/iyae100>)

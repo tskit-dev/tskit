@@ -76,7 +76,7 @@ conda install -c conda-forge tskit
 
 The tskit software has benefited from input and contributions from
 too many people to list here
-(but see the author list for [the tskit paper](https://arxiv.org/abs/2602.09649)).
+(but see the author list for [the tskit paper](https://doi.org/10.1038/s41592-026-03325-1)).
 We also gratefully acknowledge funding from the Robertson Foundation, the NIH
 (research grants HG011395 and HG012473), and the NSF 
 (research grant [OAC-2104115](https://www.nsf.gov/awardsearch/show-award/?AWD_ID=2104115)),
