@@ -1,15 +1,15 @@
 import json
 import subprocess
-from distutils.version import StrictVersion
 from urllib.request import urlopen
 
 import tqdm
+from packaging.version import Version
 
 
 def versions(package_name):
     url = f"https://pypi.org/pypi/{package_name}/json"
     data = json.load(urlopen(url))
-    return sorted(data["releases"].keys(), key=StrictVersion)
+    return sorted(data["releases"].keys(), key=Version)
 
 
 def sh(command):

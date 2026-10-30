@@ -2,6 +2,11 @@
 [1.0.4] - 2026-XX-XX
 --------------------
 
+**Maintenance**
+
+- Add support and wheels for Python 3.15
+- Require Python >= 3.12
+
 **Features**
 
 - CLI commands that load a tree sequence now read from stdin when the input
@@ -25,6 +30,7 @@
 - ``TableCollection.delete_older`` now checks table integrity first, raising an
   error for invalid node or mutation references instead of reading out of bounds
   (:user:`jeromekelleher`, :issue:`3486`).
+
 
 --------------------
 [1.0.3] - 2026-05-14
