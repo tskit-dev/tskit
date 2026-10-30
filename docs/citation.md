@@ -42,27 +42,27 @@ If you use summary statistics, please cite the
 Bibtex records:
 
 ```bibtex
-@misc{jeffery2026tskit,
-      title={Population-scale Ancestral Recombination Graphs with tskit 1.0}, 
-      author={Ben Jeffery and Yan Wong and Kevin Thornton and Georgia Tsambos
-              and Gertjan Bisschop and Yun Deng and E. Castedo Ellerman and Thomas B. Forest
-              and Halley Fritze and Daniel Goldstein and Gregor Gorjanc and Graham Gower and
-              Simon Gravel and Jeremy Guez and Benjamin C. Haller and Andrew D. Kern and
-              Lloyd Kirk and Ivan Krukov and Hanbin Lee and Brieuc Lehmann and Hossameldin
-              Loay and Matthew M. Osmond and Duncan S. Palmer and Nathaniel S. Pope and Aaron
-              P. Ragsdale and Duncan Robertson and Murillo F. Rodrigues and Hugo van Kemenade
-              and Clemens L. Weiß and Anthony Wilder Wohns and Shing H. Zhan and Brian C.
-              Zhang and Marianne Aspbury and Nikolas A. Baya and Saurabh Belsare and Arjun
-              Biddanda and Francisco Campuzano Jiménez and Ariella Gladstein and Bing Guo and
-              Savita Karthikeyan and Warren W. Kretzschmar and Inés Rebollo and Kumar Saunack
-              and Ruhollah Shemirani and Alexis Simon and Chris Smith and Jeet Sukumaran and
-              Jonathan Terhorst and Per Unneberg and Ao Zhang and Peter Ralph and Jerome
-              Kelleher},
-      year={2026},
-      eprint={2602.09649},
-      archivePrefix={arXiv},
-      primaryClass={q-bio.PE},
-      url={https://arxiv.org/abs/2602.09649}, 
+@article{jeffery2026tskit,
+  title={Population-scale Ancestral Recombination Graphs with tskit 1.0},
+  author = {Jeffery, Ben and Wong, Yan and Thornton, Kevin and Tsambos, Georgia and
+    Bisschop, Gertjan and Deng, Yun and Ellerman, E. Castedo and Forest, Thomas B. and Fritze, Halley and
+    Goldstein, Daniel and Gorjanc, Gregor and Gower, Graham and Gravel, Simon and Guez, Jeremy and
+    Haller, Benjamin C. and Kern, Andrew D. and Kirk, Lloyd and Krukov, Ivan and Lee, Hanbin and
+    Lehmann, Brieuc and Loay, Hossameldin and Osmond, Matthew M. and Palmer, Duncan S. and
+    Pope, Nathaniel S. and Ragsdale, Aaron P. and Robertson, Duncan and Rodrigues, Murillo F. and
+    van Kemenade, Hugo and Wei{\ss}, Clemens L. and Wohns, Anthony Wilder and Zhan, Shing H. and
+    Zhang, Brian C. and Aspbury, Marianne and Baya, Nikolas A. and Belsare, Saurabh and
+    Biddanda, Arjun and Campuzano Jim{\'e}nez, Francisco and Gladstein, Ariella and Guo, Bing
+    and Karthikeyan, Savita and Kretzschmar, Warren W. and Rebollo, In{\'e}s and Saunack, Kumar
+    and Shemirani, Ruhollah and Simon, Alexis and Smith, Chris and Sukumaran, Jeet and
+    Terhorst, Jonathan and Unneberg, Per and Zhang, Ao and Ralph, Peter and Kelleher, Jerome},
+	id = {Jeffery2026},
+	isbn = {1548-7105},
+	journal = {Nature Methods},
+	title = {Population-scale ancestral recombination graphs with tskit 1.0},
+	url = {https://doi.org/10.1038/s41592-026-03325-1},
+	year = {2026},
+  doi = {10.1038/s41592-026-03325-1}
 }
 
 @article{Wong2024ARGs,
