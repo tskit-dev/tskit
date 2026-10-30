@@ -25,6 +25,8 @@
 - ``TableCollection.delete_older`` now checks table integrity first, raising an
   error for invalid node or mutation references instead of reading out of bounds
   (:user:`jeromekelleher`, :issue:`3486`).
+- ``TreeSequence.pca`` no longer fails when the sample nodes are not
+  ``0, ..., n - 1`` (:user:`Mohit-Ak`, :issue:`3443`, :issue:`3365`).
 
 --------------------
 [1.0.3] - 2026-05-14
