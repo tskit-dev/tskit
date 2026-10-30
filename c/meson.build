@@ -25,10 +25,10 @@ extra_c_args = [
 
 lib_sources = [
     'tskit/core.c', 'tskit/tables.c', 'tskit/trees.c',
-    'tskit/genotypes.c', 'tskit/stats.c', 'tskit/convert.c', 'tskit/haplotype_matching.c']
+    'tskit/genotypes.c', 'tskit/stats.c', 'tskit/convert.c']
 lib_headers = [
     'tskit/core.h', 'tskit/tables.h', 'tskit/trees.h',
-    'tskit/genotypes.h', 'tskit/stats.h', 'tskit/convert.h', 'tskit/haplotype_matching.h']
+    'tskit/genotypes.h', 'tskit/stats.h', 'tskit/convert.h']
 
 # Subprojects use the static library for simplicity.
 tskit_inc = [kastore_inc, include_directories(['.'])]
@@ -81,11 +81,6 @@ if not meson.is_subproject()
         sources: ['tests/test_stats.c'],
         link_with: [tskit_lib, test_lib], c_args: extra_c_args, dependencies: kastore_dep)
     test('stats', test_stats)
-
-    test_haplotype_matching = executable('test_haplotype_matching',
-        sources: ['tests/test_haplotype_matching.c'],
-        link_with: [tskit_lib, test_lib], c_args: extra_c_args, dependencies: kastore_dep)
-    test('haplotype_matching', test_haplotype_matching)
 
     test_file_format = executable('test_file_format',
         sources: ['tests/test_file_format.c'],

@@ -34,6 +34,5 @@
 #include <tskit/genotypes.h>
 #include <tskit/convert.h>
 #include <tskit/stats.h>
-#include <tskit/haplotype_matching.h>
 
 #endif

@@ -31,7 +31,6 @@ tsk_source_files = [
     "genotypes.c",
     "stats.c",
     "convert.c",
-    "haplotype_matching.c",
 ]
 sources = (
     ["example_c_module.c"]
