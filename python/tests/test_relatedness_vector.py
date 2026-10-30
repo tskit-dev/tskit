@@ -1330,6 +1330,37 @@ class TestPCA:
         )
 
     @pytest.mark.parametrize("centre", (True, False))
+    def test_samples_not_first_nodes(self, centre):
+        # Renumbering nodes so that samples are not 0..n-1 must not change the PCA
+        ts = msprime.sim_ancestry(
+            10,
+            ploidy=2,
+            population_size=20,
+            sequence_length=100,
+            recombination_rate=0.01,
+            random_seed=12345,
+        )
+        is_sample = np.isin(np.arange(ts.num_nodes), ts.samples())
+        non_samples = np.where(~is_sample)[0]
+        order = np.concatenate([non_samples[:5], ts.samples(), non_samples[5:]])
+        new_ts = ts.subset(order)
+        new_id = np.argsort(order)
+        assert np.all(new_ts.samples() == new_id[ts.samples()])
+        assert new_ts.samples()[0] == 5
+        samples = ts.samples()[[3, 0, 7, 12, 5, 9, 15]]
+        for kwargs, new_kwargs in [
+            ({}, {}),
+            ({"samples": samples}, {"samples": new_id[samples]}),
+            ({"individuals": [4, 1, 7, 2]}, {"individuals": [4, 1, 7, 2]}),
+        ]:
+            pc = ts.pca(num_components=3, centre=centre, random_seed=1, **kwargs)
+            new_pc = new_ts.pca(
+                num_components=3, centre=centre, random_seed=1, **new_kwargs
+            )
+            np.testing.assert_allclose(new_pc.factors, pc.factors)
+            np.testing.assert_allclose(new_pc.eigenvalues, pc.eigenvalues)
+
+    @pytest.mark.parametrize("centre", (True, False))
     def test_individuals_matches_samples(self, centre):
         # ploidy 1 individuals should be the same as samples
         ploidy = 1
