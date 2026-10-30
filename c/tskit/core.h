@@ -845,28 +845,6 @@ enabled (TSK_SAMPLE_LISTS).
 /** @} */
 
 /**
-@defgroup HAPLOTYPE_ERROR_GROUP Haplotype matching errors.
-@{
-*/
-/**
-The Viterbi matrix has not filled (it has zero transitions).
-*/
-#define TSK_ERR_NULL_VITERBI_MATRIX                                -1300
-/**
-There was no matching haplotype.
-*/
-#define TSK_ERR_MATCH_IMPOSSIBLE                                   -1301
-/**
-The compressed matrix has a node that has no samples in it's descendants.
-*/
-#define TSK_ERR_BAD_COMPRESSED_MATRIX_NODE                         -1302
-/**
-There are too many values to compress.
-*/
-#define TSK_ERR_TOO_MANY_VALUES                                    -1303
-/** @} */
-
-/**
 @defgroup UNION_ERROR_GROUP Union errors.
 @{
 */

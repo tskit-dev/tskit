@@ -620,22 +620,6 @@ tsk_strerror_internal(int err)
                   "the tree. (TSK_ERR_NO_SAMPLE_LISTS)";
             break;
 
-        /* Haplotype matching errors */
-        case TSK_ERR_NULL_VITERBI_MATRIX:
-            ret = "Viterbi matrix has not filled. (TSK_ERR_NULL_VITERBI_MATRIX)";
-            break;
-        case TSK_ERR_MATCH_IMPOSSIBLE:
-            ret = "No matching haplotype exists with current parameters. "
-                  "(TSK_ERR_MATCH_IMPOSSIBLE)";
-            break;
-        case TSK_ERR_BAD_COMPRESSED_MATRIX_NODE:
-            ret = "The compressed matrix contains a node that subtends no samples. "
-                  "(TSK_ERR_BAD_COMPRESSED_MATRIX_NODE)";
-            break;
-        case TSK_ERR_TOO_MANY_VALUES:
-            ret = "Too many values to compress. (TSK_ERR_TOO_MANY_VALUES)";
-            break;
-
         /* Union errors */
         case TSK_ERR_UNION_BAD_MAP:
             ret = "Node map contains an entry of a node not present in this table "

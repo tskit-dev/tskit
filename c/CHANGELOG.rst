@@ -10,6 +10,14 @@ In development
 - Update to kastore 2.1.3 to include file security fix (:user:`jeromekelleher`,
   :pr:`3478`).
 
+**Breaking changes**
+
+- Remove the ``haplotype_matching.c`` file which implemented an experimental
+  Li and Stephens model (replaced by the
+  `tsls <https://github.com/tskit-dev/tsls>`_ package). This code was never
+  part of the public API, but users may need to edit build recipes to
+  remove the missing file. (:pr:`3499`, :user:`jeromekelleher`).
+
 **Bugfixes**
 
 - Fix off-by-one node ID bounds check in ``tsk_table_collection_link_ancestors``
