@@ -15,10 +15,10 @@ classifiers = [
     "Programming Language :: C",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Programming Language :: Python :: 3 :: Only",
     "Development Status :: 5 - Production/Stable",
     "Environment :: Other Environment",
@@ -38,7 +38,7 @@ keywords = [
     "phylogenetics",
     "tskit",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "jsonschema>=3.0.0",
     "numpy>=2",
@@ -128,8 +128,8 @@ addopts = "-n 4"
 testpaths = ["tests"]
 
 [tool.ruff]
-# Assume Python 3.11
-target-version = "py311"
+# Assume Python 3.12
+target-version = "py312"
 
 line-length = 89
 indent-width = 4
@@ -171,7 +171,7 @@ known-third-party = [
 ]
 
 [tool.cibuildwheel]
-build = ["cp311-*", "cp312-*", "cp313-*", "cp314-*"]
+build = ["cp312-*", "cp313-*", "cp314-*", "cp315-*"]
 build-frontend = "build"
 build-verbosity = 1
 test-command = [
