@@ -1,8 +1,8 @@
 --------------------
-[1.3.2] - 2026-XX-XX
+[1.3.2] - 2026-10-30
 --------------------
 
-In development
+**Features**
 
 - Add ``tsk_json_struct_metadata_get_blob`` function
   (:user:`benjeffery`, :pr:`3306`)
