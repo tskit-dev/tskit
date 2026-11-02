@@ -9233,8 +9233,13 @@ class TreeSequence:
         return out
 
     def _expand_indices(self, x: np.ndarray, indices: np.ndarray) -> np.ndarray:
+        sample_index = np.full(self.num_nodes, -1)
+        sample_index[self.samples()] = np.arange(self.num_samples)
+        rows = sample_index[indices]
+        if np.any(rows < 0):
+            raise ValueError("All nodes must be samples.")
         y = np.zeros((self.num_samples, x.shape[1]))
-        y[indices] = x
+        y[rows] = x
 
         return y
 
