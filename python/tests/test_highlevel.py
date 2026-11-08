@@ -5900,6 +5900,18 @@ class TestMapToVcfModel:
         assert result.individuals_nodes.shape == (1, 1)
         assert np.array_equal(result.individuals_nodes, [[-1]])
 
+    @pytest.mark.parametrize("num_individuals", [0, 2])
+    def test_empty_individuals(self, num_individuals):
+        tables = tskit.TableCollection(1.0)
+        for j in range(num_individuals):
+            tables.individuals.add_row()
+            tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0, individual=j)
+        ts = tables.tree_sequence()
+
+        result = ts.map_to_vcf_model(individuals=[])
+        assert len(result.individuals_nodes) == 0
+        assert len(result.individuals_name) == 0
+
     def test_invalid_individual_id(self):
         tables = tskit.TableCollection(1.0)
         tables.individuals.add_row()

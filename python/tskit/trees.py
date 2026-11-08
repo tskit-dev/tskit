@@ -6670,7 +6670,10 @@ class TreeSequence:
         :param str contig_id: The value of the CHROM column in the output VCF.
         :param list(int) individuals: A list containing the individual IDs to
             corresponding to the VCF samples. Defaults to all individuals
-            associated with sample nodes in the tree sequence.
+            associated with sample nodes in the tree sequence. If an empty
+            list is given, a sites-only VCF is written, with no ``FORMAT`` or
+            sample columns. All sites are still output, and the REF and ALT
+            values are computed over all samples in the tree sequence.
             See the :ref:`sec_export_vcf_constructing_gt` section for more
             details and examples.
         :param list(str) individual_names: A list of string names to identify
@@ -11164,6 +11167,7 @@ class TreeSequence:
             included that are associated with least one sample node (or at least one of
             any node if ``include_non_sample_nodes`` is True), and the mapping arrays
             will be in ascending order of the ID of the individual in the tree sequence.
+            If an empty list is given, the mapping contains no individuals.
         :param int ploidy: The ploidy, or number of nodes per individual. Only used when
             the tree sequence does not contain individuals. Cannot be used if the tree
             sequence contains individuals. Defaults to 1 if not specified.
@@ -11244,8 +11248,8 @@ class TreeSequence:
             if individuals is None:
                 individuals = np.arange(self.num_individuals, dtype=np.int32)
             if len(individuals) == 0:
-                raise ValueError("No individuals specified")
-            if min(individuals) < 0 or max(individuals) >= self.num_individuals:
+                individuals = np.array([], dtype=np.int32)
+            elif min(individuals) < 0 or max(individuals) >= self.num_individuals:
                 raise ValueError("Invalid individual ID")
 
             individuals_nodes = self.individuals_nodes[individuals]

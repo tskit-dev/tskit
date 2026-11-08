@@ -4,6 +4,12 @@
 
 In development
 
+**Features**
+
+- ``TreeSequence.write_vcf`` and ``TreeSequence.as_vcf`` now accept an empty
+  list of individuals (``individuals=[]``), writing a sites-only VCF with no
+  ``FORMAT`` or sample columns. (:user:`RClaudiuM`, :issue:`3463`)
+
 --------------------
 [1.0.4] - 2026-10-30
 --------------------

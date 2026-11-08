@@ -389,8 +389,19 @@ class TestInterface:
     def test_empty_individuals(self):
         ts = msprime.sim_ancestry(3, random_seed=2)
         ts = tsutil.insert_branch_sites(ts)
-        with pytest.raises(ValueError, match="No individuals specified"):
-            ts.as_vcf(individuals=[])
+        vcf = ts.as_vcf(individuals=[], allow_position_zero=True)
+        assert "##FORMAT" not in vcf
+        lines = drop_header(vcf).splitlines()
+        assert lines[0].split("\t")[-1] == "INFO"
+        assert len(lines) == ts.num_sites + 1
+        for line in lines:
+            assert len(line.split("\t")) == 8
+
+    def test_empty_individuals_with_names(self):
+        ts = msprime.sim_ancestry(3, random_seed=2)
+        ts = tsutil.insert_branch_sites(ts)
+        with pytest.raises(ValueError, match="does not match the number of names"):
+            ts.as_vcf(individuals=[], individual_names=["A"])
 
     def test_duplicate_individuals(self):
         ts = msprime.sim_ancestry(3, random_seed=2)
@@ -909,6 +920,32 @@ class TestSampleOptions:
         1\t6\t3\t0\t1\t.\tPASS\t.\tGT\t0|1\t0"""
         expected = textwrap.dedent(s)
         assert drop_header(ts.as_vcf(allow_position_zero=True)) == expected
+
+    def test_empty_individuals(self):
+        ts = self.ts()
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO
+        1\t0\t0\t0\t1\t.\tPASS\t.
+        1\t2\t1\t0\t1\t.\tPASS\t.
+        1\t4\t2\t0\t1\t.\tPASS\t.
+        1\t6\t3\t0\t1\t.\tPASS\t."""
+        expected = textwrap.dedent(s)
+        assert (
+            drop_header(ts.as_vcf(individuals=[], allow_position_zero=True)) == expected
+        )
+
+    def test_no_individuals_empty_individuals(self):
+        ts = drop_individuals(self.ts())
+        s = """\
+        #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO
+        1\t0\t0\t0\t1\t.\tPASS\t.
+        1\t2\t1\t0\t1\t.\tPASS\t.
+        1\t4\t2\t0\t1\t.\tPASS\t.
+        1\t6\t3\t0\t1\t.\tPASS\t."""
+        expected = textwrap.dedent(s)
+        assert (
+            drop_header(ts.as_vcf(individuals=[], allow_position_zero=True)) == expected
+        )
 
     def test_individual_0(self):
         ts = self.ts()
