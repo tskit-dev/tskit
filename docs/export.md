@@ -327,6 +327,15 @@ to the VCF genotypes; to include non-sample nodes as well (e.g., internal
 nodes that have been marked as individuals), set
 ``include_non_sample_nodes=True`` when calling :meth:`TreeSequence.write_vcf`.
 
+A subset of individuals can be output using the ``individuals`` argument.
+Every site in the tree sequence is still written, and the REF and ALT
+alleles are those of the whole tree sequence, so a site can be output even
+if it does not vary among the chosen individuals. To drop such sites,
+{meth}`simplify <TreeSequence.simplify>` the tree sequence to the nodes
+of those individuals first. Passing an empty list (``individuals=[]``)
+writes a sites-only VCF, which has the site columns but no ``FORMAT`` or
+sample columns.
+
 :::{note}
 At present, :meth:`TreeSequence.write_vcf` only supports sites with up to
 9 distinct alleles; attempting to write a site with more than 9 alleles

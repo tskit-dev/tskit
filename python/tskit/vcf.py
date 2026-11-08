@@ -75,7 +75,9 @@ class VcfWriter:
         ]
         self.num_individuals = len(vcf_model.individual_names)
 
-        if len(vcf_model.individuals_nodes) == 0:
+        # An explicitly empty list of individuals gives a sites-only VCF.
+        self.sites_only = individuals is not None and len(individuals) == 0
+        if len(vcf_model.individuals_nodes) == 0 and not self.sites_only:
             raise ValueError("No samples in resulting VCF model")
 
         if len(vcf_model.transformed_positions) > 0:
@@ -130,24 +132,15 @@ class VcfWriter:
             f"##contig=<ID={self.vcf_model.contig_id},length={self.vcf_model.contig_length}>",
             file=output,
         )
-        print(
-            '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">', file=output
-        )
-        vcf_samples = "\t".join(self.vcf_model.individual_names)
-        print(
-            "#CHROM",
-            "POS",
-            "ID",
-            "REF",
-            "ALT",
-            "QUAL",
-            "FILTER",
-            "INFO",
-            "FORMAT",
-            vcf_samples,
-            sep="\t",
-            file=output,
-        )
+        columns = ["#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO"]
+        if not self.sites_only:
+            print(
+                '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
+                file=output,
+            )
+            columns.append("FORMAT")
+            columns.append("\t".join(self.vcf_model.individual_names))
+        print(*columns, sep="\t", file=output)
 
     def write(self, output):
         self.__write_header(output)
@@ -163,11 +156,15 @@ class VcfWriter:
                 # genotypes into when for each variant.
                 gt_array.extend([0, ord("|")])
             gt_array[-1] = ord("\t")
-        gt_array[-1] = ord("\n")
+        if len(gt_array) > 0:
+            gt_array[-1] = ord("\n")
         gt_array = np.array(gt_array, dtype=np.int8)
         # TODO Unclear here whether using int64 or int32 will be faster for this index
         # array. Test it out.
         indexes = np.array(indexes, dtype=int)
+        # A sites-only VCF ends each row after the INFO column.
+        format_column = () if self.sites_only else ("GT",)
+        fixed_columns_end = "\n" if self.sites_only else "\t"
 
         for variant in self.tree_sequence.variants(
             samples=self.samples, isolated_as_missing=self.vcf_model.isolated_as_missing
@@ -197,11 +194,13 @@ class VcfWriter:
                 ".",
                 "PASS",
                 ".",
-                "GT",
+                *format_column,
                 sep="\t",
-                end="\t",
+                end=fixed_columns_end,
                 file=output,
             )
+            if self.sites_only:
+                continue
             genotypes = variant.genotypes
             gt_array[indexes] = genotypes + ord("0")
             if self.sample_mask is not None:
