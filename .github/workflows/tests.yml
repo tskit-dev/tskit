@@ -60,7 +60,6 @@ jobs:
     strategy:
       matrix:
         include:
-        - { sys: mingw32, env: i686 }
         - { sys: mingw64, env: x86_64 }
     name: Windows (${{ matrix.sys }}, ${{ matrix.env }})
     defaults:
@@ -99,6 +98,41 @@ jobs:
       working-directory: c
       run: |
         ninja -C build test
+
+  linux-i386:
+    # 32-bit coverage for the C library. MSYS2 no longer provides the
+    # packages we need for 32-bit Windows (mingw32), so we use an i386
+    # Debian userland instead. The tests run as a non-root user because
+    # test_dump_errors expects writing to /bin to fail.
+    name: Linux (i386)
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Cancel Previous Runs
+      uses: styfle/cancel-workflow-action@d07a454dad7609a92316b57b23c9ccfd4f59af66  # 0.13.1
+      with:
+        access_token: ${{ github.token }}
+
+    - name: 'Checkout'
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      with:
+        persist-credentials: false
+
+    - name: Build and test in i386 container
+      run: |
+        docker run --rm --platform linux/386 \
+          -v "$PWD:/src" -w /src/c \
+          -e DEBIAN_FRONTEND=noninteractive -e HOST_UID="$(id -u)" \
+          i386/debian:trixie bash -c '
+            set -e
+            apt-get update -qq
+            apt-get install -y -qq --no-install-recommends \
+              gcc g++ libc6-dev meson ninja-build libcunit1-dev pkgconf
+            useradd -m -u "$HOST_UID" ci
+            su ci -c "set -e
+              meson setup build -Dbuild_examples=false
+              ninja -C build
+              meson test -C build --print-errorlogs"
+          '
 
   bespoke-python-test:
     name: Bespoke Python tests
