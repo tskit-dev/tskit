@@ -32,7 +32,19 @@ so it may already be installed if you use such software.
 
 ## Requirements
 
-Tskit requires Python 3.8+. There are no external C library dependencies. Python
+```{code-cell} python
+:tags: [remove-cell]
+
+import tomllib
+from myst_nb import glue
+
+with open("../python/pyproject.toml", "rb") as f:
+    data = tomllib.load(f)
+
+glue("requires_python", data["project"]["requires-python"])
+```
+
+Tskit requires Python {glue:text}`requires_python`. There are no external C library dependencies. Python
 dependencies are installed automatically by `pip` or `conda`.
 
 (sec_installation_conda)=
