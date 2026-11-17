@@ -76,20 +76,29 @@ def bp_fitch_score(tree, genotypes):
 
 def sankoff_score(tree, genotypes, cost_matrix):
     """
-    Returns a num_nodes * num_alleles numpy array giving the minimum cost
-    scores for the specified genotypes on the specified tree. If a cost
-    matrix is provided, it must be a num_alleles * num_alleles array giving
-    the cost of transitioning from each allele to every other allele.
+    Returns a (num_nodes + 1) * num_alleles numpy array S giving the minimum
+    cost for the subtree below each node (the last row is the virtual root)
+    given that the node is in each state. The cost matrix is a
+    num_alleles * num_alleles array where cost_matrix[i, j] is the cost of a
+    transition from parent state i to child state j. Missing genotypes
+    (tskit.MISSING_DATA) place no constraint on the state of a sample.
     """
     num_alleles = cost_matrix.shape[0]
-    S = np.zeros((tree.tree_sequence.num_nodes, num_alleles))
+    S = np.zeros((tree.tree_sequence.num_nodes + 1, num_alleles))
+    sample_state = {}
     for allele, u in zip(genotypes, tree.tree_sequence.samples()):
-        S[u, :] = INF
-        S[u, allele] = 0
-    for parent in tree.nodes(order="postorder"):
+        if allele != tskit.MISSING_DATA:
+            sample_state[u] = allele
+    for parent in tree.nodes(tree.virtual_root, order="postorder"):
         for child in tree.children(parent):
-            for j in range(num_alleles):
-                S[parent, j] += np.min(cost_matrix[:, j] + S[child])
+            # S[parent, i] += min_j cost_matrix[i, j] + S[child, j]
+            S[parent] += np.min(cost_matrix + S[child], axis=1)
+        if parent in sample_state:
+            # A (possibly internal) sample can only be in its observed state
+            allele = sample_state[parent]
+            cost = S[parent, allele]
+            S[parent] = INF
+            S[parent, allele] = cost
     return S
 
 
@@ -257,48 +266,68 @@ def hartigan_map_mutations(tree, genotypes, alleles, ancestral_state=None):
     return alleles[ancestral_state], mutations
 
 
-def reconstruct_states(tree, genotypes, S, cost_matrix):
+def reconstruct_states(tree, S, cost_matrix, ancestral_state=None):
     """
-    Given the specified observations for the samples and tree score
-    matrix computed by sankoff_score and the transition cost matrix,
-    return the ancestral_state and state transitions on the tree.
+    Given the score matrix S computed by sankoff_score and the transition cost
+    matrix, return the ancestral state and a list of (node, parent, state)
+    transitions, in the same order and format as the C map_mutations code.
+    If ancestral_state is None, the lowest cost state is chosen at the virtual
+    root, and transitions may occur above the roots of the tree.
+
+    When choosing the state of a child v of a node in state p, ties in the total
+    cost cost_matrix[p, j] + S[v, j] are broken by preferring the lowest S[v, j],
+    then the parent state p, then the lowest index j. With unit costs this gives
+    exactly the same reconstruction as Hartigan parsimony.
     """
-    root_cost = np.zeros_like(S[0])
-    for root in tree.roots:
-        for j in range(S.shape[1]):
-            root_cost[j] += np.min(cost_matrix[:, j] + S[root])
-    ancestral_state = np.argmin(root_cost)
-
-    transitions = {}
-    A = {}
-    for root in tree.roots:
-        A[root] = ancestral_state
-        for u in tree.nodes(order="preorder"):
-            for v in tree.children(u):
-                cost = cost_matrix[A[u]] + S[v]
-                A[v] = np.argmin(cost)
-                if A[u] != A[v]:
-                    transitions[v] = A[v]
-
+    num_alleles = cost_matrix.shape[0]
+    if ancestral_state is None:
+        ancestral_state = int(np.argmin(S[tree.virtual_root]))
+    transitions = []
+    # As in the C code, the state of a node is decided when it is popped
+    stack = [(tree.virtual_root, ancestral_state, tskit.NULL)]
+    while len(stack) > 0:
+        v, state, transition_parent = stack.pop()
+        if v != tree.virtual_root:
+            parent_state = state
+            cost = cost_matrix[parent_state] + S[v]
+            state = min(
+                range(num_alleles),
+                key=lambda j: (cost[j], S[v, j], j != parent_state, j),
+            )
+            if state != parent_state:
+                transitions.append((v, transition_parent, state))
+                transition_parent = len(transitions) - 1
+        for u in tree.children(v):
+            stack.append((u, state, transition_parent))
     return ancestral_state, transitions
 
 
-def sankoff_map_mutations(tree, genotypes, cost_matrix=None):
+def sankoff_map_mutations(
+    tree, genotypes, alleles, cost_matrix=None, ancestral_state=None
+):
     """
-    Returns the recontructed minimal state transitions for the specified set of
-    genotypes on the specified (optional) cost matrix.
-
-    NOTE: we don't consider complications of multiple roots and internal samples
-    here.
-
-    TODO: update this to take the alleles as input like the other methods.
+    Returns a Sankoff (weighted) parsimony reconstruction for the specified
+    genotypes, as an (ancestral_state, mutations) tuple in the same format as
+    hartigan_map_mutations. cost_matrix[i, j] is the cost of a transition from
+    allele i to allele j; if None, all transitions have unit cost and the result
+    is identical to Hartigan parsimony. Note that a missing sample with children
+    is treated as an ordinary internal node, whereas Hartigan ignores the
+    descendants of such a node.
     """
+    if isinstance(ancestral_state, str):
+        ancestral_state = alleles.index(ancestral_state)
     if cost_matrix is None:
-        num_alleles = np.max(genotypes) + 1
-        cost_matrix = np.ones((num_alleles, num_alleles))
-        np.fill_diagonal(cost_matrix, 0)
+        cost_matrix = 1 - np.eye(len(alleles))
+    cost_matrix = np.asarray(cost_matrix, dtype=float)
     S = sankoff_score(tree, genotypes, cost_matrix)
-    return reconstruct_states(tree, genotypes, S, cost_matrix)
+    ancestral_state, transitions = reconstruct_states(
+        tree, S, cost_matrix, ancestral_state
+    )
+    mutations = [
+        tskit.Mutation(node=node, parent=parent, derived_state=alleles[state])
+        for node, parent, state in transitions
+    ]
+    return alleles[ancestral_state], mutations
 
 
 def felsenstein_tables():
@@ -364,7 +393,7 @@ class TestSankoff:
             [2.5, 2.5, 3.5, 3.5],
             [6, 6, 7, 8],
         ]
-        assert np.array_equal(S, np.array(S2))
+        assert np.array_equal(S[:-1], np.array(S2))
 
     def test_felsenstein_example_reconstruct(self):
         tree = felsenstein_example()
@@ -373,21 +402,72 @@ class TestSankoff:
             [[0, 2.5, 1, 2.5], [2.5, 0, 2.5, 1], [1, 2.5, 0, 2.5], [2.5, 1, 2.5, 0]]
         )
         S = sankoff_score(tree, genotypes, cost_matrix)
-        ancestral_state, transitions = reconstruct_states(
-            tree, genotypes, S, cost_matrix
-        )
-        assert {2: 1, 4: 2, 0: 1} == transitions
+        ancestral_state, transitions = reconstruct_states(tree, S, cost_matrix)
+        assert {2: 1, 4: 2, 0: 1} == {node: state for node, _, state in transitions}
         assert 0 == ancestral_state
+
+    @pytest.mark.parametrize("reversion_cost", [3, INF])
+    def test_asymmetric_prefers_recurrent_mutation(self, reversion_cost):
+        # Forward mutations (0->1) cost 1, reversions (1->0) are expensive,
+        # so three independent forward mutations beat one forward + one reversion
+        tree = tskit.Tree.generate_comb(4)
+        cost_matrix = np.array([[0, 1], [reversion_cost, 0]])
+        genotypes = [1, 1, 0, 1]
+        S = sankoff_score(tree, genotypes, cost_matrix)
+        assert S[tree.virtual_root, 0] == 3
+        ancestral_state, mutations = sankoff_map_mutations(
+            tree, genotypes, ["0", "1"], cost_matrix, ancestral_state="0"
+        )
+        assert ancestral_state == "0"
+        assert {(m.node, m.parent, m.derived_state) for m in mutations} == {
+            (0, -1, "1"),
+            (1, -1, "1"),
+            (3, -1, "1"),
+        }
+
+    def test_asymmetric_prefers_reversion(self):
+        # The transpose of the matrix above: now a reversion is cheap
+        tree = tskit.Tree.generate_comb(4)
+        cost_matrix = np.array([[0, 3], [1, 0]])
+        ancestral_state, mutations = sankoff_map_mutations(
+            tree, [1, 1, 0, 1], ["0", "1"], cost_matrix, ancestral_state="0"
+        )
+        assert [(m.node, m.parent, m.derived_state) for m in mutations] == [
+            (6, -1, "1"),
+            (2, 0, "0"),
+        ]
+
+    def test_intermediate_state(self):
+        # A direct 0->2 transition is expensive, so go via state 1. This gives
+        # more transitions than there are samples.
+        tree = tskit.Tree.generate_comb(2)
+        cost_matrix = np.array([[0, 1, 10], [1, 0, 1], [10, 1, 0]])
+        ancestral_state, mutations = sankoff_map_mutations(
+            tree, [2, 2], ["0", "1", "2"], cost_matrix, ancestral_state="0"
+        )
+        assert [(m.node, m.parent, m.derived_state) for m in mutations] == [
+            (2, -1, "1"),
+            (1, 0, "2"),
+            (0, 0, "2"),
+        ]
+
+    def test_missing_data_unconstrained(self):
+        tree = tskit.Tree.generate_comb(3)
+        S = sankoff_score(tree, [0, 1, tskit.MISSING_DATA], 1 - np.eye(3))
+        assert np.all(S[2] == 0)
 
     def verify_infinite_sites(self, ts):
         assert ts.num_trees == 1
         assert ts.num_sites > 5
         tree = ts.first()
         for variant in ts.variants():
-            ancestral_state, transitions = sankoff_map_mutations(tree, variant.genotypes)
+            ancestral_state, transitions = sankoff_map_mutations(
+                tree, variant.genotypes, variant.alleles
+            )
             assert len(transitions) == 1
-            assert ancestral_state == 0
-            assert transitions[variant.site.mutations[0].node] == 1
+            assert ancestral_state == variant.alleles[0]
+            assert transitions[0].node == variant.site.mutations[0].node
+            assert transitions[0].derived_state == variant.alleles[1]
 
     def test_infinite_sites_binary_n2(self):
         ts = msprime.simulate(2, mutation_rate=10, random_seed=1)
@@ -476,9 +556,9 @@ class TestFitchParsimonyDistance:
             # The Sankoff algorithm doesn't recontruct the state in the same way.
             # Just a limitation of the implementation.
             ancestral_state3, transitions3 = sankoff_map_mutations(
-                tree, variant.genotypes
+                tree, variant.genotypes, variant.alleles
             )
-            assert ancestral_state1 == variant.alleles[ancestral_state3]
+            assert ancestral_state1 == ancestral_state3
             # The algorithms will make slightly different choices on where to put
             # the transitions, but they are equally parsimonious.
             assert len(transitions1) == len(transitions3)
@@ -542,6 +622,12 @@ class TestParsimonyBase:
             sorted_t2 = sorted((m.node, m.derived_state) for m in transitions2)
             assert sorted_t1 == sorted_t2
             assert transitions1 == transitions2
+            # Sankoff with unit costs gives exactly the same reconstruction
+            ancestral_state3, transitions3 = sankoff_map_mutations(
+                tree, genotypes, alleles, ancestral_state=ancestral_state
+            )
+            assert ancestral_state1 == ancestral_state3
+            assert transitions1 == transitions3
         return ancestral_state1, transitions1
 
 
