@@ -13,7 +13,7 @@ In development
 **Bugfixes**
 
 - Stabilize ``TreeSequence.trait_correlation`` for finite traits with
-  extreme scales or a large common offset. (:issue:`3495`, :pr:`PRNUM`)
+  extreme scales or a large common offset. (:issue:`3495`, :pr:`3510`)
 
 --------------------
 [1.0.4] - 2026-10-30
