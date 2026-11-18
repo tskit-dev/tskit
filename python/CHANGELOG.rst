@@ -13,7 +13,7 @@ In development
 **Performance improvements**
 
 - Reduce the time to write VCF by avoiding site and variant copies and
-  formatting genotypes directly into the output buffer. (:pr:`PRNUM`)
+  formatting genotypes directly into the output buffer. (:pr:`3513`)
 
 --------------------
 [1.0.4] - 2026-10-30
