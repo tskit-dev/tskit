@@ -10,6 +10,11 @@ In development
   list of individuals (``individuals=[]``), writing a sites-only VCF with no
   ``FORMAT`` or sample columns. (:user:`RClaudiuM`, :issue:`3463`)
 
+**Bugfixes**
+
+- Stabilize ``TreeSequence.trait_correlation`` for finite traits with
+  extreme scales or a large common offset. (:issue:`3495`, :pr:`PRNUM`)
+
 --------------------
 [1.0.4] - 2026-10-30
 --------------------

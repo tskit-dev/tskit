@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
+#include <float.h>
 
 #include <tskit/trees.h>
 #include <tskit/genotypes.h>
@@ -4052,16 +4053,16 @@ tsk_treeseq_trait_correlation(const tsk_treeseq_t *self, tsk_size_t num_weights,
 {
     tsk_size_t num_samples = self->num_samples;
     tsk_size_t j, k;
-    int ret;
+    int ret, exponent;
+    double *scales = tsk_calloc(num_weights, sizeof(double));
     double *means = tsk_calloc(num_weights, sizeof(double));
-    double *meansqs = tsk_calloc(num_weights, sizeof(double));
     double *sds = tsk_calloc(num_weights, sizeof(double));
     const double *row;
     double *new_row;
     double *new_weights = tsk_malloc((num_weights + 1) * num_samples * sizeof(double));
     weight_stat_params_t args = { num_samples = self->num_samples };
 
-    if (new_weights == NULL || means == NULL || meansqs == NULL || sds == NULL) {
+    if (new_weights == NULL || scales == NULL || means == NULL || sds == NULL) {
         ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
@@ -4071,25 +4072,49 @@ tsk_treeseq_trait_correlation(const tsk_treeseq_t *self, tsk_size_t num_weights,
         goto out;
     }
 
-    // center and scale weights
+    // Scale each column by a power of two before computing its mean or variance.
+    // This keeps sums and squares in range without rounding nearby large values
+    // to the same scaled value.
     for (j = 0; j < num_samples; j++) {
         row = GET_2D_ROW(weights, num_weights, j);
         for (k = 0; k < num_weights; k++) {
-            means[k] += row[k];
-            meansqs[k] += row[k] * row[k];
+            scales[k] = fmax(scales[k], fabs(row[k]));
         }
     }
     for (k = 0; k < num_weights; k++) {
-        means[k] /= (double) num_samples;
-        meansqs[k] -= means[k] * means[k] * (double) num_samples;
-        meansqs[k] /= (double) (num_samples - 1);
-        sds[k] = sqrt(meansqs[k]);
+        exponent = 0;
+        if (isfinite(scales[k])) {
+            frexp(scales[k], &exponent);
+        }
+        scales[k] = ldexp(1.0, TSK_MIN(-exponent, DBL_MAX_EXP - 1));
     }
+    // Center relative to the first sample so a large common offset does not
+    // dominate the mean or the subsequent sum of squared deviations.
     for (j = 0; j < num_samples; j++) {
         row = GET_2D_ROW(weights, num_weights, j);
         new_row = GET_2D_ROW(new_weights, num_weights + 1, j);
         for (k = 0; k < num_weights; k++) {
-            new_row[k] = (row[k] - means[k]) / sds[k];
+            new_row[k] = row[k] * scales[k] - weights[k] * scales[k];
+            means[k] += new_row[k];
+        }
+    }
+    for (k = 0; k < num_weights; k++) {
+        means[k] /= (double) num_samples;
+    }
+    for (j = 0; j < num_samples; j++) {
+        new_row = GET_2D_ROW(new_weights, num_weights + 1, j);
+        for (k = 0; k < num_weights; k++) {
+            new_row[k] -= means[k];
+            sds[k] += new_row[k] * new_row[k];
+        }
+    }
+    for (k = 0; k < num_weights; k++) {
+        sds[k] = sqrt(sds[k] / (double) (num_samples - 1));
+    }
+    for (j = 0; j < num_samples; j++) {
+        new_row = GET_2D_ROW(new_weights, num_weights + 1, j);
+        for (k = 0; k < num_weights; k++) {
+            new_row[k] /= sds[k];
         }
         // set final row to 1/n to compute frequency
         new_row[num_weights] = 1.0 / (double) num_samples;
@@ -4099,8 +4124,8 @@ tsk_treeseq_trait_correlation(const tsk_treeseq_t *self, tsk_size_t num_weights,
         trait_correlation_summary_func, &args, num_windows, windows, options, result);
 
 out:
+    tsk_safe_free(scales);
     tsk_safe_free(means);
-    tsk_safe_free(meansqs);
     tsk_safe_free(sds);
     tsk_safe_free(new_weights);
     return ret;

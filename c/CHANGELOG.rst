@@ -4,6 +4,12 @@
 
 In development
 
+**Bugfixes**
+
+- Scale and center finite trait weights before computing the sample
+  variance in ``tsk_treeseq_trait_correlation``.
+  (:issue:`3495`, :pr:`PRNUM`)
+
 --------------------
 [1.3.2] - 2026-10-30
 --------------------

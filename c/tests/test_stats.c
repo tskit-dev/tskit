@@ -1813,6 +1813,13 @@ test_paper_ex_trait_correlation(void)
     CU_ASSERT_EQUAL_FATAL(ret, 0);
     CU_ASSERT_DOUBLE_EQUAL_FATAL(result, 1.0, 1e-6);
 
+    weights[0] = weights[1] = DBL_MAX / 2;
+    weights[2] = weights[3] = DBL_MAX;
+    ret = tsk_treeseq_trait_correlation(
+        &ts, 1, weights, 0, NULL, TSK_STAT_SITE, &result);
+    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_DOUBLE_EQUAL_FATAL(result, 1.0, 1e-6);
+
     tsk_treeseq_free(&ts);
     free(weights);
 }

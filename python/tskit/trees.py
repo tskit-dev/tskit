@@ -9692,8 +9692,10 @@ class TreeSequence:
         """
         if W.shape[0] != self.num_samples:
             raise ValueError("First trait dimension must be equal to number of samples.")
-        sds = np.std(W, axis=0)
-        if np.any(sds == 0):
+        # Compare in the precision used by the C calculation. Computing a
+        # variance in the original units can overflow or underflow.
+        W = np.asarray(W).astype(np.float64, casting="safe", copy=False)
+        if W.shape[0] > 0 and np.any(np.isfinite(W[0]) & np.all(W == W[0], axis=0)):
             raise ValueError(
                 "Weight columns must have positive variance", "to compute correlation."
             )

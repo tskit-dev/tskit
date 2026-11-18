@@ -5599,6 +5599,35 @@ class TestTraitCorrelation(TestTraitCovariance):
             self.assertArrayAlmostEqual(sigma1, sigma4)
 
 
+@pytest.mark.parametrize(
+    ("exponent", "offset"),
+    [
+        (0, 0.0),
+        (0, float(2**27)),
+        (520, 0.0),
+        (-600, 0.0),
+        (-1074, 0.0),
+        (1021, -float(6 * 2**1021)),
+    ],
+)
+def test_trait_correlation_finite_trait_scales(exponent, offset):
+    tree = tskit.Tree.generate_balanced(4)
+    tables = tree.tree_sequence.dump_tables()
+    site = tables.sites.add_row(0, ancestral_state="0")
+    tables.mutations.add_row(site, node=tree.parent(0), derived_state="1")
+    ts = tables.tree_sequence()
+    weights = np.array([[0, 0], [1, 3], [2, 1], [3, 2]], dtype=float)
+    weights[:, 0] = np.ldexp(weights[:, 0], exponent) + offset
+    np.testing.assert_allclose(ts.trait_correlation(weights), [0.8, 0.0], atol=1e-15)
+
+
+def test_trait_correlation_checks_variance_at_double_precision():
+    ts = tskit.Tree.generate_balanced(4).tree_sequence
+    weights = np.array([[2**54], [2**54 + 1], [2**54], [2**54 + 1]])
+    with pytest.raises(ValueError, match="must have positive variance"):
+        ts.trait_correlation(weights)
+
+
 class TraitCorrelationMixin:
     def test_interface(self, ts_10_mut_recomb_fixture):
         ts = self.get_example_ts(ts_10_mut_recomb_fixture)
