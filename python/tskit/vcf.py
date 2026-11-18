@@ -148,10 +148,8 @@ class VcfWriter:
         # Build the array for hold the text genotype VCF data and the indexes into
         # this array for when we're updating it.
         gt_array = []
-        indexes = []
         for ploidy in self.individual_ploidies:
             for _ in range(ploidy):
-                indexes.append(len(gt_array))
                 # First element here is a placeholder that we'll write the actual
                 # genotypes into when for each variant.
                 gt_array.extend([0, ord("|")])
@@ -159,32 +157,40 @@ class VcfWriter:
         if len(gt_array) > 0:
             gt_array[-1] = ord("\n")
         gt_array = np.array(gt_array, dtype=np.int8)
-        # TODO Unclear here whether using int64 or int32 will be faster for this index
-        # array. Test it out.
-        indexes = np.array(indexes, dtype=int)
+        gt_view = gt_array[::2]
         # A sites-only VCF ends each row after the INFO column.
         format_column = () if self.sites_only else ("GT",)
         fixed_columns_end = "\n" if self.sites_only else "\t"
 
-        for variant in self.tree_sequence.variants(
-            samples=self.samples, isolated_as_missing=self.vcf_model.isolated_as_missing
-        ):
-            site_id = variant.site.id
+        samples = self.samples
+        # Matching the tree sequence sample order enables sample-list decoding.
+        if np.array_equal(samples, self.tree_sequence.samples()):
+            samples = None
+        # A sample-mask callback may retain the Variant it receives.
+        variants = self.tree_sequence.variants(
+            samples=samples,
+            isolated_as_missing=self.vcf_model.isolated_as_missing,
+            copy=self.sample_mask is not None,
+        )
+        for site_id, variant in enumerate(variants):
             # We check the mask before we do any checks so we can use this as a
             # way of skipping problematic sites.
             if self.site_mask[site_id]:
                 continue
 
-            if variant.num_alleles > 9:
+            alleles = variant.alleles
+            has_missing_data = alleles[-1] is None
+            num_alleles = len(alleles) - has_missing_data
+            if num_alleles > 9:
                 raise ValueError(
                     "More than 9 alleles not currently supported. Please open an issue "
                     "on GitHub if this limitation affects you."
                 )
-            pos = self.vcf_model.transformed_positions[variant.index]
-            ref = variant.alleles[0]
+            pos = self.vcf_model.transformed_positions[site_id]
+            ref = alleles[0]
             alt = "."
-            if variant.num_alleles > 1:
-                alt = ",".join(variant.alleles[1 : variant.num_alleles])
+            if num_alleles > 1:
+                alt = ",".join(alleles[1:num_alleles])
             print(
                 self.vcf_model.contig_id,
                 pos,
@@ -202,7 +208,7 @@ class VcfWriter:
             if self.sites_only:
                 continue
             genotypes = variant.genotypes
-            gt_array[indexes] = genotypes + ord("0")
+            np.add(genotypes, ord("0"), out=gt_view, casting="unsafe")
             if self.sample_mask is not None:
                 genotypes = genotypes.copy()
                 sample_mask = np.array(self.sample_mask(variant), dtype=bool)
@@ -211,9 +217,8 @@ class VcfWriter:
                         "Sample mask must be a numpy array of size num_samples"
                     )
                 genotypes[sample_mask] = -1
-            if self.sample_mask is not None or variant.has_missing_data:
-                missing = genotypes == -1
-                gt_array[indexes[missing]] = ord(".")
+            if self.sample_mask is not None or has_missing_data:
+                gt_view[genotypes == -1] = ord(".")
             g_bytes = memoryview(gt_array).tobytes()
             g_str = g_bytes.decode()
             print(g_str, end="", file=output)

@@ -756,6 +756,20 @@ class TestMasking:
         actual = self.ts().as_vcf(sample_mask=mask, allow_position_zero=True)
         assert drop_header(actual) == expected
 
+    def test_sample_mask_can_retain_variants(self):
+        ts = self.ts()
+        captured = []
+
+        def mask(variant):
+            captured.append(variant)
+            return np.zeros(ts.num_samples, dtype=bool)
+
+        ts.as_vcf(sample_mask=mask, allow_position_zero=True)
+        assert [variant.site.id for variant in captured] == list(range(ts.num_sites))
+        for variant, expected in zip(captured, ts.variants()):
+            assert variant.alleles == expected.alleles
+            np.testing.assert_array_equal(variant.genotypes, expected.genotypes)
+
     def test_all_functional_sample_mask(self):
         s = """\
         #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0\ttsk_1\ttsk_2

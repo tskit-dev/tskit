@@ -10,6 +10,11 @@ In development
   list of individuals (``individuals=[]``), writing a sites-only VCF with no
   ``FORMAT`` or sample columns. (:user:`RClaudiuM`, :issue:`3463`)
 
+**Performance improvements**
+
+- Reduce the time to write VCF by avoiding site and variant copies and
+  formatting genotypes directly into the output buffer. (:pr:`PRNUM`)
+
 --------------------
 [1.0.4] - 2026-10-30
 --------------------
