@@ -12,6 +12,8 @@ In development
 
 **Bugfixes**
 
+- Validate zero positions in VCF output using the converted Boolean
+  site mask. (:user:`rpinho`, :pr:`3512`)
 - Apply ``node_labels`` to sequence alignments when exporting NEXUS.
   (:user:`rpinho`, :pr:`3514`)
 

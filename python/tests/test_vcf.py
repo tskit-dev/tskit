@@ -653,6 +653,23 @@ class TestMasking:
         )
         assert drop_header(actual) == expected
 
+    @pytest.mark.parametrize(
+        "mask",
+        [
+            [True, False, False, False],
+            np.array([1, 0, 0, 0]),
+            np.array([True, False, False, False]),
+        ],
+    )
+    def test_array_like_mask_skips_position_zero(self, mask):
+        actual = self.ts().as_vcf(site_mask=mask)
+        records = [line.split("\t") for line in actual.splitlines() if line[0] != "#"]
+        assert [record[1] for record in records] == ["2", "4", "6"]
+
+    def test_integer_mask_rejects_unmasked_position_zero(self):
+        with pytest.raises(ValueError, match="A variant position of 0"):
+            self.ts().as_vcf(site_mask=np.array([0, 1, 0, 0]))
+
     def test_site_0_masked_triploid(self):
         s = """\
         #CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\ttsk_0
