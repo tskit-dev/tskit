@@ -9,6 +9,6 @@ permissions:
 
 jobs:
   Lint:
-    uses: tskit-dev/.github/.github/workflows/lint.yml@v22
+    uses: tskit-dev/.github/.github/workflows/lint.yml@v23
     with:
       pyproject-directory: python
