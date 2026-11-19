@@ -105,7 +105,7 @@ class VcfWriter:
         # The VCF spec does not allow for positions to be 0, so we error if one of the
         # transformed positions is 0 and allow_position_zero is False.
         if not allow_position_zero and np.any(
-            vcf_model.transformed_positions[~site_mask] == 0
+            vcf_model.transformed_positions[~self.site_mask] == 0
         ):
             raise ValueError(
                 "A variant position of 0 was found in the VCF output, this is not "
