@@ -10,6 +10,11 @@ In development
   list of individuals (``individuals=[]``), writing a sites-only VCF with no
   ``FORMAT`` or sample columns. (:user:`RClaudiuM`, :issue:`3463`)
 
+**Bugfixes**
+
+- Apply ``node_labels`` to sequence alignments when exporting NEXUS.
+  (:user:`rpinho`, :pr:`3514`)
+
 --------------------
 [1.0.4] - 2026-10-30
 --------------------

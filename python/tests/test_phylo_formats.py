@@ -281,6 +281,28 @@ class TestNexusIncludeSections:
         )
         assert expected == self.ts().as_nexus(reference_sequence=ref)
 
+    @pytest.mark.parametrize("include_trees", [False, True])
+    def test_nexus_labels_with_alignments(self, include_trees):
+        nexus = self.ts().as_nexus(
+            reference_sequence="ACTGACTGAC",
+            node_labels={0: "human", 2: "bonobo"},
+            include_trees=include_trees,
+        )
+        dataset = dendropy.DataSet.get(data=nexus, schema="nexus")
+        matrix = dataset.char_matrices[0]
+        assert {taxon.label: str(matrix[taxon]) for taxon in matrix} == {
+            "human": "ACGGACTGAT",
+            "n1": "ACAGACTGAC",
+            "bonobo": "ACAGACTGAC",
+        }
+        if include_trees:
+            tree = dataset.tree_lists[0][0]
+            assert {node.taxon.label for node in tree.leaf_node_iter()} == {
+                "human",
+                "n1",
+                "bonobo",
+            }
+
     def test_nexus_no_trees(self):
         ref = "ACTGACTGAC"
         expected = textwrap.dedent(

@@ -136,13 +136,9 @@ def write_nexus(
     print("BEGIN TAXA;", file=out)
     print("", f"DIMENSIONS NTAX={ts.num_samples};", sep=indent, file=out)
 
-    if node_labels is not None:
-        taxlabels = " ".join(
-            node_labels[u] if u in node_labels else f"n{u}" for u in ts.samples()
-        )
-    else:
-        taxlabels = " ".join(f"n{u}" for u in ts.samples())
-    print("", f"TAXLABELS {taxlabels};", sep=indent, file=out)
+    labels = {} if node_labels is None else node_labels
+    sample_labels = [labels.get(u, f"n{u}") for u in ts.samples()]
+    print("", f"TAXLABELS {' '.join(sample_labels)};", sep=indent, file=out)
     print("END;", file=out)
 
     if include_alignments is None:
@@ -165,8 +161,8 @@ def write_nexus(
             missing_data_character=missing_data_character,
             isolated_as_missing=isolated_as_missing,
         )
-        for u, alignment in zip(ts.samples(), alignments):
-            print(2 * indent, f"n{u}", " ", alignment, sep="", file=out)
+        for label, alignment in zip(sample_labels, alignments):
+            print(f"{2 * indent}{label} {alignment}", file=out)
         print("", ";", sep=indent, file=out)
         print("END;", file=out)
 
