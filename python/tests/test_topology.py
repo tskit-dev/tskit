@@ -7017,6 +7017,32 @@ class TestTrim(unittest.TestCase):
             trimmed_ts.tables.migrations.right, ts.tables.migrations.right - 0.1
         )
 
+    def test_ltrim_preserves_edge_and_migration_metadata(self):
+        ts = self.migration_sim().keep_intervals([[0.25, 0.75]], simplify=False)
+        tables = ts.dump_tables()
+        for table in (tables.edges, tables.migrations):
+            assert len(table) > 0
+            rows = [str(j).encode() for j in range(len(table))]
+            metadata, metadata_offset = tskit.pack_bytes(rows)
+            table.set_columns(
+                **(
+                    table.asdict()
+                    | {"metadata": metadata, "metadata_offset": metadata_offset}
+                )
+            )
+        ts = tables.tree_sequence()
+
+        for trimmed in (ts.ltrim(), ts.trim()):
+            for name in ("edges", "migrations"):
+                original = getattr(ts.tables, name)
+                shifted = getattr(trimmed.tables, name)
+                np.testing.assert_array_equal(shifted.left, original.left - 0.25)
+                np.testing.assert_array_equal(shifted.right, original.right - 0.25)
+                np.testing.assert_array_equal(shifted.metadata, original.metadata)
+                np.testing.assert_array_equal(
+                    shifted.metadata_offset, original.metadata_offset
+                )
+
     def test_rtrim_single_tree(self):
         ts = msprime.simulate(10, mutation_rate=12, random_seed=2)
         ts = self.clear_right_mutate(ts, 0.5, 10)

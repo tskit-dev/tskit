@@ -4131,6 +4131,8 @@ class TableCollection(metadata.MetadataProvider):
             right=self.edges.right - leftmost,
             parent=self.edges.parent,
             child=self.edges.child,
+            metadata=self.edges.metadata,
+            metadata_offset=self.edges.metadata_offset,
         )
         self.sites.set_columns(
             position=self.sites.position - leftmost,
@@ -4146,6 +4148,8 @@ class TableCollection(metadata.MetadataProvider):
             node=self.migrations.node,
             source=self.migrations.source,
             dest=self.migrations.dest,
+            metadata=self.migrations.metadata,
+            metadata_offset=self.migrations.metadata_offset,
         )
         self.sequence_length = self.sequence_length - leftmost
         if record_provenance:
