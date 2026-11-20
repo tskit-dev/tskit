@@ -3066,8 +3066,8 @@ test_two_site_correlated_multiallelic(void)
         -0.008818342151675485, -0.008818342151675485 };
     double truth_pi2_unbiased[4] = { 0.0582010582010582, 0.0582010582010582,
         0.0582010582010582, 0.0582010582010582 };
-    double truth_D2_unbiased_disjoint[4] = { 0.007407407407407407, 0.007407407407407407,
-        0.007407407407407407, 0.007407407407407407 };
+    double truth_D2_unbiased_disjoint[4] = { 0.06666666666666667, 0.06666666666666667,
+        0.06666666666666667, 0.06666666666666667 };
 
     tsk_treeseq_from_text(
         &ts, 20, nodes, edges, NULL, tree_sites, mutations, NULL, NULL, 0);
@@ -3176,6 +3176,7 @@ test_two_site_correlated_multiallelic(void)
     assert_arrays_almost_equal(result_size, result, truth_D2_unbiased);
 
     // two disjoint sample sets with 5 and 4 samples {0,1,2,3,4}{5,6,7,8}
+    // only alleles carried by both sample sets are used
     sample_set_sizes[0] = 5;
     sample_set_sizes[1] = 4;
     tsk_memset(result, 0, sizeof(*result) * result_size);
@@ -3258,8 +3259,8 @@ test_two_site_uncorrelated_multiallelic(void)
         0.005291005291005289, -0.015873015873015872 };
     double truth_pi2_unbiased[4] = { 0.06349206349206349, 0.06216931216931215,
         0.06216931216931215, 0.06349206349206349 };
-    double truth_D2_unbiased_disjoint[4] = { 0.008333333333333333,
-        -0.0027777777777777775, -0.0027777777777777775, 0.03518518518518518 };
+    double truth_D2_unbiased_disjoint[4]
+        = { 0.075, -0.008333333333333333, -0.008333333333333333, 0.035185185185185174 };
 
     tsk_treeseq_from_text(
         &ts, 20, nodes, edges, NULL, tree_sites, mutations, NULL, NULL, 0);
@@ -3369,6 +3370,7 @@ test_two_site_uncorrelated_multiallelic(void)
     assert_arrays_almost_equal(result_size, result, truth_D2_unbiased);
 
     // two disjoint sample sets with 5 and 4 samples {0,1,2,3,4}{5,6,7,8}
+    // only alleles carried by both sample sets are used
     sample_set_sizes[0] = 5;
     sample_set_sizes[1] = 4;
     tsk_memset(result, 0, sizeof(*result) * result_size);

@@ -2374,6 +2374,10 @@ typedef struct {
     double *weights;
     double *norm;
     double *result_tmp;
+    // For each result: whether to skip the ancestral allele, and the total
+    // weight of the allele pairs used.
+    bool *skip_ancestral;
+    double *weight_sum;
     tsk_bitset_t AB_samples;
 } two_locus_work_t;
 
@@ -2387,8 +2391,11 @@ two_locus_work_init(tsk_size_t max_alleles, tsk_size_t num_samples,
     out->norm = tsk_malloc(result_dim * sizeof(*out->norm));
     out->result_tmp
         = tsk_malloc(result_dim * max_alleles * max_alleles * sizeof(*out->result_tmp));
+    out->skip_ancestral = tsk_malloc(result_dim * sizeof(*out->skip_ancestral));
+    out->weight_sum = tsk_malloc(result_dim * sizeof(*out->weight_sum));
     tsk_memset(&out->AB_samples, 0, sizeof(out->AB_samples));
-    if (out->weights == NULL || out->norm == NULL || out->result_tmp == NULL) {
+    if (out->weights == NULL || out->norm == NULL || out->result_tmp == NULL
+        || out->skip_ancestral == NULL || out->weight_sum == NULL) {
         ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
@@ -2406,15 +2413,36 @@ two_locus_work_free(two_locus_work_t *work)
     tsk_safe_free(work->weights);
     tsk_safe_free(work->norm);
     tsk_safe_free(work->result_tmp);
+    tsk_safe_free(work->skip_ancestral);
+    tsk_safe_free(work->weight_sum);
     tsk_bitset_free(&work->AB_samples);
+}
+
+// Returns true if an allele is carried by the sample set(s) used for result k:
+// sample set k for one-way statistics, or both sample sets of the k-th index
+// pair for two-way statistics. Alleles that are not carried are not used, so
+// that samples outside the sample set(s) do not affect the result.
+static bool
+allele_carried(const tsk_size_t *allele_counts, tsk_size_t allele_offset, tsk_size_t k,
+    const tsk_id_t *set_indexes)
+{
+    tsk_size_t i, j;
+
+    if (set_indexes == NULL) {
+        return allele_counts[allele_offset + k] > 0;
+    }
+    i = (tsk_size_t) set_indexes[2 * k];
+    j = (tsk_size_t) set_indexes[2 * k + 1];
+    return allele_counts[allele_offset + i] > 0 && allele_counts[allele_offset + j] > 0;
 }
 
 static int
 compute_general_normed_two_site_stat_result(const tsk_bitset_t *state,
     const tsk_size_t *allele_counts, tsk_size_t a_off, tsk_size_t b_off,
-    tsk_size_t num_a_alleles, tsk_size_t num_b_alleles, tsk_size_t state_dim,
-    tsk_size_t result_dim, general_stat_func_t *f, sample_count_stat_params_t *f_params,
-    norm_func_t *norm_f, bool polarised, two_locus_work_t *restrict work, double *result)
+    tsk_size_t num_a_alleles, tsk_size_t num_b_alleles, const tsk_size_t *num_a_carried,
+    const tsk_size_t *num_b_carried, tsk_size_t state_dim, tsk_size_t result_dim,
+    general_stat_func_t *f, sample_count_stat_params_t *f_params, norm_func_t *norm_f,
+    bool polarised, two_locus_work_t *restrict work, double *result)
 {
     int ret = 0;
     // Sample sets and b sites are rows, a sites are columns
@@ -2423,16 +2451,29 @@ compute_general_normed_two_site_stat_result(const tsk_bitset_t *state,
     // a2   [s1, s2, s3] [s1, s2, s3] [s1, s2, s3]
     // a3   [s1, s2, s3] [s1, s2, s3] [s1, s2, s3]
     tsk_size_t k, mut_a, mut_b, result_row_len = num_b_alleles * result_dim;
-    uint8_t is_polarised = polarised ? 1 : 0;
+    const tsk_id_t *set_indexes = f_params->set_indexes;
     double *restrict hap_row, *restrict result_tmp_row;
     double *restrict norm = work->norm;
     double *restrict weights = work->weights;
     double *restrict result_tmp = work->result_tmp;
+    bool *restrict skip_ancestral = work->skip_ancestral;
+    double *restrict weight_sum = work->weight_sum;
     tsk_bitset_t AB_samples = work->AB_samples;
 
-    for (mut_a = is_polarised; mut_a < num_a_alleles; mut_a++) {
+    // Only alleles carried by the sample set(s) for each result are used (see
+    // allele_carried). If either site has fewer than two such alleles (e.g., it
+    // is monomorphic in the sample set), we keep the ancestral allele even for
+    // polarised statistics, so that the summary function is evaluated on the
+    // fixed allele: this gives nan for ratio statistics (0 / 0) and zero for all
+    // others.
+    for (k = 0; k < result_dim; k++) {
+        skip_ancestral[k] = polarised && num_a_carried[k] >= 2 && num_b_carried[k] >= 2;
+        weight_sum[k] = 0;
+    }
+
+    for (mut_a = 0; mut_a < num_a_alleles; mut_a++) {
         result_tmp_row = GET_2D_ROW(result_tmp, result_row_len, mut_a);
-        for (mut_b = is_polarised; mut_b < num_b_alleles; mut_b++) {
+        for (mut_b = 0; mut_b < num_b_alleles; mut_b++) {
             for (k = 0; k < state_dim; k++) {
                 tsk_bitset_intersect(state, a_off + (mut_a * state_dim) + k, state,
                     b_off + (mut_b * state_dim) + k, &AB_samples);
@@ -2447,16 +2488,30 @@ compute_general_normed_two_site_stat_result(const tsk_bitset_t *state,
             if (ret != 0) {
                 goto out;
             }
-            ret = norm_f(result_dim, weights, num_a_alleles - is_polarised,
-                num_b_alleles - is_polarised, norm, f_params);
+            ret = norm_f(
+                result_dim, weights, num_a_alleles, num_b_alleles, norm, f_params);
             if (ret != 0) {
                 goto out;
             }
             for (k = 0; k < result_dim; k++) {
+                if (!allele_carried(
+                        allele_counts, a_off + (mut_a * state_dim), k, set_indexes)
+                    || !allele_carried(
+                        allele_counts, b_off + (mut_b * state_dim), k, set_indexes)
+                    || (skip_ancestral[k] && (mut_a == 0 || mut_b == 0))) {
+                    continue;
+                }
                 result[k] += result_tmp_row[k] * norm[k];
+                weight_sum[k] += norm[k];
             }
             result_tmp_row += result_dim; // Advance to the next column
         }
+    }
+    // Divide by the total weight of the allele pairs used, so that each result
+    // is a weighted average over those pairs. For uniform ("total") weighting,
+    // this is the mean over the allele pairs used.
+    for (k = 0; k < result_dim; k++) {
+        result[k] /= weight_sum[k];
     }
 out:
     return ret;
@@ -2651,6 +2706,29 @@ get_mutation_sample_sets(const tsk_bitset_t *allele_samples, tsk_size_t num_samp
     }
 }
 
+// For each site and result, count the alleles carried by the sample set(s) used
+// for that result (see allele_carried). The result is an array of length
+// (n_sites * result_dim).
+static void
+get_num_carried_alleles(tsk_size_t n_sites, const tsk_size_t *num_alleles,
+    const tsk_size_t *site_offsets, const tsk_size_t *allele_counts,
+    tsk_size_t num_sample_sets, tsk_size_t result_dim, const tsk_id_t *set_indexes,
+    tsk_size_t *num_carried_alleles)
+{
+    tsk_size_t s, m, k;
+
+    for (s = 0; s < n_sites; s++) {
+        for (m = 0; m < num_alleles[s]; m++) {
+            for (k = 0; k < result_dim; k++) {
+                if (allele_carried(allele_counts,
+                        site_offsets[s] + (m * num_sample_sets), k, set_indexes)) {
+                    num_carried_alleles[(s * result_dim) + k]++;
+                }
+            }
+        }
+    }
+}
+
 static int
 tsk_treeseq_two_site_count_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
     tsk_size_t num_sample_sets, const tsk_size_t *sample_set_sizes,
@@ -2667,6 +2745,7 @@ tsk_treeseq_two_site_count_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
     double *result_row;
     const tsk_size_t num_samples = self->num_samples;
     tsk_size_t *num_alleles = NULL, *site_offsets = NULL, *allele_counts = NULL;
+    tsk_size_t *num_carried_alleles = NULL;
     tsk_size_t result_row_len = n_cols * result_dim;
     tsk_size_t max_ss_size = 0, max_alleles = 0, n_alleles = 0;
     two_locus_work_t work;
@@ -2686,7 +2765,8 @@ tsk_treeseq_two_site_count_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
     // depends on n_sites
     num_alleles = tsk_malloc(n_sites * sizeof(*num_alleles));
     site_offsets = tsk_malloc(n_sites * sizeof(*site_offsets));
-    if (num_alleles == NULL || site_offsets == NULL) {
+    num_carried_alleles = tsk_calloc(n_sites * result_dim, sizeof(*num_carried_alleles));
+    if (num_alleles == NULL || site_offsets == NULL || num_carried_alleles == NULL) {
         ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
@@ -2726,6 +2806,8 @@ tsk_treeseq_two_site_count_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
     }
     get_mutation_sample_sets(&allele_samples, num_sample_sets, sample_set_sizes,
         sample_sets, self->sample_index_map, &allele_sample_sets, allele_counts);
+    get_num_carried_alleles(n_sites, num_alleles, site_offsets, allele_counts,
+        num_sample_sets, result_dim, f_params->set_indexes, num_carried_alleles);
     // For each row/column pair, fill in the sample set in the result matrix.
     for (i = 0; i < n_rows; i++) {
         result_row = GET_2D_ROW(result, result_row_len, i);
@@ -2740,7 +2822,9 @@ tsk_treeseq_two_site_count_stat(const tsk_treeseq_t *self, tsk_size_t state_dim,
                 // at least one site is multiallelic
                 ret = compute_general_normed_two_site_stat_result(&allele_sample_sets,
                     allele_counts, site_offsets[row_idx[i]], site_offsets[col_idx[j]],
-                    num_alleles[row_idx[i]], num_alleles[col_idx[j]], state_dim,
+                    num_alleles[row_idx[i]], num_alleles[col_idx[j]],
+                    &(num_carried_alleles[row_idx[i] * result_dim]),
+                    &(num_carried_alleles[col_idx[j] * result_dim]), state_dim,
                     result_dim, f, f_params, norm_f, polarised, &work,
                     &(result_row[j * result_dim]));
             }
@@ -2757,6 +2841,7 @@ out:
     tsk_safe_free(num_alleles);
     tsk_safe_free(site_offsets);
     tsk_safe_free(allele_counts);
+    tsk_safe_free(num_carried_alleles);
     two_locus_work_free(&work);
     tsk_bitset_free(&allele_samples);
     tsk_bitset_free(&allele_sample_sets);
@@ -3088,6 +3173,21 @@ out:
     return ret;
 }
 
+// Returns true if both branches can produce polymorphism in sample set s, that is,
+// each branch subtends at least one, but not all, of the samples in the set. The
+// weights for sample set s are the counts of AB, Ab and aB samples.
+static bool
+branches_vary_in_set(
+    const double *weights, tsk_size_t s, const tsk_size_t *sample_set_sizes)
+{
+    const double *row = GET_2D_ROW(weights, 3, s);
+    double n = (double) sample_set_sizes[s];
+    double count_a = row[0] + row[1];
+    double count_b = row[0] + row[2];
+
+    return count_a > 0 && count_a < n && count_b > 0 && count_b < n;
+}
+
 static int
 compute_two_tree_branch_state_update(const tsk_treeseq_t *ts, tsk_id_t c,
     const iter_state *A_state, const iter_state *B_state, tsk_size_t state_dim,
@@ -3100,6 +3200,9 @@ compute_two_tree_branch_state_update(const tsk_treeseq_t *ts, tsk_id_t c,
     double *restrict B_branch_len = B_state->branch_len;
     double *weights_row;
     tsk_size_t n, k, a_row, b_row;
+    bool varies;
+    const tsk_id_t *set_indexes = f_params->set_indexes;
+    const tsk_size_t *sample_set_sizes = f_params->sample_set_sizes;
     const double *restrict A_branch_len = A_state->branch_len;
     const tsk_bitset_t *restrict A_state_samples = A_state->node_samples;
     const tsk_bitset_t *restrict B_state_samples = B_state->node_samples;
@@ -3134,7 +3237,20 @@ compute_two_tree_branch_state_update(const tsk_treeseq_t *ts, tsk_id_t c,
             goto out;
         }
         for (k = 0; k < result_dim; k++) {
-            result[k] += result_tmp[k] * a_len * b_len;
+            // Only pairs of branches that can produce polymorphism in the sample
+            // set(s) for result k contribute: sample set k for one-way statistics,
+            // or both sample sets of the k-th index pair for two-way statistics.
+            if (set_indexes == NULL) {
+                varies = branches_vary_in_set(weights, k, sample_set_sizes);
+            } else {
+                varies = branches_vary_in_set(
+                             weights, (tsk_size_t) set_indexes[2 * k], sample_set_sizes)
+                         && branches_vary_in_set(weights,
+                             (tsk_size_t) set_indexes[2 * k + 1], sample_set_sizes);
+            }
+            if (varies) {
+                result[k] += result_tmp[k] * a_len * b_len;
+            }
         }
     }
 out:

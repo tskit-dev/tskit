@@ -14,6 +14,11 @@ In development
 
 - Apply ``node_labels`` to sequence alignments when exporting NEXUS.
   (:user:`rpinho`, :pr:`3514`)
+- ``TreeSequence.ld_matrix`` now ignores alleles and branches that are not
+  observed in the sample set(s), so they no longer cause ``nan`` values or
+  affect the result. Ratio statistics are still ``nan`` at sites that are
+  monomorphic in the sample set. (:user:`apragsdale`, :issue:`3441`,
+  :issue:`3474`, :pr:`3515`)
 
 --------------------
 [1.0.4] - 2026-10-30

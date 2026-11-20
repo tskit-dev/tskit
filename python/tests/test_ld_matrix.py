@@ -552,10 +552,40 @@ def compute_general_two_site_stat_result(
     norm = np.zeros(result_dim, np.float64)
     result_tmp = np.zeros(result_dim, np.float64)
 
-    polarised_val = 1 if polarised else 0
-    for mut_a in range(polarised_val, num_row_alleles):
+    weight_sum = np.zeros(result_dim, np.float64)
+    set_indexes = params["set_indexes"]
+
+    # Below, use_row[m, k] (and likewise use_col) is True if allele m
+    # contributes to result k. This mirrors the per-result setup in the C
+    # function compute_general_normed_two_site_stat_result. Only alleles
+    # carried by the sample set(s) for result k are used: sample set k for
+    # one-way statistics, or both sample sets of the k-th index pair for two-way
+    # statistics (see allele_carried in C, which also precomputes these counts
+    # once per site in get_num_carried_alleles). Polarised statistics skip the
+    # ancestral allele only when both sites have two or more such alleles, so
+    # that monomorphic sites give nan for ratio statistics and zero otherwise.
+    use = []
+    for site_offset, num_alleles in [
+        (row_site_offset, num_row_alleles),
+        (col_site_offset, num_col_alleles),
+    ]:
+        # carried[m, s] is True if allele m is carried by sample set s.
+        carried = np.zeros((num_alleles, state_dim), dtype=bool)
+        for m, s in np.ndindex(carried.shape):
+            allele_samples.intersect(int(site_offset + m), sample_sets, s, ss_A_samples)
+            carried[m, s] = ss_A_samples.count(0) > 0
+        if set_indexes is not None:
+            carried = np.array([carried[:, i] & carried[:, j] for i, j in set_indexes]).T
+        use.append(carried)
+    use_row, use_col = use
+    both_sites_vary = (use_row.sum(axis=0) >= 2) & (use_col.sum(axis=0) >= 2)
+    skip_ancestral = bool(polarised) & both_sites_vary
+    use_row[0] &= ~skip_ancestral
+    use_col[0] &= ~skip_ancestral
+
+    for mut_a in range(num_row_alleles):
         a = int(mut_a + row_site_offset)
-        for mut_b in range(polarised_val, num_col_alleles):
+        for mut_b in range(num_col_alleles):
             b = int(mut_b + col_site_offset)
             allele_samples.intersect(a, allele_samples, b, AB_samples)
             for k in range(state_dim):
@@ -574,16 +604,18 @@ def compute_general_two_site_stat_result(
             func(state_dim, weights, result_dim, result_tmp, params)
 
             norm_func(
-                result_dim,
-                weights,
-                num_row_alleles - polarised_val,
-                num_col_alleles - polarised_val,
-                norm,
-                params,
+                result_dim, weights, num_row_alleles, num_col_alleles, norm, params
             )
-
             for k in range(result_dim):
-                result[k] += result_tmp[k] * norm[k]
+                if use_row[mut_a, k] and use_col[mut_b, k]:
+                    result[k] += result_tmp[k] * norm[k]
+                    weight_sum[k] += norm[k]
+
+    # As in C, divide by the total weight of the allele pairs used, so that each
+    # result is a weighted average over those pairs (for uniform weighting, the
+    # mean over the allele pairs used).
+    with np.errstate(divide="ignore", invalid="ignore"):
+        result /= weight_sum
 
 
 def two_site_count_stat(
@@ -1938,8 +1970,19 @@ def compute_branch_stat_update(
             weights[2, k] = w_B - w_AB  # w_aB
 
         stat_func(state_dim, weights, result_dim, result_tmp, params)
+        # As in the C function compute_two_tree_branch_state_update, only pairs of
+        # branches that can produce polymorphism contribute: each branch must
+        # subtend at least one, but not all, of the samples in sample set k
+        # (one-way), or in both sample sets of the k-th index pair (two-way).
+        n = np.asarray(params["sample_set_sizes"])
+        count_A = weights[0] + weights[1]
+        count_B = weights[0] + weights[2]
+        varies = (count_A > 0) & (count_A < n) & (count_B > 0) & (count_B < n)
+        if params["set_indexes"] is not None:
+            varies = [varies[i] and varies[j] for i, j in params["set_indexes"]]
         for k in range(result_dim):
-            result[k] += result_tmp[k] * a_len * b_len
+            if varies[k]:
+                result[k] += result_tmp[k] * a_len * b_len
 
 
 def compute_branch_stat(
@@ -2398,3 +2441,199 @@ def test_multipopulation_r2_varying_unequal_set_sizes(genotypes, sample_sets, ex
         norm_hap_weighted_ij(1, state, max(a) + 1, max(b) + 1, norm[i, j], params)
 
     np.testing.assert_allclose((result * norm).sum(), expected)
+
+
+# Tests for how the LD matrix handles alleles and branches that are not polymorphic
+# in a sample set or sets. See issues raised in #3441 and #3474.  Here we
+# define ratio and non-ratio stats, which are reused in pytest below.
+
+# Note that the unbiased statistics are undefined for small sample sets, so
+# tests that subset to two samples use only the biased statistics that are
+# defined for small sample sizes.
+RATIO_STATS = ["r", "r2", "D_prime"]
+NONRATIO_STATS = ["D", "D2", "Dz", "pi2"]
+
+
+def set_up_ts_with_ghost_allele():
+    """
+    Four samples, with samples 0 and 1 sharing parent node 4.
+
+    Site 0 has two successive mutations on the same branch above node 4:
+        A -> G -> T,
+    so allele G is carried by no samples (a "ghost" allele). Site 1 is a
+    biallelic A -> C above node 4. The mutations at sites 0 and 1 therefore
+    both split the samples into {0, 1} and {2, 3} carrying the derived and
+    ancestral allele, resp.
+
+    Site 2 has a mutation A -> C followed by a back mutation C -> A above
+    node 4, so it is monomorphic in the samples.
+    """
+    tables = tskit.TableCollection(sequence_length=10)
+    for _ in range(4):
+        tables.nodes.add_row(flags=tskit.NODE_IS_SAMPLE, time=0)
+    tables.nodes.add_row(time=1)
+    tables.nodes.add_row(time=2)
+    tables.nodes.add_row(time=3)
+    for parent, child in [(4, 0), (4, 1), (5, 2), (5, 4), (6, 3), (6, 5)]:
+        tables.edges.add_row(left=0, right=10, parent=parent, child=child)
+    tables.sites.add_row(position=2, ancestral_state="A")
+    tables.mutations.add_row(site=0, node=4, derived_state="G", time=1.5)
+    tables.mutations.add_row(site=0, node=4, derived_state="T", time=1.2, parent=0)
+    tables.sites.add_row(position=6, ancestral_state="A")
+    tables.mutations.add_row(site=1, node=4, derived_state="C", time=1.5)
+    tables.sites.add_row(position=8, ancestral_state="A")
+    tables.mutations.add_row(site=2, node=4, derived_state="C", time=1.5)
+    tables.mutations.add_row(site=2, node=4, derived_state="A", time=1.2, parent=3)
+    tables.sort()
+    return tables.tree_sequence()
+
+
+@pytest.mark.parametrize("stat", sorted(SUMMARY_FUNCS.keys()))
+def test_ghost_allele_site_mode(stat):
+    # Uses the ghost allele tree sequence set up above.
+    # Sites 0 and 1 have the same allele sharing patterns, so the ghost allele
+    # at site 0 should be ignored and every pairing of the two sites should
+    # give the same value as site 1 with itself.
+    ts = set_up_ts_with_ghost_allele()
+    ld = ts.ld_matrix(sites=[[0, 1]], stat=stat)
+    ld_site1 = ld[1, 1]
+    np.testing.assert_(np.all(np.isclose(ld, ld_site1)))
+
+
+@pytest.mark.parametrize("stat", RATIO_STATS + NONRATIO_STATS)
+def test_monomorphic_site_site_mode(stat):
+    # Uses the ghost allele tree sequence set up above.
+    # Site 2 is monomorphic due to a back mutation, so any LD statistic
+    # computed for a pair with site 2 should be nan for ratio statistics and
+    # zero otherwise.
+    ts = set_up_ts_with_ghost_allele()
+    ld = ts.ld_matrix(sites=[[0, 1, 2], [2]], stat=stat)
+    if stat in RATIO_STATS:
+        np.testing.assert_(np.all(np.isnan(ld)))
+    else:
+        np.testing.assert_(np.all(ld == 0))
+
+
+@pytest.mark.parametrize("stat", RATIO_STATS + NONRATIO_STATS)
+def test_monomorphic_sample_set_site_mode(stat):
+    # Uses the ghost allele tree sequence set up above.
+    # Samples 0 and 1 carry the same alleles at every site, so all sites are
+    # monomorphic within this sample set.
+    ts = set_up_ts_with_ghost_allele()
+    ld = ts.ld_matrix(sample_sets=[0, 1], stat=stat)
+    if stat in RATIO_STATS:
+        np.testing.assert_(np.all(np.isnan(ld)))
+    else:
+        np.testing.assert_(np.all(ld == 0))
+
+
+def set_up_star_ts_with_multiallelic_site():
+    """
+    A star tree with four samples (using one of the examples from issue #3441).
+
+    Site 0 is triallelic: sample 0 carries C, sample 2 carries T, and samples
+    1 and 3 carry the ancestral A. Site 1 is biallelic, with sample 0
+    carrying G.
+    """
+    tables = tskit.Tree.generate_star(4).tree_sequence.dump_tables()
+    tables.sites.add_row(position=0, ancestral_state="A")
+    tables.mutations.add_row(site=0, node=0, derived_state="C")
+    tables.mutations.add_row(site=0, node=2, derived_state="T")
+    tables.sites.add_row(position=0.5, ancestral_state="A")
+    tables.mutations.add_row(site=1, node=0, derived_state="G")
+    return tables.tree_sequence()
+
+
+@pytest.mark.parametrize("stat", RATIO_STATS + NONRATIO_STATS)
+def test_multiallelic_site_becomes_biallelic_in_subset(stat):
+    # Within sample set [0, 1], site 0 is biallelic (C vs A) and allele T is
+    # absent. Allele T should not contribute, so the result should match the
+    # tree sequence simplified to these samples.
+    ts = set_up_star_ts_with_multiallelic_site()
+    sample_set = [0, 1]
+    ld = ts.ld_matrix(sample_sets=sample_set, stat=stat)
+    ld_simplified = ts.simplify(sample_set).ld_matrix(stat=stat)
+    np.testing.assert_(np.all(np.isclose(ld, ld_simplified)))
+    if stat == "r2" or stat == "r":
+        # Both sites have alleles at freq=0.5 in positive LD.
+        np.testing.assert_(np.all(np.isclose(ld, 1)))
+
+
+@pytest.mark.parametrize("stat", RATIO_STATS + NONRATIO_STATS)
+def test_multiallelic_site_becomes_monomorphic_in_subset(stat):
+    # Samples 1 and 3 both carry the ancestral allele at both sites
+    # and are monomorphic.
+    ts = set_up_star_ts_with_multiallelic_site()
+    ld = ts.ld_matrix(sample_sets=[1, 3], stat=stat)
+    if stat in RATIO_STATS:
+        np.testing.assert_(np.all(np.isnan(ld)))
+    else:
+        np.testing.assert_(np.all(ld == 0))
+
+
+@pytest.mark.parametrize("stat", ["r2", "D2"])
+@pytest.mark.parametrize(
+    "set_up_ts, sample_set",
+    [
+        (set_up_ts_with_ghost_allele, [0, 1, 2, 3]),
+        (set_up_star_ts_with_multiallelic_site, [0, 1]),
+    ],
+)
+def test_two_way_same_sample_set_matches_one_way(set_up_ts, sample_set, stat):
+    # With the same sample set passed twice, a two-way statistic should equal
+    # the one-way statistic for that sample set, including at sites with
+    # alleles that are not carried by the sample set.
+    ts = set_up_ts()
+    two_way = ts.ld_matrix(
+        sample_sets=[sample_set, sample_set], indexes=(0, 1), stat=stat
+    )
+    one_way = ts.ld_matrix(sample_sets=sample_set, stat=stat)
+    np.testing.assert_(np.all(np.isclose(two_way, one_way, equal_nan=True)))
+
+
+def set_up_branch_mode_ts():
+    ts = msprime.sim_ancestry(
+        6, sequence_length=10, recombination_rate=0.05, random_seed=2
+    )
+    # Get the positions of tree sequence break points.
+    positions = [list(ts.breakpoints(as_array=True)[:-1])]
+    return ts, positions
+
+
+@pytest.mark.parametrize("stat", sorted(SUMMARY_FUNCS.keys()))
+def test_branch_mode_subset_matches_simplified(stat):
+    # Branches subtending none, or all, of the sample set cannot produce
+    # polymorphism in it and should not contribute. These branches would be
+    # removed by simplifying to the sample set, and we expect results to match.
+    ts, positions = set_up_branch_mode_ts()
+    sample_set = [0, 1, 2, 3, 4]
+    ld = ts.ld_matrix(
+        sample_sets=sample_set, positions=positions, mode="branch", stat=stat
+    )
+    ld_simplified = ts.simplify(sample_set).ld_matrix(
+        positions=positions, mode="branch", stat=stat
+    )
+    np.testing.assert_(np.all(np.isfinite(ld)))
+    np.testing.assert_(np.all(np.isclose(ld, ld_simplified)))
+
+
+@pytest.mark.parametrize("stat", sorted(SUMMARY_FUNCS.keys()))
+def test_branch_mode_single_sample_is_zero(stat):
+    # With a single sample, no branch can produce polymorphism, so no branches
+    # contribute. Branch statistics are sums over contributing branches, so
+    # every statistic is zero (an empty sum).
+    ts, positions = set_up_branch_mode_ts()
+    ld = ts.ld_matrix(sample_sets=[0], positions=positions, mode="branch", stat=stat)
+    np.testing.assert_(np.all(ld == 0))
+
+
+def test_branch_mode_two_way_r2_not_nan():
+    # Example from issue #3441: two-way r2 between disjoint sample sets.
+    ts, positions = set_up_branch_mode_ts()
+    ld = ts.ld_matrix(
+        sample_sets=[[0, 1, 2, 3], [4, 5]],
+        indexes=(0, 1),
+        positions=positions,
+        mode="branch",
+    )
+    np.testing.assert_(np.all(np.isfinite(ld)))
