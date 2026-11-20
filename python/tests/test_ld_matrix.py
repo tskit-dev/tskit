@@ -552,33 +552,34 @@ def compute_general_two_site_stat_result(
     norm = np.zeros(result_dim, np.float64)
     result_tmp = np.zeros(result_dim, np.float64)
 
+    weight_sum = np.zeros(result_dim, np.float64)
+    set_indexes = params["set_indexes"]
+
     # Below, use_row[m, k] (and likewise use_col) is True if allele m
     # contributes to result k. This mirrors the per-result setup in the C
-    # function compute_general_normed_two_site_stat_result, which checks if
-    # alleles at a site are carried by the samples in the sample set, and
-    # whether the site is monomorphic. For one-way statistics, only alleles
-    # carried by sample set k are used (the C code precomputes these counts
+    # function compute_general_normed_two_site_stat_result. Only alleles
+    # carried by the sample set(s) for result k are used: sample set k for
+    # one-way statistics, or both sample sets of the k-th index pair for two-way
+    # statistics (see allele_carried in C, which also precomputes these counts
     # once per site in get_num_carried_alleles). Polarised statistics skip the
-    # ancestral allele only when both sites vary within the sample set, so that
-    # monomorphic sites give nan for ratio statistics and zero otherwise.
-    # Two-way statistics use every allele.
-
-    use_row = np.ones((num_row_alleles, result_dim), dtype=bool)
-    use_col = np.ones((num_col_alleles, result_dim), dtype=bool)
-    if params["set_indexes"] is None:
-        # One-way statistics: mark which alleles at each site are carried by
-        # at least one sample in sample set k, then skip the ancestral allele
-        # (if polarised) only where both sites vary within the sample set.
-        for use, site_offset in [(use_row, row_site_offset), (use_col, col_site_offset)]:
-            for m, k in np.ndindex(use.shape):
-                allele_samples.intersect(
-                    int(site_offset + m), sample_sets, k, ss_A_samples
-                )
-                use[m, k] = ss_A_samples.count(0) > 0
-        both_sites_vary = (use_row.sum(axis=0) >= 2) & (use_col.sum(axis=0) >= 2)
-        skip_ancestral = bool(polarised) & both_sites_vary
-    else:
-        skip_ancestral = np.full(result_dim, bool(polarised))
+    # ancestral allele only when both sites have two or more such alleles, so
+    # that monomorphic sites give nan for ratio statistics and zero otherwise.
+    use = []
+    for site_offset, num_alleles in [
+        (row_site_offset, num_row_alleles),
+        (col_site_offset, num_col_alleles),
+    ]:
+        # carried[m, s] is True if allele m is carried by sample set s.
+        carried = np.zeros((num_alleles, state_dim), dtype=bool)
+        for m, s in np.ndindex(carried.shape):
+            allele_samples.intersect(int(site_offset + m), sample_sets, s, ss_A_samples)
+            carried[m, s] = ss_A_samples.count(0) > 0
+        if set_indexes is not None:
+            carried = np.array([carried[:, i] & carried[:, j] for i, j in set_indexes]).T
+        use.append(carried)
+    use_row, use_col = use
+    both_sites_vary = (use_row.sum(axis=0) >= 2) & (use_col.sum(axis=0) >= 2)
+    skip_ancestral = bool(polarised) & both_sites_vary
     use_row[0] &= ~skip_ancestral
     use_col[0] &= ~skip_ancestral
 
@@ -602,13 +603,19 @@ def compute_general_two_site_stat_result(
 
             func(state_dim, weights, result_dim, result_tmp, params)
 
+            norm_func(
+                result_dim, weights, num_row_alleles, num_col_alleles, norm, params
+            )
             for k in range(result_dim):
                 if use_row[mut_a, k] and use_col[mut_b, k]:
-                    # As in C, norm_func is called once per result, since the
-                    # number of alleles used can differ between results.
-                    n_a, n_b = use_row[:, k].sum(), use_col[:, k].sum()
-                    norm_func(result_dim, weights, n_a, n_b, norm, params)
                     result[k] += result_tmp[k] * norm[k]
+                    weight_sum[k] += norm[k]
+
+    # As in C, divide by the total weight of the allele pairs used, so that each
+    # result is a weighted average over those pairs (for uniform weighting, the
+    # mean over the allele pairs used).
+    with np.errstate(divide="ignore", invalid="ignore"):
+        result /= weight_sum
 
 
 def two_site_count_stat(
@@ -2551,6 +2558,26 @@ def test_multiallelic_site_becomes_monomorphic_in_subset(stat):
         np.testing.assert_(np.all(np.isnan(ld)))
     else:
         np.testing.assert_(np.all(ld == 0))
+
+
+@pytest.mark.parametrize("stat", ["r2", "D2"])
+@pytest.mark.parametrize(
+    "set_up_ts, sample_set",
+    [
+        (set_up_ts_with_ghost_allele, [0, 1, 2, 3]),
+        (set_up_star_ts_with_multiallelic_site, [0, 1]),
+    ],
+)
+def test_two_way_same_sample_set_matches_one_way(set_up_ts, sample_set, stat):
+    # With the same sample set passed twice, a two-way statistic should equal
+    # the one-way statistic for that sample set, including at sites with
+    # alleles that are not carried by the sample set.
+    ts = set_up_ts()
+    two_way = ts.ld_matrix(
+        sample_sets=[sample_set, sample_set], indexes=(0, 1), stat=stat
+    )
+    one_way = ts.ld_matrix(sample_sets=sample_set, stat=stat)
+    np.testing.assert_(np.all(np.isclose(two_way, one_way, equal_nan=True)))
 
 
 def set_up_branch_mode_ts():
