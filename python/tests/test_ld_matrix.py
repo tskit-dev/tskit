@@ -552,10 +552,39 @@ def compute_general_two_site_stat_result(
     norm = np.zeros(result_dim, np.float64)
     result_tmp = np.zeros(result_dim, np.float64)
 
-    polarised_val = 1 if polarised else 0
-    for mut_a in range(polarised_val, num_row_alleles):
+    # Below, use_row[m, k] (and likewise use_col) is True if allele m
+    # contributes to result k. This mirrors the per-result setup in the C
+    # function compute_general_normed_two_site_stat_result, which checks if
+    # alleles at a site are carried by the samples in the sample set, and
+    # whether the site is monomorphic. For one-way statistics, only alleles
+    # carried by sample set k are used (the C code precomputes these counts
+    # once per site in get_num_carried_alleles). Polarised statistics skip the
+    # ancestral allele only when both sites vary within the sample set, so that
+    # monomorphic sites give nan for ratio statistics and zero otherwise.
+    # Two-way statistics use every allele.
+
+    use_row = np.ones((num_row_alleles, result_dim), dtype=bool)
+    use_col = np.ones((num_col_alleles, result_dim), dtype=bool)
+    if params["set_indexes"] is None:
+        # One-way statistics: mark which alleles at each site are carried by
+        # at least one sample in sample set k, then skip the ancestral allele
+        # (if polarised) only where both sites vary within the sample set.
+        for use, site_offset in [(use_row, row_site_offset), (use_col, col_site_offset)]:
+            for m, k in np.ndindex(use.shape):
+                allele_samples.intersect(
+                    int(site_offset + m), sample_sets, k, ss_A_samples
+                )
+                use[m, k] = ss_A_samples.count(0) > 0
+        both_sites_vary = (use_row.sum(axis=0) >= 2) & (use_col.sum(axis=0) >= 2)
+        skip_ancestral = bool(polarised) & both_sites_vary
+    else:
+        skip_ancestral = np.full(result_dim, bool(polarised))
+    use_row[0] &= ~skip_ancestral
+    use_col[0] &= ~skip_ancestral
+
+    for mut_a in range(num_row_alleles):
         a = int(mut_a + row_site_offset)
-        for mut_b in range(polarised_val, num_col_alleles):
+        for mut_b in range(num_col_alleles):
             b = int(mut_b + col_site_offset)
             allele_samples.intersect(a, allele_samples, b, AB_samples)
             for k in range(state_dim):
@@ -573,17 +602,13 @@ def compute_general_two_site_stat_result(
 
             func(state_dim, weights, result_dim, result_tmp, params)
 
-            norm_func(
-                result_dim,
-                weights,
-                num_row_alleles - polarised_val,
-                num_col_alleles - polarised_val,
-                norm,
-                params,
-            )
-
             for k in range(result_dim):
-                result[k] += result_tmp[k] * norm[k]
+                if use_row[mut_a, k] and use_col[mut_b, k]:
+                    # As in C, norm_func is called once per result, since the
+                    # number of alleles used can differ between results.
+                    n_a, n_b = use_row[:, k].sum(), use_col[:, k].sum()
+                    norm_func(result_dim, weights, n_a, n_b, norm, params)
+                    result[k] += result_tmp[k] * norm[k]
 
 
 def two_site_count_stat(
