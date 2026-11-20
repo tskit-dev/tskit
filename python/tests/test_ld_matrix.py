@@ -1970,8 +1970,19 @@ def compute_branch_stat_update(
             weights[2, k] = w_B - w_AB  # w_aB
 
         stat_func(state_dim, weights, result_dim, result_tmp, params)
+        # As in the C function compute_two_tree_branch_state_update, only pairs of
+        # branches that can produce polymorphism contribute: each branch must
+        # subtend at least one, but not all, of the samples in sample set k
+        # (one-way), or in both sample sets of the k-th index pair (two-way).
+        n = np.asarray(params["sample_set_sizes"])
+        count_A = weights[0] + weights[1]
+        count_B = weights[0] + weights[2]
+        varies = (count_A > 0) & (count_A < n) & (count_B > 0) & (count_B < n)
+        if params["set_indexes"] is not None:
+            varies = [varies[i] and varies[j] for i, j in params["set_indexes"]]
         for k in range(result_dim):
-            result[k] += result_tmp[k] * a_len * b_len
+            if varies[k]:
+                result[k] += result_tmp[k] * a_len * b_len
 
 
 def compute_branch_stat(
