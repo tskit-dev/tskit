@@ -3173,6 +3173,21 @@ out:
     return ret;
 }
 
+// Returns true if both branches can produce polymorphism in sample set s, that is,
+// each branch subtends at least one, but not all, of the samples in the set. The
+// weights for sample set s are the counts of AB, Ab and aB samples.
+static bool
+branches_vary_in_set(
+    const double *weights, tsk_size_t s, const tsk_size_t *sample_set_sizes)
+{
+    const double *row = GET_2D_ROW(weights, 3, s);
+    double n = (double) sample_set_sizes[s];
+    double count_a = row[0] + row[1];
+    double count_b = row[0] + row[2];
+
+    return count_a > 0 && count_a < n && count_b > 0 && count_b < n;
+}
+
 static int
 compute_two_tree_branch_state_update(const tsk_treeseq_t *ts, tsk_id_t c,
     const iter_state *A_state, const iter_state *B_state, tsk_size_t state_dim,
@@ -3185,6 +3200,9 @@ compute_two_tree_branch_state_update(const tsk_treeseq_t *ts, tsk_id_t c,
     double *restrict B_branch_len = B_state->branch_len;
     double *weights_row;
     tsk_size_t n, k, a_row, b_row;
+    bool varies;
+    const tsk_id_t *set_indexes = f_params->set_indexes;
+    const tsk_size_t *sample_set_sizes = f_params->sample_set_sizes;
     const double *restrict A_branch_len = A_state->branch_len;
     const tsk_bitset_t *restrict A_state_samples = A_state->node_samples;
     const tsk_bitset_t *restrict B_state_samples = B_state->node_samples;
@@ -3219,7 +3237,20 @@ compute_two_tree_branch_state_update(const tsk_treeseq_t *ts, tsk_id_t c,
             goto out;
         }
         for (k = 0; k < result_dim; k++) {
-            result[k] += result_tmp[k] * a_len * b_len;
+            // Only pairs of branches that can produce polymorphism in the sample
+            // set(s) for result k contribute: sample set k for one-way statistics,
+            // or both sample sets of the k-th index pair for two-way statistics.
+            if (set_indexes == NULL) {
+                varies = branches_vary_in_set(weights, k, sample_set_sizes);
+            } else {
+                varies = branches_vary_in_set(
+                             weights, (tsk_size_t) set_indexes[2 * k], sample_set_sizes)
+                         && branches_vary_in_set(weights,
+                             (tsk_size_t) set_indexes[2 * k + 1], sample_set_sizes);
+            }
+            if (varies) {
+                result[k] += result_tmp[k] * a_len * b_len;
+            }
         }
     }
 out:
