@@ -14,6 +14,8 @@ In development
 
 - Apply ``node_labels`` to sequence alignments when exporting NEXUS.
   (:user:`rpinho`, :pr:`3514`)
+- Validate zero positions in VCF output using the converted Boolean
+  site mask. (:user:`rpinho`, :pr:`3512`)
 
 --------------------
 [1.0.4] - 2026-10-30
