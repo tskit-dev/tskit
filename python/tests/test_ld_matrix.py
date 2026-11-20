@@ -2618,13 +2618,13 @@ def test_branch_mode_subset_matches_simplified(stat):
 
 
 @pytest.mark.parametrize("stat", sorted(SUMMARY_FUNCS.keys()))
-def test_branch_mode_single_sample_is_nan(stat):
-    # With a single sample, there is no polymorphism (no branches we compute
-    # over!), so nothing is computed and every statistic is nan. <- This would
-    # be a breaking change but I think makes sense??
+def test_branch_mode_single_sample_is_zero(stat):
+    # With a single sample, no branch can produce polymorphism, so no branches
+    # contribute. Branch statistics are sums over contributing branches, so
+    # every statistic is zero (an empty sum).
     ts, positions = set_up_branch_mode_ts()
     ld = ts.ld_matrix(sample_sets=[0], positions=positions, mode="branch", stat=stat)
-    np.testing.assert_(np.all(np.isnan(ld)))
+    np.testing.assert_(np.all(ld == 0))
 
 
 def test_branch_mode_two_way_r2_not_nan():
