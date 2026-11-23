@@ -586,6 +586,9 @@ def compute_general_two_site_stat_result(
     for mut_a in range(num_row_alleles):
         a = int(mut_a + row_site_offset)
         for mut_b in range(num_col_alleles):
+            # Following the C code, skip pairs of alleles that no result uses.
+            if not np.any(use_row[mut_a] & use_col[mut_b]):
+                continue
             b = int(mut_b + col_site_offset)
             allele_samples.intersect(a, allele_samples, b, AB_samples)
             for k in range(state_dim):

@@ -2374,10 +2374,12 @@ typedef struct {
     double *weights;
     double *norm;
     double *result_tmp;
-    // For each result: whether to skip the ancestral allele, and the total
-    // weight of the allele pairs used.
+    // For each result, whether to skip calculation involving the ancestral allele
     bool *skip_ancestral;
+    // Running sum of the total weight over the allele pairs used
     double *weight_sum;
+    // For each result, whether the current pair of alleles is used
+    bool *pair_used;
     tsk_bitset_t AB_samples;
 } two_locus_work_t;
 
@@ -2393,9 +2395,11 @@ two_locus_work_init(tsk_size_t max_alleles, tsk_size_t num_samples,
         = tsk_malloc(result_dim * max_alleles * max_alleles * sizeof(*out->result_tmp));
     out->skip_ancestral = tsk_malloc(result_dim * sizeof(*out->skip_ancestral));
     out->weight_sum = tsk_malloc(result_dim * sizeof(*out->weight_sum));
+    out->pair_used = tsk_malloc(result_dim * sizeof(*out->pair_used));
     tsk_memset(&out->AB_samples, 0, sizeof(out->AB_samples));
     if (out->weights == NULL || out->norm == NULL || out->result_tmp == NULL
-        || out->skip_ancestral == NULL || out->weight_sum == NULL) {
+        || out->skip_ancestral == NULL || out->weight_sum == NULL
+        || out->pair_used == NULL) {
         ret = tsk_trace_error(TSK_ERR_NO_MEMORY);
         goto out;
     }
@@ -2415,13 +2419,15 @@ two_locus_work_free(two_locus_work_t *work)
     tsk_safe_free(work->result_tmp);
     tsk_safe_free(work->skip_ancestral);
     tsk_safe_free(work->weight_sum);
+    tsk_safe_free(work->pair_used);
     tsk_bitset_free(&work->AB_samples);
 }
 
-// Returns true if an allele is carried by the sample set(s) used for result k:
-// sample set k for one-way statistics, or both sample sets of the k-th index
-// pair for two-way statistics. Alleles that are not carried are not used, so
-// that samples outside the sample set(s) do not affect the result.
+// Returns true if an allele is carried by the sample set(s) used for result
+// indexed by k, i.e. whether allele is seen in sample set k for one-way
+// statistics or in both sample sets of the k-th index pair for two-way
+// statistics. Alleles that are not carried are not used, so that alleles
+// carried only by samples outside the sample set(s) do not affect the result.
 static bool
 allele_carried(const tsk_size_t *allele_counts, tsk_size_t allele_offset, tsk_size_t k,
     const tsk_id_t *set_indexes)
@@ -2458,14 +2464,16 @@ compute_general_normed_two_site_stat_result(const tsk_bitset_t *state,
     double *restrict result_tmp = work->result_tmp;
     bool *restrict skip_ancestral = work->skip_ancestral;
     double *restrict weight_sum = work->weight_sum;
+    bool *restrict pair_used = work->pair_used;
+    bool any_pair_used;
     tsk_bitset_t AB_samples = work->AB_samples;
 
-    // Only alleles carried by the sample set(s) for each result are used (see
-    // allele_carried). If either site has fewer than two such alleles (e.g., it
+    // Only alleles carried by the sample set(s) for each result are used (from
+    // allele_carried). If either site has fewer than two such alleles (i.e., it
     // is monomorphic in the sample set), we keep the ancestral allele even for
     // polarised statistics, so that the summary function is evaluated on the
-    // fixed allele: this gives nan for ratio statistics (0 / 0) and zero for all
-    // others.
+    // fixed allele: this gives nan for ratio statistics r2, r and D_prime
+    // (0 / 0) and zero for all others.
     for (k = 0; k < result_dim; k++) {
         skip_ancestral[k] = polarised && num_a_carried[k] >= 2 && num_b_carried[k] >= 2;
         weight_sum[k] = 0;
@@ -2474,6 +2482,26 @@ compute_general_normed_two_site_stat_result(const tsk_bitset_t *state,
     for (mut_a = 0; mut_a < num_a_alleles; mut_a++) {
         result_tmp_row = GET_2D_ROW(result_tmp, result_row_len, mut_a);
         for (mut_b = 0; mut_b < num_b_alleles; mut_b++) {
+            // For each result, check whether this pair of alleles is used. Both
+            // alleles must be carried by the sample set(s) for that result, and
+            // neither can be the ancestral allele if it is skipped for that result.
+            any_pair_used = false;
+            for (k = 0; k < result_dim; k++) {
+                pair_used[k] = allele_carried(allele_counts, a_off + (mut_a * state_dim),
+                                   k, set_indexes)
+                               && allele_carried(allele_counts,
+                                   b_off + (mut_b * state_dim), k, set_indexes)
+                               && !(skip_ancestral[k] && (mut_a == 0 || mut_b == 0));
+                any_pair_used = any_pair_used || pair_used[k];
+            }
+            // The summary function computes all results at once, so we skip
+            // the haplotype counts and summary function if no result uses this
+            // pair of alleles, avoiding the bitset operation and summary function
+            // calculation.
+            if (!any_pair_used) {
+                result_tmp_row += result_dim;
+                continue;
+            }
             for (k = 0; k < state_dim; k++) {
                 tsk_bitset_intersect(state, a_off + (mut_a * state_dim) + k, state,
                     b_off + (mut_b * state_dim) + k, &AB_samples);
@@ -2494,15 +2522,10 @@ compute_general_normed_two_site_stat_result(const tsk_bitset_t *state,
                 goto out;
             }
             for (k = 0; k < result_dim; k++) {
-                if (!allele_carried(
-                        allele_counts, a_off + (mut_a * state_dim), k, set_indexes)
-                    || !allele_carried(
-                        allele_counts, b_off + (mut_b * state_dim), k, set_indexes)
-                    || (skip_ancestral[k] && (mut_a == 0 || mut_b == 0))) {
-                    continue;
+                if (pair_used[k]) {
+                    result[k] += result_tmp_row[k] * norm[k];
+                    weight_sum[k] += norm[k];
                 }
-                result[k] += result_tmp_row[k] * norm[k];
-                weight_sum[k] += norm[k];
             }
             result_tmp_row += result_dim; // Advance to the next column
         }
@@ -3237,9 +3260,10 @@ compute_two_tree_branch_state_update(const tsk_treeseq_t *ts, tsk_id_t c,
             goto out;
         }
         for (k = 0; k < result_dim; k++) {
-            // Only pairs of branches that can produce polymorphism in the sample
-            // set(s) for result k contribute: sample set k for one-way statistics,
-            // or both sample sets of the k-th index pair for two-way statistics.
+            // Only pairs of branches that can produce polymorphism in the
+            // sample set(s) for result k contribute, where k indexes a single
+            // sample set for one-way statistics, or k indexes a pair of sample
+            // sets for two-way statistics.
             if (set_indexes == NULL) {
                 varies = branches_vary_in_set(weights, k, sample_set_sizes);
             } else {
