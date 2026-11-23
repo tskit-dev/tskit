@@ -940,11 +940,13 @@ ts.ld_matrix(sample_sets=[[0, 1, 2, 3], [4, 5, 6, 7]], indexes=[(0, 1)]) # -> 3 
 
 #### Alleles and branches not seen in a sample set
 
-Alleles and branches that are not observed in a sample set do not affect the LD
-computed for that sample set. For example, LD computed for a subset of samples
-gives the same values as LD computed after simplifying the tree sequence to
-those samples. In the next example, allele `T` is carried only by sample 2, so
-it is not used when computing LD among samples 0 and 1:
+Alleles that are not observed in a sample set (or branches on which mutation
+would produce such alleles) should not affect the LD computed for that sample
+set. For example, we expect LD computed for a subset of samples to give the
+same value as LD computed after simplifying the tree sequence to those samples.
+As shown in the next example, allele `T` is carried only by sample 2, so it is
+not used when computing LD among samples 0 and 1, and we expect equivalent
+results:
 
 ```{code-cell} ipython3
 import tskit
@@ -959,11 +961,11 @@ print(example_ts.simplify([0, 1]).ld_matrix())
 ```
 
 In the `"site"` mode, we only use alleles that are carried by at least one
-sample in the sample set (or by both sample sets, for two-way statistics). If
+sample in the sample set (or in both sample sets, for two-way statistics). If
 either site is monomorphic in the sample set, ratio statistics (including
-{math}`r` and {math}`r^2`) are `nan`, since their denominator is zero, and all
-other statistics are zero. A site can be monomorphic in a sample set for
-a number of reasons:
+{math}`r` and {math}`r^2`) are `nan`, since their denominator is zero. All
+non-ratio statistics are zero with a monomorphic site. A site can be
+monomorphic in a sample set for a number of reasons, including:
 
 - Some mutation models allow for reversible mutations, so a back mutation at
   a site can result in a single allele despite multiple mutations in the
